@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; running 3-P, 3-Q (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; running 3-P, 3-Q, 3-T (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -269,6 +269,11 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-521 | review 3-M | Med | dom (hydration) | A user hook with both `insert` and `postpatch` is adopted: `insert` never runs (chart never initialised). Recreate when the user's hook has `insert` | → 3-Q |
 | G-522 | review 3-M | Med | dom (fragments) | Keyed fragments never reorder: a Collection whose item returns `<>…</>` keeps DOM order on reverse; added items land wrong (snabbdom moves the empty DocumentFragment). Pre-existing, fresh render too | → 3-Q |
 | G-523 | review 3-M | Low | dom (hydration) | Server `open` stays when the client omits the key conditionally (`{...(isOpen && {open: true})}`) | → 3-Q |
+| G-524 | review 3-N | Med | ui/dialog | The synthetic `close` after a failed `showModal()` carries the previous close's `returnValue` (`'confirm'` reported twice; host close handlers rerun destructive actions) and fires every `close` listener for a dialog never shown. Reset state without a DOM `close`, or clear `returnValue`. Confirmed | → 3-T |
+| G-525 | review 3-N | Med | virtual | G-502 clamp `vh * offsetHeight / rect.height` explodes under a small ancestor `transform: scale()` (scale 0.02 → 943 rows) and never recovers (no RO for transforms). Cap the ratio or apply for CSS zoom only. Confirmed | → 3-T |
+| G-526 | review 3-N | Low | virtual / docs | The CSSOM restore reserializes ancestors' `style` attributes (normalised text, unparsed vendor declarations dropped). Document | → 3-T |
+| G-527 | review 3-N | Low | diagnostics | SYG149 starves under View Transition patches < 50 ms apart (each bumps the generation before the retry). Plausible | → 3-T |
+| G-528 | review 3-N | Low | tests | `currentTest` never cleared: allowlisted errors between tests count for the previous test | → 3-T |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -311,6 +316,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-O: G-511…G-516 (no high). D219 (restore only the drag's own array). 3-P started.
 - 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517. Gates after 3-M: all green (vitest 3,515, browser 331/330/330, recipes 17×3, perf-gate --runs=3 ok, core 42,141 B).
 - 2026-10-05 — 3-N merged (clean); gates all green (vitest 3,537, browser 336/335/335, recipes 17×3, core 42,141 B). Review of 3-M: G-518…G-523 (one high: stale fragment bounds after hydration stop the app updating; snabbdom fragment limits also cause G-517, G-522). 3-Q started (fragments design + hydration fixes).
+- 2026-10-05 — Review of 3-N: G-524…G-528 (no high). 3-T started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
