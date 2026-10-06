@@ -3,7 +3,7 @@
 // (rv3q a, b, f: the guard; c: keyed fragment perf; d: derived keys; e: renderComponent) are the
 // cases below.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { run, Portal, Transition, Collection, defineWidget } from '../src/index.js'
+import { run, renderToString, Portal, Transition, Collection, defineWidget } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.ts'
 import { Fragment } from '../src/cycle/dom/fragment.ts'
@@ -133,6 +133,33 @@ describe('G-537 (D223): a patch error goes to run({ onError }) with phase \'patc
     armed = true
     await click('.b')
     expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: hook'])
+  })
+})
+
+describe('G-542: form on a custom element is an attribute only when it is a string', () => {
+  it('an object form stays a prop; a string one is an attribute (G-519); built-in tags unchanged', () => {
+    const cfg = { fields: ['a'] }
+    const d = h('p5v-form', { form: cfg }).data
+    expect(d.props).toEqual({ form: cfg })
+    expect(d.attrs).toBeUndefined()
+    expect(h('p5v-form', { form: 'signup' }).data.attrs).toEqual({ form: 'signup' })
+    // the same key, routed per value (the route cache is per key)
+    expect(h('p5v-form', { form: cfg }).data.props).toEqual({ form: cfg })
+    expect(h('input', { form: 'signup' }).data.attrs).toEqual({ form: 'signup' })
+  })
+
+  it('renderToString writes no form="[object Object]"; the client sets the property', async () => {
+    const cfg = { fields: ['a'] }
+    function App() { return h('main', null, h('p5v-form', { form: cfg }), h('p5v-form', { className: 's', form: 'f1' })) }
+    App.initialState = {}
+    const html = renderToString(App)
+    expect(html).not.toContain('[object Object]')
+    expect(html).toContain('form="f1"')
+    await mount(App)
+    const [a, b] = document.querySelectorAll('p5v-form')
+    expect(a.form).toBe(cfg)
+    expect(a.hasAttribute('form')).toBe(false)
+    expect(b.getAttribute('form')).toBe('f1')
   })
 })
 
