@@ -152,6 +152,15 @@ export function renderMarkdown({ meta, agg, records, tracker, skill, docs = null
     }
   P(table(['Arm', 'Cause / catalog ID', 'Episodes', 'Total s', 's per episode', 'Runs to green', 'Never green', 's per trial (arm)'], epRows))
   P()
+  const fc = agg.failureCategories ?? { sygnal: {}, react: {} }
+  const fcRows = []
+  for (const arm of ['sygnal', 'react']) for (const [c, e] of Object.entries(fc[arm])) fcRows.push([arm, c, e.manual, e.auto, e.trials.join(', ')])
+  if (fcRows.length) {
+    P('Failed trials by category (run.md step 5). `manual`: set with `score.mjs --classify`; `auto`: from the sygnal-check findings left in the final code (lib/failure.mjs: SYG104 isolation; SYG101/102/105/110/124/401/410/643 wiring; SYG202/221/222 reducer-shape; SYG301 stream-operator; none: other). Auto categories are suggestions, not written to the results:')
+    P()
+    P(table(['Arm', 'Category', 'Manual', 'Auto', 'Trials'], fcRows))
+    P()
+  }
 
   // ---- skill
   P('## Skill and docs usage (Sygnal arm)')
@@ -159,6 +168,9 @@ export function renderMarkdown({ meta, agg, records, tracker, skill, docs = null
   const st = agg.skill
   P(`- Skill tool invoked in **${st.skillInvoked} / ${st.sygnalTrials}** Sygnal trials. Skill text read per trial (incl. the injected SKILL.md): ${mm(st.skillBytes)} bytes (mean / median).`)
   for (const [f, e] of Object.entries(st.files)) P(`- \`${f}\` (${e.fileLines} lines): read in ${e.trials} trials, ${mm(e.linesSeen)} lines seen (mean / median); access: ${Object.entries(e.how).map(([h, n]) => `${h} ×${n}`).join(', ')}.`)
+  const os = agg.otherSkills ?? { sygnal: {}, react: {} }
+  const osText = ['sygnal', 'react'].map((a) => Object.entries(os[a]).map(([n, k]) => `\`${n}\` ${k} (${a})`).join(', ')).filter(Boolean).join('; ')
+  if (osText) P(`- Other skills invoked (the CLI's bundled ones; not counted as skill reads or learn time), trials: ${osText}.`)
   P(`- Reading framework source/docs under \`node_modules\`: Sygnal ${st.libraryReaders.sygnal}/${st.sygnalTrials} trials (${mm(st.libraryBytes.sygnal)} bytes), React ${st.libraryReaders.react}/${(agg.overall.react?.n ?? 0)} trials (${mm(st.libraryBytes.react)} bytes).`)
   P()
   const lt = agg.overallShared.sygnal?.learn ?? agg.overall.sygnal?.learn ?? {}

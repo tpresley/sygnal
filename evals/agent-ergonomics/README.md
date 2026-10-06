@@ -221,7 +221,7 @@ Each record in `results/<run>.json`:
 | `model` / `method` | the model id the trial ran on, and `headless` or `subagent`. |
 | `variant` / `variantHash` | the run variant (`orchestrate.mjs --variant`) and the 12-hex hash of its resolved spec (skill and overlay content, build, prompt, MCP, model, effort); absent for runs without a variant. |
 | `starterVersion` | the starter version the trial was prepared with (`lib/starter.mjs`; "Starter versions" above): 2 = Sygnal arm with sygnal-check + AGENTS.md, 1 = bare starters. Absent in records scored before PLAN-2 4-E, which are all starter 1. |
-| `failureCategory` | the root cause of a failed trial (`wiring`, `isolation`, `reducer-shape`, `stream-operator`, `other`), or `none` for a pass. A human or the coordinator sets it with `--category` / `--classify`; definitions are in run.md step 5. Automatic classification is a TODO in `score.mjs`. |
+| `failureCategory` | the root cause of a failed trial (`wiring`, `isolation`, `reducer-shape`, `stream-operator`, `other`), or `none` for a pass. A human or the coordinator sets it with `--category` / `--classify`; definitions are in run.md step 5. `analysis/analyze.mjs` adds a suggestion per failed trial (`failureAuto`: the manual category, else one derived from the sygnal-check findings left in the final code, `analysis/lib/failure.mjs`) and counts both in its report; it never writes back to the results. |
 
 `transcript-stats.mjs` computes `iterations`, `editRounds` and `wallSeconds` from the agent's JSONL transcript, so the counts are applied the same way in both runs.
 

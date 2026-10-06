@@ -216,6 +216,25 @@ export function skillTable(records) {
   }
 }
 
+/** PLAN-5 4-D: failed trials by category ({ arm: { category: { manual, auto } } }), and other skills used. */
+export function failureCategoryTable(records) {
+  const out = { sygnal: {}, react: {} }
+  for (const r of records) {
+    const f = r.failureAuto
+    if (!f || !out[r.arm]) continue
+    const e = (out[r.arm][f.category] ??= { manual: 0, auto: 0, trials: [] })
+    e[f.source === 'manual' ? 'manual' : 'auto']++
+    e.trials.push(r.trial)
+  }
+  return out
+}
+
+export function otherSkillTable(records) {
+  const out = { sygnal: {}, react: {} }
+  for (const r of records) for (const n of new Set(r.skill?.otherSkills ?? [])) if (out[r.arm]) out[r.arm][n] = (out[r.arm][n] ?? 0) + 1
+  return out
+}
+
 export function canonicalTable(records) {
   const sy = records.filter((r) => r.arm === 'sygnal' && r.canonical)
   const keys = Object.keys(sy[0]?.canonical ?? {})
@@ -286,6 +305,8 @@ export function aggregate(records, { tracker = {} } = {}) {
     skill: skillTable(records),
     canonical: canonicalTable(records),
     failures: failureTable(records),
+    failureCategories: failureCategoryTable(records),
+    otherSkills: otherSkillTable(records),
   }
 }
 

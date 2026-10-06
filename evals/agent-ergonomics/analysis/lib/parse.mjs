@@ -1,5 +1,7 @@
 // Parse a Claude Code agent transcript (JSONL) into a flat, time-ordered model:
-//   { firstTs, lastTs, calls[], events[], usage, finalReport, skillInvoked }
+//   { firstTs, lastTs, calls[], events[], usage, finalReport, skillInvoked, otherSkills }
+// (skillInvoked: the Sygnal skill was loaded; otherSkills: names of other Skill calls, e.g. the
+// CLI's bundled `run`, in call order: PLAN-5 4-D)
 //
 // - calls: one per tool_use block, deduplicated by id, with its result attached
 //   ({ id, name, input, ts, msgId, result: { ts, text, isError } | null }).
@@ -14,6 +16,7 @@
 //   timestamp starts the clock, like the prompt line of a subagent log.
 // - usage: summed over unique assistant messages (the last line of a message
 //   carries its final usage).
+import { isSygnalSkillCall, skillNameOf } from './skill.mjs'
 import fs from 'node:fs'
 
 /** Flatten a tool_result content (string | blocks[]) into text. */
@@ -43,6 +46,7 @@ export function parseTranscriptLines(lines) {
   let lastTs = null
   let lastAssistantText = null
   let skillInvoked = false
+  const otherSkills = []
   let skillInjectedBytes = 0
   let n = 0
   let init = null
@@ -90,7 +94,8 @@ export function parseTranscriptLines(lines) {
           calls.set(block.id, call)
           msgHasTool.add(msgId)
           events.push({ ts, seq, kind: 'call', callId: block.id, msgId })
-          if (block.name === 'Skill') skillInvoked = true
+          if (isSygnalSkillCall(call)) skillInvoked = true
+          else if (block.name === 'Skill') otherSkills.push(skillNameOf(call))
         } else if (block?.type === 'text' && block.text?.trim()) {
           events.push({ ts, seq, kind: 'text', msgId, text: block.text })
           lastAssistantText = block.text
@@ -110,7 +115,7 @@ export function parseTranscriptLines(lines) {
             const res = { ts, text, isError: !!block.is_error, stdout: tur?.stdout, stderr: tur?.stderr }
             if (call && !call.result) call.result = res
             events.push({ ts, seq, kind: 'result', callId: block.tool_use_id })
-          } else if (block?.type === 'text' && /^Base directory for this skill:/.test(block.text ?? '')) {
+          } else if (block?.type === 'text' && /^Base directory for this skill:[^\n]*sygnal/i.test(block.text ?? '')) {
             skillInjectedBytes += Buffer.byteLength(block.text)
           }
         }
@@ -155,5 +160,5 @@ export function parseTranscriptLines(lines) {
     }
   }
 
-  return { firstTs, lastTs, calls: callList, events, usage, finalReport, skillInvoked, skillInjectedBytes, headless }
+  return { firstTs, lastTs, calls: callList, events, usage, finalReport, skillInvoked, otherSkills, skillInjectedBytes, headless }
 }
