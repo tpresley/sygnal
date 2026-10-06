@@ -16,12 +16,13 @@
 import {pres} from '../registry'
 import {init as snabbdomInit} from '../../cycle/dom/snabbdom'
 import defaultModules from '../../cycle/dom/modules'
-import {pokeDOM} from '../../cycle/dom/utils'
+import {pokeDOM, flat} from '../../cycle/dom/utils'
 import {warn} from '../../extra/diagnostics/legacy'
 
 let patch: any
 const notFound = (target: string) => warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
-const box = (children: any[]) => ({sel: 'div', data: {}, children, text: undefined, elm: undefined, key: undefined})
+// (fragments among the children are flattened, as the DOM driver does)
+const box = (children: any[]) => flat({sel: 'div', data: {}, children, text: undefined, elm: undefined, key: undefined})
 
 interface PortalState { v: any; kids: any[]; pv: any; c: any; t: any; dead: boolean }
 

@@ -5,15 +5,14 @@ import {viewTransition$} from '../cycle/dom/viewTransition';
 
 /**
  * PLAN-4 GS-12 (D129): a DOM driver that can patch inside `document.startViewTransition()`.
- * It is `makeDOMDriver(mountPoint, options)` with the same defaults as run()'s own DOM driver
- * (fragments on), plus the hook: the patch caused by an action listed in a component's
+ * It is `makeDOMDriver(mountPoint, options)`, as run()'s own DOM driver, plus the hook: the patch caused by an action listed in a component's
  * `viewTransitions` static (`Board.viewTransitions = ['MOVE']`, `App.viewTransitions = ['ROUTE']`)
  * runs as a View Transition. Opt-in, so the hook costs nothing in apps that don't import it.
  *
  *     run(App, { DOM: makeViewTransitionDOMDriver('#root') })
  */
 export function makeViewTransitionDOMDriver(mountPoint: string | Element | DocumentFragment = '#root', options: DOMDriverOptions = {}) {
-  const inner: any = makeDOMDriver(mountPoint, {...options, snabbdomOptions: {experimental: {fragments: true}, ...options.snabbdomOptions}} as any);
+  const inner: any = makeDOMDriver(mountPoint, options);
   return (vnode$: Stream<VNode>, name?: string) => {
     let source: any;
     // the flags live on the driver's IsolateModule (the core sets `vt` there; it is per app),

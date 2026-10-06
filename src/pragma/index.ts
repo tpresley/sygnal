@@ -89,11 +89,16 @@ const svgTags: Record<string, number> = {
 export const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
+  // G-485 / G-521: a chained hook function is marked `s` (hydration adopts an element whose
+  // chained insert has a postpatch: a ref, autoFocus, a widget); `u`, an insert hook of the
+  // user's own under it (its element is made again so that insert runs, as an unchained one is)
+  if (existing.insert && !existing.insert.s) hook.u = 1
   for (const name in hooks) {
-    hook[name] = (...args: any[]) => {
+    const f: any = hook[name] = (...args: any[]) => {
       if (existing[name]) existing[name](...args)
       hooks[name](...args)
     }
+    f.s = 1
   }
   data.hook = hook
 }
@@ -241,9 +246,6 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
     else if (b) bucket(out, b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
     else out[key] = val
   }
-  // G-485 / G-521: `u`, the user's own insert hook (hydration makes its element again so it runs;
-  // Sygnal's ref / autoFocus hooks, chained after it, keep the copy's flag)
-  if (out.hook?.insert) out.hook = { ...out.hook, u: 1 }
   const props = out.props
   if (props && (props.autoFocus || props.autoSelect)) applyFocusProps(out)
   if (data.ref) applyRefProps(out, data.ref)

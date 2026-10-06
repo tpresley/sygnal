@@ -190,7 +190,7 @@ type EventsSource = Stream<Event> & {
 ```typescript
 type RunOptions = {
   mountPoint?: string
-  fragments?: boolean
+  fragments?: boolean  // no effect since 6.0 (fragments always work)
   useDefaultDrivers?: boolean
   diagnostics?: DiagnosticsMode | DiagnosticsOptions
 }

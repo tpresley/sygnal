@@ -10,6 +10,7 @@ interface RunDiagnosticsOptions extends DiagnosticsOptions {
 
 interface RunOptions {
   mountPoint?: string;
+  /** @deprecated No effect since 6.0 (3-Q): fragments always work (the DOM driver flattens them) */
   fragments?: boolean;
   useDefaultDrivers?: boolean;
   /** Diagnostics mode (or mode + ignore list + strict). Overrides globalThis.__SYGNAL_DEV__. */

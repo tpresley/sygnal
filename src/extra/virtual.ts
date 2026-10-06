@@ -397,7 +397,8 @@ export class VirtualHost extends CollectionHost {
       // (the mock DOM's command check: these methods are the container's)
       vc: {commands: {scrollToIndex: 1, scrollToId: 1}},
       hook: {
-        insert: (y: any) => this.attach(y.elm),
+        // (`s`: Sygnal's own, so hydration adopts the container: postpatch attaches it, G-521)
+        insert: Object.assign((y: any) => this.attach(y.elm), {s: 1}),
         // G-424: a row element the patch moves (a reorder) loses the focus in every engine: the
         // element in the list that had it gets it back when it is still on the page and the
         // focus went nowhere
