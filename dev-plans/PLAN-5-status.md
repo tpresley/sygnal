@@ -391,7 +391,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 4-R merged (G-555 fixed in router/replies; eval verify 282/282). G-562 (Firefox full-run hang), G-563 (backlog).
 - 2026-10-05 — 4-I merged (G-556…G-561; core 42,584 B). User: D230 (budget 42,700 B). Firefox full run 358/358 twice on integration (G-562 not reproduced). Gates after 4-I all green (vitest 3,742, browser 360/359/359, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,584 B / 42,700 B).
 - 2026-10-05 — Review of 4-I/4-R: G-564, G-565 (medium), G-566, G-567. 4-J started; eval runs wait.
-- 2026-10-05 — 4-J merged (G-563…G-567; eval verify 282/282; core 42,664 B / 42,700 B, +80 B accepted by the coordinator within D230). Behaviour: nested route declarers get each route in the same flush (one patch per navigation). G-568, G-569 backlog.
+- 2026-10-05 — 4-J merged (G-563…G-567; eval verify 282/282; core 42,664 B / 42,700 B, +80 B accepted by the coordinator within D230). Behaviour: nested route declarers get each route in the same flush (one patch per navigation). G-568, G-569 backlog. Gates after 4-J all green (vitest 3,755, browser 362/361/361, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,664 B).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
