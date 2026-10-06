@@ -184,9 +184,10 @@ function rendered(el: any): boolean {
  * Collections with the same prefix (the same id shown in two of them): the browser skips the
  * whole View Transition. Walks the vnode tree (dev only, while a named Collection is mounted);
  * G-460: a name found twice is checked on the DOM after the patch (a microtask later; when a View
- * Transition defers the patch, again a little later): only rendered elements count
+ * Transition defers the patch, again a little later): only rendered elements count. Returns the
+ * groups of vnodes with one name (none: an empty list)
  */
-function vtDuplicates(root: any, prefixes: Set<string>, live: () => any): void {
+function vtDuplicates(root: any, prefixes: Set<string>): any[][] {
   const seen = new Map<string, any[]>(), dup: any[][] = []
   const stack = [root]
   while (stack.length) {
@@ -200,17 +201,41 @@ function vtDuplicates(root: any, prefixes: Set<string>, live: () => any): void {
     }
     if (Array.isArray(v.children)) for (let i = v.children.length; i--;) stack.push(v.children[i])
   }
-  if (dup.length) queueMicrotask(() => vtRendered(root, dup, 0, live))
+  return dup
 }
 
-function vtRendered(root: any, dup: any[][], tries: number, live: () => any): void {
-  // G-501: not once the app (or every named Collection) is gone, or a newer patch is checked
-  if (!live()) return
-  // the patch of `root` has run when it has its element (a View Transition patches in its update
-  // callback, after this microtask; kept vnodes have their old elements before that). G-501: one
-  // that never gets it (the mock DOM, a vnode a View Transition replaced before patching) isn't
-  // checked on those old elements: the retries stop
-  if (!root.elm) return void (tries < 10 && setTimeout(() => vtRendered(root, dup, tries + 1, live), 50))
+/**
+ * G-527: the patches waiting for their SYG149 check ([root vnode, duplicate groups], newest last,
+ * at most 8) and one chain of checks over them: a microtask after the first, then every 50 ms
+ * while some wait. The patch of a root has run when it has its element (a View Transition patches
+ * in its update callback, and replaces a held vnode it hasn't patched yet; kept vnodes have their
+ * old elements before that): each check takes the newest patch that ran and drops it and the older
+ * ones. A newer patch joins the queue and doesn't restart the chain, so patches closer than 50 ms
+ * (View Transitions back to back) can't starve it. A patch without duplicates joins only a queue
+ * that waits (once it has run, the older ones are moot). G-501: the chain stops once the app (or
+ * every named Collection) is gone, and after 10 tries without a patched root (the mock DOM; a root
+ * that never gets its element isn't checked on its children's old elements)
+ */
+function vtChecker(live: () => any) {
+  let q: any[][] = [], busy = false, tries = 0
+  const vtRendered = (): void => {
+    if (!live()) { q = []; busy = false; return }
+    let i = q.length
+    while (i-- && !q[i][0].elm);
+    if (i >= 0) { vtReport(q[i][1]); q = q.slice(i + 1); tries = 0 }
+    else tries++
+    if (!q.length || tries > 10) { q = []; busy = false; return }
+    setTimeout(vtRendered, 50)
+  }
+  return (root: any, dup: any[][]) => {
+    if (!dup.length && !q.length) return
+    q.push([root, dup])
+    if (q.length > 8) q.shift()
+    if (!busy) { busy = true; tries = 0; queueMicrotask(vtRendered) }
+  }
+}
+
+function vtReport(dup: any[][]): void {
   for (const g of dup) {
     const v = g[0], st = v.data.style, n = st.viewTransitionName
     if (g.filter(x => rendered(x.elm)).length < 2 || !once(`SYG149:${n}`)) continue
@@ -244,9 +269,9 @@ export function nextHooks(_api: any): any {
   // G-419: the viewTransitionName prefixes this app's Collections use; G-460: per instance that
   // renders them, so the SYG149 walk stops once every one of them is disposed
   const vtp = new Map<any, Set<string>>()
-  // G-501: the latest patch checked (an older one's retries stop; so do they once every instance
+  // G-527: one chain of SYG149 checks over the latest patches (G-501: it stops once every instance
   // that renders a named Collection is disposed, the app's dispose included)
-  let vtGen = 0
+  const vtCheck = vtChecker(() => vtp.size && on())
   return {
     onCreate(iv: any) {
       if (!on()) return
@@ -325,8 +350,7 @@ export function nextHooks(_api: any): any {
       if (!vtp.size || !on()) return
       const all = new Set<string>()
       for (const s of vtp.values()) for (const p of s) all.add(p)
-      const g = ++vtGen
-      try { vtDuplicates(vnode, all, () => g == vtGen && vtp.size && on()) } catch (_) { /* a check never breaks the app */ }
+      try { vtCheck(vnode, vtDuplicates(vnode, all)) } catch (_) { /* a check never breaks the app */ }
     },
     onDuplicateKey(owner: any, key: any) {
       if (!on()) return

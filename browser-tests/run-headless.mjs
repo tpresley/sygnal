@@ -11,6 +11,7 @@
 import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
 import * as playwright from 'playwright';
+import { consoleAllowlist } from './console-allowlist.mjs';
 
 const ENGINE = process.env.BROWSER || 'chromium';
 if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
@@ -26,7 +27,8 @@ const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
  * Console errors the error-path tests provoke on purpose (G-076). Each entry
  * names the test that causes it (`test`: its runTest name, exactly); a message
  * must arrive while that test runs (G-503: the harness reports each test's start
- * through window.__pwTest) and match every regex of the entry. These are counted
+ * through window.__pwTest; G-528: and its end, so nothing between tests matches)
+ * and match every regex of the entry. These are counted
  * and summarised, not printed. Any other console error (or uncaught page error)
  * fails the run, so new errors can't hide among them.
  */
@@ -45,11 +47,8 @@ const EXPECTED_CONSOLE_ERRORS = [
     match: [/Unexpected duplicate view-transition-name: p53n-/] },
 ];
 
-/** G-503: the runTest name of the test running (the last one started) */
-let currentTest = null;
-function expectedEntry(text) {
-  return EXPECTED_CONSOLE_ERRORS.find(e => e.test === currentTest && e.match.every(re => re.test(text)));
-}
+/** G-503: the runTest name of the test running (G-528: null between tests) */
+const allowlist = consoleAllowlist(EXPECTED_CONSOLE_ERRORS);
 
 /**
  * Ask the OS for a free port. Vite treats `port: 0` as "use the default
@@ -97,7 +96,7 @@ async function run() {
     page.on('console', msg => {
       if (msg.type() !== 'error') return;
       const text = msg.text();
-      const entry = expectedEntry(text);
+      const entry = allowlist.expected(text);
       if (entry) expectedSeen.set(entry, (expectedSeen.get(entry) || 0) + 1);
       else consoleMsgs.push(`[console.error] ${text}`);
     });
@@ -105,8 +104,9 @@ async function run() {
       consoleMsgs.push(`[uncaught] ${err.stack || err.message}`);
     });
 
-    // G-503: the harness names each test as it starts (the console allowlist is per test)
-    await page.exposeFunction('__pwTest', (name) => { currentTest = name; });
+    // G-503: the harness names each test as it starts (the console allowlist is per test);
+    // G-528: null when it ends
+    await page.exposeFunction('__pwTest', (name) => { allowlist.start(name); });
 
     // G-146: real keyboard input for the tests (typed by Playwright at full speed)
     await page.exposeFunction('__pwType', (selector, text, delay) =>

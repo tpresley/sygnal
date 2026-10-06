@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 // PLAN-5 3-N G-501: SYG149 checks the DOM after the patch, retrying (50 ms, up to 10 times) while
 // the patched root vnode has no element yet (a View Transition patches in its update callback).
-// The retries stop once the app is disposed, and when a newer patch is checked (a vnode a View
-// Transition replaced before patching never gets an element); a root that never gets one isn't
-// checked on its children's old elements.
+// The retries stop once the app is disposed, and after 10 (3-T G-527: one chain for every patch,
+// which a newer patch joins rather than restarts; a vnode a View Transition replaced before
+// patching never gets an element); a root that never gets one isn't checked on its children's old
+// elements.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement as h } from '../src/pragma/index.js'
 import run from '../src/extra/run.js'
@@ -63,9 +64,33 @@ describe('G-501: the SYG149 retries', () => {
     await settle(20)
     app.__runtime.dispatch('root', 'SHOW')
     await settle(700)
-    // the first patch's chain stopped at its next try; the second ran its 10
-    expect(retries()).toBe(11)
+    // G-527: one chain for both patches (a newer patch joins it, it doesn't restart it): its 10
+    expect(retries()).toBe(10)
     // (nothing was patched: the old elements aren't looked at)
     expect(diagnostics('SYG149')).toEqual([])
+  })
+})
+
+// PLAN-5 3-T G-527: View Transition patches closer than the 50 ms retry used to restart the check
+// each time (a newer patch stopped the older one's retries before they ran): SYG149 never came
+// while they went on
+describe('G-527: SYG149 under back-to-back View Transition patches', () => {
+  it('is reported while patches come every 20 ms (each transition patches 30 ms later)', async () => {
+    document.startViewTransition = (update) => {
+      const done = new Promise((r) => setTimeout(() => { update(); r() }, 30))
+      return { ready: done, updateCallbackDone: done, finished: done }
+    }
+    await mount()
+    const stop = Date.now() + 700
+    let n = 0
+    while (Date.now() < stop) {
+      app.__runtime.dispatch('root', 'SHOW')
+      n++
+      await settle(20)
+      if (diagnostics('SYG149').length) break
+    }
+    // reported while the patches still come (not once they stop)
+    expect(diagnostics('SYG149').map((d) => d.data.name).sort()).toEqual(['card-1', 'card-2'])
+    expect(n).toBeLessThan(20)
   })
 })

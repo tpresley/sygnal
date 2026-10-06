@@ -57,6 +57,9 @@ export async function runTest(category, name, fn, timeoutMs = 3000) {
     record(category, name, 'pass')
   } catch (err) {
     record(category, name, 'fail', err.message)
+  } finally {
+    // G-528: and its end (an error between tests is no test's)
+    await window.__pwTest?.(null)
   }
 }
 
