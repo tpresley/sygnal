@@ -105,7 +105,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   // key whose snapshot is undefined
   const set = (s: any, v: any) => {
     const r = keys ? {...s, ...v} : {...s, [key as string]: v}
-    for (const k of keys || [key]) if (keys ? !(k in v) : v === undefined) delete r[k as string]
+    for (const k of keys || [key as string]) if (keys ? !(k in v) : v === undefined) delete r[k]
     return r
   }
   // one more entry in `past` (`join`: the change joins the last one)
