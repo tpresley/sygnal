@@ -26,6 +26,8 @@ const ESC_MAP: Record<string, string> = {
 // 4-F: renderComponent's t.html() serialises like the browser's innerHTML: text escapes only
 // & < >, attribute values only & and " (SSR output keeps escaping all five)
 let innerHtmlMode = false
+// G-480: the <Slot> marker (its function in `data.m`), not a plain <slot> element
+const isSlot = (v: any): boolean => v?.data?.m && v.sel === 'slot'
 
 function escapeHtml(str: string, attr?: boolean): string {
   return String(str).replace(innerHtmlMode ? (attr ? /[&"]/g : /[&<>]/g) : /[&<>"']/g, (ch) => ESC_MAP[ch])
@@ -382,7 +384,7 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
   }
 
   // Slot: unwrap to children
-  if (sel === 'slot') {
+  if (isSlot(vnode)) {
     const children = vnode.children || []
     if (children.length === 0) return null
     if (children.length === 1) return processSSRTree(children[0], context, parentState, uid, `${path}.0`)
@@ -482,7 +484,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
   const defaultSlotChildren: any[] = []
   const vnodeChildren = vnode.children || []
   for (const child of vnodeChildren) {
-    if (child && child.sel === 'slot') {
+    if (isSlot(child)) {
       const slotName = child.data?.props?.name || 'default'
       if (!slots[slotName]) slots[slotName] = []
       const slotChildren = child.children || []
@@ -558,8 +560,8 @@ function collectionItems(props: any, parentState: any): any[][] {
 function slotsOf(children: any[]): Record<string, any[]> {
   const slots: Record<string, any[]> = {}
   for (const child of children) {
-    const name = child && child.sel === 'slot' ? child.data?.props?.name || 'default' : 'default'
-    ;(slots[name] ||= []).push(...(child && child.sel === 'slot' ? child.children || [] : [child]))
+    const name = isSlot(child) ? child.data?.props?.name || 'default' : 'default'
+    ;(slots[name] ||= []).push(...(isSlot(child) ? child.children || [] : [child]))
   }
   return slots
 }

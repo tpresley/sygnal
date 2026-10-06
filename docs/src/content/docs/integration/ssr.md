@@ -182,18 +182,25 @@ run(App, '#app', { initialState })
 |---|---|
 | An element the client renders with the same tag | Adopted: the same node. Its attributes become the client's: the ones the client also renders keep the server's value (nothing is written again, so an `iframe` or `img` doesn't reload), and attributes the client doesn't render are removed |
 | `class` and `id` | Kept when the client's are the same, changed or removed when they aren't |
-| `data-sygnal-ssr` (the root's marker) | Removed |
+| `style` | Written again from the client's `style`: a declaration only the server wrote goes |
+| `data-*` | Kept when the client renders them (as `data-*` props or in `attrs`), removed when it doesn't; `data-sygnal-ssr` (the root's marker) goes |
+| `open` on a `<details>` or `<dialog>` the client renders without `open` | Kept: the user may have opened it before start-up. When the client renders `open`, its value wins |
 | A text node | Kept, its text set to the client's |
+| A `<textarea>`'s text (`renderToString` writes its `value` as text) | The text node goes; the field keeps its value (the server's text, or what the user typed) |
+| A component that returns a fragment (`<>…</>`), or a `false` / `null` child (`{cond && <X />}`) | A fragment's elements are adopted one by one, a `false` / `null` child takes no element: the elements after them are still adopted |
 | Whitespace and comments where the client renders no text (a page template's indentation) | Removed |
 | An element with another tag, or text where the client renders an element | Replaced in place by the client's element; the elements around it are still adopted |
-| An element whose client vnode has an `insert` hook and no `postpatch` hook: a `<Transition>`'s child (its enter runs), a `<VirtualCollection>` row (measured when inserted), the `<Toaster>` region, a `lazy()` placeholder | Made again in place, as a fresh render makes it |
-| An element with a `ref`, `autoFocus`, a widget, or a hook with both `insert` and `postpatch` | Adopted: `ref` points at the server's element, `autoFocus` focuses it, a widget mounts on it. A hook's `postpatch` runs; its `insert` doesn't |
+| An element whose vnode has an `insert` hook and no `postpatch` hook: a `<Transition>`'s child (its enter runs), a `<VirtualCollection>` row (measured when inserted), the `<Toaster>` region, a `lazy()` placeholder, an element with your own `hook={{ insert }}` (also with a `ref` or `autoFocus`) | Made again in place, as a fresh render makes it: its `insert` runs |
+| An element with a `create` or `init` hook (a `thunk`) | Made again in place; its hooks run |
+| An element whose hyperscript selector has a class or id (`h('p.card')`; JSX never makes one), and a `<Portal>`'s placeholder | Made again in place (patching never changes a selector's class or id) |
+| An element with a `ref`, `autoFocus`, a widget, or your own hook with both `insert` and `postpatch` | Adopted: `ref` points at the server's element, `autoFocus` focuses it, a widget mounts on it. A hook's `postpatch` runs; its `insert` doesn't |
 | A `<Portal>`'s content (the server renders it inline) | Replaced by the Portal's placeholder; the content renders in the target |
+| A custom element that builds its own light DOM (children the client doesn't render), already upgraded before start-up | Adopted, but those children are removed (they aren't the client's) and its `connectedCallback` doesn't run again. Wrap such an element in [`<ClientOnly>`](/integration/vike/#clientonly) (`sygnal/vike/ClientOnly`) so the client makes it |
 | The mount point's own attributes (`<div id="app" class="shell" data-theme="dark">`) | Kept: they aren't the app's (when the app's root element is the mount point itself, its props are written over them) |
 
-Form fields follow the usual rule for [controlled fields](/guide/forms/): a field with a `value` (or `checked`) prop shows the state, so the client's value replaces what the user typed before start-up; a field without one keeps it.
+Form fields follow the usual rule for [controlled fields](/guide/forms/): a field with a `value` (or `checked`) prop shows the state, so the client's value replaces what the user typed or picked before start-up (an `input`, a `textarea` and a `select` alike); a field without one keeps it.
 
-When the server's markup differs from what the client renders (other state, a mismatched template), the page ends up as a fresh client render would make it. The one exception is a `style` attribute: when the client sets a `style`, it writes its own declarations over the server's, and a declaration only the server wrote stays.
+When the server's markup differs from what the client renders (other state, a mismatched template), the page ends up as a fresh client render would make it. This also holds when the mount point holds something else before start-up (a loading spinner): it is patched into the app. The exceptions are the user's changes listed above: an uncontrolled field's value, an `open` the client doesn't render.
 
 ## Stable ids: uid
 

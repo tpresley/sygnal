@@ -235,12 +235,6 @@ describe('3-J: markup the client renders differently', () => {
       App.initialState = {}
       const want = await fresh(App)
       const r = await hydrate(App, { server })
-      if (name == 'styleDecls') {
-        // a server declaration the client doesn't set stays (the style module writes its own
-        // keys): documented
-        expect(r.html()).toBe('<div style="color: red; margin: 0px">x</div>')
-        return
-      }
       expect(r.html()).toBe(want)
     })
   }
@@ -379,11 +373,12 @@ describe('3-J: other shapes', () => {
     expect(r.html()).toBe(want)
   })
 
-  it('a hyperscript selector with class and id (h("div#sid.sel"))', async () => {
-    const App = app(() => h('div#sid.sel', null, h('p', null, 'x')))
+  it('a hyperscript selector with class and id (h("div#sid.sel")): made again (3-M G-486), the rest adopted', async () => {
+    const App = app(() => h('div', null, h('div#sid.sel', null, h('p', null, 'x')), h('p', { 'data-t': 'after' }, 'y')))
     const want = await fresh(App)
-    const r = await hydrate(App, { server: '<main><div class="sel" id="sid"><p>x</p></div></main>' })
-    expect(r.kept.length).toBe(r.all.length)
+    const r = await hydrate(App, { server: '<main><div><div class="sel" id="sid"><p>x</p></div><p data-t="after">y</p></div></main>' })
+    expect(document.querySelector('#sid')).not.toBe(r.all.find(e => e.id == 'sid'))
+    expect(r.keptT('after')).toBe(true)
     expect(r.html()).toBe(want)
   })
 

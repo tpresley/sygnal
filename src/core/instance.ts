@@ -38,7 +38,8 @@ const errorDiv = (name: string) => ({sel: 'div', data: {attrs: {'data-sygnal-err
 function extractSlots(children: any[]): [any[], Record<string, any[]>] {
   const slots: Record<string, any[]> = {}, rest: any[] = []
   for (const c of children) {
-    if (c && c.sel === 'slot') {
+    // G-480: the <Slot> marker (`data.m`), not a plain <slot> element (a shadow-DOM component's)
+    if (c?.data?.m && c.sel === 'slot') {
       const k = c.children
       ;(slots[c.data?.props?.name || 'default'] ||= []).push(...(Array.isArray(k) ? k : k ? [k] : []))
     } else rest.push(c)

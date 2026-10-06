@@ -37,7 +37,9 @@ function Page({ state }) {
 }
 Page.initialState = { v: 'ctl', items: [{ id: 1, label: 'one' }, { id: 2, label: 'two' }] }
 
-const attrs = (el) => el ? [...el.attributes].map(a => a.name + '=' + a.value).sort().join(' ') : 'GONE'
+// (3-M G-483: the style module writes the client's declarations again, so the engine may
+// serialize the same declarations with a final ';')
+const attrs = (el) => el ? [...el.attributes].map(a => a.name + '=' + (a.name == 'style' ? a.value.replace(/;\s*$/, '') : a.value)).sort().join(' ') : 'GONE'
 
 export async function hydrationTestsP5_3J() {
   await runTest('every server element is adopted, with its attributes, focus, typed text, checked box, scroll', async () => {

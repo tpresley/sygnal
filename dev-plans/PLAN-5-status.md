@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; running 3-M, 3-N, 3-P (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M merged; running 3-N, 3-P (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D220 | 2026-10-05 | Coordinator: 3-M's +173 B accepted (hydration total 3-J + 3-M ≈ 289 B, inside D217's ≈ 320 B allowance; core 42,141 B, 159 B headroom left for the rest of PLAN-5). Controlled fields keep the documented rule at hydration (state wins; uncontrolled fields keep user input). Hyperscript selector class/id elements and the Portal placeholder are recreated, not adopted | Coordinator |
 | D219 | 2026-10-05 | Coordinator (after three review rounds found restore bugs, G-474 → G-504 → G-511): a cancelled or interrupted keyboard drag (Escape, END on unmount, INIT/live) restores **only if the list is exactly the array the drag's last step produced** (identity, per instance), by putting back the snapshot taken at lift; if anything else changed the list, the item stays where it is and the drag just ends (announced). No index math against foreign data. Undo is told internally that the gesture ended without completing (fixes G-510) | Coordinator |
 | D218 | 2026-10-05 | `defineBehavior` options from 3-H stay public as named: `persist: false` (the behavior's slice is never saved/restored by `persist()`) and `undoStep: ['ACTION']` (intermediate actions form one gesture; `undo()` records one entry when the named action completes it, none if cancelled). Coordinator: G-454's half rule applies to every item of another list; `helpId` set on first interaction (G-453); SYG435's contiguous-run heuristic accepted | User + coordinator |
 | D217 | 2026-10-05 | Hydration (G-456): fix in PLAN-5 as workstream 3-J, first trying the cheaper design (build the hydration vnode from the DOM with the client vnode as template, dropping snabbdom's `toVNode`); spend up to ≈320 B of core only if the cuts don't work | User |
@@ -224,24 +225,24 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-477 | review 3-H | Low/Med | undo | `track`/`resetOn`/`coalesce` naming a gesture behavior's actions are silently ignored (e.g. `track: ['sort.UP']` records no drags); SYG226 skips `sort.*` | → 3-L |
 | G-478 | review 3-H | Low | diagnostics | SYG435 false positive with VirtualCollection's pinned focused row (non-contiguous shown ids) and stray `[data-id]` elements; O(n²) scan on every press even after reporting (dev) | → 3-L |
 | G-479 | review 3-H | Low | undo | `history.base` stays after a cancelled gesture (docs say only while dragging) | → 3-L |
-| G-480 | 3-K report | Med | core / ssr | Any vnode with `sel === 'slot'` is treated as the `<Slot>` marker (`instance.ts` `extractSlots`, `ssr.ts`): a plain `<slot>` element (e.g. in a `sygnal/element` `shadow: true` component) is swallowed. Detect by the marker flag `data.m` (3-K) | → 3-M |
-| G-481 | review 3-J | High | dom (hydration) | A Fragment child occupies one vnode slot but several DOM nodes: every later sibling is mis-paired (replaced or adopted as the wrong vnode) — typed text/focus lost after any component returning `<>…</>`. Confirmed by probe | → 3-M |
-| G-482 | review 3-J | Med | dom (hydration) | `data-*` the client sets as attrs are stripped (dataset copy includes them; dataset module deletes): `data-sygnal-suspense`, `data-sygnal-ready`, `data-sygnal-error`, portal placeholder, user attrs. Confirmed | → 3-M |
-| G-483 | review 3-J | Med | dom (hydration) | Non-SSR mount over placeholder content (a spinner) adopts it; its inline `style` declarations stay on the app root (style exception). Read server declarations into the old vnode. Confirmed | → 3-M |
-| G-484 | review 3-J | Med | dom (hydration) | `<textarea>abc</textarea>` server markup is emptied (text child removed, value not re-set). Now hit by our own `renderToString` after G-465 (3-K writes textarea text content). Confirmed | → 3-M |
-| G-485 | review 3-J | Med | dom (hydration) | `create`/`init` hooks never run on adopted elements; a user `insert` hook plus `ref`/`autoFocus` (which add `postpatch`) is adopted and `insert` never runs. Confirmed | → 3-M |
-| G-486 | review 3-J | Low/Med | dom (hydration) | Selector class/id (`h('p.card')`, `div.sygnal-portal`) never corrected over stale server class/id; docs claim otherwise | → 3-M |
-| G-487 | review 3-J | Low | dom (hydration) | Attributes the user changed before start-up that the client doesn't render are removed (`<details open>`, `<dialog open>`); docs claim user changes are kept; custom elements that build their own light DOM lose it (pre-existing; docs) | → 3-M |
+| G-480 | 3-K report | Med | core / ssr | Any vnode with `sel === 'slot'` is treated as the `<Slot>` marker (`instance.ts` `extractSlots`, `ssr.ts`): a plain `<slot>` element (e.g. in a `sygnal/element` `shadow: true` component) is swallowed. Detect by the marker flag `data.m` (3-K) | ✅ 3-M |
+| G-481 | review 3-J | High | dom (hydration) | A Fragment child occupies one vnode slot but several DOM nodes: every later sibling is mis-paired (replaced or adopted as the wrong vnode) — typed text/focus lost after any component returning `<>…</>`. Confirmed by probe | ✅ 3-M |
+| G-482 | review 3-J | Med | dom (hydration) | `data-*` the client sets as attrs are stripped (dataset copy includes them; dataset module deletes): `data-sygnal-suspense`, `data-sygnal-ready`, `data-sygnal-error`, portal placeholder, user attrs. Confirmed | ✅ 3-M |
+| G-483 | review 3-J | Med | dom (hydration) | Non-SSR mount over placeholder content (a spinner) adopts it; its inline `style` declarations stay on the app root (style exception). Read server declarations into the old vnode. Confirmed | ✅ 3-M |
+| G-484 | review 3-J | Med | dom (hydration) | `<textarea>abc</textarea>` server markup is emptied (text child removed, value not re-set). Now hit by our own `renderToString` after G-465 (3-K writes textarea text content). Confirmed | ✅ 3-M |
+| G-485 | review 3-J | Med | dom (hydration) | `create`/`init` hooks never run on adopted elements; a user `insert` hook plus `ref`/`autoFocus` (which add `postpatch`) is adopted and `insert` never runs. Confirmed | ✅ 3-M |
+| G-486 | review 3-J | Low/Med | dom (hydration) | Selector class/id (`h('p.card')`, `div.sygnal-portal`) never corrected over stale server class/id; docs claim otherwise | ✅ 3-M |
+| G-487 | review 3-J | Low | dom (hydration) | Attributes the user changed before start-up that the client doesn't render are removed (`<details open>`, `<dialog open>`); docs claim user changes are kept; custom elements that build their own light DOM lose it (pre-existing; docs) | ✅ 3-M |
 | G-488 | 3-I report | Low | ui/dialog | After `showModal()` throws, state stays `open: true` with the dialog closed; the next OPEN is an ABORT (dialog can't be opened again until CLOSE) | → 3-N |
 | G-489 | 3-I report | Low/Med | dom (view transitions) | The View Transition driver leaves the transition promises unhandled: a skipped transition (duplicate names, SYG149) logs an uncaught `InvalidStateError` in every engine. Catching costs a few core bytes | → 3-N |
-| G-490 | review 3-K | Med | dom (hydration) × ssr | Adoption overwrites what the user typed/picked in a server-rendered `<textarea>`/`<select>` before start-up (3-K writes their values as text / `selected`, so `adopt()` sees no `value` attr); option `selected` stripped. Confirmed | → 3-M |
+| G-490 | review 3-K | Med | dom (hydration) × ssr | Adoption overwrites what the user typed/picked in a server-rendered `<textarea>`/`<select>` before start-up (3-K writes their values as text / `selected`, so `adopt()` sees no `value` attr); option `selected` stripped. Confirmed | ✅ 3-M |
 | G-491 | review 3-K | Med | vike (SSR) | A Wrapper/Layout whose root (or fragment's first element) is `children` leaks `<sygnal-page-slot data-sygnal-ssr="">` (exact-string match misses the stamped attribute) and the Page is appended; client then replaces it. Confirmed | → 3-N |
-| G-492 | review 3-K | Med | pragma (core) | `form`/`list` routed to attrs on custom elements too (`<my-list list={[1,2]}>` → `list="1,2"`), breaking Lit/Stencil/`sygnal/element` properties; SSR too. Restrict to tags without `-`. Confirmed | → 3-M |
+| G-492 | review 3-K | Med | pragma (core) | `form`/`list` routed to attrs on custom elements too (`<my-list list={[1,2]}>` → `list="1,2"`), breaking Lit/Stencil/`sygnal/element` properties; SSR too. Restrict to tags without `-`. Confirmed | ✅ 3-M |
 | G-493 | review 3-K | Low | zag | SYG669 no longer reports `<VirtualCollection>` in a fromZag render (control vnode has no `data.m`); `SPECIAL['virtual-collection']` dead | → 3-N |
 | G-494 | review 3-K | Low/Med | ui/combobox | `allowCustomValue`: an app clearing the controlled `value` on input-change resets the typed flag → `''` submitted. Plausible | → 3-N |
 | G-495 | review 3-K | Low | ssr | `<select value>` text matching doesn't trim/collapse whitespace like `option.value`; duplicate values both marked; explicit `selected: false` overridden; textarea leading `\r\n` loses a line | → 3-N |
 | G-496 | review 3-K | Low | testing | `t.html()` (innerHTML mode) now shows a textarea's value as text (real innerHTML never does) | → 3-N |
-| G-497 | review 3-K | Low | tests | `p5-3k-vike-layout-ssr` "hydrates onto the same structure" doesn't assert node identity | → 3-M |
+| G-497 | review 3-K | Low | tests | `p5-3k-vike-layout-ssr` "hydrates onto the same structure" doesn't assert node identity | ✅ 3-M |
 | G-498 | review 3-I | High | virtual | `grows()` restores ancestors with `setAttribute('style', orig)`, blocked under CSP `style-src` without `unsafe-inline`: Firefox wipes every styled ancestor's inline style; Chromium/WebKit keep `overflow-anchor: none` and log CSP violations per probe. Restore via CSSOM. Probed in 3 engines | → 3-N |
 | G-499 | review 3-I | Low/Med | ui/toaster | `_p` press mark stays set when no click/focusin follows (release outside, touch scroll, right-click): a later modal-close return clears `_from` (G-432 regresses) | → 3-N |
 | G-500 | review 3-I | Low | virtual | Focus restore across shadow roots can take focus back from an element focused elsewhere during the patch; require document active element body/null. Plausible | → 3-N |
@@ -261,6 +262,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-514 | review 3-O | Low | undo | A gesture's completing action commits another gesture behavior's pending base (two `undoStep` behaviors on one key) | → 3-P |
 | G-515 | review 3-O | Low | docs | Multi-list sortable + `undo({ key: 'a' })` duplicates items on UNDO (one key tracked); document tracking a common parent key | → 3-P |
 | G-516 | review 3-O | Low | sortable + persist | `persist({ sync: true })`: another tab's mid-drag slice can now move the item in this tab. Plausible | → 3-P |
+| G-517 | 3-M report | Low/Med | dom (snabbdom fragments) | A child inserted into a fragment on a later patch is appended at the end of the parent (`<>{a}{cond && b}{c}</>` → b after c). Same on a fresh client render; pre-existing | → later pass |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -301,6 +303,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-L merged (1 additive conflict); gates: only the known G-484 vitest failure (3,441 passed), browser 330/329/329, recipes 17×3, core 41,968 B. Review of 3-L: G-504…G-509. 3-O started.
 - 2026-10-05 — 3-O merged (clean; G-504…G-509; restore rule "item still where the last key left it" (`origin.at`); 22-run gesture matrix; undo +48 B, sortable +16 B, core 0); gates: only the known G-484 vitest failure (3,478 passed), browser 330/329/329, recipes 17×3, core 41,968 B. G-510.
 - 2026-10-05 — Review of 3-O: G-511…G-516 (no high). D219 (restore only the drag's own array). 3-P started.
+- 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.

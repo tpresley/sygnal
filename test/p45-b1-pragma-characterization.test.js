@@ -17,6 +17,9 @@
 //
 // PLAN-5 3-K (G-470): regenerated; the only change is `data.m` (the marker function) on the eight
 // marker vnodes (Collection, Switchable, Portal, Transition, Suspense twice, ClientOnly, Slot).
+//
+// PLAN-5 3-M (G-485): regenerated; the only change is `u: 1` on the chained hook of the two cases
+// whose own hook has an insert and no postpatch (hydration makes that element again).
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createElement as h, createElementWithModules } from '../src/pragma/index.js'

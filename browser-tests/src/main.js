@@ -47,6 +47,7 @@ import { fixesTestsP5_2R, fixesTestsP5_2R_after } from './tests/fixes-p5-2r.jsx'
 import { sortableTestsP5_3D } from './tests/sortable-p5-3d.jsx'
 import { fixesTestsP5_3G } from './tests/fixes-p5-3g.jsx'
 import { hydrationTestsP5_3J } from './tests/hydration-p5-3j.jsx'
+import { hydrationTestsP5_3M } from './tests/hydration-p5-3m.jsx'
 import { fixesTestsP5_3K } from './tests/fixes-p5-3k.jsx'
 import { getResults } from './harness.js'
 
@@ -105,6 +106,7 @@ async function runAll() {
     sortableTestsP5_3D,
     fixesTestsP5_3G,
     hydrationTestsP5_3J,
+    hydrationTestsP5_3M,
     fixesTestsP5_3K,
   ]
   for (const suite of suites) {
