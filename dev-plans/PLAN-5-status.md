@@ -279,6 +279,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-530 | review 3-P | Med | undo | Array-key `picks` cache keeps every primitive value combination in a strong Map for the definition's life (editor: 11.9 MB vs 0.1 MB for one key). Confirmed | → 3-U |
 | G-531 | review 3-P | Low | undo | Array key: UNDO writes an own `undefined` property for a missing key; `key: []` accepted silently | → 3-U |
 | G-532 | review 3-P | Low | sortable / docs | Lists re-derived on every step (transforming lens, host `sort.KEY` entries that normalise) never match → Escape/unmount always "stay"; document. Reducer-time mutation of the `drags` map (replay/double-invoke turns Escape into "stay"); note | → 3-U |
+| G-533 | review 3-T | Med | ui/dialog | `sygnaldialogfail` bubbles: an ancestor dialog behavior (nested dialogs, a child's dialog inside the parent's) also gets SYNC → outer state `open:false` while it stays open. Filter `target === ownerTarget` or don't bubble. Confirmed | → 3-U |
+| G-534 | review 3-T | Low | ui/dialog | SYNC after a failure keeps the old `returnValue` when OPEN's STATE aborted | → 3-U |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -324,7 +326,8 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-N: G-524…G-528 (no high). 3-T started.
 - 2026-10-05 — 3-P merged (clean; D219 identity restore with lift snapshot, internal `undoEnd` hint, `base` owner key; sortable +150 B, undo +186 B, core 0). User: D221. Gates all green (vitest 3,571, browser 337/336/336, recipes 17×3, samples 673, core 42,141 B).
 - 2026-10-05 — Review of 3-P: the D219 restore holds (no path overwrites foreign data; every miss is "stay"). G-529…G-532 (array-key undo). 3-U started.
-- 2026-10-05 — 3-T merged (clean; G-524…G-528; dialog failure via internal `sygnaldialogfail` → SYNC; virtual window uses `currentCSSZoom`; SYG149 shared retry queue; console allowlist module). Core 0.
+- 2026-10-05 — 3-T merged (clean; G-524…G-528; dialog failure via internal `sygnaldialogfail` → SYNC; virtual window uses `currentCSSZoom`; SYG149 shared retry queue; console allowlist module). Core 0. Gates all green (vitest 3,578, browser 338/337/337, recipes 17×3, core 42,141 B).
+- 2026-10-05 — Review of 3-T: G-533 (Med), G-534; `currentCSSZoom` checked in 3 engines; both added to 3-U.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
