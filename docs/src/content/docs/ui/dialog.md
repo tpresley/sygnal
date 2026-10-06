@@ -61,7 +61,7 @@ The browser returns the focus to the element that had it before the dialog opene
 | `profile.CLOSED` | the return value | The dialog closed, whichever way: sets `open: false` and `returnValue` |
 | `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (for example with `commandfor`) sets `open: true` |
 | `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`). The `cancel` event; with `cancelable: false`, the Escape `keydown` in the dialog (`closedby="none"` stops the `cancel` event) |
-| `profile.SYNC` | `false` | The dialog left the page while open (a page change, a conditional render): sets `open: false`, as no close event comes |
+| `profile.SYNC` | `false` | The dialog left the page while open (a page change, a conditional render), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
 
 `OPEN` and `CLOSE` check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one. A dialog removed while open opens again when it is back.
 
