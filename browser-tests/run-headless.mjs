@@ -24,24 +24,28 @@ const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
 
 /**
  * Console errors the error-path tests provoke on purpose (G-076). Each entry
- * names the test that causes it; a message must match every regex of an entry.
- * These are counted and summarised, not printed. Any other console error (or
- * uncaught page error) fails the run, so new errors can't hide among them.
+ * names the test that causes it (`test`: its runTest name, exactly); a message
+ * must arrive while that test runs (G-503: the harness reports each test's start
+ * through window.__pwTest) and match every regex of the entry. These are counted
+ * and summarised, not printed. Any other console error (or uncaught page error)
+ * fails the run, so new errors can't hide among them.
  */
 const EXPECTED_CONSOLE_ERRORS = [
-  { test: 'composition > isolatedState: throws without flag',
+  { test: 'isolatedState: throws without flag',
     match: [/\[Sygnal SYG405\] Bad: .*Sub-component threw/] },
-  { test: 'features > Error without onError renders data-sygnal-error',
+  { test: 'Error without onError renders data-sygnal-error',
     match: [/\[Sygnal SYG406\] Broken: View threw/, /no handler|\bError\b/] },  // Firefox prints the attached Error as just 'Error'
-  { test: 'features > Reducer error preserves previous state',
+  { test: 'Reducer error preserves previous state',
     match: [/\[Sygnal SYG216\] App: Reducer for 'BAD' threw/, /reducer crash|\bError\b/] },
   // PLAN-5 3-I G-460: the transition SYG149 warns of (Chromium logs the duplicate name)
-  { test: 'Collection view-transition names > G-460: SYG149 ... once the panel is shown',
+  { test: 'G-460: SYG149 ignores a list in a display: none panel, and reports it once the panel is shown',
     match: [/Unexpected duplicate view-transition-name: p53i-/] },
 ];
 
+/** G-503: the runTest name of the test running (the last one started) */
+let currentTest = null;
 function expectedEntry(text) {
-  return EXPECTED_CONSOLE_ERRORS.find(e => e.match.every(re => re.test(text)));
+  return EXPECTED_CONSOLE_ERRORS.find(e => e.test === currentTest && e.match.every(re => re.test(text)));
 }
 
 /**
@@ -97,6 +101,9 @@ async function run() {
     page.on('pageerror', err => {
       consoleMsgs.push(`[uncaught] ${err.stack || err.message}`);
     });
+
+    // G-503: the harness names each test as it starts (the console allowlist is per test)
+    await page.exposeFunction('__pwTest', (name) => { currentTest = name; });
 
     // G-146: real keyboard input for the tests (typed by Playwright at full speed)
     await page.exposeFunction('__pwType', (selector, text, delay) =>

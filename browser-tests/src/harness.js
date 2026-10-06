@@ -47,6 +47,8 @@ export function record(category, name, status, details = '') {
 }
 
 export async function runTest(category, name, fn, timeoutMs = 3000) {
+  // G-503: the runner's console allowlist is per test (run-headless.mjs)
+  await window.__pwTest?.(name)
   try {
     await Promise.race([
       fn(),
