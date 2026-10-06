@@ -49,8 +49,8 @@
  *   rows (it would render every row: SYG430), the window is clamped to the viewport's height.
  *   Whether it grows is measured (G-395, G-427): a max-height that fits the rows bounds it; a
  *   percentage of an unbounded parent, calc() or fit-content that follows the rows doesn't.
- *   G-462: also under an ancestor's CSS zoom, and the measurement doesn't move the page (scroll
- *   anchoring is off around it meanwhile).
+ *   G-462: also under an ancestor's CSS zoom (G-525: not a transform), and the measurement
+ *   doesn't move the page (scroll anchoring is off around it meanwhile).
  *   Items without `id`: SYG431 (index keys: rows and measured heights follow the position).
  * - `viewTransitionName="row"` names each keyed row's root element as Collection does (`row-<id>`,
  *   class `row`; G-417), as its SSR markup does.
@@ -225,10 +225,12 @@ export class VirtualHost extends CollectionHost {
     // G-462: (the rect is scaled by an ancestor's CSS zoom, clientHeight isn't, as the sizes)
     if (vh && total > vh && Math.max(r.height, el.clientHeight || 0) >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
-      // G-502: the viewport's height in the rows' px (an ancestor's zoom or scale shrinks the rect,
-      // not offsetHeight; no layout: as is)
-      const q = el.getBoundingClientRect().height
-      return {width: r.width, height: q ? vh * el.offsetHeight / q : vh}
+      // G-502: the viewport's height in the rows' px under an ancestor's CSS zoom. G-525: the zoom
+      // only (currentCSSZoom), not a transform (scale(0.02) would make it 50 viewports, and no
+      // resize is observed when it goes); without currentCSSZoom the rect / offsetHeight ratio,
+      // capped (0.1 to 10)
+      const z = el.currentCSSZoom || Math.min(Math.max(el.getBoundingClientRect().height / el.offsetHeight || 1, 0.1), 10)
+      return {width: r.width, height: vh / z}
     }
     return r
   }

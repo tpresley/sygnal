@@ -23,7 +23,8 @@
  * "none" stops the cancel event, and OPEN removes the attribute again when the dialog closes;
  * G-457: not an Escape an element inside handled (defaultPrevented) or an IME one, and not for a
  * non-modal dialog, which Escape doesn't cancel either way),
- * SYNC (G-400: the dialog left the page while open: `open: false`).
+ * SYNC (G-400: the dialog left the page while open: `open: false`; G-524: or OPEN's showModal()
+ * threw: no close event then).
  * G-400: OPEN / CLOSE send commands that check the dialog itself (showModal only on a closed
  * one, close only on an open one), so a state that is out of step can't block them.
  */
@@ -45,6 +46,9 @@ const lost = () => {
 // an ELEMENT target (D102 spec command): focus `sel` only when the focus was lost
 const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && el.focus(o) })
 
+// G-524: OPEN's showModal() threw (bubbles: the DOM driver listens at its root)
+const FAIL = 'sygnaldialogfail'
+
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {open: false, returnValue: ''},
   intent: ({DOM, STATE}: any, {dialog: d, trigger, close, cancelable, modal}: any) => ({
@@ -61,7 +65,8 @@ const base = /*#__PURE__*/ defineBehavior({
       : modal === false
         ? DOM.select(d).events('cancel', {preventDefault: true})
         : xs.merge(DOM.select(d).events('cancel', {preventDefault: true}).filter(() => false), DOM.select(d).events('keydown').filter(esc)),
-    ...(STATE && {SYNC: gone(DOM, STATE, d, (e: any) => e.open)}),
+    // G-524: SYNC also when OPEN's showModal() threw (FAIL, below)
+    SYNC: STATE ? xs.merge(gone(DOM, STATE, d, (e: any) => e.open), DOM.select(d).events(FAIL).mapTo(false)) : DOM.select(d).events(FAIL).mapTo(false),
   }),
   model: {
     OPEN: {
@@ -76,9 +81,11 @@ const base = /*#__PURE__*/ defineBehavior({
           if (cb) el.setAttribute('closedby', 'none')
           // G-461: a showModal() that throws (a disconnected dialog, a popover open on it) leaves
           // no closedby and arms no listener (a later close would focus this opener). G-488: and
-          // the state goes back to closed (a close event: CLOSED), so the next OPEN can open it;
-          // the error is the command's (thrown once)
-          try { el[m]() } catch (e) { cb && el.removeAttribute('closedby'); el.dispatchEvent(new Event('close')); throw e }
+          // the state goes back to closed, so the next OPEN can open it; G-524: through SYNC (an
+          // internal FAIL event), not a close event: the host's close listeners don't run for a
+          // dialog that never opened, and no previous returnValue comes again. The error is the
+          // command's (thrown once)
+          try { el[m]() } catch (e) { cb && el.removeAttribute('closedby'); el.dispatchEvent(new Event(FAIL, {bubbles: true})); throw e }
           // on close: G-429 the closedby it set goes (it is the behavior's, not the host's); G-430
           // the element that opened it gets the focus back when it was lost, here rather than by a
           // command (a dialog the host renders only while open is gone by then), and nothing
