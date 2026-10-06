@@ -67,14 +67,20 @@ describe('SSR Portal: hydration patches the server wrapper in place (G-318)', ()
     expect(html).toContain('<div class="sygnal-portal" data-sygnal-portal="#modal"><p class="a">one</p><p class="b">two</p></div>')
   })
 
-  it('the client patches that element (not a replacement) and mounts the Portal', async () => {
+  // PLAN-5 3-M (G-486): an element whose selector has a class or id (the placeholder's
+  // `div.sygnal-portal`) is made again by the hydrating patch (patching never corrects a
+  // selector's class); its insert hook mounts the Portal, the elements around it are adopted
+  it('the client makes that element again in place and mounts the Portal', async () => {
     document.body.innerHTML = `<div id="modal"></div><div id="root">${renderToString(App)}</div>`
-    const wrapper = document.querySelector('#root .sygnal-portal')
+    const wrapper = document.querySelector('#root .sygnal-portal'), after = wrapper.nextSibling
     start(App)
     await sleep(60)
-    expect(document.querySelector('#root .sygnal-portal')).toBe(wrapper)
-    expect(wrapper.style.display).toBe('none')
-    expect(wrapper.children.length).toBe(0)
+    const now = document.querySelector('#root .sygnal-portal')
+    expect(now).not.toBe(wrapper)
+    expect(now.nextSibling).toBe(after)
+    expect(document.querySelectorAll('#root .sygnal-portal').length).toBe(1)
+    expect(now.style.display).toBe('none')
+    expect(now.children.length).toBe(0)
     expect([...document.querySelectorAll('#modal p')].map((p) => p.textContent)).toEqual(['one', 'two'])
   })
 })

@@ -97,7 +97,7 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
     } else {
       P.n = x.nextSibling;
       if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
-      else if (t == 1 && x.localName == w?.sel?.split(/[#.]/, 1)[0] && !(k && (k.create || k.init || k.u || k.insert && !k.postpatch))) {
+      else if (t == 1 && x.localName == w?.sel && !(k && (k.create || k.init || k.u || k.insert && !k.postpatch))) {
         const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
         o.class = 'className';
         for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
@@ -107,7 +107,7 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
         for (const {name: m, value: y} of [...x.attributes])
           /^data-/.test(m) ? m in a && x.removeAttribute(m)
           : m in a ? at[m] = y
-          : m == 'open' || w.sel != x.localName && /^(class|id)$/.test(m) ? 0
+          : m == 'open' ? 0
           : m in o && !d.ns ? pr[o[m]] = y
           : x.removeAttribute(m);
         // G-484: a textarea's value no longer follows its text, which goes

@@ -254,6 +254,38 @@ describe('G-485: elements whose hooks expect a new element', () => {
   })
 })
 
+describe('G-486: selector class and id', () => {
+  // JSX never makes such a selector (className is a prop); hyperscript can (`h('p.card')`), and
+  // the Portal placeholder is one. Patching never corrects a selector's class / id, so the element
+  // is made again; the elements around it are adopted
+  const cases = {
+    staleClassId: [() => h('p.card', { 'data-t': 'p' }, 'x'), '<p class="card loading" id="old" data-t="p">x</p>'],
+    withProps: [() => h('div#a.b.c', { className: 'n', class: { k: true }, 'data-t': 'p' }, 'x'), '<div id="z" class="b y" data-t="p">x</div>'],
+    same: [() => h('p#i.card', { 'data-t': 'p' }, 'x'), '<p id="i" class="card" data-t="p">x</p>'],
+  }
+  it("a Portal's placeholder keeps data-sygnal-portal; a stale server data-* goes", async () => {
+    const App = app(() => h('div', null, h('div', { id: 'tgt' }), h(Portal, { target: '#tgt' }, h('b', null, 'in portal'))))
+    const r = await hydrate(App, { server: '<main><div><div id="tgt"></div><div class="sygnal-portal" style="display: none" data-sygnal-portal="#tgt" data-stale="1"></div></div></main>' })
+    await sleep(20)
+    const ph = document.querySelector('.sygnal-portal')
+    expect(ph.getAttribute('data-sygnal-portal')).toBe('#tgt')
+    expect(ph.hasAttribute('data-stale')).toBe(false)
+    expect(document.querySelector('#tgt b')?.textContent).toBe('in portal')
+    // (the placeholder, `div.sygnal-portal`, is made again; the target and its parent adopted)
+    expect(r.kept.length).toBe(r.all.length - 1)
+  })
+
+  for (const [name, [view, server]] of Object.entries(cases)) {
+    it(name, async () => {
+      const App = app(() => h('div', null, view(), h('b', { 'data-t': 'after' }, 'b')))
+      const r = await hydrate(App, { server: `<main><div>${server}<b data-t="after">b</b></div></main>` })
+      expect(r.keptT('p')).toBe(false)
+      expect(r.keptT('after')).toBe(true)
+      expect(r.html()).toBe(await fresh(App))
+    })
+  }
+})
+
 describe('G-487: open', () => {
   it('a <details> the user opened before start-up stays open; a client-rendered `open` wins', async () => {
     const App = app(() => h('div', null, h('details', { 'data-t': 'd' }, h('summary', null, 's'), 'body'), h('details', { open: false, 'data-t': 'c' }, h('summary', null, 's'))))
