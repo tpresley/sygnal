@@ -225,7 +225,10 @@ export class VirtualHost extends CollectionHost {
     // G-462: (the rect is scaled by an ancestor's CSS zoom, clientHeight isn't, as the sizes)
     if (vh && total > vh && Math.max(r.height, el.clientHeight || 0) >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
-      return {width: r.width, height: vh}
+      // G-502: the viewport's height in the rows' px (an ancestor's zoom or scale shrinks the rect,
+      // not offsetHeight; no layout: as is)
+      const q = el.getBoundingClientRect().height
+      return {width: r.width, height: q ? vh * el.offsetHeight / q : vh}
     }
     return r
   }
@@ -243,10 +246,11 @@ export class VirtualHost extends CollectionHost {
   grows(el: any): boolean {
     const s = el.firstElementChild?.style
     if (!s) return true
-    const up: any[] = []
-    for (let n = el.parentElement || el.getRootNode?.().host; n?.style; n = n.parentElement || n.getRootNode?.().host) {
-      up.push(n, n.getAttribute('style'))
-      n.style.overflowAnchor = 'none'
+    const up: any[] = [], O = 'overflow-anchor'
+    // (G-498: a slotted element's scroller can be in the shadow tree: its slot first)
+    for (let n = el.assignedSlot || el.parentElement || el.getRootNode?.().host; n?.style; n = n.assignedSlot || n.parentElement || n.getRootNode?.().host) {
+      up.push(n, n.style.getPropertyValue(O), n.style.getPropertyPriority(O), n.hasAttribute('style'))
+      n.style.setProperty(O, 'none')
     }
     const h = s.height, a = el.offsetHeight
     s.height = (parseFloat(h) || 0) + 1e6 + 'px'
@@ -254,8 +258,14 @@ export class VirtualHost extends CollectionHost {
     s.height = h
     // (laid out again before anchoring is back)
     void el.offsetHeight
-    // (the style attribute as it was: none stays none)
-    for (let i = 0; i < up.length; i += 2) up[i + 1] == null ? up[i].removeAttribute('style') : up[i].setAttribute('style', up[i + 1])
+    // G-498: put back through the CSSOM (setting the style attribute is blocked under a CSP
+    // style-src without 'unsafe-inline'); no style attribute stays none (read first: Chromium and
+    // WebKit write the attribute lazily, and would add style="" after the removal)
+    for (let i = 0; i < up.length; i += 4) {
+      const n = up[i]
+      up[i + 1] ? n.style.setProperty(O, up[i + 1], up[i + 2]) : n.style.removeProperty(O)
+      if (!up[i + 3]) n.getAttribute('style'), n.removeAttribute('style')
+    }
     return b - a > 5e5
   }
 
@@ -394,10 +404,12 @@ export class VirtualHost extends CollectionHost {
         // G-462: none when the cached vnode is patched again (snabbdom calls no postpatch then:
         // nothing would let go of the element); in a shadow root in a row, its focused element
         prepatch: (o: any, y: any) => { const a = o !== y && act(this.el); this.fa = a && this.el.contains(a) ? deep(a) : null },
+        // G-500: "went nowhere" is the document's active element (body or none): in a shadow root,
+        // the root's own is none when the focus went to an element outside it
         postpatch: (_: any, y: any) => {
-          const a = this.fa, b = act(a)
+          const a = this.fa, b = a?.ownerDocument.activeElement
           this.fa = null
-          if (a?.isConnected && a !== b && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
+          if (a?.isConnected && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
           y.elm !== this.el && this.attach(y.elm)
         },
         destroy: () => this.detach(),
@@ -490,6 +502,9 @@ VirtualCollection.__sygnalControl = (props: any, children: any) => {
   hosts[SEL] ||= make
   const {key, children: c, ...p} = props || {}
   const kids = children?.length ? children : c ? [].concat(c) : NONE
-  return {sel: SEL, data: {props: p}, children: kids, text: undefined, elm: undefined, key}
+  // (G-493: `m`, a marker mark as the pragma's marker vnodes carry (there, the function): SYG669
+  // tells it from a plain element. Not the function itself: the self-reference keeps the module
+  // in bundles that don't use it)
+  return {sel: SEL, data: {props: p, m: 1}, children: kids, text: undefined, elm: undefined, key}
 }
 VirtualCollection.componentName = SEL

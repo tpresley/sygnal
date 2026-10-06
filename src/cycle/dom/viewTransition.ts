@@ -12,6 +12,7 @@ import type {VNode} from './snabbdom';
  *   that arrived before the browser called back, and is done once that patch is (no quiet
  *   window: it was 20 ms, capped at 200 ms, for the several patches of a move).
  * - A new transition while one animates: the browser skips the running one (it jumps to its end).
+ * - G-489: a skipped transition's `ready` rejection is handled (no uncaught InvalidStateError).
  */
 export function viewTransition$(vnode$: Stream<VNode>, flags: () => any): Stream<VNode> {
   const g: any = globalThis, out$ = xs.create<VNode>();
@@ -29,7 +30,10 @@ export function viewTransition$(vnode$: Stream<VNode>, flags: () => any): Stream
       out$.shamefullySendNext(h[0]);
     };
     try {
-      d.startViewTransition(update);
+      // G-489: a transition the browser skips (duplicate names, a newer one) rejects `ready`:
+      // handled (the update still runs; `finished` / `updateCallbackDone` reject only when it throws).
+      // (a stand-in without `ready` must not throw here: the update would run twice)
+      d.startViewTransition(update)?.ready?.catch(Object);
     } catch (_) {
       // the browser refused (e.g. an invalid state): patch now
       update();

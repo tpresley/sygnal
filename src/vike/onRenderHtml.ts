@@ -195,7 +195,9 @@ export function onRenderHtml(pageContext: PageContext) {
   // for the server only, the `innerHTML` prop.
   let pageViewContent = pageHtml
   if (hasShell) {
-    const SLOT = '<sygnal-page-slot></sygnal-page-slot>'
+    // G-491: with attributes too (a shell whose root, or fragment's first element, is the slot
+    // carries the SSR root stamp: data-sygnal-ssr="")
+    const SLOT = /<sygnal-page-slot(?:\s[^>]*)?><\/sygnal-page-slot>/
     const PLACEHOLDER = '<!--SYGNAL_PAGE_SLOT-->'
     // Wrap from innermost to outermost (reverse order)
     for (let i = shell.length - 1; i >= 0; i--) {
@@ -210,7 +212,8 @@ export function onRenderHtml(pageContext: PageContext) {
         cache,
         onError: config.sygnalOnError,
       })
-      let splitIdx = compHtml.indexOf(SLOT), len = SLOT.length
+      const m = SLOT.exec(compHtml)
+      let splitIdx = m ? m.index : -1, len = m ? m[0].length : 0
       if (splitIdx === -1) splitIdx = compHtml.indexOf(PLACEHOLDER), len = PLACEHOLDER.length
       if (splitIdx !== -1) {
         pageViewContent = compHtml.substring(0, splitIdx) + pageViewContent + compHtml.substring(splitIdx + len)

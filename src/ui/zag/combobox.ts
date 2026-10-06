@@ -47,7 +47,7 @@ const setText = (x: any, q: string) => { if (x.q !== q) x.q = q, x.refresh() }
 // hidden input per value (a single combobox: one, '' when empty) carries `name`.
 // G-435 / G-468: a single combobox with `allowCustomValue` submits the selected value unless the
 // user typed since the last selection (`x.t`: set by input-change, cleared by a selection, a value
-// change or a new controlled value); then the value of an item whose label the text is, else the
+// change or a new controlled value that isn't empty: G-494); then the value of an item whose label the text is, else the
 // text itself. So `selectionBehavior` 'preserve' / 'clear', items relabelled after a pick and a
 // `defaultValue` before the items load all submit the value.
 const submitted = (api: any, x: any): string => {
@@ -83,9 +83,10 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     x.multiple = !!p.multiple
     x.custom = !!p.allowCustomValue
     x.items = norm(items)
-    // G-468: a new controlled value ends the typing
+    // G-468: a new controlled value ends the typing. G-494: not an empty one (an app that clears
+    // its value on input-change: the typed text is still what is submitted)
     const v = arr(value), k = v && JSON.stringify(v)
-    if (k !== x.v) x.v = k, x.t = 0
+    if (k !== x.v) x.v = k, v?.length && (x.t = 0)
     return {
       ...p,
       collection: collectionOf(combobox, shown(x.items, filter, x.q || '')),
