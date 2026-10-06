@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M merged; running 3-N, 3-P (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; 3-M, 3-N merged; running 3-P, 3-Q (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -262,7 +262,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-514 | review 3-O | Low | undo | A gesture's completing action commits another gesture behavior's pending base (two `undoStep` behaviors on one key) | → 3-P |
 | G-515 | review 3-O | Low | docs | Multi-list sortable + `undo({ key: 'a' })` duplicates items on UNDO (one key tracked); document tracking a common parent key | → 3-P |
 | G-516 | review 3-O | Low | sortable + persist | `persist({ sync: true })`: another tab's mid-drag slice can now move the item in this tab. Plausible | → 3-P |
-| G-517 | 3-M report | Low/Med | dom (snabbdom fragments) | A child inserted into a fragment on a later patch is appended at the end of the parent (`<>{a}{cond && b}{c}</>` → b after c). Same on a fresh client render; pre-existing | → later pass |
+| G-517 | 3-M report | Low/Med | dom (snabbdom fragments) | A child inserted into a fragment on a later patch is appended at the end of the parent (`<>{a}{cond && b}{c}</>` → b after c). Same on a fresh client render; pre-existing | → 3-Q |
+| G-518 | review 3-M | High | dom (fragments × hydration) | Adopted fragments' `firstChildNode`/`lastChildNode` point at server nodes the first patch removes (fragment's first child recreated: Portal, Transition, lazy, ClientOnly, user insert hook, mismatch); a later insert before the fragment throws `NotFoundError` inside the driver fold → the DOM stream errors and the app stops updating. Common: `<><Portal/>…</>`. Confirmed by probe | → 3-Q |
+| G-519 | review 3-M | Med/High | pragma | G-492 routes `form` as a prop on hyphenated tags: form-associated custom elements (MDN pattern, getter-only `form`) throw and the app renders nothing; the `form` attribute link is lost; SSR still writes the attribute. Keep `form` an attribute | → 3-Q |
+| G-520 | review 3-M | Med | dom (hydration) | Adjacent text vnodes (`Hello, {name}!`) are one server text node: positional pairing shifts and later elements (an input) are recreated (typed text/focus lost). `splitText` by client text lengths | → 3-Q |
+| G-521 | review 3-M | Med | dom (hydration) | A user hook with both `insert` and `postpatch` is adopted: `insert` never runs (chart never initialised). Recreate when the user's hook has `insert` | → 3-Q |
+| G-522 | review 3-M | Med | dom (fragments) | Keyed fragments never reorder: a Collection whose item returns `<>…</>` keeps DOM order on reverse; added items land wrong (snabbdom moves the empty DocumentFragment). Pre-existing, fresh render too | → 3-Q |
+| G-523 | review 3-M | Low | dom (hydration) | Server `open` stays when the client omits the key conditionally (`{...(isOpen && {open: true})}`) | → 3-Q |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -304,6 +310,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-O merged (clean; G-504…G-509; restore rule "item still where the last key left it" (`origin.at`); 22-run gesture matrix; undo +48 B, sortable +16 B, core 0); gates: only the known G-484 vitest failure (3,478 passed), browser 330/329/329, recipes 17×3, core 41,968 B. G-510.
 - 2026-10-05 — Review of 3-O: G-511…G-516 (no high). D219 (restore only the drag's own array). 3-P started.
 - 2026-10-05 — 3-M merged (tracker conflict: kept the coordinator copy). +173 B core (42,141 B). D220. G-517. Gates after 3-M: all green (vitest 3,515, browser 331/330/330, recipes 17×3, perf-gate --runs=3 ok, core 42,141 B).
+- 2026-10-05 — 3-N merged (clean); gates all green (vitest 3,537, browser 336/335/335, recipes 17×3, core 42,141 B). Review of 3-M: G-518…G-523 (one high: stale fragment bounds after hydration stop the app updating; snabbdom fragment limits also cause G-517, G-522). 3-Q started (fragments design + hydration fixes).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
