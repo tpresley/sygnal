@@ -136,6 +136,35 @@ describe('G-537 (D223): a patch error goes to run({ onError }) with phase \'patc
   })
 })
 
+describe('G-541: derived keys never collide (the file-tree case)', () => {
+  const dirs = (n) => n % 2 ? [['src/a', ['b.ts']], ['src', ['a/b.ts', 'c.ts']]] : [['src', ['a/b.ts', 'c.ts']], ['src/a', ['b.ts']]]
+  const view = (n) => h('ul', null, ...dirs(n).map(([d, fs]) => h(Fragment, { key: d },
+    h('li', { key: 'hdr' }, '[' + d + ']'), ...fs.map(f => h('li', { key: f }, d + ' : ' + f)))))
+
+  it("fragment 'src' + 'a/b.ts' and fragment 'src/a' + 'b.ts' get different keys", () => {
+    const keys = flat(view(0)).children.map(c => c.key)
+    expect(new Set(keys).size).toBe(5)
+    // a child's own key never equals a tag-and-count one either
+    const ks = flat(h('ul', null, h(Fragment, { key: 'k' }, h('li', { key: 'li#1' }), h('li', null)))).children.map(c => c.key)
+    expect(ks[0]).not.toBe(ks[1])
+  })
+
+  it('an element is never reused for another item (swapped, or one directory for the other)', async () => {
+    const trees = [0, 1, [['src', ['a/b.ts']]], [['src/a', ['b.ts']]]]
+    const at = (n) => n < 2 ? dirs(n) : trees[2 + n % 2]
+    await mount(counter((s) => h('ul', null, ...at(s.n).map(([d, fs]) => h(Fragment, { key: d },
+      h('li', { key: 'hdr' }, '[' + d + ']'), ...fs.map(f => h('li', { key: f }, d + ' : ' + f)))))))
+    const stamp = () => { for (const li of document.querySelectorAll('li')) li.stamp ||= li.textContent }
+    stamp()
+    for (let i = 1; i <= 5; i++) {
+      await click('.b')
+      expect([...document.querySelectorAll('li')].map(l => l.textContent)).toEqual(at(i).flatMap(([d, fs]) => ['[' + d + ']', ...fs.map(f => d + ' : ' + f)]))
+      for (const li of document.querySelectorAll('li')) if (li.stamp) expect(li.stamp).toBe(li.textContent)
+      stamp()
+    }
+  })
+})
+
 describe('G-539: an unchanged keyed fragment keeps its copies (snabbdom skips it)', () => {
   /** 2k Collection items, one changed per click: user update hooks run and ms per patch */
   async function bench(frag) {

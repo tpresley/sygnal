@@ -122,7 +122,8 @@ export function sameData(a: any, b: any): boolean {
 // one landed at the parent's end, a keyed one never moved, a later patch threw NotFoundError).
 // The children of a keyed fragment (a Collection item, a component's root) take its key and their
 // own key, else their tag and its count among them: they move with it and stay apart from another
-// item's. A vnode with no fragment below is kept by identity, as is one already flattened (a
+// item's. G-541: as JSON ([prefix, key] or [prefix, [tag, count]]), so no two paths give the same
+// key (a '/' separator did: fragment "src" + "a/b.ts" and fragment "src/a" + "b.ts"). A vnode with no fragment below is kept by identity, as is one already flattened (a
 // cached subtree), so snabbdom still skips unchanged subtrees; so are a keyed fragment's copies
 // while the fragment and its prefix are the same (G-539). A copy (a
 // parent with new children, a child with a new key) inherits from its vnode and writes its
@@ -143,14 +144,13 @@ export const flat = (v: any): any => {
         // takes a fragment): an unchanged one (a Collection item that didn't render again) gives
         // snabbdom the same vnodes
         if (x && !x.sel && x.children) d = 1, x.key == null ? put(x.children, k, n)
-          : (m = flatOf.get(x))?.[0] == (p = [k] + x.key + '/') ? o.push(...m[1])
+          : (m = flatOf.get(x))?.[0] == (p = JSON.stringify([k, x.key])) ? o.push(...m[1])
           : (s = o.length, put(x.children, p), flatOf.set(x, [p, o.slice(s)]));
         else {
           let y = flat(x);
           y !== x && (d = 1);
           if (k && y) {
-            const j = k + (y.key ?? y.sel + '#' + (n[y.sel] = -~n[y.sel]));
-            y = copy(y, {key: {value: j}});
+            y = copy(y, {key: {value: JSON.stringify([k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]]])}});
           }
           o.push(y);
         }
