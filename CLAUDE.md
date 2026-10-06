@@ -30,7 +30,7 @@ npm --prefix sygnal-check test       # static checker package (492 tests, *.vtes
 npm --prefix docs run build          # docs site + internal link check
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (552 checked, 13 skipped by marker)
-node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 42,500 B gated (D48, D185, D222;
+node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 42,700 B gated (D48, D185, D222, D230;
                                      #   needs build + examples/kanban install); also prints the default (globalthis-aliased)
                                      #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
