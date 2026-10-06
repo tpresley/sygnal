@@ -113,7 +113,7 @@ export async function fragmentTestsP5_3Q() {
         assert(order() === 'czba', 'inserted: ' + order())
         await click(`${id} .p3q-rm`)
         assert(order() === 'zba', 'removed: ' + order())
-        const dl = el.querySelector('dl > div')
+        const dl = el.querySelector('dl')
         assert([...dl.children].map(e => e.localName).join(',') === 'dt,dd,dt,dd,dt,dd', 'dt/dd pairs: ' + dl.innerHTML)
       } finally { app.dispose() }
     })
