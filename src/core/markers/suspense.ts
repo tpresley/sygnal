@@ -11,8 +11,9 @@
  */
 import {posts} from '../registry'
 
+// (4-I G-556: through fragments, e.g. a Collection's items)
 function hasNotReadyChild(v: any): boolean {
-  if (!v || !v.sel) return false
+  if (!v) return false
   const a = v.data?.attrs
   if (a?.['data-sygnal-ready'] === 'false' || a?.['data-sygnal-lazy'] === 'loading') return true
   if (v.sel === 'suspense') return false

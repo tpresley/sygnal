@@ -97,7 +97,7 @@ A Collection rendered its items inside a `<div>`, which took the Collection's `c
 </ul>
 ```
 
-A `<div className="tasks">` keeps the old markup exactly. Check styles and selectors that relied on the `<div>`: a CSS rule or a test selector such as `.list > div > li`, or `:first-child` / `:nth-child` counted among the items when the Collection has siblings in its parent (they count the siblings now). The wrapper props are ignored, and reported as SYG612 in development and by `sygnal-check`. `id` and every other prop still go to each item. A `<VirtualCollection>` keeps its own scroll container (its `className`, `style` and `id` are the container's).
+A `<div className="tasks">` keeps the old markup exactly. Check styles and selectors that relied on the `<div>`: a CSS rule or a test selector such as `.list > div > li`, or `:first-child` / `:nth-child` counted among the items when the Collection has siblings in its parent (they count the siblings now). The wrapper props are ignored, and reported as SYG612 in development and by `sygnal-check`. `id` and every other prop still go to each item. That includes `id`, `role`, `title` and `aria-*`, which in 5.x also landed on the `<div>`: they now only reach the items as props, with no element to label, and they are not reported (they are ordinary item props too). Move them to your wrapping element: `<ul role="list" aria-label="Tasks">`. A `<Transition>` around a Collection animated the `<div>`; it now animates each item as it is added or removed. A `<VirtualCollection>` keeps its own scroll container (its `className`, `style` and `id` are the container's).
 
 <a id="child-select-name"></a>
 

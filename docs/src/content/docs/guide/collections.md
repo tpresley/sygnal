@@ -150,7 +150,7 @@ A Collection has no element of its own: its items render directly into the paren
 
 Two Collections can share a parent, and items keep their DOM elements (and the focus) when the array is reordered. An empty Collection renders nothing.
 
-Before 6.0 the items were wrapped in a `<div>`, and `className` (and `style`, `class`, `data-*`, ...) on `<Collection>` styled that `<div>`. Those props are now reported as [SYG612](/reference/errors/#syg612) in development and by `sygnal-check`, and are ignored: put them on your own wrapping element. See [Migrating to 6.0](/guide/migrating-to-6/#collection-wrapper).
+Before 6.0 the items were wrapped in a `<div>`, and `className` (and `style`, `class`, `data-*`, ...) on `<Collection>` styled that `<div>`. Those props are now reported as [SYG612](/reference/errors/#syg612) in development and by `sygnal-check`, and are ignored: put them on your own wrapping element. `id`, `role`, `title` and `aria-*` are passed to each item as props, like any other prop, and are not reported: to label the list, put them on the wrapping element (`<ul role="list" aria-label="Tasks">`). A [`<Transition>`](/advanced/transitions/#around-a-collection) around a Collection applies to each item. See [Migrating to 6.0](/guide/migrating-to-6/#collection-wrapper).
 
 Inside a Collection item, selectors in the item's own intent see only that item's elements. A parent can't select elements inside its items ([SYG104](/reference/errors/#syg104)).
 

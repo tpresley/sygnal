@@ -293,6 +293,35 @@ export async function collectionTestsP5_4H() {
     } finally { app.dispose() }
   })
 
+  // 4-I G-559: <Transition> around a Collection animates each item (no wrapper element to animate)
+  await runTest('Transition around a Collection: each item enters and leaves on its own, in place', async () => {
+    function Plain({ state }) { return <li className="p4i-tr">{String(state.id)}</li> }
+    const Wrapped = withOps(function Wrapped({ state }) {
+      return <main><ul className="p4i-fades"><li className="p4h-head">head</li><Transition name="p4i" duration={150}><Collection of={Plain} from="items" /></Transition><li className="p4h-tail">tail</li></ul><p className="p4h-n">{state.n}</p></main>
+    })
+    Wrapped.initialState = { n: 0, items: [{ id: 1 }, { id: 2 }, { id: 3 }] }
+    const { el, app } = await start(Wrapped, 'fresh')
+    try {
+      const F = '.p4i-fades', item = (t) => [...el.querySelectorAll('.p4i-tr')].find((e) => e.textContent == t)
+      assert(item('1').classList.contains('p4i-enter-active'), 'first render enters: ' + item('1').className)
+      await wait(200)
+      assert(item('1').className === 'p4i-tr', 'enter done: ' + item('1').className)
+      const two = item('2'), one = item('1')
+      await op(el, (s) => ({ ...s, items: s.items.filter((i) => i.id != 2) }))
+      assert(two.isConnected && two.classList.contains('p4i-leave-active'), 'leaving: ' + two.className)
+      assert(texts(el, F) === 'head,1,2,3,tail', 'during the leave: ' + texts(el, F))
+      await op(el, (s) => ({ ...s, items: [s.items[0], { id: 9 }, ...s.items.slice(1)] }))
+      assert(item('9').classList.contains('p4i-enter-active'), 'entering: ' + item('9').className)
+      assert(one.className === 'p4i-tr' && item('1') === one, 'an unchanged item is untouched: ' + one.className)
+      await waitFor(() => !two.isConnected, 1000, 10)
+      await wait(30)
+      assert(texts(el, F) === 'head,1,9,3,tail', 'after the leave: ' + texts(el, F))
+      await op(el, (s) => ({ ...s, items: [...s.items].reverse() }))
+      assert(texts(el, F) === 'head,3,9,1,tail', 'reversed: ' + texts(el, F))
+      assert(!el.querySelector(F + ' div'), 'no wrapper: ' + el.innerHTML)
+    } finally { app.dispose() }
+  })
+
   await runTest('view-transition names on items between siblings; a reorder runs in one View Transition', async () => {
     function Card({ state }) { return <li className="p4h-card">{String(state.id)}</li> }
     const Cards = withOps(function Cards({ state }) {

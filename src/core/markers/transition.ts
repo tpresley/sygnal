@@ -5,7 +5,8 @@
  * (the 5.x core's applyTransitionHooks):
  * `${name}-enter|leave-from` + `-active`, two frames later `-from` becomes `-to`, and at the end
  * (transitionend, or `duration` ms) `-active` and `-to` go. A user's insert/remove hooks on the
- * child still run. G-279: a leaving element pokes the DOM driver once it is gone.
+ * child still run. G-279: a leaving element pokes the DOM driver once it is gone. Around a
+ * Collection (4-I G-559): on each item.
  */
 import {pres} from '../registry'
 import {pokeDOM} from '../../cycle/dom/utils'
@@ -16,10 +17,9 @@ function onEnd(el: any, duration: number | undefined, cb: () => void): void {
   el.addEventListener('transitionend', h)
 }
 
-export function transitionHooks(vnode: any, name: string, duration?: number): any {
-  vnode.data = vnode.data || {}
-  const hook = vnode.data.hook = vnode.data.hook || {}
-  const {insert, remove} = hook
+/** a copy of the vnode with the hooks (4-I: a copy, so an item's own vnode keeps its hooks) */
+export function transitionHooks(vnode: any, p: {name?: string, duration?: number}): any {
+  const hook = {...vnode.data?.hook}, {insert, remove} = hook, name = p.name || 'v', duration = p.duration
   const run = (el: any, phase: string, done?: () => void) => {
     const c = (s: string) => `${name}-${phase}-${s}`
     el.classList.add(c('from'), c('active'))
@@ -50,12 +50,16 @@ export function transitionHooks(vnode: any, name: string, duration?: number): an
       el.addEventListener('transitionend', f)
     })
   }
-  return vnode
+  return {...vnode, data: {...vnode.data, hook}}
 }
 
 pres.transition = (n) => {
-  const child = n.children?.[0], props = n.data?.props || {}
+  const child = n.children?.[0], p = n.data?.props || {}, k = p.name + p.duration
   // no element child: the text child (or the marker itself, left as it is: today's behaviour)
   if (!child?.sel) return child || n
-  return transitionHooks(child, props.name || 'v', props.duration)
+  // 4-I G-559 (D229): a Collection has no element of its own: each item's root element takes the
+  // hooks (each item enters and leaves on its own). The host calls `tr` per item vnode; the copy is
+  // kept on that vnode under name + duration (no vnode field ends in a number or 'undefined'), so
+  // an unchanged item keeps its vnode
+  return child.sel == 'collection' ? {...child, data: {...child.data, tr: (v: any) => v[k] ||= transitionHooks(v, p)}} : transitionHooks(child, p)
 }

@@ -247,6 +247,8 @@ import { Transition } from 'sygnal'
 | `name` | `string` | `'v'` | Base name for generated CSS classes (`{name}-enter-from`, `{name}-enter-active`, `{name}-enter-to`, `{name}-leave-from`, `{name}-leave-active`, `{name}-leave-to`) |
 | `duration` | `number` | — | Explicit timeout in ms. If omitted, listens for `transitionend` event |
 
+Around a `<Collection>` (which has no element of its own) it applies to each item: added items enter, removed items leave.
+
 See [Transitions guide](/advanced/transitions/) for the full class lifecycle and CSS examples.
 
 ---
