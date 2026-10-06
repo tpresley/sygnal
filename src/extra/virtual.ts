@@ -122,9 +122,6 @@ export class VirtualHost extends CollectionHost {
   declare warned: number
   declare un: (() => void) | undefined
 
-  /** the dev checks see a VirtualCollection (its className, style and id are its container's) */
-  hostProps(props: Record<string, any>, marker?: any) { super.hostProps(props, marker, SEL) }
-
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
     const vp: Record<string, any> = {}, rest: Record<string, any> = {}
     for (const k in props) (OWN.test(k) ? vp : rest)[k] = props[k]

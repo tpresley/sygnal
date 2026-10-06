@@ -169,11 +169,12 @@ export class CollectionHost {
 
   /**
    * onHostProps (R4): the Collection checks of the dev entry (SYG401 for a missing `from`, D173's
-   * string `of`, 4-H's wrapper props: the marker's data); VirtualHost names its own `sel`
+   * string `of`, 4-H's wrapper props: the marker's data); the marker's sel tells a
+   * VirtualCollection from a Collection
    */
-  hostProps(props: Record<string, any>, marker?: any, sel = 'collection') {
+  hostProps(props: Record<string, any>, m: any) {
     const H = this.owner.app.hooks
-    if (H.onHostProps) H.onHostProps(viewOf(this.owner), sel, props, marker?.data)
+    if (H.onHostProps) H.onHostProps(viewOf(this.owner), m.sel, props, m.data)
   }
 
   /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
