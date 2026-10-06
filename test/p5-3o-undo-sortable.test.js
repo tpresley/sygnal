@@ -133,3 +133,39 @@ describe('3-O G-504 / G-509: UNDO mid-drag, then the drag ends', () => {
     expect(order(t.state)).toBe('12345')
   })
 })
+
+describe('3-O G-505: SYG435 with each item in its own wrapper', () => {
+  const make = (view) => {
+    function H(props) { return view(props) }
+    H.initialState = { tasks: TASKS }
+    H.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }
+    return H
+  }
+  function W({ state }) { return h('div', { className: 'wrap' }, h('div', { className: 'task', 'data-id': state.id }, h('button', { type: 'button', className: 'grip' }, 'g'))) }
+
+  it('a sorted Collection of wrapped items is reported, once', async () => {
+    t = renderComponent(make(() => h('div', null, h(Collection, { of: W, from: 'tasks', sort: (a, b) => b.id - a.id }))), { dom: 'real' })
+    await t.ready()
+    await lift(1)
+    press('Escape'); await t.next(s => s.sort.dragging === null)
+    await lift(2)
+    expect(diagnostics('SYG435')).toHaveLength(1)
+  })
+
+  it('table rows (the id on a cell\'s element) in another order are reported', async () => {
+    const row = (x) => h('tr', null, h('td', null, h('span', { className: 'task', 'data-id': x.id }, h('button', { type: 'button', className: 'grip' }, 'g'))))
+    t = renderComponent(make(({ state }) => h('table', null, h('tbody', null, ...[...state.tasks].reverse().map(row)))), { dom: 'real' })
+    await t.ready()
+    await lift(3)
+    expect(diagnostics('SYG435')).toHaveLength(1)
+  })
+
+  it('wrapped items in the array\'s order, with a matching id elsewhere: nothing', async () => {
+    t = renderComponent(make(() => h('div', null,
+      h('aside', null, h('div', { className: 'task', 'data-id': 4 }, 'D (selected)')),
+      h('div', null, h(Collection, { of: W, from: 'tasks' })))), { dom: 'real' })
+    await t.ready()
+    await lift(2)
+    expect(diagnostics('SYG435')).toHaveLength(0)
+  })
+})

@@ -16,8 +16,9 @@
  *        groups, host state, from keys, idField, uses key) at a keyboard pick-up or a pointer
  *        press: SYG435 (warn, once per uses key and list) when a list's shown items (those in
  *        the container holding most of them: an element elsewhere with a matching id is no list
- *        item) aren't one run of the array in its order (a Collection's sort, or a filter
- *        hiding entries between shown ones)
+ *        item; a row's container is its nearest ancestor holding another row, 3-O G-505) aren't
+ *        one run of the array in its order (a Collection's sort, or a filter hiding entries
+ *        between shown ones)
  */
 import {devReport, once, onced, suggest} from './shared'
 
@@ -55,12 +56,20 @@ export function reportSortable(code: number, a?: any, b?: any, c?: any, d?: any,
     if (typeof a == 'function') {
       if ((c || []).every((l: string) => onced(`SYG435:${b}:${l}`))) return
       try {
-        const by = new Map<any, any[]>(), [els, root] = a()
-        for (const el of els) {
-          // a row's place: its data-index (a VirtualCollection row below the host's root; its
-          // pinned row isn't in DOM order)
+        const by = new Map<any, any[]>(), [els, root] = a(), n = new Map<any, number>()
+        // a row's place: its data-index (a VirtualCollection row below the host's root; its
+        // pinned row isn't in DOM order)
+        const rows = els.map((el: any) => {
           const r0 = el.closest?.('[data-index]'), row = r0 && r0 !== root && root.contains?.(r0) ? r0 : el
-          const p = row.parentElement, at = Number(row === el && !r0 ? NaN : row.getAttribute('data-index'))
+          return [el, row, Number(row === el && !r0 ? NaN : row.getAttribute('data-index'))]
+        })
+        // 3-O G-505: a row's container is its nearest ancestor holding another row (items each in
+        // their own wrapper, <li><div data-id>, a table cell, a Collection item's root, are still
+        // one list); `n` counts the rows below each ancestor
+        const up = (row: any, f: (p: any) => any) => { for (let p = row.parentElement; p; p = p === root ? null : p.parentElement) if (f(p)) return p }
+        for (const [, row] of rows) up(row, p => void n.set(p, (n.get(p) || 0) + 1))
+        for (const [el, row, at] of rows) {
+          const p = up(row, p => n.get(p)! > 1) || row.parentElement
           by.has(p) || by.set(p, [])
           by.get(p)!.push([isNaN(at) ? by.get(p)!.length : at, String(d(el))])
         }
