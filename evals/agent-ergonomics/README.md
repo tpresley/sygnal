@@ -18,7 +18,7 @@ evals/agent-ergonomics/
   verify.mjs            fail-before / pass-after check for every task in both arms
   lib/common.mjs        shared plumbing
   lib/transcript.mjs    command classifiers and transcriptStats() (transcript-stats.mjs, orchestrate.mjs)
-  lib/headless.mjs      headless trial posture (claude args, environment, process guard), stream-json helpers
+  lib/headless.mjs      headless trial posture (claude args, environment, process guard, built-in skill block), stream-json helpers
   lib/runner.mjs        runTrial(): spawn, stamp, timeout, <dest>.run.json
   lib/plan.mjs          task selection (tiers, ranges), resume plan, cost/time estimate
   lib/variant.mjs       run variants: load/validate a spec, resolve + hash it, materialize it, starter overlays,
@@ -238,6 +238,7 @@ Changes that make a run's numbers not directly comparable with earlier runs. Com
 - **PLAN-2 4-E: the analyzer counts API guesses** (G-125): catalog entries with `input` signatures, matched against the agent's tool inputs and kept tests (`t.state` on a `renderComponent()` handle; `t.html()` read before the first render). They add trials to the catalog table ("inputs" column), not friction time. Re-analyze older runs to compare.
 - **PLAN-4 1-E: task 16's markup normalizer ignores `data-control`** (both arms, still byte-identical), the marker attribute a Sygnal control adds, so a split that keeps or adds controls renders the same page. No earlier result changes: no agent code rendered `data-control` before controls existed (PLAN-4 1-A).
 - **PLAN-2 G-127: process guard** (`processGuard: 1` in `<dest>.run.json` and the run manifest; run.md "Process guard"). Trials can no longer run `pkill`, `killall` or `kill` (deny rules) and get refusing `pkill` / `killall` / `kill` shims first on `PATH`. It changes nothing for a trial that never kills a process; a trial that tries gets a refused call instead of killing its dev server (and everyone else's). Kept out of the variant hash, so recorded variants keep their hashes; manifests without it are unguarded (0). Earlier runs whose agents ran machine-wide kills (scan: `transcript-stats.mjs --kills <trials-root>/<run>`): e2 `sygnal-13-t3` (`pkill -f vitest`), e7-haiku 12 trials (`pkill -f vite` / `"npm run dev"`, `killall node`, `xargs kill -9`), p4-haiku 7 trials. Their concurrent trials, and coordinator gate runs at the time, may have lost processes to them.
+- **PLAN-5 4-E2 (D234): Claude Code's built-in skills are blocked** (`skillGuard: 1` in `<dest>.run.json` and the run manifest; run.md "Built-in skill block"). Every trial and the preflight run with `--settings <dest>.settings.json`: `disableBundledSkills: true`, `skillOverrides` "off" and `Skill(<name>)` deny rules for the CLI's own skills (`run`, `dataviz`, `verify`, …; `BUILTIN_SKILLS` in `lib/headless.mjs`). A trial now sees only its variant's skill (React arm: none); tools are unchanged. **Condition change**: runs up to and including D228 (`p5-*`, manifests without `skillGuard` = 0) had the built-in skills; in those, Haiku called `run` in 19/25 React and 4/25 Sygnal trials. Compare across the change with care; the analyzer's "Method and limits" names the condition, and a mixed run (resumed across it) shows `skillGuards: [0, 1]`. Test: `node --test evals/agent-ergonomics/tests/skillguard.unit.mjs`.
 
 ## Friction analyzer (`analysis/`)
 

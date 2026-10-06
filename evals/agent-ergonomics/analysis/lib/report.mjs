@@ -287,6 +287,7 @@ export function renderMarkdown({ meta, agg, records, tracker, skill, docs = null
   if (!meta.methods?.length || meta.methods.some((m) => m !== 'headless')) P('- HARNESS-GUARD is an artifact of how trials were spawned (subagents inherit the coordinator\'s worktree guard), not of either framework. It costs both arms, more for Sygnal because Sygnal agents run more compound commands.')
   P('- Small n (5 trials per task and arm); differences under ~5 s per trial are within noise.')
   P(processKillNote(records))
+  P(skillGuardNote(records))
   P()
 
   // ---- appendix
@@ -335,4 +336,16 @@ export function processKillNote(records) {
   if (blocked.length) lines.push(`- **Process kills refused by the guard** (G-127, \`processGuard: 1\`): ${blocked.map(fmt).join('; ')}. No other process was affected; the attempt costs that trial a refused call.`)
   if (nine.length) lines.push(`- \`kill -9\` by PID (the trial's own process, not machine-wide): ${nine.map((r) => r.trial).join(', ')}.`)
   return lines.join('\n')
+}
+
+/**
+ * D234: were Claude Code's built-in skills (`run`, `dataviz`, ...) available to the trials? A condition
+ * change between runs (`skillGuard` in the run meta and manifest; absent = 0, available).
+ */
+export function skillGuardNote(records) {
+  const on = records.filter((r) => r.skillGuard)
+  const off = records.length - on.length
+  if (!on.length) return "- **Built-in skills** (D234): available in every trial (`skillGuard` 0, the condition before 4-E2): agents could call the CLI's own skills (`run`, `dataviz`, …); the calls are listed under \"Other skills invoked\". Runs from 4-E2 on block them, so compare such numbers across that change with care."
+  if (!off) return '- **Built-in skills** (D234): blocked in every trial (`skillGuard: 1`: `disableBundledSkills`, `skillOverrides` off and `Skill()` deny rules in each trial\'s settings); the only skill a trial sees is its variant\'s.'
+  return `- **Built-in skills** (D234): **mixed conditions**: blocked in ${on.length} trial(s) (\`skillGuard: 1\`), available in ${off} (\`skillGuard\` 0, before 4-E2). Compare the two groups with care.`
 }

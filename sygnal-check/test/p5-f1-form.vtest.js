@@ -4,6 +4,9 @@
  * the form element (and inside its Collection items) are listened to (SYG111), the host's
  * `submit` action is triggered by the behavior (SYG102), host entries for form actions are
  * accepted (open model), and the canonical signup recipe is clean under --strict and a11y.
+ * Field arrays (D233): the canonical form renders the rows inline in the form's own view with
+ * form.ADD / form.REMOVE from the host's intent; rows as Collection components (for rows that
+ * need their own component, guide/forms-reference "Rows as components") stay clean, unflagged.
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -28,8 +31,53 @@ const codes = (diags) => diags.map(d => `${d.code} ${d.severity}`).sort()
 const SCHEMA = `export const signupSchema = { '~standard': { version: 1, vendor: 'app', validate: (value) => ({ value }) } }
 `
 
-// the canonical recipe (docs guide/forms)
-const SIGNUP = (opts = "values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP'", extra = '') => `import { Collection, form } from 'sygnal'
+// the canonical recipe (docs guide/forms): field array rows inline, form.ADD / form.REMOVE (D233)
+const SIGNUP = (opts = "values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP'", extra = '') => `import { form } from 'sygnal'
+import { signupSchema } from './schema.js'
+
+export function Signup({ state, uid }) {
+  const f = state.form.fields
+  const rows = state.form.values.addresses
+  return (
+    <form className="signup" noValidate>
+      <label for={uid('name')}>Name</label>
+      <input id={uid('name')} name="name" value={f.name.value} aria-invalid={f.name.invalid} aria-describedby={uid('name-error')} />
+      <p id={uid('name-error')}>{f.name.error}</p>
+      <label for={uid('email')}>Email</label>
+      <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
+      <p id={uid('email-error')}>{f.email.error}</p>
+      {rows.map((row, i) => {
+        const city = f[\`addresses.\${row.id}.city\`]
+        return (
+          <fieldset className="address">
+            <legend>Address {i + 1}</legend>
+            <label for={uid(\`city-\${row.id}\`)}>City</label>
+            <input id={uid(\`city-\${row.id}\`)} name={city.name} value={city.value} aria-invalid={city.invalid} aria-describedby={uid(\`city-\${row.id}-error\`)} />
+            <p id={uid(\`city-\${row.id}-error\`)}>{city.error}</p>
+            <button type="button" className="remove" data-id={row.id} disabled={rows.length === 1}>Remove</button>
+          </fieldset>
+        )
+      })}
+      <p>{f.addresses.error}</p>
+      <button type="button" className="add">Add address</button>
+      <p role="alert">{state.form.error}</p>
+      <button type="submit" disabled={state.form.submitting}>Sign up</button>
+    </form>
+  )
+}
+Signup.uses = { form: form(signupSchema, { ${opts} }) }
+Signup.intent = ({ DOM }) => ({
+  'form.ADD': DOM.click('.add').mapTo({ field: 'addresses', value: { city: '' } }),
+  'form.REMOVE': DOM.click('.remove').map((e) => ({ field: 'addresses', id: e.target.dataset.id })),
+})
+Signup.model = {
+  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
+${extra}}
+`
+
+// rows as components (docs guide/forms-reference "Rows as components"): for rows that need their
+// own component; documented, not flagged (D233)
+const SIGNUP_ROW_COMPONENTS = `import { Collection, form } from 'sygnal'
 import { signupSchema } from './schema.js'
 
 function Address({ state, fields, uid }) {
@@ -50,32 +98,39 @@ export function Signup({ state, uid }) {
   const f = state.form.fields
   return (
     <form className="signup" noValidate>
-      <label for={uid('name')}>Name</label>
-      <input id={uid('name')} name="name" value={f.name.value} aria-invalid={f.name.invalid} aria-describedby={uid('name-error')} />
-      <p id={uid('name-error')}>{f.name.error}</p>
       <label for={uid('email')}>Email</label>
       <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
       <p id={uid('email-error')}>{f.email.error}</p>
       <Collection of={Address} from={{ get: (s) => s.form.values.addresses }} fields={f} />
       <button type="button" className="add">Add address</button>
-      <p role="alert">{state.form.error}</p>
       <button type="submit" disabled={state.form.submitting}>Sign up</button>
     </form>
   )
 }
-Signup.uses = { form: form(signupSchema, { ${opts} }) }
+Signup.uses = { form: form(signupSchema, { values: { email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }) }
 Signup.intent = ({ DOM, CHILD }) => ({
   'form.ADD': DOM.click('.add').mapTo({ field: 'addresses', value: { city: '' } }),
   'form.REMOVE': CHILD.select(Address),
 })
 Signup.model = {
   SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
-${extra}}
+}
 `
 
 describe('F-1: the form behavior in sygnal-check', () => {
   it('the canonical recipe has no findings (strict, a11y)', () => {
     expect(check({ 'schema.js': SCHEMA, 'Signup.jsx': SIGNUP() }, { strict: true })).toEqual([])
+  })
+
+  it('rows as Collection components (rows that need their own component) are clean too, not flagged (D233)', () => {
+    expect(check({ 'schema.js': SCHEMA, 'Signup.jsx': SIGNUP_ROW_COMPONENTS }, { strict: true })).toEqual([])
+  })
+
+  it('rows as Collection components without the behavior: the fields inside the items are uncontrolled (SYG111)', () => {
+    const src = SIGNUP_ROW_COMPONENTS.replace("Signup.uses = { form: form(signupSchema, { values: { email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }) }", "Signup.initialState = { form: { fields: {}, submitting: false, values: { addresses: [] } } }")
+    const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': src }).filter(x => x.code === 'SYG111')
+    // with the behavior (the test above) the item's field is listened to: it is the behavior that does it
+    expect(d.some(x => x.message.includes("Address's intent has no input/change listener"))).toBe(true)
   })
 
   it('host entries for form actions (form.DONE) are accepted', () => {

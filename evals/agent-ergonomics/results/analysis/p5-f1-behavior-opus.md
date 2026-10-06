@@ -190,6 +190,7 @@ Limits:
 - Wall time is first to last transcript timestamp; it matches the recorded `wallSeconds` within a second for all but a few trials.
 - Small n (5 trials per task and arm); differences under ~5 s per trial are within noise.
 - **Process kills** (G-127): no trial ran a machine-wide process kill (pkill, killall, `xargs kill`, kill by lookup).
+- **Built-in skills** (D234): available in every trial (`skillGuard` 0, the condition before 4-E2): agents could call the CLI's own skills (`run`, `dataviz`, …); the calls are listed under "Other skills invoked". Runs from 4-E2 on block them, so compare such numbers across that change with care.
 
 ## Appendix: per-trial
 

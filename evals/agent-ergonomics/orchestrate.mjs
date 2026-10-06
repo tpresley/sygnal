@@ -57,7 +57,7 @@ import { fileURLToPath } from 'node:url'
 import { EVAL_ROOT, REPO_ROOT, ARMS, listTasks, parseArgs, packSygnal } from './lib/common.mjs'
 import { buildPlan, estimate } from './lib/plan.mjs'
 import { runTrial, preflight } from './lib/runner.mjs'
-import { trialFiles, DEFAULT_TIMEOUT_MIN, DEFAULT_MODEL, resolveModel, PROCESS_GUARD } from './lib/headless.mjs'
+import { trialFiles, DEFAULT_TIMEOUT_MIN, DEFAULT_MODEL, resolveModel, PROCESS_GUARD, SKILL_GUARD, BUILTIN_SKILLS, checkSkillGuard } from './lib/headless.mjs'
 import { transcriptStats } from './lib/transcript.mjs'
 import { loadVariant, resolveVariant, describeVariant, materializeVariant, claudeIsolation, expectedSkills, checkSkills } from './lib/variant.mjs'
 import { LEGACY_STARTER } from './lib/starter.mjs'
@@ -166,6 +166,11 @@ function trialState(name) {
   return 'partial'
 }
 
+/** Skills the D234 guard leaves alone for an arm: the variant's own skill. */
+function allowSkillsFor(arm) {
+  return expectedSkills(variant, arm)?.present ?? []
+}
+
 // ---- plan
 const tasksByArm = Object.fromEntries(arms.map((a) => [a, listTasks(a)]))
 const plan = buildPlan({ arms, tasksByArm, tasksSpec: str('tasks', 'all'), trials, startTrial, scored: readScored(), state: trialState })
@@ -187,6 +192,7 @@ console.log(`Run "${run}" → ${runDir}`)
 console.log(`  arms: ${arms.join(', ')} · tasks: ${str('tasks', 'all')} · trials per task/arm: ${trials} (ids ${startTrial}..${startTrial + trials - 1}) · concurrency: ${concurrency}`)
 console.log(`  model: ${model}${expectedModel !== model ? ` (alias; must resolve to ${expectedModel})` : ''}${effort ? ` · effort: ${effort}` : ''} · timeout: ${timeoutMin} min per trial`)
 console.log(`  claude CLI: ${claudeVersion ?? `not found (${claudeBin})`} · a preflight call checks auth and the resolved model before the first trial${args['no-preflight'] ? ' (disabled: --no-preflight)' : ''}`)
+console.log(`  built-in skills: blocked (skillGuard ${SKILL_GUARD}, D234): each trial's <dest>.settings.json sets disableBundledSkills, skillOverrides off and Skill() deny rules for ${BUILTIN_SKILLS.length} names (${BUILTIN_SKILLS.join(', ')}); the variant's own skill is not affected`)
 if (variant) console.log(describeVariant(variant).split('\n').map((l) => `  ${l}`).join('\n'))
 else console.log(`  starter: ${starterVersion} (no variant: the legacy bare starters, no sygnal-check)`)
 console.log(`  usage limits: pause ${limits.scheduleMs.map(fmtWait).join(', ')} (${limits.retries} retries), give up if the limit resets more than ${fmtWait(limits.maxWaitMs)} away`)
@@ -250,7 +256,7 @@ if (!todo.length) {
   if (!args['no-preflight']) {
     for (let attempt = 0; ; attempt++) {
       process.stdout.write(`Preflight: claude -p on ${model}${variant ? ` (variant ${variant.name}, ${pfArm}-arm posture)` : ''} ... `)
-      const pf = await preflight({ model, effort, claudeBin, isolation: claudeIsolation(variant, mat, pfArm) })
+      const pf = await preflight({ model, effort, claudeBin, isolation: claudeIsolation(variant, mat, pfArm), allowSkills: allowSkillsFor(pfArm) })
       console.log(pf.ok ? `ok (${pf.model}, ${(pf.wallMs / 1000).toFixed(0)} s)` : 'FAILED')
       if (!pf.ok && pf.rateLimited) {
         const waitMs = limitWait({ attempt, ...limits, resetAt: pf.resetAt })
@@ -270,9 +276,9 @@ if (!todo.length) {
         console.error(`Preflight: --model ${model} ran on ${pf.model}, not ${pf.modelCheck.expected}. Pass the full model id, update the CLI, or pass --allow-mixed. No trial was started.`)
         process.exit(1)
       }
-      const skillProblem = checkSkills(expectedSkills(variant, pfArm), pf.skills)
+      const skillProblem = checkSkills(expectedSkills(variant, pfArm), pf.skills) ?? checkSkillGuard(pf.skills, allowSkillsFor(pfArm))
       if (skillProblem && !args['allow-mixed']) {
-        console.error(`Preflight: ${skillProblem} (variant ${variant.name}, ${pfArm} arm; the CLI loaded: ${(pf.skills ?? []).join(', ') || 'no skills'}). No trial was started.`)
+        console.error(`Preflight: ${skillProblem} (variant ${variant?.name ?? 'none'}, ${pfArm} arm; the CLI loaded: ${(pf.skills ?? []).join(', ') || 'no skills'}). No trial was started.`)
         process.exit(1)
       }
       break
@@ -323,6 +329,11 @@ if (!todo.length) {
         // Not part of the variant hash; processGuards lists every posture the run's trials ran under.
         processGuard: manifest ? (manifest.processGuard ?? 0) : PROCESS_GUARD,
         processGuards: [...new Set([...(manifest?.processGuards ?? (manifest ? [manifest.processGuard ?? 0] : [])), PROCESS_GUARD])],
+        // D234 built-in skill block (lib/headless.mjs SKILL_GUARD): 0 or absent = Claude Code's built-in
+        // skills (run, dataviz, ...) were available to the trials. Not part of the variant hash;
+        // skillGuards lists every posture the run's trials ran under (a resumed pre-D234 run has [0, 1]).
+        skillGuard: manifest ? (manifest.skillGuard ?? 0) : SKILL_GUARD,
+        skillGuards: [...new Set([...(manifest?.skillGuards ?? (manifest ? [manifest.skillGuard ?? 0] : [])), SKILL_GUARD])],
         variants: [...new Set([...(manifest?.variants ?? (manifest?.variant ? [`${manifest.variant.name}@${manifest.variant.hash}`] : [])), ...(variant ? [`${variant.name}@${variant.hash}`] : [])])],
       },
       null,
@@ -384,9 +395,10 @@ if (!todo.length) {
         maxBudgetUsd: str('max-budget-usd') ? Number(str('max-budget-usd')) : undefined,
         permissionMode: str('permission-mode'), tools: str('tools'), claudeBin,
         isolation: claudeIsolation(variant, mat, item.arm),
+        allowSkills: allowSkillsFor(item.arm),
         onSpawn: (child) => live.add(child.pid), onExit: (child) => live.delete(child.pid),
       })
-      const skillProblem = meta.agentRan ? checkSkills(expectedSkills(variant, item.arm), meta.skills) : null
+      const skillProblem = meta.agentRan ? (checkSkills(expectedSkills(variant, item.arm), meta.skills) ?? checkSkillGuard(meta.skills, allowSkillsFor(item.arm))) : null
       if (skillProblem) {
         meta.skillProblem = skillProblem
         fs.writeFileSync(trialFiles(dest).meta, JSON.stringify(meta, null, 2) + '\n')

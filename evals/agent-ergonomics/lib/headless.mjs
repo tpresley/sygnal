@@ -115,13 +115,68 @@ export function guardEnv(env, g) {
   return { ...env, PATH: `${g.bin}${path.delimiter}${env.PATH ?? ''}`, CLAUDE_ENV_FILE: g.envFile }
 }
 
-/** argv for `claude` (without the binary). */
-export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd, settingSources, addDirs, mcpConfig, extraAllowedTools = [], processGuard = true } = {}) {
+/**
+ * Built-in skill block (D234, PLAN-5 4-E2). Claude Code ships skills of its own
+ * (`run`, `dataviz`, `verify`, `debug`, ...) that a trial could call instead of
+ * working with the framework: Haiku used `run` in 19/25 React and 4/25 Sygnal
+ * trials of the D228 runs. Trials test the framework, so from 4-E2 on every
+ * trial (and the preflight) runs with a settings file (`<dest>.settings.json`,
+ * passed with `--settings`, which `--setting-sources` does not filter) holding:
+ * 1. `disableBundledSkills: true`: removes the skills and workflows that ship
+ *    with the CLI (same as CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1). Skills from
+ *    `.claude/skills/` (a variant's skill, via --add-dir) and plugins stay;
+ * 2. `skillOverrides: { <name>: 'off' }` for BUILTIN_SKILLS: CLI 2.1.287 still
+ *    lists `design`, `doctor` and `plugin-authoring` after (1); 'off' hides a
+ *    skill from the model and from /name;
+ * 3. `permissions.deny: ['Skill(<name>)', ...]` for the same names, so a call is
+ *    refused even if a later CLI lists one again.
+ * Checked offline on CLI 2.1.287 (init event only; the API base URL pointed at
+ * a closed local port): no settings → 18 built-in skills; (1) → design, doctor,
+ * plugin-authoring; (1)+(2) with the variant's skill dir → sygnal-dev only.
+ * A variant's own skill is never blocked (trialSettings' allowSkills). The
+ * React arm keeps every tool (the Skill tool too; it just lists no skills).
+ * SKILL_GUARD is in the run meta and the manifest (`skillGuard`,
+ * `skillGuards`; absent = 0, built-in skills available), not in the variant hash.
+ */
+export const SKILL_GUARD = 1
+/** The built-in skills a D228 trial's init event listed (CLI 2.1.287, user settings not loaded). */
+export const BUILTIN_SKILLS = ['batch', 'claude-api', 'code-review', 'dataviz', 'debug', 'deep-research', 'design', 'design-sync', 'doctor', 'fewer-permission-prompts', 'loop', 'plugin-authoring', 'run', 'run-skill-generator', 'schedule', 'simplify', 'update-config', 'verify', 'workflow-authoring']
+
+/** The settings a trial runs with when the skill guard is on: built-in skills removed, off and denied; `allowSkills` untouched. */
+export function trialSettings({ allowSkills = [], builtinSkills = BUILTIN_SKILLS } = {}) {
+  const names = builtinSkills.filter((n) => !allowSkills.includes(n))
+  return {
+    disableBundledSkills: true,
+    skillOverrides: Object.fromEntries(names.map((n) => [n, 'off'])),
+    permissions: { deny: names.map((n) => `Skill(${n})`) },
+  }
+}
+
+/** With the guard on: a problem string if the init skill list still has a built-in skill, else null. */
+export function checkSkillGuard(skills, allowSkills = []) {
+  if (!Array.isArray(skills)) return null
+  const left = skills.filter((n) => BUILTIN_SKILLS.includes(n) && !allowSkills.includes(n))
+  return left.length ? `built-in skill(s) ${left.join(', ')} still loaded with the skill guard on (D234)` : null
+}
+
+/** Write a trial's settings file (`<dest>.settings.json`); returns its path. */
+export function writeTrialSettings(dest, settings) {
+  const file = `${dest}.settings.json`
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n')
+  return file
+}
+
+/**
+ * argv for `claude` (without the binary). `settings`: a file path or JSON string for --settings
+ * (the skill guard's trialSettings()).
+ */
+export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMISSION_MODE, tools = DEFAULT_TOOLS, effort, maxBudgetUsd, settingSources, addDirs, mcpConfig, extraAllowedTools = [], processGuard = true, settings } = {}) {
   if (!prompt) throw new Error('buildClaudeArgs: prompt is required')
   const toolList = Array.isArray(tools) ? tools : String(tools).split(/[,\s]+/).filter(Boolean)
   const args = ['-p', prompt, '--output-format', 'stream-json', '--verbose', '--permission-mode', permissionMode]
   args.push('--tools', toolList.join(','), '--allowedTools', [...toolList, ...extraAllowedTools].join(','))
   if (processGuard) args.push('--disallowedTools', GUARD_DISALLOWED_TOOLS.join(','))
+  if (settings) args.push('--settings', settings)
   args.push(...isolationArgs({ settingSources, addDirs, mcpConfig }), '--no-session-persistence')
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)
@@ -131,9 +186,11 @@ export function buildClaudeArgs({ prompt, model, permissionMode = DEFAULT_PERMIS
 
 /** argv for the preflight: one tiny no-tool call on the trial model, same output format. */
 // It carries the guard's deny rules too, so a CLI that rejects them fails the preflight, not the first trial.
-export function buildPreflightArgs({ model, effort, settingSources, addDirs, processGuard = true } = {}) {
+// With `settings` (the skill guard's), its `skills` list shows what a trial will see.
+export function buildPreflightArgs({ model, effort, settingSources, addDirs, processGuard = true, settings } = {}) {
   const args = ['-p', 'Reply with the single word: ok', '--output-format', 'stream-json', '--verbose', '--tools', '']
   if (processGuard) args.push('--disallowedTools', GUARD_DISALLOWED_TOOLS.join(','))
+  if (settings) args.push('--settings', settings)
   args.push(...isolationArgs({ settingSources, addDirs }), '--no-session-persistence')
   if (model) args.push('--model', model)
   if (effort) args.push('--effort', effort)

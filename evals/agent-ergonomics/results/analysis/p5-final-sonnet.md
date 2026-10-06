@@ -136,6 +136,13 @@ Debug episodes (failure → next green run), by cause:
 | react | other | 2 | 8.1 | 4.1 | 1.5 | 0 | 0.3 |
 | react | unknown (output truncated) | 1 | 8.5 | 8.5 | 2 | 0 | 0.3 |
 
+Failed trials by category (run.md step 5). `manual`: set with `score.mjs --classify`; `auto`: from the sygnal-check findings left in the final code (lib/failure.mjs: SYG104 isolation; SYG101/102/105/110/124/401/410/643 wiring; SYG202/221/222 reducer-shape; SYG301 stream-operator; none: other). Auto categories are suggestions, not written to the results:
+
+| Arm | Category | Manual | Auto | Trials |
+|---|---|---|---|---|
+| sygnal | other | 0 | 1 | sygnal-30-t4 |
+| react | other | 0 | 2 | react-34-t3, react-34-t4 |
+
 ## Skill and docs usage (Sygnal arm)
 
 - Skill tool invoked in **25 / 25** Sygnal trials. Skill text read per trial (incl. the injected SKILL.md): 41366 / 41366 bytes (mean / median).
@@ -263,6 +270,7 @@ Limits:
 - Wall time is first to last transcript timestamp; it matches the recorded `wallSeconds` within a second for all but a few trials.
 - Small n (5 trials per task and arm); differences under ~5 s per trial are within noise.
 - **Process kills** (G-127): no trial ran a machine-wide process kill (pkill, killall, `xargs kill`, kill by lookup).
+- **Built-in skills** (D234): available in every trial (`skillGuard` 0, the condition before 4-E2): agents could call the CLI's own skills (`run`, `dataviz`, …); the calls are listed under "Other skills invoked". Runs from 4-E2 on block them, so compare such numbers across that change with care.
 
 ## Appendix: per-trial
 

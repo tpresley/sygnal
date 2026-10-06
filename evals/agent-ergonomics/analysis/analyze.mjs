@@ -185,10 +185,14 @@ for (const [trial, agentId] of mapRows) {
   rec.processKills = parsed.calls.filter((c) => c.name === 'Bash').flatMap((c) => processKills(c.input?.command ?? ''))
   // Was the trial guarded (lib/headless.mjs PROCESS_GUARD)? Then its kill attempts were refused.
   const runJson = tfile.replace(/\.transcript\.jsonl$/, '.run.json')
+  // ... and were Claude Code's built-in skills blocked (D234, lib/headless.mjs SKILL_GUARD)?
   try {
-    rec.processGuard = runJson !== tfile && fs.existsSync(runJson) ? JSON.parse(fs.readFileSync(runJson, 'utf8')).processGuard ?? 0 : 0
+    const runMeta = runJson !== tfile && fs.existsSync(runJson) ? JSON.parse(fs.readFileSync(runJson, 'utf8')) : {}
+    rec.processGuard = runMeta.processGuard ?? 0
+    rec.skillGuard = runMeta.skillGuard ?? 0
   } catch {
     rec.processGuard = 0
+    rec.skillGuard = 0
   }
   if (rec.processKills.some((k) => k.machineWide)) rec.flags.push(rec.processGuard ? 'machine-wide process kill (blocked by the guard)' : 'machine-wide process kill')
   // c. phases

@@ -4,6 +4,8 @@
 
 **Amended for 6.0 (PLAN-4 4-D, 2026-10-03):** C3 changed by GS-4 (D110: SYG502 retired); rows C12–C16 added for the PLAN-4 declarations (D114) and `STATE.watch` (GS-6). Row C17 (CT-1 controls) records P4-D (D141, 2026-10-04): class selectors stay canonical and controls are an alternative form; see [CT-1 controls: an alternative form](#ct-1-controls-an-alternative-form-p4-d).
 
+**Amended for PLAN-5 4-E2 (D233, 2026-10-06):** row C18 (field arrays): inline rows with `form.ADD`/`form.REMOVE` are canonical; rows as Collection components stay documented for rows that need their own component, with no strict rule. Numbered C18 because C17 is the controls row below.
+
 This document is normative for:
 - **2A** strict-mode rules (each row → one SYG5xx rule, runtime and static);
 - **2D** example migration;
@@ -33,6 +35,7 @@ This document is normative for:
 | C14 | Intervals, timeouts, animation frames | `C.timers = (state) => ({ name: cond && { every: ms, action } })` (`after`, `frame` likewise) with `makeTimerDriver()` registered in `run()` (key `TIMER` by convention) | `xs.periodic` or `setInterval` in intent, or an `EFFECT` with `next(…, ms)` loops | — (no rule) |
 | C15 | Reusing state + intent + model across components | `defineBehavior({...})` and the `uses` static: `C.uses = { key: behavior(options) }`; actions are named `key.ACTION` (D109); the host passes selectors as options (controls also work: alternative form, C17) | copying the intent and model into each component | — (no rule) |
 | C16 | "When this part of the state changes, do Y" | `STATE.watch(selector, { immediate })` in intent | `STATE.stream.map(selector).compose(dropRepeats(...))` | — (no rule) |
+| C18 | Field arrays (rows the user adds and removes in a `form` behavior) | **Inline rows** in the form's own view: `state.form.values.addresses.map((row, i) => …)` with names `f['addresses.' + row.id + '.city'].name`, `<button className="remove" data-id={row.id}>`, and the host's intent `'form.ADD': DOM.click('.add').mapTo({ field: 'addresses', value: { city: '' } })`, `'form.REMOVE': DOM.click('.remove').map((e) => ({ field: 'addresses', id: e.target.dataset.id }))` (D233; `guide/forms` "Field arrays") | None. Rows as Collection components (`<Collection of={Row} from={{ get: (s) => s.form.values.addresses }} fields={f} />`, Row `REMOVE: { PARENT: … }`, host `'form.REMOVE': CHILD.select(Row)`) stay documented for rows that need their own component (`guide/forms-reference` "Rows as components"), and are not flagged | — (no strict rule) |
 
 Declarations: `uses`, `persist`, `timers` and `viewTransitions` are reserved statics (like `connections`, `resources`, `route` and `head` from PLAN-3), and `uid` is a reserved view prop that C1 destructures like `state` (`function C({ state, uid })`). Helpers a component doesn't use cost 0 bytes.
 

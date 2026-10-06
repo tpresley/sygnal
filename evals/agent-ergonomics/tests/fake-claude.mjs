@@ -40,9 +40,22 @@ const opts = (k) => argv.flatMap((a, i) => (a === k && i + 1 < argv.length ? [ar
 if (process.env.FAKE_CLAUDE_ARGV_LOG) fs.appendFileSync(process.env.FAKE_CLAUDE_ARGV_LOG, JSON.stringify({ cwd: process.cwd(), argv }) + '\n')
 const listSkills = (root) => (fs.existsSync(root) ? fs.readdirSync(root).filter((n) => fs.existsSync(path.join(root, n, 'SKILL.md'))) : [])
 const sources = opt('--setting-sources')
+// FAKE_CLAUDE_BUILTIN_SKILLS=run,design,...: built-in skills listed like CLI 2.1.287 lists them:
+// --settings' disableBundledSkills removes all but `design`, `doctor` and `plugin-authoring`,
+// skillOverrides 'off' removes any (the settings may be a file path or a JSON string).
+const settingsArg = opt('--settings')
+let settings = {}
+if (settingsArg) settings = JSON.parse(settingsArg.trim().startsWith('{') ? settingsArg : fs.readFileSync(settingsArg, 'utf8'))
+const SURVIVE_DISABLE = ['design', 'doctor', 'plugin-authoring']
+const builtins = (process.env.FAKE_CLAUDE_BUILTIN_SKILLS ?? '')
+  .split(',')
+  .filter(Boolean)
+  .filter((n) => !settings.disableBundledSkills || SURVIVE_DISABLE.includes(n))
+  .filter((n) => settings.skillOverrides?.[n] !== 'off')
 const skills = [
   ...(sources == null || sources.split(',').includes('user') ? listSkills(path.join(process.env.HOME ?? '/nonexistent', '.claude', 'skills')) : []),
   ...opts('--add-dir').flatMap((d) => listSkills(path.join(d, '.claude', 'skills'))),
+  ...builtins,
 ]
 const mcpServers = opts('--mcp-config').flatMap((f) => {
   try {
