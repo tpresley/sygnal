@@ -1,0 +1,195 @@
+[
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 253,
+    "durationMs": 251887,
+    "tokens": 2037783,
+    "outputTokens": 27512,
+    "costUsd": 0.4627836000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-helpers",
+    "variantHash": "9da9ac10e368",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Full name is valid: expected 'true' not to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: expected <input id=\"u-promo\" …(3)></input> to be <select …(5)>…(4)</select> // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "AssertionError: expected [ Array(1) ] to include 'Enter a quantity from 1 to 10.'"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:20:15.085Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 7,
+    "editRounds": 5,
+    "wallSeconds": 264,
+    "durationMs": 262989,
+    "tokens": 1775525,
+    "outputTokens": 27647,
+    "costUsd": 0.42609500000000017,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-helpers",
+    "variantHash": "9da9ac10e368",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors names every field, starts with one item, and adds items with unique ids",
+        "message": "AssertionError: Full name is valid: expected 'true' not to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Email is valid: expected 'true' not to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: Quantity is valid: expected 'true' not to be 'true' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-06T11:20:24.403Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 7,
+    "iterations": 7,
+    "editRounds": 7,
+    "wallSeconds": 345,
+    "durationMs": 343492,
+    "tokens": 3435417,
+    "outputTokens": 45680,
+    "costUsd": 0.7316048999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-helpers",
+    "variantHash": "9da9ac10e368",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: expected <input id=\"u-promo\" …(3)></input> to be <input id=\"u-quantity-2\" …(6)></input> // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected 'Could not place the order. Try again.' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:21:47.025Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 7,
+    "iterations": 9,
+    "editRounds": 8,
+    "wallSeconds": 281,
+    "durationMs": 280497,
+    "tokens": 2814441,
+    "outputTokens": 39152,
+    "costUsd": 0.6129545000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-helpers",
+    "variantHash": "9da9ac10e368",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: expected [ Array(1) ] to include 'Enter a quantity from 1 to 10.'"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: Product is invalid: expected 'false' to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "AssertionError: Quantity is invalid: expected 'false' to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:25:02.669Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 7,
+    "iterations": 17,
+    "editRounds": 10,
+    "wallSeconds": 615,
+    "durationMs": 614222,
+    "tokens": 7446987,
+    "outputTokens": 64893,
+    "costUsd": 1.291746,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-helpers",
+    "variantHash": "9da9ac10e368",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 'Place order' to be 'Placing order…' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:26:16.251Z"
+  }
+]

@@ -1,0 +1,231 @@
+[
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 10,
+    "editRounds": 7,
+    "wallSeconds": 268,
+    "durationMs": 267119,
+    "tokens": 2212284,
+    "outputTokens": 27747,
+    "costUsd": 0.4916741,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-behavior",
+    "variantHash": "768162cadc5c",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: expected [ Array(1) ] to include 'Enter a quantity from 1 to 10.'"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "AssertionError: expected [ 'Item 1', 'Item 2', 'Item 3' ] to deeply equal [ 'Item 1', 'Item 2' ]"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: Quantity is invalid: expected 'false' to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:07:37.392Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 7,
+    "iterations": 8,
+    "editRounds": 6,
+    "wallSeconds": 339,
+    "durationMs": 338265,
+    "tokens": 2844596,
+    "outputTokens": 36027,
+    "costUsd": 0.6076207000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-behavior",
+    "variantHash": "768162cadc5c",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors names every field, starts with one item, and adds items with unique ids",
+        "message": "AssertionError: expected '' to be 'Backpack' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: Product is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "Error: expected one field named \"Product\", found 2"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:08:48.139Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 7,
+    "iterations": 10,
+    "editRounds": 8,
+    "wallSeconds": 431,
+    "durationMs": 430018,
+    "tokens": 2478186,
+    "outputTokens": 43970,
+    "costUsd": 0.6137941000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-behavior",
+    "variantHash": "768162cadc5c",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors names every field, starts with one item, and adds items with unique ids",
+        "message": "AssertionError: expected '' to be '1' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: Product is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "Error: expected one field named \"Quantity\", found 0"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "Error: expected one field named \"Product\", found 0"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "Error: expected one field named \"Product\", found 0"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "Error: no request #0; sent: "
+      }
+    ],
+    "scoredAt": "2026-10-06T11:10:17.173Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 7,
+    "iterations": 16,
+    "editRounds": 9,
+    "wallSeconds": 531,
+    "durationMs": 525389,
+    "tokens": 6881151,
+    "outputTokens": 60954,
+    "costUsd": 1.1827174000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-behavior",
+    "variantHash": "768162cadc5c",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors names every field, starts with one item, and adds items with unique ids",
+        "message": "AssertionError: expected false to be true // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: ZIP code is valid: expected 'true' not to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: Full name is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected { name: '  Ada Lovelace ', …(4) } to deeply equal { name: 'Ada Lovelace', …(4) }"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: expected ' OLDCODE ' to be 'OLDCODE' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-06T11:11:58.034Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 7,
+    "iterations": 9,
+    "editRounds": 7,
+    "wallSeconds": 448,
+    "durationMs": 447281,
+    "tokens": 3021830,
+    "outputTokens": 42912,
+    "costUsd": 0.7003123000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-f1-behavior",
+    "variantHash": "768162cadc5c",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: expected [ Array(1) ] to include 'Enter a quantity from 1 to 10.'"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors removes items: the others keep their entries and messages, the legends renumber",
+        "message": "AssertionError: expected [ 'Item 1', 'Item 2', 'Item 3' ] to deeply equal [ 'Item 1', 'Item 2' ]"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected true to be false // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:15:12.069Z"
+  }
+]

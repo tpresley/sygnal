@@ -1,0 +1,5817 @@
+{
+  "meta": {
+    "run": "p5-4s-toc-sonnet",
+    "generatedAt": "2026-10-06T09:54:47.210Z",
+    "trialsInMap": 25,
+    "trialsAnalyzed": 25,
+    "trialsScored": 25,
+    "skillDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-sonnet-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "30-checkout-form",
+      "31-command-menu",
+      "32-sales-chart",
+      "33-virtual-list",
+      "34-sortable-playlist"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "30-checkout-form": {
+        "sygnal": {
+          "n": 5,
+          "pass": 3,
+          "scored": 5,
+          "wall": {
+            "mean": 64.4,
+            "median": 59.1
+          },
+          "peakContext": {
+            "mean": 40540.8,
+            "median": 41318
+          },
+          "cacheCreation": {
+            "mean": 33856.2,
+            "median": 34693
+          },
+          "cacheRead": {
+            "mean": 206230.8,
+            "median": 209704
+          },
+          "messages": {
+            "mean": 8,
+            "median": 8
+          },
+          "costUsd": {
+            "mean": 0.255,
+            "median": 0.252
+          },
+          "billedTokens": {
+            "mean": 247982.2,
+            "median": 250275
+          },
+          "outputTokens": {
+            "mean": 7879.2,
+            "median": 7985
+          },
+          "durationSeconds": {
+            "mean": 64.5,
+            "median": 59.1
+          },
+          "iterations": {
+            "mean": 2.6,
+            "median": 2
+          },
+          "effectiveIterations": {
+            "mean": 2.6,
+            "median": 2
+          },
+          "editRounds": {
+            "mean": 2.6,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 8.2,
+            "median": 8
+          },
+          "failedRuns": {
+            "mean": 0.4,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.2,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 214.8,
+            "median": 239
+          },
+          "locRemoved": {
+            "mean": 39.6,
+            "median": 40
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2.7,
+            "learn": 10.8,
+            "implement": 36.6,
+            "test-authoring": 3.3,
+            "verify": 3.9,
+            "debug": 2.2,
+            "tooling-friction": 0,
+            "think": 5,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.7,
+            "skill-reference": 4.4,
+            "framework-source": 3.9,
+            "dom-events": 1.7
+          }
+        }
+      },
+      "31-command-menu": {
+        "sygnal": {
+          "n": 5,
+          "pass": 4,
+          "scored": 5,
+          "wall": {
+            "mean": 39.5,
+            "median": 38.5
+          },
+          "peakContext": {
+            "mean": 28239.2,
+            "median": 28063
+          },
+          "cacheCreation": {
+            "mean": 21520.8,
+            "median": 21250
+          },
+          "cacheRead": {
+            "mean": 171292.4,
+            "median": 166591
+          },
+          "messages": {
+            "mean": 8.2,
+            "median": 8
+          },
+          "costUsd": {
+            "mean": 0.168,
+            "median": 0.166
+          },
+          "billedTokens": {
+            "mean": 197560.4,
+            "median": 192231
+          },
+          "outputTokens": {
+            "mean": 4730.8,
+            "median": 4758
+          },
+          "durationSeconds": {
+            "mean": 39.6,
+            "median": 38.5
+          },
+          "iterations": {
+            "mean": 4.8,
+            "median": 5
+          },
+          "effectiveIterations": {
+            "mean": 4.8,
+            "median": 5
+          },
+          "editRounds": {
+            "mean": 4.8,
+            "median": 5
+          },
+          "toolCalls": {
+            "mean": 8.8,
+            "median": 9
+          },
+          "failedRuns": {
+            "mean": 0.8,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.6,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 96.4,
+            "median": 98
+          },
+          "locRemoved": {
+            "mean": 2,
+            "median": 2
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2.2,
+            "learn": 2.2,
+            "implement": 20,
+            "test-authoring": 3.1,
+            "verify": 4.5,
+            "debug": 3.1,
+            "tooling-friction": 0,
+            "think": 4.4,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.7,
+            "skill-reference": 1.6
+          }
+        }
+      },
+      "32-sales-chart": {
+        "sygnal": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 37.3,
+            "median": 34.2
+          },
+          "peakContext": {
+            "mean": 36177.8,
+            "median": 34658
+          },
+          "cacheCreation": {
+            "mean": 29457.4,
+            "median": 28021
+          },
+          "cacheRead": {
+            "mean": 234786.2,
+            "median": 150686
+          },
+          "messages": {
+            "mean": 9.4,
+            "median": 7
+          },
+          "costUsd": {
+            "mean": 0.209,
+            "median": 0.181
+          },
+          "billedTokens": {
+            "mean": 268716.6,
+            "median": 182547
+          },
+          "outputTokens": {
+            "mean": 4454.2,
+            "median": 4111
+          },
+          "durationSeconds": {
+            "mean": 37.3,
+            "median": 34.2
+          },
+          "iterations": {
+            "mean": 3.6,
+            "median": 2
+          },
+          "effectiveIterations": {
+            "mean": 3.6,
+            "median": 2
+          },
+          "editRounds": {
+            "mean": 3.6,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 10.4,
+            "median": 8
+          },
+          "failedRuns": {
+            "mean": 2,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 1,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 81,
+            "median": 81
+          },
+          "locRemoved": {
+            "mean": 5.4,
+            "median": 5
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 1.9,
+            "learn": 4.9,
+            "implement": 9.9,
+            "test-authoring": 3.4,
+            "verify": 2.1,
+            "debug": 10.5,
+            "tooling-friction": 0,
+            "think": 4.5,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.6,
+            "skill-reference": 1.6,
+            "framework-source": 2.7
+          }
+        }
+      },
+      "33-virtual-list": {
+        "sygnal": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 34.3,
+            "median": 32.5
+          },
+          "peakContext": {
+            "mean": 33714.2,
+            "median": 32988
+          },
+          "cacheCreation": {
+            "mean": 27187.6,
+            "median": 26816
+          },
+          "cacheRead": {
+            "mean": 155317.6,
+            "median": 146908
+          },
+          "messages": {
+            "mean": 7.2,
+            "median": 7
+          },
+          "costUsd": {
+            "mean": 0.18,
+            "median": 0.179
+          },
+          "billedTokens": {
+            "mean": 186496.2,
+            "median": 176118
+          },
+          "outputTokens": {
+            "mean": 3976.6,
+            "median": 3773
+          },
+          "durationSeconds": {
+            "mean": 34.4,
+            "median": 32.5
+          },
+          "iterations": {
+            "mean": 2,
+            "median": 2
+          },
+          "effectiveIterations": {
+            "mean": 2,
+            "median": 2
+          },
+          "editRounds": {
+            "mean": 1.6,
+            "median": 1
+          },
+          "toolCalls": {
+            "mean": 7.2,
+            "median": 7
+          },
+          "failedRuns": {
+            "mean": 0.6,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.4,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 66.8,
+            "median": 65
+          },
+          "locRemoved": {
+            "mean": 7.8,
+            "median": 8
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 1.6,
+            "learn": 10.5,
+            "implement": 8.8,
+            "test-authoring": 1.5,
+            "verify": 3.2,
+            "debug": 3.7,
+            "tooling-friction": 0,
+            "think": 5,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.7,
+            "skill-reference": 1.1,
+            "framework-source": 3.8,
+            "dom-events": 4.2,
+            "collections": 0.8
+          }
+        }
+      },
+      "34-sortable-playlist": {
+        "sygnal": {
+          "n": 5,
+          "pass": 5,
+          "scored": 5,
+          "wall": {
+            "mean": 21.8,
+            "median": 21.4
+          },
+          "peakContext": {
+            "mean": 32936,
+            "median": 32449
+          },
+          "cacheCreation": {
+            "mean": 26542.4,
+            "median": 25861
+          },
+          "cacheRead": {
+            "mean": 109925.8,
+            "median": 90421
+          },
+          "messages": {
+            "mean": 5.6,
+            "median": 5
+          },
+          "costUsd": {
+            "mean": 0.155,
+            "median": 0.148
+          },
+          "billedTokens": {
+            "mean": 139159.4,
+            "median": 118737
+          },
+          "outputTokens": {
+            "mean": 2680,
+            "median": 2690
+          },
+          "durationSeconds": {
+            "mean": 21.9,
+            "median": 21.4
+          },
+          "iterations": {
+            "mean": 1,
+            "median": 1
+          },
+          "effectiveIterations": {
+            "mean": 1,
+            "median": 1
+          },
+          "editRounds": {
+            "mean": 1,
+            "median": 1
+          },
+          "toolCalls": {
+            "mean": 6,
+            "median": 5
+          },
+          "failedRuns": {
+            "mean": 0,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 48.8,
+            "median": 48
+          },
+          "locRemoved": {
+            "mean": 4,
+            "median": 4
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 1.4,
+            "learn": 5.7,
+            "implement": 6.2,
+            "test-authoring": 2,
+            "verify": 1.7,
+            "debug": 0,
+            "tooling-friction": 0,
+            "think": 4.7,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.7,
+            "skill-reference": 1.9,
+            "framework-source": 3.1
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 25,
+        "pass": 22,
+        "scored": 25,
+        "wall": {
+          "mean": 39.5,
+          "median": 34.8
+        },
+        "peakContext": {
+          "mean": 34321.6,
+          "median": 33845
+        },
+        "cacheCreation": {
+          "mean": 27712.9,
+          "median": 27187
+        },
+        "cacheRead": {
+          "mean": 175510.6,
+          "median": 157890
+        },
+        "messages": {
+          "mean": 7.7,
+          "median": 7
+        },
+        "costUsd": {
+          "mean": 0.193,
+          "median": 0.179
+        },
+        "billedTokens": {
+          "mean": 207983,
+          "median": 188346
+        },
+        "outputTokens": {
+          "mean": 4744.2,
+          "median": 4111
+        },
+        "durationSeconds": {
+          "mean": 39.5,
+          "median": 34.8
+        },
+        "iterations": {
+          "mean": 2.8,
+          "median": 2
+        },
+        "effectiveIterations": {
+          "mean": 2.8,
+          "median": 2
+        },
+        "editRounds": {
+          "mean": 2.7,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 8.1,
+          "median": 8
+        },
+        "failedRuns": {
+          "mean": 0.8,
+          "median": 0
+        },
+        "episodes": {
+          "mean": 0.4,
+          "median": 0
+        },
+        "locAdded": {
+          "mean": 101.6,
+          "median": 81
+        },
+        "locRemoved": {
+          "mean": 11.8,
+          "median": 5
+        },
+        "wroteTest": 25,
+        "keptTest": 25,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 2,
+          "learn": 6.8,
+          "implement": 16.3,
+          "test-authoring": 2.7,
+          "verify": 3.1,
+          "debug": 3.9,
+          "tooling-friction": 0,
+          "think": 4.7,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 0.7,
+          "skill-reference": 2.1,
+          "framework-source": 2.7,
+          "dom-events": 1.2,
+          "collections": 0.2
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 7,
+        "sygnal": "7/25",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 7,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-30-t4",
+          "sygnal-33-t3",
+          "sygnal-34-t1",
+          "sygnal-34-t2",
+          "sygnal-34-t3",
+          "sygnal-34-t4",
+          "sygnal-34-t5"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 25,
+      "skillInvoked": 25,
+      "skillBytes": {
+        "mean": 15178.7,
+        "median": 13386
+      },
+      "files": {
+        "SKILL.md": {
+          "trials": 25,
+          "fileLines": 128,
+          "linesSeen": {
+            "mean": 128,
+            "median": 128
+          },
+          "bytes": {
+            "mean": 13386,
+            "median": 13386
+          },
+          "how": {
+            "skill-tool": 25
+          }
+        },
+        "references/intent-and-streams.md": {
+          "trials": 3,
+          "fileLines": 10,
+          "linesSeen": {
+            "mean": 10,
+            "median": 10
+          },
+          "bytes": {
+            "mean": 6774,
+            "median": 2172
+          },
+          "how": {
+            "bash": 1,
+            "read": 2
+          }
+        },
+        "references/testing.md": {
+          "trials": 1,
+          "fileLines": 46,
+          "linesSeen": {
+            "mean": 80,
+            "median": 80
+          },
+          "bytes": {
+            "mean": 1784,
+            "median": 1784
+          },
+          "how": {
+            "bash": 1
+          }
+        },
+        "references/model-and-sinks.md": {
+          "trials": 2,
+          "fileLines": 65,
+          "linesSeen": {
+            "mean": 65,
+            "median": 65
+          },
+          "bytes": {
+            "mean": 4408,
+            "median": 4408
+          },
+          "how": {
+            "read": 2
+          }
+        },
+        "references/widgets-and-ui.md": {
+          "trials": 7,
+          "fileLines": 9,
+          "linesSeen": {
+            "mean": 9,
+            "median": 9
+          },
+          "bytes": {
+            "mean": 1985.1,
+            "median": 1781
+          },
+          "how": {
+            "read": 6,
+            "bash": 1
+          }
+        }
+      },
+      "sections": [
+        {
+          "section": "SKILL.md#Sygnal Dev",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#1. Workflow",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#2. Mental model and component anatomy",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "trials": 25
+        },
+        {
+          "section": "SKILL.md#5. Basic test (more: references/testing.md)",
+          "trials": 25
+        },
+        {
+          "section": "references/widgets-and-ui.md#Widgets, web components and UI parts",
+          "trials": 7
+        },
+        {
+          "section": "references/intent-and-streams.md#Intent: DOM events and streams",
+          "trials": 3
+        },
+        {
+          "section": "references/model-and-sinks.md#Model, actions and sinks",
+          "trials": 2
+        },
+        {
+          "section": "references/model-and-sinks.md#ABORT, STATE.watch, async EFFECT",
+          "trials": 2
+        },
+        {
+          "section": "references/model-and-sinks.md#State update, ABORT, set / toggle, controlled input",
+          "trials": 2
+        },
+        {
+          "section": "references/model-and-sinks.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "trials": 2
+        },
+        {
+          "section": "references/model-and-sinks.md#Element commands, timers, persistence",
+          "trials": 2
+        },
+        {
+          "section": "references/testing.md#Testing your change",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#Contents",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#Events and waiting",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#Timer tests (fake timers)",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#The action log and simulateAction",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#HTTP, resources, sockets, router fakes",
+          "trials": 1
+        },
+        {
+          "section": "references/testing.md#TypeScript, mock vs real DOM",
+          "trials": 1
+        }
+      ],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 19,
+            "files": {
+              "dist/guide/forms.md": 3,
+              "llms.txt": 4,
+              "dist/guide": 4,
+              "dist/guide/recipes": 2,
+              "dist/guide/recipes/charts.md": 4,
+              "dist/guide/testing.md": 2,
+              "dist/guide/widgets.md": 5,
+              "dist/guide/recipes/overview.md": 2,
+              "dist/guide/element-commands.md": 1,
+              "dist/guide/virtual-collections.md": 3,
+              "dist/guide/drag-and-drop.md": 5,
+              "(dir)": 2,
+              "dist": 1,
+              "dist/index.esm.js": 1
+            }
+          },
+          "..": {
+            "trials": 1,
+            "files": {
+              "node_modules/sygnal/dist/guide/forms.md": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 15615.4,
+          "median": 21117
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 19,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 25,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 61,
+          "trials": 13
+        },
+        "effectSinks": {
+          "total": 1,
+          "trials": 1
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 3,
+          "trials": 3
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Exit code 1",
+          "cause": "other",
+          "catalog": [],
+          "count": 4,
+          "trials": 2
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of null (reading 'getAttribute')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 3,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[9]); next() only matches new states. Use t.wai",
+          "cause": "other",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of null (reading 'ownerDocument')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 2,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "FAIL src/App.test.jsx > draws, selects, updates in place and removes the chart",
+          "cause": "unknown (output truncated)",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'data')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "ReferenceError: xsMerge is not defined",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: form.querySelector is not a function",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: e.target.querySelector is not a function",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "other": {
+            "episodes": 4,
+            "seconds": 26.1,
+            "iterations": 6,
+            "unresolved": 0
+          },
+          "agent-mistake": {
+            "episodes": 7,
+            "seconds": 70.6,
+            "iterations": 13,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-30-t1",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 83,
+        "iterations": 4,
+        "editRounds": 4,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 20,
+        "output": 607,
+        "cacheRead": 271542,
+        "cacheCreation": 34510,
+        "messages": 10,
+        "peakContext": 41174,
+        "total": 306679
+      },
+      "usage": {
+        "tokens": 315269,
+        "outputTokens": 9197,
+        "costUsd": 0.2843584,
+        "durationMs": 81716,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 10,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 9
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 81.7,
+      "phases": {
+        "orient": 2.4,
+        "learn": 17.7,
+        "implement": 37.2,
+        "test-authoring": 3.4,
+        "verify": 5.1,
+        "debug": 10.8,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 4,
+      "editRounds": 4,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[9]); next() only matches new states. Use t.wai",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 66
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[9]); next() only matches new states. Use t.wai",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 72
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 10.8,
+          "iterations": 2,
+          "signature": "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[9]); next() only matches new states. Use t.wai",
+          "signatures": [
+            "Error: next timed out after Nms. A state recorded before this next() call already matches the predicate (t.states[9]); next() only matches new states. Use t.wai"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 66
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "skill-reference": 2.9,
+        "framework-source": 5.5,
+        "dom-events": 8.5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/forms.md"
+          ]
+        },
+        "libraryBytes": 12581
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 27,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-30-t1",
+      "diff": {
+        "added": 245,
+        "removed": 39,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 204,
+            "removed": 36,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 37,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 8,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1391
+    },
+    {
+      "trial": "sygnal-30-t2",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 75,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 22,
+        "output": 743,
+        "cacheRead": 319501,
+        "cacheCreation": 35941,
+        "messages": 11,
+        "peakContext": 42736,
+        "total": 356207
+      },
+      "usage": {
+        "tokens": 363445,
+        "outputTokens": 7981,
+        "costUsd": 0.28751819999999995,
+        "durationMs": 73942,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 10,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 73.9,
+      "phases": {
+        "orient": 2.1,
+        "learn": 12.1,
+        "implement": 39.2,
+        "test-authoring": 7,
+        "verify": 7.4,
+        "think": 6
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 5,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "framework-source": 8.8,
+        "skill-reference": 2.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/forms.md",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 22833
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 25.9,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-30-t2",
+      "diff": {
+        "added": 209,
+        "removed": 46,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 148,
+            "removed": 43,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 57,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 1
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1887
+    },
+    {
+      "trial": "sygnal-30-t3",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 6,
+        "testsTotal": 7,
+        "wallSeconds": 57,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 590,
+        "cacheRead": 94269,
+        "cacheCreation": 29266,
+        "messages": 5,
+        "peakContext": 35984,
+        "total": 124135
+      },
+      "usage": {
+        "tokens": 131530,
+        "outputTokens": 7985,
+        "costUsd": 0.21578780000000003,
+        "durationMs": 56408,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 56.4,
+      "phases": {
+        "orient": 2.3,
+        "learn": 9.8,
+        "implement": 35.3,
+        "test-authoring": 2.2,
+        "verify": 1.9,
+        "think": 4.9
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 9.2
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 6.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-30-t3",
+      "diff": {
+        "added": 239,
+        "removed": 40,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 209,
+            "removed": 37,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 26,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 8,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1628
+    },
+    {
+      "trial": "sygnal-30-t4",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 60,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 12,
+        "output": 501,
+        "cacheRead": 136138,
+        "cacheCreation": 34693,
+        "messages": 6,
+        "peakContext": 41318,
+        "total": 171344
+      },
+      "usage": {
+        "tokens": 179392,
+        "outputTokens": 8549,
+        "costUsd": 0.2515136,
+        "durationMs": 59119,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 6,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 59.1,
+      "phases": {
+        "orient": 1.3,
+        "learn": 5.6,
+        "implement": 46.4,
+        "verify": 1.9,
+        "think": 3.9
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 2,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "framework-source": 0.3,
+        "skill-reference": 4.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 31148,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/intent-and-streams.md": {
+            "ranges": [
+              [
+                1,
+                10
+              ]
+            ],
+            "linesSeen": 10,
+            "fileLines": 10,
+            "bytes": 15978,
+            "how": [
+              "bash"
+            ]
+          },
+          "references/testing.md": {
+            "ranges": [
+              [
+                1,
+                80
+              ]
+            ],
+            "linesSeen": 80,
+            "fileLines": 46,
+            "bytes": 1784,
+            "how": [
+              "bash"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/intent-and-streams.md#Intent: DOM events and streams",
+          "references/testing.md#Testing your change",
+          "references/testing.md#Contents",
+          "references/testing.md#Events and waiting",
+          "references/testing.md#Timer tests (fake timers)",
+          "references/testing.md#The action log and simulateAction",
+          "references/testing.md#HTTP, resources, sockets, router fakes",
+          "references/testing.md#TypeScript, mock vs real DOM"
+        ],
+        "library": {
+          "sygnal": [
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 18187
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 5.9,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-30-t4",
+      "diff": {
+        "added": 249,
+        "removed": 27,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 191,
+            "removed": 24,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 54,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 5,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1343
+    },
+    {
+      "trial": "sygnal-30-t5",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "30-checkout-form",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 7,
+        "testsTotal": 7,
+        "wallSeconds": 52,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 597,
+        "cacheRead": 209704,
+        "cacheCreation": 34871,
+        "messages": 8,
+        "peakContext": 41492,
+        "total": 245188
+      },
+      "usage": {
+        "tokens": 250275,
+        "outputTokens": 5684,
+        "costUsd": 0.23829679999999998,
+        "durationMs": 51156,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 7
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 51.1,
+      "phases": {
+        "orient": 5.2,
+        "learn": 8.6,
+        "implement": 25.1,
+        "test-authoring": 4,
+        "verify": 3.3,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "skill-reference": 2.8,
+        "framework-source": 5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/forms.md"
+          ]
+        },
+        "libraryBytes": 24379
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 14,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-30-t5",
+      "diff": {
+        "added": 132,
+        "removed": 46,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 83,
+            "removed": 43,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 45,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1342
+    },
+    {
+      "trial": "sygnal-31-t1",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "31-command-menu",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 39,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 653,
+        "cacheRead": 167181,
+        "cacheCreation": 21827,
+        "messages": 8,
+        "peakContext": 28585,
+        "total": 189677
+      },
+      "usage": {
+        "tokens": 193823,
+        "outputTokens": 4799,
+        "costUsd": 0.16876620000000003,
+        "durationMs": 38543,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 10,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 7,
+          "Edit": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 38.5,
+      "phases": {
+        "orient": 1.5,
+        "learn": 2,
+        "implement": 18.6,
+        "test-authoring": 2.4,
+        "verify": 2.4,
+        "debug": 6.5,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 5,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 24
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 30
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 2.9,
+          "iterations": 1,
+          "signature": "Exit code 1",
+          "signatures": [
+            "Exit code 1"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 24
+        },
+        {
+          "seconds": 3.6,
+          "iterations": 1,
+          "signature": "Exit code 1",
+          "signatures": [
+            "Exit code 1"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 30
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 1.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 19.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-31-t1",
+      "diff": {
+        "added": 102,
+        "removed": 2,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 74,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 26,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 5,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1677
+    },
+    {
+      "trial": "sygnal-31-t2",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "31-command-menu",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 7,
+        "testsTotal": 8,
+        "wallSeconds": 39,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 555,
+        "cacheRead": 162975,
+        "cacheCreation": 20738,
+        "messages": 8,
+        "peakContext": 27389,
+        "total": 184284
+      },
+      "usage": {
+        "tokens": 188346,
+        "outputTokens": 4617,
+        "costUsd": 0.161749,
+        "durationMs": 37951,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 9,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6,
+          "Read": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 37.9,
+      "phases": {
+        "orient": 1.5,
+        "learn": 2.4,
+        "implement": 19.3,
+        "test-authoring": 4.7,
+        "verify": 6,
+        "think": 4.1
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 5,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 1.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 19966,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/intent-and-streams.md": {
+            "ranges": [
+              [
+                1,
+                10
+              ]
+            ],
+            "linesSeen": 10,
+            "fileLines": 10,
+            "bytes": 2172,
+            "how": [
+              "read"
+            ]
+          },
+          "references/model-and-sinks.md": {
+            "ranges": [
+              [
+                1,
+                65
+              ]
+            ],
+            "linesSeen": 65,
+            "fileLines": 65,
+            "bytes": 4408,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/intent-and-streams.md#Intent: DOM events and streams",
+          "references/model-and-sinks.md#Model, actions and sinks",
+          "references/model-and-sinks.md#ABORT, STATE.watch, async EFFECT",
+          "references/model-and-sinks.md#State update, ABORT, set / toggle, controlled input",
+          "references/model-and-sinks.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "references/model-and-sinks.md#Element commands, timers, persistence"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 19.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-31-t2",
+      "diff": {
+        "added": 93,
+        "removed": 2,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 64,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 27,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 7,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1384
+    },
+    {
+      "trial": "sygnal-31-t3",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "31-command-menu",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 35,
+        "iterations": 3,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 700,
+        "cacheRead": 166591,
+        "cacheCreation": 21007,
+        "messages": 8,
+        "peakContext": 27746,
+        "total": 188314
+      },
+      "usage": {
+        "tokens": 191708,
+        "outputTokens": 4094,
+        "costUsd": 0.1583182,
+        "durationMs": 33812,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 33.8,
+      "phases": {
+        "orient": 4.9,
+        "learn": 2.5,
+        "implement": 15.9,
+        "test-authoring": 2.1,
+        "verify": 4.2,
+        "think": 4.2
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 3,
+      "editRounds": 3,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 1.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 14.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-31-t3",
+      "diff": {
+        "added": 87,
+        "removed": 2,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 62,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 23,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 8,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1615
+    },
+    {
+      "trial": "sygnal-31-t4",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "31-command-menu",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 48,
+        "iterations": 6,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 533,
+        "cacheRead": 193508,
+        "cacheCreation": 22782,
+        "messages": 9,
+        "peakContext": 29413,
+        "total": 216841
+      },
+      "usage": {
+        "tokens": 221694,
+        "outputTokens": 5386,
+        "costUsd": 0.1837256,
+        "durationMs": 46871,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 9,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 8
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 46.8,
+      "phases": {
+        "orient": 1.4,
+        "learn": 2.2,
+        "implement": 23.9,
+        "test-authoring": 2.2,
+        "verify": 4.4,
+        "debug": 8.8,
+        "think": 4
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 22
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 24
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 8.8,
+          "iterations": 2,
+          "signature": "Exit code 1",
+          "signatures": [
+            "Exit code 1"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 22
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 1.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 28.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-31-t4",
+      "diff": {
+        "added": 98,
+        "removed": 2,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 74,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 22,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 5,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1343
+    },
+    {
+      "trial": "sygnal-31-t5",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "31-command-menu",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 8,
+        "testsTotal": 8,
+        "wallSeconds": 42,
+        "iterations": 5,
+        "editRounds": 5,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 718,
+        "cacheRead": 166207,
+        "cacheCreation": 21250,
+        "messages": 8,
+        "peakContext": 28063,
+        "total": 188191
+      },
+      "usage": {
+        "tokens": 192231,
+        "outputTokens": 4758,
+        "costUsd": 0.16585340000000004,
+        "durationMs": 40740,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 7
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 40.7,
+      "phases": {
+        "orient": 1.7,
+        "learn": 2.1,
+        "implement": 22.1,
+        "test-authoring": 4.2,
+        "verify": 5.7,
+        "think": 4.8
+      },
+      "attributedShare": 1,
+      "iterations": 5,
+      "effectiveIterations": 5,
+      "edits": 5,
+      "editRounds": 5,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 1.5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 21.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-31-t5",
+      "diff": {
+        "added": 102,
+        "removed": 2,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 69,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 31,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 5,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1819
+    },
+    {
+      "trial": "sygnal-32-t1",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "32-sales-chart",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 44,
+        "iterations": 6,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 26,
+        "output": 731,
+        "cacheRead": 368851,
+        "cacheCreation": 33711,
+        "messages": 13,
+        "peakContext": 40407,
+        "total": 403319
+      },
+      "usage": {
+        "tokens": 407540,
+        "outputTokens": 4952,
+        "costUsd": 0.25818620000000003,
+        "durationMs": 43292,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 14,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 12,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 43.3,
+      "phases": {
+        "orient": 1.8,
+        "learn": 4.8,
+        "implement": 8.6,
+        "test-authoring": 3.4,
+        "verify": 1.9,
+        "debug": 18.5,
+        "think": 4.3
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'getAttribute')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 20
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'getAttribute')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 27
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'getAttribute')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 30
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "FAIL src/App.test.jsx > draws, selects, updates in place and removes the chart",
+          "catalog": [],
+          "friction": [],
+          "cause": "unknown (output truncated)",
+          "t": 32
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 35
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 18.5,
+          "iterations": 5,
+          "signature": "TypeError: Cannot read properties of null (reading 'getAttribute')",
+          "signatures": [
+            "TypeError: Cannot read properties of null (reading 'getAttribute')",
+            "FAIL src/App.test.jsx > draws, selects, updates in place and removes the chart",
+            "TypeError: Cannot read properties of undefined (reading 'options')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 20
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 1.5,
+        "framework-source": 2.6
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 15167,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide",
+            "dist/guide/recipes",
+            "dist/guide/recipes/charts.md",
+            "dist/guide/testing.md",
+            "dist/guide/widgets.md"
+          ]
+        },
+        "libraryBytes": 22556
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 24.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-32-t1",
+      "diff": {
+        "added": 80,
+        "removed": 5,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 19,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 33,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/SalesChart.js": {
+            "added": 26,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1464
+    },
+    {
+      "trial": "sygnal-32-t2",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "32-sales-chart",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 35,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 552,
+        "cacheRead": 150686,
+        "cacheCreation": 28021,
+        "messages": 7,
+        "peakContext": 34658,
+        "total": 179273
+      },
+      "usage": {
+        "tokens": 182547,
+        "outputTokens": 3826,
+        "costUsd": 0.1805092,
+        "durationMs": 34206,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 34.2,
+      "phases": {
+        "orient": 2.3,
+        "learn": 6.9,
+        "implement": 10.2,
+        "test-authoring": 3.2,
+        "verify": 1.5,
+        "debug": 5.4,
+        "think": 4.5
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 24
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 5.4,
+          "iterations": 1,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'options')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 24
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "skill-reference": 2.3,
+        "framework-source": 4.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 15167,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/recipes/charts.md",
+            "dist/guide/recipes/overview.md",
+            "dist/guide/widgets.md"
+          ]
+        },
+        "libraryBytes": 24272
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 11.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-32-t2",
+      "diff": {
+        "added": 82,
+        "removed": 5,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 19,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 35,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/SalesChart.js": {
+            "added": 26,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1305
+    },
+    {
+      "trial": "sygnal-32-t3",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "32-sales-chart",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 35,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 789,
+        "cacheRead": 148165,
+        "cacheCreation": 27263,
+        "messages": 7,
+        "peakContext": 34088,
+        "total": 176231
+      },
+      "usage": {
+        "tokens": 179553,
+        "outputTokens": 4111,
+        "costUsd": 0.179823,
+        "durationMs": 33792,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 33.8,
+      "phases": {
+        "orient": 1.8,
+        "learn": 5.1,
+        "implement": 11.6,
+        "test-authoring": 3.5,
+        "verify": 2,
+        "debug": 4.3,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 24
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 4.3,
+          "iterations": 1,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'options')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'options')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 24
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 1.7,
+        "framework-source": 2.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 15167,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/recipes",
+            "dist/guide/recipes/charts.md",
+            "dist/guide/widgets.md"
+          ]
+        },
+        "libraryBytes": 22003
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 11.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-32-t3",
+      "diff": {
+        "added": 81,
+        "removed": 6,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 17,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 36,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/SalesChart.js": {
+            "added": 26,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1781
+    },
+    {
+      "trial": "sygnal-32-t4",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "32-sales-chart",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 29,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 570,
+        "cacheRead": 149115,
+        "cacheCreation": 27187,
+        "messages": 7,
+        "peakContext": 33845,
+        "total": 176886
+      },
+      "usage": {
+        "tokens": 180041,
+        "outputTokens": 3725,
+        "costUsd": 0.175849,
+        "durationMs": 27934,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6,
+          "Read": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 27.9,
+      "phases": {
+        "orient": 1.9,
+        "learn": 4.8,
+        "implement": 8.1,
+        "test-authoring": 3.6,
+        "verify": 1.9,
+        "debug": 3.7,
+        "think": 3.9
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'data')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 20
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 3.7,
+          "iterations": 1,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'data')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'data')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 20
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "skill-reference": 1.2,
+        "framework-source": 2.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 15167,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/recipes/charts.md",
+            "dist/guide/recipes/overview.md",
+            "dist/guide/widgets.md"
+          ]
+        },
+        "libraryBytes": 22325
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 9.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-32-t4",
+      "diff": {
+        "added": 79,
+        "removed": 6,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 18,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 34,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/SalesChart.js": {
+            "added": 25,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1377
+    },
+    {
+      "trial": "sygnal-32-t5",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "32-sales-chart",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 4,
+        "testsTotal": 4,
+        "wallSeconds": 49,
+        "iterations": 6,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 26,
+        "output": 858,
+        "cacheRead": 357114,
+        "cacheCreation": 31105,
+        "messages": 13,
+        "peakContext": 37891,
+        "total": 389103
+      },
+      "usage": {
+        "tokens": 393902,
+        "outputTokens": 5657,
+        "costUsd": 0.2524648,
+        "durationMs": 47505,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 14,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 11,
+          "Read": 1,
+          "Edit": 1
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 47.5,
+      "phases": {
+        "orient": 1.7,
+        "learn": 3,
+        "implement": 11,
+        "test-authoring": 3.5,
+        "verify": 3.4,
+        "debug": 20.4,
+        "think": 4.4
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'ownerDocument')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 19
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of null (reading 'ownerDocument')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 27
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 20.4,
+          "iterations": 2,
+          "signature": "TypeError: Cannot read properties of null (reading 'ownerDocument')",
+          "signatures": [
+            "TypeError: Cannot read properties of null (reading 'ownerDocument')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 19
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.5,
+        "skill-reference": 1.4,
+        "framework-source": 1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 15167,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/testing.md",
+            "dist/guide/widgets.md"
+          ]
+        },
+        "libraryBytes": 14467
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 30.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-32-t5",
+      "diff": {
+        "added": 83,
+        "removed": 5,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 15,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 37,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/SalesChart.js": {
+            "added": 29,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1648
+    },
+    {
+      "trial": "sygnal-33-t1",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "33-virtual-list",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 45,
+        "iterations": 3,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 18,
+        "output": 147,
+        "cacheRead": 201388,
+        "cacheCreation": 26816,
+        "messages": 9,
+        "peakContext": 32988,
+        "total": 228369
+      },
+      "usage": {
+        "tokens": 233122,
+        "outputTokens": 4900,
+        "costUsd": 0.1965776,
+        "durationMs": 44103,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 9,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 8
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 44.1,
+      "phases": {
+        "orient": 1.5,
+        "learn": 16.6,
+        "implement": 6.2,
+        "test-authoring": 1.1,
+        "verify": 1.9,
+        "debug": 11.7,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 3,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "ReferenceError: xsMerge is not defined",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 27
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: form.querySelector is not a function",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 32
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 11.7,
+          "iterations": 2,
+          "signature": "ReferenceError: xsMerge is not defined",
+          "signatures": [
+            "ReferenceError: xsMerge is not defined",
+            "TypeError: form.querySelector is not a function"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 27
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 2,
+        "framework-source": 9.1,
+        "dom-events": 4.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 16596,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 3210,
+            "how": [
+              "bash"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide",
+            "dist/guide/element-commands.md",
+            "dist/guide/virtual-collections.md"
+          ]
+        },
+        "libraryBytes": 12848
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 18.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-33-t1",
+      "diff": {
+        "added": 77,
+        "removed": 8,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 50,
+            "removed": 7,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 25,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1638
+    },
+    {
+      "trial": "sygnal-33-t2",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "33-virtual-list",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 33,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 12,
+        "output": 62,
+        "cacheRead": 124201,
+        "cacheCreation": 30079,
+        "messages": 6,
+        "peakContext": 36252,
+        "total": 154354
+      },
+      "usage": {
+        "tokens": 158065,
+        "outputTokens": 3773,
+        "costUsd": 0.1829102,
+        "durationMs": 32509,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 6,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 32.5,
+      "phases": {
+        "orient": 2.1,
+        "learn": 8.9,
+        "implement": 12.4,
+        "test-authoring": 1.8,
+        "verify": 2.1,
+        "think": 5.1
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 2.3,
+        "framework-source": 5.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide",
+            "llms.txt"
+          ],
+          "..": [
+            "node_modules/sygnal/dist/guide/forms.md"
+          ]
+        },
+        "libraryBytes": 30694
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 7.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-33-t2",
+      "diff": {
+        "added": 65,
+        "removed": 8,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 42,
+            "removed": 7,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 21,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1331
+    },
+    {
+      "trial": "sygnal-33-t3",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "33-virtual-list",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 31,
+        "iterations": 2,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 681,
+        "cacheRead": 157890,
+        "cacheCreation": 27783,
+        "messages": 7,
+        "peakContext": 34565,
+        "total": 186368
+      },
+      "usage": {
+        "tokens": 189286,
+        "outputTokens": 3599,
+        "costUsd": 0.17872800000000003,
+        "durationMs": 30417,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 30.4,
+      "phases": {
+        "orient": 1.5,
+        "learn": 11,
+        "implement": 5.9,
+        "test-authoring": 1.4,
+        "verify": 5.1,
+        "think": 5.5
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "collections": 1.8,
+        "framework-source": 1.2,
+        "dom-events": 7.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/virtual-collections.md",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 24707
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 10.5,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-33-t3",
+      "diff": {
+        "added": 63,
+        "removed": 7,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 42,
+            "removed": 6,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 19,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 1,
+        "hitsByCode": {
+          "SYG104": 1,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1680
+    },
+    {
+      "trial": "sygnal-33-t4",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "33-virtual-list",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 36,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 652,
+        "cacheRead": 146201,
+        "cacheCreation": 25791,
+        "messages": 7,
+        "peakContext": 32551,
+        "total": 172658
+      },
+      "usage": {
+        "tokens": 175890,
+        "outputTokens": 3884,
+        "costUsd": 0.1712722,
+        "durationMs": 34828,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 34.8,
+      "phases": {
+        "orient": 1.5,
+        "learn": 8.9,
+        "implement": 7.9,
+        "test-authoring": 1.6,
+        "verify": 3.5,
+        "debug": 6.6,
+        "think": 4.7
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: e.target.querySelector is not a function",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 24
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.6,
+          "iterations": 1,
+          "signature": "TypeError: e.target.querySelector is not a function",
+          "signatures": [
+            "TypeError: e.target.querySelector is not a function"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 24
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "collections": 2,
+        "framework-source": 1.5,
+        "dom-events": 4.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide"
+          ]
+        },
+        "libraryBytes": 12112
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 14.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-33-t4",
+      "diff": {
+        "added": 62,
+        "removed": 8,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 41,
+            "removed": 7,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 19,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1601
+    },
+    {
+      "trial": "sygnal-33-t5",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "33-virtual-list",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 31,
+        "iterations": 2,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 650,
+        "cacheRead": 146908,
+        "cacheCreation": 25469,
+        "messages": 7,
+        "peakContext": 32215,
+        "total": 173041
+      },
+      "usage": {
+        "tokens": 176118,
+        "outputTokens": 3727,
+        "costUsd": 0.1685556,
+        "durationMs": 29927,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 6
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 29.9,
+      "phases": {
+        "orient": 1.3,
+        "learn": 7.1,
+        "implement": 11.7,
+        "test-authoring": 1.6,
+        "verify": 3.5,
+        "think": 4.6
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 1.4,
+        "framework-source": 1.2,
+        "dom-events": 3.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/virtual-collections.md"
+          ]
+        },
+        "libraryBytes": 12461
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 8.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-33-t5",
+      "diff": {
+        "added": 67,
+        "removed": 8,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 45,
+            "removed": 7,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 20,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1519
+    },
+    {
+      "trial": "sygnal-34-t1",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 21,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 64,
+        "cacheRead": 90421,
+        "cacheCreation": 25745,
+        "messages": 5,
+        "peakContext": 31919,
+        "total": 116240
+      },
+      "usage": {
+        "tokens": 118731,
+        "outputTokens": 2555,
+        "costUsd": 0.14663420000000002,
+        "durationMs": 20173,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 20.1,
+      "phases": {
+        "orient": 1.5,
+        "learn": 3.6,
+        "implement": 6.2,
+        "test-authoring": 1.7,
+        "verify": 1.9,
+        "think": 5.2
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "skill-reference": 1.6,
+        "framework-source": 1.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/drag-and-drop.md"
+          ]
+        },
+        "libraryBytes": 21117
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-34-t1",
+      "diff": {
+        "added": 48,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 26,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 20,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1565
+    },
+    {
+      "trial": "sygnal-34-t2",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 26,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 55,
+        "cacheRead": 90176,
+        "cacheCreation": 25861,
+        "messages": 5,
+        "peakContext": 32033,
+        "total": 116102
+      },
+      "usage": {
+        "tokens": 118737,
+        "outputTokens": 2690,
+        "costUsd": 0.1483992,
+        "durationMs": 25281,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 25.3,
+      "phases": {
+        "orient": 1.4,
+        "learn": 7.4,
+        "implement": 6.5,
+        "test-authoring": 2.1,
+        "verify": 1.5,
+        "think": 6.3
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "framework-source": 5.1,
+        "skill-reference": 1.5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/drag-and-drop.md"
+          ]
+        },
+        "libraryBytes": 22701
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 7.9,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-34-t2",
+      "diff": {
+        "added": 48,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 27,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 19,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1662
+    },
+    {
+      "trial": "sygnal-34-t3",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 24,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 16,
+        "output": 103,
+        "cacheRead": 186572,
+        "cacheCreation": 28421,
+        "messages": 8,
+        "peakContext": 34598,
+        "total": 215112
+      },
+      "usage": {
+        "tokens": 217763,
+        "outputTokens": 2754,
+        "costUsd": 0.17857040000000002,
+        "durationMs": 22470,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 8,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 7
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 22.4,
+      "phases": {
+        "orient": 1.7,
+        "learn": 7.8,
+        "implement": 5.2,
+        "test-authoring": 2.3,
+        "verify": 1.5,
+        "think": 3.9
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.6,
+        "skill-reference": 1.4,
+        "framework-source": 5.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist",
+            "dist/guide/drag-and-drop.md",
+            "dist/index.esm.js"
+          ]
+        },
+        "libraryBytes": 26281
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 5.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-34-t3",
+      "diff": {
+        "added": 45,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 23,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 20,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1267
+    },
+    {
+      "trial": "sygnal-34-t4",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 21,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 646,
+        "cacheRead": 90075,
+        "cacheCreation": 25685,
+        "messages": 5,
+        "peakContext": 32449,
+        "total": 116416
+      },
+      "usage": {
+        "tokens": 118415,
+        "outputTokens": 2645,
+        "costUsd": 0.147225,
+        "durationMs": 19949,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 19.9,
+      "phases": {
+        "orient": 1.5,
+        "learn": 4.1,
+        "implement": 6.4,
+        "test-authoring": 2,
+        "verify": 1.5,
+        "think": 4.5
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "skill-reference": 1.7,
+        "framework-source": 1.5
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 13386,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)"
+        ],
+        "library": {
+          "sygnal": [
+            "dist/guide/drag-and-drop.md"
+          ]
+        },
+        "libraryBytes": 21117
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 6,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-34-t4",
+      "diff": {
+        "added": 52,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 28,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 22,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1604
+    },
+    {
+      "trial": "sygnal-34-t5",
+      "run": "p5-4s-toc-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 23,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 568,
+        "cacheRead": 92385,
+        "cacheCreation": 27000,
+        "messages": 5,
+        "peakContext": 33681,
+        "total": 119963
+      },
+      "usage": {
+        "tokens": 122151,
+        "outputTokens": 2756,
+        "costUsd": 0.154057,
+        "durationMs": 21434,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 7,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 3,
+          "Read": 3
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "wallSeconds": 21.4,
+      "phases": {
+        "orient": 1.1,
+        "learn": 5.7,
+        "implement": 6.8,
+        "test-authoring": 2.1,
+        "verify": 1.9,
+        "think": 3.8
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "framework-source": 1.7,
+        "skill-reference": 3.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "skillBytes": 21747,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                128
+              ]
+            ],
+            "linesSeen": 128,
+            "fileLines": 128,
+            "bytes": 13386,
+            "how": [
+              "skill-tool"
+            ]
+          },
+          "references/widgets-and-ui.md": {
+            "ranges": [
+              [
+                1,
+                9
+              ]
+            ],
+            "linesSeen": 9,
+            "fileLines": 9,
+            "bytes": 1781,
+            "how": [
+              "read"
+            ]
+          },
+          "references/intent-and-streams.md": {
+            "ranges": [
+              [
+                1,
+                10
+              ]
+            ],
+            "linesSeen": 10,
+            "fileLines": 10,
+            "bytes": 2172,
+            "how": [
+              "read"
+            ]
+          },
+          "references/model-and-sinks.md": {
+            "ranges": [
+              [
+                1,
+                65
+              ]
+            ],
+            "linesSeen": 65,
+            "fileLines": 65,
+            "bytes": 4408,
+            "how": [
+              "read"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#Reference files: read the ones your task needs before writing code",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#4. Canonical forms (never write the right-hand column)",
+          "SKILL.md#5. Basic test (more: references/testing.md)",
+          "references/widgets-and-ui.md#Widgets, web components and UI parts",
+          "references/intent-and-streams.md#Intent: DOM events and streams",
+          "references/model-and-sinks.md#Model, actions and sinks",
+          "references/model-and-sinks.md#ABORT, STATE.watch, async EFFECT",
+          "references/model-and-sinks.md#State update, ABORT, set / toggle, controlled input",
+          "references/model-and-sinks.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "references/model-and-sinks.md#Element commands, timers, persistence"
+        ],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/drag-and-drop.md"
+          ]
+        },
+        "libraryBytes": 22743
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 5.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-4s-toc-sonnet/sygnal-34-t5",
+      "diff": {
+        "added": 51,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 27,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 22,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "finalReportChars": 1316
+    }
+  ]
+}

@@ -1,0 +1,845 @@
+[
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 7,
+    "iterations": 14,
+    "editRounds": 9,
+    "wallSeconds": 317,
+    "durationMs": 316171,
+    "tokens": 2798140,
+    "outputTokens": 34524,
+    "costUsd": 0.5995760000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: a form submission was not prevented (page reload): expected false to be true // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: a form submission was not prevented (page reload): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:32:24.394Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 7,
+    "iterations": 8,
+    "editRounds": 6,
+    "wallSeconds": 338,
+    "durationMs": 336688,
+    "tokens": 2495126,
+    "outputTokens": 36075,
+    "costUsd": 0.5682394999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: expected <input id=\"promo\" …(3)></input> to be <select …(4)>…(4)</select> // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: a form submission was not prevented (page reload): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:32:45.155Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 403,
+    "durationMs": 401583,
+    "tokens": 1953506,
+    "outputTokens": 40905,
+    "costUsd": 0.5283774000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:33:48.600Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 3,
+    "testsTotal": 7,
+    "iterations": 8,
+    "editRounds": 8,
+    "wallSeconds": 431,
+    "durationMs": 430551,
+    "tokens": 2735602,
+    "outputTokens": 36628,
+    "costUsd": 0.5841282000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: expected <input id=\"promo\" …(3)></input> to be <select id=\"product-0\" …(3)>…(4)</select> // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected { name: 'Ada Lovelace', …(4) } to deeply equal { name: 'Ada Lovelace', …(4) }"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: expected [ { product: 'Notebook', …(1) }, …(1) ] to deeply equal [ { product: 'Notebook', …(1) }, …(1) ]"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: expected 'Could not place the order. Try again.' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:34:18.890Z"
+  },
+  {
+    "task": "31-command-menu",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 106,
+    "durationMs": 105320,
+    "tokens": 805418,
+    "outputTokens": 10074,
+    "costUsd": 0.18728670000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "31 command palette: filtering, keyboard, running commands shows the commands containing the text, ignoring case and spaces, in their own order",
+        "message": "AssertionError: expected [] to deeply equal [ 'Open settings' ]"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:34:35.515Z"
+  },
+  {
+    "task": "31-command-menu",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 90,
+    "durationMs": 88885,
+    "tokens": 483002,
+    "outputTokens": 9188,
+    "costUsd": 0.1472216,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-06T11:36:09.694Z"
+  },
+  {
+    "task": "31-command-menu",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 116,
+    "durationMs": 114656,
+    "tokens": 745460,
+    "outputTokens": 11317,
+    "costUsd": 0.189875,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-06T11:36:18.945Z"
+  },
+  {
+    "task": "31-command-menu",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 7,
+    "editRounds": 4,
+    "wallSeconds": 188,
+    "durationMs": 187081,
+    "tokens": 1091260,
+    "outputTokens": 15702,
+    "costUsd": 0.2711820000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "31 command palette: filtering, keyboard, running commands shows the commands containing the text, ignoring case and spaces, in their own order",
+        "message": "AssertionError: expected [] to deeply equal [ 'Open settings' ]"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:37:00.774Z"
+  },
+  {
+    "task": "31-command-menu",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 127,
+    "durationMs": 126211,
+    "tokens": 804443,
+    "outputTokens": 12674,
+    "costUsd": 0.20285790000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-06T11:38:21.541Z"
+  },
+  {
+    "task": "30-checkout-form",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 7,
+    "iterations": 15,
+    "editRounds": 8,
+    "wallSeconds": 472,
+    "durationMs": 470766,
+    "tokens": 2913172,
+    "outputTokens": 32474,
+    "costUsd": 0.5805807000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors shows a message when the user leaves an invalid field, then follows the typing",
+        "message": "AssertionError: Quantity is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors an invalid order shows every message, focuses the first invalid field and sends nothing",
+        "message": "AssertionError: expected 1 to be +0 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors posts a valid order once, with the cleaned values, and confirms it",
+        "message": "AssertionError: expected 2 to be 1 // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors puts server errors on their fields, focuses the first one, and clears each on change",
+        "message": "AssertionError: Promo code is invalid: expected null to be 'true' // Object.is equality"
+      },
+      {
+        "test": "30 checkout form: schema validation, a field array, server errors any other failure shows an alert, keeps the values, and lets the user try again",
+        "message": "AssertionError: a form submission was not prevented (page reload): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:40:29.943Z"
+  },
+  {
+    "task": "32-sales-chart",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 4,
+    "testsTotal": 4,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 213,
+    "durationMs": 212103,
+    "tokens": 1902314,
+    "outputTokens": 20678,
+    "costUsd": 0.3976398,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 4 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:40:37.254Z"
+  },
+  {
+    "task": "32-sales-chart",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 4,
+    "iterations": 10,
+    "editRounds": 10,
+    "wallSeconds": 279,
+    "durationMs": 278490,
+    "tokens": 2296680,
+    "outputTokens": 27125,
+    "costUsd": 0.5008657999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state updates the same chart in place when the region or range changes",
+        "message": "AssertionError: expected [ [ 335, 335, 323, 355, 405, 460 ] ] to deeply equal [ [ 140, 120, 98, 110, 150, 170 ] ]"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state selects the month of a clicked bar, and a new region or range clears it",
+        "message": "AssertionError: expected [ [ 335, 335, 323, 355, 405, 460 ] ] to deeply equal [ [ 140, 120, 98, 110, 150, 170 ] ]"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state \"Show chart\" removes the chart and destroys it, then draws a fresh one",
+        "message": "AssertionError: the hidden chart was destroyed: expected true to be false // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:41:06.084Z"
+  },
+  {
+    "task": "32-sales-chart",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 0,
+    "testsTotal": 4,
+    "iterations": 7,
+    "editRounds": 4,
+    "wallSeconds": 160,
+    "durationMs": 158832,
+    "tokens": 1015261,
+    "outputTokens": 15567,
+    "costUsd": 0.26258,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state draws a bar chart of the shown months, described for screen readers",
+        "message": "AssertionError: expected null to be 'Sales by month for all regions: Jul 3…' // Object.is equality"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state updates the same chart in place when the region or range changes",
+        "message": "AssertionError: expected [ [ 335, 335, 323, 355, 405, 460 ] ] to deeply equal [ [ 140, 120, 98, 110, 150, 170 ] ]"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state selects the month of a clicked bar, and a new region or range clears it",
+        "message": "AssertionError: one canvas in .chart: expected +0 to be 1 // Object.is equality"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state \"Show chart\" removes the chart and destroys it, then draws a fresh one",
+        "message": "AssertionError: the hidden chart was destroyed: expected true to be false // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:41:14.959Z"
+  },
+  {
+    "task": "33-virtual-list",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 4,
+    "wallSeconds": 194,
+    "durationMs": 192920,
+    "tokens": 1599630,
+    "outputTokens": 18527,
+    "costUsd": 0.3569070000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row shows the rows at the scroll position, and only those",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps stars on rows that were scrolled away and back",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row jumps to a row with Go or Enter and marks it as current",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps the current mark on its row when it is scrolled away and back",
+        "message": "AssertionError: expected [] to deeply equal [ 300 ]"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row refuses a value that is not a row number, without scrolling",
+        "message": "AssertionError: expected null to be truthy"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127); AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:44:39.707Z"
+  },
+  {
+    "task": "33-virtual-list",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 4,
+    "wallSeconds": 242,
+    "durationMs": 241087,
+    "tokens": 1627141,
+    "outputTokens": 26035,
+    "costUsd": 0.41666060000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row refuses a value that is not a row number, without scrolling",
+        "message": "AssertionError: \"0\": expected '' to be 'Enter a row from 1 to 10,000.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:45:12.794Z"
+  },
+  {
+    "task": "33-virtual-list",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 6,
+    "iterations": 7,
+    "editRounds": 5,
+    "wallSeconds": 235,
+    "durationMs": 233751,
+    "tokens": 1835921,
+    "outputTokens": 24578,
+    "costUsd": 0.4080122,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row shows the rows at the scroll position, and only those",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps stars on rows that were scrolled away and back",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row jumps to a row with Go or Enter and marks it as current",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps the current mark on its row when it is scrolled away and back",
+        "message": "AssertionError: expected [] to deeply equal [ 300 ]"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row refuses a value that is not a row number, without scrolling",
+        "message": "AssertionError: expected null to be truthy"
+      }
+    ],
+    "notes": "AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:48:51.519Z"
+  },
+  {
+    "task": "33-virtual-list",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 6,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 245,
+    "durationMs": 244494,
+    "tokens": 1714655,
+    "outputTokens": 19388,
+    "costUsd": 0.3573281999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row shows the rows at the scroll position, and only those",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps stars on rows that were scrolled away and back",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row jumps to a row with Go or Enter and marks it as current",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps the current mark on its row when it is scrolled away and back",
+        "message": "AssertionError: expected [] to deeply equal [ 300 ]"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row refuses a value that is not a row number, without scrolling",
+        "message": "AssertionError: expected null to be truthy"
+      }
+    ],
+    "notes": "AUDIT: 2 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:49:29.166Z"
+  },
+  {
+    "task": "33-virtual-list",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 134,
+    "durationMs": 133220,
+    "tokens": 1165882,
+    "outputTokens": 12690,
+    "costUsd": 0.25476680000000007,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row shows the rows at the scroll position, and only those",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps stars on rows that were scrolled away and back",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row jumps to a row with Go or Enter and marks it as current",
+        "message": "AssertionError: expected null to be truthy"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row keeps the current mark on its row when it is scrolled away and back",
+        "message": "AssertionError: expected [] to deeply equal [ 300 ]"
+      },
+      {
+        "test": "33 virtual list: 10,000 rows, only the visible ones rendered, jump to a row refuses a value that is not a row number, without scrolling",
+        "message": "AssertionError: expected null to be truthy"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:51:16.773Z"
+  },
+  {
+    "task": "34-sortable-playlist",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 109,
+    "durationMs": 107844,
+    "tokens": 1129698,
+    "outputTokens": 10051,
+    "costUsd": 0.23655310000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Escape puts the song back where it was picked up",
+        "message": "AssertionError: a live region says \"Cancelled. Something is back at position 3 of 5.\" (live: [\"Reorder cancelled. Something is back at position 3 of 5.\"]): expected false to be true // Object.is equality"
+      }
+    ],
+    "notes": "AUDIT: 2 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:51:24.071Z"
+  },
+  {
+    "task": "32-sales-chart",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 4,
+    "testsTotal": 4,
+    "iterations": 26,
+    "editRounds": 21,
+    "wallSeconds": 645,
+    "durationMs": 643882,
+    "tokens": 7197107,
+    "outputTokens": 67870,
+    "costUsd": 1.2701295000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "failures": [],
+    "scoredAt": "2026-10-06T11:51:27.810Z"
+  },
+  {
+    "task": "32-sales-chart",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 1,
+    "testsTotal": 4,
+    "iterations": 20,
+    "editRounds": 16,
+    "wallSeconds": 661,
+    "durationMs": 654809,
+    "tokens": 5811262,
+    "outputTokens": 56886,
+    "costUsd": 1.0552172000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state updates the same chart in place when the region or range changes",
+        "message": "AssertionError: expected [ [ 335, 335, 323, 355, 405, 460 ] ] to deeply equal [ [ 140, 120, 98, 110, 150, 170 ] ]"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state selects the month of a clicked bar, and a new region or range clears it",
+        "message": "AssertionError: expected [ [ 335, 335, 323, 355, 405, 460 ] ] to deeply equal [ [ 140, 120, 98, 110, 150, 170 ] ]"
+      },
+      {
+        "test": "32 sales chart: a Chart.js widget driven by state \"Show chart\" removes the chart and destroys it, then draws a fresh one",
+        "message": "AssertionError: the hidden chart was destroyed: expected true to be false // Object.is equality"
+      }
+    ],
+    "notes": "AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-06T11:51:38.092Z"
+  },
+  {
+    "task": "34-sortable-playlist",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 139,
+    "durationMs": 137660,
+    "tokens": 1045107,
+    "outputTokens": 13612,
+    "costUsd": 0.25207869999999993,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Escape puts the song back where it was picked up",
+        "message": "AssertionError: a live region says \"Cancelled. Something is back at position 3 of 5.\" (live: [\"Reorder cancelled. Something is back at position 3 of 5.\"]): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:53:48.810Z"
+  },
+  {
+    "task": "34-sortable-playlist",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 174,
+    "durationMs": 172655,
+    "tokens": 1343331,
+    "outputTokens": 16258,
+    "costUsd": 0.3034102999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Escape puts the song back where it was picked up",
+        "message": "AssertionError: a live region says \"Cancelled. Something is back at position 3 of 5.\" (live: [\"Reorder cancelled. Something is back at position 3 of 5.\"]): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:54:27.460Z"
+  },
+  {
+    "task": "34-sortable-playlist",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 4,
+    "wallSeconds": 186,
+    "durationMs": 184397,
+    "tokens": 1748865,
+    "outputTokens": 16136,
+    "costUsd": 0.35019150000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Escape puts the song back where it was picked up",
+        "message": "AssertionError: a live region says \"Cancelled. Something is back at position 3 of 5.\" (live: [\"Reorder cancelled. Something is back at position 3 of 5.\"]): expected false to be true // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T11:54:34.970Z"
+  },
+  {
+    "task": "34-sortable-playlist",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 6,
+    "iterations": 11,
+    "editRounds": 9,
+    "wallSeconds": 601,
+    "durationMs": 600311,
+    "tokens": 6670838,
+    "outputTokens": 55760,
+    "costUsd": 1.1424445999999997,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-4s-toc",
+    "variantHash": "eb11e6bb5b0b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "failures": [
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Space picks a song up, the arrows move it, Space drops it, and focus stays on its handle",
+        "message": "AssertionError: expected <body><div id=\"root\">…(1)</div></body> to be <button …(4)></button> // Object.is equality"
+      },
+      {
+        "test": "34 sortable playlist: keyboard moves, announcements, focus Enter works too, and ArrowUp moves a song up",
+        "message": "AssertionError: expected <body><div id=\"root\">…(1)</div></body> to be <button …(4)></button> // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-06T12:01:47.075Z"
+  }
+]
