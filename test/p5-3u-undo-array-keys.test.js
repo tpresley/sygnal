@@ -118,3 +118,36 @@ describe('3-U G-530: no cache of value combinations', () => {
     expect(out.two).toBeLessThan(out.one + 2e6)
   })
 })
+
+describe('3-U G-531: missing keys and key: []', () => {
+  it('UNDO to a step where a key was missing removes it (no own undefined property)', async () => {
+    const m = undoable({ A: (s) => ({ ...s, a: (s.a || 0) + 1, b: 1 }) }, { key: ['a', 'b'] })
+    function E() { return h('p', null, 'x') }
+    E.initialState = { a: 0 }
+    E.model = m
+    t = renderComponent(E); await t.ready()
+    await act('A')
+    expect(t.state.b).toBe(1)
+    await act('UNDO')
+    expect(t.state.a).toBe(0)
+    expect('b' in t.state).toBe(false)
+    await act('REDO')
+    expect(t.state).toMatchObject({ a: 1, b: 1 })
+  })
+
+  it('UNDO with a key missing in the current state and in the step: not added', async () => {
+    const m = undoable({ A: (s) => ({ ...s, a: (s.a || 0) + 1 }) }, { key: ['a', 'b'] })
+    function E() { return h('p', null, 'x') }
+    E.initialState = { a: 0 }
+    E.model = m
+    t = renderComponent(E); await t.ready()
+    await act('A'); await act('UNDO')
+    expect(t.state.a).toBe(0)
+    expect(Object.keys(t.state)).not.toContain('b')
+  })
+
+  it('key: [] throws at definition, for undo() and undoable()', () => {
+    expect(() => undo({ key: [] })).toThrow(/key: \[\]/)
+    expect(() => undoable({}, { key: [] })).toThrow(/key: \[\]/)
+  })
+})

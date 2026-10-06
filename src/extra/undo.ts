@@ -33,7 +33,7 @@
  * names a gesture action (G-507); REDO mid-gesture records the value from before the gesture in
  * place of the current one, as a recorded action does (G-508); "back where it started" compares
  * arrays and plain objects shallowly (G-509). 3-U: with `key: [...]` every comparison is key by key
- * (G-529 / G-530).
+ * (G-529 / G-530), a key the state didn't have stays out on UNDO / REDO, and `key: []` throws (G-531).
  *
  * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry (nor an action
  * of a behavior in the host's `uses`).
@@ -50,6 +50,11 @@ const reported = new WeakSet<object>()
 export interface UndoOptions { key: string | string[], limit?: number, track?: string[], coalesce?: string[], coalesceMs?: number, resetOn?: string[] }
 
 const actionOf = (a: string) => a.split('|')[0].trim()
+
+// 3-U G-531: `key: []` keeps nothing (a definition error, in every build)
+const keyed = (o: UndoOptions) => {
+  if (Array.isArray(o?.key) && !o.key.length) throw new Error("undo: `key: []` names no state key; use key: 'name' or key: ['a', 'b']")
+}
 
 // SYG226: report through the diagnostics core when it is enabled (dev); nothing in production
 const check = (model: any, o: UndoOptions, component?: any, skip?: any) => {
@@ -92,7 +97,13 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   }
   const eq = (a: any, b: any) => keys ? a === b || !!a && !!b && keys.every(k => a[k] === b[k]) : a === b
   const same = (a: any, b: any) => keys ? !!a && !!b && keys.every(k => same1(a[k], b[k])) : same1(a, b)
-  const set = (s: any, v: any) => keys ? {...s, ...v} : {...s, [key as string]: v}
+  // G-531: a key the snapshot didn't have is left out (not set to undefined)
+  const set = (s: any, v: any) => {
+    if (!keys) return {...s, [key as string]: v}
+    const r = {...s, ...v}
+    for (const k of keys) if (!(k in v)) delete r[k]
+    return r
+  }
   // one more entry in `past` (`join`: the change joins the last one)
   const rec = (r: any, h: any, v: any, name: string, joins: any) => {
     const at = Date.now(), prev = last.get(h.past)
@@ -206,6 +217,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
  * (actions that clear the history). Returns a new model.
  */
 export const undoable = (model: any, options: UndoOptions): any => {
+  keyed(options)
   check(model, options)
   return wrap(model, options, 'history', '')
 }
@@ -218,6 +230,7 @@ export const undoable = (model: any, options: UndoOptions): any => {
  * the host's actions.
  */
 export const undo = (options: UndoOptions & { undo?: any, redo?: any }): any => {
+  keyed(options)
   const b = defineBehavior({
     initialState: {past: [], future: []},
     intent: ({DOM}: any, {undo, redo}: any) => ({
