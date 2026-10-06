@@ -1,4 +1,5 @@
 import {h, VNode, VNodeData} from './snabbdom';
+import {flat} from './utils';
 
 export interface ThunkData extends VNodeData {
   fn(): VNode;
@@ -10,6 +11,8 @@ export interface Thunk extends VNode {
 }
 
 function copyToThunk(vnode: VNode, thunkVNode: Thunk): void {
+  // (rendered during the patch: its fragments are flattened here, as the DOM driver does)
+  vnode = flat(vnode);
   thunkVNode.elm = vnode.elm;
   (vnode.data as ThunkData).fn = thunkVNode.data.fn;
   (vnode.data as ThunkData).args = thunkVNode.data.args;

@@ -13,6 +13,7 @@ import { ClientOnly } from '../src/vike/ClientOnly.ts'
 import { createElement as h } from '../src/pragma/index.js'
 import { Fragment } from '../src/cycle/dom/fragment.ts'
 import { flat } from '../src/cycle/dom/utils.ts'
+import { thunk } from '../src/cycle/dom/thunk.ts'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 let apps = [], errors
@@ -240,6 +241,17 @@ describe('Portal children', () => {
     App.initialState = {}
     await mount(App, 'fresh')
     expect(document.querySelector('#t > div').innerHTML).toBe('<b>1</b><i>2</i>')
+  })
+})
+
+describe('thunk', () => {
+  it("a fragment in a thunk's output (rendered during the patch) renders its elements", async () => {
+    const render = (n) => h('div', null, h(Fragment, null, h('b', null, 'x' + n), h('i', null, 'y')), h('u', null, 'z'))
+    const App = counter((s) => thunk('div', render, [s.n]))
+    await mount(App, 'fresh')
+    expect(document.querySelector('main > div').innerHTML).toBe('<b>x0</b><i>y</i><u>z</u>')
+    await click('.b')
+    expect(document.querySelector('main > div').innerHTML).toBe('<b>x1</b><i>y</i><u>z</u>')
   })
 })
 
