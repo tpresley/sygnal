@@ -52,7 +52,7 @@ const App: App = function ({ state }) {
 
           {state.tasks.length === 0
             ? <div className="empty"><p>No tasks yet. Add one above!</p></div>
-            : <Collection of={TaskItem} from="tasks" className="tasks" />
+            : <div className="tasks"><Collection of={TaskItem} from="tasks" /></div>
           }
         </div>
 

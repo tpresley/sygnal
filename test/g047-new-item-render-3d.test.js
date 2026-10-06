@@ -21,7 +21,7 @@ Item.model = { EDIT: s => ({ ...s, editing: true }) }
 function Group({ state }) {
   return h('section', { className: 'group', data: { groupId: state.id } },
     h('h2', null, state.title),
-    h(Collection, { of: Item, from: 'items', className: 'items' }),
+    h('div', { className: 'items' }, h(Collection, { of: Item, from: 'items' })),
     h('button', { className: 'add-item' }, '+'))
 }
 Group.intent = ({ DOM }) => ({ ADD_ITEM: DOM.click('.add-item') })

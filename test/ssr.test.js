@@ -317,7 +317,7 @@ describe('renderToString', () => {
       expect(html).toContain('Charlie')
     })
 
-    it('applies className to collection container', () => {
+    it('renders the items directly into the parent (4-H: no wrapper element; className is ignored)', () => {
       function Item({ state }) {
         return createElement('div', null, state.label)
       }
@@ -331,8 +331,18 @@ describe('renderToString', () => {
       Parent.initialState = { list: [{ id: 1, label: 'Test' }] }
 
       const html = renderToString(Parent)
-      expect(html).toContain('class="item-list"')
-      expect(html).toContain('Test')
+      expect(html).toBe('<div data-sygnal-ssr=""><div>Test</div></div>')
+    })
+
+    it('a Collection without `of` renders nothing (no element)', () => {
+      function Parent() {
+        return createElement('ul', null,
+          createElement('li', null, 'a'),
+          { sel: 'collection', data: { props: { from: 'list' } }, children: [], text: undefined, elm: undefined, key: undefined }
+        )
+      }
+      Parent.initialState = { list: [{ id: 1 }] }
+      expect(renderToString(Parent)).toBe('<ul data-sygnal-ssr=""><li>a</li></ul>')
     })
   })
 

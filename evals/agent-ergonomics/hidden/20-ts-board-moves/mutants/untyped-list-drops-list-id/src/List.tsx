@@ -3,7 +3,7 @@ import type { Component, IntentSources, ActionsOf } from 'sygnal'
 import Card from './Card'
 import type { ListState } from './types'
 
-const CardCollection = Collection<{ className?: string }, ListState>
+const CardCollection = Collection<{}, ListState>
 
 const intent = ({ CHILD }: IntentSources<ListState>) => ({
   MOVE_CARD: CHILD.select(Card),
@@ -17,7 +17,9 @@ const List: Component<ListState, {}, {}, ListActions> = ({ state }) => (
       {state.title} ({state.cards.length})
     </h2>
     {state.cards.length === 0 && <p className="empty">No cards</p>}
-    <CardCollection of={Card} from="cards" className="cards" />
+    <div className="cards">
+      <CardCollection of={Card} from="cards" />
+    </div>
   </section>
 )
 

@@ -55,7 +55,9 @@ function App({ state }) {
         <button className={['add-btn', state.input && ACTIVE].filter(Boolean).join(' ')}>Add</button>
       </header>
       <ul className="filters">{['all', 'done'].map(f => renderFilter(f, state.filter))}</ul>
-      <Collection of={TodoItem} from="todos" className="todo-list" />
+      <div className="todo-list">
+        <Collection of={TodoItem} from="todos" />
+      </div>
       <Switchable of={{ home: Home, about: About }} current={state.page} />
       <Card>
         <button className="card-action">ping</button>

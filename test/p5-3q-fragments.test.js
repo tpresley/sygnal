@@ -161,7 +161,7 @@ for (const mode of ['fresh', 'hydrated']) describe(`fragments (${mode})`, () => 
     App.intent = ({ DOM }) => ({ REV: DOM.select('.rev').events('click'), ADD: DOM.select('.add').events('click'), RM: DOM.select('.rm').events('click') })
     App.model = { REV: (s) => ({ items: [...s.items].reverse() }), ADD: (s) => ({ items: [s.items[0], { id: 9, k: 'z' }, ...s.items.slice(1)] }), RM: (s) => ({ items: s.items.slice(1) }) }
     await mount(App, mode)
-    const list = () => document.querySelector('dl > div').innerHTML
+    const list = () => document.querySelector('dl').innerHTML
     const dtA = [...document.querySelectorAll('dt')].find(e => e.textContent == 'a')
     await click('.rev')
     expect(list()).toBe('<dt>c</dt><dd>vc</dd><dt>b</dt><dd>vb</dd><dt>a</dt><dd>va</dd>')

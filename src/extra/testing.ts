@@ -1595,7 +1595,9 @@ export function renderComponent(
     const desc = (_: any, els: any[]) => matches(sel, els);
     // chain: [vnode, nearest scope][] from the root; inside: under this component's root
     const walk = (v: any, chain: any[], cur: any, inside: boolean, boundary: any): void => {
-      if (!v || !v.sel || own) return;
+      if (!v || own) return;
+      // a fragment (a Collection's, 4-H): its children are its parent's
+      if (!v.sel) { if (v.children) for (const k of v.children) walk(k, chain, cur, inside, boundary); return; }
       const sc = scopeOfV(v) || cur;
       const c = chain.concat([[v, sc]]);
       inside = inside || sc == scope;
@@ -3110,23 +3112,14 @@ export function renderComponent(
     }
   };
 
-  // G-040: a Collection's container keeps its marker props (of, from, filter, item props...)
-  // as snabbdom props, i.e. DOM properties, not attributes: drop them, like the real DOM
-  const unmark = (v: any): any => {
-    if (!v || typeof v != 'object' || !v.sel) return v;
-    let d = v.data;
-    if (d?.isCollection) {
-      const {className, id} = d.props || {};
-      d = {...d, props: {className, id}};
-    }
-    return {...v, data: d, children: v.children && v.children.map(unmark)};
-  };
+  // a copy of the tree (the serializer reassigns children arrays; the app's vnodes stay as they are)
+  const copy = (v: any): any => v && typeof v == 'object' && v.children ? {...v, children: v.children.map(copy)} : v;
   const html = () => {
     notYet('t.html()');
     return renderHtml();
   };
   const htmlOf = (v: any) =>
-    renderToInnerHtml(() => unmark(v)).replace(/ class="([^"]*)"/g, (_, c: string) =>
+    renderToInnerHtml(() => copy(v)).replace(/ class="([^"]*)"/g, (_, c: string) =>
       (c = c.split(' ').filter(x => !x.startsWith('___')).join(' ')) ? ` class="${c}"` : ''
     );
   const renderHtml = () => vtree ? htmlOf(vtree) : '';

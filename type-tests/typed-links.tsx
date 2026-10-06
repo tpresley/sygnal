@@ -208,8 +208,8 @@ const lenseJsx = <Collection of={TaskCard} from={tasksLense} />
 void lenseJsx
 
 // In JSX: bind the parent state with an instantiation expression
-const LaneCollection = Collection<{ className?: string }, LaneState>
-const okJsx = <LaneCollection of={TaskCard} from="tasks" className="tasks" />
+const LaneCollection = Collection<{ compact?: boolean }, LaneState>
+const okJsx = <LaneCollection of={TaskCard} from="tasks" compact />
 // @ts-expect-error — 'count' is a number field, not an array
 const badJsx = <LaneCollection of={TaskCard} from="count" />
 void okJsx; void badJsx

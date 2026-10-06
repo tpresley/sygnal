@@ -11,6 +11,8 @@
  *   import { component, collection, switchable } from 'sygnal'   (the removed factories)
  *   <Collection of="Name">                          (a name; pass the component) - G-336: only
  *   <Collection idfield="key">                      (items are keyed by `id`)   sygnal's Collection
+ *   <Collection className="x" style={…} …>          (4-H, D229: the wrapper element is gone; also
+ *                                                   class, attrs, data/data-*, on/on-*, hook, ref)
  *
  * Positional views ('positional-views'), 'ACTION | SINK' keys ('pipe-keys') and
  * CHILD.select('Name') ('child-select-name') are SYG501 / SYG504 / SYG506 (--strict, with --fix).
@@ -37,6 +39,9 @@ const STATICS = {
 }
 const DEFAULT_SOURCE = { DOMSourceName: 'DOM', stateSourceName: 'STATE' }
 const FACTORIES = new Set(['component', 'collection', 'switchable'])
+
+/** 4-H (D229): the <Collection> attributes that went only to its removed wrapper element */
+const WRAPPER = /^(className|style|class|attrs|data|on|hook|ref|(style|class|attrs|data|on|hook)-.+)$/
 
 const STATEMENT_LISTS = new Set(['Program', 'BlockStatement', 'StaticBlock', 'SwitchCase', 'TSModuleBlock'])
 
@@ -123,6 +128,9 @@ export default {
               say(a, 'module', 'collection-of-name', `<Collection of="${a.value.value}"> names the item component`, `pass the component itself: <Collection of={${a.value.value}} … />`, { of: a.value.value })
             } else if (an === 'idfield') {
               say(a, 'module', 'leftovers', '<Collection idfield> keys the items by another field', 'give the items an id field (or map them to one)', { attribute: 'idfield' })
+            } else if (typeof an === 'string' && WRAPPER.test(an)) {
+              say(a, 'module', 'collection-wrapper', `<Collection ${an}> sets an attribute of the Collection's wrapper element (Collection renders its items directly into its parent now)`,
+                'put it on your own wrapping element: <ul className="x"><Collection of={Item} from="items" /></ul>', { attribute: an })
             }
           }
         }

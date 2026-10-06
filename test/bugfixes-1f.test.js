@@ -260,8 +260,8 @@ describe('B-009: Collections with overlapping item ids keep separate isolation s
 
   function Lists() {
     return h('div', null,
-      h(Collection, { of: Item, from: 'a', className: 'list-a' }),
-      h(Collection, { of: Item, from: 'b', className: 'list-b' }))
+      h('ul', { className: 'list-a' }, h(Collection, { of: Item, from: 'a' })),
+      h('ul', { className: 'list-b' }, h(Collection, { of: Item, from: 'b' })))
   }
   Lists.initialState = { a: [{ id: 1, n: 0 }], b: [{ id: 1, n: 0 }] }
 
@@ -275,7 +275,7 @@ describe('B-009: Collections with overlapping item ids keep separate isolation s
   })
 
   it('a single collection still works (regression guard)', async () => {
-    function One() { return h('div', null, h(Collection, { of: Item, from: 'a', className: 'list-a' })) }
+    function One() { return h('div', null, h('ul', { className: 'list-a' }, h(Collection, { of: Item, from: 'a' }))) }
     One.initialState = { a: [{ id: 1, n: 0 }, { id: 2, n: 0 }] }
     t = renderComponent(One)
     await t.ready()
@@ -351,7 +351,7 @@ describe('G-024: renderComponent reports isolation-boundary (SYG104) and typo (S
 
   function App({ state }) {
     return h('div', { className: 'app' },
-      h(Collection, { of: TodoItem, from: 'todos', className: 'todo-list' }),
+      h('div', { className: 'todo-list' }, h(Collection, { of: TodoItem, from: 'todos' })),
       h('p', { className: 'count' }, `${state.todos.length}`))
   }
   App.initialState = { todos: todos() }

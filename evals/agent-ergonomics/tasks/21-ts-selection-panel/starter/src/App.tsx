@@ -5,7 +5,7 @@ import ProjectSection from './ProjectSection'
 import DetailsPanel from './DetailsPanel'
 import type { AppState, AppCalculated, AppContext } from './types'
 
-const ProjectCollection = Collection<{ className?: string }, AppState>
+const ProjectCollection = Collection<{}, AppState>
 
 const App: Component<AppState, {}, {}, {}, AppCalculated, AppContext> = ({ state }) => (
   <div className="tracker">
@@ -16,7 +16,9 @@ const App: Component<AppState, {}, {}, {}, AppCalculated, AppContext> = ({ state
     <Toolbar state="filters" />
     <div className="layout">
       <main className="projects">
-        <ProjectCollection of={ProjectSection} from="projects" className="project-list" />
+        <div className="project-list">
+          <ProjectCollection of={ProjectSection} from="projects" />
+        </div>
       </main>
       <DetailsPanel />
     </div>

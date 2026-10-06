@@ -8,8 +8,9 @@ const CAT = 'Review fixes (2E-2)'
 const attrs = el => [...el.attributes].map(a => a.name).sort().join(',')
 
 export async function reviewTests2E2() {
-  // G-040: the Collection container carries no of/from/filter attributes in the real DOM,
-  // and renderComponent's html() matches it
+  // G-040: no element carries the Collection's of/from/filter as attributes in the real DOM, and
+  // renderComponent's html() matches it. 4-H (D229): there is no container: the items are the
+  // parent's children
   await runTest(CAT, 'G-040: Collection marker props are not attributes (real DOM and html())', async () => {
     const { id, el } = mount()
     function Row({ state, label }) { return <li className="row">{label}{state.title}</li> }
@@ -20,15 +21,15 @@ export async function reviewTests2E2() {
     run(App, {}, { mountPoint: id })
     await waitFor(() => el.querySelector('.row'))
     const real = el.querySelector('.app').firstElementChild
-    assert(real.tagName === 'DIV', `container is ${real.tagName}`)
-    assert(attrs(real) === '', `real container attributes: '${attrs(real)}'`)
+    assert(real.tagName === 'LI' && el.querySelector('.app').children.length === 1, `the item is the parent's child: ${el.querySelector('.app').innerHTML}`)
+    assert(!/(^|,)(of|from|filter|label)(,|$)/.test(attrs(real)), `item attributes: '${attrs(real)}'`)
 
     const t = renderComponent(App)
     await t.ready()
     await wait(20)
     const html = t.html()
     assert(!/ (of|from|filter|label)=/.test(html), `html() has marker attributes: ${html}`)
-    assert(html.includes('<div><li class="row">#a</li></div>'), `html(): ${html}`)
+    assert(html.includes('<div class="app"><li class="row">#a</li></div>'), `html(): ${html}`)
     t.dispose()
   })
 

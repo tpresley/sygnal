@@ -28,7 +28,9 @@ function App() {
         <button id="clear">Clear</button>
         <button id="swaprows">Swap Rows</button>
       </div>
-      <Collection of={Row} from="rows" className="table" />
+      <div className="table">
+        <Collection of={Row} from="rows" />
+      </div>
     </div>
   )
 }

@@ -18,7 +18,9 @@ function App() {
     <div>
       <button id="create">Create counters</button>
       <button id="destroy">Destroy counters</button>
-      <Collection of={Counter} from="counters" className="counters" />
+      <div className="counters">
+        <Collection of={Counter} from="counters" />
+      </div>
     </div>
   )
 }

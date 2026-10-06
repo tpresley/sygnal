@@ -120,10 +120,10 @@ describe('G-070 a: structural selectors in simulateEvent', () => {
     Card.intent = ({ DOM }) => ({ NEXT: DOM.click('.next') })
     Card.model = { NEXT: s => ({ ...s, clicks: s.clicks + 1 }) }
     function ListCol({ state }) {
-      return h('div', { className: 'list' }, h('h2', null, state.name), h(Collection, { of: Card, from: 'cards', className: 'cards' }))
+      return h('div', { className: 'list' }, h('h2', null, state.name), h('div', { className: 'cards' }, h(Collection, { of: Card, from: 'cards' })))
     }
     function Board() {
-      return h('main', null, h(Collection, { of: ListCol, from: 'lists', className: 'board' }))
+      return h('main', null, h('div', { className: 'board' }, h(Collection, { of: ListCol, from: 'lists' })))
     }
     const card = (id, title) => ({ id, title, clicks: 0 })
     Board.initialState = {

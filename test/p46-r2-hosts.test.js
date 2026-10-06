@@ -21,16 +21,17 @@ function mount(App, drivers = {}, options = {}) {
 const click = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
 
 describe('PLAN-4.6 R2 next core: hosts', () => {
-  it("the Collection's DOM is today's: one div with the marker's props as element properties", async () => {
-    function Item({ state }) { return h('li', null, state.t) }
-    function App() { return h('ul', null, h(Collection, { of: Item, from: 'rows', className: 'list', extra: 5 })) }
+  it("4-H (D229): the Collection's items are its parent's children (no wrapper element); the other props go to the items", async () => {
+    function Item({ state, extra }) { return h('li', null, state.t + extra) }
+    function App() { return h('ul', null, h('li', { className: 'first' }, '0'), h(Collection, { of: Item, from: 'rows', className: 'list', extra: 5 }), h('li', { className: 'last' }, 'z')) }
     App.initialState = { rows: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] }
     const m = mount(App)
     await m.rt.flushed()
-    const d = m.$('ul > div.list')
-    expect(d.children.length).toBe(2)
-    expect(d.extra).toBe(5)
-    expect(d.key).toBe('collection::r.0')
+    const ul = m.$('ul')
+    expect(ul.innerHTML).toBe('<li class="first">0</li><li>a5</li><li>b5</li><li class="last">z</li>')
+    // className was the removed wrapper's: on no element (SYG612 in development)
+    expect(m.$('.list')).toBe(null)
+    expect(ul.extra).toBe(undefined)
   })
 
   it('InstanceViews: items and pages are children of their owner (kind, shown, uid); byId finds them', async () => {

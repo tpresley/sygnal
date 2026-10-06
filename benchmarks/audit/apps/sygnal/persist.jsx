@@ -31,7 +31,9 @@ function App({ state }) {
         <button id="clear">Clear</button>
         <span className="count">{state.rows.length}</span>
       </div>
-      <Collection of={Row} from="rows" className="table" />
+      <div className="table">
+        <Collection of={Row} from="rows" />
+      </div>
     </div>
   )
 }

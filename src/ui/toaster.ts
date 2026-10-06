@@ -155,7 +155,7 @@ const same = (a: any, b: any) => '' + a === '' + b
 
 /** Renders the toasts that `event('TOAST', { text, kind, timeoutMs })` sends from anywhere. Render it once: `<Toaster />`. */
 export const Toaster = /*#__PURE__*/ Object.assign(function Toaster({state, label = 'Notifications', dismissLabel = 'Dismiss', transition = 'toast', duration = 200, className}: any) {
-  const list = (filter: any) => h(Collection, {of: ToastItem, from: 'toasts', filter, className: 'toaster-list', dismissLabel, transition, duration})
+  const list = (filter: any) => h('div', {className: 'toaster-list'}, h(Collection, {of: ToastItem, from: 'toasts', filter, dismissLabel, transition, duration}))
   return h('div', {className: 'toaster-home'},
     h('section', {
       className: className ? 'toaster ' + className : 'toaster', 'aria-label': label, attrs: {popover: 'manual'},

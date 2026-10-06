@@ -13,7 +13,9 @@ function App({ state }) {
       <Toolbar state="filters" />
       <div className="layout">
         <main className="projects">
-          <Collection of={ProjectSection} from="projects" className="project-list" />
+          <div className="project-list">
+            <Collection of={ProjectSection} from="projects" />
+          </div>
         </main>
         <DetailsPanel />
       </div>

@@ -107,7 +107,9 @@ void Shell
 // Built-in JSX components keep their own props
 const builtins = (
   <div>
-    <Collection of={TaskCard} from="tasks" className="list" />
+    <div className="list">
+      <Collection of={TaskCard} from="tasks" />
+    </div>
     {/* @ts-expect-error — Collection needs `from` */}
     <Collection of={TaskCard} />
   </div>

@@ -136,6 +136,7 @@ export function sameData(a: any, b: any): boolean {
 // element there too, so the app's vnodes get their `elm` as before (testing and diagnostics read
 // it); it keeps its own (a vnode object reused under another key: the old copy removes its own).
 const flatOf = new WeakMap<any, any>();
+const cpOf = new WeakMap<any, any>();
 const copy = (y: any, o: any, m?: any) => Object.create(y, {...o, elm: {get: () => m, set: (e: any) => y.elm = m = e}});
 const seg = (k: any, s: any) => (k || '') + JSON.stringify(typeof s == 'object' ? s : String(s));
 export const flat = (v: any): any => {
@@ -157,7 +158,10 @@ export const flat = (v: any): any => {
           let y = flat(x);
           y !== x && (d = 1);
           if (k && y) {
-            y = copy(y, {key: {value: seg(k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]])}});
+            // 4-H: the copy of an unchanged child under the same key is kept (the fragment is new
+            // when one of its children is: a Collection's), so snabbdom skips the others
+            const q = seg(k, y.key ?? [y.sel, n[y.sel] = -~n[y.sel]]), c = cpOf.get(y);
+            y = c && c[0] === q ? c[1] : (cpOf.set(y, [q, y = copy(y, {key: {value: q}})]), y);
           }
           o.push(y);
         }
