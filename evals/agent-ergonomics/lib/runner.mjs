@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { buildClaudeArgs, buildPreflightArgs, trialEnv, writeProcessGuard, guardEnv, PROCESS_GUARD, stampLine, summarizeRun, parseJsonl, trialFiles, checkModel, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
+import { buildClaudeArgs, buildPreflightArgs, trialEnv, writeProcessGuard, guardEnv, PROCESS_GUARD, SKILL_GUARD, trialSettings, writeTrialSettings, stampLine, summarizeRun, parseJsonl, trialFiles, checkModel, DEFAULT_TIMEOUT_MIN } from './headless.mjs'
 
 /**
  * @param {object} o
@@ -20,6 +20,9 @@ import { buildClaudeArgs, buildPreflightArgs, trialEnv, writeProcessGuard, guard
  * @param {boolean} [o.force]        overwrite an existing transcript
  * @param {boolean} [o.processGuard] default true: deny rules + PATH shims against machine-wide
  *                                   process kills (lib/headless.mjs PROCESS_GUARD, G-127)
+ * @param {boolean} [o.skillGuard]   default true: Claude Code's built-in skills blocked through
+ *                                   <dest>.settings.json (lib/headless.mjs SKILL_GUARD, D234)
+ * @param {string[]} [o.allowSkills] skills the guard must leave alone (the variant's own)
  * @param {(line: object) => void} [o.onEvent]
  * @param {(child) => void} [o.onSpawn]  [o.onExit]   process-group bookkeeping for the caller
  * @returns {Promise<object>} the run meta (also written to <dest>.run.json)
@@ -34,7 +37,9 @@ export function runTrial(o) {
   const prompt = fs.readFileSync(files.prompt, 'utf8').trim()
   const timeoutMin = o.timeoutMin ?? DEFAULT_TIMEOUT_MIN
   const processGuard = o.processGuard !== false
-  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd, ...(o.isolation ?? {}), processGuard })
+  const skillGuard = o.skillGuard !== false
+  const settingsFile = skillGuard ? writeTrialSettings(dest, trialSettings({ allowSkills: o.allowSkills ?? [] })) : null
+  const args = buildClaudeArgs({ prompt, model: o.model, permissionMode: o.permissionMode, tools: o.tools, effort: o.effort, maxBudgetUsd: o.maxBudgetUsd, ...(o.isolation ?? {}), processGuard, settings: settingsFile })
   const env = processGuard ? guardEnv(trialEnv(process.env), writeProcessGuard(dest)) : trialEnv(process.env)
   const bin = o.claudeBin ?? 'claude'
   const out = fs.openSync(files.transcript, 'w')
@@ -105,6 +110,9 @@ export function runTrial(o) {
         // 0 = no guard; 1 = deny rules + PATH shims (lib/headless.mjs)
         processGuard: processGuard ? PROCESS_GUARD : 0,
         disallowedTools: args.includes('--disallowedTools') ? args[args.indexOf('--disallowedTools') + 1].split(',') : [],
+        // 0 = Claude Code's built-in skills available; 1 = blocked by <dest>.settings.json (D234)
+        skillGuard: skillGuard ? SKILL_GUARD : 0,
+        settingsFile,
         timeoutMin,
         startedAt: startedAt.toISOString(),
         endedAt: endedAt.toISOString(),
@@ -132,16 +140,17 @@ export function runTrial(o) {
  * model. Resolves { ok, reason, model, modelCheck, costUsd, wallMs, skills,
  * rateLimited, resetAt, summary }. ok is false when the call fails, times out,
  * or never reaches the model. `isolation` (settingSources, addDirs) is the
- * variant's skill posture, so `skills` lists what a trial will see.
+ * variant's skill posture and `skillGuard` the built-in skill block (D234), so
+ * `skills` lists what a trial will see.
  */
-export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60, cwd = process.cwd(), isolation = {} } = {}) {
+export function preflight({ model, effort, claudeBin = 'claude', timeoutSec = 60, cwd = process.cwd(), isolation = {}, skillGuard = true, allowSkills = [] } = {}) {
   const started = Date.now()
   return new Promise((resolve) => {
     let out = ''
     let err = ''
     let timedOut = false
     let spawnError = null
-    const child = spawn(claudeBin, buildPreflightArgs({ model, effort, settingSources: isolation.settingSources, addDirs: isolation.addDirs }), { cwd, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+    const child = spawn(claudeBin, buildPreflightArgs({ model, effort, settingSources: isolation.settingSources, addDirs: isolation.addDirs, settings: skillGuard ? JSON.stringify(trialSettings({ allowSkills })) : undefined }), { cwd, env: trialEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'], detached: true })
     child.stdout.on('data', (d) => (out += d))
     child.stderr.on('data', (d) => (err += d))
     const timer = setTimeout(() => {
