@@ -164,7 +164,7 @@ function makeDOMDriver(
     let dead = 0, end = 0;
     const rootElement$ = firstRoot$
       .map(
-        (firstRoot, P = (o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v)) =>
+        (firstRoot, P = (o: any, v: any) => patch(o == r ? (cur.removeAttribute?.(ERR), {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)}) : o, v)) =>
           xs.merge(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$.map(() => (end = 1, null)))
@@ -181,10 +181,12 @@ function makeDOMDriver(
               // content) is removed; its errors aren't reported again. G-549: only dispose (`end`:
               // the sanitation signal), not a live render that has no children. G-543 (D224): the
               // root element is marked data-sygnal-error="patch" while its DOM is stopped (CSS can
-              // show it; dispose removes it)
+              // show it; dispose removes it). G-550: marked before the error is reported (onError
+              // can read it); the first patch clears a mark a failed, undisposed app left in the
+              // container, and dispose removes it only when this app set it. A DocumentFragment mount point has no attributes: no mark
               .fold((o: any, v: any) => {
-                if (!dead || end) try { o = P(o, v) } catch (e) { dead++ || rep(e) }
-                end ? cur.removeAttribute?.(ERR) : dead && cur.setAttribute?.(ERR, 'patch')
+                if (!dead || end) try { o = P(o, v) } catch (e) { dead++ || (cur.setAttribute?.(ERR, 'patch'), rep(e)) }
+                end && dead && cur.removeAttribute?.(ERR)
                 return o
               }, {...r, data: {}})
               .drop(1)
