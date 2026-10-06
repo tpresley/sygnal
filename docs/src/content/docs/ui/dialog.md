@@ -41,7 +41,7 @@ A click on `.edit-profile` opens the dialog and a click on `.cancel` closes it. 
 
 | Option | Default | |
 |---|---|---|
-| `dialog` | (required) | The `<dialog>` element: a selector or a [control](/guide/controls/) |
+| `dialog` | (required) | The `<dialog>` element: a selector or a [control](/guide/controls/). It must match only this behavior's dialog: a selector that also matches a dialog nested in it (`dialog`, a shared class) gets that dialog's events too |
 | `trigger` | | Its clicks open the dialog |
 | `close` | | Its clicks close the dialog, with the return value `''` |
 | `modal` | `true` | `false` opens it with `show()`: not modal, the page stays usable |

@@ -88,20 +88,24 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   const out: any = {}
   const hist = (s: any) => s?.[hk] || {past: [], future: []}
   // the value undo keeps: state[key], or (3-P G-515: `key: ['todo', 'done']`) an object of those
-  // keys the state has; values compare key by key (3-U G-529 / G-530: no shared identity, no cache)
+  // keys the state has; values compare key by key (3-U G-529 / G-530: no shared identity, no cache).
+  // 3-W G-536: a key the state lacks and one it has as `undefined` differ for an array key (a key
+  // that appears or goes is a change); for a string key both are the value `undefined`. Primitive
+  // state (before the first object) has none of the keys
   const val = (s: any) => {
     if (!keys) return s?.[key as string]
     const v: any = {}
-    for (const k of keys) if (s && k in s) v[k] = s[k]
+    for (const k of keys) if (s && typeof s == 'object' && k in s) v[k] = s[k]
     return v
   }
-  const eq = (a: any, b: any) => keys ? a === b || !!a && !!b && keys.every(k => a[k] === b[k]) : a === b
-  const same = (a: any, b: any) => keys ? !!a && !!b && keys.every(k => same1(a[k], b[k])) : same1(a, b)
-  // G-531: a key the snapshot didn't have is left out (not set to undefined)
+  const by = (a: any, b: any, f: any) => !!a && !!b && keys!.every(k => k in a == k in b && f(a[k], b[k]))
+  const eq = (a: any, b: any) => keys ? a === b || by(a, b, (x: any, y: any) => x === y) : a === b
+  const same = (a: any, b: any) => keys ? by(a, b, same1) : same1(a, b)
+  // G-531: a key the snapshot didn't have is left out (not set to undefined); G-536: so is a string
+  // key whose snapshot is undefined
   const set = (s: any, v: any) => {
-    if (!keys) return {...s, [key as string]: v}
-    const r = {...s, ...v}
-    for (const k of keys) if (!(k in v)) delete r[k]
+    const r = keys ? {...s, ...v} : {...s, [key as string]: v}
+    for (const k of keys || [key]) if (keys ? !(k in v) : v === undefined) delete r[k as string]
     return r
   }
   // one more entry in `past` (`join`: the change joins the last one)
