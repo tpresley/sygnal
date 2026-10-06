@@ -5,6 +5,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { run, Portal, Transition, defineWidget } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
+import { renderComponent } from '../src/extra/testing.ts'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 let apps = [], errors
@@ -92,5 +93,43 @@ describe('G-540: a patch that throws stops the app\'s DOM updates (no re-adoptio
     armed = true
     await click('.b'); await click('.b'); await click('.b')
     expect(seen).toBe(3)
+  })
+})
+
+describe('G-537 (D223): a patch error goes to run({ onError }) with phase \'patch\'', () => {
+  it('onError gets it (not console.error), once', async () => {
+    const seen = []
+    await mount(counter((s) => h('div', null, bomb(s.n))), { onError: (e, info) => seen.push([e.message, info]) })
+    armed = true
+    await click('.b'); await click('.b')
+    expect(seen).toEqual([['once', { phase: 'patch' }]])
+    expect(errors).not.toHaveBeenCalled()
+  })
+
+  it("the hooks' onError gets it too (devtools, diagnostics)", async () => {
+    const seen = []
+    await mount(counter((s) => h('div', null, bomb(s.n))), { __hooks: { onError: (e, info) => seen.push([e.message, info.phase]) } })
+    armed = true
+    await click('.b')
+    expect(seen).toEqual([['once', 'patch']])
+    expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: once'])
+  })
+
+  it("renderComponent({ dom: 'real', onError }) gets it as well", async () => {
+    const seen = []
+    const t = renderComponent(counter((s) => h('div', null, bomb(s.n))), { dom: 'real', onError: (e, info) => seen.push([e.message, info.phase]) })
+    await t.ready()
+    armed = true
+    t.query('.b').click()
+    await t.waitForState(s => s.n == 1)
+    expect(seen).toEqual([['once', 'patch']])
+    t.dispose()
+  })
+
+  it('a throwing onError is logged and swallowed', async () => {
+    await mount(counter((s) => h('div', null, bomb(s.n))), { onError: () => { throw new Error('hook') } })
+    armed = true
+    await click('.b')
+    expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: hook'])
   })
 })

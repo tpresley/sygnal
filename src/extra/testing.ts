@@ -1887,7 +1887,8 @@ export function renderComponent(
     // a class, not an attribute: the DOM driver's first patch keeps only the root's id and class
     container.className = 'sygnal-test';
     document.body.appendChild(container);
-    realDOM = makeDOMDriver(container);
+    // G-537: a patch error goes to the onError option, as under run()
+    realDOM = makeDOMDriver(container, options.onError ? {reportSnabbdomError: (e: any) => options.onError!(e, {phase: 'patch'})} : undefined);
   }
   // 4-A1: real-mode patch tracking. Every vtree the DOM sink emits is tagged with the number
   // of states recorded when it rendered (renderNo); the driver's input is gated so the harness

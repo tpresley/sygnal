@@ -1673,9 +1673,11 @@ export type DiagnosticsOptions = {
  * Where an error reported to the app-level `onError` hook happened (PLAN-4 GS-11). `'intent'`: an
  * intent stream errored (it stops emitting; `action` is its action name). `'context'`: a
  * `.context` entry threw (it keeps its last value). `'widget'`: a `defineWidget` widget's `mount`,
- * `update` or `unmount` threw (`componentName` is the component that renders it).
+ * `update` or `unmount` threw (`componentName` is the component that renders it). `'patch'`: the
+ * DOM driver's patch threw (a vnode hook, a DOM module); the app's DOM stops updating (reported
+ * once).
  */
-export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget'
+export type AppErrorPhase = 'view' | 'reducer' | 'effect' | 'intent' | 'context' | 'declaration' | 'driver' | 'instantiate' | 'dispose' | 'widget' | 'patch'
 
 /** What the app-level `onError` hook gets with the error */
 export interface AppErrorInfo {
