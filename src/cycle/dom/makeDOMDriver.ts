@@ -160,9 +160,10 @@ function makeDOMDriver(
     let pl: any, cur: any;
     const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
     const off = () => cur?.removeEventListener(POKE, poke);
+    const rep = options.reportSnabbdomError || defaultReportSnabbdomError;
     const rootElement$ = firstRoot$
       .map(
-        firstRoot =>
+        (firstRoot, P = (o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v)) =>
           xs.merge(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
@@ -170,7 +171,10 @@ function makeDOMDriver(
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
               .startWith(r)
-              .fold((o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v), {...r, data: {}})
+              // A patch that throws (a hook, a module) is reported, and the DOM as it is now is
+              // adopted for this vnode, as on the first patch: the app keeps updating (the stream
+              // erred and the app stopped updating before)
+              .fold((o: any, v: any) => { try { return P(o, v) } catch (e) { rep(e); return P(r, v) } }, {...r, data: {}})
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)
@@ -184,9 +188,7 @@ function makeDOMDriver(
       .endWhen(sanitation$)
       .remember();
 
-    rootElement$.addListener({
-      error: options.reportSnabbdomError || defaultReportSnabbdomError,
-    });
+    rootElement$.addListener({error: rep});
 
     const delegator = new EventDelegator(rootElement$, isolateModule);
 
