@@ -353,7 +353,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-Q: G-538…G-542 (no regression without fragments; perf-gate ok). The guard's recovery by adoption is unsafe (G-540). 3-V started (G-537…G-542).
 - 2026-10-05 — 3-V merged (clean; G-537…G-542; core 42,402 B, 98 B headroom); gates all green (vitest 3,689, browser 345/344/344, recipes 17×3, perf ok). User: D224 (stop updating + root marker + docs). 3-W started (G-543, G-535, G-536); review of 3-V running.
 - 2026-10-05 — Review of 3-V: no high; G-544…G-549 added to 3-W (`dead` is per driver instance; a new `run()` starts clean; tests don't hang after a patch error).
-- 2026-10-05 — 3-W merged (clean): root marker `data-sygnal-error="patch"` on the mount point, docs "After a patch error", linear derived keys, reporter injected into any DOM driver; core 42,481 B (19 B headroom).
+- 2026-10-05 — 3-W merged (clean): root marker `data-sygnal-error="patch"` on the mount point, docs "After a patch error", linear derived keys, reporter injected into any DOM driver; core 42,481 B (19 B headroom). Gates all green (vitest 3,712, browser 346/345/345, recipes 17×3, samples 674, perf ok).
 - 2026-10-05 — Review of 3-W: nothing above Low (G-550). Review rounds have converged.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
