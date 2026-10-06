@@ -173,6 +173,10 @@ function childUid(uid: string, vnode: any, path: string): string {
   return uid + '-' + uidPart(('::' + ((id && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, ''))
 }
 
+// G-567: a view that returns a string or a number renders it as text (core/instance.ts view());
+// another falsy value, an empty <div>
+const textOr = (r: any): any => typeof r == 'string' || typeof r == 'number' ? {text: '' + r} : r
+const viewOut = (r: any): any => textOr(r) || {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
 const errorDiv = (): any => ({sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined})
 
 /**
@@ -520,12 +524,8 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     result = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
   }
 
-  if (!result) {
-    result = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
-
   // Recursively process the rendered sub-tree
-  return processSSRTree(result, childContext, childState, uid, 'r')
+  return processSSRTree(viewOut(result), childContext, childState, uid, 'r')
 }
 
 /** the Collection's own props (core/hosts/collection.ts OWN): the others go to every item */
@@ -626,7 +626,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
       itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
 
-    const out = processSSRTree(itemVnode, itemContext, itemState, itemUid, 'r')
+    const out = processSSRTree(textOr(itemVnode), itemContext, itemState, itemUid, 'r')
     // PLAN-5 A-1: the names the client's Collection gives a keyed item's root element
     const named = vtn && isItemObj && itemState.id != null && out?.sel
       ? {...out, data: {...out.data, style: vtStyle(vtn, itemState.id, out.data?.style)}}
@@ -740,11 +740,7 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
     vnode = viewFailed(componentDef, err, componentDef.name || 'Component')
   }
 
-  if (!vnode) {
-    vnode = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
-
-  return processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
+  return processSSRTree(viewOut(vnode), mergedContext, resolvedState, uid, 'r')
 }
 
 // G-465: a form field's `value` (a DOM property) has no attribute on <textarea> / <select>: the

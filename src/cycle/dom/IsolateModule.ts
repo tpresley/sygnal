@@ -18,7 +18,7 @@ export class IsolateModule {
   private namespaceByElement: WeakMap<Element, Array<Scope>>;
   private eventDelegator: EventDelegator | undefined;
 
-  private vnodesBeingRemoved: Array<VNode>;
+  private vnodesBeingRemoved: Array<Element>;
 
   constructor() {
     this.namespaceByElement = new WeakMap<Element, Array<Scope>>();
@@ -81,14 +81,26 @@ export class IsolateModule {
 
   public createModule() {
     const self = this;
+    // G-564: a vnode can be in the old tree and the new one (a component's cached vnode, a
+    // Collection item's copy, a hoisted vnode). When an ancestor is recreated (`alt ? <ol>{c}</ol>
+    // : <ul>{c}</ul>`, a new key), snabbdom creates it again and gives it the new element before it
+    // destroys the old subtree, so destroy hooks saw the new element (a widget inside wasn't
+    // unmounted, its scope lost the new element). A created element notes its children's elements
+    // (M: a child with one is mounted, or was), before they are created; a destroyed vnode gives
+    // its noted children their old elements back for their destroy hooks (and theirs, down the
+    // subtree), and they get the new ones again when the removal starts (S), before the insert
+    // hooks. (A vnode that moves to another parent still gives its own destroy hook the new one)
+    const M = new Map<any, any>(), S: any[] = [];
+    const back = (c: any) => M.has(c) && (S.push(c, c.elm), c.elm = M.get(c));
     return {
       create(emptyVNode: VNode, vNode: VNode) {
-        const {elm, data = {}} = vNode;
+        const {elm, data = {}, children} = vNode;
         const namespace: Array<Scope> = (data as any).isolate;
 
         if (Array.isArray(namespace)) {
           self.insertElement(namespace, elm as Element);
         }
+        children?.forEach((c: any) => c?.elm && M.set(c, c.elm));
       },
 
       update(oldVNode: VNode, vNode: VNode) {
@@ -107,27 +119,27 @@ export class IsolateModule {
         }
       },
 
+      // (the elements as they are now: post runs after the vnodes got their new ones back)
       destroy(vNode: VNode) {
-        self.vnodesBeingRemoved.push(vNode);
+        vNode.children?.forEach(back);
+        self.vnodesBeingRemoved.push(vNode.elm as Element);
       },
 
       remove(vNode: VNode, cb: Function) {
-        self.vnodesBeingRemoved.push(vNode);
+        self.vnodesBeingRemoved.push(vNode.elm as Element);
+        for (let e; S.length; ) e = S.pop(), S.pop().elm = e;
         cb();
       },
 
       post() {
-        const vnodesBeingRemoved = self.vnodesBeingRemoved;
-        for (let i = vnodesBeingRemoved.length - 1; i >= 0; i--) {
-          const vnode = vnodesBeingRemoved[i];
-          const elm = vnode.elm as Element;
-          // G-144: a removed root element is no longer one of its scope's roots
-          if (vnode.data !== undefined && Array.isArray((vnode.data as any).isolate)) {
-            self.removeElement(elm);
-          }
+        // G-144: a removed root element is no longer one of its scope's roots (an element no
+        // scope has as a root isn't in any set: removing it does nothing)
+        for (const elm of self.vnodesBeingRemoved) {
+          self.removeElement(elm);
           (self.eventDelegator as EventDelegator).removeElement(elm);
         }
         self.vnodesBeingRemoved = [];
+        M.clear();
       },
     };
   }

@@ -8,7 +8,7 @@
 // 5.x's wrapper div (a reorder that moves the focused element drops the focus in all three).
 // Each structural case runs on a fresh client render and over renderToString's markup (hydrated:
 // every server element adopted, the server's markup equal to the client's).
-import { run, renderToString, Collection, Transition, makeViewTransitionDOMDriver } from 'sygnal'
+import { run, renderToString, Collection, Transition, makeViewTransitionDOMDriver, defineWidget } from 'sygnal'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait, waitFor } from '../harness.js'
 
 const CAT = 'Collection without a wrapper (PLAN-5 4-H)'
@@ -320,6 +320,38 @@ export async function collectionTestsP5_4H() {
       assert(texts(el, F) === 'head,3,9,1,tail', 'reversed: ' + texts(el, F))
       assert(!el.querySelector(F + ' div'), 'no wrapper: ' + el.innerHTML)
     } finally { app.dispose() }
+  })
+
+  // 4-J G-564: the list element is recreated (<ul> <-> <ol>) around unchanged items: the old items'
+  // widgets unmount with their own elements, the new ones mount, and a real click reaches an item
+  await runTest('<ul> <-> <ol> around a Collection: widgets in items unmount and mount in balance, clicks reach the items', async () => {
+    const log = []
+    const Box = defineWidget({
+      mount(el, p) { log.push('+' + p.id); el.textContent = 'w' + p.id; return { id: p.id, el } },
+      unmount(i, el) { log.push('-' + i.id + (el === i.el ? '' : '?')) },
+      update() {},
+    })
+    function Item({ state }) { return <li className="p4j-it" data-id={String(state.id)}><button className="p4j-b">{String(state.hits || 0)}</button><Box id={state.id} /></li> }
+    Item.intent = ({ DOM }) => ({ HIT: DOM.select('.p4j-b').events('click') })
+    Item.model = { HIT: (s) => ({ ...s, hits: (s.hits || 0) + 1 }) }
+    const Swap = withOps(function Swap({ state }) {
+      const c = <Collection of={Item} from="items" />
+      return <main>{state.alt ? <ol className="p4j-l">{c}</ol> : <ul className="p4j-l">{c}</ul>}<p className="p4h-n">{state.n}</p></main>
+    })
+    Swap.initialState = { n: 0, alt: false, items: [{ id: 1 }, { id: 2 }] }
+    const { el, app } = await start(Swap, 'fresh', 'main > .p4j-l >')
+    try {
+      for (const alt of [true, false, true]) {
+        log.length = 0
+        await op(el, (s) => ({ ...s, alt }))
+        assert(el.querySelector('.p4j-l').localName === (alt ? 'ol' : 'ul'), el.innerHTML)
+        assert(log.join() === '-1,-2,+1,+2', 'widgets: ' + log.join())
+        assert(el.querySelectorAll('.p4j-it').length === 2, el.innerHTML)
+      }
+      await window.__pw('click', '#' + el.id + ' .p4j-it[data-id="2"] .p4j-b')
+      await waitFor(() => el.querySelector('.p4j-it[data-id="2"] .p4j-b').textContent === '1', 1000, 10)
+    } finally { log.length = 0; app.dispose() }
+    assert(log.sort().join() === '-1,-2', 'dispose unmounts the mounted widgets: ' + log.join())
   })
 
   await runTest('view-transition names on items between siblings; a reorder runs in one View Transition', async () => {

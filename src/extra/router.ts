@@ -1,5 +1,6 @@
 import {Stream} from 'xstream';
 import {senderOf, makeReplies} from './replies';
+import {SET} from '../core/teardown';
 
 /*
  * makeRouter({ routes, base?, mode?, scroll?, focus?, prefetch?, navigate?, window?, ... })
@@ -16,8 +17,8 @@ import {senderOf, makeReplies} from './replies';
  *   declaration and on every change. `{ route }` is the declaration: commands never use it.
  * - Redirect order (G-168): the FIRST declarer (the outermost one: declarations are kept in
  *   mount order) is the guard owner. It gets each new route at once; the other declarers get it
- *   one macrotask later, and only if no newer navigation (a redirect from the guard's ROUTE
- *   entry, e.g. `ROUTER: { to: 'login', replace: true }`) happened in between.
+ *   once its ROUTE ran (in the same flush, G-565), and only if no newer navigation (a redirect
+ *   from the guard's ROUTE entry, e.g. `ROUTER: { to: 'login', replace: true }`) happened.
  * - Commands: `{ to: name, params?, query?, hash?, replace?, scroll? }`, `{ url, replace? }`,
  *   `{ back: true }`, `{ forward: true }`, `{ go: n }`, `{ block: 'ACTION' | false }`,
  *   `{ prefetch: name | url, params?, query? }` (calls options.prefetch(route, url); else a
@@ -147,12 +148,18 @@ export function makeRouter(options: any = {}) {
       quiet();
     };
 
+    // G-565: `f` runs once the actions queued so far ran: a state write that changes nothing,
+    // queued behind them through the instance's replies (one listening, else a task later). The
+    // first declarer's ROUTE (and any redirect it makes) runs first; the others get theirs in the
+    // same flush, before the patch, as long as no redirect happened (G-168)
+    const after = (s: any, f: any) => listening(s) ? reply(s, SET, (x: any) => (f(), x)) : setTimeout(f);
+
     const emit = (kind: string) => {
       last = L.href;
       const r = (cur = current()), list = [...declared], v = ++ver;
       if (list.length) {
         reply(list[0][0], list[0][1], r);
-        setTimeout(() => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
+        after(list[0][0], () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
       }
       if (kind != 'start') settle(kind);
     };
@@ -256,11 +263,12 @@ export function makeRouter(options: any = {}) {
           // G-555: the guard owner (first declarer) gets it at once when it listens to its replies
           // (the core subscribes them at creation, before its statics), so its ROUTE is part of
           // the flush that declared it: a task later came after the first render and undid what
-          // happened in between (a field typed into). The others (and a declarer not listening
-          // yet, e.g. a Vike Layout) a task later, as for a navigation: timers keep mount order and
-          // a redirect in between supersedes the route (G-168)
+          // happened in between (a field typed into). G-565: the others too, once the actions
+          // queued before (the guard owner's ROUTE) ran, as for a navigation; a redirect in
+          // between supersedes the route (G-168). A declarer not listening yet (a Vike Layout):
+          // a task later
           const v0 = ver, f = () => declared.get(s) == v.route && ver == v0 && reply(s, v.route, cur);
-          if (cur) declared.keys().next().value === s && listening(s) ? f() : setTimeout(f);
+          if (cur) declared.keys().next().value === s && listening(s) ? f() : after(s, f);
           return;
         }
         // `block` combines with a navigation: { ...proceed, block: false } clears it and goes

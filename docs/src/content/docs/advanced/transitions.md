@@ -93,6 +93,11 @@ A [Collection](/guide/collections/) has no element of its own: its items are its
 
 This is the same as putting the `<Transition>` around the root element in the item's own view, which also works.
 
+Two cases behave differently:
+
+- **An item whose view returns a fragment (`<>…</>`) or text** has no element of its own to animate: its elements appear and go at once, with no enter or leave classes. Give the item one root element (`<li>`), or put a `<Transition>` around each element inside the item's view.
+- **On a server-rendered page**, the client's first render [adopts the server's elements](/integration/ssr/#what-the-first-client-render-keeps), except the ones under a `<Transition>`: those are made again so their enter can run. Around a Collection, that is every item: the server's items are replaced by the client's, and each plays its enter transition when the page starts (focus or text typed into an item before start-up is lost). This is by design: the alternative is an enter that never runs.
+
 ## Explicit Duration
 
 If your animation doesn't use CSS transitions (or you want a fixed timeout), pass `duration`:
