@@ -29,7 +29,7 @@ function App({ state, uid }) {
         />
         <ul id={uid('list')} role="listbox" aria-label="Commands">
           {shown.map((c) => (
-            <li id={uid(c.id)} role="option" className={c === active ? 'option active' : 'option'} aria-selected={String(c === active)} data-id={c.id}>
+            <li id={uid(c.id)} role="option" tabIndex={-1} className={c === active ? 'option active' : 'option'} aria-selected={String(c === active)} data-id={c.id}>
               {c.label}
             </li>
           ))}

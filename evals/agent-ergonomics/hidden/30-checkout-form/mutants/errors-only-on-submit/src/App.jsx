@@ -46,23 +46,32 @@ Item.model = { REMOVE: { PARENT: (state) => ({ field: 'items', id: state.id }) }
 
 function App({ state, uid }) {
   const f = state.form.fields
-  const text = (name, label, extra = {}) => (
-    <div className="field">
-      <label for={uid(name)}>{label}</label>
-      <input id={uid(name)} name={name} value={f[name].value} aria-invalid={f[name].invalid} aria-describedby={uid(`${name}-error`)} {...extra} />
-      <p id={uid(`${name}-error`)} className="error">{f[name].error}</p>
-    </div>
-  )
   return (
     <main className="checkout-page">
       <h1>Checkout</h1>
       <form className="checkout" noValidate>
-        {text('name', 'Full name')}
-        {text('email', 'Email', { type: 'email' })}
-        {text('zip', 'ZIP code', { inputMode: 'numeric' })}
+        <div className="field">
+          <label for={uid('name')}>Full name</label>
+          <input id={uid('name')} name="name" value={f.name.value} aria-invalid={f.name.invalid} aria-describedby={uid('name-error')} />
+          <p id={uid('name-error')} className="error">{f.name.error}</p>
+        </div>
+        <div className="field">
+          <label for={uid('email')}>Email</label>
+          <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
+          <p id={uid('email-error')} className="error">{f.email.error}</p>
+        </div>
+        <div className="field">
+          <label for={uid('zip')}>ZIP code</label>
+          <input id={uid('zip')} name="zip" inputMode="numeric" value={f.zip.value} aria-invalid={f.zip.invalid} aria-describedby={uid('zip-error')} />
+          <p id={uid('zip-error')} className="error">{f.zip.error}</p>
+        </div>
         <Collection of={Item} from={{ get: (s) => s.form.values.items }} fields={f} order={state.form.values.items.map((i) => i.id)} />
         <button type="button" className="add-item">Add item</button>
-        {text('promo', 'Promo code')}
+        <div className="field">
+          <label for={uid('promo')}>Promo code</label>
+          <input id={uid('promo')} name="promo" value={f.promo.value} aria-invalid={f.promo.invalid} aria-describedby={uid('promo-error')} />
+          <p id={uid('promo-error')} className="error">{f.promo.error}</p>
+        </div>
         <p role="alert">{state.failed ? 'Could not place the order. Try again.' : ''}</p>
         <button type="submit" disabled={state.form.submitting}>{state.form.submitting ? 'Placing order…' : 'Place order'}</button>
       </form>

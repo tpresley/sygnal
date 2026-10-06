@@ -186,8 +186,8 @@ export function installHidden(dir, arm, task) {
 }
 
 /** Overlay a task's reference solution onto a starter copy. */
-export function applySolution(dir, arm, task) {
-  const sol = path.join(armPaths(arm).hidden, task, 'solution')
+export function applySolution(dir, arm, task, name = 'solution') {
+  const sol = path.join(armPaths(arm).hidden, task, name)
   if (!fs.existsSync(sol)) throw new Error(`No reference solution at ${sol}`)
   fs.cpSync(sol, dir, { recursive: true })
 }
