@@ -1,6 +1,6 @@
 // PLAN-3 5-4b: makeRouter with the browser's real history: link click (no reload), back,
 // scroll restoration and focus after render; makeHeadDriver sets document.title.
-import { run, makeRouter, makeHeadDriver, Switchable } from 'sygnal'
+import { run, makeRouter, makeHeadDriver, Switchable, ABORT } from 'sygnal'
 import { mount, assert, runTest, waitFor, wait } from '../harness.js'
 
 const CAT = 'Router (5-4b)'
@@ -99,6 +99,51 @@ export async function routerTests5_4b() {
       assert(input.value === 'Write the final report', `field kept the edit: ${input.value}`)
       assert(app.__runtime.getState().draft === 'Write the final report', `draft: ${app.__runtime.getState().draft}`)
       assert(el.querySelector('i').textContent === '1', `one ROUTE: ${el.querySelector('i').textContent}`)
+    } finally {
+      mo.disconnect()
+      app.dispose()
+      await wait(10)
+      history.replaceState(null, '', start)
+    }
+  }, 4000)
+
+  // G-565: a nested declarer (an Edit page under a declaring root) too, after the root's ROUTE,
+  // whose redirect it never sees
+  await runTest(CAT, 'a nested declarer: its initial ROUTE (after the root\'s redirect) before the first patch (G-565)', async () => {
+    const start = location.pathname + location.search
+    history.pushState(null, '', '/rt/old/1')
+    const router = makeRouter({ routes: { list: '/', old: '/old/:id', edit: '/tasks/:id/edit' }, base: '/rt' })
+    function Edit({ state }) { return <section><input name="title" value={state.draft ?? 'Write the report'} /><i>{state.seen.join()}</i></section> }
+    Edit.route = 'ROUTE'
+    Edit.intent = ({ DOM }) => ({ TYPE: DOM.input('input[name="title"]').value() })
+    Edit.model = { ROUTE: (s, r) => ({ ...s, draft: null, seen: [...s.seen, r.path] }), TYPE: (s, draft) => ({ ...s, draft }) }
+    function App() { return <main><Edit state="edit" /></main> }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current(), edit: { draft: null, seen: [] } }
+    App.model = {
+      ROUTE: {
+        STATE: (s, r) => ({ ...s, route: r }),
+        ROUTER: (s, r) => r.name == 'old' ? { to: 'edit', params: r.params, replace: true } : ABORT,
+      },
+    }
+    const { id, el } = mount()
+    let atFirstPatch = null
+    const mo = new MutationObserver(() => {
+      const input = el.querySelector('input[name="title"]')
+      if (!input || atFirstPatch != null) return
+      atFirstPatch = el.querySelector('i').textContent
+      input.value = 'Write the final report'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    mo.observe(el, { childList: true, subtree: true })
+    const app = run(App, { ROUTER: router.driver }, { mountPoint: id })
+    try {
+      await waitFor(() => atFirstPatch != null)
+      assert(atFirstPatch === '/tasks/1/edit', `Edit's routes at the first patch: ${atFirstPatch}`)
+      assert(location.pathname === '/rt/tasks/1/edit', location.pathname)
+      await wait(50)
+      assert(el.querySelector('input[name="title"]').value === 'Write the final report', 'the edit is kept')
+      assert(el.querySelector('i').textContent === '/tasks/1/edit', `one ROUTE: ${el.querySelector('i').textContent}`)
     } finally {
       mo.disconnect()
       app.dispose()

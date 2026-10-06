@@ -1438,10 +1438,12 @@ export type Component<
    * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
    * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
    * every change; the reducer stores it (`ROUTE: (state, route) => ({ ...state, route })`).
-   * The first (outermost) declarer gets each route first (its first one in the flush that
-   * declared it, before the first render; G-555) and may redirect from that entry
-   * (`ROUTER: { to: 'login', replace: true }`); the others get it a task later, only if no
-   * redirect happened. A function of state may return a falsy value to stop listening. Works
+   * The first (outermost) declarer gets each route first and may redirect from that entry
+   * (`ROUTER: { to: 'login', replace: true }`); the others get it right after its ROUTE ran, only
+   * if no redirect happened. All in one flush: every declarer has its first route before the
+   * first render is patched, and a navigation is one patch (G-555, G-565). A component that
+   * declares later gets the current route in the flush that declared it. A function of state may
+   * return a falsy value to stop listening. Works
    * with or without a model; a root needs `initialState` (SYG132), seeded with `router.current()`.
    */
   route?: string | ((state: STATE & CALCULATED) => string | false | null | undefined);
