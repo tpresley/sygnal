@@ -152,6 +152,7 @@ export class CollectionHost {
   uidBase: string
   /** the fragment's key (the marker's, else the Collection's id) */
   key: any
+  tr: any
   /** the app's render epoch it last rendered at (G-311) */
   ep = 0
 
@@ -191,8 +192,10 @@ export class CollectionHost {
     }
     this.props = props
     if (marker) {
+      // tr: a <Transition> around it, applied to each item (4-I G-559, markers/transition.ts):
+      // the fragment is made again on each of the owner's renders while there is one (or was)
       const k = marker.key ?? id
-      if (k !== this.key) { this.key = k; this.outv = undefined }
+      if (this.tr !== (this.tr = marker.data?.tr) || k !== this.key) { this.key = k; this.outv = undefined }
     }
     const ip: Record<string, any> = {}
     for (const k in props) if (!OWN.has(k)) ip[k] = props[k]
@@ -291,7 +294,7 @@ export class CollectionHost {
       const inst: any = shown[i], v = inst.render()
       if (v !== inst.last) { inst.last = v; changed = true }
       // an item without state yet (or a removed one) is left out
-      if (v !== undefined) out[j++] = vn ? named(inst, v, vn) : v
+      if (v !== undefined) { const w = vn ? named(inst, v, vn) : v; out[j++] = this.tr ? this.tr(w) : w }
     }
     out.length = j
     if (!changed) return this.outv

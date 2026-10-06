@@ -6,7 +6,7 @@
 // a Collection (G-559: applied to each item; no false SYG612). The reviewer's probes (r4h new.probe
 // P1b, new4.probe P9, new5.probe P10, new3.probe P8) are the cases below.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { run, Collection, Suspense, Transition, lazy } from '../src/index.js'
+import { run, renderToString, Collection, Suspense, Transition, lazy } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.js'
 import { Fragment } from '../src/cycle/dom/fragment.ts'
@@ -108,5 +108,58 @@ describe('G-558: the mock DOM scopes a fragment root', () => {
     const t = renderComponent(App); await t.ready()
     expect(t.html()).toBe('<div><b>x</b>y</div>')
     t.dispose()
+  })
+})
+
+describe('G-559: Transition around a Collection', () => {
+  useFreshDiagnostics()
+  it('applies to each item (enter and leave), with no SYG612 (r4h P8)', async () => {
+    function Row({ state }) { return h('li', { className: 'r' }, state.t) }
+    function App() { return h('ul', null, h(Transition, { name: 'fade', duration: 30 }, h(Collection, { of: Row, from: 'items' }))) }
+    App.intent = ({ DOM }) => ({ OP: DOM.select('document').events('p4i-op').map(e => e.detail) })
+    App.model = { OP: (s, f) => f(s) }
+    App.initialState = { items: [{ id: 1, t: 'a' }] }
+    const t = renderComponent(App, { dom: 'real' }); await t.ready(); await sleep(5)
+    const ul = t.container.querySelector('ul')
+    expect(ul.querySelector('li.r').className).toContain('fade-enter')
+    await sleep(60)
+    expect(ul.querySelector('li.r').className).toBe('r')
+    document.dispatchEvent(new CustomEvent('p4i-op', { detail: (s) => ({ items: [...s.items, { id: 2, t: 'b' }] }) }))
+    await sleep(5)
+    const lis = ul.querySelectorAll('li.r')
+    expect(lis.length).toBe(2)
+    expect(lis[0].className).toBe('r')
+    expect(lis[1].className).toContain('fade-enter')
+    await sleep(60)
+    document.dispatchEvent(new CustomEvent('p4i-op', { detail: (s) => ({ items: s.items.slice(1) }) }))
+    await sleep(5)
+    expect(ul.querySelectorAll('li.r').length).toBe(2)
+    expect(ul.querySelector('li.r').className).toContain('fade-leave')
+    await sleep(80)
+    expect([...ul.querySelectorAll('li.r')].map(e => e.textContent)).toEqual(['b'])
+    expect(t.diagnostics.map(d => d.code)).toEqual([])
+    t.dispose()
+  })
+
+  it('renderToString renders the items in place', () => {
+    function Row({ state }) { return h('li', null, state.t) }
+    function App() { return h('ul', null, h(Transition, { name: 'fade' }, h(Collection, { of: Row, from: 'items' }))) }
+    App.initialState = { items: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] }
+    expect(renderToString(App, { state: App.initialState }).replace(/ data-sygnal-ssr=""/, '')).toBe('<ul><li>a</li><li>b</li></ul>')
+  })
+
+  it("an unchanged item keeps its vnode across the owner's renders (no re-patch)", async () => {
+    let up = 0
+    function Row({ state }) { return h('li', { hook: { update: () => up++ } }, state.t) }
+    function App({ state }) { return h('div', null, h('i', null, String(state.n)), h('ul', null, h(Transition, { name: 'f', duration: 1 }, h(Collection, { of: Row, from: 'items' })))) }
+    App.intent = ({ DOM }) => ({ OP: DOM.select('document').events('p4i-n') })
+    App.model = { OP: (s) => ({ ...s, n: s.n + 1 }) }
+    App.initialState = { n: 0, items: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] }
+    const { el } = mount(App); await sleep(30)
+    up = 0
+    document.dispatchEvent(new Event('p4i-n')); await sleep(10)
+    document.dispatchEvent(new Event('p4i-n')); await sleep(10)
+    expect(el.querySelector('i').textContent).toBe('2')
+    expect(up).toBe(0)
   })
 })

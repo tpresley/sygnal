@@ -79,6 +79,20 @@ Given `name="fade"`, the following classes are applied automatically:
 </Transition>
 ```
 
+## Around a Collection
+
+A [Collection](/guide/collections/) has no element of its own: its items are its parent's children. A `<Transition>` around it applies to **each item**: an item that is added enters, an item that is removed leaves (it keeps its place until its leave ends), and the items already there when the Collection first renders all enter. Items that don't change are left alone.
+
+```jsx
+<ul>
+  <Transition name="fade">
+    <Collection of={TodoItem} from="todos" />
+  </Transition>
+</ul>
+```
+
+This is the same as putting the `<Transition>` around the root element in the item's own view, which also works.
+
 ## Explicit Duration
 
 If your animation doesn't use CSS transitions (or you want a fixed timeout), pass `duration`:
