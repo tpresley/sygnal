@@ -55,7 +55,10 @@ function updateProps(oldVnode: VNode, vnode: VNode): void {
     if (cur === oldProps[key]) continue;
     // a nullish className is left to classNameModule, which rebuilds the attribute (B-012)
     if (cur == null) clearProp(elm, key, true);
-    else if (key !== 'value' || elm[key] !== cur) elm[key] = cur;
+    // G-553: on create (no old sel) `value` is always written: the create hooks run before the
+    // children are appended, so an <option>'s value reads '' (no text yet) and value="" would be
+    // skipped, leaving no attribute (the option then submits its label)
+    else if (key !== 'value' || elm[key] !== cur || !oldVnode.sel) elm[key] = cur;
   }
 }
 
