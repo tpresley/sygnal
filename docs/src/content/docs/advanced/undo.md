@@ -147,6 +147,8 @@ Editor.model = undoable({
 
 A change is a reducer result whose `state[key]` is a different object than before (with an array of keys: any of them), so reducers that return new objects (as Sygnal reducers do) are recorded. `UNDO` and `REDO` make no change when there is nothing to undo or redo. A model entry of your own for `UNDO` / `REDO` (`'history.UNDO'` with the behavior) runs after the built-in step.
 
+A key the state doesn't have is recorded as missing: undoing back to such a step removes the key again (it isn't set to `undefined`). With one `key`, a missing key and one set to `undefined` are the same value; with an array of keys they differ, so a key that appears or goes (even as `undefined`) is a change.
+
 Snapshots are the old values themselves, not copies. Keep `key` on the part of the state the user edits (`doc`), not on the whole state, so the history doesn't hold every loading flag and list position too.
 
 For the same reason, when you save the state, save `state.doc` and leave `history` out. With [`persist()`](/guide/persistence/), pick the document:

@@ -60,11 +60,61 @@ The hook is for reporting only. It is called once per error, after the component
 | `'driver'` | A driver threw while handling a value sent to it; the error is still thrown afterwards, as before | `driver` (the sink name) |
 | `'dispose'` | A stream's `stop()` threw while a removed component's streams were stopped; the other streams still stop (it is also logged) | `componentName` |
 | `'widget'` | A [widget's](/guide/widgets/#errors) `mount` or `update` threw (the owner's fallback renders in its place), or its `unmount` threw | `componentName` (the component that renders the widget) |
-| `'patch'` | The DOM driver's patch threw (a vnode `hook` of your own or a DOM module). Snabbdom stopped half way, so the app's DOM stops updating (its state and events go on); later patches aren't tried, so the error is reported once. Disposing the app still removes what it mounted (a Portal's content) | none |
+| `'patch'` | The DOM driver's patch threw (a vnode `hook` of your own or a DOM module). Snabbdom stopped half way, so the app's DOM stops updating (its state and events go on); later patches aren't tried, so the error is reported once. Disposing the app still removes what it mounted (a Portal's content). The mount point is marked `data-sygnal-error="patch"` ([below](#after-a-patch-error)) | none |
 
 `'driver'` only covers a driver that throws synchronously while it receives a sink value. Errors inside a driver's own streams, or error events on its sources, are not reported there: handle them where the driver reports them (for HTTP, the `error` [reply action](/guide/http/)).
 
 Each `run()` has its own hook, so two apps on one page report separately. If the hook itself throws, the error is logged once with `console.error` and swallowed; the app keeps running. Without the option nothing changes: errors are logged as before.
+
+### After a patch error
+
+A component's `onError` covers its view, but an error while the DOM is patched (a vnode `hook` of your own, a DOM module) happens below every component: the DOM is half updated, and no tree Sygnal could patch from matches it. So, after a patch error:
+
+- **The app's DOM stops updating.** The screen keeps what the last patch left; later renders aren't patched.
+- **State and events go on.** Clicks and keys still reach the intents, reducers and effects run, drivers get their values (a save still saves).
+- **The error is reported once**, to `onError` with phase `'patch'` (and the hooks' `onError`); without an `onError` it is logged with `console.error`. This holds for a DOM driver you pass to `run()` too (`makeViewTransitionDOMDriver`).
+- **The mount point is marked** `data-sygnal-error="patch"`: the element `run()` renders into (`mountPoint`, `#root` by default). Disposing the app removes the mark, along with what the app rendered.
+
+The mark lets CSS tell the user, with no JavaScript, that the page is out of date:
+
+```css
+#root[data-sygnal-error="patch"] {
+  position: relative;
+}
+#root[data-sygnal-error="patch"]::after {
+  content: 'This page stopped updating. Reload to continue.';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 0.85);
+  font-weight: 600;
+}
+```
+
+Or show a banner from the `onError` hook. Put it outside the mount point (the app's DOM no longer updates) and offer a reload:
+
+```js
+import { run } from 'sygnal'
+import App from './App.jsx'
+
+run(App, {}, {
+  onError: (error, { phase }) => {
+    if (phase !== 'patch') return
+    const banner = document.createElement('div')
+    banner.setAttribute('role', 'alert')
+    banner.className = 'reload-banner'
+    banner.textContent = 'Something went wrong displaying this page. '
+    const reload = document.createElement('button')
+    reload.textContent = 'Reload'
+    reload.addEventListener('click', () => location.reload())
+    banner.append(reload)
+    document.body.prepend(banner)
+  },
+})
+```
+
+Compared with React, which unmounts the whole tree when an error isn't caught by a boundary (the page goes blank), Sygnal keeps the last good screen in place, keeps the app's state and work going, and marks the screen as stale, so you decide what the user sees.
 
 ### Vike
 

@@ -9,7 +9,8 @@
  * whichever way it closed (a close button, Escape, a form method="dialog", closedby="any"), and
  * its toggle event when it opened without the model (commandfor="…" command="show-modal").
  *
- * Options: `dialog` (required), `trigger` and `close` (clicks dispatch OPEN / CLOSE), `modal`
+ * Options: `dialog` (required; 3-W G-536: it must match only this dialog, not one nested in it,
+ * whose close / toggle / FAIL events it would take too), `trigger` and `close` (clicks dispatch OPEN / CLOSE), `modal`
  * (true; false opens it with show()), `cancelable` (true; false keeps Escape from closing it:
  * the cancel event is prevented, and OPEN sets closedby="none" (G-405: Chromium's CloseWatcher
  * closes on a second Escape otherwise)), `returnFocus` (true: when the dialog closes and the

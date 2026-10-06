@@ -39,9 +39,7 @@ function unwrapElementFromVNode(vnode: VNode): Element {
   return vnode.elm as Element;
 }
 
-function defaultReportSnabbdomError(err: any): void {
-  (console.error || console.log)(err);
-}
+const ERR = 'data-sygnal-error';
 
 function makeDOMReady$(): Stream<null> {
   return xs.create<null>({
@@ -160,14 +158,16 @@ function makeDOMDriver(
     let pl: any, cur: any;
     const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
     const off = () => cur?.removeEventListener(POKE, poke);
-    const rep = options.reportSnabbdomError || defaultReportSnabbdomError;
-    let dead = 0;
+    // G-545: run() gives any DOM driver its reporter (onError, phase 'patch') on the isolate
+    // module; an explicit reportSnabbdomError comes first
+    const rep = (e: any) => (options.reportSnabbdomError || (isolateModule as any).rep || console.error)(e);
+    let dead = 0, end = 0;
     const rootElement$ = firstRoot$
       .map(
         (firstRoot, P = (o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v)) =>
           xs.merge(
             xs
-              .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
+              .merge(rememberedVNode$.endWhen(sanitation$), sanitation$.map(() => (end = 1, null)))
               .map(vnode => flat(vnodeWrapper.call(vnode)))
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
@@ -178,8 +178,15 @@ function makeDOMDriver(
               // (patching on from either tree, or adopting the DOM again, left wrong or duplicated
               // DOM). The stream doesn't end (its events, the root element), and a patch to no
               // children (dispose) still runs, so what the last good tree mounted (a Portal's
-              // content) is removed; its errors aren't reported again
-              .fold((o: any, v: any) => { if (!dead || !v.children?.length) try { return P(o, v) } catch (e) { dead++ || rep(e) } return o }, {...r, data: {}})
+              // content) is removed; its errors aren't reported again. G-549: only dispose (`end`:
+              // the sanitation signal), not a live render that has no children. G-543 (D224): the
+              // root element is marked data-sygnal-error="patch" while its DOM is stopped (CSS can
+              // show it; dispose removes it)
+              .fold((o: any, v: any) => {
+                if (!dead || end) try { o = P(o, v) } catch (e) { dead++ || rep(e) }
+                end ? cur.removeAttribute?.(ERR) : dead && cur.setAttribute?.(ERR, 'patch')
+                return o
+              }, {...r, data: {}})
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)

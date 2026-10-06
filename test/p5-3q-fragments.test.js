@@ -48,8 +48,9 @@ const counter = (view, initialState = { n: 0 }) => {
   return App
 }
 
-/** a derived key (3-V G-541): the path [fragment key, ..., own key or [tag, count]] as nested JSON */
-const K = (...path) => path.reduce((k, s) => JSON.stringify([k, s]), undefined)
+/** a derived key (3-V G-541, 3-W G-544): the path [fragment key, ..., own key or [tag, count]],
+ * each segment as JSON (a key as a string) appended to the prefix */
+const K = (...path) => path.map(s => JSON.stringify(Array.isArray(s) ? s : String(s))).join('')
 
 describe('flat()', () => {
   it('keeps a tree without fragments by identity', () => {
