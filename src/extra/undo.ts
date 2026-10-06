@@ -32,7 +32,8 @@
  * action, its changes are never recorded, nor pending (G-506); drops join only when `coalesce`
  * names a gesture action (G-507); REDO mid-gesture records the value from before the gesture in
  * place of the current one, as a recorded action does (G-508); "back where it started" compares
- * arrays and plain objects shallowly (G-509).
+ * arrays and plain objects shallowly (G-509). 3-U: with `key: [...]` every comparison is key by key
+ * (G-529 / G-530).
  *
  * SYG226 (dev, warn): a `track` / `resetOn` / `coalesce` name with no model entry (nor an action
  * of a behavior in the host's `uses`).
@@ -72,29 +73,25 @@ const settled = (h: any) => { const {base: _, ...o} = h; return o }
 // the same value (a gesture step that put everything back: a cancel): arrays and plain objects
 // compare their entries by identity (G-509), anything else is itself
 const plain = (x: any) => Array.isArray(x) ? 1 : x && typeof x == 'object' && Object.getPrototypeOf(x) === Object.prototype ? 2 : 0
-const same = (a: any, b: any) => {
+const same1 = (a: any, b: any) => {
   const k = a !== b && plain(a) && plain(a) == plain(b) && Object.keys(a)
   return a === b || !!k && k.length == Object.keys(b).length && k.every(i => i in b && a[i] === b[i])
 }
 
 const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g: any = {}): any => {
-  const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o
+  const {key, limit = 100, track, coalesce, coalesceMs = coalesce ? 500 : 0, resetOn = []} = o, keys = typeof key == 'string' ? null : key
   const out: any = {}
   const hist = (s: any) => s?.[hk] || {past: [], future: []}
-  // the value undo keeps: state[key], or (3-P G-515: `key: ['todo', 'done']`) one object of those
-  // keys, the same object while each of them holds the same value (so values compare by identity)
-  const picks: any = {}, keys = typeof key == 'string' ? null : key
+  // the value undo keeps: state[key], or (3-P G-515: `key: ['todo', 'done']`) an object of those
+  // keys the state has; values compare key by key (3-U G-529 / G-530: no shared identity, no cache)
   const val = (s: any) => {
     if (!keys) return s?.[key as string]
-    let m = picks
-    for (const k of keys) {
-      const x = s?.[k], w = x && typeof x == 'object' ? m.w ||= new WeakMap() : m.p ||= new Map()
-      w.has(x) || w.set(x, {})
-      m = w.get(x)
-    }
-    if (!m.v) { m.v = {}; for (const k of keys) m.v[k] = s?.[k] }
-    return m.v
+    const v: any = {}
+    for (const k of keys) if (s && k in s) v[k] = s[k]
+    return v
   }
+  const eq = (a: any, b: any) => keys ? a === b || !!a && !!b && keys.every(k => a[k] === b[k]) : a === b
+  const same = (a: any, b: any) => keys ? !!a && !!b && keys.every(k => same1(a[k], b[k])) : same1(a, b)
   const set = (s: any, v: any) => keys ? {...s, ...v} : {...s, [key as string]: v}
   // one more entry in `past` (`join`: the change joins the last one)
   const rec = (r: any, h: any, v: any, name: string, joins: any) => {
@@ -127,9 +124,9 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
       if (!tracked) return none
       // the base holds while the value is the one the gesture's last step left (G-475: else it
       // was changed outside the gesture, e.g. restored, and the base is stale)
-      const on = b && b[1] === p && b, stop = kind == 1 && end?.(r[n])
+      const on = b && eq(b[1], p) && b, stop = kind == 1 && end?.(r[n])
       if (kind == 1 && !stop) {
-        if (v === p) return b && !on ? {...r, [hk]: settled(h)} : none
+        if (eq(v, p)) return b && !on ? {...r, [hk]: settled(h)} : none
         const b0 = on ? on[0] : p
         // back where the gesture started (Escape, an item moved back): nothing pending (G-479);
         // the base is this behavior's (G-514: a step joins another's pending base and takes it)
@@ -143,12 +140,12 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
         const b0 = on ? on[0] : p
         return same(b0, v) ? b ? {...r, [hk]: settled(h)} : none : rec(r, h, b0, name, 0)
       }
-      return !on || b[0] === v ? {...r, [hk]: settled(h)} : rec(r, h, b[0], name, joins)
+      return !on || eq(b[0], v) ? {...r, [hk]: settled(h)} : rec(r, h, b[0], name, joins)
     }
   }
   // G-473: a pending gesture's base, recorded before another change: the value from before the
   // gesture stays reachable (its steps join that change's entry)
-  const before = (h: any, v: any) => { const b = h.base; return b && b[1] === v && b[0] !== v ? [b[0]] : null }
+  const before = (h: any, v: any) => { const b = h.base; return b && eq(b[1], v) && !eq(b[0], v) ? [b[0]] : null }
   for (const a in g) if (!(a in model)) out[a] = {[S]: gw(null, g[a], a)}
   for (const a in model) {
     const e = model[a], [name, sink] = a.split('|').map(x => x.trim())
@@ -169,7 +166,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
       if (!r || typeof r != 'object' || isAbort(r)) return r
       if (reset) return h.past.length || h.future.length || h.base ? {...r, [hk]: {...settled(h), past: [], future: []}} : r
       const v = val(s)
-      if (r === s || val(r) === v) return r
+      if (r === s || eq(val(r), v)) return r
       const b0 = before(h, v)
       return rec(r, h, b0 ? b0[0] : v, name, !b0 && joins)
     }
