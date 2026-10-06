@@ -164,11 +164,11 @@ function makeDOMDriver(
     let dead = 0, end = 0;
     const rootElement$ = firstRoot$
       .map(
-        (firstRoot, P = (o: any, v: any) => patch(o == r ? (cur.removeAttribute?.(ERR), {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)}) : o, v)) =>
+        (firstRoot, P = (o: any, v: any) => (v = flat(v), patch(o == r ? (cur.removeAttribute?.(ERR), {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)}) : o, v))) =>
           xs.merge(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$.map(() => (end = 1, null)))
-              .map(vnode => flat(vnodeWrapper.call(vnode)))
+              .map(vnode => vnodeWrapper.call(vnode))
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
               .startWith(r)
@@ -183,7 +183,9 @@ function makeDOMDriver(
               // root element is marked data-sygnal-error="patch" while its DOM is stopped (CSS can
               // show it; dispose removes it). G-550: marked before the error is reported (onError
               // can read it); the first patch clears a mark a failed, undisposed app left in the
-              // container, and dispose removes it only when this app set it. A DocumentFragment mount point has no attributes: no mark
+              // container, and dispose removes it only when this app set it; a throw while
+              // flattening the tree (a key JSON.stringify can't take) is a patch error too (P
+              // flattens). A DocumentFragment mount point has no attributes: no mark
               .fold((o: any, v: any) => {
                 if (!dead || end) try { o = P(o, v) } catch (e) { dead++ || (cur.setAttribute?.(ERR, 'patch'), rep(e)) }
                 end && dead && cur.removeAttribute?.(ERR)
