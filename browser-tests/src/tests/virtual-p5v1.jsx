@@ -329,7 +329,8 @@ export async function virtualTestsP5V1() {
       await until(() => getDiagnostics().some(d => d.code === 'SYG430'), () => `no SYG430; rows ${el.querySelectorAll('.row').length}`)
       await frame()
       const n = el.querySelectorAll('.row').length
-      assert(n < Math.ceil(window.innerHeight / 32) + 12, `rows: ${n}`)
+      // (3-N G-502: the viewport's rows in unzoomed px, 1 / 0.4 as many)
+      assert(n < Math.ceil(window.innerHeight / 0.4 / 32) + 12, `rows: ${n}`)
     } finally { app.dispose() }
   }, 10000)
 

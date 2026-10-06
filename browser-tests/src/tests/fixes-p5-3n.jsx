@@ -4,6 +4,8 @@
 //   scroller inside a shadow tree the list is slotted into gets anchoring off too.
 // - G-500: a list patch that moves the focus out of a row's shadow root to another element keeps
 //   it there (the focus restore needs the document's active element to be body / none).
+// - G-502: an unbounded list under an ancestor's zoom: 0.4 renders enough rows to fill the viewport
+//   (the clamped window is the viewport's height in the rows' unzoomed px).
 // - G-489: a View Transition the browser skips (duplicate view-transition-names) leaves no
 //   unhandled promise rejection.
 import { run, VirtualCollection, Collection, makeViewTransitionDOMDriver } from 'sygnal'
@@ -152,4 +154,18 @@ export async function fixesTestsP5_3N() {
       assert(document.activeElement === grab, `focus: ${document.activeElement?.className || document.activeElement?.tagName}, in the root: ${host.shadowRoot.activeElement?.className}`)
     } finally { app.dispose(); clearStage() }
   })
+
+  // ── G-502 ────────────────────────────────────────────────────────────
+  await runTest('G-502: an unbounded list under zoom: 0.4 fills the viewport (the window in unzoomed px)', async () => {
+    function Zoomed() { return <div style={{ zoom: '0.4' }}><VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} /></div> }
+    Zoomed.initialState = { rows: rows(10000) }
+    const { id, el } = mount()
+    const app = run(Zoomed, {}, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.rows .row'))
+      await frame(); await frame(); await wait(50)
+      const n = el.querySelectorAll('.row').length, need = Math.ceil(window.innerHeight / 0.4 / 32)
+      assert(n >= need && n < need + 15, `rows: ${n} (the viewport shows ${need})`)
+    } finally { app.dispose() }
+  }, 10000)
 }

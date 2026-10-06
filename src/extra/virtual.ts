@@ -225,7 +225,10 @@ export class VirtualHost extends CollectionHost {
     // G-462: (the rect is scaled by an ancestor's CSS zoom, clientHeight isn't, as the sizes)
     if (vh && total > vh && Math.max(r.height, el.clientHeight || 0) >= total - 1 && this.grows(el)) {
       this.warn(2, {reason: 'grows', height: r.height})
-      return {width: r.width, height: vh}
+      // G-502: the viewport's height in the rows' px (an ancestor's zoom or scale shrinks the rect,
+      // not offsetHeight; no layout: as is)
+      const q = el.getBoundingClientRect().height
+      return {width: r.width, height: q ? vh * el.offsetHeight / q : vh}
     }
     return r
   }
