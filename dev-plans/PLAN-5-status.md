@@ -299,6 +299,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-547 | review 3-V | Low | testing | `renderComponent({ dom: 'real', onError })` calls the user's onError unguarded (misleading settle timeout) | ✅ 3-W |
 | G-548 | review 3-V | Low | dom (fragments) | BigInt keys throw in `flat()` (regression); Symbol keys collide | ✅ 3-W |
 | G-549 | review 3-V | Low | dom | Dispose exemption after a patch error (`!children?.length`) lets a zero-child/text-only live render through | ✅ 3-W |
+| G-550 | review 3-W | Low | dom / testing / docs | Set the patch mark before `onError` runs (≈0 B); a new `run()` into a container a failed undisposed app left keeps the stale mark (clear on first adopt, remove on dispose only if failed); derived key vs a hand-written key collision (informational); `renderComponent` passes an explicit reporter that skips hooks' onError (now redundant); a throw while flattening (object key `JSON.stringify` throws) stops the DOM without the mark; docs: no mark on a DocumentFragment mount | → close-out pass |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -353,6 +354,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-V merged (clean; G-537…G-542; core 42,402 B, 98 B headroom); gates all green (vitest 3,689, browser 345/344/344, recipes 17×3, perf ok). User: D224 (stop updating + root marker + docs). 3-W started (G-543, G-535, G-536); review of 3-V running.
 - 2026-10-05 — Review of 3-V: no high; G-544…G-549 added to 3-W (`dead` is per driver instance; a new `run()` starts clean; tests don't hang after a patch error).
 - 2026-10-05 — 3-W merged (clean): root marker `data-sygnal-error="patch"` on the mount point, docs "After a patch error", linear derived keys, reporter injected into any DOM driver; core 42,481 B (19 B headroom).
+- 2026-10-05 — Review of 3-W: nothing above Low (G-550). Review rounds have converged.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
