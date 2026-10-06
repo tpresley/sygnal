@@ -177,3 +177,36 @@ describe('G-483: style declarations only the server wrote', () => {
     expect([st.marginTop, st.getPropertyValue('--k'), st.getPropertyValue('--gone'), st.padding]).toEqual(['2px', '1', '', ''])
   })
 })
+
+describe('G-484 / G-490: textarea and select', () => {
+  it("renderToString's textarea (text content): value kept, no text child left, adopted", async () => {
+    const App = app((s) => h('textarea', { value: s.t, 'data-t': 'ta' }), { t: 'abc' })
+    const r = await hydrate(App)
+    expect(r.keptT('ta')).toBe(true)
+    expect(r.now('ta').value).toBe('abc')
+    expect(r.html()).toBe(await fresh(App))
+  })
+
+  it('an uncontrolled textarea keeps the text the user typed, or the server text', async () => {
+    const App = app(() => h('div', null, h('textarea', { 'data-t': 'typed' }), h('textarea', { 'data-t': 'server' })))
+    const r = await hydrate(App, { server: '<main><div><textarea data-t="typed">s1</textarea><textarea data-t="server">s2</textarea></div></main>', prep: (t) => { t.typed.value = 'mine'; t.typed.focus() } })
+    expect(r.keptT('typed') && r.keptT('server')).toBe(true)
+    expect(r.now('typed').value).toBe('mine')
+    expect(r.now('server').value).toBe('s2')
+    expect(document.activeElement).toBe(r.now('typed'))
+  })
+
+  it('an uncontrolled select keeps the option the user picked', async () => {
+    const App = app(() => h('select', { 'data-t': 's' }, h('option', { value: 'a' }, 'A'), h('option', { value: 'b' }, 'B')))
+    const r = await hydrate(App, { prep: (t) => { t.s.value = 'b' } })
+    expect(r.keptT('s')).toBe(true)
+    expect(r.now('s').value).toBe('b')
+  })
+
+  it('a controlled textarea / select shows the state, as a controlled input does (the documented rule)', async () => {
+    const App = app((s) => h('div', null, h('textarea', { value: s.t, 'data-t': 'ta' }), h('select', { value: s.s, 'data-t': 's' }, h('option', { value: 'a' }, 'A'), h('option', { value: 'b' }, 'B')), h('input', { value: s.t, 'data-t': 'in' })), { t: 'state', s: 'a' })
+    const r = await hydrate(App, { prep: (t) => { t.ta.value = 'typed'; t.s.value = 'b'; t.in.value = 'typed' } })
+    expect([r.now('ta').value, r.now('s').value, r.now('in').value]).toEqual(['state', 'a', 'state'])
+    expect(r.keptT('ta') && r.keptT('s') && r.keptT('in')).toBe(true)
+  })
+})

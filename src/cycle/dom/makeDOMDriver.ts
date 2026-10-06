@@ -109,6 +109,8 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
           : w.sel != x.localName && /^(class|id)$/.test(m) ? 0
           : m in o && !d.ns ? pr[o[m]] = y
           : x.removeAttribute(m);
+        // G-484: a textarea's value no longer follows its text, which goes
+        x.localName == 'textarea' && (x.value = x.value);
         const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
         n = {...w, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x};
       } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
