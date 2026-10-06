@@ -399,7 +399,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 4-J merged (G-563…G-567; eval verify 282/282; core 42,664 B / 42,700 B, +80 B accepted by the coordinator within D230). Behaviour: nested route declarers get each route in the same flush (one patch per navigation). G-568, G-569 backlog. Gates after 4-J all green (vitest 3,755, browser 362/361/361, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,664 B).
 - 2026-10-05 — Review of 4-J: one medium (G-570, navigation from DISPOSE), lows G-571…G-573. 4-K started.
 - 2026-10-05 — 4-K merged (G-570…G-573; eval verify 282/282; core 42,698 B, 2 B headroom). Coordinator: the router hop guard (32 navigations per microtask, then one task per hop, dev warning) is accepted.
-- 2026-10-05 — Review of 4-K: nothing above Low (G-574 backlog).
+- 2026-10-05 — Review of 4-K: nothing above Low (G-574 backlog). Gates after 4-K all green (vitest 3,771, browser 362/361/361, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,698 B). Ready for the D228 eval runs (user runs them).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
