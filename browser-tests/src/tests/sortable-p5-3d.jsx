@@ -41,6 +41,10 @@ TaskList.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip'
 TaskList.context = { sort: (state) => state.sort }
 // the host saves the order on a completed move
 TaskList.model = { 'sort.DROPPED': (s, d) => ({ ...s, dropped: [...s.dropped, `${d.id}:${d.fromList}${d.fromIndex}->${d.list}${d.index}`] }) }
+// 3-P (D219): a list another action changes mid-drag (ADD prepends, dispatched through the runtime API)
+function Growing(props) { return TaskList(props) }
+Object.assign(Growing, { initialState: TaskList.initialState, uses: TaskList.uses, context: TaskList.context,
+  model: { ...TaskList.model, ADD: (s) => ({ ...s, tasks: [{ id: 5, title: 'New' }, ...s.tasks] }) } })
 
 function Card({ state, context }) {
   const { dragging } = context.sort
@@ -250,6 +254,23 @@ export async function sortableTestsP5_3D() {
       await waitFor(() => document.activeElement === q('.task[data-id="3"] .grip'), 1000)
       assert(/^Reorder cancelled\. Test it is back at position 3 of 4\./.test(q('.announce').textContent), 'cancel announced')
       assert(q('.dropped').textContent === '', 'no DROPPED on cancel')
+    } finally { done() }
+  }, 6000)
+
+  await runTest(CAT, 'keyboard: Escape after another action changed the list leaves the item where it is (3-P D219)', async () => {
+    const { id, q, order, app, done } = await setup(Growing)
+    try {
+      await window.__pw('focus', `${id} .task[data-id="3"] .grip`)
+      await input([['key', 'Enter'], ['wait', 20], ['key', 'ArrowUp']])
+      await waitFor(() => order() === '1,3,2,4')
+      app.__runtime.dispatch('root', 'ADD')
+      await waitFor(() => order() === '5,1,3,2,4')
+      await waitFor(() => document.activeElement === q('.task[data-id="3"] .grip'), 1000)
+      await input([['key', 'Escape']])
+      await waitFor(() => !q('.dragging'))
+      assert(order() === '5,1,3,2,4', 'the item stays: ' + order())
+      assert(/^Reorder cancelled\. The list changed, so Test it stays at position 3 of 5\./.test(q('.announce').textContent), 'announced: ' + q('.announce').textContent)
+      assert(q('.dropped').textContent === '', 'no DROPPED')
     } finally { done() }
   }, 6000)
 

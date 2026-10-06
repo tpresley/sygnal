@@ -23,14 +23,19 @@
  *             unique per host instance, null until the first focus, press or key inside the
  *             host (G-448: nothing is written at startup). The server renders none, nor does
  *             the client's first render, so hydration matches (G-453); a focused handle has it
- *   press, origin: internal (the pointer press before the threshold; where the item started, and
- *             `at`: [list, index] where a keyboard drag's last step left it)
+ *   press, origin: internal (the pointer press before the threshold; where the item started)
  * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, END
- * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back where it was lifted
- * if it is still where the drag's last step left it, 3-O G-504; INIT and a press or key over drag
- * state another instance started do the same, G-475), and
- * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
- * an entry for it to save the order.
+ * (unmounted: a drag in progress is cancelled; INIT and a press or key over drag state another
+ * instance started do the same, G-475), and sort.DROPPED ({ id, list, index, fromList, fromIndex })
+ * once per completed move: the host adds an entry for it to save the order.
+ *
+ * A keyboard drag that ends without a drop (Escape, END, INIT, `live`) restores (D219, 3-P) only
+ * when the lists are exactly the arrays its last step made (identity, kept in `drags` under the
+ * drag's `origin` object, never in the state): it puts back the lists it lifted from (no index
+ * math). Anything else that changed them (undo, an edit, an ADD, new data, a restored or synced
+ * slice: its `origin` is another object) leaves the item where it is, and the drag just ends. The
+ * slice such an end leaves is marked (`ended`): undo() reads it through `undoEnd` (internal) and
+ * settles the gesture's pending base (G-510).
  *
  * Pointer feedback is an indicator (over / after) while the pointer moves; the list is reordered
  * on the drop. Keyboard moves reorder live (the arrow keys), and Escape puts the item back.
@@ -76,6 +81,9 @@ const FIELDS = 'button,a,input,select,textarea,label,[contenteditable]'
 const claimed = new WeakSet<any>()
 // a selector usable as one compound (`.task`, `li[data-x]`), else wrapped in :is()
 const one = (s: string) => /^[\w.#\-[\]="']+$/.test(s) ? s : `:is(${s})`
+// D219: a keyboard drag's lists at lift (`snap`) and after its last step (`made`), under its
+// origin object; the slices a drag ended in without a drop (for undo(): G-510)
+const drags = new WeakMap<any, any>(), ended = new WeakSet<any>()
 
 const defaults = {
   lift: (l: string, n: number, m: number, kb: boolean) => `Picked up ${l}, position ${n} of ${m}.` +
@@ -83,6 +91,7 @@ const defaults = {
   move: (l: string, n: number, m: number, list?: string) => `${l}: ${list ? list + ', ' : ''}position ${n} of ${m}.`,
   drop: (l: string, n: number, m: number, list?: string) => `Dropped ${l} at ${list ? list + ', ' : ''}position ${n} of ${m}.`,
   cancel: (l: string, n: number, m: number) => `Reorder cancelled. ${l} is back at position ${n} of ${m}.`,
+  stay: (l: string, n: number, m: number, list?: string) => `Reorder cancelled. The list changed, so ${l} stays at ${list ? list + ', ' : ''}position ${n} of ${m}.`,
 }
 
 const idle = {dragging: null, over: null, after: false, list: null, mode: null, press: null, origin: null, message: ''}
@@ -94,7 +103,8 @@ const idle = {dragging: null, over: null, after: false, list: null, mode: null, 
  * `[data-id]`), `handle` (the part that starts a drag and takes keyboard focus; default: the
  * item), `axis` ('y' | 'x': the arrow keys that move), `threshold` (px a pointer moves before a
  * drag starts, 4), `attr` ('data-id'), `idField` ('id'), `label` (item → its name in
- * announcements), `messages` ({ lift, move, drop, cancel }: (label, position, count, extra) => text).
+ * announcements), `messages` ({ lift, move, drop, cancel, stay }: (label, position, count, extra) =>
+ * text; `stay`: Escape after something else changed the list, the item stays where it is).
  */
 export const sortable = (options: any = {}): any => {
   const {from, handle, axis = 'y', threshold = 4, attr = 'data-id', idField = 'id'} = options
@@ -123,15 +133,19 @@ export const sortable = (options: any = {}): any => {
     out[l] = dst
     return out
   }
-  // a keyboard drag ended without a drop (unmounted, or drag state this instance didn't start:
-  // restored, synced, a host made again): its item goes back where it started when it is still
-  // where the drag's last step left it (3-O G-504: other changes to the list, an item edit or an
-  // ADD, don't matter), else (replaced, undone, moved by another action) the data is left as it is
-  const back = (st: any, s: any) => {
-    const o = s.origin, a = o?.at, f = s.mode == 'keyboard' && a && find(st, s.dragging)
-    return f && f.list == a[0] && f.index == a[1] ? move(st, f, o.list, o.index) : st
-  }
   const put = (st: any, k: string, s: any) => ({...st, [k]: {...st[k], ...s}})
+  const pick = (st: any) => { const o: any = {}; for (const l of lists) o[l] = st[l]; return o }
+  // the slice of a drag that ended without a drop (undo() settles its base)
+  const stop = (st: any, k: string, s: any) => { const r = put(st, k, s); ended.add(r[k]); return r }
+  // a drag ended without a drop (Escape; unmounted; drag state this instance didn't start:
+  // restored, synced, a host made again): a keyboard drag's lists go back to the ones it lifted
+  // from when they are exactly the arrays its last step made (D219), else the item stays where it
+  // is; `say`: announce it
+  const back = (st: any, k: string, say?: any) => {
+    const s = st[k], o = s.origin, d = s.mode == 'keyboard' && drags.get(o)
+    const own = d && lists.every(l => st[l] === d.made[l]), out = own ? {...st, ...d.snap} : st, f = say && s.mode == 'keyboard' && find(out, s.dragging)
+    return stop(out, k, {...idle, message: !f ? '' : own ? msg.cancel(label(f.item), f.index + 1, f.size) : msg.stay(label(f.item), f.index + 1, f.size, where(o, f))})
+  }
   // where a pointer drop would land: over an item (in its own list: before it, after it when
   // moving down; from another list: before or after it by the pointer's half, `low`: G-454), or
   // at the end of another list's container
@@ -143,7 +157,7 @@ export const sortable = (options: any = {}): any => {
   // a keyboard drag ends where the item is (DROPPED when it moved)
   const drop = (st: any, k: string, next: any) => {
     const s = st[k], f = find(st, s.dragging), o = s.origin
-    if (!f) return put(st, k, idle)
+    if (!f) return stop(st, k, idle)
     if (o.list != f.list || o.index != f.index) next('DROPPED', {id: s.dragging, list: f.list, index: f.index, fromList: o.list, fromIndex: o.index}, 0)
     return put(st, k, {...idle, message: msg.drop(label(f.item), f.index + 1, f.size, where(o, f))})
   }
@@ -172,8 +186,9 @@ export const sortable = (options: any = {}): any => {
   // a press or key handler: drag state this instance didn't start (its token `n` isn't the
   // event's: restored, synced) is dropped first (G-452)
   const live = (h: any) => (st: any, d: any, next: any, _p: any, _o: any, k: string) => {
-    const s = st[k], c = (s.press || s.dragging) && (s.press || s.origin)?.n !== d.n ? put(back(st, s), k, idle) : st, r = h(c, d, next, k)
-    return isAbort(r) ? c === st ? r : c : r
+    const s = st[k], c = (s.press || s.dragging) && (s.press || s.origin)?.n !== d.n ? back(st, k, 1) : st, r = h(c, d, next, k)
+    // the slice it leaves says a drag ended (a new lift on top: still, for undo())
+    return isAbort(r) ? c === st ? r : c : (c !== st && ended.add(r[k]), r)
   }
 
   const def = {
@@ -182,6 +197,8 @@ export const sortable = (options: any = {}): any => {
     persist: false,
     // with undo(): a drag is one undo step, recorded at its drop (G-447)
     undoStep: ['DROPPED'],
+    // internal (not public API): the slice an action left ended a drag without a drop (G-510)
+    undoEnd: (s: any) => ended.has(s),
     intent: ({DOM, STATE, dispose$}: any, _o: any, key: string) => {
       // `me`: this instance's token in the press / drag it starts (G-452): drag state it didn't
       // start (restored by persist, synced, written by devtools) arms no document listener
@@ -273,13 +290,13 @@ export const sortable = (options: any = {}): any => {
       // again by HMR, a second host of the slice) is reset, as at END
       INIT: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         for (const l of lists) Array.isArray(st?.[l]) || dev(147, l, st, k)
-        return st[k].press || st[k].dragging ? put(back(st, st[k]), k, idle) : ABORT
+        return st[k].press || st[k].dragging ? back(st, k) : ABORT
       }},
       // unmounted mid-drag: the drag is cancelled (no DROPPED; a keyboard drag's item goes back
       // where it started), so data that outlives the host isn't left half-moved or stuck
       END: {HOST: (st: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
         const s = st[k]
-        return s.press || s.dragging ? put(back(st, s), k, idle) : ABORT
+        return s.press || s.dragging ? back(st, k) : ABORT
       }},
       // the instructions id: a uid() of the host (unique per host instance)
       HELP: {HOST: (st: any, _d: any, _n: any, p: any, _o: any, k: string) =>
@@ -321,26 +338,30 @@ export const sortable = (options: any = {}): any => {
           const s = st[k], f = find(st, s.dragging ?? id)
           if (s.mode == 'pointer' || s.press) return ABORT
           // the lifted item left the list (removed by another action): the drag ends
-          if (!f) return s.dragging ? put(st, k, idle) : ABORT
+          if (!f) return s.dragging ? stop(st, k, idle) : ABORT
           const l = label(f.item), o = s.origin
-          if (!s.dragging) return LIFT.test(key)
-            ? (check(st, seen, k), put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin: {list: f.list, index: f.index, n: me}, message: msg.lift(l, f.index + 1, f.size, true)}))
-            : ABORT
-          if (LIFT.test(key) || key == 'Tab') return drop(st, k, next)
-          if (key == 'Escape') {
-            const back = move(st, f, o.list, o.index)
-            return put(back, k, {...idle, message: msg.cancel(l, o.index + 1, back[o.list].length)})
+          if (!s.dragging) {
+            if (!LIFT.test(key)) return ABORT
+            check(st, seen, k)
+            // the drag's lists at lift (D219: also the ones its last step made, so far)
+            const origin = {list: f.list, index: f.index, n: me}
+            drags.set(origin, {snap: pick(st), made: pick(st)})
+            return put(st, k, {...idle, dragging: S(id), mode: 'keyboard', origin, message: msg.lift(l, f.index + 1, f.size, true)})
           }
+          if (LIFT.test(key) || key == 'Tab') return drop(st, k, next)
+          if (key == 'Escape') return back(st, k, 1)
+          // a step: the lists it made (D219)
+          const step = (out: any, m: string) => { const d = drags.get(o); if (d) d.made = pick(out); return put(out, k, {message: m}) }
           // the cross axis moves between lists (from: [a, b]): to the same index, clamped
           const side = ({ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1} as any)[key]
           if (side && key != prevKey && key != nextKey) {
             const to = lists[lists.indexOf(f.list) + side]
             if (!to) return ABORT
             const out = move(st, f, to, f.index), n = find(out, s.dragging)!
-            return put(out, k, {origin: {...o, at: [to, n.index]}, message: msg.move(l, n.index + 1, n.size, to)})
+            return step(out, msg.move(l, n.index + 1, n.size, to))
           }
           const to = key == prevKey ? f.index - 1 : key == nextKey ? f.index + 1 : key == 'Home' ? 0 : key == 'End' ? f.size - 1 : -1
-          return to < 0 || to >= f.size || to == f.index ? ABORT : put(move(st, f, f.list, to), k, {origin: {...o, at: [f.list, to]}, message: msg.move(l, to + 1, f.size)})
+          return to < 0 || to >= f.size || to == f.index ? ABORT : step(move(st, f, f.list, to), msg.move(l, to + 1, f.size))
         }),
         // keep focus on the moved item's handle (its node may move or be re-created)
         ELEMENT: focus,

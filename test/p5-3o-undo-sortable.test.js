@@ -64,25 +64,27 @@ Page.model = {
 }
 const L = (s) => s.list
 
-describe('3-O G-504: END restores while the item is where the drag left it', () => {
-  it('an item edit (map) mid-drag, then unmounted: the item goes back', async () => {
+// 3-P (D219): G-504's "restore while the item is where the drag left it" is gone: any other change to
+// the list mid-drag leaves the item where it is at END / INIT (only the drag's own arrays are restored)
+describe('3-O G-504, D219: END after another change to the list', () => {
+  it('an item edit (map) mid-drag, then unmounted: the item stays where it is, the edit kept', async () => {
     t = renderComponent(Page, { dom: 'real' }); await t.ready()
     await lift(2, L); await key('ArrowDown', L)
     expect(order(t.state.list)).toBe('1324')
     await act('EDIT')
     expect(t.state.list.tasks[3].title).toBe('D2')
     await act('HIDE')
-    expect(order(t.state.list)).toBe('1234')
+    expect(order(t.state.list)).toBe('1324')
     expect(t.state.list.tasks[3].title).toBe('D2')
     expect(t.state.list.sort).toMatchObject({ dragging: null, mode: null, origin: null })
   })
 
-  it('an ADD mid-drag, then unmounted: the item goes back, the added entry stays', async () => {
+  it('an ADD mid-drag, then unmounted: the item stays where it is', async () => {
     t = renderComponent(Page, { dom: 'real' }); await t.ready()
     await lift(2, L); await key('ArrowDown', L)
     await act('ADD')
     await act('HIDE')
-    expect(order(t.state.list)).toBe('12345')
+    expect(order(t.state.list)).toBe('13245')
   })
 
   it('the item moved by another action: the data is left as it is', async () => {
@@ -101,7 +103,7 @@ describe('3-O G-504: END restores while the item is where the drag left it', () 
     expect(order(t.state.list)).toBe('256')
   })
 
-  it('a second host mounted after an item edit (its INIT): the item goes back', async () => {
+  it('a second host mounted after an item edit (its INIT): the item stays where it is', async () => {
     function Two({ state }) {
       return h('div', null, h('div', null, h(Sub, { state: 'list' })), state.two ? h('div', null, h(Sub, { state: 'list' })) : null)
     }
@@ -112,7 +114,7 @@ describe('3-O G-504: END restores while the item is where the drag left it', () 
     await act('EDIT')
     t.simulateAction('TWO')
     await t.next(s => s.two && s.list.sort.dragging === null)
-    expect(order(t.state.list)).toBe('1234')
+    expect(order(t.state.list)).toBe('1324')
   })
 })
 
@@ -265,6 +267,7 @@ describe('3-O: undo gesture sequences', () => {
       else if (s === 'up') await key('ArrowUp')
       else if (s === 'esc') { if (document.activeElement === document.body) grip(t.state.sort.dragging).focus(); press('Escape'); await t.next(x => x.sort.dragging === null); await t.settle() }
       else if (s === 'drop') await drop()
+      else if (s === 'undo' || s === 'redo') await act(s === 'undo' ? 'history.UNDO' : 'history.REDO')
       else await drag(Number(s.slice(4)))               // 'drag1', 'drag3'
     }
   }
@@ -280,14 +283,15 @@ describe('3-O: undo gesture sequences', () => {
     { name: 'a recorded action mid-drag', opts: {}, steps: ['lift1', 'down', 'ADD', 'down', 'drop'], end: '23145', undo: ['21345', '1234', '1234'] },
     { name: 'a cancelled drag, then a drag', opts: {}, steps: ['lift1', 'down', 'esc', 'ADD', 'drag2'], end: '13245', undo: ['12345', '1234', '1234'] },
     { name: 'a drag moved back, then dropped', opts: {}, steps: ['ADD', 'lift2', 'down', 'up', 'drop', 'drag3'], end: '12435', undo: ['12345', '1234', '1234'] },
-    // open (3-O report): Escape after a recorded action mid-drag restores the item into the
-    // changed list; undo can't tell that change from a move, so it is left pending and the next
-    // change records the half-moved order (as on the 3-L tip)
-    { name: 'a recorded action mid-drag, then cancelled', todo: true, opts: {}, steps: ['lift1', 'down', 'ADD', 'esc', 'ADD'], end: '123456', undo: ['12345', '1234', '1234'] },
+    // 3-P (D219, G-510 / G-512): a drag that ends without a drop restores only its own arrays, and
+    // undo settles: nothing is left pending, and the next change is a step of its own
+    { name: 'a recorded action mid-drag, then cancelled', opts: {}, steps: ['lift1', 'down', 'ADD', 'esc', 'ADD'], end: '213456', undo: ['21345', '1234', '1234'] },
+    { name: 'UNDO twice mid-drag, then cancelled', opts: {}, steps: ['drag1', 'lift1', 'up', 'undo', 'undo', 'esc'], end: '1234', undo: ['1234'], redo: ['2134', '1234', '1234'] },
+    { name: 'UNDO and REDO mid-drag, then cancelled', opts: {}, steps: ['lift1', 'down', 'undo', 'redo', 'esc'], end: '1234', undo: ['2134', '1234', '1234'] },
+    { name: 'UNDO mid-drag, then dropped', opts: {}, steps: ['lift1', 'down', 'undo', 'drop'], end: '1234', undo: ['1234'], redo: ['2134', '2134'] },
   ]
   for (const first of ['sort', 'history']) {
     for (const c of cases) {
-      if (c.todo) { it.todo(`${c.name} (uses: ${first} first)`); continue }
       it(`${c.name} (uses: ${first} first)`, async () => {
         t = renderComponent(withUndo(c.opts, first), { dom: 'real' }); await t.ready()
         await run(c.steps)

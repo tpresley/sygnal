@@ -72,7 +72,7 @@ The behavior listens on the host's root element, so it hears the presses and key
 | `axis` | `'y'` | `'y'`: ArrowUp / ArrowDown move, ArrowLeft / ArrowRight change lists; `'x'`: the other way round |
 | `threshold` | `4` | Pixels a pointer moves before a drag starts (a shorter press is a click) |
 | `label` | title, name, label or id | `(entry) => string`: the item's name in announcements |
-| `messages` | English | `{ lift, move, drop, cancel }`, each `(label, position, count, extra) => string`. `extra`: for `lift`, true on a keyboard lift; for `move` and `drop`, the list key when the item changed lists |
+| `messages` | English | `{ lift, move, drop, cancel, stay }`, each `(label, position, count, extra) => string`. `extra`: for `lift`, true on a keyboard lift; for `move`, `drop` and `stay`, the list key when the item changed lists. `stay`: Escape after something else changed the list, so the item stays where it is |
 
 ### State and actions
 
@@ -100,12 +100,14 @@ The behavior listens on the host's root element, so it hears the presses and key
 | ArrowLeft / ArrowRight (`axis: 'x'`: ArrowUp / ArrowDown) | Move it to the previous / next list, at the same position |
 | Home / End | Move it to the start / end |
 | Space or Enter | Drop it |
-| Escape | Put it back where it started |
+| Escape | Put it back where it started (unless something else changed the list meanwhile: see below) |
 | Tab | Drop it where it is; focus moves on |
 
 Focus stays on the moved item's handle after each step (an [`ELEMENT` command](/guide/element-commands/) through [`focusWithin`](/guide/element-commands/#focusing-inside-children-focuswithin), since the keyed Collection may move the focused element). If focus moves to another element while an item is lifted (a click elsewhere, a screen reader's own navigation) or a pointer is pressed anywhere, the item is dropped where it is, as Tab does; a press on a handle then starts a pointer drag at once. Losing focus to nothing (switching windows) keeps the item lifted. A held Space or Enter (the key's auto-repeat) doesn't drop and lift again.
 
-If the host is removed while an item is lifted (a route change, a parent hiding it), the drag is cancelled: the item goes back where it started and no `sort.DROPPED` fires, so state that outlives the host (a parent's) isn't left half-moved. It goes back while it is still where the last arrow key left it, whatever else changed in the list (an entry edited or added); when it is somewhere else (the list replaced by new data, an undo, another action moving it), the list is left as it is. A pointer drag in progress is dropped the same way.
+If the host is removed while an item is lifted (a route change, a parent hiding it), the drag is cancelled the same way, and no `sort.DROPPED` fires, so state that outlives the host (a parent's) isn't left half-moved. A pointer drag in progress is dropped too (the list hasn't changed yet).
+
+Cancelling (Escape, the host removed or made again) puts the list back only when nothing else has changed it since the last arrow key: the lists are then exactly the arrays the drag made, and the ones it lifted the item from come back as they were. When anything else changed them in the meantime (an entry edited, added or removed, the list replaced by new data, an undo or redo, another action reordering it, another tab's copy), the item stays where it is and the drag just ends: the behavior doesn't guess where the item belongs in a list that changed under it. Escape then announces that the item stays (`messages.stay`).
 
 ### Pointer and touch
 
@@ -163,9 +165,20 @@ A sortable inside a sortable's item (sorted lanes, each with sorted cards) works
 
 With the [`undo`](/advanced/undo/) behavior on the same host, a drag is one undo step: `uses = { sort: sortable({ from: 'tasks' }), history: undo({ key: 'tasks' }) }` records the order from before the drag when the item is dropped, and a cancelled drag records nothing. The live keyboard moves aren't steps of their own, and the order of the two in `uses` doesn't matter.
 
-An action during a drag that changes the list too (an item added) is recorded with the drag so far, so the order from before the drag stays reachable; undo during a drag steps back over the drag so far, and redo during a drag records the order from before it (never a half-moved one). With `track` naming none of `sort`'s actions, drags aren't recorded at all. `coalesceMs` joins quick drops only when `coalesce` names one of `sort`'s actions (`coalesce: ['sort.DROPPED']`).
+An action during a drag that changes the list too (an item added) is recorded with the drag so far, so the order from before the drag stays reachable; undo during a drag steps back over the drag so far, and redo during a drag records the order from before it (never a half-moved one). A drag cancelled after something else changed the list leaves the item where it is; if the order then differs from the one before the drag, that is one step, and nothing stays pending. With `track` naming none of `sort`'s actions, drags aren't recorded at all. `coalesceMs` joins quick drops only when `coalesce` names one of `sort`'s actions (`coalesce: ['sort.DROPPED']`).
 
-[`persist()`](/guide/persistence/) never saves or restores the root component's `state.sort` (it is UI state). A sortable on a sub-component or a Collection item keeps its slice in the data around it (`state.lanes[0].sort`), so a root `persist()` saves it with that data. Drag state that comes back this way, from another tab, or into a host made again (HMR) doesn't resume a drag: it is reset when the host starts or at the next press or key. A keyboard-moved item goes back where it started when it is still where the drag left it, as when the host is removed; otherwise the data is left as it is.
+With several lists, record them together, so an undo after a move between lists puts both back:
+
+```jsx
+import { sortable, undo } from 'sygnal'
+
+Board.uses = {
+  sort: sortable({ from: ['todo', 'done'], item: '.card', handle: '.grip' }),
+  history: undo({ key: ['todo', 'done'] }),
+}
+```
+
+[`persist()`](/guide/persistence/) never saves or restores the root component's `state.sort` (it is UI state). A sortable on a sub-component or a Collection item keeps its slice in the data around it (`state.lanes[0].sort`), so a root `persist()` saves it with that data. Drag state that comes back this way, from another tab, or into a host made again (HMR) doesn't resume a drag: it is reset when the host starts or at the next press or key. Restored or synced drag state leaves the data as it is (only the drag that moved the item, in this page, knows its own lists: another tab's drag never moves anything here); a drag of this page (a host made again, a second host of the same slice) is cancelled by the rules above, so its lists come back when nothing else changed them.
 
 ### Testing
 
