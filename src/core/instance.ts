@@ -460,7 +460,10 @@ export class Inst {
       this.app.appError(this, e, 'view')
       this.tmpl = out
     }
-    if (!this.tmpl) this.tmpl = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
+    const t = this.tmpl
+    // G-567: a view that returns a string or a number renders it as text (as renderToString)
+    if (typeof t == 'string' || typeof t == 'number') this.tmpl = {text: '' + t}
+    else if (!t) this.tmpl = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
     this.keys = keys
   }
 

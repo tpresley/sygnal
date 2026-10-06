@@ -214,3 +214,36 @@ describe('G-566: Transition around a Collection', () => {
   })
 })
 
+describe('G-567: a view that returns a string or a number renders it as text', () => {
+  const views = { string: ({ state }) => state.t, number: ({ state }) => state.id }
+  for (const [kind, Row] of Object.entries(views)) {
+    it(`${kind}: Collection items and a child, client and renderToString alike (rv4ir old/g P5base)`, async () => {
+      function One({ state }) { return Row({ state }) }
+      function App() { return h('div', null, h('ul', null, h(Collection, { of: Row, from: 'items' })), h('p', null, h(One, { state: 'one' }))) }
+      App.intent = ({ DOM }) => ({ OP: DOM.select('document').events('p4j-op').map(e => e.detail) })
+      App.model = { OP: (s, f) => f(s) }
+      App.initialState = { items: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }], one: { id: 9, t: 'z' } }
+      const want = kind == 'string' ? '<div><ul>ab</ul><p>z</p></div>' : '<div><ul>12</ul><p>9</p></div>'
+      expect(renderToString(App, { state: App.initialState }).replace(' data-sygnal-ssr=""', '')).toBe(want)
+      const { el } = mount(App); await sleep(10)
+      expect(el.innerHTML).toBe(want)
+      op(s => ({ ...s, items: [...s.items, { id: 3, t: 'c' }].map(i => i.id == 1 ? { ...i, t: 'x' } : i), one: { id: 0, t: 'y' } })); await sleep(10)
+      expect(el.innerHTML).toBe(kind == 'string' ? '<div><ul>xbc</ul><p>y</p></div>' : '<div><ul>123</ul><p>0</p></div>')
+      op(s => ({ ...s, items: s.items.slice(1) })); await sleep(10)
+      expect(el.querySelector('ul').innerHTML).toBe(kind == 'string' ? 'bc' : '23')
+    })
+  }
+
+  it('hydrating server text items keeps the text and the elements around it', async () => {
+    function Row({ state }) { return state.t }
+    function App() { return h('ul', null, h('li', { className: 'head' }, 'h'), h(Collection, { of: Row, from: 'items' }), h('li', { className: 'tail' }, 't')) }
+    App.initialState = { items: [{ id: 1, t: 'a' }, { id: 2, t: 'b' }] }
+    document.body.innerHTML = '<div id="root">' + renderToString(App, { state: App.initialState }) + '</div>'
+    const el = document.getElementById('root'), head = el.querySelector('.head'), tail = el.querySelector('.tail')
+    const app = run(App, {}, { mountPoint: '#root' }); apps.push(app)
+    await sleep(10)
+    expect(el.innerHTML).toBe('<ul><li class="head">h</li>ab<li class="tail">t</li></ul>')
+    expect(el.querySelector('.head')).toBe(head)
+    expect(el.querySelector('.tail')).toBe(tail)
+  })
+})
