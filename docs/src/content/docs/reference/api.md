@@ -145,10 +145,14 @@ Renders a list of components from an array on state.
 ```jsx
 import { Collection } from 'sygnal'
 
-<Collection of={ItemComponent} from="items" filter={item => !item.done} sort="name" className="list" />
+<ul className="list">
+  <Collection of={ItemComponent} from="items" filter={item => !item.done} sort="name" />
+</ul>
 ```
 
 The lowercase `<collection>` tag works too, without an import.
+
+A Collection has no element of its own: its items render directly into the parent element. Any prop not listed below goes to every item; `className`, `style`, `class`, `data-*` and the other attributes of the wrapper `<div>` that 6.0 removed are [SYG612](/reference/errors/#syg612) ([Migrating to 6.0](/guide/migrating-to-6/#collection-wrapper)).
 
 ### Props
 
@@ -158,7 +162,6 @@ The lowercase `<collection>` tag works too, without an import.
 | `from` | `string \| Lens` | Yes | State property name or lens for the source array. Must be an array ([SYG401](/reference/errors/#syg401)); type-checkable with [`Collection<PROPS, STATE>`](/integration/typescript/#collection-from) |
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
-| `className` | `string` | No | CSS class for the wrapping container element |
 | `viewTransitionName` | `string` | No | A CSS identifier prefix (`"card"`): each item with an `id` gets `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its own style values win; undefined ones do not), for [View Transitions](/guide/view-transitions/#collection-items) |
 
 ### Item Keys
