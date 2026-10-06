@@ -81,7 +81,8 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
   // gesture behavior's actions (G-477: `track` / `coalesce` naming any of them cover its steps)
   const gw = (f: any, [kind, all]: any, name: string) => {
     const has = (l?: string[]) => !!l && all.some((x: string) => l.includes(x))
-    const tracked = !track || has(track), joins = coalesceMs > 0 && (!coalesce || has(coalesce)), reset = resetOn.includes(name)
+    // G-507: drops join only when `coalesce` names the gesture (two separate drags are two steps)
+    const tracked = !track || has(track), joins = coalesceMs > 0 && has(coalesce), reset = resetOn.includes(name)
     return (s: any, ...x: any[]) => {
       const r0 = f ? f(s, ...x) : s, r = isAbort(r0) ? s : r0, pre = x[2]?.state || s, none = f ? r0 : ABORT
       if (!r || typeof r != 'object' || !pre) return none

@@ -192,3 +192,15 @@ describe('3-O G-506: track leaving the drags out', () => {
     expect(order(t.state)).toBe('1324')
   })
 })
+
+describe('3-O G-507: coalesceMs alone doesn\'t join drops', () => {
+  it('two quick drags are two steps; coalesce naming the drop joins them', async () => {
+    t = renderComponent(withUndo({ coalesceMs: 5000 }), { dom: 'real' }); await t.ready()
+    await drag(1); await drag(3)
+    expect(past()).toEqual(['1234', '2134'])
+    t.dispose()
+    t = renderComponent(withUndo({ coalesceMs: 5000, coalesce: ['sort.DROPPED'] }), { dom: 'real' }); await t.ready()
+    await drag(1); await drag(3)
+    expect(past()).toEqual(['1234'])
+  })
+})
