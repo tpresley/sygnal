@@ -1,7 +1,6 @@
 import {start as startNext} from '../core/runtime';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
-import {callHook} from './diagnostics/legacy';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
@@ -1888,9 +1887,10 @@ export function renderComponent(
     // a class, not an attribute: the DOM driver's first patch keeps only the root's id and class
     container.className = 'sygnal-test';
     document.body.appendChild(container);
-    // G-537: a patch error goes to the onError option, as under run(); G-547: one that throws is
-    // logged (callHook)
-    realDOM = makeDOMDriver(container, options.onError ? {reportSnabbdomError: (e: any) => callHook(options.onError, e, {phase: 'patch'})} : undefined);
+    // G-537 / G-550: a patch error goes through run()'s reporter (start() gives it to the driver's
+    // isolate module): the onError option (G-547: one that throws is logged) and the hooks' onError;
+    // console.error without an onError
+    realDOM = makeDOMDriver(container);
   }
   // 4-A1: real-mode patch tracking. Every vtree the DOM sink emits is tagged with the number
   // of states recorded when it rendered (renderNo); the driver's input is gated so the harness
