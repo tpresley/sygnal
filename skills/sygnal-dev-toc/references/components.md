@@ -3,7 +3,7 @@
 Child props, `CHILD.select`, Collection (keys, removal, filter/sort), Switchable, extracting a component, commands (parent → child).
 
 ## Child props and CHILD.select
-- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `uid` (SYG106). Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405 and the parent renders its error fallback (unseen when a test renders the child as root). `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
+- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `uid` (SYG106). Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.
 
 ## Child → parent (PARENT + CHILD.select), Collection, item removal

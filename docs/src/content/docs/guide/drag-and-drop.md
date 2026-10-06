@@ -60,6 +60,8 @@ TaskList.model = {
 
 The behavior listens on the host's root element, so it hears the presses and keys that bubble out of the Collection items (which are isolated components): nothing is wired per item. The items read the drag state through [context](/guide/context/).
 
+The announcements in `state.sort.message` are English defaults ("Dropped Write tests at position 2 of 3.", "Reorder cancelled. Write tests is back at position 1 of 3."). When a spec gives its own wording, set it with the `messages` option: `sortable({ from: 'tasks', messages: { cancel: (label, n, m) => 'Cancelled. ' + label + ' is back at position ' + n + ' of ' + m + '.' } })`; the others keep their defaults.
+
 ### Options
 
 | Option | Default | |
