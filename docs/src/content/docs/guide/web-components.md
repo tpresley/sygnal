@@ -93,6 +93,7 @@ Signup.model = {
 ```
 
 - **`name` as an attribute.** The form reads a custom element's `name` attribute. Some elements don't reflect the `name` property to the attribute (`wa-rating` doesn't, `wa-input` does), so pass it with `attrs={{ name: 'stars' }}` when in doubt.
+- **`form` is always an attribute.** `<wa-input form="signup">` links a field outside the `<form>` to `<form id="signup">`, as it does for an `<input>`: a form-associated element's `form` property is read-only. (`list`, by contrast, is a custom element's own property: it is set as one.)
 - **Read live values from the element.** A form-associated element updates its form value asynchronously. On every keystroke, `.value()` on its `input` event is current in every browser, while the form's own data can be one keystroke behind (Firefox). Use `processForm` on `submit`, and `.value()` for live input.
 
 ### TypeScript
