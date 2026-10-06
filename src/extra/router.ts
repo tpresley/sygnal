@@ -149,17 +149,23 @@ export function makeRouter(options: any = {}) {
     };
 
     // G-565: `f` runs once the actions queued so far ran: a state write that changes nothing,
-    // queued behind them through the instance's replies (one listening, else a task later). The
-    // first declarer's ROUTE (and any redirect it makes) runs first; the others get theirs in the
-    // same flush, before the patch, as long as no redirect happened (G-168)
-    const after = (s: any, f: any) => listening(s) ? reply(s, SET, (x: any) => (f(), x)) : setTimeout(f);
+    // queued behind them through the replies of the instances `ss` (one listening, else a task
+    // later). The first declarer's ROUTE (and any redirect it makes) runs first; the others get
+    // theirs in the same flush, before the patch, as long as no redirect happened (G-168).
+    // G-570: queued on every listening one and run by the first that is still there (the queue
+    // skips a disposed instance: the first declarer navigating from its DISPOSE / dispose$)
+    const after = (ss: any[], f: any) => {
+      let d = 0;
+      const l = ss.filter(listening), g = (x: any) => (d++ || f(), x);
+      l.length ? l.forEach(s => reply(s, SET, g)) : setTimeout(f);
+    };
 
     const emit = (kind: string) => {
       last = L.href;
       const r = (cur = current()), list = [...declared], v = ++ver;
       if (list.length) {
         reply(list[0][0], list[0][1], r);
-        after(list[0][0], () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
+        after(list.map(x => x[0]), () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
       }
       if (kind != 'start') settle(kind);
     };
@@ -268,7 +274,7 @@ export function makeRouter(options: any = {}) {
           // between supersedes the route (G-168). A declarer not listening yet (a Vike Layout):
           // a task later
           const v0 = ver, f = () => declared.get(s) == v.route && ver == v0 && reply(s, v.route, cur);
-          if (cur) declared.keys().next().value === s && listening(s) ? f() : after(s, f);
+          if (cur) declared.keys().next().value === s && listening(s) ? f() : after([s], f);
           return;
         }
         // `block` combines with a navigation: { ...proceed, block: false } clears it and goes
