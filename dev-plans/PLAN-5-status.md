@@ -293,6 +293,12 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-541 | review 3-Q | Low | dom (fragments) | Derived keys use `/` as separator: `<Fragment key="src">` + child `a/b.ts` collides with `<Fragment key="src/a">` + `b.ts` | ✅ 3-V |
 | G-542 | review 3-Q | Low | pragma | `form` always an attribute on custom elements: an object-valued `form` prop renders `form="[object Object]"`; route as attribute only for string values | ✅ 3-V |
 | G-543 | D224 | Med | dom / docs | Mark the app root `data-sygnal-error="patch"` when DOM updates stop after a patch error; docs pattern (CSS overlay, `onError` reload banner) in `advanced/error-boundaries` | → 3-W |
+| G-544 | review 3-V | Med | dom (fragments) | Nested JSON derived keys double per nesting level (depth 17 ≈ 393 KB keys, 70 ms per unrelated patch; RangeError ~depth 27 outside the patch try). Linear collision-free scheme. Confirmed | → 3-W |
+| G-545 | review 3-V | Low/Med | runtime | A user-supplied DOM driver (`makeViewTransitionDOMDriver`) bypasses `onError({ phase: 'patch' })` and the hooks' onError | → 3-W |
+| G-546 | review 3-V | Low | runtime | `app.hooks.onError` calls unguarded (a throwing internal hook errors the DOM stream) | → 3-W |
+| G-547 | review 3-V | Low | testing | `renderComponent({ dom: 'real', onError })` calls the user's onError unguarded (misleading settle timeout) | → 3-W |
+| G-548 | review 3-V | Low | dom (fragments) | BigInt keys throw in `flat()` (regression); Symbol keys collide | → 3-W |
+| G-549 | review 3-V | Low | dom | Dispose exemption after a patch error (`!children?.length`) lets a zero-child/text-only live render through | → 3-W |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -345,6 +351,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — User: D223 (patch errors → `onError`, phase `'patch'`); G-537, to the 3-Q review fix pass.
 - 2026-10-05 — Review of 3-Q: G-538…G-542 (no regression without fragments; perf-gate ok). The guard's recovery by adoption is unsafe (G-540). 3-V started (G-537…G-542).
 - 2026-10-05 — 3-V merged (clean; G-537…G-542; core 42,402 B, 98 B headroom); gates all green (vitest 3,689, browser 345/344/344, recipes 17×3, perf ok). User: D224 (stop updating + root marker + docs). 3-W started (G-543, G-535, G-536); review of 3-V running.
+- 2026-10-05 — Review of 3-V: no high; G-544…G-549 added to 3-W (`dead` is per driver instance; a new `run()` starts clean; tests don't hang after a patch error).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
