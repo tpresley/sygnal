@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D223 | 2026-10-05 | A DOM patch error (caught by 3-Q's guard) goes to `run({ onError })` with phase `'patch'` (and the hooks' `onError`), like every other phase; `console.error` only when no `onError` is set. Measure the cost (estimate ≈ 40 B; prefer reusing the runtime's `appError` path as the driver's `reportSnabbdomError`); fallback if far above: rethrow asynchronously for global handlers. Docs list the new phase | User |
 | D222 | 2026-10-05 | Core size budget raised from 42,300 B (D185) to **42,500 B** for 6.0: 3-Q's fragment flattening (+74 B), hydration follow-ups (+44 B) and the patch-error guard (+33 B: a throwing patch is logged and the app keeps updating; not routed to `run({ onError })`) left 8 B. Coordinator: `form` is an attribute on every tag, `list` a prop on hyphenated tags (G-519); G-523 keeps the documented `open` rule | User + coordinator |
 | D221 | 2026-10-05 | `undo({ key: ['todo', 'done'] })`: an array of keys is recorded together as one step (multi-list sortable; G-515) — public API (`key: string \| string[]`). Coordinator: END/INIT stay silent on a cancelled drag (Escape announces `messages.stay`) | User + coordinator |
 | D220 | 2026-10-05 | Coordinator: 3-M's +173 B accepted (hydration total 3-J + 3-M ≈ 289 B, inside D217's ≈ 320 B allowance; core 42,141 B, 159 B headroom left for the rest of PLAN-5). Controlled fields keep the documented rule at hydration (state wins; uncontrolled fields keep user input). Hyperscript selector class/id elements and the Portal placeholder are recreated, not adopted | Coordinator |
@@ -284,6 +285,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-534 | review 3-T | Low | ui/dialog | SYNC after a failure keeps the old `returnValue` when OPEN's STATE aborted | ✅ 3-U |
 | G-535 | 3-U report | Low | sortable / undo | Lift, move, a recorded action that changes the list (ADD), move back to the original index, drop: no `sort.DROPPED` (no move) and the list ≠ pre-drag → `base` pending. A drop without a move should signal `undoEnd` | → later pass |
 | G-536 | review 3-U | Low | undo | Absent key vs own `undefined` treated equal; string keys still write an own `undefined` on UNDO (parity with G-531); `k in s` throws on primitive state (guard `typeof s == 'object'`); overlapping `dialog` selectors still take a nested dialog's FAIL (selector misuse) | → later pass |
+| G-537 | D223 | Med | runtime / dom | Patch errors bypass `run({ onError })` (logged only): invisible to error trackers in production. Route with phase `'patch'` | → next fix pass |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -333,6 +335,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-T: G-533 (Med), G-534; `currentCSSZoom` checked in 3 engines; both added to 3-U.
 - 2026-10-05 — 3-U merged (G-529…G-534; `picks` cache removed; `key: []` throws; undo +101 B, dialog +26 B, core 0). G-535. Review of 3-U: nothing above Low (G-536). Gates after 3-U all green (vitest 3,623, browser 338/337/337).
 - 2026-10-05 — 3-Q merged (clean): fragments flattened before patch (snabbdom `fragments` option unused, run option deprecated), G-517…G-523, patch-error guard; core 42,292 B. User: D222 (budget 42,500 B). Gates all green (vitest 3,671, browser 345/344/344, recipes 17×3, perf-gate --runs=3 ok, core 42,292 B, 208 B headroom).
+- 2026-10-05 — User: D223 (patch errors → `onError`, phase `'patch'`); G-537, to the 3-Q review fix pass.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
