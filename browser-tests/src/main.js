@@ -27,6 +27,7 @@ import { elementTestsP2b } from './tests/element-p2b.jsx'
 import { elementCommandTests3A } from './tests/element-commands-3a.jsx'
 import { fixesTestsP5_3N } from './tests/fixes-p5-3n.jsx'
 import { fixesTestsP5_3T } from './tests/fixes-p5-3t.jsx'
+import { patchErrorTestsP5_3W } from './tests/patch-error-p5-3w.jsx'
 import { timerFrameTests3K } from './tests/timers-frame-3k.jsx'
 import { persistTests3B } from './tests/persist-3b.jsx'
 import { viewTransitionTestsP1b } from './tests/view-transitions-p1b.jsx'
@@ -114,6 +115,7 @@ async function runAll() {
     fixesTestsP5_3K,
     fixesTestsP5_3N,
     fixesTestsP5_3T,
+    patchErrorTestsP5_3W,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue

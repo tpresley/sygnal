@@ -313,7 +313,7 @@ export class App {
       // and to the hooks' onError (G-303)
       const info: any = {phase: 'driver', driver: n}
       callHook(this.opts.onError, e, info)
-      this.hooks.onError?.(e, info)
+      callHook(this.hooks.onError, e, info)
       queueMicrotask(() => { throw e })
     }
   }
@@ -361,7 +361,8 @@ export class App {
   appError(inst: Inst, e: any, phase: string, action?: string) {
     const info: any = {componentName: inst.def.name, action, phase}
     callHook(this.opts.onError, e, info)
-    this.hooks.onError?.(e, info)
+    // 3-W G-546: a hook layer's onError that throws is logged (as the app's is)
+    callHook(this.hooks.onError, e, info)
   }
   /** an error caught at a call site that keeps running (as legacy caught(): a fail()'s own code) */
   caught(inst: Inst, code: string, message: string, err: any, phase: string, action?: string) {
@@ -512,13 +513,14 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   const app = new App(opts)
   const {mountPoint = '#root', useDefaultDrivers = true} = opts
   // G-537 (D223): a DOM patch that throws goes to onError (phase 'patch') and the hooks' onError;
-  // it is logged only without an onError
+  // it is logged only without an onError. G-545: given to any DOM driver (one passed in drivers,
+  // makeViewTransitionDOMDriver) through its source's isolate module
   const patchErr = (e: any, i: any = {phase: 'patch'}) => {
     opts.onError ? callHook(opts.onError, e, i) : console.error(e)
-    app.hooks.onError?.(e, i)
+    callHook(app.hooks.onError, e, i)
   }
   const all: Record<string, any> = {
-    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any, {reportSnabbdomError: patchErr}), LOG: logDriver, __m: () => mountPoint}),
+    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any), LOG: logDriver, __m: () => mountPoint}),
     ...drivers,
   }
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the app's
@@ -527,6 +529,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
     const p = app.proxies[n] = xs.create()
     const src = app.sources[n] = all[n](p, n)
     if (src && typeof src == 'object') try { src._isCycleSource = n } catch (_) {}
+    if (src?._isolateModule) src._isolateModule.rep = patchErr
   }
   scanSources(app)
   app.vdom$ = xs.create({start: (l: any) => { app.vdomL = l; if (app.last) l.next(app.last) }, stop: () => { app.vdomL = null }})
