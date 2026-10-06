@@ -334,13 +334,14 @@ describe('3-J: hooks', () => {
     expect(document.activeElement).toBe(r.byT.af)
   })
 
-  it('a hook with insert and postpatch: adopted, its postpatch runs (not insert)', async () => {
+  // 3-Q G-521: was adopted (postpatch ran, insert never did: a chart never initialised)
+  it('a hook with insert and postpatch: made again, its insert runs', async () => {
     const calls = []
     const hook = { insert: (v) => calls.push(['insert', v.elm]), postpatch: (o, v) => calls.push(['postpatch', v.elm]) }
     const App = app(() => h('div', { hook, className: 'h', 'data-t': 'h' }, 'x'))
     const r = await hydrate(App)
-    expect(r.keptT('h')).toBe(true)
-    expect(calls).toEqual([['postpatch', r.byT.h]])
+    expect(r.keptT('h')).toBe(false)
+    expect(calls).toEqual([['insert', r.now('h')]])
   })
 
   it('a hook with insert only: made again in place, its insert runs', async () => {

@@ -95,6 +95,9 @@ const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: an
       n = {...w, children: adopt(e, w, T, P, 1)};
       n.elm = Object.assign(new DocumentFragment(), {parent: e, firstChildNode: T[a], lastChildNode: T[T.length - 1]});
     } else {
+      // G-520: client text vnodes next to each other (`Hello, {name}!`) are one server text node:
+      // it is split by the client's text when that is its start, so the nodes after stay paired
+      t == 3 && c[j + 1]?.text != null && !c[j + 1].sel && w?.text && x.data.startsWith(w.text) && x.splitText(w.text.length);
       P.n = x.nextSibling;
       if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
       else if (t == 1 && x.localName == w?.sel && !(k && (k.create || k.init || k.u || k.insert && !k.postpatch))) {
