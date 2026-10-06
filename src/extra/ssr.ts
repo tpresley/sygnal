@@ -757,7 +757,8 @@ function renderToStringInternal(componentDef: any, state: any, context: Record<s
 // strings, of the <select> the option is in, and whether it is multiple) as selected. G-495: as
 // the browser does: an option without a value matches by its text with ASCII whitespace stripped
 // and collapsed; a single select marks only its first match; an explicit `selected` (true or
-// false) is the option's own.
+// false) is the option's own. G-496: not in t.html()'s innerHTML mode (a property, which
+// innerHTML doesn't show)
 type SV = {v: string[]; m: boolean}
 const ws = (t: string): string => t.replace(/[\t\n\f\r ]+/g, ' ').replace(/^ | $/g, '')
 const fieldValue = (data: any): any => data?.props?.value ?? data?.attrs?.value
@@ -796,7 +797,9 @@ function vnodeToHtml(vnode: any, sv?: SV): string {
 
   let data = vnode.data || {}, content: string | undefined
   const value = fieldValue(data)
-  if (tag == 'textarea' && value != null) {
+  if (innerHtmlMode) {
+    // (G-496)
+  } else if (tag == 'textarea' && value != null) {
     data = withoutValue(data)
     // the HTML parser drops a leading newline (a CR or CRLF is one: G-495), so one is added
     const t = String(value)

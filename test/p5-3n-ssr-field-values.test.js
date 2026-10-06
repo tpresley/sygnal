@@ -3,10 +3,12 @@
 // does it: an option without a value matches by its text with ASCII whitespace stripped and
 // collapsed (option.value's fallback), a single select marks only the first matching option, an
 // explicit `selected: false` stays, and a textarea value starting with CR / CRLF keeps its line.
-// Checked against jsdom's parser.
-import { describe, it, expect } from 'vitest'
+// G-496: t.html() (innerHTML mode) shows no textarea value as text and marks no option (the value
+// is a property; innerHTML never shows it). Checked against jsdom's parser.
+import { describe, it, expect, afterEach } from 'vitest'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderToString } from '../src/extra/ssr.js'
+import { renderComponent } from '../src/extra/testing.js'
 
 const html = (view, state = {}) => {
   function C(p) { return view(p) }
@@ -49,4 +51,22 @@ describe('G-495: <textarea value> with a leading CR / CRLF', () => {
       expect(parse(out).querySelector('textarea').value).toBe('\nline')
     })
   }
+})
+
+describe('G-496: t.html() (innerHTML mode)', () => {
+  let t
+  afterEach(() => { try { t?.dispose() } catch (_) {} t = null; document.body.innerHTML = '' })
+  it('a textarea value is not its text; no option is marked', async () => {
+    function C({ state }) {
+      return h('div', null,
+        h('textarea', { className: 'n', value: state.text }),
+        h('select', { value: 'b' }, h('option', { value: 'a' }, 'A'), h('option', { value: 'b' }, 'B')))
+    }
+    C.initialState = { text: 'typed' }
+    t = renderComponent(C)
+    await t.ready()
+    const out = t.html()
+    expect(out).not.toMatch(/>typed<\/textarea>/)
+    expect(out).not.toMatch(/ selected/)
+  })
 })
