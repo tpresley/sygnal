@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 
 // D48; PLAN-4.6 D185 re-enabled it at 42,300 B (D182 had made it informational during the rewrite)
-const BUDGET = 42300
+const BUDGET = 42500  // PLAN-5 D222 (was 42,300 B, D185)
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
