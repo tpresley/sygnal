@@ -65,8 +65,10 @@ const base = /*#__PURE__*/ defineBehavior({
       : modal === false
         ? DOM.select(d).events('cancel', {preventDefault: true})
         : xs.merge(DOM.select(d).events('cancel', {preventDefault: true}).filter(() => false), DOM.select(d).events('keydown').filter(esc)),
-    // G-524: SYNC also when OPEN's showModal() threw (FAIL, below)
-    SYNC: STATE ? xs.merge(gone(DOM, STATE, d, (e: any) => e.open), DOM.select(d).events(FAIL).mapTo(false)) : DOM.select(d).events(FAIL).mapTo(false),
+    // G-524: SYNC also when OPEN's showModal() threw (FAIL, below; true). 3-U G-533: only this
+    // behavior's dialog's own FAIL, not one bubbling from a dialog inside it (another behavior's)
+    SYNC: ((f: any) => STATE ? xs.merge(gone(DOM, STATE, d, (e: any) => e.open), f) : f)(
+      DOM.select(d).events(FAIL).filter((e: any) => e.target === e.ownerTarget).mapTo(true)),
   }),
   model: {
     OPEN: {
@@ -112,7 +114,9 @@ const base = /*#__PURE__*/ defineBehavior({
       },
     },
     CANCEL: () => ABORT,
-    SYNC: (s: any) => (s.open ? {...s, open: false} : ABORT),
+    // G-534: after a failed OPEN the returnValue is '' (also when OPEN's STATE aborted: the state
+    // was open while the element was closed)
+    SYNC: (s: any, failed: any) => (s.open ? {...s, open: false, ...(failed === true && {returnValue: ''})} : ABORT),
   },
 })
 
