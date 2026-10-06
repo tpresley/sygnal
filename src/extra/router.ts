@@ -214,7 +214,7 @@ export function makeRouter(options: any = {}) {
     // (once the hook's microtasks ran, and again a task later in case the URL changes after it)
     const onNav = () => { const f = () => L.href != last && emit('push'); queueMicrotask(f); setTimeout(f); };
 
-    const {replies, reply} = makeReplies(s => {
+    const {replies, reply, listening} = makeReplies(s => {
       declared.delete(s);
       if (blocks.delete(s)) syncUnload();
     });
@@ -253,11 +253,14 @@ export function makeRouter(options: any = {}) {
           if (Object.keys(v).length > 1 || v.route in routes) return bad(v, '`route` is the declaration key', "Navigate with { to: 'name', params }");
           if (!v.route || s === undefined) return void declared.delete(s);
           declared.set(s, v.route);
-          // a task later: the instance's replies are listened to by then (a first declarer below
-          // the root, e.g. a Vike Layout, may declare before), and timers keep mount order, so the
-          // guard owner still answers first; a redirect in between supersedes the old route
+          // G-555: the guard owner (first declarer) gets it at once when it listens to its replies
+          // (the core subscribes them at creation, before its statics), so its ROUTE is part of
+          // the flush that declared it: a task later came after the first render and undid what
+          // happened in between (a field typed into). The others (and a declarer not listening
+          // yet, e.g. a Vike Layout) a task later, as for a navigation: timers keep mount order and
+          // a redirect in between supersedes the route (G-168)
           const v0 = ver, f = () => declared.get(s) == v.route && ver == v0 && reply(s, v.route, cur);
-          if (cur) setTimeout(f);
+          if (cur) declared.keys().next().value === s && listening(s) ? f() : setTimeout(f);
           return;
         }
         // `block` combines with a navigation: { ...proceed, block: false } clears it and goes

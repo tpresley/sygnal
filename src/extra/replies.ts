@@ -48,5 +48,7 @@ export const makeReplies = (onStop?: (sender: any) => void) => {
     },
     /** deliver `{ type, data }` to the sender's actions (dropped when it's gone) */
     reply: (sender: any, type: any, data: any) => { to.get(sender)?.next({type, data}); },
+    /** whether the sender listens to its replies now (a reply to it would not be dropped) */
+    listening: (sender: any) => to.has(sender),
   };
 };
