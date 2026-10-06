@@ -325,6 +325,10 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-567 | review 4-I/4-R | Low | Collection | An item view returning a plain string renders `undefined` text (pre-existing) | ✅ 4-J (+22 B; also plain child components and SSR) |
 | G-568 | 4-J report | Low | Collection / ssr | An item view returning `null` renders an empty `<div>` on the client but nothing from `renderToString` | → backlog |
 | G-569 | 4-J report | Low | core | A view returning an array still renders `undefined`; G-564 residual: a vnode moved directly between two kept parents (new created before old removed) passes the new element to its own `hook.destroy` | → backlog |
+| G-570 | review 4-J | Med | router | A first declarer navigating from its own `DISPOSE`/`dispose$`: the other declarers' ROUTE is queued on it via a no-op SET and the drain skips disposed instances → siblings never get the route (pre-4-J: delivered). Confirmed | → 4-K |
+| G-571 | review 4-J | Low | router | A redirect loop in a non-first declarer now runs synchronously in one drain (hangs) instead of one task per hop; add a hop guard (fall back to a task / report) for all declarers | → 4-K |
+| G-572 | review 4-J | Low | suspense | A not-ready child whose view returns text isn't caught by Suspense (no element to mark) | → 4-K |
+| G-573 | review 4-J | Low | transition / dom | `Symbol.for` cache keys grow the global registry (use a private symbol + record); a throwing destroy hook leaves IsolateModule `M`/`S` entries (clear in `pre`); a vnode used twice: first note should win (`M.has(c) \|\| M.set`) | → 4-K |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | ✅ 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | ✅ 2-S |
@@ -392,6 +396,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 4-I merged (G-556…G-561; core 42,584 B). User: D230 (budget 42,700 B). Firefox full run 358/358 twice on integration (G-562 not reproduced). Gates after 4-I all green (vitest 3,742, browser 360/359/359, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,584 B / 42,700 B).
 - 2026-10-05 — Review of 4-I/4-R: G-564, G-565 (medium), G-566, G-567. 4-J started; eval runs wait.
 - 2026-10-05 — 4-J merged (G-563…G-567; eval verify 282/282; core 42,664 B / 42,700 B, +80 B accepted by the coordinator within D230). Behaviour: nested route declarers get each route in the same flush (one patch per navigation). G-568, G-569 backlog. Gates after 4-J all green (vitest 3,755, browser 362/361/361, sygnal-check 622, samples 678, recipes 17×3, perf ok, core 42,664 B).
+- 2026-10-05 — Review of 4-J: one medium (G-570, navigation from DISPOSE), lows G-571…G-573. 4-K started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
