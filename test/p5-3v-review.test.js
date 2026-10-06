@@ -3,9 +3,11 @@
 // (rv3q a, b, f: the guard; c: keyed fragment perf; d: derived keys; e: renderComponent) are the
 // cases below.
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
-import { run, Portal, Transition, defineWidget } from '../src/index.js'
+import { run, Portal, Transition, Collection, defineWidget } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.ts'
+import { Fragment } from '../src/cycle/dom/fragment.ts'
+import { flat } from '../src/cycle/dom/utils.ts'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 let apps = [], errors
@@ -131,5 +133,55 @@ describe('G-537 (D223): a patch error goes to run({ onError }) with phase \'patc
     armed = true
     await click('.b')
     expect(errors.mock.calls.map(c => String(c[0]))).toEqual(['Error: hook'])
+  })
+})
+
+describe('G-539: an unchanged keyed fragment keeps its copies (snabbdom skips it)', () => {
+  /** 2k Collection items, one changed per click: user update hooks run and ms per patch */
+  async function bench(frag) {
+    let upd = 0
+    function Item({ state }) {
+      const kids = [h('dt', { hook: { update: () => upd++ } }, state.k), h('dd', null, 'v' + state.k)]
+      return frag ? h(Fragment, null, ...kids) : h('div', { hook: { update: () => upd++ } }, ...kids)
+    }
+    function App() { return h('main', null, h('button', { className: 'b' }), h('dl', null, h(Collection, { of: Item, from: 'items' }))) }
+    App.initialState = { items: Array.from({ length: 2000 }, (_, i) => ({ id: i, k: 'k' + i })) }
+    App.intent = ({ DOM }) => ({ T: DOM.select('.b').events('click') })
+    App.model = { T: s => ({ items: s.items.map((x, i) => i == 5 ? { ...x, k: x.k + '!' } : x) }) }
+    const app = await mount(App)
+    await sleep(100)
+    const hooks = [], times = []
+    for (let r = 0; r < 6; r++) {
+      upd = 0
+      const t0 = performance.now()
+      document.querySelector('.b').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await app.__runtime.flushed()
+      await sleep(0)
+      times.push(performance.now() - t0)
+      hooks.push(upd)
+    }
+    app.dispose(); apps = []
+    times.sort((a, b) => a - b)
+    return { hooks, ms: times[3] }
+  }
+
+  it("2k fragment items, one changed: the changed item's hook only, time comparable to element roots", async () => {
+    const el = await bench(false), fr = await bench(true)
+    expect(el.hooks).toEqual([2, 2, 2, 2, 2, 2])
+    // (it was 2,000 a patch: every item's copy was new)
+    expect(fr.hooks).toEqual([1, 1, 1, 1, 1, 1])
+    // twice the DOM children (dt + dd per item, no wrapper); it was ~6x
+    expect(fr.ms).toBeLessThan(el.ms * 4 + 5)
+  })
+
+  it('flat() keeps the copies while the fragment and its prefix are the same', () => {
+    const f = h(Fragment, { key: 'a' }, h('i', null, 'x'), h('b', null, 'y'))
+    const one = flat(h('div', null, f, h('p', null, 'z'))), two = flat(h('div', null, f))
+    expect(two.children[0]).toBe(one.children[0])
+    expect(two.children[1]).toBe(one.children[1])
+    // under another keyed fragment (another prefix): other copies
+    const three = flat(h('div', null, h(Fragment, { key: 'o' }, f)))
+    expect(three.children[0]).not.toBe(one.children[0])
+    expect(three.children[0].key).not.toBe(one.children[0].key)
   })
 })
