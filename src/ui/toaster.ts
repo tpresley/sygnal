@@ -67,9 +67,13 @@ const placement = {
     // the focus, and a mouse Dismiss would focus (and scroll to) an element left long ago. (A focus
     // that comes back from another element names that one; a focus that left to a modal comes
     // back from nowhere when it closes and keeps it: G-432)
-    el.addEventListener('pointerdown', () => { el._p = 1 })
+    // G-499: the press is its time, and counts for a focus within a second (a press released
+    // outside, a right-click or a touch scroll gets no focusin or click to clear it); a cancelled
+    // one (the browser took it for a scroll) at once
+    el.addEventListener('pointerdown', (e: any) => { el._p = e.timeStamp })
+    el.addEventListener('pointercancel', () => { el._p = 0 })
     el.addEventListener('focusin', (e: any) => {
-      if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || (el._p ? null : el._from) }
+      if (!el.contains(e.relatedTarget)) { el._f = 1; el._from = e.relatedTarget || (el._p && e.timeStamp - el._p < 1e3 ? null : el._from) }
       el._p = 0
     })
     el.addEventListener('focusout', (e: any) => { if (left(el, e)) el._f = 0 })

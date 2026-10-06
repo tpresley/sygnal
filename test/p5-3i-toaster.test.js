@@ -53,4 +53,27 @@ describe('G-458: where the focus came from', () => {
     b.click()
     expect(document.activeElement).toBe(plain)
   })
+
+  // PLAN-5 3-N G-499: a press that neither focused nor clicked (released outside, a touch scroll,
+  // a right-click) leaves no mark either: a later return from nowhere (a modal closed) keeps it
+  it('3-N G-499: a press released outside, a focus from nowhere over a second later: kept', async () => {
+    const { plain, b } = await start()
+    b.blur()
+    const down = new Event('pointerdown', { bubbles: true })
+    Object.defineProperty(down, 'timeStamp', { value: down.timeStamp - 2000 })
+    b.dispatchEvent(down)
+    b.focus()
+    b.click()
+    expect(document.activeElement).toBe(plain)
+  })
+
+  it('3-N G-499: a press the browser cancelled (a touch scroll), then a focus from nowhere: kept', async () => {
+    const { plain, b } = await start()
+    b.blur()
+    b.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    b.dispatchEvent(new Event('pointercancel', { bubbles: true }))
+    b.focus()
+    b.click()
+    expect(document.activeElement).toBe(plain)
+  })
 })
