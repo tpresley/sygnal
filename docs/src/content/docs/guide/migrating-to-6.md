@@ -12,7 +12,7 @@ Sygnal 6.0 runs every component on a new, smaller core: one state store per app,
 **Finding the old forms.** In development, the dev checks (`sygnal/diagnostics`, which `sygnal/vite` loads) report each removed form they meet at run time as [SYG612](/reference/errors/#syg612), once per form and component, with a link to its section below. `sygnal-check` reports most of them statically, and `--fix` rewrites some:
 
 ```bash
-npx sygnal-check src            # SYG612: statics, factory imports, <Collection of="Name">, idfield
+npx sygnal-check src            # SYG612: statics, factory imports, <Collection of="Name">, idfield, <Collection className>
 npx sygnal-check --strict src   # also SYG501 (positional views), SYG504 ('A | SINK' keys), SYG506 (CHILD.select('Name'))
 npx sygnal-check --strict --fix src
 ```
@@ -23,6 +23,7 @@ npx sygnal-check --strict --fix src
 |---|---|---|
 | [String tags, `.components`](#string-tags) | import the component and use it as a JSX tag | SYG612 (dev, static) |
 | [`<Collection of="Name">`](#collection-of-name) | `<Collection of={Item}>` | SYG612 (dev, static) |
+| [The Collection's wrapper `<div>` (`<Collection className>`)](#collection-wrapper) | your own wrapping element: `<ul className="x"><Collection … /></ul>` | SYG612 (dev, static) |
 | [`CHILD.select('Name')`](#child-select-name) | `CHILD.select(Child)` | SYG612 (dev), SYG506 (`--strict --fix`) |
 | [`'ACTION \| SINK'` model keys](#pipe-keys) | `ACTION: { SINK: fn }` | SYG612 (dev), SYG504 (`--strict --fix`) |
 | [Positional view arguments](#positional-views) | `function C({ state, context, ...props })` | SYG612 (dev), SYG501 (`--strict`) |
@@ -76,6 +77,27 @@ function List() {
   return <ul><Collection of={Row} from="rows" /></ul>
 }
 ```
+
+<a id="collection-wrapper"></a>
+
+### The Collection's wrapper `<div>` (`<Collection className>`)
+
+A Collection rendered its items inside a `<div>`, which took the Collection's `className` (and `style`, `class`, `attrs`, `data` / `data-*`, `on`, `hook` and `ref`). In 6.0 the items render directly into the parent element: `<ul><Collection /></ul>` gives `ul > li`, not `ul > div > li`, and two Collections can share one parent. Put the class (or style) on your own wrapping element:
+
+<!-- docs-check: skip -->
+```jsx
+// before
+<Collection of={TaskItem} from="tasks" className="tasks" />
+```
+
+```jsx
+// after
+<ul className="tasks">
+  <Collection of={TaskItem} from="tasks" />
+</ul>
+```
+
+A `<div className="tasks">` keeps the old markup exactly. Check styles and selectors that relied on the `<div>`: a CSS rule or a test selector such as `.list > div > li`, or `:first-child` / `:nth-child` counted among the items when the Collection has siblings in its parent (they count the siblings now). The wrapper props are ignored, and reported as SYG612 in development and by `sygnal-check`. `id` and every other prop still go to each item. A `<VirtualCollection>` keeps its own scroll container (its `className`, `style` and `id` are the container's).
 
 <a id="child-select-name"></a>
 

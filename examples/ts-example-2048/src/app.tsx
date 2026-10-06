@@ -61,7 +61,9 @@ const BOARD: RootComponent<AppState, null, AppActions> = ({ state }) => {
           - this line will create a new Tile component for each item
             in the tiles array on the current state
         */}
-        <Collection of={ Tile } from="tiles" className="tile-board" />
+        <div className="tile-board">
+          <Collection of={ Tile } from="tiles" />
+        </div>
 
         {/* if the game is over, and the user won... */}
         { over && won &&

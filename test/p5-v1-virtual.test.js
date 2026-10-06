@@ -364,7 +364,7 @@ describe('jsdom with a fake layout: the window follows the scroll', () => {
   })
 
   it('the same list in a plain Collection renders every row (the comparison the window saves)', async () => {
-    function Plain() { return h(Collection, { of: Row, from: 'rows', className: 'rows' }) }
+    function Plain() { return h(Collection, { of: Row, from: 'rows' }) }
     Plain.initialState = { rows: rows(300) }
     await mount(Plain)
     expect(ids().length).toBe(300)

@@ -8,7 +8,9 @@ function App({ state }) {
         <h1>Project board</h1>
         <p className="total">Cards: {state.totalCards}</p>
       </header>
-      <Collection of={List} from="lists" className="lists" />
+      <div className="lists">
+        <Collection of={List} from="lists" />
+      </div>
     </div>
   )
 }

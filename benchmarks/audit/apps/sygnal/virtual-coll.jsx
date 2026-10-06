@@ -21,7 +21,9 @@ function App() {
         <button id="clear">Clear</button>
         <button id="jump">Jump to row 9,000</button>
       </div>
-      <Collection of={Row} from="rows" className="rows" />
+      <div className="rows">
+        <Collection of={Row} from="rows" />
+      </div>
     </div>
   )
 }

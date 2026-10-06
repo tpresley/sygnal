@@ -4,7 +4,7 @@ import List from './List'
 import Card from './Card'
 import type { AppState } from './types'
 
-const ListCollection = Collection<{ className?: string }, AppState>
+const ListCollection = Collection<{}, AppState>
 
 type AppCalculated = { totalCards: number }
 
@@ -20,7 +20,9 @@ const App: Component<AppState, {}, {}, AppActions, AppCalculated> = ({ state }) 
       <h1>Project board</h1>
       <p className="total">Cards: {state.totalCards}</p>
     </header>
-    <ListCollection of={List} from="lists" className="lists" />
+    <div className="lists">
+      <ListCollection of={List} from="lists" />
+    </div>
   </div>
 )
 

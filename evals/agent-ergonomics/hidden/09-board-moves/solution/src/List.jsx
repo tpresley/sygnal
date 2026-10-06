@@ -8,7 +8,9 @@ function List({ state }) {
         {state.title} ({state.cards.length})
       </h2>
       {state.cards.length === 0 && <p className="empty">No cards</p>}
-      <Collection of={Card} from="cards" className="cards" />
+      <div className="cards">
+        <Collection of={Card} from="cards" />
+      </div>
     </section>
   )
 }

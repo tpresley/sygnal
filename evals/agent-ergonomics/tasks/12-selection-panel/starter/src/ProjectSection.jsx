@@ -10,7 +10,9 @@ function ProjectSection({ state, context }) {
       <h2>
         {state.name} <span className="open-count">({open} open)</span>
       </h2>
-      <Collection of={TaskRow} from="tasks" filter={context.hideDone ? notDone : undefined} className="task-list" />
+      <div className="task-list">
+        <Collection of={TaskRow} from="tasks" filter={context.hideDone ? notDone : undefined} />
+      </div>
     </section>
   )
 }

@@ -109,8 +109,12 @@ export async function bugfixTests() {
     Item.model = { HIT: s => ({ ...s, n: s.n + 1 }) }
     function App({ state }) {
       return <div>
-        <Collection of={Item} from="a" className="list-a" />
-        <Collection of={Item} from="b" className="list-b" />
+        <div className="list-a">
+          <Collection of={Item} from="a" />
+        </div>
+        <div className="list-b">
+          <Collection of={Item} from="b" />
+        </div>
         <span className="sum">{state.a[0].n}/{state.b[0].n}</span>
       </div>
     }

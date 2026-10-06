@@ -11,9 +11,9 @@ import TodoItem from './TodoItem.jsx'
 
 function TodoList({ state }) {
   return (
-    <div>
+    <ul className="todo-list">
       <Collection of={TodoItem} from="items" />
-    </div>
+    </ul>
   )
 }
 
@@ -37,7 +37,6 @@ Each item in the `items` array becomes the state for one `TodoItem` instance. If
 | `from` | String or Lens | The state property (or lens) containing the array |
 | `filter` | Function | Filter function — only items returning `true` are shown |
 | `sort` | String, Object, Array, or Function | Sort items — see [Sorting](#sorting) below |
-| `className` | String | CSS class for the wrapping container |
 | `viewTransitionName` | String | A prefix such as `"card"`: each item with an `id` gets `view-transition-name: card-<id>`, so a reorder or a move animates in a [View Transition](/guide/view-transitions/#collection-items) |
 
 ## Filtering
@@ -138,13 +137,20 @@ This is the one place where returning `undefined` is intended. (In a root compon
 
 When an item is removed, its component is disposed: its `DISPOSE` action fires and its subscriptions are cleaned up. Disposal is recursive, so every component inside the item goes too, including nested Collections (removing a lane from a board disposes all the cards in that lane). See [Disposal Hooks](/advanced/disposal/).
 
-## The Wrapper Element
+## Where the Items Render
 
-The Collection renders its items inside a `<div>` container. `className` sets that container's class, so you don't need another wrapper of your own:
+A Collection has no element of its own: its items render directly into the parent element, next to any siblings. Wrap it in the element the list needs, so `<li>` items sit in a real `<ul>`:
 
 ```jsx
-<Collection of={TodoItem} from="items" className="todo-list" />
+<ul className="todo-list">
+  <li className="todo-header">Today</li>
+  <Collection of={TodoItem} from="items" />
+</ul>
 ```
+
+Two Collections can share a parent, and items keep their DOM elements (and the focus) when the array is reordered. An empty Collection renders nothing.
+
+Before 6.0 the items were wrapped in a `<div>`, and `className` (and `style`, `class`, `data-*`, ...) on `<Collection>` styled that `<div>`. Those props are now reported as [SYG612](/reference/errors/#syg612) in development and by `sygnal-check`, and are ignored: put them on your own wrapping element. See [Migrating to 6.0](/guide/migrating-to-6/#collection-wrapper).
 
 Inside a Collection item, selectors in the item's own intent see only that item's elements. A parent can't select elements inside its items ([SYG104](/reference/errors/#syg104)).
 

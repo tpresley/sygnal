@@ -34,7 +34,9 @@ function App({ state }) {
         <span className="visible">{state.visible}</span>
         <span className="bumped">{state.bumped}</span>
       </div>
-      <Collection of={Row} from="rows" filter={state.evenOnly ? even : undefined} sort={state.byScore ? BY_SCORE : 'id'} className="table" />
+      <div className="table">
+        <Collection of={Row} from="rows" filter={state.evenOnly ? even : undefined} sort={state.byScore ? BY_SCORE : 'id'} />
+      </div>
     </div>
   )
 }

@@ -18,7 +18,7 @@ useFreshDiagnostics()
 function Lane({ state }) {
   return h('section', { className: 'lane' },
     h('h2', null, state.title),
-    h(Collection, { of: Task, from: 'tasks', className: 'tasks' }),
+    h('ul', { className: 'tasks' }, h(Collection, { of: Task, from: 'tasks' })),
     state.adding
       ? h('input', { className: 'new-task-input' })
       : h('button', { className: 'add-task-btn' }, '+'))
@@ -204,7 +204,7 @@ describe('G-047 / G-041: waitForState, next and settle', () => {
     t.simulateAction('BUMP')
     await t.settle()
     expect(t.states.at(-1).items.map(i => i.n)).toEqual([1, 1, 1])
-    expect(t.html()).toBe('<ul><div><li class="item">a:1</li><li class="item">b:1</li><li class="item">c:1</li></div></ul>')
+    expect(t.html()).toBe('<ul><li class="item">a:1</li><li class="item">b:1</li><li class="item">c:1</li></ul>')
     t.dispose()
   })
 

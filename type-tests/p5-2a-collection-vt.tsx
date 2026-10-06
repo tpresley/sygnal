@@ -13,3 +13,8 @@ export const bool = <ul><Collection of={Row} from="rows" viewTransitionName={tru
 export const virtual = <VirtualCollection of={Row} from="rows" className="rows" viewTransitionName="row" />
 // @ts-expect-error a string prefix, not a function
 export const virtualFn = <VirtualCollection of={Row} from="rows" viewTransitionName={(item: any) => 'row-' + item.id} />
+
+// PLAN-5 4-H (D229): a Collection has no wrapper element; className on it is a removed form (SYG612)
+// @ts-expect-error className is not a Collection prop (put it on your own element)
+export const wrapped = <Collection of={Row} from="rows" className="rows" />
+export const own = <ul className="rows"><Collection of={Row} from="rows" /></ul>

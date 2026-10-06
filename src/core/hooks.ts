@@ -179,10 +179,11 @@ export interface Hooks {
   onSink?(inst: InstanceView, type: string | null, sink: string, value: any): void
   /**
    * R4 (04 §4 #3): a host's props when it is created and each time its owner re-renders it
-   * (`sel`: 'collection' | 'switchable'), before it renders; the Collection checks (SYG401 for a
-   * missing `from`) read them here
+   * (`sel`: the marker's, a Collection's or a VirtualCollection's), before it renders; the Collection checks (SYG401
+   * for a missing `from`) read them here. `data`: the marker's vnode data (4-H: the buckets a
+   * removed wrapper element would have had: style, class, attrs, ...)
    */
-  onHostProps?(owner: InstanceView, sel: string, props: Record<string, any>): void
+  onHostProps?(owner: InstanceView, sel: string, props: Record<string, any>, data?: Record<string, any>): void
   /** a model next(type, data, ms) was scheduled (replaces testing's NEXT_LOG debug-text parsing) */
   onNext?(inst: InstanceView, type: string, data: any, ms: number): void
   /**

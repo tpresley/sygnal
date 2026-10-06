@@ -1551,7 +1551,12 @@ export type CollectionProps<PROPS = any, STATE = any> = {
    * places, and between Collections with the same prefix. Items without an `id` get none.
    */
   viewTransitionName?: string;
-} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'viewTransitionName'>
+  /**
+   * Removed in 6.0 (D229, SYG612): a Collection has no element of its own; its items render
+   * directly into the parent. Put the class on your own element: `<ul className="x"><Collection … /></ul>`
+   */
+  className?: never;
+} & Omit<PROPS, 'of' | 'from' | 'filter' | 'sort' | 'viewTransitionName' | 'className'>
 
 /**
  * VirtualCollection props (PLAN-5 V-1): Collection's, plus the scroll container's. Pass the parent

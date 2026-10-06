@@ -5,7 +5,9 @@ function App() {
   return (
     <div className="cart">
       <h1>Your cart</h1>
-      <Collection of={CartLine} from="lines" className="lines" />
+      <div className="lines">
+        <Collection of={CartLine} from="lines" />
+      </div>
     </div>
   )
 }

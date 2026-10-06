@@ -25,13 +25,14 @@ describe('P46-P: same output, same vnode', () => {
     function Row({ state, context }) {
       return h('div', { className: context.selected === state.id ? 'row danger' : 'row' }, h('span', null, state.label))
     }
-    function App() { return h('div', null, h(Collection, { of: Row, from: 'rows', className: 'table' })) }
+    function App() { return h('div', null, h('div', { className: 'table' }, h(Collection, { of: Row, from: 'rows' }))) }
     App.initialState = { rows: [1, 2, 3].map((id) => ({ id, label: 'r' + id })), selected: 0 }
     App.context = { selected: (s) => s.selected }
     const m = mount(App, { __hooks: { onPatch: (v) => patched.push(v) } })
     await m.rt.flushed(); await ticks()
     const rows0 = [...m.el.querySelectorAll('.row')]
-    const kids = (v) => v.children[0].children
+    // root div > div.table > the Collection's fragment (4-H) > the items
+    const kids = (v) => v.children[0].children[0].children
     const before = kids(patched.at(-1))
     m.rt.setState('root', (s) => ({ ...s, selected: 2 }))
     await m.rt.flushed(); await ticks()

@@ -6,7 +6,9 @@ function App({ state }) {
   return (
     <div className="app">
       <h1>Todos</h1>
-      <Collection of={TodoItem} from="todos" className="todo-list" />
+      <div className="todo-list">
+        <Collection of={TodoItem} from="todos" />
+      </div>
       <p className="count">{left} left of {state.todos.length}</p>
     </div>
   )

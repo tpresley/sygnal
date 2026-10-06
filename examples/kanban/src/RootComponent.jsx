@@ -16,7 +16,9 @@ function RootComponent() {
         <h1>Kanban Board</h1>
         <button type="button" className="add-lane-btn">+ Add Lane</button>
       </header>
-      <Collection of={LaneComponent} from="lanes" className="lanes-container" />
+      <div className="lanes-container">
+        <Collection of={LaneComponent} from="lanes" />
+      </div>
     </div>
   )
 }
