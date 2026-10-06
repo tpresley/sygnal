@@ -169,3 +169,26 @@ describe('3-O G-505: SYG435 with each item in its own wrapper', () => {
     expect(diagnostics('SYG435')).toHaveLength(0)
   })
 })
+
+describe('3-O G-506: track leaving the drags out', () => {
+  it('UNDO mid-drag undoes the tracked ADD, not the untracked drag', async () => {
+    t = renderComponent(withUndo({ track: ['ADD'] }), { dom: 'real' }); await t.ready()
+    await act('ADD')
+    await lift(2); await key('ArrowDown')
+    expect(order(t.state)).toBe('13245')
+    expect(t.state.history.base).toBe(undefined)
+    await act('history.UNDO')
+    expect(order(t.state)).toBe('1234')
+    expect(future()).toEqual(['13245'])
+  })
+
+  it('a tracked ADD mid-drag records the order it changed (the drag so far included)', async () => {
+    t = renderComponent(withUndo({ track: ['ADD'] }), { dom: 'real' }); await t.ready()
+    await lift(2); await key('ArrowDown')
+    await act('ADD')
+    await drop()
+    expect(past()).toEqual(['1324'])
+    await act('history.UNDO')
+    expect(order(t.state)).toBe('1324')
+  })
+})

@@ -88,6 +88,8 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
       const h = hist(r), b = h.base
       // G-477: resetOn names this gesture action
       if (reset) return h.past.length || h.future.length || b ? {...r, [hk]: {...settled(h), past: [], future: []}} : none
+      // G-506: an untracked gesture is an untracked change: nothing recorded, nothing pending
+      if (!tracked) return none
       // the base holds while the value is the one the gesture's last step left (G-475: else it
       // was changed outside the gesture, e.g. restored, and the base is stale)
       const on = b && b[1] === pre[key] && b
@@ -98,7 +100,7 @@ const wrap = (model: any, o: UndoOptions, hk: string, ns: string, S = 'STATE', g
         return {...r, [hk]: same(b0, r[key]) ? settled(h) : {...h, base: [b0, r[key]]}}
       }
       if (!b) return none
-      if (!on || b[0] === r[key] || !tracked) return {...r, [hk]: settled(h)}
+      if (!on || b[0] === r[key]) return {...r, [hk]: settled(h)}
       const at = Date.now(), prev = last.get(h.past)
       const join = joins && prev && prev[0] == name && at - prev[1] < coalesceMs && h.past.length
       const nh = {...settled(h), past: join ? h.past : [...h.past, b[0]].slice(-limit), future: []}
