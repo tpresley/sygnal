@@ -158,7 +158,7 @@ App.model = {
 export default App
 ```
 
-With several declaring components, the **first one declared is the guard owner**. Declarations are kept in mount order, so it is normally the root. It gets each route first; the other declarers get it right after the guard owner's `ROUTE` entry ran, and only if that entry didn't navigate elsewhere. A route the guard redirects away from never reaches them. This all happens before the page is patched: every declarer has its first route when the app first appears (a field typed into right away keeps its text), and a navigation updates the page once. Put guards in the root's `ROUTE` entry; a guard that redirects later (after a request, for example) is not covered, and the other declarers see the route first.
+With several declaring components, the **first one declared is the guard owner**. Declarations are kept in mount order, so it is normally the root. It gets each route first; the other declarers get it right after the guard owner's `ROUTE` entry ran, and only if that entry didn't navigate elsewhere. A route the guard redirects away from never reaches them. This all happens before the page is patched: every declarer has its first route when the app first appears (a field typed into right away keeps its text), and a navigation updates the page once. Put guards in the root's `ROUTE` entry; a guard that redirects later (after a request, for example) is not covered, and the other declarers see the route first. Redirects made from `ROUTE` entries run at once (a chain like `/secret` → `/login` → `/other` is still one patch); a redirect loop doesn't hang the page: after 32 navigations in a row without a pause, each next one waits a task (in development a warning says so, once).
 
 ## Unsaved Changes
 

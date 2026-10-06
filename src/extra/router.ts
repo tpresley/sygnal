@@ -19,6 +19,7 @@ import {SET} from '../core/teardown';
  *   mount order) is the guard owner. It gets each new route at once; the other declarers get it
  *   once its ROUTE ran (in the same flush, G-565), and only if no newer navigation (a redirect
  *   from the guard's ROUTE entry, e.g. `ROUTER: { to: 'login', replace: true }`) happened.
+ *   G-571: past 32 navigations before a microtask (a redirect loop) each next one waits a task.
  * - Commands: `{ to: name, params?, query?, hash?, replace?, scroll? }`, `{ url, replace? }`,
  *   `{ back: true }`, `{ forward: true }`, `{ go: n }`, `{ block: 'ACTION' | false }`,
  *   `{ prefetch: name | url, params?, query? }` (calls options.prefetch(route, url); else a
@@ -55,6 +56,8 @@ const enc = encodeURIComponent;
 const dec = (s: string) => { try { return decodeURIComponent(s); } catch (_) { return s; } };
 const g: any = globalThis;
 const PARAM = /:(\w+)/g;
+// G-571: synchronous navigations (redirects) before a microtask, after which each waits a task
+const HOPS = 32;
 
 /** the names of the params a pattern requires */
 export const paramsOf = (pat: string) => (pat.match(PARAM) || []).map(p => p.slice(1));
@@ -117,7 +120,7 @@ export function makeRouter(options: any = {}) {
     // sender → block action; the last one set gets the attempted navigation
     const blocks = new Map<any, string>();
     const pos = new Map<string, number[]>();
-    let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0;
+    let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0, hops = 0, warned = 0;
     let cur: any = null, cancel: any = null, pendingKind = '';
 
     const newKey = () => Date.now().toString(36) + (n++);
@@ -163,10 +166,19 @@ export function makeRouter(options: any = {}) {
     const emit = (kind: string) => {
       last = L.href;
       const r = (cur = current()), list = [...declared], v = ++ver;
-      if (list.length) {
+      const send = () => {
+        if (ver != v || !list.length) return;
         reply(list[0][0], list[0][1], r);
         after(list.map(x => x[0]), () => { if (ver == v) for (const [s, a] of list.slice(1)) if (declared.get(s) == a) reply(s, a, r); });
-      }
+      };
+      // G-571: a redirect made from a ROUTE entry is delivered at once (a chain /secret → /login
+      // → /other is one flush, one patch); past HOPS of them before a microtask (a redirect
+      // loop) each next one waits a task, so the loop can't hang the page (dev: a warning, once)
+      if (!hops++) queueMicrotask(() => { hops = 0; });
+      if (hops > HOPS) {
+        if (!warned++ && g.__SYGNAL_DIAGNOSTICS__) console.warn(`[Sygnal] router: more than ${HOPS} navigations in one flush (a redirect loop?); each next one waits a task (reported once)`, r.path);
+        setTimeout(send);
+      } else send();
       if (kind != 'start') settle(kind);
     };
 

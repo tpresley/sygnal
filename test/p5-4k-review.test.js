@@ -70,3 +70,80 @@ describe('G-570: the first declarer navigates from its own disposal', () => {
     expect(seen).toEqual({ A: ['/', '/a', '/b'], B: ['/', '/a', '/b'], C: ['/', '/a', '/b'] })
   })
 })
+
+describe('G-571: a hop guard for synchronous redirects', () => {
+  it('a chain /secret → /login → /other stays synchronous and one patch, at start and on navigation', async () => {
+    window.history.replaceState(null, '', '/secret')
+    const router = makeRouter({ routes })
+    const seen = [], seenA = []
+    function B() { return h('b', null, 'b') }
+    B.route = 'ROUTE'
+    B.model = { ROUTE: (s, r) => (seen.push(r.path), s) }
+    function App() { return h('main', null, h(B, { state: 'b' })) }
+    App.route = 'ROUTE'
+    App.initialState = { b: {} }
+    const redir = { secret: 'login', login: 'other' }
+    App.model = { ROUTE: { STATE: (s, r) => (seenA.push(r.path), s), ROUTER: (s, r) => redir[r.name] ? { to: redir[r.name], replace: true } : ABORT } }
+    let patches = 0
+    const app = start(App, router)
+    app.__runtime.addHooks({ onPatch: () => patches++ })
+    await sleep(20)
+    expect(window.location.pathname).toBe('/other')
+    expect(seenA).toEqual(['/secret', '/login', '/other'])
+    expect(seen).toEqual(['/other'])
+    expect(patches).toBe(1)
+    patches = 0
+    pop('/secret')
+    // synchronously: the whole chain ran in the popstate listener
+    expect(window.location.pathname).toBe('/other')
+    expect(seen).toEqual(['/other', '/other'])
+    await sleep(20)
+    expect(patches).toBeLessThanOrEqual(1)
+  })
+
+  for (const who of ['first', 'non-first']) {
+    it(`a redirect loop in the ${who} declarer doesn't hang: it goes on a task at a time (rv4j chain)`, async () => {
+      window.history.replaceState(null, '', '/')
+      const router = makeRouter({ routes })
+      let n = 0
+      const loop = { STATE: (s) => s, ROUTER: (s, r) => (r.name == 'a' || r.name == 'b') && n++ < 200 ? { to: r.name == 'a' ? 'b' : 'a', replace: true } : ABORT }
+      function B() { return h('b', null, 'b') }
+      B.route = 'ROUTE'
+      B.model = { ROUTE: who == 'first' ? (s) => s : loop }
+      function App() { return h('main', null, h(B, { state: 'b' })) }
+      App.route = 'ROUTE'
+      App.initialState = { b: {} }
+      App.model = { ROUTE: who == 'first' ? loop : (s) => s }
+      start(App, router)
+      await sleep(20)
+      pop('/a')
+      // the popstate listener returned: a bounded number of hops ran synchronously
+      expect(n).toBeGreaterThan(10)
+      expect(n).toBeLessThan(60)
+      for (let i = 0; i < 100 && n <= 200; i++) await sleep(5)
+      expect(n).toBe(201)
+    })
+  }
+
+  it('dev: the loop is reported once (a console warning)', async () => {
+    window.history.replaceState(null, '', '/')
+    const router = makeRouter({ routes })
+    let n = 0
+    function App() { return h('main', null, 'x') }
+    App.route = 'ROUTE'
+    App.initialState = {}
+    App.model = { ROUTE: { ROUTER: (s, r) => (r.name == 'a' || r.name == 'b') && n++ < 100 ? { to: r.name == 'a' ? 'b' : 'a', replace: true } : ABORT } }
+    start(App, router)
+    await sleep(20)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    globalThis.__SYGNAL_DIAGNOSTICS__ = {}
+    try {
+      pop('/a')
+      for (let i = 0; i < 100 && n <= 100; i++) await sleep(5)
+    } finally { delete globalThis.__SYGNAL_DIAGNOSTICS__ }
+    expect(n).toBe(101)
+    const calls = warn.mock.calls.filter(c => String(c[0]).includes('router: more than'))
+    warn.mockRestore()
+    expect(calls).toHaveLength(1)
+  })
+})
