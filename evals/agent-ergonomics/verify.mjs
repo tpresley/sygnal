@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Self-check for the harness: every hidden suite must FAIL on its unmodified
-// starter and PASS once the reference solution is overlaid. Also checks that a
+// starter and PASS once the reference solution is overlaid (and once each alternative
+// reference, hidden/<task>/solution-<name>/, is overlaid instead). Also checks that a
 // copied starter does not leak hidden tests. Tasks may ship mutants
 // (hidden/<task>/mutants/<name>/, an overlay applied on top of the solution:
 // a plausible but wrong solution); the hidden suite must FAIL on each.
@@ -44,6 +45,15 @@ if (args['task-overlay'] !== undefined && !taskOverlay) {
   process.exit(2)
 }
 const convert = !!args.convert
+
+/**
+ * Names of a task's alternative reference solutions (hidden/<task>/solution-<name>/, an overlay on the
+ * starter like solution/; e.g. task 30's `solution-helpers`, the F-1 A/B's helpers shape). Each must pass.
+ */
+function listAltSolutions(arm, task) {
+  const dir = path.join(armPaths(arm).hidden, task)
+  return fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && /^solution-[\w-]+$/.test(d.name)).map((d) => d.name.slice('solution-'.length)).sort()
+}
 
 /** Names of a task's mutants (hidden/<task>/mutants/<name>/), if any. */
 function listMutants(arm, task) {
@@ -137,21 +147,23 @@ for (const arm of arms) {
     const starterSrc = path.join(armPaths(arm).tasks, task, 'starter')
     const mutants = listMutants(arm, task)
     const extra = convert && arm === 'sygnal' ? ['solution-converted'] : []
-    for (const variant of ['starter', 'solution', ...extra, ...mutants.map((m) => `mutant:${m}`)]) {
+    const alts = listAltSolutions(arm, task).map((a) => `alt:${a}`)
+    for (const variant of ['starter', 'solution', ...alts, ...extra, ...mutants.map((m) => `mutant:${m}`)]) {
       const mutant = variant.startsWith('mutant:') ? variant.slice('mutant:'.length) : null
+      const alt = variant.startsWith('alt:') ? `solution-${variant.slice('alt:'.length)}` : null
       const dir = path.join(armDir, `${task}--${variant.replace(':', '-')}`)
       fs.rmSync(dir, { recursive: true, force: true })
       copyDir(starterSrc, dir)
       if (taskOverlay && fs.existsSync(path.join(taskOverlay, task))) fs.cpSync(path.join(taskOverlay, task), dir, { recursive: true })
       const leaks = variant === 'starter' ? leakCheck(dir) : []
-      if (variant !== 'starter') applySolution(dir, arm, task)
+      if (variant !== 'starter') applySolution(dir, arm, task, alt ?? 'solution')
       if (mutant) fs.cpSync(path.join(armPaths(arm).hidden, task, 'mutants', mutant), dir, { recursive: true })
       if (variant === 'solution-converted') {
         const { files } = convertDir(dir, { inPlace: true })
         console.log(`  ${task}: solution converted to controls: ${Object.keys(files).join(', ') || 'nothing to convert'}`)
       }
       installHidden(dir, arm, task)
-      const expectedPass = variant === 'solution' || variant === 'solution-converted'
+      const expectedPass = variant === 'solution' || variant === 'solution-converted' || !!alt
       for (let run = 1; run <= reruns; run++) {
         const r = runHidden(dir)
         const good = r.pass === expectedPass && r.testsTotal > 0 && leaks.length === 0

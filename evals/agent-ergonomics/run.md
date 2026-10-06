@@ -15,7 +15,7 @@ node $EVAL/orchestrate.mjs --run v2-baseline --tasks all --trials 5 --concurrenc
 node $EVAL/orchestrate.mjs --run e7-sonnet --arms sygnal --tasks tier2 --trials 3 --model sonnet
 ```
 
-- `--tasks`: `all`, `tier1` (01–08), `tier2` (09–12), `tier3` (13–17), `ts` (18–21, the TypeScript variants), `net` (22–25, WebSocket, declarative reads, the query cache and the router), `ergo` (26–29, autosave, undo/redo, stopwatch, accessible signup), `03`, `01-05`, or a comma list. Tasks come from the task dirs, so new tasks need no code change; a task missing from one arm is skipped for that arm.
+- `--tasks`: `all`, `tier1` (01–08), `tier2` (09–12), `tier3` (13–17), `ts` (18–21, the TypeScript variants), `net` (22–25, WebSocket, declarative reads, the query cache and the router), `ergo` (26–29, autosave, undo/redo, stopwatch, accessible signup), `p5` (30–34, checkout form, command palette, Chart.js widget, virtual list, sortable list; PLAN-5), `03`, `01-05`, or a comma list. Tasks come from the task dirs, so new tasks need no code change; a task missing from one arm is skipped for that arm.
 - `--model` (default `claude-opus-5-5`) and `--effort` are passed to every trial. **Use full model ids:** the installed CLI resolves aliases itself, and an old CLI maps them to old models (CLI 2.1.90: `opus` → `claude-opus-4-6`). The model each trial actually ran on (from its init/assistant events) is recorded per record (`model`); a trial on a different model than the one meant (an alias's current model, e.g. `opus` → `claude-opus-5-5`) is not scored and stops the run unless `--allow-mixed`. The dry run shows what the alias must resolve to; `--dry-run --preflight` also asks the CLI.
 - Before the first trial, a **preflight** makes one tiny `claude -p` call with the trial environment and model (60 s limit). If it fails (auth, no answer, wrong model), nothing starts. `--no-preflight` skips it.
 - The manifest (`<trials-root>/<run>/manifest.json`) records the model, the CLI version (`claude --version`), the tarball and the git sha. A run refuses to resume with a different model, effort or tarball unless `--allow-mixed`, and warns when the CLI version changed.
@@ -163,6 +163,63 @@ node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-gs14-a --next 
 Bars (§7): `ergo` Opus pass 100% (20/20); the ergo gap ratio ≤ 1.29× (the reference's matched wall ratio; report the Δ too, since ergo tasks are longer); Haiku ergo pass rate Δ ≥ 0 against React Haiku; no tier's matched wall or pass rate worse beyond noise (with 5 trials, a tier mean moving less than about 10% is noise; name any task that moved more); `SYG7xx in final code` = 0 on task 29. D76: `learn (s)` and `peak context (k)` matched means no more than about 10% above the reference, else trim the agent docs before release. Notes for the report: since 2-D, nine starters (01, 02, 07, 09, 12, 18, 20, 21, 25) print SYG702 warnings from the vendored sygnal-check that PLAN-3's runs didn't see (G-205); SKILL.md grew from 34,343 B (PLAN-3) to about 38.9 KB, so some peak-context rise is expected. **GS-14 rule (fixed before the runs):** build the `t.screen`/`t.user` getters only if B's `first test write → end` matched mean is at least 10% below A's, the test-authoring phase isn't higher and the pass rate isn't lower, and B's kept tests actually use Testing Library (`usedTestingLibrary` ≥ 60%); otherwise the docs stand alone.
 
 Failed trials: classify them (step 5; `analysis/wiring.mjs --run <run>` prints a `score.mjs --classify` line per unclassified failure), then re-run `analyze.mjs` for that run.
+
+### PLAN-5 4-E: final eval (`p5-final`, `p5-f1-behavior`, `p5-f1-helpers`)
+
+`dev-plans/PLAN-5.md` §2 "Phase 4 eval". Run after 4-A (the `llms.txt`/SKILL.md sync) has merged, from the integration worktree after `npm run build`; every run packs the same checkout (don't rebuild between runs or while resuming one). **Each command below calls the model and costs money: run them only once the spend is approved.** Add `--dry-run` to any of them to see the plan and the estimate without running anything (never `--preflight`: that makes a `claude -p` call).
+
+- **`p5-final`**: `branch` under its own name (this build, `skills/sygnal-dev`, starter 2), like `p4-final6`.
+- **The `p5` tier** (30–34) in both arms, on Opus and Haiku (README "PLAN-5 tasks"). The React arm's libraries are in its starters (react-hook-form + zod, cmdk, Chart.js, TanStack Virtual, dnd-kit).
+- **F-1 A/B** (P5-Q5; D193: the `form` behavior is the lead and canonical recipe, the helpers stay exported as the escape hatch, and the A/B still measures both). Sygnal arm, Opus, task 30. **A** (`p5-f1-behavior`) and **B** (`p5-f1-helpers`) are `p5-final` plus a "Forms in this project" section appended to the kit's AGENTS.md (which CLAUDE.md imports, so every trial has it in context): A shows the behavior through `uses` (field state in `state.form`, `form.ADD`/`form.REMOVE`, `form.ERRORS`/`form.DONE`), B the helpers in the component's own state, intent and model (`formErrors`, `setField`, `checkForm`, `replyErrors`, `focusInvalid`, `processForm`) and says the project doesn't use the behavior. The two sections have the same layout and a neutral example (an email signup); B's is longer (2.5 vs 1.9 KB) because the shape needs more wiring. Both shapes pass task 30's suite (`hidden/30-checkout-form/solution` and `solution-helpers`, `verify.mjs` `alt:helpers`). The `p5-final` run's task-30 trials are the "no guidance" reference (the skill and `llms.txt` alone).
+- **S-14 learn time and peak context** (PLAN-5 §0.2): the PLAN-5 build against PLAN-4's 4-E runs on the same tasks; more than about 10% worse on either → trim the agent docs before release. The `p5` tier has no PLAN-4 counterpart, so the check re-runs existing tasks: at least tiers 1–2 and `ergo` (the `p46-ev-opus` set, 16 tasks), or `all` 01–29 for the full D76 comparison.
+
+```bash
+node evals/agent-ergonomics/verify.mjs --arm both            # 66 task/arm pairs, mutants, alt references (no model calls)
+# the p5 tier, both arms, both models
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-opus        --variant p5-final --arms sygnal --tasks p5 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-react       --variant p5-final --arms react  --tasks p5 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-haiku       --variant p5-final --arms sygnal --tasks p5 --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-react-haiku --variant p5-final --arms react  --tasks p5 --trials 5 --concurrency 4 --model claude-haiku-4-5-20251001
+# F-1 A/B (Sygnal, Opus, task 30)
+node evals/agent-ergonomics/orchestrate.mjs --run p5-f1-behavior --variant p5-f1-behavior --arms sygnal --tasks 30 --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p5-f1-helpers  --variant p5-f1-helpers  --arms sygnal --tasks 30 --trials 5 --concurrency 4 --model claude-opus-5-5
+# S-14: existing tasks on the PLAN-5 build, in the same run as the p5 tier (the scored p5 trials are skipped);
+# the minimum (tiers 1-2 + ergo) or the full set (01-29; extend a finished minimum run by re-running with --tasks all)
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-opus --variant p5-final --arms sygnal --tasks tier1,tier2,ergo --trials 5 --concurrency 4 --model claude-opus-5-5
+node evals/agent-ergonomics/orchestrate.mjs --run p5-final-opus --variant p5-final --arms sygnal --tasks all --trials 5 --concurrency 4 --model claude-opus-5-5
+```
+
+Spend (estimated 2026-10-05; the orchestrator's estimate uses each arm's mean over all earlier records, since tasks 30–34 have none, while the `ergo` tier's own means, $0.48–0.53 Sygnal Opus, $0.19–0.21 React Opus, $0.43 Sygnal Haiku, $0.28 React Haiku per trial, fit tasks of this size better):
+
+| Run | Trials | Orchestrator estimate | `ergo`-based estimate |
+|---|---|---|---|
+| `p5-final-opus` (p5) | 25 | $8.43 | ≈ $12.5 |
+| `p5-final-react` | 25 | $4.65 | ≈ $5.0 |
+| `p5-final-haiku` | 25 | $7.13 | ≈ $10.7 |
+| `p5-final-react-haiku` | 25 | $4.80 | ≈ $7.0 |
+| `p5-f1-behavior` + `p5-f1-helpers` | 10 | $3.38 | ≈ $6.0 (task 29's GS-14 trials: $0.61) |
+| **Tier + A/B** | **110** | **$28.4** | **≈ $41** |
+| S-14 minimum: tiers 1–2 + `ergo`, Opus | 80 | — | ≈ $28 (`p46-ev-opus`: $27.6) |
+| S-14 full: 01–29, Opus | 145 | $55 | ≈ $57 (`p4-final6-opus`: $57.4) |
+
+**Analysis.** References: `p4-final6-opus` (4-E, Opus, 01–29), `p4-final7-opus-ergo` / `p4-final7-react-ergo` (4-E2, `ergo` after the 4-G fixes), `p46-ev-opus` (the 4.6 core, tiers 1–2 + `ergo`).
+
+```bash
+# 1. The p5 tier: pass rates, and the Sygnal-React gap (Opus, then Haiku)
+node evals/agent-ergonomics/analysis/compare.mjs --base p5-final-react:react --next p5-final-opus:sygnal --tasks p5 --metrics pass,wall,learn,peakContext,costUsd
+node evals/agent-ergonomics/analysis/compare.mjs --base p5-final-react-haiku:react --next p5-final-haiku:sygnal --tasks p5 --metrics pass,wall
+# 2. F-1 A/B (and against the no-guidance task-30 trials of p5-final-opus)
+node evals/agent-ergonomics/analysis/compare.mjs --base p5-f1-behavior --next p5-f1-helpers --arms sygnal --metrics pass,wall,learn,iterations,editRounds,a11yFinal
+node evals/agent-ergonomics/analysis/compare.mjs --base p5-final-opus --next p5-f1-behavior --arms sygnal --tasks 30 --metrics pass,wall,learn
+# 3. S-14: learn time and peak context, task-matched (bar: no more than about 10% worse than PLAN-4's 4-E)
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-opus --next p5-final-opus --arms sygnal --tasks 01-23 --metrics pass,wall,learn,peakContext,costUsd
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final6-opus --next p5-final-opus --arms sygnal --tasks tier1,tier2 --metrics pass,wall,learn,peakContext
+node evals/agent-ergonomics/analysis/compare.mjs --base p4-final7-opus-ergo --next p5-final-opus --arms sygnal --tasks ergo --metrics pass,wall,learn,peakContext
+```
+
+S-14 references (matched means, Opus): on 01–23 (REPORT-v4's D76 row) `p4-final6-opus` learn **3.93 s**, peak context **35.9k**; on tiers 1–2 `p4-final6-opus` learn 2.0 s, peak context 33.6k (`p46-ev-opus`: 2.7 s, 33.5k); on `ergo` `p4-final7-opus-ergo` learn **9.8 s**, peak context **43.1k**. About 10% worse means learn above ≈ 4.3 s (01–23) or ≈ 10.8 s (`ergo`), or peak context above ≈ 39.5k (01–23) or ≈ 47.4k (`ergo`). Learn time on tiers 1–2 is about 2 s, so a 10% change there is under a second and within noise (4.6's re-run moved it +31% with nothing changed in the docs); judge learn time on 01–23 and `ergo`, and peak context everywhere. If either is over the bar, trim `llms.txt`/SKILL.md (the PLAN-5 docs rules: per-part lines go to guide pages) before release, and ask the user with the numbers.
+
+**F-1 A/B rule (proposed; the user decides before the runs):** keep the behavior as the canonical recipe (D193) unless B passes more trials, or B's matched wall is at least 10% lower with a pass rate no lower; report learn time, iterations and SYG7xx in final code for both.
 
 ### Comparing runs (task-matched, G-119)
 

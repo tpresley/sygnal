@@ -46,16 +46,26 @@ export const TS_EXTRA_DEV_DEPENDENCIES = {
 }
 
 /**
- * Extra dependencies of single task starters, on top of the arm's dependency set (PLAN-3 5-6):
- * the React arm's library for the task, as a real project would already have it installed.
+ * Extra dependencies of single task starters, on top of the arm's dependency set (PLAN-3 5-6;
+ * PLAN-5 4-E for 30-34): the React arm's library for the task, as a real project would already
+ * have it installed, and a library both arms use (zod, Chart.js).
  * verify.mjs checks each starter's package.json against the set plus its task's extras, and
  * installs the union in its shared node_modules.
  */
 export const TASK_EXTRA_DEPENDENCIES = {
-  sygnal: {},
+  // PLAN-5 4-E (p5 tier): libraries both arms would have (zod for 30's schema, Chart.js for 32).
+  sygnal: {
+    '30-checkout-form': { zod: '^4.6.5' },
+    '32-sales-chart': { 'chart.js': '^4.5.1' },
+  },
   react: {
     '24-list-detail-cache': { '@tanstack/react-query': '^5.104.1' },
     '25-router-spa': { 'react-router': '^7.18.4' },
+    '30-checkout-form': { '@hookform/resolvers': '^5.9.1', 'react-hook-form': '^7.89.0', zod: '^4.6.5' },
+    '31-command-menu': { cmdk: '^1.1.1' },
+    '32-sales-chart': { 'chart.js': '^4.5.1' },
+    '33-virtual-list': { '@tanstack/react-virtual': '^3.14.13' },
+    '34-sortable-playlist': { '@dnd-kit/core': '^6.3.1', '@dnd-kit/sortable': '^10.0.0', '@dnd-kit/utilities': '^3.2.2' },
   },
 }
 
@@ -176,8 +186,8 @@ export function installHidden(dir, arm, task) {
 }
 
 /** Overlay a task's reference solution onto a starter copy. */
-export function applySolution(dir, arm, task) {
-  const sol = path.join(armPaths(arm).hidden, task, 'solution')
+export function applySolution(dir, arm, task, name = 'solution') {
+  const sol = path.join(armPaths(arm).hidden, task, name)
   if (!fs.existsSync(sol)) throw new Error(`No reference solution at ${sol}`)
   fs.cpSync(sol, dir, { recursive: true })
 }

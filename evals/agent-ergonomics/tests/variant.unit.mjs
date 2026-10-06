@@ -354,6 +354,32 @@ test('PLAN-4 4-E variants: p4-final6 is branch; p4-gs14-b is p4-gs14-a plus the 
   assert.doesNotMatch(append['AGENTS.md'], /Step \d|Email|Password|Saved|Unsaved|wizard|signup|dialog/i)
 })
 
+test('PLAN-5 4-E variants: p5-final is branch; the F-1 pair differs only in its AGENTS.md forms section', async () => {
+  const load = (n) => loadVariant(n, { evalRoot: EVAL_ROOT })
+  const [br, fin, a, b] = await Promise.all([load('branch'), load('p5-final'), load('p5-f1-behavior'), load('p5-f1-helpers')])
+  const res = (x) => resolveVariant(x, { repoRoot: REPO_ROOT, model: 'claude-opus-5-5' })
+  const strip = ({ name, hash, file, paths, ...rest }) => rest
+  assert.deepEqual(strip(res(fin)), strip(res(br)), 'p5-final has exactly the content of branch')
+  const [ra, rb] = [res(a), res(b)]
+  assert.equal(ra.skill.contentHash, res(br).skill.contentHash)
+  assert.equal(rb.skill.contentHash, ra.skill.contentHash)
+  assert.deepEqual(rb.prompt, ra.prompt)
+  const { append: appendA, ...aRest } = a.spec.overlay.sygnal
+  const { append: appendB, ...bRest } = b.spec.overlay.sygnal
+  assert.deepEqual(bRest, aRest)
+  assert.deepEqual(Object.keys(appendA), ['AGENTS.md'])
+  assert.deepEqual(Object.keys(appendB), ['AGENTS.md'])
+  for (const text of [appendA['AGENTS.md'], appendB['AGENTS.md']]) {
+    assert.match(text, /^\n## Forms in this project\n/)
+    assert.match(text, /makeFetchDriver/)
+    // the examples must not hint at task 30's checkout (products, quantities, ZIP, promo codes, orders)
+    assert.doesNotMatch(text, /checkout|product|quantity|zip|promo|order/i)
+  }
+  assert.match(appendA['AGENTS.md'], /\.uses = \{ form: form\(/)
+  assert.doesNotMatch(appendB['AGENTS.md'], /\.uses =/)
+  for (const helper of ['formErrors', 'setField', 'checkForm', 'replyErrors', 'focusInvalid', 'processForm']) assert.match(appendB['AGENTS.md'], new RegExp(helper))
+})
+
 test('claudeIsolation + buildClaudeArgs: isolated skills per arm, MCP only where asked', () => {
   const v = { skill: { name: 'sygnal-dev' }, mcp: { arms: ['sygnal'] } }
   const mat = { skillRoot: '/run/_variant/skillroot', mcpConfig: '/run/_variant/mcp.json', mcpAllow: ['mcp__sygnal-check'] }
