@@ -773,7 +773,7 @@ function uid(): string               // this instance's id, e.g. 'u'
 function uid(name: string): string   // an id derived from it, e.g. 'u-email'
 ```
 
-Ids come from the instance's position in the tree (and its Collection item key), so they differ between instances, stay the same across renders, and match between `renderToString` and the client. Use them for `id` / `for` / `aria-*` pairs. `uid` is a reserved prop. The root is `'u'`, or `run()`'s and `renderToString()`'s `uid` option. Guide: [Labels and ids](/guide/forms/#labels-and-ids-uid).
+Ids come from the instance's position in the tree (and its Collection item key), so they differ between instances, stay the same across renders, and match between `renderToString` and the client. Use them for `id` / `for` / `aria-*` pairs. `uid` is a reserved prop. The root is `'u'`, or `run()`'s and `renderToString()`'s `uid` option. Guide: [Labels and ids](/guide/inputs/#labels-and-ids-uid).
 
 ---
 
@@ -972,7 +972,7 @@ Fields are matched by `name` inside the form element (`form` option, default `'f
 
 ## Form helpers
 
-The functions `form()` is built on, for a form written with plain actions. [Guide](/guide/forms/#without-the-behavior-the-helpers).
+The functions `form()` is built on, for a form written with plain actions. [Guide](/guide/forms-reference/#without-the-behavior-the-helpers).
 
 ```typescript
 function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>

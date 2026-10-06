@@ -59,6 +59,8 @@ export default defineConfig({
             { label: 'Parent-Child Communication', slug: 'guide/parent-child' },
             { label: 'Calculated Fields', slug: 'guide/calculated-fields' },
             { label: 'Forms', slug: 'guide/forms' },
+            { label: 'Forms Reference', slug: 'guide/forms-reference' },
+            { label: 'Inputs, Labels and Focus', slug: 'guide/inputs' },
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
             { label: 'Widgets', slug: 'guide/widgets' },

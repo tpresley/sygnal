@@ -153,8 +153,8 @@ Todos.model = {
 }
 ` },
 
-  // ── guide/forms: uid ──────────────────────────────────────────────────────
-  uidForm: { page: 'guide/forms.md', code: `function Signup({ state, uid }) {
+  // ── guide/inputs: uid ──────────────────────────────────────────────────────
+  uidForm: { page: 'guide/inputs.md', code: `function Signup({ state, uid }) {
   return (
     <form className="signup">
       <label for={uid('email')}>Email</label>
@@ -461,7 +461,7 @@ Counter.model = {
 }
 `
 
-// guide/forms "Controlled inputs" (the Testing Library sample's component), unchanged
+// guide/inputs "Controlled inputs" (the Testing Library sample's component), unchanged
 const NEW_TODO = `import { ABORT } from 'sygnal'
 
 function NewTodo({ state }) {
@@ -775,7 +775,7 @@ Todos.calculated = { left: (state) => state.todos.filter(t => !t.done).length }
   })
 })
 
-describe('guide/forms: uid()', () => {
+describe('guide/inputs: uid()', () => {
   it('label for / input id / aria-describedby match; unique per instance', async () => {
     const prelude = `const Field = (props) => Signup(props)
 function Page() { return <div><Field state="a" /><Field state="b" /></div> }

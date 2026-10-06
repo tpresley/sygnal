@@ -747,7 +747,7 @@ it('adds a todo', async () => {
 })
 ```
 
-This tests `NewTodo` from [Controlled inputs](/guide/forms/#controlled-inputs). Notes:
+This tests `NewTodo` from [Controlled inputs](/guide/inputs/#controlled-inputs). Notes:
 
 - Install the packages yourself: `npm install -D @testing-library/dom @testing-library/user-event`.
 - Role queries (`getByRole('textbox', { name: 'New todo' })`) find fields by their label, so they also check that the label is there ([accessibility](/guide/accessibility/)).

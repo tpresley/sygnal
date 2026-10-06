@@ -198,13 +198,13 @@ run(App, '#app', { initialState })
 | A custom element that builds its own light DOM (children the client doesn't render), already upgraded before start-up | Adopted, but those children are removed (they aren't the client's) and its `connectedCallback` doesn't run again. Wrap such an element in [`<ClientOnly>`](/integration/vike/#clientonly) (`sygnal/vike/ClientOnly`) so the client makes it |
 | The mount point's own attributes (`<div id="app" class="shell" data-theme="dark">`) | Kept: they aren't the app's (when the app's root element is the mount point itself, its props are written over them) |
 
-Form fields follow the usual rule for [controlled fields](/guide/forms/): a field with a `value` (or `checked`) prop shows the state, so the client's value replaces what the user typed or picked before start-up (an `input`, a `textarea` and a `select` alike); a field without one keeps it.
+Form fields follow the usual rule for [controlled fields](/guide/inputs/#controlled-inputs): a field with a `value` (or `checked`) prop shows the state, so the client's value replaces what the user typed or picked before start-up (an `input`, a `textarea` and a `select` alike); a field without one keeps it.
 
 When the server's markup differs from what the client renders (other state, a mismatched template), the page ends up as a fresh client render would make it. This also holds when the mount point holds something else before start-up (a loading spinner): it is patched into the app. The exceptions are the user's changes listed above: an uncontrolled field's value, an `open` the client doesn't render.
 
 ## Stable ids: uid
 
-[`uid()`](/guide/forms/#labels-and-ids-uid) ids come from each component's position in the tree, not from a counter, so `renderToString` and the client produce the same ids and hydration keeps the server's `for` / `id` pairs. Both start from the root `u`. When a page has more than one app, give each its own root, and the same one on both sides:
+[`uid()`](/guide/inputs/#labels-and-ids-uid) ids come from each component's position in the tree, not from a counter, so `renderToString` and the client produce the same ids and hydration keeps the server's `for` / `id` pairs. Both start from the root `u`. When a page has more than one app, give each its own root, and the same one on both sides:
 
 ```jsx
 // server

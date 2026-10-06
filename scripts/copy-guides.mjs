@@ -23,7 +23,7 @@ export const GUIDES = [
   'resources', 'http',
   'persistence', 'timers', 'element-commands', 'behaviors', 'accessibility', 'advanced/undo',
   // PLAN-5
-  'widgets', 'web-components', 'forms', 'browser-sources', 'virtual-collections', 'adapters',
+  'widgets', 'web-components', 'forms', 'forms-reference', 'inputs', 'browser-sources', 'virtual-collections', 'adapters',
   'drag-and-drop', 'integration/ssr', 'advanced/error-boundaries',
   'ui/overview', 'ui/dialog', 'ui/popover', 'ui/tooltip', 'ui/tabs', 'ui/accordion', 'ui/disclosure',
   'ui/toaster', 'ui/menu', 'ui/select', 'ui/combobox',

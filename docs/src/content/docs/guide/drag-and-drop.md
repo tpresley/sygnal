@@ -85,7 +85,7 @@ The behavior listens on the host's root element, so it hears the presses and key
 | `list` | Pointer drags: the list the item would land in (several lists) |
 | `mode` | `'pointer'`, `'keyboard'` or `null` |
 | `message` | The announcement to render in a live region: picked up, moved, dropped, cancelled |
-| `helpId` | A [`uid()`](/guide/forms/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the first focus, press or key inside the host |
+| `helpId` | A [`uid()`](/guide/inputs/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the first focus, press or key inside the host |
 
 `helpId` is set when the host is first used, not when it starts, so nothing is written into the state of a host that is never touched (a Collection item's state is its parent's data). A handle has its description by the time it is focused. The server renders no `helpId`, and neither does the client's first render, so hydration matches.
 

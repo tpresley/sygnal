@@ -23,7 +23,7 @@ Every reducer receives four arguments:
 1. `state`: the current component state (including [calculated fields](/guide/calculated-fields/))
 2. `data`: the value emitted by the action's stream in intent
 3. `next`: a function that dispatches another action (see [Chaining Actions](#chaining-actions-with-next))
-4. `props`: the props the parent passed, plus `context`, `children`, `slots` and [`uid`](/guide/forms/#labels-and-ids-uid)
+4. `props`: the props the parent passed, plus `context`, `children`, `slots` and [`uid`](/guide/inputs/#labels-and-ids-uid)
 
 ```jsx
 Item.model = {
@@ -57,7 +57,7 @@ MyComponent.model = {
 }
 ```
 
-Returning the state object the reducer received means the same thing: no state is emitted and nothing re-renders, so `(state, x) => x ? { ...state, x } : state` is a no-op when `x` is empty. The docs use `ABORT` because it says so explicitly. (Before 6.0, returning `state` produced a new state and strict mode flagged it as SYG502; that rule is retired.) One exception to "nothing re-renders": an action triggered by typing in a field (an `input` or `change` event) re-renders its component, so a controlled field that the reducer refused shows the state's value again (see [Controlled Inputs](/guide/forms/#controlled-inputs)).
+Returning the state object the reducer received means the same thing: no state is emitted and nothing re-renders, so `(state, x) => x ? { ...state, x } : state` is a no-op when `x` is empty. The docs use `ABORT` because it says so explicitly. (Before 6.0, returning `state` produced a new state and strict mode flagged it as SYG502; that rule is retired.) One exception to "nothing re-renders": an action triggered by typing in a field (an `input` or `change` event) re-renders its component, so a controlled field that the reducer refused shows the state's value again (see [Controlled Inputs](/guide/inputs/#controlled-inputs)).
 
 Because the same object means "no change", a reducer that changes the state in place and returns it has no effect. In dev, Sygnal reports that as [SYG222](/reference/errors/#syg222). Return a new object:
 
