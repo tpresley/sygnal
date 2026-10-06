@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; running 3-L, 3-M (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; running 3-M, 3-N, 3-O (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -247,6 +247,12 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-501 | review 3-I | Low | diagnostics | SYG149 retry chains run when `root.elm` never appears (mock DOM, replaced transition vnode, disposed apps); check disposed / stop instead of checking stale `elm` | → 3-N |
 | G-502 | review 3-I | Low | virtual | Under ancestor `zoom < 1`, the clamped SYG430 fallback window is in viewport px vs unzoomed rows (blank half) | → 3-N |
 | G-503 | review 3-I | Low | tests | The `p53i-` duplicate-name console allowlist entry applies to every browser test, not just its own | → 3-N |
+| G-504 | review 3-L | Med | sortable | `back()` keys restore on array provenance (`made`): any other list write during a keyboard drag (item edit via `map`, Collection item self-update, ADD, server push) makes END/INIT/live leave the item half-moved (regresses G-474's earlier restore). Restore unless the item is no longer where the drag left it. Confirmed | → 3-O |
+| G-505 | review 3-L | Med | diagnostics | SYG435 groups by `parentElement`: items each in their own wrapper (`<li><div data-id>`, table cells, Collection item roots) are never reported (probe: sorted Collection, 0 reports). Confirmed | → 3-O |
+| G-506 | review 3-L | Low/Med | undo | `before()` ignores `track`: with `track: ['ADD']`, UNDO/REDO mid-drag undoes/replays an untracked drag. Confirmed | → 3-O |
+| G-507 | review 3-L | Low/Med | undo | `coalesceMs` without `coalesce` now merges separate drops within the window (two drags → one step). Require `coalesce` to name a gesture action. Confirmed | → 3-O |
+| G-508 | review 3-L | Low | undo | REDO mid-drag records the half-moved order as its own step (unlike a recorded action); `limit` exceeded after it. Confirmed | → 3-O |
+| G-509 | review 3-L | Low | sortable / undo | `made` survives UNDO (END may rearrange a state the user undid to); `same()` identity-only for custom `undoStep` behaviors with object values. Plausible | → 3-O |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -284,6 +290,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — 3-I merged (clean; G-457…G-462; core unchanged). Behaviour: non-modal + `cancelable:false` emits no CANCEL on Escape; prevented/IME Escape emits none; SYG149 checks rendered elements on the DOM. G-488, G-489. Review of 3-I running. Gates after 3-I: only the known G-484 vitest failure (3,424 passed); browser 330/329/329; recipes 17×3; core 41,968 B.
 - 2026-10-05 — Review of 3-K: G-490…G-497 (G-490, G-492, G-497 added to 3-M; rest to a later pass 3-N).
 - 2026-10-05 — Review of 3-I: G-498…G-503 (one high: CSP-unsafe style restore in `grows()`). 3-L reported (G-473…G-479; coordinator accepts G-476 docs-only and G-473 folding the drag into the interleaved entry). 3-N started (G-488, G-489, G-491, G-493…G-496, G-498…G-503).
+- 2026-10-05 — 3-L merged (1 additive conflict); gates: only the known G-484 vitest failure (3,441 passed), browser 330/329/329, recipes 17×3, core 41,968 B. Review of 3-L: G-504…G-509. 3-O started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
