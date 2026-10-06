@@ -108,14 +108,16 @@ export function skillReadsOfCall(call, skill) {
   }
   if (call.name !== 'Bash') return out
   const cmd = String(i.command ?? '')
-  if (!/skills\//.test(cmd) && !/component-patterns\.md|SKILL\.md/.test(cmd)) return out
+  if (!/skills\//.test(cmd) && !/component-patterns\.md|SKILL\.md|references\/[\w.-]+\.md/.test(cmd)) return out
   // One command can touch several skill files; split by segment.
   const segs = cmd.split(/&&|;|\n/)
   let anyGrep = false
   const ranges = {}
   const push = (rel, r) => (ranges[rel] ??= []).push(r)
   for (const seg of segs) {
-    const rel = relSkill(seg.match(/[^\s'"]*(?:component-patterns|SKILL)\.md/)?.[0] ?? '', skill) ?? (/component-patterns\.md/.test(seg) ? 'references/component-patterns.md' : /SKILL\.md/.test(seg) ? 'SKILL.md' : null)
+    // any skill file named in the segment (multi-file skills, e.g. PLAN-5 4-S references/*.md)
+    const named = [...seg.matchAll(/[^\s'"|<>]*\.md\b/g)].map((m) => relSkill(m[0], skill)).find(Boolean)
+    const rel = named ?? (/component-patterns\.md/.test(seg) ? 'references/component-patterns.md' : /SKILL\.md/.test(seg) ? 'SKILL.md' : null)
     if (!rel || !skill.files[rel]) continue
     const f = skill.files[rel]
     let m
@@ -131,7 +133,7 @@ export function skillReadsOfCall(call, skill) {
   }
   if (anyGrep) {
     // grep -n output: line numbers apply to whichever skill file the grep named.
-    const rel = /component-patterns\.md/.test(cmd) ? 'references/component-patterns.md' : 'SKILL.md'
+    const rel = [...cmd.matchAll(/[^\s'"|<>]*\.md\b/g)].map((m) => relSkill(m[0], skill)).find(Boolean) ?? (/component-patterns\.md/.test(cmd) ? 'references/component-patterns.md' : 'SKILL.md')
     const nums = grepLineNumbers(res).filter((n) => n <= (skill.files[rel]?.lines ?? 0))
     if (nums.length) for (const r of toRanges(nums)) push(rel, r)
     else if (!ranges[rel]) ranges[rel] = []

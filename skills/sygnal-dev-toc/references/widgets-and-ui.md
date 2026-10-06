@@ -1,0 +1,8 @@
+# Widgets, web components and UI parts
+
+`defineWidget` (third-party widgets: date picker, chart, editor), web components, `sygnal/ui` parts (dialog, popover, tooltip, tabs, menu, select, combobox, toasts), `fromReact` / `fromZag`, drag to reorder (`sortable`), `VirtualCollection`, `browser` sources, `lazy`.
+
+- **Third-party widget** (date picker, chart, editor): `defineWidget({ tag, mount(el, props, dispatch), update, unmount, events, commands })` is a tag: `<DatePicker className="due" value={state.due} />`, `DOM.select('.due').events('pick').detail()` (never `DOM.select(DatePicker)`), `OPEN: { ELEMENT: { open: '.due' } }`; tests `t.widget('.due').dispatch('pick', d)`. A web component is an element: render its tag, select its class. `node_modules/sygnal/dist/guide/widgets.md`, `web-components.md`
+- Dialog, popover, tooltip, tabs, accordion, disclosure, toasts → `sygnal/ui` behaviors + `<Toaster />`; Menu/Select/Combobox → `sygnal/ui/menu|select|combobox` widget tags (events `select` / `value-change`); one React or Zag component → `fromReact` / `fromZag`. `node_modules/sygnal/dist/guide/ui/overview.md`, `adapters.md`
+- Drag to reorder → `uses = { sort: sortable({ from, item, handle }) }` + a live region; long list (~1k+ rows) → `<VirtualCollection>` with a bounded-height class, jump with `ELEMENT { scrollToIndex | scrollToId }`; watch visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()`; `lazy(…, { when: 'visible' })`. `node_modules/sygnal/dist/guide/drag-and-drop.md`, `virtual-collections.md`, `browser-sources.md`
+- Chart/editor/grid/carousel library → `defineWidget` tag; table → TanStack in the view; i18n → `.context.t` + `persist`: https://sygnal.js.org/recipes/overview/
