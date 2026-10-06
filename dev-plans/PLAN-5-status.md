@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; running 3-M, 3-N (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
+**State:** Phase 2: 2-B, 2-V, 2-U, 2-A merged; 2-Z and 2-R merged; 2-S, 2-T merged (Phase 2 complete); Phase 3: 3-R, 3-D merged; 3-F merged; 3-G merged; 3-H merged; 3-I, 3-J, 3-K merged; 3-O merged; running 3-M, 3-N, 3-P (2-A/2-S review fixes, SYG148–149). Known flaky test `p5-1s-forms` (fixed in 2-R).
 
 ## 0-A baseline (2026-10-05)
 
@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D219 | 2026-10-05 | Coordinator (after three review rounds found restore bugs, G-474 → G-504 → G-511): a cancelled or interrupted keyboard drag (Escape, END on unmount, INIT/live) restores **only if the list is exactly the array the drag's last step produced** (identity, per instance), by putting back the snapshot taken at lift; if anything else changed the list, the item stays where it is and the drag just ends (announced). No index math against foreign data. Undo is told internally that the gesture ended without completing (fixes G-510) | Coordinator |
 | D218 | 2026-10-05 | `defineBehavior` options from 3-H stay public as named: `persist: false` (the behavior's slice is never saved/restored by `persist()`) and `undoStep: ['ACTION']` (intermediate actions form one gesture; `undo()` records one entry when the named action completes it, none if cancelled). Coordinator: G-454's half rule applies to every item of another list; `helpId` set on first interaction (G-453); SYG435's contiguous-run heuristic accepted | User + coordinator |
 | D217 | 2026-10-05 | Hydration (G-456): fix in PLAN-5 as workstream 3-J, first trying the cheaper design (build the hydration vnode from the DOM with the client vnode as template, dropping snabbdom's `toVNode`); spend up to ≈320 B of core only if the cuts don't work | User |
 | D216 | 2026-10-05 | Coordinator: the recipe tests (`npm run test:recipes -- --install --browser`) join the coordinator's merge gate, not `npm test` (≈150 MB of devDependencies, ~1 min per engine); the SYG705 icon-helper rule (3-G, G-433) stays a warning — it reports only literal icon names / icon-package imports without a literal label | Coordinator |
@@ -253,7 +254,13 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-507 | review 3-L | Low/Med | undo | `coalesceMs` without `coalesce` now merges separate drops within the window (two drags → one step). Require `coalesce` to name a gesture action. Confirmed | → 3-O |
 | G-508 | review 3-L | Low | undo | REDO mid-drag records the half-moved order as its own step (unlike a recorded action); `limit` exceeded after it. Confirmed | → 3-O |
 | G-509 | review 3-L | Low | sortable / undo | `made` survives UNDO (END may rearrange a state the user undid to); `same()` identity-only for custom `undoStep` behaviors with object values. Plausible | → 3-O |
-| G-510 | 3-O report | Low | undo / sortable | Lift, move, a recorded action (ADD), then Escape (or END/INIT restore): undo can't tell the restore from a move, `base` stays pending, the next change records the half-moved order. Needs an internal "gesture ended without completing" signal from the behavior to `undo()` (not public API). `it.todo` in the 3-O matrix | → later pass |
+| G-510 | 3-O report | Low | undo / sortable | Lift, move, a recorded action (ADD), then Escape (or END/INIT restore): undo can't tell the restore from a move, `base` stays pending, the next change records the half-moved order. Needs an internal "gesture ended without completing" signal from the behavior to `undo()` (not public API). `it.todo` in the 3-O matrix | → 3-P |
+| G-511 | review 3-O | Med | sortable | END/INIT/live restore fires whenever the item happens to sit at `origin.at`: re-applies undone drops (UNDO×2 then HIDE → 2134), mutates replaced data (`[5,6,2]` → 526), reorders another action's order. Confirmed | → 3-P (D219) |
+| G-512 | review 3-O | Med | sortable | Escape always moves by `origin.index`: after UNDO×2 mid-drag it redoes the undone drop; after REDO it leaves a pending base that later records the cancelled drag. Confirmed | → 3-P (D219) |
+| G-513 | review 3-O | Low/Med | sortable / docs | Restore after an insert/removal before the item lands one place off or not at all; docs promise "whatever else changed". Confirmed | → 3-P (D219) |
+| G-514 | review 3-O | Low | undo | A gesture's completing action commits another gesture behavior's pending base (two `undoStep` behaviors on one key) | → 3-P |
+| G-515 | review 3-O | Low | docs | Multi-list sortable + `undo({ key: 'a' })` duplicates items on UNDO (one key tracked); document tracking a common parent key | → 3-P |
+| G-516 | review 3-O | Low | sortable + persist | `persist({ sync: true })`: another tab's mid-drag slice can now move the item in this tab. Plausible | → 3-P |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | → 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | → 2-S |
@@ -293,6 +300,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-I: G-498…G-503 (one high: CSP-unsafe style restore in `grows()`). 3-L reported (G-473…G-479; coordinator accepts G-476 docs-only and G-473 folding the drag into the interleaved entry). 3-N started (G-488, G-489, G-491, G-493…G-496, G-498…G-503).
 - 2026-10-05 — 3-L merged (1 additive conflict); gates: only the known G-484 vitest failure (3,441 passed), browser 330/329/329, recipes 17×3, core 41,968 B. Review of 3-L: G-504…G-509. 3-O started.
 - 2026-10-05 — 3-O merged (clean; G-504…G-509; restore rule "item still where the last key left it" (`origin.at`); 22-run gesture matrix; undo +48 B, sortable +16 B, core 0); gates: only the known G-484 vitest failure (3,478 passed), browser 330/329/329, recipes 17×3, core 41,968 B. G-510.
+- 2026-10-05 — Review of 3-O: G-511…G-516 (no high). D219 (restore only the drag's own array). 3-P started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
