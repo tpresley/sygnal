@@ -45,6 +45,7 @@ const ERR_FIX = 'See the attached error'
 
 export interface StartOptions {
   mountPoint?: string | Element
+  /** no effect (3-Q: the DOM driver flattens fragments) */
   fragments?: boolean
   useDefaultDrivers?: boolean
   onError?: (error: any, info: any) => void
@@ -509,9 +510,9 @@ export interface Started {
  */
 export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts: StartOptions = {}): Started {
   const app = new App(opts)
-  const {mountPoint = '#root', fragments = true, useDefaultDrivers = true} = opts
+  const {mountPoint = '#root', useDefaultDrivers = true} = opts
   const all: Record<string, any> = {
-    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any, {snabbdomOptions: {experimental: {fragments}}} as any), LOG: logDriver, __m: () => mountPoint}),
+    ...(useDefaultDrivers && {EVENTS: eventBusDriver, DOM: makeDOMDriver(mountPoint as any), LOG: logDriver, __m: () => mountPoint}),
     ...drivers,
   }
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the app's

@@ -89,14 +89,16 @@ const svgTags: Record<string, number> = {
 export const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
-  // G-485: `u`, an insert hook of the user's own without a postpatch (hydration makes its
-  // element again, as for any such hook)
-  if (existing.insert && !existing.postpatch) hook.u = 1
+  // G-485 / G-521: a chained hook function is marked `s` (hydration adopts an element whose
+  // chained insert has a postpatch: a ref, autoFocus, a widget); `u`, an insert hook of the
+  // user's own under it (its element is made again so that insert runs, as an unchained one is)
+  if (existing.insert && !existing.insert.s) hook.u = 1
   for (const name in hooks) {
-    hook[name] = (...args: any[]) => {
+    const f: any = hook[name] = (...args: any[]) => {
       if (existing[name]) existing[name](...args)
       hooks[name](...args)
     }
+    f.s = 1
   }
   data.hook = hook
 }
@@ -217,8 +219,9 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   const prefix = dash > -1 && key.slice(0, dash)
   // G-152: data-task-id → dataset key taskId (a hyphenated dataset key makes the DOM throw)
   if (prefix && modules[prefix] !== undefined) return [modules[prefix] || prefix, prefix == 'data' ? key.slice(dash + 1).replace(/-([a-z])/g, (_, c) => c.toUpperCase()) : key.slice(dash + 1), 1]
-  // G-492: on a custom element (c 2), form and list are its own properties (Lit, sygnal/element)
-  if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && /^(form|list)$/.test(key))) return ['attrs', key, prefix == 'aria' && 4]
+  // G-492: on a custom element (c 2), list is its own property (Lit, sygnal/element). G-519: form
+  // stays an attribute (a form-associated element's `form` is a getter; the attribute links it)
+  if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4]
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
@@ -316,7 +319,7 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     const t = tagBits(sel)
     let plain = !isComponent && is.string(sel) && !(t & 5)
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
-    // G-492: a custom element (bit 8) routes form and list as props, in its own cache
+    // G-492: a custom element (bit 8) routes list as a prop, in its own cache
     const d = data ? sanitizeData(data, modules, isComponent ? croutes : t & 8 ? xroutes : routes, isComponent || t & 8 && 2) : {}
     if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn
     const key = k !== undefined ? k : data ? data.key : undefined

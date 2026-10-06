@@ -3,7 +3,7 @@ import {init, Module, Options as SnabbdomOptions, VNode} from './snabbdom';
 import xs, {Stream, Listener} from 'xstream';
 import {MainDOMSource} from './MainDOMSource';
 import {VNodeWrapper} from './VNodeWrapper';
-import {getValidNode, checkValidContainer, POKE} from './utils';
+import {getValidNode, checkValidContainer, POKE, flat} from './utils';
 import defaultModules from './modules';
 import {IsolateModule} from './IsolateModule';
 import {EventDelegator} from './EventDelegator';
@@ -79,46 +79,42 @@ function makeDOMReady$(): Stream<null> {
 // class or id (G-486: `h('p.card')`, the Portal placeholder; patching never corrects them), and
 // one whose hook expects a new element (G-485): a create or init hook (a thunk), an insert hook
 // without a postpatch (a Transition's enter, a measured row, the toaster region, a lazy()
-// placeholder, a user's hook; `u`: the user's own when a ref or autoFocus added a postpatch)
-const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: any): any => {
-  // (a hole, `{cond && <X/>}`, has no node: snabbdom skips it)
+// placeholder), and any insert hook of the user's own (G-521: with a postpatch too; `u` when a
+// ref, autoFocus or widget chained theirs after it; `s` marks a function chainHooks made)
+const adopt = (e: any, v: any): any => {
+  // (a hole, `{cond && <X/>}`, has no node: snabbdom skips it. G-481: no fragment either, they
+  // are flat by now: their nodes pair with their children in their parent's run)
   const c = (v.children || []).filter((z: any) => z), out: any[] = [];
-  for (let j = 0, x: any; (x = P.n) && !(f && j >= c.length);) {
+  for (let j = 0, x = e.firstChild, y: any; x; x = y) {
     const w = c[j], t = x.nodeType, d = w?.data || {}, k = d.hook;
     // a node that doesn't match stays in its place under a selector no vnode has: snabbdom makes
     // the client's node before it and removes it (the lists stay aligned: no other node is paired)
     let n: any = {sel: '', data: {}, elm: x};
-    // G-481: a fragment takes as many of the next nodes as it has children (its own fragments
-    // flat in the same run), so the siblings after it stay paired
-    if (w && !w.sel && w.children) {
-      const a = T.length;
-      n = {...w, children: adopt(e, w, T, P, 1)};
-      n.elm = Object.assign(new DocumentFragment(), {parent: e, firstChildNode: T[a], lastChildNode: T[T.length - 1]});
-    } else {
-      P.n = x.nextSibling;
-      if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
-      else if (t == 1 && x.localName == w?.sel && !(k && (k.create || k.init || k.u || k.insert && !k.postpatch))) {
-        const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
-        o.class = 'className';
-        for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
-        // G-482: a data-* attribute the client sets as an attribute isn't in the dataset (the
-        // dataset module would remove it): it goes, and the attributes module writes it again.
-        // G-487: `open` (a <details> the user opened) stays when the client doesn't render it
-        for (const {name: m, value: y} of [...x.attributes])
-          /^data-/.test(m) ? m in a && x.removeAttribute(m)
-          : m in a ? at[m] = y
-          : m == 'open' ? 0
-          : m in o && !d.ns ? pr[o[m]] = y
-          : x.removeAttribute(m);
-        // G-484: a textarea's value no longer follows its text, which goes
-        x.localName == 'textarea' && (x.value = x.value);
-        const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
-        n = {...w, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x};
-      } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
-        x.remove();
-        continue;
-      }
-      T.push(x);
+    // G-520: client text vnodes next to each other (`Hello, {name}!`) are one server text node:
+    // it is split by the client's text when that is its start, so the nodes after stay paired
+    t == 3 && c[j + 1]?.text != null && !c[j + 1].sel && w?.text && x.data.startsWith(w.text) && x.splitText(w.text.length);
+    y = x.nextSibling;
+    if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
+    else if (t == 1 && x.localName == w?.sel && !(k && (k.create || k.init || k.u || k.insert && !(k.postpatch && k.insert.s)))) {
+      const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
+      o.class = 'className';
+      for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
+      // G-482: a data-* attribute the client sets as an attribute isn't in the dataset (the
+      // dataset module would remove it): it goes, and the attributes module writes it again.
+      // G-487: `open` (a <details> the user opened) stays when the client doesn't render it
+      for (const {name: m, value: y} of [...x.attributes])
+        /^data-/.test(m) ? m in a && x.removeAttribute(m)
+        : m in a ? at[m] = y
+        : m == 'open' ? 0
+        : m in o && !d.ns ? pr[o[m]] = y
+        : x.removeAttribute(m);
+      // G-484: a textarea's value no longer follows its text, which goes
+      x.localName == 'textarea' && (x.value = x.value);
+      const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
+      n = {sel: w.sel, key: w.key, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x};
+    } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
+      x.remove();
+      continue;
     }
     out.push(n);
     j++;
@@ -164,17 +160,21 @@ function makeDOMDriver(
     let pl: any, cur: any;
     const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
     const off = () => cur?.removeEventListener(POKE, poke);
+    const rep = options.reportSnabbdomError || defaultReportSnabbdomError;
     const rootElement$ = firstRoot$
       .map(
-        firstRoot =>
+        (firstRoot, P = (o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v)) =>
           xs.merge(
             xs
               .merge(rememberedVNode$.endWhen(sanitation$), sanitation$)
-              .map(vnode => vnodeWrapper.call(vnode))
+              .map(vnode => flat(vnodeWrapper.call(vnode)))
               // the first step gives the root its scope; the second, the app's first patch,
               // adopts the markup in it (G-456). The root keeps its own attributes (G-466)
               .startWith(r)
-              .fold((o: any, v: any) => patch(o == r ? {...r, sel: v.sel, key: v.key, children: adopt(firstRoot, v)} : o, v), {...r, data: {}})
+              // A patch that throws (a hook, a module) is reported, and the DOM as it is now is
+              // adopted for this vnode, as on the first patch: the app keeps updating (the stream
+              // erred and the app stopped updating before)
+              .fold((o: any, v: any) => { try { return P(o, v) } catch (e) { rep(e); return P(r, v) } }, {...r, data: {}})
               .drop(1)
               .map(unwrapElementFromVNode)
               .startWith(firstRoot as any)
@@ -188,9 +188,7 @@ function makeDOMDriver(
       .endWhen(sanitation$)
       .remember();
 
-    rootElement$.addListener({
-      error: options.reportSnabbdomError || defaultReportSnabbdomError,
-    });
+    rootElement$.addListener({error: rep});
 
     const delegator = new EventDelegator(rootElement$, isolateModule);
 

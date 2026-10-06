@@ -115,3 +115,43 @@ export function sameData(a: any, b: any): boolean {
   for (const _ in b) n--;
   return !n;
 }
+
+// G-517 / G-518 / G-522: snabbdom never sees a fragment. Before each patch, a fragment's children
+// (through nested ones) are spliced into its parent's children, so they are diffed, moved and
+// adopted at hydration as the parent's own (snabbdom's fragment bounds went stale: an insert into
+// one landed at the parent's end, a keyed one never moved, a later patch threw NotFoundError).
+// The children of a keyed fragment (a Collection item, a component's root) take its key and their
+// own key, else their tag and its count among them: they move with it and stay apart from another
+// item's. A vnode with no fragment below is kept by identity, as is one already flattened (a
+// cached subtree), so snabbdom still skips unchanged subtrees (a keyed child's copy is new when
+// its parent's is; its data and children are the same objects, so its patch is cheap). A copy (a
+// parent with new children, a child with a new key) inherits from its vnode and writes its
+// element there too, so the app's vnodes get their `elm` as before (testing and diagnostics read
+// it); it keeps its own (a vnode object reused under another key: the old copy removes its own).
+const flatOf = new WeakMap<any, any>();
+const copy = (y: any, o: any, m?: any) => Object.create(y, {...o, elm: {get: () => m, set: (e: any) => y.elm = m = e}});
+export const flat = (v: any): any => {
+  if (!v || v.$p || !v.children) return v;
+  let r = flatOf.get(v);
+  if (!r) {
+    const o: any[] = [];
+    let d = 0;
+    const put = (c: any[], k?: string, n: any = {}) => {
+      for (const x of c) {
+        if (x && !x.sel && x.children) d = 1, x.key == null ? put(x.children, k, n) : put(x.children, [k] + x.key + '/');
+        else {
+          let y = flat(x);
+          y !== x && (d = 1);
+          if (k && y) {
+            const j = k + (y.key ?? y.sel + '#' + (n[y.sel] = -~n[y.sel]));
+            y = copy(y, {key: {value: j}});
+          }
+          o.push(y);
+        }
+      }
+    };
+    put(v.children);
+    flatOf.set(v, r = d ? copy(v, {children: {value: o}}) : v);
+  }
+  return r;
+};

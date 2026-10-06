@@ -1697,6 +1697,7 @@ export type AppErrorHook = (error: any, info: AppErrorInfo) => void
 
 export type RunOptions = {
   mountPoint?: string;
+  /** @deprecated No effect since 6.0: fragments always work (the DOM driver splices them into their parent) */
   fragments?: boolean;
   useDefaultDrivers?: boolean;
   /**
@@ -2771,7 +2772,7 @@ export interface HeadValue {
  * PLAN-4 GS-12: a DOM driver that runs the patches asked for by a component's
  * `viewTransitions` static inside `document.startViewTransition()`:
  * `run(App, { DOM: makeViewTransitionDOMDriver('#root') })`. It is `makeDOMDriver(mountPoint,
- * options)` with run()'s defaults (fragments on), plus the hook: one action's patches (a
+ * options)` plus the hook: one action's patches (a
  * Collection move is several) are folded into one transition (20 ms quiet window, capped at
  * 200 ms); `prefers-reduced-motion: reduce` and browsers without the API patch at once.
  */
