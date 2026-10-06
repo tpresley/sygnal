@@ -40,6 +40,9 @@ const EXPECTED_CONSOLE_ERRORS = [
   // PLAN-5 3-I G-460: the transition SYG149 warns of (Chromium logs the duplicate name)
   { test: 'G-460: SYG149 ignores a list in a display: none panel, and reports it once the panel is shown',
     match: [/Unexpected duplicate view-transition-name: p53i-/] },
+  // PLAN-5 3-N G-489: the skipped transition (no unhandled rejection; Chromium logs the name)
+  { test: 'G-489: a View Transition skipped for duplicate names leaves no unhandled rejection',
+    match: [/Unexpected duplicate view-transition-name: p53n-/] },
 ];
 
 /** G-503: the runTest name of the test running (the last one started) */
