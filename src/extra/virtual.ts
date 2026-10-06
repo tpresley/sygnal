@@ -502,7 +502,9 @@ VirtualCollection.__sygnalControl = (props: any, children: any) => {
   hosts[SEL] ||= make
   const {key, children: c, ...p} = props || {}
   const kids = children?.length ? children : c ? [].concat(c) : NONE
-  // (G-493: `m`, the marker, as the pragma's markers carry it: SYG669 tells it from a plain element)
-  return {sel: SEL, data: {props: p, m: VirtualCollection}, children: kids, text: undefined, elm: undefined, key}
+  // (G-493: `m`, a marker mark as the pragma's marker vnodes carry (there, the function): SYG669
+  // tells it from a plain element. Not the function itself: the self-reference keeps the module
+  // in bundles that don't use it)
+  return {sel: SEL, data: {props: p, m: 1}, children: kids, text: undefined, elm: undefined, key}
 }
 VirtualCollection.componentName = SEL
