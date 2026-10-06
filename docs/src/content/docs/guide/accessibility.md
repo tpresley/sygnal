@@ -221,7 +221,7 @@ An `aria-*` attribute set to `true` renders `"true"`. Set to `false`, it renders
 
 ## Ids with uid()
 
-Labels and ARIA references need ids, and ids must be unique on the page, which a literal id isn't once the component is rendered twice. Every view gets a `uid` prop: `uid()` is an id for this component instance, and `uid('email')` an id derived from it. They are stable across renders and the same on the server and the client, so they are safe with [SSR](/integration/ssr/#stable-ids-uid). See [Forms](/guide/forms/#labels-and-ids-uid) for a full example. The checks understand `uid()`: SYG702 and SYG708 match `for={uid('email')}` with `id={uid('email')}`.
+Labels and ARIA references need ids, and ids must be unique on the page, which a literal id isn't once the component is rendered twice. Every view gets a `uid` prop: `uid()` is an id for this component instance, and `uid('email')` an id derived from it. They are stable across renders and the same on the server and the client, so they are safe with [SSR](/integration/ssr/#stable-ids-uid). See [Forms](/guide/inputs/#labels-and-ids-uid) for a full example. The checks understand `uid()`: SYG702 and SYG708 match `for={uid('email')}` with `id={uid('email')}`.
 
 ## Suppressing a finding
 
@@ -256,4 +256,4 @@ A backdrop that closes a dialog on click is a common case: the dialog itself is 
 
 - [Error Reference](/reference/errors/#syg701): every SYG7xx code, its cause and its fix
 - [Diagnostics](/guide/diagnostics/#the-static-checker): running `sygnal-check`
-- [Forms](/guide/forms/): labels, controlled inputs and focus
+- [Forms](/guide/forms/): validation and server errors; [Inputs, Labels and Focus](/guide/inputs/): labels, controlled inputs and focus

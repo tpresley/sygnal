@@ -38,14 +38,16 @@ Each file is complete on its topic (1–5 KB). Read the whole file (`Read`, no o
 
 **The task text is the spec**: copy labels, messages and punctuation verbatim (`Search failed.` keeps its period) and implement it; don't stop to explain or ask. Re-read the task itself, not a summary of it (such as the arguments you passed to this skill).
 
+**Read the shipped guide before coding these, and use its API** (`node_modules/sygnal/dist/guide/`; never hand-roll them): a form with validation → `form` behavior, `forms.md`; chart, date picker, editor → `defineWidget`, `widgets.md`; long list → `<VirtualCollection>`, `virtual-collections.md`; drag to reorder → `sortable`, `drag-and-drop.md`; dialog, popover, tabs, menu, select, toast → `sygnal/ui`, `ui/overview.md`.
+
 **Add a feature** (in this order):
 1. **State**: add the fields to the root `initialState` (children get state from their parent).
 2. **Intent**: name the action and its trigger (`DOM.click('.save')`, `EVENTS.select('X')`, `CHILD.select(Child)`).
 3. **Model**: one entry per action; one function per sink (`STATE`, `EVENTS`, `PARENT`, `EFFECT`, drivers).
 4. **View**: render from `state` / `context`; add the class names the intent selects.
-5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (references/testing.md). Run `npm test`, then `npx --no-install sygnal-check --strict` (Vike: `npx --no-install sygnal-check pages --strict`; a dev dependency of `create-sygnal-app` projects, elsewhere `npm i -D sygnal-check`; not installed? rely on the tests' runtime diagnostics).
+5. **Test**: `renderComponent(C, { strict: true })` + `simulateEvent` + `t.next` + `expectNoDiagnostics()` (references/testing.md). Run `npm test`, then `npx --no-install sygnal-check --strict` (Vike: `pages`; not installed? `npm i -D sygnal-check`, or rely on the tests' runtime diagnostics).
 
-**Debugging loop**: run `npm test` and read every `[Sygnal SYGnnn]` line; `npx --no-install sygnal-check explain SYGnnn` says what it means and how to fix it. Unclear? `t.actions` shows whether an action ran and what it produced (references/testing.md); check the wiring with `t.inspect()` or `npx --no-install sygnal-check --graph --json` (triggers, selectors' `matched` / `isolationHit`, EVENTS). Fix, re-run, then `--strict` until clean. A silent no-op (a click does nothing, no error) is almost always a §3 wiring rule.
+**Debugging loop**: run `npm test` and read every `[Sygnal SYGnnn]` line; `npx --no-install sygnal-check explain SYGnnn` says what it means and how to fix it. Unclear? `t.actions` (references/testing.md); check the wiring with `t.inspect()` or `npx --no-install sygnal-check --graph --json` (triggers, selectors' `matched` / `isolationHit`, EVENTS). Fix, re-run, then `--strict` until clean. A silent no-op (a click does nothing, no error) is almost always a §5 wiring rule.
 
 ## 2. Mental model and component anatomy
 - A component is a pure view function plus static properties: `.intent` (WHEN: sources → named action streams), `.model` (WHAT: action → one reducer per sink), `.initialState`.

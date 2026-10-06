@@ -17,6 +17,7 @@
 // 'tooling-friction' (HARNESS-GUARD) on its own.
 import { basePhase, learnTopic, isVerifyCall, isEditCall, isRefused, verifyOutcome, commandOutcome, errorSignature, uncataloguedCause, bashTestShare } from './classify.mjs'
 import { matchResult, frictionIds, CATALOG_BY_ID } from '../catalog.mjs'
+import { isSygnalSkillCall } from './skill.mjs'
 
 /**
  * @param parsed   output of parseTranscriptLines
@@ -127,7 +128,7 @@ export function buildTimeline(parsed, { arm = null, reportIds = [] } = {}) {
         charge({ ...v, name: call.name, input: call.input }, dt)
       } else charge(call, dt)
       handleResult(call)
-      if (call.name === 'Skill') afterSkill = true
+      if (isSygnalSkillCall(call)) afterSkill = true
     } else {
       // text / thinking
       if (e.msgHasTool) {

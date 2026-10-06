@@ -3,6 +3,7 @@
 // detection reuse lib/transcript.mjs, the harness's own counter, so iteration
 // counts here match transcript-stats.mjs.
 import { isRunCommand, isEditCommand, splitCommands, bashEdits, bashEditWeights } from '../../lib/transcript.mjs'
+import { isSygnalSkillCall } from './skill.mjs'
 
 export const PHASES = ['orient', 'learn', 'implement', 'verify', 'test-authoring', 'debug', 'tooling-friction', 'think', 'report', 'other']
 
@@ -67,7 +68,7 @@ function removesTestFile(cmd) {
 export function basePhase(call) {
   const name = call.name
   const i = call.input ?? {}
-  if (name === 'Skill') return 'learn'
+  if (name === 'Skill') return isSygnalSkillCall(call) ? 'learn' : 'other'
   if (name === 'SubagentHandback') return 'report'
   if (META_TOOLS.has(name)) return 'other'
   if (EDIT_TOOLS.has(name)) return isTestPath(i.file_path ?? i.notebook_path) ? 'test-authoring' : 'implement'
@@ -188,7 +189,7 @@ export function uncataloguedCause(signature) {
 // What was the agent trying to learn? Matched against the call's input text
 // (paths, grep patterns, commands). First match wins.
 export const LEARN_TOPICS = [
-  ['skill-load', (c) => c.name === 'Skill'],
+  ['skill-load', (c) => isSygnalSkillCall(c)],
   ['testing-utility', /testing\.ts|renderComponent|simulateAction|mockDOMSource|waitForState|@testing-library/],
   ['vite-plugin', /vite\/plugin|plugin\.mjs|dist\/vite|vite\.mjs|__sygnal/],
   ['run-mount-api', /function run\b|mountPoint|extra\/run\.ts/],

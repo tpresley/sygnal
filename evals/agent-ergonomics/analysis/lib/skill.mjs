@@ -12,6 +12,24 @@ import path from 'node:path'
 
 export const SKILL_DIR_DEFAULT = path.join(process.env.HOME ?? '', '.claude', 'skills', 'sygnal-dev')
 
+/** The skill name a `Skill` tool call loads ('sygnal-dev', or a built-in such as 'run'); null if unnamed. */
+export const skillNameOf = (call) => {
+  const i = call?.input ?? {}
+  const n = i.skill ?? i.command ?? i.name
+  return n == null ? null : String(n).replace(/^\//, '').trim()
+}
+
+/**
+ * PLAN-5 4-D: whether a call reads the Sygnal skill. Only a `Skill` call that loads a sygnal-* skill
+ * counts (the CLI's bundled skills, e.g. `run` or `dataviz`, are other tools, not skill reads). An
+ * unnamed `Skill` call (older transcripts) counts, as before.
+ */
+export const isSygnalSkillCall = (call) => {
+  if (call?.name !== 'Skill') return false
+  const n = skillNameOf(call)
+  return n == null || /^sygnal/i.test(n)
+}
+
 /** Markdown sections of a file: [{ heading, level, start, end }] (1-based, inclusive). */
 export function sections(text) {
   const lines = String(text).split('\n')
@@ -88,6 +106,7 @@ export function skillReadsOfCall(call, skill) {
   const i = call.input ?? {}
   const res = call.result?.text ?? ''
   if (call.name === 'Skill') {
+    if (!isSygnalSkillCall(call)) return out
     const rel = Object.keys(skill.files).find((f) => /^SKILL\.md$/.test(f))
     if (rel) out.push({ file: rel, ranges: [[1, skill.files[rel].lines]], bytes: skill.files[rel].bytes, how: 'skill-tool' })
     return out
@@ -205,6 +224,7 @@ export function skillUsage(parsed, skill) {
   }
   return {
     skillInvoked: parsed.skillInvoked,
+    otherSkills: parsed.otherSkills ?? [],
     skillBytes: Object.values(files).reduce((s, f) => s + f.bytes, 0),
     files,
     sections: sectionSet,

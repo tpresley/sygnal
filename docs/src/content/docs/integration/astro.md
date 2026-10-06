@@ -55,7 +55,7 @@ export default Counter
 
 A prop named `initialState` overrides the component's `.initialState` for that island. `state`, `context`, `children`, `slots` and `uid` are reserved view arguments, so don't use them as prop names.
 
-A prop named `uid` sets the island's [`uid()`](/guide/forms/#labels-and-ids-uid) root, on the server and on the client. Every island starts from the same root (`u`), so two islands of the same component on one page would render the same ids; give each its own:
+A prop named `uid` sets the island's [`uid()`](/guide/inputs/#labels-and-ids-uid) root, on the server and on the client. Every island starts from the same root (`u`), so two islands of the same component on one page would render the same ids; give each its own:
 
 ```astro
 <Signup client:load uid="signup-top" />

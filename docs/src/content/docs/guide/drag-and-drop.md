@@ -60,6 +60,8 @@ TaskList.model = {
 
 The behavior listens on the host's root element, so it hears the presses and keys that bubble out of the Collection items (which are isolated components): nothing is wired per item. The items read the drag state through [context](/guide/context/).
 
+The announcements in `state.sort.message` are English defaults ("Dropped Write tests at position 2 of 3.", "Reorder cancelled. Write tests is back at position 1 of 3."). When a spec gives its own wording, set it with the `messages` option: `sortable({ from: 'tasks', messages: { cancel: (label, n, m) => 'Cancelled. ' + label + ' is back at position ' + n + ' of ' + m + '.' } })`; the others keep their defaults.
+
 ### Options
 
 | Option | Default | |
@@ -85,7 +87,7 @@ The behavior listens on the host's root element, so it hears the presses and key
 | `list` | Pointer drags: the list the item would land in (several lists) |
 | `mode` | `'pointer'`, `'keyboard'` or `null` |
 | `message` | The announcement to render in a live region: picked up, moved, dropped, cancelled |
-| `helpId` | A [`uid()`](/guide/forms/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the first focus, press or key inside the host |
+| `helpId` | A [`uid()`](/guide/inputs/#labels-and-ids-uid) id for the instructions element, unique to this host (two lists on a page get two ids); `null` until the first focus, press or key inside the host |
 
 `helpId` is set when the host is first used, not when it starts, so nothing is written into the state of a host that is never touched (a Collection item's state is its parent's data). A handle has its description by the time it is focused. The server renders no `helpId`, and neither does the client's first render, so hydration matches.
 

@@ -37,6 +37,7 @@ import { aggregate } from './lib/aggregate.mjs'
 import { processKills } from '../lib/transcript.mjs'
 import { renderMarkdown } from './lib/report.mjs'
 import { wiringStats } from './lib/wiring.mjs'
+import { autoFailureCategory } from './lib/failure.mjs'
 import { testWindowSeconds, a11yFinalCount, usedActionLog } from './lib/finalmeasures.mjs'
 import os from 'node:os'
 
@@ -245,6 +246,10 @@ for (const [trial, agentId] of mapRows) {
   }
   // i. wiring-class measures (PLAN-4 1-E): SYG104/110/124 hits while working, in the final code, and failures they explain
   if (arm === 'sygnal') rec.wiring = wiringStats({ calls: parsed.calls, scored: rec.scored, check: rec.sygnalCheck })
+  // j. PLAN-5 4-D: a failure category for a failed trial (manual one first, else from the final code's diagnostics)
+  rec.failureAuto = autoFailureCategory(rec.scored, rec.sygnalCheck)
+  // the CLI's bundled skills (`run`, `dataviz`): not skill reads, but worth seeing (PLAN-5 4-D)
+  if (rec.skill.otherSkills.length) rec.flags.push(`other skills invoked: ${[...new Set(rec.skill.otherSkills)].join(', ')}`)
   rec.finalReportChars = parsed.finalReport.length
   if (rec.attributedShare < 0.9) rec.flags.push(`attributed share ${rec.attributedShare}`)
   records.push(rec)

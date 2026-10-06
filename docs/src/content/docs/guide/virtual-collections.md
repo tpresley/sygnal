@@ -5,6 +5,8 @@ description: VirtualCollection renders only the rows in view of a long list, wit
 
 A `<Collection>` makes a component for every item. With thousands of rows that is slow to create and heavy to keep. `<VirtualCollection>` takes the same props and makes components only for the rows that are in view, plus a few beyond each edge. Scrolling moves that window: rows that leave it are disposed, rows that enter it are made.
 
+`<VirtualCollection>` is itself the scroll container: it renders a `div` (`role="list"` by default) that scrolls. Put the class with the bounded height, `role` and `aria-label` on it (`<VirtualCollection className="people" aria-label="People" … />`), and don't wrap it in a scrolling `<ul>` or `<div>` of your own: it would grow with its rows, only a viewport's height of them would render, and [SYG430](/reference/errors/#syg430) reports it. SYG430 means: fix the height of the VirtualCollection's own class.
+
 ```jsx
 // Row.jsx
 export function Row({ state }) {

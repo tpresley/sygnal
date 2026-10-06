@@ -74,7 +74,7 @@ function MyComponent({ state, className, children, context }) {
 | `children` | Child elements passed between the component's opening and closing tags |
 | `slots` | Named content regions passed with `<Slot>` (see [Slots](/advanced/slots/)) |
 | `context` | Values from ancestor components' `.context` definitions |
-| `uid` | `uid(name?)` returns a stable id string unique to this component instance, for `id` / `for` / `aria-*` (see [Forms](/guide/forms/#labels-and-ids-uid)) |
+| `uid` | `uid(name?)` returns a stable id string unique to this component instance, for `id` / `for` / `aria-*` (see [Forms](/guide/inputs/#labels-and-ids-uid)) |
 | Individual props | Props from the parent (e.g., `title`, `className`) are spread at the top level |
 
 > Props are **not** nested under a `props` key. If a parent renders `<MyChild title="Hello" />`, the child destructures `title` directly: `function MyChild({ title, state }) { ... }`.
