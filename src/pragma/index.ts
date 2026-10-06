@@ -89,9 +89,6 @@ const svgTags: Record<string, number> = {
 export const chainHooks = (data: any, hooks: Record<string, (...args: any[]) => void>): void => {
   const existing = data.hook || {}
   const hook = { ...existing }
-  // G-485: `u`, an insert hook of the user's own without a postpatch (hydration makes its
-  // element again, as for any such hook)
-  if (existing.insert && !existing.postpatch) hook.u = 1
   for (const name in hooks) {
     hook[name] = (...args: any[]) => {
       if (existing[name]) existing[name](...args)
@@ -244,6 +241,9 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
     else if (b) bucket(out, b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
     else out[key] = val
   }
+  // G-485 / G-521: `u`, the user's own insert hook (hydration makes its element again so it runs;
+  // Sygnal's ref / autoFocus hooks, chained after it, keep the copy's flag)
+  if (out.hook?.insert) out.hook = { ...out.hook, u: 1 }
   const props = out.props
   if (props && (props.autoFocus || props.autoSelect)) applyFocusProps(out)
   if (data.ref) applyRefProps(out, data.ref)

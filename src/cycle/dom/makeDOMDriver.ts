@@ -79,7 +79,7 @@ function makeDOMReady$(): Stream<null> {
 // class or id (G-486: `h('p.card')`, the Portal placeholder; patching never corrects them), and
 // one whose hook expects a new element (G-485): a create or init hook (a thunk), an insert hook
 // without a postpatch (a Transition's enter, a measured row, the toaster region, a lazy()
-// placeholder, a user's hook; `u`: the user's own when a ref or autoFocus added a postpatch)
+// placeholder; `u`: a user's own insert hook, G-521, with a postpatch too)
 const adopt = (e: any, v: any, T: any[] = [], P: any = {n: e.firstChild}, f?: any): any => {
   // (a hole, `{cond && <X/>}`, has no node: snabbdom skips it)
   const c = (v.children || []).filter((z: any) => z), out: any[] = [];
