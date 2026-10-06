@@ -63,6 +63,20 @@ test('skill sections and ranges', () => {
   assert.equal(r4[0].file, 'SKILL.md')
 })
 
+test('multi-file skill: Bash reads of any references/*.md are attributed (PLAN-5 4-S)', () => {
+  const file = { text: MD, lines: MD.split('\n').length, bytes: MD.length, sections: sections(MD) }
+  const skill = { files: { 'SKILL.md': file, 'references/http.md': file, 'references/testing.md': file } }
+  const r1 = skillReadsOfCall({ name: 'Bash', input: { command: 'cat /u/.claude/skills/sygnal-dev/references/http.md' }, result: { text: 'x' } }, skill)
+  assert.deepEqual(r1.map((r) => [r.file, r.ranges]), [['references/http.md', [[1, file.lines]]]])
+  // relative path after a cd into the skill dir; two files in one command
+  const r2 = skillReadsOfCall({ name: 'Bash', input: { command: 'cat references/testing.md && sed -n 5,9p references/http.md' }, result: { text: 'x' } }, skill)
+  assert.deepEqual(r2.map((r) => [r.file, r.ranges]), [['references/testing.md', [[1, file.lines]]], ['references/http.md', [[5, 9]]]])
+  const r3 = skillReadsOfCall({ name: 'Bash', input: { command: 'grep -n "One" /u/.claude/skills/sygnal-dev/references/testing.md' }, result: { text: '5:## One' } }, skill)
+  assert.deepEqual(r3.map((r) => [r.file, r.ranges]), [['references/testing.md', [[5, 5]]]])
+  // a project file is not a skill file
+  assert.deepEqual(skillReadsOfCall({ name: 'Bash', input: { command: 'cat README.md' }, result: { text: 'x' } }, skill), [])
+})
+
 test('selfReportedIssues keeps framework complaints, drops change descriptions', () => {
   const rep = `Every task row now has a Pin button.
 
