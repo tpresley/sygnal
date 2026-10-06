@@ -3,7 +3,7 @@ import type { Component, IntentSources, ActionsOf } from 'sygnal'
 import TaskItem from './TaskItem'
 import type { AppState } from './types'
 
-const TaskCollection = Collection<{ className?: string }, AppState>
+const TaskCollection = Collection<{}, AppState>
 
 const intent = ({ CHILD }: IntentSources<AppState>) => ({
   PIN: CHILD.select(TaskItem).map((request) => request.id),
@@ -15,7 +15,9 @@ const App: Component<AppState, {}, {}, ActionsOf<typeof intent>> = ({ state }) =
     <div className="app">
       <h1>Tasks</h1>
       <p className="pinned">{pinned ? `Pinned: ${pinned.title}` : 'Nothing pinned'}</p>
-      <TaskCollection of={TaskItem} from="tasks" className="task-list" />
+      <div className="task-list">
+        <TaskCollection of={TaskItem} from="tasks" />
+      </div>
     </div>
   )
 }

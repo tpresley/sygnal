@@ -6,7 +6,9 @@ function App({ state }) {
     <div className="app">
       <h1>Tasks</h1>
       <p className="pinned">Nothing pinned</p>
-      <Collection of={TaskItem} from="tasks" className="task-list" />
+      <div className="task-list">
+        <Collection of={TaskItem} from="tasks" />
+      </div>
     </div>
   )
 }

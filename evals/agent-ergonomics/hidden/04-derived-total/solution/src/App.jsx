@@ -7,7 +7,9 @@ function App({ state }) {
   return (
     <div className="cart">
       <h1>Your cart</h1>
-      <Collection of={CartLine} from="lines" className="lines" />
+      <div className="lines">
+        <Collection of={CartLine} from="lines" />
+      </div>
       <p className="total">Total: ${cartTotal(state.lines).toFixed(2)}</p>
     </div>
   )

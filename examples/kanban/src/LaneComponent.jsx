@@ -28,7 +28,9 @@ function LaneComponent({ state, context }) {
           <button type="button" className="delete-lane-btn">×</button>
         </div>
       </div>
-      <Collection of={TaskCard} from="tasks" className="lane-drop-zone" data={{ laneId: state.id }} />
+      <div className="lane-drop-zone" data={{ laneId: state.id }}>
+        <Collection of={TaskCard} from="tasks" />
+      </div>
       <div className="lane-footer">
         {state.isAddingTask
           ? <input

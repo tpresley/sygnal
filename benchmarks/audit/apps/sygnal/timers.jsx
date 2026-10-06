@@ -30,7 +30,9 @@ function App({ state }) {
         <button id="update">Update every 10th</button>
         <span className="bumped">{state.bumped}</span>
       </div>
-      <Collection of={Row} from="rows" className="table" />
+      <div className="table">
+        <Collection of={Row} from="rows" />
+      </div>
     </div>
   )
 }

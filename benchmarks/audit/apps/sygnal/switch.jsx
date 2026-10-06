@@ -12,8 +12,8 @@ function Counter({ state }) {
 Counter.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
 Counter.model = { INC: (state) => ({ ...state, n: state.n + 1 }) }
 
-function PageA() { return <section className="pa"><Collection of={Counter} from="a" className="counters" /></section> }
-function PageB() { return <section className="pb"><Collection of={Counter} from="b" className="counters" /></section> }
+function PageA() { return <section className="pa"><div className="counters"><Collection of={Counter} from="a" /></div></section> }
+function PageB() { return <section className="pb"><div className="counters"><Collection of={Counter} from="b" /></div></section> }
 const make = (k) => Array.from({ length: 500 }, (_, i) => ({ id: i + 1, n: k }))
 function App({ state }) {
   return (

@@ -3,13 +3,15 @@ import type { Component } from 'sygnal'
 import TaskItem from './TaskItem'
 import type { AppState } from './types'
 
-const TaskCollection = Collection<{ className?: string }, AppState>
+const TaskCollection = Collection<{}, AppState>
 
 const App: Component<AppState> = () => (
   <div className="app">
     <h1>Tasks</h1>
     <p className="pinned">Nothing pinned</p>
-    <TaskCollection of={TaskItem} from="tasks" className="task-list" />
+    <div className="task-list">
+      <TaskCollection of={TaskItem} from="tasks" />
+    </div>
   </div>
 )
 
