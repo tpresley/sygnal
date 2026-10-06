@@ -1066,8 +1066,8 @@ export interface SortableState {
   helpId: string | null;
   /** Internal: the pointer press before the threshold (`n`: the instance that started it) */
   press: { id: string; x: number; y: number; n: number } | null;
-  /** Internal: where the item started (`n`: a keyboard drag's instance) */
-  origin: { list: string; index: number; n?: number } | null;
+  /** Internal: where the item started (`n`: a keyboard drag's instance; `at`: [list, index] where its last keyboard step left it) */
+  origin: { list: string; index: number; n?: number; at?: [string, number] } | null;
 }
 export interface SortableOptions {
   /** The host state key of the list; an array of keys allows moves between lists (each container marked `data-list="<key>"`) */

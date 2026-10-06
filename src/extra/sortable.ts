@@ -23,11 +23,12 @@
  *             unique per host instance, null until the first focus, press or key inside the
  *             host (G-448: nothing is written at startup). The server renders none, nor does
  *             the client's first render, so hydration matches (G-453); a focused handle has it
- *   press, origin: internal (the pointer press before the threshold; where the item started)
+ *   press, origin: internal (the pointer press before the threshold; where the item started, and
+ *             `at`: [list, index] where a keyboard drag's last step left it)
  * Actions: sort.PRESS, MOVE, UP, CANCEL (pointer), KEY (keyboard), INIT (the start), HELP, END
- * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back if its lists are
- * still the ones the drag made, 3-L G-474; INIT and a press or key over drag state another
- * instance started do the same, G-475), and
+ * (unmounted: a drag in progress is cancelled, a keyboard-moved item goes back where it was lifted
+ * if it is still where the drag's last step left it, 3-O G-504; INIT and a press or key over drag
+ * state another instance started do the same, G-475), and
  * sort.DROPPED ({ id, list, index, fromList, fromIndex }) once per completed move: the host adds
  * an entry for it to save the order.
  *
@@ -73,10 +74,6 @@ const S = String
 const FIELDS = 'button,a,input,select,textarea,label,[contenteditable]'
 // the events a sortable host has taken: an outer (nested) sortable leaves them alone
 const claimed = new WeakSet<any>()
-// the lists a move made (3-L G-474): a keyboard drag that ends without a drop puts its item back
-// only into the lists it left (data another action replaced is left as it is). Module-wide, so a
-// host made again (HMR) still knows them
-const made = new WeakSet<any>()
 // a selector usable as one compound (`.task`, `li[data-x]`), else wrapped in :is()
 const one = (s: string) => /^[\w.#\-[\]="']+$/.test(s) ? s : `:is(${s})`
 
@@ -124,15 +121,15 @@ export const sortable = (options: any = {}): any => {
     dst.splice(Math.max(0, Math.min(to, dst.length)), 0, f.item)
     out[f.list] = src
     out[l] = dst
-    made.add(src).add(dst)
     return out
   }
   // a keyboard drag ended without a drop (unmounted, or drag state this instance didn't start:
-  // restored, synced, a host made again): its item goes back where it started when the lists
-  // are still the ones the drag made (G-474 / G-475), else the data is left as it is
+  // restored, synced, a host made again): its item goes back where it started when it is still
+  // where the drag's last step left it (3-O G-504: other changes to the list, an item edit or an
+  // ADD, don't matter), else (replaced, undone, moved by another action) the data is left as it is
   const back = (st: any, s: any) => {
-    const f = s.mode == 'keyboard' && find(st, s.dragging), o = s.origin
-    return f && o && made.has(st[f.list]) && made.has(st[o.list]) ? move(st, f, o.list, o.index) : st
+    const o = s.origin, a = o?.at, f = s.mode == 'keyboard' && a && find(st, s.dragging)
+    return f && f.list == a[0] && f.index == a[1] ? move(st, f, o.list, o.index) : st
   }
   const put = (st: any, k: string, s: any) => ({...st, [k]: {...st[k], ...s}})
   // where a pointer drop would land: over an item (in its own list: before it, after it when
@@ -340,10 +337,10 @@ export const sortable = (options: any = {}): any => {
             const to = lists[lists.indexOf(f.list) + side]
             if (!to) return ABORT
             const out = move(st, f, to, f.index), n = find(out, s.dragging)!
-            return put(out, k, {message: msg.move(l, n.index + 1, n.size, to)})
+            return put(out, k, {origin: {...o, at: [to, n.index]}, message: msg.move(l, n.index + 1, n.size, to)})
           }
           const to = key == prevKey ? f.index - 1 : key == nextKey ? f.index + 1 : key == 'Home' ? 0 : key == 'End' ? f.size - 1 : -1
-          return to < 0 || to >= f.size || to == f.index ? ABORT : put(move(st, f, f.list, to), k, {message: msg.move(l, to + 1, f.size)})
+          return to < 0 || to >= f.size || to == f.index ? ABORT : put(move(st, f, f.list, to), k, {origin: {...o, at: [f.list, to]}, message: msg.move(l, to + 1, f.size)})
         }),
         // keep focus on the moved item's handle (its node may move or be re-created)
         ELEMENT: focus,
