@@ -2,6 +2,8 @@
 // - G-498: <VirtualCollection>'s "grows" probe puts the ancestors' overflow-anchor back through the
 //   CSSOM: under a CSP that blocks inline styles nothing is wiped or left behind, no violation; a
 //   scroller inside a shadow tree the list is slotted into gets anchoring off too.
+// - G-500: a list patch that moves the focus out of a row's shadow root to another element keeps
+//   it there (the focus restore needs the document's active element to be body / none).
 // - G-489: a View Transition the browser skips (duplicate view-transition-names) leaves no
 //   unhandled promise rejection.
 import { run, VirtualCollection, Collection, makeViewTransitionDOMDriver } from 'sygnal'
@@ -107,5 +109,47 @@ export async function fixesTestsP5_3N() {
       await wait(200)
       assert(rejections.length == 0, `unhandled rejections: ${rejections.join()}`)
     } finally { document.startViewTransition = real; window.removeEventListener('unhandledrejection', on); app.dispose() }
+  })
+
+  // ── G-500 ────────────────────────────────────────────────────────────
+  if (!customElements.get('p53n-field')) {
+    customElements.define('p53n-field', class extends HTMLElement {
+      connectedCallback() {
+        if (this.shadowRoot) return
+        this.attachShadow({ mode: 'open' }).innerHTML = '<button class="inner">inner</button>'
+      }
+    })
+  }
+  // the row's own input takes the focus while the list is patched (its update hook)
+  function GrabRow({ state }) {
+    return (
+      <div className="row" style={{ height: '32px' }}>
+        <span className="lbl">{state.label}</span><p53n-field />
+        <input className="grab" value={String(!!state.grab)} hook={{ update: (_, v) => { if (state.grab) v.elm.focus() } }} />
+      </div>
+    )
+  }
+  function Grab() {
+    return <div><VirtualCollection of={GrabRow} from="rows" className="rows" estimateSize={32} style={{ height: '320px' }} /></div>
+  }
+  Grab.model = { GRAB: (s) => ({ ...s, rows: s.rows.map((r, i) => i == 2 ? { ...r, grab: true } : r) }) }
+
+  await runTest('G-500: focus moved out of a row\'s shadow root during the list\'s patch stays where it went', async () => {
+    Grab.initialState = { rows: rows(200) }
+    const { id, el } = mountOnScreen()
+    const app = run(Grab, {}, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('[data-index="2"] p53n-field'))
+      await frame(); await wait(30)
+      const host = el.querySelector('[data-index="2"] p53n-field'), inner = host.shadowRoot.querySelector('.inner')
+      inner.focus()
+      await frame()
+      assert(document.activeElement === host && host.shadowRoot.activeElement === inner, 'focus in the shadow root')
+      app.__runtime.dispatch('root', 'GRAB')
+      const grab = el.querySelector('[data-index="2"] .grab')
+      await waitFor(() => grab.value == 'true')
+      await frame(); await wait(30)
+      assert(document.activeElement === grab, `focus: ${document.activeElement?.className || document.activeElement?.tagName}, in the root: ${host.shadowRoot.activeElement?.className}`)
+    } finally { app.dispose(); clearStage() }
   })
 }

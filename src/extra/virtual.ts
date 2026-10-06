@@ -401,10 +401,12 @@ export class VirtualHost extends CollectionHost {
         // G-462: none when the cached vnode is patched again (snabbdom calls no postpatch then:
         // nothing would let go of the element); in a shadow root in a row, its focused element
         prepatch: (o: any, y: any) => { const a = o !== y && act(this.el); this.fa = a && this.el.contains(a) ? deep(a) : null },
+        // G-500: "went nowhere" is the document's active element (body or none): in a shadow root,
+        // the root's own is none when the focus went to an element outside it
         postpatch: (_: any, y: any) => {
-          const a = this.fa, b = act(a)
+          const a = this.fa, b = a?.ownerDocument.activeElement
           this.fa = null
-          if (a?.isConnected && a !== b && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
+          if (a?.isConnected && (!b || b === a.ownerDocument.body)) a.focus({preventScroll: true})
           y.elm !== this.el && this.attach(y.elm)
         },
         destroy: () => this.detach(),
