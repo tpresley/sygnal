@@ -9,6 +9,11 @@ import { run } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { ABORT } from '../src/shared.js'
+import { pres } from '../src/core/registry.ts'
+import '../src/transition.ts'
+import { IsolateModule } from '../src/cycle/dom/IsolateModule.ts'
+import { init, h as sh } from '../src/cycle/dom/snabbdom.ts'
+import modules from '../src/cycle/dom/modules.ts'
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 let apps = []
@@ -145,5 +150,75 @@ describe('G-571: a hop guard for synchronous redirects', () => {
     const calls = warn.mock.calls.filter(c => String(c[0]).includes('router: more than'))
     warn.mockRestore()
     expect(calls).toHaveLength(1)
+  })
+})
+
+describe('G-573: the Transition per-item cache and IsolateModule notes', () => {
+  const fade = (props) => ({ sel: 'transition', data: { props }, children: [{ sel: 'collection', data: { props: {} }, children: [] }] })
+
+  it('Transition: no global symbol per name and duration; still one copy per name and duration', () => {
+    const v = h('li', { key: 'k' }, 'a'), keys = Object.keys(v)
+    const name = 'p4k-' + Math.random().toString(36).slice(2)
+    const c = pres.transition(fade({ name, duration: 30 })).data.tr(v)
+    expect(Symbol.for(name + ' 30')).not.toBe(Object.getOwnPropertySymbols(v)[0])
+    for (const k of Object.getOwnPropertySymbols(v)) expect(Symbol.keyFor(k)).toBeUndefined()
+    expect(Object.keys(v)).toEqual(keys)
+    expect(pres.transition(fade({ name, duration: 30 })).data.tr(v)).toBe(c)
+    const d = pres.transition(fade({ name, duration: 40 })).data.tr(v)
+    expect(d).not.toBe(c)
+    expect(pres.transition(fade({ name, duration: 40 })).data.tr(v)).toBe(d)
+    expect(pres.transition(fade({ name, duration: 30 })).data.tr(v)).toBe(c)
+  })
+
+  const setup = () => {
+    const im = new IsolateModule(); im.setEventDelegator({ removeElement() {} })
+    document.body.innerHTML = '<div id="r"></div>'
+    return init([im.createModule()].concat(modules))
+  }
+
+  it('a vnode used twice under a recreated parent: its destroy hooks see old elements (rv4j twice)', () => {
+    const patch = setup()
+    const log = []
+    let old = []
+    const X = sh('i', { hook: { destroy: v => log.push(old.includes(v.elm) ? 'old' : v.elm.isConnected ? 'live new' : 'other') } }, 'x')
+    const v = patch(document.getElementById('r'), sh('div', {}, [sh('ul', {}, [sh('li', {}, [X]), sh('li', {}, [X])])]))
+    old = [...document.querySelectorAll('i')]
+    patch(v, sh('div', {}, [sh('ol', {}, [sh('li', {}, [X]), sh('li', {}, [X])])]))
+    expect(log).toEqual(['old', 'old'])
+    expect(document.querySelectorAll('ol i')).toHaveLength(2)
+  })
+
+  it('a destroy hook that throws: the next patch updates the new elements (rv4j iso)', () => {
+    const patch = setup()
+    let armed = false
+    const X = sh('i', { hook: { destroy: () => { if (armed) throw new Error('boom') } } }, 'x')
+    const A = patch(document.getElementById('r'), sh('div', {}, [sh('ul', {}, [X])]))
+    const B = sh('div', {}, [sh('ol', {}, [X])])
+    armed = true
+    expect(() => patch(A, B)).toThrow('boom')
+    armed = false
+    const live = document.querySelector('ol i')
+    expect(live).toBeTruthy()
+    // the reused vnode is patched in place: it must be the live element that changes
+    const X2 = sh('i', {}, 'y')
+    patch(B, sh('div', {}, [sh('ol', {}, [X2])]))
+    expect(X2.elm).toBe(live)
+    expect(document.querySelector('ol i').textContent).toBe('y')
+  })
+
+  it('after a throwing patch, a stale note is not reused: the next recreate gives the right old element', () => {
+    const patch = setup()
+    let armed = false
+    const log = []
+    let old = []
+    const X = sh('i', { hook: { destroy: (v) => { if (armed) throw new Error('boom'); log.push(old.includes(v.elm) ? 'old' : 'not old') } } }, 'x')
+    const A = patch(document.getElementById('r'), sh('div', {}, [sh('ul', {}, [X])]))
+    const B = sh('div', {}, [sh('ol', {}, [X])])
+    armed = true
+    expect(() => patch(A, B)).toThrow('boom')
+    armed = false
+    old = [...document.querySelectorAll('ol i')]
+    patch(B, sh('div', {}, [sh('section', {}, [X])]))
+    expect(log).toEqual(['old'])
   })
 })
