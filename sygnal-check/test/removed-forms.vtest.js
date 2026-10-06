@@ -50,6 +50,27 @@ List.initialState = { rows: [] }
     expect(found.map(d => d.data.form)).toEqual(['component-factory', 'collection-of-name', 'leftovers'])
   })
 
+  it('4-H (D229): attributes of the removed Collection wrapper element (className, style, data, data-*, on-*, ref, ...)', () => {
+    const found = run(`
+import { Collection } from 'sygnal'
+function Row({ state }) { return <li>{state.title}</li> }
+function List({ state }) {
+  return <div>
+    <Collection of={Row} from="rows" className="list" style={{ gap: 4 }} data={{ x: 1 }} data-lane="a" on-click={() => {}} ref={(el) => el} />
+    <Collection of={Row} from="rows" class={{ on: true }} attrs={{ role: 'list' }} hook={{}} id="kept" title="kept" label="kept" />
+  </div>
+}
+List.initialState = { rows: [] }
+`)
+    expect(found.map(d => [d.data.form, d.data.attribute])).toEqual([
+      ['collection-wrapper', 'className'], ['collection-wrapper', 'style'], ['collection-wrapper', 'data'], ['collection-wrapper', 'data-lane'],
+      ['collection-wrapper', 'on-click'], ['collection-wrapper', 'ref'], ['collection-wrapper', 'class'], ['collection-wrapper', 'attrs'], ['collection-wrapper', 'hook'],
+    ])
+    expect(found[0].message).toContain('<Collection className>')
+    expect(found[0].fix).toContain('<ul className="x"><Collection of={Item} from="items" /></ul>')
+    expect(found[0].fix).toContain('https://sygnal.js.org/guide/migrating-to-6#collection-wrapper')
+  })
+
   it('the canonical forms report nothing', () => {
     const found = run(`
 import { defineComponent, Collection } from 'sygnal'
