@@ -46,3 +46,31 @@ describe('G-556: Suspense looks through fragments for a not-ready child', () => 
     expect(el.querySelector('.fb')).not.toBe(null)
   })
 })
+
+describe('G-557: READY: false on a component whose root is a fragment', () => {
+  it('a child whose root is a Collection suspends (r4h P9)', async () => {
+    function Item({ state }) { return h('li', { className: 'it' }, state.t) }
+    function List() { return h(Collection, { of: Item, from: 'rows' }) }
+    List.intent = ({ DOM }) => ({ GO: DOM.select('document').events('p4i-ready') })
+    List.model = { BOOTSTRAP: { READY: () => false }, GO: { READY: () => true } }
+    function App() { return h('ul', null, h(Suspense, { fallback: h('li', { className: 'fb' }, 'loading') }, h(List, { state: 'l' }))) }
+    App.initialState = { l: { rows: [{ id: 1, t: 'a' }] } }
+    const { el } = mount(App); await sleep(40)
+    expect(el.querySelector('.fb')).not.toBe(null)
+    expect(el.querySelector('.it')).toBe(null)
+    document.dispatchEvent(new Event('p4i-ready')); await sleep(30)
+    expect(el.querySelector('.fb')).toBe(null)
+    expect(el.querySelector('ul > li.it').textContent).toBe('a')
+  })
+
+  it('a child whose root is <>…</> marks each top-level element', async () => {
+    // the view's root is a fragment of two elements
+    function Two() { return h(Fragment, null, h('p', { className: 'a' }, 'a'), 'text', h('p', { className: 'b' }, 'b')) }
+    Two.model = { BOOTSTRAP: { READY: () => false } }
+    function App() { return h('div', null, h(Suspense, { fallback: h('i', { className: 'fb' }, '…') }, h(Two))) }
+    App.initialState = {}
+    const { el } = mount(App); await sleep(30)
+    expect(el.querySelector('.fb')).not.toBe(null)
+    expect(el.querySelector('.a')).toBe(null)
+  })
+})

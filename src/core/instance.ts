@@ -31,7 +31,9 @@ import {sameData} from '../cycle/dom/utils'
 
 const ERR_FIX = 'See the attached error'
 
-const notReady = (v: any) => (v && v.sel ? {...v, data: {...v.data, attrs: {...v.data?.attrs, 'data-sygnal-ready': 'false'}}} : v)
+// 4-I G-557: a fragment root (a Collection's): each of its top-level elements is marked
+const notReady = (v: any): any => v?.sel ? {...v, data: {...v.data, attrs: {...v.data?.attrs, 'data-sygnal-ready': 'false'}}}
+  : v?.children ? {...v, children: v.children.map(notReady)} : v
 const errorDiv = (name: string) => ({sel: 'div', data: {attrs: {'data-sygnal-error': name}}, children: [], text: undefined, elm: undefined, key: undefined})
 
 /** <Slot name="x"> children -> slots.x; the rest -> slots.default and `children` */
