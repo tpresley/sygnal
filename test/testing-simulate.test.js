@@ -185,7 +185,7 @@ describe('simulateEvent', () => {
     }
     Item.intent = ({ DOM }) => ({ DEL: DOM.click('.del') })
     Item.model = { DEL: { PARENT: s => s.id } }
-    function List() { return h('div', null, h(Collection, { of: Item, from: 'items', className: 'list' })) }
+    function List() { return h('div', null, h('div', { className: 'list' }, h(Collection, { of: Item, from: 'items' }))) }
     List.initialState = { items: [{ id: 1 }, { id: 2 }, { id: 3 }] }
     List.intent = ({ CHILD }) => ({ REMOVE: CHILD.select(Item) })
     List.model = { REMOVE: (s, id) => ({ ...s, items: s.items.filter(i => i.id !== id) }) }

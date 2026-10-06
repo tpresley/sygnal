@@ -282,7 +282,12 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
   // PLAN-4 3-R: mark the root element (a fragment's first element) as Sygnal's server markup, so
   // persist() under plain run() can tell it from a client-only app's loading placeholder. The
   // first client render drops the attribute (the new vnode doesn't have it)
-  const first = vnode?.sel ? vnode : Array.isArray(vnode?.children) && vnode.children.find((c: any) => c?.sel && c.sel !== '!')
+  // (4-H: through nested fragments, e.g. a Collection's)
+  const firstEl = (v: any): any => {
+    if (v?.sel) return v.sel !== '!' && v
+    if (Array.isArray(v?.children)) for (const c of v.children) { const f = firstEl(c); if (f) return f }
+  }
+  const first = vnode?.sel ? vnode : firstEl(vnode)
   if (first && !innerHtmlMode) first.data = {...first.data, attrs: {'data-sygnal-ssr': '', ...first.data?.attrs}}
 
   // Serialize to HTML
@@ -570,14 +575,14 @@ function slotsOf(children: any[]): Record<string, any[]> {
  * Render a Collection: its items (collectionItems: from, filter, sort), each with the other
  * props and the Collection's children, as the client's host gives them (G-396). `limit`: only
  * the first that many (a VirtualCollection's window); `skip`: props that aren't the items'.
+ * 4-H (D229): a fragment of the items (no wrapper element), as the client's.
  */
 function renderCollection(vnode: any, context: Record<string, any>, parentState: any, uid: string, limit?: number, skip?: RegExp, deco?: (row: any, i: number) => any): any {
   const props = vnode.data?.props || {}
-  const {of: itemComponent, className, viewTransitionName: vtn} = props
+  const {of: itemComponent, viewTransitionName: vtn} = props
+  const frag = (children: any[]) => ({sel: undefined, data: {}, children, text: undefined, elm: undefined, key: undefined})
 
-  if (!itemComponent || typeof itemComponent !== 'function') {
-    return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
+  if (!itemComponent || typeof itemComponent !== 'function') return frag([])
 
   let items = collectionItems(props, parentState)
   const count = items.length
@@ -631,19 +636,7 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
     return deco && named?.sel ? deco(named, pos) : named
   }).filter((v: any) => v != null)
 
-  const containerData: any = {}
-  if (className) {
-    containerData.props = {className}
-  }
-
-  return {
-    sel: 'div',
-    data: containerData,
-    children: renderedItems,
-    text: undefined,
-    elm: undefined,
-    key: undefined,
-  }
+  return frag(renderedItems)
 }
 
 /**

@@ -36,7 +36,7 @@ function Tasks({ state }) {
   return h('div', null,
     h('p', { className: 'summary' }, `${state.openCount} open`),
     h('button', { className: 'add' }, 'add'),
-    h(Collection, { of: Item, from: 'items', className: 'list' }))
+    h('ul', { className: 'list' }, h(Collection, { of: Item, from: 'items' })))
 }
 Tasks.initialState = { items: [{ id: 1, done: false }, { id: 2, done: false }, { id: 3, done: true }] }
 Tasks.calculated = { openCount: s => s.items.filter(i => !i.done).length }

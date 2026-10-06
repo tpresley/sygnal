@@ -59,7 +59,7 @@ parity('parity: Collection filter, sort, removal, write-back (PF-1 cases)', () =
     function P({ state }) { return h('li', { className: 'row' }, String(state.value ?? state.text ?? state), h('button', { className: 'edit' }, '+')) }
     P.intent = ({ DOM }) => ({ INC: DOM.click('.edit') })
     P.model = { INC: (s) => (s.value !== undefined ? { ...s, value: s.value + 10 } : { ...s, text: s.text + '!' }) }
-    function L() { return h('div', null, h(Collection, { of: P, from: 'nums', className: 'nums' }), h(Collection, { of: P, from: 'objs', className: 'objs' })) }
+    function L() { return h('div', null, h('ul', { className: 'nums' }, h(Collection, { of: P, from: 'nums' })), h('ul', { className: 'objs' }, h(Collection, { of: P, from: 'objs' }))) }
     L.initialState = { nums: [1, 2, 3], objs: [{ text: 'a' }, { text: 'b' }] }
     const m = mount(L)
     await until(() => expect(texts()).toEqual(['1', '2', '3', 'a', 'b']))

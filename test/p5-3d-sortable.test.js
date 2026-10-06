@@ -417,7 +417,7 @@ describe('sortable: real DOM (jsdom)', () => {
     expect(order(t.state, 'groups')).toBe('1,2')
     press('Enter'); await t.next(s => s.groups[0].sort.dragging === null)
     // the outer level still sorts its own items
-    t.query('.tree > div > .node[data-id="1"] > .grip').focus()
+    t.query('.tree > .node[data-id="1"] > .grip').focus()
     press(' '); await t.next(s => s.sort.dragging === '1')
     expect(t.state.groups[0].sort.dragging).toBe(null)
     press('ArrowDown'); await t.next(s => order(s, 'groups') === '2,1')

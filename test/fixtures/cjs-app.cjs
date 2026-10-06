@@ -55,7 +55,7 @@ function defineApp({ createElement: h, Collection, event, debounce, ABORT }) {
       h('button', { className: 'reset' }, 'reset'),
       h('span', { className: 'count' }, String(state.count)),
       h('span', { className: 'echo' }, state.echo),
-      h(Collection, { of: Item, from: 'items', className: 'list' }),
+      h('ul', { className: 'list' }, h(Collection, { of: Item, from: 'items' })),
       h(Status, { state: 'status' }),
     )
   }

@@ -13,10 +13,13 @@
  * - `filter` / `sort` (every form today's core accepts; SYG418 for an invalid one) change what
  *   renders and in which order; the state array keeps its order, and an item writes back to its
  *   own element. An item returning `undefined` removes itself.
- * - The other props go to every item (`className` is the container's), and the Collection's
- *   children are each item's children.
- * - The DOM is today's: one `div` with the marker's props (className and the rest set as element
- *   properties, as the 5.x core did), whose children are the items' vnodes.
+ * - The other props go to every item, and the Collection's children are each item's children.
+ * - 4-H (D229): no element of its own. It renders a keyed fragment of the items' vnodes (its key:
+ *   the marker's, else its id), which the DOM driver splices into the parent's children before
+ *   each patch (utils.ts flat): the items are the parent element's own children, and their keys
+ *   take the fragment's, so two sibling Collections' items never collide. The wrapper `div` of
+ *   5.x is gone: `className` / `style` / `class` / ... on the marker are a removed-form error in development
+ *   (checks/next.ts) and are ignored.
  * - Removed items are disposed synchronously in the render that drops them (G-257: a move between
  *   two Collections is one patch).
  * - PLAN-5 A-1: `viewTransitionName="card"` styles each keyed item's root element with
@@ -147,16 +150,13 @@ export class CollectionHost {
   // the inputs of the last item list: array, filter, sort prop, comparator
   la: any; lf: any; ls: any; cmp: any
   uidBase: string
-  /** the container's vnode data (the marker's, with its props set on the element, as today) */
-  data: any
+  /** the fragment's key (the marker's, else the Collection's id) */
   key: any
-  /** the marker's props the container was made from */
-  mp: any
   /** the app's render epoch it last rendered at (G-311) */
   ep = 0
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string, marker: any) {
-    this.hostProps(props)
+    this.hostProps(props, marker)
     const of = props.of
     if (!of) fail('SYG411', owner, "Collection is missing 'of'", 'Use of={ItemComponent}')
     if (typeof of != 'function') fail('SYG411', owner, `Collection 'of' is a ${typeof of}`, 'Use of={ItemComponent}')
@@ -167,10 +167,13 @@ export class CollectionHost {
     this.setProps(props, children, marker, id)
   }
 
-  /** onHostProps (R4): the Collection checks of the dev entry (SYG401 for a missing `from`, D173's string `of`) */
-  hostProps(props: Record<string, any>) {
+  /**
+   * onHostProps (R4): the Collection checks of the dev entry (SYG401 for a missing `from`, D173's
+   * string `of`, 4-H's wrapper props: the marker's data); VirtualHost names its own `sel`
+   */
+  hostProps(props: Record<string, any>, marker?: any, sel = 'collection') {
     const H = this.owner.app.hooks
-    if (H.onHostProps) H.onHostProps(viewOf(this.owner), 'collection', props)
+    if (H.onHostProps) H.onHostProps(viewOf(this.owner), sel, props, marker?.data)
   }
 
   /** the item component (a lazy() one: the loaded component once it has loaded, G-317) */
@@ -178,7 +181,7 @@ export class CollectionHost {
 
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
     // (the constructor called the hook before its own checks)
-    if (this.props) this.hostProps(props)
+    if (this.props) this.hostProps(props, marker)
     const v = typeof props.of == 'function' ? resolve(props.of, this.owner) : this.view
     if (v !== this.view) {
       // another item component (or a lazy one loaded): the items are made again
@@ -187,14 +190,8 @@ export class CollectionHost {
     }
     this.props = props
     if (marker) {
-      const p = marker.data?.props || {}
-      if (!shallowEq(p, this.mp) || marker.key !== this.key) {
-        this.mp = p
-        // isCollection: as the 5.x core's container (testing's html() leaves its props out, G-040)
-        this.data = {...marker.data, isCollection: true, props: p.key === undefined ? {...p, key: id} : p}
-        this.key = marker.key
-        this.outv = undefined
-      }
+      const k = marker.key ?? id
+      if (k !== this.key) { this.key = k; this.outv = undefined }
     }
     const ip: Record<string, any> = {}
     for (const k in props) if (!OWN.has(k)) ip[k] = props[k]
@@ -297,7 +294,7 @@ export class CollectionHost {
     }
     out.length = j
     if (!changed) return this.outv
-    return (this.outv = {sel: 'div', data: this.data, children: out, text: undefined, elm: undefined, key: this.key})
+    return (this.outv = {sel: undefined, data: {}, children: out, text: undefined, elm: undefined, key: this.key})
   }
 
   dispose() {

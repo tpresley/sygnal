@@ -38,6 +38,7 @@ export const REMOVED: Record<string, [what: string, fix: string]> = {
   'string-tags': ['a component named by a string tag (<Name /> as a string, looked up in .components)', 'Import the component and use it as a JSX tag: <Badge />'],
   'components': ['the .components registry', 'Import each component and use it as a JSX tag; remove .components'],
   'collection-of-name': ['<Collection of="Name"> (a name)', 'Pass the component itself: <Collection of={Item} from="items" />'],
+  'collection-wrapper': ["the Collection's wrapper element (className, style, class, attrs, data-*, on, ref or hook on <Collection>)", 'Collection renders its items directly into its parent: put them on your own wrapping element, <ul className="x"><Collection of={Item} from="items" /></ul>'],
   'child-select-name': ["CHILD.select('Name') (a name)", 'Pass the component itself: CHILD.select(Item)'],
   'pipe-keys': ["'ACTION | SINK' model keys", "Use the object form: ACTION: { SINK: (state, data) => ... }"],
   'peers': ['.peers', 'Render the peer as a sibling in the parent view'],
@@ -47,6 +48,9 @@ export const REMOVED: Record<string, [what: string, fix: string]> = {
   'storecalculatedinstate': ['storeCalculatedInState', 'Remove it: calculated fields are always part of the state the view and reducers get'],
   'component-factory': ['the component({ ... }) factory (with sources / isolateOpts)', 'Write a function component with statics (C.model, C.intent, C.initialState), or use defineComponent({ ... })'],
 }
+
+/** 4-H: the marker's props / data buckets the removed Collection wrapper element took */
+const WRAPPER = ['className', 'style', 'class', 'attrs', 'dataset', 'on', 'hook']
 
 const STATICS: Array<[string, string]> = [['components', 'components'], ['peers', 'peers'], ['hmrActions', 'hmractions'], ['DOMSourceName', 'source-names'], ['stateSourceName', 'source-names'], ['storeCalculatedInState', 'storecalculatedinstate']]
 
@@ -337,10 +341,15 @@ export function nextHooks(_api: any): any {
       const f = fac(iv)
       for (const c of ([] as any[]).concat(cmd)) checkSentCommand(f, c)
     },
-    onHostProps(owner: any, sel: string, props: any) {
-      if (!on() || sel != 'collection') return
+    onHostProps(owner: any, sel: string, props: any, data?: any) {
+      if (!on() || (sel != 'collection' && sel != 'virtual-collection')) return
       const f = fac(owner)
       if (typeof props.of == 'string') removed(f, f.name, 'collection-of-name', `of="${props.of}"`)
+      // 4-H (D229): what went only to the removed wrapper div (VirtualCollection keeps its container)
+      if (sel == 'collection') {
+        const w = WRAPPER.filter(k => k == 'className' ? props.className != null : data?.[k] != null)
+        if (w.length) removed(f, f.name, 'collection-wrapper', w.map(k => k == 'dataset' ? 'data-*' : k == 'hook' ? 'ref / hook' : k).join(', '))
+      }
       try { checkCollection(f, {data: {props}}) } catch (_) { /* ignore */ }
       // G-419: SYG148 for a prefix that isn't an identifier; a valid one is checked for
       // duplicate names after each patch (SYG149). G-460: a falsy one names nothing (as the host)

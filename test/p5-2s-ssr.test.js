@@ -82,7 +82,7 @@ describe('G-396: VirtualCollection on the server', () => {
 describe('G-396: Collection on the server', () => {
   it('filter, sort, the other props and children, as the client', async () => {
     function A() {
-      return h(Collection, { of: Row, from: 'rows', className: 'rows', tag: 'C', filter: (r) => r.id % 2, sort: { id: 'desc' } }, h('i', { className: 'kid' }, '*'))
+      return h(Collection, { of: Row, from: 'rows', tag: 'C', filter: (r) => r.id % 2, sort: { id: 'desc' } }, h('i', { className: 'kid' }, '*'))
     }
     A.initialState = { rows: rows(6) }
     const html = renderToString(A)
