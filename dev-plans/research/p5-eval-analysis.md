@@ -6,6 +6,7 @@ Analysis of the PLAN-5 Phase 4 eval runs (2026-10-05/06). No eval was run for th
 - Runs: `p5-final-{opus,sonnet,haiku}` (tasks 30–34, Sygnal + React, 5 trials each), `p5-f1-behavior-{m}` / `p5-f1-helpers-{m}` (task 30, Sygnal, 5 each), `p5-4s-toc-{m}` (30–34, Sygnal, toc skill), `p5-s14-opus` (tiers 1–2 + `ergo`, 80). That is 335 trials. All of them ran and were scored, none timed out and none ended in a CLI error.
 - Build: the `plan5-integration` tip `3c9819b` (tarball sha256 `7197a8f6…`), Claude Code 2.1.287. SKILL.md is 41,366 B (PLAN-4: 38,889 B) and `llms.txt` is 311 lines (PLAN-4: 290). The toc skill (`skills/sygnal-dev-toc`) has a 13,386 B SKILL.md plus 12 references (33.6 KB).
 - Comparisons are task-matched (`analysis/compare.mjs`): each task's mean first, then the mean over shared tasks. The pass-count p-values are Fisher's exact test. The wall p-values are exact two-sample permutation tests. With n = 5 per cell, a difference of one or two trials is noise.
+- **Re-analysed 2026-10-06 (PLAN-5 4-E2)** with the 4-D `analyze.mjs`, which counts only Sygnal skill calls as skill reads (the CLI's own `run`/`dataviz` calls were counted before). Only the numbers that include those calls changed: React learn time and skill bytes (Opus, Haiku), and Haiku's Sygnal learn time and skill bytes (`p5-final`, toc, both forms arms). Opus and Sonnet Sygnal numbers, S-14, wall, pass, cost and peak context are unchanged. No conclusion changes; see "Re-analysis (4-E2)" at the end.
 - Spend: **$128.68** across the 13 runs. D228 approved about $114, so the runs went about $15 (13%) over. The overrun is mostly Haiku: $24.16 on `p5-final-haiku` and $11.42 on the toc Haiku run.
 
 ## TL;DR
@@ -15,7 +16,7 @@ Analysis of the PLAN-5 Phase 4 eval runs (2026-10-05/06). No eval was run for th
 | 1. Tier 30–34, Sygnal vs React | Opus **92% vs 100%** (23/25 vs 25/25; p = 0.49). Sonnet **96% vs 92%**. Haiku **20% vs 36%** (5/25 vs 9/25; p = 0.35). Sygnal takes 1.23–1.43× the wall time and 1.3–2.6× the cost. Sonnet does as well as Opus and is about 2× faster |
 | 2. Haiku failures | Mostly general capability on spec details: on task 30 both arms scored 0/5 with the same failing assertions. Haiku also reports "complete" with its own tests green in 48/50 failing trials. The Sygnal-specific part is that Haiku with the full SKILL.md **doesn't use the PLAN-5 APIs**: the intended API appears in 1/15 trials on tasks 32–34, and Haiku opened 1 guide in 25 trials. It also misuses the test harness (14/25). Two failures are docs-fixable outright: the `sortable` cancel wording and VirtualCollection wrapped in its own scroller |
 | 3. Forms A/B (D228 rule) | **By the letter of the rule, helpers win on every model.** Opus is 5/5 = 5/5 with helpers −13% on mean wall (one 294 s behavior outlier; the median favours the behavior; p = 1.0). Sonnet: helpers pass 5/5 vs 4/5 but are 27% slower (p = 0.024 for the behavior being faster). Haiku: 0/5 = 0/5, helpers −13% (p = 0.54). Every trigger is within noise. **This is the user's decision**, see below |
-| 4. Skill format (D226) | The toc format cuts **peak context by 12–17% and cost by 11–17%** on all three models. Pass rates move by noise only (Opus +1, Sonnet −2, Haiku ±0 trials). Learn time rises for Opus and Sonnet (+4 s and +2 s; reading references counts as learning) and falls for Haiku (−25%). With toc, Haiku actually reads the guides and uses the intended APIs (12/15 on tasks 32–34, against 1/15). **Recommend adopting it** after a toc S-14 check |
+| 4. Skill format (D226) | The toc format cuts **peak context by 12–17% and cost by 11–17%** on all three models. Pass rates move by noise only (Opus +1, Sonnet −2, Haiku ±0 trials). Learn time rises for Opus and Sonnet (+4 s and +2 s; reading references counts as learning) and falls for Haiku (−30%). With toc, Haiku actually reads the guides and uses the intended APIs (12/15 on tasks 32–34, against 1/15). **Recommend adopting it** after a toc S-14 check |
 | 5. S-14 | Tiers 1–2 pass: peak context +3% and learn +0.4 s (noise). **`ergo` learn is over the bar**: 9.8 → 11.9 s (+21%; the bar is 10.8 s). `ergo` peak context sits right at the bar: 43.1k → 47.3k (+9.6%; the bar is 47.4k). Both come from task 29, where agents now read `forms.md` (31.8 KB), `ui/dialog.md` and the bundle. 01–23 was not run, so it can't be judged. Pass rate is 80/80 |
 | 6. Regressions vs PLAN-4 (tiers 1–2, `ergo`) | None in pass rate: 80/80, against 78/80 in PLAN-4's runs. Wall rose by more than 10% only on task 11 (+36%; −9% against `p46-ev-opus`), task 10 (+13%) and task 28 (+8%). Task 29's peak context rose by 27% |
 
@@ -31,10 +32,10 @@ Task-matched means over the 5 tasks; 25 trials per arm and model.
 | Cost per trial | $0.582 | $0.280 (×2.08) | $0.217 | $0.085 (×2.56) | $0.548 | $0.418 (×1.31) |
 | Billed tokens (k) | 439.5 | 118.0 (×3.73) | 193.2 | 61.7 (×3.13) | 2,597.6 | 1,929.7 (×1.35) |
 | Output tokens (k) | 7.3 | 7.0 | 4.5 | 3.5 | 31.6 | 26.1 |
-| Learn (s) | 13.8 | 0.7 | 4.9 | 0 | 27.9 | 3.9* |
+| Learn (s) | 13.8 | 0 | 4.9 | 0 | 26.6 | 0.4* |
 | Peak context (k) | 50.2 | 21.4 (×2.34) | 40.8 | 16.6 (×2.46) | 78.3 | 61.1 (×1.28) |
 
-\*The analysis counts every `Skill` call as a skill read. React Haiku invoked Claude Code's built-in `run` skill in 20/25 trials, and React Opus invoked `dataviz` 5 times on task 32. So React's learn time and skill bytes are inflated; see "Harness notes".
+\*Re-analysed in 4-E2: the first analysis counted every `Skill` call as a skill read, and React Haiku invoked Claude Code's built-in `run` skill in 19/25 trials (React Opus: `dataviz` 5 times on task 32), so it reported React learn 0.7 s (Opus) and 3.9 s (Haiku), Haiku Sygnal 27.9 s. Those calls are now listed as other skills; see "Harness notes".
 
 Pass rate per task (Sygnal | React) and Sygnal wall (s):
 
@@ -112,7 +113,7 @@ The rule was fixed before the runs: the behavior stays canonical unless the help
 |---|---|---|---|---|---|---|---|---|---|
 | Opus | 5/5 (35/35) | 5/5 (35/35) | 136.1 / 105 | 117.9 / 116 | **−13%** | $0.802 → $0.788 | 24.8 → 36.5 s | 1.0 | helpers (≥ 10% faster, equal pass) |
 | Sonnet | 4/5 (34/35) | **5/5** (35/35) | 47.0 / 48 | 59.5 / 62 | **+27%** | $0.280 → $0.306 | 4.8 → 6.1 s | 0.024 | helpers (one more pass) |
-| Haiku | 0/5 (8/35) | 0/5 (17/35) | 401.6 / 431 | 350.6 / 281 | −13% | $0.719 → $0.705 | 12.9 → 37.7 s | 0.54 | helpers (≥ 10% faster, equal pass) |
+| Haiku | 0/5 (8/35) | 0/5 (17/35) | 401.6 / 431 | 350.6 / 281 | −13% | $0.719 → $0.705 | 8.3 → 35.0 s | 0.54 | helpers (≥ 10% faster, equal pass) |
 | Pooled | 9/15 | 10/15 | | | | | | Fisher 1.0 | helpers (one more pass) |
 
 No-guidance reference (the `p5-final` task-30 trials, skill only):
@@ -147,8 +148,8 @@ Toc arm `p5-4s-toc-{m}` vs the `p5-final-{m}` Sygnal arm, tasks 30–34, task-ma
 | Cost | $0.582 → $0.491 (−16%) | $0.217 → $0.193 (−11%) | $0.548 → $0.457 (−17%) |
 | Billed tokens (k) | 439.5 → 358.9 (−18%) | 193.2 → 208.0 (+8%) | 2,598 → 2,197 (−15%) |
 | **Peak context (k)** | 50.2 → **41.5 (−17%)** | 40.8 → **34.3 (−16%)** | 78.3 → **68.5 (−12%)** |
-| Learn (s) | 13.8 → 17.7 (+4.0) | 4.9 → 6.8 (+2.0) | 27.9 → 21.1 (−6.9) |
-| Skill bytes read per trial | 41,366 → 19,586 | 41,366 → 15,179 | 49,639 → 31,369 |
+| Learn (s) | 13.8 → 17.7 (+4.0) | 4.9 → 6.8 (+2.0) | 26.6 → 18.7 (−7.9) |
+| Skill bytes read per trial | 41,366 → 19,586 | 41,366 → 15,179 | 43,021 → 25,480 |
 | Tool calls | 10.6 → 12.6 | 5.8 → 8.1 | 40.8 → 41.3 |
 
 References read (trials out of 25), Opus / Sonnet / Haiku:
@@ -226,10 +227,11 @@ No tier's matched wall got worse: tiers 1–2 −4%, `ergo` +3%. The only real r
 ## Harness notes
 
 - **Built-in Claude Code skills leak into trials.** The isolation posture blocks user skills, but the CLI's bundled skills (`run`, `dataviz`, `design`…) are listed in every trial's `init`.
-  - Haiku invoked `run` in 20/25 React and 4–11/25 Sygnal trials. That led to dev servers, port hunting and blocked `kill` attempts, which are the analysis's "machine-wide process kill" data gaps.
+  - Haiku invoked `run` in 19/25 React trials, and in Sygnal trials 4/25 (`p5-final`), 11/25 (toc) and 4/5 in each forms arm. That led to dev servers, port hunting and blocked `kill` attempts, which are the analysis's "machine-wide process kill" data gaps.
   - Opus React invoked `dataviz` 5×.
-  - `analyze.mjs` counts any `Skill` call as reading the variant's skill: it attributes SKILL.md bytes and `skill-load` time. That inflates the React arms' learn time and skill bytes (React Haiku: 19 "invocations", 33 KB).
+  - `analyze.mjs` (before 4-D) counted any `Skill` call as reading the variant's skill: it attributed SKILL.md bytes and `skill-load` time. That inflated the React arms' learn time and skill bytes (React Haiku: 19 "invocations", 33 KB).
   - Fixes: disable the built-in skills in the trial posture (or disallow `Skill(run)` and the like), and make `analyze.mjs` match the skill by name.
+  - **Done**: `analyze.mjs` counts only Sygnal skill calls (4-D); these runs were re-analysed with it (4-E2, below). From 4-E2 on, trials run with the built-in skills blocked (D234: `disableBundledSkills`, `skillOverrides` off and `Skill()` deny rules in each trial's settings; `skillGuard: 1` in the run meta and manifest). The D228 runs are `skillGuard` 0, so compare their React Haiku numbers with later runs with care.
 - Failed trials are not classified (`failureCategory: null` in all 335 records; run.md step 5). The root causes above come from this note's own profiling, not `score.mjs --classify`.
 - The PLAN-4 baselines were present: `results/analysis/p4-final6-opus`, `p4-final7-opus-ergo` and `p46-ev-opus`.
 
@@ -249,3 +251,25 @@ No tier's matched wall got worse: tiers 1–2 −4%, `ergo` +3%. The only real r
    - S-14 on 01–23, since tasks 13–25 weren't re-run;
    - Haiku on the old tiers, since no PLAN-5 Haiku run covered them;
    - any significance for one-trial pass differences at n = 5.
+
+## Re-analysis (4-E2, 2026-10-06)
+
+All 13 runs re-analysed locally with the 4-D `analyze.mjs` (no model calls; same trial dirs, each run's variant skill and its packed `llms.txt`). Task-matched means; only the rows that moved:
+
+| Run, arm | Learn (s) | Skill bytes per trial | Skill invoked (trials) | Other skills (trials) |
+|---|---|---|---|---|
+| `p5-final-opus` React | 0.7 → **0** | 8,273 → **0** | 5 → 0 | `dataviz` 5 |
+| `p5-final-haiku` React | 3.9 → **0.4** | 33,119 → **≈ 0** | 19 → 0 | `run` 19 |
+| `p5-final-haiku` Sygnal | 27.9 → **26.6** | 49,639 → **43,021** | 25 → 25 | `run` 4 |
+| `p5-4s-toc-haiku` | 21.1 → **18.7** | 31,369 → **25,480** | 25 → 25 | `run` 11 |
+| `p5-f1-behavior-haiku` | 12.9 → **8.3** | 74,459 → **41,366** | 5 → 5 | `run` 4 |
+| `p5-f1-helpers-haiku` | 37.7 → **35.0** | 74,459 → **41,366** | 5 → 5 | `run` 4 |
+
+Unchanged: every Opus and Sonnet Sygnal run (`p5-final`, toc, forms arms), `p5-final-sonnet` React, and `p5-s14-opus` (learn 4.8 s, 41,366 B, peak 37.8k: the S-14 verdict stands). Wall, pass, cost, billed tokens and peak context don't depend on the attribution and are identical in every run.
+
+**Conclusions.** None changes:
+- §1: the Sygnal–React learn gap is slightly larger (React learn ≈ 0 on every model), which was already the reading; pass, wall and cost ratios are unchanged.
+- §3 (forms A/B): the rule is decided on pass and wall, which didn't move. Haiku's learn time is lower in both arms (behavior 8.3 s, helpers 35.0 s), so the behavior's lower learn time on Haiku is a bit clearer.
+- §4 (toc): Haiku's learn saving grows from −6.9 to −7.9 s (−30%), and its skill bytes per trial go 43.0 → 25.5 KB (−41%). Opus and Sonnet unchanged. The recommendation (adopt toc after a toc S-14) stands.
+- §5 (S-14): unchanged (no built-in skill calls in `p5-s14-opus`).
+- Each report now also lists failed trials by auto category (4-D) and the built-in skill condition (`skillGuard` 0 for all D228 runs).

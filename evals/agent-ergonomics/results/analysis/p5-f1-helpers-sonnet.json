@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p5-f1-helpers-sonnet",
-    "generatedAt": "2026-10-06T09:49:11.868Z",
+    "generatedAt": "2026-10-06T23:09:19.806Z",
     "trialsInMap": 5,
     "trialsAnalyzed": 5,
     "trialsScored": 5,
     "skillDir": "/private/tmp/sygnal-evals/trials/p5-f1-helpers-sonnet/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "llms": "/private/tmp/sygnal-evals/trials/p5-f1-helpers-sonnet/sygnal-30-t1/node_modules/sygnal/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -493,6 +493,14 @@
         },
         "react": {}
       }
+    },
+    "failureCategories": {
+      "sygnal": {},
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
     }
   },
   "trials": [
@@ -539,6 +547,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 49.5,
       "phases": {
         "orient": 3.8,
@@ -571,6 +580,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -684,6 +694,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 933
     },
     {
@@ -729,6 +740,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 60.5,
       "phases": {
         "orient": 1.5,
@@ -761,6 +773,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -875,6 +888,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1501
     },
     {
@@ -920,6 +934,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 68.4,
       "phases": {
         "orient": 33.2,
@@ -996,6 +1011,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -1110,6 +1126,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1288
     },
     {
@@ -1155,6 +1172,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 66,
       "phases": {
         "orient": 1.2,
@@ -1229,6 +1247,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -1344,6 +1363,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1389
     },
     {
@@ -1389,6 +1409,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 53.1,
       "phases": {
         "orient": 0.9,
@@ -1419,6 +1440,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -1533,6 +1555,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1219
     }
   ]

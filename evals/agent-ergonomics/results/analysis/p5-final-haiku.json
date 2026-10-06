@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p5-final-haiku",
-    "generatedAt": "2026-10-06T11:02:19.073Z",
+    "generatedAt": "2026-10-06T23:09:21.723Z",
     "trialsInMap": 50,
     "trialsAnalyzed": 50,
     "trialsScored": 50,
     "skillDir": "/private/tmp/sygnal-evals/trials/p5-final-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "llms": "/private/tmp/sygnal-evals/trials/p5-final-haiku/sygnal-30-t1/node_modules/sygnal/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -106,11 +106,11 @@
           },
           "wroteTest": 5,
           "keptTest": 5,
-          "attributedShareMin": 1,
-          "attributedShareMean": 1,
+          "attributedShareMin": 0.94,
+          "attributedShareMean": 0.99,
           "phases": {
-            "orient": 15.1,
-            "learn": 13.6,
+            "orient": 15.3,
+            "learn": 9.3,
             "implement": 71.9,
             "test-authoring": 30.7,
             "verify": 16.5,
@@ -118,11 +118,11 @@
             "tooling-friction": 0,
             "think": 8.6,
             "report": 0,
-            "other": 0
+            "other": 4.1
           },
           "friction": {},
           "learn": {
-            "skill-load": 13.6
+            "skill-load": 9.3
           }
         },
         "react": {
@@ -199,26 +199,25 @@
           },
           "wroteTest": 3,
           "keptTest": 3,
-          "attributedShareMin": 1,
-          "attributedShareMean": 1,
+          "attributedShareMin": 0.98,
+          "attributedShareMean": 0.99,
           "phases": {
-            "orient": 35.2,
-            "learn": 5.3,
+            "orient": 36.3,
+            "learn": 1.5,
             "implement": 59.1,
             "test-authoring": 7.3,
-            "verify": 19.3,
+            "verify": 19.7,
             "debug": 106.7,
             "tooling-friction": 0.4,
             "think": 7.1,
             "report": 0,
-            "other": 0
+            "other": 2.5
           },
           "friction": {
             "HARNESS-GUARD": 0.4
           },
           "learn": {
-            "skill-load": 4.7,
-            "skill-reference": 0.7
+            "skill-reference": 1.5
           }
         }
       },
@@ -390,26 +389,24 @@
           },
           "wroteTest": 4,
           "keptTest": 4,
-          "attributedShareMin": 1,
-          "attributedShareMean": 1,
+          "attributedShareMin": 0.97,
+          "attributedShareMean": 0.99,
           "phases": {
-            "orient": 24.3,
-            "learn": 3.6,
+            "orient": 24.7,
+            "learn": 0,
             "implement": 35.9,
             "test-authoring": 14,
-            "verify": 15.3,
+            "verify": 16.5,
             "debug": 119.7,
             "tooling-friction": 0.2,
             "think": 5.6,
             "report": 0,
-            "other": 0
+            "other": 1.9
           },
           "friction": {
             "HARNESS-GUARD": 0.2
           },
-          "learn": {
-            "skill-load": 3.6
-          }
+          "learn": {}
         }
       },
       "32-sales-chart": {
@@ -491,21 +488,21 @@
           "attributedShareMean": 1,
           "phases": {
             "orient": 40,
-            "learn": 44.3,
+            "learn": 43.6,
             "implement": 64.9,
             "test-authoring": 19.8,
-            "verify": 12,
+            "verify": 12.4,
             "debug": 242.9,
             "tooling-friction": 0.3,
             "think": 5.9,
             "report": 0,
-            "other": 0
+            "other": 0.3
           },
           "friction": {
             "HARNESS-GUARD": 0.3
           },
           "learn": {
-            "skill-load": 44.3
+            "skill-load": 43.6
           }
         },
         "react": {
@@ -582,26 +579,24 @@
           },
           "wroteTest": 3,
           "keptTest": 1,
-          "attributedShareMin": 1,
+          "attributedShareMin": 0.99,
           "attributedShareMean": 1,
           "phases": {
             "orient": 39.7,
-            "learn": 1.8,
+            "learn": 0,
             "implement": 75.6,
             "test-authoring": 12.9,
-            "verify": 20,
+            "verify": 21,
             "debug": 54.2,
             "tooling-friction": 0.6,
             "think": 6.1,
             "report": 0,
-            "other": 0
+            "other": 0.8
           },
           "friction": {
             "HARNESS-GUARD": 0.6
           },
-          "learn": {
-            "skill-load": 1.8
-          }
+          "learn": {}
         }
       },
       "33-virtual-list": {
@@ -679,25 +674,25 @@
           },
           "wroteTest": 5,
           "keptTest": 5,
-          "attributedShareMin": 1,
+          "attributedShareMin": 0.99,
           "attributedShareMean": 1,
           "phases": {
             "orient": 24.6,
-            "learn": 43.5,
+            "learn": 42.1,
             "implement": 73.3,
             "test-authoring": 24.2,
-            "verify": 22.1,
+            "verify": 22.9,
             "debug": 74.5,
             "tooling-friction": 0.2,
             "think": 7.6,
             "report": 0,
-            "other": 0
+            "other": 0.7
           },
           "friction": {
             "HARNESS-GUARD": 0.2
           },
           "learn": {
-            "skill-load": 43.5
+            "skill-load": 42.1
           }
         },
         "react": {
@@ -774,25 +769,24 @@
           },
           "wroteTest": 4,
           "keptTest": 4,
-          "attributedShareMin": 1,
-          "attributedShareMean": 1,
+          "attributedShareMin": 0.94,
+          "attributedShareMean": 0.98,
           "phases": {
             "orient": 33.5,
-            "learn": 6.1,
+            "learn": 0.4,
             "implement": 72.6,
             "test-authoring": 13.9,
-            "verify": 22.1,
+            "verify": 23.8,
             "debug": 80.4,
             "tooling-friction": 0.7,
             "think": 6,
             "report": 0,
-            "other": 0
+            "other": 3.9
           },
           "friction": {
             "HARNESS-GUARD": 0.7
           },
           "learn": {
-            "skill-load": 5.6,
             "other": 0.4
           }
         }
@@ -966,26 +960,24 @@
           },
           "wroteTest": 5,
           "keptTest": 5,
-          "attributedShareMin": 1,
+          "attributedShareMin": 0.98,
           "attributedShareMean": 1,
           "phases": {
-            "orient": 26.5,
-            "learn": 2.7,
+            "orient": 26.9,
+            "learn": 0,
             "implement": 45.5,
             "test-authoring": 30.5,
-            "verify": 10.4,
+            "verify": 11,
             "debug": 254.4,
             "tooling-friction": 1,
             "think": 7.5,
             "report": 0,
-            "other": 0
+            "other": 1.7
           },
           "friction": {
             "HARNESS-GUARD": 1
           },
-          "learn": {
-            "skill-load": 2.7
-          }
+          "learn": {}
         }
       }
     },
@@ -1064,25 +1056,25 @@
         },
         "wroteTest": 24,
         "keptTest": 24,
-        "attributedShareMin": 0.98,
+        "attributedShareMin": 0.94,
         "attributedShareMean": 1,
         "phases": {
-          "orient": 26.6,
-          "learn": 27.9,
+          "orient": 26.7,
+          "learn": 26.6,
           "implement": 55.8,
           "test-authoring": 27.3,
-          "verify": 15.2,
+          "verify": 15.4,
           "debug": 154.4,
           "tooling-friction": 0.1,
           "think": 7.5,
           "report": 0,
-          "other": 0.5
+          "other": 1.5
         },
         "friction": {
           "HARNESS-GUARD": 0.1
         },
         "learn": {
-          "skill-load": 27.7,
+          "skill-load": 26.4,
           "framework-source": 0.3
         }
       },
@@ -1160,26 +1152,25 @@
         },
         "wroteTest": 19,
         "keptTest": 17,
-        "attributedShareMin": 1,
-        "attributedShareMean": 1,
+        "attributedShareMin": 0.94,
+        "attributedShareMean": 0.99,
         "phases": {
-          "orient": 31.8,
-          "learn": 3.9,
+          "orient": 32.2,
+          "learn": 0.4,
           "implement": 57.7,
           "test-authoring": 15.7,
-          "verify": 17.4,
+          "verify": 18.4,
           "debug": 123.1,
           "tooling-friction": 0.6,
           "think": 6.4,
           "report": 0,
-          "other": 0
+          "other": 2.2
         },
         "friction": {
           "HARNESS-GUARD": 0.6
         },
         "learn": {
-          "skill-load": 3.7,
-          "skill-reference": 0.1,
+          "skill-reference": 0.3,
           "other": 0.1
         }
       }
@@ -1259,25 +1250,25 @@
         },
         "wroteTest": 24,
         "keptTest": 24,
-        "attributedShareMin": 0.98,
+        "attributedShareMin": 0.94,
         "attributedShareMean": 1,
         "phases": {
-          "orient": 26.6,
-          "learn": 27.9,
+          "orient": 26.7,
+          "learn": 26.6,
           "implement": 55.8,
           "test-authoring": 27.3,
-          "verify": 15.2,
+          "verify": 15.4,
           "debug": 154.4,
           "tooling-friction": 0.1,
           "think": 7.5,
           "report": 0,
-          "other": 0.5
+          "other": 1.5
         },
         "friction": {
           "HARNESS-GUARD": 0.1
         },
         "learn": {
-          "skill-load": 27.7,
+          "skill-load": 26.4,
           "framework-source": 0.3
         }
       },
@@ -1355,26 +1346,25 @@
         },
         "wroteTest": 19,
         "keptTest": 17,
-        "attributedShareMin": 1,
-        "attributedShareMean": 1,
+        "attributedShareMin": 0.94,
+        "attributedShareMean": 0.99,
         "phases": {
-          "orient": 31.8,
-          "learn": 3.9,
+          "orient": 32.2,
+          "learn": 0.4,
           "implement": 57.7,
           "test-authoring": 15.7,
-          "verify": 17.4,
+          "verify": 18.4,
           "debug": 123.1,
           "tooling-friction": 0.6,
           "think": 6.4,
           "report": 0,
-          "other": 0
+          "other": 2.2
         },
         "friction": {
           "HARNESS-GUARD": 0.6
         },
         "learn": {
-          "skill-load": 3.7,
-          "skill-reference": 0.1,
+          "skill-reference": 0.3,
           "other": 0.1
         }
       }
@@ -1398,10 +1388,10 @@
         },
         {
           "item": "learn:skill-load",
-          "sygnal": 27.7,
-          "react": 3.7,
-          "delta": 24,
-          "shareOfDelta": 0.41
+          "sygnal": 26.4,
+          "react": 0,
+          "delta": 26.4,
+          "shareOfDelta": 0.45
         },
         {
           "item": "phase:test-authoring",
@@ -1418,25 +1408,11 @@
           "shareOfDelta": 0.02
         },
         {
-          "item": "phase:other",
-          "sygnal": 0.5,
-          "react": 0,
-          "delta": 0.5,
-          "shareOfDelta": 0.01
-        },
-        {
           "item": "learn:framework-source",
           "sygnal": 0.3,
           "react": 0,
           "delta": 0.3,
           "shareOfDelta": 0.01
-        },
-        {
-          "item": "learn:skill-reference",
-          "sygnal": 0,
-          "react": 0.1,
-          "delta": -0.1,
-          "shareOfDelta": 0
         },
         {
           "item": "learn:other",
@@ -1446,10 +1422,24 @@
           "shareOfDelta": 0
         },
         {
+          "item": "learn:skill-reference",
+          "sygnal": 0,
+          "react": 0.3,
+          "delta": -0.3,
+          "shareOfDelta": -0.01
+        },
+        {
           "item": "friction:HARNESS-GUARD",
           "sygnal": 0.1,
           "react": 0.6,
           "delta": -0.5,
+          "shareOfDelta": -0.01
+        },
+        {
+          "item": "phase:other",
+          "sygnal": 1.5,
+          "react": 2.2,
+          "delta": -0.7,
           "shareOfDelta": -0.01
         },
         {
@@ -1461,17 +1451,17 @@
         },
         {
           "item": "phase:verify",
-          "sygnal": 15.2,
-          "react": 17.4,
-          "delta": -2.2,
-          "shareOfDelta": -0.04
+          "sygnal": 15.4,
+          "react": 18.4,
+          "delta": -3,
+          "shareOfDelta": -0.05
         },
         {
           "item": "phase:orient",
-          "sygnal": 26.6,
-          "react": 31.8,
-          "delta": -5.2,
-          "shareOfDelta": -0.09
+          "sygnal": 26.7,
+          "react": 32.2,
+          "delta": -5.6,
+          "shareOfDelta": -0.1
         }
       ],
       "buckets": [
@@ -1487,14 +1477,14 @@
         },
         {
           "bucket": "learning: skill",
-          "sygnal": 27.7,
-          "react": 3.8,
-          "delta": 23.9,
+          "sygnal": 26.4,
+          "react": 0.3,
+          "delta": 26.1,
           "items": [
             "learn:skill-load",
             "learn:skill-reference"
           ],
-          "shareOfDelta": 0.41
+          "shareOfDelta": 0.45
         },
         {
           "bucket": "self-testing: writing tests",
@@ -1508,14 +1498,14 @@
         },
         {
           "bucket": "other",
-          "sygnal": 8,
-          "react": 6.4,
-          "delta": 1.6,
+          "sygnal": 9,
+          "react": 8.6,
+          "delta": 0.4,
           "items": [
             "phase:think",
             "phase:other"
           ],
-          "shareOfDelta": 0.03
+          "shareOfDelta": 0.01
         },
         {
           "bucket": "learning: framework API and source",
@@ -1550,23 +1540,23 @@
         },
         {
           "bucket": "build/test runs",
-          "sygnal": 15.2,
-          "react": 17.4,
-          "delta": -2.2,
+          "sygnal": 15.4,
+          "react": 18.4,
+          "delta": -3,
           "items": [
             "phase:verify"
           ],
-          "shareOfDelta": -0.04
+          "shareOfDelta": -0.05
         },
         {
           "bucket": "orientation",
-          "sygnal": 26.6,
-          "react": 31.8,
-          "delta": -5.2,
+          "sygnal": 26.7,
+          "react": 32.2,
+          "delta": -5.6,
           "items": [
             "phase:orient"
           ],
-          "shareOfDelta": -0.09
+          "shareOfDelta": -0.1
         }
       ]
     },
@@ -1694,7 +1684,7 @@
       "sygnalTrials": 25,
       "skillInvoked": 25,
       "skillBytes": {
-        "mean": 49639.2,
+        "mean": 43020.6,
         "median": 41366
       },
       "files": {
@@ -1706,7 +1696,7 @@
             "median": 393
           },
           "bytes": {
-            "mean": 49639.2,
+            "mean": 43020.6,
             "median": 41366
           },
           "how": {
@@ -2987,6 +2977,68 @@
           }
         }
       }
+    },
+    "failureCategories": {
+      "sygnal": {
+        "other": {
+          "manual": 0,
+          "auto": 20,
+          "trials": [
+            "sygnal-30-t1",
+            "sygnal-30-t2",
+            "sygnal-30-t3",
+            "sygnal-30-t4",
+            "sygnal-30-t5",
+            "sygnal-31-t2",
+            "sygnal-31-t5",
+            "sygnal-32-t1",
+            "sygnal-32-t2",
+            "sygnal-32-t3",
+            "sygnal-32-t5",
+            "sygnal-33-t1",
+            "sygnal-33-t2",
+            "sygnal-33-t4",
+            "sygnal-33-t5",
+            "sygnal-34-t1",
+            "sygnal-34-t2",
+            "sygnal-34-t3",
+            "sygnal-34-t4",
+            "sygnal-34-t5"
+          ]
+        }
+      },
+      "react": {
+        "other": {
+          "manual": 0,
+          "auto": 16,
+          "trials": [
+            "react-30-t1",
+            "react-30-t2",
+            "react-30-t3",
+            "react-30-t4",
+            "react-30-t5",
+            "react-31-t3",
+            "react-31-t5",
+            "react-32-t1",
+            "react-32-t3",
+            "react-33-t1",
+            "react-33-t2",
+            "react-33-t3",
+            "react-33-t4",
+            "react-33-t5",
+            "react-34-t4",
+            "react-34-t5"
+          ]
+        }
+      }
+    },
+    "otherSkills": {
+      "sygnal": {
+        "run": 4
+      },
+      "react": {
+        "run": 19
+      }
     }
   },
   "trials": [
@@ -2998,7 +3050,8 @@
       "trialNo": 1,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -3045,16 +3098,17 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 246.9,
       "phases": {
         "orient": 66,
         "implement": 31.3,
-        "verify": 12.4,
-        "learn": 2.9,
+        "verify": 14,
+        "other": 1.4,
         "debug": 125.9,
         "think": 8.3
       },
-      "attributedShare": 1,
+      "attributedShare": 0.994,
       "iterations": 10,
       "effectiveIterations": 10,
       "edits": 7,
@@ -3131,9 +3185,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 2.9
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -3141,50 +3193,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -3229,6 +3244,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1627
     },
     {
@@ -3239,7 +3259,8 @@
       "trialNo": 2,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -3289,15 +3310,17 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 309.2,
       "phases": {
         "orient": 15.8,
         "implement": 100.7,
-        "learn": 5.4,
+        "other": 1.9,
+        "learn": 3.4,
         "verify": 6.4,
         "debug": 181
       },
-      "attributedShare": 1,
+      "attributedShare": 0.994,
       "iterations": 3,
       "effectiveIterations": 3,
       "edits": 14,
@@ -3364,8 +3387,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 4.1,
-        "skill-reference": 1.3
+        "skill-reference": 3.4
       },
       "catalog": {
         "result": [],
@@ -3374,51 +3396,23 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41445,
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 79,
         "files": {
           "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
+            "ranges": [],
+            "linesSeen": 0,
             "fileLines": 393,
-            "bytes": 41445,
+            "bytes": 79,
             "how": [
-              "skill-tool",
               "bash"
             ]
           }
         },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
-        ],
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -3444,6 +3438,11 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1872
     },
     {
@@ -3453,7 +3452,9 @@
       "task": "30-checkout-form",
       "trialNo": 3,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 2,
@@ -3492,17 +3493,18 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 241.8,
       "phases": {
-        "orient": 38.8,
+        "orient": 41.7,
         "implement": 71.2,
-        "learn": 4.5,
+        "other": 1.6,
         "verify": 57.1,
         "test-authoring": 22.6,
         "debug": 35.2,
         "think": 12.4
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 9,
       "effectiveIterations": 9,
       "edits": 7,
@@ -3570,9 +3572,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 4.5
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -3580,50 +3580,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -3663,6 +3626,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1188
     },
     {
@@ -3672,7 +3640,9 @@
       "task": "30-checkout-form",
       "trialNo": 4,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 2,
@@ -3712,18 +3682,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 159,
       "phases": {
-        "orient": 13.8,
+        "orient": 16.1,
         "implement": 26.5,
-        "learn": 4.2,
+        "other": 1.9,
         "verify": 10.7,
         "test-authoring": 13.9,
         "debug": 79.2,
         "tooling-friction": 1.8,
         "think": 8.9
       },
-      "attributedShare": 1,
+      "attributedShare": 0.988,
       "iterations": 7,
       "effectiveIterations": 7,
       "edits": 15,
@@ -3803,9 +3774,7 @@
       "frictionSeconds": {
         "HARNESS-GUARD": 1.8
       },
-      "learnSeconds": {
-        "skill-load": 4.2
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [
           "HARNESS-GUARD"
@@ -3815,50 +3784,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -3904,6 +3836,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1798
     },
     {
@@ -3914,7 +3851,8 @@
       "trialNo": 5,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -3960,16 +3898,18 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 245.3,
       "phases": {
         "orient": 41.7,
         "implement": 65.7,
-        "learn": 9.6,
+        "other": 5.5,
+        "learn": 4.1,
         "verify": 10.1,
         "debug": 112.4,
         "think": 5.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.978,
       "iterations": 6,
       "effectiveIterations": 6,
       "edits": 14,
@@ -4028,8 +3968,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 7.6,
-        "skill-reference": 2
+        "skill-reference": 4.1
       },
       "catalog": {
         "result": [],
@@ -4038,51 +3977,23 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41934,
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 568,
         "files": {
           "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
+            "ranges": [],
+            "linesSeen": 0,
             "fileLines": 393,
-            "bytes": 41934,
+            "bytes": 568,
             "how": [
-              "skill-tool",
               "bash"
             ]
           }
         },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
-        ],
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -4108,6 +4019,11 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1568
     },
     {
@@ -4156,6 +4072,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 336.5,
       "phases": {
         "orient": 13.8,
@@ -4293,6 +4210,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -4402,6 +4320,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1734
     },
     {
@@ -4411,7 +4334,9 @@
       "task": "30-checkout-form",
       "trialNo": 2,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 2,
@@ -4451,17 +4376,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 365.8,
       "phases": {
-        "orient": 19.8,
-        "learn": 35.2,
+        "orient": 21,
+        "learn": 13.6,
         "implement": 47.7,
         "verify": 15.3,
+        "other": 20.4,
         "test-authoring": 40.6,
         "debug": 200.7,
         "think": 6.4
       },
-      "attributedShare": 1,
+      "attributedShare": 0.944,
       "iterations": 9,
       "effectiveIterations": 9,
       "edits": 20,
@@ -4556,7 +4483,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 35.2
+        "skill-load": 13.6
       },
       "catalog": {
         "result": [],
@@ -4569,7 +4496,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -4580,7 +4510,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -4678,6 +4608,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1832
     },
     {
@@ -4726,6 +4661,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 320.7,
       "phases": {
         "orient": 15.9,
@@ -4859,6 +4795,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -4968,6 +4905,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1350
     },
     {
@@ -5016,6 +4958,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 356,
       "phases": {
         "orient": 14.4,
@@ -5137,6 +5080,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -5246,6 +5190,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1736
     },
     {
@@ -5294,6 +5243,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 385.3,
       "phases": {
         "orient": 11.6,
@@ -5418,6 +5368,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -5527,6 +5478,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 2225
     },
     {
@@ -5536,7 +5492,9 @@
       "task": "31-command-menu",
       "trialNo": 1,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": true,
         "testsPassed": 8,
@@ -5575,17 +5533,18 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 160.6,
       "phases": {
         "orient": 28.8,
         "implement": 10,
-        "verify": 15.2,
-        "learn": 6.8,
+        "verify": 17.3,
+        "other": 4.7,
         "test-authoring": 18.9,
         "debug": 72.7,
         "think": 8.3
       },
-      "attributedShare": 1,
+      "attributedShare": 0.971,
       "iterations": 9,
       "effectiveIterations": 9,
       "edits": 11,
@@ -5662,9 +5621,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 6.8
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -5672,50 +5629,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -5755,6 +5675,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1147
     },
     {
@@ -5765,7 +5686,8 @@
       "trialNo": 2,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": true,
@@ -5811,16 +5733,17 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 164.7,
       "phases": {
-        "orient": 19.4,
+        "orient": 21.7,
         "verify": 13.9,
         "implement": 17.4,
-        "learn": 3.9,
+        "other": 1.6,
         "test-authoring": 13.3,
         "debug": 96.9
       },
-      "attributedShare": 1,
+      "attributedShare": 0.99,
       "iterations": 12,
       "effectiveIterations": 12,
       "edits": 7,
@@ -5921,9 +5844,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 3.9
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -5931,50 +5852,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -6004,6 +5888,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1258
     },
     {
@@ -6014,7 +5899,8 @@
       "trialNo": 3,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -6059,16 +5945,17 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 149.3,
       "phases": {
         "orient": 23.7,
         "implement": 103.2,
-        "verify": 10.2,
-        "learn": 2.8,
+        "verify": 11.6,
+        "other": 1.4,
         "debug": 1.6,
         "think": 7.6
       },
-      "attributedShare": 1,
+      "attributedShare": 0.99,
       "iterations": 5,
       "effectiveIterations": 5,
       "edits": 7,
@@ -6124,9 +6011,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 2.8
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -6134,50 +6019,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -6198,6 +6046,11 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1415
     },
     {
@@ -6208,7 +6061,8 @@
       "trialNo": 4,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": true,
@@ -6259,17 +6113,18 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 466.6,
       "phases": {
         "orient": 27.2,
         "implement": 36.1,
-        "verify": 24.1,
-        "learn": 4.4,
+        "verify": 26.7,
+        "other": 1.8,
         "debug": 351.4,
         "test-authoring": 16.4,
         "think": 7.2
       },
-      "attributedShare": 1,
+      "attributedShare": 0.996,
       "iterations": 41,
       "effectiveIterations": 41,
       "edits": 43,
@@ -6664,9 +6519,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 4.4
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -6674,50 +6527,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -6752,6 +6568,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1464
     },
     {
@@ -6807,6 +6624,7 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 151.3,
       "phases": {
         "orient": 22.2,
@@ -6892,6 +6710,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -6929,6 +6748,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1358
     },
     {
@@ -6978,6 +6802,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 100.8,
       "phases": {
         "orient": 12.1,
@@ -7050,6 +6875,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -7156,6 +6982,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1478
     },
     {
@@ -7204,6 +7031,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 100.8,
       "phases": {
         "orient": 46.1,
@@ -7244,6 +7072,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -7348,6 +7177,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1347
     },
     {
@@ -7397,6 +7231,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 170.4,
       "phases": {
         "orient": 17.1,
@@ -7454,6 +7289,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -7563,6 +7399,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1567
     },
     {
@@ -7612,6 +7449,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 93.5,
       "phases": {
         "orient": 17.7,
@@ -7684,6 +7522,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -7788,6 +7627,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1299
     },
     {
@@ -7836,6 +7676,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 188.1,
       "phases": {
         "orient": 21.3,
@@ -7918,6 +7759,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -8022,6 +7864,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1615
     },
     {
@@ -8032,7 +7879,8 @@
       "trialNo": 1,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -8078,18 +7926,19 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 229.9,
       "phases": {
         "orient": 19.2,
-        "verify": 14,
+        "verify": 15.7,
         "implement": 17.1,
-        "learn": 3.3,
+        "other": 1.6,
         "test-authoring": 11.9,
         "debug": 156.2,
         "tooling-friction": 1.6,
         "think": 6.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 11,
       "effectiveIterations": 11,
       "edits": 16,
@@ -8196,9 +8045,7 @@
       "frictionSeconds": {
         "HARNESS-GUARD": 1.6
       },
-      "learnSeconds": {
-        "skill-load": 3.3
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [
           "HARNESS-GUARD"
@@ -8208,50 +8055,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -8281,6 +8091,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1450
     },
     {
@@ -8327,6 +8142,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 86.5,
       "phases": {
         "orient": 26.1,
@@ -8351,6 +8167,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -8374,6 +8191,7 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": null,
       "finalReportChars": 1112
     },
     {
@@ -8383,7 +8201,9 @@
       "task": "32-sales-chart",
       "trialNo": 3,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 0,
@@ -8422,15 +8242,16 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 414.4,
       "phases": {
         "orient": 75.2,
         "implement": 310.3,
-        "verify": 19.3,
-        "learn": 2.9,
+        "verify": 21,
+        "other": 1.2,
         "think": 6.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.997,
       "iterations": 4,
       "effectiveIterations": 4,
       "edits": 18,
@@ -8447,9 +8268,7 @@
       ],
       "episodes": [],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 2.9
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -8457,50 +8276,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -8521,6 +8303,11 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1649
     },
     {
@@ -8531,7 +8318,8 @@
       "trialNo": 4,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": true,
@@ -8577,17 +8365,18 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 219.3,
       "phases": {
         "orient": 39.6,
         "implement": 14.8,
-        "verify": 18.7,
-        "learn": 3,
+        "verify": 20.2,
+        "other": 1.4,
         "test-authoring": 37.9,
         "debug": 97.6,
         "think": 7.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.994,
       "iterations": 9,
       "effectiveIterations": 9,
       "edits": 16,
@@ -8680,9 +8469,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 3
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -8690,50 +8477,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -8754,6 +8504,7 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": null,
       "finalReportChars": 1373
     },
     {
@@ -8809,6 +8560,7 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 103.9,
       "phases": {
         "orient": 38.5,
@@ -8874,6 +8626,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -8897,6 +8650,7 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": null,
       "finalReportChars": 1371
     },
     {
@@ -8946,6 +8700,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 505.8,
       "phases": {
         "orient": 23.3,
@@ -9159,6 +8914,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -9263,6 +9019,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1910
     },
     {
@@ -9309,6 +9070,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 25.4,
       "phases": {
         "orient": 12.6,
@@ -9335,6 +9097,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -9425,6 +9188,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1465
     },
     {
@@ -9474,6 +9242,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 588.2,
       "phases": {
         "orient": 13.2,
@@ -9862,6 +9631,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -9978,6 +9748,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1495
     },
     {
@@ -9988,7 +9763,8 @@
       "trialNo": 4,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": true,
@@ -10034,18 +9810,20 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 487.2,
       "phases": {
         "orient": 34.5,
-        "learn": 136.3,
+        "learn": 132.8,
         "implement": 122.1,
-        "verify": 19,
+        "verify": 21,
+        "other": 1.5,
         "test-authoring": 19.2,
         "debug": 143.8,
         "tooling-friction": 1.4,
         "think": 10.9
       },
-      "attributedShare": 1,
+      "attributedShare": 0.997,
       "iterations": 14,
       "effectiveIterations": 14,
       "edits": 22,
@@ -10214,7 +9992,7 @@
         "HARNESS-GUARD": 1.4
       },
       "learnSeconds": {
-        "skill-load": 136.3
+        "skill-load": 132.8
       },
       "catalog": {
         "result": [
@@ -10227,7 +10005,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -10238,7 +10019,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -10331,6 +10112,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1644
     },
     {
@@ -10380,6 +10162,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 544.1,
       "phases": {
         "orient": 116.6,
@@ -10676,6 +10459,7 @@
       "usedActionLog": true,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -10787,6 +10571,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1391
     },
     {
@@ -10797,7 +10586,8 @@
       "trialNo": 1,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -10843,18 +10633,19 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 242.9,
       "phases": {
         "orient": 35.2,
         "implement": 72.4,
-        "verify": 40,
-        "learn": 16.1,
+        "verify": 42.1,
+        "other": 14,
         "test-authoring": 22.9,
         "debug": 49.5,
         "tooling-friction": 1.4,
         "think": 5.4
       },
-      "attributedShare": 1,
+      "attributedShare": 0.942,
       "iterations": 11,
       "effectiveIterations": 11,
       "edits": 13,
@@ -10970,9 +10761,7 @@
       "frictionSeconds": {
         "HARNESS-GUARD": 1.4
       },
-      "learnSeconds": {
-        "skill-load": 16.1
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [
           "HARNESS-GUARD"
@@ -10982,50 +10771,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -11066,6 +10818,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1615
     },
     {
@@ -11076,7 +10833,8 @@
       "trialNo": 2,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -11122,17 +10880,18 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 302.4,
       "phases": {
         "orient": 39.8,
-        "verify": 21.8,
+        "verify": 23.7,
         "implement": 121.5,
-        "learn": 3.2,
+        "other": 1.3,
         "test-authoring": 14.2,
         "debug": 97.2,
         "think": 4.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.996,
       "iterations": 18,
       "effectiveIterations": 18,
       "edits": 22,
@@ -11262,9 +11021,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 3.2
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -11272,50 +11029,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -11350,6 +11070,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1187
     },
     {
@@ -11359,7 +11084,9 @@
       "task": "33-virtual-list",
       "trialNo": 3,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 4,
@@ -11399,17 +11126,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 248.7,
       "phases": {
         "orient": 27.2,
-        "verify": 12.9,
+        "verify": 14.5,
         "implement": 26.8,
-        "learn": 5,
+        "other": 1.2,
+        "learn": 2.1,
         "test-authoring": 18.4,
         "debug": 151,
         "think": 7.5
       },
-      "attributedShare": 1,
+      "attributedShare": 0.995,
       "iterations": 10,
       "effectiveIterations": 10,
       "edits": 20,
@@ -11513,7 +11242,6 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 2.9,
         "other": 2.1
       },
       "catalog": {
@@ -11523,50 +11251,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -11606,6 +11297,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 925
     },
     {
@@ -11616,7 +11312,8 @@
       "trialNo": 4,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -11661,15 +11358,16 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 187,
       "phases": {
         "orient": 44.4,
         "implement": 113.1,
-        "verify": 21.4,
-        "learn": 2.8,
+        "verify": 22.9,
+        "other": 1.4,
         "think": 5.3
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 7,
       "effectiveIterations": 7,
       "edits": 8,
@@ -11726,9 +11424,7 @@
       ],
       "episodes": [],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 2.8
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -11736,50 +11432,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -11810,6 +11469,11 @@
       },
       "keptTests": [],
       "testApproach": [],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1491
     },
     {
@@ -11819,7 +11483,9 @@
       "task": "33-virtual-list",
       "trialNo": 5,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 5,
@@ -11858,18 +11524,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 195.5,
       "phases": {
         "orient": 21,
         "implement": 29,
-        "verify": 14.4,
-        "learn": 3.2,
+        "verify": 15.9,
+        "other": 1.7,
         "tooling-friction": 2.3,
         "test-authoring": 14.1,
         "debug": 104.4,
         "think": 7.1
       },
-      "attributedShare": 1,
+      "attributedShare": 0.991,
       "iterations": 10,
       "effectiveIterations": 10,
       "edits": 20,
@@ -11966,9 +11633,7 @@
       "frictionSeconds": {
         "HARNESS-GUARD": 2.3
       },
-      "learnSeconds": {
-        "skill-load": 3.2
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [
           "HARNESS-GUARD"
@@ -11978,50 +11643,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -12071,6 +11699,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1619
     },
     {
@@ -12119,6 +11752,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 219.5,
       "phases": {
         "orient": 24,
@@ -12193,6 +11827,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -12297,6 +11932,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1377
     },
     {
@@ -12307,7 +11947,8 @@
       "trialNo": 2,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -12354,18 +11995,20 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 339.4,
       "phases": {
         "orient": 20.7,
-        "learn": 135.4,
+        "learn": 131,
         "implement": 19.1,
-        "verify": 17.9,
+        "verify": 20.1,
+        "other": 2.3,
         "test-authoring": 22.2,
         "debug": 115.9,
         "tooling-friction": 1.1,
         "think": 7
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 7,
       "effectiveIterations": 7,
       "edits": 12,
@@ -12456,7 +12099,7 @@
         "HARNESS-GUARD": 1.1
       },
       "learnSeconds": {
-        "skill-load": 135.4
+        "skill-load": 131
       },
       "catalog": {
         "result": [
@@ -12471,7 +12114,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 124098,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 82732,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -12482,7 +12128,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 124098,
+            "bytes": 82732,
             "how": [
               "skill-tool"
             ]
@@ -12580,6 +12226,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1719
     },
     {
@@ -12629,6 +12280,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 347.2,
       "phases": {
         "orient": 19.1,
@@ -12729,6 +12381,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -12838,6 +12491,7 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": null,
       "finalReportChars": 1732
     },
     {
@@ -12847,7 +12501,9 @@
       "task": "33-virtual-list",
       "trialNo": 4,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 5,
@@ -12887,17 +12543,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 214.4,
       "phases": {
         "orient": 32.2,
-        "learn": 12.8,
+        "learn": 9.9,
         "implement": 106.8,
-        "verify": 19.3,
+        "verify": 20.8,
         "test-authoring": 19.7,
         "debug": 14.6,
+        "other": 1.4,
         "think": 9.2
       },
-      "attributedShare": 1,
+      "attributedShare": 0.994,
       "iterations": 6,
       "effectiveIterations": 6,
       "edits": 8,
@@ -12954,7 +12612,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 12.8
+        "skill-load": 9.9
       },
       "catalog": {
         "result": [],
@@ -12967,7 +12625,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -12978,7 +12639,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -13071,6 +12732,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1662
     },
     {
@@ -13119,6 +12785,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 229.8,
       "phases": {
         "orient": 27,
@@ -13208,6 +12875,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -13317,6 +12985,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1371
     },
     {
@@ -13364,6 +13037,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 261,
       "phases": {
         "orient": 20.9,
@@ -13453,6 +13127,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -13490,6 +13165,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1433
     },
     {
@@ -13499,7 +13175,9 @@
       "task": "34-sortable-playlist",
       "trialNo": 2,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": true,
         "testsPassed": 6,
@@ -13538,17 +13216,18 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 371.9,
       "phases": {
         "orient": 34.8,
         "implement": 46.7,
-        "verify": 13.9,
-        "learn": 8,
+        "verify": 16,
+        "other": 5.9,
         "test-authoring": 51.3,
         "debug": 209.5,
         "think": 7.6
       },
-      "attributedShare": 1,
+      "attributedShare": 0.984,
       "iterations": 11,
       "effectiveIterations": 11,
       "edits": 13,
@@ -13643,9 +13322,7 @@
         }
       ],
       "frictionSeconds": {},
-      "learnSeconds": {
-        "skill-load": 8
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [],
         "report": [],
@@ -13653,50 +13330,13 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 41366,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 41366,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -13731,6 +13371,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1277
     },
     {
@@ -13786,6 +13427,7 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 348.5,
       "phases": {
         "orient": 37.3,
@@ -13927,6 +13569,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -13974,6 +13617,7 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": null,
       "finalReportChars": 1719
     },
     {
@@ -14021,6 +13665,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 596.5,
       "phases": {
         "orient": 15.1,
@@ -14227,6 +13872,7 @@
       },
       "skill": {
         "skillInvoked": false,
+        "otherSkills": [],
         "skillBytes": 0,
         "files": {},
         "sections": [],
@@ -14274,6 +13920,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1385
     },
     {
@@ -14284,7 +13935,8 @@
       "trialNo": 5,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -14330,18 +13982,19 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 314.1,
       "phases": {
-        "orient": 24.5,
+        "orient": 26.5,
         "implement": 83.3,
-        "verify": 10.8,
-        "learn": 5.3,
+        "verify": 11.6,
+        "other": 2.4,
         "test-authoring": 22.8,
         "debug": 156.1,
         "tooling-friction": 3.2,
         "think": 8.1
       },
-      "attributedShare": 1,
+      "attributedShare": 0.992,
       "iterations": 11,
       "effectiveIterations": 11,
       "edits": 17,
@@ -14458,9 +14111,7 @@
       "frictionSeconds": {
         "HARNESS-GUARD": 3.2
       },
-      "learnSeconds": {
-        "skill-load": 5.3
-      },
+      "learnSeconds": {},
       "catalog": {
         "result": [
           "HARNESS-GUARD"
@@ -14470,50 +14121,14 @@
         "input": []
       },
       "skill": {
-        "skillInvoked": true,
-        "skillBytes": 82732,
-        "files": {
-          "SKILL.md": {
-            "ranges": [
-              [
-                1,
-                393
-              ]
-            ],
-            "linesSeen": 393,
-            "fileLines": 393,
-            "bytes": 82732,
-            "how": [
-              "skill-tool"
-            ]
-          }
-        },
-        "sections": [
-          "SKILL.md#Sygnal Dev",
-          "SKILL.md#1. Workflow",
-          "SKILL.md#2. Mental model and component anatomy",
-          "SKILL.md#3. Canonical examples",
-          "SKILL.md#State update, ABORT, set / toggle, controlled input",
-          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
-          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
-          "SKILL.md#Extract a component without changing the markup",
-          "SKILL.md#Commands (parent → child) + EFFECT",
-          "SKILL.md#Behaviors (`uses`): shared state + actions",
-          "SKILL.md#Forms, widgets, UI parts",
-          "SKILL.md#Element commands, timers, persistence",
-          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
-          "SKILL.md#Reads that follow state: `resources`",
-          "SKILL.md#List/detail + save, cached",
-          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
-          "SKILL.md#Router (makeRouter + route) and HEAD",
-          "SKILL.md#4. API facts",
-          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
-          "SKILL.md#6. Canonical forms (never write the right-hand column)",
-          "SKILL.md#7. Testing your change",
-          "SKILL.md#8. Diagnostics and tools",
-          "SKILL.md#9. Project setup (Vite)",
-          "SKILL.md#10. Where to look next"
+        "skillInvoked": false,
+        "otherSkills": [
+          "run",
+          "run"
         ],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
         "library": {},
         "libraryBytes": 0
       },
@@ -14548,6 +14163,11 @@
       "testApproach": [
         "testing-library"
       ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1596
     },
     {
@@ -14598,6 +14218,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 519.1,
       "phases": {
         "orient": 11.9,
@@ -14854,6 +14475,7 @@
       "usedActionLog": true,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -14958,6 +14580,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1499
     },
     {
@@ -15007,6 +14634,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 403.3,
       "phases": {
         "orient": 23.9,
@@ -15123,6 +14751,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -15227,6 +14856,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1715
     },
     {
@@ -15276,6 +14910,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 137.8,
       "phases": {
         "orient": 23.6,
@@ -15358,6 +14993,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -15467,6 +15103,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1335
     },
     {
@@ -15516,6 +15157,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 612.4,
       "phases": {
         "orient": 23,
@@ -15683,6 +15325,7 @@
       "usedActionLog": true,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -15797,6 +15440,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1600
     },
     {
@@ -15854,6 +15502,7 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 289.4,
       "phases": {
         "orient": 69.8,
@@ -15966,6 +15615,7 @@
       "usedActionLog": true,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -16084,6 +15734,11 @@
         "failure": false,
         "failureSource": null,
         "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
       },
       "finalReportChars": 1531
     }

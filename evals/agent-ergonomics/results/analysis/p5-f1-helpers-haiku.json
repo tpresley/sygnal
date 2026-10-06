@@ -1,12 +1,12 @@
 {
   "meta": {
     "run": "p5-f1-helpers-haiku",
-    "generatedAt": "2026-10-06T11:26:16.681Z",
+    "generatedAt": "2026-10-06T23:09:18.974Z",
     "trialsInMap": 5,
     "trialsAnalyzed": 5,
     "trialsScored": 5,
     "skillDir": "/private/tmp/sygnal-evals/trials/p5-f1-helpers-haiku/_variant/skillroot/.claude/skills/sygnal-dev",
-    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "llms": "/private/tmp/sygnal-evals/trials/p5-f1-helpers-haiku/sygnal-30-t1/node_modules/sygnal/llms.txt",
     "sygnalCheck": true,
     "methods": [
       "headless"
@@ -96,23 +96,23 @@
           },
           "wroteTest": 5,
           "keptTest": 5,
-          "attributedShareMin": 1,
+          "attributedShareMin": 0.99,
           "attributedShareMean": 1,
           "phases": {
-            "orient": 27.8,
-            "learn": 37.7,
+            "orient": 28.2,
+            "learn": 35,
             "implement": 68.5,
             "test-authoring": 29.7,
-            "verify": 23.2,
+            "verify": 24.2,
             "debug": 155.7,
             "tooling-friction": 0,
             "think": 8,
             "report": 0,
-            "other": 0
+            "other": 1.2
           },
           "friction": {},
           "learn": {
-            "skill-load": 37.7
+            "skill-load": 35
           }
         }
       }
@@ -192,23 +192,23 @@
         },
         "wroteTest": 5,
         "keptTest": 5,
-        "attributedShareMin": 1,
+        "attributedShareMin": 0.99,
         "attributedShareMean": 1,
         "phases": {
-          "orient": 27.8,
-          "learn": 37.7,
+          "orient": 28.2,
+          "learn": 35,
           "implement": 68.5,
           "test-authoring": 29.7,
-          "verify": 23.2,
+          "verify": 24.2,
           "debug": 155.7,
           "tooling-friction": 0,
           "think": 8,
           "report": 0,
-          "other": 0
+          "other": 1.2
         },
         "friction": {},
         "learn": {
-          "skill-load": 37.7
+          "skill-load": 35
         }
       }
     },
@@ -270,8 +270,8 @@
       "sygnalTrials": 5,
       "skillInvoked": 5,
       "skillBytes": {
-        "mean": 74458.8,
-        "median": 82732
+        "mean": 41366,
+        "median": 41366
       },
       "files": {
         "SKILL.md": {
@@ -282,8 +282,8 @@
             "median": 393
           },
           "bytes": {
-            "mean": 74458.8,
-            "median": 82732
+            "mean": 41366,
+            "median": 41366
           },
           "how": {
             "skill-tool": 5
@@ -602,6 +602,28 @@
         },
         "react": {}
       }
+    },
+    "failureCategories": {
+      "sygnal": {
+        "other": {
+          "manual": 0,
+          "auto": 5,
+          "trials": [
+            "sygnal-30-t1",
+            "sygnal-30-t2",
+            "sygnal-30-t3",
+            "sygnal-30-t4",
+            "sygnal-30-t5"
+          ]
+        }
+      },
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {
+        "run": 4
+      },
+      "react": {}
     }
   },
   "trials": [
@@ -612,7 +634,9 @@
       "task": "30-checkout-form",
       "trialNo": 1,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 4,
@@ -651,17 +675,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 343.5,
       "phases": {
         "orient": 27.9,
-        "learn": 4,
+        "learn": 0.9,
         "implement": 134.6,
-        "verify": 62,
+        "verify": 63.6,
+        "other": 1.5,
         "test-authoring": 22.4,
         "debug": 83.5,
         "think": 9.1
       },
-      "attributedShare": 1,
+      "attributedShare": 0.996,
       "iterations": 7,
       "effectiveIterations": 7,
       "edits": 17,
@@ -746,7 +772,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 4
+        "skill-load": 0.9
       },
       "catalog": {
         "result": [],
@@ -759,7 +785,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -770,7 +799,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -868,6 +897,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1784
     },
     {
@@ -878,7 +912,8 @@
       "trialNo": 2,
       "agentId": "headless",
       "flags": [
-        "machine-wide process kill (blocked by the guard)"
+        "machine-wide process kill (blocked by the guard)",
+        "other skills invoked: run"
       ],
       "scored": {
         "pass": false,
@@ -925,17 +960,19 @@
         }
       ],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 263,
       "phases": {
         "orient": 17.8,
-        "learn": 19.8,
+        "learn": 16.2,
         "implement": 70.5,
-        "verify": 14.7,
+        "verify": 16.4,
         "test-authoring": 41.9,
         "debug": 91.5,
+        "other": 1.8,
         "think": 6.8
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 7,
       "effectiveIterations": 7,
       "edits": 16,
@@ -986,7 +1023,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 19.8
+        "skill-load": 16.2
       },
       "catalog": {
         "result": [],
@@ -1000,7 +1037,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -1011,7 +1051,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -1109,6 +1149,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1817
     },
     {
@@ -1158,6 +1203,7 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 614.2,
       "phases": {
         "orient": 11.4,
@@ -1366,6 +1412,7 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
+        "otherSkills": [],
         "skillBytes": 41366,
         "files": {
           "SKILL.md": {
@@ -1475,6 +1522,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1725
     },
     {
@@ -1484,7 +1536,9 @@
       "task": "30-checkout-form",
       "trialNo": 4,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 3,
@@ -1523,17 +1577,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 251.9,
       "phases": {
-        "orient": 70.3,
-        "learn": 4.9,
+        "orient": 72.5,
+        "learn": 0.9,
         "implement": 40.6,
         "verify": 23,
+        "other": 1.8,
         "test-authoring": 22.9,
         "debug": 82.9,
         "think": 7.3
       },
-      "attributedShare": 1,
+      "attributedShare": 0.993,
       "iterations": 4,
       "effectiveIterations": 4,
       "edits": 9,
@@ -1574,7 +1630,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 4.9
+        "skill-load": 0.9
       },
       "catalog": {
         "result": [],
@@ -1587,7 +1643,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -1598,7 +1657,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -1703,6 +1762,11 @@
         "failureSource": null,
         "finalChecked": true
       },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
       "finalReportChars": 1934
     },
     {
@@ -1712,7 +1776,9 @@
       "task": "30-checkout-form",
       "trialNo": 5,
       "agentId": "headless",
-      "flags": [],
+      "flags": [
+        "other skills invoked: run"
+      ],
       "scored": {
         "pass": false,
         "testsPassed": 2,
@@ -1751,17 +1817,19 @@
       },
       "processKills": [],
       "processGuard": 1,
+      "skillGuard": 0,
       "wallSeconds": 280.5,
       "phases": {
         "orient": 11.4,
-        "learn": 7.2,
+        "learn": 4.5,
         "implement": 58.7,
-        "verify": 12.6,
+        "verify": 14.1,
+        "other": 1.1,
         "test-authoring": 25.4,
         "debug": 157,
         "think": 8.1
       },
-      "attributedShare": 1,
+      "attributedShare": 0.996,
       "iterations": 9,
       "effectiveIterations": 9,
       "edits": 24,
@@ -1848,7 +1916,7 @@
       ],
       "frictionSeconds": {},
       "learnSeconds": {
-        "skill-load": 7.2
+        "skill-load": 4.5
       },
       "catalog": {
         "result": [],
@@ -1861,7 +1929,10 @@
       "usedActionLog": false,
       "skill": {
         "skillInvoked": true,
-        "skillBytes": 82732,
+        "otherSkills": [
+          "run"
+        ],
+        "skillBytes": 41366,
         "files": {
           "SKILL.md": {
             "ranges": [
@@ -1872,7 +1943,7 @@
             ],
             "linesSeen": 393,
             "fileLines": 393,
-            "bytes": 82732,
+            "bytes": 41366,
             "how": [
               "skill-tool"
             ]
@@ -1969,6 +2040,11 @@
         "failure": false,
         "failureSource": null,
         "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
       },
       "finalReportChars": 1775
     }
