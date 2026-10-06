@@ -358,6 +358,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-05 — Review of 3-W: nothing above Low (G-550). Review rounds have converged.
 - 2026-10-05 — 3-X merged (G-550; core 42,482 B, 18 B headroom). Review of 3-X: nothing above Low (G-551, backlog).
 - 2026-10-05 — Gates after 3-X all green (vitest 3,717, browser 346/345/345, recipes 17×3, samples 674, perf ok, core 42,482 B). **Phase 3 closed.** Phase 4 started: 4-A, 4-B, 4-E (prep only).
+- 2026-10-05 — 4-B (a) merged: 20 pages offline (9 guides flat, `ui/` subdir); +65.9 KB packed. (b) recipes commit `c5b20d8` (+20.6 KB packed) held for the user. Coordinator: `ui/` and `recipes/` keep subdirectories (overview names collide). 4-A told to point agent context at the offline paths.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
