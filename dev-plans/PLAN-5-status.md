@@ -409,6 +409,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — 4-D merged (forms.md 31.6 → 15.4 KB + forms-reference.md + inputs.md; skill/llms hints; SKILL 41,492 B; analysis counts only Sygnal skill calls; eval verify 283/283). User: D233, D234. 4-E2 started (block built-in skills in trials, canonical field arrays, re-analyse D228 runs).
 - 2026-10-06 — 4-E2 merged: trials get per-trial settings disabling bundled skills (`disableBundledSkills`, `skillOverrides` off, `Skill(…)` deny), preflight guard, `skillGuard` in run records/manifest; canonical C18 (inline rows); D228 re-analysed (React learn ≈ 0 s; no conclusion changes). Toc S-14 ready for the user (≈ $26.59).
 - 2026-10-06 — Toc S-14 done (80/80); user: D235 (ship the current skill; re-run its S-14).
+- 2026-10-06 — S-14 re-check `p5-s14b-opus` (current skill, post-4-D, built-ins blocked): 80/80, $27.76. ergo vs PLAN-4 (`p4-final7-opus-ergo`): learn 9.8 → 9.7 s, peak 43.1k → 42.8k, wall −6%, cost −5% — **within the bar** (forms fix worked: vs `p5-s14-opus` learn −18%, peak −9%). Tiers 1–2 vs `p4-final6-opus`: peak +1%, cost +1%, wall +10%, learn 2.0 → 3.0 s (≈ 1 s on ~2 s; treated as noise per the analysis). **S-14 passes; no `llms.txt` trim.** Next: REPORT-v5.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
