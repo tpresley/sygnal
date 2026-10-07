@@ -17,6 +17,7 @@ Quote.model = {
 }
 ```
 - For data a component shows; writes stay reply actions. Needs `makeFetchDriver()` in main.js. The built-in `RESOURCE` action writes `state.quote` (not in initialState). A changed request is fetched and the older one aborted: no ids, `latest` or loading flags. TS: `Resource<Quote>`.
+- **A component that reads `state.items` declares `items` in its own `.resources`** (even if another page does): otherwise it is undefined on a direct visit, or what another page loaded; a test that starts on that page hides this. A `queryCache()` serves the repeat at once.
 - **A refetch of the same request keeps `data` with `refreshing: true`**: when the old value must not show (Refresh shows "Loading…"), treat `refreshing` as loading. `keepPrevious: true` on the request also keeps it across a request change (pagination). `ok`/`error` on the request also dispatch after the write.
 - After a write, `invalidates: ['quotes']` refetches reads tagged `tags: ['quotes']` or under a `'/api/quotes'` prefix; `{ invalidate: 'quotes' }` on the sink does it now.
 - Cache, `retry`, `validate`, `refetchEvery`, `{ prefetch }`, SSR: `node_modules/sygnal/dist/guide/resources.md` (or https://sygnal.js.org/guide/resources/)
