@@ -1,0 +1,72 @@
+import { it, expect, afterEach } from 'vitest'
+import { render, fireEvent, cleanup } from '@testing-library/react'
+import App from './App.jsx'
+
+afterEach(cleanup)
+
+let container
+const query = (sel) => container.querySelector(sel)
+const card = (id) => `.candidate[data-id="${id}"]`
+const stageOf = (id) => query(`${card(id)} .stage`).textContent
+const tabText = (stage) => query(`.tab[data-stage="${stage}"]`).textContent
+
+it('advances a candidate from Applied through Screen, Interview and Offer to Hired', () => {
+  ;({ container } = render(<App />))
+
+  fireEvent.click(query(`${card(1)} .advance`))
+  expect(stageOf(1)).toBe('Screen')
+  expect(tabText('applied')).toBe('Applied (1)')
+  expect(tabText('screen')).toBe('Screen (1)')
+  expect(query('.summary').textContent).toBe('6 active · 1 hired')
+
+  fireEvent.click(query(`${card(1)} .advance`))
+  expect(stageOf(1)).toBe('Interview')
+  expect(tabText('screen')).toBe('Screen (0)')
+  expect(tabText('interview')).toBe('Interview (3)')
+
+  fireEvent.click(query(`${card(1)} .advance`))
+  expect(stageOf(1)).toBe('Offer')
+  expect(tabText('offer')).toBe('Offer (3)')
+
+  fireEvent.click(query(`${card(1)} .advance`))
+  expect(stageOf(1)).toBe('Hired')
+  expect(tabText('hired')).toBe('Hired (2)')
+  expect(query('.summary').textContent).toBe('5 active · 2 hired')
+  // A hired candidate can no longer be advanced or rejected.
+  expect(query(`${card(1)} .advance`)).toBeNull()
+  expect(query(`${card(1)} .reject`)).toBeNull()
+})
+
+it('rejects a candidate', () => {
+  ;({ container } = render(<App />))
+  fireEvent.click(query(`${card(3)} .reject`))
+  expect(stageOf(3)).toBe('Rejected')
+  expect(tabText('interview')).toBe('Interview (1)')
+  expect(tabText('rejected')).toBe('Rejected (2)')
+  expect(query('.summary').textContent).toBe('5 active · 1 hired')
+  expect(query(`${card(3)} .advance`)).toBeNull()
+})
+
+it('reconsiders a rejected candidate, back to the stage they were rejected from', () => {
+  ;({ container } = render(<App />))
+  fireEvent.click(query(`${card(3)} .reject`))
+  fireEvent.click(query(`${card(3)} .reconsider`))
+  expect(stageOf(3)).toBe('Interview')
+  expect(tabText('rejected')).toBe('Rejected (1)')
+  expect(query(`${card(3)} .reconsider`)).toBeNull()
+  expect(query(`${card(3)} .advance`)).not.toBeNull()
+
+  // Hana Kim was rejected at Applied.
+  fireEvent.click(query(`${card(8)} .reconsider`))
+  expect(stageOf(8)).toBe('Applied')
+  expect(tabText('rejected')).toBe('Rejected (0)')
+})
+
+it('removes a candidate', () => {
+  ;({ container } = render(<App />))
+  fireEvent.click(query(`${card(2)} .remove`))
+  expect(query(card(2))).toBeNull()
+  expect([...container.querySelectorAll('.candidate .name')].map((el) => el.textContent)).not.toContain('Ben Ode')
+  expect(tabText('all')).toBe('All (7)')
+  expect(tabText('applied')).toBe('Applied (1)')
+})

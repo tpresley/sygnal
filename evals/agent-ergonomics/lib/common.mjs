@@ -52,11 +52,16 @@ export const TS_EXTRA_DEV_DEPENDENCIES = {
  * verify.mjs checks each starter's package.json against the set plus its task's extras, and
  * installs the union in its shared node_modules.
  */
+const L_REACT_DEPS = { '@hookform/resolvers': '^5.9.1', 'react-hook-form': '^7.89.0', 'react-router': '^7.18.4', zod: '^4.6.5' }
 export const TASK_EXTRA_DEPENDENCIES = {
   // PLAN-5 4-E (p5 tier): libraries both arms would have (zod for 30's schema, Chart.js for 32).
   sygnal: {
     '30-checkout-form': { zod: '^4.6.5' },
     '32-sales-chart': { 'chart.js': '^4.5.1' },
+    // mod tier, level L (41-43): the expenses app's form schema (zod, both arms)
+    '41-expenses-budgets': { zod: '^4.6.5' },
+    '42-expenses-drafts': { zod: '^4.6.5' },
+    '43-expenses-remove-settings': { zod: '^4.6.5' },
   },
   react: {
     '24-list-detail-cache': { '@tanstack/react-query': '^5.104.1' },
@@ -66,8 +71,22 @@ export const TASK_EXTRA_DEPENDENCIES = {
     '32-sales-chart': { 'chart.js': '^4.5.1' },
     '33-virtual-list': { '@tanstack/react-virtual': '^3.14.13' },
     '34-sortable-playlist': { '@dnd-kit/core': '^6.3.1', '@dnd-kit/sortable': '^10.0.0', '@dnd-kit/utilities': '^3.2.2' },
+    // mod tier, level L (41-43): react-router (as in 25) and react-hook-form + zod (as in 30)
+    '41-expenses-budgets': L_REACT_DEPS,
+    '42-expenses-drafts': L_REACT_DEPS,
+    '43-expenses-remove-settings': L_REACT_DEPS,
   },
 }
+
+/**
+ * Mod tier (35-43, "modify existing code"): the tasks of one level start from the same app, so their
+ * starters must be byte-identical (verify.mjs checks). Level S: 35-37, M: 38-40, L: 41-43.
+ */
+export const SHARED_STARTERS = [
+  ['35', '36', '37'],
+  ['38', '39', '40'],
+  ['41', '42', '43'],
+]
 
 export function isTsStarter(starterDir) {
   return fs.existsSync(path.join(starterDir, 'tsconfig.json'))
@@ -185,11 +204,44 @@ export function installHidden(dir, arm, task) {
   return target
 }
 
+/**
+ * A file in a solution or mutant overlay that lists paths (relative to the project, one per
+ * line, `#` comments) to delete after the overlay is copied: an overlay can only add or
+ * replace files, and a remove task's reference deletes some (the mod tier, 35-43).
+ */
+export const OVERLAY_DELETE_FILE = '.overlay-delete'
+
+/** Copy an overlay dir onto a project copy, then delete the paths its .overlay-delete lists. */
+export function applyOverlayDir(src, dir) {
+  fs.cpSync(src, dir, { recursive: true, filter: (p) => path.basename(p) !== OVERLAY_DELETE_FILE })
+  const list = path.join(src, OVERLAY_DELETE_FILE)
+  if (!fs.existsSync(list)) return []
+  const gone = fs.readFileSync(list, 'utf8').split('\n').map((l) => l.replace(/#.*/, '').trim()).filter(Boolean)
+  for (const rel of gone) {
+    const target = path.resolve(dir, rel)
+    if (!(target + path.sep).startsWith(path.resolve(dir) + path.sep)) throw new Error(`${list}: ${rel} is outside the project`)
+    if (!fs.existsSync(target)) throw new Error(`${list}: ${rel} does not exist in the project`)
+    fs.rmSync(target, { recursive: true })
+  }
+  return gone
+}
+
 /** Overlay a task's reference solution onto a starter copy. */
 export function applySolution(dir, arm, task, name = 'solution') {
   const sol = path.join(armPaths(arm).hidden, task, name)
   if (!fs.existsSync(sol)) throw new Error(`No reference solution at ${sol}`)
-  fs.cpSync(sol, dir, { recursive: true })
+  applyOverlayDir(sol, dir)
+}
+
+/**
+ * Test groups by title prefix (the mod tier, 35-43): "audit: ..." tests check that a removed
+ * feature left no code behind, "project: ..." tests run the project's own test suite. Every
+ * other test is a behavior test. score.mjs records each group and `behaviorPass`.
+ */
+export const TEST_GROUPS = { audit: /^audit:/i, project: /^project:/i }
+export function testGroup(title) {
+  for (const [g, re] of Object.entries(TEST_GROUPS)) if (re.test(title)) return g
+  return 'behavior'
 }
 
 /**
@@ -219,6 +271,7 @@ export function runHidden(dir) {
     testsPassed: 0,
     testsTotal: 0,
     failures: [],
+    groups: {}, // { behavior|audit|project: { passed, total } } (TEST_GROUPS)
     output: `${res.stdout || ''}\n${res.stderr || ''}`.trim(),
   }
   if (fs.existsSync(outFile)) {
@@ -230,6 +283,9 @@ export function runHidden(dir) {
         result.failures.push({ test: path.basename(file.name), message: firstLine(file.message) })
       }
       for (const a of file.assertionResults || []) {
+        const g = (result.groups[testGroup(a.title || '')] ??= { passed: 0, total: 0 })
+        g.total++
+        if (a.status === 'passed') g.passed++
         if (a.status !== 'passed') {
           result.failures.push({ test: a.fullName || a.title, message: firstLine((a.failureMessages || []).join('\n')) })
         }

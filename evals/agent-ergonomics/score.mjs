@@ -153,6 +153,10 @@ const record = {
   ...(typeof args.variant === 'string' ? { variant: args.variant, variantHash: typeof args['variant-hash'] === 'string' ? args['variant-hash'] : null } : {}),
   ...(num(args['starter-version']) != null ? { starterVersion: num(args['starter-version']) } : {}),
   failureCategory,
+  // mod tier (35-43): behavior tests alone, and the audit / project-suite groups (lib/common.mjs TEST_GROUPS)
+  ...(r.groups.audit || r.groups.project
+    ? { behaviorPass: !!r.groups.behavior && r.groups.behavior.passed === r.groups.behavior.total, groups: r.groups }
+    : {}),
   failures: r.failures,
   notes: typeof args.notes === 'string' ? args.notes : undefined,
   scoredAt: new Date().toISOString(),

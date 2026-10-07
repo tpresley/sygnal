@@ -113,6 +113,7 @@ test('taskSelector: all, tiers, single ids, ranges, lists', () => {
   assert.deepEqual(pick('net,ergo'), [22, 23, 25, 26, 28, 29])
   assert.deepEqual(pick('p5'), [30])
   assert.deepEqual([29, 30, 32, 34, 35].filter(taskSelector('p5')), [30, 32, 34])
+  assert.deepEqual([34, 35, 39, 43, 44].filter(taskSelector('mod')), [35, 39, 43])
   assert.deepEqual(pick('01'), [1])
   assert.deepEqual(pick('6-9'), [6, 8, 9])
   assert.deepEqual(pick('01,tier3'), [1, 13, 15])
