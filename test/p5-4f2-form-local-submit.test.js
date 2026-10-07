@@ -4,6 +4,10 @@
 // form resets `submitting` when its host starts). The HTTP path and its double-submit guard are
 // unchanged. The wizard cases are the eval task-10 shapes the agents wrote (p5-s14b-opus t1–t5).
 import { describe, it, expect, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 import { renderComponent, form, ABORT } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 
@@ -240,5 +244,18 @@ describe('a wizard: the step unmounts after its submit', () => {
     expect(t.state.account.form.values.email).toBe('ada@example.com')
     await submit('.account')
     expect(t.requests('HTTP').filter((r) => r.url === '/api/account')).toHaveLength(2)
+  })
+})
+
+describe('docs (D236)', () => {
+  it('guide/forms has "Submit without a request" with a PARENT-only entry and the wizard note; the reference the rule', () => {
+    const page = fs.readFileSync(path.join(__dirname, '../docs/src/content/docs/guide/forms.md'), 'utf8')
+    const sec = page.slice(page.indexOf('## Submit without a request'), page.indexOf('## Server errors'))
+    expect(sec).toContain('NEXT: { PARENT: (state, values) =>')
+    expect(sec).not.toContain('HTTP:')
+    expect(sec).toContain('**Wizards**')
+    const ref = fs.readFileSync(path.join(__dirname, '../docs/src/content/docs/guide/forms-reference.md'), 'utf8')
+    expect(ref).toContain('**With the `http` sink**')
+    expect(ref).toContain('**A host that unmounts**')
   })
 })

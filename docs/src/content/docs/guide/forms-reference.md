@@ -14,7 +14,7 @@ The details of the [`form` behavior](/guide/forms/). Start with the recipe on [F
 | `values`, `initial` | The current values, and the ones the form started with (or was last saved or reset with) |
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](/guide/forms/#server-errors-and-failed-submits); [check](#async-checks) results; checks running |
-| `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: sent and not answered yet; `form.DONE` arrived; attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
+| `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: the request sent and not answered yet; `form.DONE` arrived (or a submit without a request was dispatched); attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
 | `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors as of the schema's last answer (`false` before the first); values differ from `initial`; the form-level message |
 
 The options are on [Forms](/guide/forms/#options).
@@ -30,7 +30,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
 | `form.ADD` / `form.REMOVE` | `{ field, value }` / `{ field, id }`: [field array](/guide/forms/#field-arrays) rows |
 | `form.ERRORS` | Server errors: an error reply, a map or a list of issues |
-| `form.DONE` | The submit was saved: `initial` becomes `values`, `submitted` turns on |
+| `form.DONE` | The submit's request was saved: `initial` becomes `values`, `submitted` turns on ([a submit without a request](/guide/forms/#submit-without-a-request) needs none) |
 | `form.RESET` | Back to `initial`, or to the values given |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
@@ -227,7 +227,13 @@ Signup.model = {
 
 ## Saving and resetting
 
-`form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again). `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`); it clears errors, touched fields and the submit count.
+`form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again).
+
+Whether a valid submit waits for `form.DONE` depends on the host's entry for the `submit` action, checked when the host starts:
+
+- **With the `http` sink** (`SIGN_UP: { HTTP: … }`, or the sink the `http` option names, such as `http: 'API'`): `submitting` is `true` until `form.DONE` or `form.ERRORS`, and a submit meanwhile is dropped ([SYG232](/reference/errors/#syg232)). Even when the entry returns `ABORT` this time, the form waits.
+- **Anything else** (`STATE`, `PARENT`, `EVENTS`, `EFFECT`, `ROUTER`, a reducer function): no request, so the submit is done at once, as if `form.DONE` had arrived (no host `form.DONE` entry runs). An `EFFECT` that calls `next('form.DONE')` itself still works; the second `DONE` changes nothing. Work that answers later without the `http` sink (a promise in an `EFFECT`) gets no pending state: send it through a driver as a request instead.
+- **A host that unmounts** keeps its slice in the parent's state when it has a `state` prop. When it mounts again, the form clears `submitting`, `queued` and running checks (their replies went to the old host); the values, errors and `submitted` stay. `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`); it clears errors, touched fields and the submit count.
 
 ## Without the behavior: the helpers
 
