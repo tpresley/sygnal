@@ -429,6 +429,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — 4-H2 merged: resources rule (each declaration fetches; a `queryCache()` serves repeats — D238's "costs nothing" corrected) and form-reset rule in SKILL.md (42,096 B), toc and llms (313 lines), with tests; task 35 accepts either quote (verify 208/208). G-577. Re-run `p5-mod-haiku-2` ready (≈ $20.25).
 - 2026-10-07 — `p5-mod-haiku-2` done: Sygnal 28 → 37/45, React 34 → 40/45 ($21.26). Task 41 Sygnal 0 → 5/5 (resources rule); 35 fixed in both; 43 Sygnal behavior still 1/5 (G-578); 38 general miss 2/5 vs 4/5. REPORT-v5 addendum.
 - 2026-10-07 — User: D239. 4-G2 merged: `form(schema, { values, resetOnShow: true })` (host start + form element reappearing; off by default), `values: (state) => …`; form.ts +272 B gz (opt-in), core 0; SKILL 42,100 B; G-577 diagnostic; Sygnal starter for 41–43 updated (results before/after not comparable on 41–43). Coordinator: +272 B accepted; the option applies state only at start-over. Task-43 Haiku re-check ready (≈ $2.63).
+- 2026-10-07 — `p5-mod-haiku-43`: Sygnal behavior 1/5 → 5/5 (React 5/5); remaining failures in both arms are the shared `money.js` currency audit (Sygnal 4, React 2). REPORT-v5 addendum.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.

@@ -295,3 +295,7 @@ D238 added two rules to the skill and `llms.txt` (a component reading a resource
 - **Task 38 (M add):** Sygnal 2/5, React 4/5: the general "hide instead of disable" spec miss, more often in Sygnal.
 
 Change tasks stay 15/15 in both arms on Haiku and Sonnet. The remaining Sygnal-specific gap is task 43's form-state trap. Total PLAN-5 eval spend: $238.70 for 775 trials.
+
+## Addendum: task 43 after `resetOnShow` (`p5-mod-haiku-43`, D239)
+
+With the `form` option `resetOnShow` (and the Sygnal starter for 41–43 using it), Haiku on task 43: **Sygnal behavior 5/5** (was 1/5 in `p5-mod-haiku-2`), React 5/5. Pass Sygnal 1/5, React 3/5 — every remaining failure in both arms is the same audit: `money.js` (identical in both arms) keeps its currency code, a general removal miss rather than a framework one. $2.59. The form-state trap (G-578) is gone; the Sygnal starter for 41–43 differs from earlier runs, so 41–43 results before and after are not strictly comparable. Total PLAN-5 eval spend: $241.29 for 785 trials.

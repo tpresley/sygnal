@@ -1,0 +1,3132 @@
+{
+  "meta": {
+    "run": "p5-mod-haiku-43",
+    "generatedAt": "2026-10-07T08:39:24.714Z",
+    "trialsInMap": 10,
+    "trialsAnalyzed": 10,
+    "trialsScored": 10,
+    "skillDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/_variant/skillroot/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/plan-4-execution-7ae8e8/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-haiku-4-5-20251001"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "43-expenses-remove-settings"
+    ],
+    "sharedTasks": [
+      "43-expenses-remove-settings"
+    ],
+    "byTask": {
+      "43-expenses-remove-settings": {
+        "sygnal": {
+          "n": 5,
+          "pass": 1,
+          "scored": 5,
+          "wall": {
+            "mean": 105.7,
+            "median": 106.5
+          },
+          "peakContext": {
+            "mean": 48383.8,
+            "median": 51601
+          },
+          "cacheCreation": {
+            "mean": 38451.8,
+            "median": 41667
+          },
+          "cacheRead": {
+            "mean": 1227408.8,
+            "median": 1282189
+          },
+          "messages": {
+            "mean": 35.2,
+            "median": 36
+          },
+          "costUsd": {
+            "mean": 0.251,
+            "median": 0.248
+          },
+          "billedTokens": {
+            "mean": 1276347.6,
+            "median": 1326424
+          },
+          "outputTokens": {
+            "mean": 10202.2,
+            "median": 10234
+          },
+          "durationSeconds": {
+            "mean": 105.7,
+            "median": 106.5
+          },
+          "iterations": {
+            "mean": 3.2,
+            "median": 3
+          },
+          "effectiveIterations": {
+            "mean": 3.2,
+            "median": 3
+          },
+          "editRounds": {
+            "mean": 1.8,
+            "median": 2
+          },
+          "toolCalls": {
+            "mean": 37.8,
+            "median": 36
+          },
+          "failedRuns": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "episodes": {
+            "mean": 0.8,
+            "median": 1
+          },
+          "locAdded": {
+            "mean": 15.4,
+            "median": 15
+          },
+          "locRemoved": {
+            "mean": 101.4,
+            "median": 99
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 36.1,
+            "learn": 4.5,
+            "implement": 40.3,
+            "test-authoring": 5.8,
+            "verify": 6.1,
+            "debug": 5.6,
+            "tooling-friction": 0,
+            "think": 7.3,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 4.5
+          }
+        },
+        "react": {
+          "n": 5,
+          "pass": 3,
+          "scored": 5,
+          "wall": {
+            "mean": 123.2,
+            "median": 121.3
+          },
+          "peakContext": {
+            "mean": 43885.2,
+            "median": 43682
+          },
+          "cacheCreation": {
+            "mean": 33952.8,
+            "median": 33752
+          },
+          "cacheRead": {
+            "mean": 1397693.6,
+            "median": 1476499
+          },
+          "messages": {
+            "mean": 44.4,
+            "median": 47
+          },
+          "costUsd": {
+            "mean": 0.268,
+            "median": 0.273
+          },
+          "billedTokens": {
+            "mean": 1443946.6,
+            "median": 1522041
+          },
+          "outputTokens": {
+            "mean": 11943,
+            "median": 11956
+          },
+          "durationSeconds": {
+            "mean": 123.2,
+            "median": 121.3
+          },
+          "iterations": {
+            "mean": 4,
+            "median": 4
+          },
+          "effectiveIterations": {
+            "mean": 4,
+            "median": 4
+          },
+          "editRounds": {
+            "mean": 1,
+            "median": 1
+          },
+          "toolCalls": {
+            "mean": 48,
+            "median": 47
+          },
+          "failedRuns": {
+            "mean": 0.2,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0.2,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 10,
+            "median": 10
+          },
+          "locRemoved": {
+            "mean": 143,
+            "median": 145
+          },
+          "wroteTest": 5,
+          "keptTest": 5,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 44,
+            "learn": 0,
+            "implement": 46,
+            "test-authoring": 14.2,
+            "verify": 7.9,
+            "debug": 3.1,
+            "tooling-friction": 0.3,
+            "think": 7.7,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {
+            "HARNESS-GUARD": 0.3
+          },
+          "learn": {}
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 5,
+        "pass": 1,
+        "scored": 5,
+        "wall": {
+          "mean": 105.7,
+          "median": 106.5
+        },
+        "peakContext": {
+          "mean": 48383.8,
+          "median": 51601
+        },
+        "cacheCreation": {
+          "mean": 38451.8,
+          "median": 41667
+        },
+        "cacheRead": {
+          "mean": 1227408.8,
+          "median": 1282189
+        },
+        "messages": {
+          "mean": 35.2,
+          "median": 36
+        },
+        "costUsd": {
+          "mean": 0.251,
+          "median": 0.248
+        },
+        "billedTokens": {
+          "mean": 1276347.6,
+          "median": 1326424
+        },
+        "outputTokens": {
+          "mean": 10202.2,
+          "median": 10234
+        },
+        "durationSeconds": {
+          "mean": 105.7,
+          "median": 106.5
+        },
+        "iterations": {
+          "mean": 3.2,
+          "median": 3
+        },
+        "effectiveIterations": {
+          "mean": 3.2,
+          "median": 3
+        },
+        "editRounds": {
+          "mean": 1.8,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 37.8,
+          "median": 36
+        },
+        "failedRuns": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 15.4,
+          "median": 15
+        },
+        "locRemoved": {
+          "mean": 101.4,
+          "median": 99
+        },
+        "wroteTest": 5,
+        "keptTest": 5,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 36.1,
+          "learn": 4.5,
+          "implement": 40.3,
+          "test-authoring": 5.8,
+          "verify": 6.1,
+          "debug": 5.6,
+          "tooling-friction": 0,
+          "think": 7.3,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 4.5
+        }
+      },
+      "react": {
+        "n": 5,
+        "pass": 3,
+        "scored": 5,
+        "wall": {
+          "mean": 123.2,
+          "median": 121.3
+        },
+        "peakContext": {
+          "mean": 43885.2,
+          "median": 43682
+        },
+        "cacheCreation": {
+          "mean": 33952.8,
+          "median": 33752
+        },
+        "cacheRead": {
+          "mean": 1397693.6,
+          "median": 1476499
+        },
+        "messages": {
+          "mean": 44.4,
+          "median": 47
+        },
+        "costUsd": {
+          "mean": 0.268,
+          "median": 0.273
+        },
+        "billedTokens": {
+          "mean": 1443946.6,
+          "median": 1522041
+        },
+        "outputTokens": {
+          "mean": 11943,
+          "median": 11956
+        },
+        "durationSeconds": {
+          "mean": 123.2,
+          "median": 121.3
+        },
+        "iterations": {
+          "mean": 4,
+          "median": 4
+        },
+        "effectiveIterations": {
+          "mean": 4,
+          "median": 4
+        },
+        "editRounds": {
+          "mean": 1,
+          "median": 1
+        },
+        "toolCalls": {
+          "mean": 48,
+          "median": 47
+        },
+        "failedRuns": {
+          "mean": 0.2,
+          "median": 0
+        },
+        "episodes": {
+          "mean": 0.2,
+          "median": 0
+        },
+        "locAdded": {
+          "mean": 10,
+          "median": 10
+        },
+        "locRemoved": {
+          "mean": 143,
+          "median": 145
+        },
+        "wroteTest": 5,
+        "keptTest": 5,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 44,
+          "learn": 0,
+          "implement": 46,
+          "test-authoring": 14.2,
+          "verify": 7.9,
+          "debug": 3.1,
+          "tooling-friction": 0.3,
+          "think": 7.7,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {
+          "HARNESS-GUARD": 0.3
+        },
+        "learn": {}
+      }
+    },
+    "overallShared": {
+      "sygnal": {
+        "n": 5,
+        "pass": 1,
+        "scored": 5,
+        "wall": {
+          "mean": 105.7,
+          "median": 106.5
+        },
+        "peakContext": {
+          "mean": 48383.8,
+          "median": 51601
+        },
+        "cacheCreation": {
+          "mean": 38451.8,
+          "median": 41667
+        },
+        "cacheRead": {
+          "mean": 1227408.8,
+          "median": 1282189
+        },
+        "messages": {
+          "mean": 35.2,
+          "median": 36
+        },
+        "costUsd": {
+          "mean": 0.251,
+          "median": 0.248
+        },
+        "billedTokens": {
+          "mean": 1276347.6,
+          "median": 1326424
+        },
+        "outputTokens": {
+          "mean": 10202.2,
+          "median": 10234
+        },
+        "durationSeconds": {
+          "mean": 105.7,
+          "median": 106.5
+        },
+        "iterations": {
+          "mean": 3.2,
+          "median": 3
+        },
+        "effectiveIterations": {
+          "mean": 3.2,
+          "median": 3
+        },
+        "editRounds": {
+          "mean": 1.8,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 37.8,
+          "median": 36
+        },
+        "failedRuns": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "episodes": {
+          "mean": 0.8,
+          "median": 1
+        },
+        "locAdded": {
+          "mean": 15.4,
+          "median": 15
+        },
+        "locRemoved": {
+          "mean": 101.4,
+          "median": 99
+        },
+        "wroteTest": 5,
+        "keptTest": 5,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 36.1,
+          "learn": 4.5,
+          "implement": 40.3,
+          "test-authoring": 5.8,
+          "verify": 6.1,
+          "debug": 5.6,
+          "tooling-friction": 0,
+          "think": 7.3,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 4.5
+        }
+      },
+      "react": {
+        "n": 5,
+        "pass": 3,
+        "scored": 5,
+        "wall": {
+          "mean": 123.2,
+          "median": 121.3
+        },
+        "peakContext": {
+          "mean": 43885.2,
+          "median": 43682
+        },
+        "cacheCreation": {
+          "mean": 33952.8,
+          "median": 33752
+        },
+        "cacheRead": {
+          "mean": 1397693.6,
+          "median": 1476499
+        },
+        "messages": {
+          "mean": 44.4,
+          "median": 47
+        },
+        "costUsd": {
+          "mean": 0.268,
+          "median": 0.273
+        },
+        "billedTokens": {
+          "mean": 1443946.6,
+          "median": 1522041
+        },
+        "outputTokens": {
+          "mean": 11943,
+          "median": 11956
+        },
+        "durationSeconds": {
+          "mean": 123.2,
+          "median": 121.3
+        },
+        "iterations": {
+          "mean": 4,
+          "median": 4
+        },
+        "effectiveIterations": {
+          "mean": 4,
+          "median": 4
+        },
+        "editRounds": {
+          "mean": 1,
+          "median": 1
+        },
+        "toolCalls": {
+          "mean": 48,
+          "median": 47
+        },
+        "failedRuns": {
+          "mean": 0.2,
+          "median": 0
+        },
+        "episodes": {
+          "mean": 0.2,
+          "median": 0
+        },
+        "locAdded": {
+          "mean": 10,
+          "median": 10
+        },
+        "locRemoved": {
+          "mean": 143,
+          "median": 145
+        },
+        "wroteTest": 5,
+        "keptTest": 5,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 44,
+          "learn": 0,
+          "implement": 46,
+          "test-authoring": 14.2,
+          "verify": 7.9,
+          "debug": 3.1,
+          "tooling-friction": 0.3,
+          "think": 7.7,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {
+          "HARNESS-GUARD": 0.3
+        },
+        "learn": {}
+      }
+    },
+    "delta": {
+      "tasks": [
+        "43-expenses-remove-settings"
+      ],
+      "wallDelta": -17.5,
+      "items": [
+        {
+          "item": "learn:skill-load",
+          "sygnal": 4.5,
+          "react": 0,
+          "delta": 4.5,
+          "shareOfDelta": -0.26
+        },
+        {
+          "item": "phase:debug",
+          "sygnal": 5.6,
+          "react": 3.1,
+          "delta": 2.5,
+          "shareOfDelta": -0.14
+        },
+        {
+          "item": "friction:HARNESS-GUARD",
+          "sygnal": 0,
+          "react": 0.3,
+          "delta": -0.3,
+          "shareOfDelta": 0.02
+        },
+        {
+          "item": "phase:think",
+          "sygnal": 7.3,
+          "react": 7.7,
+          "delta": -0.5,
+          "shareOfDelta": 0.03
+        },
+        {
+          "item": "phase:verify",
+          "sygnal": 6.1,
+          "react": 7.9,
+          "delta": -1.8,
+          "shareOfDelta": 0.1
+        },
+        {
+          "item": "phase:implement",
+          "sygnal": 40.3,
+          "react": 46,
+          "delta": -5.7,
+          "shareOfDelta": 0.33
+        },
+        {
+          "item": "phase:orient",
+          "sygnal": 36.1,
+          "react": 44,
+          "delta": -7.9,
+          "shareOfDelta": 0.45
+        },
+        {
+          "item": "phase:test-authoring",
+          "sygnal": 5.8,
+          "react": 14.2,
+          "delta": -8.4,
+          "shareOfDelta": 0.48
+        }
+      ],
+      "buckets": [
+        {
+          "bucket": "learning: skill",
+          "sygnal": 4.5,
+          "react": 0,
+          "delta": 4.5,
+          "items": [
+            "learn:skill-load"
+          ],
+          "shareOfDelta": -0.26
+        },
+        {
+          "bucket": "debugging own mistakes",
+          "sygnal": 5.6,
+          "react": 3.1,
+          "delta": 2.5,
+          "items": [
+            "phase:debug"
+          ],
+          "shareOfDelta": -0.14
+        },
+        {
+          "bucket": "eval harness (worktree guard refusals)",
+          "sygnal": 0,
+          "react": 0.3,
+          "delta": -0.3,
+          "items": [
+            "friction:HARNESS-GUARD"
+          ],
+          "shareOfDelta": 0.02
+        },
+        {
+          "bucket": "other",
+          "sygnal": 7.3,
+          "react": 7.7,
+          "delta": -0.5,
+          "items": [
+            "phase:think"
+          ],
+          "shareOfDelta": 0.03
+        },
+        {
+          "bucket": "build/test runs",
+          "sygnal": 6.1,
+          "react": 7.9,
+          "delta": -1.8,
+          "items": [
+            "phase:verify"
+          ],
+          "shareOfDelta": 0.1
+        },
+        {
+          "bucket": "implementation",
+          "sygnal": 40.3,
+          "react": 46,
+          "delta": -5.7,
+          "items": [
+            "phase:implement"
+          ],
+          "shareOfDelta": 0.33
+        },
+        {
+          "bucket": "orientation",
+          "sygnal": 36.1,
+          "react": 44,
+          "delta": -7.9,
+          "items": [
+            "phase:orient"
+          ],
+          "shareOfDelta": 0.45
+        },
+        {
+          "bucket": "self-testing: writing tests",
+          "sygnal": 5.8,
+          "react": 14.2,
+          "delta": -8.4,
+          "items": [
+            "phase:test-authoring"
+          ],
+          "shareOfDelta": 0.48
+        }
+      ]
+    },
+    "catalog": [
+      {
+        "id": "HARNESS-GUARD",
+        "title": "The eval environment refused a tool call: the coordinator worktree guard (subagent trials) or the headless permission posture (both arms)",
+        "kind": "harness",
+        "status": "untracked",
+        "trialsAffected": 1,
+        "sygnal": "0/5",
+        "react": "1/5",
+        "inResults": 1,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 1,
+        "frictionSecondsTotal": 1.6,
+        "frictionSecondsPerAffected": 1.6,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0.3,
+        "trials": [
+          "react-43-t4"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 5,
+      "skillInvoked": 3,
+      "skillBytes": {
+        "mean": 25260,
+        "median": 42100
+      },
+      "files": {
+        "SKILL.md": {
+          "trials": 3,
+          "fileLines": 385,
+          "linesSeen": {
+            "mean": 385,
+            "median": 385
+          },
+          "bytes": {
+            "mean": 42100,
+            "median": 42100
+          },
+          "how": {
+            "skill-tool": 3
+          }
+        }
+      },
+      "sections": [
+        {
+          "section": "SKILL.md#Sygnal Dev",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#1. Workflow",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#2. Mental model and component anatomy",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#3. Canonical examples",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Extract a component without changing the markup",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Commands (parent → child) + EFFECT",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Forms, widgets, UI parts",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Element commands, timers, persistence",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Reads that follow state: `resources`",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#List/detail + save, cached",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#Router (makeRouter + route) and HEAD",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#4. API facts",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#7. Testing your change",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#8. Diagnostics and tools",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#9. Project setup (Vite)",
+          "trials": 3
+        },
+        {
+          "section": "SKILL.md#10. Where to look next",
+          "trials": 3
+        }
+      ],
+      "library": {
+        "sygnal": {},
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 0,
+          "median": 0
+        },
+        "react": {
+          "mean": 0,
+          "median": 0
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 0,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 5,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 20,
+          "trials": 5
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 10,
+          "trials": 5
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 4,
+          "trials": 4
+        },
+        {
+          "arm": "react",
+          "signature": "This Bash command contains multiple operations. The following parts require approval: timeout 10 npm run dev 2>&1, head -20 &",
+          "cause": "other",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 4,
+            "seconds": 28.1,
+            "iterations": 4,
+            "unresolved": 0
+          }
+        },
+        "react": {
+          "other": {
+            "episodes": 1,
+            "seconds": 17.1,
+            "iterations": 1,
+            "unresolved": 0
+          }
+        }
+      }
+    },
+    "failureCategories": {
+      "sygnal": {
+        "other": {
+          "manual": 0,
+          "auto": 4,
+          "trials": [
+            "sygnal-43-t1",
+            "sygnal-43-t2",
+            "sygnal-43-t3",
+            "sygnal-43-t5"
+          ]
+        }
+      },
+      "react": {
+        "other": {
+          "manual": 0,
+          "auto": 2,
+          "trials": [
+            "react-43-t1",
+            "react-43-t4"
+          ]
+        }
+      }
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "react-43-t1",
+      "run": "p5-mod-haiku-43",
+      "arm": "react",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 129,
+        "iterations": 3,
+        "editRounds": 1,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 386,
+        "output": 127,
+        "cacheRead": 1476499,
+        "cacheCreation": 33752,
+        "messages": 48,
+        "peakContext": 43682,
+        "total": 1510764
+      },
+      "usage": {
+        "tokens": 1522041,
+        "outputTokens": 11404,
+        "costUsd": 0.2725599,
+        "durationMs": 128319,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 47,
+        "byTool": {
+          "Bash": 12,
+          "Read": 21,
+          "Grep": 1,
+          "Edit": 13
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 128.3,
+      "phases": {
+        "orient": 56,
+        "test-authoring": 14.8,
+        "implement": 42.6,
+        "verify": 7,
+        "think": 7.9
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 13,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 31.6,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/react-43-t1",
+      "diff": {
+        "added": 8,
+        "removed": 134,
+        "files": {
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 6,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 39,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          },
+          "src/settings.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1287
+    },
+    {
+      "trial": "react-43-t2",
+      "run": "p5-mod-haiku-43",
+      "arm": "react",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 121,
+        "iterations": 3,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 298,
+        "output": 75,
+        "cacheRead": 1129467,
+        "cacheCreation": 32684,
+        "messages": 37,
+        "peakContext": 42617,
+        "total": 1162524
+      },
+      "usage": {
+        "tokens": 1174636,
+        "outputTokens": 12187,
+        "costUsd": 0.23954770000000003,
+        "durationMs": 119427,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 47,
+        "byTool": {
+          "Bash": 15,
+          "Read": 21,
+          "Grep": 1,
+          "Edit": 10
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 119.4,
+      "phases": {
+        "orient": 45.5,
+        "test-authoring": 9.7,
+        "implement": 50.8,
+        "verify": 6.6,
+        "think": 6.8
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 10,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 33.9,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/react-43-t2",
+      "diff": {
+        "added": 12,
+        "removed": 145,
+        "files": {
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 6,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 2,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/money.js": {
+            "added": 3,
+            "removed": 11,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 39,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          },
+          "src/settings.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "failureAuto": null,
+      "finalReportChars": 1360
+    },
+    {
+      "trial": "react-43-t3",
+      "run": "p5-mod-haiku-43",
+      "arm": "react",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 117,
+        "iterations": 4,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 290,
+        "output": 75,
+        "cacheRead": 1135598,
+        "cacheCreation": 32161,
+        "messages": 36,
+        "peakContext": 42094,
+        "total": 1168124
+      },
+      "usage": {
+        "tokens": 1179799,
+        "outputTokens": 11750,
+        "costUsd": 0.23692180000000007,
+        "durationMs": 116221,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 47,
+        "byTool": {
+          "Bash": 12,
+          "Read": 20,
+          "Grep": 3,
+          "Edit": 12
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 116.2,
+      "phases": {
+        "orient": 36.5,
+        "test-authoring": 15.7,
+        "implement": 45.9,
+        "verify": 9.5,
+        "think": 8.6
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 12,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 33,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/react-43-t3",
+      "diff": {
+        "added": 12,
+        "removed": 151,
+        "files": {
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/NewExpensePage.test.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/money.js": {
+            "added": 3,
+            "removed": 12,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 39,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          },
+          "src/settings.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "failureAuto": null,
+      "finalReportChars": 1173
+    },
+    {
+      "trial": "react-43-t4",
+      "run": "p5-mod-haiku-43",
+      "arm": "react",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [
+        "machine-wide process kill (blocked by the guard)"
+      ],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 132,
+        "iterations": 6,
+        "editRounds": 1,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 434,
+        "output": 111,
+        "cacheRead": 1704135,
+        "cacheCreation": 35205,
+        "messages": 54,
+        "peakContext": 45138,
+        "total": 1739885
+      },
+      "usage": {
+        "tokens": 1752192,
+        "outputTokens": 12418,
+        "costUsd": 0.30334749999999994,
+        "durationMs": 130753,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 53,
+        "byTool": {
+          "Bash": 15,
+          "Read": 23,
+          "Grep": 2,
+          "Edit": 13
+        }
+      },
+      "processKills": [
+        {
+          "kind": "pkill",
+          "machineWide": true,
+          "command": "pkill -f \"npm run dev\""
+        }
+      ],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 130.7,
+      "phases": {
+        "orient": 37.2,
+        "test-authoring": 15.4,
+        "implement": 45.2,
+        "verify": 7.7,
+        "debug": 15.5,
+        "tooling-friction": 1.6,
+        "think": 8.2
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 13,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "This Bash command contains multiple operations. The following parts require approval: timeout 10 npm run dev 2>&1, head -20 &",
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "t": 102
+        },
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "environment refused the command (worktree guard)",
+          "catalog": [
+            "HARNESS-GUARD"
+          ],
+          "cause": "harness",
+          "t": 108
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 17.1,
+          "iterations": 1,
+          "signature": "This Bash command contains multiple operations. The following parts require approval: timeout 10 npm run dev 2>&1, head -20 &",
+          "signatures": [
+            "This Bash command contains multiple operations. The following parts require approval: timeout 10 npm run dev 2>&1, head -20 &"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "other",
+          "resolved": true,
+          "t": 102
+        }
+      ],
+      "frictionSeconds": {
+        "HARNESS-GUARD": 1.6
+      },
+      "learnSeconds": {},
+      "catalog": {
+        "result": [
+          "HARNESS-GUARD"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 41.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/react-43-t4",
+      "diff": {
+        "added": 8,
+        "removed": 136,
+        "files": {
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 4,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 39,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          },
+          "src/settings.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1299
+    },
+    {
+      "trial": "react-43-t5",
+      "run": "p5-mod-haiku-43",
+      "arm": "react",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 122,
+        "iterations": 4,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 378,
+        "output": 91,
+        "cacheRead": 1542769,
+        "cacheCreation": 35962,
+        "messages": 47,
+        "peakContext": 45895,
+        "total": 1579200
+      },
+      "usage": {
+        "tokens": 1591065,
+        "outputTokens": 11956,
+        "costUsd": 0.28635889999999997,
+        "durationMs": 121320,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 46,
+        "byTool": {
+          "Bash": 11,
+          "Read": 22,
+          "Edit": 13
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 121.3,
+      "phases": {
+        "orient": 44.7,
+        "test-authoring": 15.5,
+        "implement": 45.3,
+        "verify": 8.6,
+        "think": 7.2
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 13,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 28.1,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/react-43-t5",
+      "diff": {
+        "added": 10,
+        "removed": 149,
+        "files": {
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 8,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 5,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 1,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/money.js": {
+            "added": 2,
+            "removed": 12,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 39,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          },
+          "src/settings.jsx": {
+            "added": 0,
+            "removed": 34,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "testing-library"
+      ],
+      "failureAuto": null,
+      "finalReportChars": 1394
+    },
+    {
+      "trial": "sygnal-43-t1",
+      "run": "p5-mod-haiku-43",
+      "arm": "sygnal",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 97,
+        "iterations": 3,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 212,
+        "output": 59,
+        "cacheRead": 986577,
+        "cacheCreation": 42414,
+        "messages": 26,
+        "peakContext": 52347,
+        "total": 1029262
+      },
+      "usage": {
+        "tokens": 1038800,
+        "outputTokens": 9597,
+        "costUsd": 0.2316827,
+        "durationMs": 96371,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 35,
+        "byTool": {
+          "Bash": 8,
+          "Read": 14,
+          "Grep": 2,
+          "Skill": 1,
+          "Edit": 10
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 96.4,
+      "phases": {
+        "orient": 29.9,
+        "test-authoring": 2.3,
+        "learn": 8.9,
+        "implement": 37.9,
+        "verify": 5,
+        "debug": 7,
+        "think": 5.2
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 10,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 80
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 7,
+          "iterations": 1,
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "signatures": [
+            "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 80
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 8.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 42100,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 42100,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Forms, widgets, UI parts",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 19.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/sygnal-43-t1",
+      "diff": {
+        "added": 15,
+        "removed": 99,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 41,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 32,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 4,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1411
+    },
+    {
+      "trial": "sygnal-43-t2",
+      "run": "p5-mod-haiku-43",
+      "arm": "sygnal",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 108,
+        "iterations": 3,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 300,
+        "output": 87,
+        "cacheRead": 1307686,
+        "cacheCreation": 41667,
+        "messages": 37,
+        "peakContext": 51601,
+        "total": 1349740
+      },
+      "usage": {
+        "tokens": 1359887,
+        "outputTokens": 10234,
+        "costUsd": 0.26557259999999994,
+        "durationMs": 106522,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 36,
+        "byTool": {
+          "Bash": 7,
+          "Read": 15,
+          "Grep": 2,
+          "Skill": 1,
+          "Edit": 11
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 106.5,
+      "phases": {
+        "orient": 36.9,
+        "test-authoring": 3.2,
+        "learn": 9.3,
+        "implement": 36.9,
+        "verify": 4.5,
+        "debug": 7.4,
+        "think": 8.3
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 11,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 87
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 7.4,
+          "iterations": 1,
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "signatures": [
+            "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 87
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 9.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 42100,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 42100,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Forms, widgets, UI parts",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 22.2,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/sygnal-43-t2",
+      "diff": {
+        "added": 15,
+        "removed": 99,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 41,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 32,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 4,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1441
+    },
+    {
+      "trial": "sygnal-43-t3",
+      "run": "p5-mod-haiku-43",
+      "arm": "sygnal",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 3,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 112,
+        "iterations": 4,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 330,
+        "output": 82,
+        "cacheRead": 1282189,
+        "cacheCreation": 33267,
+        "messages": 41,
+        "peakContext": 43197,
+        "total": 1315868
+      },
+      "usage": {
+        "tokens": 1326424,
+        "outputTokens": 10638,
+        "costUsd": 0.2482729,
+        "durationMs": 111333,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 40,
+        "byTool": {
+          "Bash": 12,
+          "Read": 15,
+          "Grep": 2,
+          "Edit": 11
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 111.3,
+      "phases": {
+        "orient": 46.1,
+        "test-authoring": 5.2,
+        "implement": 38,
+        "verify": 7.9,
+        "debug": 6.9,
+        "think": 7.3
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 11,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Grep",
+          "signature": "Search failed — ripgrep rejected the pattern, glob, or file type without searching:",
+          "catalog": [],
+          "cause": "other",
+          "t": 26
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 82
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.9,
+          "iterations": 1,
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "signatures": [
+            "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 82
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 31.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/sygnal-43-t3",
+      "diff": {
+        "added": 15,
+        "removed": 99,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 41,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 32,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 4,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1229
+    },
+    {
+      "trial": "sygnal-43-t4",
+      "run": "p5-mod-haiku-43",
+      "arm": "sygnal",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 4,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 110,
+        "iterations": 3,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 290,
+        "output": 73,
+        "cacheRead": 1144321,
+        "cacheCreation": 33052,
+        "messages": 36,
+        "peakContext": 42982,
+        "total": 1177736
+      },
+      "usage": {
+        "tokens": 1188006,
+        "outputTokens": 10343,
+        "costUsd": 0.23254110000000006,
+        "durationMs": 109448,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 43,
+        "byTool": {
+          "Bash": 11,
+          "Read": 19,
+          "Grep": 1,
+          "Edit": 12
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 109.5,
+      "phases": {
+        "orient": 37.5,
+        "test-authoring": 13.1,
+        "implement": 43.5,
+        "verify": 8.1,
+        "think": 7.3
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 12,
+      "editRounds": 1,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {},
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 31.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/sygnal-43-t4",
+      "diff": {
+        "added": 17,
+        "removed": 111,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/money.js": {
+            "added": 2,
+            "removed": 12,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 41,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 32,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 4,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1811
+    },
+    {
+      "trial": "sygnal-43-t5",
+      "run": "p5-mod-haiku-43",
+      "arm": "sygnal",
+      "task": "43-expenses-remove-settings",
+      "trialNo": 5,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": false,
+        "testsPassed": 5,
+        "testsTotal": 6,
+        "wallSeconds": 106,
+        "iterations": 3,
+        "editRounds": 2,
+        "failureCategory": null
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 292,
+        "output": 78,
+        "cacheRead": 1416271,
+        "cacheCreation": 41859,
+        "messages": 36,
+        "peakContext": 51792,
+        "total": 1458500
+      },
+      "usage": {
+        "tokens": 1468621,
+        "outputTokens": 10199,
+        "costUsd": 0.2766321,
+        "durationMs": 104848,
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "toolCalls": {
+        "total": 35,
+        "byTool": {
+          "Bash": 7,
+          "Skill": 1,
+          "Read": 15,
+          "Grep": 2,
+          "Edit": 10
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 104.9,
+      "phases": {
+        "orient": 30.2,
+        "learn": 4.3,
+        "test-authoring": 5.4,
+        "implement": 45.1,
+        "verify": 4.8,
+        "debug": 6.8,
+        "think": 8.3
+      },
+      "attributedShare": 1,
+      "iterations": 3,
+      "effectiveIterations": 3,
+      "edits": 10,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Read",
+          "signature": "EISDIR: illegal operation on a directory, read 'src'",
+          "catalog": [],
+          "cause": "other",
+          "t": 12
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 86
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 6.8,
+          "iterations": 1,
+          "signature": "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]",
+          "signatures": [
+            "AssertionError: expected [ 'Dashboard', 'Expenses', …(1) ] to deeply equal [ 'Dashboard', 'Expenses', …(2) ]"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 86
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 4.3
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 42100,
+        "files": {
+          "SKILL.md": {
+            "ranges": [
+              [
+                1,
+                385
+              ]
+            ],
+            "linesSeen": 385,
+            "fileLines": 385,
+            "bytes": 42100,
+            "how": [
+              "skill-tool"
+            ]
+          }
+        },
+        "sections": [
+          "SKILL.md#Sygnal Dev",
+          "SKILL.md#1. Workflow",
+          "SKILL.md#2. Mental model and component anatomy",
+          "SKILL.md#3. Canonical examples",
+          "SKILL.md#State update, ABORT, set / toggle, controlled input",
+          "SKILL.md#Multi-sink entry + EVENTS between non-adjacent components",
+          "SKILL.md#Child → parent (PARENT + CHILD.select), Collection, item removal",
+          "SKILL.md#Extract a component without changing the markup",
+          "SKILL.md#Commands (parent → child) + EFFECT",
+          "SKILL.md#Behaviors (`uses`): shared state + actions",
+          "SKILL.md#Forms, widgets, UI parts",
+          "SKILL.md#Element commands, timers, persistence",
+          "SKILL.md#HTTP (makeFetchDriver + reply actions), latest response only",
+          "SKILL.md#Reads that follow state: `resources`",
+          "SKILL.md#List/detail + save, cached",
+          "SKILL.md#WebSocket / SSE (makeSocketDriver + connections)",
+          "SKILL.md#Router (makeRouter + route) and HEAD",
+          "SKILL.md#4. API facts",
+          "SKILL.md#5. Wiring rules (silent failures, and what catches them)",
+          "SKILL.md#6. Canonical forms (never write the right-hand column)",
+          "SKILL.md#7. Testing your change",
+          "SKILL.md#8. Diagnostics and tools",
+          "SKILL.md#9. Project setup (Vite)",
+          "SKILL.md#10. Where to look next"
+        ],
+        "library": {},
+        "libraryBytes": 0
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 21.8,
+      "trialDir": "/private/tmp/sygnal-evals/trials/p5-mod-haiku-43/sygnal-43-t5",
+      "diff": {
+        "added": 15,
+        "removed": 99,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 10,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 1,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/CategoryTotals.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/DashboardPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseDetailPage.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/ExpenseRow.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/NavBar.jsx": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/NewExpensePage.jsx": {
+            "added": 1,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/RecentExpenses.jsx": {
+            "added": 2,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/routes.js": {
+            "added": 0,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/SettingsPage.jsx": {
+            "added": 0,
+            "removed": 41,
+            "status": "deleted"
+          },
+          "src/SettingsPage.test.jsx": {
+            "added": 0,
+            "removed": 32,
+            "status": "deleted"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/DashboardPage.test.jsx",
+        "src/ExpenseDetailPage.test.jsx",
+        "src/ExpensesPage.test.jsx",
+        "src/NewExpensePage.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 4,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": {
+        "category": "other",
+        "source": "none-found",
+        "codes": []
+      },
+      "finalReportChars": 1387
+    }
+  ]
+}

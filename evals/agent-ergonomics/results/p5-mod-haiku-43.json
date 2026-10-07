@@ -1,0 +1,413 @@
+[
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 97,
+    "durationMs": 96371,
+    "tokens": 1038800,
+    "outputTokens": 9597,
+    "costUsd": 0.2316827,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T08:37:03.440Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 106,
+    "durationMs": 104848,
+    "tokens": 1468621,
+    "outputTokens": 10199,
+    "costUsd": 0.2766321,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T08:37:12.227Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 108,
+    "durationMs": 106522,
+    "tokens": 1359887,
+    "outputTokens": 10234,
+    "costUsd": 0.26557259999999994,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T08:37:16.478Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 110,
+    "durationMs": 109448,
+    "tokens": 1188006,
+    "outputTokens": 10343,
+    "costUsd": 0.23254110000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T08:37:20.669Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 112,
+    "durationMs": 111333,
+    "tokens": 1326424,
+    "outputTokens": 10638,
+    "costUsd": 0.2482729,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T08:37:24.853Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 117,
+    "durationMs": 116221,
+    "tokens": 1179799,
+    "outputTokens": 11750,
+    "costUsd": 0.23692180000000007,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T08:37:28.498Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 121,
+    "durationMs": 119427,
+    "tokens": 1174636,
+    "outputTokens": 12187,
+    "costUsd": 0.23954770000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T08:37:32.129Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 129,
+    "durationMs": 128319,
+    "tokens": 1522041,
+    "outputTokens": 11404,
+    "costUsd": 0.2725599,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T08:37:35.815Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 122,
+    "durationMs": 121320,
+    "tokens": 1591065,
+    "outputTokens": 11956,
+    "costUsd": 0.28635889999999997,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T08:39:20.598Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 1,
+    "wallSeconds": 132,
+    "durationMs": 130753,
+    "tokens": 1752192,
+    "outputTokens": 12418,
+    "costUsd": 0.30334749999999994,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ecb3aba42568",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T08:39:24.231Z"
+  }
+]
