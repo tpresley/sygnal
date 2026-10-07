@@ -83,7 +83,7 @@ export const FIRST_PARTY = {
     stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated'],
     calculated: ['fields', 'valid', 'dirty', 'error'],
     model: null,
-    options: ['values', 'submit', 'form', 'check', 'show', 'http'],
+    options: ['values', 'submit', 'form', 'check', 'show', 'http', 'resetOnShow'],
     listens: [['form', null, 'select']],
     defaults: { form: 'form' },
     nextOptions: ['submit'],
