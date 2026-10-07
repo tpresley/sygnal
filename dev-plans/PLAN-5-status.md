@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D235 | 2026-10-06 | Toc S-14 (`p5-s14-toc-opus`, 80/80, $23.69) vs `p5-s14-opus`: tiers 1–2 peak −28%, cost −21%, wall +25%, learn 2.4 → 5.5 s; ergo peak −17%, cost −13%, wall flat, learn 11.9 → 14.0 s (bar ≈ 10.8 s). 6.0 ships the **current full SKILL.md** (with 4-D's guide step); re-run its S-14 under today's conditions (D234, post-4-D docs) to confirm the ergo learn fix; the toc skill stays an experiment (a fuller SKILL.md core) for later | User |
 | D234 | 2026-10-06 | Eval trials block Claude Code's built-in skills (`run`, `dataviz`, …) from the next run on (incl. the toc S-14): trials test the framework, not the dev-server helper (Haiku used `run` in 19/25 React, 4/25 Sygnal trials). Recorded in the harness README and REPORT-v5 as a condition change | User |
 | D233 | 2026-10-06 | Field arrays: inline rows (`form.ADD`/`form.REMOVE`, rows rendered in the form's own view) are the canonical form (PLAN-1 canonical forms list, sygnal-check fixtures); rows as Collection components stay documented for rows that need their own component (no strict flag) | User |
 | D232 | 2026-10-06 | Skill format (D226 result): the toc skill cut peak context 12–17% and cost 11–17% on all three models, pass within noise, Haiku used the PLAN-5 APIs 12/15 (vs 1/15). Run a toc S-14 on tiers 1–2 + ergo (Opus, ≈ $28, user runs it) after the docs fixes; adopt it for 6.0 if learn time / peak context hold | User |
@@ -407,6 +408,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — D228 runs complete (335 trials, all scored, $128.68). Analysis `dev-plans/research/p5-eval-analysis.md`: Sygnal vs React pass gap not significant on any model (Opus 23/25 vs 25/25, Sonnet 24/25 vs 23/25, Haiku 5/25 vs 9/25); Sygnal 1.2–1.4× wall, 1.3–2.6× cost; S-14 tiers 1–2 within the bar, ergo learn +21% (task 29). User: D231, D232. 4-D started (docs fixes from the analysis).
 - 2026-10-06 — 4-D merged (forms.md 31.6 → 15.4 KB + forms-reference.md + inputs.md; skill/llms hints; SKILL 41,492 B; analysis counts only Sygnal skill calls; eval verify 283/283). User: D233, D234. 4-E2 started (block built-in skills in trials, canonical field arrays, re-analyse D228 runs).
 - 2026-10-06 — 4-E2 merged: trials get per-trial settings disabling bundled skills (`disableBundledSkills`, `skillOverrides` off, `Skill(…)` deny), preflight guard, `skillGuard` in run records/manifest; canonical C18 (inline rows); D228 re-analysed (React learn ≈ 0 s; no conclusion changes). Toc S-14 ready for the user (≈ $26.59).
+- 2026-10-06 — Toc S-14 done (80/80); user: D235 (ship the current skill; re-run its S-14).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
