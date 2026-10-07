@@ -1,0 +1,26 @@
+{
+  "name": "sygnal-plan5-showcase",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@awesome.me/webawesome": "^3.14.0",
+    "@zag-js/combobox": "~1.45.0",
+    "@zag-js/menu": "~1.45.0",
+    "@zag-js/select": "~1.45.0",
+    "@zag-js/vanilla": "~1.45.0",
+    "chart.js": "^4.5.0",
+    "highlight.js": "^11.11.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "sygnal": "file:../..",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "vite": "^8.0.3"
+  }
+}
