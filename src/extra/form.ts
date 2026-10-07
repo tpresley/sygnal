@@ -60,8 +60,9 @@
  *
  * Dev diagnostics (checks/forms.ts, through the core bridge's `form` hook; nothing in
  * production): SYG230 a field name not in values, SYG231 not a Standard Schema (throws), SYG232
- * a submit dropped, SYG233 a values key missing from the schema's output, SYG235 a check request
- * that sets reply fields. The host checks (SYG234 submit, SYG235 check names, SYG236 row ids)
+ * a submit dropped, SYG233 a values key missing from the schema's output, SYG234 a submit that
+ * dispatched one of the form's own actions (G-577), SYG235 a check request that sets reply
+ * fields. The host checks (SYG234 submit, SYG235 check names, SYG236 row ids)
  * run when the host is created.
  */
 import xs from './xstreamCompat'
@@ -208,6 +209,8 @@ export const form = (schema: any, o: any = {}): any => {
         if (x?.send) {
           const r = v(x.s.values).value
           dev(233, s.values, r)
+          // G-577: a submit named after one of the form's own actions goes to that one
+          submit in steps && dev(234, submit, k, b)
           next(submit, r, 0)
         }
         w && Promise.resolve(v(w.values)).then(() => next('RESULT', w, 0))

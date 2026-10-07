@@ -13,8 +13,12 @@
  *        only when every output key is a values key (an output with other keys reshapes: a rename)
  *   235  (field, request) a check's request with `ok` / `error` / `latest` keys, which the form
  *        overwrites: SYG235 (warn, once per field)
+ *   234  (submit, key) G-577: a valid submit whose `submit` names one of the form's own actions,
+ *        so it dispatched '<key>.<submit>' instead of the host's action: SYG234 (warn, once per
+ *        key and name), at the submit (the form's own action then often throws: SYG214 / SYG216)
  * Host checks (onModel, once per component name), for each `uses` entry made by form():
  *   SYG234 (warn) `submit` missing, not a host model entry, or one of the form's own action names
+ *          (G-577: every action in that form's model, CHECKED_<field> included)
  *   SYG235 (warn) a `check` key that isn't a field of `values`
  *   SYG236 (warn) an array of objects in `values` with a row without an `id`
  *   SYG237 (warn) two form uses of one host with the same form selector (G-374)
@@ -24,7 +28,10 @@ import {devReport, once, nameOf} from './shared'
 import {docsUrlFor} from '../codes'
 import {hasField} from '../../formHelpers'
 
-const FORM_ACTIONS = ['CHANGE', 'BLUR', 'SUBMIT', 'ADD', 'REMOVE', 'ERRORS', 'DONE', 'RESET', 'RESULT', 'VALIDATE']
+// the form's own action names (G-577: read from the form's model, so CHECKED_<field> counts)
+const ownActions = (b: any): string[] => Object.keys(b?.model || {})
+const SUBMIT_FIX = (key: string, a: string, own: string[]) =>
+  `Name the submit after a host action the form doesn't define (not ${own.join(', ')}): submit: 'SAVE', and rename the model entry '${a}' to SAVE: { HTTP: (state, values) => ({ url, json: values, ok: '${key}.DONE', error: '${key}.ERRORS' }) }`
 const RESERVED = ['ok', 'error', 'latest']
 
 const what = (v: any): string =>
@@ -34,7 +41,7 @@ const what = (v: any): string =>
   : typeof v == 'object' ? `an object without ~standard.validate${typeof v.parse == 'function' ? ' (a validator from before Standard Schema?)' : ''}`
   : `a ${typeof v}`
 
-export function reportForm(code: number, a?: any, b?: any): any {
+export function reportForm(code: number, a?: any, b?: any, c?: any): any {
   if (code == 231) {
     const err: any = new TypeError(`[Sygnal SYG231] form(schema, options): the schema is ${what(a)}, not a Standard Schema. ` +
       `Pass a Standard Schema object: a zod, valibot or arktype schema, or an object with '~standard': { version: 1, vendor, validate }. ${docsUrlFor('SYG231')}`)
@@ -65,6 +72,14 @@ export function reportForm(code: number, a?: any, b?: any): any {
         data: {key: k},
       })
     }
+  } else if (code == 234) {
+    if (!once(`SYG234:run:${b}:${a}`)) return
+    devReport('SYG234', {
+      component: 'form',
+      message: `form '${b}': a valid submit dispatched '${b}.${a}' (the form's own ${a} action), not the host's '${a}': submit: '${a}' names one of the form's own actions, which next() prefers`,
+      fix: SUBMIT_FIX(b, a, ownActions(c)),
+      data: {key: b, submit: a},
+    })
   } else if (code == 235) {
     const set = RESERVED.filter(k => b && k in b)
     if (set.length && once(`SYG235:req:${a}`)) devReport('SYG235', {
@@ -108,14 +123,16 @@ export const formsCheck: DiagnosticCheck = {
       } else sels[sel] = key
       if (!once(`SYG23x:${name}:${key}`)) continue
       const o = b.options || {}, values = o.values || {}
-      const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim())
-      if (typeof o.submit != 'string' || !model.includes(o.submit) || FORM_ACTIONS.includes(o.submit)) {
+      const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim()), own = ownActions(b)
+      const clash = own.includes(o.submit)
+      if (typeof o.submit != 'string' || !model.includes(o.submit) || clash) {
         devReport('SYG234', {
           component,
           message: typeof o.submit != 'string' ? `${name}'s form '${key}' has no submit action, so a valid submit dispatches nothing`
-            : FORM_ACTIONS.includes(o.submit) ? `${name}'s form '${key}' names submit: '${o.submit}', one of the form's own actions; the submit would dispatch '${key}.${o.submit}'`
+            : clash ? `${name}'s form '${key}' names submit: '${o.submit}', one of the form's own actions; a valid submit dispatches the form's '${key}.${o.submit}'${model.includes(o.submit) ? `, never ${name}'s '${o.submit}' entry` : ''}`
             : `${name}'s form '${key}' dispatches '${o.submit}' on a valid submit, but ${name} has no model entry '${o.submit}'`,
-          fix: `Name a host action and add it to the model: submit: 'SIGN_UP', model: { SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: '${key}.DONE', error: '${key}.ERRORS' }) } }`,
+          fix: clash ? SUBMIT_FIX(key, o.submit, own)
+            : `Name a host action and add it to the model: submit: 'SIGN_UP', model: { SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: '${key}.DONE', error: '${key}.ERRORS' }) } }`,
           data: {key, submit: o.submit},
         })
       }

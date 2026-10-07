@@ -129,8 +129,31 @@ describe('SYG234: submit action', () => {
     setupChecks()
     t = renderComponent(host(ok, { submit: 'DONE' }, { model: { DONE: () => ({}) } }))
     await t.ready()
-    expect(diagnostics('SYG234')[0].message).toMatch(/one of the form's own actions; the submit would dispatch 'form\.DONE'/)
+    expect(diagnostics('SYG234')[0].message).toMatch(/one of the form's own actions; a valid submit dispatches the form's 'form\.DONE', never C's 'DONE' entry/)
   })
+  // G-577 (4-G2): a submit named after one of the form's own actions dispatches that one; the
+  // host check names every action of the form's model, and the submit itself reports it again
+  for (const sub of ['RESET', 'ADD', 'VALIDATE', 'CHECKED_email']) {
+    it(`a host entry named after the form's own '${sub}': reported at creation and at the submit`, async () => {
+      const check = sub == 'CHECKED_email' ? { check: { email: { request: () => ({ url: '/x' }) } } } : {}
+      t = renderComponent(host(ok, { submit: sub, ...check }, { model: { [sub]: { EVENTS: (s, v) => ({ type: 'saved', data: v }) } } }))
+      await t.ready()
+      const d = diagnostics('SYG234')
+      expect(d).toHaveLength(1)
+      expect(d[0].message).toBe(`C's form 'form' names submit: '${sub}', one of the form's own actions; a valid submit dispatches the form's 'form.${sub}', never C's '${sub}' entry`)
+      expect(d[0].fix).toMatch(/^Name the submit after a host action the form doesn't define \(not CHANGE, BLUR, SUBMIT, .*\): submit: 'SAVE', and rename the model entry/)
+      if (sub == 'CHECKED_email') expect(d[0].fix).toContain('CHECKED_email')
+      if (sub == 'CHECKED_email') return                               // (its submit waits for the check)
+      await type('email', 'a@b.co')
+      t.simulateEvent('.f', 'submit'); await t.settle()
+      await t.waitForState(() => t.actions.some((a) => a.type == `form.${sub}`))
+      const at = diagnostics('SYG234')
+      expect(at).toHaveLength(2)
+      expect(at[1].message).toBe(`form 'form': a valid submit dispatched 'form.${sub}' (the form's own ${sub} action), not the host's '${sub}': submit: '${sub}' names one of the form's own actions, which next() prefers`)
+      t.simulateEvent('.f', 'submit'); await t.settle()
+      expect(diagnostics('SYG234')).toHaveLength(2)                   // once per form and name
+    })
+  }
   it('a submit action with a sink suffix key counts', async () => {
     t = renderComponent(host(ok, {}, { model: { 'SAVE | EVENTS': (s, v) => ({ type: 'saved', data: v }) } }))
     await t.ready()
