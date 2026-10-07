@@ -254,3 +254,16 @@ D228 approved ≈ $114 and ran $15 (13%) over, mostly Haiku ($24.16 on `p5-final
    - G-563 (router, first ROUTE a task late) was fixed in 4-J.
    - New, from this report: the task-10 `form` submit gap (recommendation 1); not yet a G- item.
 6. **Harness:** classify failed trials (`score.mjs --classify`) as part of every run, and record `skillGuard` in REPORT tables from now on.
+
+## Addendum: G-575 re-run (`p5-4f2-opus`, after 4-F2)
+
+Tasks 10 and 29, Opus, 5 trials each, D234 conditions: 10/10 pass, $5.85.
+
+| Task | PLAN-4 (`p4-final6-opus`) | Before fix (`p5-s14b-opus`) | After fix (`p5-4f2-opus`) |
+|---|---|---|---|
+| 10-signup-wizard wall | 49.8 s | 121.5 s | **67.8 s** |
+| 10 iterations | 1.8 | 6.8 | 3.8 |
+| 10 cost per trial | $0.392 | $0.717 | $0.562 |
+| 29-accessible-signup wall | 76.5 s | 79.1 s | **72.5 s** |
+
+The fix halves task 10 (−44%) and removes the stuck-submit debugging; it is still +36% wall and +43% cost against PLAN-4, where agents hand-rolled the wizard instead of reading the forms guide and using the `form` behavior. Task 29 is back at PLAN-4's wall time (peak context +16%, learn +7 s from reading the forms guide). Total PLAN-5 eval spend including this re-run: $185.98 for 505 trials.
