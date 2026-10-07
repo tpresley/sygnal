@@ -1,0 +1,3182 @@
+[
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 19279,
+    "tokens": 77416,
+    "outputTokens": 2362,
+    "costUsd": 0.1649384,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:33:51.200Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 22,
+    "durationMs": 20655,
+    "tokens": 110587,
+    "outputTokens": 2455,
+    "costUsd": 0.17370739999999998,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:33:55.139Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 23,
+    "durationMs": 21892,
+    "tokens": 115183,
+    "outputTokens": 2483,
+    "costUsd": 0.180658,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:33:59.046Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23960,
+    "tokens": 79194,
+    "outputTokens": 1621,
+    "costUsd": 0.1617372,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:02.896Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 19459,
+    "tokens": 80247,
+    "outputTokens": 2232,
+    "costUsd": 0.14618060000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:17.464Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 14895,
+    "tokens": 58210,
+    "outputTokens": 1539,
+    "costUsd": 0.05426940000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:20.555Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 12346,
+    "tokens": 44658,
+    "outputTokens": 1445,
+    "costUsd": 0.0487152,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:23.638Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 18878,
+    "tokens": 58976,
+    "outputTokens": 2174,
+    "costUsd": 0.0619148,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:26.738Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 14,
+    "durationMs": 12389,
+    "tokens": 45382,
+    "outputTokens": 1452,
+    "costUsd": 0.0499052,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:35.951Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 8,
+    "testsTotal": 8,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 15,
+    "durationMs": 13955,
+    "tokens": 44852,
+    "outputTokens": 1477,
+    "costUsd": 0.049231,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 7,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:40.507Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 24007,
+    "tokens": 111834,
+    "outputTokens": 3200,
+    "costUsd": 0.1683986,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:53.963Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23942,
+    "tokens": 147549,
+    "outputTokens": 3358,
+    "costUsd": 0.1788188,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:34:57.380Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 27,
+    "durationMs": 25975,
+    "tokens": 112294,
+    "outputTokens": 3438,
+    "costUsd": 0.1716666,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:08.144Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 24324,
+    "tokens": 112033,
+    "outputTokens": 3324,
+    "costUsd": 0.1699386,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:11.613Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 26,
+    "durationMs": 25016,
+    "tokens": 112186,
+    "outputTokens": 3426,
+    "costUsd": 0.1711626,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:25.189Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 29,
+    "durationMs": 27516,
+    "tokens": 105740,
+    "outputTokens": 3496,
+    "costUsd": 0.100521,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:30.375Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23705,
+    "tokens": 51494,
+    "outputTokens": 3346,
+    "costUsd": 0.08192100000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:40.859Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 4,
+    "wallSeconds": 29,
+    "durationMs": 27902,
+    "tokens": 103200,
+    "outputTokens": 3438,
+    "costUsd": 0.0974344,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:43.499Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 22,
+    "durationMs": 21473,
+    "tokens": 51205,
+    "outputTokens": 3116,
+    "costUsd": 0.0790392,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:52.092Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 23,
+    "durationMs": 22369,
+    "tokens": 51120,
+    "outputTokens": 3120,
+    "costUsd": 0.078898,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:35:58.122Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 15140,
+    "tokens": 108363,
+    "outputTokens": 1696,
+    "costUsd": 0.14706,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:04.539Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 14782,
+    "tokens": 108056,
+    "outputTokens": 1496,
+    "costUsd": 0.14462440000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:12.712Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 28,
+    "durationMs": 26573,
+    "tokens": 143185,
+    "outputTokens": 1634,
+    "costUsd": 0.15241719999999997,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:15.667Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 14645,
+    "tokens": 142407,
+    "outputTokens": 1638,
+    "costUsd": 0.15264280000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:18.728Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 15,
+    "durationMs": 14032,
+    "tokens": 106913,
+    "outputTokens": 1544,
+    "costUsd": 0.14303839999999998,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:24.614Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 15,
+    "durationMs": 13851,
+    "tokens": 54538,
+    "outputTokens": 1240,
+    "costUsd": 0.0499208,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:31.807Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 12,
+    "durationMs": 11076,
+    "tokens": 47045,
+    "outputTokens": 1177,
+    "costUsd": 0.052136999999999996,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:34.067Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 14,
+    "durationMs": 12493,
+    "tokens": 47264,
+    "outputTokens": 1178,
+    "costUsd": 0.0502222,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:36.489Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 12,
+    "durationMs": 10598,
+    "tokens": 46805,
+    "outputTokens": 1137,
+    "costUsd": 0.051206800000000004,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:40.438Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 11814,
+    "tokens": 46751,
+    "outputTokens": 1084,
+    "costUsd": 0.05066140000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:36:48.863Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 24,
+    "durationMs": 23318,
+    "tokens": 150122,
+    "outputTokens": 3452,
+    "costUsd": 0.1869312,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:07.580Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 26,
+    "durationMs": 24535,
+    "tokens": 150816,
+    "outputTokens": 3275,
+    "costUsd": 0.18760400000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:12.698Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 32,
+    "durationMs": 30866,
+    "tokens": 183832,
+    "outputTokens": 3922,
+    "costUsd": 0.19434220000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:17.438Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 36,
+    "durationMs": 35439,
+    "tokens": 229856,
+    "outputTokens": 4950,
+    "costUsd": 0.22392679999999998,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:31.802Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 27,
+    "durationMs": 25707,
+    "tokens": 153605,
+    "outputTokens": 3561,
+    "costUsd": 0.1901856,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:41.004Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23574,
+    "tokens": 59385,
+    "outputTokens": 3591,
+    "costUsd": 0.0992496,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:45.277Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 23,
+    "durationMs": 21891,
+    "tokens": 61445,
+    "outputTokens": 3478,
+    "costUsd": 0.1022174,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:37:49.494Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23977,
+    "tokens": 77695,
+    "outputTokens": 3739,
+    "costUsd": 0.10613639999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:02.825Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 26,
+    "durationMs": 24522,
+    "tokens": 80464,
+    "outputTokens": 3844,
+    "costUsd": 0.1085932,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:12.656Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 27,
+    "durationMs": 26014,
+    "tokens": 80852,
+    "outputTokens": 3807,
+    "costUsd": 0.10880599999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:18.263Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 36,
+    "durationMs": 35166,
+    "tokens": 271559,
+    "outputTokens": 3824,
+    "costUsd": 0.22148700000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:32.032Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 29,
+    "durationMs": 28074,
+    "tokens": 196237,
+    "outputTokens": 4003,
+    "costUsd": 0.21081439999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:38.410Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 24,
+    "durationMs": 23314,
+    "tokens": 162847,
+    "outputTokens": 3223,
+    "costUsd": 0.1914234,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:38:43.510Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 33,
+    "durationMs": 32106,
+    "tokens": 206650,
+    "outputTokens": 4215,
+    "costUsd": 0.21833000000000005,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:05.728Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 23,
+    "durationMs": 22139,
+    "tokens": 73954,
+    "outputTokens": 3030,
+    "costUsd": 0.09636520000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:09.797Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23780,
+    "tokens": 93017,
+    "outputTokens": 3033,
+    "costUsd": 0.1013318,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:14.306Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 38,
+    "durationMs": 37411,
+    "tokens": 274622,
+    "outputTokens": 4285,
+    "costUsd": 0.2333434,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:19.071Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 21,
+    "durationMs": 20457,
+    "tokens": 75775,
+    "outputTokens": 3155,
+    "costUsd": 0.09868779999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:37.108Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 27,
+    "durationMs": 25471,
+    "tokens": 94197,
+    "outputTokens": 3106,
+    "costUsd": 0.104491,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:41.236Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 15045,
+    "tokens": 105645,
+    "outputTokens": 1723,
+    "costUsd": 0.1415408,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:44.132Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 28,
+    "durationMs": 26691,
+    "tokens": 117087,
+    "outputTokens": 3293,
+    "costUsd": 0.1116842,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:48.221Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 14,
+    "durationMs": 12823,
+    "tokens": 103062,
+    "outputTokens": 1417,
+    "costUsd": 0.1328802,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:39:55.858Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 14,
+    "durationMs": 13282,
+    "tokens": 135050,
+    "outputTokens": 1387,
+    "costUsd": 0.14222120000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:00.403Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 16,
+    "durationMs": 14772,
+    "tokens": 135076,
+    "outputTokens": 1529,
+    "costUsd": 0.14327220000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:04.697Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 18,
+    "durationMs": 16851,
+    "tokens": 136214,
+    "outputTokens": 1567,
+    "costUsd": 0.1449628,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:10.666Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 11611,
+    "tokens": 58757,
+    "outputTokens": 1239,
+    "costUsd": 0.052878999999999995,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:13.001Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 15,
+    "durationMs": 13583,
+    "tokens": 58020,
+    "outputTokens": 1269,
+    "costUsd": 0.0519958,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:19.293Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 12130,
+    "tokens": 58231,
+    "outputTokens": 1294,
+    "costUsd": 0.0528796,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:22.148Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 11845,
+    "tokens": 44504,
+    "outputTokens": 1183,
+    "costUsd": 0.0466906,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:27.760Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 13,
+    "durationMs": 12411,
+    "tokens": 58134,
+    "outputTokens": 1330,
+    "costUsd": 0.0525898,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:40:30.616Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 36,
+    "durationMs": 34864,
+    "tokens": 157801,
+    "outputTokens": 4622,
+    "costUsd": 0.2035164,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:41:06.788Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 37,
+    "durationMs": 35714,
+    "tokens": 232218,
+    "outputTokens": 4744,
+    "costUsd": 0.22118339999999997,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:41:16.292Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 34,
+    "durationMs": 33240,
+    "tokens": 191736,
+    "outputTokens": 4441,
+    "costUsd": 0.2058732,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:41:25.760Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 39,
+    "durationMs": 37733,
+    "tokens": 198292,
+    "outputTokens": 4861,
+    "costUsd": 0.21950080000000005,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:41:35.254Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 48,
+    "durationMs": 46964,
+    "tokens": 201388,
+    "outputTokens": 5662,
+    "costUsd": 0.2319864,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:42:06.201Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 30,
+    "durationMs": 28835,
+    "tokens": 93508,
+    "outputTokens": 3570,
+    "costUsd": 0.1028812,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:42:15.289Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 34,
+    "durationMs": 33365,
+    "tokens": 118680,
+    "outputTokens": 3627,
+    "costUsd": 0.117651,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:42:24.409Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 29,
+    "durationMs": 28229,
+    "tokens": 131375,
+    "outputTokens": 3501,
+    "costUsd": 0.1131486,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:42:33.476Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 37,
+    "durationMs": 36391,
+    "tokens": 136034,
+    "outputTokens": 3983,
+    "costUsd": 0.12352740000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:42:54.681Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 35,
+    "durationMs": 34100,
+    "tokens": 119467,
+    "outputTokens": 5058,
+    "costUsd": 0.131057,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:03.751Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 31,
+    "durationMs": 30105,
+    "tokens": 165651,
+    "outputTokens": 4120,
+    "costUsd": 0.2155758,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:09.167Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 29,
+    "durationMs": 28365,
+    "tokens": 204387,
+    "outputTokens": 4030,
+    "costUsd": 0.22993439999999998,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:14.546Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 35,
+    "durationMs": 33510,
+    "tokens": 170052,
+    "outputTokens": 4299,
+    "costUsd": 0.22611420000000004,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:36.762Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 30,
+    "durationMs": 29358,
+    "tokens": 201577,
+    "outputTokens": 4116,
+    "costUsd": 0.22074560000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:46.794Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 36,
+    "durationMs": 35489,
+    "tokens": 288095,
+    "outputTokens": 4402,
+    "costUsd": 0.2421018,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:52.135Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 28,
+    "durationMs": 27272,
+    "tokens": 108181,
+    "outputTokens": 3986,
+    "costUsd": 0.135098,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:43:56.993Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 33,
+    "durationMs": 32102,
+    "tokens": 162744,
+    "outputTokens": 4708,
+    "costUsd": 0.15682120000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:23.152Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 31,
+    "durationMs": 29761,
+    "tokens": 136696,
+    "outputTokens": 4193,
+    "costUsd": 0.1472298,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:28.001Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 32,
+    "durationMs": 30710,
+    "tokens": 111144,
+    "outputTokens": 4307,
+    "costUsd": 0.1392012,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:32.872Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 47,
+    "durationMs": 45707,
+    "tokens": 136501,
+    "outputTokens": 5890,
+    "costUsd": 0.16615459999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:50.651Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 19352,
+    "tokens": 141023,
+    "outputTokens": 1917,
+    "costUsd": 0.15689,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:54.858Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 19309,
+    "tokens": 142977,
+    "outputTokens": 2091,
+    "costUsd": 0.16194240000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:44:59.162Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 42,
+    "durationMs": 41090,
+    "tokens": 181421,
+    "outputTokens": 2539,
+    "costUsd": 0.18013179999999998,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:13.120Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 25,
+    "durationMs": 23595,
+    "tokens": 175840,
+    "outputTokens": 2563,
+    "costUsd": 0.17135060000000002,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:21.284Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 22,
+    "durationMs": 20665,
+    "tokens": 146339,
+    "outputTokens": 2444,
+    "costUsd": 0.17196039999999999,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:25.495Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 18,
+    "durationMs": 17504,
+    "tokens": 65652,
+    "outputTokens": 1731,
+    "costUsd": 0.06697220000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:29.196Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 20,
+    "durationMs": 18708,
+    "tokens": 52104,
+    "outputTokens": 1728,
+    "costUsd": 0.0675508,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:38.462Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 23,
+    "durationMs": 21724,
+    "tokens": 103248,
+    "outputTokens": 2528,
+    "costUsd": 0.092421,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:54.078Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 19,
+    "durationMs": 18115,
+    "tokens": 96366,
+    "outputTokens": 1999,
+    "costUsd": 0.07418680000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:45:57.743Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 36,
+    "durationMs": 34957,
+    "tokens": 105127,
+    "outputTokens": 2211,
+    "costUsd": 0.08891120000000001,
+    "model": "claude-sonnet-5-5",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "2d1eacf5df1f",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:46:03.240Z"
+  }
+]

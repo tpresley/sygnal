@@ -267,3 +267,16 @@ Tasks 10 and 29, Opus, 5 trials each, D234 conditions: 10/10 pass, $5.85.
 | 29-accessible-signup wall | 76.5 s | 79.1 s | **72.5 s** |
 
 The fix halves task 10 (−44%) and removes the stuck-submit debugging; it is still +36% wall and +43% cost against PLAN-4, where agents hand-rolled the wizard instead of reading the forms guide and using the `form` behavior. Task 29 is back at PLAN-4's wall time (peak context +16%, learn +7 s from reading the forms guide). Total PLAN-5 eval spend including this re-run: $185.98 for 505 trials.
+
+## Addendum: modification tier (`p5-mod-sonnet`, D237)
+
+Tasks 35–43 (3 levels × add/change/remove on existing apps), Sonnet, 5 trials per arm, D234 conditions: **90/90 pass** — every trial in both arms passed behavior, its own (updated) test suite and, for removals, the dead-code audit. $12.22 (Sygnal $8.25, React $3.97).
+
+| Level (app lines S/R) | wall S vs R | cost S vs R | billed tokens | peak context | iterations S vs R |
+|---|---|---|---|---|---|
+| S (158 / 173) | 20.9 vs 17.0 s (1.23×) | 2.54× | 1.95× | 35.5k vs 15.1k | 1.2 vs 1.4 |
+| M (414 / 389) | 24.5 vs 20.0 s (1.23×) | 2.13× | 2.38× | 38.0k vs 18.5k | 1.47 vs 1.33 |
+| L (633 / 732) | 31.3 vs 29.1 s (1.07×) | 1.78× | 1.67× | 40.7k vs 21.8k | 1.53 vs 2.0 |
+| All | 25.6 vs 22.0 s (1.16×) | 2.08× | 1.95× | 38.0k vs 18.5k | 1.40 vs 1.58 |
+
+Reading: correctness is at the ceiling for both, so this run can't separate them on success. Sygnal's extra peak context is a near-constant ≈ +19–20k (the agent context: SKILL.md and `llms.txt`), not growing with app size; the wall and cost ratios shrink as the app grows (1.23× → 1.07× wall, 2.54× → 1.78× cost), and at level L Sygnal needed fewer iterations than React (1.53 vs 2.0). That is consistent with the hypothesis that Sygnal's structure offsets React's pre-training advantage as code size grows, but n = 5 per task and the ceiling limit it. To separate the arms on correctness, the next step is a harder or larger level, or a weaker model (Haiku), on the same tasks. Total PLAN-5 eval spend: $198.20 for 595 trials.
