@@ -2034,13 +2034,13 @@ A widget's `mount(el, props, dispatch)` threw when its host entered the page (or
 
 ### SYG661
 
-**Widget update threw**
+**Widget update threw or reported an error**
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`)
 
-A widget's `update(instance, props, el)` threw when the props it was rendered with changed (a widget without `update` is remounted instead, so its `mount()` threw). As for SYG660, the error goes to the app's `onError` hook with phase `'widget'` and the owner's `onError` fallback replaces the widget on its next render. Without the dev entry it is logged as `[Sygnal SYG661]` followed by the error.
+A widget failed after it mounted: either its `update(instance, props, el)` threw when the props it was rendered with changed (a widget without `update` is remounted instead, so its `mount()` threw), or the widget reported an error itself through `error(e)`, `mount`'s fourth parameter (a failure in its own timer, callback or redraw, such as a `fromZag` render on a machine-driven update). The dev message says which: `update() threw` or `reported an error through error(e)`. Either way, as for SYG660, the error goes to the app's `onError` hook with phase `'widget'` and the owner's `onError` fallback replaces the widget on its next render. Without the dev entry it is logged as `[Sygnal SYG661]` followed by the error.
 
-**Fix:** Fix `update()` for every value the view can pass (`null`, an empty list, a value of another type). `update` gets the newest props each time they change (a shallow compare), so it should not keep the props it was first given.
+**Fix:** For a throwing `update`: fix `update()` for every value the view can pass (`null`, an empty list, a value of another type). `update` gets the newest props each time they change (a shallow compare), so it should not keep the props it was first given. For `error(e)`: fix what the widget reports (the error's stack points to its timer or callback), or give the owner an `.onError` for a custom fallback.
 
 ### SYG662
 

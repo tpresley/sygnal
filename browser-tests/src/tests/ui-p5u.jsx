@@ -969,6 +969,58 @@ export async function uiTestsP5U() {
     } finally { app.dispose() }
   })
 
+  // G-579: cancelable: false while a Toaster (another app here) has a region on the page: the
+  // region moves into the open modal as an open popover="manual", which Escape doesn't close, so
+  // Escape still runs CANCEL; an auto popover open in the dialog takes the Escape first
+  function Guarded({ state, uid }) {
+    return (
+      <div>
+        <button className="g-open">Open guarded</button>
+        <dialog className="guarded" aria-label="Guarded">
+          <button className="g-more" popovertarget={uid('g-more')}>More</button>
+          <div className="g-pop" id={uid('g-more')} popover="auto" aria-label="More">more</div>
+          <button className="g-done">Done</button>
+        </dialog>
+        <p className="g-cancels">{String(state.cancels)}</p>
+      </div>
+    )
+  }
+  Guarded.initialState = { cancels: 0 }
+  Guarded.uses = { g: dialog({ dialog: '.guarded', trigger: '.g-open', close: '.g-done', cancelable: false }) }
+  Guarded.model = { 'g.CANCEL': (state) => ({ ...state, cancels: state.cancels + 1 }) }
+  function Toasts() { return <div><Toaster state="toaster" /></div> }
+  Toasts.initialState = { toaster: { toasts: [{ id: 'a', text: 'Hello', kind: 'info', timeoutMs: 0, paused: false, rev: 0 }], next: 1, paused: false, hover: false, focus: false } }
+
+  await runTest('Dialog (G-579): cancelable: false with a Toaster region moved into it: Escape runs CANCEL once; an auto popover inside takes the Escape first', async () => {
+    const other = await mount(Toasts)
+    const { id, app, $ } = await mount(Guarded)
+    const cancels = () => $('.g-cancels').textContent
+    try {
+      await window.__pw('press', `${id} .g-open`, 'Enter')
+      await until(() => isOpen($('.guarded')), 'open')
+      await until(() => other.$('.toaster')?.parentNode === $('.guarded') || $('.guarded .toaster'), () => `region not moved in: ${regions()}`)
+      assert(document.querySelector('.guarded .toaster').matches(':popover-open'), 'region not open in the modal')
+      await window.__pw('focus', `${id} .g-done`)
+      await key('Escape')
+      await until(() => cancels() === '1', () => `CANCEL ran ${cancels()} times`)
+      await wait(60)
+      assert(cancels() === '1', `CANCEL ran ${cancels()} times for one Escape`)
+      assert(isOpen($('.guarded')), 'closed by Escape')
+      // an auto popover open inside: Escape closes it only
+      await window.__pw('click', `${id} .g-more`)
+      await until(() => isOpen($('.g-pop')), 'popover open')
+      await key('Escape')
+      await until(() => !isOpen($('.g-pop')), 'Escape did not close the popover')
+      await wait(80)
+      assert(cancels() === '1', `CANCEL ran for the popover's Escape (${cancels()})`)
+      assert(isOpen($('.guarded')), 'the dialog closed')
+      await window.__pw('focus', `${id} .g-done`)
+      await key('Escape')
+      await until(() => cancels() === '2', () => `CANCEL ran ${cancels()} times`)
+      assert(isOpen($('.guarded')), 'closed by Escape')
+    } finally { app.dispose(); other.app.dispose() }
+  })
+
   // G-426: a Toaster in a shadow root reads the focus from that root (the document's is the host)
   await runTest('Toaster (G-426): in a shadow root, a focused Dismiss keeps the region paused through mutations, and Enter moves the focus on', async () => {
     const { el } = mountOnScreen()

@@ -9,7 +9,9 @@
  *   144  a host mounted — SYG144 (info, once per widget): a declared event name the host element
  *        also fires natively (`'change'` on an `<input>` host), so the intent sees both; not
  *        for the first-party Zag parts (`def.$own`: Menu's `select`, D211)
- *   660/661/662  mount / update / unmount threw (`extra` is the error) — SYG660–662 (error)
+ *   660/661/662  mount / update / unmount threw (`extra` is the error) — SYG660–662 (error);
+ *        661 with a fifth argument (G-580): the widget reported the error through mount's
+ *        error(e) (its own timer or callback), worded as such (data.phase 'error')
  *   669  fromZag (G-410): its render returned Sygnal components / widget tags / special JSX
  *        (`extra`: their tags, e.g. ['<Badge>', '<Transition>']) — SYG669 (warn, once per widget)
  * It returns the reported diagnostic (the widget module logs a bare `[Sygnal SYG66x]` otherwise).
@@ -34,7 +36,7 @@ const idOf = (w: any): number => {
 
 const PHASE: Record<number, string> = {660: 'mount', 661: 'update', 662: 'unmount'}
 
-export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
+export function reportWidget(code: number, w: any, owner?: any, x?: any, reported?: any): any {
   const name = widgetName(w), component = owner ? nameOf(owner) : name
   if (code == 140) {
     if (w.events.includes(x) || !once(`SYG140:${idOf(w)}:${x}`)) return
@@ -81,11 +83,16 @@ export function reportWidget(code: number, w: any, owner?: any, x?: any): any {
   const phase = PHASE[code]
   if (!phase) return
   const sev = DEV_CODE_SEVERITY[`SYG${code}`]
+  // G-580: a 661 from error(e) is not a throwing update()
+  const by = code == 661 && reported
   const d = devReport(`SYG${code}`, {
     component,
-    message: `${name}'s ${phase}() threw: ${x?.message ?? x}` + (code < 662 ? `; ${owner ? `${nameOf(owner)}'s onError fallback renders in its place` : 'it is not mounted'}` : ''),
-    fix: code < 662 ? `Fix the widget's ${phase}(), or give ${owner ? nameOf(owner) : 'the component'} an .onError for a custom fallback` : `Fix the widget's unmount()`,
-    data: {phase, error: x},
+    message: (by ? `${name} reported an error through error(e) (mount's fourth parameter)` : `${name}'s ${phase}() threw`) + `: ${x?.message ?? x}` +
+      (code < 662 ? `; ${owner ? `${nameOf(owner)}'s onError fallback renders in its place` : 'it is not mounted'}` : ''),
+    fix: code < 662
+      ? `Fix ${by ? 'the failure the widget reports through error(e) (its own timer, callback or redraw)' : `the widget's ${phase}()`}, or give ${owner ? nameOf(owner) : 'the component'} an .onError for a custom fallback`
+      : `Fix the widget's unmount()`,
+    data: {phase: by ? 'error' : phase, error: x},
     severity: sev,
   })
   // the error with its stack (the text is printed by report() in 'warn' mode, collected otherwise)
