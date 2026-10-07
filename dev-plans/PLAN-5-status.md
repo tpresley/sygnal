@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phases 0–3 complete; Phase 4: agent context synced (D225), offline guides (4-B), eval tiers 30–34 run on Opus/Sonnet/Haiku (D228), forms A/B (D231), toc experiment (D232/D235), S-14 passes on the matched bar (`p5-s14b-opus`), REPORT-v5 written. Open before release: G-575 (task-10 form-submit regression from 4-D). Core 42,698 B / 42,700 B (D230); SKILL 41,492 B / 41,500 B; llms 311 lines.
+**State:** Phases 0–3 complete; Phase 4: agent context synced (D225), offline guides (4-B), eval tiers 30–34 run on Opus/Sonnet/Haiku (D228), forms A/B (D231), toc experiment (D232/D235), S-14 passes on the matched bar (`p5-s14b-opus`), REPORT-v5 written. Open before release: G-575 (task-10 form-submit regression from 4-D). Core 42,698 B / 42,700 B (D230); SKILL 42,096 B / 42,100 B (D238); llms 313 lines.
 
 ## 0-A baseline (2026-10-05)
 
@@ -340,6 +340,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-574 | review 4-K | Low | router / docs | The hop guard counts all synchronous navigations: a burst of > 32 delivers 1…32 synchronously, skips 33…49, and the last after a task (final state correct). Docs/comment should say "navigations"; acceptable | → backlog |
 | G-575 | REPORT-v5 | Med | forms / docs | Regression from 4-D's "read the guide, use its API" step: eval task 10 (signup wizard) 49.8 → 121.5 s (2.44×, p=0.008), peak +50%. Agents now use the `form` behavior; the account step sends no request, so they finish with `EFFECT: next('form.DONE')`, the step unmounts first, `submitting` stays true, the second Next is ignored. `forms.md` only shows finishing a submit that sends HTTP. Corrects the earlier "tiers 1–2 learn rise is noise" note | ✅ 4-F2 (pending only with the `http` sink; VALIDATE on host start clears `submitting`; 0 B core, form.ts +69 B); re-run pending |
 | G-576 | 4-F2 report | Low | forms | The http-sink check is stored per `form()` value: one `form(...)` value shared by two host components with different submit entries is decided by the last to mount; a local submit doesn't dispatch `form.DONE` (a host `'form.DONE'` entry doesn't run for it — documented) | → backlog |
+| G-577 | 4-H2 report | Low/Med | forms / diagnostics | Naming the `form` behavior's submit action after one of its own actions (`ADD`, `CHANGE`, `BLUR`, `SUBMIT`, `REMOVE`, `ERRORS`, `DONE`, `RESET`, `VALIDATE`) routes the submit to the behavior's own action (`next()` namespaces names the behavior defines), which throws (SYG214/SYG216) with no clear diagnostic; extend SYG234 to report the collision | → next fix pass |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | ✅ 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | ✅ 2-S |
@@ -423,6 +424,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — Own-test floor merged (passed own tests ≥ starter count; remove tasks minus tests covering only the removed feature: 37 → 10, 40 → 13, 43 → 14; `deleted-failing-tests` mutants for 36/39/43; verify 208/208). Coordinator: 37's floor 10 accepted (deleting the tab-only test is a correct removal). Ready for the user's run.
 - 2026-10-06 — `p5-mod-sonnet` done: 90/90 pass in both arms ($12.22). Sygnal vs React: wall 1.23× (S, M) → 1.07× (L), cost 2.54× → 1.78×, peak context a near-constant +19–20k, L iterations 1.53 vs 2.0. REPORT-v5 addendum.
 - 2026-10-06 — `p5-mod-haiku` done (Sygnal 28/45, React 34/45; $20.25); analysis: 8 Sygnal-specific failures from two skill gaps, the rest general (task 35 curly quotes 0/10 both). User: D238. 4-H2 started.
+- 2026-10-06 — 4-H2 merged: resources rule (each declaration fetches; a `queryCache()` serves repeats — D238's "costs nothing" corrected) and form-reset rule in SKILL.md (42,096 B), toc and llms (313 lines), with tests; task 35 accepts either quote (verify 208/208). G-577. Re-run `p5-mod-haiku-2` ready (≈ $20.25).
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
