@@ -7,8 +7,8 @@
 //   declaration shows the cached data at once.
 // - Forms: a `uses: { form }` slice lives in the host's state; a Switchable page shares its
 //   parent's, so the values survive leaving the page and coming back (even with `instance=`,
-//   which re-creates the page). "Starts empty on each visit" is a form.RESET with the start
-//   values when the page is shown.
+//   which re-creates the page). "Starts empty on each visit" is the form's `resetOnShow: true`
+//   (4-G2, D239; it replaced the hand-written STATE.watch to form.RESET the rule showed first).
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import { renderComponent, form, queryCache, Switchable } from '../src/index.js'
@@ -97,17 +97,15 @@ const formApp = (AddPage) => {
   App.model = { GO: (state, page) => ({ ...state, page, route: { name: page }, visit: state.visit + 1 }) }
   return App
 }
-const SNIPPET = "'form.RESET': STATE.watch((s) => s.route.name === 'newItem', { immediate: true }).filter(Boolean).mapTo(EMPTY)"
+const SNIPPET = "form(schema, { values: EMPTY, submit: 'SAVE', resetOnShow: true })"
+const LLMS_SNIPPET = "values: (state) => ({ ...EMPTY, category: state.settings.defaultCategory })"
 
 const addPage = (reset) => {
   function AddPage({ state }) {
     return h('form', { className: 'f' }, h('input', { name: 'title', value: state.form.fields.title.value }), h('button', { type: 'submit' }, 'Add'))
   }
-  AddPage.uses = { form: form(schema, { values: EMPTY, submit: 'SAVE' }) }
   // the rule's snippet: each time the page is shown, the form starts empty
-  if (reset) AddPage.intent = ({ STATE }) => ({
-    'form.RESET': STATE.watch((s) => s.route.name === 'newItem', { immediate: true }).filter(Boolean).mapTo(EMPTY),
-  })
+  AddPage.uses = { form: reset ? form(schema, { values: EMPTY, submit: 'SAVE', resetOnShow: true }) : form(schema, { values: EMPTY, submit: 'SAVE' }) }
   AddPage.model = { SAVE: (state, values) => ({ ...state, added: [...(state.added || []), values.title] }) }
   return AddPage
 }
@@ -132,7 +130,7 @@ describe('a form on a Switchable page keeps its values across visits', () => {
     expect(t.query('[name="title"]').value).toBe('Lunch')
   })
 
-  it('with the form.RESET snippet, each visit starts empty', async () => {
+  it('with resetOnShow, each visit starts empty', async () => {
     t = renderComponent(formApp(addPage(true)))
     await t.ready()
     await visitAndType('Lunch')
@@ -144,7 +142,7 @@ describe('a form on a Switchable page keeps its values across visits', () => {
     expect(t.query('[name="title"]').value).toBe('')
   })
 
-  it('the reset gives the start values: after a submit, form.RESET alone would restore the submitted ones', async () => {
+  it('resetOnShow gives the start values: after a submit, form.RESET alone would restore the submitted ones', async () => {
     t = renderComponent(formApp(addPage(true)))
     await t.ready()
     await visitAndType('Lunch')
@@ -177,7 +175,7 @@ describe('the agent docs carry both rules (and the snippet these tests run)', ()
     ['skills/sygnal-dev/SKILL.md', [SNIPPET, RESOURCES]],
     ['skills/sygnal-dev-toc/references/behaviors-and-forms.md', [SNIPPET]],
     ['skills/sygnal-dev-toc/references/resources.md', [RESOURCES]],
-    ['llms.txt', [SNIPPET, RESOURCES]],
+    ['llms.txt', [SNIPPET, LLMS_SNIPPET, RESOURCES]],
   ]) {
     it(file, () => {
       const text = fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8')

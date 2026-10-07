@@ -6,6 +6,7 @@
 // alive). Off by default (a wizard keeps its values across steps). `values` can be a function
 // of the host's state: the start values are computed each time the form starts over.
 import { describe, it, expect, afterEach } from 'vitest'
+import fs from 'node:fs'
 import { renderComponent, form, Switchable } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
 
@@ -244,5 +245,23 @@ describe('values as a function of the host state', () => {
     t.simulateAction('form.RESET')                                   // RESET without data: back to the start values
     await t.settle()
     expect(t.state.form.values.category).toBe('Travel')
+  })
+})
+
+describe('docs (D239)', () => {
+  const read = (f) => fs.readFileSync(new URL('../' + f, import.meta.url), 'utf8')
+  it('guide/forms has "Start empty on each visit" with resetOnShow and a values function; the options table both; the reference the rule', () => {
+    const page = read('docs/src/content/docs/guide/forms.md')
+    const sec = page.slice(page.indexOf('## Start empty on each visit'), page.indexOf('## Server errors'))
+    expect(sec).toContain('values: (state) => ({ ...EMPTY, category: state.settings.defaultCategory }),')
+    expect(sec).toContain('resetOnShow: true,')
+    expect(page).toMatch(/\| `resetOnShow` \| `true`: start over each time the form is shown/)
+    expect(read('docs/src/content/docs/guide/forms-reference.md')).toContain('**Starting over when shown** (`resetOnShow: true`)')
+  })
+  it('the agent context has no hand-written STATE.watch reset left', () => {
+    for (const f of ['skills/sygnal-dev/SKILL.md', 'skills/sygnal-dev-toc/references/behaviors-and-forms.md', 'llms.txt', 'docs/public/llms.txt']) {
+      expect(read(f), f).not.toContain("'form.RESET': STATE.watch")
+      expect(read(f), f).toContain('resetOnShow: true')
+    }
   })
 })
