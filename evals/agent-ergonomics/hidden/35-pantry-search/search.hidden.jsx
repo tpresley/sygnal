@@ -164,10 +164,16 @@ describe('35 pantry search', () => {
     expect($('.notice')).toBeNull()
   })
 
+  // Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+  // them fails this test.
+  // add: the starter suite has 11 tests (both arms); adding search breaks none of them and the
+  // reference keeps all 11, so all 11 must still pass (new tests may be added on top).
+  const MIN_PASSING_OWN_TESTS = 11
+
   it('project: the project\'s own tests pass', () => {
     const r = runProjectTests()
     expect(r.failures).toEqual([])
     expect(r.failed).toBe(0)
-    expect(r.total).toBeGreaterThanOrEqual(3)
+    expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
   }, 240000)
 })

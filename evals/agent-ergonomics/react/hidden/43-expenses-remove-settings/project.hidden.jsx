@@ -138,9 +138,16 @@ async function openExpense(description) {
   await waitFor(() => expect(heading()).toBe(description))
 }
 
+// Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+// them fails this test.
+// remove: the starter suite has 16 tests (both arms); the 2 in SettingsPage.test.jsx only cover
+// Settings, so a legitimate removal keeps 14, which is what the reference keeps. The nav
+// assertion in App.test.jsx breaks too and must be updated, not deleted.
+const MIN_PASSING_OWN_TESTS = 14
+
 it("project: the project's own tests pass", () => {
   const r = runProjectTests()
   expect(r.failures).toEqual([])
   expect(r.failed).toBe(0)
-  expect(r.total).toBeGreaterThanOrEqual(3)
+  expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
 }, 240000)

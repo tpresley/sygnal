@@ -133,10 +133,16 @@ describe('36 pantry restock rules', () => {
     await waitFor(() => expect(names()).toHaveLength(5))
   })
 
+  // Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+  // them fails this test.
+  // change: the starter suite has 11 tests (both arms); the new rules break 7 of them, which must be
+  // updated, not deleted. The reference updates them and keeps 11.
+  const MIN_PASSING_OWN_TESTS = 11
+
   it('project: the project\'s own tests pass', () => {
     const r = runProjectTests()
     expect(r.failures).toEqual([])
     expect(r.failed).toBe(0)
-    expect(r.total).toBeGreaterThanOrEqual(3)
+    expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
   }, 240000)
 })

@@ -1,0 +1,3 @@
+# The nav assertion in the "Page not found" test breaks when Settings goes; this mutant deletes
+# the test (its file) instead of updating the expected links.
+src/App.test.jsx

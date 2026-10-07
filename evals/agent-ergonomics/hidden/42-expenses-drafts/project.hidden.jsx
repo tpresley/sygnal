@@ -138,9 +138,16 @@ async function openExpense(description) {
   await waitFor(() => expect(heading()).toBe(description))
 }
 
+// Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+// them fails this test.
+// change: the starter suite has 16 tests (both arms); drafts break 4 of them (submit, detail
+// buttons, approve, deleting a pending expense), which must be updated, not deleted. The
+// reference updates them and adds 2 (18).
+const MIN_PASSING_OWN_TESTS = 16
+
 it("project: the project's own tests pass", () => {
   const r = runProjectTests()
   expect(r.failures).toEqual([])
   expect(r.failed).toBe(0)
-  expect(r.total).toBeGreaterThanOrEqual(3)
+  expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
 }, 240000)
