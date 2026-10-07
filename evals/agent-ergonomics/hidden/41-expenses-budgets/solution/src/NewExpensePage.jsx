@@ -44,21 +44,18 @@ function NewExpensePage({ state, context, uid }) {
 }
 
 NewExpensePage.uses = {
-  form: form(expenseSchema, { values: EMPTY_EXPENSE, submit: 'SAVE' }),
+  // each time the page is opened, the form starts empty on the default category
+  form: form(expenseSchema, {
+    values: (state) => ({ ...EMPTY_EXPENSE, category: state.settings.defaultCategory }),
+    submit: 'SAVE',
+    resetOnShow: true,
+  }),
 }
 
 // the list, for the budget warning
 NewExpensePage.resources = {
   expenseList: () => '/api/expenses',
 }
-
-NewExpensePage.intent = ({ STATE }) => ({
-  // each time the page is opened, the form starts empty on the default category
-  // (false while another page is shown, so every visit emits again)
-  'form.RESET': STATE.watch((state) => state.route.name === 'newExpense' && state.settings.defaultCategory, { immediate: true })
-    .filter((category) => category !== false)
-    .map((category) => ({ ...EMPTY_EXPENSE, category })),
-})
 
 NewExpensePage.model = {
   'form.SUBMIT': (state) => ({ ...state, saveFailed: false }),

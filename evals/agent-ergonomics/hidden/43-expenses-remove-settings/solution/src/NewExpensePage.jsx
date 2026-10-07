@@ -41,16 +41,9 @@ function NewExpensePage({ state, uid }) {
 }
 
 NewExpensePage.uses = {
-  form: form(expenseSchema, { values: EMPTY_EXPENSE, submit: 'SAVE' }),
-}
-
-NewExpensePage.intent = ({ STATE }) => ({
   // each time the page is opened, the form starts empty
-  // (false while another page is shown, so every visit emits again)
-  'form.RESET': STATE.watch((state) => state.route.name === 'newExpense', { immediate: true })
-    .filter(Boolean)
-    .mapTo(EMPTY_EXPENSE),
-})
+  form: form(expenseSchema, { values: EMPTY_EXPENSE, submit: 'SAVE', resetOnShow: true }),
+}
 
 NewExpensePage.model = {
   'form.SUBMIT': (state) => ({ ...state, saveFailed: false }),
