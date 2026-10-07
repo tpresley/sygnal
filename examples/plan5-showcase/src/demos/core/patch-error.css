@@ -1,0 +1,16 @@
+/* The mark is on the mount point (the element run() renders into): no JavaScript needed */
+.demo-mount[data-sygnal-error="patch"]::after {
+  content: 'This demo stopped updating. Restart to continue.';
+  position: absolute;
+  inset: -6px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.85);
+  color: #b91c1c;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .demo-mount[data-sygnal-error="patch"]::after { background: rgb(20 22 30 / 0.88); color: #ff8a8a; }
+}
+.reload-banner { margin: 10px 0 0; padding: 6px 10px; border-radius: 6px; background: #fde8e8; color: #8a1c1c; font-size: 0.9rem; }
