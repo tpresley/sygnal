@@ -82,6 +82,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 
 | ID | Date | Decision | By |
 |---|---|---|---|
+| D237 | 2026-10-06 | New eval tier `mod` (tasks 35–43): modifying existing code — 3 complexity levels (S one component, M multi-component app, L app with drivers/routing/forms) × {add, change, remove}; Sygnal vs React, Sonnet only, 5 trials per arm (≈ 90 trials, ≈ $15–20, user runs it). Hypothesis: Sygnal 6.0's structure offsets React's pre-training advantage when changing existing code | User |
 | D236 | 2026-10-06 | G-575: docs ("submit without a request", wizards) + a behavior fix so a submit that sends nothing completes at once (no lingering `submitting`), helper-side, 0 B core; then a targeted re-run of tasks 10 and 29 on Opus (≈ $7, user runs it) | User |
 | D235 | 2026-10-06 | Toc S-14 (`p5-s14-toc-opus`, 80/80, $23.69) vs `p5-s14-opus`: tiers 1–2 peak −28%, cost −21%, wall +25%, learn 2.4 → 5.5 s; ergo peak −17%, cost −13%, wall flat, learn 11.9 → 14.0 s (bar ≈ 10.8 s). 6.0 ships the **current full SKILL.md** (with 4-D's guide step); re-run its S-14 under today's conditions (D234, post-4-D docs) to confirm the ergo learn fix; the toc skill stays an experiment (a fuller SKILL.md core) for later | User |
 | D234 | 2026-10-06 | Eval trials block Claude Code's built-in skills (`run`, `dataviz`, …) from the next run on (incl. the toc S-14): trials test the framework, not the dev-server helper (Haiku used `run` in 19/25 React, 4/25 Sygnal trials). Recorded in the harness README and REPORT-v5 as a condition change | User |
@@ -416,6 +417,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — REPORT-v5 written (`evals/agent-ergonomics/results/REPORT-v5.md`; total PLAN-5 eval spend $180.13, 495 trials). Correction: the tiers 1–2 wall/learn rise is not noise — it is all task 10 (G-575). Note: the report agent's Write was refused for the report path and it copied the file into place with `cp`; surfaced to the user.
 - 2026-10-06 — User: D236. 4-F2 merged (G-575 fix; eval verify 283/283; gates green in 3 engines per its report). Targeted re-run (tasks 10, 29, Opus) ready for the user (≈ $5.01). G-576 backlog.
 - 2026-10-06 — Re-run `p5-4f2-opus` (10/10, $5.85): task 10 121.5 → 67.8 s (PLAN-4 49.8 s; +36%, agents now use the `form` behavior and read the guide), iterations 6.8 → 3.8; task 29 72.5 s (PLAN-4 76.5 s). REPORT-v5 addendum added.
+- 2026-10-06 — User: D237. 4-M (prep of the `mod` tier, no model calls) started.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
