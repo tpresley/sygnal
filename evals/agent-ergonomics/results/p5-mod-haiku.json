@@ -1,0 +1,3373 @@
+[
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 97,
+    "durationMs": 96080,
+    "tokens": 544915,
+    "outputTokens": 9897,
+    "costUsd": 0.17079729999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:53:36.082Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 102,
+    "durationMs": 100969,
+    "tokens": 573622,
+    "outputTokens": 10353,
+    "costUsd": 0.18004859999999995,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:53:41.432Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 122,
+    "durationMs": 121157,
+    "tokens": 1042412,
+    "outputTokens": 11418,
+    "costUsd": 0.2664443,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:54:01.071Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 3,
+    "editRounds": 3,
+    "wallSeconds": 122,
+    "durationMs": 121457,
+    "tokens": 803859,
+    "outputTokens": 12052,
+    "costUsd": 0.23793760000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:54:06.392Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 56,
+    "durationMs": 54606,
+    "tokens": 335019,
+    "outputTokens": 4868,
+    "costUsd": 0.09085170000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T05:54:44.734Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 5,
+    "editRounds": 3,
+    "wallSeconds": 97,
+    "durationMs": 95990,
+    "tokens": 588965,
+    "outputTokens": 9822,
+    "costUsd": 0.15609659999999997,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:55:20.342Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 5,
+    "editRounds": 2,
+    "wallSeconds": 82,
+    "durationMs": 81172,
+    "tokens": 399237,
+    "outputTokens": 5809,
+    "costUsd": 0.1073024,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T05:55:29.368Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 6,
+    "editRounds": 1,
+    "wallSeconds": 84,
+    "durationMs": 83456,
+    "tokens": 579491,
+    "outputTokens": 7309,
+    "costUsd": 0.13614060000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T05:55:36.739Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 5,
+    "editRounds": 1,
+    "wallSeconds": 56,
+    "durationMs": 54813,
+    "tokens": 400913,
+    "outputTokens": 4759,
+    "costUsd": 0.09832130000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T05:55:46.557Z"
+  },
+  {
+    "task": "35-pantry-search",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 7,
+    "testsTotal": 8,
+    "iterations": 6,
+    "editRounds": 2,
+    "wallSeconds": 79,
+    "durationMs": 77614,
+    "tokens": 527928,
+    "outputTokens": 7308,
+    "costUsd": 0.13137010000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 7
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "35 pantry search shows a no-match message instead of \"Nothing here.\" while searching",
+        "message": "AssertionError: expected 'No items match \"xyz\".' to be 'No items match “xyz”.' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T05:56:44.938Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 105,
+    "durationMs": 104118,
+    "tokens": 595980,
+    "outputTokens": 10577,
+    "costUsd": 0.16075940000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:57:36.958Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 140,
+    "durationMs": 138570,
+    "tokens": 1126208,
+    "outputTokens": 13989,
+    "costUsd": 0.2615069,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:57:54.370Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 143,
+    "durationMs": 141733,
+    "tokens": 762914,
+    "outputTokens": 14582,
+    "costUsd": 0.2297504,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:58:04.637Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 108,
+    "durationMs": 106932,
+    "tokens": 662722,
+    "outputTokens": 12684,
+    "costUsd": 0.17947090000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:58:45.076Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 102,
+    "durationMs": 101524,
+    "tokens": 563417,
+    "outputTokens": 12753,
+    "costUsd": 0.16696889999999998,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T05:59:51.551Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 141,
+    "durationMs": 139880,
+    "tokens": 561200,
+    "outputTokens": 14678,
+    "costUsd": 0.18034870000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:00:19.912Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 171,
+    "durationMs": 169756,
+    "tokens": 1226677,
+    "outputTokens": 17267,
+    "costUsd": 0.2967884,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:00:32.941Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 117,
+    "durationMs": 115880,
+    "tokens": 593848,
+    "outputTokens": 12262,
+    "costUsd": 0.16920740000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:00:48.003Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 56,
+    "durationMs": 55205,
+    "tokens": 413070,
+    "outputTokens": 5456,
+    "costUsd": 0.10990480000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:01:49.003Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 72,
+    "durationMs": 70568,
+    "tokens": 813638,
+    "outputTokens": 7011,
+    "costUsd": 0.18990939999999995,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:01:51.962Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 125,
+    "durationMs": 123960,
+    "tokens": 549165,
+    "outputTokens": 13134,
+    "costUsd": 0.1671085,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:02:01.088Z"
+  },
+  {
+    "task": "36-pantry-restock-rules",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 122,
+    "durationMs": 121526,
+    "tokens": 487719,
+    "outputTokens": 12834,
+    "costUsd": 0.15865340000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:02:26.789Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 50,
+    "durationMs": 48496,
+    "tokens": 473852,
+    "outputTokens": 4498,
+    "costUsd": 0.1259024,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:02:55.428Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 62,
+    "durationMs": 60720,
+    "tokens": 559348,
+    "outputTokens": 5898,
+    "costUsd": 0.14952110000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:03.174Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 2,
+    "wallSeconds": 65,
+    "durationMs": 64022,
+    "tokens": 746625,
+    "outputTokens": 5697,
+    "costUsd": 0.17211570000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:06.459Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 36,
+    "durationMs": 35250,
+    "tokens": 232369,
+    "outputTokens": 3321,
+    "costUsd": 0.06709330000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:08.697Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 36,
+    "durationMs": 35136,
+    "tokens": 245199,
+    "outputTokens": 3220,
+    "costUsd": 0.06886900000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:35.667Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 33,
+    "durationMs": 32094,
+    "tokens": 182358,
+    "outputTokens": 3054,
+    "costUsd": 0.05955730000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:45.634Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 44,
+    "durationMs": 43347,
+    "tokens": 354138,
+    "outputTokens": 3861,
+    "costUsd": 0.0868865,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:51.512Z"
+  },
+  {
+    "task": "37-pantry-remove-tabs",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 7,
+    "testsTotal": 7,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 43,
+    "durationMs": 42298,
+    "tokens": 389426,
+    "outputTokens": 4210,
+    "costUsd": 0.0958319,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "audit": {
+        "passed": 1,
+        "total": 1
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:03:53.759Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 139,
+    "durationMs": 137608,
+    "tokens": 1557199,
+    "outputTokens": 14064,
+    "costUsd": 0.3148981,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:06:19.055Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 13,
+    "testsTotal": 14,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 157,
+    "durationMs": 155928,
+    "tokens": 1716690,
+    "outputTokens": 16033,
+    "costUsd": 0.34722580000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "38 pipeline: on hold holding marks the card, disables Advance and Reject, and Resume undoes it",
+        "message": "TypeError: Cannot read properties of null (reading 'disabled')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:06:29.304Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 7,
+    "editRounds": 5,
+    "wallSeconds": 177,
+    "durationMs": 175945,
+    "tokens": 2046570,
+    "outputTokens": 17480,
+    "costUsd": 0.39184240000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:06:39.241Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 13,
+    "testsTotal": 14,
+    "iterations": 7,
+    "editRounds": 5,
+    "wallSeconds": 179,
+    "durationMs": 178084,
+    "tokens": 2018772,
+    "outputTokens": 17239,
+    "costUsd": 0.38672720000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "38 pipeline: on hold holding marks the card, disables Advance and Reject, and Resume undoes it",
+        "message": "TypeError: Cannot read properties of null (reading 'disabled')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:06:56.951Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 135,
+    "durationMs": 134416,
+    "tokens": 1327038,
+    "outputTokens": 13526,
+    "costUsd": 0.26132530000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:08:52.644Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 13,
+    "testsTotal": 14,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 149,
+    "durationMs": 148178,
+    "tokens": 1501331,
+    "outputTokens": 15325,
+    "costUsd": 0.3198553,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "38 pipeline: on hold holding marks the card, disables Advance and Reject, and Resume undoes it",
+        "message": "TypeError: Cannot read properties of null (reading 'disabled')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:08:57.196Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 6,
+    "editRounds": 2,
+    "wallSeconds": 141,
+    "durationMs": 139756,
+    "tokens": 1395632,
+    "outputTokens": 14419,
+    "costUsd": 0.27381590000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:09:05.974Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 146,
+    "durationMs": 145169,
+    "tokens": 1530945,
+    "outputTokens": 14151,
+    "costUsd": 0.28902640000000007,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 2 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:09:36.061Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 151,
+    "durationMs": 150310,
+    "tokens": 1597051,
+    "outputTokens": 15259,
+    "costUsd": 0.3014693999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:11:30.188Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 5,
+    "editRounds": 2,
+    "wallSeconds": 141,
+    "durationMs": 140034,
+    "tokens": 1200826,
+    "outputTokens": 13584,
+    "costUsd": 0.25637069999999995,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:11:35.358Z"
+  },
+  {
+    "task": "38-pipeline-hold",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 14,
+    "testsTotal": 14,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 157,
+    "durationMs": 155344,
+    "tokens": 1277456,
+    "outputTokens": 16327,
+    "costUsd": 0.2715246,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 13,
+        "total": 13
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "AUDIT: 1 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-07T06:11:40.029Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 140,
+    "durationMs": 138841,
+    "tokens": 1307306,
+    "outputTokens": 14004,
+    "costUsd": 0.2868185000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:12:02.579Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 7,
+    "editRounds": 4,
+    "wallSeconds": 124,
+    "durationMs": 123367,
+    "tokens": 1268200,
+    "outputTokens": 11653,
+    "costUsd": 0.2702229,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:13:41.006Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 5,
+    "editRounds": 2,
+    "wallSeconds": 135,
+    "durationMs": 134400,
+    "tokens": 1339954,
+    "outputTokens": 13544,
+    "costUsd": 0.28962210000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:13:57.328Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 144,
+    "durationMs": 142651,
+    "tokens": 1395590,
+    "outputTokens": 14253,
+    "costUsd": 0.3033968999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:14:10.093Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 143,
+    "durationMs": 141988,
+    "tokens": 1167361,
+    "outputTokens": 14453,
+    "costUsd": 0.25055399999999994,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "AUDIT: 2 flagged call(s), review before trusting (run.md step 3)",
+    "scoredAt": "2026-10-07T06:14:38.469Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 115,
+    "durationMs": 113968,
+    "tokens": 929785,
+    "outputTokens": 11995,
+    "costUsd": 0.20788950000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:15:41.901Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 97,
+    "durationMs": 96230,
+    "tokens": 739009,
+    "outputTokens": 10166,
+    "costUsd": 0.1742913,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:15:53.328Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 122,
+    "durationMs": 121564,
+    "tokens": 1005100,
+    "outputTokens": 12497,
+    "costUsd": 0.21903329999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:16:05.809Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 58,
+    "durationMs": 57314,
+    "tokens": 667663,
+    "outputTokens": 5305,
+    "costUsd": 0.15362970000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:16:47.404Z"
+  },
+  {
+    "task": "39-pipeline-stages",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 13,
+    "testsTotal": 13,
+    "iterations": 10,
+    "editRounds": 7,
+    "wallSeconds": 134,
+    "durationMs": 133424,
+    "tokens": 1213216,
+    "outputTokens": 13313,
+    "costUsd": 0.2521633000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 12,
+        "total": 12
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:16:58.685Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 59,
+    "durationMs": 58342,
+    "tokens": 602780,
+    "outputTokens": 5256,
+    "costUsd": 0.1251646,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:17:01.556Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 99,
+    "durationMs": 98355,
+    "tokens": 902090,
+    "outputTokens": 6217,
+    "costUsd": 0.1919664,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:17:49.730Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 51,
+    "durationMs": 50375,
+    "tokens": 445577,
+    "outputTokens": 4961,
+    "costUsd": 0.10458269999999999,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:17:56.825Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 1,
+    "editRounds": 1,
+    "wallSeconds": 58,
+    "durationMs": 57553,
+    "tokens": 684711,
+    "outputTokens": 5280,
+    "costUsd": 0.1595117,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:18:01.830Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 79,
+    "durationMs": 77784,
+    "tokens": 1156635,
+    "outputTokens": 6996,
+    "costUsd": 0.22567820000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:18:10.701Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 51,
+    "durationMs": 49670,
+    "tokens": 435679,
+    "outputTokens": 4478,
+    "costUsd": 0.09704200000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:18:56.517Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 61,
+    "durationMs": 60377,
+    "tokens": 575405,
+    "outputTokens": 5315,
+    "costUsd": 0.12120950000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:19:02.297Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 68,
+    "durationMs": 67193,
+    "tokens": 636785,
+    "outputTokens": 5697,
+    "costUsd": 0.1266166,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:19:08.467Z"
+  },
+  {
+    "task": "40-pipeline-remove-log",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 9,
+    "testsTotal": 9,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 63,
+    "durationMs": 62625,
+    "tokens": 641868,
+    "outputTokens": 6071,
+    "costUsd": 0.13471000000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 6,
+        "total": 6
+      },
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:19:18.325Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 99,
+    "durationMs": 97898,
+    "tokens": 878985,
+    "outputTokens": 10138,
+    "costUsd": 0.21398899999999998,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "AssertionError: expected null to be 'This will put Travel over its budget.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:20:59.633Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 118,
+    "durationMs": 117186,
+    "tokens": 1330882,
+    "outputTokens": 11696,
+    "costUsd": 0.27398439999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 1,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      },
+      {
+        "test": "budget column, over-budget rows and the summary follow the budgets, the currency and rejections",
+        "message": "AssertionError: input[name=\"budget-Travel\"]: expected null not to be null"
+      },
+      {
+        "test": "budgets survive a reload, with the other settings",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      },
+      {
+        "test": "no budgets: totals as before, \"No budget\", no summary; then two categories over budget",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:21:08.977Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 5,
+    "editRounds": 4,
+    "wallSeconds": 138,
+    "durationMs": 137341,
+    "tokens": 1711989,
+    "outputTokens": 16636,
+    "costUsd": 0.3600776000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "AssertionError: expected null to be 'This will put Travel over its budget.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:21:27.621Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 7,
+    "editRounds": 6,
+    "wallSeconds": 207,
+    "durationMs": 205673,
+    "tokens": 1983176,
+    "outputTokens": 21505,
+    "costUsd": 0.41736610000000013,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:22:55.966Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 2,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 3,
+    "wallSeconds": 118,
+    "durationMs": 117030,
+    "tokens": 1184565,
+    "outputTokens": 11200,
+    "costUsd": 0.23828220000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 1,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      },
+      {
+        "test": "budget column, over-budget rows and the summary follow the budgets, the currency and rejections",
+        "message": "AssertionError: input[name=\"budget-Travel\"]: expected null not to be null"
+      },
+      {
+        "test": "budgets survive a reload, with the other settings",
+        "message": "TypeError: Cannot read properties of null (reading 'focus')"
+      },
+      {
+        "test": "no budgets: totals as before, \"No budget\", no summary; then two categories over budget",
+        "message": "TypeError: Cannot read properties of null (reading 'nodeType')"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:23:08.050Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 2,
+    "wallSeconds": 99,
+    "durationMs": 97963,
+    "tokens": 883210,
+    "outputTokens": 9162,
+    "costUsd": 0.187,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:23:17.814Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 137,
+    "durationMs": 136677,
+    "tokens": 1306980,
+    "outputTokens": 13481,
+    "costUsd": 0.2624761,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "AssertionError: expected null to be 'This will put Travel over its budget.' // Object.is equality"
+      }
+    ],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:23:46.204Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 2,
+    "wallSeconds": 97,
+    "durationMs": 96225,
+    "tokens": 861322,
+    "outputTokens": 9018,
+    "costUsd": 0.1842964,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [
+      {
+        "test": "warns while amount + category go over the budget; saving still works",
+        "message": "AssertionError: expected null to be 'This will put Travel over its budget.' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:24:57.930Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 7,
+    "editRounds": 3,
+    "wallSeconds": 149,
+    "durationMs": 147600,
+    "tokens": 1253428,
+    "outputTokens": 14807,
+    "costUsd": 0.26699920000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:25:43.550Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 198,
+    "durationMs": 197241,
+    "tokens": 1905247,
+    "outputTokens": 20055,
+    "costUsd": 0.39452849999999995,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:27:11.548Z"
+  },
+  {
+    "task": "41-expenses-budgets",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 6,
+    "editRounds": 2,
+    "wallSeconds": 243,
+    "durationMs": 241681,
+    "tokens": 1220768,
+    "outputTokens": 11908,
+    "costUsd": 0.24339680000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 5,
+        "total": 5
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:27:31.663Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 164,
+    "durationMs": 162740,
+    "tokens": 1733479,
+    "outputTokens": 16425,
+    "costUsd": 0.35134610000000005,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:27:48.969Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 215,
+    "durationMs": 214130,
+    "tokens": 1876503,
+    "outputTokens": 21883,
+    "costUsd": 0.386595,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:29:25.812Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 1,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 108,
+    "durationMs": 106936,
+    "tokens": 1069076,
+    "outputTokens": 12696,
+    "costUsd": 0.22810039999999998,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "notes": "PROCESS-KILL: 1 machine-wide kill command(s), refused by the guard (G-127)",
+    "scoredAt": "2026-10-07T06:29:50.845Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 183,
+    "durationMs": 182003,
+    "tokens": 1981740,
+    "outputTokens": 18182,
+    "costUsd": 0.3874323,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:30:23.442Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 178,
+    "durationMs": 177243,
+    "tokens": 1332888,
+    "outputTokens": 12762,
+    "costUsd": 0.2810671,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:30:36.935Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 5,
+    "editRounds": 2,
+    "wallSeconds": 160,
+    "durationMs": 159446,
+    "tokens": 1603316,
+    "outputTokens": 16305,
+    "costUsd": 0.31781650000000006,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:32:20.446Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 155,
+    "durationMs": 154118,
+    "tokens": 1615753,
+    "outputTokens": 15781,
+    "costUsd": 0.3152249000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:32:32.891Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 5,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 3,
+    "editRounds": 2,
+    "wallSeconds": 154,
+    "durationMs": 152642,
+    "tokens": 1435603,
+    "outputTokens": 15952,
+    "costUsd": 0.2957489,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:33:17.622Z"
+  },
+  {
+    "task": "42-expenses-drafts",
+    "arm": "react",
+    "trial": 4,
+    "pass": true,
+    "testsPassed": 5,
+    "testsTotal": 5,
+    "iterations": 5,
+    "editRounds": 2,
+    "wallSeconds": 170,
+    "durationMs": 168802,
+    "tokens": 2138629,
+    "outputTokens": 17027,
+    "costUsd": 0.38224220000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "behavior": {
+        "passed": 4,
+        "total": 4
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:33:22.531Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 74,
+    "durationMs": 73063,
+    "tokens": 1042093,
+    "outputTokens": 7447,
+    "costUsd": 0.2160843,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/App.jsx: currency', …(7) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:33:42.362Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 2,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 107,
+    "durationMs": 105742,
+    "tokens": 1322498,
+    "outputTokens": 9885,
+    "costUsd": 0.2374045,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:34:25.571Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 69,
+    "durationMs": 67805,
+    "tokens": 777208,
+    "outputTokens": 6150,
+    "costUsd": 0.17133749999999998,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 2,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/App.jsx: currency', …(7) ] to deeply equal []"
+      },
+      {
+        "test": "list, filters, reject, delete, validation, adding an expense and the flash still work",
+        "message": "AssertionError: expected 'Taxi' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:34:58.689Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 3,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 6,
+    "iterations": 2,
+    "editRounds": 1,
+    "wallSeconds": 111,
+    "durationMs": 110198,
+    "tokens": 1444523,
+    "outputTokens": 10251,
+    "costUsd": 0.2769664,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 2,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      },
+      {
+        "test": "list, filters, reject, delete, validation, adding an expense and the flash still work",
+        "message": "AssertionError: expected 'Taxi' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:35:16.366Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "sygnal",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 4,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 3,
+    "wallSeconds": 127,
+    "durationMs": 126250,
+    "tokens": 1501642,
+    "outputTokens": 12308,
+    "costUsd": 0.29446,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": false,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 2,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      },
+      {
+        "test": "list, filters, reject, delete, validation, adding an expense and the flash still work",
+        "message": "AssertionError: expected 'Taxi' to be '' // Object.is equality"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:35:37.168Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 1,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 105,
+    "durationMs": 104440,
+    "tokens": 1519715,
+    "outputTokens": 11896,
+    "costUsd": 0.27490909999999996,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:36:28.841Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 2,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 3,
+    "editRounds": 1,
+    "wallSeconds": 113,
+    "durationMs": 112192,
+    "tokens": 1358726,
+    "outputTokens": 11287,
+    "costUsd": 0.25222530000000004,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:36:58.059Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 3,
+    "pass": true,
+    "testsPassed": 6,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 1,
+    "wallSeconds": 123,
+    "durationMs": 121652,
+    "tokens": 1422228,
+    "outputTokens": 11931,
+    "costUsd": 0.2654965000000001,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": "none",
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 2,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [],
+    "scoredAt": "2026-10-07T06:37:24.821Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 4,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 114,
+    "durationMs": 113520,
+    "tokens": 1283441,
+    "outputTokens": 11234,
+    "costUsd": 0.23916800000000002,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:37:37.792Z"
+  },
+  {
+    "task": "43-expenses-remove-settings",
+    "arm": "react",
+    "trial": 5,
+    "pass": false,
+    "testsPassed": 5,
+    "testsTotal": 6,
+    "iterations": 4,
+    "editRounds": 2,
+    "wallSeconds": 119,
+    "durationMs": 118493,
+    "tokens": 1318577,
+    "outputTokens": 12025,
+    "costUsd": 0.25598350000000003,
+    "model": "claude-haiku-4-5-20251001",
+    "method": "headless",
+    "variant": "p5-final",
+    "variantHash": "ec9ab3f20e8b",
+    "starterVersion": 2,
+    "failureCategory": null,
+    "behaviorPass": true,
+    "groups": {
+      "audit": {
+        "passed": 1,
+        "total": 2
+      },
+      "project": {
+        "passed": 1,
+        "total": 1
+      },
+      "behavior": {
+        "passed": 3,
+        "total": 3
+      }
+    },
+    "failures": [
+      {
+        "test": "audit: nothing in src/ still mentions the settings, the currency, localStorage or persist",
+        "message": "AssertionError: expected [ 'src/money.js: currency', …(1) ] to deeply equal []"
+      }
+    ],
+    "scoredAt": "2026-10-07T06:38:34.119Z"
+  }
+]
