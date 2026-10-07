@@ -35,12 +35,7 @@ import {gone, on} from './shared'
 // G-579: an open popover Escape closes before the dialog: an auto or hint one (the `popover`
 // property: an engine without hint reads it as manual; the attribute where there is none). Not a
 // manual one (a Toaster region moved into the modal, D198; a tooltip): Escape cancels the dialog
-const first = (p: any) => {
-  try {
-    const v = p.popover ?? ((a: any) => (a == '' ? 'auto' : a))(p.getAttribute('popover')?.toLowerCase())
-    return (v == 'auto' || v == 'hint') && p.matches(':popover-open')
-  } catch (_) { return false }
-}
+const first = (p: any) => { try { return /^(auto|hint|)$/i.test(p.popover ?? p.getAttribute('popover')) && p.matches(':popover-open') } catch (_) { return false } }
 // G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it
 // that Escape closes first, G-579). G-457: not one an element inside handled (a Zag combobox or
 // menu closing its list prevents it: the browser sends no cancel then either), nor one that ends
