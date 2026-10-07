@@ -280,3 +280,18 @@ Tasks 35–43 (3 levels × add/change/remove on existing apps), Sonnet, 5 trials
 | All | 25.6 vs 22.0 s (1.16×) | 2.08× | 1.95× | 38.0k vs 18.5k | 1.40 vs 1.58 |
 
 Reading: correctness is at the ceiling for both, so this run can't separate them on success. Sygnal's extra peak context is a near-constant ≈ +19–20k (the agent context: SKILL.md and `llms.txt`), not growing with app size; the wall and cost ratios shrink as the app grows (1.23× → 1.07× wall, 2.54× → 1.78× cost), and at level L Sygnal needed fewer iterations than React (1.53 vs 2.0). That is consistent with the hypothesis that Sygnal's structure offsets React's pre-training advantage as code size grows, but n = 5 per task and the ceiling limit it. To separate the arms on correctness, the next step is a harder or larger level, or a weaker model (Haiku), on the same tasks. Total PLAN-5 eval spend: $198.20 for 595 trials.
+
+## Addendum: modification tier on Haiku (`p5-mod-haiku`, then `p5-mod-haiku-2` after D238)
+
+| Run | Sygnal pass (behavior) | React pass (behavior) | add S / R | change S / R | remove S / R | cost S / R |
+|---|---|---|---|---|---|---|
+| `p5-mod-haiku` (before) | 28/45 (29) | 34/45 (38) | 2 / 8 of 15 | 15 / 15 | 11 / 11 | $11.41 / $8.84 |
+| `p5-mod-haiku-2` (after D238) | **37/45 (37)** | 40/45 (43) | 11 / 13 | 15 / 15 | 11 / 12 | $12.14 / $9.12 |
+
+D238 added two rules to the skill and `llms.txt` (a component reading a resource declares it in its own `.resources`; `form` values live in host state and need a reset to start empty on each visit) and made task 35 accept either quote style (it had measured typography: 0/10 in both arms before). Results after the change:
+- **Task 41 (L add):** Sygnal 0/5 → **5/5** (React 4/5): the resources rule fixed the Sygnal-specific failure completely.
+- **Task 35 (S add):** Sygnal 4/5, React 5/5 (both 0/5 before; the hidden test, not the framework).
+- **Task 43 (L remove):** Sygnal behavior still 1/5 (React 5/5): 4 trials again removed the form reset fused with the removed default-category setting ("expected 'Taxi' to be ''"); the form-reset rule did not stop it. The audit improved (Sygnal 3/5, React 2/5).
+- **Task 38 (M add):** Sygnal 2/5, React 4/5: the general "hide instead of disable" spec miss, more often in Sygnal.
+
+Change tasks stay 15/15 in both arms on Haiku and Sonnet. The remaining Sygnal-specific gap is task 43's form-state trap. Total PLAN-5 eval spend: $238.70 for 775 trials.
