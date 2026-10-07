@@ -1,8 +1,9 @@
 // PLAN-5 F-1 in a real browser (each engine): the `form` behavior with real keyboard input
 // (typing, Tab, Enter submits), a field array in a Collection, an async email check through
 // makeFetchDriver (an in-page fetch), focus on the first invalid field inside a Collection row
-// after a failed submit, and server errors focusing their field.
-import { run, Collection, form, makeFetchDriver } from 'sygnal'
+// after a failed submit, and server errors focusing their field. 4-G2: resetOnShow on a Switchable page.
+import xs from 'xstream'
+import { run, Collection, Switchable, form, makeFetchDriver } from 'sygnal'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait, waitFor } from '../harness.js'
 
 const CAT = 'Forms (PLAN-5 F-1)'
@@ -158,4 +159,77 @@ export async function formTestsP5F1() {
       assert(!el.querySelector('.submit').disabled, 'submit enabled again')
     } finally { app.dispose() }
   }, 20000)
+
+  // 4-G2 (D239): resetOnShow on a Switchable page (hidden pages stay alive; the form element
+  // appearing again starts the form over), with start values from the app's state
+  await runTest(CAT, 'resetOnShow: a page shown again starts over from its state defaults; typing while shown is kept', async () => {
+    if (!hasPw()) return
+    const { id, el } = mountOnScreen()
+    const app = run(Pages, {}, { mountPoint: id })
+    const page = () => `page=${el.querySelector('h1')?.textContent} title=${field(el, 'title')?.value} kind=${field(el, 'kind')?.value} error=${el.querySelector('.title-error')?.textContent}`
+    try {
+      await waitFor(() => el.querySelector('.to-new'))
+      await window.__pw('click', `${id} .to-new`)
+      await until(() => field(el, 'kind')?.value === 'note', 1500, page)
+      await window.__pw('type', `${id} [name="title"]`, 'Draft')
+      await window.__pw('press', `${id} [name="title"]`, 'Tab')
+      await window.__pw('click', `${id} .bump`)                            // an app write re-renders the page
+      await wait(50)
+      assert(field(el, 'title').value === 'Draft', `kept while shown: ${page()}`)
+      await window.__pw('fill', `${id} [name="title"]`, '')
+      await window.__pw('press', `${id} [name="title"]`, 'Tab')
+      await until(() => el.querySelector('.title-error').textContent === 'Required', 1500, page)
+      await window.__pw('click', `${id} .to-home`)
+      await until(() => el.querySelector('h1').textContent === 'Home', 1500, page)
+      await window.__pw('click', `${id} .default-task`)                    // the default changes meanwhile
+      await window.__pw('click', `${id} .to-new`)
+      await until(() => field(el, 'kind')?.value === 'task', 1500, page)
+      assert(field(el, 'title').value === '' && el.querySelector('.title-error').textContent === '', `fresh: ${page()}`)
+    } finally { app.dispose() }
+  }, 15000)
+}
+
+const titleSchema = { '~standard': { version: 1, vendor: 'browser-tests', validate: (v) => (v.title.trim() ? { value: v } : { issues: [{ message: 'Required', path: ['title'] }] }) } }
+
+function NewPage({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form className="new-item" noValidate>
+      <h1>New item</h1>
+      <label for={uid('title')}>Title</label>
+      <input id={uid('title')} name="title" value={f.title.value} aria-describedby={uid('title-error')} />
+      <p id={uid('title-error')} className="title-error" style={LINE}>{f.title.error}</p>
+      <label for={uid('kind')}>Kind</label>
+      <select id={uid('kind')} name="kind" value={f.kind.value}><option value="note">Note</option><option value="task">Task</option></select>
+      <button type="button" className="bump">Bump</button>
+      <button type="submit">Add</button>
+    </form>
+  )
+}
+NewPage.uses = { form: form(titleSchema, { values: (state) => ({ title: '', kind: state.defaultKind }), submit: 'ADD_ITEM', resetOnShow: true }) }
+NewPage.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump') })
+NewPage.model = { ADD_ITEM: (state) => state, BUMP: (state) => ({ ...state, bumps: state.bumps + 1 }) }
+
+function HomePage() { return <h1>Home</h1> }
+
+function Pages({ state }) {
+  return (
+    <div>
+      <nav>
+        <button type="button" className="to-home">Home</button>
+        <button type="button" className="to-new">New</button>
+        <button type="button" className="default-task">Default: task</button>
+      </nav>
+      <Switchable of={{ home: HomePage, new: NewPage }} current={state.page} instance={state.page} />
+    </div>
+  )
+}
+Pages.initialState = { page: 'home', defaultKind: 'note', bumps: 0 }
+Pages.intent = ({ DOM }) => ({
+  GO: xs.merge(DOM.click('.to-home').mapTo('home'), DOM.click('.to-new').mapTo('new')),
+  DEFAULT_TASK: DOM.click('.default-task'),
+})
+Pages.model = {
+  GO: (state, page) => ({ ...state, page }),
+  DEFAULT_TASK: (state) => ({ ...state, defaultKind: 'task' }),
 }

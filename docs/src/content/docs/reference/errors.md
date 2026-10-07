@@ -929,9 +929,9 @@ On a valid submit the form dispatches the `submit` action with the schema's outp
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-`form(schema, { submit: 'SIGN_UP' })` dispatches the host action named by `submit` with the schema's output when a submit is valid. When the option is missing, or the host component has no model entry of that name, a valid submit does nothing visible (the form marks it done, `submitted: true`, and nothing else happens). Naming one of the form's own actions (`'SUBMIT'`, `'DONE'`, ...) dispatches that form action instead (`'form.SUBMIT'`) and loops. Reported when the component is created.
+`form(schema, { submit: 'SIGN_UP' })` dispatches the host action named by `submit` with the schema's output when a submit is valid. When the option is missing, or the host component has no model entry of that name, a valid submit does nothing visible (the form marks it done, `submitted: true`, and nothing else happens). Naming one of the form's own actions (`'SUBMIT'`, `'DONE'`, `'RESET'`, `'ADD'`, `'VALIDATE'`, a check's `'CHECKED_email'`, ...) dispatches that form action instead (`'form.RESET'`, since `next()` prefers the behavior's own names): the host's entry of that name never runs, and the form's action does something else (RESET clears the form) or throws (SYG214 / SYG216 for `'form.ADD'`). Reported when the component is created, and again at the first such submit.
 
-**Fix:** Name a host action and add it to the model: `submit: 'SIGN_UP'` with `SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.
+**Fix:** Name a host action the form doesn't define and add it to the model: `submit: 'SIGN_UP'` with `SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.
 
 ### SYG235
 

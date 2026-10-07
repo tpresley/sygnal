@@ -32,6 +32,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | `form.ERRORS` | Server errors: an error reply, a map or a list of issues |
 | `form.DONE` | The submit's request was saved: `initial` becomes `values`, `submitted` turns on ([a submit without a request](/guide/forms/#submit-without-a-request) needs none) |
 | `form.RESET` | Back to `initial`, or to the values given |
+| `form.VALIDATE` | Internal: the first validation when the host starts; with `resetOnShow`, the start over (also each time the form element appears again) |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
 
@@ -234,6 +235,7 @@ Whether a valid submit waits for `form.DONE` depends on the host's entry for the
 - **With the `http` sink** (`SIGN_UP: { HTTP: … }`, or the sink the `http` option names, such as `http: 'API'`): `submitting` is `true` until `form.DONE` or `form.ERRORS`, and a submit meanwhile is dropped ([SYG232](/reference/errors/#syg232)). Even when the entry returns `ABORT` this time, the form waits.
 - **Anything else** (`STATE`, `PARENT`, `EVENTS`, `EFFECT`, `ROUTER`, a reducer function): no request, so the submit is done at once, as if `form.DONE` had arrived (no host `form.DONE` entry runs). An `EFFECT` that calls `next('form.DONE')` itself still works; the second `DONE` changes nothing. Work that answers later without the `http` sink (a promise in an `EFFECT`) gets no pending state: send it through a driver as a request instead.
 - **A host that unmounts** keeps its slice in the parent's state when it has a `state` prop. When it mounts again, the form clears `submitting`, `queued` and running checks (their replies went to the old host); the values, errors and `submitted` stay. `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`); it clears errors, touched fields and the submit count.
+- **Starting over when shown** (`resetOnShow: true`): the form goes back to its start values, as a new form (`initial` too; touched fields, errors, server errors, checks and the submit state cleared), when its host starts (mounted again, a Switchable page made again for another `instance`) and each time its form element appears in the host's DOM after being absent (a Switchable page shown again: hidden pages stay alive and keep their state; a form rendered conditionally). Re-renders while the form is shown keep what the user typed. With the mock DOM (and in SSR) only the host's start counts. A `values` function gets the host's whole state and is called at each start over; without `resetOnShow`, once, when the host starts and the slice is still untouched. Before its first call (the first render of a page that reads its parent's state) the fields come from calling it with a blank state, every value read from it `''`.
 
 ## Without the behavior: the helpers
 

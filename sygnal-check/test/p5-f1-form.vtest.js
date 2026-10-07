@@ -143,6 +143,11 @@ describe('F-1: the form behavior in sygnal-check', () => {
     expect(d[0].message).toContain("'shwo'")
   })
 
+  it('4-G2 (D239): resetOnShow and a values function of the state are clean', () => {
+    const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': SIGNUP("values: (state) => ({ name: '', email: state.lastEmail, addresses: [{ id: 1, city: '' }] }), submit: 'SIGN_UP', resetOnShow: true") }, { strict: true })
+    expect(d).toEqual([])
+  })
+
   it('without the form behavior, the same inputs are uncontrolled (SYG111): the behavior is what listens', () => {
     const src = SIGNUP().replace("Signup.uses = { form: form(signupSchema, { values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }) }", "Signup.initialState = { form: { fields: {}, error: '', submitting: false, values: { addresses: [] } } }")
     const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': src }).filter(x => x.code === 'SYG111')
