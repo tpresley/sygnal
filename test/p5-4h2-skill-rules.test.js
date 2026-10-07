@@ -173,8 +173,8 @@ describe('the agent docs carry both rules (and the snippet these tests run)', ()
   const RESOURCES = 'declares `items` in its own `.resources`'
   for (const [file, texts] of [
     ['skills/sygnal-dev/SKILL.md', [SNIPPET, RESOURCES]],
-    ['skills/sygnal-dev-toc/references/behaviors-and-forms.md', [SNIPPET]],
-    ['skills/sygnal-dev-toc/references/resources.md', [RESOURCES]],
+    ['evals/agent-ergonomics/skills-toc/references/behaviors-and-forms.md', [SNIPPET]],
+    ['evals/agent-ergonomics/skills-toc/references/resources.md', [RESOURCES]],
     ['llms.txt', [SNIPPET, LLMS_SNIPPET, RESOURCES]],
   ]) {
     it(file, () => {

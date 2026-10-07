@@ -1,5 +1,5 @@
 {
-  "description": "PLAN-5 4-S skill-format experiment (D226), treatment: this checkout's packed build with the progressive-disclosure skill (skills/sygnal-dev-toc: a 13.4 KB SKILL.md overview + table of contents and 12 references/*.md read on demand; the same facts as skills/sygnal-dev, scripts/check-skill-toc.mjs), loaded as sygnal-dev, isolated per trial, on the current starter. Skill-only: same build, starter, prompt and llms.txt as branch.json, which is the control (or PLAN-5's final variant when it is the same build). Compare learn time, peak context, skill bytes read and pass rate",
+  "description": "PLAN-5 4-S skill-format experiment (D226), treatment: this checkout's packed build with the progressive-disclosure skill (evals/agent-ergonomics/skills-toc: a 13.4 KB SKILL.md overview + table of contents and 12 references/*.md read on demand; the same facts as skills/sygnal-dev, scripts/check-skill-toc.mjs), loaded as sygnal-dev, isolated per trial, on the current starter. Skill-only: same build, starter, prompt and llms.txt as branch.json, which is the control (or PLAN-5's final variant when it is the same build). Compare learn time, peak context, skill bytes read and pass rate",
   "sygnal": "branch",
-  "skill": { "dir": "skills/sygnal-dev-toc", "name": "sygnal-dev" }
+  "skill": { "dir": "evals/agent-ergonomics/skills-toc", "name": "sygnal-dev" }
 }

@@ -30,7 +30,7 @@ evals/agent-ergonomics/
   lib/pool.mjs          the orchestrator's worker pool, with usage-limit pauses and a clean stop
   variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*, p3-*, p4-ct1-*, p4-final6, p4-gs14-*: PLAN-4 4-E, p5-final, p5-f1-*: PLAN-5 4-E; p5-4s-toc: PLAN-5 4-S skill format; run.md)
   variants/skills/<x>/  skill variants a spec points at (resources-first: PLAN-3 D91; controls: PLAN-4 1-E;
-                        p5-4s-toc points at skills/sygnal-dev-toc instead, D226)
+                        p5-4s-toc points at evals/agent-ergonomics/skills-toc instead, D226)
   variants/p4-ct1-b/    PLAN-4 1-E arm B: converted starters (starters/, from gen-starters.mjs), AGENTS.md.tmpl, llms.txt
   analysis/compare.mjs  task-matched comparison of two runs, also across arms (analysis/lib/matched.mjs)
   analysis/mod.mjs      mod tier report: pass split into behavior / project's own tests / dead-code audit per level × op × arm

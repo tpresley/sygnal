@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * PLAN-5 4-S (D226): fact coverage of the progressive-disclosure skill
- * (skills/sygnal-dev-toc: SKILL.md + references/*.md) against the single-file
+ * (evals/agent-ergonomics/skills-toc: SKILL.md + references/*.md) against the single-file
  * skill (skills/sygnal-dev/SKILL.md).
  *
  * Every fact unit of the old skill must appear in the new one:
@@ -24,7 +24,7 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d }
 const oldFile = path.resolve(repo, opt('--old', 'skills/sygnal-dev/SKILL.md'))
-const newDir = path.resolve(repo, opt('--new', 'skills/sygnal-dev-toc'))
+const newDir = path.resolve(repo, opt('--new', 'evals/agent-ergonomics/skills-toc'))
 const verbose = args.includes('--verbose')
 const asJson = args.includes('--json')
 

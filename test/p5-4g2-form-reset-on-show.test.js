@@ -271,7 +271,7 @@ describe('docs (D239)', () => {
     expect(read('docs/src/content/docs/guide/forms-reference.md')).toContain('**Starting over when shown** (`resetOnShow: true`)')
   })
   it('the agent context has no hand-written STATE.watch reset left', () => {
-    for (const f of ['skills/sygnal-dev/SKILL.md', 'skills/sygnal-dev-toc/references/behaviors-and-forms.md', 'llms.txt', 'docs/public/llms.txt']) {
+    for (const f of ['skills/sygnal-dev/SKILL.md', 'evals/agent-ergonomics/skills-toc/references/behaviors-and-forms.md', 'llms.txt', 'docs/public/llms.txt']) {
       expect(read(f), f).not.toContain("'form.RESET': STATE.watch")
       expect(read(f), f).toContain('resetOnShow: true')
     }
