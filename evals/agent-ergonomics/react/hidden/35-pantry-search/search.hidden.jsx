@@ -17,6 +17,8 @@ const tabs = () => [textOf($('.tab-all')), textOf($('.tab-low'))]
 const summary = () => textOf($('.summary'))
 const clearButton = () => $('button.clear-search')
 const empty = () => ($('.empty') ? textOf($('.empty')) : null)
+// D238: the prompt asks for curly quotes; straight ones pass too (the message, not the glyph, is tested)
+const quotes = (s) => s?.replace(/[“”]/g, '"')
 
 async function find(text) {
   await typeInto(search(), text)
@@ -84,7 +86,7 @@ describe('35 pantry search', () => {
   it('shows a no-match message instead of "Nothing here." while searching', async () => {
     await mountApp()
     await find('  xyz ')
-    await waitFor(() => expect(empty()).toBe('No items match “xyz”.'))
+    await waitFor(() => expect(quotes(empty())).toBe('No items match "xyz".'))
     expect(document.querySelectorAll('li.item')).toHaveLength(0)
     expect(bodyText()).not.toContain('Nothing here.')
     expect(tabs()).toEqual(['All (0)', 'Low stock (0)'])
@@ -92,7 +94,7 @@ describe('35 pantry search', () => {
     // nothing low matches "rice", on the Low stock tab
     await find('rice')
     await click($('.tab-low'))
-    await waitFor(() => expect(empty()).toBe('No items match “rice”.'))
+    await waitFor(() => expect(quotes(empty())).toBe('No items match "rice".'))
     await click($('.tab-all'))
     await waitFor(() => expect(names()).toEqual(['Rice']))
     expect(empty()).toBeNull()
