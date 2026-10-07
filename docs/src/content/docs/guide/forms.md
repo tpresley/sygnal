@@ -103,10 +103,9 @@ AccountStep.model = {
 
 ## Start empty on each visit
 
-The values live in state, so they survive a visit: a [Switchable](/guide/switchable/) page shares its parent's state and stays alive while hidden. A form that must start empty each time it is shown (a "New expense" page) says so with `resetOnShow: true`:
+The values live in state, so they survive a visit (a [Switchable](/guide/switchable/) page shares its parent's state and stays alive while hidden). For a form that starts empty each time it is shown, set `resetOnShow: true`; a start value from state goes in a `values` function:
 
 ```jsx
-const EMPTY = { description: '', amount: '', category: '' }
 NewExpensePage.uses = {
   form: form(expenseSchema, {
     values: (state) => ({ ...EMPTY, category: state.settings.defaultCategory }),
@@ -116,7 +115,7 @@ NewExpensePage.uses = {
 }
 ```
 
-Each time the page is shown again (or its component mounts again), the form goes back to its start values, with touched fields, errors and the submit state cleared; typing while it is shown is kept. `values` can be a function of the host's state when a start value comes from state, as the default category here: it is called each time the form starts. Without `resetOnShow` (the default) the values come back as the user left them, which is what a wizard step wants.
+Typing while it is shown is kept; a wizard step leaves it off. [The rule](/guide/forms-reference/#saving-and-resetting).
 
 ## Server errors and failed submits
 
@@ -178,15 +177,15 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 
 | Option | |
 |---|---|
-| `values` | The start values. Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7. Or a function of the host's state, called when the form starts ([start empty on each visit](#start-empty-on-each-visit)) |
+| `values` | The start values (or a function of the host's state). Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
 | `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry). An entry with an `HTTP` sink keeps the submit pending until its reply; any other is done at once ([submit without a request](#submit-without-a-request)) |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
 | `form` | The form element's selector, default `'form'`. Give each form its own when a component has two: `form: '.login'` and `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |
 | `check` | [Async checks](/guide/forms-reference/#async-checks) by field name |
 | `http` | The driver sink of the requests, default `'HTTP'`: the checks' requests go to it, and a submit entry with this sink waits for its reply |
-| `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)). Default `false`: the values survive a visit |
+| `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)) |
 
-The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name the `submit` action after one of them: `submit: 'RESET'` dispatches the form's own `form.RESET` ([SYG234](/reference/errors/#syg234)).
+The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).
 
 ## Testing
 
