@@ -419,6 +419,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — Re-run `p5-4f2-opus` (10/10, $5.85): task 10 121.5 → 67.8 s (PLAN-4 49.8 s; +36%, agents now use the `form` behavior and read the guide), iterations 6.8 → 3.8; task 29 72.5 s (PLAN-4 76.5 s). REPORT-v5 addendum added.
 - 2026-10-06 — User: D237. 4-M (prep of the `mod` tier, no model calls) started.
 - 2026-10-06 — `mod` tier merged (tasks 35–43 both arms; verify 196/196 with reruns; app lines S 158/173, M 414/389, L 633/732; `audit:`/`project:` groups, `behaviorPass`; `analysis/mod.mjs`). Incident during the build: a builder overwrote the root package.json/lock in its worktree (restored there; integration untouched). Orchestrator estimate $10.35 (no history); agent estimate ≈ $32 ($20–50).
+- 2026-10-06 — Own-test floor merged (passed own tests ≥ starter count; remove tasks minus tests covering only the removed feature: 37 → 10, 40 → 13, 43 → 14; `deleted-failing-tests` mutants for 36/39/43; verify 208/208). Coordinator: 37's floor 10 accepted (deleting the tab-only test is a correct removal). Ready for the user's run.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
