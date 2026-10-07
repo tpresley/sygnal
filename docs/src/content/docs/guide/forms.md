@@ -82,11 +82,24 @@ Signup.model = {
 - **When errors show**: every change is validated, but a field's schema error shows once the field has lost focus (`show: 'blur'`, the default), or while typing (`show: 'input'`), or only after a submit (`show: 'submit'`). After the first submit every error shows, and each follows the typing. Server errors show at once.
 - **An invalid submit** shows every error, focuses the first invalid field in page order (rows included) and sends nothing.
 - **A valid submit** dispatches the `submit` action (`SIGN_UP`) with the schema's output: the trimmed, transformed values (`email` lower-cased here; the rows without their `id`, because `z.object` strips keys it doesn't declare), not the raw ones. Your model entry for it sends the request, with `ok: 'form.DONE'` and `error: 'form.ERRORS'` as its reply actions.
-- **Pending**: `state.form.submitting` is `true` from the valid submit until `form.DONE` or `form.ERRORS` arrives. Use it for the button's text and `disabled`. A second submit meanwhile is dropped, so a double click sends once.
+- **Pending**: when the submit entry sends a request (an `HTTP` sink), `state.form.submitting` is `true` from the valid submit until `form.DONE` or `form.ERRORS` arrives. Use it for the button's text and `disabled`. A second submit meanwhile is dropped, so a double click sends once.
 - **`form.DONE`** marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become the new start values (`dirty` is `false` again). A host model entry with the same name runs after the form's and gets the reply body: `'form.DONE': (state, account) => …` above shows the new account's id.
 - **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](/guide/inputs/#labels-and-ids-uid) (a row's ids include its `id`, so they stay unique), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
 
 Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
+
+## Submit without a request
+
+A submit that sends nothing (a wizard step's "Next", a dialog's "OK") is an entry with `STATE`, `PARENT` or `EVENTS` and no `HTTP`. It is done at once: `submitting` stays `false`, `submitted` turns on, and you send no `form.DONE`.
+
+```jsx
+AccountStep.uses = { form: form(accountSchema, { values: { email: '', password: '' }, submit: 'NEXT' }) }
+AccountStep.model = {
+  NEXT: { PARENT: (state, values) => ({ type: 'NEXT', email: values.email }) },
+}
+```
+
+**Wizards**: each step is a child with a `state` prop (`<AccountStep state="account" />`); the parent switches steps on its `PARENT` message. The step's `form` slice lives in the parent's state, so after "Back" the step mounts with its values kept (and `submitting` off, even if it unmounted mid-request). Make "Next" a `type="submit"` button inside the `<form>`; in a test, simulate `'submit'` on the form (the mock DOM doesn't turn a click into a submit).
 
 ## Server errors and failed submits
 
@@ -149,11 +162,11 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | Option | |
 |---|---|
 | `values` | The start values. Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
-| `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry). A form that sends nothing (a dialog opens instead) still names one: `OPEN_CONFIRM: (state, values) => ({ ...state, confirm: values })` |
+| `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry). An entry with an `HTTP` sink keeps the submit pending until its reply; any other is done at once ([submit without a request](#submit-without-a-request)) |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
 | `form` | The form element's selector, default `'form'`. Give each form its own when a component has two: `form: '.login'` and `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |
 | `check` | [Async checks](/guide/forms-reference/#async-checks) by field name |
-| `http` | The driver sink the checks' requests go to, default `'HTTP'` |
+| `http` | The driver sink of the requests, default `'HTTP'`: the checks' requests go to it, and a submit entry with this sink waits for its reply |
 
 The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
 

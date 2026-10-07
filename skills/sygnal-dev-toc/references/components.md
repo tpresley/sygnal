@@ -51,4 +51,4 @@ StarRating.model = { PICK: { PARENT: (state, value, next, props) => ({ name: pro
 ```
 
 ## Commands (parent → child) + EFFECT
-`const player = createCommand()` (from `'sygnal'`); the parent renders `<Player commands={player} state="player" />` and calls it from an EFFECT (side effect only, returns nothing): `PLAY: { EFFECT: () => player.send('play', data?) }`; the child listens with `PLAY: commands$.select('play')` (emits `send()`'s data).
+`const player = createCommand()` (from `'sygnal'`); the parent renders `<Player commands={player} state="player" />` and calls it from an EFFECT (returns nothing): `PLAY: { EFFECT: () => player.send('play', data?) }`; the child listens with `PLAY: commands$.select('play')` (emits `send()`'s data).

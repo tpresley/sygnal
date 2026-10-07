@@ -76,7 +76,8 @@ describe('SYG230: field name not in values', () => {
 
 describe('SYG232: submit dropped', () => {
   it('info for a submit while submitting; expectNoDiagnostics still passes', async () => {
-    t = renderComponent(host(ok, {}))
+    // G-575: only a submit that sends a request is pending (a local one is done at once)
+    t = renderComponent(host(ok, {}, { model: { SAVE: { HTTP: (s, v) => ({ url: '/save', json: v, ok: 'form.DONE' }) } } }))
     await t.ready()
     t.simulateEvent('.f', 'submit'); await t.settle()
     t.simulateEvent('.f', 'submit'); await t.settle()
@@ -84,7 +85,7 @@ describe('SYG232: submit dropped', () => {
     expect(d).toHaveLength(1)
     expect(d[0].severity).toBe('info')
     expect(d[0].message).toMatch(/still being sent/)
-    expect(t.emitted.filter((e) => e.type === 'saved')).toHaveLength(1)
+    expect(t.requests('HTTP')).toHaveLength(1)
     t.expectNoDiagnostics()
   })
 })

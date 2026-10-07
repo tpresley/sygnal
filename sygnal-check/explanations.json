@@ -686,7 +686,7 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "A `form.SUBMIT` (the form element's submit, or `simulateAction('form.SUBMIT')`) arrived while `state.form.submitting` was true (a valid submit was dispatched and neither `form.DONE` nor `form.ERRORS` has answered it), or while a submit was queued waiting for an async `check`. The form drops it, so a double click never sends twice. Info only: it is how the form protects the submit, but a form that never leaves `submitting` usually means the host's submit action doesn't answer with `form.DONE` / `form.ERRORS`.",
+    "explanation": "A `form.SUBMIT` (the form element's submit, or `simulateAction('form.SUBMIT')`) arrived while `state.form.submitting` was true (a valid submit sent its request and neither `form.DONE` nor `form.ERRORS` has answered it), or while a submit was queued waiting for an async `check` or an async schema. The form drops it, so a double click never sends twice. Only a submit whose model entry sends on the HTTP sink (the `http` option) stays `submitting`; any other submit is done at once. Info only: it is how the form protects the submit, but a form that never leaves `submitting` usually means the request has no `ok: 'form.DONE'` / `error: 'form.ERRORS'`.",
     "fix": "Disable the submit button while `state.form.submitting` is true, and answer the submit action with reply actions: `SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg232"
   },
@@ -710,7 +710,7 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "`form(schema, { submit: 'SIGN_UP' })` dispatches the host action named by `submit` with the schema's output when a submit is valid. When the option is missing, or the host component has no model entry of that name, a valid submit does nothing visible: `state.form.submitting` turns true and stays true. Naming one of the form's own actions (`'SUBMIT'`, `'DONE'`, ...) dispatches that form action instead (`'form.SUBMIT'`) and loops. Reported when the component is created.",
+    "explanation": "`form(schema, { submit: 'SIGN_UP' })` dispatches the host action named by `submit` with the schema's output when a submit is valid. When the option is missing, or the host component has no model entry of that name, a valid submit does nothing visible (the form marks it done, `submitted: true`, and nothing else happens). Naming one of the form's own actions (`'SUBMIT'`, `'DONE'`, ...) dispatches that form action instead (`'form.SUBMIT'`) and loops. Reported when the component is created.",
     "fix": "Name a host action and add it to the model: `submit: 'SIGN_UP'` with `SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) }`.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg234"
   },
