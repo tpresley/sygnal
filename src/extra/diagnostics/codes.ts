@@ -288,7 +288,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG645: "viewTransitions that can't run",
   // PLAN-5 W-1: a widget's mount / update / unmount threw (checks/widgets.ts; dev entry)
   SYG660: 'Widget mount threw',
-  SYG661: 'Widget update threw',
+  SYG661: 'Widget update threw or reported an error',
   SYG662: 'Widget unmount threw',
   // PLAN-5 B-3: browser sources (makeBrowserDriver; checks/browserSources.ts; dev entry)
   SYG663: 'Invalid browser-source spec or command',

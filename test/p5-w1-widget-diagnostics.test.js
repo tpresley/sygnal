@@ -141,6 +141,31 @@ describe('SYG660–662: mount / update / unmount threw', () => {
     expect(diagnostics('SYG662').map(d => d.message)).toEqual([expect.stringMatching(/widget <div>'s unmount\(\) threw: unmount broke/)])
   })
 
+  // G-580: a failure the widget reports itself through mount's error(e) (its own timer) is
+  // SYG661 too, but not worded as a throwing update()
+  it('SYG661 from error(e): says the widget reported it through error(e), not update() threw; onError phase widget', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let report
+    const Clock = defineWidget({ name: 'Clock', mount: (el, p, d, error) => { report = error; return {} }, update() {} })
+    const onError = vi.fn()
+    function A() { return h('div', null, h(Clock, { className: 'c' })) }
+    A.initialState = {}
+    A.onError = (e) => h('p', { className: 'fb' }, e.message)
+    mount(A, { onError })
+    await settle(60)
+    report(new Error('tick broke'))
+    await settle(60)
+    const d = diagnostics('SYG661')
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toMatch(/widget Clock reported an error through error\(e\) \(mount's fourth parameter\): tick broke; A's onError fallback renders in its place/)
+    expect(d[0].message).not.toMatch(/update\(\)/)
+    expect(d[0].fix).toMatch(/error\(e\)/)
+    expect(d[0].data).toMatchObject({ phase: 'error' })
+    expect(d[0].component).toBe('A')
+    expect(onError.mock.calls[0][1]).toMatchObject({ phase: 'widget' })
+    expect(document.querySelector('.fb').textContent).toBe('tick broke')
+  })
+
   it('renderComponent collects them (t.diagnostics) with the dev entry loaded', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const W = defineWidget({ mount() { throw new Error('boom') } })

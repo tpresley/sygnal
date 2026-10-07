@@ -51,7 +51,8 @@
  * - G-413: `ownProps` names props that stay off the host although they'd go there (a part that
  *   puts `aria-label` on its own control).
  * - G-409: mount's fourth parameter `error(e)` reports a later failure the widget caught itself
- *   (fromZag's machine-driven redraws): handled as a throwing `update` (SYG661 + fallback).
+ *   (fromZag's machine-driven redraws): handled as a throwing `update` (SYG661 + fallback; G-580:
+ *   the dev message says the widget reported it through error(e)).
  * - A `mount`/`update` that throws (SYG660/661): reported to the app's onError with phase
  *   'widget' (D105), and the owner's next render shows its `onError` fallback in that instance's
  *   place (G-361: per instance; a render with other props tries again, and the failure is
@@ -74,8 +75,9 @@ const W = '__sw'
 // props that also go to the host element (every prop but key goes to the widget; ref is the host's)
 const HOST = /^(id|class(Name)?|style|title|name|placeholder|role|tab[iI]ndex|hidden|lang|dir|attrs)$|^(aria|data)-/
 
-/** the dev entry's reporter (checks/widgets.ts); returns the diagnostic when one was reported */
-const dev = (code: number, w: any, o?: any, x?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget?.(code, w, o, x)
+/** the dev entry's reporter (checks/widgets.ts); returns the diagnostic when one was reported
+ * (r: G-580, a 661 the widget reported through error(e), not a throwing update) */
+const dev = (code: number, w: any, o?: any, x?: any, r?: any): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.widget?.(code, w, o, x, r)
 
 let ids = 0
 
@@ -87,10 +89,11 @@ const same = (a: any, b: any, d?: any): any => {
     !d && HOST.test(x) && typeof a[x] == 'object' && typeof b[x] == 'object' && a[x] && b[x] && same(a[x], b[x], 1))
 }
 
-// k: the host's key, the failure's place; [error, the props of the fallback's last render]
-function fail(o: any, w: any, k: any, code: number, e: any) {
+// k: the host's key, the failure's place; [error, the props of the fallback's last render]; r:
+// reported through error(e)
+function fail(o: any, w: any, k: any, code: number, e: any, r?: any) {
   e = e instanceof Error ? e : Error(e)
-  dev(code, w, o, e) || console.error(`[Sygnal SYG${code}]`, e)
+  dev(code, w, o, e, r) || console.error(`[Sygnal SYG${code}]`, e)
   o.app.appError(o, e, 'widget')
   if (code < 662 && !o.disposed) (o.$wf ||= new Map()).set(k, [e]), o.refresh()
 }
@@ -101,8 +104,9 @@ function mount(v: any) {
   let i: any
   dev(144, w, o, el)
   // G-409: mount's fourth parameter reports a later failure (an adapter's own redraw): SYG661,
-  // the owner's onError fallback in this instance's place, as for a throwing update
-  const err = (x: any) => { el[W] && fail(o, w, v.key, 661, x) }
+  // the owner's onError fallback in this instance's place, as for a throwing update (G-580: the
+  // dev text says error(e) reported it)
+  const err = (x: any) => { el[W] && fail(o, w, v.key, 661, x, 1) }
   try { i = w.def.mount(el, p, d, err) } catch (x) { return fail(o, w, v.key, 660, x) }
   Object.defineProperty(el, W, {value: {w, p, i, e: d}, configurable: true})
   // the tag form's commands: a host method for each one the element doesn't have (D190)
