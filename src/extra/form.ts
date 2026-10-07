@@ -34,6 +34,12 @@
  * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
  * schema answered).
  *
+ * G-575 (D236): a valid submit is `submitting` (until form.DONE / form.ERRORS, a second submit
+ * dropped) only when the host's submit entry has the `http` sink; any other submit (STATE, PARENT,
+ * EVENTS, EFFECT, ...) sends no request and is done at once (submitted, as form.DONE would). A
+ * slice kept in parent state from a host that unmounted mid-submit starts unstuck: VALIDATE (each
+ * host start) clears submitting, queued and pending.
+ *
  * Each action is one step function, `(slice, data, key) => outcome | null` (null: no change),
  * the outcome `{ s: new slice, focus: ELEMENT command, req: a check request, send: 1 (dispatch
  * submit), wait: { values, submit? } (an async schema to await) }`. Its sinks (STATE, EFFECT,
@@ -64,6 +70,10 @@ export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
   const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form'} = o
   const cache = new WeakMap(), checked = Object.keys(checks)
+  // G-575: a submit is pending (until form.DONE / form.ERRORS) only when the host's submit entry
+  // sends a request on the `http` sink; any other submit is done once its entry has run. Set when
+  // the form merges into its host
+  let req = true
   // the schema's result, once per values object; an async one replaces its Promise when it settles
   const v = (vals: any): any => {
     let r = cache.get(vals)
@@ -101,11 +111,12 @@ export const form = (schema: any, o: any = {}): any => {
     return bad.length ? {s: {...s, queued: false}, focus: focusInvalid(bad, sel)}
       : f ? ask(s, f, k, true)
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
-      : {s: {...s, queued: false, submitting: true}, send: 1}
+      : {s: req ? {...s, queued: false, submitting: true} : done({...s, queued: false}), send: 1}
   }
   const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
     submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false})
   const fresh = (vals: any) => edit(base(vals), vals)
+  const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}})
   const group = (cur: any, d: any) => {
     if (!Array.isArray(cur) || !('item' in d)) return d.value
     const r = cur.filter(x => x !== d.item)
@@ -133,7 +144,8 @@ export const form = (schema: any, o: any = {}): any => {
     RESULT: (s, d, k) => {
       if (d.values !== s.values) return
       const n = {...s, errors: v(d.values).errors, validating: false, validated: true}
-      return d.submit && !s.submitting ? attempt(n, k) : {s: n}
+      // the submit it was queued for (G-575: a done local submit isn't `submitting`, so not that)
+      return d.submit && s.queued ? attempt(n, k) : {s: n}
     },
     ADD: (s, {field, value}) => {
       const rows = getField(s.values, field) || []
@@ -148,10 +160,11 @@ export const form = (schema: any, o: any = {}): any => {
       const e = replyErrors(d, s.values)
       return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
     },
-    DONE: (s) => ({s: {...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}}}),
+    DONE: (s) => ({s: done(s)}),
     RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
-    // G-375: the first validation, when the host starts (form() doesn't validate at module load)
-    VALIDATE: (s) => edit(s, s.values),
+    // G-375: the first validation, when the host starts (form() doesn't validate at module load).
+    // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck
+    VALIDATE: (s) => edit({...s, submitting: false, queued: false, pending: {}}, s.values),
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -180,7 +193,7 @@ export const form = (schema: any, o: any = {}): any => {
     }
   }
 
-  return defineBehavior({
+  const b = defineBehavior({
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
@@ -214,5 +227,11 @@ export const form = (schema: any, o: any = {}): any => {
       dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },
-  })(o)
+  })(o), merge = b.merge
+  b.merge = (c: any, k: string) => {
+    const e = c.model?.[submit]
+    req = !!e && typeof e == 'object' && http in e
+    merge(c, k)
+  }
+  return b
 }

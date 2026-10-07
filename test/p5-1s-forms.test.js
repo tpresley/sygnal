@@ -39,7 +39,7 @@ describe('G-371: async schema, a second submit while the first validates', () =>
     await sleep(80); await t.settle()
     expect(C.sent).toBe(1)
     expect(t.state.form.submitCount).toBe(1)
-    expect(t.state.form.submitting).toBe(true)
+    expect(t.state.form.submitting).toBe(false)          // G-575: an EFFECT-only submit is done at once
     expect(diagnostics('SYG232')).toHaveLength(1)
     expect(diagnostics('SYG232')[0].message).toMatch(/async schema/)
   })

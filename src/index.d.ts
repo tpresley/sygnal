@@ -921,9 +921,9 @@ export interface FormState<V = any> {
   remote: FieldErrors;
   /** Field name → the value its check is running for */
   pending: Record<string, any>;
-  /** A valid submit was dispatched and has no `form.DONE` / `form.ERRORS` yet */
+  /** A valid submit sent its request (the submit entry has the `http` sink) and has no `form.DONE` / `form.ERRORS` yet; a submit that sends nothing is done at once */
   submitting: boolean;
-  /** `form.DONE` arrived */
+  /** `form.DONE` arrived, or a submit that sends nothing was dispatched */
   submitted: boolean;
   submitCount: number;
   /** A submit waits for an async check or an async schema */
@@ -956,7 +956,7 @@ export interface FormFieldCheck {
 export interface FormOptions<V = any> {
   /** The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236) */
   values: V;
-  /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry) */
+  /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once */
   submit: string;
   /** Async checks by field name: run on blur and before a submit, which waits for them */
   check?: Record<string, FormFieldCheck>;
@@ -964,7 +964,7 @@ export interface FormOptions<V = any> {
   show?: 'blur' | 'input' | 'submit';
   /** The form element's selector (default 'form'): input, focusout and submit are heard on it */
   form?: string;
-  /** The driver sink the checks' requests go to (default 'HTTP') */
+  /** The driver sink the checks' requests go to, and that makes a submit entry a request (default 'HTTP') */
   http?: string;
 }
 
@@ -996,8 +996,9 @@ export interface FormActions {
  *   // the host's SIGN_UP gets the schema's output
  *
  * Fields are matched by `name=` inside the form element (Collection items' fields too). A failed
- * submit focuses the first invalid field. The host answers its submit with `form.DONE` /
- * `form.ERRORS` (reply actions `ok: 'form.DONE', error: 'form.ERRORS'`). Throws SYG231 when
+ * submit focuses the first invalid field. A host that sends the submit as a request answers it with
+ * `form.DONE` / `form.ERRORS` (reply actions `ok: 'form.DONE', error: 'form.ERRORS'`); a submit
+ * that sends nothing (STATE, PARENT, EVENTS) is done at once. Throws SYG231 when
  * `schema` isn't a Standard Schema.
  */
 export function form<V = any>(schema: StandardSchemaLike, options: FormOptions<V>): Behavior<FormState<V>, FormActions, FormCalculated, FormOptions<V>>
