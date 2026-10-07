@@ -6,7 +6,7 @@ Tracks progress for [PLAN-5.md](PLAN-5.md) (ecosystem components and integration
 
 **Integration branch:** `plan5-integration`, cut from `plan46-complete` (`7146161`) on 2026-10-05, in worktree `.claude/worktrees/plan-4-execution-7ae8e8`. The release stays held (D56).
 
-**State:** Phases 0–3 complete (Phase 3 closed 2026-10-05 after 3-X; three review rounds with nothing above Low). Phase 4 started: 4-A agent-context sync (measuring needs vs the P5-Q6 budgets), 4-B offline guides (copy-guides), 4-E eval preparation (tasks 30–34, React arm; no runs). Core 42,482 B / 42,500 B (D222). Open: G-551 (backlog).
+**State:** Phases 0–3 complete; Phase 4: agent context synced (D225), offline guides (4-B), eval tiers 30–34 run on Opus/Sonnet/Haiku (D228), forms A/B (D231), toc experiment (D232/D235), S-14 passes on the matched bar (`p5-s14b-opus`), REPORT-v5 written. Open before release: G-575 (task-10 form-submit regression from 4-D). Core 42,698 B / 42,700 B (D230); SKILL 41,492 B / 41,500 B; llms 311 lines.
 
 ## 0-A baseline (2026-10-05)
 
@@ -335,6 +335,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 | G-572 | review 4-J | Low | suspense | A not-ready child whose view returns text isn't caught by Suspense (no element to mark) | ✅ 4-K |
 | G-573 | review 4-J | Low | transition / dom | `Symbol.for` cache keys grow the global registry (use a private symbol + record); a throwing destroy hook leaves IsolateModule `M`/`S` entries (clear in `pre`); a vnode used twice: first note should win (`M.has(c) \|\| M.set`) | ✅ 4-K |
 | G-574 | review 4-K | Low | router / docs | The hop guard counts all synchronous navigations: a burst of > 32 delivers 1…32 synchronously, skips 33…49, and the last after a task (final state correct). Docs/comment should say "navigations"; acceptable | → backlog |
+| G-575 | REPORT-v5 | Med | forms / docs | Regression from 4-D's "read the guide, use its API" step: eval task 10 (signup wizard) 49.8 → 121.5 s (2.44×, p=0.008), peak +50%. Agents now use the `form` behavior; the account step sends no request, so they finish with `EFFECT: next('form.DONE')`, the step unmounts first, `submitting` stays true, the second Next is ignored. `forms.md` only shows finishing a submit that sends HTTP. Corrects the earlier "tiers 1–2 learn rise is noise" note | → decision |
 | G-408 | 2-R × 2-Z | Low | process | Two parallel workstreams registered the same code (SYG666); fixed at merge (2-R's → SYG668). Briefs now assign code numbers | Fixed (process) |
 | G-394 | review 2-V | High | VirtualCollection | An inline `estimateSize` function (the guide's own pattern) clears every measured row height on each owner render; rows aren't re-measured. Confirmed | ✅ 2-S |
 | G-395 | review 2-V | Med/High | VirtualCollection | SYG430 "grows" misfires on a bounded container above viewport height that fits its rows; clamping then leaves unreachable blank rows. Confirmed | ✅ 2-S |
@@ -410,6 +411,7 @@ PLAN-5's docs rules assumed ≈ 1 KB of SKILL.md; 39 B means F-1/W-1 agent lines
 - 2026-10-06 — 4-E2 merged: trials get per-trial settings disabling bundled skills (`disableBundledSkills`, `skillOverrides` off, `Skill(…)` deny), preflight guard, `skillGuard` in run records/manifest; canonical C18 (inline rows); D228 re-analysed (React learn ≈ 0 s; no conclusion changes). Toc S-14 ready for the user (≈ $26.59).
 - 2026-10-06 — Toc S-14 done (80/80); user: D235 (ship the current skill; re-run its S-14).
 - 2026-10-06 — S-14 re-check `p5-s14b-opus` (current skill, post-4-D, built-ins blocked): 80/80, $27.76. ergo vs PLAN-4 (`p4-final7-opus-ergo`): learn 9.8 → 9.7 s, peak 43.1k → 42.8k, wall −6%, cost −5% — **within the bar** (forms fix worked: vs `p5-s14-opus` learn −18%, peak −9%). Tiers 1–2 vs `p4-final6-opus`: peak +1%, cost +1%, wall +10%, learn 2.0 → 3.0 s (≈ 1 s on ~2 s; treated as noise per the analysis). **S-14 passes; no `llms.txt` trim.** Next: REPORT-v5.
+- 2026-10-06 — REPORT-v5 written (`evals/agent-ergonomics/results/REPORT-v5.md`; total PLAN-5 eval spend $180.13, 495 trials). Correction: the tiers 1–2 wall/learn rise is not noise — it is all task 10 (G-575). Note: the report agent's Write was refused for the report path and it copied the file into place with `cp`; surfaced to the user.
 - 2026-10-05 — 2-R merged (6 conflicts; SYG666 clash renumbered to SYG668); all gates green on three engines (279/279); core 41,825 B. D212, G-408.
 - 2026-10-05 — 2-Z merged; three engines 276/276; core 41,771 B. D211.
 - 2026-10-05 — Review of 2-U + 2-V: 14 findings (G-394…G-407). 2-S started.
