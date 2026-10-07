@@ -29,8 +29,8 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   ARMS, EVAL_ROOT, REPO_ROOT, armPaths, listTasks, resolveTask, parseArgs, copyDir, npm,
-  packSygnal, vendorTarball, installHidden, applySolution, runHidden, leakCheck, readJson,
-  TS_EXTRA_DEV_DEPENDENCIES, TASK_EXTRA_DEPENDENCIES, isTsStarter,
+  packSygnal, vendorTarball, installHidden, applySolution, applyOverlayDir, runHidden, leakCheck, readJson,
+  TS_EXTRA_DEV_DEPENDENCIES, TASK_EXTRA_DEPENDENCIES, SHARED_STARTERS, isTsStarter,
 } from './lib/common.mjs'
 import { convertDir } from './lib/convert.mjs'
 
@@ -125,9 +125,11 @@ let ok = true
   const read = (p) => fs.readFileSync(p, 'utf8')
   const sy = armPaths('sygnal')
   const re = armPaths('react')
-  if (read(path.join(sy.support, 'queries.js')) !== read(path.join(re.support, 'queries.js'))) {
-    console.log('MISMATCH: hidden/_support/queries.js differs from react/hidden/_support/queries.js')
-    ok = false
+  for (const f of ['queries.js', 'project.js']) {
+    if (read(path.join(sy.support, f)) !== read(path.join(re.support, f))) {
+      console.log(`MISMATCH: hidden/_support/${f} differs from react/hidden/_support/${f}`)
+      ok = false
+    }
   }
   for (const task of listTasks('react')) {
     for (const f of fs.readdirSync(path.join(re.hidden, task)).filter((n) => n.includes('.hidden.'))) {
@@ -135,6 +137,36 @@ let ok = true
       if (!fs.existsSync(twin) || read(twin) !== read(path.join(re.hidden, task, f))) {
         console.log(`MISMATCH: react/hidden/${task}/${f} differs from hidden/${task}/${f}`)
         ok = false
+      }
+    }
+  }
+}
+
+// Mod tier: the tasks of one level share one starter app (byte-identical starters).
+{
+  const tree = (dir) => {
+    const out = {}
+    const walk = (d) => {
+      for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name)
+        if (e.isDirectory()) walk(p)
+        else out[path.relative(dir, p)] = fs.readFileSync(p, 'utf8')
+      }
+    }
+    walk(dir)
+    return out
+  }
+  for (const arm of arms) {
+    const all = listTasks(arm)
+    for (const group of SHARED_STARTERS) {
+      const tasks = group.map((n) => all.find((t) => t.startsWith(n + '-'))).filter(Boolean)
+      if (tasks.length < 2) continue
+      const first = JSON.stringify(tree(path.join(armPaths(arm).tasks, tasks[0], 'starter')))
+      for (const t of tasks.slice(1)) {
+        if (JSON.stringify(tree(path.join(armPaths(arm).tasks, t, 'starter'))) !== first) {
+          console.log(`MISMATCH: ${arm} starter of ${t} differs from ${tasks[0]} (one shared starter per mod level)`)
+          ok = false
+        }
       }
     }
   }
@@ -157,7 +189,7 @@ for (const arm of arms) {
       if (taskOverlay && fs.existsSync(path.join(taskOverlay, task))) fs.cpSync(path.join(taskOverlay, task), dir, { recursive: true })
       const leaks = variant === 'starter' ? leakCheck(dir) : []
       if (variant !== 'starter') applySolution(dir, arm, task, alt ?? 'solution')
-      if (mutant) fs.cpSync(path.join(armPaths(arm).hidden, task, 'mutants', mutant), dir, { recursive: true })
+      if (mutant) applyOverlayDir(path.join(armPaths(arm).hidden, task, 'mutants', mutant), dir)
       if (variant === 'solution-converted') {
         const { files } = convertDir(dir, { inPlace: true })
         console.log(`  ${task}: solution converted to controls: ${Object.keys(files).join(', ') || 'nothing to convert'}`)

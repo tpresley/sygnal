@@ -5,7 +5,8 @@
 // tier1 = 01-08, tier2 = 09-12, tier3 = 13-17, ts = 18-21 (TypeScript variants of
 // 02, 03, 09 and 12; PLAN-2 E10), net = 22-25 (WebSocket, declarative read, query cache, router;
 // PLAN-3 0-C, 5-6), ergo = 26-29 (autosave, undo/redo, stopwatch, accessible signup; PLAN-4 0-C),
-// p5 = 30-34 (checkout form, command menu, chart widget, virtual list, sortable list; PLAN-5 4-E).
+// p5 = 30-34 (checkout form, command menu, chart widget, virtual list, sortable list; PLAN-5 4-E),
+// mod = 35-43 (modify existing code: add / change / remove at three app sizes; PLAN-5 p5-mod).
 // A new task in an existing tier needs its range widened here.
 
 export const TIERS = {
@@ -16,13 +17,14 @@ export const TIERS = {
   net: (n) => n >= 22 && n <= 25,
   ergo: (n) => n >= 26 && n <= 29,
   p5: (n) => n >= 30 && n <= 34,
+  mod: (n) => n >= 35 && n <= 43,
 }
 
 const taskNum = (t) => Number(String(t).slice(0, 2))
 const pad = (n) => String(n).padStart(2, '0')
 
 /**
- * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "ts", "net", "ergo", "p5", "03",
+ * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "ts", "net", "ergo", "p5", "mod", "03",
  * "01-05", or a comma list of these. Returns a predicate over task numbers.
  */
 export function taskSelector(spec = 'all') {
@@ -38,7 +40,7 @@ export function taskSelector(spec = 'all') {
     }
     m = p.match(/^(\d{1,2})(?:-[a-z][\w-]*)?$/)
     if (m) return (n) => n === Number(m[1])
-    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3|ts|net|ergo|p5, 03, 01-05, or a comma list)`)
+    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3|ts|net|ergo|p5|mod, 03, 01-05, or a comma list)`)
   })
   return (n) => preds.some((f) => f(n))
 }
