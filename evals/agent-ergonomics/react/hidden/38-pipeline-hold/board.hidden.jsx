@@ -146,10 +146,16 @@ describe('38 pipeline: existing behavior', () => {
     expect(textOf($('p.roles'))).toBe('Engineer: 4, Designer: 2, Product manager: 2')
   })
 
+  // Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+  // them fails this test.
+  // add: the starter suite has 15 tests (both arms); Hold breaks none of them and the reference
+  // keeps all 15 and adds 1 (16), so at least the starter's 15 must pass.
+  const MIN_PASSING_OWN_TESTS = 15
+
   it("project: the project's own tests pass", () => {
     const r = runProjectTests()
     expect(r.failures).toEqual([])
     expect(r.failed).toBe(0)
-    expect(r.total).toBeGreaterThanOrEqual(3)
+    expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
   }, 240000)
 })

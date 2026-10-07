@@ -99,10 +99,17 @@ describe('37 pantry without tabs', () => {
     expect(leftovers([/listmode/i, /list-tabs/i, /tab-(all|low)/i, /low stock/i, /SHOW_(ALL|LOW)/])).toEqual([])
   })
 
+  // Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+  // them fails this test.
+  // remove: the starter suite has 11 tests (both arms); 1 of them ("Low stock shows only low items")
+  // only covers the tabs, so a legitimate removal keeps 10. The reference replaces it with an
+  // empty-pantry test (11); 10 is the floor.
+  const MIN_PASSING_OWN_TESTS = 10
+
   it('project: the project\'s own tests pass', () => {
     const r = runProjectTests()
     expect(r.failures).toEqual([])
     expect(r.failed).toBe(0)
-    expect(r.total).toBeGreaterThanOrEqual(3)
+    expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
   }, 240000)
 })

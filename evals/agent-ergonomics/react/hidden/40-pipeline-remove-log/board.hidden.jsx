@@ -158,10 +158,16 @@ describe('40 pipeline: activity log removed', () => {
     expect(textOf($('p.roles'))).toBe('Engineer: 4, Designer: 2, Product manager: 2')
   })
 
+  // Passing own tests a legitimate solution keeps, so deleting failing tests instead of updating
+  // them fails this test.
+  // remove: the starter suite has 15 tests (both arms); the 2 in ActivityLog.test.jsx only cover the
+  // log, so a legitimate removal keeps 13, which is what the reference keeps.
+  const MIN_PASSING_OWN_TESTS = 13
+
   it("project: the project's own tests pass", () => {
     const r = runProjectTests()
     expect(r.failures).toEqual([])
     expect(r.failed).toBe(0)
-    expect(r.total).toBeGreaterThanOrEqual(3)
+    expect(r.passed).toBeGreaterThanOrEqual(MIN_PASSING_OWN_TESTS)
   }, 240000)
 })
