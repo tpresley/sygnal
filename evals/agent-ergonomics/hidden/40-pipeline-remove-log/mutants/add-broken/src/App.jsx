@@ -1,0 +1,40 @@
+import Header from './Header.jsx'
+import StageTabs from './StageTabs.jsx'
+import Toolbar from './Toolbar.jsx'
+import CandidateList from './CandidateList.jsx'
+import AddCandidateForm from './AddCandidateForm.jsx'
+import { SEED_CANDIDATES, countRoles, countStages } from './pipeline.js'
+
+function App() {
+  return (
+    <div className="pipeline">
+      <Header />
+      <StageTabs state="view" />
+      <Toolbar state="view" />
+      <div className="board">
+        <CandidateList />
+        <aside className="sidebar">
+          <AddCandidateForm state="draft" />
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+App.initialState = {
+  candidates: SEED_CANDIDATES,
+  nextId: 9,
+  // What the list shows: the stage tab, the name search, the role filter and the order.
+  view: { tab: 'all', search: '', role: 'all', sort: 'board' },
+  draft: { name: '', role: 'Engineer', error: '' },
+}
+
+// Read by Header, StageTabs, Toolbar and CandidateList.
+App.context = {
+  counts: (state) => countStages(state.candidates),
+  roles: (state) => countRoles(state.candidates),
+  view: (state) => state.view,
+}
+
+
+export default App

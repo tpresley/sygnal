@@ -1,0 +1,187 @@
+import { it, expect, vi, afterEach } from 'vitest'
+import { mountApp, waitFor, textOf, bodyText, click, typeInto, choose, blur, getByText, queryByText, sleep } from './dom.js'
+import { runProjectTests, leftovers, projectFileExists } from './project.js'
+
+// 41-expenses-budgets: the new-expense form warns, live, when the expense would put its category over budget
+// One app per file that mounts: the app's router keeps listening to the document and to
+// history until the page goes away, so each file gets a fresh jsdom.
+
+const SEED = [
+  { id: 1, description: 'Flight to Berlin', amount: 420, category: 'Travel', date: '2026-09-02', status: 'approved' },
+  { id: 2, description: 'Team lunch', amount: 86.4, category: 'Meals', date: '2026-09-05', status: 'pending' },
+  { id: 3, description: 'Desk lamp', amount: 39.99, category: 'Office', date: '2026-09-08', status: 'rejected' },
+  { id: 4, description: 'Design tool licence', amount: 120, category: 'Software', date: '2026-09-12', status: 'approved' },
+  { id: 5, description: 'Hotel in Berlin', amount: 310.5, category: 'Travel', date: '2026-09-03', status: 'pending' },
+  { id: 6, description: 'Client dinner', amount: 145.2, category: 'Meals', date: '2026-09-15', status: 'approved' },
+  { id: 7, description: 'Printer paper', amount: 24.75, category: 'Office', date: '2026-09-18', status: 'pending' },
+]
+
+function jsonResponse(body, status = 200) {
+  return new Response(body === null ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+
+const urlOf = (input) => String(input && typeof input === 'object' && 'url' in input ? input.url : input)
+
+/**
+ * The expenses REST API in memory: answers every request after a short delay, like a server.
+ * `requests` lists { method, path, body } (body parsed); `failNext(method, path, status)` makes the
+ * next such request fail. An aborted request rejects with an AbortError, like a browser.
+ */
+function expenseServer(seed = SEED) {
+  const expenses = seed.map((e) => ({ ...e }))
+  let nextId = Math.max(...expenses.map((e) => e.id)) + 1
+  const requests = []
+  const failures = []
+  const handle = (method, path, body) => {
+    const f = failures.findIndex((x) => x.method === method && x.path === path)
+    if (f >= 0) return jsonResponse({ error: 'failed' }, failures.splice(f, 1)[0].status)
+    const m = path.match(/^\/api\/expenses(?:\/([^/]+))?$/)
+    if (!m) return jsonResponse({ error: 'not found' }, 404)
+    if (!m[1] && method === 'GET') return jsonResponse({ expenses: expenses.map((e) => ({ ...e })) })
+    if (!m[1] && method === 'POST') {
+      const created = { ...body, id: nextId++ }
+      expenses.push(created)
+      return jsonResponse(created, 201)
+    }
+    const i = expenses.findIndex((e) => String(e.id) === m[1])
+    if (i < 0) return jsonResponse({ error: 'not found' }, 404)
+    if (method === 'GET') return jsonResponse(expenses[i])
+    if (method === 'PUT') {
+      expenses[i] = { ...expenses[i], ...body }
+      return jsonResponse(expenses[i])
+    }
+    if (method === 'DELETE') {
+      expenses.splice(i, 1)
+      return jsonResponse(null, 204)
+    }
+    return jsonResponse({ error: 'bad method' }, 405)
+  }
+  const fn = vi.fn((input, init = {}) => {
+    const method = String(init.method ?? (input && typeof input === 'object' ? input.method : undefined) ?? 'GET').toUpperCase()
+    const path = new URL(urlOf(input), 'http://localhost').pathname
+    const raw = init.body ?? undefined
+    const body = typeof raw === 'string' && raw ? JSON.parse(raw) : undefined
+    requests.push({ method, path, body })
+    const signal = init.signal ?? (input && typeof input === 'object' ? input.signal : undefined)
+    return new Promise((resolve, reject) => {
+      const abort = () => reject(new DOMException('The operation was aborted.', 'AbortError'))
+      if (signal?.aborted) return abort()
+      signal?.addEventListener?.('abort', abort)
+      sleep(15).then(() => {
+        if (signal?.aborted) return
+        resolve(handle(method, path, body))
+      })
+    })
+  })
+  return {
+    fn,
+    expenses,
+    requests,
+    writes: () => requests.filter((r) => r.method !== 'GET'),
+    failNext: (method, path, status) => failures.push({ method, path, status }),
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
+
+/** Open the app at `url` (as if typed into the address bar) against a fresh fake API. */
+async function start(url, { server = expenseServer(), keepStorage = false } = {}) {
+  if (!keepStorage) localStorage.clear()
+  window.history.replaceState(null, '', url)
+  window.scrollTo = () => {} // not implemented by jsdom
+  vi.stubGlobal('fetch', server.fn)
+  await mountApp()
+  return server
+}
+
+const path = () => window.location.pathname
+const heading = () => {
+  const h1 = document.querySelector('h1')
+  return h1 ? textOf(h1) : ''
+}
+const field = (name) => document.querySelector(`[name="${name}"]`)
+const flash = () => document.querySelector('p.flash')
+const rows = () => [...document.querySelectorAll('ul.expense-list li.expense')]
+const descriptions = () => rows().map((li) => textOf(li.querySelector('a')))
+const rowOfExpense = (description) => rows().find((li) => textOf(li.querySelector('a')) === description)
+const statusOf = (description) => textOf(rowOfExpense(description).querySelector('.status'))
+const totalsRows = () => [...document.querySelectorAll('table.category-totals tbody tr')]
+const errors = () => [...document.querySelectorAll('p.error')].map(textOf).filter(Boolean)
+
+/** Wait until the app shows `url` with this <h1>. */
+async function at(url, h1) {
+  await waitFor(() => {
+    expect(path()).toBe(url)
+    expect(heading()).toBe(h1)
+  })
+}
+
+/** Click a link of the main navigation. */
+async function nav(text) {
+  await click(getByText('nav.main-nav a', text))
+}
+
+/** Open the list from the navigation and wait for its rows. */
+async function openList() {
+  await nav('Expenses')
+  await at('/expenses', 'Expenses')
+  await waitFor(() => expect(rows().length).toBeGreaterThan(0))
+}
+
+/** Open an expense from the list. */
+async function openExpense(description) {
+  await openList()
+  await click(getByText('ul.expense-list a', description))
+  await waitFor(() => expect(heading()).toBe(description))
+}
+
+const warning = () => {
+  const p = document.querySelector('p.budget-warning')
+  return p && textOf(p) ? textOf(p) : null
+}
+
+it('warns while amount + category go over the budget; saving still works', async () => {
+  const server = await start('/settings')
+  await at('/settings', 'Settings')
+  await typeInto(field('budget-Travel'), '800')
+  await typeInto(field('budget-Office'), '50')
+
+  await nav('New expense')
+  await at('/expenses/new', 'New expense')
+  expect(warning()).toBeNull()
+  await typeInto(field('description'), 'Train tickets')
+  await choose(field('category'), 'Travel')
+  // Travel counts 730.50 so far
+  await typeInto(field('amount'), '60')
+  await sleep(100)
+  expect(warning()).toBeNull()
+  await typeInto(field('amount'), '70')
+  await waitFor(() => expect(warning()).toBe('This will put Travel over its budget.'))
+
+  // the category is part of it: no budget for Meals, back to Travel
+  await choose(field('category'), 'Meals')
+  await waitFor(() => expect(warning()).toBeNull())
+  await choose(field('category'), 'Travel')
+  await waitFor(() => expect(warning()).toBe('This will put Travel over its budget.'))
+
+  // Office counts 24.75 (the rejected desk lamp doesn't count)
+  await choose(field('category'), 'Office')
+  await typeInto(field('amount'), '20')
+  await sleep(100)
+  expect(warning()).toBeNull()
+  await typeInto(field('amount'), '30')
+  await waitFor(() => expect(warning()).toBe('This will put Office over its budget.'))
+
+  // the warning doesn't block saving
+  await typeInto(field('date'), '2026-10-02')
+  await click(getByText('button', 'Add expense'))
+  await at('/expenses', 'Expenses')
+  await waitFor(() => expect(textOf(flash())).toBe('Expense added'))
+  expect(server.writes()).toEqual([
+    { method: 'POST', path: '/api/expenses', body: { description: 'Train tickets', amount: 30, category: 'Office', date: '2026-10-02', status: 'pending' } },
+  ])
+  await waitFor(() => expect(statusOf('Train tickets')).toBe('Pending'))
+})
