@@ -232,6 +232,18 @@ describe('values as a function of the host state', () => {
     expect(t.query('.category-error').textContent).toBe('')
   })
 
+  it('one component in two apps one after the other: each starts from its own state (no stale cache)', async () => {
+    const Page = editPage({ values: byDefault, resetOnShow: true })
+    for (const c of ['Meals', 'Travel', 'Meals']) {
+      t = renderComponent(app(Page, { page: 'edit', path: '/new', settings: { defaultCategory: c } }), { strict: true })
+      await t.ready()
+      expect(t.state.form.values.category).toBe(c)
+      expect(t.query('[name="category"]').value).toBe(c)
+      t.dispose()
+    }
+    t = null
+  })
+
   it('without resetOnShow it gives the values the host starts with (mock DOM, a root host)', async () => {
     function Root({ state }) {
       return h('form', null, h('input', { name: 'description', value: state.form.fields.description.value }), h('input', { name: 'category', value: state.form.fields.category.value }))

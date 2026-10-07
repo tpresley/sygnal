@@ -199,7 +199,8 @@ export const form = (schema: any, o: any = {}): any => {
   const model: any = {}
   for (const a in steps) {
     let last: any[] = []
-    const out = (s: any, d: any, k: string, h?: any) => last[0] === s && last[1] === d ? last[2] : (last = [s, d, steps[a](s, d, k, h)])[2]
+    // (HOST, with the host state h, always computes: one slice object starts every app's host)
+    const out = (s: any, d: any, k: string, h?: any) => !h && last[0] === s && last[1] === d ? last[2] : (last = [s, d, steps[a](s, d, k, h)])[2]
     model[a] = {
       // VALIDATE: on the host's state (HOST), for a `values` function; the slice's own steps on it
       ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => { const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
