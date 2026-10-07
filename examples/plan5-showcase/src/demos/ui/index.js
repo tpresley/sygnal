@@ -36,8 +36,8 @@ export const section = {
     {
       id: 'ui-dialog-cancelable',
       title: 'Dialog with cancelable: false',
-      description: 'Escape doesn\'t close it (closedby="none" while open), but every Escape still runs confirm.CANCEL, which the host counts; the user has to choose a button. Known issue found with this showcase: while a <Toaster> is on the page (two other cards here), its region moves into the open modal and the dialog skips CANCEL (the count stays 0; the dialog still stays open).',
-      refs: 'U-1 · G-405 · G-429',
+      description: 'Escape doesn\'t close it (closedby="none" while open), but every Escape still runs confirm.CANCEL, which the host counts; the user has to choose a button. A <Toaster> region moved into the open modal (two other cards here have one) does not change that: only a popover Escape closes first (auto or hint) takes the Escape.',
+      refs: 'U-1 · G-405 · G-429 · G-579',
       files: { 'Account.jsx': accountSrc },
       start: account.start,
     },

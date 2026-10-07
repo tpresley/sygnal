@@ -32,12 +32,21 @@
 import {ABORT, defineBehavior, xs} from '../index'
 import {gone, on} from './shared'
 
-// G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it:
-// Escape closes that first). G-457: not one an element inside handled (a Zag combobox or menu
-// closing its list prevents it: the browser sends no cancel then either), nor one that ends an
-// IME composition (Safari sends keyCode 229 with isComposing false)
+// G-579: an open popover Escape closes before the dialog: an auto or hint one (the `popover`
+// property: an engine without hint reads it as manual; the attribute where there is none). Not a
+// manual one (a Toaster region moved into the modal, D198; a tooltip): Escape cancels the dialog
+const first = (p: any) => {
+  try {
+    const v = p.popover ?? ((a: any) => (a == '' ? 'auto' : a))(p.getAttribute('popover')?.toLowerCase())
+    return (v == 'auto' || v == 'hint') && p.matches(':popover-open')
+  } catch (_) { return false }
+}
+// G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it
+// that Escape closes first, G-579). G-457: not one an element inside handled (a Zag combobox or
+// menu closing its list prevents it: the browser sends no cancel then either), nor one that ends
+// an IME composition (Safari sends keyCode 229 with isComposing false)
 const esc = (e: any) => e.key == 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode != 229 &&
-  e.target?.closest?.('dialog') == e.ownerTarget && !e.ownerTarget?.querySelector?.(':popover-open')
+  e.target?.closest?.('dialog') == e.ownerTarget && ![...(e.ownerTarget?.querySelectorAll?.('[popover]') ?? [])].some(first)
 
 // the focus went nowhere: body, a detached element, or inside a dialog that just closed
 const lost = () => {
