@@ -14,6 +14,7 @@ export default defineConfig({
         dark: './src/assets/sygnal-logo-light.svg',
         light: './src/assets/sygnal-logo.svg',
         alt: 'Sygnal',
+        replacesTitle: true,
       },
       description: 'An intuitive reactive component framework built on Cycle.js patterns',
       social: [

@@ -1,0 +1,4 @@
+shapely>=2.0
+fonttools>=4.40
+uharfbuzz>=0.39
+pillow>=10.0
