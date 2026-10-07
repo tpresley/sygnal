@@ -954,8 +954,12 @@ export interface FormFieldCheck {
 }
 
 export interface FormOptions<V = any> {
-  /** The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236) */
-  values: V;
+  /**
+   * The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236).
+   * Or a function of the host component's state, for start values that come from state (a default
+   * from the settings): called when the form starts, and each time it starts over (`resetOnShow`)
+   */
+  values: V | ((state: any) => V);
   /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once */
   submit: string;
   /** Async checks by field name: run on blur and before a submit, which waits for them */
@@ -966,6 +970,14 @@ export interface FormOptions<V = any> {
   form?: string;
   /** The driver sink the checks' requests go to, and that makes a submit entry a request (default 'HTTP') */
   http?: string;
+  /**
+   * Start over each time the form is shown (D239): when its host component starts (mounted again,
+   * a Switchable page made again) and each time the form element appears again (a Switchable page
+   * shown again; hidden pages stay alive). Back to the start values, touched, errors and the submit
+   * state cleared. Default false: the values live in state and survive a visit (a wizard step keeps
+   * them when the user comes back)
+   */
+  resetOnShow?: boolean;
 }
 
 export interface FormActions {

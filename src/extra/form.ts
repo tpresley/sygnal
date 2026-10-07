@@ -12,10 +12,22 @@
  * and focusout bubble to it, also from fields rendered by Collection items. Nothing is wired per
  * field.
  *
- * Options: `values` (the start values), `submit` (host action), `check` (async per-field checks
- * through a driver: a request with a reply action, `latest`), `show` ('blur' default: a schema
- * error shows once its field was blurred; 'input'; 'submit'), `form` (selector), `http` (the
- * driver sink of the checks, 'HTTP').
+ * Options: `values` (the start values; D239: or a function of the host's state, called when the
+ * form starts), `submit` (host action), `check` (async per-field checks through a driver: a
+ * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
+ * field was blurred; 'input'; 'submit'), `form` (selector), `http` (the driver sink of the
+ * checks, 'HTTP'), `resetOnShow` (D239).
+ *
+ * D239 (G-578): `resetOnShow: true` starts the form over (the start values, as a new form: touched,
+ * errors, server errors, checks and the submit state cleared) each time it is shown: when its
+ * host starts (VALIDATE: a component mounted again, a Switchable page made again for another
+ * `instance`, a slice kept in the parent's state) and each time the form element appears again
+ * in the host's DOM after being absent (a Switchable page shown again: hidden pages stay alive;
+ * a form rendered conditionally). Re-renders while it is shown keep what the user typed. Off by
+ * default: a wizard step keeps its values when the user comes back. Without a real DOM (the mock
+ * DOM, SSR) only the host start counts. A `values` function is called with the host's state at
+ * each start over (without resetOnShow: once, when the host starts with the slice untouched);
+ * before that (a child's first render) the fields come from calling it with a blank state.
  *
  * Slice (state.form): values, initial, errors (all current schema errors by name), touched,
  * server (server errors), remote (async check results: '' passed), pending (name -> value being
@@ -32,7 +44,7 @@
  * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
  * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
  * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
- * schema answered).
+ * schema answered; with resetOnShow also each time the form element appears, D239).
  *
  * G-575 (D236): a valid submit is `submitting` (until form.DONE / form.ERRORS, a second submit
  * dropped) only when the host's submit entry has the `http` sink; any other submit (STATE, PARENT,
@@ -68,7 +80,14 @@ const drop = (o: any, p: string) => {
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
-  const {values = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form'} = o
+  const {values: vo = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again} = o
+  // D239: `values` can be a function of the host's state, called when the form starts (and each
+  // show, resetOnShow). Before that (the host's first render, before its first action) the
+  // fields come from calling it with a blank state: every read gives '' in the result
+  const fn = typeof vo == 'function', B: any = new Proxy(() => B, {get: (_, k) => k == Symbol.toPrimitive ? () => '' : B})
+  const clean = (x: any): any => x === B ? '' : Array.isArray(x) ? x.map(clean) : x && typeof x == 'object' ? Object.fromEntries(Object.entries(x).map(([k, y]) => [k, clean(y)])) : x
+  let values: any = vo
+  if (fn) try { values = clean(vo(B)) } catch (_) { values = {} }
   const cache = new WeakMap(), checked = Object.keys(checks)
   // G-575: a submit is pending (until form.DONE / form.ERRORS) only when the host's submit entry
   // sends a request on the `http` sink; any other submit is done once its entry has run. Set when
@@ -123,7 +142,7 @@ export const form = (schema: any, o: any = {}): any => {
     return d.value ? [...r, d.item] : r
   }
 
-  const steps: Record<string, (s: any, d: any, k: string) => any> = {
+  const steps: Record<string, (s: any, d: any, k: string, h?: any) => any> = {
     // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
     // its value, unchecked removes it
     CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, group(getField(s.values, d.name), d)), {
@@ -163,8 +182,11 @@ export const form = (schema: any, o: any = {}): any => {
     DONE: (s) => ({s: done(s)}),
     RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
     // G-375: the first validation, when the host starts (form() doesn't validate at module load).
-    // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck
-    VALIDATE: (s) => edit({...s, submitting: false, queued: false, pending: {}}, s.values),
+    // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck.
+    // D239: with resetOnShow (also each time the form element appears again), or a `values`
+    // function not called yet, the slice starts over from the start values (h: the host state)
+    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo)
+      : edit({...s, submitting: false, queued: false, pending: {}}, s.values),
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -176,9 +198,11 @@ export const form = (schema: any, o: any = {}): any => {
   const model: any = {}
   for (const a in steps) {
     let last: any[] = []
-    const out = (s: any, d: any, k: string) => last[0] === s && last[1] === d ? last[2] : (last = [s, d, steps[a](s, d, k)])[2]
+    const out = (s: any, d: any, k: string, h?: any) => last[0] === s && last[1] === d ? last[2] : (last = [s, d, steps[a](s, d, k, h)])[2]
     model[a] = {
-      STATE: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.s || ABORT,
+      // VALIDATE: on the host's state (HOST), for a `values` function; the slice's own steps on it
+      ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => { const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
+        : {STATE: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.s || ABORT},
       EFFECT: (s: any, d: any, next: any, _p: any, _o: any, k: string) => {
         const x = out(s, d, k), w = x?.wait
         if (x?.send) {
@@ -199,8 +223,11 @@ export const form = (schema: any, o: any = {}): any => {
     initialState: {...base(values), validating: true},
     intent: ({DOM}: any) => {
       const f = DOM.select(sel)
+      let on = 0
       return {
-        VALIDATE: xs.of(0),
+        // D239: resetOnShow also starts over each time the form element appears again (a
+        // Switchable page shown again: hidden pages stay alive; a form rendered again)
+        VALIDATE: again ? xs.merge(xs.of(0), f.elements().filter((e: any) => { const r = e.length && !on; on = e.length; return r })) : xs.of(0),
         // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
         // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
         // <select multiple> the selected values; type=file is left alone; others give `value`
@@ -227,7 +254,7 @@ export const form = (schema: any, o: any = {}): any => {
       dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },
-  })(o), merge = b.merge
+  })({...o, values}), merge = b.merge
   b.merge = (c: any, k: string) => {
     const e = c.model?.[submit]
     req = !!e && typeof e == 'object' && http in e

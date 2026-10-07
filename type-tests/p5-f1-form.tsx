@@ -28,6 +28,11 @@ describe('F-1: form', () => {
     Signup.uses = uses
     // @ts-expect-error submit is required
     form(schema, { values: {} })
+    // D239: start values from the host state, starting over each time the form is shown
+    const fresh = form(schema, { values: (state: { settings: { category: string } }) => ({ description: '', category: state.settings.category }), submit: 'SAVE', resetOnShow: true })
+    expectTypeOf<UsesState<{ form: typeof fresh }>['form']['values']>().toEqualTypeOf<{ description: string; category: string }>()
+    // @ts-expect-error resetOnShow is a boolean
+    form(schema, { values: {}, submit: 'X', resetOnShow: 'always' })
     // @ts-expect-error show is 'blur' | 'input' | 'submit'
     form(schema, { values: {}, submit: 'X', show: 'change' })
   })
