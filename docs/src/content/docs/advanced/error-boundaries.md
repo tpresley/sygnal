@@ -7,11 +7,15 @@ Catch and recover from errors in component rendering without crashing the entire
 
 ## The `onError` Static Property
 
-```jsx
+```jsx live
 function BrokenComponent({ state }) {
   if (state.count > 5) throw new Error('Count too high!')
-  return <div>Count: {state.count}</div>
+  return <div>Count: {state.count} <button className="add">+1</button></div>
 }
+
+BrokenComponent.initialState = { count: 4 }
+BrokenComponent.intent = ({ DOM }) => ({ ADD: DOM.click('.add') })
+BrokenComponent.model = { ADD: (state) => ({ ...state, count: state.count + 1 }) }
 
 BrokenComponent.onError = (error, { componentName }) => (
   <div className="error-fallback">
