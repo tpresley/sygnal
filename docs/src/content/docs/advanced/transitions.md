@@ -5,17 +5,24 @@ description: "CSS enter and leave animations"
 
 CSS-based enter/leave animations using snabbdom hooks. Sygnal uses a Vue-style transition system where a single `name` prop generates six CSS classes for fine-grained control over enter and leave animations.
 
-```jsx
+```jsx live
 import { Transition } from 'sygnal'
 
 function AnimatedList({ state }) {
   return (
     <div>
+      <button className="toggle">Toggle</button>
       <Transition name="fade">
         {state.visible && <div className="content">Animated!</div>}
       </Transition>
     </div>
   )
+}
+
+AnimatedList.initialState = { visible: true }
+AnimatedList.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle') })
+AnimatedList.model = {
+  TOGGLE: (state) => ({ ...state, visible: !state.visible }),
 }
 ```
 
@@ -42,7 +49,9 @@ Given `name="fade"`, the following classes are applied automatically:
 
 ## CSS Example
 
-```css
+The demo above uses this stylesheet:
+
+```css live
 /* Active classes define the transition properties */
 .fade-enter-active,
 .fade-leave-active {

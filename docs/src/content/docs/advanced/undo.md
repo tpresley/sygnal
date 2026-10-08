@@ -12,7 +12,7 @@ Both take the same options and keep the same history.
 
 ## The undo behavior
 
-```jsx
+```jsx live
 import { undo } from 'sygnal'
 
 export function Editor({ state }) {
@@ -41,7 +41,7 @@ Editor.model = {
 
 `coalesceMs` alone joins quick repeats of *any* action: two fast clicks on a Larger button would also become one step. To group only typing, list the actions that may join in `coalesce`. Every other action is then always its own step:
 
-```jsx
+```jsx live
 import { undo } from 'sygnal'
 
 export function Poster({ state }) {
@@ -74,7 +74,7 @@ Typing "Sale" and then clicking Larger twice quickly makes three steps: the typi
 
 A host intent action with a behavior action's name replaces the behavior's trigger. To undo with Ctrl+Z (⌘Z) as well as the button, leave out the `undo` / `redo` options and trigger the actions from the host:
 
-```jsx
+```jsx live
 import { undo, xs } from 'sygnal'
 
 export function Editor({ state }) {

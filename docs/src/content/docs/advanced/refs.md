@@ -5,7 +5,7 @@ description: "Direct DOM element access"
 
 Access DOM elements declaratively using `createRef()`:
 
-```jsx
+```jsx live
 import { createRef } from 'sygnal'
 
 const boxRef = createRef()
@@ -20,6 +20,8 @@ function MeasuredBox({ state }) {
     </div>
   )
 }
+
+MeasuredBox.initialState = { width: 0, height: 0 }
 
 MeasuredBox.intent = ({ DOM }) => ({
   MEASURE: DOM.select('.measure-btn').events('click'),
