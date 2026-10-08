@@ -15,7 +15,7 @@ npm install @tanstack/table-core
 
 ## The table
 
-```js
+```js live-file=./peopleTable.js
 // peopleTable.js
 import {
   constructTable, createColumnHelper, tableFeatures,
@@ -71,7 +71,7 @@ export const nextSorting = (sorting, id) =>
 
 ## Using it
 
-```jsx
+```jsx live
 // People.jsx
 import { peopleTable, nextSorting } from './peopleTable.js'
 

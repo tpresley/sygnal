@@ -13,7 +13,7 @@ npm install lucide
 
 ## The helper
 
-```jsx
+```jsx live-file=./icon.jsx
 // icon.jsx
 // A Lucide icon (an array of [tag, attributes, children?]) as Sygnal SVG vnodes
 const parts = (node) => node.map(([Tag, attrs, children]) => <Tag {...attrs}>{children && parts(children)}</Tag>)
@@ -35,7 +35,7 @@ The `<svg>` gets Lucide's default attributes (a 24 × 24 view box, a 2-pixel rou
 
 ## Using it
 
-```jsx
+```jsx live
 // Toolbar.jsx
 import { Plus, Trash2, CloudCheck, CloudOff } from 'lucide'
 import { icon } from './icon.jsx'
@@ -76,7 +76,7 @@ Three cases, three ways to make the icon accessible:
 
 sygnal-check reports a button with no accessible name ([SYG705](/reference/errors/#syg705)) when the `<svg>` is written inside it, and when its only content is an `icon(...)` call with an icon imported from `lucide` (or another icon package) and no `label`: `<button>{icon(Trash2)}</button>` is reported, `<button aria-label="Remove">{icon(Trash2)}</button>` is not. Only `label` names the icon, as in the helper above (`title` or `aria-label` in the options are ignored by the helper, so they don't count). It knows only a function named `icon` (or `renderIcon`); a helper with another name, or an icon passed through a variable, isn't checked, so assert the button's name in a test as below. If your own `icon` helper renders screen-reader text itself, put the name on the button instead, or silence the line with `// sygnal-ignore SYG705`.
 
-```css
+```css live
 .icon { vertical-align: -0.125em; width: 1.25em; height: 1.25em; }
 ```
 

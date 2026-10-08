@@ -13,7 +13,7 @@ npm install @tiptap/core @tiptap/pm @tiptap/starter-kit
 
 ## The widget
 
-```js
+```js live-file=./RichText.js
 // RichText.js
 import { defineWidget } from 'sygnal'
 import { Editor } from '@tiptap/core'
@@ -66,7 +66,7 @@ export const RichText = defineWidget({
 
 ## Using it
 
-```jsx
+```jsx live
 // Notes.jsx
 import { RichText } from './RichText.js'
 
@@ -100,6 +100,12 @@ Notes.model = {
   CLEAR: (state) => ({ ...state, html: '<p></p>' }),
 }
 ```
+
+```css live
+.body .tiptap { border: 1px solid #8888; border-radius: 4px; padding: 0 0.75rem; min-height: 6rem; }
+```
+
+Tiptap brings no styles of its own. Its editable element has the class `tiptap`: give it a border and a height, so it looks like a place to type.
 
 The label is a prop of its own (`label`), not `aria-label`: an `aria-label` prop would go on the host `<div>`, and the element a screen reader lands on is Tiptap's editable element inside it. Tiptap reads its options when it starts, so `update` sets them again when the label changes (a translated label after a language switch).
 
