@@ -106,9 +106,15 @@ In a text field the browser runs its own undo on Ctrl+Z too. To leave undo to th
 
 ## undoable()
 
-`undoable(model, options)` wraps a model's STATE reducers and adds `UNDO` and `REDO` entries for your intent to trigger. `state.history` is `{ past, future }` (no calculated fields), and it isn't there until the first change, so read it with a default:
+`undoable(model, options)` wraps a model's STATE reducers and adds `UNDO` and `REDO` entries for your intent to trigger. `state.history` is `{ past, future }` (no calculated fields), and it isn't there until the first change, so read it with a default. In this demo, a stand-in server has the saved note:
 
-```jsx
+```js live-server
+export default {
+  'GET /api/note': () => ({ json: { text: 'Buy milk' } }),
+}
+```
+
+```jsx live
 import { undoable } from 'sygnal'
 
 export function Editor({ state }) {

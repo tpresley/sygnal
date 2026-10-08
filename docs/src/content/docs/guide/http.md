@@ -14,7 +14,19 @@ run(App, { HTTP: makeFetchDriver() })
 
 A model entry sends a request to the `HTTP` sink and names the actions that receive the reply: `ok` for a 2xx response, `error` for everything else. The intent has no line for the reply.
 
-```jsx
+In this demo, a stand-in server answers: quote 1 slowly, and quote 2 with a 404.
+
+```js live-server
+const quotes = { 1: { id: 1, text: 'Start where you are.' } }
+
+export default {
+  'GET /api/quotes/:id': ({ params }) => (quotes[params.id]
+    ? { json: quotes[params.id], delayMs: 1500 }
+    : { status: 404, json: { message: 'No such quote' }, delayMs: 400 }),
+}
+```
+
+```jsx live
 import { ABORT } from 'sygnal'
 
 function Quote({ state }) {
@@ -46,6 +58,8 @@ Quote.model = {
 }
 ```
 
+Click First, then Second before quote 1 arrives: with `latest: true` the first request is aborted (see [Only the Latest Response](#only-the-latest-response)), and the 404 goes to `FAILED`.
+
 - The **`ok` action** gets the parsed body: JSON when the response says so, otherwise text (see `parse` below).
 - The **`error` action** gets `{ error, status, body, request }`. For a non-2xx response, `status` and the parsed `body` are set and `error.message` reads like `'HTTP 404 Not Found: /api/quotes/9'`. For a network error, a body that doesn't parse, a timeout (`error.name === 'TimeoutError'`) or no `fetch`, `status` is `undefined`. `request` is the request as the model sent it.
 - The reply goes to **exactly the component instance that sent the request**. Two `<Quote>` components, or every item of a Collection, can use the same action names without seeing each other's replies, and need no request ids.
@@ -58,9 +72,21 @@ Every sink of one action sees the state from **before** that action ([Model](/gu
 
 ## Only the Latest Response
 
-Responses arrive in the order the server answers, not the order the requests were sent. With `latest: true`, sending a request aborts this instance's earlier requests **with the same key** that are still in flight, and their replies never arrive. The abort happens when the newer request is sent: a reply that lands before that still arrives. For example, with a debounce in front of the request, an older reply that comes back while the user is still typing (the newer request isn't sent yet) is delivered, so a reducer that must ignore it needs its own check, such as comparing the reply with the current input. The key is the `ok` action (else the `error` action), or an explicit `key`. A search box needs no request ids and no stale checks:
+Responses arrive in the order the server answers, not the order the requests were sent. With `latest: true`, sending a request aborts this instance's earlier requests **with the same key** that are still in flight, and their replies never arrive. The abort happens when the newer request is sent: a reply that lands before that still arrives. For example, with a debounce in front of the request, an older reply that comes back while the user is still typing (the newer request isn't sent yet) is delivered, so a reducer that must ignore it needs its own check, such as comparing the reply with the current input. The key is the `ok` action (else the `error` action), or an explicit `key`. A search box needs no request ids and no stale checks. In this demo, a stand-in server searches a few book titles, taking most of a second:
 
-```jsx
+```js live-server
+const books = ['Dune', 'Dune Messiah', 'Children of Dune', 'Foundation', 'Solaris']
+
+export default {
+  'GET /api/search': ({ query }) => {
+    const q = query.q.toLowerCase()
+    const results = books.filter(b => b.toLowerCase().includes(q)).map(title => ({ title }))
+    return { json: { results }, delayMs: 900 }
+  },
+}
+```
+
+```jsx live
 import { ABORT, debounce } from 'sygnal'
 
 function Search({ state }) {
@@ -181,18 +207,30 @@ A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP
 
 ### Optimistic update with rollback
 
-Change the state at once and send the write in the same action. Put the previous value on the request as your own field: fields the driver doesn't know aren't sent, and they come back on the failure's `request`, so the `error` action can restore it.
+Change the state at once and send the write in the same action. Put the previous value on the request as your own field: fields the driver doesn't know aren't sent, and they come back on the failure's `request`, so the `error` action can restore it. In this demo, a stand-in server saves the first todo and refuses the second:
 
-```jsx
+```js live-server
+const todos = { 1: { id: 1, title: 'Write', done: false } }   // no todo 2: a 500
+
+export default {
+  'PATCH /api/todos/:id': ({ params, json }) => {
+    const todo = todos[params.id]
+    if (!todo) return { status: 500, json: { message: 'Disk full' }, delayMs: 1000 }
+    return { json: Object.assign(todo, json), delayMs: 1000 }
+  },
+}
+```
+
+```jsx live
 function Todos({ state }) {
   return (
     <div>
-      <ul>{state.todos.map(t => <li className={t.done ? 'todo done' : 'todo'}><button className="toggle" data-id={String(t.id)}>{t.title}</button></li>)}</ul>
+      <ul>{state.todos.map(t => <li className={t.done ? 'todo done' : 'todo'}><button className="toggle" data-id={String(t.id)}>{t.done ? '✓ ' : ''}{t.title}</button></li>)}</ul>
       <p className="error">{state.error}</p>
     </div>
   )
 }
-Todos.initialState = { todos: [{ id: 1, title: 'Write', done: false }], error: '' }
+Todos.initialState = { todos: [{ id: 1, title: 'Write', done: false }, { id: 2, title: 'Ship', done: false }], error: '' }
 Todos.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle').data('id', Number) })
 Todos.model = {
   TOGGLE: {
@@ -215,9 +253,17 @@ Todos.model = {
 
 ### Save status
 
-A write's status is ordinary state: set it when the request is sent and in the reply actions. Ignoring a second click while saving keeps one request in flight.
+A write's status is ordinary state: set it when the request is sent and in the reply actions. Ignoring a second click while saving keeps one request in flight. In this demo, a stand-in server rejects an empty name:
 
-```jsx
+```js live-server
+export default {
+  'PUT /api/profile': ({ json }) => (json.name.trim() === ''
+    ? { status: 422, json: { name: 'Required' }, delayMs: 800 }
+    : { json, delayMs: 800 }),
+}
+```
+
+```jsx live
 import { ABORT } from 'sygnal'
 
 function Profile({ state }) {

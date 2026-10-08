@@ -37,9 +37,21 @@ Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/combo
 By default the list shows the items whose label contains the text, ignoring case. The filter text resets when the list closes, so the next open shows every item.
 
 - `filter={(item, text) => item.label.toLowerCase().startsWith(text.toLowerCase())}` replaces the test.
-- `filter={false}` turns it off: the app passes the items to show, from the `input-change` event. Use it for server-side search (with [`makeFetchDriver`](/guide/http/)):
+- `filter={false}` turns it off: the app passes the items to show, from the `input-change` event. Use it for server-side search (with [`makeFetchDriver`](/guide/http/)). In this demo, a stand-in server searches a few names:
 
-```jsx
+```js live-server
+const names = ['Ada Lovelace', 'Alan Turing', 'Grace Hopper', 'Barbara Liskov', 'Donald Knuth']
+const users = names.map((name, i) => ({ id: String(i + 1), name }))
+
+export default {
+  'GET /api/users': ({ query }) => {
+    const q = (query.q ?? '').toLowerCase()
+    return { json: users.filter((u) => u.name.toLowerCase().includes(q)), delayMs: 400 }
+  },
+}
+```
+
+```jsx live live-height=240
 import { Combobox } from 'sygnal/ui/combobox'
 
 function Search({ state }) {
