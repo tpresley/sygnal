@@ -10,6 +10,7 @@
  *                               page's `live` blocks can import (`import { X } from './Chart.js'`)
  *   ```jsx live live-height=320 a minimum height (px) for the Result panel
  *   ```css live                 a stylesheet for the page's demos (added to the page as is)
+ *   ```js live-server           the demo HTTP server of the live blocks after it (see below)
  *
  * The languages are js, jsx, ts, tsx (and css for stylesheets). What the reader sees is what
  * runs: there is no hidden setup code, so a sample that needs more lines to run shows them.
@@ -22,7 +23,39 @@
  *   TIMER: makeTimerDriver()      timers static, Tooltip delays, Toaster timeouts
  *   BROWSER: makeBrowserDriver()  the browser static and BROWSER commands
  *   DND: makeDragDriver()         drag and drop
- * Not included (they need a server or change the page): HTTP, WS, SW, HEAD, the router.
+ *   DOM: makeViewTransitionDOMDriver(mountPoint)  run()'s DOM driver plus the hook for the
+ *                                 `viewTransitions` static: a listed action's patch runs in
+ *                                 document.startViewTransition() (Chromium 111+, Safari 18+,
+ *                                 Firefox 144+); without the API or with prefers-reduced-motion
+ *                                 it patches at once, and without the static it is run()'s driver
+ * A stylesheet a demo imports from the module map is added to the page when the demo loads;
+ * Web Awesome's theme is scoped to the panels (its :root rules apply to .sygnal-live) and
+ * follows the docs theme (.wa-dark / .wa-light on the panels).
+ *   HTTP: makeFetchDriver({ fetch: demoFetch, ...options })  Sygnal's real fetch driver over a
+ *                                 stubbed network (src/live/server.ts): categories, latest/abort,
+ *                                 resources and the query cache are the driver's own
+ *
+ * The demo server is a visible block, ```js live-server (its frame is titled "Demo server"
+ * unless it has a title). Its default export is a route table:
+ *
+ *   export default {
+ *     'POST /api/signup': ({ json }) => json.email === 'taken@example.com'
+ *       ? { status: 409, json: { email: 'Already registered' } } : { status: 201, json: { id: 1 } },
+ *     'GET /api/quotes/:id': ({ params }) => ({ json: { id: params.id, text: '…' } }),
+ *   }
+ *
+ * A key is 'METHOD /path' ('/path' alone: any method; ':name' segments are params, a last '*'
+ * the rest). A handler gets { method, url, path, params, query, json, body, headers } and
+ * returns { status = 200, json | text, headers, delayMs = 600 } or a Promise of it (a handler
+ * that throws: 500). Handlers may keep state in module scope (one fresh instance per demo run).
+ * An optional `export const options = { cache: queryCache() }` is merged into
+ * makeFetchDriver's options (everything but `fetch`). A server block serves every live block
+ * after it on the page, until the next live-server block replaces it. Without one, or with no
+ * matching route, a request gets a 404 (the driver's error path). Each request is a quiet note
+ * in the panel: "Demo server: POST /api/signup → 201 (600 ms)", "→ 404 (no demo route, 600 ms)",
+ * "→ aborted (120 ms)" (an aborted request rejects with an AbortError, as fetch does).
+ *
+ * Not included (they need a real server or change the page): WS, SW, HEAD, the router.
  * An error a component's own .onError handled is shown as a quiet note ("Reported to
  * run({ onError }): ..."), not as a failure; any other error marks the demo as failed.
  *
@@ -38,6 +71,7 @@
  *        data-code="<encodeURIComponent(code)>" [data-component="Name"] [data-height="320"]></div>
  *   <div class="sygnal-live-file" hidden data-live-file="./Chart.js" data-lang data-code></div>
  *   <div class="sygnal-live-css" hidden data-code></div>
+ *   <div class="sygnal-live-server" hidden data-lang data-code></div>
  */
 
 const RUNNABLE = new Set(['js', 'jsx', 'ts', 'tsx', 'javascript', 'typescript', 'css'])
@@ -50,6 +84,7 @@ export function parseLiveMeta(meta) {
   for (const tok of (meta || '').match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || []) {
     let m
     if (tok === 'live') opts.live = true
+    else if (tok === 'live-server') opts.server = true
     else if ((m = tok.match(/^live=([A-Za-z_$][\w$]*)$/))) { opts.live = true; opts.component = m[1] }
     else if ((m = tok.match(/^live-file=(\S+)$/))) opts.file = m[1]
     else if ((m = tok.match(/^live-height=(\d+)$/))) opts.height = m[1]
@@ -89,14 +124,18 @@ export default function remarkLive() {
         let parsed
         try { parsed = parseLiveMeta(node.meta) } catch (e) { throw new Error(`${e.message} (${where(node)})`) }
         const { opts, meta } = parsed
-        if (!opts.live && !opts.file) continue
+        if (!opts.live && !opts.file && !opts.server) continue
         const lang = (node.lang || '').toLowerCase()
         if (!RUNNABLE.has(lang)) throw new Error(`remark-live: a live block must be js, jsx, ts, tsx or css, not '${node.lang}' (${where(node)})`)
-        if (opts.live && opts.file) throw new Error(`remark-live: a block is either live or a live-file, not both (${where(node)})`)
-        node.meta = meta || null
+        if ([opts.live, opts.file, opts.server].filter(Boolean).length > 1) throw new Error(`remark-live: a block is one of live, live-file or live-server (${where(node)})`)
+        // a server block is labelled in its frame (unless it has a title of its own)
+        node.meta = (opts.server && !/(^|\s)title=/.test(meta) ? `${meta} title="Demo server"` : meta).trim() || null
         const code = encodeURIComponent(node.value)
         let out
-        if (lang === 'css') {
+        if (opts.server) {
+          if (lang === 'css') throw new Error(`remark-live: a live-server block is js or ts (${where(node)})`)
+          out = makeNode(mdx, { class: 'sygnal-live-server', hidden: true, 'data-lang': lang, 'data-code': code })
+        } else if (lang === 'css') {
           if (opts.file) throw new Error(`remark-live: a css block takes 'live', not live-file (${where(node)})`)
           out = makeNode(mdx, { class: 'sygnal-live-css', hidden: true, 'data-code': code })
         } else if (opts.file) {

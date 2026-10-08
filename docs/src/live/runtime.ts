@@ -5,6 +5,7 @@
 import liveCss from './live.css?inline'
 import { MODULES } from './modules'
 import type { Compiled } from './compile'
+import { makeDemoFetch } from './server'
 
 type State = 'idle' | 'loading' | 'running' | 'error'
 
@@ -15,6 +16,8 @@ interface Panel {
   original: string
   code: string
   component?: string
+  /** the demo server block that serves this panel (the last live-server before it), a files key */
+  server?: string
   name: string
   gen: number
   app?: { dispose(): void }
@@ -56,7 +59,7 @@ function load(spec: string): Promise<any> {
 }
 
 function unknownModule(spec: string) {
-  const local = [...files.keys()].map((f) => `.${f}`)
+  const local = [...files.keys()].filter((f) => !f.startsWith('/__demo-server')).map((f) => `.${f}`)
   return new Error(
     `Unknown module '${spec}'. A live example can import: ${[...Object.keys(MODULES), ...local].join(', ')}.` +
       (/^[./]/.test(spec) ? ' A local module is a block with live-file=<path> on the same page.' : ' Add a library in docs/src/live/modules.ts.'),
@@ -94,8 +97,12 @@ function showError(p: Panel, err: any, info?: any) {
  * The drivers every live demo gets, under the names the docs use in run(): the local ones
  * (no server, no page-level side effects). Documented in src/plugins/remark-live.mjs
  */
-function defaultDrivers(Sygnal: any) {
+function defaultDrivers(Sygnal: any, mount: Element, http: any) {
   return {
+    HTTP: http,
+    // run()'s DOM driver plus the View Transition hook (the `viewTransitions` static). Without
+    // that static, or without document.startViewTransition, it patches exactly as run()'s own
+    DOM: Sygnal.makeViewTransitionDOMDriver(mount),
     TIMER: Sygnal.makeTimerDriver(),
     BROWSER: Sygnal.makeBrowserDriver(),
     DND: Sygnal.makeDragDriver(),
@@ -109,10 +116,15 @@ const errText = (err: any, info?: any) => {
 
 /** a handled error: a quiet note, not a failure */
 function showNote(p: Panel, err: any, info?: any) {
+  addNote(p, `Reported to run({ onError }): ${errText(err, info)}`)
+}
+
+/** a quiet line in the panel (handled errors, demo server requests): the last 6 are kept */
+function addNote(p: Panel, text: string) {
   const line = document.createElement('div')
-  line.textContent = `Reported to run({ onError }): ${errText(err, info)}`
+  line.textContent = text
   p.noteEl.append(line)
-  while (p.noteEl.childElementCount > 5) p.noteEl.firstElementChild!.remove()
+  while (p.noteEl.childElementCount > 6) p.noteEl.firstElementChild!.remove()
   p.noteEl.hidden = false
 }
 
@@ -158,6 +170,13 @@ async function runPanel(p: Panel) {
       }
     }
     visit(ENTRY, entry)
+    // the demo server block, a module like a live-file (one fresh instance per run)
+    if (p.server && !compiled.has(p.server)) {
+      const f = files.get(p.server)!
+      const sc = compile(f.code, { lang: f.lang, filename: 'demo-server.' + ext(f.lang), component: false })
+      compiled.set(p.server, sc)
+      visit(p.server, sc)
+    }
     for (const spec of bare) if (!MODULES[spec]) throw unknownModule(spec)
     const loaded = new Map<string, any>()
     await Promise.all([...bare].map(async (s) => loaded.set(s, await load(s))))
@@ -204,6 +223,9 @@ async function runPanel(p: Panel) {
       return module.exports
     }
     const exports = evaluate(ENTRY)
+    const server = p.server ? evaluate(p.server) : undefined
+    const { fetch: _ignored, ...httpOptions } = (server && server.options) || {}
+    const demoFetch = makeDemoFetch(server ? server.default : undefined, (text) => { if (gen === p.gen) addNote(p, text) })
 
     let Component: any
     let name: string
@@ -231,7 +253,7 @@ async function runPanel(p: Panel) {
     p.mount = mount
     p.result.setAttribute('aria-label', `Result: ${name}`)
     setState(p, 'running')
-    p.app = Sygnal.run(Component, defaultDrivers(Sygnal), {
+    p.app = Sygnal.run(Component, defaultDrivers(Sygnal, mount, Sygnal.makeFetchDriver({ ...httpOptions, fetch: demoFetch })), {
       mountPoint: mount,
       uid: p.id,
       onError: (e: any, info: any) => {
@@ -287,7 +309,7 @@ function button(cls: string, text: string, label?: string) {
   return b
 }
 
-function setup(el: HTMLElement): Panel {
+function setup(el: HTMLElement, server?: string): Panel {
   const id = el.dataset.liveId || `live-${Math.random().toString(36).slice(2, 8)}`
   const code = decode(el.dataset.code)
   const component = el.dataset.component || undefined
@@ -338,7 +360,7 @@ function setup(el: HTMLElement): Panel {
   noteEl.hidden = true
 
   el.replaceChildren(bar, editorBox, result, noteEl, errorEl)
-  const p: Panel = { el, id, lang: el.dataset.lang || 'jsx', original: code, code, component, name: guess, gen: 0, result, errorEl, noteEl, editorBox, editBtn, runBtn, resetBtn }
+  const p: Panel = { el, id, lang: el.dataset.lang || 'jsx', original: code, code, component, server, name: guess, gen: 0, result, errorEl, noteEl, editorBox, editBtn, runBtn, resetBtn }
   setState(p, 'idle')
 
   // the Expressive Code block this panel follows (its frame, with or without a title)
@@ -392,9 +414,17 @@ export function start() {
     document.head.append(style)
   }
 
-  const panels = [...document.querySelectorAll<HTMLElement>('.sygnal-live')].map((el) => {
+  // a live-server block serves the panels after it, until the next one
+  let server: string | undefined
+  let n = 0
+  const panels = [...document.querySelectorAll<HTMLElement>('.sygnal-live, .sygnal-live-server')].map((el) => {
+    if (el.classList.contains('sygnal-live-server')) {
+      server = `/__demo-server-${n++}`
+      files.set(server, { code: decode(el.dataset.code), lang: el.dataset.lang || 'js' })
+      return null
+    }
     try {
-      return setup(el)
+      return setup(el, server)
     } catch (e) {
       console.warn('[live] could not set up a demo', e)
       return null
