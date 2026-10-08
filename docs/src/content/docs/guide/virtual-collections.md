@@ -7,7 +7,7 @@ A `<Collection>` makes a component for every item. With thousands of rows that i
 
 `<VirtualCollection>` is itself the scroll container: it renders a `div` (`role="list"` by default) that scrolls. Put the class with the bounded height, `role` and `aria-label` on it (`<VirtualCollection className="people" aria-label="People" … />`), and don't wrap it in a scrolling `<ul>` or `<div>` of your own: it would grow with its rows, only a viewport's height of them would render, and [SYG430](/reference/errors/#syg430) reports it. SYG430 means: fix the height of the VirtualCollection's own class.
 
-```jsx
+```jsx live-file=./Row.jsx
 // Row.jsx
 export function Row({ state }) {
   return (
@@ -25,7 +25,7 @@ Row.model = {
 }
 ```
 
-```jsx
+```jsx live
 // People.jsx
 import { VirtualCollection } from 'sygnal'
 import { Row } from './Row.jsx'
@@ -39,7 +39,9 @@ export function People({ state }) {
   )
 }
 
-People.initialState = { people: [] }
+People.initialState = {
+  people: Array.from({ length: 10000 }, (_, i) => ({ id: i + 1, name: `Person ${i + 1}` })),
+}
 
 People.intent = ({ DOM }) => ({
   JUMP: DOM.click('.jump').mapTo(8999),
@@ -50,7 +52,7 @@ People.model = {
 }
 ```
 
-```css
+```css live
 .people { height: 480px; }
 ```
 

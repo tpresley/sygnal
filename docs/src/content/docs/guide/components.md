@@ -13,7 +13,7 @@ function MyComponent() {
 
 To make a component interactive, attach `.initialState`, `.intent`, and `.model` properties:
 
-```jsx
+```jsx live
 function Counter({ state }) {
   return (
     <div>

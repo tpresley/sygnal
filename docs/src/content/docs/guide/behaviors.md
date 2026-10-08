@@ -68,7 +68,7 @@ Without a `total`, `NEXT` has no upper bound. Set it with an option, with `pager
 
 Single or multiple selection over a list, with a select-all toggle:
 
-```jsx
+```jsx live
 import { selection, isSelected } from 'sygnal'
 
 export function Inbox({ state }) {
@@ -130,7 +130,7 @@ Read the selection with `isSelected(state.sel, id)`. Ids compare as strings, so 
 
 `defineBehavior()` takes the same parts as a component, without a view: `initialState`, `intent`, `model`, `calculated` and `timers`. It returns a factory: call it with the options of one use.
 
-```jsx
+```js live-file=./behaviors/disclosure.js
 // behaviors/disclosure.js
 import { ABORT, defineBehavior } from 'sygnal'
 
@@ -155,7 +155,7 @@ export const disclosure = defineBehavior({
 
 A host uses it like a first-party behavior:
 
-```jsx
+```jsx live
 // Product.jsx
 import { disclosure } from './behaviors/disclosure.js'
 
@@ -217,7 +217,7 @@ Two markers say how a behavior's state relates to the app's data:
 
 The host can trigger a behavior action, and add its own entry for one. Both use the namespaced name:
 
-```jsx
+```jsx live
 // Faq.jsx
 import { ABORT } from 'sygnal'
 import { disclosure } from './behaviors/disclosure.js'

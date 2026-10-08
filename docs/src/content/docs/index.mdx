@@ -60,3 +60,33 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
     File-based routing with SSR, client-side navigation, and automatic hydration via [Vike](https://vike.dev). Layouts, data fetching, and SPA mode included.
   </Card>
 </CardGrid>
+
+## A component
+
+A component is a function that renders its state, with the rest as statics: `intent` says *when* something happens, `model` says *what* happens. Press **Edit** to change it and see the result update.
+
+```jsx live
+function Counter({ state }) {
+  return (
+    <div>
+      <p>Count: {state.count}</p>
+      <button className="increment">+1</button>
+      <button className="reset">Reset</button>
+    </div>
+  )
+}
+
+Counter.initialState = { count: 0 }
+
+Counter.intent = ({ DOM }) => ({
+  INCREMENT: DOM.click('.increment'),
+  RESET: DOM.click('.reset'),
+})
+
+Counter.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  RESET: (state) => ({ ...state, count: 0 }),
+}
+```
+
+The [Quick Start](/getting-started/) builds one step by step.

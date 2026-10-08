@@ -5,7 +5,7 @@ description: Save the root component's state to localStorage and restore it on t
 
 `persist()` saves part of the app's state in the browser's storage and puts it back when the app starts again. You declare it once, on the root component: which keys to keep, under which storage key, and in which version of their shape.
 
-```jsx
+```jsx live
 // TodoApp.jsx
 import { ABORT, persist } from 'sygnal'
 
