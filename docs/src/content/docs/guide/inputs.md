@@ -13,7 +13,7 @@ A form-associated custom element (one whose class has `static formAssociated = t
 
 To refuse what the user entered, return `ABORT` (or the state unchanged): the state stays as it was, and because the action came from an `input` or `change` event, the component still renders, so the field shows the state's value again. A digits-only field:
 
-```jsx
+```jsx live
 import { ABORT } from 'sygnal'
 
 function Pin({ state }) {
@@ -33,7 +33,7 @@ Pick one of two patterns:
 
 **Controlled**: bind `value` to state and update state on `input`:
 
-```jsx
+```jsx live
 import { ABORT } from 'sygnal'
 
 function NewTodo({ state }) {
@@ -41,6 +41,7 @@ function NewTodo({ state }) {
     <div>
       <input className="new-todo" aria-label="New todo" value={state.draft} />
       <button className="add">Add</button>
+      <ul>{state.items.map((item) => <li>{item}</li>)}</ul>
     </div>
   )
 }
@@ -62,12 +63,14 @@ NewTodo.model = {
 
 **Uncontrolled**: leave out `value`, and read the element's value from the event when you need it (on blur, Enter or submit), or with [`processForm()`](/guide/forms-reference/#processform):
 
-```jsx
+```jsx live
 import { ABORT } from 'sygnal'
 
 function Rename({ state }) {
-  return <input className="rename" placeholder={state.title} />
+  return <input className="rename" aria-label="Title" placeholder={state.title} />
 }
+
+Rename.initialState = { title: 'Untitled' }
 
 Rename.intent = ({ DOM }) => ({
   RENAME: DOM.keydown('.rename').filter(e => e.key === 'Enter').map(e => e.target.value),
@@ -136,7 +139,7 @@ function SearchBar({ state }) {
 
 Add `autoSelect={true}` alongside `autoFocus` to select all text in the element after focusing. This is ideal for edit-in-place patterns where the user typically wants to replace the existing value:
 
-```jsx
+```jsx live
 function EditableTitle({ state }) {
   return (
     <div>
@@ -147,6 +150,8 @@ function EditableTitle({ state }) {
     </div>
   )
 }
+
+EditableTitle.initialState = { title: 'Double-click to rename', isEditing: false, draft: '' }
 
 EditableTitle.intent = ({ DOM }) => ({
   EDIT:  DOM.dblclick('.title'),

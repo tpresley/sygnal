@@ -9,7 +9,7 @@ Controls are fully supported, but they are an [alternative form](/advanced/alter
 
 A **control** is an element token: you declare it with `controls()`, render it as a JSX tag, and pass the same identifier wherever Sygnal takes a selector. The view and the intent name the element with one identifier instead of repeating a class string:
 
-```jsx
+```jsx live
 // AddTodo.jsx
 import { ABORT, controls } from 'sygnal'
 
@@ -95,7 +95,7 @@ Without importing it, use its selector: `t.simulateEvent('[data-control="Add"]',
 
 Isolation works as it does for selectors: a control in a [Collection](/guide/collections/) item matches only that item's element, so every item can use the same controls:
 
-```jsx
+```jsx live
 // TodoList.jsx
 import { Collection, controls } from 'sygnal'
 
@@ -146,7 +146,7 @@ A parent that listens to a control its child or Collection item renders never re
 
 A [behavior](/guide/behaviors/)'s options and an [element command](/guide/element-commands/)'s target take a control where they take a selector:
 
-```jsx
+```jsx live
 // Pages.jsx
 import { controls, pager } from 'sygnal'
 
@@ -167,7 +167,7 @@ Pages.initialState = {}
 Pages.uses = { pager: pager({ pageSize: 10, total: 35, next: Newer, prev: Older }) }
 ```
 
-```jsx
+```jsx live
 // EmailForm.jsx
 import { ABORT, controls } from 'sygnal'
 
@@ -224,7 +224,7 @@ Passing a component where a control or selector is expected (`DOM.click(NewTodo)
 
 To wrap a third-party widget (flatpickr, Chart.js), use [`defineWidget`](/guide/widgets/): it builds this spec for you, and also gives a tag you can render and select by class. A spec can be an object instead of an element name. This is the contract a widget library builds on: `controls({ Rating: stars })` gives a control that renders whatever the spec's `vnode()` returns, stamped with `data-control`, and that every API above accepts, whatever the spec.
 
-```jsx
+```jsx live-file=./stars.js
 // stars.js
 export const stars = {
   kind: 'widget',
@@ -239,7 +239,7 @@ export const stars = {
 }
 ```
 
-```jsx
+```jsx live
 // Review.jsx
 import { controls } from 'sygnal'
 import { stars } from './stars.js'
@@ -263,6 +263,12 @@ Review.model = {
     ELEMENT: { flash: Rating, ms: 300 },
   },
 }
+```
+
+The `flash` class is yours to style:
+
+```css live
+.flash { color: orange; }
 ```
 
 - **`kind`**: a free-form name (`'widget'`), shown by `inspect()` and in diagnostics.

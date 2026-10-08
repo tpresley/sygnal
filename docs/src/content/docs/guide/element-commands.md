@@ -80,7 +80,7 @@ The target is looked up in the view of the **component instance that sent the co
 
 To focus an element a child renders (a field of a child form, the input of a Collection item the same action adds), use `focusWithin(selector)` as the target. It looks for `selector` anywhere under the sender's root element, children included, and focuses the first match with the command's options:
 
-```jsx
+```jsx live
 import { Collection, focusWithin } from 'sygnal'
 
 function Row({ state }) {
@@ -131,7 +131,7 @@ During server rendering (`renderToString`) nothing runs: there are no elements t
 
 After a failed submit, move the focus to the first field with an error. The `ELEMENT` entry runs after the errors have rendered, so it can focus a field the same action marked invalid:
 
-```jsx
+```jsx live
 import { ABORT } from 'sygnal'
 
 const validate = ({ name, email }) => ({
@@ -179,7 +179,7 @@ Signup.model = {
 
 `showModal` opens a `<dialog>` as a modal: the browser traps the focus inside it, dims the page and closes it on Escape. Its `close` event tells the component that it closed, whichever way it did:
 
-```jsx
+```jsx live
 export function Help({ state }) {
   return (
     <div>
@@ -219,7 +219,7 @@ The dialog's open state belongs to the browser here: the component keeps only a 
 
 A Collection item reaches only its own elements, so a new row scrolls itself into view, from its `BOOTSTRAP` (which runs once, when the item is created):
 
-```jsx
+```jsx live
 import { ABORT, Collection } from 'sygnal'
 
 function TaskRow({ state }) {
@@ -233,7 +233,7 @@ TaskRow.model = {
 
 export function TaskList() {
   return (
-    <div>
+    <div className="task-list">
       <button className="add-task">Add a task</button>
       <ul>
         <Collection of={TaskRow} from="tasks" />
@@ -252,6 +252,12 @@ TaskList.model = {
     return { ...state, tasks: [...state.tasks, { id, text: `Task ${id}`, added: true }] }
   },
 }
+```
+
+The list here scrolls inside a box of its own, so a new row has somewhere to scroll to:
+
+```css live
+.task-list ul { max-height: 6.5em; overflow-y: auto; margin-top: 0.5rem; }
 ```
 
 In a [`<VirtualCollection>`](/guide/virtual-collections/#jumping-to-a-row) most rows aren't rendered, so the list jumps instead: its container takes `{ scrollToIndex: '.rows', index }` and `{ scrollToId: '.rows', id }`, sent by the component that renders it.
