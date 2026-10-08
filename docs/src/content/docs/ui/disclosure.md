@@ -5,7 +5,7 @@ description: A button that shows and hides a section, with ARIA attributes from 
 
 `disclosure()` is a [behavior](/guide/behaviors/) for a button that shows and hides one section of content, following the [WAI-ARIA disclosure pattern](https://www.w3.org/WAI/ARIA/apg/patterns/disclosure/). `disclosureAttrs()` gives the button `aria-expanded` and `aria-controls`, and the section its `id` and `hidden`.
 
-```jsx
+```jsx live
 import { disclosure, disclosureAttrs } from 'sygnal/ui'
 
 function Order({ state, uid }) {

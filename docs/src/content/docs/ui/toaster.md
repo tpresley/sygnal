@@ -5,10 +5,12 @@ description: Toast notifications sent with event('TOAST') from any component, an
 
 `<Toaster>` shows short notifications ("Saved", "Upload failed") that any component sends as an event. Render it once, near the root of the app:
 
-```jsx
+```jsx live
+// App.jsx
 import { Toaster } from 'sygnal/ui'
+import { Editor } from './Editor.jsx'
 
-function App({ state }) {
+export default function App({ state }) {
   return (
     <div className="app">
       <h1>{state.title}</h1>
@@ -30,10 +32,11 @@ run(App, { TIMER: makeTimerDriver() })
 
 Then send a toast from anywhere, through the `EVENTS` bus:
 
-```jsx
+```jsx live-file=./Editor.jsx
+// Editor.jsx
 import { event } from 'sygnal'
 
-function Editor({ state }) {
+export function Editor({ state }) {
   return (
     <div className="editor">
       <label>Note <textarea className="text" value={state.text} /></label>
@@ -102,7 +105,7 @@ Upload.model = {
 
 The region is a popover, so the browser draws it in the top layer, centred and with a border. Place it in a corner and style the toasts:
 
-```css
+```css live
 .toaster { inset: auto 1rem 1rem auto; margin: 0; padding: 0; border: 0; background: none; overflow: visible; }
 .toast { display: flex; gap: 0.75rem; align-items: center; margin-top: 0.5rem; padding: 0.75rem 1rem;
   border-radius: 6px; background: #1f2937; color: #fff; }

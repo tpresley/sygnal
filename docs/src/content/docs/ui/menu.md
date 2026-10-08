@@ -5,7 +5,7 @@ description: An accessible menu button (WAI-ARIA menu) from sygnal/ui/menu, buil
 
 `Menu` is a menu button: a trigger that opens a list of actions, following the [WAI-ARIA menu button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). The keyboard handling, focus management and typeahead come from [Zag.js](https://zagjs.com)'s menu machine; Sygnal renders it with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag: render it with a class, and read its events in the intent like any element's.
 
-```jsx
+```jsx live live-height=230
 import { Menu } from 'sygnal/ui/menu'
 
 const ACTIONS = [
@@ -91,10 +91,10 @@ A click outside closes it too.
 
 The parts carry Zag's data attributes: `[data-scope="menu"]` with `[data-part="trigger"]`, `"positioner"`, `"content"`, `"item"` and `"separator"`; the content and trigger have `data-state="open" | "closed"`, an item `data-highlighted` and `data-disabled`. The content is `hidden` while closed, and the positioner places it with `position` and CSS variables (`--x`, `--y`).
 
-```css
-.card-actions [data-part='content'] { background: white; border: 1px solid #ddd; border-radius: 6px; padding: 4px; }
+```css live
+.card-actions [data-part='content'] { background: Canvas; border: 1px solid #ddd; border-radius: 6px; padding: 4px; }
 .card-actions [data-part='item'] { padding: 4px 8px; border-radius: 4px; cursor: default; }
-.card-actions [data-part='item'][data-highlighted] { background: #eef2ff; }
+.card-actions [data-part='item'][data-highlighted] { background: rgb(99 102 241 / 0.25); }
 .card-actions [data-part='item'][data-disabled] { opacity: 0.5; }
 ```
 

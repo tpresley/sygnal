@@ -5,7 +5,7 @@ description: Accessible tabs over your own markup, with roving focus and ARIA at
 
 `tabs()` is a [behavior](/guide/behaviors/) that turns your own buttons and panels into tabs, following the [WAI-ARIA tabs pattern](https://www.w3.org/WAI/ARIA/apg/patterns/tabs/). `tabsAttrs()` computes the attributes to spread on them: roles, ids that link each tab to its panel, `aria-selected`, the roving `tabindex` and `hidden` on the other panels.
 
-```jsx
+```jsx live
 import { tabs, tabsAttrs } from 'sygnal/ui'
 
 const SECTIONS = [
@@ -77,7 +77,7 @@ Values are compared as strings.
 
 When the user closes the selected tab, select a neighbour in the same reducer and move the focus to it (the close button that had the focus is gone):
 
-```jsx
+```jsx live
 import { ABORT } from 'sygnal'
 import { tabs, tabsAttrs } from 'sygnal/ui'
 
@@ -99,7 +99,13 @@ function Editor({ state, uid }) {
 }
 
 Editor.uses = { tabs: tabs({ tab: '.tab' }) }
-Editor.initialState = { files: [] }
+Editor.initialState = {
+  files: [
+    { id: 'readme', name: 'README.md', text: 'About this project' },
+    { id: 'main', name: 'main.js', text: 'run(App)' },
+    { id: 'styles', name: 'styles.css', text: 'body { margin: 0 }' },
+  ],
+}
 
 Editor.intent = ({ DOM }) => ({ CLOSE: DOM.click('.close').data('value') })
 
@@ -128,7 +134,7 @@ Editor.model = {
 
 ## Styling
 
-```css
+```css live
 .tab-list { display: flex; gap: 4px; border-bottom: 1px solid #ddd; }
 .tab[data-state='active'] { border-bottom: 2px solid currentColor; font-weight: 600; }
 .tab-panel:focus-visible { outline: 2px solid #2563eb; }
