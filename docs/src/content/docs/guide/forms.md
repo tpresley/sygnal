@@ -9,9 +9,21 @@ This page is the recipe and what you need around it. The [Forms reference](/guid
 
 ## The recipe
 
+In this demo, a stand-in server answers the request: `taken@example.com` is already registered, any other address gets an account.
+
+```js live-server
+let nextId = 1
+
+export default {
+  'POST /api/signup': ({ json }) => json.email === 'taken@example.com'
+    ? { status: 422, json: { errors: { email: 'Already registered' } } }
+    : { status: 201, json: { id: nextId++ } },
+}
+```
+
 Validation, a list of rows the user adds and removes, the submit to the server, the pending button, and the server's errors:
 
-```jsx
+```jsx live
 import { form } from 'sygnal'
 import { z } from 'zod'
 
@@ -87,6 +99,10 @@ Signup.model = {
 - **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](/guide/inputs/#labels-and-ids-uid) (a row's ids include its `id`, so they stay unique), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
 
 Reserve the height of the error lines in your CSS (`min-height`). A field's error appears when it loses focus, which happens on the mouse*down* of a click elsewhere: if the new line pushes the button down before the mouse*up*, the click is lost.
+
+```css live
+.signup p { min-height: 1.5em; }
+```
 
 ## Submit without a request
 

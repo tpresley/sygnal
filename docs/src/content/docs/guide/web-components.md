@@ -7,17 +7,13 @@ A web component is an element: once its library has defined the tag, the browser
 
 ## Using web components
 
-Load the library's elements once, at startup, then render the tags and select them by class like any element:
+Load the library's theme and elements once, at startup (in an app's `main.js`; this demo loads them at its top), then render the tags and select them by class like any element:
 
-```jsx
-// main.js
+```jsx live=Review
 import '@awesome.me/webawesome/dist/styles/themes/default.css'
 import '@awesome.me/webawesome/dist/components/rating/rating.js'
 import '@awesome.me/webawesome/dist/components/input/input.js'
-```
 
-```jsx
-// Review.jsx
 export function Review({ state }) {
   return (
     <div>

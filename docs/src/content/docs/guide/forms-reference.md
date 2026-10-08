@@ -61,9 +61,36 @@ An async schema (valibot's `pipeAsync`, zod's async refinements) works too: `sta
 
 ## Async checks
 
-Some checks need the server: is this email address taken? `check` names a field and the request that checks it. The request goes to the `HTTP` driver ([`makeFetchDriver`](/guide/http/)) with a reply action the form handles, and `latest: true`, so a check for a newer value replaces the older one:
+Some checks need the server: is this email address taken? `check` names a field and the request that checks it. The request goes to the `HTTP` driver ([`makeFetchDriver`](/guide/http/)) with a reply action the form handles, and `latest: true`, so a check for a newer value replaces the older one.
 
-```jsx
+In this demo, a stand-in server answers both requests: `ada@example.com` is already registered, and so is each address that signs up.
+
+```js live-server
+const registered = ['ada@example.com']
+
+export default {
+  'GET /api/email-available': ({ query }) => ({ json: { available: !registered.includes(query.email) } }),
+  'POST /api/signup': ({ json }) => {
+    if (registered.includes(json.email)) return { status: 422, json: { errors: { email: 'Already registered' } } }
+    registered.push(json.email)
+    return { status: 201, json: { id: registered.length } }
+  },
+}
+```
+
+The schema checks the address's form, in `./schema.js`:
+
+```js live-file=./schema.js
+import { z } from 'zod'
+
+export const signupSchema = z.object({
+  email: z.string().trim().toLowerCase().email('Enter a valid email address'),
+})
+```
+
+The form checks the address with the server when the field loses focus:
+
+```jsx live
 import { form } from 'sygnal'
 import { signupSchema } from './schema.js'
 
@@ -75,6 +102,7 @@ function Signup({ state, uid }) {
       <input id={uid('email')} name="email" type="email" value={f.email.value} aria-invalid={f.email.invalid} aria-describedby={uid('email-error')} />
       <p id={uid('email-error')}>{f.email.pending ? 'Checking…' : f.email.error}</p>
       <button type="submit" disabled={state.form.submitting}>Sign up</button>
+      <p role="status">{state.form.submitted ? 'Signed up.' : ''}</p>
     </form>
   )
 }
@@ -95,6 +123,12 @@ Signup.uses = {
 Signup.model = {
   SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
 }
+```
+
+The message line keeps its height, so the button doesn't move when `Checking…` appears ([why](/guide/forms/#what-the-form-does)):
+
+```css live
+.signup p { min-height: 1.5em; }
 ```
 
 - A field is checked when it loses focus, once per value, and only when its schema error is clear and it isn't empty. `error(body)` turns the reply into a message, or a falsy value when the value is fine.

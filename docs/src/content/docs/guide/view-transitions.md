@@ -53,7 +53,7 @@ It is the DOM driver that `run()` creates by default (it also takes the same opt
 
 Each card is an item of one of two Collections. Its `Move` button sends its id to the board, which moves the card to the other lane:
 
-```jsx
+```jsx live-file=./Card.jsx
 // Card.jsx
 export function Card({ state }) {
   return (
@@ -71,7 +71,7 @@ Card.model = {
 }
 ```
 
-```jsx
+```jsx live=Board
 // Board.jsx
 import { Collection } from 'sygnal'
 import { Card } from './Card.jsx'
@@ -110,11 +110,20 @@ Board.model = {
 Board.viewTransitions = ['MOVE']
 ```
 
+The lanes sit side by side, each as tall as its cards:
+
+```css live
+.board { display: flex; gap: 1rem; align-items: flex-start; }
+.lane { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid #8886; border-radius: 0.5rem; }
+.lane ul { padding: 0; list-style: none; }
+.card { display: flex; justify-content: space-between; align-items: center; }
+```
+
 Both lanes name their cards with the prefix `card`, so card 1 is `card-1` in either lane, and flies from one to the other. The names must be unique on the page at the moment of the transition: if two elements share a name, the browser skips the whole transition (Chrome logs "Unexpected duplicate view-transition-name") and the page updates at once. The lanes are named by hand, with `style`: they are not Collection items.
 
 The browser's default animation needs two fixes for this layout, in CSS:
 
-```css
+```css live
 /* the moving card flies above the lanes, not under the lane it moves to */
 ::view-transition-group(*.card) {
   z-index: 1;
