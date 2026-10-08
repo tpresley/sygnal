@@ -1,6 +1,16 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import fs from 'node:fs'
+import { createHash } from 'node:crypto'
 import remarkLive from './src/plugins/remark-live.mjs'
+
+// Astro's content layer keeps rendered pages until a page or the config changes: the live
+// examples' build code goes into the config as the plugin's option, so a change to it renders
+// every page again
+const liveBuild = createHash('sha256')
+for (const f of ['src/plugins/remark-live.mjs', 'src/live/compile.mjs', 'src/live/paths.mjs', 'src/live/modules.ts']) {
+  liveBuild.update(fs.readFileSync(new URL(f, import.meta.url)))
+}
 
 export default defineConfig({
   site: 'https://sygnal.js.org',
@@ -10,7 +20,7 @@ export default defineConfig({
   },
   // live examples: a ```jsx live fence gets a Result panel (see src/plugins/remark-live.mjs)
   markdown: {
-    remarkPlugins: [remarkLive],
+    remarkPlugins: [[remarkLive, { build: liveBuild.digest('hex').slice(0, 16) }]],
   },
   vite: {
     resolve: {

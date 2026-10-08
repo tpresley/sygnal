@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 // Checks the live examples of a built docs site (npm --prefix docs run build first):
 // serves docs/dist, opens every page with a `.sygnal-live` panel in Playwright, scrolls each
-// demo into view and fails when a demo shows an error, renders no DOM, or the page logs a
-// console error. One line per demo.
+// demo into view, waits until it has started, its demo-server requests are answered
+// (data-live-pending 0) and its handled-error checks are done (data-live-checking 0), and fails
+// when a demo shows an error, renders no DOM, makes a request no demo route answers (404) or
+// whose handler throws (unless its fence says live-expect=404 / throw), or the page logs a
+// console error. Every panel is checked again before the page closes (late errors). One line
+// per demo; a page that can't be loaded is a FAIL line, and the run goes on.
 //
 //   node docs/scripts/check-live.mjs [--only=<path substring>] [--dist=<dir>]
 //   BROWSER=chromium|firefox|webkit (default chromium; the cached browsers of browser-tests/)
@@ -63,7 +67,7 @@ if (!pages.length) {
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.woff': 'font/woff', '.txt': 'text/plain', '.xml': 'application/xml', '.wasm': 'application/wasm', '.webmanifest': 'application/manifest+json' }
 const server = http.createServer((req, res) => {
   let file = path.join(dist, decodeURIComponent(new URL(req.url, 'http://x').pathname))
-  if (!file.startsWith(dist)) { res.writeHead(403).end(); return }
+  if (file !== dist && !file.startsWith(dist + path.sep)) { res.writeHead(403).end(); return }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html')
   if (!fs.existsSync(file)) { res.writeHead(404).end('not found'); return }
   res.writeHead(200, { 'content-type': TYPES[path.extname(file)] || 'application/octet-stream' })
@@ -72,6 +76,28 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const origin = `http://127.0.0.1:${server.address().port}`
 
+/** a panel's state, read in the page */
+const inspect = (el) => {
+  const expect = (el.dataset.expect || '').split(',')
+  const bad = [...el.querySelectorAll('.live-note [data-kind]')]
+    .filter((n) => (n.dataset.kind === 'no-route' && !expect.includes('404')) || (n.dataset.kind === 'threw' && !expect.includes('throw')))
+  return {
+    state: el.dataset.liveState,
+    error: el.querySelector('.live-error:not([hidden]) pre')?.textContent?.trim() || '',
+    bad: bad.map((n) => n.textContent),
+    pending: Number(el.dataset.livePending || 0),
+    nodes: el.querySelector('.live-mount')?.querySelectorAll('*').length ?? 0,
+    label: el.querySelector('.live-result')?.getAttribute('aria-label') || '',
+  }
+}
+/** what is wrong with a panel ('' when nothing) */
+const problemOf = (r) =>
+  r.error ? `error: ${r.error.split('\n')[0]}`
+    : r.bad.length ? `demo server: ${r.bad[0]}${r.bad.length > 1 ? ` (+${r.bad.length - 1} more)` : ''} (live-expect=404 / throw if intended)`
+      : r.state !== 'running' ? `state ${r.state}`
+        : !r.nodes ? 'rendered no DOM'
+          : ''
+
 const browser = await browserType.launch()
 let failed = 0
 let demos = 0
@@ -79,45 +105,61 @@ console.log(`check-live: ${pages.length} page(s) on ${engine}`)
 try {
   for (const rel of pages) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
-    const page = await context.newPage()
-    const errors = []
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
-    page.on('pageerror', (e) => errors.push(`uncaught: ${e.message}`))
-    await page.goto(origin + rel, { waitUntil: 'load' })
-    const count = await page.locator('.sygnal-live').count()
-    await page.waitForFunction((n) => document.querySelectorAll('.sygnal-live[data-live-state]').length === n, count, { timeout: TIMEOUT })
-      .catch(() => {})
-    for (let i = 0; i < count; i++) {
-      demos++
-      const panel = page.locator('.sygnal-live').nth(i)
-      const id = await panel.getAttribute('data-live-id')
-      let problem = ''
-      let label = ''
-      try {
-        await panel.scrollIntoViewIfNeeded()
-        await page.waitForFunction((el) => ['running', 'error'].includes(el.dataset.liveState), await panel.elementHandle(), { timeout: TIMEOUT })
-        await page.waitForTimeout(500) // async errors (a first action, an onError)
-        const r = await panel.evaluate((el) => ({
-          state: el.dataset.liveState,
-          error: el.querySelector('.live-error:not([hidden])')?.textContent?.trim() || '',
-          nodes: el.querySelector('.live-mount')?.querySelectorAll('*').length ?? 0,
-          label: el.querySelector('.live-result')?.getAttribute('aria-label') || '',
-        }))
-        label = r.label
-        if (r.error) problem = `error: ${r.error.split('\n')[0]}`
-        else if (r.state !== 'running') problem = `state ${r.state}`
-        else if (!r.nodes) problem = 'rendered no DOM'
-      } catch (e) {
-        problem = `did not start: ${e.message.split('\n')[0]}`
+    try {
+      const page = await context.newPage()
+      const errors = []
+      page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
+      page.on('pageerror', (e) => errors.push(`uncaught: ${e.message}`))
+      await page.goto(origin + rel, { waitUntil: 'load', timeout: TIMEOUT })
+      const count = await page.locator('.sygnal-live').count()
+      await page.waitForFunction((n) => document.querySelectorAll('.sygnal-live[data-live-state]').length === n, count, { timeout: TIMEOUT })
+        .catch(() => {})
+      const reported = new Set()
+      for (let i = 0; i < count; i++) {
+        demos++
+        const panel = page.locator('.sygnal-live').nth(i)
+        const id = await panel.getAttribute('data-live-id')
+        let problem = ''
+        let label = ''
+        try {
+          await panel.scrollIntoViewIfNeeded()
+          const el = await panel.elementHandle()
+          await page.waitForFunction((el) => ['running', 'error'].includes(el.dataset.liveState), el, { timeout: TIMEOUT })
+          await page.waitForTimeout(500) // a first action, an onError
+          // its demo-server requests answered, its handled-error checks done
+          const settled = await page.waitForFunction((el) => el.dataset.livePending === '0' && !Number(el.dataset.liveChecking || 0), el, { timeout: TIMEOUT })
+            .then(() => true, () => false)
+          const r = await panel.evaluate(inspect)
+          label = r.label
+          problem = problemOf(r) || (settled ? '' : `still waiting after ${TIMEOUT / 1000} s (${r.pending} demo-server request(s) pending)`)
+        } catch (e) {
+          problem = `did not start: ${e.message.split('\n')[0]}`
+        }
+        if (problem) { failed++; reported.add(i) }
+        console.log(`${problem ? 'FAIL' : 'ok  '} ${rel} ${id} ${label}${problem ? ` -- ${problem}` : ''}`)
       }
-      if (problem) failed++
-      console.log(`${problem ? 'FAIL' : 'ok  '} ${rel} ${id} ${label}${problem ? ` -- ${problem}` : ''}`)
-    }
-    if (errors.length) {
+      // late errors: every panel once more before the page closes
+      await page.waitForTimeout(300)
+      for (let i = 0; i < count; i++) {
+        if (reported.has(i)) continue
+        const panel = page.locator('.sygnal-live').nth(i)
+        const r = await panel.evaluate(inspect)
+        const problem = problemOf(r)
+        if (problem) {
+          failed++
+          console.log(`FAIL ${rel} ${await panel.getAttribute('data-live-id')} ${r.label} -- later: ${problem}`)
+        }
+      }
+      if (errors.length) {
+        failed++
+        for (const e of errors) console.log(`FAIL ${rel} console error: ${e.split('\n')[0]}`)
+      }
+    } catch (e) {
       failed++
-      for (const e of errors) console.log(`FAIL ${rel} console error: ${e.split('\n')[0]}`)
+      console.log(`FAIL ${rel} -- the page could not be checked: ${e.message.split('\n')[0]}`)
+    } finally {
+      await context.close().catch(() => {})
     }
-    await context.close()
   }
 } finally {
   await browser.close()
