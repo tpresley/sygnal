@@ -12,7 +12,7 @@ Sygnal has two tools for drag and drop:
 
 `sortable({ from, item, handle })` reorders `state[from]`. The items are usually a Collection; each item's element carries its id in `data-id`, and the handle is a button inside it:
 
-```jsx
+```jsx live
 import { Collection, sortable } from 'sygnal'
 
 function Task({ state, context }) {
@@ -51,7 +51,7 @@ TaskList.model = {
 }
 ```
 
-```css
+```css live
 .grip { touch-action: none; user-select: none; cursor: grab; }
 .task.dragging { opacity: 0.5; }
 .task.drop-before { box-shadow: 0 -2px 0 royalblue; }
@@ -123,7 +123,7 @@ For touch, give the handle `touch-action: none`, or the browser scrolls the page
 
 With `from: ['todo', 'done']`, items move between the lists. Mark each list's container with `data-list` and its key, so a pointer drop on an empty list lands in it:
 
-```jsx
+```jsx live
 import { Collection, sortable } from 'sygnal'
 
 function Card({ state }) {
@@ -146,6 +146,14 @@ function Board({ state }) {
 
 Board.initialState = { todo: [{ id: 'a', title: 'Draft' }, { id: 'b', title: 'Review' }], done: [] }
 Board.uses = { sort: sortable({ from: ['todo', 'done'], item: '.card', handle: '.grip' }) }
+```
+
+Give an empty list some height, so there is something to drop on:
+
+```css live
+.board { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.board [role="status"] { grid-column: 1 / -1; }
+.lane { min-height: 3rem; border: 1px dashed currentColor; }
 ```
 
 `sort.DROPPED`'s `fromList` and `list` say where the item came from and went. Over an item of the other list, the pointer's half of it decides: the upper half (the left half with `axis: 'x'`) lands before it, the lower half after it, so the end of a list is reached over its last item. Within the item's own list it lands before the hovered item when moving up and after it when moving down.

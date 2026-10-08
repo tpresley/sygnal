@@ -189,10 +189,13 @@ Under `prefers-reduced-motion: reduce`, the driver applies every render at once,
 
 [AutoAnimate](https://auto-animate.formkit.com/) (`@formkit/auto-animate`, about 3 KB) animates the children of one element whenever they are added, removed or moved, with FLIP: no action list, and the page stays interactive, so it suits drag-sort and filter-as-you-type lists. Give it the element the Collection renders its items into, from a [callback ref](/advanced/refs/#callback-refs) on that element:
 
-```jsx
+```jsx live
 import autoAnimate from '@formkit/auto-animate'
 import { Collection } from 'sygnal'
-import { Row } from './Row.jsx'
+
+function Row({ state }) {
+  return <li>{state.title}</li>
+}
 
 // a ref runs on mount and after each patch of its element: set the list up once
 const animated = new WeakSet()
@@ -205,10 +208,22 @@ const animateRows = (el) => {
 
 export function List({ state }) {
   return (
-    <ul className="rows" ref={animateRows}>
-      <Collection of={Row} from="rows" sort={state.order} />
-    </ul>
+    <div>
+      <button className="sort">Sort {state.order.title === 'asc' ? 'Z to A' : 'A to Z'}</button>
+      <ul className="rows" ref={animateRows}>
+        <Collection of={Row} from="rows" sort={state.order} />
+      </ul>
+    </div>
   )
+}
+
+List.initialState = {
+  order: { title: 'asc' },
+  rows: [{ id: 1, title: 'Apples' }, { id: 2, title: 'Bread' }, { id: 3, title: 'Cheese' }, { id: 4, title: 'Dates' }],
+}
+List.intent = ({ DOM }) => ({ SORT: DOM.click('.sort') })
+List.model = {
+  SORT: (state) => ({ ...state, order: { title: state.order.title === 'asc' ? 'desc' : 'asc' } }),
 }
 ```
 

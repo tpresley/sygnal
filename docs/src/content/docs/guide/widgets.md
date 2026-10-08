@@ -5,10 +5,11 @@ description: defineWidget wraps a third-party widget (a date picker, a chart, an
 
 Most UI libraries that aren't tied to a framework work the same way: you hand them an element, they build their content inside it, call you back when something happens, and give you an object with methods. `defineWidget()` turns such a library into a JSX tag. The view renders it like an element, the intent selects it by class like any element, and the widget keeps its instance across renders.
 
-```jsx
+```jsx live-file=./DatePicker.js
 // DatePicker.js
 import { defineWidget } from 'sygnal'
 import flatpickr from 'flatpickr'
+import 'flatpickr/dist/flatpickr.css'
 
 export const DatePicker = defineWidget({
   tag: 'input',
@@ -20,7 +21,7 @@ export const DatePicker = defineWidget({
 })
 ```
 
-```jsx
+```jsx live
 // Task.jsx
 import { DatePicker } from './DatePicker.js'
 

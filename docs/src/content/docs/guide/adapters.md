@@ -23,15 +23,29 @@ The libraries are optional peer dependencies of `sygnal`: an app that doesn't im
 npm install react react-dom
 ```
 
-```jsx
+The React component here is a small one of our own, written with React's `createElement` (the JSX on these pages is Sygnal's); a component from npm is wrapped the same way:
+
+```js live-file=./Rating.js
+// Rating.js: a React component
+import { createElement as h } from 'react'
+
+export function Rating({ value, max, onChange }) {
+  return h('span', { role: 'group', 'aria-label': 'Rating' },
+    Array.from({ length: max }, (_, i) => h('button', {
+      key: i, type: 'button', 'aria-label': `${i + 1} of ${max}`, 'aria-pressed': i < value, onClick: () => onChange(i + 1),
+    }, i < value ? '★' : '☆')))
+}
+```
+
+```jsx live-file=./Stars.js
 // Stars.js
 import { fromReact } from 'sygnal/react'
-import { Rating } from 'some-react-rating'
+import { Rating } from './Rating.js'
 
 export const Stars = fromReact(Rating, { events: { rate: 'onChange' } })
 ```
 
-```jsx
+```jsx live
 // Review.jsx
 import { Stars } from './Stars.js'
 
@@ -108,7 +122,7 @@ npm install preact
 npm install @zag-js/vanilla@~1.45.0 @zag-js/menu@~1.45.0
 ```
 
-```jsx
+```jsx live-file=./Actions.jsx
 // Actions.jsx
 import { fromZag } from 'sygnal/zag'
 import * as menu from '@zag-js/menu'
@@ -129,7 +143,7 @@ export const Actions = fromZag(menu, (api, props) => (
 })
 ```
 
-```jsx
+```jsx live live-height=170
 // Toolbar.jsx
 import { Actions } from './Actions.jsx'
 
@@ -144,6 +158,14 @@ Toolbar.intent = ({ DOM }) => ({
 Toolbar.model = {
   PICK: (state, last) => ({ ...state, last }),
 }
+```
+
+Zag's parts come unstyled. Style them by the `data-scope` and `data-part` attributes the prop getters put on them:
+
+```css live
+[data-scope="menu"][data-part="content"] { margin: 0; padding: 0.25rem 0; list-style: none; background: Canvas; border: 1px solid GrayText; z-index: 1; }
+[data-scope="menu"][data-part="item"] { padding: 0.25rem 0.75rem; cursor: pointer; }
+[data-scope="menu"][data-part="item"][data-highlighted] { background: Highlight; color: HighlightText; }
 ```
 
 - **`zag`** is the machine package as a namespace (`import * as menu from '@zag-js/menu'`): its `machine` and `connect`.
