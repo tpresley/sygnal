@@ -9,7 +9,27 @@
   border-radius: 0.375rem;
   background: var(--sl-color-bg);
   color: var(--sl-color-text);
-  overflow: hidden;
+  /* Floating content (a Zag menu, select or combobox list: position absolute) overflows the
+     panel instead of being clipped: the panel is its containing block, so the result region's
+     overflow (which scrolls wide content: a table, a grid) doesn't clip it, and the panel's own
+     overflow stays visible. The z-index lifts it over the code blocks that follow; the panel in
+     use goes above the other panels */
+  position: relative;
+  z-index: 1;
+}
+
+.sygnal-live:focus-within,
+.sygnal-live:has([data-state='open']) {
+  z-index: 2;
+}
+
+/* the corners the panel's overflow no longer clips */
+.sygnal-live > :first-child {
+  border-radius: calc(0.375rem - 1px) calc(0.375rem - 1px) 0 0;
+}
+
+.sygnal-live > .live-error pre {
+  border-radius: 0 0 calc(0.375rem - 1px) calc(0.375rem - 1px);
 }
 
 /* the static code block above a panel whose editor is open */
@@ -89,12 +109,21 @@
   padding: 1rem;
   font-size: var(--sl-text-sm);
   line-height: 1.5;
+  /* wide content scrolls here; floating content escapes (see .sygnal-live) */
   overflow: auto;
 }
 
 .sygnal-live .live-loading {
   margin: 0;
   color: var(--sl-color-gray-3);
+}
+
+.sygnal-live .live-note {
+  padding: 0.375rem 0.75rem;
+  border-top: 1px solid var(--sl-color-gray-5);
+  color: var(--sl-color-gray-3);
+  font-family: var(--__sl-font-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
+  font-size: var(--sl-text-xs);
 }
 
 .sygnal-live .live-error {
@@ -169,7 +198,7 @@
   margin: 0 0.5rem 0.375rem 0;
 }
 
-:where(.sygnal-live) :where(dialog, [popover]) {
+:where(.sygnal-live) :where(dialog, [popover]:not(.toaster)) {
   padding: 1rem 1.25rem;
   border: 1px solid var(--sl-color-gray-4);
   border-radius: 0.5rem;
@@ -182,6 +211,14 @@
    with margin: auto */
 :where(.sygnal-live) :where(dialog:modal, [popover]) {
   margin: auto;
+}
+
+/* the Toaster's region is an always-open popover: no box of its own, so an empty one is invisible */
+:where(.sygnal-live) :where(.toaster[popover]) {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 
 :where(.sygnal-live) :where(dialog)::backdrop {

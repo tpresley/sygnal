@@ -21,6 +21,7 @@ interface Panel {
   mount?: HTMLElement
   result: HTMLElement
   errorEl: HTMLElement
+  noteEl: HTMLElement
   editorBox: HTMLElement
   editBtn: HTMLButtonElement
   runBtn: HTMLButtonElement
@@ -89,7 +90,35 @@ function showError(p: Panel, err: any, info?: any) {
   setState(p, 'error')
 }
 
+/**
+ * The drivers every live demo gets, under the names the docs use in run(): the local ones
+ * (no server, no page-level side effects). Documented in src/plugins/remark-live.mjs
+ */
+function defaultDrivers(Sygnal: any) {
+  return {
+    TIMER: Sygnal.makeTimerDriver(),
+    BROWSER: Sygnal.makeBrowserDriver(),
+    DND: Sygnal.makeDragDriver(),
+  }
+}
+
+const errText = (err: any, info?: any) => {
+  const where = info && (info.componentName || info.phase) ? ` (${[info.componentName, info.phase, info.action].filter(Boolean).join(', ')})` : ''
+  return (err instanceof Error ? err.message : String(err)) + where
+}
+
+/** a handled error: a quiet note, not a failure */
+function showNote(p: Panel, err: any, info?: any) {
+  const line = document.createElement('div')
+  line.textContent = `Reported to run({ onError }): ${errText(err, info)}`
+  p.noteEl.append(line)
+  while (p.noteEl.childElementCount > 5) p.noteEl.firstElementChild!.remove()
+  p.noteEl.hidden = false
+}
+
 function clearError(p: Panel) {
+  p.noteEl.replaceChildren()
+  p.noteEl.hidden = true
   p.errorEl.replaceChildren()
   p.errorEl.hidden = true
 }
@@ -113,18 +142,18 @@ async function runPanel(p: Panel) {
     const compiled = new Map<string, Compiled>([[ENTRY, entry]])
     const bare = new Set<string>()
     const links = new Map<string, Map<string, string>>()
-    const visit = (from: string, c: Compiled) => {
+    const visit = (from: string, c: Compiled, into = bare) => {
       const map = new Map<string, string>()
       links.set(from, map)
       for (const spec of c.requires) {
-        if (!isRelative(spec)) { bare.add(spec); continue }
+        if (!isRelative(spec)) { into.add(spec); continue }
         const key = resolveFile(spec, from)
         map.set(spec, key)
         if (!compiled.has(key)) {
           const f = files.get(key)!
           const fc = compile(f.code, { lang: f.lang, filename: key.slice(1), component: false })
           compiled.set(key, fc)
-          visit(key, fc)
+          visit(key, fc, into)
         }
       }
     }
@@ -146,10 +175,32 @@ async function runPanel(p: Panel) {
       instances.set(key, module)
       const map = links.get(key)!
       const req = (spec: string) => (isRelative(spec) ? evaluate(map.get(spec)!) : loaded.get(spec))
+      // import('spec'): a Promise of the namespace, through the same resolver. A string-literal
+      // specifier was compiled and loaded up front; a computed one is resolved here
+      const dynImport = async (spec: string) => {
+        spec = String(spec)
+        await null
+        if (!isRelative(spec)) return loaded.get(spec) ?? load(spec)
+        let target = map.get(spec)
+        if (!target) {
+          target = resolveFile(spec, key)
+          map.set(spec, target)
+          if (!compiled.has(target)) {
+            const f = files.get(target)!
+            const fc = compile(f.code, { lang: f.lang, filename: target.slice(1), component: false })
+            compiled.set(target, fc)
+            const more = new Set<string>()
+            visit(target, fc, more)
+            await Promise.all([...more].map(async (s) => loaded.set(s, await load(s))))
+          }
+        }
+        const ns = evaluate(target)
+        return ns && ns.__esModule ? ns : { ...ns, default: ns, __esModule: true }
+      }
       const set = key === ENTRY ? (name: string, get: () => any) => { picked = { name, get } } : () => {}
       const source = `${compiled.get(key)!.code}\n//# sourceURL=live/${p.id}${key === ENTRY ? '/' + p.name : key}`
       // eslint-disable-next-line no-new-func
-      new Function('require', 'module', 'exports', '__h', '__Fragment', '__liveSet', source)(req, module, module.exports, h, Fragment, set)
+      new Function('require', 'module', 'exports', '__h', '__Fragment', '__liveSet', '__liveImport', source)(req, module, module.exports, h, Fragment, set, dynImport)
       return module.exports
     }
     const exports = evaluate(ENTRY)
@@ -180,10 +231,23 @@ async function runPanel(p: Panel) {
     p.mount = mount
     p.result.setAttribute('aria-label', `Result: ${name}`)
     setState(p, 'running')
-    p.app = Sygnal.run(Component, {}, {
+    p.app = Sygnal.run(Component, defaultDrivers(Sygnal), {
       mountPoint: mount,
       uid: p.id,
-      onError: (e: any, info: any) => { if (gen === p.gen) showError(p, e, info) },
+      onError: (e: any, info: any) => {
+        if (gen !== p.gen) return
+        // A view error (or a child that failed to instantiate) that a component's own .onError
+        // handled is not a failure: run()'s hook is called for it too (the error-boundaries page
+        // teaches that). Unhandled, Sygnal renders its placeholder <div data-sygnal-error>, and
+        // the DOM is patched synchronously at the end of the flush, so look after it
+        if (info && (info.phase === 'view' || info.phase === 'instantiate')) {
+          setTimeout(() => {
+            if (gen !== p.gen) return
+            if (mount.querySelector('[data-sygnal-error]')) showError(p, e, info)
+            else showNote(p, e, info)
+          })
+        } else showError(p, e, info)
+      },
     })
   } catch (err) {
     if (gen !== p.gen) return
@@ -268,8 +332,13 @@ function setup(el: HTMLElement): Panel {
   errorEl.setAttribute('role', 'alert')
   errorEl.hidden = true
 
-  el.replaceChildren(bar, editorBox, result, errorEl)
-  const p: Panel = { el, id, lang: el.dataset.lang || 'jsx', original: code, code, component, name: guess, gen: 0, result, errorEl, editorBox, editBtn, runBtn, resetBtn }
+  const noteEl = document.createElement('div')
+  noteEl.className = 'live-note'
+  noteEl.setAttribute('role', 'status')
+  noteEl.hidden = true
+
+  el.replaceChildren(bar, editorBox, result, noteEl, errorEl)
+  const p: Panel = { el, id, lang: el.dataset.lang || 'jsx', original: code, code, component, name: guess, gen: 0, result, errorEl, noteEl, editorBox, editBtn, runBtn, resetBtn }
   setState(p, 'idle')
 
   // the Expressive Code block this panel follows (its frame, with or without a title)
