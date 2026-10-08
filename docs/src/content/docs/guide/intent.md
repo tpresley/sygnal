@@ -165,9 +165,15 @@ MyComponent.intent = ({ DOM }) => ({
 
 ## Reacting to State Changes: STATE.watch
 
-`STATE.watch(selector)` is a stream of `selector(state)` that emits only when that value changes. Use it for "when X changes, do Y": save a draft, reload a list when its filter changes, sync a value to the URL.
+`STATE.watch(selector)` is a stream of `selector(state)` that emits only when that value changes. Use it for "when X changes, do Y": save a draft, reload a list when its filter changes, sync a value to the URL. In this demo, a stand-in server accepts the saves:
 
-```jsx
+```js live-server
+export default {
+  'PUT /api/notes': ({ json }) => ({ json }),
+}
+```
+
+```jsx live
 import { debounce } from 'sygnal'
 
 function Notes({ state }) {

@@ -18,9 +18,17 @@ import { Suspense } from 'sygnal'
 Components control Suspense visibility through the built-in `READY` sink:
 
 - **Components without explicit READY model entries** automatically emit `READY: true` on instantiation — they're immediately ready.
-- **Components with READY model entries** start as not-ready and must explicitly signal readiness:
+- **Components with READY model entries** start as not-ready and must explicitly signal readiness. In this demo, a stand-in server answers after two seconds:
 
-```jsx
+```js live-server
+export default {
+  'GET /api/data': () => ({ json: { items: 3 }, delayMs: 2000 }),
+}
+```
+
+```jsx live=App
+import { Suspense } from 'sygnal'
+
 function DataLoader({ state }) {
   return <div>{state.data ? JSON.stringify(state.data) : 'Waiting...'}</div>
 }
@@ -33,6 +41,14 @@ DataLoader.model = {
     STATE: (state, data) => ({ ...state, data }),
     READY: () => true,  // Signal ready to parent Suspense
   },
+}
+
+function App() {
+  return (
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <DataLoader />
+    </Suspense>
+  )
 }
 ```
 

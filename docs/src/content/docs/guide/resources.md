@@ -5,7 +5,21 @@ description: Declarative reads with the resources static, refetching, the opt-in
 
 A **resource** is a read that follows state. The component declares which request each resource needs, and [`makeFetchDriver()`](/guide/http/) fetches it whenever that request changes, writing the result to `state[name]`. There is no model entry for loading or for the reply.
 
-```jsx
+In this demo, a stand-in server has quotes 1 to 3; any other id is a 404:
+
+```js live-server
+const quotes = { 1: 'Start where you are.', 2: 'Less, but better.', 3: 'Done is done.' }
+
+export default {
+  'GET /api/quotes/:id': ({ params }) => {
+    const text = quotes[params.id]
+    if (!text) return { status: 404, json: { message: 'No such quote' } }
+    return { json: { id: Number(params.id), text }, delayMs: 1000 }
+  },
+}
+```
+
+```jsx live
 function Quote({ state }) {
   const { status, data, refreshing } = state.quote
   return (
@@ -265,9 +279,24 @@ A body that fails goes to `'error'` (or the `error` action) with the schema's `i
 
 ### Pagination
 
-`keepPrevious: true` keeps the current page on screen, with `refreshing: true`, while the next one loads:
+`keepPrevious: true` keeps the current page on screen, with `refreshing: true`, while the next one loads. In this demo, a stand-in server pages through 12 items, 5 at a time:
 
-```jsx
+```js live-server
+const items = Array.from({ length: 12 }, (_, i) => ({ title: `Item ${i + 1}` }))
+
+export default {
+  'GET /api/items': ({ query }) => {
+    const start = (Number(query.page) - 1) * 5
+    return { json: { items: items.slice(start, start + 5) }, delayMs: 1000 }
+  },
+}
+```
+
+```css live
+.rows.stale { opacity: 0.5; }
+```
+
+```jsx live
 function Pages({ state }) {
   const { data, refreshing } = state.list
   return (
@@ -323,9 +352,30 @@ Feed.model = {
 
 ### List and detail with a save
 
-Each view declares its read only while it is shown, the cache shows a known list or item at once, and a save writes the reply and refetches both:
+Each view declares its read only while it is shown, the cache shows a known list or item at once, and a save writes the reply and refetches both. In this demo, a stand-in server keeps three items, refuses an empty title, and the driver has a `queryCache()` (the `options` export):
 
-```jsx
+```js live-server
+import { queryCache } from 'sygnal'
+
+export const options = { cache: queryCache() }
+
+const items = [
+  { id: 1, title: 'Buy milk' },
+  { id: 2, title: 'Call Ana' },
+  { id: 3, title: 'Book flights' },
+]
+const find = (id) => items.find((i) => i.id === Number(id))
+
+export default {
+  'GET /api/items': () => ({ json: items }),
+  'GET /api/items/:id': ({ params }) => ({ json: find(params.id) }),
+  'PUT /api/items/:id': ({ params, json }) => (json.title.trim() === ''
+    ? { status: 422, json: { title: 'Required' } }
+    : { json: Object.assign(find(params.id), { title: json.title }) }),
+}
+```
+
+```jsx live
 const statusOf = (r) => (r?.status === 'loading' ? 'Loading…' : r?.refreshing ? 'Updating…' : '')
 
 function App({ state }) {

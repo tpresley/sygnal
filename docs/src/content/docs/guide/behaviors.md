@@ -27,9 +27,17 @@ Options that name a key of the behavior's state (`pageSize` here) set its starti
 
 ### Pager
 
-A page cursor over a list. The view slices the list with the calculated `offset`, and the buttons disable at the ends:
+A page cursor over a list. The view slices the list with the calculated `offset`, and the buttons disable at the ends. In this demo, a stand-in server returns 23 tasks:
 
-```jsx
+```js live-server
+const tasks = Array.from({ length: 23 }, (_, i) => ({ id: i + 1, title: `Task ${i + 1}` }))
+
+export default {
+  'GET /api/tasks': () => ({ json: tasks }),
+}
+```
+
+```jsx live
 import { pager } from 'sygnal'
 
 export function TaskList({ state }) {
