@@ -14,7 +14,19 @@
  * The languages are js, jsx, ts, tsx (and css for stylesheets). What the reader sees is what
  * runs: there is no hidden setup code, so a sample that needs more lines to run shows them.
  * A demo can import `sygnal`, its subpaths and the libraries in `docs/src/live/modules.ts`
- * (add a library there and to docs/package.json). The meta words are removed before
+ * (add a library there and to docs/package.json); `import('./x.js')` and `import('lib')` go
+ * through the same resolver (a live-file or a listed module), so `lazy()` works.
+ *
+ * Each demo runs as `run(Component, drivers, { mountPoint, uid })`, with the default drivers
+ * plus these local ones, under the names the docs use (no main.js needed in the sample):
+ *   TIMER: makeTimerDriver()      timers static, Tooltip delays, Toaster timeouts
+ *   BROWSER: makeBrowserDriver()  the browser static and BROWSER commands
+ *   DND: makeDragDriver()         drag and drop
+ * Not included (they need a server or change the page): HTTP, WS, SW, HEAD, the router.
+ * An error a component's own .onError handled is shown as a quiet note ("Reported to
+ * run({ onError }): ..."), not as a failure; any other error marks the demo as failed.
+ *
+ * The meta words are removed before
  * Expressive Code renders the block, so its frames and titles are unchanged.
  *
  * The client side is `docs/src/live/` (loaded only on pages with a live block, by the
