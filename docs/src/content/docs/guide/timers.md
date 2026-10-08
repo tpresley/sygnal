@@ -63,7 +63,7 @@ When a tick comes very late (a browser throttles timers in a background tab), th
 
 The stopwatch keeps the clock time it started at and adds up the finished runs, so it is exact however late a tick comes. The tick only moves `now`, which the view reads. It stops when the stopwatch pauses, resets or is removed:
 
-```jsx
+```jsx live
 const pad = (n) => String(n).padStart(2, '0')
 const format = (ms) => {
   const tenths = Math.floor(ms / 100)
