@@ -9,7 +9,7 @@ While [context](/guide/context/) sends values *down* the tree and the EVENTS dri
 
 A child emits values to its parent by adding a `PARENT` entry in model:
 
-```jsx
+```jsx live-file=./TaskCard.jsx
 function TaskCard({ state }) {
   return (
     <div className="task-card">
@@ -28,6 +28,8 @@ TaskCard.model = {
     PARENT: (state) => ({ taskId: state.id })
   }
 }
+
+export default TaskCard
 ```
 
 The value returned by the `PARENT` reducer is delivered to the parent's `CHILD` source. `CHILD.select(TaskCard)` emits exactly that value (here `{ taskId }`), with nothing wrapped around it.
@@ -36,7 +38,7 @@ The value returned by the `PARENT` reducer is delivered to the parent's `CHILD` 
 
 The parent listens using `CHILD.select()` in its intent, passing a **reference to the child component function**:
 
-```jsx
+```jsx live
 import { Collection } from 'sygnal'
 import TaskCard from './TaskCard.jsx'
 
@@ -46,6 +48,10 @@ function LaneComponent({ state }) {
       <Collection of={TaskCard} from="tasks" />
     </div>
   )
+}
+
+LaneComponent.initialState = {
+  tasks: [{ id: 1, title: 'Write the docs' }, { id: 2, title: 'Fix the build' }, { id: 3, title: 'Ship it' }]
 }
 
 LaneComponent.intent = ({ CHILD }) => ({
@@ -122,7 +128,7 @@ it('keeps the markup and behaviour', async () => {
 
 **2. Move the markup into the child.** The child renders the exact elements the parent rendered (a component adds no wrapper element), reads its inputs from props, and sends the result up. It needs no `initialState` and doesn't know the parent's state shape:
 
-```jsx
+```jsx live-file=./StarRating.jsx
 // StarRating.jsx
 const STARS = [1, 2, 3, 4, 5]
 
@@ -150,7 +156,7 @@ export default StarRating
 
 **3. Render the child and listen to it in the parent.** The parent's old DOM selectors for the widget (`.food .star`) must go: they can't see the child's elements ([SYG104](/reference/errors/#syg104)).
 
-```jsx
+```jsx live
 // App.jsx
 import StarRating from './StarRating.jsx'
 

@@ -148,7 +148,7 @@ Static content isn't very exciting. Let's make a counter that responds to clicks
 
 Replace `src/RootComponent.jsx` with:
 
-```jsx
+```jsx live
 function RootComponent({ state }) {
   return (
     <div>
@@ -195,7 +195,7 @@ The data flows in one direction: **DOM events → Intent → Model → State →
 
 Let's build a component with two-way data binding:
 
-```jsx
+```jsx live
 function Greeter({ state }) {
   return (
     <div>
@@ -224,7 +224,7 @@ Notice the `.value()` in the intent. This extracts `e.target.value` from the inp
 
 Components nest naturally, just like in React:
 
-```jsx
+```jsx live-file=./Header.jsx
 // Header.jsx
 function Header({ title }) {
   return <h1>{title}</h1>
@@ -232,7 +232,7 @@ function Header({ title }) {
 export default Header
 ```
 
-```jsx
+```jsx live
 // RootComponent.jsx
 import Header from './Header.jsx'
 

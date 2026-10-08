@@ -5,7 +5,37 @@ description: Rendering lists of components
 
 The `<Collection>` component renders a list of components from an array on your state. It handles dynamic addition, removal, reordering, filtering, and sorting automatically.
 
-```jsx
+Each item is an ordinary component. This one is a todo with a checkbox and a delete button:
+
+```jsx live-file=./TodoItem.jsx
+// TodoItem.jsx
+function TodoItem({ state }) {
+  return (
+    <li>
+      <label>
+        <input className="done" type="checkbox" checked={state.done} /> {state.text}
+      </label>
+      <button className="delete">Delete</button>
+    </li>
+  )
+}
+
+TodoItem.intent = ({ DOM }) => ({
+  TOGGLE: DOM.change('.done').checked(),
+  DELETE: DOM.click('.delete'),
+})
+
+TodoItem.model = {
+  TOGGLE: (state, done) => ({ ...state, done }),
+  DELETE: () => undefined,
+}
+
+export default TodoItem
+```
+
+The list renders one `TodoItem` for each entry of `state.items`:
+
+```jsx live
 import { Collection } from 'sygnal'
 import TodoItem from './TodoItem.jsx'
 
@@ -25,7 +55,7 @@ TodoList.initialState = {
 }
 ```
 
-Each item in the `items` array becomes the state for one `TodoItem` instance. If a `TodoItem` updates its state, the corresponding array entry is updated. If a `TodoItem` sets its state to `undefined`, it is removed from the array.
+Each item in the `items` array becomes the state for one `TodoItem` instance. If a `TodoItem` updates its state (`TOGGLE`), the corresponding array entry is updated. If a `TodoItem` sets its state to `undefined` (`DELETE`), it is removed from the array.
 
 `from` must name an array field of the parent's state, and the field should be initialized (`items: []`). If it is missing or not an array, the Collection renders nothing and Sygnal reports [SYG401](/reference/errors/#syg401). With TypeScript, `from` can be [type-checked](/integration/typescript/#collection-from) against the parent's state.
 

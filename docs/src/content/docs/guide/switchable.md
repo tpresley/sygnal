@@ -5,8 +5,16 @@ description: Conditional component rendering
 
 The `<Switchable>` component conditionally renders one of several components based on a state value. This is useful for tabs, views, or any UI that switches between different content.
 
-```jsx
+```jsx live
 import { xs, Switchable } from 'sygnal'
+
+function HomePanel() {
+  return <p>Welcome home.</p>
+}
+
+function SettingsPanel() {
+  return <p>Your settings.</p>
+}
 
 function TabContainer({ state }) {
   return (
