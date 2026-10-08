@@ -17,6 +17,41 @@ const css = (url: Promise<{ default: string }>) => url.then(({ default: href }) 
   return {}
 })
 
+/**
+ * A stylesheet for the demos only: its `:root` rules apply to the live panels instead of the
+ * docs page (`?inline`: the CSS with its @imports inlined, as a string)
+ */
+const scopedCss = (name: string, inline: Promise<{ default: string }>, after?: () => void) => inline.then(({ default: text }) => {
+  if (!document.querySelector(`style[data-sygnal-live="${name}"]`)) {
+    const style = document.createElement('style')
+    style.dataset.sygnalLive = name
+    style.textContent = text.replace(/:root\b/g, '.sygnal-live')
+    document.head.append(style)
+  }
+  after?.()
+  return {}
+})
+
+/**
+ * Web Awesome's theme, scoped to the panels, in the docs theme's mode: its `.wa-dark` /
+ * `.wa-light` class on every panel follows Starlight's `data-theme` on <html>
+ */
+let waSync = false
+const webAwesomeMode = () => {
+  const apply = () => {
+    const dark = document.documentElement.dataset.theme === 'dark'
+    for (const el of document.querySelectorAll('.sygnal-live')) {
+      el.classList.toggle('wa-dark', dark)
+      el.classList.toggle('wa-light', !dark)
+    }
+  }
+  apply()
+  if (!waSync) {
+    waSync = true
+    new MutationObserver(apply).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  }
+}
+
 export const MODULES: Record<string, () => Promise<any>> = {
   // Sygnal
   'sygnal': () => import('sygnal'),
@@ -61,7 +96,7 @@ export const MODULES: Record<string, () => Promise<any>> = {
   'react': () => import('react'),
   'react-dom': () => import('react-dom'),
   'react-dom/client': () => import('react-dom/client'),
-  '@awesome.me/webawesome/dist/styles/themes/default.css': () => css(import('@awesome.me/webawesome/dist/styles/themes/default.css?url')),
+  '@awesome.me/webawesome/dist/styles/themes/default.css': () => scopedCss('webawesome', import('@awesome.me/webawesome/dist/styles/themes/default.css?inline'), webAwesomeMode),
   '@awesome.me/webawesome/dist/components/rating/rating.js': () => import('@awesome.me/webawesome/dist/components/rating/rating.js'),
   '@awesome.me/webawesome/dist/components/input/input.js': () => import('@awesome.me/webawesome/dist/components/input/input.js'),
 
