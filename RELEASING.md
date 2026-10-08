@@ -14,11 +14,11 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 | Placeholder | Package | Last published |
 |---|---|---|
-| `<SYGNAL>` | `sygnal` | 5.4.0 |
-| `<CHECK>` | `sygnal-check` | 0.1.0 |
-| `<CSA>` | `create-sygnal-app` | 1.1.0 |
+| `<SYGNAL>` | `sygnal` | 6.0.0 |
+| `<CHECK>` | `sygnal-check` | 0.2.0 |
+| `<CSA>` | `create-sygnal-app` | 2.0.0 |
 
-`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v5.4.0.. -- sygnal-check create-sygnal-app`). In the release after 5.4.0 both did: `sygnal-check` has a wider SYG111 rule and new explanations (SYG608, SYG609), and the templates' `AGENTS.md` changed.
+`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.0.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
 ## 1. Prepare
 
@@ -51,7 +51,7 @@ Set the versions (no `npm version`: it also commits and tags):
   grep -n -E '"sygnal(-check)?":' create-sygnal-app/template-*/package.json
   ```
 - `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph.
-- `ROADMAP.md`: the release line names the template range (`sygnal` ^5.4.0); update it if it still describes the current release.
+- `ROADMAP.md`: the release line names the template range (`sygnal` ^6.0.0); update it if it still describes the current release.
 
 Commit these changes before running the gates.
 
@@ -88,7 +88,7 @@ It builds `examples/kanban` twice (it needs `npm run build` and `npm install --p
 - **(a), gated:** built with `sygnal({ nativeGlobalThis: false })`, so it keeps measuring the core plus xstream's original dependencies. It must be at or under the budget; the script exits non-zero otherwise.
 - **(b), informational:** the default build, with the `globalthis` alias (about 4 KB smaller). This is what users get.
 
-For reference, 6.0.0 measured (a) 42,690 B (10 B headroom) and (b) 38,679 B; the release after 5.4.0 had measured (a) 42,125 B and (b) 38,131 B. Record both numbers in the release notes or PR.
+For reference, 6.0.0 measured (a) 42,690 B (10 B headroom) and (b) 38,679 B. Record both numbers in the release notes or PR.
 
 ## 3. Check the package contents
 
