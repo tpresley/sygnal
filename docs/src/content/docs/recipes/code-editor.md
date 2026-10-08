@@ -13,7 +13,7 @@ npm install codemirror @codemirror/state @codemirror/lang-javascript
 
 ## The widget
 
-```js
+```js live-file=./CodeEditor.js
 // CodeEditor.js
 import { defineWidget } from 'sygnal'
 import { EditorView, basicSetup } from 'codemirror'
@@ -58,7 +58,7 @@ export const CodeEditor = defineWidget({
 
 ## Using it
 
-```jsx
+```jsx live
 // Snippet.jsx
 import { CodeEditor } from './CodeEditor.js'
 
@@ -89,6 +89,12 @@ Snippet.model = {
   RESET: (state) => ({ ...state, code: START }),
 }
 ```
+
+```css live
+.code .cm-editor { background: white; color: black; border: 1px solid #8888; }
+```
+
+CodeMirror's default theme is a light one: dark syntax colours and a light gutter, on whatever background the page has. On a page that can be dark, give the editor a light background, as here, or add a dark theme extension (`@codemirror/theme-one-dark`) and switch it with a compartment.
 
 ## Testing
 

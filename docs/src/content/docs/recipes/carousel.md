@@ -13,7 +13,7 @@ npm install embla-carousel
 
 ## The widget
 
-```js
+```js live-file=./Carousel.js
 // Carousel.js
 import { defineWidget } from 'sygnal'
 import EmblaCarousel from 'embla-carousel'
@@ -62,7 +62,7 @@ Embla expects a viewport element with one child, the track, whose children are t
 
 ## Using it
 
-```jsx
+```jsx live
 // Gallery.jsx
 import { Carousel } from './Carousel.js'
 
@@ -106,10 +106,11 @@ Gallery.model = {
 }
 ```
 
-```css
+```css live
 .photos { overflow: hidden; }
 .photos .slides { display: flex; }
 .photos .slide { flex: 0 0 100%; min-width: 0; }
+.photos img { display: block; width: 100%; height: auto; }
 ```
 
 The buttons don't change `index` themselves. They ask Embla to scroll, and `index` follows from the `slide` event, the same way it does after a swipe: Embla decides where the carousel stops, and the state always says where it is. The widget also reports the slide after `reInit()`: when the photos shrink below the current one, Embla moves to the last slide without a `select` event.

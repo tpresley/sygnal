@@ -1,8 +1,8 @@
 // SalesChart.js
 import { defineWidget } from 'sygnal'
-import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from 'chart.js'
+import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Colors } from 'chart.js'
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Colors)
 
 export const SalesChart = defineWidget({
   name: 'SalesChart',

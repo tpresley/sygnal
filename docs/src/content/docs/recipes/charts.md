@@ -16,9 +16,9 @@ npm install chart.js
 ```js live-file=./SalesChart.js
 // SalesChart.js
 import { defineWidget } from 'sygnal'
-import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from 'chart.js'
+import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip, Colors } from 'chart.js'
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip)
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Colors)
 
 export const SalesChart = defineWidget({
   name: 'SalesChart',
@@ -42,6 +42,7 @@ export const SalesChart = defineWidget({
 })
 ```
 
+- The `Colors` plugin gives each dataset a colour from Chart.js's palette. Without it, a dataset with no `backgroundColor` is drawn in a 10% black that is hard to see on a dark page.
 - `mount` creates the chart on the `<canvas>` host and returns it: that is the instance `update` and `unmount` get.
 - `update` runs when the props change. It changes the chart's data in place and calls `chart.update()`, so the chart animates to the new values instead of being rebuilt.
 - `unmount` runs when the chart leaves the page and frees the canvas.
@@ -163,11 +164,11 @@ Measured with Vite, minified and gzipped, Sygnal not included:
 
 | | Adds |
 |---|---|
-| Chart.js bar chart (the registrations above) | 57 KB |
+| Chart.js bar chart (the registrations above) | 60 KB |
 | ECharts bar chart (the `use` list above) | 180 KB |
 | `defineWidget` (the first widget in an app) | 1.1 KB |
 
-Register only what you draw: `import Chart from 'chart.js/auto'` registers every chart type, scale and plugin: 75 KB instead of 57.
+Register only what you draw: `import Chart from 'chart.js/auto'` registers every chart type, scale and plugin: 75 KB instead of 60.
 
 ## Pitfalls
 

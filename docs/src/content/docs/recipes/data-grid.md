@@ -15,7 +15,7 @@ npm install ag-grid-community
 
 ## The widget
 
-```js
+```js live-file=./Grid.js
 // Grid.js
 import { defineWidget } from 'sygnal'
 import {
@@ -58,7 +58,7 @@ export const Grid = defineWidget({
 
 ## Using it
 
-```jsx
+```jsx live
 // Stock.jsx
 import { Grid } from './Grid.js'
 
@@ -108,7 +108,7 @@ Stock.model = {
 }
 ```
 
-```css
+```css live
 .grid { height: 400px; }
 ```
 
