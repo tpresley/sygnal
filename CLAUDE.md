@@ -28,6 +28,7 @@ node scripts/perf-report.mjs         # timing ratios to React vs the timing targ
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
 npm --prefix sygnal-check test       # static checker package (492 tests, *.vtest.js)
 npm --prefix docs run build          # docs site + internal link check
+npm --prefix docs run check-live     # the live examples of the built docs/dist in Playwright (BROWSER=chromium|firefox|webkit)
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (552 checked, 13 skipped by marker)
 node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalThis: false <= 42,700 B gated (D48, D185, D222, D230;
@@ -107,6 +108,7 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `browser-tests/` — Real-browser suite (`test:browser`, free port). `BROWSER=firefox|webkit` runs another cached Playwright engine (never download browsers); `BROWSER_TESTS_ONLY=<substring>` runs only the suites whose function name contains it (`main.js` list). Real input for tests: `window.__pwType(sel, text)`, `window.__pw(action, sel, arg)` (Playwright locator: click, hover, focus, press, fill, type, mouse-away, role, aria) and `window.__pwInput(steps)` (mouse move/down/up, keys, waits; touch via CDP, Chromium only); pointer input needs an on-screen element: `mountOnScreen()` / `clearStage()` from `harness.js`
 - `examples/` — Example apps, each with its own Vite/Vitest config and `npm test`; excluded from the root vitest
 - `docs/` — Starlight docs site (sygnal.js.org); `docs/scripts/check-links.mjs` runs after `astro build`
+- Live examples in the docs: a fence meta word runs the block under it in a Result panel with an Edit/Reset CodeMirror editor. ` ```jsx live` (mounts the `export default`, else the last top-level capitalized function declaration), `live=Name` (that component), `live-file=./x.js` (not run: a module the page's live blocks can import), `live-height=320` (min height), ` ```css live` (a stylesheet for the page's demos). No hidden setup: what the page shows is what runs. Remark plugin `docs/src/plugins/remark-live.mjs`; client `docs/src/live/` (`runtime.ts`, `compile.ts` (Babel), `editor.ts` (shared with Try It), `modules.ts`: the importable modules; add a library there and to `docs/package.json`); loaded by the `MarkdownContent` override in `docs/src/components/` only on pages with a demo. Check with `npm --prefix docs run check-live` after a build
 - `scripts/` — `test-examples.mjs` (test:examples), `gen-error-docs.mjs` (`--check` for drift), `check-doc-samples.mjs`, `size-gate.mjs`
 - `evals/agent-ergonomics/` — Agent eval harness (Sygnal vs React tasks, hidden tests, results)
 - `skills/sygnal-dev/`, `llms.txt` — Agent context (canonical forms only)

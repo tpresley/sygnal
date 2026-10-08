@@ -1,0 +1,14 @@
+---
+// Starlight's MarkdownContent, plus the loader of the live examples (src/plugins/remark-live.mjs).
+// The script is tiny: on a page without a `.sygnal-live` panel it does nothing; on a page with
+// one it imports the runtime (and the runtime imports Babel, Sygnal and CodeMirror lazily).
+import Default from '@astrojs/starlight/components/MarkdownContent.astro'
+---
+
+<Default {...Astro.props}><slot /></Default>
+
+<script>
+  if (document.querySelector('.sygnal-live')) {
+    import('../live/runtime').then((m) => m.start(), (e) => console.error('[live] the live examples could not load', e))
+  }
+</script>

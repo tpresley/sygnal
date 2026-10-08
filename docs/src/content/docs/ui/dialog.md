@@ -5,7 +5,7 @@ description: A modal dialog on the native <dialog> element, with its open state 
 
 `dialog()` is a [behavior](/guide/behaviors/) for a native `<dialog>`. It opens the dialog with `showModal()`, so the browser does the hard parts: it traps the focus inside the dialog, makes the rest of the page inert, closes it on Escape and returns the focus when it closes. The behavior keeps `open` and `returnValue` in state, whichever way the dialog closed.
 
-```jsx
+```jsx live
 import { dialog } from 'sygnal/ui'
 
 function Profile({ state, uid }) {

@@ -1,11 +1,23 @@
 import { defineConfig } from 'astro/config'
 import starlight from '@astrojs/starlight'
+import remarkLive from './src/plugins/remark-live.mjs'
 
 export default defineConfig({
   site: 'https://sygnal.js.org',
   base: '/',
   redirects: {
     '/advanced/model-shorthand': '/advanced/alternative-forms/',
+  },
+  // live examples: a ```jsx live fence gets a Result panel (see src/plugins/remark-live.mjs)
+  markdown: {
+    remarkPlugins: [remarkLive],
+  },
+  vite: {
+    resolve: {
+      // sygnal is linked (file:..), so its own imports of these would resolve from the repo root:
+      // one copy each, the docs' (a Zag machine and the sygnal/zag runtime must match, as React must)
+      dedupe: ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox', 'react', 'react-dom'],
+    },
   },
   integrations: [
     starlight({
@@ -24,6 +36,9 @@ export default defineConfig({
         baseUrl: 'https://github.com/tpresley/sygnal/edit/main/docs/',
       },
       customCss: ['./src/styles/custom.css'],
+      components: {
+        MarkdownContent: './src/components/MarkdownContent.astro',
+      },
       sidebar: [
         {
           label: 'Getting Started',

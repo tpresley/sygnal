@@ -1,0 +1,194 @@
+/* The live examples' panel (src/live/runtime.ts) and a small neutral stylesheet for the demos.
+   Colors come from Starlight's variables, so both themes work. The demo styles are inside
+   :where() (no specificity): a page's `css live` block overrides them. */
+
+.sl-markdown-content .sygnal-live,
+.sygnal-live {
+  margin-top: 0.5rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.375rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  overflow: hidden;
+}
+
+.sygnal-live [hidden] {
+  display: none !important;
+}
+
+.sygnal-live .live-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  background: var(--sl-color-gray-6);
+  border-bottom: 1px solid var(--sl-color-gray-5);
+}
+
+.sygnal-live .live-title {
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sl-color-gray-2);
+}
+
+.sygnal-live .live-actions {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.sygnal-live .live-actions button {
+  font: inherit;
+  font-size: var(--sl-text-xs);
+  line-height: 1.5;
+  padding: 0.125rem 0.625rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--sl-color-gray-4);
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  cursor: pointer;
+}
+
+.sygnal-live .live-actions button:hover {
+  border-color: var(--sl-color-accent);
+}
+
+.sygnal-live .live-actions button:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+}
+
+.sygnal-live .live-editor {
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  background: #0d1117;
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.sygnal-live .live-editor .cm-editor {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.sygnal-live .live-editor .cm-editor.cm-focused {
+  outline: none;
+}
+
+.sygnal-live .live-editor .cm-scroller {
+  font-family: var(--__sl-font-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
+}
+
+.sygnal-live .live-result {
+  padding: 1rem;
+  font-size: var(--sl-text-sm);
+  line-height: 1.5;
+  overflow: auto;
+}
+
+.sygnal-live .live-loading {
+  margin: 0;
+  color: var(--sl-color-gray-3);
+}
+
+.sygnal-live .live-error {
+  border-top: 1px solid #f85149;
+}
+
+.sygnal-live .live-error pre {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  max-height: 12rem;
+  overflow: auto;
+  background: color-mix(in srgb, #f85149 10%, var(--sl-color-bg));
+  color: var(--sl-color-white);
+  font-family: var(--__sl-font-mono, ui-monospace, 'SF Mono', Menlo, Consolas, monospace);
+  font-size: var(--sl-text-xs);
+  white-space: pre-wrap;
+}
+
+/* ---- the demos ---- */
+
+:where(.sygnal-live .live-result) :where(h1, h2, h3, h4, p, ul, ol, dl, figure, form, fieldset, section, header, footer) {
+  margin: 0 0 0.75rem;
+}
+
+:where(.sygnal-live .live-result) :where(h1, h2, h3, h4) {
+  color: var(--sl-color-white);
+  font-size: 1.125em;
+  line-height: 1.3;
+}
+
+:where(.sygnal-live .live-result) :where(ul, ol) {
+  padding-left: 1.25rem;
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(button) {
+  font: inherit;
+  margin: 0 0.375rem 0.375rem 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 0.25rem;
+  background: var(--sl-color-gray-6);
+  color: var(--sl-color-white);
+  cursor: pointer;
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(button:hover) {
+  border-color: var(--sl-color-accent);
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(button:disabled) {
+  opacity: 0.5;
+  cursor: default;
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(input:not([type=checkbox], [type=radio], [type=range]), select, textarea) {
+  font: inherit;
+  margin: 0 0.375rem 0.375rem 0;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 0.25rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(:focus-visible) {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: 1px;
+}
+
+:where(.sygnal-live .live-result, .sygnal-live dialog, .sygnal-live [popover]) :where(label) {
+  display: inline-block;
+  margin: 0 0.5rem 0.375rem 0;
+}
+
+:where(.sygnal-live) :where(dialog, [popover]) {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-text);
+  box-shadow: 0 0.5rem 2rem rgb(0 0 0 / 0.3);
+}
+
+/* Starlight's reset sets every margin to 0: the browser centers a modal dialog and a popover
+   with margin: auto */
+:where(.sygnal-live) :where(dialog:modal, [popover]) {
+  margin: auto;
+}
+
+:where(.sygnal-live) :where(dialog)::backdrop {
+  background: rgb(0 0 0 / 0.45);
+}
+
+:where(.sygnal-live .live-result) :where(table) {
+  border-collapse: collapse;
+}
+
+:where(.sygnal-live .live-result) :where(th, td) {
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  text-align: left;
+}

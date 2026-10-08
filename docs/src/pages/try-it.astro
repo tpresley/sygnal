@@ -246,79 +246,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
   import { createElement } from 'sygnal'
   import { Fragment } from 'sygnal/jsx-runtime'
 
-  import { EditorState } from '@codemirror/state'
-  import { EditorView, keymap, highlightSpecialChars, drawSelection, highlightActiveLine, lineNumbers, highlightActiveLineGutter } from '@codemirror/view'
-  import { defaultKeymap, indentWithTab, history, historyKeymap } from '@codemirror/commands'
-  import { javascript } from '@codemirror/lang-javascript'
-  import { syntaxHighlighting, HighlightStyle, indentOnInput, bracketMatching } from '@codemirror/language'
-  import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
-  import { tags as t } from '@lezer/highlight'
-
-  // Theme — always dark, hardcoded colors to avoid Starlight variable changes
-  const sygnalTheme = EditorView.theme({
-    '&': {
-      backgroundColor: '#0d1117',
-      color: '#c9d1d9',
-    },
-    '.cm-content': {
-      padding: '12px 0',
-      caretColor: '#c9d1d9',
-    },
-    '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#c9d1d9' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-      backgroundColor: '#264f78',
-    },
-    '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.04)' },
-    '.cm-gutters': {
-      backgroundColor: '#0d1117',
-      color: 'rgba(255,255,255,0.25)',
-      border: 'none',
-      paddingLeft: '4px',
-    },
-    '.cm-activeLineGutter': {
-      backgroundColor: 'rgba(255,255,255,0.04)',
-      color: 'rgba(255,255,255,0.5)',
-    },
-    '.cm-foldPlaceholder': {
-      backgroundColor: 'transparent',
-      border: 'none',
-      color: '#666',
-    },
-    '.cm-matchingBracket': {
-      backgroundColor: 'rgba(255,255,255,0.1)',
-      outline: '1px solid rgba(255,255,255,0.25)',
-    },
-  }, { dark: true })
-
-  // Syntax colors (VS Code Dark+ inspired)
-  const sygnalHighlightStyle = HighlightStyle.define([
-    { tag: t.keyword, color: '#c586c0' },
-    { tag: [t.name, t.deleted, t.character, t.macroName], color: '#9cdcfe' },
-    { tag: [t.function(t.variableName), t.labelName], color: '#dcdcaa' },
-    { tag: [t.propertyName], color: '#9cdcfe' },
-    { tag: [t.color, t.constant(t.name), t.standard(t.name)], color: '#4fc1ff' },
-    { tag: [t.definition(t.name), t.separator], color: '#c9d1d9' },
-    { tag: [t.typeName, t.className, t.number, t.changed, t.annotation, t.modifier, t.self, t.namespace], color: '#4ec9b0' },
-    { tag: [t.number], color: '#b5cea8' },
-    { tag: [t.operator, t.operatorKeyword, t.url, t.escape, t.regexp, t.special(t.string)], color: '#d4d4d4' },
-    { tag: [t.meta, t.comment], color: '#6a9955', fontStyle: 'italic' },
-    { tag: t.strong, fontWeight: 'bold' },
-    { tag: t.emphasis, fontStyle: 'italic' },
-    { tag: t.strikethrough, textDecoration: 'line-through' },
-    { tag: t.link, color: '#9cdcfe', textDecoration: 'underline' },
-    { tag: t.heading, fontWeight: 'bold', color: '#4fc1ff' },
-    { tag: [t.atom, t.bool, t.special(t.variableName)], color: '#569cd6' },
-    { tag: [t.processingInstruction, t.string, t.inserted], color: '#ce9178' },
-    { tag: t.invalid, color: '#f44747' },
-    // JSX-specific
-    { tag: t.angleBracket, color: '#808080' },
-    { tag: t.tagName, color: '#4ec9b0' },
-    { tag: t.attributeName, color: '#9cdcfe' },
-    { tag: t.attributeValue, color: '#ce9178' },
-  ])
-
-  // Always use dark theme for the code editor
-  const themeExtensions = [sygnalTheme, syntaxHighlighting(sygnalHighlightStyle)]
+  import { createEditor } from '../live/editor'
 
   const examples = {
     counter: `function Component({ state }) {
@@ -528,34 +456,7 @@ Component.model = {
   }
 
   // Create CodeMirror editor
-  const editorView = new EditorView({
-    state: EditorState.create({
-      doc: '',
-      extensions: [
-        lineNumbers(),
-        highlightActiveLineGutter(),
-        highlightSpecialChars(),
-        history(),
-        drawSelection(),
-        indentOnInput(),
-        bracketMatching(),
-        closeBrackets(),
-        highlightActiveLine(),
-        javascript({ jsx: true }),
-        ...themeExtensions,
-        keymap.of([
-          ...closeBracketsKeymap,
-          ...defaultKeymap,
-          ...historyKeymap,
-          indentWithTab,
-        ]),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) scheduleRun()
-        }),
-      ],
-    }),
-    parent: editorEl,
-  })
+  const editorView = createEditor(editorEl, '', { onChange: scheduleRun })
 
   function loadExample(name) {
     const code = examples[name]

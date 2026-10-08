@@ -13,7 +13,7 @@ npm install chart.js
 
 ## The widget
 
-```js
+```js live-file=./SalesChart.js
 // SalesChart.js
 import { defineWidget } from 'sygnal'
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from 'chart.js'
@@ -49,7 +49,7 @@ export const SalesChart = defineWidget({
 
 ## Using it
 
-```jsx
+```jsx live
 // Sales.jsx
 import { SalesChart } from './SalesChart.js'
 
@@ -82,7 +82,7 @@ Sales.model = {
 }
 ```
 
-```css
+```css live
 .chart-box { position: relative; height: 240px; }
 ```
 
