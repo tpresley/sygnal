@@ -5,7 +5,7 @@ description: An accessible autocomplete input (WAI-ARIA combobox) from sygnal/ui
 
 `Combobox` is a text input with a list of suggestions that narrows as the user types, following the [WAI-ARIA combobox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/). Keyboard handling and the active option come from [Zag.js](https://zagjs.com)'s combobox machine, rendered with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag.
 
-```jsx live live-height=260
+```jsx live
 import { Combobox } from 'sygnal/ui/combobox'
 
 const CITIES = ['Amsterdam', 'Berlin', 'Lisbon', 'London', 'Paris', 'Prague']

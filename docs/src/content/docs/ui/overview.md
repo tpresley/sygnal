@@ -82,7 +82,7 @@ The package has no JavaScript positioning fallback. To support a browser without
 
 [Floating UI](https://floating-ui.com/) computes a position in JavaScript. Give the tip a [ref](/advanced/refs/) and run its `autoUpdate` while the tooltip is open, from an `EFFECT` on the behavior's `TOGGLED` action:
 
-```jsx
+```jsx live
 import { createRef } from 'sygnal'
 import { tooltip } from 'sygnal/ui'
 import { computePosition, autoUpdate, offset, flip, shift } from '@floating-ui/dom'
@@ -106,14 +106,14 @@ Toolbar.model = {
     EFFECT: (state, open) => {
       stop?.()
       stop = open ? autoUpdate(trigger.current, tip.current, () =>
-        computePosition(trigger.current, tip.current, { placement: 'top', middleware: [offset(6), flip(), shift()] })
+        computePosition(trigger.current, tip.current, { placement: 'top', strategy: 'fixed', middleware: [offset(6), flip(), shift()] })
           .then(({ x, y }) => Object.assign(tip.current.style, { left: `${x}px`, top: `${y}px` }))) : null
     },
   },
 }
 ```
 
-```css
+```css live
 .tip { position: fixed; margin: 0; inset: auto; }
 ```
 

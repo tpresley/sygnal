@@ -5,7 +5,7 @@ description: An accessible menu button (WAI-ARIA menu) from sygnal/ui/menu, buil
 
 `Menu` is a menu button: a trigger that opens a list of actions, following the [WAI-ARIA menu button pattern](https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/). The keyboard handling, focus management and typeahead come from [Zag.js](https://zagjs.com)'s menu machine; Sygnal renders it with [`fromZag`](/guide/adapters/#zag-machines-fromzag). It is a [widget](/guide/widgets/) tag: render it with a class, and read its events in the intent like any element's.
 
-```jsx live live-height=230
+```jsx live
 import { Menu } from 'sygnal/ui/menu'
 
 const ACTIONS = [
