@@ -5,7 +5,7 @@ description: Tooltips on a manual popover, placed by CSS anchor positioning, wit
 
 `tooltip()` is a [behavior](/guide/behaviors/) that shows a short description of a control when the pointer rests on it or it gets the keyboard focus. The tip is a `popover="manual"` element, so it is drawn in the top layer, above dialogs and scrolling containers. CSS anchor positioning places it next to its trigger; there is no JavaScript positioning. The show and hide delays are [timers](/guide/timers/), so they are cancelled when the pointer leaves early and they run on fake timers in tests.
 
-```jsx
+```jsx live
 import { tooltip } from 'sygnal/ui'
 
 function Toolbar({ uid }) {
@@ -55,7 +55,7 @@ The delays need the timer driver in `run()`. Tests don't: [fake timers](/guide/t
 
 The trigger gets an anchor name and the tip refers to it. The anchor name must be unique on the page, so build it from `uid()` in the view, as above. The rest is CSS:
 
-```css
+```css live
 .tip {
   position-area: top;      /* above the trigger, centred */
   position-try: flip-block; /* below it when there is no room above */

@@ -7,7 +7,7 @@ description: An accessible custom select (WAI-ARIA select-only combobox) from sy
 
 A native `<select>` is smaller and works everywhere; use `Select` when the options need custom styling, or several values with checkmarks.
 
-```jsx live live-height=230
+```jsx live
 import { Select } from 'sygnal/ui/select'
 
 const SIZES = [
