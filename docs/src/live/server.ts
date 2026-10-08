@@ -51,13 +51,25 @@ function compileRoutes(table: any): Route[] {
 const abortError = (signal?: AbortSignal | null) =>
   signal?.reason instanceof Error || signal?.reason instanceof DOMException ? signal.reason : new DOMException('The operation was aborted.', 'AbortError')
 
-/**
- * A fetch over the route table. `note(text)` reports each request: `Demo server: POST
- * /api/signup → 201 (600 ms)`, `→ 404 (no demo route)`, `→ aborted (120 ms)`.
- */
-export function makeDemoFetch(table: any, note: (text: string) => void) {
+/** what a request note is: answered by a route, no route (404), a handler that threw (500), aborted */
+export type NoteKind = 'response' | 'no-route' | 'threw' | 'aborted'
+
+export interface DemoFetchHooks {
+  /** a request ended: `Demo server: POST /api/signup → 201 (600 ms)`, `→ 404 (no demo route, …)` */
+  note: (text: string, kind: NoteKind) => void
+  /** +1 when a request starts, -1 when it ends (answered, failed or aborted) */
+  pending?: (delta: 1 | -1) => void
+}
+
+/** A fetch over the route table, reporting each request */
+export function makeDemoFetch(table: any, { note, pending }: DemoFetchHooks) {
   const routes = compileRoutes(table)
-  return (input: any, init: any = {}): Promise<Response> => new Promise((resolve, reject) => {
+  return (input: any, init: any = {}): Promise<Response> => new Promise<Response>((resolve0, reject0) => {
+    let open = true
+    pending?.(1)
+    const end = () => { if (open) { open = false; pending?.(-1) } }
+    const resolve = (r: Response) => { end(); resolve0(r) }
+    const reject = (e: any) => { end(); reject0(e) }
     const t0 = performance.now()
     const elapsed = () => Math.round(performance.now() - t0)
     const url = new URL(typeof input === 'string' ? input : input?.url ?? String(input), location.href)
@@ -70,13 +82,13 @@ export function makeDemoFetch(table: any, note: (text: string) => void) {
       if (done) return
       done = true
       clearTimeout(timer)
-      note(`${label} → aborted (${elapsed()} ms)`)
+      note(`${label} → aborted (${elapsed()} ms)`, 'aborted')
       reject(abortError(signal))
     }
     if (signal?.aborted) return onAbort()
     signal?.addEventListener('abort', onAbort, { once: true })
 
-    const respond = (res: DemoResponse | undefined, why?: string) => {
+    const respond = (res: DemoResponse | undefined, why?: string, kind: NoteKind = 'response') => {
       if (done) return
       const r = res && typeof res === 'object' ? res : {}
       const status = r.status ?? 200
@@ -94,7 +106,7 @@ export function makeDemoFetch(table: any, note: (text: string) => void) {
         if (done) return
         done = true
         signal?.removeEventListener('abort', onAbort)
-        note(`${label} → ${status} (${why ? why + ', ' : ''}${elapsed()} ms)`)
+        note(`${label} → ${status} (${why ? why + ', ' : ''}${elapsed()} ms)`, kind)
         try {
           resolve(new Response(NULL_BODY.has(status) ? null : body, { status, headers }))
         } catch (e) {
@@ -104,7 +116,7 @@ export function makeDemoFetch(table: any, note: (text: string) => void) {
     }
 
     const route = routes.find((r) => (!r.method || r.method === method) && r.re.test(url.pathname))
-    if (!route) return respond({ status: 404, text: `No demo route for ${method} ${url.pathname}` }, 'no demo route')
+    if (!route) return respond({ status: 404, text: `No demo route for ${method} ${url.pathname}` }, 'no demo route', 'no-route')
 
     const params: Record<string, string> = {}
     const m = url.pathname.match(route.re)!
@@ -122,6 +134,6 @@ export function makeDemoFetch(table: any, note: (text: string) => void) {
     const req: DemoRequest = { method, url: url.href, path: url.pathname, params, query, json, body: init.body, headers: Object.fromEntries(headers) }
     Promise.resolve()
       .then(() => route.handler(req))
-      .then((res) => respond(res), (e) => respond({ status: 500, text: String(e?.message ?? e) }, `the handler threw: ${e?.message ?? e}`))
+      .then((res) => respond(res), (e) => respond({ status: 500, text: String(e?.message ?? e) }, `the handler threw: ${e?.message ?? e}`, 'threw'))
   })
 }

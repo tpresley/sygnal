@@ -2,7 +2,8 @@
 // library as its own lazy chunk and a page loads only what its examples import (the runtime
 // scans a demo's imports before running it).
 //
-// To add a library: add it to docs/package.json (a fixed range, as tested), then add its
+// To add a library: add it to docs/package.json at an exact version (the docs pin every
+// library: the version the demos were checked with), then add its
 // specifier here, one entry per subpath the docs import ('echarts/core', 'chart.js/auto').
 // A stylesheet ('flatpickr/dist/flatpickr.css') goes through `css(import('...?url'))`: a plain
 // import() of CSS would make Astro add it to every page's stylesheets.
@@ -18,14 +19,15 @@ const css = (url: Promise<{ default: string }>) => url.then(({ default: href }) 
 })
 
 /**
- * A stylesheet for the demos only: its `:root` rules apply to the live panels instead of the
- * docs page (`?inline`: the CSS with its @imports inlined, as a string)
+ * A stylesheet for the demos only: its `:root` rules apply to the demo area of the live panels
+ * (`.sygnal-live .live-result`), not to the docs page or the panel's own bar, editor and notes
+ * (`?inline`: the CSS with its @imports inlined, as a string)
  */
 const scopedCss = (name: string, inline: Promise<{ default: string }>, after?: () => void) => inline.then(({ default: text }) => {
   if (!document.querySelector(`style[data-sygnal-live="${name}"]`)) {
     const style = document.createElement('style')
     style.dataset.sygnalLive = name
-    style.textContent = text.replace(/:root\b/g, '.sygnal-live')
+    style.textContent = text.replace(/:root\b/g, '.sygnal-live .live-result')
     document.head.append(style)
   }
   after?.()
@@ -33,14 +35,14 @@ const scopedCss = (name: string, inline: Promise<{ default: string }>, after?: (
 })
 
 /**
- * Web Awesome's theme, scoped to the panels, in the docs theme's mode: its `.wa-dark` /
- * `.wa-light` class on every panel follows Starlight's `data-theme` on <html>
+ * Web Awesome's theme, scoped to the demo areas, in the docs theme's mode: its `.wa-dark` /
+ * `.wa-light` class on every demo area follows Starlight's `data-theme` on <html>
  */
 let waSync = false
 const webAwesomeMode = () => {
   const apply = () => {
     const dark = document.documentElement.dataset.theme === 'dark'
-    for (const el of document.querySelectorAll('.sygnal-live')) {
+    for (const el of document.querySelectorAll('.sygnal-live .live-result')) {
       el.classList.toggle('wa-dark', dark)
       el.classList.toggle('wa-light', !dark)
     }

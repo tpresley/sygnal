@@ -234,3 +234,11 @@
   border-bottom: 1px solid var(--sl-color-gray-5);
   text-align: left;
 }
+
+.sygnal-live .live-stale {
+  margin: 0;
+  padding: 0 0.75rem 0.5rem;
+  background: color-mix(in srgb, #f85149 10%, var(--sl-color-bg));
+  color: var(--sl-color-gray-2);
+  font-size: var(--sl-text-xs);
+}
