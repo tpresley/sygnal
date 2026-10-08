@@ -12,6 +12,11 @@
   overflow: hidden;
 }
 
+/* the static code block above a panel whose editor is open */
+.sygnal-live-code-hidden {
+  display: none !important;
+}
+
 .sygnal-live [hidden] {
   display: none !important;
 }

@@ -272,6 +272,10 @@ function setup(el: HTMLElement): Panel {
   const p: Panel = { el, id, lang: el.dataset.lang || 'jsx', original: code, code, component, name: guess, gen: 0, result, errorEl, editorBox, editBtn, runBtn, resetBtn }
   setState(p, 'idle')
 
+  // the Expressive Code block this panel follows (its frame, with or without a title)
+  const prev = el.previousElementSibling
+  const staticCode = prev && prev.matches('.expressive-code, pre') ? prev : null
+
   editBtn.addEventListener('click', async () => {
     const open = editorBox.hidden
     editorBox.hidden = !open
@@ -279,6 +283,9 @@ function setup(el: HTMLElement): Panel {
     resetBtn.hidden = !open
     editBtn.textContent = open ? 'Hide code' : 'Edit'
     editBtn.setAttribute('aria-expanded', String(open))
+    // the editor takes the place of the static code block above the panel (still in the DOM
+    // for no-JS and search)
+    staticCode?.classList.toggle('sygnal-live-code-hidden', open)
     if (open) {
       try {
         await openEditor(p)

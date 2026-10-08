@@ -270,6 +270,8 @@ describe('RunOptions', () => {
   it('accepts mountPoint, fragments, useDefaultDrivers', () => {
     const o: RunOptions = { mountPoint: '#app', fragments: true, useDefaultDrivers: false }
     assertType(o)
+    const el: RunOptions = { mountPoint: document.createElement('div') }
+    assertType(el)
   })
 })
 

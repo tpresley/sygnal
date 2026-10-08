@@ -1721,7 +1721,8 @@ export interface AppErrorInfo {
 export type AppErrorHook = (error: any, info: AppErrorInfo) => void
 
 export type RunOptions = {
-  mountPoint?: string;
+  /** Where the app renders: a CSS selector (default '#root') or an element */
+  mountPoint?: string | Element;
   /** @deprecated No effect since 6.0: fragments always work (the DOM driver splices them into their parent) */
   fragments?: boolean;
   useDefaultDrivers?: boolean;
