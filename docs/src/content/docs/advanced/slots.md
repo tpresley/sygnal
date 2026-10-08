@@ -5,8 +5,9 @@ description: "Named content regions for composable layouts"
 
 Pass multiple named content regions from parent to child — headers, footers, sidebars, action bars — instead of a single flat `children` array.
 
-```jsx
+```jsx live
 import { Slot } from 'sygnal'
+import { Card } from './Card.jsx'
 
 function App({ state }) {
   return (
@@ -20,12 +21,15 @@ function App({ state }) {
     </Card>
   )
 }
+
+App.initialState = { card: {} }
 ```
 
 The child component receives a `slots` object in its view parameters, with each named slot as an array of VNodes:
 
-```jsx
-function Card({ state, slots }) {
+```jsx live-file=./Card.jsx
+// Card.jsx
+export function Card({ state, slots }) {
   return (
     <div className="card">
       <header>{...(slots.header || [])}</header>
