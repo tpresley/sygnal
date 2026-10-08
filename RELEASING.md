@@ -10,7 +10,7 @@ This repository publishes three npm packages:
 
 Publish them in the order below, so that each package's dependencies are on the registry before anything that installs them.
 
-The steps use placeholders for the versions. Choose them first (the choice is the maintainer's; see the `[Unreleased]` entry in `CHANGELOG.md` for what changed):
+The steps use placeholders for the versions. Choose them first (the choice is the maintainer's; see the `[Unreleased]` entry in `CHANGELOG.md`, or the newest one, for what changed):
 
 | Placeholder | Package | Last published |
 |---|---|---|
@@ -77,7 +77,7 @@ All of them must pass. `npm test` needs the `sygnal-check` install above (the Vi
 
 ### Size gate
 
-The gzipped kanban production bundle must stay within the agreed budget, **42,300 B** (D48):
+The gzipped kanban production bundle must stay within the agreed budget, **42,700 B** (D48; raised by D185, D222 and D230; `BUDGET` in `scripts/size-gate.mjs`):
 
 ```bash
 node scripts/size-gate.mjs                  # --budget <bytes> to try another limit
@@ -88,7 +88,7 @@ It builds `examples/kanban` twice (it needs `npm run build` and `npm install --p
 - **(a), gated:** built with `sygnal({ nativeGlobalThis: false })`, so it keeps measuring the core plus xstream's original dependencies. It must be at or under the budget; the script exits non-zero otherwise.
 - **(b), informational:** the default build, with the `globalthis` alias (about 4 KB smaller). This is what users get.
 
-For reference, the release after 5.4.0 measured (a) 42,125 B (175 B headroom) and (b) 38,131 B. Record both numbers in the release notes or PR.
+For reference, 6.0.0 measured (a) 42,690 B (10 B headroom) and (b) 38,679 B; the release after 5.4.0 had measured (a) 42,125 B and (b) 38,131 B. Record both numbers in the release notes or PR.
 
 ## 3. Check the package contents
 

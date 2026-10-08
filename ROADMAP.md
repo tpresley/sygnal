@@ -259,7 +259,7 @@ Make Sygnal's silent failures loud and give coding agents one unambiguous way to
 
 ### 15. HTTP, Testing and the PLAN-1 Backlog
 
-**Status:** `DONE` (pending release): merged on the integration branch for the next major (6.0.0, in progress), not yet published. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md). Plan: [`dev-plans/PLAN-2.md`](dev-plans/PLAN-2.md).
+**Status:** `DONE`: shipped in **6.0.0** (see [`CHANGELOG.md`](CHANGELOG.md)). Plan: [`dev-plans/PLAN-2.md`](dev-plans/PLAN-2.md).
 
 Close the rest of the Sygnal↔React gap for agents, clear the correctness backlog PLAN-1 left, and run the experiments that decide what to build next.
 
@@ -274,11 +274,11 @@ Close the rest of the Sygnal↔React gap for agents, clear the correctness backl
 
 ---
 
-## Next Major
+## Sygnal 6.0
 
 ### 16. Network Layer (HTTP + WebSocket)
 
-**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-3](dev-plans/PLAN-3.md), tracker [PLAN-3-status](dev-plans/PLAN-3-status.md))
+**Status:** `DONE`: shipped in **6.0.0** ([PLAN-3](dev-plans/PLAN-3.md), tracker [PLAN-3-status](dev-plans/PLAN-3-status.md))
 
 Done on `plan3-integration`: reply actions (`ok`/`error`) for `makeFetchDriver` and `driverFromAsync`; `makeSocketDriver` (WebSocket + SSE) with the `connections` static; async EFFECT hardening; test fakes for routed requests and sockets (`t.respond`/`t.fail` by content, `t.push`/`t.drop`/`t.sent`/`t.connections`); checker rules SYG112/SYG508/SYG610/SYG611; `HYDRATE` and the legacy `@cycle/http` hydration removed. Also done: the agent docs, `resources` (advanced form, D92), `queryCache()` with SSR seeding, the router, the HEAD driver, and the final eval ([REPORT-v3](evals/agent-ergonomics/results/REPORT-v3.md)). Open: the report's recommendations (G-184…G-188). Server functions: docs for Telefunc via routed `driverFromAsync`; a native `serverFn` is deferred.
 
@@ -294,7 +294,7 @@ Done on `plan3-integration`: reply actions (`ok`/`error`) for `makeFetchDriver` 
 
 ### 17. Controls and Core Ergonomics (PLAN-4)
 
-**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-4](dev-plans/PLAN-4.md), tracker [PLAN-4-status](dev-plans/PLAN-4-status.md)). Phases 1–3 are merged on `plan4-integration`; the docs, agent context and final eval (Phase 4) are next. The release notes are under `[Unreleased]` in [`CHANGELOG.md`](CHANGELOG.md).
+**Status:** `DONE`: shipped in **6.0.0** ([PLAN-4](dev-plans/PLAN-4.md), tracker [PLAN-4-status](dev-plans/PLAN-4-status.md); release notes in [`CHANGELOG.md`](CHANGELOG.md), final eval in [REPORT-v4](evals/agent-ergonomics/results/REPORT-v4.md)).
 
 Close the everyday gaps that the gap study found between Sygnal and React/Vue apps: the ones agents and people hit in forms, dialogs, lists, persistence and debugging. Every feature had a size spike first; helpers that an app doesn't import cost 0 bytes, and PLAN-4 adds about 0.8 KB gzipped to the core.
 
@@ -326,7 +326,7 @@ Close the everyday gaps that the gap study found between Sygnal and React/Vue ap
 
 ### 18. Ecosystem Components and Integrations (PLAN-5)
 
-**Status:** `IN PROGRESS` for 6.0.0 ([PLAN-5](dev-plans/PLAN-5.md), tracker [PLAN-5-status](dev-plans/PLAN-5-status.md)). Phase 0 (baseline and spikes) runs on `plan5-integration`, on the PLAN-4.6 core (`src/core/`). Every feature attaches through the core's hooks and registries and is designed to add 0 B to an app that doesn't use it; the core has 904 B of the size gate left.
+**Status:** `DONE`: shipped in **6.0.0** ([PLAN-5](dev-plans/PLAN-5.md), tracker [PLAN-5-status](dev-plans/PLAN-5-status.md); release notes in [`CHANGELOG.md`](CHANGELOG.md), final eval in [REPORT-v5](evals/agent-ergonomics/results/REPORT-v5.md)). Built on the PLAN-4.6 core (`src/core/`). Every feature attaches through the core's hooks and registries and is designed to add 0 B to an app that doesn't use it. The core grew from 41,396 B to 42,690 B (kanban, gzip) against a 42,700 B gate (D222, D230).
 
 Ready-made answers to what other frameworks solve with their most-used libraries: native features where Sygnal can own the problem, and one integration primitive for framework-agnostic libraries, web components and (opt-in) React/Preact/Vue components. Foreign widgets report through DOM events on their host element, which `intent` reads; views still bind no events.
 

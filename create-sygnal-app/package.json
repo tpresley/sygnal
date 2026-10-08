@@ -1,6 +1,6 @@
 {
   "name": "create-sygnal-app",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Scaffold a new Sygnal project",
   "type": "module",
   "bin": {
