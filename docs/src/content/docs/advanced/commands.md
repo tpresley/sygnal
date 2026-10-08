@@ -5,8 +5,9 @@ description: "Send imperative commands from parent to child components"
 
 Send commands from a parent component to a specific child using `createCommand()`:
 
-```jsx
+```jsx live
 import { createCommand } from 'sygnal'
+import { VideoPlayer } from './VideoPlayer.jsx'
 
 const playerCmd = createCommand()
 
@@ -19,6 +20,8 @@ function App({ state }) {
     </div>
   )
 }
+
+App.initialState = { playing: false, currentTime: 0 }
 
 App.intent = ({ DOM }) => ({
   PLAY: DOM.select('.play-btn').events('click'),
@@ -37,9 +40,10 @@ App.model = {
 
 The child receives commands through the `commands$` source, which is automatically available when a `Command` object is passed as a prop:
 
-```jsx
-function VideoPlayer({ state }) {
-  return <video className="player" src={state.src} />
+```jsx live-file=./VideoPlayer.jsx
+// VideoPlayer.jsx: a stand-in that shows its state instead of a video
+export function VideoPlayer({ state }) {
+  return <p className="player">{state.playing ? 'Playing' : 'Paused'} at {state.currentTime} s</p>
 }
 
 VideoPlayer.intent = ({ commands$ }) => ({
