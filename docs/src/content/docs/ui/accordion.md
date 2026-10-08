@@ -5,7 +5,7 @@ description: Accessible accordions over your own markup, with ARIA attributes fr
 
 `accordion()` is a [behavior](/guide/behaviors/) for a list of headers that each show and hide a panel, following the [WAI-ARIA accordion pattern](https://www.w3.org/WAI/ARIA/apg/patterns/accordion/). You render the header buttons and the panels; `accordionAttrs()` gives them `aria-expanded`, the ids that link each button to its panel, and `hidden` on the closed panels.
 
-```jsx
+```jsx live
 import { accordion, accordionAttrs } from 'sygnal/ui'
 
 const FAQ = [
@@ -65,7 +65,7 @@ Wrap each button in a heading of the level that fits the page, so the headers ar
 
 ## Styling
 
-```css
+```css live
 .faq-question { width: 100%; text-align: start; }
 .faq-question[data-state='open']::after { content: '−'; }
 .faq-question[data-state='closed']::after { content: '+'; }

@@ -7,7 +7,7 @@ description: An accessible custom select (WAI-ARIA select-only combobox) from sy
 
 A native `<select>` is smaller and works everywhere; use `Select` when the options need custom styling, or several values with checkmarks.
 
-```jsx
+```jsx live live-height=230
 import { Select } from 'sygnal/ui/select'
 
 const SIZES = [
@@ -80,10 +80,12 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the trigger): `CL
 
 Zag's data attributes: `[data-scope="select"]` with `[data-part="root"]`, `"label"`, `"control"`, `"trigger"`, `"value-text"`, `"indicator"`, `"positioner"`, `"content"`, `"item"`, `"item-text"` and `"item-indicator"`. The trigger and content have `data-state`, options `data-highlighted`, `data-state="checked"` and `data-disabled`, and the value text `data-placeholder-shown` while empty. The item indicator (`✓`) is `hidden` on unselected options.
 
-```css
+```css live
 .size [data-part='trigger'] { min-width: 10rem; display: flex; justify-content: space-between; }
-.size [data-part='content'] { background: white; border: 1px solid #ddd; }
-.size [data-part='item'][data-highlighted] { background: #eef2ff; }
+.size [data-part='content'] { background: Canvas; border: 1px solid #ddd; }
+.size [data-part='item'] { padding: 4px 8px; }
+.size [data-part='item'][data-highlighted] { background: rgb(99 102 241 / 0.25); }
+.size [data-part='item'][data-disabled] { opacity: 0.5; }
 ```
 
 ## Positioning

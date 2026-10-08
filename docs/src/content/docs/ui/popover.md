@@ -5,7 +5,7 @@ description: Menus, pickers and panels on the native Popover API, with their ope
 
 `popover()` is a [behavior](/guide/behaviors/) for an element with the HTML `popover` attribute. The browser shows it in the top layer, above everything else, and a button with `popovertarget` opens and closes it with no code at all. The browser also closes it when the user clicks outside or presses Escape (light dismiss), sets `aria-expanded` on the button and returns the focus to it. The behavior keeps `open` in state and lets the model open and close the popover.
 
-```jsx
+```jsx live
 import { popover } from 'sygnal/ui'
 
 function Filters({ state, uid }) {
@@ -71,7 +71,7 @@ A popover inside a modal [dialog](/ui/dialog/) works: it opens above the dialog,
 
 Browsers center a popover in the viewport by default. To place it next to its button, use [CSS anchor positioning](/ui/tooltip/#positioning):
 
-```css
+```css live
 .filters-button { anchor-name: --filters; }
 .filters { position-anchor: --filters; position-area: bottom span-right; margin: 4px 0 0; inset: auto; }
 .filters:popover-open { animation: fade-in 120ms ease-out; }
