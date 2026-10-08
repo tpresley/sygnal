@@ -13,10 +13,11 @@ import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import ts from 'typescript'
 import { checkFiles } from '../sygnal-check/src/index.js'
+import { codeBlocks } from './support/fences.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const page = fs.readFileSync(path.join(here, '../docs/src/content/docs/guide/view-transitions.md'), 'utf8')
-const blocks = [...page.matchAll(/^```(\w+)\n([\s\S]*?)^```$/gm)].map(m => ({ lang: m[1], code: m[2] }))
+const blocks = codeBlocks(page)
 const pick = (re) => {
   const found = blocks.filter(b => re.test(b.code))
   if (found.length != 1) throw new Error(`expected one block matching ${re}, found ${found.length}`)

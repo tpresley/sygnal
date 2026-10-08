@@ -16,6 +16,7 @@ import ts from 'typescript'
 import 'sygnal/diagnostics'
 import { renderComponent } from 'sygnal'
 import { checkFiles, fixFiles } from '../sygnal-check/src/index.js'
+import { codesOf } from './support/fences.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..')
@@ -312,7 +313,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 describe('every sample is in guide/controls, verbatim', () => {
   const page = fs.readFileSync(PAGE, 'utf8')
   for (const [name, { lang, code }] of Object.entries(SAMPLES)) {
-    it(name, () => { expect(page).toContain('```' + lang + '\n' + code + '```') })
+    it(name, () => { expect(codesOf(page, lang)).toContain(code) })
   }
   it('the page is marked as an alternative form and listed on alternative-forms', () => {
     expect(page).toContain(':::note[An alternative form]')

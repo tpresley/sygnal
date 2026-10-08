@@ -12,6 +12,7 @@ import ts from 'typescript'
 import 'sygnal/diagnostics'
 import { renderComponent } from 'sygnal'
 import { checkFiles } from '../sygnal-check/src/index.js'
+import { codesOf } from './support/fences.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const docs = path.join(here, '..', 'docs/src/content/docs')
@@ -106,7 +107,7 @@ afterEach(() => {
 describe('every sample is in its docs page, verbatim', () => {
   for (const [name, { page, code }] of Object.entries(SAMPLES)) {
     it(`${name} (${page})`, () => {
-      expect(fs.readFileSync(path.join(docs, page), 'utf8')).toContain('```jsx\n' + code + '```')
+      expect(codesOf(fs.readFileSync(path.join(docs, page), 'utf8'), 'jsx')).toContain(code)
     })
   }
 })
@@ -196,7 +197,7 @@ const PREVENT = { page: 'guide/intent.md', code: `Editor.intent = ({ DOM }) => (
 
 describe('guide/intent: preventDefault', () => {
   it('is on the page verbatim and strict-clean', () => {
-    expect(fs.readFileSync(path.join(docs, PREVENT.page), 'utf8')).toContain('```jsx\n' + PREVENT.code + '```')
+    expect(codesOf(fs.readFileSync(path.join(docs, PREVENT.page), 'utf8'), 'jsx')).toContain(PREVENT.code)
     expect(check('prevent', PREVENT.code).filter(f => /^SYG[57]\d\d /.test(f))).toEqual([])
   })
 

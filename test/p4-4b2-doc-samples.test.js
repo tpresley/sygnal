@@ -142,7 +142,7 @@ TaskRow.model = {
 
 export function TaskList() {
   return (
-    <div>
+    <div className="task-list">
       <button className="add-task">Add a task</button>
       <ul>
         <Collection of={TaskRow} from="tasks" />

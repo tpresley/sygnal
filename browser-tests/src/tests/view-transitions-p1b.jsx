@@ -7,6 +7,7 @@ import { resetChecks } from 'sygnal/diagnostics'
 import { mount, assert, runTest, waitFor, wait } from '../harness.js'
 // the docs page's CSS recipe, applied as written
 import guide from '../../../docs/src/content/docs/guide/view-transitions.md?raw'
+import { codesOf } from '../../../test/support/fences.js'
 
 const CAT = 'View Transitions (PLAN-4 P-1b)'
 
@@ -194,7 +195,8 @@ export async function viewTransitionTestsP1b() {
   })
 
   await runTest(CAT, "the docs' CSS recipe parses and raises a moving card (view-transition-class)", async () => {
-    const css = guide.match(/```css\n([\s\S]*?)```/)[1]
+    // the recipe, not the page's layout stylesheet for its live demo (```css live)
+    const css = codesOf(guide, 'css').find(c => c.includes('::view-transition-group(*.card)'))
     const style = document.createElement('style')
     style.textContent = css
     document.head.appendChild(style)

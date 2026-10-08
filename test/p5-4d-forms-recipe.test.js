@@ -11,10 +11,11 @@ import ts from 'typescript'
 import 'sygnal/diagnostics'
 import { renderComponent } from 'sygnal'
 import { checkFiles } from '../sygnal-check/src/index.js'
+import { codesOf } from './support/fences.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const page = fs.readFileSync(path.join(here, '../docs/src/content/docs/guide/forms.md'), 'utf8')
-const blocks = [...page.matchAll(/```jsx\n([\s\S]*?)```/g)].map((m) => m[1])
+const blocks = codesOf(page, 'jsx')
 const RECIPE = blocks[0]
 const TESTING = blocks.find((b) => b.includes("from 'vitest'"))
 
@@ -40,7 +41,8 @@ describe('guide/forms: the agent-sized page (D231)', () => {
   it('leads with the recipe; the page is small enough to read whole', () => {
     expect(page.indexOf('## The recipe')).toBeLessThan(1500)
     for (const s of ["'form.ADD'", "'form.REMOVE'", 'state.form.submitting', "error: 'form.ERRORS'", '422']) expect(page).toContain(s)
-    expect(Buffer.byteLength(page)).toBeLessThan(18000)
+    // 18,000 until the live examples added the demo server and the error-line CSS (+436 B)
+    expect(Buffer.byteLength(page)).toBeLessThan(18500)
   })
 
   it('the recipe and the testing sample are clean under sygnal-check --strict', () => {
