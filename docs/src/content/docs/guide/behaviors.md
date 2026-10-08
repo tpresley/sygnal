@@ -186,7 +186,7 @@ Two more parts are for behaviors that reach past their slice:
 - **`HOST`**: a model entry `{ HOST: (state, data, next, props, options, key) => newState }` is a reducer on the host's whole state, for a behavior that edits a host field (reordering `state[options.from]`, say). `ABORT`, or the same state, means no change. An entry can have both: `STATE` runs first (on the slice), then `HOST` gets the whole state with that update applied; an `ABORT` from one keeps the other's change.
 - **`timers: (slice, options, key) => ({ name: spec })`** declares [timers](/guide/timers/) for the host, as the `timers` static does (the app needs `makeTimerDriver()`). The host sees them as `'<key>.<name>'`; a spec whose `action` names one of the behavior's actions is sent to that action (`'SHOW'` arrives as `'tip.SHOW'`), any other action name goes to the host as written. They run alongside the host's own `timers`.
 
-```jsx
+```js live-file=./behaviors/hoverDelay.js
 // behaviors/hoverDelay.js
 import { defineBehavior } from 'sygnal'
 
@@ -202,7 +202,25 @@ export const hoverDelay = defineBehavior({
 })
 ```
 
-`Card.uses = { tip: hoverDelay({ target: '.help', delay: 500 }) }` opens `state.tip.open` half a second after the pointer enters `.help`. A behavior that sends a driver request names its [reply actions](/guide/http/) with the key, so they reach its own model: `ok: key + '.LOADED'`.
+A host uses it with its own delay:
+
+```jsx live
+// Card.jsx
+import { hoverDelay } from './behaviors/hoverDelay.js'
+
+export function Card({ state }) {
+  return (
+    <div>
+      <button className="help">Help</button>
+      {state.tip.open && <p className="tip">Shown half a second after the pointer entered Help.</p>}
+    </div>
+  )
+}
+
+Card.uses = { tip: hoverDelay({ target: '.help', delay: 500 }) }
+```
+
+`state.tip.open` turns true half a second after the pointer enters `.help` (`tip.show` is the timer, `tip.SHOW` its action), and false when it leaves. A behavior that sends a driver request names its [reply actions](/guide/http/) with the key, so they reach its own model: `ok: key + '.LOADED'`.
 
 ### Persisted state and undo steps
 

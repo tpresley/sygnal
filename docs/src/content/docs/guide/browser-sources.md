@@ -91,7 +91,7 @@ Reading or writing the clipboard is something a user asks for, not something to 
 | `{ setItem: key, value, area, json }` | Writes a storage key (`json: true` stores `value` as JSON); this page's `storage` declarations of that key see the change (a write of the value already stored is silent, so a model that writes back what it reads settles; `storage` listeners of your own on `window` hear only other tabs, as in the browser) | `ok`: `{ key }` |
 | `{ removeItem: key, area }` | Removes a storage key | `ok`: `{ key }` |
 
-```jsx
+```jsx live
 export function ShareLink({ state }) {
   return (
     <div className="share">
