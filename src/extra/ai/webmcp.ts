@@ -20,7 +20,8 @@
  * - Annotations: A-1's `readOnlyHint` and `consequentialHint` (advisory: Chrome 153 drops it, so
  *   `confirm` is the safeguard), and `untrustedContentHint` on the tools whose results carry a
  *   projection with user strings: `untrusted: true` on the declaration, or (unless `untrusted:
- *   false`) inferred from string values, with SYG244 (dev).
+ *   false`) inferred from string values (A-1's `hasUserText`: not under `id` / `status` / `type` /
+ *   `kind` keys, not one of the declaration's input enum values; G-623), with SYG244 (dev).
  * - Context (D250): A-1's read tool per declaration, plus a short summary of that declaration's
  *   projection at the end of each of its tool descriptions, re-registered when it changes. An
  *   untrusted projection's summary is its structure only (D286): user text never goes into a
@@ -30,7 +31,7 @@
  *   while it's open, "Deny" focused, Escape denies.
  * Side-effect free: an app that doesn't import it pays 0 B.
  */
-import {agentTools, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
+import {agentTools, hasUserText, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
 import {report} from '../diagnostics/index'
 
 export interface ExposeWebMcpOptions {
@@ -86,8 +87,6 @@ const hash = (s: string) => {
   for (let i = 0; i < s.length; i++) h = (h * 33 ^ s.charCodeAt(i)) >>> 0
   return (h % 1679616).toString(36).padStart(4, '0')
 }
-/** a string value anywhere in a projection (keys named `id` aside): user content, likely */
-const hasString = (v: any, d = 0): boolean => d < 20 && (typeof v == 'string' || (!!v && typeof v == 'object' && Object.keys(v).some(k => k != 'id' && hasString(v[k], d + 1))))
 
 export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions = {}): WebMcpHandle {
   const mc = options.modelContext ?? g.document?.modelContext ?? g.navigator?.modelContext
@@ -160,7 +159,7 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
     for (const gr of groups) if (gr.read) {
       const v = context[gr.name]
       let u = gr.untrusted
-      if (u === undefined && hasString(v)) {
+      if (u === undefined && hasUserText(v, gr.enums)) {
         u = true
         dev('SYG244', gr.name, `agent '${gr.name}': read returns strings, so its WebMCP tools get untrustedContentHint; declare untrusted: true (user-entered text) or untrusted: false (only the app's own text)`)
       }

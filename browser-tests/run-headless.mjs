@@ -310,7 +310,7 @@ async function run() {
  * PLAN-6 2-W: the WebMCP round trip (webmcp.html, src/webmcp/) per mode, each on a fresh page:
  * Chromium 'native' in this browser when it has the switch, then 'none' and 'polyfill' in a second
  * launch without it; Firefox / WebKit 'none' and 'polyfill' in this browser. Returns the number of
- * failed checks plus console errors.
+ * failed checks plus unexpected console errors (EXPECTED_CONSOLE_ERRORS applies per step, G-624).
  */
 async function runWebMcp(browser, url) {
   const t0 = Date.now();
@@ -326,13 +326,22 @@ async function runWebMcp(browser, url) {
     runs.push([second, 'none'], [second, 'polyfill']);
   } else runs.push([browser, 'none'], [browser, 'polyfill']);
   let bad = 0;
-  const lines = [];
+  const lines = [], expectedSeen = new Map();
   try {
     for (const [b, mode] of runs) {
       const ctx = await b.newContext();
       const page = await ctx.newPage();
       const errors = [];
-      page.on('console', m => { if (m.type() === 'error') errors.push(`[console.error] ${m.text()}`); });
+      // G-624: the same per-test console allowlist as the main suite (its entries name WebMCP
+      // steps too); the page's step() reports each step's start and end through __pwTest
+      const pageAllowlist = consoleAllowlist(EXPECTED_CONSOLE_ERRORS);
+      await page.exposeFunction('__pwTest', (name) => { pageAllowlist.start(name); });
+      page.on('console', m => {
+        if (m.type() !== 'error') return;
+        const text = m.text(), entry = pageAllowlist.expected(text);
+        if (entry) expectedSeen.set(entry, (expectedSeen.get(entry) || 0) + 1);
+        else errors.push(`[console.error] ${text}`);
+      });
       page.on('pageerror', e => errors.push(`[uncaught] ${e.stack || e.message}`));
       // real input for the confirmation dialog
       await page.exposeFunction('__pwWebMcp', async (op, arg) => {
@@ -354,6 +363,7 @@ async function runWebMcp(browser, url) {
   } finally {
     if (second) await second.close();
   }
+  for (const [entry, n] of expectedSeen) lines.push(`  ok  expected console error: ${entry.test}${n > 1 ? ` (x${n})` : ''}`);
   console.log(lines.join('\n') + `\nWebMCP pages: ${Date.now() - t0} ms\n`);
   return bad;
 }

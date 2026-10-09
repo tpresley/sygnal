@@ -75,3 +75,5 @@ t.fail('LLM', 429)
 t.stream('LLM', 'Hi')
 
 export { structured, same, source }
+// 3-F (G-628): a reply that continues the last (assistant) message
+export const continued: ChatRequest = { messages, ok: 'DONE', continue: true }

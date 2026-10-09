@@ -9,7 +9,7 @@ import {outputJsonSchema} from '../chat/output';
  * stream protocol v1: SSE, header `x-vercel-ai-ui-message-stream: v1`, `data: [DONE]` at the end).
  *
  * Request: the body DefaultChatTransport sends (`{ id, messages, trigger: 'submit-message',
- * messageId }`, so `convertToModelMessages(messages)` works on the server as is: the messages
+ * messageId }`; `messageId` when the request continues the last message, `continue: true`, G-628, so `convertToModelMessages(messages)` works on the server as is: the messages
  * are UIMessages, D252), plus what the server may use: `instructions`, `model`, `tools` (name ->
  * { description, inputSchema }: client tools the server can declare without `execute`) and
  * `output` (`{ schema }`); `body` merged in.
@@ -42,10 +42,14 @@ export function uiMessageStream(url: string, options: UIMessageStreamOptions = {
   return {
     async *stream(req: any, signal: AbortSignal): AsyncGenerator<any, void, any> {
       const o = req.output !== undefined ? outputJsonSchema(req.output) : undefined;
+      const messages = req.messages.map((m: any, i: number) => ({id: m.id ?? `m${i}`, role: m.role, parts: partsOf(m), ...(m.metadata !== undefined && {metadata: m.metadata})}));
+      const last = messages[messages.length - 1];
       const res = await post(url, {
         ...(req.chatId != null && {id: req.chatId}),
-        messages: req.messages.map((m: any, i: number) => ({id: m.id ?? `m${i}`, role: m.role, parts: partsOf(m), ...(m.metadata !== undefined && {metadata: m.metadata})})),
+        messages,
         trigger: 'submit-message',
+        // G-628: a continued assistant message (DefaultChatTransport's messageId)
+        ...(req.continue === true && last?.role == 'assistant' && {messageId: last.id}),
         ...(req.instructions && {instructions: req.instructions}),
         ...(req.model && {model: req.model}),
         ...(req.tools && {tools: req.tools}),

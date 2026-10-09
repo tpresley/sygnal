@@ -61,3 +61,5 @@ export const noInput: CommandBarOptions = { decide: { model: 'nimble' } }
 // @ts-expect-error below is a number
 commandBar({ input: '.c', decide: { model: 'nimble' }, below: 'low' })
 expectTypeOf(fromCore).toEqualTypeOf(commandBar)
+// D288: a Go button
+export const go: CommandBarOptions = { input: '.c', run: '.go', decide: { model: 'nimble' } }

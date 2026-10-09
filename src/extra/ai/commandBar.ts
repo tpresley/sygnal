@@ -19,8 +19,8 @@
  * - result: the last outcome, `{ command, tool, input, ...AgentResult }` (ok, error, state, ...),
  *   or `{ command, escalated: '<chat key>', reason, confidence }`; error: the last failure, else null.
  *
- * Actions ('cmd.X'): RUN (the input's Enter, or the form's submit; a string as data runs that
- * command), APPROVE, DENY, DONE (a command ran: the result; a host entry 'cmd.DONE' runs after it).
+ * Actions ('cmd.X'): RUN (the input's Enter, or the form's submit, and a click of the optional
+ * `run` selector, D288; a string as data runs that command), APPROVE, DENY, DONE (a command ran: the result; a host entry 'cmd.DONE' runs after it).
  * Internal: INPUT (typing), DECIDED / FAILED (the fetch driver's reply actions), ASK.
  *
  * One decision request per command (through the app's fetch driver, `decide()`), two questions:
@@ -44,6 +44,7 @@
  *
  * It reaches the runtime through the shared link (./link.ts, D283), as `chat` does.
  */
+import xs from 'xstream'
 import {defineBehavior} from '../behaviors'
 import {ABORT} from '../../shared'
 import {agentTools} from './agent/index'
@@ -176,11 +177,11 @@ async function runCall(e: Engine, command: string, c: {tool: string; input: any}
 }
 
 /**
- * The command bar behavior (PLAN-6 M-3): `uses = { cmd: commandBar({ input, form, decide, below,
+ * The command bar behavior (PLAN-6 M-3): `uses = { cmd: commandBar({ input, form, run, decide, below,
  * escalate, agent, sink, approve, deny, freeText }) }`. Types: src/ai.d.ts.
  */
 export const commandBar = (options: any = {}): any => {
-  const {sink = 'HTTP', input, form, approve, deny} = options
+  const {sink = 'HTTP', input, form, run, approve, deny} = options
   const on = (DOM: any, sel: any, ev = 'click', o?: any) => DOM.select(sel).events(ev, o)
   const E = engineFor
   const b = defineBehavior({
@@ -188,11 +189,16 @@ export const commandBar = (options: any = {}): any => {
     intent: (so: any) => {
       const {DOM} = so
       checkLinked(so, 'commandBar', 'it runs no commands')
+      // Enter in the field runs it (a form's submit instead when `form` is given); D288: and a
+      // click of `run` (a Go button: the field's text)
+      const runs = [
+        form ? on(DOM, form, 'submit', {preventDefault: true})
+          : input && on(DOM, input, 'keydown').filter((ev: any) => ev.key === 'Enter' && !ev.isComposing).map((ev: any) => { ev.preventDefault?.(); return typeof ev.target?.value == 'string' ? ev.target.value : undefined }),
+        run && on(DOM, run).mapTo(undefined),
+      ].filter(Boolean)
       return {
         ...(input && {INPUT: on(DOM, input, 'input').map((ev: any) => ev.target.value)}),
-        // Enter in the field runs it (a form's submit instead when `form` is given)
-        ...(form ? {RUN: on(DOM, form, 'submit', {preventDefault: true})}
-          : input && {RUN: on(DOM, input, 'keydown').filter((ev: any) => ev.key === 'Enter' && !ev.isComposing).map((ev: any) => { ev.preventDefault?.(); return typeof ev.target?.value == 'string' ? ev.target.value : undefined })}),
+        ...(runs.length && {RUN: runs.length == 1 ? runs[0] : xs.merge(...runs)}),
         ...(approve && {APPROVE: on(DOM, approve)}),
         ...(deny && {DENY: on(DOM, deny)}),
       }

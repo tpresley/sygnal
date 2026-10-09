@@ -50,7 +50,7 @@ export interface ConfirmInfo {tool: string; component: string; action: string; d
 export type Confirm = boolean | ((info: ConfirmInfo) => boolean | Promise<boolean>)
 export type AgentResult = {ok: boolean; [k: string]: any}
 /** internal (A-2): one declaration's offered tools */
-export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]}
+export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]; enums: Set<string>}
 export interface AgentToolsOptions {
   /** consequential calls: resolve true to run (default: decline) */
   confirm?: Confirm
@@ -77,7 +77,35 @@ const dev = (code: string, decl: any, what: string, component: string, message: 
   try { report(code, {component, message, severity: code < 'SYG242' ? 'error' : 'warn'}) } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
-interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any}
+/** the string `enum` / `const` values anywhere in a JSON Schema (the app's own words: filter names, statuses) */
+function enumsOf(s: any, out: Set<string>, d = 0): Set<string> {
+  if (!s || typeof s != 'object' || d > 20) return out
+  if (Array.isArray(s)) { for (const x of s) enumsOf(x, out, d + 1); return out }
+  for (const v of Array.isArray(s.enum) ? s.enum : []) if (typeof v == 'string') out.add(v)
+  if (typeof s.const == 'string') out.add(s.const)
+  for (const k in s) if (k != 'enum' && k != 'const' && s[k] && typeof s[k] == 'object') enumsOf(s[k], out, d + 1)
+  return out
+}
+
+/** keys whose string values are the app's own (ids and enum-like fields), not user text (G-623) */
+const OWN_KEYS = /^(id|status|type|kind)$/
+
+/**
+ * Whether a `read` projection holds user text, when its declaration doesn't say (`untrusted`
+ * unset; WebMCP's SYG244, the chat behavior's app-state block). The rule (G-623), kept simple on
+ * purpose: any string is user text except a value under a key named `id`, `status`, `type` or
+ * `kind` (at any depth), and a value that is one of the string enum / const values of the same
+ * declaration's action inputs (a filter name the model can set). Declare `untrusted` to be exact.
+ */
+export function hasUserText(v: any, enums?: Set<string>, d = 0): boolean {
+  if (d > 20) return false
+  if (typeof v == 'string') return !enums?.has(v)
+  if (!v || typeof v != 'object') return false
+  if (Array.isArray(v)) return v.some(x => hasUserText(x, enums, d + 1))
+  return Object.keys(v).some(k => !OWN_KEYS.test(k) && hasUserText(v[k], enums, d + 1))
+}
+
+interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any; enums: Set<string>}
 interface Rec {tool: AgentTool; e: Entry; action?: string; a?: any; key?: string; off?: 1}
 interface Call {id: number; type: string; data: any; ran: boolean; out: Array<{kind: string; reason?: string; error?: any}>}
 
@@ -210,7 +238,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
         if (p && !m.has(p)) m.set(p, undefined)
       }
       const e = by.get(name)
-      if (!e) by.set(name, {name, decl: d, ivs: [iv], item, view: iv.def.view})
+      if (!e) by.set(name, {name, decl: d, ivs: [iv], item, view: iv.def.view, enums: new Set()})
       else if (e.decl === d && e.item && item) e.ivs.push(iv)
       else dev('SYG440', d, name, iv.name, `two agent declarations are named '${name}'; only the first is offered`)
     }
@@ -238,6 +266,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       for (const action in d.actions) {
         const a = d.actions[action], name = e.name + '_' + snake(action), comp = e.ivs[0].name
         const c = a.input ? toJsonSchema(a.input) : undefined
+        if (c?.schema) enumsOf(c.schema, e.enums)
         const tool: AgentTool = {name, description: a.description, inputSchema: c?.schema || {type: 'object', properties: {}}, annotations: a.consequential ? {consequentialHint: true} : {}}
         const rec: Rec = {e, action, a, tool}
         recs.set(name, rec)
@@ -383,7 +412,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     /** internal (A-2, WebMCP): the offered tools grouped by declaration, with `untrusted` as declared */
     groups(): AgentGroup[] {
       const rs = [...build().values()]
-      return entries.map(e => ({name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name)}))
+      return entries.map(e => ({name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name), enums: e.enums}))
     },
     /** internal (M-3, the command bar): the live Collection items by declaration name, with their key and `agent.label` */
     targets(): Array<{name: string; id: any; label?: string}> {

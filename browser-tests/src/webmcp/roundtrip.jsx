@@ -15,11 +15,15 @@ const results = []
 const out = document.getElementById('out')
 const settle = (ms = 30) => new Promise((r) => setTimeout(r, ms))
 async function step(name, fn) {
+  // G-624: the runner's per-test console allowlist (run-headless.mjs) knows which step runs
+  await window.__pwTest?.(name)
   try {
     const detail = await Promise.race([fn(), new Promise((_, j) => setTimeout(() => j(new Error('timeout (4 s)')), 4000))])
     results.push({ name, pass: true, detail: detail === undefined ? '' : JSON.stringify(detail) })
   } catch (e) {
     results.push({ name, pass: false, detail: `${e.name}: ${e.message}` })
+  } finally {
+    await window.__pwTest?.(null)
   }
   out.textContent = results.map((r) => `${r.pass ? 'PASS' : 'FAIL'} ${r.name} ${r.detail}`).join('\n')
 }
