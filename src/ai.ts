@@ -17,3 +17,5 @@ export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpe
 export {answers, commandBar} from './index'
 // L-2 (3-W2)
 export {anthropicMessages, agui, fromAISDK, strictSchemas} from './index'
+// X-1 (3-X)
+export {makeMcpAppDriver} from './index'

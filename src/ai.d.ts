@@ -976,3 +976,99 @@ export interface FromAISDKOptions {
  *   makeChatDriver({ transport: fromAISDK({ streamText, Output, model: anthropic('claude-opus-5-5') }) })
  */
 export function fromAISDK(options: FromAISDKOptions): ChatTransport
+
+// ---------------------------------------------------------------------------------------------
+// PLAN-6 X-1 (3-X): MCP Apps, the view side (SEP-1865, protocol 2026-01-26)
+// ---------------------------------------------------------------------------------------------
+
+export type McpAppDisplayMode = 'inline' | 'fullscreen' | 'pip'
+/** an MCP content block (text, image, audio, resource, resource_link) */
+export type McpContentBlock = { type: string; [key: string]: any }
+/** an MCP CallToolResult: what a server tool returned */
+export interface McpToolResult {
+  content: McpContentBlock[]
+  structuredContent?: Record<string, any>
+  isError?: boolean
+  _meta?: Record<string, any>
+  [key: string]: any
+}
+/** the host context: theme, display mode, container size, locale, ... (merged across changes) */
+export interface McpHostContext {
+  theme?: 'light' | 'dark'
+  displayMode?: McpAppDisplayMode
+  availableDisplayModes?: McpAppDisplayMode[]
+  locale?: string
+  timeZone?: string
+  platform?: 'web' | 'desktop' | 'mobile'
+  styles?: { variables?: Record<string, string | undefined>; css?: { fonts?: string } }
+  containerDimensions?: Record<string, number | undefined>
+  safeAreaInsets?: { top: number; right: number; bottom: number; left: number }
+  toolInfo?: { id?: string | number; tool: { name: string; [key: string]: any } }
+  [key: string]: any
+}
+/** what an `error` reply action of the MCP driver gets */
+export interface McpAppError {
+  error: string
+  /** the JSON-RPC error code, when the host answered with an error */
+  code?: number
+  /** the result, when it came back with isError: true */
+  result?: McpToolResult
+  request: McpAppRequest
+}
+type McpReplies = { ok?: string; error?: string }
+/** a value for an MCP driver sink (reply actions `ok` / `error` go to the sending component) */
+export type McpAppRequest =
+  | ({ callTool: string; args?: Record<string, unknown> } & McpReplies)
+  | ({ updateModelContext: string | McpContentBlock[] | Record<string, unknown> } & McpReplies)
+  | ({ message: string | McpContentBlock[] } & McpReplies)
+  | ({ openLink: string } & McpReplies)
+  | ({ displayMode: McpAppDisplayMode } & McpReplies)
+
+export interface McpAppSource {
+  readonly __sygnalReplies: true
+  /** the arguments the model called the tool with (replayed to a stream that starts later) */
+  select(type: 'tool-input' | 'tool-input-partial'): Stream<Record<string, any>>
+  /** the server tool's result (replayed to a stream that starts later) */
+  select(type: 'tool-result'): Stream<McpToolResult>
+  select(type: 'tool-cancelled'): Stream<{ reason?: string }>
+  /** the whole host context: first the handshake's, then after each change (replayed) */
+  select(type: 'host-context-changed'): Stream<McpHostContext>
+  /** the host is about to remove the view (answered after the actions it caused have run) */
+  select(type: 'teardown'): Stream<{}>
+  dispose(): void
+}
+
+export interface McpAppDriverOptions {
+  /** the handshake's `appInfo` (default `{ name: document.title || 'sygnal-app', version: '0.0.0' }`) */
+  appInfo?: { name: string; version: string; [key: string]: any }
+  /** display modes the view supports */
+  availableDisplayModes?: McpAppDisplayMode[]
+  /** report the document's size to the host (`ui/notifications/size-changed`, default true) */
+  autoResize?: boolean
+  /**
+   * `agentTools`: offer the app's `agent` tools (A-1) to the host as the view's own tools
+   * (`appCapabilities.tools`, `tools/list`, `tools/call`, `notifications/tools/list_changed`).
+   * Passed in so an app without it doesn't bundle the agent layer. Call makeMcpAppDriver()
+   * before run(), as in `run(App, { MCP: makeMcpAppDriver({ tools: agentTools }) })`.
+   */
+  tools?: typeof agentTools
+  /** with `tools`: consequential calls run when it resolves true (default: declined) */
+  confirm?: AgentConfirm
+  /** the host window (default `window.parent`) */
+  host?: { postMessage(message: any, targetOrigin: string): void }
+  /** the window to listen on (default `window`) */
+  window?: any
+  /** the protocol version offered (default '2026-01-26') */
+  protocolVersion?: string
+}
+
+/**
+ * makeMcpAppDriver(options?): the MCP Apps bridge as a driver, for a Sygnal app shown by an MCP
+ * host (Claude, ChatGPT, VS Code, ...) in a sandboxed iframe. It does the `ui/initialize`
+ * handshake on start. Source: `MCP.select('tool-input' | 'tool-input-partial' | 'tool-result' |
+ * 'tool-cancelled' | 'host-context-changed' | 'teardown')`. Sinks: `{ callTool, args, ok, error }`,
+ * `{ updateModelContext }`, `{ message }`, `{ openLink }`, `{ displayMode }`.
+ *
+ *   run(WeatherCard, { MCP: makeMcpAppDriver() })
+ */
+export function makeMcpAppDriver(options?: McpAppDriverOptions): (sink$: Stream<McpAppRequest>) => McpAppSource

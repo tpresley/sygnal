@@ -36,3 +36,5 @@ export {anthropicMessages} from './transports/anthropicMessages'
 export {agui} from './transports/agui'
 export {fromAISDK} from './transports/fromAISDK'
 export {strictSchemas} from './schema/strict'
+// X-1 (3-X): MCP Apps, the view side
+export {makeMcpAppDriver} from './mcpApp'

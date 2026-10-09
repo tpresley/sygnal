@@ -13,6 +13,7 @@
   "devDependencies": {
     "@awesome.me/webawesome": "^3.14.0",
     "@mcp-b/webmcp-polyfill": "6.0.0",
+    "@modelcontextprotocol/ext-apps": "2.0.3",
     "flatpickr": "^4.6.13",
     "playwright": "1.63.0",
     "vite": "^6.4.1"

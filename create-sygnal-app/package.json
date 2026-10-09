@@ -16,7 +16,9 @@
     "template-vike",
     "template-vike-ts",
     "template-astro",
-    "template-astro-ts"
+    "template-astro-ts",
+    "template-mcp-app",
+    "template-mcp-app-ts"
   ],
   "keywords": [
     "sygnal",
