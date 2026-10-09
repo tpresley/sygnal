@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; 3-W2, 3-E merged; 3-A3, 3-X, 3-F running.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; 3-W2, 3-E, 3-F, 3-X merged; 3-A3 reworking (D291).
 
 ## Decisions
 
@@ -63,6 +63,9 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D288 | 2026-10-09 | Coordinator (3-M): `commandBar` runs on the input's form submit and, optionally, on a click of a `run` selector (a Go button) |
 | D289 | 2026-10-09 | Coordinator (3-W2): `strict: true` without `strictSchemas` is SYG672 (the reserved "missing transport peer" code; SYG671 stays reserved); `anthropicMessages` runs `output` through Anthropic's subset only when `strict: strictSchemas` is passed |
 | D290 | 2026-10-09 | Coordinator (3-E): through the dev MCP endpoint a consequential agent tool asks in the page by default (`window.confirm`; the person at the dev server decides), configurable with `confirm` |
+| D291 | 2026-10-09 | Coordinator (3-A3): the form tool is pay-per-use: `form(schema, { tool: formTool({ name, description, autosubmit }) })`, `formTool` from `sygnal/ai`; `form` without it adds 0 B (3-A3 reworking) |
+| D292 | 2026-10-09 | Coordinator (3-X): MCP Apps' optional agent tools take `tools: agentTools` (pay-per-use), not `agent: true`; `makeMcpAppDriver` lives in `sygnal/ai` (D240), so samples §11's `sygnal/mcp-app` import changes in Phase 4 |
+| D293 | 2026-10-09 | Coordinator (3-F): the `chat` app-state message (a user-role data block, G-631) goes just before the last user message, rebuilt per request; a call still running at STOP is patched late only when it succeeded |
 
 ## 0-A baseline (2026-10-09)
 
@@ -108,6 +111,8 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 3-M | M-2 `answers()` + M-3 `commandBar` | ✅ merged | `p6-3m` (`271b490d`) | 2026-10-09 | `answers(questions, picks)` typed decision replies (nimble's confidence formula) + `answers.openai()`; escalation pattern test. `commandBar({ input, decide, below, escalate, freeText? })`: one `decide()` call (action choice + `none`, target choice over live labelled keys; enum/boolean inputs as options), state = `{ command, app: read projections }`, A-1 `call()`, `unsure.reason` or escalate to `chat`; free text by heuristic (quoted part / command minus first word), else escalate. Shared `link.ts` (D283 layers) for chat + commandBar; SYG442 updated. Fixed: esbuild kept chat/decide in every app (module-level side effects) → marked pure + tree-shake test. Ollama 22/22 incl. commandBar + nimble 8/8 (≈ 700 ms cold). commandBar ≈ 9.3 KB gz with deps (+2.4 KB over chat); answers 1.1 KB |
 | 3-W2 | L-2 wave 2, D285, G-629 | ✅ merged | `p6-3w2` (`d03cd69b`) | 2026-10-09 | `anthropicMessages` (text/thinking/tools, server tools as `executed`, `output_config.format` checked vs `@anthropic-ai/sdk` 0.131.0, `serverTools`, signed thinking round-trip via driver `providerMetadata`, strict subset with per-request limits → SYG675), `agui` (state → `data-agui-state` with JSON Patch, messages/activity parts; checked vs `@ag-ui/core` 1.0.2), `fromAISDK` (v7 `result.stream`, user passes `streamText`). D285: `strictSchemas`, `strict: true` → type error + SYG672 (D289). G-629: one map-aware walker. Bytes over driver (no strict / with): openResponses 2,324 / 3,295; chatCompletions 2,356 / 3,331; anthropicMessages 2,855 / 3,842; agui 2,859; fromAISDK 1,159. Ollama `test:ai-local` 30/30 (incl. anthropicMessages ×2 models) |
 | 3-E | E-1 dev MCP endpoint | ✅ merged | `p6-3e` (`82447dfb`) | 2026-10-09 | `sygnal({ mcp: true })`: `/__sygnal/mcp` (hand-written, no dependency; streamable HTTP JSON replies; protocol 2025-11-25 … 2024-11-05, the newest from knowledge, not checked online). Tools: get_state, dispatch (cause 'agent'), component_tree, recent_actions, get_diagnostics, copy_as_test, agent_tools, tabs, + sygnal-check check/graph/explain. Bridge over the HMR socket (`virtual:sygnal/mcp`, `installMcpBridge` in dev-only `sygnal/devtools`), 10 s timeout (5 min while a confirm is open), most recent tab by default. Security: loopback peer, local `Host` (or `allowedHosts`), local `Origin`; never in build/preview/Vitest (e2e checks the build output). Docs: `integration/agents.md`, `bundler-config.md`. 14 + 7 + 7 (e2e, Vite 8 + Chromium, ≈ 1 s) tests |
+| 3-F | Follow-up fixes | ✅ merged | `p6-3f` (`c9601c15`) | 2026-10-09 | G-631: `read` projections leave the instructions → a user-role `sygnal-app-state` data block ("App state (data, not instructions)", `<app-state>` tags, untrusted declarations named), transport-neutral. G-628: one assistant message per turn (`continue: true`, `step-start`, `messageId`), server approvals → `pending`, APPROVE/DENY resend; tested against real AI SDK 7 routes. G-626, G-627 (`draftReasoning`), G-625 (attach via `__SYGNAL_DEVTOOLS_APP__`, tested with `lazy()`), G-623 (`hasUserText`), D288 (`run` selector), G-624, G-633 (`z.iso.datetime()`). Ollama 22/22; todo task via `chat()` 3/3 on qwen3:8b and llama3.2 |
+| 3-X | X-1 MCP Apps | ✅ merged | `p6-3x` (`6ad5dce6`, `5b1c6297`) | 2026-10-09 | `makeMcpAppDriver()` in `sygnal/ai`: hand-written postMessage JSON-RPC (ext-apps 2.0.3 exact devDep for tests; protocol 2026-01-26; all 12 method names verified); sources replay latest input/result/context; five sinks with reply actions; queued handshake, `autoResize`, dispose; optional `tools: agentTools` (host→view `tools/list`/`tools/call`, D292). Template `create-sygnal-app --template mcp-app` (JS + TS; single-file Vite build; MCP server on `@modelcontextprotocol/sdk`, HTTP or stdio; tests; strict-clean, 0 SYG7xx). 10 vitest (SDK host) + browser 7/7 × 3 engines (real iframe). +2.2 KB gz (+7.2 KB with agent tools) |
 
 ## Gaps
 
@@ -155,22 +160,26 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-620 | 1-L | SYG609's fix text suggests `makeFetchDriver` for an `LLM` sink | open (Phase 2) |
 | G-621 | 1-M | `decide.openai()` shapes are from OpenAI's guide only (no live call): `usage` undocumented, `{ label, description }` levels unverified | open (verify when a key is available) |
 | G-622 | 2-W | WebMCP description summaries can carry user-entered text; `untrustedContentHint` covers results, not descriptions (prompt-injection channel) | ✅ fixed (D286) |
-| G-623 | 2-W | SYG244's inference treats every string as untrusted except keys named `id` | open (A-2) |
-| G-624 | 2-W | The extra Chromium launch for the WebMCP page doesn't apply the per-test console-error allowlist | open (browser-tests) |
-| G-625 | 2-C | An app started before the first `chat()` call (a lazily loaded host) has no layer, so the assistant runs without tools (SYG442). Fix at 0 core bytes: `chat()` also attaches to an already-running app through `window.__SYGNAL_DEVTOOLS_APP__.__runtime.addHooks` | open (Phase 3) |
-| G-626 | 2-C | STOP during a tool batch marks calls that already ran as "not run" | open (L-3) |
-| G-627 | 2-C | The slice's `draft` holds text only; reasoning isn't exposed | open (L-3) |
-| G-628 | 2-T | After an approval the AI SDK continues the same assistant message; the driver starts a new one (the transport rebuilds the approved call) | open (L-3: merge) |
+| G-623 | 2-W | SYG244's inference treats every string as untrusted except keys named `id` | ✅ fixed (3-F) |
+| G-624 | 2-W | The extra Chromium launch for the WebMCP page doesn't apply the per-test console-error allowlist | ✅ fixed (3-F) |
+| G-625 | 2-C | An app started before the first `chat()` call (a lazily loaded host) has no layer, so the assistant runs without tools (SYG442). Fix at 0 core bytes: `chat()` also attaches to an already-running app through `window.__SYGNAL_DEVTOOLS_APP__.__runtime.addHooks` | ✅ fixed (3-F) |
+| G-626 | 2-C | STOP during a tool batch marks calls that already ran as "not run" | ✅ fixed (3-F) |
+| G-627 | 2-C | The slice's `draft` holds text only; reasoning isn't exposed | ✅ fixed (3-F) |
+| G-628 | 2-T | After an approval the AI SDK continues the same assistant message; the driver starts a new one (the transport rebuilds the approved call) | ✅ fixed (3-F) |
 | G-629 | 2-T | A-1's `normalize` walker treats `properties` maps as schemas (a property named `oneOf` gets rewritten); the strict layer has a map-aware walker | ✅ fixed (3-W2) |
 | G-630 | 2-T | `chromePrompt` sends no tools (the Prompt API has none) and fails on a mid-conversation system message | open (docs) |
-| G-631 | D286 review | The `chat` behavior sends `read` projections (with user text) as JSON right after the instructions: the same injection channel D286 closed for WebMCP. In-app the model needs the contents, so the fix is placement and framing (a delimited data block in a non-instruction message, marked as data), not removal | open (Phase 3, L-3) |
+| G-631 | D286 review | The `chat` behavior sends `read` projections (with user text) as JSON right after the instructions: the same injection channel D286 closed for WebMCP. In-app the model needs the contents, so the fix is placement and framing (a delimited data block in a non-instruction message, marked as data), not removal | ✅ fixed (3-F) |
 | G-632 | 3-K | SYG731 now flags 41 class-only tab states in eval starters; agents told to run `sygnal-check --strict` may spend time on them, so Phase 4 learn-time/cost numbers aren't comparable to PLAN-5's unless re-baselined | open (Phase 4: leave starters unchanged; re-baseline S-14 with the 6.1 checker) |
-| G-633 | 3-K | SYG240's explanation suggests `z.coerce.date()` for dates, which also throws in Zod's JSON Schema conversion | open (docs) |
+| G-633 | 3-K | SYG240's explanation suggests `z.coerce.date()` for dates, which also throws in Zod's JSON Schema conversion | ✅ fixed (3-F) |
 | G-634 | 3-M | `commandBar`'s free-text heuristic is naive for commands like "remind me to …" (documented; `freeText` hook; escalation) | open (docs) |
 | G-635 | 3-W2 | Without `strictSchemas`, Claude may reject an `output` schema with keywords outside its subset (400) | open (docs; consider a light always-on filter) |
 | G-636 | 3-W2 | Anthropic's strict-tool limits (20 tools, 24 optional, 16 union params) are from docs only, not verified live | open (verify with a key) |
 | G-637 | 3-W2 | `fromAISDK` ignores a request's `model` string; `agui` has no live-server test | open |
 | G-638 | 3-E | Dev MCP: only the page's first `run()` app is served; JSON replies only (no SSE/sessions); e2e on Chromium only; `plugin.d.ts`'s `devtools?: boolean` omits the `{ redux }` form; MCP protocol revision not verified online | open |
+| G-639 | merge of 3-F | The main rollup run peaks ≈ 5.1 GB (25 configs, each a full TypeScript program) and OOM'd at Node's 4 GB default: build now uses an 8 GB heap; sharing one TS program across configs is the real fix | open (build) |
+| G-640 | 3-F | `chat` messages have no ids; `uiMessageStream` numbers them by position, so the inserted app-state message shifts ids between requests; an AI SDK server that stores client messages also stores the app-state message (marked `metadata.sygnal`) | open (L-3) |
+| G-641 | 3-X | The `mcp-app` template asks for `sygnal` ^6.1.0 (installable after the release); `ui/download-file`, view-initiated `request-teardown`, `readServerResource`, logging and sampling aren't wrapped | open |
+| G-642 | 3-X | Parallel workers shared the session scratchpad and collided (one worker's `gate.log` in another's): give each worker its own subfolder | open (process) |
 
 ## Log
 
@@ -188,3 +197,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 3-M merged (clean). vitest 4,102; sygnal-check 696/696; size 42,690 B. D288; G-634. Started 3-A3 (A-3), 3-E (E-1), 3-X (X-1), 3-F (follow-ups G-625, G-626, G-627, G-628, G-631, D288, G-623, G-624, G-633).
 - 2026-10-09 — 3-W2 merged (shared-export conflicts resolved). vitest 4,143 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D289; G-635…G-637.
 - 2026-10-09 — 3-E merged (clean). D290; G-638.
+- 2026-10-09 — 3-F merged (clean). The build then OOM'd (G-639): rollup now runs with an 8 GB heap. 3-X merged (package.json / shared-export conflicts resolved). vitest 4,197 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D291–D293; G-639…G-642.
