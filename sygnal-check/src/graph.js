@@ -42,6 +42,11 @@
  *   timers       the `timers` static's literal specs: { name, every?, after?, frame?, action?,
  *                background? } (omitted when none; PLAN-4 GS-7). Timer actions are in `actions`
  *                with trigger 'reply' (the timer driver dispatches them as reply actions)
+ *   agent        the `agent` static (sygnal/ai, PLAN-6 K-1): { name (the literal agent.name, null
+ *                when absent or dynamic), tools (the tool-name prefix: name, else the component's,
+ *                snake_case; null when dynamic), description, read (has a read projection),
+ *                actions: [{ name, consequential, input }], partial? (spreads: incomplete) }
+ *                (omitted when none). Actions only an agent dispatches have trigger 'agent'
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
  *                attached to their component, the rest app-wide
  */
@@ -57,6 +62,7 @@ import { listenedControls } from './rules/syg124-controls.js'
 import { behaviorActions } from './model/behaviors.js'
 import { specFields } from './model/timers.js'
 import { CAUSED_EVENTS } from './model/elementCommands.js'
+import { agentName } from './model/agent.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -233,11 +239,13 @@ export function buildGraph(project, diagnostics = []) {
       for (const s of b.sinks) if (!list.includes(s)) list.push(s)
       sinks.set(name, list)
     }
+    // PLAN-6 K-1: actions only an agent dispatches (the `agent` static's actions)
+    const agentActions = new Set((c.agent?.actions || []).map(a => a.name))
     const actions = [...sinks].map(([name, s]) => {
       const b = owned.get(name)
       const action = {
         name,
-        trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : 'unknown',
+        trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : agentActions.has(name) ? 'agent' : 'unknown',
         sinks: s,
       }
       if (b) action.behavior = b.entry.key
@@ -318,6 +326,18 @@ export function buildGraph(project, diagnostics = []) {
     if (c.timers?.specs.length) {
       node.timers = c.timers.specs.filter(s => s.node.type === 'ObjectExpression').map(s => ({ name: s.name, ...specFields(s.node) }))
       if (!node.timers.length) delete node.timers
+    }
+    // PLAN-6 K-1: the `agent` declaration (sygnal/ai)
+    if (c.agent) {
+      const a = c.agent
+      node.agent = {
+        name: a.known && !a.nameDynamic ? (a.name ?? null) : null,
+        tools: agentName(c),
+        description: a.description,
+        read: a.read,
+        actions: a.actions.map(x => ({ name: x.name, consequential: x.consequential, input: !!x.input })),
+      }
+      if (!a.known || !a.actionsKnown) node.agent.partial = true
     }
     if (controls.length) {
       node.controls = controls.map(({ name, element, kind, listened }) => {

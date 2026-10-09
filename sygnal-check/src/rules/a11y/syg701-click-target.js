@@ -28,7 +28,7 @@ export const NON_INTERACTIVE = new Set([
 ])
 
 /** The DOM event a selector is listened for: DOM.click(x) → 'click'; DOM.select(x).events('click') → 'click'. */
-function eventOf(file, sel) {
+export function eventOf(file, sel) {
   if (sel.method !== 'select') return sel.method
   const call = file.parents.get(sel.node)
   const member = call && file.parents.get(call)
@@ -112,37 +112,8 @@ export default {
       for (const sel of intent.selectors) {
         if (sel.global || sel.component || sel.dynamic || sel.selector == null) continue
         if (eventOf(intent.file, sel) !== 'click') continue
-        let targets = []
-        if (sel.control) {
-          if (sel.controls.length !== 1) continue
-          for (const sink of sinks) {
-            for (const opening of sink.controls.get(sel.control) || []) {
-              const file = fileOfOpening(project, opening, comp)
-              const el = file?.parents.get(opening)
-              if (el) targets.push(describe(project, file, el))
-            }
-          }
-        } else {
-          if (sel.controls?.length) continue
-          const alts = simpleSelector(sel.selector)
-          if (!alts) continue
-          for (const sink of sinks) {
-            for (const e of sink.elements) {
-              const info = describe(project, e.file, e.node)
-              if (alts.some(a => matches(info, a))) targets.push(info)
-            }
-            for (const openings of sink.controls.values()) {
-              for (const opening of openings) {
-                const file = fileOfOpening(project, opening, comp)
-                const el = file?.parents.get(opening)
-                if (!el) continue
-                const info = describe(project, file, el)
-                if (alts.some(a => matches(info, a))) targets.push(info)
-              }
-            }
-          }
-        }
-        targets = [...new Set(targets)]
+        const targets = selectorTargets(project, comp, sel, sinks)
+        if (!targets) continue
         const bad = targets.map(t => ({ t, code: problem(project, t) })).filter(x => x.code)
         const seen = new Set()
         for (const { t, code } of bad) {
@@ -172,6 +143,45 @@ export default {
       }
     }
   },
+}
+
+/**
+ * The elements (shared.js Element infos) a simple intent selector or a control matches in the
+ * component's own view (and the JSX passed into it): null when the selector can't be judged
+ * (a control used by several components, a selector beyond tag / .class / #id).
+ */
+export function selectorTargets(project, comp, sel, sinks = [comp.viewInfo, ...project.injectedInto(comp.view)]) {
+  const targets = []
+  if (sel.control) {
+    if (sel.controls.length !== 1) return null
+    for (const sink of sinks) {
+      for (const opening of sink.controls.get(sel.control) || []) {
+        const file = fileOfOpening(project, opening, comp)
+        const el = file?.parents.get(opening)
+        if (el) targets.push(describe(project, file, el))
+      }
+    }
+  } else {
+    if (sel.controls?.length) return null
+    const alts = simpleSelector(sel.selector)
+    if (!alts) return null
+    for (const sink of sinks) {
+      for (const e of sink.elements) {
+        const info = describe(project, e.file, e.node)
+        if (alts.some(a => matches(info, a))) targets.push(info)
+      }
+      for (const openings of sink.controls.values()) {
+        for (const opening of openings) {
+          const file = fileOfOpening(project, opening, comp)
+          const el = file?.parents.get(opening)
+          if (!el) continue
+          const info = describe(project, file, el)
+          if (alts.some(a => matches(info, a))) targets.push(info)
+        }
+      }
+    }
+  }
+  return [...new Set(targets)]
 }
 
 function fileOfOpening(project, opening, comp) {

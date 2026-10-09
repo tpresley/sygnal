@@ -15,6 +15,13 @@ export const BUILTIN_ACTIONS = new Set(['BOOTSTRAP', 'INITIALIZE', 'DISPOSE', 'R
 /** Request keys that name the action a reply arrives as (reply actions) (PLAN-3 §1.1). */
 // PLAN-3 5-4b: a router `{ block: 'CONFIRM_LEAVE' }` names the action a blocked navigation goes to
 export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
+/**
+ * PLAN-6 K-1 (G-614): an LLM request (the chat driver, sygnal/ai) also names `delta` and `tool`
+ * reply actions. A request is an LLM one when it has a `messages` key or goes to the LLM sink.
+ */
+export const LLM_REPLY_KEYS = new Set(['ok', 'error', 'delta', 'tool'])
+export const isLlmRequest = (obj, sink) => sink === 'LLM' ||
+  obj.properties.some(p => (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && propName(p) === 'messages')
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
 export const CONNECTION_KEYS = new Set(['message', 'open', 'close', 'error'])
 /** Sinks the core handles itself: their values are never requests to a reply-action driver. */
@@ -79,11 +86,16 @@ export function eventSinkTypes(project, file, valueNode) {
   return out
 }
 
-/** Object literals a sink value can produce: the object itself, or a function's returns (through ?:, &&, ||). */
-export function returnedObjects(project, file, valueNode) {
+/**
+ * Object literals a sink value can produce: the object itself, or a function's returns (through
+ * ?:, &&, ||), and (PLAN-6 K-1, 0-S5) the returns of a local helper it calls
+ * (`LLM: (state) => ask(state.messages)` with `const ask = (messages) => ({ messages, ok: 'DONE' })`).
+ */
+export function returnedObjects(project, file, valueNode, depth = 0, seen = new Set()) {
   const r = resolveExpr(project, file, valueNode)
   const fn = r?.node
-  if (!fn) return []
+  if (!fn || seen.has(fn)) return []
+  seen.add(fn)
   const objs = []
   const collect = (e) => {
     e = unwrap(e)
@@ -92,6 +104,10 @@ export function returnedObjects(project, file, valueNode) {
     if (e.type === 'LogicalExpression') { collect(e.right); if (e.operator !== '&&') collect(e.left); return }
     if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1]); return }
     if (e.type === 'ObjectExpression') objs.push({ node: e, file: r.file })
+    else if (e.type === 'CallExpression' && depth < 3 && unwrap(e.callee).type === 'Identifier') {
+      const h = resolveExpr(project, r.file, e.callee)
+      if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen))
+    }
   }
   if (isFunction(fn)) returnedExpressions(fn).forEach(collect)
   else collect(fn)
@@ -103,13 +119,14 @@ export function returnedObjects(project, file, valueNode) {
  *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` values)
  *   dynamic  Array<{ node, file }>              (non-literal values)
  */
-export function replyNames(project, file, valueNode, keys = REPLY_KEYS) {
+export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
   const out = { targets: [], dynamic: [] }
   for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
+    const k = keys === REPLY_KEYS && isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : keys
     for (const p of obj.properties) {
       if (p.type !== 'ObjectProperty') continue
       const key = propName(p)
-      if (!keys.has(key)) continue
+      if (!k.has(key)) continue
       const s = stringValue(p.value)
       if (s != null) out.targets.push({ name: s, key, node: p.value, file: f })
       else out.dynamic.push({ node: p.value, file: f })
@@ -185,7 +202,7 @@ export function analyzeModel(project, file, modelNode) {
   }
   const addReplies = (action, sink, valueNode) => {
     if (NON_REPLY_SINKS.has(sink)) return
-    const t = replyNames(project, mfile, valueNode)
+    const t = replyNames(project, mfile, valueNode, REPLY_KEYS, sink)
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
     res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))

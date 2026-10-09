@@ -95,7 +95,8 @@ export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
 // ---------------------------------------------------------------------------
 
 /** How an action is dispatched. */
-export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'unknown'
+/** 'agent' (static, PLAN-6 K-1): only the component's `agent` declaration dispatches it */
+export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'agent' | 'unknown'
 
 export interface InspectAction {
   name: string
@@ -200,6 +201,8 @@ export interface InspectComponent {
   commands?: InspectCommand[]
   /** static only, PLAN-4 GS-7 (G-224): the literal timer specs of its `timers` static; omitted when none */
   timers?: InspectTimer[]
+  /** static only, PLAN-6 K-1: the component's `agent` declaration (sygnal/ai); omitted when none */
+  agent?: InspectAgent
   diagnostics: InspectDiagnostic[]
   /** runtime, PLAN-3 5-3: the instance's `resources` and their state */
   resources?: InspectResource[]
@@ -217,6 +220,20 @@ export interface InspectCommand {
   control?: string
   /** intent actions listening on the target for a native event the command causes (close, toggle...) */
   triggers?: string[]
+}
+
+/** PLAN-6 K-1: a component's `agent` declaration (static inspect, sygnal-check --graph) */
+export interface InspectAgent {
+  /** the literal agent.name; null when absent or not a literal */
+  name: string | null
+  /** the tool-name prefix (agent.name, else the component name, snake_case); null when not static */
+  tools: string | null
+  description: string | null
+  /** the declaration has a read projection */
+  read: boolean
+  actions: Array<{ name: string; consequential: boolean; input: boolean }>
+  /** spreads: what is listed may be incomplete */
+  partial?: true
 }
 
 /** PLAN-4 GS-7: a literal timer spec of a `timers` static (static inspect, sygnal-check --graph) */
