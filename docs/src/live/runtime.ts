@@ -44,6 +44,9 @@ interface Panel {
 }
 
 const ENTRY = '/__example'
+const AI = 'sygnal/ai'
+/** a block on the page imports sygnal/ai: every demo on it gets the LLM driver (G-615) */
+let pageUsesAi = false
 const DEBOUNCE = 400
 
 const decode = (s: string | undefined) => decodeURIComponent(s || '')
@@ -247,6 +250,7 @@ async function runPanel(p: Panel) {
     for (const spec of bare) if (!MODULES[spec]) throw unknownModule(spec)
     const loaded = new Map<string, any>()
     await Promise.all([...bare].map(async (s) => loaded.set(s, await load(s))))
+    const ai = pageUsesAi || bare.has(AI) ? loaded.get(AI) ?? await load(AI) : undefined
     if (gen !== p.gen) return
 
     // evaluate: CommonJS-style, one fresh instance of each live-file per run
@@ -330,7 +334,12 @@ async function runPanel(p: Panel) {
       pending: (d) => { p.pending += d; p.el.dataset.livePending = String(p.pending) },
     })
     p.token = token
-    app = Sygnal.run(Component, defaultDrivers(Sygnal, mount, Sygnal.makeFetchDriver({ ...httpOptions, fetch: demoFetch })), {
+    const drivers: Record<string, any> = defaultDrivers(Sygnal, mount, Sygnal.makeFetchDriver({ ...httpOptions, fetch: demoFetch }))
+    // LLM (PLAN-6 DX-1, D272): on a page where any block imports sygnal/ai (or this edited demo
+    // does), the real chat driver over the real openResponses() transport, through the same demo
+    // fetch as HTTP: the demo server's 'POST /v1/responses' route is the model
+    if (ai) drivers.LLM = ai.makeChatDriver({ transport: ai.openResponses({ model: 'demo', fetch: demoFetch }) })
+    app = Sygnal.run(Component, drivers, {
       mountPoint: mount,
       uid: p.id,
       onError: (e: any, info: any) => {
@@ -502,6 +511,8 @@ export function start() {
     document.head.append(style)
   }
 
+  pageUsesAi = [...document.querySelectorAll<HTMLElement>('.sygnal-live, .sygnal-live-file, .sygnal-live-server')]
+    .some((el) => decodeJSON(el.dataset.compiled)?.requires?.includes(AI) || /\bfrom\s+['"]sygnal\/ai['"]/.test(decode(el.dataset.code)))
   // a live-server block serves the panels after it, until the next one
   let server: string | undefined
   let n = 0
