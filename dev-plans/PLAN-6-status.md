@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 running: 1-0 scaffolding merged; 1-L, 1-A, 1-M in progress.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1: 1-0, 1-M, 1-A, 1-L merged on `plan6-integration`; full gate running.
 
 ## Decisions
 
@@ -48,6 +48,12 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D273 | 2026-10-09 | P6-Q30: `sygnal/ai` ships an Open Responses event encoder shared by tests and docs |
 | D274 | 2026-10-09 | P6-Q31: No `export const drivers` convention (and no scripted transport) in live blocks |
 | D275 | 2026-10-09 | P6-Q32: No docs interaction scripts in the gate: stream-on-load demos plus L-1's browser tests |
+| D276 | 2026-10-09 | Coordinator (1-A): the A-1 layer is ≈ 3.5 KB gzip (estimate 3.2 KB): accepted; the extra pays for item labels, the filter error and change notifications; 0 core bytes, 0 B unused |
+| D277 | 2026-10-09 | Coordinator (1-A): a refusal through `abort(reason)` reports as a refusal even on an `idempotent` action; a plain `ABORT` is a no-op |
+| D278 | 2026-10-09 | Coordinator (1-L): the chat driver is ≈ 2.5 KB gzip when used (plan ≈ 1.6 KB): accepted; the extra is structured output, tool results/errors, data/file/source parts and request validation; 0 core bytes |
+| D279 | 2026-10-09 | Coordinator (1-L): `memoryTransport` stays internal; tests use the L-4 fake (`renderComponent`); revisit if the docs need a public test transport |
+| D280 | 2026-10-09 | Coordinator (1-L): `ChatTool` is `{ description, inputSchema }`; a stream that ends with tool calls and no finish reason reports `'tool-calls'` (as the AI SDK) |
+| D281 | 2026-10-09 | Coordinator (1-M): `decide.openai()` appends `noul` criteria to the predicate's instructions (OpenAI's predicate has no criteria field) |
 
 ## 0-A baseline (2026-10-09)
 
@@ -82,9 +88,9 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 0-S4 | Schemas: `input` / `output` contract | ✅ done (spike, not merged) | `exp/p6-s4` (`72219289`) | 2026-10-09 | Zod 4.6.5, Valibot 1.5.0 (+ to-json-schema 1.8.0, via `toStandardJsonSchema()`), ArkType 2.2.8 × 21 cases: always send the **input-side** JSON Schema. Portable normalization (all consumers) + opt-in strict layer (transports); 63/63 pass Ajv and round-trip. `{ value }` wrapping + lenient unwrap; `repair` (numeric/boolean strings): llama3.2 9/15 → 15/15; Ollama doesn't enforce schemas. Plain JSON Schema via `jsonSchema()` (validator 885 B, 126/126 vs Ajv). Type sketch checks keys and data types (10/10). Helpers 1,145 B + repair 439 B + strict 1,366 B gz, 0 core |
 | 0-S5 | Live examples for AI docs | ✅ done (spike, not merged) | `exp/p6-s5` (`04bf3ba7`) | 2026-10-09 | Live server streams (`{ sse }` / `{ stream }` routes as a real ReadableStream); live runtime provides `LLM` = the chat driver over the real `openResponses()` against the demo server. Spike page: streaming chat + Stop, stream-on-load, an `agent` tool call, `decide()`, scripted alternative. check-live: spike page 3/3 per engine; all 87 pages pass on Chromium/Firefox/WebKit; interaction script 8/8 × 3 runs × 3 engines. Stand-in `sygnal/ai` 2.7 KB gz |
 | 1-0 | `sygnal/ai` entry scaffolding, G-581 gate, runner launch args (G-583) | ✅ merged | `plan6-integration` (`c89e646a`) | 2026-10-09 | `src/extra/ai/` exported from the main index; `src/ai.ts` re-exports from external `sygnal` (dist/ai.esm.js is one line); `test/p6-ai-entry.test.js` (no subpath bundle carries the diagnostics module or reply helpers); Chromium launches with `--enable-features=WebMCP` (browser suite 364/364), `BROWSER_ARGS`, `BROWSER_TESTS_TIMEOUT_MS`; `messageText`; spike reports copied in. Size 42,690 B |
-| 1-L | L-1 chat driver + L-4 fake | 🔄 running | `p6-1l` | | |
-| 1-A | A-1 agent layer + schema contract + A-4 | 🔄 running | `p6-1a` | | |
-| 1-M | M-1 `decide()` + builders | 🔄 running | `p6-1m` | | |
+| 1-L | L-1 chat driver + L-4 fake | ✅ merged | `p6-1l` (`f096df4b`) | 2026-10-09 | `makeChatDriver` on `replies.ts` (all L-1 behaviours incl. G-587, 15 ms floor + 100 ms hidden-tab timer, reasoning deltas, real `tool-<name>` parts, `ok.value`/`error.issues`); L-4 fake (`t.stream`/`respond`/`fail`, `llmSink`, fake timers). SYG673/677 (dev), SYG678/679 (always). 49 vitest + type test + browser test. Render budget: vitest 39/40; Chromium 46/48, Firefox 47/50, WebKit 45/48. Browser 367/366/366. ≈ 2.5 KB gz used (D278). Coordinator: output seam wired to A-1's `toJsonSchema` |
+| 1-A | A-1 agent layer + schema contract + A-4 | ✅ merged | `p6-1a` (`c0894a15`) | 2026-10-09 | `agentTools(app \| runtime, opts)` → `{ list, call, context, subscribe, stop }`: shown-instance discovery per flush, HMR, Collection item tools (`id`/`item`, `label`, filter error), normalize → unwrap → repair → validate → dispatch (`cause: 'agent'`) → flushed, structural no-op via `wrapHandler`, `idempotent`, `abort(reason)` (from `sygnal`, 24 B), `when`/`read` cached, confirm before dispatch, serial. Schema: `toJsonSchema`, `parseInput`, `repair`, `jsonSchema()`. A-4 `t.tools/callTool/agentContext`. `agent` static types. SYG240/241/243/440/441. devDeps arktype 2.2.8, @valibot/to-json-schema 1.8.0 (exact). 104 tests; Ollama opt-in llama3.2 3/3, qwen3:8b 3/3. Layer ≈ 3.5 KB + schema 1.4 KB + jsonSchema 0.65 KB gz (D276) |
+| 1-M | M-1 `decide()` + builders | ✅ merged | `p6-1m` (`a1862b5d`) | 2026-10-09 | `decide()` → a `makeFetchDriver` request (reply actions and `resources`); `choice` (object or array), `noul`, `score` (sent as `criteria: [...]`: Ollama rejects `levels`); answers typed from the questions; `decide.openai()` maps to the array form with a `parse` back to the dictionary form (refusals → `{ type: 'refusal' }`; shapes from the guide, not a live call). Verified against Ollama 0.40.2 `nimble`. Opt-in Ollama test |
 
 ## Gaps
 
@@ -106,7 +112,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-594 | 0-S2 | Item id enums carry no labels | decided (D258); open (impl) |
 | G-595 | 0-S2 | A `setState` on a hidden page's state isn't published until a later flush | open (A-1) |
 | G-596 | 0-S2 | The layer's `wrapHandler` copies the core's constant-handler semantics (drift risk) | open (A-1 tests) |
-| G-597 | 0-S2 | The action log relabelled `cause: 'agent'` as `'intent'` (one-token fix in the spike) | open (A-1) |
+| G-597 | 0-S2 | The action log relabelled `cause: 'agent'` as `'intent'` (one-token fix in the spike) | ✅ fixed (1-A) |
 | G-598 | 0-S3 | `toolname` etc. written in JSX become DOM properties, not attributes | decided (D269); open (impl) |
 | G-599 | 0-S3 | The polyfill can't be uninstalled: WebMCP tests need their own page | open (A-2 tests) |
 | G-600 | 0-S3 | Native and polyfill differ (input as JSON string vs object, schema string vs object, result shapes, errors): an agent-side test helper must normalize | open (A-2 tests) |
@@ -126,6 +132,11 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-614 | 0-S5 | `sygnal-check` gives false SYG102 for `delta`/`tool` reply keys | open (K-1) |
 | G-615 | 0-S5 | The live `LLM` default should apply page-wide, not only to demos importing `sygnal/ai` | open (docs infra) |
 | G-616 | 0-S5 | The live demo server has no unit tests | open (docs infra) |
+| G-617 | 1-A, 1-L, 1-M | `src/index.d.ts` re-exported from `'./ai'`, which resolves to `ai.ts`: `messageText` etc. were typed `any` in dist (hidden by `skipLibCheck`) | ✅ fixed (`'./ai.d'`, merge) |
+| G-618 | 1-A | Collection items without ids get their index as key: routing works but keys are unstable → SYG441 (from the uid's `_i<n>`) | ✅ fixed (1-A) |
+| G-619 | 1-A | No `test:ai-local` script yet for the opt-in Ollama suites | open (Phase 2) |
+| G-620 | 1-L | SYG609's fix text suggests `makeFetchDriver` for an `LLM` sink | open (Phase 2) |
+| G-621 | 1-M | `decide.openai()` shapes are from OpenAI's guide only (no live call): `usage` undocumented, `{ label, description }` levels unverified | open (verify when a key is available) |
 
 ## Log
 
@@ -133,3 +144,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — Spikes 0-S1…0-S5 done (0 core bytes everywhere). G-581…G-616 recorded. Questions P6-Q8…Q32 (consolidated from the five reports) sent to the user; PLAN-6 edits wait for the answers.
 - 2026-10-09 — User accepted P6-Q8…Q32 (D251–D275). PLAN-6 §1–§6 updated with Phase 0's findings (L-1 location and coalescing, A-1 discovery/no-op/input contract, A-2/A-3 WebMCP facts, new DX-1, gates, SYG243/675/676).
 - 2026-10-09 — Phase 1 started. 1-0 scaffolding on `plan6-integration` (`c89e646a`): sygnal/ai entry, G-581 gate, runner args (G-583 fixed); Chromium suite 364/364 with WebMCP on. 1-L, 1-A, 1-M launched in parallel worktrees.
+- 2026-10-09 — 1-M, 1-A, 1-L merged (shared-export conflicts resolved; chat output seam wired to `toJsonSchema`). vitest 3,993 passed; types; size 42,690 B; errors doc current. D276–D281 (coordinator calls on the workers' questions). G-617…G-621. Full gate (npm test, three engines, sygnal-check) running.
