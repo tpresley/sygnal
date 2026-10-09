@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K merged; 3-W2, 3-M running.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; 3-W2 running; 3-A3, 3-E, 3-X, 3-F started.
 
 ## Decisions
 
@@ -60,6 +60,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D285 | 2026-10-09 | Coordinator (2-T): the strict layer moves behind an explicit import (`openResponses({ strict: strictSchemas })`, `strictSchemas` exported from `sygnal/ai`), so apps that don't use strict mode don't pay ≈ 1.1 KB; `strict: true` alone becomes a dev error pointing at it |
 | D286 | 2026-10-09 | User (G-622): an untrusted `read` projection is summarised in WebMCP tool descriptions by its structure only (counts, numeric ids, numbers, booleans; strings → `<text>`), and an untrusted tool's key parameter lists ids without `agent.label` text; the contents go only through the read tool, whose results carry `untrustedContentHint`. Trusted projections keep the full summary |
 | D287 | 2026-10-09 | Coordinator (DX-1): a demo that starts its assistant on load uses the canonical `BOOTSTRAP: { EFFECT: (state, data, next) => next('assistant.SEND', text) }`; `chat()` gets no first-prompt option (real apps rarely auto-send) |
+| D288 | 2026-10-09 | Coordinator (3-M): `commandBar` runs on the input's form submit and, optionally, on a click of a `run` selector (a Go button) |
 
 ## 0-A baseline (2026-10-09)
 
@@ -102,6 +103,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 2-T | L-2 wave 1 transports | ✅ merged | `p6-2t` (`f27d6daa`) | 2026-10-09 | `openResponses`, `chatCompletions`, `uiMessageStream` (checked against `ai@7.0.137`, exact devDep; header version; approvals and `data-*` through), `chromePrompt` (`status()`, `responseConstraint`), `encodeOpenResponses`; `fetch`/`headers`/`body` on HTTP transports, `baseURL` default `/v1`; strict layer with per-tool fallback (SYG675); SYG670 (D284); driver: `executed` tool calls, `tool-approval`, `tool-denied` events; `ok.usage` = `{ inputTokens, outputTokens, totalTokens, reasoningTokens? }`. `npm run test:ai-local` (G-619): 20/20 against Ollama (both endpoints × llama3.2/qwen3:8b × reply/tool/structured plain+strict). G-620 fixed. 47 tests + tree-shake gate. Bytes over the driver: openResponses 2,915 B (incl. strict, → D285), chatCompletions 2,954 B, uiMessageStream 1,921 B, chromePrompt 531 B, encoder 933 B. Coordinator: explanations merge fixed and regenerated; entry-test heuristic scales with export count |
 | DX-1 | Live AI demos infrastructure | ✅ merged | `p6-dx1` (`bac30a70`) | 2026-10-09 | Demo server streams (`{ sse }` / `{ stream }`, real `ReadableStream`, abort errors the body, works under Node); page-wide `LLM` = real `makeChatDriver` + `openResponses({ fetch: demoFetch })` (G-615); `'sygnal/ai'` in `modules.ts`; no scripted transport / drivers export (D274). `test/docs-live-server.test.js` 11 tests (G-616). Hidden page `/live-checks/ai/`: chat streaming on load, `chat` behavior + `agent` tool loop, `decide()` resource. check-live 85/85 on Chromium 75 s, Firefox 83 s, WebKit 82 s; doc samples 708, 0 strict/a11y |
 | 3-K | K-1 sygnal-check rules | ✅ merged | `p6-3k` (`482cdd61`) | 2026-10-09 | SYG102 counts `agent.actions` and LLM `delta`/`tool` keys (G-614); SYG150 (agent action without model entry), 151 (`agents`/`tools` → `agent`), 152 (LLM request without `ok`), 153 (bare WebMCP form attributes); static SYG240 (unwrapped Valibot, Zod Mini, raw JSON Schema) and SYG243 (`Date` input) (G-611); SYG440, SYG441; SYG730 (hover-only), SYG731 (class-only toggled state) in the a11y lane; `agent` in `--graph` / MCP `graph` (trigger `agent`). 0 new findings on examples, templates, docs samples (703 clean). sygnal-check 693/693 |
+| 3-M | M-2 `answers()` + M-3 `commandBar` | ✅ merged | `p6-3m` (`271b490d`) | 2026-10-09 | `answers(questions, picks)` typed decision replies (nimble's confidence formula) + `answers.openai()`; escalation pattern test. `commandBar({ input, decide, below, escalate, freeText? })`: one `decide()` call (action choice + `none`, target choice over live labelled keys; enum/boolean inputs as options), state = `{ command, app: read projections }`, A-1 `call()`, `unsure.reason` or escalate to `chat`; free text by heuristic (quoted part / command minus first word), else escalate. Shared `link.ts` (D283 layers) for chat + commandBar; SYG442 updated. Fixed: esbuild kept chat/decide in every app (module-level side effects) → marked pure + tree-shake test. Ollama 22/22 incl. commandBar + nimble 8/8 (≈ 700 ms cold). commandBar ≈ 9.3 KB gz with deps (+2.4 KB over chat); answers 1.1 KB |
 
 ## Gaps
 
@@ -160,6 +162,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-631 | D286 review | The `chat` behavior sends `read` projections (with user text) as JSON right after the instructions: the same injection channel D286 closed for WebMCP. In-app the model needs the contents, so the fix is placement and framing (a delimited data block in a non-instruction message, marked as data), not removal | open (Phase 3, L-3) |
 | G-632 | 3-K | SYG731 now flags 41 class-only tab states in eval starters; agents told to run `sygnal-check --strict` may spend time on them, so Phase 4 learn-time/cost numbers aren't comparable to PLAN-5's unless re-baselined | open (Phase 4: leave starters unchanged; re-baseline S-14 with the 6.1 checker) |
 | G-633 | 3-K | SYG240's explanation suggests `z.coerce.date()` for dates, which also throws in Zod's JSON Schema conversion | open (docs) |
+| G-634 | 3-M | `commandBar`'s free-text heuristic is naive for commands like "remind me to …" (documented; `freeText` hook; escalation) | open (docs) |
 
 ## Log
 
@@ -174,3 +177,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — D286 (user, G-622) implemented on `plan6-integration`: structure-only summaries and label-free key parameters for untrusted WebMCP tools; vitest + WebMCP pages 16/16 on all engines/modes. G-631 opened for the same channel in the chat behavior.
 - 2026-10-09 — DX-1 merged (`p6-dx1`, clean). D287. **Phase 2 complete.**
 - 2026-10-09 — 3-K merged (clean). G-611, G-614 fixed; G-632, G-633 opened.
+- 2026-10-09 — 3-M merged (clean). vitest 4,102; sygnal-check 696/696; size 42,690 B. D288; G-634. Started 3-A3 (A-3), 3-E (E-1), 3-X (X-1), 3-F (follow-ups G-625, G-626, G-627, G-628, G-631, D288, G-623, G-624, G-633).
