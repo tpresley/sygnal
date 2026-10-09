@@ -7,3 +7,5 @@ export {decide, choice, noul, score} from './index'
 export {agentTools, toJsonSchema, parseInput, jsonSchema} from './index'
 // L-1 (1-L)
 export {makeChatDriver, outputJsonSchema} from './index'
+// A-2 (2-W)
+export {experimentalExposeWebMcp} from './index'

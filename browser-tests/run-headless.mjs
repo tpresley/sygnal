@@ -6,6 +6,10 @@
  * BROWSER_TESTS_ONLY=<substring> runs only the matching suites. Tests get real input through
  * window.__pwType (typing), window.__pw (locator actions) and window.__pwInput (mouse, keys,
  * Chromium touch).
+ * PLAN-6 2-W (D267, G-599): after the suite, the WebMCP round trip runs on its own page
+ * (webmcp.html): natively in this Chromium (--enable-features=WebMCP), and through
+ * @mcp-b/webmcp-polyfill in a second Chromium launch without the switch, in Firefox and in WebKit
+ * (plus a no-WebMCP page). BROWSER_TESTS_ONLY=webmcp runs only that; BROWSER_TESTS_WEBMCP=0 skips it.
  */
 
 import { createServer as createNetServer } from 'node:net';
@@ -218,8 +222,11 @@ async function run() {
     });
 
     // D199 (spike 0-S6): BROWSER_TESTS_ONLY=<substring> runs only the suites whose function name
-    // contains it, case-insensitive (main.js reads ?only=)
+    // contains it, case-insensitive (main.js reads ?only=); 'webmcp': only the WebMCP page
     const only = process.env.BROWSER_TESTS_ONLY;
+    const onlyWebMcp = only?.toLowerCase() === 'webmcp';
+    const withWebMcp = process.env.BROWSER_TESTS_WEBMCP !== '0' && (!only || onlyWebMcp);
+    if (onlyWebMcp) process.exit(await runWebMcp(browser, url) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -291,11 +298,64 @@ async function run() {
       console.error('If an error is intended, add it to EXPECTED_CONSOLE_ERRORS in run-headless.mjs.\n');
     }
 
-    process.exit(failed > 0 || consoleMsgs.length > 0 ? 1 : 0);
+    const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
+    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
     await server.close();
   }
+}
+
+/**
+ * PLAN-6 2-W: the WebMCP round trip (webmcp.html, src/webmcp/) per mode, each on a fresh page:
+ * Chromium 'native' in this browser when it has the switch, then 'none' and 'polyfill' in a second
+ * launch without it; Firefox / WebKit 'none' and 'polyfill' in this browser. Returns the number of
+ * failed checks plus console errors.
+ */
+async function runWebMcp(browser, url) {
+  const t0 = Date.now();
+  const webmcpSwitch = a => /^--enable-(blink-)?features=.*WebMCP/.test(a);
+  const runs = [];
+  if (ENGINE === 'chromium') {
+    if (LAUNCH_ARGS.some(webmcpSwitch)) runs.push([browser, 'native']);
+    else console.log('WebMCP: Chromium launched without --enable-features=WebMCP: the native mode is skipped');
+  }
+  let second = null;
+  if (ENGINE === 'chromium') {
+    second = await playwright.chromium.launch({ headless: true, args: LAUNCH_ARGS.filter(a => !webmcpSwitch(a)) });
+    runs.push([second, 'none'], [second, 'polyfill']);
+  } else runs.push([browser, 'none'], [browser, 'polyfill']);
+  let bad = 0;
+  const lines = [];
+  try {
+    for (const [b, mode] of runs) {
+      const ctx = await b.newContext();
+      const page = await ctx.newPage();
+      const errors = [];
+      page.on('console', m => { if (m.type() === 'error') errors.push(`[console.error] ${m.text()}`); });
+      page.on('pageerror', e => errors.push(`[uncaught] ${e.stack || e.message}`));
+      // real input for the confirmation dialog
+      await page.exposeFunction('__pwWebMcp', async (op, arg) => {
+        if (op === 'press') return void await page.keyboard.press(arg);
+        if (op === 'click') return void await page.getByRole('button', { name: arg, exact: true }).click({ timeout: 4000 });
+        throw new Error(`__pwWebMcp: unknown op '${op}'`);
+      });
+      await page.goto(`${url}webmcp.html?mode=${mode}`);
+      const done = await page.waitForFunction(() => window.__done === true, undefined, { timeout: 60000 }).catch(e => e);
+      const results = done instanceof Error ? [{ name: 'page', pass: false, detail: done.message.split('\n')[0] }] : await page.evaluate(() => window.__results);
+      const checks = results.filter(r => r.name !== 'env');
+      const failed = checks.filter(r => !r.pass);
+      bad += failed.length + errors.length;
+      lines.push(`WebMCP (${ENGINE} ${b.version()}, ${mode}): ${checks.length - failed.length}/${checks.length} passed`);
+      for (const f of failed) lines.push(`  FAIL: ${f.name} — ${f.detail}`);
+      for (const e of errors) lines.push(`  FAIL: ${e}`);
+      await ctx.close();
+    }
+  } finally {
+    if (second) await second.close();
+  }
+  console.log(lines.join('\n') + `\nWebMCP pages: ${Date.now() - t0} ms\n`);
+  return bad;
 }
 
 run().catch(err => {

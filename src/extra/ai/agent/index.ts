@@ -49,6 +49,8 @@ export interface AgentTool {
 export interface ConfirmInfo {tool: string; component: string; action: string; description: string; input: any; key?: any; label?: string}
 export type Confirm = boolean | ((info: ConfirmInfo) => boolean | Promise<boolean>)
 export type AgentResult = {ok: boolean; [k: string]: any}
+/** internal (A-2): one declaration's offered tools */
+export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]}
 export interface AgentToolsOptions {
   /** consequential calls: resolve true to run (default: decline) */
   confirm?: Confirm
@@ -378,5 +380,10 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       return () => { listeners.delete(fn) }
     },
     stop() { stopped = true; off?.(); listeners.clear() },
+    /** internal (A-2, WebMCP): the offered tools grouped by declaration, with `untrusted` as declared */
+    groups(): AgentGroup[] {
+      const rs = [...build().values()]
+      return entries.map(e => ({name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name)}))
+    },
   }
 }

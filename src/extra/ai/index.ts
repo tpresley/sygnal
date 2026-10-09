@@ -17,3 +17,5 @@ export {jsonSchema} from './schema/jsonSchema'
 // L-1 (1-L): the chat driver; outputJsonSchema is the structured-output seam transports use (1-A fills it)
 export {makeChatDriver} from './chat/driver'
 export {outputJsonSchema} from './chat/output'
+// A-2 (2-W): WebMCP (experimental, D241)
+export {experimentalExposeWebMcp} from './webmcp'

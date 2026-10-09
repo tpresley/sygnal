@@ -476,12 +476,26 @@ export const EXPLANATIONS = {
     explanation: "The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, and a throwing `label` leaves the key unlabelled. The app keeps running. Reported once per declaration and function.",
     fix: "Make the function total over every state the component can have: guard optional fields (`state.todos?.length ?? 0`), and keep it a pure function of the state it gets.",
   },
+  SYG242: {
+    title: "WebMCP tool over a size budget",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "`experimentalExposeWebMcp()` keeps every tool inside Chrome's WebMCP budgets, which neither Chrome 153 nor the polyfill enforce: a tool name of at most 30 characters, a description of at most 500, a parameter description of at most 150, and a result of at most 1,500 characters of JSON. Something went over, and it was cut so the agent still gets a usable tool: a long name keeps its first 25 characters plus `_` and a 4-character hash of the whole (so names stay unique), a description or parameter description ends in `…`, and a long result keeps `ok` and `error`, gets `truncated: true`, and carries its `state` as a cut JSON string. The state summary appended to descriptions (D250) is shortened to fit without a report. Reported once per tool and part, in development.",
+    fix: "Shorten the `agent` declaration's `name`, the action names or the `description` texts, or make `read` return a smaller projection (counts and the fields an agent needs, not the whole state). A Collection item tool's key description lists every item's label: a shorter `label` keeps more of them.",
+  },
   SYG243: {
     title: "Agent action input schema converted with losses",
     severity: "warn",
     reportedBy: ["runtime"],
     explanation: "Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action.",
     fix: "Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement.",
+  },
+  SYG244: {
+    title: "Agent read returns strings, untrusted not declared",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "WebMCP marks a tool whose results may carry text from users (or other untrusted sources) with `untrustedContentHint`, so the agent treats that text as data, not instructions. `experimentalExposeWebMcp()` takes the hint from the declaration's `untrusted` field. This declaration doesn't set it and its `read` projection contains string values (keys named `id` aside), so the layer assumes they may be user-entered and adds the hint to the declaration's tools (and to the tools of declarations without a `read`, whose results carry this projection). The state summary in their descriptions is labelled as data. Reported once per declaration, in development.",
+    fix: "Declare it: `untrusted: true` when `read` returns user-entered text (todo texts, names, messages), `untrusted: false` when its strings are only the app's own (enum values, labels the app wrote).",
   },
   SYG301: {
     title: "RxJS operator used on an xstream stream",
@@ -1028,6 +1042,20 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry"],
     explanation: "A chat transport (the `transport` of `makeChatDriver()`, from `sygnal/ai` or your own) yielded an event the driver can't use: not an object with a string `type`, a `text` or `reasoning` event whose `delta` isn't a string, a `tool-call` with no tool `name`, or a `tool-result` / `tool-error` whose `id` matches no tool call of the reply. The event is skipped and the stream goes on, so the reply may miss text or a tool call. Events of an unknown type are ignored silently, as the Open Responses spec requires; this is only for known types with the wrong shape. Reported for the first five such events per driver, in development.",
     fix: "Fix the transport so it yields `ChatEvent`s (see `sygnal/ai`): `{ type: 'text', delta: 'Hi' }`, `{ type: 'reasoning', delta }`, `{ type: 'tool-call', id, name, input }`, `{ type: 'tool-result', id, output }`, `{ type: 'data', name, data }`, `{ type: 'finish', reason, usage }`. A transport that parses a wire format should map each provider event to one of these and drop the ones it doesn't know.",
+  },
+  SYG676: {
+    title: "WebMCP registerTool rejected",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "`experimentalExposeWebMcp()` registers each agent tool with `document.modelContext.registerTool()`, which returns a Promise. The browser refused one: most often `InvalidStateError: Duplicate tool name` (another script, a second `experimentalExposeWebMcp()` call on the same page, or a declarative form registered the same name first), or an invalid name or empty description. The rejection is reported, never thrown, and that tool stays unavailable to the agent until its name, description or schema changes. Reported once per tool and registration, in development.",
+    fix: "Give each exposure its own `prefix` (`experimentalExposeWebMcp(app, { prefix: 'shop_' })`), rename the clashing `agent` declaration or form `toolname`, and call `stop()` before exposing the same app again.",
+  },
+  SYG674: {
+    title: "WebMCP not available",
+    severity: "info",
+    reportedBy: ["runtime"],
+    explanation: "`experimentalExposeWebMcp()` found no WebMCP context: no `modelContext` option, and neither `document.modelContext` nor the older `navigator.modelContext` exists. That is the normal case in browsers without WebMCP (Chrome before the origin trial, Firefox, Safari) and on insecure pages, so it is only information: the call does nothing and returns a `stop()` whose `available` is `false`. Chrome 153 exposes WebMCP behind `chrome://flags/#enable-webmcp-testing` (`--enable-features=WebMCP`) or an origin trial token.",
+    fix: "Nothing to fix. To try it elsewhere, install `@mcp-b/webmcp-polyfill` (`installWebMCP()`) before the call, or pass `modelContext`. Use `stop.available` to show or hide UI that depends on an agent.",
   },
   SYG677: {
     title: "Chat request sent from outside a component",
