@@ -1,0 +1,50 @@
+/**
+ * The chat driver (PLAN-6 L-1, src/extra/ai/chat/driver.ts). Dev-entry-only codes
+ * (DEV_CODE_SEVERITY), reported when the driver calls `__SYGNAL_DIAGNOSTICS__.chat(code, request, …)`,
+ * so their text costs apps nothing:
+ *
+ * SYG673 — the transport yielded a known event type with the wrong shape (`why`: 'type' not an
+ *          object with a string type, 'delta' not a string, 'name' a tool call with no name,
+ *          'id' a tool result / error for no known call); it was skipped. The driver sends the
+ *          first five per driver.
+ * SYG677 — a request with no sender stamp (not sent by a component): dropped.
+ *
+ * SYG678 (a failure with no error action) and SYG679 (an invalid request) are printed by the
+ * driver itself, in production too (legacy error()).
+ */
+import {bridge, devReport} from './shared'
+
+const brief = (v: any) => { try { const s = JSON.stringify(v); return s && s.length > 120 ? s.slice(0, 120) + '…' : s } catch (_) { return String(v) } }
+const WHY: Record<string, string> = {
+  type: 'not an object with a string type',
+  delta: 'its delta is not a string',
+  name: 'a tool call with no tool name',
+  id: 'its id matches no tool call of this reply',
+}
+
+function onChat(code: string, request: any, event?: any, why?: string) {
+  const component = request && request.__emitterName
+  if (code == 'SYG673') {
+    devReport('SYG673', {
+      component,
+      message: `makeChatDriver: the transport sent a malformed ${event && typeof event.type == 'string' ? `'${event.type}' ` : ''}event (${WHY[why!] || why}): ${brief(event)}. It was skipped`,
+      fix: "Fix the transport: it yields ChatEvents such as { type: 'text', delta: 'Hi' }, { type: 'tool-call', id, name, input } (see ChatEvent in sygnal/ai)",
+      data: {event, reason: why},
+    })
+  } else if (code == 'SYG677') {
+    devReport('SYG677', {
+      component,
+      message: 'makeChatDriver: a request reached the driver from outside a component, so no reply action could reach anyone; it was dropped',
+      fix: "Send chat requests from a component's model: SEND: { LLM: (state) => ({ messages: state.messages, ok: 'DONE', error: 'FAILED' }) }",
+      data: {request},
+    })
+  }
+}
+
+/** install the hook the chat driver calls (removed by the returned function) */
+export function installChatHooks(): () => void {
+  const core = bridge()
+  if (!core) return () => {}
+  core.chat = onChat
+  return () => { if (core.chat === onChat) core.chat = undefined }
+}

@@ -105,6 +105,8 @@ async function run() {
     const consoleMsgs = [];
     const expectedSeen = new Map();
     page.on('console', msg => {
+      // PLAN-6: measurements a suite prints for the report ('[p6-…] {...}')
+      if (msg.type() === 'log' && msg.text().startsWith('[p6-')) console.log(`${ENGINE} ${msg.text()}`);
       if (msg.type() !== 'error') return;
       const text = msg.text();
       const entry = allowlist.expected(text);

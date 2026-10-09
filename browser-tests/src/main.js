@@ -55,6 +55,7 @@ import { fragmentTestsP5_3Q } from './tests/fragments-p5-3q.jsx'
 import { fixesTestsP5_3K } from './tests/fixes-p5-3k.jsx'
 import { fixesTestsP5_4G } from './tests/fixes-p5-4g.jsx'
 import { collectionTestsP5_4H } from './tests/collection-4h.jsx'
+import { aiChatTestsP6_1L } from './tests/ai-chat-p6-1l.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -120,6 +121,7 @@ async function runAll() {
     patchErrorTestsP5_3W,
     fixesTestsP5_4G,
     collectionTestsP5_4H,
+    aiChatTestsP6_1L,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue

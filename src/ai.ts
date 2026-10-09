@@ -3,3 +3,5 @@
 // './index' to it), so an app has one copy of the internals (G-581) and the core bundle gains 0 B.
 // Keep this list in sync with src/extra/ai/index.ts and src/ai.d.ts.
 export {messageText} from './index'
+// L-1 (1-L)
+export {makeChatDriver, outputJsonSchema} from './index'

@@ -9,3 +9,6 @@
  * agent/ (A-1 layer), schema/ (A-1 input contract), decide.ts (M-1).
  */
 export {messageText} from './messages'
+// L-1 (1-L): the chat driver; outputJsonSchema is the structured-output seam transports use (1-A fills it)
+export {makeChatDriver} from './chat/driver'
+export {outputJsonSchema} from './chat/output'
