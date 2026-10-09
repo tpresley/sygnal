@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; all Phase 3 items merged (3-W2, 3-M, 3-K, 3-E, 3-F, 3-X, 3-A3); closing gate running.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 next.
 
 ## Decisions
 
@@ -182,6 +182,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-640 | 3-F | `chat` messages have no ids; `uiMessageStream` numbers them by position, so the inserted app-state message shifts ids between requests; an AI SDK server that stores client messages also stores the app-state message (marked `metadata.sygnal`) | open (L-3) |
 | G-641 | 3-X | The `mcp-app` template asks for `sygnal` ^6.1.0 (installable after the release); `ui/download-file`, view-initiated `request-teardown`, `readServerResource`, logging and sampling aren't wrapped | open |
 | G-642 | 3-X | Parallel workers shared the session scratchpad and collided (one worker's `gate.log` in another's): give each worker its own subfolder | open (process) |
+| G-643 | Phase 3 gate | MCP Apps `autoResize` measured only in `requestAnimationFrame`; WebKit throttles rAF in an off-screen iframe, so size reports stopped (the 3-X browser test failed in the full WebKit suite, passed alone) — also real for a view scrolled out of a host's chat | ✅ fixed (rAF raced with a 100 ms timer) |
 
 ## Log
 
@@ -200,4 +201,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 3-W2 merged (shared-export conflicts resolved). vitest 4,143 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D289; G-635…G-637.
 - 2026-10-09 — 3-E merged (clean). D290; G-638.
 - 2026-10-09 — 3-F merged (clean). The build then OOM'd (G-639): rollup now runs with an 8 GB heap. 3-X merged (package.json / shared-export conflicts resolved). vitest 4,197 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D291–D293; G-639…G-642.
-- 2026-10-09 — 3-A3 merged (`cee97440`). vitest 4,215; sygnal-check 699/699; size 42,690 B. D294. All Phase 3 items merged; full closing gate running.
+- 2026-10-09 — 3-A3 merged (`cee97440`). vitest 4,215; sygnal-check 699/699; size 42,690 B. D294. All Phase 3 items merged; full closing gate running.- 2026-10-09 — Phase 3 closing gate on `plan6-integration`: `npm test` exit 0 (vitest 4,215, 9 examples, types, perf gate; Chromium 374/374 + WebMCP native/none/polyfill 22/1/22); Firefox 373/373 + WebMCP 1/22; WebKit 373/373 + WebMCP 1/22 after G-643's fix (first run 372/373); sygnal-check 699/699; doc samples 714 clean (0 strict, 0 a11y); docs build ok; check-live 85/85 on Chromium, Firefox, WebKit; `test:ai-local` 31/31 against Ollama; size 42,690 B. **Phase 3 complete.**

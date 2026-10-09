@@ -156,7 +156,11 @@ export function makeMcpAppDriver(options: McpAppDriverOptions = {}) {
       const measure = () => {
         if (busy) return
         busy = true
-        ;(G.requestAnimationFrame || ((f: any) => setTimeout(f, 0)))(() => {
+        // a frame, raced with a 100 ms timer: rAF is throttled in an off-screen or hidden iframe
+        // (WebKit, a view scrolled out of the host's chat), and the size must still be reported
+        let ran = false
+        const once = (f: () => void) => () => { if (!ran) { ran = true; f() } }
+        const go = once(() => {
           busy = false
           const el = doc.documentElement, old = el.style.height
           el.style.height = 'max-content'
@@ -165,6 +169,8 @@ export function makeMcpAppDriver(options: McpAppDriverOptions = {}) {
           const W = Math.ceil(G.innerWidth || 0)
           if (W !== w || H !== h) { w = W; h = H; send({method: N + 'size-changed', params: {width: W, height: H}}) }
         })
+        G.requestAnimationFrame?.(go)
+        setTimeout(go, 100)
       }
       measure()
       const ro = new RO(measure)
