@@ -3725,3 +3725,6 @@ export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from '
 // PLAN-6 M-2 / M-3 (3-M)
 export { answers, commandBar } from './ai.d'
 export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, CommandBarActions, CommandBarOptions, CommandBarResult, CommandBarUnsure } from './ai.d'
+// PLAN-6 X-1 (3-X)
+export { makeMcpAppDriver } from './ai.d'
+export type { McpAppDriverOptions, McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext, McpContentBlock, McpAppDisplayMode } from './ai.d'

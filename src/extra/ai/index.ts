@@ -31,3 +31,5 @@ export {encodeOpenResponses} from './transports/encodeOpenResponses'
 // M-2 / M-3 (3-M): decision reply fixtures and the command bar
 export {answers} from './answers'
 export {commandBar} from './commandBar'
+// X-1 (3-X): MCP Apps, the view side
+export {makeMcpAppDriver} from './mcpApp'

@@ -62,6 +62,8 @@ export { chat } from './extra/ai/index'
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './extra/ai/index'
 // PLAN-6 M-2 / M-3 (3-M)
 export { answers, commandBar } from './extra/ai/index'
+// PLAN-6 X-1 (3-X)
+export { makeMcpAppDriver } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

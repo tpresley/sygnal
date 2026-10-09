@@ -15,3 +15,5 @@ export {chat} from './index'
 export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'
 // M-2 / M-3 (3-M)
 export {answers, commandBar} from './index'
+// X-1 (3-X)
+export {makeMcpAppDriver} from './index'
