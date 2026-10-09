@@ -22,6 +22,7 @@
       "sygnal/ui/combobox": ["../src/ui-combobox.d.ts"],
       "sygnal/zag": ["../src/zag.d.ts"],
       "sygnal/react": ["../src/react.d.ts"],
+      "sygnal/ai": ["../src/ai.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],
       "xstream/*": ["../node_modules/xstream/*"]
