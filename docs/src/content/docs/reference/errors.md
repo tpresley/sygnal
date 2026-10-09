@@ -2172,6 +2172,46 @@ A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge 
 
 **Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
+### SYG673
+
+**Malformed chat stream event**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A chat transport (the `transport` of `makeChatDriver()`, from `sygnal/ai` or your own) yielded an event the driver can't use: not an object with a string `type`, a `text` or `reasoning` event whose `delta` isn't a string, a `tool-call` with no tool `name`, or a `tool-result` / `tool-error` whose `id` matches no tool call of the reply. The event is skipped and the stream goes on, so the reply may miss text or a tool call. Events of an unknown type are ignored silently, as the Open Responses spec requires; this is only for known types with the wrong shape. Reported for the first five such events per driver, in development.
+
+**Fix:** Fix the transport so it yields `ChatEvent`s (see `sygnal/ai`): `{ type: 'text', delta: 'Hi' }`, `{ type: 'reasoning', delta }`, `{ type: 'tool-call', id, name, input }`, `{ type: 'tool-result', id, output }`, `{ type: 'data', name, data }`, `{ type: 'finish', reason, usage }`. A transport that parses a wire format should map each provider event to one of these and drop the ones it doesn't know.
+
+### SYG677
+
+**Chat request sent from outside a component**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request reached `makeChatDriver()` without the sender stamp the core puts on every value a component's model sends. The chat driver answers only with reply actions (`delta`, `tool`, `ok`, `error`) on the component that sent the request, and it has no `select()` stream, so a request from anywhere else (a stream written into the driver's sink by hand, a driver wrapper that rebuilds the request object, a test that calls the driver directly) could never be answered. It is dropped, and nothing is streamed.
+
+**Fix:** Send chat requests from a component's model: `SEND: { LLM: (state) => ({ messages: state.messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }`. A wrapper around the driver must pass the request object through unchanged (or copy its non-enumerable sender stamp). In tests, use `renderComponent`'s LLM fake (`t.stream('LLM', chunks)`).
+
+### SYG678
+
+**Chat request failed with no error action**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A `makeChatDriver()` request failed (the network or the provider returned an error, the transport threw, or the structured `output` was not valid JSON or failed its schema), and the request names no `error` action. The chat driver has no `errors()` stream, so without an `error` action the component never hears of the failure and stays in its streaming state. The driver logs the failure with this code, in production too. A stream that was aborted (`abort`, `latest`, a removed component, the app disposed) is not a failure and is never reported.
+
+**Fix:** Name an `error` action on the request and handle it: `{ messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' }` with `FAILED: (state, { error, issues }) => ({ ...state, status: 'error', error: error.message })`. In tests, `t.fail('LLM', error)` drives that action.
+
+### SYG679
+
+**Invalid chat request**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A value sent to a `makeChatDriver()` sink is not a request the driver can send: it isn't an object, it has no `messages` array, its `coalesce` is not `'frame'`, `'none'` or a number of milliseconds, or its `output` is not a Standard Schema (an object with `~standard.validate`). The request is not sent, so no reply action follows. Stopping a stream is `{ abort: key }` or `{ abort: true }`, not a request.
+
+**Fix:** Send `{ messages: [...], ok: 'DONE', error: 'FAILED' }` (add `delta: 'DELTA'` to stream, `key` to name the request, `output: schema` for structured output with a Zod, Valibot or ArkType schema), or `{ abort: 'reply' }` to stop one. Return `ABORT` (or nothing) from the model entry when there is nothing to send.
+
 ## SYG9xx: Internal
 
 ### SYG900

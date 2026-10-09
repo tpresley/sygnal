@@ -3014,6 +3014,16 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
+/** PLAN-6 L-4: a chunk t.stream sends into an LLM fake's stream */
+export type FakeChatChunk =
+  | string
+  | { reasoning: string }
+  | { toolCall: { id?: string; name: string; input?: unknown } }
+  | { toolResult: { id: string; output: unknown } }
+  | { data: unknown; name?: string; id?: string }
+  | { finish: string | { reason?: string; usage?: unknown } }
+  | import('./ai.d').ChatEvent
+
 /**
  * Which request a t.respond()/t.fail() answers, as options. An object with only these keys is
  * options; any other object is a request pattern (see `respond`).
@@ -3144,6 +3154,12 @@ export interface RenderOptions {
    * listed in t.requests as `{ url, ...request, resource: name }`.
    */
   resourceSink?: string;
+  /**
+   * PLAN-6 L-4: the driverless sink served by the LLM fake (default 'LLM'): the real
+   * makeChatDriver over an in-memory transport. Its requests are listed by t.requests and stay
+   * pending until t.stream / t.respond / t.fail answer them.
+   */
+  llmSink?: string;
   /**
    * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
    * `{ cache: queryCache() }`. Focus / reconnect refetches come only from t.focus() / t.online()
@@ -3383,6 +3399,8 @@ export interface RenderResult<STATE = any> {
    * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
    * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
+   * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end
+   * of the stream (a non-string `value` is sent as JSON, for structured output).
    */
   respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
@@ -3391,8 +3409,22 @@ export interface RenderResult<STATE = any> {
    * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an HTTP
    * status (an error response: 404 → the driver's Error 'HTTP 404: url', status 404), or an
    * Error / message (a network failure: no status).
+   * On the LLM fake: the stream fails with `error` (a number: Error 'HTTP 429' with `status`), and
+   * the request's `error` action gets `{ key, error, request }`; a request with no `error` action
+   * throws (the driver would only log it, SYG678).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * PLAN-6 L-4: stream into a pending request of the LLM fake (the sink named by `llmSink`,
+   * default 'LLM': the real makeChatDriver over an in-memory transport). Chunks: strings (text),
+   * `{ reasoning }`, `{ toolCall: { id?, name, input } }`, `{ toolResult: { id, output } }`,
+   * `{ data, name?, id? }`, `{ finish: reason | { reason, usage } }`, or ChatEvents. Each call is
+   * one frame: at most one `delta` action, with no timers involved (fake timers work unchanged).
+   * The stream then ends (the `ok` action) unless `{ end: false }` is passed, as the last
+   * argument or in the target options; a `{ finish }` chunk ends it too. The request is chosen
+   * as in respond. Resolves once the replies are reduced and the tree rendered.
+   */
+  stream: (sinkName: string, chunks: FakeChatChunk[], target?: string | (FakeReplyOptions & { end?: boolean }) | Record<string, any> | ((request: any) => boolean), options?: { end?: boolean }) => Promise<void>;
   /**
    * A driverless sink that gets `{ connections }` / `{ to }` values (e.g. `WS` with no
    * `drivers: { WS }`) is a fake makeSocketDriver: diffed per component and connection name,
@@ -3678,3 +3710,6 @@ export { messageText } from './ai.d'
 export { decide, choice, noul, score } from './ai.d'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
 export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'
+// PLAN-6 L-1 (1-L)
+export { makeChatDriver, outputJsonSchema } from './ai.d'
+export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatCall, ChatEvent, ChatTransport, ChatDriverOptions, ChatSource, ChatTool, ChatOutputSchema, ChatOutputOf } from './ai.d'

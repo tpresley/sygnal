@@ -14,3 +14,6 @@ export {decide, choice, noul, score} from './decide'
 export {agentTools} from './agent/index'
 export {toJsonSchema, parseInput} from './schema/index'
 export {jsonSchema} from './schema/jsonSchema'
+// L-1 (1-L): the chat driver; outputJsonSchema is the structured-output seam transports use (1-A fills it)
+export {makeChatDriver} from './chat/driver'
+export {outputJsonSchema} from './chat/output'

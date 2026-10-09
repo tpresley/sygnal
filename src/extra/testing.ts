@@ -18,6 +18,9 @@ import {browserDriver} from './browserSources';
 import {makeReplies} from './replies';
 import {agentTools} from './ai/agent/index';
 import type {AgentTool, AgentResult, Confirm} from './ai/agent/index';
+// PLAN-6 L-4: the LLM fake runs the real chat driver over an in-memory transport
+import {makeChatDriver} from './ai/chat/driver';
+import {memoryTransport} from './ai/chat/memoryTransport';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
@@ -275,6 +278,8 @@ export interface RenderOptions {
   autoConnect?: boolean;
   /** PLAN-3 G-160: the driverless sink that receives the `connections` static (default 'WS') */
   socketSink?: string;
+  /** PLAN-6 L-4: the driverless sink the LLM fake serves (default 'LLM') */
+  llmSink?: string;
   /**
    * PLAN-3 3-A (exp): the driverless sink that receives the `resources` static (default
    * 'HTTP'). Its fake (5-1: makeFetchDriver over an in-memory fetch) keeps each resource fetch
@@ -449,6 +454,16 @@ export interface RenderResult {
    * `status`/`body`), or an Error / message (a network failure: the fetch rejects with it).
    */
   fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
+  /**
+   * PLAN-6 L-4: stream chunks into a pending request of the LLM fake (the sink named by `llmSink`,
+   * default 'LLM': the real chat driver over an in-memory transport). Chunks: strings (text),
+   * `{ reasoning }`, `{ toolCall: { id?, name, input } }`, `{ toolResult: { id, output } }`,
+   * `{ data, name?, id? }`, `{ finish: reason | { reason, usage } }`, or ChatEvents. The stream
+   * then ends (`ok`) unless `{ end: false }` is passed (last argument, or in the target options).
+   * Each call is one frame: at most one `delta` action. Resolves once the replies are reduced and
+   * the tree rendered.
+   */
+  stream: (sinkName: string, chunks: any[], target?: any, options?: {end?: boolean}) => Promise<void>;
   /**
    * PLAN-3 2-C: a sink with no driver that gets `{ connections }` / `{ to }` values behaves like
    * makeSocketDriver (reply actions for open/message/close/error, diffed per component and name, shared by
@@ -1449,7 +1464,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', http: httpOptions, context: ancestors} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -1696,8 +1711,9 @@ export function renderComponent(
   type FakeSub = {l: any; sel: any; err: boolean; ns: any[]};
   // value: what t.requests lists (normalised); req: the request the driver got; res: the resource;
   // pf: a { prefetch } fetch (5-5: answered into the cache, no reply)
-  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock};
+  // llm: the in-memory stream handle of an LLM fake request (PLAN-6 L-4)
+  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
   const signals = new Set<(s: string) => void>();
@@ -1710,6 +1726,25 @@ export function renderComponent(
       const pending: Pending[] = [];
       const in$ = xs.create();
       const ws = sockFake();
+      // PLAN-6 L-4: the sink named by llmSink also runs the real chat driver over an in-memory
+      // transport. Each stream is a pending entry (t.requests' value; t.stream / t.respond /
+      // t.fail targets). The fake owns the frames: a coalesced delta is flushed when the driver
+      // has consumed everything pushed so far, so each t.stream call is one frame, with no timer
+      let llm: any;
+      if (name == llmSink) {
+        const frames: Array<() => void> = [];
+        const fire = () => frames.splice(0).forEach(f => f());
+        const tr = memoryTransport({
+          onStream: (h: any) => {
+            const p: Pending = {value: sending !== undefined ? sending : h.request, req: h.request, category: undefined, live: true, llm: h, settle: noop};
+            pending.push(p);
+            h.signal.addEventListener('abort', () => { p.live = false; });
+          },
+          onIdle: () => queueMicrotask(fire),
+        });
+        const lin$ = xs.create();
+        llm = {in$: lin$, src: makeChatDriver({transport: tr, _frame: (f: () => void) => { frames.push(f); }})(lin$)};
+      }
       const http = makeFetchDriver({
         ...httpOptions,
         // 5-3: focus / online come from t.focus() / t.online() only
@@ -1747,7 +1782,7 @@ export function renderComponent(
         return {
           select: (sel?: any) => xs.merge(hs.select(sel), own(false)(sel), sock.select(sel)),
           errors: (sel?: any) => xs.merge(hs.errors(sel), own(true)(sel)),
-          subs, at, pending, in$, http, ws,
+          subs, at, pending, in$, http, ws, llm,
           // 5-3: the driver's matcher / inspection (the dev checks' SYG632, t.cache)
           __matches: http.__matches, __inspect: http.__inspect,
           isolateSource: (_: any, scope: any) => at(ns.concat(scope)),
@@ -1758,6 +1793,7 @@ export function renderComponent(
           __sygnalReplies: true,
           // both drivers' reply actions; a disposed sender's connections leave t.connections
           replies: (sender: any) => xs.merge(http.replies(sender), ws.src.replies(sender),
+            ...(llm ? [llm.src.replies(sender)] : []),
             xs.create({start: noop, stop: () => { ws.conns.delete(sender); }})),
         };
       };
@@ -1866,7 +1902,8 @@ export function renderComponent(
     if (obj && sockValue(v)) return sockRecord(fake(name).ws, v);
     const f = fake(name);
     sending = listed ? value : undefined;
-    try { f.in$.shamefullySendNext(v); } finally { sending = tapped = undefined; }
+    // PLAN-6 L-4: the LLM fake's own driver (the chat driver)
+    try { (f.llm ? f.llm.in$ : f.in$).shamefullySendNext(v); } finally { sending = tapped = undefined; }
   };
   const names = Object.keys(model).filter(n => n != 'INITIALIZE');
   // GS-1: a behavior's actions ('pager.NEXT') can be simulated too; behaviors.ts merges these
@@ -2494,6 +2531,12 @@ export function renderComponent(
       const f = fake(name), o = tg.o;
       const e: Pending | undefined = tg.push ? undefined : hit;
       const category = 'category' in o ? o.category : e?.category;
+      // PLAN-6 L-4 (G-585): an LLM fake request (the chat driver has no select() / errors())
+      if (e?.llm) {
+        if (err && !e.req.error) return new Error(`[Sygnal] ${what}: the ${name} request names no error action, so the chat driver would only log the failure (SYG678) and the component would never hear of it. ` +
+          `Name one on the request, { messages, ok: 'DONE', error: 'FAILED' }, with a model entry FAILED: (state, { error }) => ...`);
+        return deliver(e, o);
+      }
       // the driver delivers a resource's reply, and a reply action for a request that names one
       // for this outcome (from a component), as that action; a prefetch into the cache; anything
       // else on select()/errors()
@@ -2628,7 +2671,7 @@ export function renderComponent(
   const urlOf = (e: Pending) => e.value?.url ?? e.req.url ?? '';
   const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
     reply('respond', name, false, opts,
-      (e, o) => e.settle(true, typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
+      (e, o) => e.llm ? llmEnd(e, [typeof value == 'string' ? value : JSON.stringify(value)]) : e.settle(true,typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
       (category, o, e) => ({category, value, status: o.status ?? 200, request: e?.req}));
   // 5-1: a number (or a `status` option) is an HTTP error response the driver turns into its
   // Error('HTTP 404: url') with `status` / `body`; an Error or a message is a network failure
@@ -2644,6 +2687,11 @@ export function renderComponent(
     reply('fail', name, true, opts,
       (e, o) => {
         const {status, x, body} = failureOf(error, o);
+        // PLAN-6 L-4: the LLM fake's stream fails (a status: Error 'HTTP 429' with status / body)
+        if (e.llm) {
+          e.live = false;
+          return void e.llm.fail(status !== undefined && !(x instanceof Error) ? Object.assign(new Error(`HTTP ${status}`), {status, body}) : x);
+        }
         status !== undefined ? e.settle(true, fakeResponse(status, body, urlOf(e))) : e.settle(false, x);
       },
       (category, o, e) => {
@@ -2651,6 +2699,47 @@ export function renderComponent(
         const err = typeof error == 'number' || resp ? Object.assign(new Error(`HTTP ${status}`), {status}) : x;
         return {error: err, category, request: e?.req, status: status ?? x?.status, body};
       });
+
+  // PLAN-6 L-4: t.stream. Targets as t.respond's (an action name or key, a partial request, a
+  // predicate, { request, nth }); `end: false` (the last argument, or in the target options)
+  // leaves the stream open. Chunks become ChatEvents pushed into the in-memory stream; the fake's
+  // frame fires once the driver has read them all (one delta per call)
+  let callSeq = 0;
+  const llmEvent = (c: any) => {
+    if (typeof c == 'string') return {type: 'text', delta: c};
+    if (!c || typeof c != 'object' || typeof c.type == 'string') return c;
+    if ('toolCall' in c) return {type: 'tool-call', id: c.toolCall.id ?? `call_${++callSeq}`, name: c.toolCall.name, input: c.toolCall.input ?? {}};
+    if ('toolResult' in c) return {type: 'tool-result', id: c.toolResult.id, output: c.toolResult.output};
+    if ('reasoning' in c) return {type: 'reasoning', delta: c.reasoning};
+    if ('data' in c) return {type: 'data', name: c.name, id: c.id, data: c.data};
+    if ('finish' in c) return {type: 'finish', ...(typeof c.finish == 'string' ? {reason: c.finish} : c.finish)};
+    return c;
+  };
+  // pushes the events into the pending stream `e`, then ends it when `end` (or a finish event)
+  const llmEnd = (e: Pending, chunks: any[], end = true) => {
+    const evs = chunks.map(llmEvent), fin = evs.find((x: any) => x && x.type == 'finish');
+    e.llm.push(...evs.filter((x: any) => x !== fin));
+    if (fin || end) { e.live = false; e.llm.end(fin); }
+  };
+  const stream = (name: string, chunks: any[], target?: any, opts?: {end?: boolean}) => {
+    throwFailure();
+    const what = `t.stream('${name}')`;
+    if (drivers[name]) throw new Error(`[Sygnal] ${what}: ${name} has a real driver (passed in drivers), so there is nothing to script`);
+    if (name != llmSink) throw new Error(`[Sygnal] ${what}: only the LLM fake streams (the sink named by the llmSink option, now '${llmSink}'); answer other fakes with t.respond / t.fail`);
+    if (!Array.isArray(chunks)) throw new Error(`[Sygnal] ${what}: chunks must be an array of strings, { reasoning }, { toolCall }, { toolResult }, { data } or { finish } items`);
+    let end = opts?.end !== false, tg = target;
+    if (target && typeof target == 'object' && !Array.isArray(target) && 'end' in target) {
+      const {end: x, ...rest} = target;
+      end = end && x !== false;
+      const ks = Object.keys(rest);
+      tg = !ks.length ? undefined : ks.length == 1 && typeof rest.request == 'string' ? rest.request : rest;
+    }
+    const t = targetOf(tg);
+    return scripted(() => pick(name, t), w => noPending(what, name, t, w), (hit: Pending) => {
+      if (!hit.llm) return new Error(`[Sygnal] ${what}: the request is not a chat request`);
+      llmEnd(hit, chunks, end);
+    }, sendDue && !('nth' in t.o));
+  };
 
   // PLAN-3 2-C: socket fakes. t.connections lists what the components declared; t.open /
   // t.push / t.drop act on the fake sockets serving the connections `target` picks (a name or
@@ -3179,7 +3268,7 @@ export function renderComponent(
     const mounted = real ? roots() : [];
     // 2-C: every fake connection closes (as the app's own close: no close action)
     // 5-1: and every fetch still in flight is aborted
-    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); f.http.dispose(); });
+    fakes.forEach(f => { f.ws.src.dispose(); f.ws.conns.clear(); f.http.dispose(); f.llm?.src.dispose(); });
     mounted.forEach(e => e.remove());
     restore();
     // R4-8: every pending wait (ready, next, waitForState, settle) rejects now, its timers
@@ -3222,6 +3311,7 @@ export function renderComponent(
     requests,
     respond,
     fail,
+    stream,
     connections,
     cache,
     focus: () => signal('focus'),
