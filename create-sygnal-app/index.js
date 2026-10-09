@@ -25,6 +25,10 @@ const TEMPLATES = {
     label: 'Astro',
     hint: 'Content-focused site with island hydration',
   },
+  'mcp-app': {
+    label: 'MCP App',
+    hint: 'An interactive view for an MCP tool (Claude, ChatGPT, VS Code), with its MCP server',
+  },
 }
 
 function parseArgs(argv) {
@@ -57,7 +61,7 @@ function printHelp() {
 Usage: create-sygnal-app [project-name] [options]
 
 Options:
-  -t, --template <name>  Template to use: vite, vite-pwa, vike, astro
+  -t, --template <name>  Template to use: vite, vite-pwa, vike, astro, mcp-app
       --ts, --typescript  Use TypeScript
       --js, --javascript  Use JavaScript
       --install           Install dependencies (default)
@@ -68,6 +72,7 @@ Examples:
   create-sygnal-app my-app --template vite --ts
   create-sygnal-app my-app -t vike --no-install
   npx create-sygnal-app my-app --template astro --js
+  npx create-sygnal-app my-tool --template mcp-app
 `.trim())
 }
 
@@ -194,16 +199,18 @@ async function main() {
 
   // Done
   const relative = targetDir === process.cwd() ? '.' : projectName
+  // mcp-app: build the single-file view and start the MCP server (README: connecting a host)
+  const nextCmd = template === 'mcp-app' ? 'npm start' : 'npm run dev'
 
   if (interactive) {
     p.note([
       `cd ${relative}`,
-      'npm run dev',
+      nextCmd,
     ].join('\n'), 'Next steps')
 
     p.outro('Happy building!')
   } else {
-    console.log(`\nDone. Run:\n  cd ${relative}\n  npm run dev`)
+    console.log(`\nDone. Run:\n  cd ${relative}\n  ${nextCmd}`)
   }
 }
 

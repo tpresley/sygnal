@@ -1,0 +1,110 @@
+:root {
+  font-family: var(--font-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+}
+
+.card {
+  --bg: #ffffff;
+  --fg: #1c1d21;
+  --muted: #6b6f7a;
+  --line: #e3e5ea;
+  --accent: #5b4bdb;
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.card.dark {
+  --bg: #1d1e23;
+  --fg: #ececf1;
+  --muted: #a2a6b2;
+  --line: #34363e;
+  --accent: #a497ff;
+}
+
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+
+.status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.error {
+  color: #c62828;
+}
+
+.days {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.day {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.day.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.date {
+  font-weight: 600;
+}
+
+.sky,
+.temp {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

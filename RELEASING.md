@@ -35,7 +35,7 @@ Set the versions (no `npm version`: it also commits and tags):
 - `package.json`: `"version": "<SYGNAL>"`.
 - `sygnal-check/package.json`: `"version": "<CHECK>"`.
 - `create-sygnal-app/package.json`: `"version": "<CSA>"`.
-- The template dependencies, in **every** one of these eight files:
+- The template dependencies, in **every** one of these ten files:
   - `create-sygnal-app/template-vite/package.json`
   - `create-sygnal-app/template-vite-ts/package.json`
   - `create-sygnal-app/template-vite-pwa/package.json`
@@ -44,6 +44,8 @@ Set the versions (no `npm version`: it also commits and tags):
   - `create-sygnal-app/template-vike-ts/package.json`
   - `create-sygnal-app/template-astro/package.json`
   - `create-sygnal-app/template-astro-ts/package.json`
+  - `create-sygnal-app/template-mcp-app/package.json`
+  - `create-sygnal-app/template-mcp-app-ts/package.json`
 
   set `"sygnal": "^<SYGNAL>"` under `dependencies` and `"sygnal-check": "^<CHECK>"` under `devDependencies`. A caret range on a 0.x version doesn't cross minors (`^0.1.0` never installs 0.2.0), so a new `sygnal-check` minor reaches new projects only through this bump. Check with:
 
@@ -107,7 +109,7 @@ Expect:
   - `src/`, used for the sub-entry types such as `src/jsx.d.ts` and `src/vite/plugin.d.ts`;
   - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
 - **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
-- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all eight `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test.
+- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test.
 
 ## 4. Smoke check the templates before publishing
 
