@@ -54,6 +54,8 @@ export { decide, choice, noul, score } from './extra/ai/index'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './extra/ai/index'
 // PLAN-6 L-1 (1-L)
 export { makeChatDriver, outputJsonSchema } from './extra/ai/index'
+// PLAN-6 L-3 (2-C)
+export { chat } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'
