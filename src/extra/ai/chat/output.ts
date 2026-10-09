@@ -1,5 +1,6 @@
 import {isStandardSchema, validateWith} from '../../standardSchema';
 import {toJsonSchema} from '../schema/index';
+import {unstrict} from '../schema/strict';
 
 /*
  * PLAN-6 L-1 structured output (0-S4, G-604): a request's `output` is a Standard Schema with
@@ -21,12 +22,16 @@ const invalid = (message: string) => Object.assign(new Error(message), {name: 'V
 
 /**
  * the structured output in a reply's text: JSON (a ```json fence allowed), unwrapped from
- * `{ value }` when the schema was wrapped (a bare value accepted too), then validated
+ * `{ value }` when the schema was wrapped (a bare value accepted too), then validated. Nulls for
+ * keys the schema leaves optional and doesn't allow null for are dropped first (L-2: a transport's
+ * strict mode makes the model send them; small models send them too), as `undefined` would be
  */
 export async function readOutput(output: any, text: string): Promise<any> {
   let v: any;
   const body = text.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1');
   try { v = JSON.parse(body); } catch (_) { throw invalid(`The structured output is not JSON: ${body.length > 80 ? body.slice(0, 80) + '…' : body}`); }
-  if (outputJsonSchema(output)?.wrapped && v && typeof v == 'object' && !Array.isArray(v) && Object.keys(v).length == 1 && 'value' in v) v = v.value;
+  const js = outputJsonSchema(output);
+  if (js) v = unstrict(v, js.schema);
+  if (js?.wrapped && v && typeof v == 'object' && !Array.isArray(v) && Object.keys(v).length == 1 && 'value' in v) v = v.value;
   return isStandardSchema(output) ? validateWith(output, v) : v;
 }

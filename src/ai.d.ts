@@ -6,7 +6,7 @@ import type { Stream } from 'xstream'
 export type MessagePart =
   | { type: 'text'; text: string }
   | { type: 'reasoning'; text: string }
-  | { type: `tool-${string}`; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string }
+  | { type: `tool-${string}`; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string; [key: string]: unknown }; providerExecuted?: boolean }
   | { type: 'file'; mediaType: string; url: string; filename?: string }
   | { type: `source-${string}`; [key: string]: unknown }
   | { type: `data-${string}`; id?: string; data: unknown }
@@ -484,9 +484,13 @@ export type ChatEvent =
   | { type: 'start'; id?: string }
   | { type: 'text'; delta: string }
   | { type: 'reasoning'; delta: string }
-  | { type: 'tool-call'; id?: string; name: string; input?: unknown }
+  | { type: 'tool-call'; id?: string; name: string; input?: unknown; /** the server runs it (L-2 uiMessageStream): a message part only, no `tool` reply */ executed?: boolean; providerExecuted?: boolean }
   | { type: 'tool-result'; id: string; output: unknown }
   | { type: 'tool-error'; id: string; error: string }
+  /** the server asks the user to approve the call (AI SDK `needsApproval`): the part goes to `approval-requested` */
+  | { type: 'tool-approval'; id: string; approval: { id: string; requestReason?: string; [key: string]: unknown } }
+  /** the server reports the call denied: the part goes to `output-denied` */
+  | { type: 'tool-denied'; id: string }
   | { type: 'data'; name: string; data: unknown; id?: string }
   | { type: `data-${string}`; data: unknown; id?: string }
   | { type: 'file'; mediaType: string; url: string; filename?: string }
@@ -639,3 +643,99 @@ export interface ChatOptions {
  * `maxSteps`. Its selectors are the host's own: render the markup in the host's view.
  */
 export function chat(options?: ChatOptions): Behavior<ChatState, ChatActions, {}, ChatOptions>
+// ---- L-2: transports, wave 1 (2-T) ---------------------------------------------------------------
+
+/** `ok.usage` from the L-2 transports (AI SDK names) */
+export type ChatUsage = { inputTokens?: number; outputTokens?: number; totalTokens?: number; reasoningTokens?: number }
+
+/** Options every HTTP transport takes */
+export interface HttpTransportOptions {
+  /** Request headers, or a function of the request (e.g. a fresh session token) */
+  headers?: Record<string, string> | ((request: ChatRequest) => Record<string, string> | Promise<Record<string, string>>);
+  /** The fetch to use (default: globalThis.fetch): a proxy, a test or demo server, SSR */
+  fetch?: (url: string, init: RequestInit) => Promise<Response>;
+  /** Extra JSON body fields (a request's own `body` is merged over them) */
+  body?: Record<string, unknown>;
+  /**
+   * In a browser, a request with an auth header (Authorization, x-api-key, ...) to a host that is
+   * neither local nor the page's origin is refused (SYG670): the key would ship to every visitor.
+   * `true` allows it, for a key the user typed in themselves
+   */
+  dangerouslyAllowBrowser?: boolean;
+}
+
+export interface OpenResponsesOptions extends HttpTransportOptions {
+  /** The API root (default '/v1'); POSTs to `${baseURL}/responses`. Ollama: 'http://localhost:11434/v1' */
+  baseURL?: string;
+  /** The model (a request's `model` overrides it) */
+  model?: string;
+  /**
+   * OpenAI strict schemas for tools and `output` (default false, D266): each schema rewritten to
+   * the strict subset (all keys required, optional ones nullable, no extra keys), a schema with no
+   * strict form sent non-strict (SYG675), the nulls dropped again before validation
+   */
+  strict?: boolean;
+}
+
+export interface ChatCompletionsOptions extends HttpTransportOptions {
+  /** The API root (default '/v1'); POSTs to `${baseURL}/chat/completions` */
+  baseURL?: string;
+  model?: string;
+  /** As openResponses' `strict` */
+  strict?: boolean;
+}
+
+export interface UIMessageStreamOptions extends HttpTransportOptions {}
+
+export type ChromePromptStatus = 'available' | 'downloadable' | 'downloading' | 'unavailable'
+
+export interface ChromePromptOptions {
+  temperature?: number;
+  topK?: number;
+  expectedInputs?: unknown[];
+  expectedOutputs?: unknown[];
+  /** Sees the model download's progress (`downloadprogress` events) */
+  monitor?: (monitor: EventTarget) => void;
+  /** The Prompt API object (default: globalThis.LanguageModel; tests pass a stub) */
+  LanguageModel?: unknown;
+}
+
+export interface ChromePromptTransport extends ChatTransport {
+  /** `LanguageModel.availability()`, or 'unavailable' without the API */
+  status(): Promise<ChromePromptStatus>;
+}
+
+/**
+ * openResponses({ baseURL, model }): a transport for Open Responses / OpenAI Responses SSE
+ * (Ollama, vLLM, OpenRouter, OpenAI). Unknown events are ignored, as the spec requires.
+ *
+ *   run(App, { LLM: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) })
+ */
+export function openResponses(options?: OpenResponsesOptions): ChatTransport
+
+/** chatCompletions({ baseURL, model }): a transport for Chat Completions SSE (older local servers) */
+export function chatCompletions(options?: ChatCompletionsOptions): ChatTransport
+
+/**
+ * uiMessageStream(url): a transport for an AI SDK 7 server route (`toUIMessageStreamResponse()`,
+ * UI message stream v1). Messages go as UIMessages; server-run tools, approvals and `data-*`
+ * parts come back as message parts. The production default: the provider key stays on the server.
+ */
+export function uiMessageStream(url: string, options?: UIMessageStreamOptions): ChatTransport
+
+/** chromePrompt(): a transport for Chrome's on-device Prompt API (`LanguageModel`); `status()` says whether it can run */
+export function chromePrompt(options?: ChromePromptOptions): ChromePromptTransport
+
+/** One Open Responses SSE event (`event: type`, `data: JSON`) */
+export interface OpenResponsesEvent { type: string; sequence_number: number; [key: string]: unknown }
+
+/**
+ * The Open Responses events of a scripted reply (D273), for demo and test servers:
+ * chunks as `t.stream` takes them (strings, `{ reasoning }`, `{ toolCall }`, `{ finish }`) or ChatEvents.
+ *
+ *   'POST /v1/responses': () => ({ sse: encodeOpenResponses(['Hello ', 'there']) })
+ */
+export function encodeOpenResponses(
+  chunks: ReadonlyArray<string | { reasoning: string } | { toolCall: { id?: string; name: string; input?: unknown } } | { finish: string | { reason?: string; usage?: unknown } } | ChatEvent>,
+  options?: { id?: string; model?: string },
+): OpenResponsesEvent[]

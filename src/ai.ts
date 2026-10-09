@@ -11,3 +11,5 @@ export {makeChatDriver, outputJsonSchema} from './index'
 export {experimentalExposeWebMcp} from './index'
 // L-3 (2-C)
 export {chat} from './index'
+// L-2 (2-T)
+export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'

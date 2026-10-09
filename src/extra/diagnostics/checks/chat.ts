@@ -8,6 +8,9 @@
  *          'id' a tool result / error for no known call); it was skipped. The driver sends the
  *          first five per driver.
  * SYG677 — a request with no sender stamp (not sent by a component): dropped.
+ * SYG675 — (info) an L-2 transport with `strict: true` sent a tool (or the `output` schema)
+ *          non-strict because it has no strict form (`data`: { tool, errors }); once per tool and
+ *          transport.
  *
  * SYG678 (a failure with no error action) and SYG679 (an invalid request) are printed by the
  * driver itself, in production too (legacy error()).
@@ -30,6 +33,14 @@ function onChat(code: string, request: any, event?: any, why?: string) {
       message: `makeChatDriver: the transport sent a malformed ${event && typeof event.type == 'string' ? `'${event.type}' ` : ''}event (${WHY[why!] || why}): ${brief(event)}. It was skipped`,
       fix: "Fix the transport: it yields ChatEvents such as { type: 'text', delta: 'Hi' }, { type: 'tool-call', id, name, input } (see ChatEvent in sygnal/ai)",
       data: {event, reason: why},
+    })
+  } else if (code == 'SYG675') {
+    const {tool, errors} = event || {}
+    devReport('SYG675', {
+      component,
+      message: `strict mode: ${tool == '(output)' ? 'the output schema' : `the tool '${tool}'`} was sent non-strict: ${(errors || []).join('; ')}. The model may send arguments outside the schema; validation still checks them`,
+      fix: 'Give it a strict form (an object root, no records: z.record() / additionalProperties with a schema), or accept the non-strict call',
+      data: {tool, errors},
     })
   } else if (code == 'SYG677') {
     devReport('SYG677', {

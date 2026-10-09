@@ -316,7 +316,10 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 2-T (G-410): Sygnal components / widget tags / special JSX inside a fromZag render
   SYG669: 'Sygnal component inside a fromZag render',
   // PLAN-6 L-1: makeChatDriver (src/extra/ai/chat/driver.ts; SYG673/677 dev, SYG678/679 legacy error())
+  // PLAN-6 L-2: transports (src/extra/ai/transports/; SYG670 legacy error() + the request fails, SYG675 dev)
+  SYG670: 'Auth header sent from the browser to a hosted endpoint',
   SYG673: 'Malformed chat stream event',
+  SYG675: 'Tool sent non-strict under strict mode',
   SYG677: 'Chat request sent from outside a component',
   SYG678: 'Chat request failed with no error action',
   SYG679: 'Invalid chat request',
@@ -463,7 +466,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG668: 'warn',
   SYG669: 'warn',
   // PLAN-6 L-1 (makeChatDriver reports them with an explicit severity, like SYG611)
+  SYG670: 'error',
   SYG673: 'warn',
+  SYG675: 'info',
   SYG677: 'warn',
   SYG678: 'error',
   SYG679: 'error',

@@ -34,7 +34,10 @@ import {readOutput} from './output';
  *   pending delta is flushed before `tool` and `ok`.
  * - Messages (D252): AI SDK UIMessage parts. Text and reasoning grow the trailing part of their
  *   type; a tool call is `tool-<name>` with `toolCallId`, `state: 'input-available'`, `input`
- *   (`'output-available'` / `'output-error'` after a tool-result / tool-error event); files,
+ *   (`'output-available'` / `'output-error'` after a tool-result / tool-error event,
+ *   `'approval-requested'` with `approval` after tool-approval, `'output-denied'` after
+ *   tool-denied: L-2's uiMessageStream). A tool-call with `executed: true` (the server runs it)
+ *   is a part only: no `tool` reply, not in `ok.toolCalls`. Files,
  *   `source-*` and `data-<name>` parts as the events give them (a data part with the `id` of an
  *   earlier one replaces it, as in the AI SDK).
  * - Transport: `{ stream(request, signal) }` returning an AsyncIterable of ChatEvents
@@ -156,14 +159,16 @@ export function makeChatDriver(options: any = {}) {
             if (!ev.name || typeof ev.name != 'string') { malformed(req, ev, 'name'); continue; }
             flush();
             const call = {id: ev.id ?? `call_${++calls}`, name: ev.name, input: ev.input ?? {}};
-            toolCalls.push(call);
-            parts.push({type: 'tool-' + call.name, toolCallId: call.id, state: 'input-available', input: call.input});
-            send(req.tool, {key, call});
-          } else if (type == 'tool-result' || type == 'tool-error') {
+            parts.push({type: 'tool-' + call.name, toolCallId: call.id, state: 'input-available', input: call.input, ...(ev.providerExecuted && {providerExecuted: true})});
+            // L-2: a call the server runs (`executed`) is part of the message only
+            if (!ev.executed) { toolCalls.push(call); send(req.tool, {key, call}); }
+          } else if (type == 'tool-result' || type == 'tool-error' || type == 'tool-approval' || type == 'tool-denied') {
             const p = toolPart(ev);
             if (!p) malformed(req, ev, 'id');
             else if (type == 'tool-result') { p.state = 'output-available'; p.output = ev.output; }
-            else { p.state = 'output-error'; p.errorText = String(ev.error ?? ev.errorText ?? 'error'); }
+            else if (type == 'tool-error') { p.state = 'output-error'; p.errorText = String(ev.error ?? ev.errorText ?? 'error'); }
+            else if (type == 'tool-approval') { p.state = 'approval-requested'; p.approval = {...ev.approval}; }
+            else { p.state = 'output-denied'; if (p.approval) p.approval = {...p.approval, approved: false}; }
           } else if (type == 'data' || type.startsWith('data-')) {
             const part: any = {type: type == 'data' ? 'data-' + (ev.name ?? 'value') : type, ...(ev.id !== undefined && {id: ev.id}), data: ev.data};
             const i = ev.id === undefined ? -1 : parts.findIndex(p => p.type == part.type && p.id === ev.id);

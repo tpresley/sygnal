@@ -1940,7 +1940,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 
 A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`), so a test suite can pass while the app drops every request. sygnal-check reports the sink case before the app runs: a model sink of a component that a `run()` call renders, when that call's drivers are an object literal (or absent) without that name. It says nothing when no `run()` call is in the checked files (Vike, Astro, a library), when the drivers can't be listed (a variable from another module, a spread, a computed key), or for the sinks the core handles itself (`STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST`, `LOG`).
 
-**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
+**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `run(App, { LLM: makeChatDriver({ transport: openResponses({ baseURL, model }) }) })` (from `sygnal/ai`) for an LLM chat sink, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
 
 ### SYG610
 
@@ -2202,6 +2202,16 @@ A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge 
 
 **Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
+### SYG670
+
+**Auth header sent from the browser to a hosted endpoint**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A `sygnal/ai` HTTP transport (`openResponses`, `chatCompletions`, `uiMessageStream`) running in a browser was about to send an auth header (`Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`) to a host that is neither local (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`) nor the page's own origin. A key in browser code ships to everyone who opens the page, who can then spend it. The request is refused before anything is sent: the chat request fails (its `error` action gets the error, or SYG678 logs it) and this message is logged, in production too. Requests to the page's own origin (the app's server or proxy) and to local servers such as Ollama are allowed, and so is every request outside a browser (SSR, tests).
+
+**Fix:** Call the provider from your server and point the transport at that route: an AI SDK route with `uiMessageStream('/api/chat')`, or your own proxy with `openResponses({ baseURL: '/api/llm' })`, so the key stays there. Only for a key the user typed in themselves (a bring-your-own-key tool), pass `dangerouslyAllowBrowser: true` to the transport.
+
 ### SYG673
 
 **Malformed chat stream event**
@@ -2221,6 +2231,16 @@ Severity: `info` · Reported by: the Sygnal runtime (every app, production inclu
 `experimentalExposeWebMcp()` found no WebMCP context: no `modelContext` option, and neither `document.modelContext` nor the older `navigator.modelContext` exists. That is the normal case in browsers without WebMCP (Chrome before the origin trial, Firefox, Safari) and on insecure pages, so it is only information: the call does nothing and returns a `stop()` whose `available` is `false`. Chrome 153 exposes WebMCP behind `chrome://flags/#enable-webmcp-testing` (`--enable-features=WebMCP`) or an origin trial token.
 
 **Fix:** Nothing to fix. To try it elsewhere, install `@mcp-b/webmcp-polyfill` (`installWebMCP()`) before the call, or pass `modelContext`. Use `stop.available` to show or hide UI that depends on an agent.
+
+### SYG675
+
+**Tool sent non-strict under strict mode**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An `openResponses({ strict: true })` or `chatCompletions({ strict: true })` transport rewrites each tool's input schema (and the `output` schema) into OpenAI's strict subset, so the model can only produce arguments that match. A schema with no strict form, such as a record (`z.record()`, `additionalProperties` with a schema) or a non-object root, is sent non-strict on its own while the other tools stay strict. The model may then send arguments outside that schema; the agent layer and the chat driver still validate every call and return the issues. Collected in development (info), once per tool and transport.
+
+**Fix:** Give the schema a strict form: an object root with named properties instead of a record (for example an array of `{ key, value }` objects). Or accept the non-strict tool: validation still protects the state.
 
 ### SYG676
 

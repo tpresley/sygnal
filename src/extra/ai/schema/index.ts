@@ -103,7 +103,7 @@ export function normalize(schema: any): {schema: any; wrapped: boolean} {
   return {schema: out, wrapped: true}
 }
 
-const resolve = (s: any, root: any) => {
+export const resolve = (s: any, root: any) => {
   const m = /^#\/\$defs\/(.+)$/.exec(s.$ref)
   return m ? root.$defs?.[m[1]] : s.$ref == '#' ? root : s
 }

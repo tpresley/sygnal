@@ -21,3 +21,10 @@ export {outputJsonSchema} from './chat/output'
 export {experimentalExposeWebMcp} from './webmcp'
 // L-3 (2-C): the chat behavior
 export {chat} from './chat/behavior'
+// L-2 (2-T): transports, wave 1 (D248), each its own module (tree-shaken), and the Open Responses
+// event encoder (D273)
+export {openResponses} from './transports/openResponses'
+export {chatCompletions} from './transports/chatCompletions'
+export {uiMessageStream} from './transports/uiMessageStream'
+export {chromePrompt} from './transports/chromePrompt'
+export {encodeOpenResponses} from './transports/encodeOpenResponses'

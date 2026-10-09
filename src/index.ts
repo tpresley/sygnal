@@ -58,6 +58,8 @@ export { makeChatDriver, outputJsonSchema } from './extra/ai/index'
 export { experimentalExposeWebMcp } from './extra/ai/index'
 // PLAN-6 L-3 (2-C)
 export { chat } from './extra/ai/index'
+// L-2 (2-T)
+export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

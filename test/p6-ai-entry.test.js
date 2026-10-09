@@ -18,7 +18,8 @@ describe('sygnal/ai entry (PLAN-6)', () => {
     for (const f of ['ai.esm.js', 'ai.cjs.js']) {
       const src = read(f)
       expect(src).toMatch(/['"]sygnal['"]/)
-      expect(src.replace(/\/\/# sourceMappingURL.*/, '').length).toBeLessThan(2000)
+      // a re-export only: the CJS form spends ~120 B per name on getters
+      expect(src.replace(/\/\/# sourceMappingURL.*/, '').length).toBeLessThan(300 + 150 * Object.keys(ai).length)
     }
     for (const name of Object.keys(ai)) expect(ai[name]).toBe(sygnal[name])
   })
