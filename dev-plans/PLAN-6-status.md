@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). Phase 2: 2-T, 2-W, 2-C merged; DX-1 running. Phase 3 started: 3-W2, 3-M, 3-K.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-W2, 3-M, 3-K.
 
 ## Decisions
 
@@ -59,6 +59,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D284 | 2026-10-09 | Coordinator (2-T): SYG670 exempts same-origin requests (the app's own proxy with a session header) as well as local hosts and non-browser environments |
 | D285 | 2026-10-09 | Coordinator (2-T): the strict layer moves behind an explicit import (`openResponses({ strict: strictSchemas })`, `strictSchemas` exported from `sygnal/ai`), so apps that don't use strict mode don't pay ≈ 1.1 KB; `strict: true` alone becomes a dev error pointing at it |
 | D286 | 2026-10-09 | User (G-622): an untrusted `read` projection is summarised in WebMCP tool descriptions by its structure only (counts, numeric ids, numbers, booleans; strings → `<text>`), and an untrusted tool's key parameter lists ids without `agent.label` text; the contents go only through the read tool, whose results carry `untrustedContentHint`. Trusted projections keep the full summary |
+| D287 | 2026-10-09 | Coordinator (DX-1): a demo that starts its assistant on load uses the canonical `BOOTSTRAP: { EFFECT: (state, data, next) => next('assistant.SEND', text) }`; `chat()` gets no first-prompt option (real apps rarely auto-send) |
 
 ## 0-A baseline (2026-10-09)
 
@@ -99,6 +100,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 2-W | A-2 `experimentalExposeWebMcp` | ✅ merged | `p6-2w` (`69141435`) | 2026-10-09 | `modelContext` option → `document.modelContext` → `navigator.modelContext`; register/re-register on change, unregister by abort, `exposedTo`; SYG676 for rejections, objects only; budgets with safe truncation (SYG242); `untrustedContentHint` (declared or inferred, SYG244); description state summaries (D250, ≤ 300 chars); default accessible `<dialog>` confirm; SYG674. 15 vitest + type test; WebMCP page: Chromium native 16/16, no-WebMCP 1/1, polyfill 16/16 (Chromium, Firefox, WebKit); full suites 367/366/366; ≈ 0.6–0.8 s per engine. ≈ 2.2 KB gz on top of `agentTools` (4.9 KB). Open: untrusted text in description summaries (G-622, asked) |
 | 2-C | L-3 `chat` behavior | ✅ merged | `p6-2c` (`b4b045ba`) | 2026-10-09 | `chat({ sink, form, prompt, stop, approve, deny, regenerate, instructions, model, agent, maxSteps, transportOptions })` on `defineBehavior`; slice + SEND/STOP/REGENERATE/APPROVE/DENY/DONE; tool loop via `agentTools({ from: host })` (descendants by default, D249), `read` context per request, consequential → `pending`; reaches the runtime via a `layers` factory (D283). SYG442; sygnal-check `FIRST_PARTY.chat`. 15 + strict tests, types; Ollama qwen3:8b 3/3 (experiment 3's task). ≈ 2.8 KB gz own (≈ 7.8 KB with A-1 + schema) |
 | 2-T | L-2 wave 1 transports | ✅ merged | `p6-2t` (`f27d6daa`) | 2026-10-09 | `openResponses`, `chatCompletions`, `uiMessageStream` (checked against `ai@7.0.137`, exact devDep; header version; approvals and `data-*` through), `chromePrompt` (`status()`, `responseConstraint`), `encodeOpenResponses`; `fetch`/`headers`/`body` on HTTP transports, `baseURL` default `/v1`; strict layer with per-tool fallback (SYG675); SYG670 (D284); driver: `executed` tool calls, `tool-approval`, `tool-denied` events; `ok.usage` = `{ inputTokens, outputTokens, totalTokens, reasoningTokens? }`. `npm run test:ai-local` (G-619): 20/20 against Ollama (both endpoints × llama3.2/qwen3:8b × reply/tool/structured plain+strict). G-620 fixed. 47 tests + tree-shake gate. Bytes over the driver: openResponses 2,915 B (incl. strict, → D285), chatCompletions 2,954 B, uiMessageStream 1,921 B, chromePrompt 531 B, encoder 933 B. Coordinator: explanations merge fixed and regenerated; entry-test heuristic scales with export count |
+| DX-1 | Live AI demos infrastructure | ✅ merged | `p6-dx1` (`bac30a70`) | 2026-10-09 | Demo server streams (`{ sse }` / `{ stream }`, real `ReadableStream`, abort errors the body, works under Node); page-wide `LLM` = real `makeChatDriver` + `openResponses({ fetch: demoFetch })` (G-615); `'sygnal/ai'` in `modules.ts`; no scripted transport / drivers export (D274). `test/docs-live-server.test.js` 11 tests (G-616). Hidden page `/live-checks/ai/`: chat streaming on load, `chat` behavior + `agent` tool loop, `decide()` resource. check-live 85/85 on Chromium 75 s, Firefox 83 s, WebKit 82 s; doc samples 708, 0 strict/a11y |
 
 ## Gaps
 
@@ -138,8 +140,8 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | decided (D275); open (impl) |
 | G-613 | 0-S5 | A scripted transport is invisible to check-live | decided (D272/D274); open (impl) |
 | G-614 | 0-S5 | `sygnal-check` gives false SYG102 for `delta`/`tool` reply keys | open (K-1) |
-| G-615 | 0-S5 | The live `LLM` default should apply page-wide, not only to demos importing `sygnal/ai` | open (docs infra) |
-| G-616 | 0-S5 | The live demo server has no unit tests | open (docs infra) |
+| G-615 | 0-S5 | The live `LLM` default should apply page-wide, not only to demos importing `sygnal/ai` | ✅ fixed (DX-1) |
+| G-616 | 0-S5 | The live demo server has no unit tests | ✅ fixed (DX-1) |
 | G-617 | 1-A, 1-L, 1-M | `src/index.d.ts` re-exported from `'./ai'`, which resolves to `ai.ts`: `messageText` etc. were typed `any` in dist (hidden by `skipLibCheck`) | ✅ fixed (`'./ai.d'`, merge) |
 | G-618 | 1-A | Collection items without ids get their index as key: routing works but keys are unstable → SYG441 (from the uid's `_i<n>`) | ✅ fixed (1-A) |
 | G-619 | 1-A | No `test:ai-local` script yet for the opt-in Ollama suites | open (Phase 2) |
@@ -167,3 +169,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 2-W merged (`395cbd12`), 2-C merged (`456cdd07`; shared-export conflicts resolved). vitest 4,025 passed; size 42,690 B; errors doc current; WebMCP page native/polyfill 16/16. D282–D283. G-622…G-627; G-622 asked.
 - 2026-10-09 — 2-T merged (`20a1a83f`; explanations.js merge repaired, explanations.json + errors.md regenerated). vitest 4,069 passed; sygnal-check 645/645; size 42,690 B. D284–D285; G-628…G-630. DX-1 and Phase 3 (3-W2 wave-2 transports + D285 + G-629; 3-M M-2/M-3; 3-K K-1) started.
 - 2026-10-09 — D286 (user, G-622) implemented on `plan6-integration`: structure-only summaries and label-free key parameters for untrusted WebMCP tools; vitest + WebMCP pages 16/16 on all engines/modes. G-631 opened for the same channel in the chat behavior.
+- 2026-10-09 — DX-1 merged (`p6-dx1`, clean). D287. **Phase 2 complete.**
