@@ -30,4 +30,6 @@ export {chromePrompt} from './transports/chromePrompt'
 export {encodeOpenResponses} from './transports/encodeOpenResponses'
 // M-2 / M-3 (3-M): decision reply fixtures and the command bar
 export {answers} from './answers'
+// PLAN-6 A-3 (experimental, D241, D291): form(schema, { tool: formTool({ … }) })
+export {formTool} from '../formTool'
 export {commandBar} from './commandBar'

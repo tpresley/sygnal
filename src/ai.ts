@@ -15,3 +15,5 @@ export {chat} from './index'
 export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'
 // M-2 / M-3 (3-M)
 export {answers, commandBar} from './index'
+// A-3 (3-A3, experimental, D291)
+export {formTool} from './index'

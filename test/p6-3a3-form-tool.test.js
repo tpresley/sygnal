@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-// PLAN-6 A-3 (D241 experimental, D269, D270, G-598, G-602, G-603): `form(…, { tool })` writes the
+// PLAN-6 A-3 (D241 experimental, D269, D270, D291, G-598, G-602, G-603): `form(…, { tool:
+// formTool({ … }) })` writes the
 // declarative WebMCP attributes (as attrs, not props) on the host's <form> and its named fields,
 // and answers an agent's submit (`agentInvoked`) through `respondWith` after validation and the
 // flush. Mock DOM and `dom: 'real'`; the real-browser round trip is browser-tests/src/webmcp/.
 import { describe, it, expect, afterEach } from 'vitest'
-import { renderComponent, form, Collection } from '../src/index.js'
+import { renderComponent, form, Collection, formTool } from '../src/index.js'
+import { setupChecks, diagnostics } from './diagnostics/helpers.js'
 import { createElement as h } from '../src/pragma/index.js'
 
 let t
@@ -24,7 +26,8 @@ const schema = {
   },
 }
 const values = { email: '', plan: '', note: '', nick: '' }
-const tool = { name: 'sign_up', description: 'Create an account' }
+const spec = { name: 'sign_up', description: 'Create an account' }
+const tool = formTool(spec)
 
 function Signup({ state }) {
   const f = state.form.values
@@ -69,7 +72,7 @@ for (const dom of ['mock', 'real']) {
     })
 
     it('autosubmit: true writes toolautosubmit; a re-render keeps the attributes', async () => {
-      t = renderComponent(make({ tool: { ...tool, autosubmit: true } }), dom == 'real' ? { dom: 'real' } : {})
+      t = renderComponent(make({ tool: formTool({ ...spec, autosubmit: true }) }), dom == 'real' ? { dom: 'real' } : {})
       await t.ready()
       expect(t.query('form').getAttribute('toolautosubmit')).toBe('')
       t.simulateEvent('[name="email"]', 'input', { value: 'a@b.c' })
@@ -237,4 +240,27 @@ describe('an agent submit (agentInvoked + respondWith)', () => {
     t = null
     expect(await p).toEqual({ ok: false, error: 'The form was removed' })
   })
+})
+
+describe('D291: pay per use', () => {
+  it('a plain object as tool is SYG245 (dev) and offers nothing; the form still works', async () => {
+    setupChecks()
+    t = renderComponent(make({ tool: { ...spec } }), { dom: 'real' })
+    await t.ready()
+    expect(t.query('form').hasAttribute('toolname')).toBe(false)
+    const d = diagnostics('SYG245')
+    expect(d).toHaveLength(1)
+    expect(d[0].severity).toBe('error')
+    expect(d[0].fix).toContain("tool: formTool({ name: 'sign_up'")
+    t.simulateEvent('[name="email"]', 'input', { value: 'a@b.co' })
+    t.simulateEvent('[name="plan"]', 'input', { value: 'pro' })
+    t.simulateEvent('form', 'submit')
+    await t.settle()
+    expect(t.query('.out').textContent).toBe('saved:a@b.co')
+  })
+
+  it('formTool keeps the spec readable', () => {
+    expect(tool).toMatchObject(spec)
+  })
+
 })

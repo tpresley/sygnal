@@ -1,5 +1,5 @@
 // Types for 'sygnal/ai' (PLAN-6). The implementation lives in src/extra/ai/ (D253).
-import type { FetchRequest, Behavior, BehaviorTarget } from 'sygnal'
+import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors } from 'sygnal'
 import type { Stream } from 'xstream'
 
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
@@ -584,6 +584,45 @@ export type WebMcpHandle = (() => void) & { readonly available: boolean }
  * budgets. A no-op where WebMCP is missing.
  */
 export function experimentalExposeWebMcp(app: unknown, options?: ExposeWebMcpOptions): WebMcpHandle
+
+// ---- A-3: form(…, { tool: formTool() }) (3-A3; experimental, D241; pay per use, D291) --------
+
+/**
+ * **Experimental** (D241): a `form`'s declarative WebMCP tool, as `formTool()` takes it.
+ * Chrome's budgets: name ≤ 30 characters of `[A-Za-z0-9_.-]`, description ≤ 500.
+ */
+export interface FormTool {
+  /** The tool name (the `<form>`'s `toolname`) */
+  name: string
+  /** What the form does, for the agent (`tooldescription`) */
+  description: string
+  /**
+   * Submit when the agent calls the tool (`toolautosubmit`). Default false (D270): the call fills
+   * the fields and stays pending until the user submits the form; then the agent gets the answer
+   */
+  autosubmit?: boolean
+}
+/** What `formTool()` returns: the spec plus the hook the form behavior calls (pass it as `tool`) */
+export type FormToolHandle = Readonly<FormTool> & { readonly $: (behavior: unknown, result: unknown) => void }
+/**
+ * **Experimental** (D241): what an agent's call of a `form` tool resolves with: the schema's
+ * output (what the host's submit action got; a submit sent as a request answers after
+ * `form.DONE`), the field errors by name (schema, check and server errors; `''` is form-level), or
+ * an `error` when a submit was already running or the form went away first.
+ */
+export type FormToolResult =
+  | { ok: true; values: any }
+  | { ok: false; errors: FieldErrors }
+  | { ok: false; error: string }
+/**
+ * **Experimental** (PLAN-6 A-3, D241): the `tool` option of `form()`, which offers the form to
+ * the browser's agent as a declarative WebMCP tool:
+ *
+ *   Signup.uses = { form: form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) }) }
+ *
+ * The tool code is in this function, so an app using `form` without it doesn't carry it (D291).
+ */
+export function formTool(tool: FormTool): FormToolHandle
 // ---- L-3: the chat behavior (2-C) -----------------------------------------------------------
 
 /** 'ready' | 'submitted' (sent, nothing received yet) | 'streaming' (receiving, or running tools) | 'error' (the AI SDK's names) */

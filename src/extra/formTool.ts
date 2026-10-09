@@ -1,8 +1,13 @@
 /*
  * PLAN-6 A-3 (D241: experimental, outside semver until WebMCP's origin trial ends; D269, D270,
- * G-598, G-602, G-603): `form(schema, { …, tool: { name, description, autosubmit } })` offers the
- * form to the browser's agent as a declarative WebMCP tool (Chrome 153 with
+ * D291, G-598, G-602, G-603): `form(schema, { …, tool: formTool({ name, description, autosubmit }) })`
+ * offers the form to the browser's agent as a declarative WebMCP tool (Chrome 153 with
  * `--enable-features=WebMCP`, or a polyfill).
+ *
+ * D291 (pay per use, as D285): `formTool` is exported from 'sygnal/ai' (and 'sygnal'); the form
+ * behavior never imports this module, it only calls the `$(behavior, result)` hook of the object it
+ * is given (`$`; a plain object as `tool` is SYG245 from the dev entry, and ignored). An app that uses
+ * `form` without `formTool` carries none of this.
  *
  * Attributes. WebMCP reads attributes, and the pragma sends an unknown JSX key (`toolname`) to
  * props (G-598), so the behavior writes them itself into the vnode's `attrs` (what `attrs-toolname`
@@ -94,42 +99,52 @@ const post = (v: any, inst: any) => {
 }
 
 /**
- * The tool's part of the behavior: registers the post-processor; `submit(sub, STATE, result)`
- * wraps the submit stream so an agent's submit gets its answer (`result(values)`: the schema's
- * result for values).
+ * The submit stream wrapped so an agent's submit gets its answer (`result(values)`: the schema's
+ * result for values, the form's own cached one)
  */
-export const formTool = (tool: FormTool, sel: string) => {
-  posts.form = post
-  return {
-    $tool: [tool, sel],
-    submit: (sub: any, STATE: any, result: (vals: any) => any) => {
-      let cur: any, pend: any, l: any
-      // after the host's submit action (the form dispatches it with next(submit, data, 0): a
-      // timer set before this one) and the flush that renders it
-      const answer = (x: any) => { const p = pend; pend = null; p && Promise.resolve(x).then(y => setTimeout(p, 0, y)) }
-      const watch = (s: any) => {
-        cur = s
-        if (!pend || !s || s.submitCount <= pend.c || s.queued || s.validating || s.submitting) return
-        const errors: any = {}
-        for (const m of [s.server, s.remote, s.errors]) for (const k in m) m[k] && !(k in errors) && (errors[k] = m[k])
-        answer(Object.keys(errors).length ? {ok: false, errors} : Promise.resolve(result(s.values)).then(r => ({ok: true, values: r.value})))
-      }
-      const agent = (e: any) => {
-        if (!e?.agentInvoked || typeof e.respondWith != 'function') return e
-        let r: any
-        try { e.respondWith(new Promise(x => r = x)) } catch (_) { return e }
-        // a submit already running: the form drops this one (SYG232), the running call stays
-        if (cur?.submitting || cur?.queued) r({ok: false, error: 'A submit is already running'})
-        else answer({ok: false, error: 'Replaced by a later submit'}), pend = r, pend.c = cur?.submitCount || 0
-        return e
-      }
-      // the slice, watched while the intent runs (a stream that never emits); a pending call is
-      // answered when the host stops
-      const w = xs.create({
-        start: () => STATE?.stream.addListener(l = {next: watch, error: () => {}, complete: () => {}}),
-        stop: () => { STATE?.stream.removeListener(l); answer({ok: false, error: 'The form was removed'}) },
-      })
-      return xs.merge(sub.map(agent), w)
-    },
+const answering = (sub: any, STATE: any, result: (vals: any) => any) => {
+  let cur: any, pend: any, l: any
+  // after the host's submit action (the form dispatches it with next(submit, data, 0): a
+  // timer set before this one) and the flush that renders it
+  const answer = (x: any) => { const p = pend; pend = null; p && Promise.resolve(x).then(y => setTimeout(p, 0, y)) }
+  const watch = (s: any) => {
+    cur = s
+    if (!pend || !s || s.submitCount <= pend.c || s.queued || s.validating || s.submitting) return
+    const errors: any = {}
+    for (const m of [s.server, s.remote, s.errors]) for (const k in m) m[k] && !(k in errors) && (errors[k] = m[k])
+    answer(Object.keys(errors).length ? {ok: false, errors} : Promise.resolve(result(s.values)).then(r => ({ok: true, values: r.value})))
   }
+  const agent = (e: any) => {
+    if (!e?.agentInvoked || typeof e.respondWith != 'function') return e
+    let r: any
+    try { e.respondWith(new Promise(x => r = x)) } catch (_) { return e }
+    // a submit already running: the form drops this one (SYG232), the running call stays
+    if (cur?.submitting || cur?.queued) r({ok: false, error: 'A submit is already running'})
+    else answer({ok: false, error: 'Replaced by a later submit'}), pend = r, pend.c = cur?.submitCount || 0
+    return e
+  }
+  // the slice, watched while the intent runs (a stream that never emits); a pending call is
+  // answered when the host stops
+  const w = xs.create({
+    start: () => STATE?.stream.addListener(l = {next: watch, error: () => {}, complete: () => {}}),
+    stop: () => { STATE?.stream.removeListener(l); answer({ok: false, error: 'The form was removed'}) },
+  })
+  return xs.merge(sub.map(agent), w)
 }
+
+/**
+ * formTool({ name, description, autosubmit? }): the `tool` option of `form()`. form() calls its
+ * `$(behavior, result)` hook once, with the behavior it made and its schema result function: the
+ * hook registers the post-processor, marks the behavior for it (`$tool`: the spec and the form
+ * selector, read from the host's `uses`) and wraps the behavior's intent so SUBMIT answers agents.
+ */
+export const formTool = (tool: FormTool) => ({...tool, $: (b: any, result: (vals: any) => any) => {
+  posts.form = post
+  b.$tool = [tool, b.options?.form || 'form']
+  const intent = b.intent
+  b.intent = (so: any, ...x: any[]) => {
+    const i = intent(so, ...x)
+    i.SUBMIT = answering(i.SUBMIT, so.STATE, result)
+    return i
+  }
+}})

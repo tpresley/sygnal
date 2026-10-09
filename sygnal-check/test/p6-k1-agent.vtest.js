@@ -356,7 +356,7 @@ Signup.initialState = {}
   })
   it('the fix points at form(…, { tool }) (A-3), then attrs-*', () => {
     const d = only('SYG153')(check({ 'Signup.jsx': form('toolname="sign_up"', 'toolparamdescription="Your email"') }))
-    expect(d[0].fix).toMatch(/form\(schema, \{ \.\.\., tool: \{ name: 'sign_up'/)
+    expect(d[0].fix).toMatch(/form\(schema, \{ \.\.\., tool: formTool\(\{ name: 'sign_up'.*from 'sygnal\/ai'/)
     expect(d[0].fix).toMatch(/attrs-toolname=/)
     expect(d[1].fix).toMatch(/<label> or aria-label/)
     expect(d[1].fix).toMatch(/attrs-toolparamdescription=/)

@@ -7,7 +7,7 @@
 // The test acts as the agent through getTools / executeTool (./agent.js normalizes the two
 // implementations, G-600); the confirmation dialog gets real input (window.__pwWebMcp).
 import { run, Collection, onDiagnostic, form } from 'sygnal'
-import { experimentalExposeWebMcp, jsonSchema } from 'sygnal/ai'
+import { experimentalExposeWebMcp, jsonSchema, formTool } from 'sygnal/ai'
 import { agentClient, isNative } from './agent.js'
 
 const mode = new URLSearchParams(location.search).get('mode') || 'polyfill'
@@ -81,7 +81,7 @@ function Stats({ state }) { return <p className="stats">views: {state.views}</p>
 Stats.model = { COUNT_ONE_MORE_VIEW_OF_THE_PANEL: (s) => ({ ...s, views: s.views + 1 }) }
 Stats.agent = { name: 'statistics_panel', description: 'the statistics panel', read: (s) => s, actions: { COUNT_ONE_MORE_VIEW_OF_THE_PANEL: { description: 'Count a view. ' + 'Views are counted once per visit. '.repeat(20) } } }
 
-// ---------------------------------------------------------------- A-3: form(…, { tool })
+// ---------------------------------------------------------------- A-3: form(…, { tool: formTool() })
 // a hand-written Standard Schema: the email must have an '@' (the field is type=text, so the
 // browser's constraint validation lets 'nope' through and the schema answers), a plan
 const signupSchema = {
@@ -112,7 +112,7 @@ const signup = (cls) => function Signup({ state }) {
 }
 const SignupAuto = signup('auto'), SignupConfirm = signup('confirm')
 for (const [C, name, autosubmit] of [[SignupAuto, 'sign_up_auto', true], [SignupConfirm, 'sign_up_confirm', false]]) {
-  C.uses = { form: form(signupSchema, { values: { email: '', plan: '' }, submit: 'SAVE', show: 'submit', tool: { name, description: `Create an account (${name})`, autosubmit } }) }
+  C.uses = { form: form(signupSchema, { values: { email: '', plan: '' }, submit: 'SAVE', show: 'submit', tool: formTool({ name, description: `Create an account (${name})`, autosubmit }) }) }
   C.model = { SAVE: (s, v) => ({ ...s, saved: { ...v, by: s.submits + 1 }, submits: s.submits + 1 }) }
 }
 function Forms() { return <div><SignupAuto state="a" /><SignupConfirm state="c" /></div> }
@@ -123,7 +123,7 @@ async function formChecks(agent, mc) {
   await app.__runtime.flushed()
   const q = (s) => document.querySelector(`#root3 ${s}`)
   const saved = (cls) => q(`.${cls} .saved`).textContent
-  await step('A-3: form(…, { tool }) writes the attributes (not props) and registers both form tools', async () => {
+  await step('A-3: form(…, { tool: formTool() }) writes the attributes (not props) and registers both form tools', async () => {
     const f = q('.auto form')
     eq([f.getAttribute('toolname'), f.getAttribute('tooldescription'), f.hasAttribute('toolautosubmit')], ['sign_up_auto', 'Create an account (sign_up_auto)', true], 'auto form')
     eq(q('.confirm form').hasAttribute('toolautosubmit'), false, 'confirm form')

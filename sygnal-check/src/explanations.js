@@ -271,7 +271,7 @@ export const EXPLANATIONS = {
     severity: "warn",
     reportedBy: ["static"],
     explanation: "A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has `toolparamdescription`) written as a plain JSX attribute. WebMCP's declarative API reads these as HTML attributes, but Sygnal's JSX pragma turns an attribute it doesn't know into a DOM property (`form.toolname = ...`), which the browser ignores: the form is never offered to the browser's agent, and nothing reports it at run time (D269).",
-    fix: "For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: { name: 'sign_up', description: 'Create an account' } })` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname=\"sign_up\" attrs-tooldescription=\"Create an account\">` and `<input name=\"email\" attrs-toolparamdescription=\"The email to sign up with\" />` (or `attrs={{ toolname: 'sign_up' }}`).",
+    fix: "For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })` with `formTool` from `sygnal/ai` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname=\"sign_up\" attrs-tooldescription=\"Create an account\">` and `<input name=\"email\" attrs-toolparamdescription=\"The email to sign up with\" />` (or `attrs={{ toolname: 'sign_up' }}`).",
   },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
@@ -524,6 +524,13 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "WebMCP marks a tool whose results may carry text from users (or other untrusted sources) with `untrustedContentHint`, so the agent treats that text as data, not instructions. `experimentalExposeWebMcp()` takes the hint from the declaration's `untrusted` field. This declaration doesn't set it and its `read` projection contains string values (keys named `id` aside), so the layer assumes they may be user-entered and adds the hint to the declaration's tools (and to the tools of declarations without a `read`, whose results carry this projection). The state summary in their descriptions is labelled as data. Reported once per declaration, in development.",
     fix: "Declare it: `untrusted: true` when `read` returns user-entered text (todo texts, names, messages), `untrusted: false` when its strings are only the app's own (enum values, labels the app wrote).",
+  },
+  SYG245: {
+    title: "form tool option is not made by formTool()",
+    severity: "error",
+    reportedBy: ["dev-entry"],
+    explanation: "`form(schema, { tool })` (experimental, PLAN-6 A-3) offers the form to the browser's agent as a declarative WebMCP tool, but only when `tool` is made by `formTool({ name, description, autosubmit })` from `sygnal/ai`. The tool code lives in `formTool` so that apps using `form` without a tool don't carry it (D291); the form behavior only calls the hook on the object it is given. A plain `{ name, description }` object has no such hook: the form works as before but writes no `toolname` attributes and answers no agent. Reported once, in development.",
+    fix: "Wrap the object: `import { formTool } from 'sygnal/ai'`, then `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })`.",
   },
   SYG301: {
     title: "RxJS operator used on an xstream stream",

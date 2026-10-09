@@ -324,14 +324,17 @@ Profile.model = {
 WebMCP is a draft, in a Chrome origin trial (Chrome 149–156; `chrome://flags/#enable-webmcp-testing` to try it). This option tracks the draft and is outside semver until the trial ends.
 :::
 
-With `tool`, the form becomes a [declarative WebMCP](https://github.com/webmachinelearning/webmcp) tool: the browser's AI agent sees it, fills its fields and submits it.
+With `tool: formTool({ … })`, the form becomes a [declarative WebMCP](https://github.com/webmachinelearning/webmcp) tool: the browser's AI agent sees it, fills its fields and submits it.
 
 ```jsx
+import { form } from 'sygnal'
+import { formTool } from 'sygnal/ai'
+
 Signup.uses = {
   form: form(signupSchema, {
     values: { email: '', plan: '' },
     submit: 'SIGN_UP',
-    tool: { name: 'sign_up', description: 'Create an account' },
+    tool: formTool({ name: 'sign_up', description: 'Create an account' }),
   }),
 }
 ```
@@ -340,6 +343,7 @@ Signup.uses = {
 - An agent's submit is an ordinary `form.SUBMIT`: the same schema, checks and `submit` action. The agent's call resolves after the outcome is rendered, with `{ ok: true, values }` (the schema's output, what `submit` got) or `{ ok: false, errors }` (the field errors by name; `''` is form-level). A submit sent as a request answers after its reply: `form.DONE` gives `ok: true`, `form.ERRORS` the server errors.
 - `autosubmit` defaults to `false`: the agent's call fills the fields and **stays pending until the user submits the form**, then gets the same answer. Set `autosubmit: true` only for forms that are safe to submit without the user looking.
 - A user's own submit is unchanged.
+- `formTool` comes from `sygnal/ai` so that an app using `form` without a tool doesn't carry the tool code. A plain object as `tool` does nothing but report [SYG245](/reference/errors/#syg245) in development.
 
 ## Diagnostics
 

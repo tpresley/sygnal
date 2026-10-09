@@ -988,41 +988,16 @@ export interface FormOptions<V = any> {
   resetOnShow?: boolean;
   /**
    * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
-   * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool. The
-   * behavior writes `toolname` / `tooldescription` / `toolautosubmit` on the `<form>` and a
-   * `toolparamdescription` on each named field (from its `<label>`, then its `aria-label`) as
-   * attributes; the view writes nothing. An agent's submit runs the same validation as a user's,
-   * and the agent's call answers {@link FormToolResult}. A user's submit is unchanged.
+   * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
+   * `tool: formTool({ name, description, autosubmit? })` (`formTool` from 'sygnal/ai'; D291: an app
+   * that doesn't import it doesn't carry the tool code). The behavior writes `toolname` /
+   * `tooldescription` / `toolautosubmit` on the `<form>` and a `toolparamdescription` on each
+   * named field (from its `<label>`, then its `aria-label`) as attributes; the view writes
+   * nothing. An agent's submit runs the same validation as a user's, and the agent's call answers
+   * a `FormToolResult`. A user's submit is unchanged. A plain object here is SYG245 (dev).
    */
-  tool?: FormTool;
+  tool?: import('./ai.d').FormToolHandle;
 }
-
-/**
- * **Experimental** (D241): a `form`'s declarative WebMCP tool (`form(schema, { tool })`).
- * Chrome's budgets: name ≤ 30 characters of `[A-Za-z0-9_.-]`, description ≤ 500.
- */
-export interface FormTool {
-  /** The tool name (the `<form>`'s `toolname`) */
-  name: string;
-  /** What the form does, for the agent (`tooldescription`) */
-  description: string;
-  /**
-   * Submit when the agent calls the tool (`toolautosubmit`). Default false (D270): the call fills
-   * the fields and stays pending until the user submits the form; then the agent gets the answer
-   */
-  autosubmit?: boolean;
-}
-
-/**
- * **Experimental** (D241): what an agent's call of a `form` tool resolves with: the schema's
- * output (what the host's submit action got; a submit sent as a request answers after
- * `form.DONE`), the field errors by name (schema, check and server errors; `''` is form-level), or
- * an `error` when a submit was already running or the form went away first.
- */
-export type FormToolResult =
-  | { ok: true; values: any }
-  | { ok: false; errors: FieldErrors }
-  | { ok: false; error: string }
 
 export interface FormActions {
   /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
@@ -3751,6 +3726,8 @@ export { makeChatDriver, outputJsonSchema } from './ai.d'
 // PLAN-6 A-2 (2-W)
 export { experimentalExposeWebMcp } from './ai.d'
 export type { ExposeWebMcpOptions, WebMcpHandle } from './ai.d'
+export { formTool } from './ai.d'
+export type { FormTool, FormToolHandle, FormToolResult } from './ai.d'
 // L-2 (2-T)
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './ai.d'
 export type { OpenResponsesOptions, ChatCompletionsOptions, UIMessageStreamOptions, ChromePromptOptions, ChromePromptTransport, ChromePromptStatus, HttpTransportOptions, OpenResponsesEvent, ChatUsage } from './ai.d'

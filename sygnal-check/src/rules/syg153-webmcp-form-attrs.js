@@ -3,8 +3,8 @@
  * attribute (`<form toolname="sign_up">`, `toolparamdescription` on a field). The pragma turns an
  * unknown JSX attribute into a DOM property, not an HTML attribute, so the browser's agent never
  * sees the form as a tool. They are written `attrs-toolname="sign_up"` (or inside
- * `attrs={{ ... }}`), or, for a form with the `form` behavior, left to its `tool` option (A-3,
- * experimental), which writes them all (a field's description from its `<label>` / `aria-label`).
+ * `attrs={{ ... }}`), or, for a form with the `form` behavior, left to its `tool: formTool({ … })` option (A-3,
+ * experimental, D291), which writes them all (a field's description from its `<label>` / `aria-label`).
  */
 import { walk, jsxName, loc } from '../ast.js'
 
@@ -34,8 +34,8 @@ export default {
             file, node: a,
             message: `<${tag} ${name}=...> (line ${loc(a).line}) sets a DOM property, not the ${name} attribute WebMCP reads, so the browser's agent doesn't see ${tag === 'form' ? 'this form as a tool' : 'this parameter description'}`,
             fix: tag === 'form'
-              ? `give the form behavior a tool, which writes the attributes: form(schema, { ..., tool: { name: 'sign_up', description: '...' } }) (experimental); or write the attribute: attrs-${name}="..." (or attrs={{ ${name}: '...' }})`
-              : `with form(schema, { ..., tool }) the field's <label> or aria-label becomes its description (experimental); or write the attribute: attrs-${name}="..." (or attrs={{ ${name}: '...' }})`,
+              ? `give the form behavior a tool, which writes the attributes: form(schema, { ..., tool: formTool({ name: 'sign_up', description: '...' }) }) with formTool from 'sygnal/ai' (experimental); or write the attribute: attrs-${name}="..." (or attrs={{ ${name}: '...' }})`
+              : `with form(schema, { ..., tool: formTool({ ... }) }) the field's <label> or aria-label becomes its description (experimental); or write the attribute: attrs-${name}="..." (or attrs={{ ${name}: '...' }})`,
             data: { attribute: name, element: tag },
           })
         }
