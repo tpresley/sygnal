@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 next.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 running: 4-D1, 4-D2 (guides), 4-E (eval tier 44–47 build); eval budget $90 (D295).
 
 ## Decisions
 
@@ -67,6 +67,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D292 | 2026-10-09 | Coordinator (3-X): MCP Apps' optional agent tools take `tools: agentTools` (pay-per-use), not `agent: true`; `makeMcpAppDriver` lives in `sygnal/ai` (D240), so samples §11's `sygnal/mcp-app` import changes in Phase 4 |
 | D293 | 2026-10-09 | Coordinator (3-F): the `chat` app-state message (a user-role data block, G-631) goes just before the last user message, rebuilt per request; a call still running at STOP is patched late only when it succeeded |
 | D294 | 2026-10-09 | Coordinator (3-A3): the `formTool` hook call costs `form` users ≈ +8 B gzip (+17 B min) — accepted over a different API (a separate behavior or a wrapper) for true 0 B |
+| D295 | 2026-10-09 | User: eval budget up to **$90** (new tier ≈ $35–50 on Opus/Sonnet/Haiku × 5 reps × 2 arms; S-14 re-baseline on Opus ≈ $28; re-runs ≈ $10). PLAN-6's tasks are **44–47** (PLAN-5's `mod` tier already uses 35–43). Trials run only from the user's Terminal panel (PLAN-2 rule); the coordinator runs only literal `--dry-run` or the fake CLI |
 
 ## 0-A baseline (2026-10-09)
 
@@ -202,3 +203,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 3-E merged (clean). D290; G-638.
 - 2026-10-09 — 3-F merged (clean). The build then OOM'd (G-639): rollup now runs with an 8 GB heap. 3-X merged (package.json / shared-export conflicts resolved). vitest 4,197 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D291–D293; G-639…G-642.
 - 2026-10-09 — 3-A3 merged (`cee97440`). vitest 4,215; sygnal-check 699/699; size 42,690 B. D294. All Phase 3 items merged; full closing gate running.- 2026-10-09 — Phase 3 closing gate on `plan6-integration`: `npm test` exit 0 (vitest 4,215, 9 examples, types, perf gate; Chromium 374/374 + WebMCP native/none/polyfill 22/1/22); Firefox 373/373 + WebMCP 1/22; WebKit 373/373 + WebMCP 1/22 after G-643's fix (first run 372/373); sygnal-check 699/699; doc samples 714 clean (0 strict, 0 a11y); docs build ok; check-live 85/85 on Chromium, Firefox, WebKit; `test:ai-local` 31/31 against Ollama; size 42,690 B. **Phase 3 complete.**
+- 2026-10-09 — Phase 4 started: 4-D1 (chat/decisions guides), 4-D2 (agent/WebMCP/MCP Apps guides), 4-E (eval tier 44–47). D295 (user: eval budget $90; tasks renumbered 44–47).

@@ -412,19 +412,19 @@ A-1 result; a consequential call without `confirm` throws (D261). `t.agentContex
 - **Error reference:** regenerated for the new codes.
 
 **Phase 4 eval:**
-- **New tier, tasks from 35:**
+- **New tier, tasks 44–47** (D295; PLAN-5's `mod` tier uses 35–43):
 
   | Task | What it tests |
   |---|---|
-  | 35 | Streaming chat with stop and error states, against the `LLM` fake |
-  | 36 | An assistant that operates an existing app: the `agent` declaration + the `chat` behavior, consequential confirmation |
-  | 37 | Ticket triage with a decision model, escalating low confidence to chat |
-  | 38 | Make an existing app agent-operable: an `agent` declaration whose tools pass an operability check |
+  | 44 | Streaming chat with stop and error states, against the `LLM` fake |
+  | 45 | An assistant that operates an existing app: the `agent` declaration + the `chat` behavior, consequential confirmation |
+  | 46 | Ticket triage with a decision model, escalating low confidence to chat |
+  | 47 | Make an existing app agent-operable: an `agent` declaration whose tools pass an operability check |
 
-- **Operability check** (task 38, and a gate on every reference solution): the experiment 3
+- **Operability check** (task 47, and a gate on every reference solution): the experiment 3
   harness against the app, with a local model (`qwen3:8b` on Ollama), opt-in and outside
   `npm test` (`TEST_OLLAMA=1`).
-- **React arm:** AI SDK `useChat` + client tools, and CopilotKit `useFrontendTool` for 36/38.
+- **React arm:** AI SDK `useChat` + client tools, and CopilotKit `useFrontendTool` for 45/47.
 - **Learn time and peak context** are checked against PLAN-5's S-14 numbers. More than about
   10% worse means trimming before release.
 - **Spend** is estimated in 0-A and asked for before any run.
