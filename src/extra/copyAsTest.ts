@@ -5,7 +5,7 @@
  *   renderComponent(C, { initialState?, drivers? })   the session's initial state (left out when
  *                                                      it is the component's own initialState)
  *   await t.ready()
- *   t.simulateAction(type, data)     each action caused by 'intent' | 'simulateAction' | 'behavior'
+ *   t.simulateAction(type, data)     each action caused by 'intent' | 'simulateAction' | 'behavior' | 'agent'
  *   await t.respond(sink, body, OK)  a reply action from a makeFetchDriver source (renderComponent's
  *   await t.fail(sink, status, ...)  HTTP fake answers the request the replayed actions send again)
  *   await t.settle()
@@ -55,7 +55,7 @@ export interface CopyAsTestResult {
   replayed: number
 }
 
-const REPLAY = new Set(['intent', 'simulateAction', 'behavior'])
+const REPLAY = new Set(['intent', 'simulateAction', 'behavior', 'agent'])
 const IDENT = /^[A-Za-z_$][\w$]*$/
 
 class Unserializable extends Error {}

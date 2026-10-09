@@ -25,7 +25,7 @@ export declare function installDevTools(): SygnalDevTools | undefined
 
 // ── PLAN-4 3-E (GS-10): the action log, "Copy as test", the Redux DevTools bridge ──
 
-export type DevtoolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type DevtoolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 /** One recorded action (the entry records every component instance's actions) */
 export interface DevtoolsAction {

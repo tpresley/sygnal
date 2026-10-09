@@ -763,6 +763,42 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg238"
   },
   {
+    "code": "SYG240",
+    "title": "Agent action input has no JSON Schema form",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "An `agent.actions` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`.",
+    "fix": "Use a supported schema: `input: z.string().min(1)`, `input: toStandardJsonSchema(v.picklist(['all', 'done']))`, or `input: jsonSchema({ type: 'integer' })`. For Zod Mini keep its validation with `jsonSchema(z.toJSONSchema(s), { validate: s })`. A `Date` can't come from JSON: use `z.iso.datetime()` or `z.coerce.date()`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg240"
+  },
+  {
+    "code": "SYG241",
+    "title": "Agent read, when or label threw",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, and a throwing `label` leaves the key unlabelled. The app keeps running. Reported once per declaration and function.",
+    "fix": "Make the function total over every state the component can have: guard optional fields (`state.todos?.length ?? 0`), and keep it a pure function of the state it gets.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg241"
+  },
+  {
+    "code": "SYG243",
+    "title": "Agent action input schema converted with losses",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action.",
+    "fix": "Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg243"
+  },
+  {
     "code": "SYG301",
     "title": "RxJS operator used on an xstream stream",
     "severity": "error",
@@ -1149,6 +1185,30 @@
     "explanation": "`sortable` moves entries of `state[from]`: the arrow keys swap the item with its neighbour in the array, Home / End move it to the array's ends, the announced positions count the array, and a pointer drop lands next to the entry it is dropped on. When the list is rendered from a `<Collection>` with `sort` (or `filter` that hides entries between shown ones), the shown order isn't the array's: under a sort a move changes nothing visible (the Collection sorts it back), and under a filter a keyboard step can pass hidden entries and the positions count entries nobody sees. At a keyboard pick-up or a pointer press the dev entry compares the host's own rendered items with the array and reports this once per list.",
     "fix": "Reorder only a list that is shown as it is stored: drop the Collection's `sort` for a reorderable list (sort the array itself, once, if it needs an initial order), and while a filter hides entries hide the drag handles (or render the full list) so a move can't pass hidden ones.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg435"
+  },
+  {
+    "code": "SYG440",
+    "title": "Two agent declarations with the same name",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "Agent tools are named after the declaration (`agent.name`, else the component name): `todos_read`, `todos_add`. Two shown instances with different declarations, or the same non-item component rendered twice, produce the same tool names, so only the first one's tools are offered and the other can't be reached. (Collection items of one component are one keyed tool and are not reported.) Reported once per name while an agent layer runs.",
+    "fix": "Give each declaration its own `agent.name` (for a component rendered twice, derive it from a prop: `Panel.agent = { name: 'left_panel', ... }` on a wrapper per place), or narrow the layer with `agentTools(app, { from })`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg440"
+  },
+  {
+    "code": "SYG441",
+    "title": "Agent Collection items without unique ids",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "A Collection item component's `agent` actions become one tool with an `id` parameter whose values are the items' ids. Items without an `id` are keyed by their index, which shifts when an item is added or removed, so a model's call can reach the wrong item. Items whose ids repeat across Collections of the same item component (the same card id in two board lanes) are ambiguous: the call reaches the first. Reported once per declaration while an agent layer runs.",
+    "fix": "Give every item an `id` that is unique across all the Collections of that item component (`{ id: 'todo-1', ... }`), or add an owner-level action that takes the qualified key (`MOVE_CARD: { input: z.object({ lane, card }) }`).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg441"
   },
   {
     "code": "SYG501",

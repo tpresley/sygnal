@@ -278,7 +278,7 @@ function descendants(id: string): Set<string> {
   return out
 }
 
-const REPLAYED = new Set<ActionCause>(['intent', 'simulateAction', 'behavior', 'reply'])
+const REPLAYED = new Set<ActionCause>(['intent', 'simulateAction', 'behavior', 'reply', 'agent'])
 
 /**
  * The session of one instance (see resolveInstance for `target`) as plain data: its initial

@@ -276,7 +276,7 @@ export interface InspectRecentAction {
   instance: string
   /** the sinks that produced a value for it (not ABORT) */
   sinks: string[]
-  cause: 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+  cause: 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
   /** ms since the dev entry started recording (or the last resetChecks()) */
   at: number
 }

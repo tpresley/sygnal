@@ -9,3 +9,7 @@
  * agent/ (A-1 layer), schema/ (A-1 input contract), decide.ts (M-1).
  */
 export {messageText} from './messages'
+// A-1 (1-A): the agent layer and the schema input contract
+export {agentTools} from './agent/index'
+export {toJsonSchema, parseInput} from './schema/index'
+export {jsonSchema} from './schema/jsonSchema'
