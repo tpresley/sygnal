@@ -9,3 +9,4 @@
  * agent/ (A-1 layer), schema/ (A-1 input contract), decide.ts (M-1).
  */
 export {messageText} from './messages'
+export {decide, choice, noul, score} from './decide'
