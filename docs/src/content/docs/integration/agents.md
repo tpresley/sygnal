@@ -14,6 +14,8 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 | [Dev server MCP endpoint](#dev-server-mcp-endpoint) | The running app in the open page: state, actions, diagnostics, its agent tools |
 | [`inspect()`](#inspect) | The runtime app graph, in the browser or in a test |
 
+This page is about agents that **build** your app. For agents that **operate** it (an in-app assistant, the browser's agent, an MCP host), see [Agents operating your app](#agents-operating-your-app).
+
 ## llms.txt
 
 [`/llms.txt`](/llms.txt) is a single plain-text reference written for language models: the mental model, the anatomy of a component, one canonical example per concept, the wiring rules, an RxJS-to-xstream cheat sheet, how to read diagnostics, and how to test a change. It only uses the [canonical forms](/guide/strict-mode/), so code an agent copies from it passes `sygnal-check --strict`.
@@ -64,6 +66,8 @@ sygnal-check: 1 warning
 It exits with code 1 on a warning or error (`--fail-on=error|never` changes that), 2 on a usage error. Info findings are hidden unless you pass `--verbose`. Check the whole app, not one folder: the EVENTS rule (SYG105) and the child-component rule (SYG104) need every file.
 
 To silence one finding, put `// sygnal-ignore SYG110` on the line or the line above.
+
+For apps that use `sygnal/ai`, it also checks the [`agent` static](/guide/agent/) (an action with no model entry SYG150, a misspelled `agents` / `tools` SYG151, duplicate names SYG440, Collection items without ids SYG441, inputs with no JSON Schema form SYG240 / SYG243), LLM requests without an `ok` action (SYG152) and a bare `toolname` on a `<form>` (SYG153), plus two accessibility rules for agents that read the page: hover-only actions (SYG730) and toggled state shown only by a class (SYG731). `--graph` lists the `agent` declarations.
 
 The [Vite plugin](/integration/bundler-config/#plugin-options) runs `sygnal-check` in the dev server when it is installed.
 
@@ -180,6 +184,18 @@ A loop that works well for agents (and people):
 5. **Explain** any code you don't know: `npx --no-install sygnal-check explain SYG104` (or the `explain` tool), or the [Error Reference](/reference/errors/).
 6. **Inspect** when the cause isn't obvious: `t.inspect()` shows which selector didn't match (`matched: false`, `isolationHit`), which action has no sinks, and which event has no listener.
 7. **Fix**, then run `npx --no-install sygnal-check --strict` and the tests again until both are clean.
+
+## Agents operating your app
+
+Everything above helps an agent write the app. The same app can also be operated by an agent while it runs, through the actions you allow:
+
+- The [`agent` static](/guide/agent/) declares which actions an LLM may run, with input schemas, and what it sees of the state (`read`). Only declared actions are tools.
+- The [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) is an in-app assistant that operates the component it lives in; [`commandBar`](/guide/agent/#a-command-bar-commandbar) runs one command picked by a decision model.
+- [WebMCP](/guide/webmcp/) (experimental) offers the same tools to the browser's own agent, and turns `form`s into declarative tools.
+- [MCP Apps](/guide/mcp-apps/) put your app inside Claude, ChatGPT or VS Code as a tool's view.
+- The [dev server endpoint](#dev-server-mcp-endpoint)'s `agent_tools` tool calls them from a coding agent, and [`t.callTool()`](/guide/agent/#testing) from a test.
+
+Browser agents that don't use WebMCP read the accessibility tree, so an accessible app is also an operable one: see [Agents that read the page](/guide/webmcp/#agents-that-read-the-page).
 
 ## How we measure it
 

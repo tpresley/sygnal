@@ -27,6 +27,8 @@ export const GUIDES = [
   'drag-and-drop', 'integration/ssr', 'advanced/error-boundaries',
   'ui/overview', 'ui/dialog', 'ui/popover', 'ui/tooltip', 'ui/tabs', 'ui/accordion', 'ui/disclosure',
   'ui/toaster', 'ui/menu', 'ui/select', 'ui/combobox',
+  // PLAN-6 4-D2: agents operating the app
+  'agent', 'webmcp', 'mcp-apps',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).
