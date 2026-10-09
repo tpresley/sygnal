@@ -7,3 +7,5 @@ export {decide, choice, noul, score} from './index'
 export {agentTools, toJsonSchema, parseInput, jsonSchema} from './index'
 // L-1 (1-L)
 export {makeChatDriver, outputJsonSchema} from './index'
+// L-2 (2-T)
+export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'

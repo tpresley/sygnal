@@ -3712,4 +3712,7 @@ export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
 export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'
 // PLAN-6 L-1 (1-L)
 export { makeChatDriver, outputJsonSchema } from './ai.d'
+// L-2 (2-T)
+export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './ai.d'
+export type { OpenResponsesOptions, ChatCompletionsOptions, UIMessageStreamOptions, ChromePromptOptions, ChromePromptTransport, ChromePromptStatus, HttpTransportOptions, OpenResponsesEvent, ChatUsage } from './ai.d'
 export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatCall, ChatEvent, ChatTransport, ChatDriverOptions, ChatSource, ChatTool, ChatOutputSchema, ChatOutputOf } from './ai.d'

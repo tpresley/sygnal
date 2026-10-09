@@ -17,3 +17,10 @@ export {jsonSchema} from './schema/jsonSchema'
 // L-1 (1-L): the chat driver; outputJsonSchema is the structured-output seam transports use (1-A fills it)
 export {makeChatDriver} from './chat/driver'
 export {outputJsonSchema} from './chat/output'
+// L-2 (2-T): transports, wave 1 (D248), each its own module (tree-shaken), and the Open Responses
+// event encoder (D273)
+export {openResponses} from './transports/openResponses'
+export {chatCompletions} from './transports/chatCompletions'
+export {uiMessageStream} from './transports/uiMessageStream'
+export {chromePrompt} from './transports/chromePrompt'
+export {encodeOpenResponses} from './transports/encodeOpenResponses'

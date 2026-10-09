@@ -36,9 +36,12 @@ const underTest = (c: any) => {
   const dom = c?.sources?.[c.DOMSourceName || 'DOM']
   return !!dom && typeof dom == 'object' && '_hub' in dom
 }
+// G-620: an LLM / chat sink gets the chat driver's fix, not makeFetchDriver's
 const driverFix = (sink: string) =>
-  `Pass a driver named ${sink} to run(): run(App, { ${sink}: makeFetchDriver() }) for HTTP, or driverFromAsync(fn) / your own driver. ` +
-  `Check the spelling against the drivers you pass`
+  `Pass a driver named ${sink} to run(): ` + (/^(LLM|CHAT|AI|ASSISTANT)$/.test(sink)
+    ? `run(App, { ${sink}: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) }) (from 'sygnal/ai'; uiMessageStream('/api/chat') for an AI SDK server)`
+    : `run(App, { ${sink}: makeFetchDriver() }) for HTTP, or driverFromAsync(fn) / your own driver`) +
+  `. Check the spelling against the drivers you pass`
 
 export const wiringCheck: DiagnosticCheck = {
   id: 'wiring',
