@@ -149,3 +149,22 @@ export interface ReduxDevtoolsOptions {
  * Returns a disconnect function (a no-op without the extension).
  */
 export declare function connectReduxDevtools(target?: Exclude<SessionTarget, SessionRecording>, options?: ReduxDevtoolsOptions): () => void
+
+// ── PLAN-6 E-1: the page side of sygnal/vite's dev MCP endpoint ──
+
+export interface McpBridgeOptions {
+  /** agentTools from 'sygnal' (the app's core), for the agent_tools tool */
+  agentTools?: (target: any, options?: any) => any
+  /** Consequential agent tools: 'page' asks with window.confirm() (default), true runs them, false declines */
+  confirm?: boolean | 'page'
+  /** The app to serve (default: window.__SYGNAL_DEVTOOLS_APP__, the page's first run()) */
+  app?: () => any
+}
+/**
+ * Answer the dev server's MCP requests over Vite's HMR channel. sygnal/vite calls it in dev
+ * when `sygnal({ mcp: true })`; you don't call it yourself.
+ */
+export declare function installMcpBridge(
+  hot: { on(event: string, cb: (data: any) => void): void; send(event: string, data?: any): void } | undefined,
+  options?: McpBridgeOptions
+): void

@@ -109,6 +109,27 @@ export interface SygnalPluginOptions {
    * @default true
    */
   devtools?: boolean
+
+  /**
+   * Serve an MCP endpoint at `/__sygnal/mcp` on the dev server (streamable HTTP; requests from
+   * this machine with a local Host / Origin only), so a coding agent can read and drive the
+   * running app in the open page: get_state, dispatch, component_tree, recent_actions,
+   * get_diagnostics, copy_as_test, agent_tools, tabs, and sygnal-check's check / graph /
+   * explain when it is installed. Dev server only; it also loads 'sygnal/devtools' in the page.
+   * @default false
+   */
+  mcp?: boolean | McpPluginOptions
+}
+
+export interface McpPluginOptions {
+  /** ms to wait for the page's answer (an open confirm dialog extends it to 5 minutes) @default 10000 */
+  timeout?: number
+  /**
+   * Consequential agent tools called with agent_tools: 'page' asks the person in the page
+   * (window.confirm), true runs them, false declines them.
+   * @default 'page'
+   */
+  confirm?: boolean | 'page'
 }
 
 /**
