@@ -60,6 +60,8 @@ export { experimentalExposeWebMcp } from './extra/ai/index'
 export { chat } from './extra/ai/index'
 // L-2 (2-T)
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './extra/ai/index'
+// PLAN-6 M-2 / M-3 (3-M)
+export { answers, commandBar } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

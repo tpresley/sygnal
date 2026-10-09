@@ -13,3 +13,5 @@ export {experimentalExposeWebMcp} from './index'
 export {chat} from './index'
 // L-2 (2-T)
 export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'
+// M-2 / M-3 (3-M)
+export {answers, commandBar} from './index'

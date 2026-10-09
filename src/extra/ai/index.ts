@@ -28,3 +28,6 @@ export {chatCompletions} from './transports/chatCompletions'
 export {uiMessageStream} from './transports/uiMessageStream'
 export {chromePrompt} from './transports/chromePrompt'
 export {encodeOpenResponses} from './transports/encodeOpenResponses'
+// M-2 / M-3 (3-M): decision reply fixtures and the command bar
+export {answers} from './answers'
+export {commandBar} from './commandBar'

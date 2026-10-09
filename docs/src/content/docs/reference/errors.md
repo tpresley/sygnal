@@ -1560,13 +1560,13 @@ A Collection item component's `agent` actions become one tool with an `id` param
 
 ### SYG442
 
-**Chat behavior not connected to its app**
+**Chat or command bar behavior not connected to its app**
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-The `chat` behavior (sygnal/ai) runs its tool loop through the app's runtime, which it reaches through a hook layer every app picks up when it starts. The first `chat()` call installs that layer, so an app started before it (a component using `chat()` loaded lazily into an app that was already running) has none: its assistant still streams replies, but sends no tools, no `read` context, and runs no tool calls. Reported once, also when diagnostics are off.
+The `chat` and `commandBar` behaviors (sygnal/ai) run agent actions through the app's runtime, which they reach through a hook layer every app picks up when it starts. The first `chat()` or `commandBar()` call installs that layer, so an app started before it (a component using one of them loaded lazily into an app that was already running) has none: its assistant still streams replies, but sends no tools, no `read` context, and runs no tool calls; its command bar runs no commands (its `error` says so). Reported once per behavior, also when diagnostics are off.
 
-**Fix:** Make the first `chat()` call happen before `run()`: define the assistant component (or call `chat()` once) in a module the entry imports, not only in a component loaded later.
+**Fix:** Make the first `chat()` / `commandBar()` call happen before `run()`: define the host component (or call the factory once) in a module the entry imports, not only in a component loaded later.
 
 ## SYG5xx: Strict mode (canonical forms)
 
