@@ -16,6 +16,8 @@ import {mergeHead} from './head';
 import {timerDriver} from './timers';
 import {browserDriver} from './browserSources';
 import {makeReplies} from './replies';
+import {agentTools} from './ai/agent/index';
+import type {AgentTool, AgentResult, Confirm} from './ai/agent/index';
 import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
@@ -403,7 +405,7 @@ export interface RenderResult {
   /**
    * PLAN-4 2-C (GS-10): every action the rendered tree ran (children and Collection items
    * included), in order: `{ type, data, component, instance, sinks, cause, at }`. cause is
-   * 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'. Live array.
+   * 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'. Live array.
    */
   actions: TestAction[];
   /**
@@ -542,6 +544,19 @@ export interface RenderResult {
    * mount's `dispatch` sends, through simulateEvent; D201: `.emit` is an alias)
    */
   widget: (target: any) => {readonly props: any; readonly instance: any; dispatch: (name: string, detail?: any) => void; emit: (name: string, detail?: any) => void};
+  /**
+   * PLAN-6 A-4: the agent tools of the shown instances' `agent` declarations: `{ name,
+   * description, inputSchema, annotations }`; a declared tool that can't be offered (SYG240) is
+   * listed with its `error`
+   */
+  tools: () => AgentTool[];
+  /**
+   * PLAN-6 A-4: run a tool as an agent does (cause 'agent'); resolves with the result after the
+   * flush. A consequential tool needs `{ confirm: true | false | (info) => boolean }` (D261)
+   */
+  callTool: (name: string, args?: any, options?: {confirm?: Confirm}) => Promise<AgentResult>;
+  /** PLAN-6 A-4: the `read` projections by declaration name (item declarations: arrays with `id`) */
+  agentContext: () => Record<string, any>;
 }
 
 const isScope = (s: string) => s.startsWith('.___');
@@ -3181,6 +3196,11 @@ export function renderComponent(
     throwFailure();
   };
 
+  // PLAN-6 A-4: the agent layer (A-1) on this test's runtime, made on first use. A consequential
+  // call with no `confirm` throws (D261): a test says which answer it means
+  let agent: any;
+  const agentT = () => agent ||= agentTools(api, {confirm: (i: any) => { throw new Error(`[Sygnal] t.callTool('${i.tool}') is consequential: pass { confirm: true } or { confirm: false }`); }});
+
   return {
     state$: stateStream,
     dom$: sinks.DOM || xs.never(),
@@ -3234,5 +3254,8 @@ export function renderComponent(
     query,
     queryAll,
     widget,
+    tools: () => agentT().list({all: true}),
+    callTool: (name: string, args?: any, o?: {confirm?: Confirm}) => agentT().call(name, args, o),
+    agentContext: () => agentT().context(),
   };
 }

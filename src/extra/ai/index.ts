@@ -10,3 +10,7 @@
  */
 export {messageText} from './messages'
 export {decide, choice, noul, score} from './decide'
+// A-1 (1-A): the agent layer and the schema input contract
+export {agentTools} from './agent/index'
+export {toJsonSchema, parseInput} from './schema/index'
+export {jsonSchema} from './schema/jsonSchema'

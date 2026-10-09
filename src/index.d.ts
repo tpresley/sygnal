@@ -8,9 +8,17 @@ import type { StateSource } from './cycle/state/StateSource'
 import xsDefault from 'xstream'
 import type { InspectGraph, InspectOptions } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
+// './ai.d', not './ai': that resolves to src/ai.ts (the re-exporting entry), whose types are any
+import type { AgentDeclaration, AgentTool, AgentResult, AgentConfirm } from './ai.d'
 
 export declare const ABORT: unique symbol
 export type ABORT = typeof ABORT
+/**
+ * PLAN-6 (D259): ABORT with a reason. A reducer returns `abort('the todo already has that text')`:
+ * no change, as ABORT; when an agent's tool call ran the action, the reason is its error
+ * (`'RENAME was refused: the todo already has that text'`).
+ */
+export declare function abort(reason?: string): ABORT
 
 export type DriverSpec<SOURCE = any, SINK = any> = {
   source: SOURCE;
@@ -1423,6 +1431,14 @@ export type Component<
    */
   context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT>;
   onError?: (error: Error, info: { componentName: string }) => any;
+  /**
+   * PLAN-6 A-1: what agents (the in-app assistant, WebMCP, coding agents) may do with this
+   * component and see of it: `{ name, description?, read?, label?, actions: { ACTION:
+   * { description, input?, consequential?, when?, idempotent? } } }`. Only the listed actions
+   * become tools; their keys are checked against the model's actions, and `input`'s output
+   * against the action's data. See `agentTools` in 'sygnal/ai'.
+   */
+  agent?: AgentDeclaration<STATE & CALCULATED, ACTIONS>;
   debug?: boolean;
   /**
    * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
@@ -1805,7 +1821,7 @@ export interface DevToolsCopyAsTestOptions {
   environment?: string
 }
 
-export type DevToolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type DevToolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 /** One instance's recorded session (the same as SessionRecording in 'sygnal/devtools') */
 export interface DevToolsSessionRecording {
@@ -3235,7 +3251,7 @@ export type ActiveTimer = TimerSpec & {
  * `let t: RenderResult<State>`. Defaults to `any` (untyped tests compile as before).
  */
 /** PLAN-4 GS-10: where an action in `t.actions` came from */
-export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 /**
  * PLAN-4 GS-10: one action in renderComponent's `t.actions`. `sinks` fills in as the action's
@@ -3252,7 +3268,7 @@ export interface TestAction {
   instance: string
   /** The sinks that produced a value: not ABORT; STATE not the unchanged state; EFFECT when it ran */
   sinks: string[]
-  /** 'intent' | 'next' (a reducer's or EFFECT's next()) | 'reply' (reply actions) | 'built-in' (INITIALIZE, BOOTSTRAP, DISPOSE, RESOURCE) | 'simulateAction' | 'behavior' */
+  /** 'intent' | 'next' (a reducer's or EFFECT's next()) | 'reply' (reply actions) | 'built-in' (INITIALIZE, BOOTSTRAP, DISPOSE, RESOURCE) | 'simulateAction' | 'behavior' | 'agent' (an agent's tool call, sygnal/ai) */
   cause: ActionCause
   /** ms since renderComponent() was called (the fake clock under fake timers) */
   at: number
@@ -3517,6 +3533,20 @@ export interface RenderResult<STATE = any> {
     <P = any, I = any>(selector: string): WidgetHandle<P, I>;
     <CONTROL extends AnyControl>(control: CONTROL): WidgetHandle<CONTROL extends { readonly [CONTROL]: { props: infer P } } ? P : any>;
   };
+  /**
+   * PLAN-6 A-4: the agent tools of the shown instances' `agent` declarations (`{ name,
+   * description, inputSchema, annotations }`); a declared tool that can't be offered (SYG240) is
+   * listed with its `error`.
+   */
+  tools: () => AgentTool[];
+  /**
+   * PLAN-6 A-4: run a tool as an agent does (cause 'agent'); resolves with the result after the
+   * flush. A consequential tool throws unless `confirm` says the user's answer (D261):
+   * `t.callTool('todo_remove', { id: 1 }, { confirm: true })`.
+   */
+  callTool: (name: string, args?: unknown, options?: { confirm?: AgentConfirm }) => Promise<AgentResult>;
+  /** PLAN-6 A-4: the `read` projections by declaration name (item declarations: arrays with `id`) */
+  agentContext: () => Record<string, unknown>;
 }
 
 /** `t.widget(target)` (PLAN-5 W-1) */
@@ -3644,5 +3674,7 @@ declare global {
 }
 
 // PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
-export { messageText } from './ai'
-export { decide, choice, noul, score } from './ai'
+export { messageText } from './ai.d'
+export { decide, choice, noul, score } from './ai.d'
+export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
+export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'

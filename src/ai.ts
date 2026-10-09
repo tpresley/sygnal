@@ -4,3 +4,4 @@
 // Keep this list in sync with src/extra/ai/index.ts and src/ai.d.ts.
 export {messageText} from './index'
 export {decide, choice, noul, score} from './index'
+export {agentTools, toJsonSchema, parseInput, jsonSchema} from './index'

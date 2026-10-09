@@ -178,6 +178,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
   // PLAN-5 3-H (G-449): sortable over a list shown in another order (checks/sortable.ts)
   SYG435: 'Sortable list shown filtered or in another order',
+  // PLAN-6 A-1 (sygnal/ai agent layer)
+  SYG440: 'Two agent declarations with the same name',
+  SYG441: 'Agent Collection items without unique ids',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -228,6 +231,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG237: 'Two forms in one component listen on the same form selector',
   // PLAN-5 2-R (G-393; checks/state.ts; dev entry)
   SYG238: 'Root component with a model but no initial state',
+  // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent; runtime, while an agent layer runs)
+  SYG240: 'Agent action input has no JSON Schema form',
+  SYG241: 'Agent read, when or label threw',
+  SYG243: 'Agent action input schema converted with losses',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -374,6 +381,11 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG236: 'warn',
   SYG237: 'warn',
   SYG238: 'warn',
+  // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent): reported by the layer itself with the
+  // severity passed, like SYG611, so the main bundle's table doesn't grow
+  SYG240: 'error',
+  SYG241: 'error',
+  SYG243: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
@@ -442,6 +454,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG434: 'warn',
   // PLAN-5 3-H (G-449): sortable (checks/sortable.ts)
   SYG435: 'warn',
+  // PLAN-6 A-1 (sygnal/ai agent layer)
+  SYG440: 'warn',
+  SYG441: 'warn',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

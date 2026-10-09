@@ -1,7 +1,7 @@
 'use strict'
 
 // export sygnal core functions
-export { ABORT } from "./shared"
+export { ABORT, abort } from "./shared"
 export { defineComponent } from "./defineComponent"
 export { Collection } from "./collection"
 export { VirtualCollection } from "./extra/virtual"
@@ -51,6 +51,7 @@ export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnost
 // PLAN-6 (D253): the implementation of 'sygnal/ai' (documented import: 'sygnal/ai', src/ai.ts)
 export { messageText } from './extra/ai/index'
 export { decide, choice, noul, score } from './extra/ai/index'
+export { agentTools, toJsonSchema, parseInput, jsonSchema } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'
