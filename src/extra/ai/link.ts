@@ -6,9 +6,14 @@
  * (`globalThis.__SYGNAL_DIAGNOSTICS__.layers`, which every App reads when it is constructed, as
  * the dev entries do), so each app made after it hands the layer its runtime API. The layer's
  * onAction (called synchronously right before an action's handlers) records the instance and its
- * pre-action state; a handler takes them when its `props.state` is that state (an app made before
- * the first factory call, e.g. a host loaded lazily into a running app, never has a match: its
- * host is reported as SYG442).
+ * pre-action state; a handler takes them when its `props.state` is that state.
+ *
+ * G-625: an app made before the first factory call (a host loaded lazily into a running app)
+ * didn't read the layer at construction, so the first factory call also adds it to the apps that
+ * are already running and can be found without core changes: the one `run()` registers as
+ * `window.__SYGNAL_DEVTOOLS_APP__` (the first live app; its `__runtime.addHooks`). Another app
+ * started before it (a second `run()`, a `sygnal/element` custom element) can't be found: its
+ * hosts are reported as SYG442 and run without the link.
  *
  * Per (host instance, uses key) a behavior keeps one engine (`engineOf`); the layer's onDispose
  * stops the host's engines.
@@ -42,11 +47,21 @@ const layer = (api: any) => {
   }
 }
 
-/** install the layer (before run()) and mark the behavior value `b` as needing it */
+/** the runtimes the layer was added to after they started (G-625) */
+const late = new WeakSet<any>()
+
+/** install the layer (apps made from now on read it) and mark the behavior value `b` as needing it */
 export function linked<B>(b: B): B {
   const D = G.__SYGNAL_DIAGNOSTICS__ ||= {}, L = D.layers ||= new Set()
-  if (L.add) L.add(layer)
-  else if (!L.includes(layer)) L.push(layer)
+  if (!(L.has ? L.has(layer) : L.includes(layer))) {
+    L.add ? L.add(layer) : L.push(layer)
+    // G-625: the app already running (registered by run())
+    const rt = (typeof window != 'undefined' ? window as any : G).__SYGNAL_DEVTOOLS_APP__?.__runtime
+    if (rt && typeof rt.addHooks == 'function' && !late.has(rt)) {
+      late.add(rt)
+      rt.addHooks(layer(rt))
+    }
+  }
   ;(b as any)[AI] = true
   return b
 }
@@ -71,5 +86,5 @@ const warned = new Set<string>()
 export function checkLinked(sources: any, name: string, without: string) {
   if (known.has(sources.dispose$) || warned.has(name)) return
   warned.add(name)
-  logError('SYG442', name, `the ${name} behavior has no connection to its app (the app was started before the first ${name}() call): ${without}`, `Call ${name}() in a module imported before run(), not only in a component loaded later`)
+  logError('SYG442', name, `the ${name} behavior has no connection to its app (the app was started before the first ${name}() call, and isn't the page's first app): ${without}`, `Call ${name}() in a module imported before run(), not only in a component loaded later`)
 }

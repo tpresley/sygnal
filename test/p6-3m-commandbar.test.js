@@ -276,6 +276,29 @@ describe('commandBar', () => {
     expect(t.state.items).toEqual([])
   })
 
+  it('D288: a click of the `run` selector (a Go button) runs the field\'s command; Enter still does', async () => {
+    function App({ state }) {
+      return h('main', null,
+        h('input', { className: 'command', value: state.cmd.text }), h('button', { type: 'button', className: 'go' }, 'Go'),
+        h('ul', null, h(Collection, { of: TodoItem, from: 'todos' })))
+    }
+    App.initialState = { todos: [{ id: 1, text: 'water plants', done: false }] }
+    App.uses = { cmd: commandBar({ input: '.command', run: '.go', decide: { model: 'nimble' } }) }
+    t = renderComponent(App)
+    t.simulateEvent('.go', 'click')
+    await t.settle()
+    expect(t.requests('HTTP').length).toBe(0)
+    t.simulateEvent('.command', 'input', { value: 'water plants done' })
+    t.simulateEvent('.go', 'click')
+    await t.settle()
+    expect(t.state.cmd).toMatchObject({ status: 'deciding', command: 'water plants done' })
+    await decideWith({ action: 'todo_toggle', target: '1' })
+    expect(t.state.todos[0].done).toBe(true)
+    expect(t.state.cmd.text).toBe('')
+    await run('water plants undone')
+    expect(t.state.cmd.status).toBe('deciding')
+  })
+
   it('escalate: an unsure command goes to the chat behavior (its SEND), with the reason in result', async () => {
     function App({ state }) {
       return h('main', null,

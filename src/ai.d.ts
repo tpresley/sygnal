@@ -308,7 +308,12 @@ export type AgentDeclaration<STATE = any, ACTIONS = any> = {
   read?: (state: STATE) => unknown
   /** A Collection item's label for the model (`1: water plants`, D258) */
   label?: (state: STATE) => string
-  /** `read` returns user-entered strings (WebMCP's untrustedContentHint); `false`: only the app's own text (WebMCP infers it from string values when unset, SYG244) */
+  /**
+   * `read` returns user-entered strings (WebMCP's untrustedContentHint; the chat behavior names
+   * the declaration as untrusted in its app-state block); `false`: only the app's own text. Unset,
+   * it is inferred (WebMCP: SYG244): any string is user text except values under keys named `id`,
+   * `status`, `type` or `kind`, and values that are one of this declaration's input enum values (G-623)
+   */
   untrusted?: boolean
   actions: keyof ACTIONS extends never
     ? { [action: string]: AgentAction<STATE, any> }
@@ -337,6 +342,8 @@ export interface AgentConfirmInfo {
   /** a Collection item's key and label */
   key?: unknown
   label?: string
+  /** The chat behavior's `pending` for a server tool's approval request (AI SDK `needsApproval`): its approval id (`component` is 'server') */
+  approvalId?: string
 }
 export type AgentConfirm = boolean | ((info: AgentConfirmInfo) => boolean | Promise<boolean>)
 
@@ -446,6 +453,12 @@ export type ChatRequest<OUT = unknown> = {
   error?: string;
   /** Action for each completed tool call (ChatToolCall) */
   tool?: string;
+  /**
+   * The reply continues the last message, an assistant message (after tool results or an approval,
+   * as the AI SDK does): `message` starts with its id and parts plus a `step-start` part; `text`,
+   * `toolCalls` and `delta` are the new step's (G-628)
+   */
+  continue?: boolean;
   /**
    * How often `delta` fires: 'frame' (default: at most once per animation frame and per 15 ms,
    * about once a second in a hidden tab), 'none' (once per streamed event) or a number of ms
@@ -598,8 +611,10 @@ export interface ChatState {
   prompt: string
   /** The text of the reply being streamed ('' otherwise) */
   draft: string
+  /** The reasoning of the reply being streamed ('' otherwise; the finished reply keeps it as `reasoning` parts) */
+  draftReasoning: string
   status: ChatStatus
-  /** A consequential tool call waiting for APPROVE / DENY, else null */
+  /** A consequential tool call waiting for APPROVE / DENY (or a server tool's approval request: `approvalId`), else null */
   pending: AgentConfirmInfo | null
   /** The last failure's message, else null */
   error: string | null
@@ -620,13 +635,13 @@ export interface ChatDone {
 export interface ChatActions {
   /** Send the prompt (the form's submit), or the text given as data */
   SEND: string | { text: string } | Event | undefined
-  /** Abort the reply being streamed (its text so far is kept) and decline a waiting call */
+  /** Abort the reply being streamed (its text and reasoning so far are kept) and decline a waiting call; calls that already ran keep their results */
   STOP: any
   /** Send the last user message again, dropping the replies after it */
   REGENERATE: any
-  /** Run the pending consequential call */
+  /** Run the pending consequential call (a server approval: answered approved, and the conversation sent again) */
   APPROVE: any
-  /** Decline the pending consequential call (the model is told the user declined) */
+  /** Decline the pending consequential call (the model is told the user declined; a server approval: answered not approved) */
   DENY: any
   /** The turn is over (a host entry `'assistant.DONE'` runs after the behavior's) */
   DONE: ChatDone
@@ -649,7 +664,12 @@ export interface ChatOptions {
   deny?: BehaviorTarget
   /** Its clicks REGENERATE */
   regenerate?: BehaviorTarget
-  /** System instructions; the tools' `read` projections are appended as JSON on every request */
+  /**
+   * System instructions. The tools' `read` projections are not appended: they go as app state, a
+   * user-role message of their own right before the last user message on every request (id
+   * 'sygnal-app-state', framed as data, not instructions, with the declarations holding
+   * user-entered text named; G-631)
+   */
   instructions?: string
   /** A model id for the requests (overrides the transport's) */
   model?: string
@@ -819,7 +839,7 @@ export interface CommandBarState {
 
 /** The command bar's actions, as `'<key>.<ACTION>'` on the host */
 export interface CommandBarActions {
-  /** Run the input's command (Enter, or the form's submit), or the command given as data */
+  /** Run the input's command (Enter, or the form's submit, or a click of `run`), or the command given as data */
   RUN: string | Event | undefined
   /** Run the pending consequential action */
   APPROVE: any
@@ -836,6 +856,8 @@ export interface CommandBarOptions {
   input: BehaviorTarget
   /** A form whose submit runs the command (instead of Enter in the field) */
   form?: BehaviorTarget
+  /** Its clicks run the field's command too (a Go button, D288) */
+  run?: BehaviorTarget
   /**
    * The decision request: `decide()` options without `state` / `questions` (`{ url, model }`), or
    * a function building the request (`(q) => decide.openai({ ...q, url, model })`)

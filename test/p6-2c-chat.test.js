@@ -103,6 +103,10 @@ const ask = (text) => {
 }
 const last = () => t.requests('LLM').at(-1)
 const toolParts = (m) => m.parts.filter((p) => p.type.startsWith('tool-'))
+// G-631: the app-state message of a request, its text, and the conversation without it
+const appStateOf = (req) => req.messages.find((m) => m.id === 'sygnal-app-state')
+const stateText = (req) => messageText(appStateOf(req))
+const convo = (req) => req.messages.filter((m) => m.id !== 'sygnal-app-state')
 // the tool loop runs asynchronously (A-1's call awaits the flush): wait for the next request
 async function waitUntil(f, tries = 50) {
   for (let i = 0; i < tries && !f(); i++) await t.settle()
@@ -114,16 +118,19 @@ async function waitUntil(f, tries = 50) {
 describe('chat behavior', () => {
   it('a plain reply: submitted → streaming → ready, then DONE (and the host entry after it)', async () => {
     t = renderComponent(TodoApp)
-    expect(t.state.assistant).toEqual({ messages: [], prompt: '', draft: '', status: 'ready', pending: null, error: null })
+    expect(t.state.assistant).toEqual({ messages: [], prompt: '', draft: '', draftReasoning: '', status: 'ready', pending: null, error: null })
     ask('Hi')
     await t.settle()
     expect(t.state.assistant).toMatchObject({ status: 'submitted', prompt: '' })
     const req = last()
-    expect(req.messages).toEqual([{ role: 'user', parts: [{ type: 'text', text: 'Hi' }] }])
+    // G-631: the read projections go as app state, a user-role data message right before the
+    // last user message, never in the instructions
+    expect(req.messages).toEqual([appStateOf(req), { role: 'user', parts: [{ type: 'text', text: 'Hi' }] }])
     expect(req).toMatchObject({ key: 'assistant', ok: 'assistant.REPLY', delta: 'assistant.DELTA', error: 'assistant.FAILED' })
-    // the read projections go in the instructions; the tools by name, with their input schemas
-    expect(req.instructions).toContain('You help the user manage this todo list.')
-    expect(req.instructions).toContain('"text":"water plants"')
+    expect(req.instructions).toBe('You help the user manage this todo list. Use the tools; keep replies short.')
+    expect(req.continue).toBeUndefined()
+    expect(stateText(req)).toContain('"text":"water plants"')
+    // the tools by name, with their input schemas
     expect(Object.keys(req.tools).sort()).toEqual(['todo_remove', 'todo_toggle', 'todos_add', 'todos_read', 'todos_set_filter'])
     expect(req.tools.todo_toggle.inputSchema.properties.id.enum).toEqual([1])
     await t.stream('LLM', ['Hello'], { end: false })
@@ -153,13 +160,19 @@ describe('chat behavior', () => {
       { type: 'tool-todos_add', toolCallId: 'c1', state: 'output-available', input: { value: 'buy milk' }, output: { ok: true } },
       { type: 'tool-todo_toggle', toolCallId: 'c2', state: 'output-available', output: { ok: true } },
     ])
-    // the second turn sees the new state
-    expect(req.instructions).toContain('"text":"buy milk"')
+    // the second step sees the new state, and continues the assistant message (G-628)
+    expect(stateText(req)).toContain('"text":"buy milk"')
+    expect(req.instructions).not.toContain('buy milk')
+    expect(req.continue).toBe(true)
+    expect(convo(req).map((m) => m.role)).toEqual(['user', 'assistant'])
     expect(req.tools.todo_toggle.inputSchema.properties.id.enum).toEqual([1, 2])
     expect(t.state.assistant.status).toBe('submitted')
     await t.stream('LLM', ['Done.'])
     await t.settle()
     expect(t.state.assistant.status).toBe('ready')
+    // one assistant message for the turn: the calls, a step-start, then the text (G-628)
+    expect(t.state.assistant.messages.length).toBe(2)
+    expect(t.state.assistant.messages.at(-1).parts.map((p) => p.type)).toEqual(['tool-todos_add', 'tool-todo_toggle', 'step-start', 'text'])
     expect(messageText(t.state.assistant.messages.at(-1))).toBe('Done.')
     expect(t.state.finished).toBe(1)
   })
@@ -253,7 +266,8 @@ describe('chat behavior', () => {
     expect(t.requests('LLM').length).toBe(2)
     expect(t.state.count).toBe(1)
     expect(t.state.assistant.status).toBe('ready')
-    expect(toolParts(t.state.assistant.messages.at(-1))[0]).toMatchObject({ state: 'output-error', errorText: expect.stringMatching(/maxSteps 2/) })
+    expect(toolParts(t.state.assistant.messages.at(-1)).map((p) => p.state)).toEqual(['output-available', 'output-error'])
+    expect(toolParts(t.state.assistant.messages.at(-1))[1]).toMatchObject({ state: 'output-error', errorText: expect.stringMatching(/maxSteps 2/) })
     expect(t.actions.find((a) => a.type === 'assistant.DONE').data).toMatchObject({ steps: 2 })
   })
 
@@ -268,7 +282,7 @@ describe('chat behavior', () => {
     ask('Hi again')
     await t.settle()
     expect(t.state.assistant).toMatchObject({ status: 'submitted', error: null })
-    expect(last().messages.map(messageText)).toEqual(['Hi', 'Hi again'])
+    expect(convo(last()).map(messageText)).toEqual(['Hi', 'Hi again'])
   })
 
   it('REGENERATE replays the last user turn', async () => {
@@ -281,7 +295,7 @@ describe('chat behavior', () => {
     t.simulateEvent('.again', 'click')
     await t.settle()
     expect(t.state.assistant.status).toBe('submitted')
-    expect(last().messages.map(messageText)).toEqual(['Name a color'])
+    expect(convo(last()).map(messageText)).toEqual(['Name a color'])
     await t.respond('LLM', 'Blue')
     await t.settle()
     expect(t.state.assistant.messages.map(messageText)).toEqual(['Name a color', 'Blue'])

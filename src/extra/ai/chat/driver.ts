@@ -32,6 +32,10 @@ import {readOutput} from './output';
  *   and per 15 ms; rAF is raced with a 100 ms timer (a hidden tab never fires rAF); without rAF a
  *   frame is a 16 ms timer. 'none': one per event; a number: at most one per that many ms. The
  *   pending delta is flushed before `tool` and `ok`.
+ * - `continue: true` (G-628): the reply continues the request's last message, an assistant
+ *   message (the AI SDK does so after tool results and approvals): `message` starts with its id
+ *   and parts plus a `step-start` part; a tool-call event for a call it has updates that part
+ *   (an approved call the server ran). `text`, `toolCalls` and `delta` are the new step's only.
  * - Messages (D252): AI SDK UIMessage parts. Text and reasoning grow the trailing part of their
  *   type; a reasoning event with `providerMetadata` closes the reasoning part with it (L-2: an
  *   Anthropic thinking signature that must go back; the next reasoning starts a new part); a tool call is `tool-<name>` with `toolCallId`, `state: 'input-available'`, `input`
@@ -112,6 +116,14 @@ export function makeChatDriver(options: any = {}) {
 
       let id: any, text = '', reasoning = '', pending = '', changed = false, scheduled = false, lastTs = -Infinity, finishReason: any, usage: any;
       const parts: any[] = [], toolCalls: any[] = [];
+      // G-628: `continue: true` grows the last message (the assistant's, after tool results or an
+      // approval), as the AI SDK does: its id and parts first, then a step-start, then the reply
+      const prev = req.continue === true ? req.messages[req.messages.length - 1] : undefined;
+      if (prev && prev.role == 'assistant') {
+        if (prev.id !== undefined) id = prev.id;
+        for (const p of prev.parts || []) parts.push({...p});
+        parts.push({type: 'step-start'});
+      }
       const message = () => ({...(id !== undefined && {id}), role: 'assistant', parts: parts.map(p => ({...p}))});
       const mode = req.coalesce ?? defCoalesce;
       const later: (f: Flush) => void = mode === 'none' ? f => f()
@@ -170,7 +182,10 @@ export function makeChatDriver(options: any = {}) {
             if (!ev.name || typeof ev.name != 'string') { malformed(req, ev, 'name'); continue; }
             flush();
             const call = {id: ev.id ?? `call_${++calls}`, name: ev.name, input: ev.input ?? {}};
-            parts.push({type: 'tool-' + call.name, toolCallId: call.id, state: 'input-available', input: call.input, ...(ev.providerExecuted && {providerExecuted: true})});
+            // a call the continued message has already (an approved one, sent again with its result) is updated in place
+            const had = ev.id !== undefined && toolPart(ev);
+            if (had) Object.assign(had, {state: 'input-available', input: call.input});
+            else parts.push({type: 'tool-' + call.name, toolCallId: call.id, state: 'input-available', input: call.input, ...(ev.providerExecuted && {providerExecuted: true})});
             // L-2: a call the server runs (`executed`) is part of the message only
             if (!ev.executed) { toolCalls.push(call); send(req.tool, {key, call}); }
           } else if (type == 'tool-result' || type == 'tool-error' || type == 'tool-approval' || type == 'tool-denied') {

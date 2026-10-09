@@ -34,3 +34,6 @@ export const bad: ChatOptions = { agent: true }
 // @ts-expect-error maxSteps is a number
 chat({ maxSteps: '8' })
 expectTypeOf(fromCore).toEqualTypeOf(chat)
+// 3-F: reasoning in the slice (G-627), a server approval's id in `pending` (G-628)
+expectTypeOf<State['assistant']['draftReasoning']>().toEqualTypeOf<string>()
+expectTypeOf<NonNullable<State['assistant']['pending']>['approvalId']>().toEqualTypeOf<string | undefined>()
