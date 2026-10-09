@@ -277,7 +277,7 @@ export type AgentDeclaration<STATE = any, ACTIONS = any> = {
   read?: (state: STATE) => unknown
   /** A Collection item's label for the model (`1: water plants`, D258) */
   label?: (state: STATE) => string
-  /** `read` returns user-entered strings (WebMCP's untrustedContentHint) */
+  /** `read` returns user-entered strings (WebMCP's untrustedContentHint); `false`: only the app's own text (WebMCP infers it from string values when unset, SYG244) */
   untrusted?: boolean
   actions: keyof ACTIONS extends never
     ? { [action: string]: AgentAction<STATE, any> }
@@ -525,3 +525,27 @@ export function makeChatDriver(options: ChatDriverOptions): (sink$: Stream<ChatR
  * reply). Undefined when the schema has no JSON Schema form.
  */
 export function outputJsonSchema(output: ChatOutputSchema | undefined): { schema: Record<string, unknown>; wrapped: boolean } | undefined
+
+// ---- A-2: WebMCP (2-W; experimental, D241: tracks the draft, outside semver) --------------------
+
+export interface ExposeWebMcpOptions {
+  /** origins the tools are exposed to (passed to `registerTool` where the browser takes it) */
+  exposedTo?: string[]
+  /** consequential calls: `true` runs them, `false` declines, a function asks (default: a native modal `<dialog>`) */
+  confirm?: AgentConfirm
+  /** prepended to every tool name (`shop_` -> shop_todos_add) */
+  prefix?: string
+  /** the WebMCP context (default `document.modelContext ?? navigator.modelContext`) */
+  modelContext?: unknown
+}
+/** Stops exposing the tools (unregisters them); `available` is false where there is no WebMCP */
+export type WebMcpHandle = (() => void) & { readonly available: boolean }
+
+/**
+ * Experimental: offer an app's agent tools (its components' `agent` statics, as `agentTools()`
+ * sees them) to the browser's agent through WebMCP (`document.modelContext`). Each tool is
+ * registered with `registerTool` and re-registered when it changes (a `when`, the live Collection
+ * keys, the state summary in its description); results are always objects within Chrome's
+ * budgets. A no-op where WebMCP is missing.
+ */
+export function experimentalExposeWebMcp(app: unknown, options?: ExposeWebMcpOptions): WebMcpHandle

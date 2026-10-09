@@ -235,6 +235,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG240: 'Agent action input has no JSON Schema form',
   SYG241: 'Agent read, when or label threw',
   SYG243: 'Agent action input schema converted with losses',
+  // PLAN-6 A-2 (src/extra/ai/webmcp.ts; reported with the severity passed, dev)
+  SYG242: 'WebMCP tool over a size budget',
+  SYG244: 'Agent read returns strings, untrusted not declared',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -315,6 +318,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG677: 'Chat request sent from outside a component',
   SYG678: 'Chat request failed with no error action',
   SYG679: 'Invalid chat request',
+  // PLAN-6 A-2: experimentalExposeWebMcp (src/extra/ai/webmcp.ts; dev)
+  SYG674: 'WebMCP not available',
+  SYG676: 'WebMCP registerTool rejected',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -391,6 +397,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG240: 'error',
   SYG241: 'error',
   SYG243: 'warn',
+  // PLAN-6 A-2 (WebMCP, reported with the severity passed)
+  SYG242: 'warn',
+  SYG244: 'warn',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
@@ -456,6 +465,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG677: 'warn',
   SYG678: 'error',
   SYG679: 'error',
+  // PLAN-6 A-2 (experimentalExposeWebMcp reports them with an explicit severity)
+  SYG674: 'info',
+  SYG676: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
