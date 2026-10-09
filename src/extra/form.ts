@@ -16,7 +16,9 @@
  * form starts), `submit` (host action), `check` (async per-field checks through a driver: a
  * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
  * field was blurred; 'input'; 'submit'), `form` (selector), `http` (the driver sink of the
- * checks, 'HTTP'), `resetOnShow` (D239).
+ * checks, 'HTTP'), `resetOnShow` (D239), `tool` (PLAN-6 A-3, experimental: `formTool({ … })` from
+ * 'sygnal/ai', the form as a declarative WebMCP tool; D291: formTool.ts is the app's import, the
+ * form only calls its `$(behavior, result)` hook; a plain object is SYG245 from the dev entry).
  *
  * D239 (G-578): `resetOnShow: true` starts the form over (the start values, as a new form: touched,
  * errors, server errors, checks and the submit state cleared) each time it is shown: when its
@@ -259,6 +261,8 @@ export const form = (schema: any, o: any = {}): any => {
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },
   })({...o, values}), merge = b.merge
+  // PLAN-6 A-3 (D291): a formTool() patches the behavior (formTool.ts); v: the schema's result
+  o.tool?.$?.(b, v)
   b.merge = (c: any, k: string) => {
     const e = c.model?.[submit]
     req = !!e && typeof e == 'object' && http in e

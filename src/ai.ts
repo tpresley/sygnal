@@ -19,3 +19,5 @@ export {answers, commandBar} from './index'
 export {anthropicMessages, agui, fromAISDK, strictSchemas} from './index'
 // X-1 (3-X)
 export {makeMcpAppDriver} from './index'
+// A-3 (3-A3, experimental, D291)
+export {formTool} from './index'

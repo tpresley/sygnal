@@ -986,6 +986,17 @@ export interface FormOptions<V = any> {
    * them when the user comes back)
    */
   resetOnShow?: boolean;
+  /**
+   * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
+   * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
+   * `tool: formTool({ name, description, autosubmit? })` (`formTool` from 'sygnal/ai'; D291: an app
+   * that doesn't import it doesn't carry the tool code). The behavior writes `toolname` /
+   * `tooldescription` / `toolautosubmit` on the `<form>` and a `toolparamdescription` on each
+   * named field (from its `<label>`, then its `aria-label`) as attributes; the view writes
+   * nothing. An agent's submit runs the same validation as a user's, and the agent's call answers
+   * a `FormToolResult`. A user's submit is unchanged. A plain object here is SYG245 (dev).
+   */
+  tool?: import('./ai.d').FormToolHandle;
 }
 
 export interface FormActions {
@@ -3715,6 +3726,8 @@ export { makeChatDriver, outputJsonSchema } from './ai.d'
 // PLAN-6 A-2 (2-W)
 export { experimentalExposeWebMcp } from './ai.d'
 export type { ExposeWebMcpOptions, WebMcpHandle } from './ai.d'
+export { formTool } from './ai.d'
+export type { FormTool, FormToolHandle, FormToolResult } from './ai.d'
 // L-2 (2-T)
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './ai.d'
 export type { OpenResponsesOptions, ChatCompletionsOptions, UIMessageStreamOptions, ChromePromptOptions, ChromePromptTransport, ChromePromptStatus, HttpTransportOptions, OpenResponsesEvent, ChatUsage } from './ai.d'

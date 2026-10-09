@@ -245,6 +245,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 A-2 (src/extra/ai/webmcp.ts; reported with the severity passed, dev)
   SYG242: 'WebMCP tool over a size budget',
   SYG244: 'Agent read returns strings, untrusted not declared',
+  // PLAN-6 A-3 (D291; checks/forms.ts, through the bridge's form hook)
+  SYG245: 'form tool option is not made by formTool()',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -415,6 +417,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-6 A-2 (WebMCP, reported with the severity passed)
   SYG242: 'warn',
   SYG244: 'warn',
+  // PLAN-6 A-3 (D291): a plain object as form()'s tool (checks/forms.ts)
+  SYG245: 'error',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167

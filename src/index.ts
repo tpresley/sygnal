@@ -66,6 +66,8 @@ export { answers, commandBar } from './extra/ai/index'
 export { anthropicMessages, agui, fromAISDK, strictSchemas } from './extra/ai/index'
 // PLAN-6 X-1 (3-X)
 export { makeMcpAppDriver } from './extra/ai/index'
+// A-3 (3-A3, experimental, D291)
+export { formTool } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'
