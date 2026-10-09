@@ -3642,3 +3642,6 @@ declare global {
     type LibraryManagedAttributes<C, P> = ElementProps<P>
   }
 }
+
+// PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
+export { messageText } from './ai'

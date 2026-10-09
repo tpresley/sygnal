@@ -21,7 +21,18 @@ if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
 
 const HOST = '127.0.0.1';
 
-const TIMEOUT = 90000; // the full suite takes ~27 s (PLAN-4 1-F)
+// the full suite takes ~27 s (PLAN-4 1-F); BROWSER_TESTS_TIMEOUT_MS raises the limit on a loaded
+// machine (PLAN-6 G-583)
+const TIMEOUT = Number(process.env.BROWSER_TESTS_TIMEOUT_MS) || 90000;
+
+// Launch args (PLAN-6 G-583, D267): Chromium runs with WebMCP on (`--enable-features=WebMCP`, the
+// switch behind chrome://flags/#enable-webmcp-testing; Chrome 153 = chromium-1243). BROWSER_ARGS
+// (space-separated) adds more; BROWSER_ARGS_DEFAULTS=0 drops the defaults.
+const DEFAULT_ARGS = { chromium: ['--enable-features=WebMCP'], firefox: [], webkit: [] };
+const LAUNCH_ARGS = [
+  ...(process.env.BROWSER_ARGS_DEFAULTS === '0' ? [] : DEFAULT_ARGS[ENGINE]),
+  ...(process.env.BROWSER_ARGS || '').split(/\s+/).filter(Boolean),
+];
 
 /**
  * Console errors the error-path tests provoke on purpose (G-076). Each entry
@@ -85,7 +96,7 @@ async function run() {
 
   let browser;
   try {
-    browser = await playwright[ENGINE].launch({ headless: true });
+    browser = await playwright[ENGINE].launch({ headless: true, args: LAUNCH_ARGS });
     // (a context of its own: browser.newPage()'s can't open the second page __pwBrowser('otherTab') needs)
     const page = await (await browser.newContext()).newPage();
 

@@ -66,6 +66,11 @@
       "import": "./dist/zag.esm.js",
       "require": "./dist/zag.cjs.js"
     },
+    "./ai": {
+      "types": "./src/ai.d.ts",
+      "import": "./dist/ai.esm.js",
+      "require": "./dist/ai.cjs.js"
+    },
     "./react": {
       "types": "./src/react.d.ts",
       "import": "./dist/react.esm.js",

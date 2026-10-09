@@ -251,6 +251,31 @@ export default [
 		]
   },
 
+  // 'sygnal/ai' (PLAN-6, D240/D253): the implementation is in the main bundle (src/extra/ai/); this
+  // entry re-exports it from the external 'sygnal', so it never carries a second copy of the reply
+  // helpers or the diagnostics module (G-581: a copy silenced the app's dev checks).
+  {
+    input: 'src/ai.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./ai'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./ai'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-ai-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]ai\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // PLAN-5 W-2 (D203, D209): the adapter entries. Their framework / Zag imports stay external
   // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
   // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).
