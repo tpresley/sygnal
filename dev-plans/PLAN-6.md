@@ -11,8 +11,8 @@
 experimental and outside semver). `sygnal-check` and `create-sygnal-app` get minor releases
 with it. P6-Q1.
 
-**Status:** plan only; the §5 questions are answered (D244–D250, 2026-10-09). Execution starts
-when the user says go. Phase 0 cuts `plan6-integration` from `main` and creates `dev-plans/PLAN-6-status.md`
+**Status:** executing. Phase 0 is done (2026-10-09); its 25 questions were accepted as recommended
+(D251–D275, `PLAN-6-status.md`) and are folded into §1–§6 below. Phase 0 cuts `plan6-integration` from `main` and creates `dev-plans/PLAN-6-status.md`
 in the PLAN-5 format.
 
 **Branches:**
@@ -24,13 +24,14 @@ in the PLAN-5 format.
 - items L- (LLM chat), M- (decision models), A- (agents), K- (checker), E- (dev endpoint),
   X- (MCP Apps);
 - questions P6-Q1…;
-- decisions and gaps continue the global numbering: **D240…** (D240–D250 taken by this plan) and **G-581…**.
+- decisions and gaps continue the global numbering: **D240…** (D240–D275 taken so far) and **G-581…** (G-581–G-616 from Phase 0).
 
 **Inputs:**
 - The research: [`research/llm-integration.md`](research/llm-integration.md) (the API
   landscape, options, experiments 1–5, the decisions below) and
   [`research/llm-integration-samples.md`](research/llm-integration-samples.md) (the proposed API
   in canonical forms). Subagents read both before starting an item.
+- Phase 0's spike reports, `research/p6-spikes/0-S1.md` … `0-S5.md`, on branches `exp/p6-s1` … `exp/p6-s5` (copied into `plan6-integration` when Phase 1 starts), with their spike code.
 - The prototypes: [`research/llm-experiments/`](research/llm-experiments/) (`llmDriver.js`,
   `adapters.js`, `exposeToAgents.js`, the mock SSE server, experiments 1–5; see its README).
 - PLAN-3's reply-action machinery (`src/extra/replies.ts`), `makeFetchDriver`, `resources`
@@ -96,26 +97,50 @@ in the PLAN-5 format.
 **L-1 `makeChatDriver({ transport, coalesce? })`** (P1)
 
 A reply-action driver on `src/extra/replies.ts`, like `makeFetchDriver` and
-`makeSocketDriver`. The prototype (`research/llm-experiments/llmDriver.js`) is the starting
+`makeSocketDriver`. The 0-S1 spike (`exp/p6-s1`, `research/p6-spikes/0-S1.md`) is the starting
 point, not the code.
-- **Request (sink value):** `{ messages, instructions?, tools?, model?, output?, key?, latest?, delta?, ok?, error?, tool?, coalesce?, ...transportOptions }`; `{ abort: key | true }`. A `then`/`catch` key is SYG610.
+- **Where it lives (D253, G-581):** in `sygnal` (`src/extra/ai/`), re-exported by `sygnal/ai`,
+  which stays the documented import. One copy of the reply helpers and the diagnostics module;
+  `renderComponent`'s fakes use it directly; apps that don't use it pay 0 B.
+- **Request (sink value):** `{ messages, instructions?, tools?, model?, output?, key?, latest?, delta?, ok?, error?, tool?, coalesce?, ...transportOptions }`;
+  `{ abort: key | true }` and `{ abort: true, key }` (G-587). The request key is
+  `key ?? ok ?? error`. A `then`/`catch` key is SYG610. A request sent from outside a component
+  is a dev diagnostic (G-586).
 - **Reply actions,** to the sending instance only:
-  - `delta` gets `{ key, text, delta, message }`, coalesced per frame (`coalesce: 'frame'` default; `'none'`, or a number of ms);
-  - `ok` gets `{ key, message, text, toolCalls, finishReason, usage }`;
+  - `delta` gets `{ key, text, reasoning, delta, message }` for new text **and** new reasoning
+    (D251); `delta` holds only what's new since the last one;
+  - `ok` gets `{ key, message, text, value?, toolCalls, finishReason, usage }` (`value`: the
+    validated structured output, G-604);
   - `tool` gets `{ key, call: { id, name, input } }`, once per completed call;
-  - `error` gets `{ key, error, request }`.
-- **Messages:** AI SDK `UIMessage`-compatible parts (`text`, `reasoning`, `tool-call`,
-  `tool-result`, `file`, `data-*`); `messageText(m)` helper.
-- **Cancellation:** `latest` defaults to true per `(sender, key ?? ok)`. The sender's dispose
+  - `error` gets `{ key, error, request, issues? }`. A failure with no `error` action is logged
+    (G-584).
+- **Coalescing (G-582, G-588, D254):** `coalesce: 'frame'` (default) means at most one `delta`
+  per animation frame **and** per 15 ms (≤ 60/s, also on 120 Hz displays); rAF is raced with a
+  100 ms timer so a hidden tab still gets about one per second; without rAF (Node, mock DOM) a
+  frame is a 16 ms timer. The pending delta is flushed before `tool` and `ok`. `'none'` or a
+  number of ms are the other public values; the 15 ms floor and the 100 ms fallback are
+  internal.
+- **Messages (D252, G-589):** real AI SDK `UIMessage` parts (`text`, `reasoning`,
+  `tool-<name>` with `state`, `file`, `source-*`, `data-*`), so messages round-trip to an AI SDK
+  server unchanged; `messageText(m)` helper.
+- **Cancellation:** `latest` defaults to true per (sender, request key). The sender's dispose
   and app dispose abort everything. An aborted stream delivers nothing.
 - **Isolation:** `isolateValue`/`isolateSink`, as `makeFetchDriver` does.
-- **Structured output:** `output: schema` (Standard Schema) is validated on `ok`, as fetch's
-  `validate` is; the transport sends the JSON Schema form.
+- **Structured output (0-S4):** `output: schema` (a Standard Schema with Standard JSON Schema,
+  or `jsonSchema()`). The transport sends the normalized **input-side** JSON Schema (a
+  non-object wrapped as `{ value }`); `ok` gets `value`, validated; a failure is the `error`
+  reply with `issues`.
+- **Budget:** about 1.6 KB gzip for the driver (0-S1: 1,542 B).
 
 **L-2 Transports** (P1 for the first wave, P2 for the second)
 
 A transport is `{ stream(request, signal): AsyncIterable<ChatEvent> }`. It is public, so apps
-can write their own. Each transport is its own module inside `sygnal/ai`, tree-shaken.
+can write their own. Each transport is its own module inside `sygnal/ai`, tree-shaken. Every
+HTTP transport takes a `fetch` option (0-S5; the docs' demo server and tests use it). Transports
+backed by OpenAI or Anthropic take `strict` (default off, D266): it applies the strict schema
+layer (0-S4) with a per-tool non-strict fallback (Anthropic caps strict tools per request,
+G-609). `sygnal/ai` also exports an **Open Responses event encoder** (D273), shared by tests,
+the L-4 fake and the docs' demo server.
 
 | Transport | Wave | Speaks | Notes |
 |---|---|---|---|
@@ -149,10 +174,14 @@ request is refused (SYG670); local hosts (localhost, 127.0.0.1, `*.localhost`) a
 **L-4 Testing** (P1, with L-1)
 
 `renderComponent` gets an `LLM` fake that runs the real driver over an in-memory transport, as
-the HTTP fake runs `makeFetchDriver`:
+the HTTP fake runs `makeFetchDriver`; its streams share the HTTP fake's pending list and target
+rules (0-S1):
 - `t.requests('LLM')`;
-- `await t.stream('LLM', chunks, target?)`, where chunks are strings, or `{ toolCall }`, `{ reasoning }`, `{ data }`, `{ finish }` items;
-- `await t.fail('LLM', error, target?)`.
+- `await t.stream('LLM', chunks, target?)`, where chunks are strings, or `{ toolCall }`,
+  `{ reasoning }`, `{ data }`, `{ finish }` items. It ends the stream by default; `{ end: false }`
+  keeps it open (D255). Each call is one frame (at most one `delta`), with no timers involved;
+- `await t.respond('LLM', text, target?)` as the one-chunk shorthand (D255);
+- `await t.fail('LLM', error, target?)`, with chat wording (G-585).
 
 The sink name is configurable (`llmSink`). No test in `npm test` touches the network.
 
@@ -196,33 +225,69 @@ Comp.agent = {
 }
 ```
 
-A shared module in `sygnal/ai` that every consumer (L-3, A-2, M-3, A-4) uses. It reaches apps
-through `app.__runtime` (`root`, `children()`, `dispatch`, `flushed`, `addHooks`):
-- **Discovery.** The module walks live instances. Registration follows `onCreate`/`onDispose`,
-  so a hidden Switchable page has no tools.
-- **Collection items.** An item's actions become one tool with an `id` parameter, an enum of
-  the live keys, routed to that item.
-- **Input.** `input` is a Standard Schema, validated before dispatch. The JSON Schema for the
-  model comes from Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot via
-  `@valibot/to-json-schema`). A non-object schema is wrapped as `{ value }`. An action without
+A shared module (in `sygnal`, `src/extra/ai/`, re-exported by `sygnal/ai`, like L-1; D253) that
+every consumer (L-3, A-2, M-3, A-4) uses. It reaches apps through the `run()` result and its
+`__runtime` (`root`, `children()`, `dispatch`, `flushed`, `addHooks`), with **0 core bytes**
+(0-S2: 42,690 B unchanged; the core gets only the `'agent'` `ActionCause` type). The 0-S2 spike
+(`exp/p6-s2`, `research/p6-spikes/0-S2.md`) is the starting point.
+- **Discovery.** A walk of the **shown** instances (`InstanceView.shown`), re-run once per flush
+  (`onCreate`/`onDispose`/`onPatch`/`onReducer` → `flushed()`). Hidden Switchable pages stay
+  alive in the core, so they are filtered, not disposed. The layer takes the `run()` result and
+  follows `hmr()`. A `setState` on a hidden page is published on the next flush (G-595).
+- **Collection items.** An item component's actions become one tool with a key parameter: an
+  enum of the live keys, routed to the item with that key. The parameter is `id`, or `item`
+  when the input has its own `id` (D265). `agent.label(state)` labels each key for the model
+  (`1: water plants`, D258). Items a filter hides are disposed and have no tool: the error says
+  "hidden by the current filter", and the docs show an owner-level by-id action (D257, G-590).
+  The same key in two Collections of one item component is SYG441 (G-591). The item key comes
+  from `state.id` until `InstanceView` exposes it (G-592).
+- **Input (0-S4, `research/p6-spikes/0-S4.md`).** `input` is a Standard Schema with Standard
+  JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot via `toStandardJsonSchema()`), or plain JSON
+  Schema through `jsonSchema(json[, { validate }])` only (D262; an 885 B subset validator). The
+  model always gets the **input-side** schema, through the portable normalization layer
+  (`$schema` removed, `oneOf` → `anyOf`, Zod's integer bounds and tuple `items: false` dropped,
+  `"$ref": "#"` moved to `$defs`). A non-object root is wrapped as `{ value }`, and the unwrap
+  also accepts bare arguments. A call then goes: normalize → unwrap → `repair` (numeric and
+  boolean strings where the schema says number/integer/boolean; on by default, `repair: false`
+  turns it off, D264) → validate → dispatch the validated output. A schema part with no JSON
+  Schema form (refinements) is sent without it, with a SYG243 warning (D263); a schema with no
+  JSON Schema form at all is SYG240 (dev error; in production the tool is left out and
+  `t.tools()` shows why). Conversions are cached by schema object (G-608). An action without
   `input` takes no arguments.
 - **Result.** The tool resolves after `flushed()` with `{ ok: true, state: read(state) }`.
-  - Same state object → `{ ok: false, error: '<ACTION> changed nothing …' }` (no-op detection).
-  - `ABORT` → the same, with the reason.
+  - **No-op detection:** measured with `wrapHandler` on the agent call's action only. A call
+    succeeds if any of its handlers had an effect: a STATE handler changed the state
+    **structurally**, a driver sink got a value, or an EFFECT ran. Otherwise
+    `{ ok: false, error: '<ACTION> changed nothing (already so, or the input matched nothing)', state }`.
+    `idempotent: true` on an action makes that `{ ok: true, unchanged: true }` (D256).
+  - `ABORT` → the same, with the reason given by `abort(reason)` (exported from `sygnal`, 0 core
+    bytes, D259).
   - Invalid input → `{ ok: false, error, issues }`.
-  - No such key → the list of live keys.
+  - No such key → the live keys (with labels), or "hidden by the current filter".
   - Declined → `{ ok: false, error: 'the user declined' }`.
-- **Cause.** Actions run with `cause: 'agent'`: a new `ActionCause` member (types only). This
-  needs checking for 0 core bytes. Devtools, `t.actions` and the action log show it.
-- **`when`.** A tool is offered only while `when(state)` is true. Re-evaluation happens on
-  flush, using the core's context read-tracking where available.
-- **`consequential`.** The call waits for the consumer's `confirm` (L-3: `pending`; A-2: an
-  option, by default a native `<dialog>` the layer renders outside the app's tree).
+- **Cause.** Actions run with `cause: 'agent'` (types only in the core). The action log, devtools
+  and `t.actions` show it (the action log's relabelling is fixed, G-597).
+- **`when` and `read`.** Cached by state identity per instance: one `read()` and one `when()`
+  per changed instance per flush (0-S2: 0.03–0.17 ms per flush at 100 items). A tool is offered
+  only while `when(state)` is true.
+- **`consequential`.** `confirm(info)` is awaited **before** dispatch, so the action queues
+  behind anything the user did meanwhile; then the target is resolved again and `when`
+  re-checked. Consumers: L-3 sets `pending`; A-2 takes a `confirm` option (by default a native
+  `<dialog>` the layer renders outside the app's tree).
+- **Calls run one at a time** by default (D260), so each sees the previous one's result.
+- **Budget:** about 3.2 KB gzip for the layer, plus 1.1 KB for the schema helpers, 0.4 KB for
+  `repair` (0-S2, 0-S4); `jsonSchema()` and the strict layer are separate and tree-shaken.
 
 **A-2 `experimentalExposeWebMcp(app, { exposedTo?, confirm?, prefix? })`** (P1, experimental,
 D241)
-- Feature-detects `document.modelContext ?? navigator.modelContext`; a no-op without it.
+- Feature-detects `document.modelContext ?? navigator.modelContext`; a no-op without it
+  (Chrome 153 has only `document.modelContext`; 0-S3, `research/p6-spikes/0-S3.md`).
 - Calls `registerTool(tool, { signal })` per A-1 tool and unregisters by aborting the signal.
+  `registerTool` returns a Promise; a rejection (duplicate or invalid name) is reported as a
+  diagnostic, never thrown.
+- Tools always return object results and never throw. Sygnal validates the input and enforces
+  the size budgets itself: Chrome 153 enforces neither, and drops `consequentialHint`, which is
+  therefore advisory only; the app's own confirmation is the safeguard (G-601).
 - Annotations: `readOnlyHint` on read tools, `untrustedContentHint` when `read` returns
   user-entered strings (declared as `untrusted: true`, or inferred from string fields under a
   dev warning), and `consequentialHint`.
@@ -231,23 +296,32 @@ D241)
   (description ≤ 500 chars, parameter description ≤ 150, name ≤ 30, output ≤ 1.5 K); going over
   is a dev diagnostic.
 - Returns a `stop()` function.
+- The experimental guide mentions `@mcp-b/webmcp-polyfill` for trying other browsers; `sygnal`
+  never depends on it (D268).
 
 **A-3 `form(…, { tool })` → declarative WebMCP** (P2)
 
 The `form` behavior adds `toolname`/`tooldescription` to the `<form>` and `toolparamdescription`
-(from labels) to fields. An `agentInvoked` submit runs the same validation, and
-`respondWith(result)` returns field errors. A user's submit is unchanged. This is also
-experimental, under D241.
+(from labels, then `aria-label`, G-603) to fields. It writes them as `attrs-*` names, because
+the pragma turns `toolname` written in JSX into a DOM property (G-598, D269, 0 core bytes);
+`sygnal-check` hints at a bare `toolname` on a `<form>`. An `agentInvoked` submit runs the same
+validation, and `respondWith` is called in the submit listener with a promise resolved after
+validation and the flush, returning field errors. `tool: { autosubmit }` defaults to `false`:
+the user confirms by submitting, and the agent's call stays pending until then (D270, G-602).
+A user's submit is unchanged. This is also experimental, under D241.
 
 **A-4 Testing agent paths** (P1, with A-1)
 
-`t.tools()` lists name, description, input JSON Schema and hints. `await t.callTool(name, args, { confirm? })`
-returns the A-1 result. `t.agentContext()` returns the `read` projections.
+`t.tools()` lists name, description, input JSON Schema and hints; a tool that isn't offered
+(SYG240) is listed with its `error`. `await t.callTool(name, args, { confirm? })` returns the
+A-1 result; a consequential call without `confirm` throws (D261). `t.agentContext()` returns the
+`read` projections. They live in `renderComponent` (the layer is in `sygnal`, D253).
 
 ### 1.4 Checker (K)
 
 **K-1 `sygnal-check` rules for `sygnal/ai`** (P2)
-- **SYG102** counts an `agent.actions` entry as a trigger.
+- **SYG102** counts an `agent.actions` entry, and an LLM request's `delta`/`tool` reply keys, as
+  triggers (G-614).
 - An `agent.actions` key with no model entry (SYG150).
 - A misspelled static: `agents` / `tools` → "did you mean `agent`?" (SYG151).
 - `chat()` / `commandBar()` selectors not in the host's view (SYG104/SYG110 extended).
@@ -255,6 +329,10 @@ returns the A-1 result. `t.agentContext()` returns the `read` projections.
 - **New 7xx rules:**
   - an action reachable only through `mouseenter`/`mouseover` (SYG730);
   - a click target whose class toggles with state but has no `aria-pressed`/`aria-checked`/`aria-expanded` (SYG731).
+- SYG440 for two declarations with the same `name`; SYG441 for a Collection item `agent` whose
+  items have no keys, or the same key in two Collections of it (G-591).
+- An unwrapped Valibot `input` (no `toStandardJsonSchema()`), and a `Date` `input` (G-611).
+- A bare `toolname` on a `<form>` (A-3).
 - `--graph` includes `agent` declarations.
 - The MCP server's `graph` tool returns them too.
 
@@ -282,7 +360,20 @@ returns the A-1 result. `t.agentContext()` returns the `read` projections.
   `{ openLink }` and `{ displayMode }`.
 - The template ships a single-file Vite build and a minimal MCP server.
 
-### 1.7 Not doing
+### 1.7 Docs infrastructure (DX)
+
+**DX-1 Live AI demos** (P2, before the Phase 4 guides; D272, 0-S5 `research/p6-spikes/0-S5.md`)
+- `js live-server` routes can stream: `{ sse: events }` / `{ stream: chunks }`, sent as a real
+  `ReadableStream`; Stop errors the body as `fetch` does. Unit tests for the demo server
+  (G-616).
+- The live runtime provides `LLM` (the L-1 driver over the real `openResponses()` transport
+  against the demo server) page-wide, like `HTTP` (G-615); demos use the L-2 event encoder.
+- `'sygnal/ai'` in `docs/src/live/modules.ts`.
+- No scripted demo transport and no `export const drivers` convention (D274).
+- Each AI guide has at least one demo that streams on load, so `check-live` waits for a stream;
+  interactions (Stop, abort) are covered by L-1's browser tests, not docs scripts (D275, G-612).
+
+### 1.8 Not doing
 
 - Sygnal-owned provider SDKs, or vendor wire formats beyond the transports listed above.
 - Realtime voice (WebRTC sessions).
@@ -297,14 +388,14 @@ returns the A-1 result. `t.agentContext()` returns the `read` projections.
 
 | Phase | Work | Detail |
 |---|---|---|
-| **0: Setup** (coordinator; spikes by subagents on `exp/p6-*`) | **0-A** baseline | Cut `plan6-integration` from `main`. Create `PLAN-6-status.md` and record D240–D243, the budgets above and the §4 reservations (checked against `codes.ts`). Record D244–D250 (P6-Q1…Q7). Re-run experiments 1, 4 and 5 on the current build. Estimate the eval spend for the user. |
+| **0: Setup** ✅ done 2026-10-09 (coordinator; spikes by subagents on `exp/p6-*`) | **0-A** baseline | Cut `plan6-integration` from `main`. Create `PLAN-6-status.md` and record D240–D243, the budgets above and the §4 reservations (checked against `codes.ts`). Record D244–D250 (P6-Q1…Q7). Re-run experiments 1, 4 and 5 on the current build. Estimate the eval spend for the user. |
 | | **0-S1** streaming in the core | The prototype driver on the real reply machinery (`replies.ts`), under `run()` and `renderComponent`, in Chromium/Firefox/WebKit. Check: frame coalescing under a real rAF, dispose mid-stream, isolation, the `LLM` fake shape for L-4. Output: the driver's internal design, and a render-count assertion for the gate. |
 | | **0-S2** the agent layer on the runtime API | Discovery, Collection item routing, `when`, no-op detection, Switchable pages, HMR, all through `addHooks` with **0 core bytes**. Output: a byte count (must be 0) or a minimal ask with numbers. |
 | | **0-S3** WebMCP in a real browser | Chromium 1243 (Playwright) with the WebMCP testing flag (`--enable-features=…`; find the switch), and `@mcp-b/webmcp-polyfill` as the fallback in `browser-tests`. Output: how the gate tests A-2. |
 | | **0-S4** schemas | Standard JSON Schema from Zod 4.2, Valibot and ArkType; what an `input` without JSON Schema support does (a dev error, SYG240). Output: the `input` contract. |
 | | **0-S5** live examples | The docs' live examples need a chat demo without a network model. Either `js live-server` routes get SSE, or a scripted demo transport ships for docs only. Output: the approach, checked by `check-live` on three engines. |
-| **1: Foundation** | L-1 + L-4; A-1 + A-4; M-1 (parallel, separate files) | L-1 and A-1 are independent; M-1 is small. |
-| **2: Consumers** | L-2 wave 1; L-3 (needs L-1, A-1); A-2 (needs A-1) | A-2 is experimental from the start. |
+| **1: Foundation** | L-1 + L-4; A-1 + A-4; M-1 (parallel, separate files); the `browser-tests` runner (launch args, a configurable time limit, G-583) | L-1 and A-1 are independent; M-1 is small. Both land in `src/extra/ai/` with the `sygnal/ai` re-export and the no-duplicate-diagnostics gate (G-581). |
+| **2: Consumers** | L-2 wave 1 (+ event encoder, `fetch`, `strict`); L-3 (needs L-1, A-1); A-2 (needs A-1); DX-1 | A-2 is experimental from the start. |
 | **3: Remaining** | L-2 wave 2; M-2; M-3; A-3; K-1; E-1; X-1 if in scope | Parallel where files don't overlap. |
 | **4: Docs, agent context, measure** | Guides, `llms.txt`/SKILL sync, eval, report | Below. |
 
@@ -367,15 +458,27 @@ PLAN-6 adds:
   Each transport is absent unless imported.
 - **Core bytes 0** (size gate unchanged), unless the user approves otherwise.
 - **Render budget:** a 300-token stream at 1 token / 2 ms renders at most `ceil(duration / 16) + 2`
-  times (0-S1's assertion), in vitest and in Chromium.
-- **Browser tests:**
-  - L-1 streaming with abort in three engines;
-  - A-2 through the polyfill in three engines, and in Chromium with the real flag if 0-S3
-    finds it;
+  times, where `duration` runs from the sending action to `ok` (0-S1). In vitest under fake
+  timers: exactly 39 renders (budget 40). In Chromium: through an SSE route on the test server,
+  not page timers; Firefox (120 Hz rAF) is the canary for the 15 ms floor. Hidden-tab behaviour
+  is tested by stubbing rAF and `visibilityState` (G-588).
+- **One copy of the internals (G-581):** no subpath bundle in `dist/` contains a copy of the
+  diagnostics module or of `replies.ts`.
+- **Browser tests** (D267):
+  - L-1 streaming with abort in three engines, kept to about 3 s in total (the runner's time
+    limit, G-583);
+  - WebMCP on its own page (the polyfill can't be uninstalled, G-599): natively in Chromium with
+    `--enable-features=WebMCP` (on for every Chromium run), and through
+    `@mcp-b/webmcp-polyfill` (exact pin, test-only, D268) in a second Chromium launch, Firefox
+    and WebKit; A-3's declarative form the same way; an agent-side helper normalizes the native
+    and polyfill differences (G-600); no CDP path (D271);
   - `chromePrompt` behind availability (skipped where unavailable, never failing).
+- **check-live** on three engines with at least one streaming demo per AI guide (DX-1).
+- **Schema tests:** 0-S4's normalization cases (21 per library) move into `test/` (no network);
+  the type test into `type-tests/`.
 - **Opt-in local suite** (`TEST_OLLAMA=1 npm run test:ai-local`, not in `npm test`): the
-  experiments 2–5 scenarios against Ollama (`llama3.2`, `qwen3:8b`, `nimble`) as a release
-  check.
+  experiments 2–5 scenarios and 0-S2/0-S4's Ollama scenarios against Ollama (`llama3.2`,
+  `qwen3:8b`, `nimble`) as a release check.
 - **Type tests** for answer inference (M-1), the request and reply types (L-1) and the `agent`
   static's `actions` keys checked against the model.
 
@@ -386,9 +489,9 @@ These are free in `codes.ts` today. Confirm them in 0-A.
 | Range | Reserved for |
 |---|---|
 | 1xx wiring: **SYG150–159** | an `agent.actions` key with no model entry (150); `agents`/`tools` misspelling (151); an LLM request without `ok` (152); `chat()`/`commandBar()` selector problems beyond SYG104/110 |
-| 2xx model/state: **SYG240–249** | an `input` that isn't a Standard Schema, or that has no JSON Schema form (240); `read` or `when` threw (241); a tool result over the size budget (242) |
+| 2xx model/state: **SYG240–249** | an `input` that isn't a Standard Schema, or that has no JSON Schema form (240); `read` or `when` threw (241); a tool result over the size budget (242); a lossy input schema conversion (243, warn, D263) |
 | 4xx components: **SYG440–449** | two declarations with the same `name` (440); a Collection item `agent` whose items have no keys (441) |
-| 6xx drivers/setup: **SYG670–679** | a hosted endpoint from the browser without `dangerouslyAllowBrowser` (670); an LLM request with no LLM driver (671); a transport's peer missing (672); a malformed stream event (673); WebMCP unavailable (info, dev, 674) |
+| 6xx drivers/setup: **SYG670–679** | a hosted endpoint from the browser without `dangerouslyAllowBrowser` (670); an LLM request with no LLM driver (671); a transport's peer missing (672); a malformed stream event (673); WebMCP unavailable (info, dev, 674); a tool sent non-strict under `strict` (info, 675); a `registerTool` rejection (676) |
 | 7xx a11y: **SYG730–739** | a hover-only action path (730); toggled state with no ARIA state (731) |
 
 Per CLAUDE.md, each code goes into both tables in `codes.ts` and gets an explanation in
@@ -397,7 +500,8 @@ Per CLAUDE.md, each code goes into both tables in `codes.ts` and gets an explana
 ## 5. Decisions before Phase 1
 
 The user accepted every recommendation on 2026-10-09 (D244–D250); 0-A copies them into
-`PLAN-6-status.md` with D240–D243.
+`PLAN-6-status.md` with D240–D243. Phase 0 raised P6-Q8…Q32, also accepted as recommended on
+2026-10-09 (D251–D275, listed in `PLAN-6-status.md`).
 
 | # | Question | Recommendation |
 |---|---|---|
@@ -416,9 +520,11 @@ The user accepted every recommendation on 2026-10-09 (D244–D250); 0-A copies t
 | WebMCP changes (it already moved from `navigator` to `document` in July 2026) | Experimental export (D241); one module; feature detection; the polyfill in tests; recheck the spec at each phase start. |
 | The AI SDK's UI protocol changes in a major | `uiMessageStream` pins the protocol version from the header and fails clearly on an unknown one; Open Responses is the vendor-neutral fallback. |
 | Provider event churn (Responses has 60+ event types) | Transports ignore unknown events (the Open Responses rule); per-transport fixture tests from recorded streams. |
-| 10 B of size-gate headroom | 0 core bytes by design (hook layers, statics read by `sygnal/ai`); 0-S2 measures it; any ask goes to the user with numbers. |
+| 10 B of size-gate headroom | 0 core bytes by design; measured 0 B for L-1 (0-S1) and A-1 (0-S2). The code lives in `sygnal` but outside `src/core/`, tree-shaken from apps that don't use it. Any ask goes to the user with numbers. |
 | Prompt injection through app content | Only declared actions; validation; `consequential` confirmation in the app; `untrustedContentHint`; `cause: 'agent'` in every log; docs state that a tool runs with the user's authority. |
 | Docs readers ship an open relay | D243's split, plus the warning and SYG670 for hosted endpoints from the browser. |
 | Small local models are unreliable in the eval and the operability check | `qwen3:8b` with `/no_think`, several runs, and success judged on final state. The check is a release signal, not a merge gate. |
-| Streaming renders get expensive in big views | Frame coalescing by default; the render-budget gate; the guide shows the draft rendered in its own small component. |
-| Standard JSON Schema support varies by library | 0-S4; plain JSON Schema accepted as `input` too; SYG240 when neither works. |
+| Streaming renders get expensive in big views, or on > 60 Hz displays | Frame coalescing with a 15 ms floor by default; the render-budget gate (Firefox as the 120 Hz canary); the guide shows the draft rendered in its own small component. |
+| Standard JSON Schema support varies by library | 0-S4's normalization layer and tests; plain JSON Schema through `jsonSchema()`; SYG240 / SYG243. |
+| Ollama and other local servers don't enforce tool schemas; small models send numbers as strings | Sygnal validates every call; `repair` on by default (0-S4: llama3.2 9/15 → 15/15). |
+| A subpath bundle duplicates internals (G-581 silenced the dev checks) | The code lives in `sygnal`; the no-duplicate gate. |

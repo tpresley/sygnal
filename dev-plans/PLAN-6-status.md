@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). Waiting on the user for P6-Q8…Q32 (raised 2026-10-09) before the PLAN-6 edits and Phase 1.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 next.
 
 ## Decisions
 
@@ -23,6 +23,31 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D248 | 2026-10-09 | P6-Q5: transports wave 1 `uiMessageStream`, `openResponses`, `chatCompletions`, `chromePrompt`; wave 2 `anthropicMessages`, `agui`, `fromAISDK` |
 | D249 | 2026-10-09 | P6-Q6: the `chat` behavior's tools are the host's and its live descendants' `agent` declarations by default; `agent: false` / `agent: [Comp, …]` narrows |
 | D250 | 2026-10-09 | P6-Q7: WebMCP context = a read-only tool + a state summary in tool descriptions, re-registered on change |
+| D251 | 2026-10-09 | P6-Q8: Reasoning chunks fire `delta` too (same frame limit; `delta` holds only the new text) |
+| D252 | 2026-10-09 | P6-Q9: Messages use real AI SDK `UIMessage` parts (`tool-<name>` with `state`), so they round-trip to AI SDK servers |
+| D253 | 2026-10-09 | P6-Q10: The L-1 driver and the A-1 layer live in `sygnal` (`src/extra/ai/`), re-exported by `sygnal/ai` (still the documented import): one copy (G-581), usable by `renderComponent`, tree-shaken from apps (0 B unused) |
+| D254 | 2026-10-09 | P6-Q11: Only `coalesce` is public; the 15 ms floor and the 100 ms hidden-tab fallback stay internal |
+| D255 | 2026-10-09 | P6-Q12: `t.stream` ends the stream by default (`{ end: false }` keeps it open); `t.respond('LLM', text)` is the one-chunk shorthand |
+| D256 | 2026-10-09 | P6-Q13: An agent call that changes nothing is `ok: false` ("already so, or the input matched nothing"); `idempotent: true` makes it `{ ok: true, unchanged: true }` |
+| D257 | 2026-10-09 | P6-Q14: Items hidden by a Collection filter have no tool: the error says so, and the docs show an owner-level by-id action |
+| D258 | 2026-10-09 | P6-Q15: `agent.label(state)` labels Collection item keys for the model |
+| D259 | 2026-10-09 | P6-Q16: `abort(reason)` is exported from `sygnal` (0 core bytes) so reducers don't import `sygnal/ai` |
+| D260 | 2026-10-09 | P6-Q17: Agent tool calls run one at a time by default |
+| D261 | 2026-10-09 | P6-Q18: `t.callTool` on a consequential action without `confirm` throws |
+| D262 | 2026-10-09 | P6-Q19: Plain JSON Schema as `input` only through `jsonSchema(json[, { validate }])` |
+| D263 | 2026-10-09 | P6-Q20: A lossy schema conversion sends what can be expressed, with a SYG243 warning; validation still enforces the rest |
+| D264 | 2026-10-09 | P6-Q21: `repair` (numeric/boolean strings) on by default; `repair: false` turns it off |
+| D265 | 2026-10-09 | P6-Q22: The Collection key parameter is `id`, or `item` when the input has its own `id` |
+| D266 | 2026-10-09 | P6-Q23: Strict mode is a transport option, off by default |
+| D267 | 2026-10-09 | P6-Q24: WebMCP gate: `--enable-features=WebMCP` on every Chromium run; the polyfill page in a second Chromium launch, Firefox and WebKit |
+| D268 | 2026-10-09 | P6-Q25: `@mcp-b/webmcp-polyfill` exact-pinned, test-only; the experimental guide mentions it for other browsers; `sygnal` never depends on it |
+| D269 | 2026-10-09 | P6-Q26: The `form` behavior emits WebMCP form attributes as `attrs-*` (0 core bytes), with a `sygnal-check` hint for a bare `toolname` |
+| D270 | 2026-10-09 | P6-Q27: Form tools default to `autosubmit: false` |
+| D271 | 2026-10-09 | P6-Q28: No CDP `WebMCP.invokeTool` path in the gate |
+| D272 | 2026-10-09 | P6-Q29: Live AI demos stream through the real `openResponses()` transport against a streaming demo route (new item DX-1) |
+| D273 | 2026-10-09 | P6-Q30: `sygnal/ai` ships an Open Responses event encoder shared by tests and docs |
+| D274 | 2026-10-09 | P6-Q31: No `export const drivers` convention (and no scripted transport) in live blocks |
+| D275 | 2026-10-09 | P6-Q32: No docs interaction scripts in the gate: stream-on-load demos plus L-1's browser tests |
 
 ## 0-A baseline (2026-10-09)
 
@@ -69,31 +94,31 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-586 | 0-S1 | A chat request sent from outside a component is dropped with no diagnostic | open (L-1) |
 | G-587 | 0-S1 | `{ abort: true, key }` form not handled | open (L-1) |
 | G-588 | 0-S1 | Hidden-tab behaviour is only testable by stubbing rAF / `visibilityState` | open (L-1 tests) |
-| G-589 | 0-S1 | PLAN-6's "UIMessage-compatible" `tool-call` parts aren't real UIMessage parts (`tool-<name>` with `state`) | P6-Q9 |
-| G-590 | 0-S2 | Items hidden by a Collection filter are disposed, so their tool can't reach them | P6-Q14 |
+| G-589 | 0-S1 | PLAN-6's "UIMessage-compatible" `tool-call` parts aren't real UIMessage parts (`tool-<name>` with `state`) | decided (D252); open (plan) |
+| G-590 | 0-S2 | Items hidden by a Collection filter are disposed, so their tool can't reach them | decided (D257); open (impl) |
 | G-591 | 0-S2 | The same key in two Collections of one item component (board columns) routes to the first | open (A-1, SYG441) |
 | G-592 | 0-S2 | The Collection item key isn't on `InstanceView` (the layer reads `state.id`) | open (A-1) |
-| G-593 | 0-S2 | Setting an already-set value is reported as a failure | P6-Q13 |
-| G-594 | 0-S2 | Item id enums carry no labels | P6-Q15 |
+| G-593 | 0-S2 | Setting an already-set value is reported as a failure | decided (D256); open (impl) |
+| G-594 | 0-S2 | Item id enums carry no labels | decided (D258); open (impl) |
 | G-595 | 0-S2 | A `setState` on a hidden page's state isn't published until a later flush | open (A-1) |
 | G-596 | 0-S2 | The layer's `wrapHandler` copies the core's constant-handler semantics (drift risk) | open (A-1 tests) |
 | G-597 | 0-S2 | The action log relabelled `cause: 'agent'` as `'intent'` (one-token fix in the spike) | open (A-1) |
-| G-598 | 0-S3 | `toolname` etc. written in JSX become DOM properties, not attributes | P6-Q26 |
+| G-598 | 0-S3 | `toolname` etc. written in JSX become DOM properties, not attributes | decided (D269); open (impl) |
 | G-599 | 0-S3 | The polyfill can't be uninstalled: WebMCP tests need their own page | open (A-2 tests) |
 | G-600 | 0-S3 | Native and polyfill differ (input as JSON string vs object, schema string vs object, result shapes, errors): an agent-side test helper must normalize | open (A-2 tests) |
 | G-601 | 0-S3 | Chrome 153 drops `consequentialHint` and enforces neither schemas nor budgets: Sygnal enforces them | open (A-2) |
-| G-602 | 0-S3 | Without `toolautosubmit` an agent's form call waits for the user | P6-Q27 |
+| G-602 | 0-S3 | Without `toolautosubmit` an agent's form call waits for the user | decided (D270); open (impl) |
 | G-603 | 0-S3 | `aria-label` isn't used for `toolparamdescription` | open (A-3) |
 | G-604 | 0-S4 | L-1's `ok` has no `value` for structured output | open (L-1) |
 | G-605 | 0-S4 | PLAN-6 doesn't say which JSON Schema side is sent, or describe wrapping and the lenient unwrap | open (plan edit) |
-| G-606 | 0-S4 | PLAN-6 §6 promises raw JSON Schema as `input` | P6-Q19 |
-| G-607 | 0-S4 | No `repair` step | P6-Q21 |
+| G-606 | 0-S4 | PLAN-6 §6 promises raw JSON Schema as `input` | decided (D262); open (impl) |
+| G-607 | 0-S4 | No `repair` step | decided (D264); open (impl) |
 | G-608 | 0-S4 | ArkType rebuilds `~standard` on each read: cache by schema object | open (A-1) |
 | G-609 | 0-S4 | Anthropic caps strict tools per request | open (L-2 strict) |
 | G-610 | 0-S4 | ArkType's `.describe()` replaces its own error messages | open (docs) |
 | G-611 | 0-S4 | `sygnal-check` candidates: an unwrapped Valibot `input`; a `Date` `input` | open (K-1) |
-| G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | P6-Q32 |
-| G-613 | 0-S5 | A scripted transport is invisible to check-live | P6-Q29 |
+| G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | decided (D275); open (impl) |
+| G-613 | 0-S5 | A scripted transport is invisible to check-live | decided (D272/D274); open (impl) |
 | G-614 | 0-S5 | `sygnal-check` gives false SYG102 for `delta`/`tool` reply keys | open (K-1) |
 | G-615 | 0-S5 | The live `LLM` default should apply page-wide, not only to demos importing `sygnal/ai` | open (docs infra) |
 | G-616 | 0-S5 | The live demo server has no unit tests | open (docs infra) |
@@ -102,3 +127,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 - 2026-10-09 — PLAN-6 approved; P6-Q1…Q7 accepted as recommended (D244–D250). `plan6-integration` cut. 0-A done. Spikes 0-S1…0-S5 started in parallel worktrees.
 - 2026-10-09 — Spikes 0-S1…0-S5 done (0 core bytes everywhere). G-581…G-616 recorded. Questions P6-Q8…Q32 (consolidated from the five reports) sent to the user; PLAN-6 edits wait for the answers.
+- 2026-10-09 — User accepted P6-Q8…Q32 (D251–D275). PLAN-6 §1–§6 updated with Phase 0's findings (L-1 location and coalescing, A-1 discovery/no-op/input contract, A-2/A-3 WebMCP facts, new DX-1, gates, SYG243/675/676).
