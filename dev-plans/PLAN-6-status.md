@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1: 1-0, 1-M, 1-A, 1-L merged on `plan6-integration`; full gate running.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). Phase 2 running: 2-T (L-2 wave 1), 2-C (L-3), 2-W (A-2); DX-1 after 2-T.
 
 ## Decisions
 
@@ -145,3 +145,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — User accepted P6-Q8…Q32 (D251–D275). PLAN-6 §1–§6 updated with Phase 0's findings (L-1 location and coalescing, A-1 discovery/no-op/input contract, A-2/A-3 WebMCP facts, new DX-1, gates, SYG243/675/676).
 - 2026-10-09 — Phase 1 started. 1-0 scaffolding on `plan6-integration` (`c89e646a`): sygnal/ai entry, G-581 gate, runner args (G-583 fixed); Chromium suite 364/364 with WebMCP on. 1-L, 1-A, 1-M launched in parallel worktrees.
 - 2026-10-09 — 1-M, 1-A, 1-L merged (shared-export conflicts resolved; chat output seam wired to `toJsonSchema`). vitest 3,993 passed; types; size 42,690 B; errors doc current. D276–D281 (coordinator calls on the workers' questions). G-617…G-621. Full gate (npm test, three engines, sygnal-check) running.
+- 2026-10-09 — Phase 1 gate on `plan6-integration` (`9ad8ae77`): `npm test` exit 0 (vitest, 9 examples, types, perf gate; Chromium 367/367), Firefox 366/366, WebKit 366/366, sygnal-check 634/634, size 42,690 B. **Phase 1 complete.** Phase 2 started: 2-T, 2-C, 2-W in parallel worktrees.
