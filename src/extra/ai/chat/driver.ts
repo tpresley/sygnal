@@ -33,7 +33,8 @@ import {readOutput} from './output';
  *   frame is a 16 ms timer. 'none': one per event; a number: at most one per that many ms. The
  *   pending delta is flushed before `tool` and `ok`.
  * - Messages (D252): AI SDK UIMessage parts. Text and reasoning grow the trailing part of their
- *   type; a tool call is `tool-<name>` with `toolCallId`, `state: 'input-available'`, `input`
+ *   type; a reasoning event with `providerMetadata` closes the reasoning part with it (L-2: an
+ *   Anthropic thinking signature that must go back; the next reasoning starts a new part); a tool call is `tool-<name>` with `toolCallId`, `state: 'input-available'`, `input`
  *   (`'output-available'` / `'output-error'` after a tool-result / tool-error event,
  *   `'approval-requested'` with `approval` after tool-approval, `'output-denied'` after
  *   tool-denied: L-2's uiMessageStream). A tool-call with `executed: true` (the server runs it)
@@ -131,7 +132,8 @@ export function makeChatDriver(options: any = {}) {
       };
       const grow = (type: string, d: string) => {
         const last = parts[parts.length - 1];
-        if (last && last.type == type) last.text += d;
+        // a reasoning part with providerMetadata is closed (L-2: a signed Anthropic thinking block)
+        if (last && last.type == type && !last.providerMetadata) last.text += d;
         else parts.push({type, text: d});
         if (type == 'text') { text += d; pending += d; } else reasoning += d;
         changed = true;
@@ -154,7 +156,16 @@ export function makeChatDriver(options: any = {}) {
           if (typeof type != 'string') malformed(req, ev, 'type');
           else if (type == 'text' || type == 'reasoning') {
             if (typeof ev.delta != 'string') malformed(req, ev, 'delta');
-            else if (ev.delta) grow(type, ev.delta);
+            else {
+              if (ev.delta) grow(type, ev.delta);
+              // L-2: `providerMetadata` on a reasoning event closes the reasoning part with it
+              // (an Anthropic thinking signature, a redacted block), so it can be sent back
+              if (type == 'reasoning' && ev.providerMetadata) {
+                let last = parts[parts.length - 1];
+                if (last?.type != 'reasoning' || last.providerMetadata) parts.push(last = {type, text: ''});
+                last.providerMetadata = ev.providerMetadata;
+              }
+            }
           } else if (type == 'tool-call') {
             if (!ev.name || typeof ev.name != 'string') { malformed(req, ev, 'name'); continue; }
             flush();

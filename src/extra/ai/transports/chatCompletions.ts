@@ -1,6 +1,7 @@
 import {post, sse, json, usageOf, partsOf, toolName, toolOutput} from './shared';
 import type {HttpOptions} from './shared';
 import {prepare} from './tools';
+import type {StrictOption} from './tools';
 
 /*
  * PLAN-6 L-2: chatCompletions({ baseURL?, model, headers?, fetch?, body?, strict?,
@@ -23,7 +24,7 @@ import {prepare} from './tools';
 export interface ChatCompletionsOptions extends HttpOptions {
   baseURL?: string;
   model?: string;
-  strict?: boolean;
+  strict?: StrictOption;
 }
 
 const REASONS: Record<string, string> = {stop: 'stop', length: 'length', tool_calls: 'tool-calls', function_call: 'tool-calls', content_filter: 'content-filter'};
@@ -62,7 +63,7 @@ export function chatCompletions(options: ChatCompletionsOptions = {}) {
   const seen = new Set<string>();
   return {
     async *stream(req: any, signal: AbortSignal): AsyncGenerator<any, void, any> {
-      const p = prepare(req, options.strict, seen);
+      const p = prepare(req, options.strict, seen, 'chatCompletions');
       const res = await post((options.baseURL ?? '/v1').replace(/\/$/, '') + '/chat/completions', {
         model: req.model ?? options.model,
         stream: true,

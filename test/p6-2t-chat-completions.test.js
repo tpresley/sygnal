@@ -4,6 +4,7 @@
 // (messages, tools, response_format) and strict mode.
 import { describe, it, expect, afterEach } from 'vitest'
 import { z } from 'zod'
+import { strictSchemas } from '../src/extra/ai/schema/strict.ts'
 import { chatCompletions } from '../src/extra/ai/transports/chatCompletions.ts'
 import { dataSSE, fixtureFetch, collect } from './helpers/p6-sse-fixture.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.ts'
@@ -136,7 +137,7 @@ describe('chatCompletions: the request', () => {
   it('structured output as response_format; strict tools and output with unstricted arguments', async () => {
     setupChecks()
     configureDiagnostics({ mode: 'collect' })
-    const { f, t } = transport(dataSSE([chunk({ tool_calls: [{ index: 0, id: 'c', function: { name: 'add', arguments: '{"text":"a","due":null}' } }] }, 'tool_calls')]), { strict: true })
+    const { f, t } = transport(dataSSE([chunk({ tool_calls: [{ index: 0, id: 'c', function: { name: 'add', arguments: '{"text":"a","due":null}' } }] }, 'tool_calls')]), { strict: strictSchemas })
     const ev = await collect(t, {
       messages: [user('x')], output: z.enum(['low', 'high']),
       tools: { add: { inputSchema: { type: 'object', properties: { text: { type: 'string' }, due: { type: 'string' } }, required: ['text'] } } },

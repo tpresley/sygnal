@@ -15,3 +15,5 @@ export {chat} from './index'
 export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'
 // M-2 / M-3 (3-M)
 export {answers, commandBar} from './index'
+// L-2 (3-W2)
+export {anthropicMessages, agui, fromAISDK, strictSchemas} from './index'

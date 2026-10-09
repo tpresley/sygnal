@@ -5,6 +5,7 @@
 // LanguageModel stub, and SYG670 (an auth header from the browser to a hosted endpoint).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { z } from 'zod'
+import { strictSchemas } from '../src/extra/ai/schema/strict.ts'
 import { validateUIMessages, convertToModelMessages } from 'ai'
 import run from '../src/extra/run.ts'
 import { createElement as h } from '../src/pragma/index.ts'
@@ -86,7 +87,7 @@ describe('openResponses under the driver', () => {
   it('structured output under strict: the forced nulls are dropped before validation', async () => {
     const f = fixtureFetch(() => toSSE(encodeOpenResponses(['{"title":"Buy milk",', '"note":null,"priority":"high"}'])))
     const output = z.object({ title: z.string(), note: z.string().optional(), priority: z.enum(['low', 'high']) })
-    const { got, go } = harness(openResponses({ model: 'm', fetch: f.fetch, strict: true }), ask({ messages: [user('x')], output }))
+    const { got, go } = harness(openResponses({ model: 'm', fetch: f.fetch, strict: strictSchemas }), ask({ messages: [user('x')], output }))
     await go()
     expect(f.calls[0].json.text.format).toMatchObject({ strict: true, schema: { required: ['title', 'note', 'priority'] } })
     expect(got.find(g => g[0] == 'OK')[1].value).toEqual({ title: 'Buy milk', priority: 'high' })

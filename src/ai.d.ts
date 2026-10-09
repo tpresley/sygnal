@@ -5,7 +5,7 @@ import type { Stream } from 'xstream'
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
 export type MessagePart =
   | { type: 'text'; text: string }
-  | { type: 'reasoning'; text: string }
+  | { type: 'reasoning'; text: string; /** provider data to send back with it (an Anthropic thinking signature) */ providerMetadata?: Record<string, Record<string, unknown>> }
   | { type: `tool-${string}`; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string; [key: string]: unknown }; providerExecuted?: boolean }
   | { type: 'file'; mediaType: string; url: string; filename?: string }
   | { type: `source-${string}`; [key: string]: unknown }
@@ -514,7 +514,8 @@ export type ChatError = {
 export type ChatEvent =
   | { type: 'start'; id?: string }
   | { type: 'text'; delta: string }
-  | { type: 'reasoning'; delta: string }
+  /** `providerMetadata` closes the reasoning part with it (L-2: an Anthropic thinking signature, to send back) */
+  | { type: 'reasoning'; delta: string; providerMetadata?: Record<string, Record<string, unknown>> }
   | { type: 'tool-call'; id?: string; name: string; input?: unknown; /** the server runs it (L-2 uiMessageStream): a message part only, no `tool` reply */ executed?: boolean; providerExecuted?: boolean }
   | { type: 'tool-result'; id: string; output: unknown }
   | { type: 'tool-error'; id: string; error: string }
@@ -701,19 +702,21 @@ export interface OpenResponsesOptions extends HttpTransportOptions {
   /** The model (a request's `model` overrides it) */
   model?: string;
   /**
-   * OpenAI strict schemas for tools and `output` (default false, D266): each schema rewritten to
-   * the strict subset (all keys required, optional ones nullable, no extra keys), a schema with no
-   * strict form sent non-strict (SYG675), the nulls dropped again before validation
+   * OpenAI strict schemas for tools and `output` (default off, D266, D285): pass `strictSchemas`
+   * (imported from sygnal/ai, so apps that don't use strict mode don't carry it). Each schema is
+   * rewritten to the strict subset (all keys required, optional ones nullable, no extra keys), a
+   * schema with no strict form is sent non-strict (SYG675), the nulls are dropped again before
+   * validation. `true` is a dev error (SYG672): import strictSchemas
    */
-  strict?: boolean;
+  strict?: StrictSchemas | false;
 }
 
 export interface ChatCompletionsOptions extends HttpTransportOptions {
   /** The API root (default '/v1'); POSTs to `${baseURL}/chat/completions` */
   baseURL?: string;
   model?: string;
-  /** As openResponses' `strict` */
-  strict?: boolean;
+  /** As openResponses' `strict`: `strictSchemas` */
+  strict?: StrictSchemas | false;
 }
 
 export interface UIMessageStreamOptions extends HttpTransportOptions {}
@@ -869,3 +872,85 @@ export interface CommandBarOptions {
  * `unsure`. Its selectors are the host's own: render the field in the host's view.
  */
 export function commandBar(options: CommandBarOptions): Behavior<CommandBarState, CommandBarActions, {}, CommandBarOptions>
+// ---- L-2: transports, wave 2, and the strict layer (3-W2) ----------------------------------------
+
+/** The provider dialect of a strict schema */
+export type StrictDialect = 'openai' | 'anthropic'
+
+/**
+ * The strict schema layer (D285): pass it as a transport's `strict` option. Rewrites a portable
+ * tool / output schema into the provider's strict subset; `errors` when it has none
+ */
+export type StrictSchemas = (schema: Record<string, unknown>, dialect?: StrictDialect) => { schema: Record<string, unknown>; errors: string[]; optional: number; unions: number }
+
+/**
+ * Strict mode for openResponses, chatCompletions and anthropicMessages, as an import so apps that
+ * don't use it don't carry it:
+ *
+ *   openResponses({ baseURL, model, strict: strictSchemas })
+ */
+export const strictSchemas: StrictSchemas
+
+export interface AnthropicMessagesOptions extends HttpTransportOptions {
+  /** The API root (default '/v1'); POSTs to `${baseURL}/messages`. Ollama: 'http://localhost:11434/v1' */
+  baseURL?: string;
+  /** The model (a request's `model` overrides it) */
+  model?: string;
+  /** `max_tokens` (default 16000; a request's `maxTokens` overrides it) */
+  maxTokens?: number;
+  /**
+   * Anthropic strict tool use and structured output (default off): `strictSchemas`. Schemas are
+   * rewritten to Anthropic's subset; one without a strict form, or over Anthropic's per-request
+   * limits (20 strict tools, 24 optional / 16 union-typed parameters), is sent non-strict (SYG675)
+   */
+  strict?: StrictSchemas | false;
+  /** Anthropic server tools sent with the request's tools, e.g. `{ type: 'web_search_20260209', name: 'web_search' }`; their calls come back as executed tool parts */
+  serverTools?: Array<Record<string, unknown>>;
+}
+
+/**
+ * anthropicMessages({ baseURL, model }): a transport for Anthropic Messages SSE (Claude through
+ * your server's proxy, or Ollama's /v1/messages). Thinking comes back as reasoning parts with
+ * their signature (sent back on the next request), server tools as executed tool parts.
+ * A hosted endpoint from the browser needs `dangerouslyAllowBrowser` (SYG670): proxy it instead.
+ *
+ *   anthropicMessages({ baseURL: '/api/anthropic/v1', model: 'claude-opus-5-5' })
+ */
+export function anthropicMessages(options?: AnthropicMessagesOptions): ChatTransport
+
+export interface AguiOptions extends HttpTransportOptions {
+  /** The AG-UI thread id (a request's `chatId` overrides it; default: one per transport) */
+  threadId?: string;
+  /** The initial agent state (a request's `state` overrides it; later runs send the latest state the agent sent) */
+  state?: unknown;
+  /** AG-UI context entries sent with every run */
+  context?: Array<{ description: string; value: string }>;
+}
+
+/**
+ * agui(url): a transport for an AG-UI agent endpoint (TanStack AI, CopilotKit, LangGraph,
+ * Mastra servers). Tool calls the agent answers come back as executed tool parts; STATE_SNAPSHOT
+ * / STATE_DELTA become a `data-agui-state` part (id 'state') holding the agent's current state,
+ * MESSAGES_SNAPSHOT a `data-agui-messages` part, ACTIVITY_SNAPSHOT a `data-agui-activity` part.
+ */
+export function agui(url: string, options?: AguiOptions): ChatTransport
+
+export interface FromAISDKOptions {
+  /** The AI SDK's `streamText` (import { streamText } from 'ai'): sygnal never imports `ai` */
+  streamText: (options: any) => any;
+  /** An AI SDK LanguageModel (a request's `model` string is not used) */
+  model: unknown;
+  /** The AI SDK's `Output`, for requests with `output` */
+  Output?: { object: (options: { schema: any }) => unknown };
+  /** Other streamText settings (temperature, providerOptions, maxRetries, ...) */
+  [setting: string]: unknown;
+}
+
+/**
+ * fromAISDK({ streamText, model }): the AI SDK 7 in process as a transport, for SSR, servers
+ * and tests. The provider key is wherever this runs: in a browser use uiMessageStream() instead.
+ *
+ *   import { streamText, Output } from 'ai'
+ *   makeChatDriver({ transport: fromAISDK({ streamText, Output, model: anthropic('claude-opus-5-5') }) })
+ */
+export function fromAISDK(options: FromAISDKOptions): ChatTransport

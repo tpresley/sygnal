@@ -4,6 +4,7 @@
 // the opt-in strict layer (D266, SYG675). Ends with the transport under makeChatDriver + run().
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { z } from 'zod'
+import { strictSchemas } from '../src/extra/ai/schema/strict.ts'
 import { openResponses } from '../src/extra/ai/transports/openResponses.ts'
 import { encodeOpenResponses } from '../src/extra/ai/transports/encodeOpenResponses.ts'
 import { toSSE, fixtureFetch, collect } from './helpers/p6-sse-fixture.js'
@@ -204,7 +205,7 @@ describe('openResponses: strict (D266)', () => {
     setupChecks()
     configureDiagnostics({ mode: 'collect' })
     const ev = encodeOpenResponses([{ toolCall: { id: 'c1', name: 'add', input: { text: 'milk', due: null, tag: null } } }, { toolCall: { id: 'c2', name: 'tags', input: { map: { a: '1' } } } }])
-    const { f, t } = transport(ev, { strict: true })
+    const { f, t } = transport(ev, { strict: strictSchemas })
     const got = await collect(t, { messages: [user('x')], tools })
     await collect(t, { messages: [user('y')], tools })
     const [add, tags] = f.calls[0].json.tools
@@ -221,7 +222,7 @@ describe('openResponses: strict (D266)', () => {
   })
 
   it('moves unsupported keywords into the description and strictifies the output schema', async () => {
-    const { f, t } = transport(encodeOpenResponses(['{}']), { strict: true })
+    const { f, t } = transport(encodeOpenResponses(['{}']), { strict: strictSchemas })
     await collect(t, { messages: [user('x')], output: z.object({ title: z.string(), note: z.string().optional(), size: z.number().multipleOf(2).optional() }), tools: { t: { inputSchema: { type: 'object', properties: { n: { type: 'array', uniqueItems: true, items: { type: 'number' } } } } } } })
     const { text, tools: [tool] } = f.calls[0].json
     expect(text.format.strict).toBe(true)

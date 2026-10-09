@@ -1831,9 +1831,21 @@
     "reportedBy": [
       "runtime"
     ],
-    "explanation": "A `sygnal/ai` HTTP transport (`openResponses`, `chatCompletions`, `uiMessageStream`) running in a browser was about to send an auth header (`Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`) to a host that is neither local (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`) nor the page's own origin. A key in browser code ships to everyone who opens the page, who can then spend it. The request is refused before anything is sent: the chat request fails (its `error` action gets the error, or SYG678 logs it) and this message is logged, in production too. Requests to the page's own origin (the app's server or proxy) and to local servers such as Ollama are allowed, and so is every request outside a browser (SSR, tests).",
+    "explanation": "A `sygnal/ai` HTTP transport (`openResponses`, `chatCompletions`, `anthropicMessages`, `uiMessageStream`, `agui`) running in a browser was about to send an auth header (`Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`) to a host that is neither local (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`) nor the page's own origin. A key in browser code ships to everyone who opens the page, who can then spend it. The request is refused before anything is sent: the chat request fails (its `error` action gets the error, or SYG678 logs it) and this message is logged, in production too. Requests to the page's own origin (the app's server or proxy) and to local servers such as Ollama are allowed, and so is every request outside a browser (SSR, tests).",
     "fix": "Call the provider from your server and point the transport at that route: an AI SDK route with `uiMessageStream('/api/chat')`, or your own proxy with `openResponses({ baseURL: '/api/llm' })`, so the key stays there. Only for a key the user typed in themselves (a bring-your-own-key tool), pass `dangerouslyAllowBrowser: true` to the transport.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg670"
+  },
+  {
+    "code": "SYG672",
+    "title": "Strict mode without the strict layer",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A transport (`openResponses`, `chatCompletions`, `anthropicMessages`) was given `strict: true`. Strict mode rewrites every tool schema (and the `output` schema) into the provider's strict subset, and that code is imported separately, as `strictSchemas` from `sygnal/ai`, so apps that don't use strict mode don't carry it (about 1.1 KB gzipped). `strict` takes that import, not a boolean. The transport sends its requests non-strict: the model may produce arguments outside the schemas, and the agent layer and the chat driver still validate every call. Reported in development, once per transport.",
+    "fix": "Import the strict layer and pass it: `import { openResponses, strictSchemas } from 'sygnal/ai'` and `openResponses({ baseURL, model, strict: strictSchemas })`. Or drop `strict` to send portable schemas.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg672"
   },
   {
     "code": "SYG673",
@@ -1867,7 +1879,7 @@
     "reportedBy": [
       "dev-entry"
     ],
-    "explanation": "An `openResponses({ strict: true })` or `chatCompletions({ strict: true })` transport rewrites each tool's input schema (and the `output` schema) into OpenAI's strict subset, so the model can only produce arguments that match. A schema with no strict form, such as a record (`z.record()`, `additionalProperties` with a schema) or a non-object root, is sent non-strict on its own while the other tools stay strict. The model may then send arguments outside that schema; the agent layer and the chat driver still validate every call and return the issues. Collected in development (info), once per tool and transport.",
+    "explanation": "A transport with `strict: strictSchemas` (`openResponses`, `chatCompletions`, `anthropicMessages`) rewrites each tool's input schema (and the `output` schema) into the provider's strict subset, so the model can only produce arguments that match. A schema with no strict form, such as a record (`z.record()`, `additionalProperties` with a schema) or a non-object root, and for Anthropic also a recursive schema, a value of any type, or a schema past Anthropic's per-request limits (20 strict tools, 24 optional and 16 union-typed parameters across the strict schemas), is sent non-strict on its own while the other tools stay strict. The model may then send arguments outside that schema; the agent layer and the chat driver still validate every call and return the issues. Collected in development (info), once per tool and transport.",
     "fix": "Give the schema a strict form: an object root with named properties instead of a record (for example an array of `{ key, value }` objects). Or accept the non-strict tool: validation still protects the state.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg675"
   },

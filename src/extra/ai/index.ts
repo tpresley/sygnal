@@ -31,3 +31,8 @@ export {encodeOpenResponses} from './transports/encodeOpenResponses'
 // M-2 / M-3 (3-M): decision reply fixtures and the command bar
 export {answers} from './answers'
 export {commandBar} from './commandBar'
+// L-2 (3-W2): transports, wave 2 (D248), and the opt-in strict layer (D285)
+export {anthropicMessages} from './transports/anthropicMessages'
+export {agui} from './transports/agui'
+export {fromAISDK} from './transports/fromAISDK'
+export {strictSchemas} from './schema/strict'

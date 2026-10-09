@@ -1,10 +1,10 @@
 // PLAN-6 L-2 (2-T): the transports' option and result types, from 'sygnal/ai' and 'sygnal'
-import { makeChatDriver, openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from 'sygnal/ai'
+import { makeChatDriver, openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses, strictSchemas } from 'sygnal/ai'
 import type { ChatTransport, ChatEvent, OpenResponsesEvent, ChromePromptStatus, OpenResponsesOptions, HttpTransportOptions } from 'sygnal/ai'
 import { openResponses as fromCore } from 'sygnal'
 import type { ChatUsage } from 'sygnal'
 
-const a: ChatTransport = openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2', strict: true })
+const a: ChatTransport = openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2', strict: strictSchemas })
 const b: ChatTransport = chatCompletions({ model: 'm', headers: (req) => ({ 'x-n': String(req.messages.length) }), fetch: (url, init) => fetch(url, init) })
 const c: ChatTransport = uiMessageStream('/api/chat', { body: { tenant: 't' }, headers: async () => ({ authorization: 'session' }) })
 const d = chromePrompt({ temperature: 0.5 })
@@ -27,8 +27,8 @@ const u: ChatUsage = { inputTokens: 1, outputTokens: 2 }
 
 // @ts-expect-error a URL is required
 uiMessageStream()
-// @ts-expect-error strict is a boolean
-openResponses({ strict: 'yes' })
+// @ts-expect-error strict takes strictSchemas (D285), not a boolean
+openResponses({ strict: true })
 // @ts-expect-error chromePrompt has no baseURL
 chromePrompt({ baseURL: 'x' })
 
