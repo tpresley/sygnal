@@ -3722,3 +3722,6 @@ export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall
 // PLAN-6 L-3 (2-C)
 export { chat } from './ai.d'
 export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from './ai.d'
+// PLAN-6 M-2 / M-3 (3-M)
+export { answers, commandBar } from './ai.d'
+export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, CommandBarActions, CommandBarOptions, CommandBarResult, CommandBarUnsure } from './ai.d'

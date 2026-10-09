@@ -187,7 +187,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG440: 'Two agent declarations with the same name',
   SYG441: 'Agent Collection items without unique ids',
   // PLAN-6 L-3 (src/extra/ai/chat/behavior.ts; legacy error(): prints even when diagnostics are off)
-  SYG442: 'Chat behavior not connected to its app',
+  SYG442: 'Chat or command bar behavior not connected to its app',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',

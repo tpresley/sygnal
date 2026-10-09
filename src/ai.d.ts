@@ -168,6 +168,37 @@ export function noul(instructions: DecisionInstructions, criteria?: { true: stri
 
 /** A `score` question: an ordered scale of 2 or more level descriptions, lowest first */
 export function score<const L extends string>(instructions: DecisionInstructions, levels: readonly [L, L, ...L[]]): ScoreQuestion<L>
+// ---- M-2: decision reply fixtures (3-M) ----------------------------------------------------------
+
+/**
+ * What `answers()` takes for one question:
+ * - choice: an option name, `{ choice?, confidence? }`, or `{ probabilities }` (the most likely wins);
+ * - noul: `true` (0.95), `false` (0.05) or the probability of yes;
+ * - score: a level index (fractional: between two levels), a level description, or `{ score, confidence? }`
+ */
+export type AnswerPick<Q> =
+  Q extends ChoiceQuestion<infer K> ? K | { choice?: K; confidence?: number } | { probabilities: Partial<Record<K, number>>; choice?: K; confidence?: number }
+  : Q extends ScoreQuestion<infer L> ? number | L | { score: number | L; confidence?: number }
+  : Q extends NoulQuestion ? boolean | number | { noul: number }
+  : never
+
+/** The picks by question name (each optional) */
+export type AnswerPicks<Q extends Questions> = { [N in keyof Q]?: AnswerPick<Q[N]> }
+
+/**
+ * PLAN-6 M-2: a decision reply for tests, typed from the questions: what a decision model would
+ * send for `decide({ questions })`, with what the test doesn't pick filled in (a choice: the first
+ * option at confidence 0.9, the rest sharing the remaining probability; a noul: false; a score: 0).
+ * `confidence` is computed as TypeSafe / Ollama `nimble` report it (1 minus the normalized
+ * entropy), unless given. Unknown question names, options or levels throw.
+ *
+ *   await t.respond('HTTP', answers(questions, { topic: { choice: 'billing', confidence: 0.35 } }), 'TRIAGED')
+ */
+export const answers: {
+  <Q extends Questions>(questions: Q, picks?: AnswerPicks<Q>, options?: { model?: string; usage?: { input_tokens: number; output_tokens: number } }): Decision<Q> & { model: string }
+  /** the same reply in OpenAI Decisions' array form, for a `decide.openai()` request (its `parse` maps it back) */
+  openai<Q extends Questions>(questions: Q, picks?: AnswerPicks<Q>, options?: { model?: string }): { model: string; answers: Array<Record<string, unknown> & { type: 'predicate' | 'choice' | 'score'; name: string }> }
+}
 // ------------------------------------------------------------------------------------------------
 // A-1: schemas (the input contract) and the agent layer
 
@@ -739,3 +770,102 @@ export function encodeOpenResponses(
   chunks: ReadonlyArray<string | { reasoning: string } | { toolCall: { id?: string; name: string; input?: unknown } } | { finish: string | { reason?: string; usage?: unknown } } | ChatEvent>,
   options?: { id?: string; model?: string },
 ): OpenResponsesEvent[]
+// ---- M-3: the command bar (3-M) -----------------------------------------------------------------
+
+/** 'ready' | 'deciding' (the decision request is out) | 'running' (the action runs or waits for APPROVE / DENY) | 'error' */
+export type CommandBarStatus = 'ready' | 'deciding' | 'running' | 'error'
+
+/** Why a command wasn't run (`unsure`, or an escalated `result`) */
+export interface CommandBarUnsure {
+  command: string
+  /**
+   * 'confidence': the action's (or the target's) confidence is below `below`; 'no-action': the
+   * model picked none of the actions; 'target': an item action with no clear item; 'input': the
+   * action needs an argument the bar can't fill (a chat model can)
+   */
+  reason: 'confidence' | 'no-action' | 'target' | 'input'
+  /** The tool the model leaned to, and its description */
+  tool: string | null
+  description: string | null
+  /** The Collection item key it leaned to, and its `agent.label` */
+  target: unknown
+  label: string | null
+  confidence: number
+}
+
+/** The last outcome: a call's result, or the hand-over to the chat behavior */
+export type CommandBarResult =
+  | ({ command: string; tool: string; input: unknown } & AgentResult)
+  | (CommandBarUnsure & { escalated: string })
+
+/** The command bar's slice: `state.cmd` for `uses = { cmd: commandBar(...) }` */
+export interface CommandBarState {
+  /** The input's value (cleared when a command ran) */
+  text: string
+  status: CommandBarStatus
+  /** The command being handled, else null */
+  command: string | null
+  /** A consequential action waiting for APPROVE / DENY, else null */
+  pending: AgentConfirmInfo | null
+  /** Why the last command wasn't run (without `escalate`), else null */
+  unsure: CommandBarUnsure | null
+  result: CommandBarResult | null
+  /** The decision request's failure, else null */
+  error: string | null
+}
+
+/** The command bar's actions, as `'<key>.<ACTION>'` on the host */
+export interface CommandBarActions {
+  /** Run the input's command (Enter, or the form's submit), or the command given as data */
+  RUN: string | Event | undefined
+  /** Run the pending consequential action */
+  APPROVE: any
+  /** Decline it */
+  DENY: any
+  /** A command ran (a host entry `'cmd.DONE'` runs after the behavior's) */
+  DONE: { command: string; tool: string; input: unknown } & AgentResult
+  /** Internal: the input's value */
+  INPUT: string
+}
+
+export interface CommandBarOptions {
+  /** The command field: its input events set `text`; Enter runs it (unless `form` is given) */
+  input: BehaviorTarget
+  /** A form whose submit runs the command (instead of Enter in the field) */
+  form?: BehaviorTarget
+  /**
+   * The decision request: `decide()` options without `state` / `questions` (`{ url, model }`), or
+   * a function building the request (`(q) => decide.openai({ ...q, url, model })`)
+   */
+  decide: Omit<DecideOptions<Questions>, 'state' | 'questions'> | ((q: { state: unknown; questions: Questions }) => DecideRequest<any, any> | Record<string, unknown>)
+  /** Below this confidence (the action's, and the target's for an item action) nothing runs (default 0.6) */
+  below?: number
+  /** The `uses` key of a `chat` behavior on the same host: an unsure command goes to its SEND */
+  escalate?: string
+  /** Whose `agent` actions are offered: by default the host's and its shown descendants' (D249); `[Comp, …]`: only these */
+  agent?: Function[]
+  /** The fetch driver's sink (default 'HTTP') */
+  sink?: string
+  /** Its clicks APPROVE the pending action */
+  approve?: BehaviorTarget
+  /** Its clicks DENY it */
+  deny?: BehaviorTarget
+  /**
+   * The free text argument of a picked action whose input is one string (ADD's text). Default: a
+   * heuristic, a quoted part of the command or else the command minus its first word ("add walk
+   * the dog" → "walk the dog"); undefined escalates (or `unsure`, reason 'input')
+   */
+  freeText?: (command: string, tool: string) => string | undefined
+}
+
+/**
+ * PLAN-6 M-3: a command bar on a decision model. `uses = { cmd: commandBar({ input: '.command',
+ * decide: { url: '/api/decide', model: 'jev-latest' }, below: 0.6, escalate: 'assistant' }) }`:
+ * one decision request per command picks the action (a `choice` over the `agent` actions'
+ * descriptions; an enum input gives one option per value) and the target (a `choice` over the
+ * live Collection item keys, labelled by `agent.label`), then runs it through the agent layer
+ * (validation, no-op detection, cause 'agent', `pending` for a consequential action). Below
+ * `below` confidence it hands the command to the chat behavior named by `escalate`, or sets
+ * `unsure`. Its selectors are the host's own: render the field in the host's view.
+ */
+export function commandBar(options: CommandBarOptions): Behavior<CommandBarState, CommandBarActions, {}, CommandBarOptions>

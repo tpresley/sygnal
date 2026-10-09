@@ -30,69 +30,25 @@
  * or `maxSteps` requests (default 8: the calls of a reply past it are closed as not run). A turn
  * stopped, failed or replaced closes its open tool parts too (providers need a result per call).
  *
- * How it reaches the runtime (0 core bytes): A-1 needs the app's runtime API and the host
- * instance, which a behavior's handlers don't get. The first chat() call adds a hook-layer
- * factory to the core bridge's `layers` (`globalThis.__SYGNAL_DIAGNOSTICS__.layers`, which every
- * App reads when it is constructed, as the dev entries do), so each app made after it hands the
- * layer its runtime API. The layer's onAction (called synchronously right before an action's
- * handlers) records the instance and its pre-action state; a chat handler takes them when its
- * `props.state` is that state (an app made before the first chat() call, e.g. a host loaded
- * lazily into a running app, never has a match: its host is reported as SYG442 and runs without
- * tools). Per (host instance, uses key) an engine holds the agentTools set (`from`: the host),
- * the step count, the turn (stale tool results are dropped) and the confirm resolver; the
- * layer's onDispose stops it. The engine dispatches RESULTS / ASK (cause 'reply') and DONE
+ * How it reaches the runtime (0 core bytes, D283): through the shared link (../link.ts, also used
+ * by the command bar): per (host instance, uses key) an engine holds the agentTools set (`from`:
+ * the host), the step count, the turn (stale tool results are dropped) and the confirm resolver;
+ * the host's dispose stops it. A host in an app made before the first chat() call is reported as
+ * SYG442 and runs without tools. The engine dispatches RESULTS / ASK (cause 'reply') and DONE
  * ('next') to the host through the runtime API.
  */
 import {defineBehavior} from '../../behaviors'
 import {ABORT} from '../../../shared'
 import {agentTools} from '../agent/index'
-import {error as logError} from '../../diagnostics/legacy'
+import {linked, engineOf, checkLinked} from '../link'
 
-const G: any = globalThis
-const CHAT = Symbol.for('sygnal.chat')
-
-interface Ctx {api: any; iv: any; pre: any}
 interface Engine {api: any; iv: any; k: string; o: any; tools?: any; turn: number; steps: number; answer?: (ok: boolean) => void; stop(): void}
 
-/** the instance whose action is being handled (set by the layer's onAction; one object per app) */
-let cur: Ctx | undefined
-const engines = new WeakMap<any, Map<string, Engine>>()
-/** the dispose$ of each chat host an app with the layer created (SYG442 otherwise) */
-const known = new WeakSet<any>()
-const isHost = (iv: any) => {
-  const u = iv.def.view.uses
-  for (const k in u) if (u[k]?.[CHAT]) return true
-  return false
-}
-
-const layer = (api: any) => {
-  const c: Ctx = {api, iv: null, pre: null}
-  return {
-    onCreate: (iv: any) => { if (isHost(iv)) known.add(iv.sources.dispose$) },
-    onAction: (iv: any) => { c.iv = iv; c.pre = iv.state; cur = c },
-    onDispose: (iv: any) => { engines.get(iv)?.forEach(e => e.stop()) },
-  }
-}
-const install = () => {
-  const D = G.__SYGNAL_DIAGNOSTICS__ ||= {}, L = D.layers ||= new Set()
-  if (L.add) L.add(layer)
-  else if (!L.includes(layer)) L.push(layer)
-}
-
-/** the engine of the host whose action runs now (undefined when the app has no layer) */
-function engineOf(props: any, k: string, o: any): Engine | undefined {
-  const c = cur
-  if (!c || !props || props.state !== c.pre || c.iv.disposed) return
-  const iv = c.iv
-  let m = engines.get(iv)
-  if (!m) engines.set(iv, m = new Map())
-  let e = m.get(k)
-  if (!e) {
-    const en: Engine = e = {api: c.api, iv, k, o, turn: 0, steps: 0, stop() { en.turn++; en.answer?.(false); en.tools?.stop() }}
-    m.set(k, en)
-  }
-  return e
-}
+/** the engine of the host whose action runs now (undefined when the app has no link) */
+const engineFor = (props: any, k: string, o: any): Engine | undefined => engineOf<Engine>(props, k, (api, iv) => {
+  const en: Engine = {api, iv, k, o, turn: 0, steps: 0, stop() { en.turn++; en.answer?.(false); en.tools?.stop() }}
+  return en
+})
 const dispatch = (e: Engine, type: string, data: any, cause: string) => e.api.dispatch(e.iv.id, e.k + '.' + type, data, cause)
 
 const toolsOf = (e: Engine) => e.o.agent === false ? null : e.tools ||= agentTools(e.api, {
@@ -126,26 +82,26 @@ const memo = (f: (s: any, d: any, e?: Engine) => any) => {
 }
 
 const textOf = (d: any) => typeof d == 'string' ? d : d && typeof d == 'object' && typeof d.text == 'string' && !('target' in d) ? d.text : undefined
-const sendStep = memo((s, d) => {
+const sendStep = /*#__PURE__*/ memo((s, d) => {
   const given = textOf(d), text = given ?? s.prompt
   if (busy(s) || typeof text != 'string' || !text.trim()) return
   return {...s, messages: [...closeOpen(s.messages, 'not run: a new message was sent'), user(text)], prompt: given === undefined ? '' : s.prompt, draft: '', status: 'submitted', error: null, pending: null}
 })
-const regenStep = memo(s => {
+const regenStep = /*#__PURE__*/ memo(s => {
   const i = lastUser(s.messages)
   if (busy(s) || i < 0) return
   return {...s, messages: s.messages.slice(0, i + 1), draft: '', status: 'submitted', error: null, pending: null}
 })
 // a reply: run its open tool calls (status stays streaming), or the turn is over (DONE). Past
 // maxSteps the open calls are closed as not run
-const replyStep = memo((s, d, e) => {
+const replyStep = /*#__PURE__*/ memo((s, d, e) => {
   const m = d?.message
   if (!m) return
   const calls = openCalls(m), run = calls.length > 0 && !!e && e.steps < (e.o.maxSteps ?? 8)
   const msg = calls.length && !run ? closeOpen([m], `not run: the step limit (maxSteps ${e?.o.maxSteps ?? 8}) was reached`)[0] : m
   return {s: {...s, messages: [...s.messages, msg], draft: '', status: run ? 'streaming' : 'ready'}, calls: run ? calls : null, msg}
 })
-const resultsStep = memo((s, d, e) => {
+const resultsStep = /*#__PURE__*/ memo((s, d, e) => {
   if (!e || d?.turn !== e.turn) return
   const out = new Map(d.results.map((r: any) => [r.id, r]))
   const msgs = s.messages.map((m: any) => m.role == 'assistant' && m.parts?.some((p: any) => out.has(p.toolCallId)) ? {...m, parts: m.parts.map((p: any) => {
@@ -186,22 +142,20 @@ async function runTools(e: Engine, calls: any[]) {
   dispatch(e, 'RESULTS', {turn, results}, 'reply')
 }
 
-let warned = 0
 /**
  * The chat behavior (PLAN-6 L-3): `uses = { assistant: chat({ sink, form, prompt, stop, approve,
  * deny, instructions, model, agent, maxSteps, transportOptions }) }`. Types: src/ai.d.ts.
  */
 export const chat = (options: any = {}): any => {
-  install()
   const {sink = 'LLM', form, prompt, stop, approve, deny, regenerate} = options
   const on = (DOM: any, sel: any, ev = 'click', o?: any) => DOM.select(sel).events(ev, o)
-  const E = (props: any, k: string, o: any) => engineOf(props, k, o)
+  const E = engineFor
   const b = defineBehavior({
     initialState: {messages: [], prompt: '', draft: '', status: 'ready', pending: null, error: null},
     intent: (so: any) => {
       const {DOM} = so
       // SYG442: an app made before the first chat() call has no layer: no tools, no loop
-      if (!known.has(so.dispose$) && !warned++) logError('SYG442', 'chat', 'the chat behavior has no connection to its app (the app was started before the first chat() call): it sends no tools and runs no tool calls', 'Call chat() in a module imported before run(), not only in a component loaded later')
+      checkLinked(so, 'chat', 'it sends no tools and runs no tool calls')
       return {
         ...(prompt && {PROMPT: on(DOM, prompt, 'input').map((ev: any) => ev.target.value)}),
         ...(form && {SEND: on(DOM, form, 'submit', {preventDefault: true})}),
@@ -266,6 +220,5 @@ export const chat = (options: any = {}): any => {
   })(options)
   // the `prompt` option is a selector, not the slice's start value (defineBehavior's option override)
   b.state = {...b.state, prompt: ''}
-  b[CHAT] = true
-  return b
+  return linked(b)
 }

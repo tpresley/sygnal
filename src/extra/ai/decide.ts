@@ -38,7 +38,7 @@ export const noul = (instructions: any, criteria?: any) =>
 export const score = (instructions: any, levels: any) => ({type: 'score', instructions, criteria: levels});
 
 /** the dictionary-form request (TypeSafe, Ollama, OpenRouter, AI Gateway) */
-export function decide({url = '/api/decide', model, state, questions, images, ...rest}: any = {}) {
+function dictionary({url = '/api/decide', model, state, questions, images, ...rest}: any = {}) {
   const json: any = {model, state, questions};
   if (images) json.images = images;
   return {url, method: 'POST', json, ...rest};
@@ -92,10 +92,13 @@ export const fromOpenAI = (reply: any) => {
 const parseOpenAI = async (res: any) => fromOpenAI(await res.json());
 
 /** the same questions as an OpenAI Decisions request; the reply arrives in the dictionary form */
-decide.openai = function ({url = '/api/decide', model, state, questions, images, ...rest}: any = {}) {
+function openai({url = '/api/decide', model, state, questions, images, ...rest}: any = {}) {
   const input = images && images.length
     ? [{role: 'user', content: [{type: 'input_text', text: text(state)},
       ...images.map((b: string) => ({type: 'input_image', image_url: dataUrl(b)}))]}]
     : text(state);
   return {url, method: 'POST', json: {model, input, questions: toOpenAI(questions)}, parse: parseOpenAI, ...rest};
-};
+}
+
+/** the dictionary-form request (TypeSafe, Ollama, OpenRouter, AI Gateway); `decide.openai()`: the same as an OpenAI Decisions request */
+export const decide = /*#__PURE__*/ Object.assign(dictionary, {openai})

@@ -385,5 +385,15 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       const rs = [...build().values()]
       return entries.map(e => ({name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name)}))
     },
+    /** internal (M-3, the command bar): the live Collection items by declaration name, with their key and `agent.label` */
+    targets(): Array<{name: string; id: any; label?: string}> {
+      build()
+      const out: Array<{name: string; id: any; label?: string}> = []
+      for (const e of entries) if (e.item) for (const iv of e.ivs) {
+        const id = keyOf(iv)
+        if (!iv.disposed && id != null) out.push({name: e.name, id, label: labelOf(iv)})
+      }
+      return out
+    },
   }
 }

@@ -121,6 +121,17 @@ export const FIRST_PARTY = {
     listens: [['form', 'SEND', 'select'], ['prompt', 'PROMPT', 'select'], ['stop', 'STOP'], ['approve', 'APPROVE'], ['deny', 'DENY'], ['regenerate', 'REGENERATE']],
     intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE'],
   },
+  // PLAN-6 M-3: commandBar(options) from 'sygnal/ai' (src/extra/ai/commandBar.ts). Its selectors are
+  // the host's. RUN comes from the input's Enter (or the form's submit); the fetch driver's replies
+  // (DECIDED, FAILED), ASK and DONE come from outside its intent; a host entry 'cmd.DONE' extends DONE
+  commandBar: {
+    stateKeys: ['text', 'status', 'command', 'pending', 'unsure', 'result', 'error'],
+    calculated: [],
+    model: ['INPUT', 'RUN', 'DECIDED', 'FAILED', 'ASK', 'APPROVE', 'DENY', 'DONE'],
+    options: ['input', 'form', 'decide', 'below', 'escalate', 'agent', 'sink', 'approve', 'deny', 'freeText'],
+    listens: [['input', 'INPUT', 'select'], ['form', 'RUN', 'select'], ['approve', 'APPROVE'], ['deny', 'DENY']],
+    intent: ['RUN', 'DECIDED', 'FAILED', 'ASK', 'DONE'],
+  },
   // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
   // element events of a required option, its timers' actions)
   dialog: {
