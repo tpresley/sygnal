@@ -1,0 +1,12 @@
+{
+  "name": "sygnal-llm-experiments",
+  "private": true,
+  "type": "module",
+  "description": "Prototypes for dev-plans/research/llm-integration.md (not library code)",
+  "dependencies": {
+    "ai": "7.0.136",
+    "jsdom": "*",
+    "sygnal": "file:../../..",
+    "xstream": "*"
+  }
+}
