@@ -77,6 +77,8 @@ export default defineConfig({
             { label: 'Router', slug: 'guide/router' },
             { label: 'Document Head', slug: 'guide/head' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
+            { label: 'AI Chat', slug: 'guide/ai-chat' },
+            { label: 'AI Decisions', slug: 'guide/ai-decisions' },
             { label: 'Collections', slug: 'guide/collections' },
             { label: 'Virtual Collections', slug: 'guide/virtual-collections' },
             { label: 'Behaviors', slug: 'guide/behaviors' },
@@ -128,6 +130,9 @@ export default defineConfig({
             { label: 'Data Grid', slug: 'recipes/data-grid' },
             { label: 'Icons', slug: 'recipes/icons' },
             { label: 'Translations (i18n)', slug: 'recipes/i18n' },
+            { label: 'AI: Support Inbox', slug: 'recipes/ai-support-inbox' },
+            { label: 'AI: Structured Output into a Form', slug: 'recipes/ai-form-fill' },
+            { label: 'AI: On-device Summaries', slug: 'recipes/ai-summarize' },
           ],
         },
         {
