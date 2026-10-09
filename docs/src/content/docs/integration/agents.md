@@ -1,6 +1,6 @@
 ---
 title: Building with AI Agents
-description: llms.txt, the sygnal-dev skill, sygnal-check, the MCP server and inspect
+description: llms.txt, the sygnal-dev skill, sygnal-check, the MCP servers and inspect
 ---
 
 Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). Its goal is that an agent never has to guess: one reference that shows only the canonical forms, checks that turn silent wiring bugs into coded messages, and a graph of the app it can read instead of the source. Everything here is also useful without an agent.
@@ -11,6 +11,7 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 | [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow |
 | [`sygnal-check`](#sygnal-check) | Static wiring checks, strict mode, `--fix`, the app graph, `explain` |
 | [MCP server](#mcp-server) | `check`, `graph` and `explain` as tools |
+| [Dev server MCP endpoint](#dev-server-mcp-endpoint) | The running app in the open page: state, actions, diagnostics, its agent tools |
 | [`inspect()`](#inspect) | The runtime app graph, in the browser or in a test |
 
 ## llms.txt
@@ -94,6 +95,52 @@ Any client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
 }
 ```
 
+## Dev server MCP endpoint
+
+`sygnal-check mcp` reads your source. The dev server endpoint reads the app while it runs: with `mcp: true`, the [Vite plugin](/integration/bundler-config/#plugin-options) serves an MCP endpoint at `/__sygnal/mcp` (streamable HTTP), and an agent can look at the open page and act on it.
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal({ mcp: true })],
+})
+```
+
+Start the dev server, open the app in a browser, and point the agent at the endpoint. Claude Code reads `.mcp.json` in the project root:
+
+```json
+{
+  "mcpServers": {
+    "sygnal-dev": { "type": "http", "url": "http://localhost:5173/__sygnal/mcp" }
+  }
+}
+```
+
+The same from the command line: `claude mcp add --transport http sygnal-dev http://localhost:5173/__sygnal/mcp`. Use your dev server's port if it isn't 5173.
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `get_state` | `{ component?, path? }` | an instance's state (the root by default; every instance of a Collection item); `path` reads one field (`'todos.0.text'`) |
+| `dispatch` | `{ component?, action, data? }` | sends the action as if the intent had (recorded with cause `'agent'`), waits for the render, returns the new state |
+| `component_tree` | `{ component? }` | the [`inspect()`](#inspect) graph of the running app |
+| `recent_actions` | `{ limit?, component?, type?, cause? }` | the DevTools action log, newest last |
+| `get_diagnostics` | `{ code?, severity?, limit? }` | the runtime diagnostics, each with its `docsUrl` |
+| `copy_as_test` | `{ component?, componentImport? }` | DevTools' Copy as test: a `renderComponent` test of the session |
+| `agent_tools` | `{ call?, input?, all? }` | the page's own agent tools (the `agent` statics) and their context; with `call`, runs one |
+| `tabs` | `{}` | the connected pages |
+| `check`, `graph`, `explain` | as [above](#mcp-server) | `sygnal-check` on your source, when it is installed |
+
+`component` is a component name or an instance id from `component_tree`. With several tabs open, the page that loaded or was focused last answers, and each result names it in `tab`; pass `tab` (an id from `tabs`) to choose. An `agent_tools` call follows the same rules as any other caller: the input is validated, `when` is checked, and a consequential tool asks the person in the page first (`mcp: { confirm: true }` runs it without asking, `false` declines it).
+
+It is a development tool only:
+
+- It exists only in `vite` / `vite dev`. A production build (and `vite preview`) has no endpoint and no page code for it.
+- It answers only requests from the same machine, with a local `Host` (`localhost`, `*.localhost`, a loopback address, or a name in Vite's `server.allowedHosts`). A request with an `Origin` header from any other site gets 403, so a web page can't reach it, also through DNS rebinding. With `vite --host` the dev server is on your network, but the endpoint still refuses other machines.
+- `dispatch` runs any action of any component. Don't turn it on in a dev server you share.
+
 ## inspect
 
 `inspect()` returns the same graph shape as `sygnal-check --graph --json`, built from the running app: real component instances, which selectors matched rendered elements, which EVENTS were emitted, and the runtime diagnostics. Use it:
@@ -108,7 +155,7 @@ See [Diagnostics](/guide/diagnostics/#inspect) for the fields and what to look f
 
 A loop that works well for agents (and people):
 
-1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing.
+1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing. With the [dev server endpoint](#dev-server-mcp-endpoint), `component_tree` and `get_state` show the running app.
 2. **Write** the change in the canonical forms (`llms.txt`).
 3. **Test it** with `renderComponent`: drive it with real DOM events, wait, assert, and check for diagnostics.
 

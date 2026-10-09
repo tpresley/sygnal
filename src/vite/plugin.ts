@@ -104,6 +104,10 @@
  *      Vitest: production builds carry no DevTools code. `devtools: false`
  *      injects nothing. PLAN-4 3-E: `devtools: { redux: true }` also calls
  *      connectReduxDevtools() (actions + state to the Redux DevTools extension).
+ *  10. `mcp` option (PLAN-6 E-1, default false): the dev server serves an MCP endpoint at
+ *      /__sygnal/mcp (./mcp.ts: streamable HTTP, loopback / local Host / local Origin only)
+ *      and the dev entries also import 'virtual:sygnal/mcp', which connects the page over the
+ *      HMR channel (installMcpBridge from 'sygnal/devtools'). Never in `vite build` or Vitest.
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -141,6 +145,10 @@ import { createRequire } from 'node:module'
 // @ts-ignore
 import { pathToFileURL } from 'node:url'
 import { globalThisAlias } from './globalthis'
+import { attachMcp, mcpClientModule } from './mcp'
+import type { McpPluginOptions } from './mcp'
+
+export type { McpPluginOptions } from './mcp'
 
 const nodeProcess: any = (globalThis as any).process
 
@@ -240,6 +248,17 @@ export interface SygnalPluginOptions {
    * @default true
    */
   devtools?: boolean | { redux?: boolean }
+
+  /**
+   * PLAN-6 E-1: serve an MCP endpoint at `/__sygnal/mcp` on the dev server (streamable HTTP,
+   * local requests only), so a coding agent can read and drive the running app in the open
+   * page: get_state, dispatch, component_tree, recent_actions, get_diagnostics, copy_as_test,
+   * agent_tools, tabs, plus sygnal-check's check / graph / explain when it is installed. Dev
+   * server only (never `vite build`, `vite preview` or Vitest); it also loads 'sygnal/devtools'
+   * in the page, even with `devtools: false`.
+   * @default false
+   */
+  mcp?: boolean | McpPluginOptions
 }
 
 // Virtual modules (dev server only)
@@ -252,6 +271,9 @@ const CHECK_EVENT = 'sygnal:check'
 // Sent by the dev client when it loads: the server answers that client only
 const CHECK_REQUEST = 'sygnal:check:request'
 const OVERLAY_PLUGIN = 'sygnal-check'
+// PLAN-6 E-1: the page side of the dev MCP endpoint
+const MCP_CLIENT = 'virtual:sygnal/mcp'
+const MCP_CLIENT_ID = '\0' + MCP_CLIENT
 // Register the runtime checks with the core that loaded last (see the Vike wrapper)
 const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
@@ -271,11 +293,14 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const flags = DEV_FLAG + (diagnostics.strict ? STRICT_FLAG : '')
   const devImports = `import 'sygnal/diagnostics';import '${DEV_CLIENT}';`
   // D77: the DevTools bridge, dev only. First, so the diagnostics entry finds it.
-  const devtoolsOn = options.devtools !== false
+  // E-1: the MCP endpoint needs the bridge, so `mcp` turns it on
+  const mcpOn = !!options.mcp
+  const mcpOptions: McpPluginOptions = typeof options.mcp === 'object' && options.mcp ? options.mcp : {}
+  const devtoolsOn = options.devtools !== false || mcpOn
   const redux = typeof options.devtools == 'object' && !!options.devtools?.redux
-  const devtoolsImport = !devtoolsOn ? ''
+  const devtoolsImport = (!devtoolsOn ? ''
     : redux ? `import { connectReduxDevtools as __sygnalReduxDevtools } from 'sygnal/devtools';__sygnalReduxDevtools();`
-    : `import 'sygnal/devtools';`
+    : `import 'sygnal/devtools';`) + (mcpOn ? `import '${MCP_CLIENT}';` : '')
   // What a dev entry gets: DevTools, then (unless diagnostics are 'off') flags + checks
   const devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
   const devInject = devOn || devtoolsOn
@@ -391,6 +416,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       async handler(this: any, source: string, importer: string | undefined, opts: any) {
         if (!isServe || isVitest) return null
         if (source === DEV_CLIENT) return DEV_CLIENT_ID
+        if (source === MCP_CLIENT && mcpOn) return MCP_CLIENT_ID
         if (source === 'sygnal' && importer && wrapRun && runtimeImporters.has(cleanId(importer))) {
           return RUNTIME_ID
         }
@@ -409,6 +435,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
     load(id: string) {
       if (id === DEV_CLIENT_ID) return devClientModule()
+      if (id === MCP_CLIENT_ID && mcpOn) return mcpClientModule(mcpOptions)
       if (id === RUNTIME_ID) return runtimeModule(diagnostics)
       // The checks register again once the real entry has loaded: a
       // pre-bundled copy of it can carry its own copy of the Sygnal core
@@ -421,7 +448,12 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
 
     configureServer(server: any) {
-      if (isVitest || options.check === false) return
+      if (isVitest) return
+      // E-1: the MCP endpoint (a middleware ahead of Vite's own; it does its own host checks)
+      if (mcpOn && server?.middlewares) {
+        attachMcp(server, root, mcpOptions, sygnalVersion(root))
+      }
+      if (options.check === false) return
       const checkOptions = typeof options.check === 'object' && options.check ? options.check : {}
       // Deferred: the dev server doesn't wait for the first check
       const checkDefaults = { strict: diagnostics.strict, ignore: diagnostics.ignore }
@@ -687,6 +719,12 @@ function sygnalPackageDir(root: string): string | undefined {
     }
   } catch (_) {}
   return undefined
+}
+
+/** The version of the 'sygnal' package the project resolves */
+function sygnalVersion(root: string): string | undefined {
+  const dir = sygnalPackageDir(root)
+  try { return dir ? JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')).version : undefined } catch (_) { return undefined }
 }
 
 /** Real paths of sygnal's 'astro/client' ESM file. */
