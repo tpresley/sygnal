@@ -318,6 +318,29 @@ Profile.model = {
 }
 ```
 
+## Offer the form to the browser's agent
+
+:::caution[Experimental]
+WebMCP is a draft, in a Chrome origin trial (Chrome 149–156; `chrome://flags/#enable-webmcp-testing` to try it). This option tracks the draft and is outside semver until the trial ends.
+:::
+
+With `tool`, the form becomes a [declarative WebMCP](https://github.com/webmachinelearning/webmcp) tool: the browser's AI agent sees it, fills its fields and submits it.
+
+```jsx
+Signup.uses = {
+  form: form(signupSchema, {
+    values: { email: '', plan: '' },
+    submit: 'SIGN_UP',
+    tool: { name: 'sign_up', description: 'Create an account' },
+  }),
+}
+```
+
+- The form writes the attributes the browser reads: `toolname` and `tooldescription` on the `<form>`, `toolautosubmit` with `autosubmit: true`, and a `toolparamdescription` on each named field, from its `<label>` (wrapping or `for=`) and otherwise its `aria-label`. The view stays as it is. To write one yourself, use the `attrs-` prefix (`attrs-toolparamdescription="…"`), which wins: a bare `toolname` in JSX sets a DOM property the browser ignores ([SYG153](/reference/errors/#syg153)).
+- An agent's submit is an ordinary `form.SUBMIT`: the same schema, checks and `submit` action. The agent's call resolves after the outcome is rendered, with `{ ok: true, values }` (the schema's output, what `submit` got) or `{ ok: false, errors }` (the field errors by name; `''` is form-level). A submit sent as a request answers after its reply: `form.DONE` gives `ok: true`, `form.ERRORS` the server errors.
+- `autosubmit` defaults to `false`: the agent's call fills the fields and **stays pending until the user submits the form**, then gets the same answer. Set `autosubmit: true` only for forms that are safe to submit without the user looking.
+- A user's own submit is unchanged.
+
 ## Diagnostics
 
 With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, [SYG236](/reference/errors/#syg236) array rows without an `id`, and [SYG237](/reference/errors/#syg237) two forms in one component on the same selector. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).

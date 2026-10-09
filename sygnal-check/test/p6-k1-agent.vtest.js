@@ -354,6 +354,13 @@ Signup.initialState = {}
     expect(syg153(check({ 'Signup.jsx': form('toolname="sign_up" tooldescription="Create an account"', 'toolparamdescription="Your email"') })))
       .toEqual(['toolname', 'tooldescription', 'toolparamdescription'])
   })
+  it('the fix points at form(…, { tool }) (A-3), then attrs-*', () => {
+    const d = only('SYG153')(check({ 'Signup.jsx': form('toolname="sign_up"', 'toolparamdescription="Your email"') }))
+    expect(d[0].fix).toMatch(/form\(schema, \{ \.\.\., tool: \{ name: 'sign_up'/)
+    expect(d[0].fix).toMatch(/attrs-toolname=/)
+    expect(d[1].fix).toMatch(/<label> or aria-label/)
+    expect(d[1].fix).toMatch(/attrs-toolparamdescription=/)
+  })
   it('accepts attrs-*, attrs={{ }}, and toolname on something else', () => {
     expect(syg153(check({ 'Signup.jsx': form('attrs-toolname="sign_up" attrs-tooldescription="Create"', 'attrs-toolparamdescription="Your email"') }))).toEqual([])
     expect(syg153(check({ 'Signup.jsx': form("attrs={{ toolname: 'sign_up' }}") }))).toEqual([])

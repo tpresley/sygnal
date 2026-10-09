@@ -16,7 +16,8 @@
  * form starts), `submit` (host action), `check` (async per-field checks through a driver: a
  * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
  * field was blurred; 'input'; 'submit'), `form` (selector), `http` (the driver sink of the
- * checks, 'HTTP'), `resetOnShow` (D239).
+ * checks, 'HTTP'), `resetOnShow` (D239), `tool` (PLAN-6 A-3, experimental: the form as a declarative
+ * WebMCP tool, formTool.ts).
  *
  * D239 (G-578): `resetOnShow: true` starts the form over (the start values, as a new form: touched,
  * errors, server errors, checks and the submit state cleared) each time it is shown: when its
@@ -70,6 +71,7 @@ import {defineBehavior} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid} from './formHelpers'
+import {formTool} from './formTool'
 
 const dev = (...a: any[]): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.form?.(...a)
 const keys = (o: any) => Object.keys(o).filter(k => o[k])
@@ -81,7 +83,9 @@ const drop = (o: any, p: string) => {
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
-  const {values: vo = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again} = o
+  const {values: vo = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again, tool} = o
+  // PLAN-6 A-3 (experimental, D241): a declarative WebMCP tool (formTool.ts)
+  const ft = tool && formTool(tool, sel)
   // D239: `values` can be a function of the host's state, called when the form starts (and each
   // show, resetOnShow). Before that (the host's first render, before its first action) the
   // fields come from calling it with a blank state: every read gives '' in the result
@@ -225,8 +229,8 @@ export const form = (schema: any, o: any = {}): any => {
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
-    intent: ({DOM}: any) => {
-      const f = DOM.select(sel)
+    intent: ({DOM, STATE}: any) => {
+      const f = DOM.select(sel), sub = f.events('submit', {preventDefault: true})
       let on = 0
       return {
         // D239: resetOnShow also starts over each time the form element appears again (a
@@ -239,7 +243,7 @@ export const form = (schema: any, o: any = {}): any => {
           t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
           : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
         BLUR: f.events('focusout').map((e: any) => e.target.name),
-        SUBMIT: f.events('submit', {preventDefault: true}),
+        SUBMIT: ft ? ft.submit(sub, STATE, v) : sub,
       }
     },
     model,
@@ -259,6 +263,7 @@ export const form = (schema: any, o: any = {}): any => {
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },
   })({...o, values}), merge = b.merge
+  ft && (b.$tool = ft.$tool)
   b.merge = (c: any, k: string) => {
     const e = c.model?.[submit]
     req = !!e && typeof e == 'object' && http in e

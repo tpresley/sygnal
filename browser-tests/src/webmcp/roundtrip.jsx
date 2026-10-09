@@ -6,7 +6,7 @@
 //   none     — no WebMCP: the call is a no-op
 // The test acts as the agent through getTools / executeTool (./agent.js normalizes the two
 // implementations, G-600); the confirmation dialog gets real input (window.__pwWebMcp).
-import { run, Collection, onDiagnostic } from 'sygnal'
+import { run, Collection, onDiagnostic, form } from 'sygnal'
 import { experimentalExposeWebMcp, jsonSchema } from 'sygnal/ai'
 import { agentClient, isNative } from './agent.js'
 
@@ -80,6 +80,93 @@ TodoItem.agent = {
 function Stats({ state }) { return <p className="stats">views: {state.views}</p> }
 Stats.model = { COUNT_ONE_MORE_VIEW_OF_THE_PANEL: (s) => ({ ...s, views: s.views + 1 }) }
 Stats.agent = { name: 'statistics_panel', description: 'the statistics panel', read: (s) => s, actions: { COUNT_ONE_MORE_VIEW_OF_THE_PANEL: { description: 'Count a view. ' + 'Views are counted once per visit. '.repeat(20) } } }
+
+// ---------------------------------------------------------------- A-3: form(…, { tool })
+// a hand-written Standard Schema: the email must have an '@' (the field is type=text, so the
+// browser's constraint validation lets 'nope' through and the schema answers), a plan
+const signupSchema = {
+  '~standard': {
+    version: 1, vendor: 'test',
+    validate(v) {
+      const issues = []
+      if (!/^[^\s@]+@[^\s@]+$/.test(v.email)) issues.push({ message: 'Enter an email address', path: ['email'] })
+      if (!['free', 'pro'].includes(v.plan)) issues.push({ message: 'Pick a plan', path: ['plan'] })
+      return issues.length ? { issues } : { value: { email: v.email.trim().toLowerCase(), plan: v.plan } }
+    },
+  },
+}
+const signup = (cls) => function Signup({ state }) {
+  const f = state.form.values
+  return (
+    <section className={cls}>
+      <form className="signup">
+        <label>Email address <input type="text" name="email" value={f.email} /></label>
+        <select name="plan" aria-label="The plan to sign up for" value={f.plan}>
+          <option value="">-</option><option value="free">Free</option><option value="pro">Pro</option>
+        </select>
+        <button type="submit">Sign up {cls}</button>
+      </form>
+      <p className="saved">{state.saved ? `saved:${state.saved.email}:${state.saved.plan}:${state.saved.by}` : 'none'}</p>
+    </section>
+  )
+}
+const SignupAuto = signup('auto'), SignupConfirm = signup('confirm')
+for (const [C, name, autosubmit] of [[SignupAuto, 'sign_up_auto', true], [SignupConfirm, 'sign_up_confirm', false]]) {
+  C.uses = { form: form(signupSchema, { values: { email: '', plan: '' }, submit: 'SAVE', show: 'submit', tool: { name, description: `Create an account (${name})`, autosubmit } }) }
+  C.model = { SAVE: (s, v) => ({ ...s, saved: { ...v, by: s.submits + 1 }, submits: s.submits + 1 }) }
+}
+function Forms() { return <div><SignupAuto state="a" /><SignupConfirm state="c" /></div> }
+Forms.initialState = { a: { saved: null, submits: 0 }, c: { saved: null, submits: 0 } }
+
+async function formChecks(agent, mc) {
+  const app = run(Forms, {}, { mountPoint: '#root3' })
+  await app.__runtime.flushed()
+  const q = (s) => document.querySelector(`#root3 ${s}`)
+  const saved = (cls) => q(`.${cls} .saved`).textContent
+  await step('A-3: form(…, { tool }) writes the attributes (not props) and registers both form tools', async () => {
+    const f = q('.auto form')
+    eq([f.getAttribute('toolname'), f.getAttribute('tooldescription'), f.hasAttribute('toolautosubmit')], ['sign_up_auto', 'Create an account (sign_up_auto)', true], 'auto form')
+    eq(q('.confirm form').hasAttribute('toolautosubmit'), false, 'confirm form')
+    eq(q('.auto [name="email"]').getAttribute('toolparamdescription'), 'Email address', 'label')
+    eq(q('.auto [name="plan"]').getAttribute('toolparamdescription'), 'The plan to sign up for', 'aria-label (G-603)')
+    const ts = await agent.until((ts) => ['sign_up_auto', 'sign_up_confirm'].every((n) => ts.some((t) => t.name === n)))
+    const s = ts.find((t) => t.name === 'sign_up_auto').inputSchema
+    eq(Object.keys(s.properties).sort(), ['email', 'plan'], 'params')
+    eq(s.properties.email.description, 'Email address', 'email description')
+    eq(s.properties.plan.description, 'The plan to sign up for', 'plan description')
+    return s.properties.plan
+  })
+  await step('A-3: an agent submit (autosubmit) that is valid: { ok: true, values }, the DOM rendered', async () => {
+    const r = await agent.call('sign_up_auto', { email: 'A@B.co', plan: 'pro' })
+    eq(r, { ok: true, values: { email: 'a@b.co', plan: 'pro' } }, 'answer')
+    eq(saved('auto'), 'saved:a@b.co:pro:1', 'DOM when the answer came')
+  })
+  await step('A-3: an agent submit (autosubmit) that the schema refuses: { ok: false, errors }, nothing saved', async () => {
+    const r = await agent.call('sign_up_auto', { email: 'nope', plan: 'free' })
+    eq(r, { ok: false, errors: { email: 'Enter an email address' } }, 'answer')
+    eq(saved('auto'), 'saved:a@b.co:pro:1', 'not saved again')
+  })
+  await step('A-3: autosubmit off: the call fills the form and waits for the user\'s submit (real click)', async () => {
+    let settled = false
+    const p = agent.call('sign_up_confirm', { email: 'c@d.ef', plan: 'free' }).then((x) => { settled = true; return x }, (e) => { settled = true; return `${e.name}: ${e.message}` })
+    for (let i = 0; i < 100 && q('.confirm [name="email"]').value !== 'c@d.ef'; i++) await settle(10)
+    eq(q('.confirm [name="email"]').value, 'c@d.ef', 'filled')
+    await settle(150)
+    eq([settled, saved('confirm')], [false, 'none'], 'pending, nothing saved')
+    await window.__pwWebMcp('click', 'Sign up confirm')
+    eq(await p, { ok: true, values: { email: 'c@d.ef', plan: 'free' } }, 'answer after the user submitted')
+    eq(saved('confirm'), 'saved:c@d.ef:free:1', 'DOM')
+  })
+  await step('A-3: a user\'s own submit is unchanged (no agent call pending)', async () => {
+    await window.__pwWebMcp('click', 'Sign up confirm')
+    for (let i = 0; i < 100 && saved('confirm') !== 'saved:c@d.ef:free:2'; i++) await settle(10)
+    eq(saved('confirm'), 'saved:c@d.ef:free:2', 'saved by the user')
+  })
+  await step('A-3: removing the form unregisters its tool', async () => {
+    app.dispose()
+    await agent.until((ts) => !ts.some((t) => t.name.startsWith('sign_up')))
+  })
+}
 
 // ---------------------------------------------------------------- the round trip
 async function main() {
@@ -228,6 +315,7 @@ async function main() {
     await agent.until((ts) => !ts.some((t) => t.name.startsWith('two_')))
     app2.dispose()
   })
+  await formChecks(agent, mc)
   offDiag()
   finish()
 }

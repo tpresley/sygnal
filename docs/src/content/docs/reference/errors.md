@@ -531,7 +531,7 @@ Severity: `warn` · Reported by: `sygnal-check`
 
 A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has `toolparamdescription`) written as a plain JSX attribute. WebMCP's declarative API reads these as HTML attributes, but Sygnal's JSX pragma turns an attribute it doesn't know into a DOM property (`form.toolname = ...`), which the browser ignores: the form is never offered to the browser's agent, and nothing reports it at run time (D269).
 
-**Fix:** Write them as attributes: `<form attrs-toolname="sign_up" attrs-tooldescription="Create an account">` and `<input name="email" attrs-toolparamdescription="The email to sign up with" />` (or `attrs={{ toolname: 'sign_up' }}`).
+**Fix:** For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: { name: 'sign_up', description: 'Create an account' } })` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname="sign_up" attrs-tooldescription="Create an account">` and `<input name="email" attrs-toolparamdescription="The email to sign up with" />` (or `attrs={{ toolname: 'sign_up' }}`).
 
 ## SYG2xx: State and reducers
 
