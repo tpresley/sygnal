@@ -148,6 +148,11 @@ describe('F-1: the form behavior in sygnal-check', () => {
     expect(d).toEqual([])
   })
 
+  it('PLAN-6 4-D2: the tool option (formTool, D291) is a known option, not SYG127', () => {
+    const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': SIGNUP("values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' })") }, { strict: true })
+    expect(d.filter(x => x.code === 'SYG127')).toEqual([])
+  })
+
   it('without the form behavior, the same inputs are uncontrolled (SYG111): the behavior is what listens', () => {
     const src = SIGNUP().replace("Signup.uses = { form: form(signupSchema, { values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }) }", "Signup.initialState = { form: { fields: {}, error: '', submitting: false, values: { addresses: [] } } }")
     const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': src }).filter(x => x.code === 'SYG111')
