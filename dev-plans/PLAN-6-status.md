@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 next.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 running: 1-0 scaffolding merged; 1-L, 1-A, 1-M in progress.
 
 ## Decisions
 
@@ -81,6 +81,10 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 0-S3 | WebMCP in a real browser (A-2, A-3) | ✅ done (spike, not merged) | `exp/p6-s3` (`db1d7e72`) | 2026-10-09 | chromium-1243 = Chrome 153.0.8010.12 with WebMCP built in; `--enable-features=WebMCP` (= `#enable-webmcp-testing`); `document.modelContext` only. Native: `registerTool(tool, { signal })` (Promise), `getTools()`/`executeTool(handle, json)`, `toolchange`; drops `consequentialHint`; enforces no schemas or budgets; declarative forms work. `@mcp-b/webmcp-polyfill@6.0.0` (exact pin, test-only) matches the draft with small differences. Todo round trip: native Chromium 20/20, polyfill Chromium/Firefox/WebKit 20/20; no-WebMCP no-op; Chromium suite 364/364 with the switch |
 | 0-S4 | Schemas: `input` / `output` contract | ✅ done (spike, not merged) | `exp/p6-s4` (`72219289`) | 2026-10-09 | Zod 4.6.5, Valibot 1.5.0 (+ to-json-schema 1.8.0, via `toStandardJsonSchema()`), ArkType 2.2.8 × 21 cases: always send the **input-side** JSON Schema. Portable normalization (all consumers) + opt-in strict layer (transports); 63/63 pass Ajv and round-trip. `{ value }` wrapping + lenient unwrap; `repair` (numeric/boolean strings): llama3.2 9/15 → 15/15; Ollama doesn't enforce schemas. Plain JSON Schema via `jsonSchema()` (validator 885 B, 126/126 vs Ajv). Type sketch checks keys and data types (10/10). Helpers 1,145 B + repair 439 B + strict 1,366 B gz, 0 core |
 | 0-S5 | Live examples for AI docs | ✅ done (spike, not merged) | `exp/p6-s5` (`04bf3ba7`) | 2026-10-09 | Live server streams (`{ sse }` / `{ stream }` routes as a real ReadableStream); live runtime provides `LLM` = the chat driver over the real `openResponses()` against the demo server. Spike page: streaming chat + Stop, stream-on-load, an `agent` tool call, `decide()`, scripted alternative. check-live: spike page 3/3 per engine; all 87 pages pass on Chromium/Firefox/WebKit; interaction script 8/8 × 3 runs × 3 engines. Stand-in `sygnal/ai` 2.7 KB gz |
+| 1-0 | `sygnal/ai` entry scaffolding, G-581 gate, runner launch args (G-583) | ✅ merged | `plan6-integration` (`c89e646a`) | 2026-10-09 | `src/extra/ai/` exported from the main index; `src/ai.ts` re-exports from external `sygnal` (dist/ai.esm.js is one line); `test/p6-ai-entry.test.js` (no subpath bundle carries the diagnostics module or reply helpers); Chromium launches with `--enable-features=WebMCP` (browser suite 364/364), `BROWSER_ARGS`, `BROWSER_TESTS_TIMEOUT_MS`; `messageText`; spike reports copied in. Size 42,690 B |
+| 1-L | L-1 chat driver + L-4 fake | 🔄 running | `p6-1l` | | |
+| 1-A | A-1 agent layer + schema contract + A-4 | 🔄 running | `p6-1a` | | |
+| 1-M | M-1 `decide()` + builders | 🔄 running | `p6-1m` | | |
 
 ## Gaps
 
@@ -88,7 +92,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 |---|---|---|---|
 | G-581 | 0-S1 | Bundling `replies.ts` into a subpath bundle brings a second diagnostics module that replaces `globalThis.__SYGNAL_DIAGNOSTICS__` and silences the app's dev checks (13 browser tests failed, suite hung). Fix: take internals from `sygnal`; gate: no subpath bundle contains a diagnostics copy | open (Phase 1) |
 | G-582 | 0-S1 | Per-frame coalescing doubles renders above 60 Hz (Firefox headless rAF is 120 Hz): cap at ≥ 15 ms | open (L-1) |
-| G-583 | 0-S1, 0-S3 | `browser-tests` runner: fixed 90 s limit (new suites push Chromium past it under load) and no way to pass launch args (`--enable-features=WebMCP`) | open (Phase 1) |
+| G-583 | 0-S1, 0-S3 | `browser-tests` runner: fixed 90 s limit (new suites push Chromium past it under load) and no way to pass launch args (`--enable-features=WebMCP`) | ✅ fixed in 1-0 (`BROWSER_TESTS_TIMEOUT_MS`, `BROWSER_ARGS`, WebMCP default) |
 | G-584 | 0-S1 | A chat request without an `error` action loses failures silently: log them | open (L-1) |
 | G-585 | 0-S1 | `t.fail` on such a request uses the HTTP fake's wording (points at `LLM.errors()`, which doesn't exist) | open (L-4) |
 | G-586 | 0-S1 | A chat request sent from outside a component is dropped with no diagnostic | open (L-1) |
@@ -128,3 +132,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — PLAN-6 approved; P6-Q1…Q7 accepted as recommended (D244–D250). `plan6-integration` cut. 0-A done. Spikes 0-S1…0-S5 started in parallel worktrees.
 - 2026-10-09 — Spikes 0-S1…0-S5 done (0 core bytes everywhere). G-581…G-616 recorded. Questions P6-Q8…Q32 (consolidated from the five reports) sent to the user; PLAN-6 edits wait for the answers.
 - 2026-10-09 — User accepted P6-Q8…Q32 (D251–D275). PLAN-6 §1–§6 updated with Phase 0's findings (L-1 location and coalescing, A-1 discovery/no-op/input contract, A-2/A-3 WebMCP facts, new DX-1, gates, SYG243/675/676).
+- 2026-10-09 — Phase 1 started. 1-0 scaffolding on `plan6-integration` (`c89e646a`): sygnal/ai entry, G-581 gate, runner args (G-583 fixed); Chromium suite 364/364 with WebMCP on. 1-L, 1-A, 1-M launched in parallel worktrees.
