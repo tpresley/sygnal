@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; 3-W2 merged; 3-A3, 3-E, 3-X, 3-F running.
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; 3-W2, 3-E merged; 3-A3, 3-X, 3-F running.
 
 ## Decisions
 
@@ -62,6 +62,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D287 | 2026-10-09 | Coordinator (DX-1): a demo that starts its assistant on load uses the canonical `BOOTSTRAP: { EFFECT: (state, data, next) => next('assistant.SEND', text) }`; `chat()` gets no first-prompt option (real apps rarely auto-send) |
 | D288 | 2026-10-09 | Coordinator (3-M): `commandBar` runs on the input's form submit and, optionally, on a click of a `run` selector (a Go button) |
 | D289 | 2026-10-09 | Coordinator (3-W2): `strict: true` without `strictSchemas` is SYG672 (the reserved "missing transport peer" code; SYG671 stays reserved); `anthropicMessages` runs `output` through Anthropic's subset only when `strict: strictSchemas` is passed |
+| D290 | 2026-10-09 | Coordinator (3-E): through the dev MCP endpoint a consequential agent tool asks in the page by default (`window.confirm`; the person at the dev server decides), configurable with `confirm` |
 
 ## 0-A baseline (2026-10-09)
 
@@ -106,6 +107,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 3-K | K-1 sygnal-check rules | ✅ merged | `p6-3k` (`482cdd61`) | 2026-10-09 | SYG102 counts `agent.actions` and LLM `delta`/`tool` keys (G-614); SYG150 (agent action without model entry), 151 (`agents`/`tools` → `agent`), 152 (LLM request without `ok`), 153 (bare WebMCP form attributes); static SYG240 (unwrapped Valibot, Zod Mini, raw JSON Schema) and SYG243 (`Date` input) (G-611); SYG440, SYG441; SYG730 (hover-only), SYG731 (class-only toggled state) in the a11y lane; `agent` in `--graph` / MCP `graph` (trigger `agent`). 0 new findings on examples, templates, docs samples (703 clean). sygnal-check 693/693 |
 | 3-M | M-2 `answers()` + M-3 `commandBar` | ✅ merged | `p6-3m` (`271b490d`) | 2026-10-09 | `answers(questions, picks)` typed decision replies (nimble's confidence formula) + `answers.openai()`; escalation pattern test. `commandBar({ input, decide, below, escalate, freeText? })`: one `decide()` call (action choice + `none`, target choice over live labelled keys; enum/boolean inputs as options), state = `{ command, app: read projections }`, A-1 `call()`, `unsure.reason` or escalate to `chat`; free text by heuristic (quoted part / command minus first word), else escalate. Shared `link.ts` (D283 layers) for chat + commandBar; SYG442 updated. Fixed: esbuild kept chat/decide in every app (module-level side effects) → marked pure + tree-shake test. Ollama 22/22 incl. commandBar + nimble 8/8 (≈ 700 ms cold). commandBar ≈ 9.3 KB gz with deps (+2.4 KB over chat); answers 1.1 KB |
 | 3-W2 | L-2 wave 2, D285, G-629 | ✅ merged | `p6-3w2` (`d03cd69b`) | 2026-10-09 | `anthropicMessages` (text/thinking/tools, server tools as `executed`, `output_config.format` checked vs `@anthropic-ai/sdk` 0.131.0, `serverTools`, signed thinking round-trip via driver `providerMetadata`, strict subset with per-request limits → SYG675), `agui` (state → `data-agui-state` with JSON Patch, messages/activity parts; checked vs `@ag-ui/core` 1.0.2), `fromAISDK` (v7 `result.stream`, user passes `streamText`). D285: `strictSchemas`, `strict: true` → type error + SYG672 (D289). G-629: one map-aware walker. Bytes over driver (no strict / with): openResponses 2,324 / 3,295; chatCompletions 2,356 / 3,331; anthropicMessages 2,855 / 3,842; agui 2,859; fromAISDK 1,159. Ollama `test:ai-local` 30/30 (incl. anthropicMessages ×2 models) |
+| 3-E | E-1 dev MCP endpoint | ✅ merged | `p6-3e` (`82447dfb`) | 2026-10-09 | `sygnal({ mcp: true })`: `/__sygnal/mcp` (hand-written, no dependency; streamable HTTP JSON replies; protocol 2025-11-25 … 2024-11-05, the newest from knowledge, not checked online). Tools: get_state, dispatch (cause 'agent'), component_tree, recent_actions, get_diagnostics, copy_as_test, agent_tools, tabs, + sygnal-check check/graph/explain. Bridge over the HMR socket (`virtual:sygnal/mcp`, `installMcpBridge` in dev-only `sygnal/devtools`), 10 s timeout (5 min while a confirm is open), most recent tab by default. Security: loopback peer, local `Host` (or `allowedHosts`), local `Origin`; never in build/preview/Vitest (e2e checks the build output). Docs: `integration/agents.md`, `bundler-config.md`. 14 + 7 + 7 (e2e, Vite 8 + Chromium, ≈ 1 s) tests |
 
 ## Gaps
 
@@ -168,6 +170,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-635 | 3-W2 | Without `strictSchemas`, Claude may reject an `output` schema with keywords outside its subset (400) | open (docs; consider a light always-on filter) |
 | G-636 | 3-W2 | Anthropic's strict-tool limits (20 tools, 24 optional, 16 union params) are from docs only, not verified live | open (verify with a key) |
 | G-637 | 3-W2 | `fromAISDK` ignores a request's `model` string; `agui` has no live-server test | open |
+| G-638 | 3-E | Dev MCP: only the page's first `run()` app is served; JSON replies only (no SSE/sessions); e2e on Chromium only; `plugin.d.ts`'s `devtools?: boolean` omits the `{ redux }` form; MCP protocol revision not verified online | open |
 
 ## Log
 
@@ -184,3 +187,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 3-K merged (clean). G-611, G-614 fixed; G-632, G-633 opened.
 - 2026-10-09 — 3-M merged (clean). vitest 4,102; sygnal-check 696/696; size 42,690 B. D288; G-634. Started 3-A3 (A-3), 3-E (E-1), 3-X (X-1), 3-F (follow-ups G-625, G-626, G-627, G-628, G-631, D288, G-623, G-624, G-633).
 - 2026-10-09 — 3-W2 merged (shared-export conflicts resolved). vitest 4,143 passed; sygnal-check 697/697; size 42,690 B; errors doc current. D289; G-635…G-637.
+- 2026-10-09 — 3-E merged (clean). D290; G-638.
