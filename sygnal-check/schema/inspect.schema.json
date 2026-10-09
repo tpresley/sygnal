@@ -95,7 +95,36 @@
           "type": "array",
           "items": { "$ref": "#/$defs/timer" }
         },
+        "agent": {
+          "description": "static: the component's `agent` declaration (sygnal/ai); omitted when it has none",
+          "$ref": "#/$defs/agent"
+        },
         "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "required": ["name", "tools", "description", "read", "actions"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": ["string", "null"], "description": "the literal agent.name; null when absent or not a literal" },
+        "tools": { "type": ["string", "null"], "description": "the tool-name prefix (agent.name, else the component name, snake_case); null when not static" },
+        "description": { "type": ["string", "null"] },
+        "read": { "type": "boolean", "description": "the declaration has a read projection" },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "consequential", "input"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "consequential": { "type": "boolean", "description": "consequential: true (the user confirms each call)" },
+              "input": { "type": "boolean", "description": "the action takes input (has an input schema)" }
+            }
+          }
+        },
+        "partial": { "const": true, "description": "the declaration or its actions have spreads: what is listed may be incomplete" }
       }
     },
     "command": {
@@ -129,7 +158,7 @@
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string" },
-        "trigger": { "enum": ["intent", "next", "reply", "builtin", "unknown"] },
+        "trigger": { "enum": ["intent", "next", "reply", "builtin", "agent", "unknown"], "description": "agent: only an agent declaration (sygnal/ai) dispatches it (static)" },
         "sinks": { "$ref": "#/$defs/strings" },
         "behavior": { "type": "string", "description": "the `uses` key of the behavior that owns this action ('pager' for 'pager.NEXT')" }
       }

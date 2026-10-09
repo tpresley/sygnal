@@ -11,6 +11,7 @@
  *     selectors .add-lane-btn [click] ✓
  *     commands  OPEN_HELP → showModal HelpDialog
  *     timers    tick every 100 ms → TICK
+ *     agent     todos (read): ADD (input), CLEAR_DONE (consequential)
  *     ! SYG110 …
  *   EVENTS
  *     DELETE_LANE  LaneComponent → RootComponent
@@ -52,6 +53,10 @@ export function formatGraph(g, { verbose = false } = {}) {
     row('selectors', list(c.selectors.map(selectorText)))
     row('commands', list((c.commands || []).map(x => `${x.action} → ${x.method} ${x.target ?? '?'}${x.triggers ? ` (→ ${x.triggers.join(', ')})` : ''}`)))
     row('timers', list((c.timers || []).map(timerText)))
+    if (c.agent) {
+      const acts = list(c.agent.actions.map(a => `${a.name}${a.input || a.consequential ? ` (${[a.input && 'input', a.consequential && 'consequential'].filter(Boolean).join(', ')})` : ''}`))
+      row('agent', `${c.agent.tools ?? '?'}${c.agent.read ? ' (read)' : ''}${acts ? ': ' + acts : ''}${c.agent.partial ? ' …' : ''}`)
+    }
     for (const d of c.diagnostics.filter(shown)) out.push(`  ! ${d.code}${d.severity === 'warn' ? '' : ` [${d.severity}]`} ${d.message}`)
   }
   const types = Object.keys(g.events)

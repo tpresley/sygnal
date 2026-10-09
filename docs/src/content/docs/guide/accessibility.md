@@ -3,7 +3,7 @@ title: Accessibility
 description: The SYG7xx accessibility checks in sygnal-check and the Vite dev checker
 ---
 
-`sygnal-check` has an accessibility lane, SYG701 to SYG708 and SYG722. It finds the markup mistakes that lock keyboard and screen-reader users out without any visible sign: a clickable `<div>`, a field without a label, an icon button with no name. Like the other checks, it reads your source, so it works the same in the editor, in CI and in the dev server.
+`sygnal-check` has an accessibility lane, SYG701 to SYG708, SYG722, SYG730 and SYG731. It finds the markup mistakes that lock keyboard and screen-reader users out without any visible sign: a clickable `<div>`, a field without a label, an icon button with no name. Like the other checks, it reads your source, so it works the same in the editor, in CI and in the dev server.
 
 ## Severity
 
@@ -214,6 +214,59 @@ Sizes.initialState = { size: null }
 Sizes.intent = ({ DOM }) => ({ SIZE: DOM.select('.size').events('value-change').detail() })
 Sizes.model = { SIZE: (state, size) => ({ ...state, size }) }
 ```
+
+### SYG730: action reachable only by hovering
+
+An intent action comes only from `mouseenter` or `mouseover` (also `pointerenter` / `pointerover`), nothing else sends it, and it changes the state. Keyboard users never hover, and touch screens hover only on a tap, so a tooltip, preview or menu shown this way is out of their reach. Trigger it from focus too, and close it on blur as on mouse leave:
+
+```jsx
+import xs from 'xstream'
+
+// Flagged: SHOW: DOM.mouseenter('.info'), with nothing else sending SHOW
+
+function Shipping({ state, uid }) {
+  return (
+    <p>
+      <button type="button" className="info" aria-describedby={uid('tip')}>Shipping</button>
+      {state.open && <span role="tooltip" id={uid('tip')}>Free over $50</span>}
+    </p>
+  )
+}
+
+Shipping.initialState = { open: false }
+Shipping.intent = ({ DOM }) => ({
+  SHOW: xs.merge(DOM.mouseenter('.info'), DOM.focusin('.info')),
+  HIDE: xs.merge(DOM.mouseleave('.info'), DOM.focusout('.info')),
+})
+Shipping.model = {
+  SHOW: (state) => ({ ...state, open: true }),
+  HIDE: (state) => ({ ...state, open: false }),
+}
+```
+
+For a tooltip, [`tooltip()`](/ui/tooltip/) handles hover, focus and Escape for you. A hover listener whose entry changes no state (a prefetch) isn't reported.
+
+### SYG731: toggled state shown only by a class
+
+A clicked element shows its on/off or selected state only through a class (`className={{ on: state.starred }}`), while the click's reducer flips that field (`starred: !state.starred`) or, for a comparison such as `state.filter === 'done'`, sets it. Sighted users see the change; a screen reader announces a plain button. Expose the state with the same condition:
+
+```jsx
+// Flagged: <button className={{ star: true, on: state.starred }}> without aria-pressed
+
+function Star({ state }) {
+  return (
+    <button type="button" className={{ star: true, on: state.starred }} aria-pressed={state.starred}>
+      Favorite
+    </button>
+  )
+}
+
+Star.initialState = { starred: false }
+Star.intent = ({ DOM }) => ({ STAR: DOM.click('.star') })
+Star.model = { STAR: (state) => ({ ...state, starred: !state.starred }) }
+```
+
+Use `aria-selected` for a tab, `aria-expanded` for a disclosure, `aria-checked` with `role="switch"`, and `aria-current="page"` for the current link. Native controls that carry their own state (a checkbox, `select`, `details`) aren't reported, and neither is a busy class (`{ saving: state.saving }`) that the click sets rather than toggles.
 
 ## ARIA values in JSX
 

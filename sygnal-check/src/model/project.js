@@ -30,6 +30,7 @@
  *     viewInfo: Sink | null            (model/view.js: classes, ids, children, collections)
  *     uses: UsesInfo | null            (model/behaviors.js: the `uses` static, resolved)
  *     behaviorSelectors: Selector[]    what its behaviors listen to through their options
+ *     agent: AgentInfo | null          (model/agent.js: the `agent` static, PLAN-6 K-1)
  *   }
  *
  * The structure is plain data plus AST node references so later work (the
@@ -49,12 +50,14 @@ import { scanFileEvents } from './events.js'
 import { resolveSelectorControls } from './controls.js'
 import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
+import { analyzeAgent } from './agent.js'
 
 const BROWSER_KEYS = ['action', 'error']
 import { analyzeCommands } from './elementCommands.js'
 
 // isolatedState: PLAN-4 4-G2 (static SYG405)
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser']
+// agent: PLAN-6 K-1 (model/agent.js)
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -261,6 +264,8 @@ export class Project {
     comp.uses = undefined
     analyzeUses(this, comp)
     comp.behaviorSelectors = (comp.uses?.entries || []).flatMap(e => e.selectors)
+    // PLAN-6 K-1: the `agent` static (its actions are triggers: SYG102; SYG150, SYG440, ...)
+    comp.agent = sp.agent ? analyzeAgent(this, file, sp.agent) : null
   }
 
   /** Scan the given files and build the full model. */

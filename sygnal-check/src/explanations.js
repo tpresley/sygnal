@@ -39,7 +39,7 @@ export const EXPLANATIONS = {
     title: "Model entry is unreachable",
     severity: "info",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info; it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches, and those a behavior's `timers` names. A behavior's own actions (`'tip.SHOW'`: its timers, `next()` calls or replies may trigger them) are not reported; the static checker follows `uses` through factory functions that pass their options on (`(opts) => tooltip(opts)`).",
+    explanation: "A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info; it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches, and those a behavior's `timers` names. A behavior's own actions (`'tip.SHOW'`: its timers, `next()` calls or replies may trigger them) are not reported; the static checker follows `uses` through factory functions that pass their options on (`(opts) => tooltip(opts)`). An `agent.actions` key (sygnal/ai: agents dispatch it) is a trigger too, and so are the `delta` and `tool` reply actions of an LLM request (`{ messages, delta: 'DELTA', tool: 'TOOL', ok: 'DONE' }`); the static checker follows a request a local helper builds (`LLM: (state) => ask(state.messages)`).",
     fix: "Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.",
   },
   SYG103: {
@@ -244,6 +244,34 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry"],
     explanation: "After a render, two rendered elements on the page (not in a `display: none` subtree, such as a hidden tab panel: the browser doesn't capture those) have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is mounted, and reports each name once.",
     fix: "Give Collections that can show the same item at the same time different prefixes (`viewTransitionName=\"all\"` and `viewTransitionName=\"fav\"`), or set the item's own `style={{ viewTransitionName }}` where it needs one.",
+  },
+  SYG150: {
+    title: "Agent action has no model entry",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A component's `agent` declaration (sygnal/ai) lists an action under `actions` that the component's `model` has no entry for (and no behavior of its `uses` owns). The agent layer offers it as a tool, and every call dispatches an action nothing handles, so the call fails with \"changed nothing\" and the model retries or gives up. Usually a typo, or an entry renamed on one side only. sygnal-check reports it when the declaration and the model are object literals it can read (no spreads), and suggests the closest model entry. TypeScript catches it only when every key is wrong.",
+    fix: "Rename the key to the model entry it means (`actions: { ADD: { description: 'Add a todo', input } }` for `model.ADD`), or add the model entry: `TodoApp.model = { ..., ADD: (state, text) => ({ ...state, todos: [...state.todos, { id: state.nextId, text }] }) }`.",
+  },
+  SYG151: {
+    title: "Misspelled agent static",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A component has a static named like the agent declaration but spelled differently: `agents`, `tools`, `Agent`, `tool`. The agent layer (the chat behavior, WebMCP, the command bar, `t.tools()`) reads only `Component.agent`, so the component offers no tools and its `read` projection never reaches the model, without any error. Reported on a component (a function with other Sygnal statics) or on an object with `actions` or `read`.",
+    fix: "Rename the static: `TodoApp.agent = { name: 'todos', description: 'The todo list', read: (state) => ({ todos: state.todos }), actions: { ADD: { description: 'Add a todo', input: z.string() } } }`.",
+  },
+  SYG152: {
+    title: "LLM request without an ok action",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A model sends an LLM request (an object with `messages`, sent to the chat driver of sygnal/ai) that names no `ok` reply action. The driver delivers the finished reply (the assistant `message`, its `text`, `toolCalls`, `finishReason` and `usage`) only as the `ok` action, so the reply is lost: a `delta` action shows the text while it streams, but the final message never reaches the state and the status never leaves streaming. sygnal-check follows requests that local helpers build; a request with a spread (`{ ...base, messages }`) is not reported, since the spread may name `ok`.",
+    fix: "Name the actions the reply arrives as, and handle them: `LLM: (state) => ({ messages: state.messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' })` with `DONE: (state, { message }) => ({ ...state, messages: [...state.messages, message], draft: '' })`. For a whole conversation with tools, the `chat` behavior does this for you.",
+  },
+  SYG153: {
+    title: "WebMCP form attribute set as a DOM property",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has `toolparamdescription`) written as a plain JSX attribute. WebMCP's declarative API reads these as HTML attributes, but Sygnal's JSX pragma turns an attribute it doesn't know into a DOM property (`form.toolname = ...`), which the browser ignores: the form is never offered to the browser's agent, and nothing reports it at run time (D269).",
+    fix: "Write them as attributes: `<form attrs-toolname=\"sign_up\" attrs-tooldescription=\"Create an account\">` and `<input name=\"email\" attrs-toolparamdescription=\"The email to sign up with\" />` (or `attrs={{ toolname: 'sign_up' }}`).",
   },
   SYG201: {
     title: "STATE reducer dropped keys from the previous state",
@@ -465,8 +493,8 @@ export const EXPLANATIONS = {
   SYG240: {
     title: "Agent action input has no JSON Schema form",
     severity: "error",
-    reportedBy: ["runtime"],
-    explanation: "An `agent.actions` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`.",
+    reportedBy: ["runtime", "static"],
+    explanation: "An `agent.actions` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`. sygnal-check reports the cases it can see in the source before the app runs: a Valibot schema without `toStandardJsonSchema()`, a Zod Mini schema (`zod/mini`), and a JSON Schema object literal not wrapped with `jsonSchema()`.",
     fix: "Use a supported schema: `input: z.string().min(1)`, `input: toStandardJsonSchema(v.picklist(['all', 'done']))`, or `input: jsonSchema({ type: 'integer' })`. For Zod Mini keep its validation with `jsonSchema(z.toJSONSchema(s), { validate: s })`. A `Date` can't come from JSON: use `z.iso.datetime()` or `z.coerce.date()`.",
   },
   SYG241: {
@@ -486,9 +514,9 @@ export const EXPLANATIONS = {
   SYG243: {
     title: "Agent action input schema converted with losses",
     severity: "warn",
-    reportedBy: ["runtime"],
-    explanation: "Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action.",
-    fix: "Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement.",
+    reportedBy: ["runtime", "static"],
+    explanation: "Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action. sygnal-check reports a `Date` in an `input` before the app runs (`z.date()`, `z.coerce.date()`, Valibot `v.date()`, ArkType `'Date'`): JSON can't carry a Date, so the model gets no schema for that field and the string it sends fails validation.",
+    fix: "Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement. For a date, take an ISO string and convert it in the reducer: `z.iso.datetime()` (Zod), `v.pipe(v.string(), v.isoDateTime())` (Valibot), `'string.date.iso'` (ArkType).",
   },
   SYG244: {
     title: "Agent read returns strings, untrusted not declared",
@@ -724,15 +752,15 @@ export const EXPLANATIONS = {
   SYG440: {
     title: "Two agent declarations with the same name",
     severity: "warn",
-    reportedBy: ["runtime"],
-    explanation: "Agent tools are named after the declaration (`agent.name`, else the component name): `todos_read`, `todos_add`. Two shown instances with different declarations, or the same non-item component rendered twice, produce the same tool names, so only the first one's tools are offered and the other can't be reached. (Collection items of one component are one keyed tool and are not reported.) Reported once per name while an agent layer runs.",
+    reportedBy: ["runtime", "static"],
+    explanation: "Agent tools are named after the declaration (`agent.name`, else the component name): `todos_read`, `todos_add`. Two shown instances with different declarations, or the same non-item component rendered twice, produce the same tool names, so only the first one's tools are offered and the other can't be reached. (Collection items of one component are one keyed tool and are not reported.) Reported once per name while an agent layer runs. sygnal-check reports two declarations with the same literal name (or none, so the component names collide) when one component renders both, directly or through its children.",
     fix: "Give each declaration its own `agent.name` (for a component rendered twice, derive it from a prop: `Panel.agent = { name: 'left_panel', ... }` on a wrapper per place), or narrow the layer with `agentTools(app, { from })`.",
   },
   SYG441: {
     title: "Agent Collection items without unique ids",
     severity: "warn",
-    reportedBy: ["runtime"],
-    explanation: "A Collection item component's `agent` actions become one tool with an `id` parameter whose values are the items' ids. Items without an `id` are keyed by their index, which shifts when an item is added or removed, so a model's call can reach the wrong item. Items whose ids repeat across Collections of the same item component (the same card id in two board lanes) are ambiguous: the call reaches the first. Reported once per declaration while an agent layer runs.",
+    reportedBy: ["runtime", "static"],
+    explanation: "A Collection item component's `agent` actions become one tool with an `id` parameter whose values are the items' ids. Items without an `id` are keyed by their index, which shifts when an item is added or removed, so a model's call can reach the wrong item. Items whose ids repeat across Collections of the same item component (the same card id in two board lanes) are ambiguous: the call reaches the first. Reported once per declaration while an agent layer runs. sygnal-check reports an item component with an `agent` whose items visibly lack an id: an object literal without `id` in the parent's `initialState` array the Collection renders, or appended to it by the parent's model (`[...state.todos, { text }]`). The same id in two Collections depends on the data and is reported at run time only.",
     fix: "Give every item an `id` that is unique across all the Collections of that item component (`{ id: 'todo-1', ... }`), or add an owner-level action that takes the qualified key (`MOVE_CARD: { input: z.object({ lane, card }) }`).",
   },
   SYG442: {
@@ -1168,6 +1196,20 @@ export const EXPLANATIONS = {
     reportedBy: ["static"],
     explanation: "A `sortable` use whose keyboard path or announcements can't work. Keyboard moves start on the handle (the item when there is no `handle` option): sygnal-check finds the elements that match it in the host's view and the views it renders (Collection items, children) and reports one that can't take focus (not a button, field, link with `href` or `summary`, no `tabIndex` or `tabIndex={-1}`, not contenteditable), or a focusable one other than a `<button>` (SYG705 covers those) with no `aria-label` / `aria-labelledby` / `title` and no content. It also reports a host that renders no live region (an element with `aria-live`, or `role=\"status\"`, `\"alert\"` or `\"log\"`) in those views, since the pick-up, move and drop announcements are `state.<key>.message`. Options that aren't literal strings, selectors beyond tag / `.class` / `#id` (or the default `[data-id]`), elements with spread props and views it can't follow are skipped. It is a warning, also under `--strict`; `--a11y=error` makes it an error.",
     fix: "Render the handle as `<button type=\"button\" className=\"grip\" aria-label={'Reorder ' + state.title} aria-describedby={context.sort.helpId}>`, and the message in a live region: `<p role=\"status\" aria-live=\"assertive\">{state.sort.message}</p>`. An app-wide announcer elsewhere: `// sygnal-ignore SYG724`.",
+  },
+  SYG730: {
+    title: "Action reachable only by hovering",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "An intent action's stream comes only from `mouseenter` / `mouseover` (or `pointerenter` / `pointerover`) listeners, nothing else triggers it (no other DOM event in that stream, no `next()`, reply action, connection, timer or behavior), and its model entry changes the state. Keyboard users never hover and touch screens hover only on a tap, so what it shows (a tooltip, a preview, a menu) or does can't be reached by them. An `agent` declaration doesn't count as a path: it serves agents, not people. Only streams the checker can see in full are judged (DOM listeners with literal event names, xstream operators, callbacks); an entry without a STATE sink (a prefetch on hover) is not reported. It is a warning, also under `--strict`; `--a11y=error` makes it an error.",
+    fix: "Trigger the action from focus too, and close it on blur and Escape as on mouse leave: `SHOW: xs.merge(DOM.mouseenter('.card'), DOM.focusin('.card'))`, `HIDE: xs.merge(DOM.mouseleave('.card'), DOM.focusout('.card'))`; give the element a way to take focus (a `<button>`). For a tooltip, `tooltip()` from `sygnal/ui` handles hover, focus and Escape.",
+  },
+  SYG731: {
+    title: "Toggled state shown only by a class",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "An element that a click listener targets shows an on/off or selected state only through a class that follows the state (`className={{ done: state.done }}`, `className={state.filter === 'done' ? 'selected' : ''}`), while the click's own STATE reducer flips that field (`done: !state.done`) or, for an equality, writes it (`filter: 'done'`). Sighted users see the change; a screen reader announces a plain button. To keep false positives low the class must follow a field the reducer toggles or selects (a busy class such as `{ saving: state.saving }` on a Save button is not reported), and elements that carry state natively (checkbox / radio inputs, `select`, `option`, `details` / `summary`, `label`) or already have `aria-pressed`, `aria-checked`, `aria-expanded`, `aria-selected` or `aria-current` are fine. It is a warning, also under `--strict`; `--a11y=error` makes it an error.",
+    fix: "Expose the state with the same condition as the class: `<button className={{ done: state.done }} aria-pressed={state.done}>`; `aria-selected` for a tab or listbox option, `aria-expanded` for a disclosure, `aria-checked` with `role=\"switch\"`, `aria-current=\"page\"` for the current link. Or use a native `<input type=\"checkbox\">` with a label.",
   },
   SYG900: {
     title: "A diagnostics check threw",

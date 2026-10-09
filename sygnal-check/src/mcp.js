@@ -45,7 +45,7 @@ export const TOOLS = [
   {
     name: 'graph',
     title: 'Sygnal app graph',
-    description: "The app's structure as one JSON graph (the same shape as the runtime inspect()): components with their actions (and what triggers them), state keys, context provided/read, EVENTS emitted/selected, child components (tag/Collection/Switchable/slot), intent DOM selectors (matched in the view, or hidden inside a child), and the diagnostics attached to each component.",
+    description: "The app's structure as one JSON graph (the same shape as the runtime inspect()): components with their actions (and what triggers them), state keys, context provided/read, EVENTS emitted/selected, child components (tag/Collection/Switchable/slot), intent DOM selectors (matched in the view, or hidden inside a child), the `agent` declaration (sygnal/ai: tool-name prefix, actions, consequential, input) where there is one, and the diagnostics attached to each component.",
     inputSchema: { type: 'object', properties: { paths: pathsSchema, strict: strictSchema, a11y: a11ySchema }, additionalProperties: false },
   },
   {

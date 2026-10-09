@@ -170,6 +170,11 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 3-F G-419: a Collection's viewTransitionName (checks/next.ts)
   SYG148: 'Collection viewTransitionName is not a CSS identifier',
   SYG149: 'Two items with the same view-transition name',
+  // PLAN-6 K-1: static only (sygnal-check rules/syg150-agent.js, syg152, syg153)
+  SYG150: 'Agent action has no model entry',
+  SYG151: 'Misspelled agent static',
+  SYG152: 'LLM request without an ok action',
+  SYG153: 'WebMCP form attribute set as a DOM property',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
@@ -339,6 +344,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG722: 'Menu, Select or Combobox without an accessible name',
   // PLAN-5 B-1 (3-D): static only (sygnal-check)
   SYG724: 'Sortable handle not keyboard-accessible, or no live region',
+  // PLAN-6 K-1: static only (sygnal-check rules/a11y/syg730-hover-only.js, syg731-toggle-state.js)
+  SYG730: 'Action reachable only by hovering',
+  SYG731: 'Toggled state shown only by a class',
   SYG901: "Retired in 6.0: Sub-component sink stream errored",
   SYG902: "Retired in 6.0: EFFECT stream errored",
   SYG903: "Retired in 6.0: Component factory returned invalid sinks",
@@ -499,6 +507,13 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG722: 'warn',
   // PLAN-5 B-1 (3-D): static only (sygnal-check)
   SYG724: 'warn',
+  // PLAN-6 K-1: static only (sygnal-check); listed so the entry knows their titles
+  SYG150: 'warn',
+  SYG151: 'warn',
+  SYG152: 'warn',
+  SYG153: 'warn',
+  SYG730: 'warn',
+  SYG731: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {
