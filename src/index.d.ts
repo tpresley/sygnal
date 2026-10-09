@@ -3716,3 +3716,6 @@ export { makeChatDriver, outputJsonSchema } from './ai.d'
 export { experimentalExposeWebMcp } from './ai.d'
 export type { ExposeWebMcpOptions, WebMcpHandle } from './ai.d'
 export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatCall, ChatEvent, ChatTransport, ChatDriverOptions, ChatSource, ChatTool, ChatOutputSchema, ChatOutputOf } from './ai.d'
+// PLAN-6 L-3 (2-C)
+export { chat } from './ai.d'
+export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from './ai.d'

@@ -181,6 +181,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'Two agent declarations with the same name',
   SYG441: 'Agent Collection items without unique ids',
+  // PLAN-6 L-3 (src/extra/ai/chat/behavior.ts; legacy error(): prints even when diagnostics are off)
+  SYG442: 'Chat behavior not connected to its app',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -479,6 +481,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'warn',
   SYG441: 'warn',
+  SYG442: 'error',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',

@@ -9,3 +9,5 @@ export {agentTools, toJsonSchema, parseInput, jsonSchema} from './index'
 export {makeChatDriver, outputJsonSchema} from './index'
 // A-2 (2-W)
 export {experimentalExposeWebMcp} from './index'
+// L-3 (2-C)
+export {chat} from './index'

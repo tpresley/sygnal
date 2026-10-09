@@ -19,3 +19,5 @@ export {makeChatDriver} from './chat/driver'
 export {outputJsonSchema} from './chat/output'
 // A-2 (2-W): WebMCP (experimental, D241)
 export {experimentalExposeWebMcp} from './webmcp'
+// L-3 (2-C): the chat behavior
+export {chat} from './chat/behavior'

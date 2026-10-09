@@ -109,6 +109,18 @@ export const FIRST_PARTY = {
     options: ['key', 'limit', 'track', 'coalesce', 'coalesceMs', 'resetOn', 'undo', 'redo'],
     listens: [['undo', 'UNDO'], ['redo', 'REDO']],
   },
+  // PLAN-6 L-3: chat(options) from 'sygnal/ai' (src/extra/ai/chat/behavior.ts). Its selectors are
+  // the host's (the panel markup is part of the host's view, often a helper function it calls).
+  // The chat driver's replies (DELTA, REPLY, FAILED), the tool loop (RESULTS, ASK) and DONE come
+  // from outside its intent; a host entry 'assistant.DONE' extends DONE
+  chat: {
+    stateKeys: ['messages', 'prompt', 'draft', 'status', 'pending', 'error'],
+    calculated: [],
+    model: ['PROMPT', 'SEND', 'STOP', 'REGENERATE', 'APPROVE', 'DENY', 'DONE', 'DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK'],
+    options: ['sink', 'form', 'prompt', 'stop', 'approve', 'deny', 'regenerate', 'instructions', 'model', 'agent', 'maxSteps', 'transportOptions'],
+    listens: [['form', 'SEND', 'select'], ['prompt', 'PROMPT', 'select'], ['stop', 'STOP'], ['approve', 'APPROVE'], ['deny', 'DENY'], ['regenerate', 'REGENERATE']],
+    intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE'],
+  },
   // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
   // element events of a required option, its timers' actions)
   dialog: {

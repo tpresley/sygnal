@@ -1,5 +1,5 @@
 // Types for 'sygnal/ai' (PLAN-6). The implementation lives in src/extra/ai/ (D253).
-import type { FetchRequest } from 'sygnal'
+import type { FetchRequest, Behavior, BehaviorTarget } from 'sygnal'
 import type { Stream } from 'xstream'
 
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
@@ -549,3 +549,93 @@ export type WebMcpHandle = (() => void) & { readonly available: boolean }
  * budgets. A no-op where WebMCP is missing.
  */
 export function experimentalExposeWebMcp(app: unknown, options?: ExposeWebMcpOptions): WebMcpHandle
+// ---- L-3: the chat behavior (2-C) -----------------------------------------------------------
+
+/** 'ready' | 'submitted' (sent, nothing received yet) | 'streaming' (receiving, or running tools) | 'error' (the AI SDK's names) */
+export type ChatStatus = 'ready' | 'submitted' | 'streaming' | 'error'
+
+/** The chat behavior's slice: `state.assistant` for `uses = { assistant: chat(...) }` */
+export interface ChatState {
+  /** The conversation: the user's messages and the model's replies, with their `tool-<name>` parts */
+  messages: Message[]
+  /** The prompt field's value */
+  prompt: string
+  /** The text of the reply being streamed ('' otherwise) */
+  draft: string
+  status: ChatStatus
+  /** A consequential tool call waiting for APPROVE / DENY, else null */
+  pending: AgentConfirmInfo | null
+  /** The last failure's message, else null */
+  error: string | null
+}
+
+/** `DONE` action data: the turn is over */
+export interface ChatDone {
+  /** The last reply */
+  message: Message
+  text: string
+  finishReason: string
+  usage?: unknown
+  /** Requests sent in the turn (at most `maxSteps`) */
+  steps: number
+}
+
+/** The chat behavior's actions, as `'<key>.<ACTION>'` on the host */
+export interface ChatActions {
+  /** Send the prompt (the form's submit), or the text given as data */
+  SEND: string | { text: string } | Event | undefined
+  /** Abort the reply being streamed (its text so far is kept) and decline a waiting call */
+  STOP: any
+  /** Send the last user message again, dropping the replies after it */
+  REGENERATE: any
+  /** Run the pending consequential call */
+  APPROVE: any
+  /** Decline the pending consequential call (the model is told the user declined) */
+  DENY: any
+  /** The turn is over (a host entry `'assistant.DONE'` runs after the behavior's) */
+  DONE: ChatDone
+  /** Internal: the prompt field's input */
+  PROMPT: string
+}
+
+export interface ChatOptions {
+  /** The chat driver's sink (default 'LLM') */
+  sink?: string
+  /** The form element whose submit sends the prompt */
+  form?: BehaviorTarget
+  /** The prompt field (its input events set `prompt`) */
+  prompt?: BehaviorTarget
+  /** Its clicks STOP */
+  stop?: BehaviorTarget
+  /** Its clicks APPROVE the pending call */
+  approve?: BehaviorTarget
+  /** Its clicks DENY the pending call */
+  deny?: BehaviorTarget
+  /** Its clicks REGENERATE */
+  regenerate?: BehaviorTarget
+  /** System instructions; the tools' `read` projections are appended as JSON on every request */
+  instructions?: string
+  /** A model id for the requests (overrides the transport's) */
+  model?: string
+  /**
+   * Whose `agent` declarations become tools: by default the host's and its shown descendants'
+   * (D249); `false`: none; `[Comp, …]`: only these components' (in the host's subtree)
+   */
+  agent?: false | Function[]
+  /** The most requests per turn (default 8): the tool calls of a reply past it are not run */
+  maxSteps?: number
+  /** Extra request keys for the transport */
+  transportOptions?: Record<string, unknown>
+}
+
+/**
+ * PLAN-6 L-3: an in-app assistant as a behavior. `uses = { assistant: chat({ form: '.ask',
+ * prompt: '.prompt', stop: '.stop', approve: '.approve', deny: '.deny', instructions }) }` gives
+ * `state.assistant` (ChatState) and the actions 'assistant.SEND', 'assistant.STOP',
+ * 'assistant.REGENERATE', 'assistant.APPROVE', 'assistant.DENY' and 'assistant.DONE'. It sends
+ * requests to the chat driver (`sink`), runs the model's tool calls on the host's `agent` tools
+ * (and its descendants') through the agent layer (validation, no-op detection, cause 'agent'),
+ * asks before consequential ones (`pending`), and loops until a reply without tool calls or
+ * `maxSteps`. Its selectors are the host's own: render the markup in the host's view.
+ */
+export function chat(options?: ChatOptions): Behavior<ChatState, ChatActions, {}, ChatOptions>
