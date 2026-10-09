@@ -11,8 +11,8 @@
 experimental and outside semver). `sygnal-check` and `create-sygnal-app` get minor releases
 with it. P6-Q1.
 
-**Status:** plan only. Execution starts when the user approves this plan and answers the §5
-questions. Phase 0 cuts `plan6-integration` from `main` and creates `dev-plans/PLAN-6-status.md`
+**Status:** plan only; the §5 questions are answered (D244–D250, 2026-10-09). Execution starts
+when the user says go. Phase 0 cuts `plan6-integration` from `main` and creates `dev-plans/PLAN-6-status.md`
 in the PLAN-5 format.
 
 **Branches:**
@@ -24,7 +24,7 @@ in the PLAN-5 format.
 - items L- (LLM chat), M- (decision models), A- (agents), K- (checker), E- (dev endpoint),
   X- (MCP Apps);
 - questions P6-Q1…;
-- decisions and gaps continue the global numbering: **D240…** and **G-581…**.
+- decisions and gaps continue the global numbering: **D240…** (D240–D250 taken by this plan) and **G-581…**.
 
 **Inputs:**
 - The research: [`research/llm-integration.md`](research/llm-integration.md) (the API
@@ -297,7 +297,7 @@ returns the A-1 result. `t.agentContext()` returns the `read` projections.
 
 | Phase | Work | Detail |
 |---|---|---|
-| **0: Setup** (coordinator; spikes by subagents on `exp/p6-*`) | **0-A** baseline | Cut `plan6-integration` from `main`. Create `PLAN-6-status.md` and record D240–D243, the budgets above and the §4 reservations (checked against `codes.ts`). Answer P6-Q1…Q7. Re-run experiments 1, 4 and 5 on the current build. Estimate the eval spend for the user. |
+| **0: Setup** (coordinator; spikes by subagents on `exp/p6-*`) | **0-A** baseline | Cut `plan6-integration` from `main`. Create `PLAN-6-status.md` and record D240–D243, the budgets above and the §4 reservations (checked against `codes.ts`). Record D244–D250 (P6-Q1…Q7). Re-run experiments 1, 4 and 5 on the current build. Estimate the eval spend for the user. |
 | | **0-S1** streaming in the core | The prototype driver on the real reply machinery (`replies.ts`), under `run()` and `renderComponent`, in Chromium/Firefox/WebKit. Check: frame coalescing under a real rAF, dispose mid-stream, isolation, the `LLM` fake shape for L-4. Output: the driver's internal design, and a render-count assertion for the gate. |
 | | **0-S2** the agent layer on the runtime API | Discovery, Collection item routing, `when`, no-op detection, Switchable pages, HMR, all through `addHooks` with **0 core bytes**. Output: a byte count (must be 0) or a minimal ask with numbers. |
 | | **0-S3** WebMCP in a real browser | Chromium 1243 (Playwright) with the WebMCP testing flag (`--enable-features=…`; find the switch), and `@mcp-b/webmcp-polyfill` as the fallback in `browser-tests`. Output: how the gate tests A-2. |
@@ -394,17 +394,20 @@ These are free in `codes.ts` today. Confirm them in 0-A.
 Per CLAUDE.md, each code goes into both tables in `codes.ts` and gets an explanation in
 `sygnal-check/src/explanations.js`. Then regenerate `explanations.json` and the errors doc.
 
-## 5. Decisions needed before Phase 1 (recommendations first)
+## 5. Decisions before Phase 1
+
+The user accepted every recommendation on 2026-10-09 (D244–D250); 0-A copies them into
+`PLAN-6-status.md` with D240–D243.
 
 | # | Question | Recommendation |
 |---|---|---|
-| P6-Q1 | Release | **6.1.0**: additive. WebMCP is outside semver as experimental (D241). |
-| P6-Q2 | `llms.txt` budget | **Raise the limit to 320 lines (+5)** for two canonical lines (chat, `agent`), one guide-list line and two wiring rules. The alternative is to fit 2 lines and trim elsewhere, which the PLAN-5 trims suggest is hard. |
-| P6-Q3 | Eval | Tasks 35–38 with a React arm, with spend estimated in 0-A. The opt-in operability check (local model) is free. |
-| P6-Q4 | MCP Apps (X-1) | **Phase 3 if time allows, otherwise 6.2.** The spec is stable, but it's the least connected item. |
-| P6-Q5 | Transport waves | Wave 1: `uiMessageStream`, `openResponses`, `chatCompletions`, `chromePrompt`. Wave 2: `anthropicMessages`, `agui`, `fromAISDK`. |
-| P6-Q6 | The `chat` behavior's tool scope | The host's `agent` **and its live descendants'** by default (the assistant can operate the whole subtree); `agent: false` or `agent: [Comp, …]` narrows it. |
-| P6-Q7 | `read` context channel for WebMCP | A read-only tool plus a summary in the declaration's tool descriptions (re-registered on change), since WebMCP has no context API yet. Revisit if the spec adds one. |
+| P6-Q1 | Release | **User, 2026-10-09: accepted (D244).** **6.1.0**: additive. WebMCP is outside semver as experimental (D241). |
+| P6-Q2 | `llms.txt` budget | **User, 2026-10-09: accepted (D245).** **Raise the limit to 320 lines (+5)** for two canonical lines (chat, `agent`), one guide-list line and two wiring rules. The alternative is to fit 2 lines and trim elsewhere, which the PLAN-5 trims suggest is hard. |
+| P6-Q3 | Eval | **User, 2026-10-09: accepted (D246); spend still asked for before any run.** Tasks 35–38 with a React arm, with spend estimated in 0-A. The opt-in operability check (local model) is free. |
+| P6-Q4 | MCP Apps (X-1) | **User, 2026-10-09: accepted (D247).** **Phase 3 if time allows, otherwise 6.2.** The spec is stable, but it's the least connected item. |
+| P6-Q5 | Transport waves | **User, 2026-10-09: accepted (D248).** Wave 1: `uiMessageStream`, `openResponses`, `chatCompletions`, `chromePrompt`. Wave 2: `anthropicMessages`, `agui`, `fromAISDK`. |
+| P6-Q6 | The `chat` behavior's tool scope | **User, 2026-10-09: accepted (D249).** The host's `agent` **and its live descendants'** by default (the assistant can operate the whole subtree); `agent: false` or `agent: [Comp, …]` narrows it. |
+| P6-Q7 | `read` context channel for WebMCP | **User, 2026-10-09: accepted (D250).** A read-only tool plus a summary in the declaration's tool descriptions (re-registered on change), since WebMCP has no context API yet. Revisit if the spec adds one. |
 
 ## 6. Risks
 
