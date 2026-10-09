@@ -48,6 +48,7 @@ Drivers are registered explicitly, so an app only ships the ones it uses. A sink
 |---|---|---|
 | `makeFetchDriver()` | HTTP requests; replies arrive as the actions the request names | [HTTP](/guide/http/) |
 | `makeSocketDriver()` | WebSocket and server-sent events, declared with the `connections` static | [Sockets](/guide/sockets/) |
+| `makeChatDriver({ transport })` (`sygnal/ai`) | Streaming LLM chat; the reply arrives as `delta`, `ok` and `error` actions | [AI Chat](/guide/ai-chat/) |
 | `driverFromAsync(fn)` | Any other promise-returning function | [Custom Drivers](/guide/custom-drivers/) |
 | your own | Anything else: a function `sink$ => source` | [Custom Drivers](/guide/custom-drivers/#writing-a-driver-from-scratch) |
 

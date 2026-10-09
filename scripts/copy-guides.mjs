@@ -29,12 +29,15 @@ export const GUIDES = [
   'ui/toaster', 'ui/menu', 'ui/select', 'ui/combobox',
   // PLAN-6 4-D2: agents operating the app
   'agent', 'webmcp', 'mcp-apps',
+  // PLAN-6
+  'ai-chat', 'ai-decisions',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).
 export const RECIPES = [
   'recipes/overview', 'recipes/charts', 'recipes/code-editor', 'recipes/rich-text', 'recipes/carousel',
   'recipes/data-table', 'recipes/data-grid', 'recipes/icons', 'recipes/i18n',
+  'recipes/ai-support-inbox', 'recipes/ai-form-fill', 'recipes/ai-summarize',
 ]
 // Sections shipped in a subdirectory of dist/guide (the rest are flat).
 export const SUBDIRS = new Set(['ui', 'recipes'])
