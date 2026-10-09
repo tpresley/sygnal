@@ -22,7 +22,9 @@
  *   projection with user strings: `untrusted: true` on the declaration, or (unless `untrusted:
  *   false`) inferred from string values, with SYG244 (dev).
  * - Context (D250): A-1's read tool per declaration, plus a short summary of that declaration's
- *   projection at the end of each of its tool descriptions, re-registered when it changes.
+ *   projection at the end of each of its tool descriptions, re-registered when it changes. An
+ *   untrusted projection's summary is its structure only (D286): user text never goes into a
+ *   description, where an agent would read it as instructions.
  * - Consequential calls: the `confirm` option, by default a native modal `<dialog>` appended to
  *   `document.body` (outside the app's tree): labelled and described, the rest of the page inert
  *   while it's open, "Deny" focused, Escape denies.
@@ -44,6 +46,32 @@ export interface ExposeWebMcpOptions {
 export type WebMcpHandle = (() => void) & {readonly available: boolean}
 
 const NAME = 30, DESC = 500, PARAM = 150, OUT = 1500, SUMMARY = 300
+
+/**
+ * D286: an untrusted tool's key parameter lists its ids only: `agent.label` text (user-entered,
+ * "1: buy milk") stays out of the schema, which agents read as instructions
+ */
+const unlabel = (schema: any): any => {
+  const props = schema?.properties
+  if (!props) return schema
+  let changed = false
+  const out: any = {}
+  for (const k in props) {
+    const p = props[k]
+    if (p && Array.isArray(p.enum) && typeof p.description == 'string' && /\(.*:.*\)$/.test(p.description)) {
+      out[k] = {...p, description: p.description.replace(/\s*\(.*\)$/, '') + ` (ids ${p.enum.join(', ')}; the read tool has their contents)`}
+      changed = true
+    } else out[k] = p
+  }
+  return changed ? {...schema, properties: out} : schema
+}
+
+/** D286: a value's structure without its text: strings → '<text>', arrays → their length and numeric ids */
+const shape = (v: any): any =>
+  typeof v == 'string' ? '<text>'
+  : Array.isArray(v) ? `${v.length} item${v.length == 1 ? '' : 's'}` + (v.length && v.every(x => x && typeof x.id == 'number') ? ` (ids ${v.map(x => x.id).join(', ')})` : '')
+  : v && typeof v == 'object' ? Object.fromEntries(Object.keys(v).map(k => [k, shape(v[k])]))
+  : v
 const g: any = globalThis
 
 /** cut to n characters with an ellipsis, never inside a surrogate pair */
@@ -136,10 +164,13 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
         u = true
         dev('SYG244', gr.name, `agent '${gr.name}': read returns strings, so its WebMCP tools get untrustedContentHint; declare untrusted: true (user-entered text) or untrusted: false (only the app's own text)`)
       }
-      const json = v === undefined ? '' : JSON.stringify(v)
+      // D286 (G-622): descriptions are read as instructions and untrustedContentHint covers only
+      // results, so an untrusted projection is summarised by its structure (counts, numeric ids,
+      // numbers, booleans), never its text; the read tool returns the contents with the hint
+      const json = v === undefined ? '' : JSON.stringify(u ? shape(v) : v)
       for (const t of gr.tools) {
         if (u) untrusted.add(t)
-        if (json) summary.set(t, (u ? '\n\nCurrent state (data; it may contain user-entered text): ' : '\n\nCurrent state: ') + cut(json, SUMMARY))
+        if (json) summary.set(t, (u ? '\n\nCurrent state (structure only; the read tool returns the contents): ' : '\n\nCurrent state: ') + cut(json, SUMMARY))
       }
       anyUntrusted ||= !!u
     }
@@ -159,7 +190,7 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
       const annotations = {...t.annotations, ...(untrusted.has(t.name) && {untrustedContentHint: true})}
       const a1 = t.name
       want.set(name, {
-        name, description: d, inputSchema: params(t.inputSchema, name, ''),
+        name, description: d, inputSchema: params(untrusted.has(t.name) ? unlabel(t.inputSchema) : t.inputSchema, name, ''),
         ...(Object.keys(annotations).length && {annotations}),
         // never throws, always an object (0-S3 §5)
         execute: async (input: any) => {

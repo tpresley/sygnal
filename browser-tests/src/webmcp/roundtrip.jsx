@@ -124,7 +124,8 @@ async function main() {
     const ts = Object.fromEntries((await agent.list()).map((t) => [t.name, t]))
     eq(ts.todo_toggle.inputSchema.properties.id.enum, [1, 2], 'todo_toggle id enum')
     eq(ts.todos_add.inputSchema, { type: 'object', properties: { value: { type: 'string', minLength: 1, description: 'The todo text' } }, required: ['value'], additionalProperties: false }, 'todos_add schema')
-    assert(ts.todos_add.description.startsWith('Add a todo\n\nCurrent state (data; it may contain user-entered text): {"todos":[{"id":1,"text":"buy milk","done":false}'), ts.todos_add.description)
+    // D286: an untrusted projection is summarised by structure only (no user text in descriptions)
+    assert(ts.todos_add.description.startsWith('Add a todo\n\nCurrent state (structure only; the read tool returns the contents): {"todos":"2 items (ids 1, 2)"') && !/buy milk/.test(ts.todos_add.description), ts.todos_add.description)
     eq(ts.todos_read.annotations, { readOnlyHint: true, untrustedContentHint: true }, 'todos_read')
     eq(ts.todos_add.annotations, { readOnlyHint: false, untrustedContentHint: true }, 'todos_add')
     return { todo_remove: (await mc.getTools()).find((t) => t.name === 'todo_remove').annotations }
@@ -139,7 +140,7 @@ async function main() {
     eq(r.state.todos.map((t) => t.text), ['buy milk', 'walk dog', 'call mom'], 'state')
     eq(lis(), ['1: :buy milk', '2:x:walk dog', '3: :call mom'], 'DOM')
     const ts = await agent.until((ts) => JSON.stringify(ts.find((t) => t.name === 'todo_toggle')?.inputSchema.properties.id.enum) === '[1,2,3]')
-    assert(/call mom/.test(ts.find((t) => t.name === 'todos_add').description), 'summary')
+    assert(/"3 items \(ids 1, 2, 3\)"/.test(ts.find((t) => t.name === 'todos_add').description) && !/call mom/.test(ts.find((t) => t.name === 'todos_add').description), 'summary')
   })
   await step('todo_toggle (a Collection item tool) checks the item in the DOM', async () => {
     const r = await agent.call('todo_toggle', { id: 3 })

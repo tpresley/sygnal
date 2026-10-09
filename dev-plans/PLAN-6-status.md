@@ -58,6 +58,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | D283 | 2026-10-09 | Coordinator (2-C): the `chat` behavior reaches the runtime through the core's `layers` extension point (read at App construction; installed in production too; 0 core bytes); the extra `regenerate` selector and the `{ text }` SEND form are kept; SYG442 confirmed free |
 | D284 | 2026-10-09 | Coordinator (2-T): SYG670 exempts same-origin requests (the app's own proxy with a session header) as well as local hosts and non-browser environments |
 | D285 | 2026-10-09 | Coordinator (2-T): the strict layer moves behind an explicit import (`openResponses({ strict: strictSchemas })`, `strictSchemas` exported from `sygnal/ai`), so apps that don't use strict mode don't pay ≈ 1.1 KB; `strict: true` alone becomes a dev error pointing at it |
+| D286 | 2026-10-09 | User (G-622): an untrusted `read` projection is summarised in WebMCP tool descriptions by its structure only (counts, numeric ids, numbers, booleans; strings → `<text>`), and an untrusted tool's key parameter lists ids without `agent.label` text; the contents go only through the read tool, whose results carry `untrustedContentHint`. Trusted projections keep the full summary |
 
 ## 0-A baseline (2026-10-09)
 
@@ -144,7 +145,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-619 | 1-A | No `test:ai-local` script yet for the opt-in Ollama suites | open (Phase 2) |
 | G-620 | 1-L | SYG609's fix text suggests `makeFetchDriver` for an `LLM` sink | open (Phase 2) |
 | G-621 | 1-M | `decide.openai()` shapes are from OpenAI's guide only (no live call): `usage` undocumented, `{ label, description }` levels unverified | open (verify when a key is available) |
-| G-622 | 2-W | WebMCP description summaries can carry user-entered text; `untrustedContentHint` covers results, not descriptions (prompt-injection channel) | asked the user (recommendation: structure-only summaries for untrusted projections) |
+| G-622 | 2-W | WebMCP description summaries can carry user-entered text; `untrustedContentHint` covers results, not descriptions (prompt-injection channel) | ✅ fixed (D286) |
 | G-623 | 2-W | SYG244's inference treats every string as untrusted except keys named `id` | open (A-2) |
 | G-624 | 2-W | The extra Chromium launch for the WebMCP page doesn't apply the per-test console-error allowlist | open (browser-tests) |
 | G-625 | 2-C | An app started before the first `chat()` call (a lazily loaded host) has no layer, so the assistant runs without tools (SYG442). Fix at 0 core bytes: `chat()` also attaches to an already-running app through `window.__SYGNAL_DEVTOOLS_APP__.__runtime.addHooks` | open (Phase 3) |
@@ -153,6 +154,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-628 | 2-T | After an approval the AI SDK continues the same assistant message; the driver starts a new one (the transport rebuilds the approved call) | open (L-3: merge) |
 | G-629 | 2-T | A-1's `normalize` walker treats `properties` maps as schemas (a property named `oneOf` gets rewritten); the strict layer has a map-aware walker | open (Phase 3 fix) |
 | G-630 | 2-T | `chromePrompt` sends no tools (the Prompt API has none) and fails on a mid-conversation system message | open (docs) |
+| G-631 | D286 review | The `chat` behavior sends `read` projections (with user text) as JSON right after the instructions: the same injection channel D286 closed for WebMCP. In-app the model needs the contents, so the fix is placement and framing (a delimited data block in a non-instruction message, marked as data), not removal | open (Phase 3, L-3) |
 
 ## Log
 
@@ -164,3 +166,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — Phase 1 gate on `plan6-integration` (`9ad8ae77`): `npm test` exit 0 (vitest, 9 examples, types, perf gate; Chromium 367/367), Firefox 366/366, WebKit 366/366, sygnal-check 634/634, size 42,690 B. **Phase 1 complete.** Phase 2 started: 2-T, 2-C, 2-W in parallel worktrees.
 - 2026-10-09 — 2-W merged (`395cbd12`), 2-C merged (`456cdd07`; shared-export conflicts resolved). vitest 4,025 passed; size 42,690 B; errors doc current; WebMCP page native/polyfill 16/16. D282–D283. G-622…G-627; G-622 asked.
 - 2026-10-09 — 2-T merged (`20a1a83f`; explanations.js merge repaired, explanations.json + errors.md regenerated). vitest 4,069 passed; sygnal-check 645/645; size 42,690 B. D284–D285; G-628…G-630. DX-1 and Phase 3 (3-W2 wave-2 transports + D285 + G-629; 3-M M-2/M-3; 3-K K-1) started.
+- 2026-10-09 — D286 (user, G-622) implemented on `plan6-integration`: structure-only summaries and label-free key parameters for untrusted WebMCP tools; vitest + WebMCP pages 16/16 on all engines/modes. G-631 opened for the same channel in the chat behavior.

@@ -136,12 +136,15 @@ describe('experimentalExposeWebMcp: tools', () => {
     expect(mc.entry('my_todos_add').exposedTo).toEqual(['https://agent.example'])
     const add = mc.tool('my_todos_add')
     expect(add.inputSchema).toEqual({ type: 'object', properties: { value: { type: 'string', minLength: 1, description: 'The todo text' } }, required: ['value'], additionalProperties: false })
-    expect(add.description.startsWith('Add a todo\n\nCurrent state (data; it may contain user-entered text): {"todos":[{"id":1,"text":"buy milk"')).toBe(true)
+    // D286: an untrusted projection is summarised by structure only, never its text
+    expect(add.description).toBe('Add a todo\n\nCurrent state (structure only; the read tool returns the contents): {"todos":"2 items (ids 1, 2)","filter":"<text>"}')
+    expect(add.description).not.toContain('buy milk')
     expect(mc.tool('my_todos_read').annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true })
     expect(mc.tool('my_todos_clear_done').annotations).toEqual({ consequentialHint: true, untrustedContentHint: true })
     // item tools carry the list's projection in their results
     expect(mc.tool('my_todo_remove').annotations).toEqual({ consequentialHint: true, untrustedContentHint: true })
-    expect(mc.tool('my_todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (1: buy milk; 2: walk dog)' })
+    // D286: item labels (user text) stay out of an untrusted tool's schema
+    expect(mc.tool('my_todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; the read tool has their contents)' })
   })
 
   it('round trip: read, add (DOM, item enum re-registered), item tool, unknown id, invalid input, no-op, throw', async () => {
@@ -212,11 +215,17 @@ describe('experimentalExposeWebMcp: tools', () => {
     const n0 = mc.registered
     await sleep()
     expect(mc.registered).toBe(n0)
+    // D286: the projection is untrusted, so its summary is structure only: a new filter text
+    // changes nothing in the descriptions and nothing is re-registered
     await mc.call('todos_set_filter', { value: 'done' })
     await sleep()
-    expect(mc.tool('todos_add').description).toMatch(/"filter":"done"/)
-    // the todos_* tools changed (summary); the item tools didn't
-    expect(mc.log.filter(([op, n]) => op === '+' && n.startsWith('todo_')).length).toBe(2)
+    expect(mc.registered).toBe(n0)
+    expect(mc.tool('todos_add').description).not.toMatch(/done/)
+    // a structural change (a third todo) changes the summary: those tools are re-registered
+    await mc.call('todos_add', { value: 'read' })
+    await sleep()
+    expect(mc.tool('todos_add').description).toMatch(/"todos":"3 items \(ids 1, 2, 3\)"/)
+    expect(mc.registered).toBeGreaterThan(n0)
   })
 })
 
