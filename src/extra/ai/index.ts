@@ -28,3 +28,8 @@ export {chatCompletions} from './transports/chatCompletions'
 export {uiMessageStream} from './transports/uiMessageStream'
 export {chromePrompt} from './transports/chromePrompt'
 export {encodeOpenResponses} from './transports/encodeOpenResponses'
+// L-2 (3-W2): transports, wave 2 (D248), and the opt-in strict layer (D285)
+export {anthropicMessages} from './transports/anthropicMessages'
+export {agui} from './transports/agui'
+export {fromAISDK} from './transports/fromAISDK'
+export {strictSchemas} from './schema/strict'

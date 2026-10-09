@@ -1,6 +1,7 @@
 import {post, sse, json, usageOf, partsOf, toolName, toolOutput} from './shared';
 import type {HttpOptions} from './shared';
 import {prepare} from './tools';
+import type {StrictOption} from './tools';
 
 /*
  * PLAN-6 L-2: openResponses({ baseURL?, model, headers?, fetch?, body?, strict?,
@@ -23,7 +24,7 @@ import {prepare} from './tools';
 export interface OpenResponsesOptions extends HttpOptions {
   baseURL?: string;
   model?: string;
-  strict?: boolean;
+  strict?: StrictOption;
 }
 
 const REASONING = /^response\.reasoning(_summary)?_text\.delta$/;
@@ -56,7 +57,7 @@ export function openResponses(options: OpenResponsesOptions = {}) {
   const seen = new Set<string>();
   return {
     async *stream(req: any, signal: AbortSignal): AsyncGenerator<any, void, any> {
-      const p = prepare(req, options.strict, seen);
+      const p = prepare(req, options.strict, seen, 'openResponses');
       const res = await post((options.baseURL ?? '/v1').replace(/\/$/, '') + '/responses', {
         model: req.model ?? options.model,
         stream: true,

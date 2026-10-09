@@ -17,7 +17,8 @@
  * A schema part with no JSON Schema form (refinements, a Date) is retried with the library's
  * lossy option (`lossy`: SYG243, a dev warning; validation still enforces it); no form at all is
  * `error` (SYG240). Conversions are cached by schema object (ArkType rebuilds `~standard` on
- * every read, G-608). The strict layer for OpenAI / Anthropic is the transports' (Phase 2).
+ * every read, G-608). The strict layer for OpenAI / Anthropic is the transports' (Phase 2), opt-in
+through `strictSchemas` (./strict.ts, D285); both walk schemas with `walk` below.
  */
 
 /** The result of converting a schema: the tool schema, or why there is none (SYG240) */
@@ -65,11 +66,20 @@ function convert(input: any): Converted {
   return {...normalize(js), ...(lossy && {lossy})}
 }
 
-const walk = (s: any, f: (o: any) => any): any => {
+// G-629: every subschema, bottom-up (shared with the strict layer, ./strict.ts). The values of
+// `properties` / `$defs` / ... maps are schemas, the maps themselves aren't (a property named
+// `oneOf` or `items` is a name, not a keyword), and `const` / `enum` / `default` / `examples` are
+// data (a default of `{ oneOf: 1 }` stays as it is)
+const MAPS = /^(properties|\$defs|definitions|patternProperties|dependentSchemas)$/
+const DATA = /^(const|enum|default|examples)$/
+export const walk = (s: any, f: (o: any) => any): any => {
   if (Array.isArray(s)) return s.map(x => walk(x, f))
   if (!s || typeof s != 'object') return s
   const o: any = {}
-  for (const k in s) o[k] = walk(s[k], f)
+  for (const k in s) {
+    const v = s[k]
+    o[k] = DATA.test(k) ? v : MAPS.test(k) && isObj(v) ? Object.fromEntries(Object.entries(v).map(([n, x]) => [n, walk(x, f)])) : walk(v, f)
+  }
   return f(o)
 }
 const rewriteRefs = (s: any, to: string) => walk(s, o => {

@@ -8,9 +8,11 @@
  *          'id' a tool result / error for no known call); it was skipped. The driver sends the
  *          first five per driver.
  * SYG677 — a request with no sender stamp (not sent by a component): dropped.
- * SYG675 — (info) an L-2 transport with `strict: true` sent a tool (or the `output` schema)
- *          non-strict because it has no strict form (`data`: { tool, errors }); once per tool and
- *          transport.
+ * SYG675 — (info) an L-2 transport with `strict: strictSchemas` sent a tool (or the `output`
+ *          schema) non-strict because it has no strict form, or (Anthropic) it is over the
+ *          provider's per-request limits (`data`: { tool, errors }); once per tool and transport.
+ * SYG672 — (3-W2, D285) a transport with `strict: true` (not the strictSchemas import): sent
+ *          non-strict (`data`: { transport }); once per transport.
  *
  * SYG678 (a failure with no error action) and SYG679 (an invalid request) are printed by the
  * driver itself, in production too (legacy error()).
@@ -41,6 +43,14 @@ function onChat(code: string, request: any, event?: any, why?: string) {
       message: `strict mode: ${tool == '(output)' ? 'the output schema' : `the tool '${tool}'`} was sent non-strict: ${(errors || []).join('; ')}. The model may send arguments outside the schema; validation still checks them`,
       fix: 'Give it a strict form (an object root, no records: z.record() / additionalProperties with a schema), or accept the non-strict call',
       data: {tool, errors},
+    })
+  } else if (code == 'SYG672') {
+    const {transport} = event || {}
+    devReport('SYG672', {
+      component,
+      message: `${transport}({ strict: true }): strict mode takes the strict layer, strictSchemas from 'sygnal/ai' (a separate import, so apps that don't use it don't carry it), not true. The request was sent non-strict`,
+      fix: `import { ${transport}, strictSchemas } from 'sygnal/ai' and pass ${transport}({ ..., strict: strictSchemas })`,
+      data: {transport},
     })
   } else if (code == 'SYG677') {
     devReport('SYG677', {

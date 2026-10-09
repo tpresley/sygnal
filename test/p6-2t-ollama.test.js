@@ -5,6 +5,7 @@
 // (OLLAMA_MODELS=llama3.2,qwen3:8b; OLLAMA_URL=http://localhost:11434/v1)
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
+import { strictSchemas } from '../src/extra/ai/schema/strict.ts'
 import { openResponses } from '../src/extra/ai/transports/openResponses.ts'
 import { chatCompletions } from '../src/extra/ai/transports/chatCompletions.ts'
 import { readOutput } from '../src/extra/ai/chat/output.ts'
@@ -52,7 +53,7 @@ describe.skipIf(!process.env.TEST_OLLAMA)('L-2 transports against local Ollama (
         for (const strict of [false, true]) {
           it(`structured output${strict ? ' (strict)' : ''}`, async () => {
             const output = z.object({ city: z.string(), country: z.string(), population: z.number().optional() })
-            const ts = make({ baseURL, model, strict })
+            const ts = make({ baseURL, model, ...(strict && { strict: strictSchemas }) })
             const ev = await collect(ts, { instructions: 'Answer with JSON only.', output, messages: [say(model, 'Name the capital of France and its country.')] })
             const value = await readOutput(output, textOf(ev))
             report.push([name, model, `output${strict ? ' strict' : ''}`, JSON.stringify(value)])

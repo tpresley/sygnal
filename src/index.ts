@@ -60,6 +60,8 @@ export { experimentalExposeWebMcp } from './extra/ai/index'
 export { chat } from './extra/ai/index'
 // L-2 (2-T)
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './extra/ai/index'
+// L-2 (3-W2): wave 2 + the strict layer (D285)
+export { anthropicMessages, agui, fromAISDK, strictSchemas } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

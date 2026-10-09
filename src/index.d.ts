@@ -3718,6 +3718,9 @@ export type { ExposeWebMcpOptions, WebMcpHandle } from './ai.d'
 // L-2 (2-T)
 export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './ai.d'
 export type { OpenResponsesOptions, ChatCompletionsOptions, UIMessageStreamOptions, ChromePromptOptions, ChromePromptTransport, ChromePromptStatus, HttpTransportOptions, OpenResponsesEvent, ChatUsage } from './ai.d'
+// L-2 (3-W2)
+export { anthropicMessages, agui, fromAISDK, strictSchemas } from './ai.d'
+export type { AnthropicMessagesOptions, AguiOptions, FromAISDKOptions, StrictSchemas, StrictDialect } from './ai.d'
 export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatCall, ChatEvent, ChatTransport, ChatDriverOptions, ChatSource, ChatTool, ChatOutputSchema, ChatOutputOf } from './ai.d'
 // PLAN-6 L-3 (2-C)
 export { chat } from './ai.d'

@@ -13,3 +13,5 @@ export {experimentalExposeWebMcp} from './index'
 export {chat} from './index'
 // L-2 (2-T)
 export {openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses} from './index'
+// L-2 (3-W2)
+export {anthropicMessages, agui, fromAISDK, strictSchemas} from './index'

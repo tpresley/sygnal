@@ -318,6 +318,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 L-1: makeChatDriver (src/extra/ai/chat/driver.ts; SYG673/677 dev, SYG678/679 legacy error())
   // PLAN-6 L-2: transports (src/extra/ai/transports/; SYG670 legacy error() + the request fails, SYG675 dev)
   SYG670: 'Auth header sent from the browser to a hosted endpoint',
+  // PLAN-6 3-W2 (D285): `strict: true` instead of `strict: strictSchemas` (dev)
+  SYG672: 'Strict mode without the strict layer',
   SYG673: 'Malformed chat stream event',
   SYG675: 'Tool sent non-strict under strict mode',
   SYG677: 'Chat request sent from outside a component',
@@ -467,6 +469,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG669: 'warn',
   // PLAN-6 L-1 (makeChatDriver reports them with an explicit severity, like SYG611)
   SYG670: 'error',
+  SYG672: 'error',
   SYG673: 'warn',
   SYG675: 'info',
   SYG677: 'warn',
