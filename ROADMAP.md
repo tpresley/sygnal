@@ -367,3 +367,20 @@ Make the two AI tasks a Sygnal developer now meets as easy as anything else in S
 | X-1 | MCP Apps: `makeMcpAppDriver()` and `create-sygnal-app --template mcp-app` | P3 |
 
 Outcome: on four new eval tasks Sygnal agents passed 60/60 (React with the AI SDK 59/60), at 1.07–1.67× React's time; the S-14 re-baseline stayed within the bar, and the apps the agents built were operable by a small local model through their declared tools.
+
+## Editor Tooling
+
+### 20. Language Server, VS Code Extension and Claude Code Plugin (PLAN-7)
+
+**Status:** `PROPOSED` ([PLAN-7](dev-plans/PLAN-7.md); research in [`ide-tooling.md`](dev-plans/research/ide-tooling.md)). Proposed release: `sygnal-check` 0.4.0, `create-sygnal-app` 2.2.0, VS Code extension 0.1.0.
+
+Show `sygnal-check`'s findings in the editor while the code is being written, from one language server (`sygnal-check lsp`) for VS Code, other LSP editors and Claude Code. TypeScript can't see Sygnal's string-wired seams (intent ↔ model keys, selectors ↔ view classes, EVENTS types, reply actions), and in JS or untyped TS it reports none of them.
+
+| Item | What | Priority |
+|---|---|---|
+| C-1–C-5 | Checker groundwork: in-memory sources, end ranges, parse cache, fixes as edits, a shared JSON config file | P1 (C-3: P2) |
+| L-1, L-2 | `sygnal-check lsp`: diagnostics, hover explanations, quick fixes, fix-all, suppress; parity with the CLI | P1 |
+| V-1 | VS Code extension (Marketplace + Open VSX), snippets | P1 |
+| I-1–I-3 | Claude Code plugin (LSP + the `sygnal-dev` skill), other editors' setups, templates recommend the extension | P1 (I-2, I-3: P2) |
+| N-1, N-2 | Completions, go to definition, rename across the seams (gated after the first release) | P2 |
+| E-1 | Eval: does in-editor feedback help agents on smaller models? | P2 |

@@ -2,6 +2,8 @@
 
 Research, 2026-10-09. Question: would a language server or other editor plugins (VS Code and others) be worth building for Sygnal, and which of the plugin types other front-end frameworks ship would actually help?
 
+**Follow-up:** the user accepted these recommendations on 2026-10-10; the implementation plan is [PLAN-7](../PLAN-7.md).
+
 **Short answer: yes to a small language server, no to a large one.** Sygnal is plain JSX/TSX, so TypeScript already gives editors syntax, types, JSX completion and navigation. What TypeScript can't see are Sygnal's *string-wired seams*: intent keys ↔ model keys, intent selectors ↔ the view's classes, `EVENTS` types across files, reply actions (`ok: 'LOADED'`), `next('X')`, `<Collection from="x">`. sygnal-check already models every one of those seams. A thin LSP that puts its findings in the editor while you type is cheap: the proof of concept below is about 130 lines with zero dependencies. It reaches VS Code, Neovim, Zed, JetBrains and Claude Code from one server.
 
 ## 1. What other frameworks ship, and what applies to Sygnal
@@ -56,7 +58,7 @@ Result: 3 diagnostics with ranges on open; the hover shows SYG110's explanation;
 | examples/ai-panel-spa | 2.0k | 87 ms | 67 ms |
 | examples/plan5-showcase (50 files) | 2.2k | 254 ms | 174 ms (≈ half parsing, half rules) |
 
-That is roughly 80 ms per 1k lines, warm. With a debounce, that's fine up to about 10k lines. Beyond that it needs a per-file parse cache (keyed by content, which halves the time) and eventually incremental rules. Rules are project-wide by design, so "check only the changed file" is not a drop-in option.
+Re-measured on 2026-10-10 after merging sygnal-check 0.3.0: plan5-showcase 47 ms warm / 87 ms cold, kanban 8 ms, ai-panel-spa 21 ms, about 3–4× faster than the first run above (some of it machine load). PLAN-7 fixes the budget on a generated large project instead. At the first run's numbers, that is roughly 80 ms per 1k lines, warm. With a debounce, that's fine up to about 10k lines. Beyond that it needs a per-file parse cache (keyed by content, which halves the time) and eventually incremental rules. Rules are project-wide by design, so "check only the changed file" is not a drop-in option.
 
 Gaps found in sygnal-check for editor use (all small):
 1. Diagnostics carry a start `line:column` but no **end**. The PoC infers the range from the token (string literal or identifier); the checker has the AST node and could emit `endLine`/`endColumn`.
