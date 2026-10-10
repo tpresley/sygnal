@@ -2,6 +2,28 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+PLAN-7 (editor tooling) in progress: the checker groundwork for `sygnal-check lsp`. Planned release: `sygnal` 6.1.1, `sygnal-check` 0.4.0 (D297).
+
+### Added
+
+- **`sygnal-check` config file.** `sygnal-check.config.json`, or a `"sygnal-check"` key in `package.json`: `strict`, `a11y`, `ignore`, `paths`, `includeTests`. JSON only. It is found from the working directory up to the nearest project root. The CLI (`--config <file>`, `--no-config`), the MCP server, `check()` / `graph()` and the Vite plugin read it, so the editor, the dev overlay and CI agree. Flags and explicit options win over it; problems in it are SYG900 findings on the file, never a crash.
+- **`sygnal/vite`: the `check` option defaults to the config file.** Explicit `check.*` options win, then the config file, then the `diagnostics.strict` / `diagnostics.ignore` defaults. Editing the config file re-checks. An older `sygnal-check` without config support gets exactly the options it got before. `plugin.d.ts` now also types `check.a11y`.
+- **Ranges on findings.** Every `sygnal-check` diagnostic has `endLine` / `endColumn` (exclusive, UTF-16 columns, as editors count). Findings on multi-line elements underline the tag name; `sygnal-ignore` comments keep matching where they did. Pair and cross-file findings carry `related` locations (SYG104: the child element that renders the class; SYG105, SYG128, SYG129, SYG440, SYG609, SYG643).
+- **Fixes as edits.** Diagnostics carry `fixes: [{ title, kind, preferred?, fixAll?, edits }]`: every unambiguous "did you mean" (SYG110, SYG112, SYG127, SYG140–142, SYG150, SYG151, SYG223, SYG226, SYG641, SYG707; SYG105 as a non-preferred rename), the `--fix` rewrites (SYG504, SYG505, SYG506, SYG612) with their import edits, "add a model entry" for SYG101 and "remove the unreachable entry" for SYG102. `--fix` applies the same `fixAll` edits an editor gets. `controlFixes()` returns the `--controls` conversions one selector at a time.
+- **In-memory sources and a parse cache** for editors and watchers. `check()`, `checkFiles()`, `graph()`, `graphFiles()` and `buildProject()` take `sources` (unsaved buffers; new files resolve as imports) and `cache` (`createParseCache()`: unchanged files aren't parsed again). `fixFiles()` with `sources` fixes in memory and returns the texts and edits. The MCP server keeps a cache.
+- **Types:** `InspectDiagnostic` gains the optional `endLine`, `endColumn`, `related` and `fixes` (`InspectRelatedLocation`, `InspectFix`, `InspectTextEdit`).
+
+### Changed
+
+- SYG900's explanation also covers config-file findings.
+- `sygnal-check` performance: a one-file re-check of a 20,000-line project takes about 270 ms with a cache (about 350 ms without).
+
+### Fixed
+
+- `sygnal-check`: three module-level caches keyed by AST nodes (behavior definitions, widgets, a11y `describe()`) could serve one build's data to the next when ASTs are reused; now keyed per project.
+
 ## 6.1.0 — 2026-10-10
 
 A new subpath, `sygnal/ai`, covers the two AI jobs Sygnal apps now meet: calling language models from the app, and letting agents operate it. A chat request is a driver request, like HTTP: the reply streams into a `delta` action and arrives whole as `ok`, through the same reply actions as `makeFetchDriver`, with transports for local models (Ollama through `openResponses()`), an AI SDK route on your server (`uiMessageStream()`), Anthropic, OpenAI-compatible APIs, AG-UI and Chrome's built-in model. `decide()` asks a decision model typed questions through the fetch driver. One declaration per component, the `agent` static, says what an LLM may read and do in the app; the same declaration becomes the tools of an in-app assistant (the `chat` behavior), a command bar (`commandBar`), browser agents through WebMCP (`experimentalExposeWebMcp`), an MCP Apps host (`makeMcpAppDriver`), and coding agents through the dev server (`sygnal({ mcp: true })`). Tests answer chat requests and call agent tools without a model.
