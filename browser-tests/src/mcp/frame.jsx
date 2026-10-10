@@ -12,11 +12,17 @@ function View({ state }) {
       <button type="button" className="refresh">Refresh</button>
       <button type="button" className="pick">Pick</button>
       <button type="button" className="tall">Taller</button>
+      <p className="resource">{state.resource}</p>
+      <p className="host">{state.host}</p>
+      <button type="button" className="read">Read</button>
+      <button type="button" className="download">Download</button>
+      <button type="button" className="log">Log</button>
+      <button type="button" className="close">Close</button>
       {state.tall ? <div style={{ height: '400px' }}>tall</div> : null}
     </div>
   )
 }
-View.initialState = { city: '', days: [], error: '', theme: 'light', tall: false }
+View.initialState = { city: '', days: [], error: '', theme: 'light', tall: false, resource: '', host: '' }
 View.intent = ({ DOM, MCP }) => ({
   INPUT: MCP.select('tool-input'),
   RESULT: MCP.select('tool-result'),
@@ -25,6 +31,12 @@ View.intent = ({ DOM, MCP }) => ({
   REFRESH: DOM.click('.refresh'),
   PICK: DOM.click('.pick'),
   TALL: DOM.click('.tall'),
+  // G-641
+  HOST_INFO: MCP.select('host'),
+  READ: DOM.click('.read'),
+  DOWNLOAD: DOM.click('.download'),
+  LOG: DOM.click('.log'),
+  CLOSE: DOM.click('.close'),
 })
 View.model = {
   INPUT: (state, { city }) => ({ ...state, city }),
@@ -35,6 +47,12 @@ View.model = {
   PICK: { MCP: (state) => ({ updateModelContext: { picked: state.days[0] } }) },
   BYE: { MCP: () => ({ updateModelContext: { closing: true } }) },
   TALL: (state) => ({ ...state, tall: true }),
+  HOST_INFO: (state, { hostInfo, hostCapabilities }) => ({ ...state, host: hostInfo.name + ':' + Object.keys(hostCapabilities).sort().join(',') }),
+  READ: { MCP: () => ({ readResource: 'file:///notes.txt', ok: 'READ_OK', error: 'FAILED' }) },
+  READ_OK: (state, { contents }) => ({ ...state, resource: contents[0].text }),
+  DOWNLOAD: { MCP: () => ({ downloadFile: { uri: 'file:///forecast.csv', mimeType: 'text/csv', text: 'day\nWed' }, error: 'FAILED' }) },
+  LOG: { MCP: (state) => ({ log: { city: state.city }, level: 'info', logger: 'frame' }) },
+  CLOSE: { MCP: () => ({ requestTeardown: true }) },
 }
 
 run(View, { MCP: makeMcpAppDriver({ appInfo: { name: 'frame', version: '1.0.0' } }) })

@@ -38,8 +38,12 @@ describe('the JSON-RPC server', () => {
   it('lists the page tools and tabs, plus sygnal-check\'s tools when it is there', async () => {
     const plain = createDevMcpServer({ bridge: fakeBridge() })
     const names = (await plain.handle(rpc('tools/list'))).result.tools.map((t) => t.name)
-    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'tabs'])
+    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'apps', 'tabs'])
     for (const t of PAGE_TOOLS) expect(t.inputSchema.properties.tab).toBeDefined()
+    // G-638: `app` on the state / dispatch / tree / copy / agent tools
+    for (const n of ['get_state', 'dispatch', 'component_tree', 'copy_as_test', 'agent_tools']) {
+      expect(PAGE_TOOLS.find((t) => t.name === n).inputSchema.properties.app.type).toEqual(['string', 'integer'])
+    }
     const check = { tools: [{ name: 'explain', inputSchema: { type: 'object' } }], server: { handle: (m) => ({ jsonrpc: '2.0', id: m.id, result: { content: [], echoed: m.params } }) } }
     const withCheck = createDevMcpServer({ bridge: fakeBridge(), check: Promise.resolve(check) })
     expect((await withCheck.handle(rpc('tools/list'))).result.tools.map((t) => t.name)).toContain('explain')
@@ -139,6 +143,12 @@ describe('the HTTP endpoint (streamable HTTP, JSON responses)', () => {
     expect((await post(base, '{nope')).status).toBe(400)
     expect((await post(base, rpc('ping'), { 'mcp-protocol-version': '1999-01-01' })).status).toBe(400)
     expect((await post(base, rpc('ping'), { 'mcp-protocol-version': '2025-06-18' })).status).toBe(200)
+    // G-638: a 2026-07-28 (stateless) request gets 400 with a non-modern error (not -32022), so a
+    // dual-era client falls back to initialize
+    const modern = await post(base, rpc('tools/list', { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }), { 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/list' })
+    expect(modern.status).toBe(400)
+    const modernBody = await modern.json()
+    expect(modernBody.error.code).toBe(-32000)
   })
 
   it('403 for a foreign Origin (a web page) or Host (DNS rebinding)', async () => {
@@ -184,6 +194,19 @@ describe('the HMR page bridge', () => {
     const q = b.request(2, 'dispatch', {}, 1000)
     ws.emit('sygnal:mcp:response', { id: 2, ok: false, error: 'App has no action X' }, c)
     await expect(q).rejects.toThrow('App has no action X')
+  })
+
+  it('G-638: a hello carries the apps; an apps update is not a focus', () => {
+    const ws = fakeChannel()
+    const b = hmrBridge({ ws })
+    const a = client(), c = client()
+    ws.emit('sygnal:mcp:hello', { url: 'http://localhost/a', title: 'A', apps: [{ index: 0, component: 'App' }] }, a)
+    ws.emit('sygnal:mcp:hello', { url: 'http://localhost/c', title: 'C' }, c)
+    const activeC = b.tabs()[1].active
+    ws.emit('sygnal:mcp:hello', { url: 'http://localhost/a', title: 'A', update: true, apps: [{ index: 0, component: 'App' }, { index: 1, component: 'Widget' }] }, a)
+    expect(b.tabs()[0].apps).toEqual([{ index: 0, component: 'App' }, { index: 1, component: 'Widget' }])
+    expect(b.tabs()[1].active).toBe(activeC)
+    expect(b.tabs()[0].active).toBeLessThan(activeC)
   })
 
   it('times out; a confirm notice extends the wait; a closed socket fails its requests', async () => {

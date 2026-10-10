@@ -157,7 +157,7 @@ export interface McpBridgeOptions {
   agentTools?: (target: any, options?: any) => any
   /** Consequential agent tools: 'page' asks with window.confirm() (default), true runs them, false declines */
   confirm?: boolean | 'page'
-  /** The app to serve (default: window.__SYGNAL_DEVTOOLS_APP__, the page's first run()) */
+  /** The only app to serve (default: every run() of the page, the first one by default; `app` picks one) */
   app?: () => any
 }
 /**

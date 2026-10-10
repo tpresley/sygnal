@@ -127,23 +127,30 @@ The same from the command line: `claude mcp add --transport http sygnal-dev http
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `get_state` | `{ component?, path? }` | an instance's state (the root by default; every instance of a Collection item); `path` reads one field (`'todos.0.text'`) |
-| `dispatch` | `{ component?, action, data? }` | sends the action as if the intent had (recorded with cause `'agent'`), waits for the render, returns the new state |
-| `component_tree` | `{ component? }` | the [`inspect()`](#inspect) graph of the running app |
+| `get_state` | `{ component?, path?, app? }` | an instance's state (the root by default; every instance of a Collection item); `path` reads one field (`'todos.0.text'`) |
+| `dispatch` | `{ component?, action, data?, app? }` | sends the action as if the intent had (recorded with cause `'agent'`), waits for the render, returns the new state |
+| `component_tree` | `{ component?, app? }` | the [`inspect()`](#inspect) graph of the running apps (`app`: one app's instances) |
 | `recent_actions` | `{ limit?, component?, type?, cause? }` | the DevTools action log, newest last |
 | `get_diagnostics` | `{ code?, severity?, limit? }` | the runtime diagnostics, each with its `docsUrl` |
-| `copy_as_test` | `{ component?, componentImport? }` | DevTools' Copy as test: a `renderComponent` test of the session |
-| `agent_tools` | `{ call?, input?, all? }` | the page's own agent tools (the `agent` statics) and their context; with `call`, runs one |
-| `tabs` | `{}` | the connected pages |
+| `copy_as_test` | `{ component?, componentImport?, app? }` | DevTools' Copy as test: a `renderComponent` test of the session |
+| `agent_tools` | `{ call?, input?, all?, app? }` | the page's own agent tools (the `agent` statics) and their context; with `call`, runs one |
+| `apps` | `{}` | the page's apps (each `run()`): index, root component, instance count |
+| `tabs` | `{}` | the connected pages, with their apps |
 | `check`, `graph`, `explain` | as [above](#mcp-server) | `sygnal-check` on your source, when it is installed |
 
-`component` is a component name or an instance id from `component_tree`. With several tabs open, the page that loaded or was focused last answers, and each result names it in `tab`; pass `tab` (an id from `tabs`) to choose. An `agent_tools` call follows the same rules as any other caller: the input is validated, `when` is checked, and a consequential tool asks the person in the page first (`mcp: { confirm: true }` runs it without asking, `false` declines it).
+`component` is a component name or an instance id from `component_tree`. A page with several `run()` apps (a widget mounted beside the main app, custom elements from [`sygnal/element`](/guide/web-components/)) has all of them served: `app` is an index or a root component's name from `apps`; without it the tools use the first app, or the one that has `component`. An app keeps its index across a hot update. With several tabs open, the page that loaded or was focused last answers, and each result names it in `tab`; pass `tab` (an id from `tabs`) to choose. An `agent_tools` call follows the same rules as any other caller: the input is validated, `when` is checked, and a consequential tool asks the person in the page first (`mcp: { confirm: true }` runs it without asking, `false` declines it).
 
 It is a development tool only:
 
 - It exists only in `vite` / `vite dev`. A production build (and `vite preview`) has no endpoint and no page code for it.
 - It answers only requests from the same machine, with a local `Host` (`localhost`, `*.localhost`, a loopback address, or a name in Vite's `server.allowedHosts`). A request with an `Origin` header from any other site gets 403, so a web page can't reach it, also through DNS rebinding. With `vite --host` the dev server is on your network, but the endpoint still refuses other machines.
 - `dispatch` runs any action of any component. Don't turn it on in a dev server you share.
+
+### Transport
+
+The endpoint speaks MCP's streamable HTTP transport in the `initialize`-based revisions (2024-11-05 to 2025-11-25): each JSON-RPC request is a POST, and each answer is one `application/json` body. It opens no SSE stream and assigns no session id. The spec allows both: a server answers a request with either JSON or an event stream (clients must accept both), a server without a stream answers `GET` with 405, and session ids are optional. This endpoint never sends the client anything of its own (no progress, sampling or list changes), so a stream would carry nothing, and the state it reports lives in the page, not in a session. `GET` and `DELETE` get 405.
+
+The newer stateless revision (2026-07-28: no `initialize`, the version in each request's `_meta`) isn't served yet. A client that speaks both, as the spec describes, sends its modern request first, gets a 400 without a modern error code, and falls back to `initialize`. A client that only speaks 2026-07-28 can't connect.
 
 ## inspect
 

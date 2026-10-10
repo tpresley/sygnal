@@ -25,7 +25,15 @@
  *   - `{ message }`: `ui/message` as the user; a string or content blocks;
  *   - `{ openLink: url }`: `ui/open-link`;
  *   - `{ displayMode: 'inline' | 'fullscreen' | 'pip' }`: `ui/request-display-mode` (ok gets
- *     `{ mode }`, the mode the host chose).
+ *     `{ mode }`, the mode the host chose);
+ *   - G-641: `{ downloadFile }`: `ui/download-file` { contents } (EmbeddedResource / ResourceLink
+ *     blocks; a bare `{ uri, mimeType, text | blob }` is embedded); `{ readResource: uri }`:
+ *     `resources/read`; `{ listResources: true | { cursor } }`: `resources/list`;
+ *     `{ createMessage }`: `sampling/createMessage` (a string is one user message; maxTokens
+ *     defaults to 1024); notifications (ok runs once sent): `{ log, level?, logger? }`:
+ *     `notifications/message`, `{ requestTeardown: true }`: `ui/notifications/request-teardown`.
+ * - Source `MCP.select('host')`: { hostInfo, hostCapabilities, protocolVersion } of the
+ *   handshake (replayed), to check e.g. `hostCapabilities.sampling` / `downloadFile`.
  * - Host → view requests: `ping`; `ui/resource-teardown`; with `tools: agentTools`, `tools/list` and
  *   `tools/call` serve the app's A-1 tools (`appCapabilities.tools`, `listChanged`
  *   notifications); anything else is -32601.
@@ -54,7 +62,7 @@ const offered = (t: any) => {
   })
 }
 
-export type McpAppEvent = 'tool-input' | 'tool-input-partial' | 'tool-result' | 'tool-cancelled' | 'host-context-changed' | 'teardown'
+export type McpAppEvent = 'tool-input' | 'tool-input-partial' | 'tool-result' | 'tool-cancelled' | 'host-context-changed' | 'teardown' | 'host'
 
 export interface McpAppDriverOptions {
   /** `appInfo` of the handshake (default `{ name: document.title || 'sygnal-app', version: '0.0.0' }`) */
@@ -81,7 +89,7 @@ export interface McpAppDriverOptions {
 const G: any = globalThis
 const PROTOCOL = '2026-01-26'
 const N = 'ui/notifications/'
-const REPLAY: Record<string, 1> = {'tool-input': 1, 'tool-result': 1, 'host-context-changed': 1}
+const REPLAY: Record<string, 1> = {'tool-input': 1, 'tool-result': 1, 'host-context-changed': 1, host: 1}
 /** sink key → [method, params of the value] */
 const text = (v: any) => typeof v == 'string' ? [{type: 'text', text: v}] : v
 const REQUESTS: Record<string, [string, (v: any) => any]> = {
@@ -93,6 +101,20 @@ const REQUESTS: Record<string, [string, (v: any) => any]> = {
   message: ['ui/message', v => ({role: 'user', content: text(v.message)})],
   openLink: ['ui/open-link', v => ({url: v.openLink})],
   displayMode: ['ui/request-display-mode', v => ({mode: v.displayMode})],
+  // G-641: an item without `type` is a resource's contents ({ uri, mimeType, text | blob }), embedded
+  downloadFile: ['ui/download-file', ({downloadFile: d}) => ({contents: (Array.isArray(d) ? d : [d]).map((c: any) => c && !c.type ? {type: 'resource', resource: c} : c)})],
+  readResource: ['resources/read', ({readResource: r}) => typeof r == 'string' ? {uri: r} : r],
+  listResources: ['resources/list', ({listResources: l}) => l && typeof l == 'object' ? l : {}],
+  createMessage: ['sampling/createMessage', ({createMessage: c}) => {
+    const p = typeof c == 'string' ? {messages: c} : {...c}
+    if (typeof p.messages == 'string') p.messages = [{role: 'user', content: {type: 'text', text: p.messages}}]
+    return {maxTokens: 1024, ...p}
+  }],
+}
+/** G-641: sink key → [notification method, params] (no answer: `ok` is called once it is sent) */
+const NOTIFY: Record<string, [string, (v: any) => any]> = {
+  log: ['notifications/message', v => ({level: v.level || 'info', ...(v.logger && {logger: v.logger}), data: v.log})],
+  requestTeardown: ['ui/notifications/request-teardown', () => ({})],
 }
 
 /** agent: the runtime API of the app being constructed (its layer runs right before its drivers start) */
@@ -219,6 +241,7 @@ export function makeMcpAppDriver(options: McpAppDriverOptions = {}) {
       }, m => {
         if (m.error) return console.error('[Sygnal] makeMcpAppDriver: ui/initialize failed', m.error)
         const r = m.result || {}
+        emit('host', {hostInfo: r.hostInfo, hostCapabilities: r.hostCapabilities || {}, protocolVersion: r.protocolVersion})
         if (r.hostContext) emit('host-context-changed', context = {...r.hostContext})
         post({method: N + 'initialized'})
         const q = queue || []
@@ -232,15 +255,21 @@ export function makeMcpAppDriver(options: McpAppDriverOptions = {}) {
       next: (v: any) => {
         if (!v || typeof v != 'object' || disposed || !allowed(v, 'makeMcpAppDriver')) return
         const k = Object.keys(REQUESTS).find(k => v[k] !== undefined)
+        const n = k ? undefined : Object.keys(NOTIFY).find(k => v[k] !== undefined && v[k] !== false)
         const sender = senderOf(v)
         const answer = (ok: boolean, data: any) => {
           const action = ok ? v.ok : v.error
           if (sender !== undefined && typeof action == 'string') reply(sender, action, data)
           else if (!ok) console.error('[Sygnal] makeMcpAppDriver', data.error, v)
         }
-        if (!k) return console.error('[Sygnal] makeMcpAppDriver: expected { callTool }, { updateModelContext }, { message }, { openLink } or { displayMode }', v)
+        if (!k && !n) return console.error('[Sygnal] makeMcpAppDriver: expected { callTool }, { updateModelContext }, { message }, { openLink }, { displayMode }, { downloadFile }, { readResource }, { listResources }, { createMessage }, { log } or { requestTeardown }', v)
         if (!host) return answer(false, {error: 'not running in an MCP Apps host', request: v})
-        const [method, params] = REQUESTS[k]
+        if (n) {
+          const [method, params] = NOTIFY[n]
+          send({method, params: params(v)})
+          return answer(true, {})
+        }
+        const [method, params] = REQUESTS[k!]
         request(method, params(v), m => {
           if (m.error) answer(false, {error: m.error.message, code: m.error.code, request: v})
           else if (m.result?.isError) answer(false, {error: (m.result.content || []).map((c: any) => c.text).filter(Boolean).join('\n') || method + ' failed', result: m.result, request: v})

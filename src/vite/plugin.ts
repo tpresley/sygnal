@@ -253,7 +253,8 @@ export interface SygnalPluginOptions {
    * PLAN-6 E-1: serve an MCP endpoint at `/__sygnal/mcp` on the dev server (streamable HTTP,
    * local requests only), so a coding agent can read and drive the running app in the open
    * page: get_state, dispatch, component_tree, recent_actions, get_diagnostics, copy_as_test,
-   * agent_tools, tabs, plus sygnal-check's check / graph / explain when it is installed. Dev
+   * agent_tools, apps, tabs, plus sygnal-check's check / graph / explain when it is installed
+   * (G-638: every run() app of the page; `app` picks one). Dev
    * server only (never `vite build`, `vite preview` or Vitest); it also loads 'sygnal/devtools'
    * in the page, even with `devtools: false`.
    * @default false

@@ -12,9 +12,9 @@ export async function mcpAppTestsP6_3X() {
   const iframe = document.createElement('iframe')
   iframe.style.cssText = 'width:320px;height:120px;border:0'
   document.body.appendChild(iframe)
-  const log = { ctx: [], sizes: [], calls: [] }
+  const log = { ctx: [], sizes: [], calls: [], host: [] }
   const bridge = new AppBridge(null, { name: 'browser-test-host', version: '1.0.0' },
-    { serverTools: {}, updateModelContext: { structuredContent: {} } },
+    { serverTools: {}, updateModelContext: { structuredContent: {} }, serverResources: {}, downloadFile: {}, logging: {} },
     { hostContext: { theme: 'light', displayMode: 'inline' } })
   bridge.onupdatemodelcontext = async (p) => { log.ctx.push(p.structuredContent); return {} }
   bridge.onsizechange = (p) => { log.sizes.push(p) }
@@ -22,6 +22,10 @@ export async function mcpAppTestsP6_3X() {
     log.calls.push([name, args])
     return { content: [{ type: 'text', text: 'ok' }], structuredContent: { days: ['Wed', 'Thu'] } }
   }
+  bridge.onreadresource = async ({ uri }) => { log.host.push(['read', uri]); return { contents: [{ uri, mimeType: 'text/plain', text: 'from the server' }] } }
+  bridge.ondownloadfile = async ({ contents }) => { log.host.push(['download', contents[0].resource.uri]); return {} }
+  bridge.onloggingmessage = ({ level, logger, data }) => { log.host.push(['log', level, logger, data.city]) }
+  bridge.onrequestteardown = () => { log.host.push(['teardown']) }
   let initialized = false
   bridge.oninitialized = () => { initialized = true }
   const doc = () => iframe.contentDocument
@@ -64,6 +68,17 @@ export async function mcpAppTestsP6_3X() {
       const before = log.sizes.at(-1).height
       click('.tall')
       await waitFor(() => log.sizes.at(-1).height >= before + 400)
+    })
+
+    await runTest(CAT, 'G-641: host info, resources/read, ui/download-file, logging and request-teardown', async () => {
+      await waitFor(() => text('.host') === 'browser-test-host:downloadFile,logging,serverResources,serverTools,updateModelContext')
+      click('.read')
+      await waitFor(() => text('.resource') === 'from the server')
+      click('.download')
+      click('.log')
+      click('.close')
+      await waitFor(() => log.host.length === 4)
+      assert(JSON.stringify(log.host) === JSON.stringify([['read', 'file:///notes.txt'], ['download', 'file:///forecast.csv'], ['log', 'info', 'frame', 'Lisbon'], ['teardown']]), JSON.stringify(log.host))
     })
 
     await runTest(CAT, 'teardown: the view runs its action, then answers', async () => {

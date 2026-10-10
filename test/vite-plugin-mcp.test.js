@@ -1,7 +1,9 @@
 // PLAN-6 E-1, end to end: a Vite dev server (examples/kanban's Vite) with sygnal({ mcp: true })
-// on test/fixtures/mcp-app, the page open in headless Chromium (browser-tests' cached
-// Playwright, never downloaded), and an MCP client speaking JSON-RPC over HTTP to
-// /__sygnal/mcp. Also: a production build of the fixture has none of it.
+// on test/fixtures/mcp-app (two run() apps, G-638), the page open in headless Chromium, Firefox
+// and WebKit (browser-tests' cached Playwright builds, never downloaded; an engine whose build is
+// not in the cache is skipped, MCP_E2E_BROWSERS=chromium,firefox picks engines), and an MCP
+// client speaking JSON-RPC over HTTP to /__sygnal/mcp. Also: a production build of the fixture
+// has none of it.
 // Needs `npm run build`, `npm install --prefix examples/kanban` and `npm ci --prefix browser-tests`.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
@@ -29,8 +31,12 @@ function linkFixture() {
   }
 }
 
-let server, browser, base, page
+let server, base
 let rpcId = 1
+const ENGINES = (process.env.MCP_E2E_BROWSERS || 'chromium,firefox,webkit').split(',').map((e) => e.trim()).filter(Boolean)
+const pw = await playwright()
+/** the engines whose Playwright build is in the cache (never downloaded) */
+const engines = ENGINES.filter((e) => { try { return fs.existsSync(pw[e].executablePath()) } catch (_) { return false } })
 
 async function rpc(method, params, headers = {}) {
   const r = await fetch(base + '/__sygnal/mcp', {
@@ -64,16 +70,9 @@ beforeAll(async () => {
   }
   await server.listen()
   base = `http://localhost:${server.httpServer.address().port}`
-  const { chromium } = await playwright()
-  browser = await chromium.launch({ headless: true })
-  page = await browser.newPage()
-  page.on('dialog', (d) => d.accept()) // the consequential tool's confirm: the person says yes
-  await page.goto(base + '/')
-  await page.waitForSelector('.count')
 }, 60000)
 
 afterAll(async () => {
-  await browser?.close()
   await server?.close()
   // the links point back at the repo: don't leave a loop for tools that walk the tree
   fs.rmSync(path.join(FIXTURE, 'node_modules'), { recursive: true, force: true })
@@ -87,8 +86,37 @@ describe('sygnal({ mcp: true }) on a dev server', () => {
     const note = await fetch(base + '/__sygnal/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) })
     expect(note.status).toBe(202)
     const names = (await rpc('tools/list')).body.result.tools.map((t) => t.name)
-    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'tabs', 'check', 'graph', 'explain'])
+    expect(names).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'apps', 'tabs', 'check', 'graph', 'explain'])
   })
+
+  it('refuses a foreign Origin and a rebound Host (403)', async () => {
+    expect((await rpc('ping', undefined, { origin: 'https://evil.example' })).status).toBe(403)
+    const status = await new Promise((resolve, reject) => {
+      const q = http.request(base + '/__sygnal/mcp', { method: 'POST', headers: { host: 'rebind.example', 'content-type': 'application/json' } }, (r) => { r.resume(); resolve(r.statusCode) })
+      q.on('error', reject)
+      q.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }))
+    })
+    expect(status).toBe(403)
+  })
+})
+
+it('has at least Chromium cached', () => expect(engines).toContain('chromium'))
+
+describe.each(engines)('the open page in %s', (engine) => {
+  let browser, page
+  beforeAll(async () => {
+    browser = await pw[engine].launch({ headless: true })
+    page = await browser.newPage()
+    page.on('dialog', (d) => d.accept()) // the consequential tool's confirm: the person says yes
+    await page.goto(base + '/')
+    await page.waitForSelector('.count')
+    await page.waitForSelector('.badge')
+  }, 60000)
+  afterAll(async () => {
+    await browser?.close()
+    // the next engine starts with no tab of this one
+    await vi.waitFor(async () => expect((await tool('tabs')).tabs.length).toBe(0), { timeout: 15000, interval: 100 })
+  }, 30000)
 
   it('get_state and dispatch reach the live page', async () => {
     // the page may still be reconnecting after Vite's first dependency optimization
@@ -142,14 +170,15 @@ describe('sygnal({ mcp: true }) on a dev server', () => {
     await vi.waitFor(async () => expect((await tool('tabs')).tabs.length).toBe(1), { timeout: 10000, interval: 100 })
   })
 
-  it('refuses a foreign Origin and a rebound Host (403)', async () => {
-    expect((await rpc('ping', undefined, { origin: 'https://evil.example' })).status).toBe(403)
-    const status = await new Promise((resolve, reject) => {
-      const q = http.request(base + '/__sygnal/mcp', { method: 'POST', headers: { host: 'rebind.example', 'content-type': 'application/json' } }, (r) => { r.resume(); resolve(r.statusCode) })
-      q.on('error', reject)
-      q.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }))
-    })
-    expect(status).toBe(403)
+  it('G-638: both run() apps are served; tabs lists them; `app` picks one', async () => {
+    const { tabs } = await tool('tabs')
+    expect(tabs[0].apps).toEqual([{ index: 0, component: 'App' }, { index: 1, component: 'Badge' }])
+    expect((await tool('apps')).apps.map((a) => a.component)).toEqual(['App', 'Badge'])
+    expect(await tool('get_state', { app: 'Badge' })).toMatchObject({ component: 'Badge', state: { label: 'new' } })
+    expect(await tool('dispatch', { app: 1, action: 'SET', data: 'hot' })).toMatchObject({ ok: true, state: { label: 'hot' } })
+    expect(await page.textContent('.badge')).toBe('hot')
+    // the default is still the first app
+    expect((await tool('get_state')).component).toBe('App')
   })
 })
 

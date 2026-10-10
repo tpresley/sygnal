@@ -3748,3 +3748,4 @@ export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, Comman
 // PLAN-6 X-1 (3-X)
 export { makeMcpAppDriver } from './ai.d'
 export type { McpAppDriverOptions, McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext, McpContentBlock, McpAppDisplayMode } from './ai.d'
+export type { McpHostInfo, McpSamplingRequest, McpLogLevel, McpDownloadItem, McpResourceContents } from './ai.d'

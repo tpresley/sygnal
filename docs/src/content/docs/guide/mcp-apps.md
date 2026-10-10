@@ -84,8 +84,9 @@ The driver does the `ui/initialize` handshake with the host when the app starts.
 | `'tool-cancelled'` | The call was cancelled: `{ reason? }` |
 | `'host-context-changed'` | The host context: `theme`, `displayMode`, `availableDisplayModes`, `locale`, `timeZone`, `containerDimensions`, `styles`, ... First the handshake's, then after every change (merged) |
 | `'teardown'` | The host is about to remove the view; it waits for the actions this causes |
+| `'host'` | The handshake's answer: `{ hostInfo, hostCapabilities, protocolVersion }`. `hostCapabilities` says what the host supports (`downloadFile`, `serverResources`, `logging`, `sampling`, `openLinks`, ...) |
 
-The latest tool input, tool result and host context are replayed to a component that subscribes later, so a component that appears after they arrived still gets them.
+The latest tool input, tool result, host context and `host` are replayed to a component that subscribes later, so a component that appears after they arrived still gets them.
 
 **Sinks**, in the model. Reply actions (`ok`, `error`) go back to the component that sent the request, as with the [fetch driver](/guide/http/):
 
@@ -96,6 +97,14 @@ The latest tool input, tool result and host context are replayed to a component 
 | `{ message: 'text' }` | Posts a message to the conversation as the user (a string or content blocks) |
 | `{ openLink: 'https://…' }` | Asks the host to open a link |
 | `{ displayMode: 'fullscreen' }` | Asks for `'inline'`, `'fullscreen'` or `'pip'`; `ok` gets `{ mode }`, the mode the host chose |
+| `{ downloadFile: contents }` | Asks the host to save a file (the iframe can't download itself; the host asks the user). `contents`: `{ uri, mimeType, text }` (or `blob`, base64), or MCP `resource` / `resource_link` blocks, one or an array. `error` runs when the host refused or the user cancelled |
+| `{ readResource: 'uri' }` | Reads a resource of the MCP server through the host; `ok` gets `{ contents }` |
+| `{ listResources: true }` | Lists the server's resources (`{ cursor }` for the next page); `ok` gets `{ resources, nextCursor? }` |
+| `{ createMessage: 'prompt' }` | Asks the host's model for a completion (MCP sampling): a string is one user message, or pass the MCP params (`messages`, `maxTokens`, `systemPrompt`, ...); `maxTokens` defaults to 1024. `ok` gets `{ role, content, model }`. The host may ask the user first or refuse |
+| `{ log: data, level?, logger? }` | A log line for the host's logs (`notifications/message`; not shown to the model). `level`: `'debug'` … `'emergency'`, default `'info'` |
+| `{ requestTeardown: true }` | Asks the host to close the view. If it agrees, it sends `teardown` as usual |
+
+`log` and `requestTeardown` are notifications: there is no answer, and `ok` runs once they are sent.
 
 `makeMcpAppDriver(options)`:
 
@@ -107,6 +116,43 @@ The latest tool input, tool result and host context are replayed to a component 
 | `tools` | | `agentTools`: offer the view's `agent` tools to the host ([below](#the-views-own-tools)) |
 | `confirm` | declined | With `tools`: consequential calls run when this resolves `true` |
 | `protocolVersion` | `'2026-01-26'` | The MCP Apps protocol version offered |
+
+**Files, resources and the host's model.** Check `hostCapabilities` from `MCP.select('host')` before offering what a host may not support:
+
+```jsx
+function Export({ state }) {
+  return (
+    <div>
+      {state.canDownload ? <button className="csv">Download CSV</button> : null}
+      {state.canSample ? <button className="summary">Summarize</button> : null}
+      <p className="summary-text">{state.summary}</p>
+    </div>
+  )
+}
+
+Export.initialState = { days: [], canDownload: false, canSample: false, summary: '' }
+
+Export.intent = ({ DOM, MCP }) => ({
+  HOST: MCP.select('host'),
+  CSV: DOM.click('.csv'),
+  SUMMARIZE: DOM.click('.summary'),
+})
+
+Export.model = {
+  HOST: (state, { hostCapabilities }) => ({ ...state, canDownload: !!hostCapabilities.downloadFile, canSample: !!hostCapabilities.sampling }),
+  CSV: {
+    MCP: (state) => ({
+      downloadFile: { uri: 'file:///forecast.csv', mimeType: 'text/csv', text: state.days.map((d) => `${d.date},${d.high}`).join('\n') },
+      error: 'FAILED',
+    }),
+  },
+  SUMMARIZE: {
+    MCP: (state) => ({ createMessage: `Summarize this forecast in one sentence: ${JSON.stringify(state.days)}`, ok: 'SUMMARY', error: 'FAILED' }),
+  },
+  SUMMARY: (state, result) => ({ ...state, summary: result.content.text }),
+  FAILED: (state, { error }) => ({ ...state, summary: error }),
+}
+```
 
 **Theme and size.** Follow `host-context-changed` for the host's `theme` (and its `styles.variables`, CSS custom properties the host suggests), so the view matches the conversation around it. Keep the view compact for `inline` mode; offer full screen with `{ displayMode: 'fullscreen' }` when `availableDisplayModes` includes it.
 
@@ -152,7 +198,7 @@ A consequential tool is declined unless you pass `confirm`, a function that asks
 npm create sygnal-app@latest my-tool -- --template mcp-app
 ```
 
-(`--ts` for TypeScript.) The starter needs Sygnal 6.1 or later, so it installs once 6.1.0 is published.
+(`--ts` for TypeScript.) The starter needs Sygnal 6.1 or later, so it installs once 6.1.0 is published. Until then, point it at a local build of Sygnal: `npm run build` in a Sygnal checkout, then `npm install /path/to/sygnal` in the project (its README has the steps).
 
 ```text
 src/App.jsx          the view (the forecast card above, with theme and full screen)
@@ -225,4 +271,4 @@ The starter's tests also run the server with the MCP SDK's in-memory client.
 
 ## Not covered yet
 
-The driver wraps the parts of the protocol most views need. Not wrapped yet: `ui/download-file`, a view asking to be closed (`request-teardown`), reading server resources from the view, logging and sampling.
+The driver wraps the view-side requests and notifications of protocol 2026-01-26, except two listings a host may proxy to the server: `resources/templates/list` and `prompts/list`.

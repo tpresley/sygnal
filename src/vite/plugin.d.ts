@@ -105,17 +105,20 @@ export interface SygnalPluginOptions {
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet. It installs the DevTools bridge
    * (`window.__SYGNAL_DEVTOOLS__`) for the browser extension. Production builds
-   * never contain it. false: not injected.
+   * never contain it. false: not injected. `{ redux: true }` also sends the actions and the
+   * root's state to the Redux DevTools extension (connectReduxDevtools() from 'sygnal/devtools').
    * @default true
    */
-  devtools?: boolean
+  devtools?: boolean | { redux?: boolean }
 
   /**
    * Serve an MCP endpoint at `/__sygnal/mcp` on the dev server (streamable HTTP; requests from
    * this machine with a local Host / Origin only), so a coding agent can read and drive the
-   * running app in the open page: get_state, dispatch, component_tree, recent_actions,
-   * get_diagnostics, copy_as_test, agent_tools, tabs, and sygnal-check's check / graph /
-   * explain when it is installed. Dev server only; it also loads 'sygnal/devtools' in the page.
+   * running apps in the open page: get_state, dispatch, component_tree, recent_actions,
+   * get_diagnostics, copy_as_test, agent_tools, apps, tabs, and sygnal-check's check / graph /
+   * explain when it is installed. Every run() app of the page is served (`app` picks one).
+   * Answers are application/json (no SSE stream, no sessions). Dev server only; it also loads
+   * 'sygnal/devtools' in the page.
    * @default false
    */
   mcp?: boolean | McpPluginOptions
