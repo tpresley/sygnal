@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 running: guides merged (4-D1, 4-D2); 4-L, 4-F, 4-E merged; eval done (REPORT-v6); **Phase 4 complete**; release steps wait for the user; eval budget $90 (D295).
+**State:** **Phases 0–4 complete** (2026-10-09). Everything is on `plan6-integration`; full gate green on Chromium, Firefox and WebKit; eval done (`evals/agent-ergonomics/results/REPORT-v6.md`: Sygnal 60/60 on the new tier, S-14 within the bar). Open: the release steps (6.1.0 version + changelog, merge to `main`, publish; the user's call) and the follow-up gaps still marked open below.
 
 ## Decisions
 
@@ -148,27 +148,27 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-597 | 0-S2 | The action log relabelled `cause: 'agent'` as `'intent'` (one-token fix in the spike) | ✅ fixed (1-A) |
 | G-598 | 0-S3 | `toolname` etc. written in JSX become DOM properties, not attributes | decided (D269); open (impl) |
 | G-599 | 0-S3 | The polyfill can't be uninstalled: WebMCP tests need their own page | open (A-2 tests) |
-| G-600 | 0-S3 | Native and polyfill differ (input as JSON string vs object, schema string vs object, result shapes, errors): an agent-side test helper must normalize | open (A-2 tests) |
-| G-601 | 0-S3 | Chrome 153 drops `consequentialHint` and enforces neither schemas nor budgets: Sygnal enforces them | open (A-2) |
-| G-602 | 0-S3 | Without `toolautosubmit` an agent's form call waits for the user | decided (D270); open (impl) |
-| G-603 | 0-S3 | `aria-label` isn't used for `toolparamdescription` | open (A-3) |
-| G-604 | 0-S4 | L-1's `ok` has no `value` for structured output | open (L-1) |
-| G-605 | 0-S4 | PLAN-6 doesn't say which JSON Schema side is sent, or describe wrapping and the lenient unwrap | open (plan edit) |
-| G-606 | 0-S4 | PLAN-6 §6 promises raw JSON Schema as `input` | decided (D262); open (impl) |
-| G-607 | 0-S4 | No `repair` step | decided (D264); open (impl) |
-| G-608 | 0-S4 | ArkType rebuilds `~standard` on each read: cache by schema object | open (A-1) |
-| G-609 | 0-S4 | Anthropic caps strict tools per request | open (L-2 strict) |
+| G-600 | 0-S3 | Native and polyfill differ (input as JSON string vs object, schema string vs object, result shapes, errors): an agent-side test helper must normalize | ✅ fixed (2-W: agent-side helper) |
+| G-601 | 0-S3 | Chrome 153 drops `consequentialHint` and enforces neither schemas nor budgets: Sygnal enforces them | ✅ fixed (2-W: Sygnal validates and enforces budgets) |
+| G-602 | 0-S3 | Without `toolautosubmit` an agent's form call waits for the user | ✅ by design (D270; documented) |
+| G-603 | 0-S3 | `aria-label` isn't used for `toolparamdescription` | ✅ fixed (3-A3) |
+| G-604 | 0-S4 | L-1's `ok` has no `value` for structured output | ✅ fixed (1-L: `ok.value`) |
+| G-605 | 0-S4 | PLAN-6 doesn't say which JSON Schema side is sent, or describe wrapping and the lenient unwrap | ✅ fixed (PLAN-6 edits, A-1 input contract) |
+| G-606 | 0-S4 | PLAN-6 §6 promises raw JSON Schema as `input` | ✅ fixed (D262: `jsonSchema()` only) |
+| G-607 | 0-S4 | No `repair` step | ✅ fixed (1-A: `repair`, D264) |
+| G-608 | 0-S4 | ArkType rebuilds `~standard` on each read: cache by schema object | ✅ fixed (1-A: cache by schema object) |
+| G-609 | 0-S4 | Anthropic caps strict tools per request | ✅ fixed (3-W2: per-tool fallback) |
 | G-610 | 0-S4 | ArkType's `.describe()` replaces its own error messages | open (docs) |
 | G-611 | 0-S4 | `sygnal-check` candidates: an unwrapped Valibot `input`; a `Date` `input` | ✅ fixed (3-K) |
-| G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | decided (D275); open (impl) |
-| G-613 | 0-S5 | A scripted transport is invisible to check-live | decided (D272/D274); open (impl) |
+| G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | ✅ by design (D275) |
+| G-613 | 0-S5 | A scripted transport is invisible to check-live | ✅ moot (D274: no scripted transport) |
 | G-614 | 0-S5 | `sygnal-check` gives false SYG102 for `delta`/`tool` reply keys | ✅ fixed (3-K) |
 | G-615 | 0-S5 | The live `LLM` default should apply page-wide, not only to demos importing `sygnal/ai` | ✅ fixed (DX-1) |
 | G-616 | 0-S5 | The live demo server has no unit tests | ✅ fixed (DX-1) |
 | G-617 | 1-A, 1-L, 1-M | `src/index.d.ts` re-exported from `'./ai'`, which resolves to `ai.ts`: `messageText` etc. were typed `any` in dist (hidden by `skipLibCheck`) | ✅ fixed (`'./ai.d'`, merge) |
 | G-618 | 1-A | Collection items without ids get their index as key: routing works but keys are unstable → SYG441 (from the uid's `_i<n>`) | ✅ fixed (1-A) |
-| G-619 | 1-A | No `test:ai-local` script yet for the opt-in Ollama suites | open (Phase 2) |
-| G-620 | 1-L | SYG609's fix text suggests `makeFetchDriver` for an `LLM` sink | open (Phase 2) |
+| G-619 | 1-A | No `test:ai-local` script yet for the opt-in Ollama suites | ✅ fixed (2-T: `test:ai-local`) |
+| G-620 | 1-L | SYG609's fix text suggests `makeFetchDriver` for an `LLM` sink | ✅ fixed (2-T) |
 | G-621 | 1-M | `decide.openai()` shapes are from OpenAI's guide only (no live call): `usage` undocumented, `{ label, description }` levels unverified | open (verify when a key is available) |
 | G-622 | 2-W | WebMCP description summaries can carry user-entered text; `untrustedContentHint` covers results, not descriptions (prompt-injection channel) | ✅ fixed (D286) |
 | G-623 | 2-W | SYG244's inference treats every string as untrusted except keys named `id` | ✅ fixed (3-F) |
@@ -180,7 +180,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-629 | 2-T | A-1's `normalize` walker treats `properties` maps as schemas (a property named `oneOf` gets rewritten); the strict layer has a map-aware walker | ✅ fixed (3-W2) |
 | G-630 | 2-T | `chromePrompt` sends no tools (the Prompt API has none) and fails on a mid-conversation system message | open (docs) |
 | G-631 | D286 review | The `chat` behavior sends `read` projections (with user text) as JSON right after the instructions: the same injection channel D286 closed for WebMCP. In-app the model needs the contents, so the fix is placement and framing (a delimited data block in a non-instruction message, marked as data), not removal | ✅ fixed (3-F) |
-| G-632 | 3-K | SYG731 now flags 41 class-only tab states in eval starters; agents told to run `sygnal-check --strict` may spend time on them, so Phase 4 learn-time/cost numbers aren't comparable to PLAN-5's unless re-baselined | open (Phase 4: leave starters unchanged; re-baseline S-14 with the 6.1 checker) |
+| G-632 | 3-K | SYG731 now flags 41 class-only tab states in eval starters; agents told to run `sygnal-check --strict` may spend time on them, so Phase 4 learn-time/cost numbers aren't comparable to PLAN-5's unless re-baselined | ✅ resolved (re-baseline within the bar, REPORT-v6) |
 | G-633 | 3-K | SYG240's explanation suggests `z.coerce.date()` for dates, which also throws in Zod's JSON Schema conversion | ✅ fixed (3-F) |
 | G-634 | 3-M | `commandBar`'s free-text heuristic is naive for commands like "remind me to …" (documented; `freeText` hook; escalation) | open (docs) |
 | G-635 | 3-W2 | Without `strictSchemas`, Claude may reject an `output` schema with keywords outside its subset (400) | open (docs; consider a light always-on filter) |
