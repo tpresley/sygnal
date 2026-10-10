@@ -2,6 +2,7 @@ import {post, sse, json, partsOf, toolName, toolOutput} from './shared';
 import type {HttpOptions} from './shared';
 import {prepare} from './tools';
 import type {StrictOption} from './tools';
+import {anthropicCompatible} from '../schema/strict';
 
 /*
  * PLAN-6 L-2 (wave 2): anthropicMessages({ baseURL?, model, maxTokens?, headers?, fetch?, body?,
@@ -25,6 +26,14 @@ import type {StrictOption} from './tools';
  * Anthropic's subset and the `output` schema in it; a schema without a strict form, or one over
  * Anthropic's per-request limits (20 strict tools, 24 optional and 16 union-typed parameters
  * across the strict schemas, G-609), is sent non-strict on its own (SYG675).
+ *
+ * Compatibility (G-635, always on): `output_config.format` is always constrained decoding, so a
+ * non-strict `output` schema goes through anthropicCompatible() (../schema/strict.ts): keywords
+ * outside Anthropic's subset (numeric / string bounds, pattern, uniqueItems, not, if/then, ...)
+ * move into the description, oneOf becomes anyOf, objects get `additionalProperties: false`. The
+ * driver validates the reply against the original schema. Non-strict tools' `input_schema` is sent
+ * as is: the API takes any JSON Schema (draft 2020-12) there, and the keywords guide the model
+ * (A-1's normalization already makes the root an object, which the API requires).
  *
  * Events: message_start -> start (the message id, input usage); text_delta -> text;
  * thinking_delta -> reasoning, and its signature (signature_delta) closes the part with
@@ -115,7 +124,7 @@ export function anthropicMessages(options: AnthropicMessagesOptions = {}) {
         ...(system && {system}),
         messages,
         ...(tools.length && {tools}),
-        ...(p.output && {output_config: {format: {type: 'json_schema', schema: p.output.schema}}}),
+        ...(p.output && {output_config: {format: {type: 'json_schema', schema: p.output.strict ? p.output.schema : anthropicCompatible(p.output.schema)}}}),
       }, req, signal, {...options, headers}, 'anthropicMessages');
       // content blocks by index: tool_use / server_tool_use input JSON, thinking signatures
       const blocks: any[] = [];

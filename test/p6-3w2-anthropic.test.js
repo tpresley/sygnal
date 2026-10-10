@@ -7,7 +7,8 @@ import { describe, it, expect, afterEach } from 'vitest'
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 import { anthropicMessages, toAnthropic } from '../src/extra/ai/transports/anthropicMessages.ts'
-import { strictSchemas } from '../src/extra/ai/schema/strict.ts'
+import { strictSchemas, anthropicCompatible } from '../src/extra/ai/schema/strict.ts'
+import { transformJSONSchema } from '@anthropic-ai/sdk/lib/transform-json-schema'
 import { toJsonSchema } from '../src/extra/ai/schema/index.ts'
 import { toSSE, fixtureFetch, collect } from './helpers/p6-sse-fixture.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.ts'
@@ -202,7 +203,8 @@ describe('anthropicMessages: the request', () => {
         { name: 'add', description: 'Add', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
         { type: 'web_search_20260209', name: 'web_search' },
       ],
-      output_config: { format: { type: 'json_schema', schema: toJsonSchema(z.object({ ok: z.boolean() })).schema } },
+      // G-635: the compatibility pass adds additionalProperties: false (Anthropic requires it)
+      output_config: { format: { type: 'json_schema', schema: { ...toJsonSchema(z.object({ ok: z.boolean() })).schema, additionalProperties: false } } },
     })
   })
 
@@ -286,5 +288,74 @@ describe('anthropicMessages: strict (D266, D285, G-609)', () => {
     expect(d).toHaveLength(1)
     expect(d[0]).toMatchObject({ severity: 'error', data: { transport: 'anthropicMessages' } })
     expect(d[0].message).toMatch(/strictSchemas/)
+  })
+})
+
+describe('anthropicMessages: the always-on output compatibility pass (G-635)', () => {
+  // keywords outside Anthropic's structured-output subset, at every level
+  const wide = {
+    type: 'object',
+    properties: {
+      title: { type: 'string', minLength: 3, maxLength: 80, pattern: '^[A-Z]' },
+      site: { type: 'string', format: 'uri' },
+      slug: { type: 'string', format: 'regex' },
+      score: { type: 'number', minimum: 0, maximum: 1, multipleOf: 0.5, exclusiveMaximum: 2 },
+      tags: { type: 'array', items: { type: 'string', enum: ['a', 'b'] }, minItems: 2, maxItems: 5, uniqueItems: true },
+      some: { type: 'array', items: { type: 'integer' }, minItems: 1 },
+      kind: { oneOf: [{ type: 'object', properties: { a: { type: 'string' } }, required: ['a'], minProperties: 1 }, { type: 'null' }] },
+      meta: { type: 'object', additionalProperties: { type: 'string' } },
+      none: { not: { type: 'string' }, type: 'integer' },
+    },
+    required: ['title'],
+    if: { properties: { score: { const: 1 } } },
+    then: { required: ['tags'] },
+  }
+  const strip = s => JSON.parse(JSON.stringify(s, (k, v) => k == 'description' ? undefined : v))
+
+  it('moves unsupported keywords into the description, oneOf -> anyOf, additionalProperties: false (records kept)', () => {
+    const out = anthropicCompatible(wide)
+    expect(out.properties.title).toEqual({ type: 'string', description: '{"minLength":3,"maxLength":80,"pattern":"^[A-Z]"}' })
+    expect(out.properties.site).toEqual({ type: 'string', format: 'uri' })
+    expect(out.properties.slug).toEqual({ type: 'string', description: '{"format":"regex"}' })
+    expect(out.properties.score.description).toBe('{"minimum":0,"maximum":1,"multipleOf":0.5,"exclusiveMaximum":2}')
+    expect(out.properties.tags).toEqual({ type: 'array', items: { type: 'string', enum: ['a', 'b'] }, description: '{"minItems":2,"maxItems":5,"uniqueItems":true}' })
+    expect(out.properties.some).toEqual({ type: 'array', items: { type: 'integer' }, minItems: 1 })
+    expect(out.properties.kind.anyOf[0]).toEqual({ type: 'object', properties: { a: { type: 'string' } }, required: ['a'], additionalProperties: false, description: '{"minProperties":1}' })
+    expect(out.properties.meta.additionalProperties).toEqual({ type: 'string' })
+    expect(out.properties.none.description).toBe('{"not":{"type":"string"}}')
+    expect(out.additionalProperties).toBe(false)
+    expect(Object.keys(out).sort()).toEqual(['additionalProperties', 'description', 'properties', 'required', 'type'])
+    // the original is untouched (the driver validates against it)
+    expect(wide.properties.title.minLength).toBe(3)
+    expect(wide.properties.kind.oneOf).toBeDefined()
+  })
+
+  it('keeps the keywords @anthropic-ai/sdk’s transformJSONSchema keeps (records aside; enum / const too, which the docs list as supported and the SDK moves)', () => {
+    const { meta, ...properties } = wide.properties
+    const plain = { ...wide, properties }
+    const noEnum = s => JSON.parse(JSON.stringify(s, (k, v) => k == 'enum' ? undefined : v))
+    expect(strip(noEnum(anthropicCompatible(plain)))).toEqual(strip(transformJSONSchema(noEnum(plain))))
+  })
+
+  it('a non-strict output goes through it; a strict one is strictSchemas’; tools stay as they are', async () => {
+    const { f, t } = transport([start(), ...end('end_turn')])
+    const output = { '~standard': { version: 1, vendor: 'x', validate: v => ({ value: v }), jsonSchema: { input: () => wide, output: () => wide } } }
+    await collect(t, { messages: [user('x')], output, tools: { add: { inputSchema: wide } } })
+    const { json } = f.calls[0]
+    expect(json.output_config.format.schema.properties.title).toEqual({ type: 'string', description: '{"minLength":3,"maxLength":80,"pattern":"^[A-Z]"}' })
+    expect(json.output_config.format.schema.if).toBeUndefined()
+    expect(json.tools[0].input_schema.properties.title.minLength).toBe(3)
+    const s = transport([start(), ...end('end_turn')], { strict: strictSchemas })
+    await collect(s.t, { messages: [user('x')], output: z.object({ ok: z.boolean().describe('yes') }) })
+    expect(s.f.calls[0].json.output_config.format.schema).toEqual({ type: 'object', properties: { ok: { type: 'boolean', description: 'yes' } }, required: ['ok'], additionalProperties: false })
+  })
+
+  it('validation is the original schema’s: a reply the description only hints at fails `output`', async () => {
+    const reply = text => [start(), block(0, { type: 'text', text: '' }), delta(0, { type: 'text_delta', text }), stop(0), ...end('end_turn')]
+    const { t } = transport(reply('{"title":"no"}'))
+    const r = await collect(t, { messages: [user('x')], output: z.object({ title: z.string().min(3) }) })
+    expect(r.find(e => e.type == 'text').delta).toBe('{"title":"no"}')
+    const { readOutput } = await import('../src/extra/ai/chat/output.ts')
+    await expect(readOutput(z.object({ title: z.string().min(3) }), '{"title":"no"}')).rejects.toMatchObject({ issues: expect.any(Array) })
   })
 })

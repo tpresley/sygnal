@@ -34,6 +34,26 @@ run(Article, { LLM: makeChatDriver({ transport }) })
 
 `status()` resolves with `'available'`, `'downloadable'`, `'downloading'` or `'unavailable'`. A `'downloadable'` model is downloaded by its first request, which must come from a user action (a click), so summarise on a click rather than on load. `chromePrompt({ monitor })` gets the download's progress events.
 
+A component can show the status too, for example to say "Summaries need a one-time download" before the first click. A promise can't be read in a view, so give `status` to [`driverFromAsync`](/guide/custom-drivers/) and ask for it like any request:
+
+```js
+import { run, driverFromAsync } from 'sygnal'
+import { makeChatDriver, chromePrompt } from 'sygnal/ai'
+import Article from './Article.jsx'
+
+const onDevice = chromePrompt()
+run(Article, { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) })
+```
+
+```js
+Article.model = {
+  BOOTSTRAP: { MODEL: () => ({ ok: 'MODEL_STATUS' }) },
+  MODEL_STATUS: (state, status) => ({ ...state, model: status }),
+}
+```
+
+In a test, `await t.respond('MODEL', 'downloadable')` answers it.
+
 ## The component
 
 The component is the same whatever the transport. In this demo it runs on the page's demo model (as every demo here does), and asks for a summary as soon as it shows. In your app, the same code runs on the device.
@@ -110,7 +130,7 @@ Article.model = {
 ## What the on-device model can't do
 
 - **No tools.** The Prompt API has no tool calling yet, so `chromePrompt()` doesn't send `tools`. An assistant that operates the app needs a hosted model.
-- **No system message mid-conversation.** Put system text in `instructions`: a `system` message after the first one fails the request.
+- **One system prompt.** The Prompt API takes system text only at the start of a session, so `instructions` and every `system` message (wherever it is in the conversation) are joined into that one prompt.
 - **Structured output works.** `output` becomes the Prompt API's `responseConstraint`, and `ok` gets the validated `value`, as with any transport.
 
 ## Testing

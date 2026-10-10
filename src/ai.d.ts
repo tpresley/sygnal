@@ -807,7 +807,11 @@ export interface ChromePromptOptions {
 }
 
 export interface ChromePromptTransport extends ChatTransport {
-  /** `LanguageModel.availability()`, or 'unavailable' without the API */
+  /**
+   * `LanguageModel.availability()`, or 'unavailable' without the API. A component reads it
+   * through a driver (G-647): `MODEL: driverFromAsync(transport.status)` in `run()`, and
+   * `MODEL: { ok: 'MODEL_STATUS' }` from the model (the reply action gets the status string)
+   */
   status(): Promise<ChromePromptStatus>;
 }
 
@@ -829,7 +833,11 @@ export function chatCompletions(options?: ChatCompletionsOptions): ChatTransport
  */
 export function uiMessageStream(url: string, options?: UIMessageStreamOptions): ChatTransport
 
-/** chromePrompt(): a transport for Chrome's on-device Prompt API (`LanguageModel`); `status()` says whether it can run */
+/**
+ * chromePrompt(): a transport for Chrome's on-device Prompt API (`LanguageModel`); `status()` says
+ * whether it can run. No tools (the Prompt API has none); `instructions` and every `system`
+ * message are joined into the session's one system prompt (G-630)
+ */
 export function chromePrompt(options?: ChromePromptOptions): ChromePromptTransport
 
 /** One Open Responses SSE event (`event: type`, `data: JSON`) */
@@ -1014,8 +1022,14 @@ export function agui(url: string, options?: AguiOptions): ChatTransport
 export interface FromAISDKOptions {
   /** The AI SDK's `streamText` (import { streamText } from 'ai'): sygnal never imports `ai` */
   streamText: (options: any) => any;
-  /** An AI SDK LanguageModel (a request's `model` string is not used) */
+  /** An AI SDK LanguageModel, used when a request names no `model` */
   model: unknown;
+  /**
+   * Resolves a request's `model` string (G-637): a function (a provider such as `anthropic`, or
+   * `registry.languageModel`) or a map of ids to LanguageModels. A request `model` string with no
+   * `models`, or one it doesn't resolve, fails the request (never the AI SDK's global provider)
+   */
+  models?: ((id: string) => unknown) | Record<string, unknown>;
   /** The AI SDK's `Output`, for requests with `output` */
   Output?: { object: (options: { schema: any }) => unknown };
   /** Other streamText settings (temperature, providerOptions, maxRetries, ...) */
@@ -1028,6 +1042,8 @@ export interface FromAISDKOptions {
  *
  *   import { streamText, Output } from 'ai'
  *   makeChatDriver({ transport: fromAISDK({ streamText, Output, model: anthropic('claude-opus-5-5') }) })
+ *   // requests may pick another model by id: { model: 'claude-haiku-5-5', ... }
+ *   fromAISDK({ streamText, model: anthropic('claude-opus-5-5'), models: anthropic })
  */
 export function fromAISDK(options: FromAISDKOptions): ChatTransport
 

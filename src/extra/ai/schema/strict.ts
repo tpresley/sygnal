@@ -1,4 +1,4 @@
-import {resolve, walk} from './index';
+import {resolve, walk, isObj} from './index';
 
 /*
  * PLAN-6 L-2 (0-S4 layer 2, D266, D285): the opt-in strict schema layer of the OpenAI- and
@@ -37,7 +37,38 @@ const DROP = ['allOf', 'not', 'if', 'then', 'else', 'dependentRequired', 'depend
   'unevaluatedProperties', 'propertyNames', 'minProperties', 'maxProperties', 'unevaluatedItems', 'contains',
   'minContains', 'maxContains', 'uniqueItems', 'default', 'examples', 'title'];
 const FORMATS = ['date-time', 'time', 'date', 'duration', 'email', 'hostname', 'ipv4', 'ipv6', 'uuid'];
+// Anthropic's subset (the keywords @anthropic-ai/sdk's transformJSONSchema keeps)
 const KEEP = /^(type|anyOf|allOf|\$ref|\$defs|enum|const|description|title|properties|required|additionalProperties|items)$/;
+const ANT_FORMATS = /^(date-time|time|date|duration|email|hostname|uri|ipv4|ipv6|uuid)$/;
+
+/** one schema object into Anthropic's subset, in place (oneOf -> anyOf): the keywords it moved out */
+export function anthropicKeywords(o: any): any {
+  const moved: any = {};
+  if (o.oneOf && !o.anyOf) { o.anyOf = o.oneOf; delete o.oneOf; }
+  for (const k in o) if (k == 'format' ? !ANT_FORMATS.test(o[k]) : k == 'minItems' ? o[k] > 1 : !KEEP.test(k)) { moved[k] = o[k]; delete o[k]; }
+  return moved;
+}
+
+// the moved keywords as JSON at the end of the description: the model still reads them, validation still enforces them
+const describe = (o: any, moved: any) => {
+  if (Object.keys(moved).length) {
+    const hint = JSON.stringify(moved);
+    o.description = o.description ? o.description + ' ' + hint : hint;
+  }
+  return o;
+};
+
+/**
+ * G-635: the light, always-on pass anthropicMessages() runs on a non-strict `output` schema
+ * (`output_config.format` is always constrained decoding, and a keyword outside Anthropic's subset
+ * is a 400): Anthropic's keywords only (the rest moved into the description), and
+ * `additionalProperties: false` on every object that isn't a record. No limits, no errors.
+ */
+export const anthropicCompatible = (schema: any): any => walk(schema, o => {
+  const moved = anthropicKeywords(o);
+  if ((o.type == 'object' || o.properties) && !isObj(o.additionalProperties)) o.additionalProperties = false;
+  return describe(o, moved);
+});
 
 const nullable = (p: any): any => {
   const t = p.type, withEnum = (o: any) => p.enum ? {...o, enum: [...p.enum, null]} : o;
@@ -67,12 +98,9 @@ export function strictSchemas(schema: any, dialect: StrictDialect = 'openai', le
   if (schema?.type != 'object') errors.push('the root is not an object');
   if (ant && schema && recursive(schema)) errors.push('a recursive schema has no strict form');
   const out = walk(schema, o => {
-    const moved: any = {};
+    let moved: any = {};
     if (ant) {
-      if (o.oneOf && !o.anyOf) { o.anyOf = o.oneOf; delete o.oneOf; }
-      for (const k in o) if (!KEEP.test(k) && k != 'format' && k != 'minItems') { moved[k] = o[k]; delete o[k]; }
-      if (o.format && !(FORMATS.includes(o.format) || o.format == 'uri')) { moved.format = o.format; delete o.format; }
-      if (o.minItems > 1) { moved.minItems = o.minItems; delete o.minItems; }
+      moved = anthropicKeywords(o);
       if (!o.type && !o.anyOf && !o.allOf && !o.$ref && !o.enum && !('const' in o) && !o.properties) errors.push('a value of any type has no strict form');
     } else {
       for (const k of DROP) if (k in o) { moved[k] = o[k]; delete o[k]; }
@@ -91,11 +119,7 @@ export function strictSchemas(schema: any, dialect: StrictDialect = 'openai', le
       if (!ant) o.required = Object.keys(props);
       o.additionalProperties = false;
     }
-    if (Object.keys(moved).length) {
-      const hint = JSON.stringify(moved);
-      o.description = o.description ? o.description + ' ' + hint : hint;
-    }
-    return o;
+    return describe(o, moved);
   });
   if (left && !errors.length) {
     if ((tool && left.tools < 1) || left.optional < optional || left.unions < unions) errors.push('over the per-request strict limits (20 tools, 24 optional and 16 union-typed parameters)');

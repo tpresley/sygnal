@@ -17,7 +17,13 @@ import {outputJsonSchema} from '../chat/output';
  * in the assistant message), each tool as `{ description, inputSchema }` with no `execute` (the
  * app runs it: the AI SDK returns the call), its schema as a Standard JSON Schema (the app's
  * driver validates the call), `output` as `Output.object({ schema })` (an Error without `Output`).
- * The request's `model` is not used (the `model` option is a LanguageModel object).
+ *
+ * Model (G-637): the request's `model` overrides the `model` option. A LanguageModel object is
+ * used as is; a string goes through the `models` option, `models(id)` (a provider: `anthropic`,
+ * a registry's `languageModel`) or `models[id]`. A string `models` doesn't resolve, or any string
+ * without `models`, is an Error: never silently another model, and never the AI SDK's global
+ * provider (the AI Gateway by default, a network call the app didn't configure here); pass
+ * `models: id => gateway(id)` for that.
  *
  * Stream (`result.stream`, AI SDK 7; `fullStream` before it): text-delta / reasoning-delta ->
  * text / reasoning (a reasoning-end with providerMetadata closes the reasoning part with it);
@@ -30,6 +36,8 @@ import {outputJsonSchema} from '../chat/output';
 export interface FromAISDKOptions {
   streamText: (options: any) => any;
   model: unknown;
+  /** resolves a request's `model` string: a provider function or registry lookup, or a map of ids */
+  models?: ((id: string) => unknown) | Record<string, unknown>;
   Output?: {object: (options: {schema: unknown}) => unknown};
   [setting: string]: unknown;
 }
@@ -74,19 +82,22 @@ export function toModelMessages(m: any): any[] {
 }
 
 export function fromAISDK(options: FromAISDKOptions) {
-  const {streamText, model, Output, ...settings} = options || ({} as FromAISDKOptions);
+  const {streamText, model, models, Output, ...settings} = options || ({} as FromAISDKOptions);
   if (typeof streamText != 'function') throw new TypeError("fromAISDK: pass the AI SDK's streamText: fromAISDK({ streamText, model }) with import { streamText } from 'ai'");
   return {
     async *stream(req: any, signal: AbortSignal): AsyncGenerator<any, void, any> {
       const o = req.output !== undefined ? outputJsonSchema(req.output) : undefined;
       if (o && !Output) throw new Error("fromAISDK: a request with `output` needs the AI SDK's Output: fromAISDK({ streamText, Output, model }) with import { streamText, Output } from 'ai'");
       const tools = Object.entries(req.tools || {});
+      const id = req.model;
+      const m = typeof id != 'string' ? id ?? model : typeof models == 'function' ? models(id) : models?.[id];
+      if (!m) throw new Error(`fromAISDK: no model '${id}': ` + (models ? `the models option doesn't resolve it` + (typeof models == 'object' ? ` (it has ${Object.keys(models).join(', ')})` : '') : 'pass models (a provider, a registry lookup or a map of ids) to resolve a request model string'));
       // AI SDK 7 takes system text only as `instructions`
       const sys = (m: any) => m.role == 'system';
       const instructions = [req.instructions, ...req.messages.filter(sys).map(textOf)].filter(Boolean).join('\n\n');
       const r = streamText({
         ...settings,
-        model,
+        model: m,
         ...(instructions && {instructions}),
         messages: req.messages.filter((m: any) => !sys(m)).flatMap(toModelMessages),
         ...(tools.length && {tools: Object.fromEntries(tools.map(([name, t]: [string, any]) => [name, {...(t?.description && {description: t.description}), inputSchema: standard(t?.inputSchema || {type: 'object', properties: {}})}]))}),
