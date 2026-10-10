@@ -183,7 +183,7 @@ describe('G-627: reasoning in the slice', () => {
     expect(t.state.assistant.draftReasoning).toBe('Hmm')
     t.simulateAction('assistant.STOP')
     await t.settle()
-    expect(t.state.assistant.messages.at(-1)).toEqual({ role: 'assistant', parts: [{ type: 'reasoning', text: 'Hmm' }] })
+    expect(t.state.assistant.messages.at(-1)).toEqual({ id: expect.stringMatching(/^[0-9a-z]{16}$/), role: 'assistant', parts: [{ type: 'reasoning', text: 'Hmm' }] })
     expect(t.state.assistant.draftReasoning).toBe('')
   })
 })

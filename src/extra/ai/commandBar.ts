@@ -37,9 +37,10 @@
  * `confirm` → `pending` for a consequential action).
  *
  * Free text arguments (ADD's text): a decision model only picks among options, so the text is
- * taken from the command by a heuristic, documented as one: a quoted part ("…", '…', “…”) if
- * there is one, else the command minus its first word ("add walk the dog" → "walk the dog"). It is
- * validated like any agent input. `freeText: (command, tool) => string | undefined` replaces it;
+ * taken from the command by a heuristic, documented as one (G-634, freeText below): a quoted part
+ * ("…", '…', “…”) if there is one, else the command without its lead-in ("remind me to call mom" →
+ * "call mom", "put milk on my list" → "milk"); a question gives undefined. It is validated like any
+ * agent input. `freeText: (command, tool) => string | undefined` replaces it;
  * undefined means "can't tell": the command is escalated (or `unsure`, reason 'input'). Actions with
  * other inputs (numbers, several fields) are offered too, and escalated / unsure when picked: a
  * chat model fills arguments, a decision model doesn't.
@@ -73,10 +74,33 @@ const toolsOf = (e: Engine) => e.tools ||= agentTools(e.api, {
   }),
 })
 
-/** the documented heuristic: a quoted part, else the command minus its first word */
-export const freeText = (command: string): string | undefined => {
+// G-634: the free-text heuristic's words. Fillers before the request, the verbs that ask to add
+// something, the nouns that name an entry, and a destination at the end ("… to my list")
+const FILLER = "please|pls|hey|ok(?:ay)?|so|just|(?:can|could|would|will) you|i(?: want| need| have|'d like| would like) to|let'?s|go ahead and|(?:do not|don'?t) forget to|remember to|make sure to"
+const VERBS = 'add|create|make|put|insert|append|include|new|remind|remember|note|track|jot(?: down)?|write(?: down)?|note down'
+const NOUNS = 'todo|to-do|task|item|entry|note|reminder'
+const words = (x: string) => x.toLowerCase().replace(/[^a-z' -]/g, '').trim()
+
+/**
+ * The documented heuristic (G-634): a quoted part if there is one; else the command without its
+ * lead-in, which is: fillers ("please", "can you", "I need to", "don't forget to"), then a verb
+ * asking to add (add, create, put, remind, jot down, …, or the first word of the action's
+ * `description`) with what follows it ("me to", "about", an article, "a new todo:", "a task to",
+ * "to my list:"; the last word of the description counts as a noun), and a destination at the end
+ * ("to the list", "on my shopping list"). A command with no verb keeps its words ("buy eggs").
+ * undefined ("can't tell": the command escalates) for a question or nothing left.
+ */
+export const freeText = (command: string, description = ''): string | undefined => {
   const q = /"([^"]+)"|“([^”]+)”|'([^']+)'/.exec(command)
-  const t = q ? q[1] ?? q[2] ?? q[3] : command.trim().replace(/^\S+\s*/, '')
+  if (q) return (q[1] ?? q[2] ?? q[3]).trim() || undefined
+  const c = command.trim()
+  if (c.endsWith('?')) return
+  const d = words(description).split(/\s+/), v = d.length > 1 ? `|${d[0]}` : '', n = d.length > 1 ? `|${d[d.length - 1]}s?` : ''
+  const noun = `(?:(?:a|an|the|another|one|my)\\s+)?(?:new\\s+)?(?:${NOUNS}${n})\\b\\s*(?:(?::|-|to|that|saying|called|named)\\s+)?`
+  const list = `(?:to|on|onto|in|into)\\s+(?:the|my|our)\\s+(?:[\\w-]+\\s+)?(?:list|${NOUNS}${n})s?`
+  const t = c.replace(/[.!]+$/, '')
+    .replace(new RegExp(`^(?:(?:${FILLER})\\s+)*(?:(?:${VERBS}${v})\\b\\s*:?\\s*(?:(?:me|us)\\s+)?(?:${list}\\s*:\\s*|(?:to|that|about)\\s+)?(?:${noun}|(?:a|an|the)\\s+)?)?(?:${noun})?`, 'i'), '')
+    .replace(new RegExp(`\\s+(?:${list}|please|for me)$`, 'i'), '')
   return t.trim() || undefined
 }
 
@@ -169,7 +193,7 @@ const planStep = /*#__PURE__*/ memo((s, d, e) => {
   else if (item && (!target || target.name !== item.name || !(tg.confidence >= below))) reason = 'target'
   else if (opt.needs) reason = 'input'
   else if (opt.free) {
-    const x = o.freeText ? o.freeText(command, opt.tool) : freeText(command)
+    const x = o.freeText ? o.freeText(command, opt.tool) : freeText(command, opt.description)
     if (typeof x != 'string' || !x) reason = 'input'
     else args = {[opt.free]: x}
   } else args = opt.args

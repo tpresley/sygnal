@@ -63,7 +63,7 @@ describe('the LLM fake', () => {
     await t.settle()
     expect(t.requests('LLM')[0].messages.at(-1).parts[0].text).toBe('Hello')
     await t.stream('LLM', ['Hi', ' there'])
-    expect(t.state.messages.at(-1)).toEqual({ role: 'assistant', parts: [{ type: 'text', text: 'Hi there' }] })
+    expect(t.state.messages.at(-1)).toEqual({ id: expect.stringMatching(/^[0-9a-z]{16}$/), role: 'assistant', parts: [{ type: 'text', text: 'Hi there' }] })
     expect(t.state.status).toBe('ready')
     expect(t.actions.filter(a => a.type === 'DELTA').length).toBe(1)
   })

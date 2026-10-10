@@ -41,7 +41,9 @@
  *
  * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
  * value, which toggles membership when the field is an array; <select multiple> an array of the
- * selected values; type=file is ignored), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
+ * selected values; type=file is ignored), form.SET ({ values }: G-647, field name -> value, several
+ * fields changed at once as if typed: one validation, `touched` as for CHANGE, unknown names
+ * skipped; e.g. an AI fill), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
  * value }), form.REMOVE ({ field, id }), form.ERRORS (an error reply or a map: server errors),
  * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
  * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
@@ -145,13 +147,21 @@ export const form = (schema: any, o: any = {}): any => {
     return d.value ? [...r, d.item] : r
   }
 
+  // fields changed as typed ones ([name, value] pairs; unknown names skipped, SYG230): their
+  // server errors, check results and running checks go, `touched` as show 'input' says; one validation
+  const put = (s: any, d: any[]) => {
+    let vals = s.values, server = drop(s.server, ''), remote = s.remote, pending = s.pending, touched = s.touched
+    for (const [n, y] of d) if (known(s, n)) {
+      vals = setField(vals, n, y), server = drop(server, n), remote = drop(remote, n), pending = drop(pending, n)
+      if (show == 'input') touched = {...touched, [n]: true}
+    }
+    return vals != s.values ? edit(s, vals, {server, remote, pending, touched, queued: false}) : null
+  }
+
   const steps: Record<string, (s: any, d: any, k: string, h?: any) => any> = {
     // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
     // its value, unchecked removes it
-    CHANGE: (s, d) => known(s, d?.name) ? edit(s, setField(s.values, d.name, group(getField(s.values, d.name), d)), {
-      server: drop(drop(s.server, d.name), ''), remote: drop(s.remote, d.name), pending: drop(s.pending, d.name), queued: false,
-      touched: show == 'input' ? {...s.touched, [d.name]: true} : s.touched,
-    }) : null,
+    CHANGE: (s, d) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : []),
     BLUR: (s, n, k) => {
       if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
@@ -178,6 +188,8 @@ export const form = (schema: any, o: any = {}): any => {
       return edit(s, setField(s.values, field, getField(s.values, field).filter((r: any) => r.id + '' != id)),
         {touched: drop(s.touched, p), server: drop(s.server, p)})
     },
+    // G-647: several fields at once ({ values: { name: value } }, names as in CHANGE), as if typed
+    SET: (s, d) => put(s, Object.entries(d?.values || {})),
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
       return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}

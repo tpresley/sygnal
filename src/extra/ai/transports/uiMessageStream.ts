@@ -10,7 +10,8 @@ import {outputJsonSchema} from '../chat/output';
  *
  * Request: the body DefaultChatTransport sends (`{ id, messages, trigger: 'submit-message',
  * messageId }`; `messageId` when the request continues the last message, `continue: true`, G-628, so `convertToModelMessages(messages)` works on the server as is: the messages
- * are UIMessages, D252), plus what the server may use: `instructions`, `model`, `tools` (name ->
+ * are UIMessages, D252; their ids as given, G-640: the chat behavior and driver give every message a
+ * stable one; `m<index>` only for a message written without one), plus what the server may use: `instructions`, `model`, `tools` (name ->
  * { description, inputSchema }: client tools the server can declare without `execute`) and
  * `output` (`{ schema }`); `body` merged in.
  *

@@ -3,6 +3,7 @@ import {senderOf, keepSender, allowed, makeReplies} from '../../replies';
 import {error as logError} from '../../diagnostics/legacy';
 import {isStandardSchema} from '../../standardSchema';
 import {readOutput} from './output';
+import {messageId} from '../messages';
 
 /*
  * PLAN-6 L-1: makeChatDriver({ transport, coalesce? }), the chat driver, on the PLAN-3 reply-action
@@ -36,6 +37,10 @@ import {readOutput} from './output';
  *   message (the AI SDK does so after tool results and approvals): `message` starts with its id
  *   and parts plus a `step-start` part; a tool-call event for a call it has updates that part
  *   (an approved call the server ran). `text`, `toolCalls` and `delta` are the new step's only.
+ * - Message ids (G-640): every reply message has one: the id of the message it continues, else the
+ *   transport's `start` id (the provider's response id, an AI SDK server's messageId), else a new
+ *   one (messageId()). A continued message keeps its id whatever `start` says, so it is stable
+ *   across the steps of a turn.
  * - Messages (D252): AI SDK UIMessage parts. Text and reasoning grow the trailing part of their
  *   type; a reasoning event with `providerMetadata` closes the reasoning part with it (L-2: an
  *   Anthropic thinking signature that must go back; the next reasoning starts a new part); a tool call is `tool-<name>` with `toolCallId`, `state: 'input-available'`, `input`
@@ -124,7 +129,11 @@ export function makeChatDriver(options: any = {}) {
         for (const p of prev.parts || []) parts.push({...p});
         parts.push({type: 'step-start'});
       }
-      const message = () => ({...(id !== undefined && {id}), role: 'assistant', parts: parts.map(p => ({...p}))});
+      // G-640: the message keeps the id it continues; a new one takes the transport's (`start`:
+      // the provider's response id, an AI SDK server's messageId), else one made here
+      const kept = id !== undefined;
+      id ??= messageId();
+      const message = () => ({id, role: 'assistant', parts: parts.map(p => ({...p}))});
       const mode = req.coalesce ?? defCoalesce;
       const later: (f: Flush) => void = mode === 'none' ? f => f()
         : _frame || (typeof mode == 'number' ? f => { setTimeout(f, mode); } : frame);
@@ -202,7 +211,7 @@ export function makeChatDriver(options: any = {}) {
           } else if (type == 'file' || type.startsWith('source-')) {
             parts.push({...ev});
           } else if (type == 'start') {
-            if (ev.id !== undefined) id = ev.id;
+            if (ev.id != null && !kept) id = String(ev.id);
           } else if (type == 'finish') {
             if (ev.reason !== undefined) finishReason = ev.reason;
             if (ev.usage !== undefined) usage = ev.usage;

@@ -929,8 +929,9 @@ export interface CommandBarOptions {
   deny?: BehaviorTarget
   /**
    * The free text argument of a picked action whose input is one string (ADD's text). Default: a
-   * heuristic, a quoted part of the command or else the command minus its first word ("add walk
-   * the dog" → "walk the dog"); undefined escalates (or `unsure`, reason 'input')
+   * heuristic, a quoted part of the command or else the command without its lead-in (fillers, an
+   * "add" verb and what follows it, a destination: "remind me to call mom" → "call mom", "put milk
+   * on my list" → "milk"; a question gives none, G-634); undefined escalates (or `unsure`, reason 'input')
    */
   freeText?: (command: string, tool: string) => string | undefined
 }
