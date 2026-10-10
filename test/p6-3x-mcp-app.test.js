@@ -259,7 +259,9 @@ describe('makeMcpAppDriver (X-1)', () => {
     await c.initialized
     const { tools } = await bridge.listTools({})
     const toggle = tools.find((t) => t.name === 'todo_toggle')
-    expect(toggle.inputSchema.properties.id).toEqual({ enum: [1], description: 'Which todo (ids 1; the read tool has their contents)' })
+    expect(toggle.inputSchema.properties.id).toEqual({ enum: [1], description: 'Which todo (ids 1; todos_read has their contents)' })
+    // G-650: the item tool names the read tool to call first
+    expect(toggle.description).toBe("Toggle. Call todos_read first to find the todo's id.")
     expect(JSON.stringify(tools)).not.toContain('Ignore previous')
   })
 

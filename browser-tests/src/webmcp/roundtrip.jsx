@@ -211,12 +211,15 @@ async function main() {
   await step('list tools', async () => {
     eq(await names(), ['todo_remove', 'todo_toggle', 'todos_add', 'todos_clear_done', 'todos_read', 'todos_set_filter', 'todos_show_stats'], 'tools')
   })
-  await step('schemas, descriptions (with the state summary) and annotations, as the agent sees them', async () => {
+  await step('schemas, descriptions and annotations, as the agent sees them', async () => {
     const ts = Object.fromEntries((await agent.list()).map((t) => [t.name, t]))
     eq(ts.todo_toggle.inputSchema.properties.id.enum, [1, 2], 'todo_toggle id enum')
     eq(ts.todos_add.inputSchema, { type: 'object', properties: { value: { type: 'string', minLength: 1, description: 'The todo text' } }, required: ['value'], additionalProperties: false }, 'todos_add schema')
-    // D286: an untrusted projection is summarised by structure only (no user text in descriptions)
-    assert(ts.todos_add.description.startsWith('Add a todo\n\nCurrent state (structure only; the read tool returns the contents): {"todos":"2 items (ids 1, 2)"') && !/buy milk/.test(ts.todos_add.description), ts.todos_add.description)
+    // D286 / G-650: an untrusted projection has no summary in the descriptions (no user text); the
+    // item tools say which read tool to call first, and their ids carry no labels
+    eq(ts.todos_add.description, 'Add a todo', 'todos_add description')
+    eq(ts.todo_toggle.description, "Mark the todo done, or not done again. Call todos_read first to find the todo's id.", 'todo_toggle description')
+    eq(ts.todo_toggle.inputSchema.properties.id.description, 'Which todo (ids 1, 2; todos_read has their contents)', 'todo_toggle id')
     eq(ts.todos_read.annotations, { readOnlyHint: true, untrustedContentHint: true }, 'todos_read')
     eq(ts.todos_add.annotations, { readOnlyHint: false, untrustedContentHint: true }, 'todos_add')
     return { todo_remove: (await mc.getTools()).find((t) => t.name === 'todo_remove').annotations }
@@ -225,13 +228,13 @@ async function main() {
     const r = await agent.call('todos_read')
     eq(r, { ok: true, state: { todos: [{ id: 1, text: 'buy milk', done: false }, { id: 2, text: 'walk dog', done: true }], filter: 'all' } }, 'read')
   })
-  await step('todos_add updates the state, the DOM, the item tool enum and the summary', async () => {
+  await step('todos_add updates the state, the DOM and the item tool enum', async () => {
     const r = await agent.call('todos_add', { value: 'call mom' })
     assert(r.ok === true, JSON.stringify(r))
     eq(r.state.todos.map((t) => t.text), ['buy milk', 'walk dog', 'call mom'], 'state')
     eq(lis(), ['1: :buy milk', '2:x:walk dog', '3: :call mom'], 'DOM')
     const ts = await agent.until((ts) => JSON.stringify(ts.find((t) => t.name === 'todo_toggle')?.inputSchema.properties.id.enum) === '[1,2,3]')
-    assert(/"3 items \(ids 1, 2, 3\)"/.test(ts.find((t) => t.name === 'todos_add').description) && !/call mom/.test(ts.find((t) => t.name === 'todos_add').description), 'summary')
+    assert(!ts.some((t) => /call mom/.test(t.description + JSON.stringify(t.inputSchema))), 'no user text in the tool list')
   })
   await step('todo_toggle (a Collection item tool) checks the item in the DOM', async () => {
     const r = await agent.call('todo_toggle', { id: 3 })
