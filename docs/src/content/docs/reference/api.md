@@ -1578,6 +1578,34 @@ App.model = {
 
 ---
 
+## sygnal/ai
+
+LLM chat, decision models and the agent layer (6.1.0). Every export is pay-per-use: an app that doesn't import `sygnal/ai` gets 0 bytes of it. The guides explain each part with live examples: [AI Chat](/guide/ai-chat/), [Decisions](/guide/ai-decisions/), [Agents](/guide/agent/), [WebMCP](/guide/webmcp/) and [MCP Apps](/guide/mcp-apps/).
+
+```js
+import { makeChatDriver, openResponses, chat, decide, choice } from 'sygnal/ai'
+```
+
+| Export | What it is | Guide |
+|---|---|---|
+| `makeChatDriver({ transport, coalesce? })` | The chat driver: requests from a model sink, replies as actions (`delta`, `ok`, `error`, `tool`) | [AI Chat](/guide/ai-chat/) |
+| `openResponses()`, `chatCompletions()`, `uiMessageStream()`, `anthropicMessages()`, `agui()`, `fromAISDK()`, `chromePrompt()` | Transports: Open Responses (OpenAI, Ollama, vLLM, OpenRouter), Chat Completions, an AI SDK server route, Anthropic Messages, AG-UI servers, the AI SDK in process, Chrome's on-device model | [AI Chat](/guide/ai-chat/#transports) |
+| `strictSchemas` | Opt-in strict mode for OpenAI and Anthropic schemas (`strict: strictSchemas`) | [AI Chat](/guide/ai-chat/#strict-schemas) |
+| `encodeOpenResponses(events)` | Encodes Open Responses SSE events (test servers, demos) | [AI Chat](/guide/ai-chat/#encodeopenresponses-scripted-replies) |
+| `messageText(message)`, `withToolResults(message, results)` | Message helpers | [AI Chat](/guide/ai-chat/#messages) |
+| `chat(options)` | The in-app assistant behavior (`uses`): messages, streaming, the tool loop, approvals | [Agents](/guide/agent/) |
+| `decide()`, `choice()`, `noul()`, `score()` | Decision requests for `makeFetchDriver`, with answers typed from the questions; `decide.openai()` for OpenAI's array form | [Decisions](/guide/ai-decisions/) |
+| `answers(questions, picks)` | Typed decision replies for tests (`t.respond`) | [Decisions](/guide/ai-decisions/) |
+| `commandBar(options)` | A command bar behavior on a decision model | [Agents](/guide/agent/) |
+| `agentTools(app, options?)` | The tools an app's `agent` declarations offer: `list`, `call`, `context`, `subscribe`, `stop` | [Agents](/guide/agent/) |
+| `toJsonSchema()`, `parseInput()`, `jsonSchema()` | The input-schema contract (Standard Schema → JSON Schema, validation, plain JSON Schema) | [Agents](/guide/agent/) |
+| `outputJsonSchema(schema)` | The JSON Schema a transport sends for structured output | [AI Chat](/guide/ai-chat/) |
+| `experimentalExposeWebMcp(app, options?)` | Offers the app's tools to the browser's agent through WebMCP (experimental) | [WebMCP](/guide/webmcp/) |
+| `formTool(options)` | Makes a `form` a declarative WebMCP tool: `form(schema, { tool: formTool({...}) })` (experimental) | [WebMCP](/guide/webmcp/) |
+| `makeMcpAppDriver(options?)` | Runs a component as an MCP App view inside an MCP host | [MCP Apps](/guide/mcp-apps/) |
+
+Also new in 6.1.0, from `sygnal`: the `agent` static on components, `abort(reason)` for reducers, the `form.SET` action, and the testing helpers `t.stream`, `t.respond('LLM', …)`, `t.tools()`, `t.callTool()` and `t.agentContext()`.
+
 ## Diagnostics
 
 Runtime [diagnostics](/guide/diagnostics/) helpers, exported from `sygnal`. They return data in every mode except `'off'`.
