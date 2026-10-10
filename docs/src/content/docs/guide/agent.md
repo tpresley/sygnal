@@ -94,6 +94,17 @@ import { jsonSchema } from 'sygnal/ai'
 const input = jsonSchema({ type: 'object', properties: { text: { type: 'string', minLength: 1 } }, required: ['text'] })
 ```
 
+With ArkType, `.describe()` on a field (or on a root that isn't an object) also replaces what its validation messages say is expected: `type({ id: type('string').describe('the todo id') })` rejects `{ id: 3 }` with `id must be the todo id (was a number)`, not `id must be a string (was a number)`, and that message is what the model gets back in `issues` ([the call rules](#the-call-rules)). A `.describe()` on an object leaves its fields' messages alone. To keep both, write the description as the expectation (`.describe('the todo id, a string')`), or set the description and the expected text separately with `.configure()`:
+
+```jsx
+import { type } from 'arktype'
+
+const input = type({ id: type('string').configure({ description: 'The todo id', expected: 'a string' }) })
+// { id: 3 } → "id must be a string (was a number)"; the model still sees the description
+```
+
+`.configure()` also copies `expected` into the JSON Schema as a non-standard keyword (`strictSchemas` moves it into the description; a provider that rejects unknown keywords may refuse the schema otherwise), so a description phrased as the expectation is the safer choice. Zod's `.describe()` doesn't change its messages.
+
 A schema with no JSON Schema form at all (a Zod `z.date()`, a `refine` on the root) is [SYG240](/reference/errors/#syg240): the tool isn't offered, and `t.tools()` lists it with its `error`. A schema that converts with losses (a refinement inside an object) is [SYG243](/reference/errors/#syg243): the model doesn't see that part, but it is still checked.
 
 In TypeScript, on a component typed with its actions ([TypeScript](/integration/typescript/)), `input` is required for an action that takes data, and its schema's output must fit that data.

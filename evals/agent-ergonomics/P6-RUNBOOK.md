@@ -19,6 +19,8 @@ Each run first makes one tiny `claude -p` preflight call (`--preflight` on a `--
 | 4 | `p6-s14-opus` | `node evals/agent-ergonomics/orchestrate.mjs --run p6-s14-opus --variant p5-final --arms sygnal --tasks tier1,tier2,ergo --trials 5 --concurrency 4 --model claude-opus-5-5 --preflight` | 80 | $26.40, ≈ 35 min | ≈ $28 (`p5-s14b-opus`: $27.76) |
 | | **Total** | | **200** | ≈ $42 + Haiku | **≈ $70** |
 
+**Actual spend (G-653):** $118.66 against the $90 budget. Run 3 cost $60.34, about 3× its estimate: Haiku 5.5 came to ≈ $1.51/trial on the p6 tier, against Haiku 4.5's $0.48 (`p5-final-haiku`), so another model's records don't carry over. **Rule: before estimating a run on a model with no records, run a small pilot** (4–8 trials, e.g. `--tasks <one task> --trials 2` with both arms) under its own run name, and estimate the full run from the pilot's cost per trial (see `run.md`, "Estimates for a model with no records").
+
 `--preflight` without `--dry-run` is the default behaviour (the preflight always runs); writing it is harmless. To see a plan again without spending, add `--dry-run` **literally** to the line (never through a shell variable).
 
 - **Runs 1–3** (the p6 tier): `p6-final` is `branch` under its own name (this build, `skills/sygnal-dev`, starter 2), like `p5-final` for PLAN-5. Both arms. The React arm's starters pin `@ai-sdk/react` 4.0.140 + `ai` 7.0.137 (44–46) and `zod` 4.6.5 (45, 47).

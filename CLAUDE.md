@@ -56,6 +56,8 @@ npm run build
 
 Use `npm --prefix <dir>` / `git -C <dir>` rather than `cd` in scripts; the shell can stay in a previous directory.
 
+**Parallel agents** (G-642): each worker gets its own worktree and its own scratch subfolder (`<scratchpad>/<branch>/` for logs, probes and gate output); never write shared names like `gate.log` at the scratchpad root: parallel PLAN-6 workers collided there.
+
 ## Architecture
 
 **Component pattern (MVI):**

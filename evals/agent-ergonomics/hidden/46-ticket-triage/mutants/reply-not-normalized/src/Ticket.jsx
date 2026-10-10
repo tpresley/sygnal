@@ -35,7 +35,6 @@ function topicText(state) {
   return 'Triaging…'
 }
 
-// sygnal-check 6.1 reports SYG102 for TRIAGED / TRIAGE_FAILED: it doesn't see the reply actions inside decide()
 const triage = (state) => decide({ model: 'jev-latest', state: state.text, questions, ok: 'TRIAGED', error: 'TRIAGE_FAILED' })
 const unsure = (answers) => answers.topic.confidence < 0.6
 const classify = (state) => ({
