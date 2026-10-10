@@ -202,7 +202,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)) |
 | `tool` | Experimental: `formTool({ name, description, autosubmit? })` from `sygnal/ai` offers the form to the browser's agent ([WebMCP](/guide/forms-reference/#offer-the-form-to-the-browsers-agent)) |
 
-The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).
+The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.SET` (several fields at once), `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).
 
 ## Testing
 

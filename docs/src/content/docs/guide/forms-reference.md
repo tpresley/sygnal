@@ -26,6 +26,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | Action | Data |
 |---|---|
 | `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`) |
+| `form.SET` | `{ values }`: several fields at once, by field name (`{ name: 'Dana', 'addresses.7.city': 'Hilo' }`), as if the user had typed them: one validation, the fields count as changed, `touched` as for `form.CHANGE` (so errors show by the [`show`](/guide/forms/#options) rule), their server errors and check results cleared. Fields not named keep their values; a name that isn't a field is skipped ([SYG230](/reference/errors/#syg230) in development). For a fill from elsewhere: [an AI extraction](/recipes/ai-form-fill/), a saved draft, an address lookup |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
 | `form.ADD` / `form.REMOVE` | `{ field, value }` / `{ field, id }`: [field array](/guide/forms/#field-arrays) rows |

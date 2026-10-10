@@ -1002,6 +1002,12 @@ export interface FormOptions<V = any> {
 export interface FormActions {
   /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
   CHANGE: { name: string; value: any; item?: any };
+  /**
+   * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
+   * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
+   * cleared; other fields keep their values, unknown names are skipped (G-647)
+   */
+  SET: { values: Record<string, any> };
   /** A field lost focus (focusout): its name */
   BLUR: string;
   /** The form element's submit (default prevented) */

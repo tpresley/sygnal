@@ -8,7 +8,7 @@ A contact form with a shortcut: paste an email signature, and a [chat model](/gu
 The pieces:
 
 - **Two schemas.** The extraction schema says what the model may answer: every field can be `null` (not in the text). The form's schema says what the user may submit.
-- **The `ok` action fills the form** with one `form.CHANGE` per field the model found, so those fields are validated and marked as changed like typed ones.
+- **The `ok` action fills the form** with one `form.SET` holding the fields the model found, so those fields are validated and marked as changed like typed ones.
 - **The model never submits.** The user does.
 
 ## The form
@@ -121,9 +121,9 @@ NewContact.model = {
   },
   EXTRACTED: {
     STATE: (state, { value }) => ({ ...state, reading: false, note: value.name === null ? 'No name found: add it, then save.' : 'Check the fields, then save.' }),
-    // one form.CHANGE per field the model found, as if the user had typed it
+    // the fields the model found, as if the user had typed them
     EFFECT: (state, { value }, next) => {
-      for (const [name, text] of Object.entries(value)) if (text !== null) next('form.CHANGE', { name, value: text })
+      next('form.SET', { values: Object.fromEntries(Object.entries(value).filter(([, text]) => text !== null)) })
     },
   },
   NOT_EXTRACTED: (state) => ({ ...state, reading: false, note: 'Could not read that. Fill in the form by hand.' }),
@@ -138,7 +138,7 @@ NewContact.model = {
 ```
 
 - **The extraction schema is loose, the form's is strict.** The model may find no email; the form still requires one. A wrong value from the model (an email without `@`) shows the form's error once the user leaves the field or submits, as for anything typed.
-- **`form.CHANGE` per field**, not `form.RESET`: a reset makes the values the form's starting point, so they would count as unchanged, and it would clear what the user had already typed in the fields the model didn't find.
+- **`form.SET`, not `form.RESET`**: a reset makes the values the form's starting point, so they would count as unchanged, and it would clear what the user had already typed in the fields the model didn't find. `form.SET` changes only the fields it names, in one validation.
 - **`null`, not optional.** Providers' strict modes require every key, so "not found" is a `null` value. `.nullable()` also tells the model plainly that it may say so.
 - **Keep the user in the loop.** The model's answer is a suggestion: the form shows it, the user saves it.
 

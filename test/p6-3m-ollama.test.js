@@ -90,8 +90,9 @@ describe.skipIf(!process.env.TEST_OLLAMA)('commandBar against local Ollama nimbl
       const t0 = performance.now()
       t.simulateAction('cmd.RUN', command)
       await t.settle()
-      expect(t.state.cmd.status).toBe('deciding')
-      const s = await t.next((s) => s.cmd.status === 'ready' || s.cmd.status === 'error', 60000)
+      // a warm Ollama (its prompt cache) can answer before settle() returns: the command is done already
+      const s = ['deciding', 'running'].includes(t.state.cmd.status) ? await t.next((s) => s.cmd.status === 'ready' || s.cmd.status === 'error', 60000) : t.state
+      expect(['ready', 'error']).toContain(s.cmd.status)
       const cmd = s.cmd
       const good = !!check(s, cmd)
       const target = t.actions.find((a) => a.type === 'cmd.DECIDED')?.data?.answers?.target
