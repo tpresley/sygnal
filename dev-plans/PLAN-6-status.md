@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** **Phases 0–4 complete** (2026-10-09). Everything is on `plan6-integration`; full gate green on Chromium, Firefox and WebKit; eval done (`evals/agent-ergonomics/results/REPORT-v6.md`: Sygnal 60/60 on the new tier, S-14 within the bar). Open: the release steps (6.1.0 version + changelog, merge to `main`, publish; the user's call) and the follow-up gaps still marked open below.
+**State:** **Phases 0–4 complete** (2026-10-09). Everything is on `plan6-integration`; full gate green on Chromium, Firefox and WebKit; eval done (`evals/agent-ergonomics/results/REPORT-v6.md`: Sygnal 60/60 on the new tier, S-14 within the bar). Release prep done (`d7ea3f63`); no open gaps. Left: merge to `main` and publish (the user's).
 
 ## Decisions
 
@@ -239,3 +239,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — Post-gap-fix gate on `plan6-integration` (`e0fbd5b3`+): `npm test` exit 0 (vitest 4,302, 9 examples, types, perf gate; Chromium 375/375); Firefox 374/374; WebKit 374/374; sygnal-check 706/706; doc samples 776 clean; docs build ok; check-live 91/91 × 3; `test:ai-local` 32/32 (todo task via the agent layer 3/3 on llama3.2 and qwen3:8b; via `chat()` 3/3 on qwen3:8b). G-655 in progress (`p6-gap-mcp2026`).
 - 2026-10-09 — G-655 merged (dev MCP endpoint serves 2026-07-28 alongside older revisions). vitest 4,315; MCP tests 25/25; size 42,690 B. G-656 opened (sygnal-check's stdio MCP server).
 - 2026-10-09 — G-656 merged: sygnal-check's stdio MCP server speaks 2026-07-28 alongside `initialize` (unknown old versions now answered with 2025-11-25). **No open gaps.**
+- 2026-10-10 — Release prep `d7ea3f63` (sygnal 6.1.0, sygnal-check 0.3.0, create-sygnal-app 2.1.0; CHANGELOG 6.1.0, ROADMAP §19, RELEASING pack list + mcp-app smoke). Gates: vitest 4,315, examples, types, perf gate; sygnal-check 714/714; samples 776 clean; error docs current; docs build 97 pages; size (a) 42,690 B / (b) 38,679 B; pack contents as expected; all 10 templates smoke-tested from local tarballs. Browser runner default limit 90 → 180 s (the suite takes ≈ 85–95 s now); Chromium 375/375, Firefox 374/374, WebKit 374/374, WebMCP pages green, at the default limit. Ready to merge to `main` and publish (the maintainer's).

@@ -25,9 +25,9 @@ if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
 
 const HOST = '127.0.0.1';
 
-// the full suite takes ~27 s (PLAN-4 1-F); BROWSER_TESTS_TIMEOUT_MS raises the limit on a loaded
-// machine (PLAN-6 G-583)
-const TIMEOUT = Number(process.env.BROWSER_TESTS_TIMEOUT_MS) || 90000;
+// the full suite took ~27 s at PLAN-4 1-F and ~85–95 s at 6.1.0 (375 tests + the WebMCP pages);
+// the default is about twice that. BROWSER_TESTS_TIMEOUT_MS raises it on a loaded machine (PLAN-6 G-583)
+const TIMEOUT = Number(process.env.BROWSER_TESTS_TIMEOUT_MS) || 180000;
 
 // Launch args (PLAN-6 G-583, D267): Chromium runs with WebMCP on (`--enable-features=WebMCP`, the
 // switch behind chrome://flags/#enable-webmcp-testing; Chrome 153 = chromium-1243). BROWSER_ARGS
