@@ -98,6 +98,44 @@ experimentalExposeWebMcp(app, {
 
 `info` is `{ tool, component, action, description, input, key?, label? }`: `input` is the validated input, `key` and `label` name a Collection item. A declined call answers `{ ok: false, error: 'the user declined' }`.
 
+### The default confirmation dialog
+
+For a call to `todo_remove` on the item labelled "buy milk", the dialog is:
+
+```html
+<dialog aria-labelledby="sygnal-webmcp-confirm-1-t" aria-describedby="sygnal-webmcp-confirm-1-d" data-sygnal-webmcp open>
+  <h2 id="sygnal-webmcp-confirm-1-t">Allow the AI agent to do this?</h2>
+  <p id="sygnal-webmcp-confirm-1-d">Delete the todo (buy milk)</p>
+  <div>
+    <button type="button" autofocus>Deny</button>
+    <button type="button">Allow</button>
+  </div>
+</dialog>
+```
+
+- It is appended to `document.body`, outside your app's mount point, and opened with `showModal()`: the role is `dialog`, its accessible name is the heading and its description the action's `description` plus the item's label in parentheses. For an action with an `input` schema, a `<pre>` after the paragraph shows the validated input as JSON (cut at 300 characters). The number in the ids counts up per dialog.
+- **Deny** has the focus. **Deny**, Escape and `webMcp()` (unregistering) decline; **Allow** runs the call. Either way the dialog is removed and the focus goes back to the element that had it.
+- It has no styles of its own: style it with `dialog[data-sygnal-webmcp]`.
+
+To replace it, pass `confirm` ([above](#confirmation)): `true` runs every consequential call, `false` declines them all, a function asks your UI. The dialog is only made when `confirm` is left out.
+
+**Testing it.** In a browser test (Playwright), the dialog is found by its role and name:
+
+```js
+const dialog = page.getByRole('dialog', { name: 'Allow the AI agent to do this?' })
+await expect(dialog).toContainText('Delete the todo (buy milk)')
+await dialog.getByRole('button', { name: 'Allow' }).click()   // or 'Deny', or page.keyboard.press('Escape')
+```
+
+In Vitest with a DOM (jsdom), call the tool through a stand-in `modelContext` ([Testing](#testing)) and click the button:
+
+```js
+const result = tools.get('todo_remove').execute({ id: 1 })
+const dialog = await vi.waitFor(() => document.querySelector('dialog[data-sygnal-webmcp]') ?? Promise.reject(new Error('no dialog yet')))
+;[...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Deny').click()
+expect(await result).toEqual({ ok: false, error: 'the user declined' })
+```
+
 ## Forms as tools: `formTool`
 
 WebMCP also has a declarative form: a `<form>` with `toolname` and `tooldescription` attributes is a tool, and its fields are the parameters. The agent fills the fields and submits. The [`form` behavior](/guide/forms/) already knows the schema and the labels, so it can write those attributes for you:
