@@ -1,0 +1,52 @@
+{
+  "Sygnal component": {
+    "prefix": ["sygcomp", "sygnal-component"],
+    "description": "A typed Sygnal component in the canonical forms: Component<State, Props, {}, ActionsOf<typeof intent>>, IntentSources, object-form model, initialState",
+    "body": [
+      "import type { ActionsOf, Component, IntentSources } from 'sygnal'",
+      "",
+      "type ${1:Counter}State = { ${4:count}: number }",
+      "",
+      "const intent = ({ DOM }: IntentSources<$1State>) => ({",
+      "  ${5:INCREMENT}: DOM.click('.${3:increment}'),",
+      "})",
+      "",
+      "const $1: Component<$1State, {}, {}, ActionsOf<typeof intent>> = ({ state }) => (",
+      "  <div className=\"${2:counter}\">",
+      "    <button className=\"$3\">+</button>",
+      "    <span>{state.$4}</span>",
+      "  </div>",
+      ")",
+      "",
+      "$1.initialState = { $4: 0 }",
+      "$1.intent = intent",
+      "$1.model = {",
+      "  $5: (state) => ({ ...state, $4: state.$4 + 1 }),",
+      "}",
+      "",
+      "export default $1",
+      "$0"
+    ]
+  },
+  "Sygnal model entry with EFFECT": {
+    "prefix": ["sygeffect", "sygnal-effect"],
+    "description": "A model entry that only runs a side effect (EFFECT sink; call next('ACTION', data) to dispatch)",
+    "body": [
+      "${1:SAVE}: {",
+      "  EFFECT: (state, data, next) => {",
+      "    ${0:console.log(data)}",
+      "  },",
+      "},"
+    ]
+  },
+  "Sygnal model entry emitting an EVENTS event": {
+    "prefix": ["sygevent", "sygnal-event"],
+    "description": "A model entry that updates state and emits a global event with event() (import { event } from 'sygnal'; receive it with EVENTS.select('TYPE'); register the type in SygnalEvents to type-check it)",
+    "body": [
+      "${1:SAVE}: {",
+      "  STATE: (state, data) => ({ ...state, ${2:saved}: true }),",
+      "  EVENTS: event('${3:SAVED}', (state, data) => ${4:data}),",
+      "},$0"
+    ]
+  }
+}

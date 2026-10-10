@@ -1,0 +1,6 @@
+node_modules/
+dist/
+server/
+*.vsix
+.vscode-test/
+test/smoke/.work/
