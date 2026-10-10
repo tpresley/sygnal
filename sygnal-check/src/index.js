@@ -40,6 +40,9 @@
  * loadConfig(cwd, { file? }) → { config, file, diagnostics }
  * resolveOptions(options) → { options, config }   (see src/config.js)
  *
+ * createLspServer({ input, output, worker?, … }) / runLspServer()   the language server
+ *   (`sygnal-check lsp`, src/lsp/server.js)
+ *
  * Diagnostic = the runtime Diagnostic shape (code, severity, component,
  * message, fix, docsUrl, text, data?) + file, line, column, endLine, endColumn,
  * related? and fixes? (PLAN-7 C-2, C-4; see README "JSON output").
@@ -67,6 +70,7 @@ export { validate as validateSchema } from './schema.js'
 export { EXPLANATIONS } from './explanations.js'
 export { getExplanation, listExplanations, formatExplanation } from './explain.js'
 export { loadConfig, resolveOptions, CONFIG_FILE, CONFIG_KEYS, DEFAULTS as CONFIG_DEFAULTS } from './config.js'
+export { createLspServer, runLspServer } from './lsp/server.js'
 
 export function check(inputs, options = {}) {
   const { options: opts, config } = resolveOptions(options)
