@@ -195,7 +195,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-647 | 4-D1 | `chromePrompt().status()` is a Promise (a component can't read it; pick the transport in `main.js` or handle `error.status === 'unavailable'`); the `form` behavior has no bulk "set values" (one `form.CHANGE` per field) | open (docs / later) |
 | G-648 | 4-E | sygnal-check: false SYG102 for `ok`/`error` passed inside a `decide()` call | open (K-1) |
 | G-649 | 4-E | A-1 reports `removed: true` when a moved card only leaves its filtered Collection | open (A-1) |
-| G-650 | 4-E | Task 47 operability: Sygnal 6/12 vs React 10/12; the model guessed card ids without reading the board (D286 keeps titles out of descriptions under `untrusted: true`) — measured with a shared Ollama; rerun pending | open (investigating) |
+| G-650 | 4-E | Task 47 operability: Sygnal 6/12 vs React 10/12 (shared Ollama); rerun alone: **Sygnal 5/12 vs React 11/12**, every Sygnal failure = 0 tool calls + 240 s timeout on move/remove (the model stalls; suspected: D286's id-only, title-less tool text) | open (investigating, `p6-g650`; paid runs wait for the fix) |
 
 ## Log
 
@@ -221,3 +221,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 4-L merged (clean): llms.txt 319/320, SKILL.md 42,699 B.
 - 2026-10-09 — 4-F merged (clean); llms.txt `cause` list gains `'agent'`. vitest 4,252 (one load-timing flake in vite-plugin-dev, 3/3 on rerun at load ≈ 44); sygnal-check 700/700; size 42,690 B.
 - 2026-10-09 — 4-E merged (clean). G-648…G-650. Haiku id for the new tier: `claude-haiku-5-5` (current model; PLAN-5 used Haiku 4.5, so per-model comparisons with PLAN-5 don't apply to Haiku).
+- 2026-10-09 — Task 47 operability rerun without contention: Sygnal 5/12 (move 0/3, remove 0/3: no tool calls, timeouts), React 11/12. Investigation `p6-g650` started; the paid runs wait for its fix (they pack the build).
