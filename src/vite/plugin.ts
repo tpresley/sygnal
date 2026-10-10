@@ -41,10 +41,19 @@
  *      `diagnostics: { mode, ignore }` unless the call sets `diagnostics`
  *      itself. With the default ('warn', no ignore list) there is no wrapper.
  *   5. `check` option: runs sygnal-check (an optional dependency, loaded
- *      lazily from the project; `strict` defaults to `diagnostics.strict`)
- *      over `include` (default: the existing ones of src/, pages/ and
- *      renderer/, else the project root, with a notice) when the dev
- *      server starts and again after every source file change. Results go to
+ *      lazily from the project) over `include` when the dev server starts and
+ *      again after every source file change. Settings, highest first: the
+ *      explicit `check.*` options; the project's sygnal-check config file
+ *      (sygnal-check.config.json or the package.json "sygnal-check" key, read
+ *      by sygnal-check itself, PLAN-7 C-5 / D299; JSON only, so the editor and
+ *      the CLI see the same settings without evaluating vite.config); then
+ *      `strict` from `diagnostics.strict`, `ignore` from `diagnostics.ignore`,
+ *      and `include` from the existing ones of src/, pages/ and renderer/,
+ *      else the project root (with a notice). An older sygnal-check without
+ *      config support (no `loadConfig` export) gets exactly the options it got
+ *      before: the explicit ones over the `diagnostics` defaults. With config
+ *      support a change to the config file also re-checks (`include` is fixed
+ *      when the server starts). Results go to
  *      the terminal in sygnal-check's format, and to the browser as a
  *      'sygnal:check' HMR event that the dev client ('virtual:sygnal/dev')
  *      logs with console.warn (non-disruptive). The dev client asks for the
@@ -163,21 +172,28 @@ export interface DiagnosticsPluginOptions {
   ignore?: string[]
 }
 
+/**
+ * sygnal-check in dev. Each setting left out comes from the project's
+ * sygnal-check config file (`sygnal-check.config.json`, or the `"sygnal-check"`
+ * key in package.json: `strict`, `a11y`, `ignore`, `paths` for `include`), so
+ * the overlay, the CLI and the editor agree; without one, from the defaults
+ * below. (A sygnal-check older than 0.4.0 reads no config file.)
+ */
 export interface CheckPluginOptions {
-  /** Also run sygnal-check's strict (SYG5xx) rules. @default `diagnostics.strict` */
+  /** Also run sygnal-check's strict (SYG5xx) rules. @default the config file's `strict`, else `diagnostics.strict` */
   strict?: boolean
   /**
    * Severity of the a11y lane (SYG701-708). 'warn' keeps it a warning, also
    * under `strict` (D144); 'error' makes it an error, which opens the overlay.
-   * @default 'warn'
+   * @default the config file's `a11y`, else 'warn'
    */
   a11y?: 'warn' | 'error'
   /**
    * Files, directories or globs to check, relative to the Vite root.
-   * @default the existing ones of ['src', 'pages', 'renderer'], else the project root
+   * @default the config file's `paths`, else the existing ones of ['src', 'pages', 'renderer'], else the project root
    */
   include?: string[]
-  /** Codes to drop. @default the `diagnostics` ignore list */
+  /** Codes to drop. @default the config file's `ignore`, else the `diagnostics` ignore list */
   ignore?: string[]
   /**
    * Error-severity findings also open Vite's error overlay ('error', the
@@ -789,6 +805,8 @@ async function loadSygnalCheck(root: string): Promise<any> {
 }
 
 const SOURCE_RE = /\.[cm]?[jt]sx?$/
+// sygnal-check's config sources (PLAN-7 C-5): a change re-checks
+const CONFIG_FILES = ['sygnal-check.config.json', 'package.json']
 
 /** sygnal-check's one-line format: `file:line:col CODE [severity] Component: message (fix)` */
 function formatLine(d: any): string {
@@ -808,10 +826,10 @@ const DEFAULT_INCLUDE = ['src', 'pages', 'renderer']
  * directory, or when none of the given paths exists, so an empty check is
  * never a silent all-clear.
  */
-function checkInclude(root: string, include: string[] | undefined, notice: (m: string) => void): string[] {
+function checkInclude(root: string, include: string[] | undefined, notice: (m: string) => void, label = 'check.include'): string[] {
   const exists = (p: string) => /[*?[{]/.test(p) || fs.existsSync(path.resolve(root, p))
   if (include && include.length) {
-    if (!include.some(exists)) notice(`[sygnal] sygnal-check: none of check.include (${include.join(', ')}) exists under ${root}, so nothing is checked`)
+    if (!include.some(exists)) notice(`[sygnal] sygnal-check: none of ${label} (${include.map(p => path.isAbsolute(p) ? path.relative(root, p) || '.' : p).join(', ')}) exists under ${root}, so nothing is checked`)
     return include
   }
   const dirs = DEFAULT_INCLUDE.filter(exists)
@@ -829,11 +847,39 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     if (explicit) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
     return
   }
-  const include = checkInclude(root, opts.include, (m: string) => logger.info(m))
-  const ignore = opts.ignore || defaults.ignore
-  const strict = opts.strict === undefined ? defaults.strict : !!opts.strict
-  // D144: the a11y lane is a warning unless asked for as an error, under strict too
-  const a11y = opts.a11y === 'error' ? 'error' : 'warn'
+  const notice = (m: string) => logger.info(m)
+  // PLAN-7 C-5 (D299): a sygnal-check with config support resolves the settings itself:
+  // explicit check.* options > its config file > the `diagnostics` defaults passed as `defaults`.
+  // An older one gets exactly what it got before.
+  const configAware = typeof mod.loadConfig === 'function'
+  let include: string[]
+  let checkOptions: any
+  if (configAware) {
+    let configPaths: string[] | undefined
+    if (!(opts.include && opts.include.length)) {
+      try { configPaths = mod.loadConfig(root)?.config?.paths } catch (_) {}
+    }
+    include = configPaths && configPaths.length
+      ? checkInclude(root, configPaths, notice, "the config file's paths")
+      : checkInclude(root, opts.include, notice)
+    checkOptions = {
+      cwd: root,
+      strict: opts.strict === undefined ? undefined : !!opts.strict,
+      ignore: opts.ignore,
+      a11y: opts.a11y === 'error' || opts.a11y === 'warn' ? opts.a11y : undefined,
+      defaults: { strict: defaults.strict, ignore: defaults.ignore },
+    }
+  } else {
+    include = checkInclude(root, opts.include, notice)
+    // D144: the a11y lane is a warning unless asked for as an error, under strict too
+    checkOptions = {
+      cwd: root,
+      strict: opts.strict === undefined ? defaults.strict : !!opts.strict,
+      ignore: opts.ignore || defaults.ignore,
+      a11y: opts.a11y === 'error' ? 'error' : 'warn',
+    }
+  }
+  const a11y = checkOptions.a11y
   // Only error-severity findings open Vite's overlay: while an overlay is open
   // Vite's client reloads the page on the first HMR update, so warnings stay
   // in the terminal and the browser console. overlay: 'warn' is treated as
@@ -862,13 +908,14 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
   const run = (initial = false) => {
     let diags: any[]
     try {
-      diags = mod.check(include, { cwd: root, strict, ignore, a11y })
+      diags = mod.check(include, checkOptions)
     } catch (err: any) {
       logger.warn(`[sygnal] sygnal-check failed: ${err?.message || err}`, { timestamp: true })
       return
     }
     // A sygnal-check from before D144 reports SYG7xx as errors under strict: keep them warnings
-    if (a11y !== 'error') {
+    // (one with config support postdates D144 and resolves a11y itself)
+    if (!configAware && a11y !== 'error') {
       diags = diags.map(d => d && d.severity === 'error' && /^SYG7\d\d$/.test(d.code) ? { ...d, severity: 'warn' } : d)
     }
     const shown = diags.filter(d => d.severity !== 'info')
@@ -917,7 +964,8 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
 
   let timer: any
   const onChange = (file: string) => {
-    if (!SOURCE_RE.test(file) || file.split(/[\\/]/).includes('node_modules')) return
+    if (file.split(/[\\/]/).includes('node_modules')) return
+    if (!SOURCE_RE.test(file) && !(configAware && CONFIG_FILES.includes(path.basename(file)))) return
     clearTimeout(timer)
     timer = setTimeout(run, 100)
   }

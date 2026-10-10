@@ -38,10 +38,56 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
 | `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
+| `--config <file>` | Read this JSON [config file](#configuration) instead of looking for `sygnal-check.config.json` / the `package.json` key (also `--config=<file>`; a missing file exits 2) |
+| `--no-config` | Ignore config files: flags and defaults only |
+
+Flags override the [config file](#configuration). With no paths on the command line, the config's `paths` are checked (else `src`).
 
 Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, unknown code for `explain`).
 
 Subcommands: [`sygnal-check explain <code>`](#explaining-a-code) and [`sygnal-check mcp`](#mcp-server).
+
+## Configuration
+
+Put the project's settings in `sygnal-check.config.json` at the project root, so the CLI, the MCP server, the editor and the [Vite plugin](https://sygnal.js.org/integration/bundler-config/) all check with them:
+
+```json
+{
+  "strict": true,
+  "a11y": "error",
+  "ignore": ["SYG105"],
+  "paths": ["src", "pages"],
+  "includeTests": false
+}
+```
+
+Or under the `"sygnal-check"` key of `package.json`:
+
+```json
+{
+  "name": "my-app",
+  "sygnal-check": { "strict": true }
+}
+```
+
+| Key | Type | Default | |
+|---|---|---|---|
+| `strict` | boolean | `false` | Also run the [strict-mode](#strict-mode) rules (`--strict`) |
+| `a11y` | `"warn"` \| `"error"` | `"warn"` | Severity of the [a11y lane](#accessibility-syg7xx) (`--a11y`) |
+| `ignore` | string[] | `[]` | Codes to drop entirely, e.g. `["SYG105"]` |
+| `paths` | string[] | `["src"]` | Files, directories or globs to check when none are given, relative to the config file |
+| `includeTests` | boolean | `false` | Also scan `*.test.*` / `*.spec.*` files (`--include-tests`) |
+
+`$schema` is allowed and ignored. Settings are taken from, highest first:
+
+1. explicit options: command-line flags, the API's options, the MCP tools' arguments, editor settings, the Vite plugin's `check` options;
+2. `sygnal-check.config.json`;
+3. the `"sygnal-check"` key in `package.json`;
+4. the defaults above.
+
+The project root is found from the working directory upwards: the first directory with a `sygnal-check.config.json` or a `package.json`. The search stops there, so a config file above the nearest `package.json` is never used. If that directory has both the file and the `package.json` key, the file wins and an info finding says the key is ignored. An explicit option replaces the config's value (an `ignore` list is not merged).
+
+The config is JSON only; sygnal-check never runs a JS config. Mistakes are findings on the config file, never crashes: an unknown key or a value of the wrong type is a SYG900 warning with a "did you mean" (the value is ignored), and malformed JSON is one SYG900 finding at the parser's position (the file is then ignored and the defaults apply).
 
 ## Rules
 
@@ -198,7 +244,7 @@ SYG104: Intent selector crosses an isolation boundary
 
 ## MCP server
 
-`sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is `["src"]`.
+`sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is the [config file](#configuration)'s `paths`, else `["src"]`. `check` and `graph` apply the config file found from that directory (re-read on every call); a tool's `strict` / `a11y` / `paths` arguments win over it.
 
 | Tool | Arguments | Returns |
 |---|---|---|
@@ -274,8 +320,11 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.includeTests`: also scan test and spec files.
 - `options.strict`: also run the strict-mode rules (SYG501, SYG503-508).
 - `options.a11y`: `'warn'` (default) or `'error'`, the severity of the a11y lane (SYG701-708). `strict` doesn't change it.
-
 - `options.rules`: a custom rule list.
+- `options.config`: `false` to skip the [config file](#configuration) (for callers that resolved the settings already), or a path to read instead of looking for one. By default `check()` reads it from `cwd`, and when `inputs` is left out, checks the config's `paths` (else `src`). Its findings (SYG900) are in the result.
+- `options.defaults`: fallbacks for `strict`, `a11y`, `ignore`, `paths` and `includeTests` that sit below the config file (the Vite plugin passes its `diagnostics` settings here).
+
+`loadConfig(cwd, { file? })` returns `{ config, file, diagnostics }`: the valid keys found (with `paths` made absolute), the absolute path of the file read (or `null`), and the SYG900 findings. `resolveOptions(options)` returns `{ options, config }`: the options merged in the order above, and `loadConfig`'s result. `checkFiles()` and `graphFiles()`, which take already expanded files, read no config file.
 
 `fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 
