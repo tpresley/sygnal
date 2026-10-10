@@ -45,16 +45,18 @@ export function uiMessageStream(url: string, options: UIMessageStreamOptions = {
       const messages = req.messages.map((m: any, i: number) => ({id: m.id ?? `m${i}`, role: m.role, parts: partsOf(m), ...(m.metadata !== undefined && {metadata: m.metadata})}));
       const last = messages[messages.length - 1];
       const res = await post(url, {
+        ...(req.instructions && {instructions: req.instructions}),
+        ...(req.model && {model: req.model}),
+        ...(req.tools && {tools: req.tools}),
+        ...(o && {output: o}),
+      }, req, signal, options, 'uiMessageStream', {
+        // the protocol fields: merged after `body`, which can't override them (G-654)
         ...(req.chatId != null && {id: req.chatId}),
         messages,
         trigger: 'submit-message',
         // G-628: a continued assistant message (DefaultChatTransport's messageId)
         ...(req.continue === true && last?.role == 'assistant' && {messageId: last.id}),
-        ...(req.instructions && {instructions: req.instructions}),
-        ...(req.model && {model: req.model}),
-        ...(req.tools && {tools: req.tools}),
-        ...(o && {output: o}),
-      }, req, signal, options, 'uiMessageStream');
+      });
       const v = res.headers?.get?.('x-vercel-ai-ui-message-stream');
       if (v && v != VERSION) {
         res.body.cancel?.().catch?.(() => {});

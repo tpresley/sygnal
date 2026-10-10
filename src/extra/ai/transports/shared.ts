@@ -40,12 +40,17 @@ export function guard(url: string, headers: Record<string, string>, opts: HttpOp
   fail('SYG670', undefined, msg, fix);
 }
 
-/** POST JSON; a non-2xx response is an Error with `status`, `body` and the provider's message */
-export async function post(url: string, body: any, req: any, signal: AbortSignal, opts: HttpOptions, name: string): Promise<any> {
+/**
+ * POST JSON; a non-2xx response is an Error with `status`, `body` and the provider's message.
+ * The transport's `body` option and the request's `body` are merged over the built body (so they
+ * can override provider defaults such as `max_tokens`); `fixed` fields are merged last and can't be
+ * overridden (G-654: uiMessageStream's protocol fields, as the AI SDK's DefaultChatTransport)
+ */
+export async function post(url: string, body: any, req: any, signal: AbortSignal, opts: HttpOptions, name: string, fixed?: any): Promise<any> {
   const h = typeof opts.headers == 'function' ? await opts.headers(req) : opts.headers || {};
   guard(url, h, opts, name);
   const f = opts.fetch || ((u: string, i: any) => g.fetch(u, i));
-  const res = await f(url, {method: 'POST', headers: {'content-type': 'application/json', ...h}, body: JSON.stringify({...body, ...opts.body, ...(req.body as any)}), signal});
+  const res = await f(url, {method: 'POST', headers: {'content-type': 'application/json', ...h}, body: JSON.stringify({...body, ...opts.body, ...(req.body as any), ...fixed}), signal});
   if (!res.ok) {
     let text = '', message = '';
     try { text = await res.text(); const j = JSON.parse(text); message = j.error?.message ?? j.error ?? j.message ?? ''; } catch (_) { message ||= text.slice(0, 200); }

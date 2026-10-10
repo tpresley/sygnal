@@ -35,6 +35,14 @@ describe('uiMessageStream: AI SDK 7 routes', () => {
     await expect(validateUIMessages({ messages: body.messages })).resolves.toHaveLength(2)
   })
 
+  it('G-654: a body option or request body can add keys and replace instructions, but not the protocol fields', async () => {
+    const r = aiSdkRoute(() => ({ model: steps({ text: ['ok'] }) }))
+    const t = uiMessageStream('/api/chat', { fetch: r.fetch, body: { messages: [], trigger: 'regenerate-message', instructions: 'from options' } })
+    await collect(t, { messages: [user('hi')], chatId: 'chat-1', instructions: 'Be brief', body: { id: 'other', locale: 'en' } })
+    const { body } = r.calls[0]
+    expect(body).toEqual({ id: 'chat-1', trigger: 'submit-message', instructions: 'from options', locale: 'en', messages: [user('hi')] })
+  })
+
   it('a client tool (no execute) is a tool call; a server tool is executed with its result; finish says tool-calls', async () => {
     const r = aiSdkRoute(() => ({
       model: steps({ text: ['Checking.'], calls: [{ id: 'c1', name: 'weather', input: { city: 'Hilo' } }, { id: 'c2', name: 'pickCity', input: { city: 'Hilo' } }] }),

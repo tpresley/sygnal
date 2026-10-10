@@ -548,7 +548,7 @@ the body is:
 | `tools` | when the request has them | `{ name: { description, inputSchema } }`: client tools, declared on the server without `execute` |
 | `output` | with `output` | `{ schema }`: the JSON Schema of the [structured output](#structured-output) |
 
-Then the transport's `body` option is merged over those keys, and the request's own `body` over that: per-request fields win, and both can overwrite the keys above, so give yours other names. The [`chat()` behavior](/guide/agent/) puts its `transportOptions` into each request, so `transportOptions: { chatId: 'chat-1', body: { locale: 'en' } }` sets `id` and adds `locale`. Other request keys (`key`, `ok`, `delta`, `coalesce`, …) are not sent.
+The transport's `body` option and then the request's own `body` are merged in (per-request fields win). They can add keys and replace `instructions`, `model`, `tools` and `output`, but not the protocol fields `id`, `messages`, `trigger` and `messageId`, which are always the transport's (as in the AI SDK's own transport). The [`chat()` behavior](/guide/agent/) puts its `transportOptions` into each request, so `transportOptions: { chatId: 'chat-1', body: { locale: 'en' } }` sets `id` and adds `locale`. Other request keys (`key`, `ok`, `delta`, `coalesce`, …) are not sent.
 
 An AI SDK 7 route needs only `messages`: `await convertToModelMessages(messages)` takes them as they are. It reads `tools` if the app has client tools, and `id` if it stores conversations. It ignores `trigger` and `messageId` (the client builds the continued message), and it should ignore `model` and `instructions` and set its own, as [the route above](#shipping-it) does.
 
