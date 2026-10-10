@@ -273,9 +273,7 @@ Helix doesn't display related locations. Helix also tells the server only about 
 
 ## JetBrains IDEs (LSP4IJ)
 
-:::caution[Not fully tested]
-This setup was tested only up to the server definition: the steps follow LSP4IJ's documented flow, but haven't run end to end in an IDE yet. Please [report problems](https://github.com/tpresley/sygnal/issues).
-:::
+Tested with IntelliJ IDEA Community 2025.2 and LSP4IJ 0.21: findings, hover and quick fixes.
 
 Use the free **LSP4IJ** plugin by Red Hat. It works in every JetBrains IDE (IntelliJ IDEA, WebStorm, …), Community editions included.
 
