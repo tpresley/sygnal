@@ -103,13 +103,14 @@ npm pack --dry-run --prefix create-sygnal-app ./create-sygnal-app
 Expect:
 
 - **`sygnal`**:
-  - `dist/` with `index.{cjs,esm}.js`, a single bundled `dist/index.d.ts` (no `dist/cycle/` declarations), `sygnal.min.js`, the `jsx*`, `diagnostics`, `vite`, `astro` and `vike` entries, and their source maps;
+  - `dist/` with `index.{cjs,esm}.js`, a single bundled `dist/index.d.ts` (no `dist/cycle/` declarations), `sygnal.min.js`, the `jsx*`, `diagnostics`, `devtools`, `element`, `ui`, `ui-menu`, `ui-select`, `ui-combobox`, `zag`, `react`, `ai` (6.1.0: `dist/ai.{cjs,esm}.js`, a re-export of the main bundle), `vite`, `astro` and `vike` entries, and their source maps;
+  - `dist/guide/`, the guides shipped for agents (6.1.0: 47 files, including `ai-chat.md`, `ai-decisions.md`, `agent.md`, `webmcp.md` and `mcp-apps.md`);
   - `dist/vike/config/+config.js` with its `dist/vike/config/package.json` (`"type": "module"`), and no `+config.cjs.js`;
   - `dist/shims/globalthis.cjs` (the `sygnal/shims/globalthis` export used by the Vite plugin's alias);
-  - `src/`, used for the sub-entry types such as `src/jsx.d.ts` and `src/vite/plugin.d.ts`;
+  - `src/`, used for the sub-entry types such as `src/jsx.d.ts`, `src/ai.d.ts` and `src/vite/plugin.d.ts`;
   - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
 - **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
-- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test.
+- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test; the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
 
 ## 4. Smoke check the templates before publishing
 
@@ -159,7 +160,7 @@ Scaffold every template from the published packages in a scratch directory outsi
 
 ```bash
 mkdir -p /tmp/sygnal-smoke && cd /tmp/sygnal-smoke
-for t in vite vite-pwa vike astro; do
+for t in vite vite-pwa vike astro mcp-app; do
   for lang in js ts; do
     npx --yes create-sygnal-app@latest "$t-$lang" --template "$t" --"$lang" --install < /dev/null
     (
@@ -174,7 +175,7 @@ for t in vite vite-pwa vike astro; do
 done
 ```
 
-Every project must install `sygnal` <SYGNAL> and `sygnal-check` <CHECK>. Each one's tests must pass, `sygnal-check --strict` must report nothing, `tsc --noEmit` must report nothing for the four TypeScript templates (the `vite build` of a TS template doesn't type-check, and the declarations are where type-level changes show up), and the build must succeed. `--no-install` makes sure that the check runs the copy the template installed, not a fresh download. Also check that `node_modules/sygnal/llms.txt` exists in one of the projects.
+Every project must install `sygnal` <SYGNAL> and `sygnal-check` <CHECK>. Each one's tests must pass, `sygnal-check --strict` must report nothing, `tsc --noEmit` must report nothing for the five TypeScript templates (the `vite build` of a TS template doesn't type-check, and the declarations are where type-level changes show up), and the build must succeed. `--no-install` makes sure that the check runs the copy the template installed, not a fresh download. Also check that `node_modules/sygnal/llms.txt` exists in one of the projects. The `mcp-app` tests cover the view and its MCP server; `npm start` in one of them serves MCP on `http://localhost:3001/mcp` (`node server/server.js --stdio` for stdio), where `tools/list` shows `get_forecast` and `resources/read` returns the built view.
 
 **Vike client navigation.** The unit tests don't cover hydration or client routing, so check both Vike templates in a browser. In `vike-js` and `vike-ts`, run `npm run preview` and open the printed URL:
 

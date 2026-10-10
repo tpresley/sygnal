@@ -346,3 +346,24 @@ Ready-made answers to what other frameworks solve with their most-used libraries
 | U-1 | `sygnal-ui`, a separate headless package: native Dialog, Popover, Tooltip; Tabs, Accordion, Disclosure as behaviors; Menu, Select, Combobox on `fromZag`; the Toaster | P2 |
 
 Also docs-only recipes (Chart.js/ECharts, Tiptap, CodeMirror first; Embla, Floating UI, AutoAnimate, TanStack Table, AG Grid, icons later) and a final eval with new tasks 30–34 against React with its usual libraries.
+
+---
+
+## Sygnal 6.1
+
+### 19. AI: LLM Inference in Apps and Agent-Operable Apps (PLAN-6)
+
+**Status:** `DONE`: shipped in **6.1.0** with `sygnal-check` 0.3.0 and `create-sygnal-app` 2.1.0 (templates: `sygnal` ^6.1.0, `sygnal-check` ^0.3.0) ([PLAN-6](dev-plans/PLAN-6.md), tracker [PLAN-6-status](dev-plans/PLAN-6-status.md); release notes in [`CHANGELOG.md`](CHANGELOG.md), final eval in [REPORT-v6](evals/agent-ergonomics/results/REPORT-v6.md)). One new subpath, `sygnal/ai` (D240); 0 core bytes (the size gate stays at 42,690 B) and 0 B for apps that don't import it. WebMCP ships experimental, outside semver (D241).
+
+Make the two AI tasks a Sygnal developer now meets as easy as anything else in Sygnal: calling LLMs from an app (streaming chat with tools, decision models, an in-app assistant), and letting agents operate the app (browser agents through WebMCP, the app's own assistant, MCP Apps hosts, and coding agents through the dev server), all from one declaration per component.
+
+| Item | What | Priority |
+|---|---|---|
+| L-1–L-4 | `makeChatDriver` (streaming reply actions, `UIMessage` parts, structured output), transports (`openResponses`, `chatCompletions`, `uiMessageStream`, `chromePrompt`, `anthropicMessages`, `agui`, `fromAISDK`; `strictSchemas`), the `chat` behavior, the `LLM` test fake | P1 (L-2 wave 2: P2) |
+| M-1–M-3 | `decide()` with `choice`/`noul`/`score`, `answers()` fixtures, the `commandBar` behavior | P1 (M-2, M-3: P2) |
+| A-1–A-4 | The `agent` static and `agentTools()` (schema contract, Collection item tools, confirmations, `abort(reason)`), `experimentalExposeWebMcp`, `formTool` (declarative WebMCP forms), `t.tools`/`t.callTool`/`t.agentContext` | P1 (A-3: P2) |
+| K-1 | `sygnal-check` rules (SYG150–153, SYG240/243, SYG440/441, SYG730/731) | P2 |
+| E-1 | Dev MCP endpoint, `sygnal({ mcp: true })` | P2 |
+| X-1 | MCP Apps: `makeMcpAppDriver()` and `create-sygnal-app --template mcp-app` | P3 |
+
+Outcome: on four new eval tasks Sygnal agents passed 60/60 (React with the AI SDK 59/60), at 1.07–1.67× React's time; the S-14 re-baseline stayed within the bar, and the apps the agents built were operable by a small local model through their declared tools.

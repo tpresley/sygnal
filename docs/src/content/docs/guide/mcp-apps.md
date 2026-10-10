@@ -198,7 +198,7 @@ A consequential tool is declined unless you pass `confirm`, a function that asks
 npm create sygnal-app@latest my-tool -- --template mcp-app
 ```
 
-(`--ts` for TypeScript.) The starter needs Sygnal 6.1 or later, so it installs once 6.1.0 is published. Until then, point it at a local build of Sygnal: `npm run build` in a Sygnal checkout, then `npm install /path/to/sygnal` in the project (its README has the steps).
+(`--ts` for TypeScript.) The starter needs Sygnal 6.1 or later (`makeMcpAppDriver` is in `sygnal/ai` since 6.1.0). To try it against an unreleased Sygnal change, point it at a local build: `npm run build` in a Sygnal checkout, then `npm install /path/to/sygnal` in the project (its README has the steps).
 
 ```text
 src/App.jsx          the view (the forecast card above, with theme and full screen)

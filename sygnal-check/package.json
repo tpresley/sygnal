@@ -1,6 +1,6 @@
 {
   "name": "sygnal-check",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Static checker for Sygnal apps: finds intent/model/view/EVENTS wiring bugs that fail silently at runtime",
   "type": "module",
   "main": "./src/index.js",
