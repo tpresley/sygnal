@@ -465,6 +465,10 @@ function setup(el: HTMLElement, server?: string): Panel {
 
   editBtn.addEventListener('click', async () => {
     const open = editorBox.hidden
+    // the static code block above the panel hides (or comes back), so everything below it moves by
+    // its height: keep the button where it was on screen (browsers' scroll anchoring doesn't
+    // reliably cover this), and focus the editor without scrolling
+    const top = editBtn.getBoundingClientRect().top
     editorBox.hidden = !open
     runBtn.hidden = !open
     resetBtn.hidden = !open
@@ -473,10 +477,13 @@ function setup(el: HTMLElement, server?: string): Panel {
     // the editor takes the place of the static code block above the panel (still in the DOM
     // for no-JS and search)
     staticCode?.classList.toggle('sygnal-live-code-hidden', open)
+    const keep = () => { const moved = editBtn.getBoundingClientRect().top - top; if (moved) window.scrollBy(0, moved) }
+    keep()
     if (open) {
       try {
         await openEditor(p)
-        p.editor.focus()
+        keep()
+        p.editor.contentDOM.focus({ preventScroll: true })
       } catch (e) {
         showError(p, e, undefined, !!p.app)
       }
