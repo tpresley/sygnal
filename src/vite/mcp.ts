@@ -2,18 +2,30 @@
  * PLAN-6 E-1: the dev MCP endpoint of sygnal/vite (`sygnal({ mcp: true })`), dev server only.
  *
  * `/__sygnal/mcp` speaks MCP's streamable HTTP transport: JSON-RPC 2.0 over POST, answered as
- * one `application/json` body. G-638: that is a complete server under the spec (2025-03-26 to
- * 2025-11-25, "Streamable HTTP"): for a POSTed request the server returns either
- * `Content-Type: text/event-stream` or `application/json`, and the client must accept both; a
- * server that offers no stream on GET answers 405; session ids (`Mcp-Session-Id`) are optional
- * ("MAY assign"). This server never sends requests or notifications to the client (no sampling,
- * no progress, tools/list never changes), so an SSE stream would carry nothing; without session
- * ids each POST stands alone (the page state lives in the browser, not in a session). GET and
- * DELETE get 405. The stateless 2026-07-28 revision (no initialize, per-request `_meta`) is not
- * served yet: its request (MCP-Protocol-Version: 2026-07-28) gets 400 with a non-modern error
- * (-32000, never -32022), which the spec's dual-era clients take as "legacy server" and fall
- * back to initialize. Hand-written like sygnal-check's stdio server (no dependency, D209).
- * Methods: initialize, ping, tools/list, tools/call; notifications get 202.
+ * one `application/json` body, in both protocol eras (G-655: a dual-era server):
+ *
+ * - legacy, the `initialize` revisions (2024-11-05 … 2025-11-25). G-638: JSON replies make a
+ *   complete server under the spec (the client must accept JSON or SSE; a server without a GET
+ *   stream answers 405; session ids are optional, "MAY assign"). Methods: initialize, ping,
+ *   tools/list, tools/call; notifications get 202; batches (2025-03-26) are answered.
+ * - modern, the stateless 2026-07-28 revision (no initialize, no sessions, no ping): each request
+ *   carries `_meta['io.modelcontextprotocol/protocolVersion']` and `.../clientCapabilities`, and
+ *   the `MCP-Protocol-Version`, `Mcp-Method` and (tools/call) `Mcp-Name` headers, which must
+ *   match the body (else 400 with -32020 HeaderMismatch; missing `_meta` fields: 400, -32602).
+ *   Methods: server/discover, tools/list, tools/call; any other gets 404 with -32601. Results
+ *   carry `resultType: 'complete'` and `_meta['io.modelcontextprotocol/serverInfo']`; tools/list
+ *   and server/discover are cacheable results (`ttlMs`, `cacheScope`). No subscriptions/listen
+ *   (the tool list never changes), no MRTR input requests, no logging.
+ *
+ * The era comes from each request: a 2026-07-28 header or `_meta` version is modern, anything else
+ * legacy (no header: 2025-03-26, as the spec allows). An unknown version gets 400 with -32022
+ * (UnsupportedProtocolVersion, `data: { supported, requested }`), so a modern client retries
+ * with one this server speaks. The server never sends requests or notifications of its own (no
+ * sampling, no progress, tools/list never changes), so an SSE stream would carry nothing; without
+ * session ids each POST stands alone (the page state lives in the browser, not in a session).
+ * GET and DELETE get 405. Spec: modelcontextprotocol.io/specification/2026-07-28/basic/versioning
+ * and .../basic/transports/streamable-http. Hand-written like sygnal-check's stdio server (no
+ * dependency, D209).
  *
  * Tools that read the page (get_state, dispatch, component_tree, recent_actions,
  * get_diagnostics, copy_as_test, agent_tools) go to an open tab through a PageBridge: in the dev
@@ -43,8 +55,15 @@ export const MCP_PATH = '/__sygnal/mcp'
 export const MCP_HELLO = 'sygnal:mcp:hello'
 export const MCP_REQUEST = 'sygnal:mcp:request'
 export const MCP_RESPONSE = 'sygnal:mcp:response'
-/** newest first; the server answers with the client's version when it knows it */
-export const SUPPORTED_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
+/** G-655: the stateless revisions (per-request `_meta`, no initialize), newest first */
+export const MODERN_VERSIONS = ['2026-07-28']
+/** the `initialize` revisions, newest first; initialize answers with the client's version when it knows it */
+export const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
+export const SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS]
+const META = 'io.modelcontextprotocol/'
+const INSTRUCTIONS = 'The running Sygnal apps in the dev server\'s open page: component_tree to orient, get_state / recent_actions / get_diagnostics to read, dispatch or agent_tools to act, copy_as_test to turn a session into a test; apps lists the page\'s run() apps when there are several (`app` picks one). check, graph and explain (when present) are sygnal-check on the sources.'
+/** 2026-07-28 cacheable results (tools/list, server/discover): the list is fixed while the dev server runs, not across restarts */
+const CACHE = { ttlMs: 0, cacheScope: 'private' }
 const MAX_BODY = 1 << 20
 
 export interface McpPluginOptions {
@@ -215,28 +234,34 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
     return content({ ...out, tab: { id: tab.id, url: tab.url, title: tab.title }, ...(note ? { tabNote: note } : {}) })
   }
 
-  async function handleMessage(msg: any): Promise<any> {
+  const serverInfo = { name: 'sygnal-dev', title: 'Sygnal dev server', version: o.version || '0.0.0' }
+
+  async function handleMessage(msg: any, modern: boolean): Promise<any> {
     if (!isObj(msg) || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
       return isObj(msg) && 'id' in msg && !('result' in msg || 'error' in msg) ? error(msg.id ?? null, -32600, 'Invalid Request') : null
     }
     if (!('id' in msg) || msg.id === null) return null // a notification
     const { id, method } = msg
     const params = isObj(msg.params) ? msg.params : {}
+    // G-655: 2026-07-28 removed initialize and ping, and added server/discover
+    if (modern ? method === 'initialize' || method === 'ping' : method === 'server/discover') return error(id, -32601, `Method not found: ${method}`)
     switch (method) {
       case 'initialize': {
         const requested = params.protocolVersion
         return result(id, {
-          protocolVersion: SUPPORTED_VERSIONS.includes(requested) ? requested : SUPPORTED_VERSIONS[0],
+          protocolVersion: LEGACY_VERSIONS.includes(requested) ? requested : LEGACY_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'sygnal-dev', title: 'Sygnal dev server', version: o.version || '0.0.0' },
-          instructions: 'The running Sygnal apps in the dev server\'s open page: component_tree to orient, get_state / recent_actions / get_diagnostics to read, dispatch or agent_tools to act, copy_as_test to turn a session into a test; apps lists the page\'s run() apps when there are several (`app` picks one). check, graph and explain (when present) are sygnal-check on the sources.',
+          serverInfo,
+          instructions: INSTRUCTIONS,
         })
       }
+      case 'server/discover':
+        return result(id, { supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} }, instructions: INSTRUCTIONS, ...CACHE })
       case 'ping':
         return result(id, {})
       case 'tools/list': {
         const c = await getCheck()
-        return result(id, { tools: [...PAGE_TOOLS, TABS_TOOL, ...(c ? c.tools : [])] })
+        return result(id, { tools: [...PAGE_TOOLS, TABS_TOOL, ...(c ? c.tools : [])], ...(modern ? CACHE : {}) })
       }
       case 'tools/call': {
         const name = params.name
@@ -249,7 +274,10 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
           }
         }
         const c = await getCheck()
-        if (c && c.tools.some((t: any) => t.name === name)) return { ...c.server.handle({ ...msg, params: { ...params, arguments: args } }), id }
+        if (c && c.tools.some((t: any) => t.name === name)) {
+          const { _meta, ...rest } = params // sygnal-check's server speaks the initialize era
+          return { ...c.server.handle({ ...msg, params: { ...rest, arguments: args } }), id }
+        }
         return error(id, -32602, `Unknown tool: ${name}`)
       }
       default:
@@ -257,14 +285,24 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
     }
   }
 
-  /** One message (or a batch); never throws */
-  async function handle(msg: any): Promise<any> {
+  /**
+   * One message (or a legacy batch); never throws. `modern`: a 2026-07-28 request whose envelope
+   * (version, headers, `_meta` fields) the transport checked (see mcpMiddleware); its result is
+   * marked `resultType: 'complete'` and names the server in `_meta`.
+   */
+  async function handle(msg: any, modern = false): Promise<any> {
     if (Array.isArray(msg)) {
-      const out = (await Promise.all(msg.map(handle))).filter(Boolean)
+      if (modern) return error(null, -32600, 'Invalid Request: one JSON-RPC message per POST')
+      const out = (await Promise.all(msg.map((m: any) => handle(m)))).filter(Boolean)
       return out.length ? out : null
     }
     try {
-      return await handleMessage(msg)
+      const out = await handleMessage(msg, modern)
+      if (modern && out && isObj(out.result)) {
+        const meta = isObj(out.result._meta) ? out.result._meta : {}
+        out.result = { resultType: 'complete', ...out.result, _meta: { ...meta, [META + 'serverInfo']: serverInfo } }
+      }
+      return out
     } catch (err: any) {
       return error(isObj(msg) && 'id' in msg ? msg.id ?? null : null, -32603, `Internal error: ${err?.message || err}`)
     }
@@ -339,8 +377,42 @@ function readBody(req: any): Promise<string> {
   })
 }
 
+/** An `Mcp-Name` value: plain, or the spec's `=?base64?…?=` sentinel for one that isn't header-safe */
+function headerValue(v: string): string {
+  const m = /^=\?base64\?(.*)\?=$/.exec(v)
+  return m ? (globalThis as any).Buffer.from(m[1], 'base64').toString('utf8') : v
+}
+
+/**
+ * G-655: why a 2026-07-28 request's envelope is refused, as [code, message], or null. The spec
+ * (basic/index "_meta", transports/streamable-http "Server Validation"): `_meta` must carry the
+ * protocol version and the client capabilities (-32602), and the MCP-Protocol-Version, Mcp-Method
+ * and (tools/call, resources/read, prompts/get) Mcp-Name headers must be there and match the body
+ * (-32020 HeaderMismatch). This server marks no parameter with `x-mcp-header`, so no
+ * Mcp-Param-* header is required.
+ */
+function modernEnvelope(msg: any, headers: any): [number, string] | null {
+  const params = isObj(msg.params) ? msg.params : {}
+  const meta = isObj(params._meta) ? params._meta : {}
+  if (typeof meta[META + 'protocolVersion'] !== 'string') return [-32602, `Invalid params: _meta["${META}protocolVersion"] is required`]
+  if (!isObj(meta[META + 'clientCapabilities'])) return [-32602, `Invalid params: _meta["${META}clientCapabilities"] is required`]
+  const header = headers['mcp-protocol-version']
+  if (header !== meta[META + 'protocolVersion']) {
+    return [-32020, header === undefined ? 'Header mismatch: MCP-Protocol-Version header is required' : `Header mismatch: MCP-Protocol-Version header value '${header}' does not match body value '${meta[META + 'protocolVersion']}'`]
+  }
+  const method = headers['mcp-method']
+  if (method !== msg.method) return [-32020, method === undefined ? 'Header mismatch: Mcp-Method header is required' : `Header mismatch: Mcp-Method header value '${method}' does not match body value '${msg.method}'`]
+  if (msg.method === 'tools/call' || msg.method === 'prompts/get' || msg.method === 'resources/read') {
+    const want = msg.method === 'resources/read' ? params.uri : params.name
+    const name = headers['mcp-name']
+    if (typeof name !== 'string') return [-32020, 'Header mismatch: Mcp-Name header is required']
+    if (headerValue(name) !== want) return [-32020, `Header mismatch: Mcp-Name header value '${name}' does not match body value '${want}'`]
+  }
+  return null
+}
+
 /** The connect middleware for MCP_PATH */
-export function mcpMiddleware(server: { handle(msg: any): Promise<any> }, allowedHosts: () => any) {
+export function mcpMiddleware(server: { handle(msg: any, modern?: boolean): Promise<any> }, allowedHosts: () => any) {
   return async (req: any, res: any, next: any) => {
     const url = String(req.url || '').replace(/[?#].*$/, '')
     if (url !== MCP_PATH && url !== MCP_PATH + '/') return next()
@@ -348,10 +420,6 @@ export function mcpMiddleware(server: { handle(msg: any): Promise<any> }, allowe
     if (why) return send(res, 403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Forbidden: ${why}` } })
     // G-638: no SSE stream on GET (the spec's "MUST ... return 405" for a server that offers none), no sessions to DELETE
     if (req.method !== 'POST') return send(res, 405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Method not allowed: this endpoint takes JSON-RPC over POST and answers with application/json (no SSE stream, no sessions)' } }, { Allow: 'POST' })
-    const version = req.headers['mcp-protocol-version']
-    if (version !== undefined && !SUPPORTED_VERSIONS.includes(String(version))) {
-      return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Unsupported MCP-Protocol-Version ${version}; supported: ${SUPPORTED_VERSIONS.join(', ')}` } })
-    }
     let msg: any
     try {
       msg = JSON.parse(await readBody(req))
@@ -359,9 +427,30 @@ export function mcpMiddleware(server: { handle(msg: any): Promise<any> }, allowe
       if (err?.message === 'too large') return send(res, 413, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Request too large' } })
       return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })
     }
-    const out = await server.handle(msg)
+    // G-655: the era is per request: a 2026-07-28 version in the header or in `_meta` is modern
+    // (stateless), anything else the initialize era (no header: 2025-03-26)
+    const id = isObj(msg) && 'id' in msg ? msg.id ?? null : null
+    const fail = (status: number, code: number, message: string, data?: any) => send(res, status, { jsonrpc: '2.0', id, error: { code, message, ...(data ? { data } : {}) } })
+    const header = req.headers['mcp-protocol-version']
+    const meta = isObj(msg) && isObj(msg.params) && isObj(msg.params._meta) ? msg.params._meta : {}
+    const metaVersion = meta[META + 'protocolVersion']
+    for (const requested of [header, metaVersion]) {
+      if (requested !== undefined && !SUPPORTED_VERSIONS.includes(requested)) {
+        return fail(400, -32022, 'Unsupported protocol version', { supported: SUPPORTED_VERSIONS, requested })
+      }
+    }
+    const modern = MODERN_VERSIONS.includes(header) || MODERN_VERSIONS.includes(metaVersion)
+    if (modern) {
+      if (!isObj(msg)) return fail(400, -32600, 'Invalid Request: one JSON-RPC message per POST')
+      if ('id' in msg && msg.id !== null) {
+        const why = modernEnvelope(msg, req.headers)
+        if (why) return fail(400, why[0], why[1])
+      }
+    }
+    const out = await server.handle(msg, modern)
     if (out === null || out === undefined) return send(res, 202)
-    send(res, 200, out)
+    // 2026-07-28: a method this server doesn't implement is 404 (the JSON-RPC body tells it from a missing endpoint)
+    send(res, modern && out.error?.code === -32601 ? 404 : 200, out)
   }
 }
 

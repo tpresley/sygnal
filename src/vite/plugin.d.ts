@@ -117,7 +117,8 @@ export interface SygnalPluginOptions {
    * running apps in the open page: get_state, dispatch, component_tree, recent_actions,
    * get_diagnostics, copy_as_test, agent_tools, apps, tabs, and sygnal-check's check / graph /
    * explain when it is installed. Every run() app of the page is served (`app` picks one).
-   * Answers are application/json (no SSE stream, no sessions). Dev server only; it also loads
+   * MCP revisions 2026-07-28 (stateless) and 2024-11-05 … 2025-11-25 (initialize); answers are
+   * application/json (no SSE stream, no sessions). Dev server only; it also loads
    * 'sygnal/devtools' in the page.
    * @default false
    */

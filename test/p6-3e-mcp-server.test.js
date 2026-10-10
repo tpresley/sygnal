@@ -7,8 +7,9 @@ import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  createDevMcpServer, mcpMiddleware, refusal, hmrBridge, mcpClientModule, PAGE_TOOLS, SUPPORTED_VERSIONS, MCP_PATH,
+  createDevMcpServer, mcpMiddleware, refusal, hmrBridge, mcpClientModule, PAGE_TOOLS, SUPPORTED_VERSIONS, LEGACY_VERSIONS, MCP_PATH,
 } from '../src/vite/mcp.ts'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import sygnal from '../src/vite/plugin.ts'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -32,7 +33,10 @@ describe('the JSON-RPC server', () => {
     expect(r.result.capabilities).toEqual({ tools: { listChanged: false } })
     expect(r.result.serverInfo).toMatchObject({ name: 'sygnal-dev', version: '6.1.0' })
     const newer = await s.handle(rpc('initialize', { protocolVersion: '2099-01-01' }))
-    expect(newer.result.protocolVersion).toBe(SUPPORTED_VERSIONS[0])
+    expect(newer.result.protocolVersion).toBe(LEGACY_VERSIONS[0])
+    // G-655: initialize is the legacy era's: a 2026-07-28 client asking there gets 2025-11-25
+    expect((await s.handle(rpc('initialize', { protocolVersion: '2026-07-28' }))).result.protocolVersion).toBe('2025-11-25')
+    expect(SUPPORTED_VERSIONS).toEqual(['2026-07-28', ...LEGACY_VERSIONS])
   })
 
   it('lists the page tools and tabs, plus sygnal-check\'s tools when it is there', async () => {
@@ -143,12 +147,7 @@ describe('the HTTP endpoint (streamable HTTP, JSON responses)', () => {
     expect((await post(base, '{nope')).status).toBe(400)
     expect((await post(base, rpc('ping'), { 'mcp-protocol-version': '1999-01-01' })).status).toBe(400)
     expect((await post(base, rpc('ping'), { 'mcp-protocol-version': '2025-06-18' })).status).toBe(200)
-    // G-638: a 2026-07-28 (stateless) request gets 400 with a non-modern error (not -32022), so a
-    // dual-era client falls back to initialize
-    const modern = await post(base, rpc('tools/list', { _meta: { 'io.modelcontextprotocol/protocolVersion': '2026-07-28' } }), { 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/list' })
-    expect(modern.status).toBe(400)
-    const modernBody = await modern.json()
-    expect(modernBody.error.code).toBe(-32000)
+    expect((await post(base, rpc('ping'))).status).toBe(200) // no header: 2025-03-26
   })
 
   it('403 for a foreign Origin (a web page) or Host (DNS rebinding)', async () => {
@@ -163,6 +162,139 @@ describe('the HTTP endpoint (streamable HTTP, JSON responses)', () => {
       q.end(JSON.stringify(rpc('ping')))
     })
     expect(status).toBe(403)
+  })
+})
+
+// G-655: the stateless 2026-07-28 revision beside the initialize era (a dual-era server).
+// Spec: modelcontextprotocol.io/specification/2026-07-28/basic/versioning, .../basic/index (_meta,
+// error codes), .../basic/transports/streamable-http (headers, server validation, 404),
+// .../server/discover, .../server/utilities/caching. The real clients are the official SDK's
+// (@modelcontextprotocol/client 2.3.1, exact devDependency).
+describe('G-655: protocol revision 2026-07-28 (stateless)', () => {
+  let server
+  afterEach(() => new Promise((r) => (server ? server.close(r) : r())))
+  const TAB = { id: 1, url: 'http://localhost:5173/', title: 'App', active: 1 }
+  async function start() {
+    const check = { tools: [{ name: 'explain', inputSchema: { type: 'object' } }], server: { handle: (m) => ({ jsonrpc: '2.0', id: m.id, result: { content: [{ type: 'text', text: 'ok' }], echoed: m.params } }) } }
+    const mcp = createDevMcpServer({ bridge: fakeBridge([TAB], async (tab, tool, args) => ({ state: { count: 3 }, tool, args })), version: '6.1.0', check: Promise.resolve(check) })
+    const mw = mcpMiddleware(mcp, () => undefined)
+    server = http.createServer((q, s) => mw(q, s, () => { s.statusCode = 404; s.end('next') }))
+    await new Promise((r) => server.listen(0, '127.0.0.1', r))
+    return `http://127.0.0.1:${server.address().port}`
+  }
+  const V = '2026-07-28'
+  const meta = (extra = {}) => ({ 'io.modelcontextprotocol/protocolVersion': V, 'io.modelcontextprotocol/clientCapabilities': {}, 'io.modelcontextprotocol/clientInfo': { name: 't', version: '1' }, ...extra })
+  const post = (base, body, headers = {}) => fetch(base + MCP_PATH, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...headers }, body: JSON.stringify(body) })
+  const modernPost = (base, method, params = {}, headers = {}) => post(base, rpc(method, { ...params, _meta: meta() }, 7), { 'mcp-protocol-version': V, 'mcp-method': method, ...(params.name ? { 'mcp-name': params.name } : {}), ...headers })
+
+  it('server/discover, tools/list and tools/call without initialize; results are complete and name the server', async () => {
+    const base = await start()
+    const d = await modernPost(base, 'server/discover')
+    expect(d.status).toBe(200)
+    const disc = (await d.json()).result
+    expect(disc).toMatchObject({ resultType: 'complete', supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} }, ttlMs: 0, cacheScope: 'private' })
+    expect(disc._meta['io.modelcontextprotocol/serverInfo']).toMatchObject({ name: 'sygnal-dev', version: '6.1.0' })
+    expect(disc.instructions).toMatch(/component_tree/)
+    const list = (await (await modernPost(base, 'tools/list')).json()).result
+    expect(list).toMatchObject({ resultType: 'complete', ttlMs: 0, cacheScope: 'private' })
+    expect(list.tools.map((t) => t.name)).toEqual(['get_state', 'dispatch', 'component_tree', 'recent_actions', 'get_diagnostics', 'copy_as_test', 'agent_tools', 'apps', 'tabs', 'explain'])
+    const r = await (await modernPost(base, 'tools/call', { name: 'get_state', arguments: { component: 'App' } })).json()
+    expect(r.id).toBe(7)
+    expect(r.result).toMatchObject({ resultType: 'complete', isError: false, structuredContent: { state: { count: 3 }, args: { component: 'App' }, tab: { id: 1 } } })
+    expect(r.result._meta['io.modelcontextprotocol/serverInfo'].name).toBe('sygnal-dev')
+    // sygnal-check's tools (initialize era) get the call without the modern _meta; the result is still marked
+    const e = (await (await modernPost(base, 'tools/call', { name: 'explain', arguments: { code: 'SYG103' } })).json()).result
+    expect(e.echoed).toEqual({ name: 'explain', arguments: { code: 'SYG103' } })
+    expect(e.resultType).toBe('complete')
+    // the legacy era is unchanged on the same endpoint: no resultType, no cache fields
+    const legacy = (await (await post(base, rpc('tools/list'), { 'mcp-protocol-version': '2025-11-25' })).json()).result
+    expect(legacy.resultType).toBeUndefined()
+    expect(legacy.ttlMs).toBeUndefined()
+    expect((await post(base, rpc('server/discover'), { 'mcp-protocol-version': '2025-11-25' })).status).toBe(200) // a legacy -32601 stays 200
+  })
+
+  it('an unsupported version is 400 with -32022 and the supported list (header or _meta)', async () => {
+    const base = await start()
+    const h = await post(base, rpc('tools/list', { _meta: meta({ 'io.modelcontextprotocol/protocolVersion': '2099-01-01' }) }), { 'mcp-protocol-version': '2099-01-01', 'mcp-method': 'tools/list' })
+    expect(h.status).toBe(400)
+    expect(await h.json()).toEqual({ jsonrpc: '2.0', id: 1, error: { code: -32022, message: 'Unsupported protocol version', data: { supported: SUPPORTED_VERSIONS, requested: '2099-01-01' } } })
+    const m = await post(base, rpc('tools/list', { _meta: meta({ 'io.modelcontextprotocol/protocolVersion': '1900-01-01' }) }))
+    expect(m.status).toBe(400)
+    expect((await m.json()).error.data.requested).toBe('1900-01-01')
+  })
+
+  it('envelope checks: missing _meta fields are -32602, header mismatches -32020 (400)', async () => {
+    const base = await start()
+    const noCaps = await post(base, rpc('tools/list', { _meta: { 'io.modelcontextprotocol/protocolVersion': V } }), { 'mcp-protocol-version': V, 'mcp-method': 'tools/list' })
+    expect(noCaps.status).toBe(400)
+    expect((await noCaps.json()).error).toMatchObject({ code: -32602, message: expect.stringMatching(/clientCapabilities/) })
+    const noMeta = await post(base, rpc('tools/list'), { 'mcp-protocol-version': V, 'mcp-method': 'tools/list' })
+    expect(noMeta.status).toBe(400)
+    expect((await noMeta.json()).error.code).toBe(-32602)
+    const mismatch = async (headers, params = {}, method = 'tools/list') => {
+      const r = await post(base, rpc(method, { ...params, _meta: meta() }), headers)
+      expect(r.status).toBe(400)
+      return (await r.json()).error
+    }
+    expect(await mismatch({ 'mcp-method': 'tools/list' })).toMatchObject({ code: -32020, message: expect.stringMatching(/MCP-Protocol-Version header is required/) })
+    expect((await mismatch({ 'mcp-protocol-version': '2025-11-25', 'mcp-method': 'tools/list' })).code).toBe(-32020)
+    expect(await mismatch({ 'mcp-protocol-version': V })).toMatchObject({ code: -32020, message: expect.stringMatching(/Mcp-Method/) })
+    expect((await mismatch({ 'mcp-protocol-version': V, 'mcp-method': 'tools/call' })).code).toBe(-32020)
+    const call = { name: 'get_state', arguments: {} }
+    expect(await mismatch({ 'mcp-protocol-version': V, 'mcp-method': 'tools/call' }, call, 'tools/call')).toMatchObject({ code: -32020, message: expect.stringMatching(/Mcp-Name header is required/) })
+    expect((await mismatch({ 'mcp-protocol-version': V, 'mcp-method': 'tools/call', 'mcp-name': 'dispatch' }, call, 'tools/call')).code).toBe(-32020)
+    // the spec's Base64 sentinel for a name that isn't header-safe
+    const b64 = await post(base, rpc('tools/call', { ...call, _meta: meta() }), { 'mcp-protocol-version': V, 'mcp-method': 'tools/call', 'mcp-name': `=?base64?${Buffer.from('get_state').toString('base64')}?=` })
+    expect(b64.status).toBe(200)
+  })
+
+  it('initialize, ping and unknown methods are 404 with -32601; one message per POST; GET 405; security unchanged', async () => {
+    const base = await start()
+    for (const m of ['initialize', 'ping', 'resources/list']) {
+      const r = await modernPost(base, m)
+      expect(r.status).toBe(404)
+      expect((await r.json()).error.code).toBe(-32601)
+    }
+    const batch = await post(base, [rpc('tools/list', { _meta: meta() })], { 'mcp-protocol-version': V, 'mcp-method': 'tools/list' })
+    expect(batch.status).toBe(400)
+    expect((await batch.json()).error.code).toBe(-32600)
+    expect((await post(base, { jsonrpc: '2.0', method: 'notifications/x', params: { _meta: meta() } }, { 'mcp-protocol-version': V })).status).toBe(202)
+    expect((await fetch(base + MCP_PATH, { headers: { 'mcp-protocol-version': V } })).status).toBe(405)
+    expect((await fetch(base + MCP_PATH, { method: 'DELETE', headers: { 'mcp-protocol-version': V } })).status).toBe(405)
+    const o = await modernPost(base, 'tools/list', {}, { origin: 'https://evil.example' })
+    expect(o.status).toBe(403)
+    const status = await new Promise((resolve, reject) => {
+      const q = http.request(base + MCP_PATH, { method: 'POST', headers: { host: 'rebound.example', 'content-type': 'application/json', 'mcp-protocol-version': V, 'mcp-method': 'tools/list' } }, (s) => { s.resume(); resolve(s.statusCode) })
+      q.on('error', reject)
+      q.end(JSON.stringify(rpc('tools/list', { _meta: meta() })))
+    })
+    expect(status).toBe(403)
+  })
+
+  // The official TypeScript SDK's client, three ways: pinned to 2026-07-28 (a modern-only client:
+  // no fallback), its default (the 2025 initialize sequence), and 'auto' (dual-era: probes with
+  // server/discover and stays modern)
+  it.each([
+    ['2026-07-28 only', { mode: { pin: '2026-07-28' } }, 'modern', '2026-07-28'],
+    ['legacy (default)', undefined, 'legacy', '2025-11-25'],
+    ['dual-era (auto)', { mode: 'auto' }, 'modern', '2026-07-28'],
+  ])('the SDK client, %s, connects and calls tools', async (_, versionNegotiation, era, version) => {
+    const base = await start()
+    const client = new Client({ name: 'g655-test', version: '1.0.0' }, versionNegotiation ? { versionNegotiation } : {})
+    await client.connect(new StreamableHTTPClientTransport(new URL(base + MCP_PATH)))
+    try {
+      expect(client.getProtocolEra()).toBe(era)
+      expect(client.getNegotiatedProtocolVersion()).toBe(version)
+      expect(client.getServerVersion()).toMatchObject({ name: 'sygnal-dev', version: '6.1.0' })
+      const { tools } = await client.listTools()
+      expect(tools.map((t) => t.name)).toContain('get_state')
+      const r = await client.callTool({ name: 'get_state', arguments: { component: 'App' } })
+      expect(r.isError).toBe(false)
+      expect(r.structuredContent).toMatchObject({ state: { count: 3 }, tab: { id: 1 } })
+      expect((await client.callTool({ name: 'explain', arguments: { code: 'SYG103' } })).content[0].text).toBe('ok')
+    } finally {
+      await client.close()
+    }
   })
 })
 

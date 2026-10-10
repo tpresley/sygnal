@@ -148,9 +148,14 @@ It is a development tool only:
 
 ### Transport
 
-The endpoint speaks MCP's streamable HTTP transport in the `initialize`-based revisions (2024-11-05 to 2025-11-25): each JSON-RPC request is a POST, and each answer is one `application/json` body. It opens no SSE stream and assigns no session id. The spec allows both: a server answers a request with either JSON or an event stream (clients must accept both), a server without a stream answers `GET` with 405, and session ids are optional. This endpoint never sends the client anything of its own (no progress, sampling or list changes), so a stream would carry nothing, and the state it reports lives in the page, not in a session. `GET` and `DELETE` get 405.
+The endpoint speaks MCP's streamable HTTP transport in both protocol eras, on the same URL, so the `.mcp.json` above works with any client:
 
-The newer stateless revision (2026-07-28: no `initialize`, the version in each request's `_meta`) isn't served yet. A client that speaks both, as the spec describes, sends its modern request first, gets a 400 without a modern error code, and falls back to `initialize`. A client that only speaks 2026-07-28 can't connect.
+- **2026-07-28** (stateless): no `initialize`. Each request carries its protocol version and client capabilities in `_meta` and the `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`) `Mcp-Name` headers; the endpoint answers `server/discover`, `tools/list` and `tools/call`.
+- **2024-11-05 to 2025-11-25**: the `initialize` handshake, then `tools/list`, `tools/call` and `ping`.
+
+Each request picks its era: a client that speaks both, as the spec describes, gets its 2026-07-28 request answered and stays there; an older client gets the `initialize` handshake as before. A version the endpoint doesn't know gets 400 with the spec's "unsupported protocol version" error (`-32022`), which lists the versions it speaks.
+
+Each JSON-RPC request is a POST, and each answer is one `application/json` body. The endpoint opens no SSE stream and assigns no session id. Both revision lines allow that: a server answers a request with either JSON or an event stream (clients must accept both), `GET` and `DELETE` get 405, and session ids are optional before 2026-07-28 and gone in it. This endpoint never sends the client anything of its own (no progress, sampling, input requests or list changes, so no `subscriptions/listen`), and the state it reports lives in the page, not in a session.
 
 ## inspect
 

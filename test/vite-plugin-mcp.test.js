@@ -2,7 +2,8 @@
 // on test/fixtures/mcp-app (two run() apps, G-638), the page open in headless Chromium, Firefox
 // and WebKit (browser-tests' cached Playwright builds, never downloaded; an engine whose build is
 // not in the cache is skipped, MCP_E2E_BROWSERS=chromium,firefox picks engines), and an MCP
-// client speaking JSON-RPC over HTTP to /__sygnal/mcp. Also: a production build of the fixture
+// client speaking JSON-RPC over HTTP to /__sygnal/mcp (plus, G-655, the official SDK client in
+// the 2026-07-28 and the initialize era). Also: a production build of the fixture
 // has none of it.
 // Needs `npm run build`, `npm install --prefix examples/kanban` and `npm ci --prefix browser-tests`.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
@@ -12,6 +13,7 @@ import path from 'node:path'
 import http from 'node:http'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
 import sygnal from '../dist/vite/plugin.mjs'
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -179,6 +181,28 @@ describe.each(engines)('the open page in %s', (engine) => {
     expect(await page.textContent('.badge')).toBe('hot')
     // the default is still the first app
     expect((await tool('get_state')).component).toBe('App')
+  })
+
+  // G-655: the official SDK's client (@modelcontextprotocol/client, exact devDependency) pinned to
+  // the stateless 2026-07-28 revision (no fallback), and in its default 2025 initialize mode
+  it.each([
+    ['2026-07-28 only', { mode: { pin: '2026-07-28' } }, 'modern', 'cold'],
+    ['legacy initialize', undefined, 'legacy', 'warm'],
+  ])('G-655: the SDK client, %s, reads and changes the live page', async (_, versionNegotiation, era, label) => {
+    const client = new Client({ name: 'g655-e2e', version: '1.0.0' }, versionNegotiation ? { versionNegotiation } : {})
+    await client.connect(new StreamableHTTPClientTransport(new URL(base + '/__sygnal/mcp')))
+    try {
+      expect(client.getProtocolEra()).toBe(era)
+      const { tools } = await client.listTools()
+      expect(tools.map((t) => t.name)).toEqual(expect.arrayContaining(['get_state', 'dispatch', 'tabs', 'explain']))
+      const r = await client.callTool({ name: 'dispatch', arguments: { app: 'Badge', action: 'SET', data: label } })
+      expect(r.isError).toBe(false)
+      expect(r.structuredContent).toMatchObject({ ok: true, state: { label }, tab: { url: base + '/' } })
+      expect(await page.textContent('.badge')).toBe(label)
+      expect((await client.callTool({ name: 'explain', arguments: { code: 'SYG102' } })).isError).toBeFalsy()
+    } finally {
+      await client.close()
+    }
   })
 })
 
