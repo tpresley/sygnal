@@ -28,7 +28,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
-import { armPaths, resolveTask, parseArgs, copyDir, applySolution, run } from '../lib/common.mjs'
+import { spawnSync } from 'node:child_process'
+import { armPaths, resolveTask, parseArgs, copyDir, applySolution } from '../lib/common.mjs'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const OP_DIR = path.join(HERE, 'operability')
@@ -96,14 +97,12 @@ function check({ task, arm, dir }) {
   const out = path.join(target, 'result.json')
   const require = createRequire(path.join(dir, 'package.json'))
   const vitest = path.join(path.dirname(require.resolve('vitest/package.json')), 'vitest.mjs')
-  const res = run(process.execPath, [vitest, 'run', '--config', `${OP}/vitest.config.mjs`], {
-    cwd: dir, check: false, maxBuffer: 64 * 1024 * 1024,
+  // vitest's output goes straight to the terminal: the [operability] lines show progress (a run takes minutes)
+  const res = spawnSync(process.execPath, [vitest, 'run', '--config', `${OP}/vitest.config.mjs`], {
+    cwd: dir, stdio: ['ignore', 'inherit', 'inherit'],
     env: { ...process.env, CI: '1', FORCE_COLOR: '0', OP_RUNS: String(runs), OP_MODEL: model, OP_OLLAMA: ollama, OP_OUT: out },
   })
-  if (!fs.existsSync(out)) {
-    const tail = `${res.stdout || ''}\n${res.stderr || ''}`.trim().split('\n').slice(-30).join('\n')
-    return { error: `the check did not finish (exit ${res.status})`, output: tail }
-  }
+  if (!fs.existsSync(out)) return { error: `the check did not finish (exit ${res.status}; vitest's output is above)`, output: '' }
   return JSON.parse(fs.readFileSync(out, 'utf8'))
 }
 
