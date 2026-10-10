@@ -1,6 +1,6 @@
 ---
 title: Building with AI Agents
-description: llms.txt, the sygnal-dev skill, sygnal-check, the MCP server and inspect
+description: llms.txt, the sygnal-dev skill, sygnal-check, the MCP servers and inspect
 ---
 
 Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). Its goal is that an agent never has to guess: one reference that shows only the canonical forms, checks that turn silent wiring bugs into coded messages, and a graph of the app it can read instead of the source. Everything here is also useful without an agent.
@@ -11,7 +11,10 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 | [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow |
 | [`sygnal-check`](#sygnal-check) | Static wiring checks, strict mode, `--fix`, the app graph, `explain` |
 | [MCP server](#mcp-server) | `check`, `graph` and `explain` as tools |
+| [Dev server MCP endpoint](#dev-server-mcp-endpoint) | The running app in the open page: state, actions, diagnostics, its agent tools |
 | [`inspect()`](#inspect) | The runtime app graph, in the browser or in a test |
+
+This page is about agents that **build** your app. For agents that **operate** it (an in-app assistant, the browser's agent, an MCP host), see [Agents operating your app](#agents-operating-your-app).
 
 ## llms.txt
 
@@ -64,6 +67,8 @@ It exits with code 1 on a warning or error (`--fail-on=error|never` changes that
 
 To silence one finding, put `// sygnal-ignore SYG110` on the line or the line above.
 
+For apps that use `sygnal/ai`, it also checks the [`agent` static](/guide/agent/) (an action with no model entry SYG150, a misspelled `agents` / `tools` SYG151, duplicate names SYG440, Collection items without ids SYG441, inputs with no JSON Schema form SYG240 / SYG243), LLM requests without an `ok` action (SYG152) and a bare `toolname` on a `<form>` (SYG153), plus two accessibility rules for agents that read the page: hover-only actions (SYG730) and toggled state shown only by a class (SYG731). `--graph` lists the `agent` declarations.
+
 The [Vite plugin](/integration/bundler-config/#plugin-options) runs `sygnal-check` in the dev server when it is installed.
 
 ## MCP server
@@ -94,6 +99,66 @@ Any client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
 }
 ```
 
+The server speaks both MCP protocol eras, so any client works with it. A **2026-07-28** client sends each request with its protocol version and client capabilities in `_meta` (on stdio there are no headers; everything is in the message) and gets `server/discover`, `tools/list` and `tools/call` without an `initialize`. A client that speaks both eras probes with `server/discover` first, as the spec describes, and stays on 2026-07-28. An older client (2024-11-05 to 2025-11-25) does the `initialize` handshake as before. A version the server doesn't know gets the spec's "unsupported protocol version" error (`-32022`), which lists the versions it speaks.
+
+## Dev server MCP endpoint
+
+`sygnal-check mcp` reads your source. The dev server endpoint reads the app while it runs: with `mcp: true`, the [Vite plugin](/integration/bundler-config/#plugin-options) serves an MCP endpoint at `/__sygnal/mcp` (streamable HTTP), and an agent can look at the open page and act on it.
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal({ mcp: true })],
+})
+```
+
+Start the dev server, open the app in a browser, and point the agent at the endpoint. Claude Code reads `.mcp.json` in the project root:
+
+```json
+{
+  "mcpServers": {
+    "sygnal-dev": { "type": "http", "url": "http://localhost:5173/__sygnal/mcp" }
+  }
+}
+```
+
+The same from the command line: `claude mcp add --transport http sygnal-dev http://localhost:5173/__sygnal/mcp`. Use your dev server's port if it isn't 5173.
+
+| Tool | Arguments | Returns |
+|---|---|---|
+| `get_state` | `{ component?, path?, app? }` | an instance's state (the root by default; every instance of a Collection item); `path` reads one field (`'todos.0.text'`) |
+| `dispatch` | `{ component?, action, data?, app? }` | sends the action as if the intent had (recorded with cause `'agent'`), waits for the render, returns the new state |
+| `component_tree` | `{ component?, app? }` | the [`inspect()`](#inspect) graph of the running apps (`app`: one app's instances) |
+| `recent_actions` | `{ limit?, component?, type?, cause? }` | the DevTools action log, newest last |
+| `get_diagnostics` | `{ code?, severity?, limit? }` | the runtime diagnostics, each with its `docsUrl` |
+| `copy_as_test` | `{ component?, componentImport?, app? }` | DevTools' Copy as test: a `renderComponent` test of the session |
+| `agent_tools` | `{ call?, input?, all?, app? }` | the page's own agent tools (the `agent` statics) and their context; with `call`, runs one |
+| `apps` | `{}` | the page's apps (each `run()`): index, root component, instance count |
+| `tabs` | `{}` | the connected pages, with their apps |
+| `check`, `graph`, `explain` | as [above](#mcp-server) | `sygnal-check` on your source, when it is installed |
+
+`component` is a component name or an instance id from `component_tree`. A page with several `run()` apps (a widget mounted beside the main app, custom elements from [`sygnal/element`](/guide/web-components/)) has all of them served: `app` is an index or a root component's name from `apps`; without it the tools use the first app, or the one that has `component`. An app keeps its index across a hot update. With several tabs open, the page that loaded or was focused last answers, and each result names it in `tab`; pass `tab` (an id from `tabs`) to choose. An `agent_tools` call follows the same rules as any other caller: the input is validated, `when` is checked, and a consequential tool asks the person in the page first (`mcp: { confirm: true }` runs it without asking, `false` declines it).
+
+It is a development tool only:
+
+- It exists only in `vite` / `vite dev`. A production build (and `vite preview`) has no endpoint and no page code for it.
+- It answers only requests from the same machine, with a local `Host` (`localhost`, `*.localhost`, a loopback address, or a name in Vite's `server.allowedHosts`). A request with an `Origin` header from any other site gets 403, so a web page can't reach it, also through DNS rebinding. With `vite --host` the dev server is on your network, but the endpoint still refuses other machines.
+- `dispatch` runs any action of any component. Don't turn it on in a dev server you share.
+
+### Transport
+
+The endpoint speaks MCP's streamable HTTP transport in both protocol eras, on the same URL, so the `.mcp.json` above works with any client:
+
+- **2026-07-28** (stateless): no `initialize`. Each request carries its protocol version and client capabilities in `_meta` and the `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`) `Mcp-Name` headers; the endpoint answers `server/discover`, `tools/list` and `tools/call`.
+- **2024-11-05 to 2025-11-25**: the `initialize` handshake, then `tools/list`, `tools/call` and `ping`.
+
+Each request picks its era: a client that speaks both, as the spec describes, gets its 2026-07-28 request answered and stays there; an older client gets the `initialize` handshake as before. A version the endpoint doesn't know gets 400 with the spec's "unsupported protocol version" error (`-32022`), which lists the versions it speaks.
+
+Each JSON-RPC request is a POST, and each answer is one `application/json` body. The endpoint opens no SSE stream and assigns no session id. Both revision lines allow that: a server answers a request with either JSON or an event stream (clients must accept both), `GET` and `DELETE` get 405, and session ids are optional before 2026-07-28 and gone in it. This endpoint never sends the client anything of its own (no progress, sampling, input requests or list changes, so no `subscriptions/listen`), and the state it reports lives in the page, not in a session.
+
 ## inspect
 
 `inspect()` returns the same graph shape as `sygnal-check --graph --json`, built from the running app: real component instances, which selectors matched rendered elements, which EVENTS were emitted, and the runtime diagnostics. Use it:
@@ -108,7 +173,7 @@ See [Diagnostics](/guide/diagnostics/#inspect) for the fields and what to look f
 
 A loop that works well for agents (and people):
 
-1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing.
+1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing. With the [dev server endpoint](#dev-server-mcp-endpoint), `component_tree` and `get_state` show the running app.
 2. **Write** the change in the canonical forms (`llms.txt`).
 3. **Test it** with `renderComponent`: drive it with real DOM events, wait, assert, and check for diagnostics.
 
@@ -133,6 +198,18 @@ A loop that works well for agents (and people):
 5. **Explain** any code you don't know: `npx --no-install sygnal-check explain SYG104` (or the `explain` tool), or the [Error Reference](/reference/errors/).
 6. **Inspect** when the cause isn't obvious: `t.inspect()` shows which selector didn't match (`matched: false`, `isolationHit`), which action has no sinks, and which event has no listener.
 7. **Fix**, then run `npx --no-install sygnal-check --strict` and the tests again until both are clean.
+
+## Agents operating your app
+
+Everything above helps an agent write the app. The same app can also be operated by an agent while it runs, through the actions you allow:
+
+- The [`agent` static](/guide/agent/) declares which actions an LLM may run, with input schemas, and what it sees of the state (`read`). Only declared actions are tools.
+- The [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) is an in-app assistant that operates the component it lives in; [`commandBar`](/guide/agent/#a-command-bar-commandbar) runs one command picked by a decision model.
+- [WebMCP](/guide/webmcp/) (experimental) offers the same tools to the browser's own agent, and turns `form`s into declarative tools.
+- [MCP Apps](/guide/mcp-apps/) put your app inside Claude, ChatGPT or VS Code as a tool's view.
+- The [dev server endpoint](#dev-server-mcp-endpoint)'s `agent_tools` tool calls them from a coding agent, and [`t.callTool()`](/guide/agent/#testing) from a test.
+
+Browser agents that don't use WebMCP read the accessibility tree, so an accessible app is also an operable one: see [Agents that read the page](/guide/webmcp/#agents-that-read-the-page).
 
 ## How we measure it
 

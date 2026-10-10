@@ -39,6 +39,9 @@ import childSelectGrandchild from './syg129-child-select-grandchild.js'
 import sinkDriver from './syg609-sink-driver.js'
 import removedForms from './syg612-removed-forms.js'
 import widgets from './syg140-widgets.js'
+import agent from './syg150-agent.js'
+import llmRequest from './syg152-llm-request.js'
+import webmcpFormAttrs from './syg153-webmcp-form-attrs.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -61,7 +64,10 @@ export const coreRules = [
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
   widgets, // SYG140-SYG144 (PLAN-5 W-1)
   removedForms, // SYG612 statically (PLAN-4.6 R5): forms 6.0 removed
-  ...a11yRules, // SYG701-708 (PLAN-4 GS-3): warn, also under --strict; error with a11y: 'error' (D144)
+  agent, // SYG150, SYG151, SYG240, SYG243, SYG440, SYG441 (PLAN-6 K-1: the agent static)
+  llmRequest, // SYG152 (PLAN-6 K-1)
+  webmcpFormAttrs, // SYG153 (PLAN-6 K-1, D269)
+  ...a11yRules, // SYG701-708, 722, 724, 730, 731 (PLAN-4 GS-3, PLAN-6 K-1): warn, also under --strict; error with a11y: 'error' (D144)
 ]
 
 export { strictRules, a11yRules }

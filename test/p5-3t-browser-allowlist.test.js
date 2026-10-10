@@ -32,6 +32,19 @@ describe('G-528: the console allowlist', () => {
   })
 })
 
+describe('G-624: the WebMCP pages use the allowlist too', () => {
+  it('runWebMcp gives each page its own allowlist and __pwTest; the page\'s steps report start and end', () => {
+    const src = readFileSync(resolve(process.cwd(), 'browser-tests/run-headless.mjs'), 'utf8')
+    const web = src.slice(src.indexOf('async function runWebMcp'))
+    expect(web).toMatch(/consoleAllowlist\(EXPECTED_CONSOLE_ERRORS\)/)
+    expect(web).toMatch(/exposeFunction\('__pwTest', \(name\) => \{ pageAllowlist\.start\(name\); \}\)/)
+    expect(web).toMatch(/pageAllowlist\.expected\(text\)/)
+    const page = readFileSync(resolve(process.cwd(), 'browser-tests/src/webmcp/roundtrip.jsx'), 'utf8')
+    expect(page).toMatch(/await window\.__pwTest\?\.\(name\)/)
+    expect(page).toMatch(/await window\.__pwTest\?\.\(null\)/)
+  })
+})
+
 describe('G-528: the harness reports when a test ends', () => {
   let runTest
   const calls = []

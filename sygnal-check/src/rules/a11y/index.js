@@ -15,6 +15,8 @@ import aria from './syg707-aria.js'
 import idReference from './syg708-id-reference.js'
 import uiName from './syg722-ui-name.js'
 import sortable from './syg724-sortable.js'
+import hoverOnly from './syg730-hover-only.js'
+import toggleState from './syg731-toggle-state.js'
 
 export const a11yRules = [
   clickTarget,      // SYG701, SYG704 (cross intent/view)
@@ -26,6 +28,8 @@ export const a11yRules = [
   idReference,      // SYG708
   uiName,           // SYG722 (Menu / Select / Combobox, PLAN-5 2-T)
   sortable,         // SYG724 (the sortable behavior's handle and live region)
+  hoverOnly,        // SYG730 (PLAN-6 K-1: an action reachable only by hovering)
+  toggleState,      // SYG731 (PLAN-6 K-1: a toggled state shown only by a class)
 ]
 
 /** The same rules reporting at error severity (the a11y: 'error' opt-in, D144). */

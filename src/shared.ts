@@ -46,3 +46,12 @@ export const vtStyle = (p: string, id: any, style?: any) => {
  * PARENT, EFFECT and ELEMENT are built-in sinks; __k, __d, __uid... are internal
  */
 export const NOT_SINK = /^(__|(props|children|dispose|commands)\$$|(CHILD|PARENT|EFFECT|ELEMENT)$)/
+
+/**
+ * PLAN-6 A-1 (D259): ABORT with a reason, for an agent's tool result. `abort('already done')`
+ * returns ABORT (the core sees only that: no change, nothing sent) and leaves the reason here,
+ * where the agent layer's handler wrapper reads and clears it. Tree-shaken from apps that don't
+ * use it (0 core bytes)
+ */
+export const abortReason: {r?: string} = {}
+export const abort = (reason?: string): typeof ABORT => (abortReason.r = reason, ABORT)

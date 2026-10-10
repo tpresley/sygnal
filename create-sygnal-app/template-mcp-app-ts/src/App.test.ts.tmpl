@@ -1,0 +1,57 @@
+import { describe, it, expect, afterEach } from 'vitest'
+import { renderComponent } from 'sygnal'
+import type { RenderResult } from 'sygnal'
+import App from './App'
+
+// renderComponent runs App without a browser or a host. The MCP source's events are actions
+// here (t.simulateAction('INPUT', args)), and the MCP sink is a fake: t.requests('MCP') lists
+// what the view sent, t.respond('MCP', result, 'RESULT') answers a { callTool } request.
+// `strict: true` also reports non-canonical forms; expectNoDiagnostics() fails on any warning.
+let t: RenderResult | undefined
+afterEach(() => t?.dispose())
+
+const days = [
+  { date: 'Mon', sky: 'Sunny', high: 21, low: 14 },
+  { date: 'Tue', sky: 'Showers', high: 17, low: 12 },
+]
+
+describe('App (the get_forecast view)', () => {
+  it('shows the tool input, then the tool result', async () => {
+    t = renderComponent(App, { strict: true })
+    t.simulateAction('INPUT', { city: 'Lisbon' })
+    await t.waitForState((s) => s.status === 'loading')
+    t.simulateAction('RESULT', { content: [], structuredContent: { city: 'Lisbon', days } })
+    const state = await t.waitForState((s) => s.status === 'ready')
+    expect(state.days).toEqual(days)
+    expect(t.html()).toContain('Forecast for Lisbon')
+    t.expectNoDiagnostics()
+  })
+
+  it('refreshes through the server tool and tells the model what the user picked', async () => {
+    t = renderComponent(App, { strict: true })
+    t.simulateAction('INPUT', { city: 'Oslo' })
+    t.simulateAction('RESULT', { content: [], structuredContent: { city: 'Oslo', days } })
+    await t.waitForState((s) => s.status === 'ready')
+
+    t.simulateEvent('.refresh', 'click')
+    await t.waitForState((s) => s.status === 'loading')
+    expect(t.requests('MCP').at(-1)).toMatchObject({ callTool: 'get_forecast', args: { city: 'Oslo' }, ok: 'RESULT' })
+    await t.respond('MCP', { content: [], structuredContent: { city: 'Oslo', days: days.slice(1) } }, 'RESULT')
+    expect(t.state.days).toEqual(days.slice(1))
+
+    t.simulateEvent('.day', 'click', { data: { date: 'Tue' } })
+    await t.waitForState((s) => s.selected === 'Tue')
+    expect(t.requests('MCP').at(-1)).toEqual({ updateModelContext: { city: 'Oslo', selectedDay: days[1] } })
+    t.expectNoDiagnostics()
+  })
+
+  it('follows the host theme and offers full screen when the host has it', async () => {
+    t = renderComponent(App, { strict: true })
+    t.simulateAction('HOST', { theme: 'dark', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'] })
+    await t.waitForState((s) => s.theme === 'dark' && s.canFullscreen)
+    t.simulateEvent('.fullscreen', 'click')
+    await t.respond('MCP', { mode: 'fullscreen' }, 'MODE')
+    expect(t.state.mode).toBe('fullscreen')
+    t.expectNoDiagnostics()
+  })
+})

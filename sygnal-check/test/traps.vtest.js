@@ -270,6 +270,13 @@ describe('SYG609 (static): a model sink no run() driver takes', () => {
     expect(d[0].data).toMatchObject({ name: 'HTTP', kind: 'sink', action: 'LOAD' })
   })
 
+  it('an LLM sink: the fix names the chat driver (PLAN-6 G-620)', () => {
+    const llm = COURSES().replace("LOAD: { HTTP: () => ({ url: '/api/courses', ok: 'LOADED' }) },", "LOAD: { LLM: (s) => ({ messages: [], ok: 'LOADED' }) },")
+    const d = only(check({ 'src/App.jsx': llm, 'src/main.js': MAIN() }), 'SYG609')
+    expect(d).toHaveLength(1)
+    expect(d[0].fix).toContain('run(App, { LLM: makeChatDriver({ transport: openResponses(')
+  })
+
   it("a literal drivers object without that key: warn; with it (quoted too): nothing", () => {
     expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { WS: makeSocketDriver() }') }), 'SYG609')).toHaveLength(1)
     expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')).toEqual([])

@@ -33,6 +33,11 @@ export const CODES = {
   SYG142: { severity: 'error', title: 'Widget command not declared' },
   SYG143: { severity: 'warn', title: 'Widget tag used as a selector' },
   SYG144: { severity: 'info', title: 'Widget event the host element also fires natively' },
+  // PLAN-6 K-1: the agent static and LLM requests (rules/syg150-agent.js, syg152, syg153)
+  SYG150: { severity: 'warn', title: 'Agent action has no model entry' },
+  SYG151: { severity: 'warn', title: 'Misspelled agent static' },
+  SYG152: { severity: 'warn', title: 'LLM request without an ok action' },
+  SYG153: { severity: 'warn', title: 'WebMCP form attribute set as a DOM property' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
@@ -42,7 +47,12 @@ export const CODES = {
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
   SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
+  // PLAN-6 K-1 (rules/syg150-agent.js): static counterparts of the agent layer's codes (G-611, G-591)
+  SYG240: { severity: 'error', title: 'Agent action input has no JSON Schema form' },
+  SYG243: { severity: 'warn', title: 'Agent action input schema converted with losses' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
+  SYG440: { severity: 'warn', title: 'Two agent declarations with the same name' },
+  SYG441: { severity: 'warn', title: 'Agent Collection items without unique ids' },
   // PLAN-4 4-G2 (rules/syg405-initial-state.js): error for a child rendered by tag, warn for a
   // Collection / Switchable target (the rule passes the severity)
   SYG405: { severity: 'error', title: 'Sub-component has initialState without isolatedState' },
@@ -70,6 +80,9 @@ export const CODES = {
   SYG722: { severity: 'warn', title: 'Menu, Select or Combobox without an accessible name' },
   // PLAN-5 B-1 (rules/a11y/syg724-sortable.js)
   SYG724: { severity: 'warn', title: 'Sortable handle not keyboard-accessible, or no live region' },
+  // PLAN-6 K-1 (rules/a11y/syg730-hover-only.js, syg731-toggle-state.js)
+  SYG730: { severity: 'warn', title: 'Action reachable only by hovering' },
+  SYG731: { severity: 'warn', title: 'Toggled state shown only by a class' },
   // strict mode (--strict), dev-plans/PLAN-1-canonical-forms.md; severities match
   // STRICT_CODE_SEVERITY in src/extra/diagnostics/codes.ts
   SYG501: { severity: 'error', title: "Removed in 6.0: view with positional arguments", strict: true },

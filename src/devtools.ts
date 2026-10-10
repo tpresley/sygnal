@@ -32,3 +32,6 @@ export function copyAsTestResult(target?: any, options?: CopyAsTestOptions): Cop
 export function copyAsTest(target?: any, options?: CopyAsTestOptions): string {
   return copyAsTestResult(target, options).code
 }
+
+// PLAN-6 E-1: the page side of sygnal/vite's dev MCP endpoint (`sygnal({ mcp: true })`)
+export {installMcpBridge} from './extra/devMcp'

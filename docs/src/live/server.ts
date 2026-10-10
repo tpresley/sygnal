@@ -22,7 +22,23 @@ export interface DemoResponse {
   text?: string
   headers?: Record<string, string>
   delayMs?: number
+  /**
+   * A streamed body (PLAN-6 DX-1). `sse` items are Server-Sent Events: an object is
+   * `event: <item.type>` + `data: <JSON>`, a string a raw `data: <string>` line; `stream` items
+   * are raw text chunks. One item every `chunkMs` (default 40) after the headers (`delayMs`), as
+   * a real ReadableStream. The request stays pending (data-live-pending) until the body ends,
+   * errors or is aborted; an abort after the headers errors the body (an AbortError), as fetch does
+   */
+  sse?: Iterable<any> | AsyncIterable<any>
+  stream?: Iterable<string> | AsyncIterable<string>
+  chunkMs?: number
 }
+
+export const DEFAULT_CHUNK_MS = 40
+
+const sseFrame = (item: any) =>
+  typeof item === 'string' ? `data: ${item}\n\n`
+    : `${item && typeof item.type === 'string' ? `event: ${item.type}\n` : ''}data: ${JSON.stringify(item)}\n\n`
 
 export const DEFAULT_DELAY = 600
 const NULL_BODY = new Set([101, 204, 205, 304])
@@ -72,7 +88,7 @@ export function makeDemoFetch(table: any, { note, pending }: DemoFetchHooks) {
     const reject = (e: any) => { end(); reject0(e) }
     const t0 = performance.now()
     const elapsed = () => Math.round(performance.now() - t0)
-    const url = new URL(typeof input === 'string' ? input : input?.url ?? String(input), location.href)
+    const url = new URL(typeof input === 'string' ? input : input?.url ?? String(input), typeof location !== 'undefined' ? location.href : 'http://localhost/')
     const method = String(init.method || 'GET').toUpperCase()
     const label = `Demo server: ${method} ${url.pathname}${url.search}`
     const signal: AbortSignal | undefined = init.signal
@@ -94,6 +110,7 @@ export function makeDemoFetch(table: any, { note, pending }: DemoFetchHooks) {
       const status = r.status ?? 200
       const delay = Math.max(0, (r.delayMs ?? DEFAULT_DELAY) - elapsed())
       const headers = new Headers(r.headers)
+      if (r.sse !== undefined || r.stream !== undefined) return respondStream(r, status, delay, headers, why, kind)
       let body: string | null = null
       if (r.json !== undefined) {
         body = JSON.stringify(r.json)
@@ -112,6 +129,64 @@ export function makeDemoFetch(table: any, { note, pending }: DemoFetchHooks) {
         } catch (e) {
           reject(e)
         }
+      }, delay)
+    }
+
+    /** a body streamed item by item, paced by timers; an abort errors it, as fetch does */
+    const respondStream = (r: DemoResponse, status: number, delay: number, headers: Headers, why?: string, kind: NoteKind = 'response') => {
+      const items: any = r.sse ?? r.stream
+      const frame = r.sse !== undefined ? sseFrame : (x: any) => String(x)
+      if (r.sse !== undefined && !headers.has('content-type')) headers.set('content-type', 'text/event-stream')
+      if (r.stream !== undefined && !headers.has('content-type')) headers.set('content-type', 'text/plain; charset=utf-8')
+      const it: Iterator<any> | AsyncIterator<any> | undefined = items?.[Symbol.asyncIterator]?.() ?? items?.[Symbol.iterator]?.()
+      if (!it) return respond({ status: 500, text: `Demo server: ${r.sse !== undefined ? 'sse' : 'stream'} must be an iterable or an async iterable` }, 'the handler returned a body that is not iterable', 'threw')
+      const enc = new TextEncoder()
+      const chunkMs = Math.max(0, r.chunkMs ?? DEFAULT_CHUNK_MS)
+      let sent = 0
+      let ctl: ReadableStreamDefaultController<Uint8Array>
+      const finish = (text: string, k: NoteKind) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', onBodyAbort)
+        // stopped early: let a generator handler run its finally blocks
+        if (k === 'aborted') Promise.resolve().then(() => it.return?.()).catch(() => {})
+        note(text, k)
+        end()
+      }
+      const pump = async () => {
+        if (done) return
+        let step: IteratorResult<any>
+        try { step = await it.next() } catch (e: any) {
+          ctl.error(e)
+          return finish(`${label} → ${status}, the stream threw after ${sent} item(s): ${e?.message ?? e} (${elapsed()} ms)`, 'threw')
+        }
+        if (done) return
+        if (step.done) {
+          ctl.close()
+          return finish(`${label} → ${status}, streamed ${sent} item(s) (${why ? why + ', ' : ''}${elapsed()} ms)`, kind)
+        }
+        sent++
+        ctl.enqueue(enc.encode(frame(step.value)))
+        timer = setTimeout(pump, chunkMs)
+      }
+      // an abort after the headers errors the body (the reader gets an AbortError)
+      const onBodyAbort = () => {
+        if (done) return
+        try { ctl.error(abortError(signal)) } catch { /* closed */ }
+        finish(`${label} → aborted after ${sent} item(s) (${elapsed()} ms)`, 'aborted')
+      }
+      timer = setTimeout(() => {
+        if (done) return
+        const body = new ReadableStream<Uint8Array>({
+          start: (c) => { ctl = c },
+          cancel: () => finish(`${label} → ${status}, the reader cancelled after ${sent} item(s) (${elapsed()} ms)`, 'aborted'),
+        })
+        signal?.removeEventListener('abort', onAbort)
+        signal?.addEventListener('abort', onBodyAbort, { once: true })
+        if (signal?.aborted) return onBodyAbort()
+        resolve0(new Response(body, { status, headers }))
+        pump()
       }, delay)
     }
 

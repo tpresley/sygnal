@@ -50,6 +50,18 @@
  *                                  document.startViewTransition() (Chromium 111+, Safari 18+,
  *                                  Firefox 144+); without the API or with prefers-reduced-motion
  *                                  it patches at once, and without the static it is run()'s own
+ *   LLM: makeChatDriver({ transport: openResponses({ model: 'demo', fetch: demoFetch }) })
+ *                                  (sygnal/ai) on a page where any block imports sygnal/ai:
+ *                                  the real chat driver and Open Responses transport over the
+ *                                  same demo fetch as HTTP, so the demo server's
+ *                                  'POST /v1/responses' route is the model. Build its reply with
+ *                                  encodeOpenResponses (sygnal/ai): `{ sse: encodeOpenResponses(
+ *                                  ['Hello ', 'there']) }`. A page with an AI demo has at least
+ *                                  one that streams on load, so check-live parses a real stream
+ *                                  (D275). Decisions need nothing new: decide({ url:
+ *                                  '/v1/systemone', ... }) goes through HTTP to a demo route
+ * There is no `export const drivers` and no scripted transport (D274): a demo's "model" is a
+ * visible demo-server route speaking the real wire format.
  * Not included (they need a real server or change the page): WS, SW, HEAD, the router.
  *
  * The demo server is a visible block, ```js live-server (its frame is titled "Demo server"
@@ -64,7 +76,12 @@
  * A key is 'METHOD /path' ('/path' alone: any method; ':name' segments are params, a last '*'
  * the rest). A handler gets { method, url, path, params, query, json, body, headers } and
  * returns { status = 200, json | text, headers, delayMs = 600 } or a Promise of it (a handler
- * that throws: 500). Handlers may keep state in module scope (one fresh instance per demo run).
+ * that throws: 500). A streamed body: `sse: events` (Server-Sent Events: an object is
+ * `event: <type>` + `data: <JSON>`, a string a raw `data:` line; content-type
+ * text/event-stream) or `stream: chunks` (raw text), an iterable or async iterable sent as a
+ * real ReadableStream, one item every `chunkMs` (40) after the headers (`delayMs`). The request
+ * is pending until the body ends; an abort after the headers errors the body (an AbortError,
+ * as fetch does). Notes: "→ 200, streamed 17 item(s) (1342 ms)", "→ aborted after 7 item(s)". Handlers may keep state in module scope (one fresh instance per demo run).
  * An optional `export const options = { cache: queryCache() }` is merged into
  * makeFetchDriver's options (everything but `fetch`). A server block serves every live block
  * after it on the page, until the next live-server block replaces it. Without one, or with no

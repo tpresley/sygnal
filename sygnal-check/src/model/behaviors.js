@@ -77,13 +77,14 @@ export const FIRST_PARTY = {
   },
   // PLAN-5 F-1: form(schema, options) (src/extra/form.ts). It listens to input/focusout/submit on
   // the form element (option `form`, default 'form'), so fields inside it count as listened
-  // (SYG111); its model is open (CHECKED_<field> per `check` entry); the host action named by
+  // (SYG111); its model is open (CHANGE, SET (G-647), BLUR, SUBMIT, ADD, REMOVE, ERRORS, DONE, RESET,
+  // RESULT, VALIDATE, and CHECKED_<field> per `check` entry); the host action named by
   // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument.
   form: {
     stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated'],
     calculated: ['fields', 'valid', 'dirty', 'error'],
     model: null,
-    options: ['values', 'submit', 'form', 'check', 'show', 'http', 'resetOnShow'],
+    options: ['values', 'submit', 'form', 'check', 'show', 'http', 'resetOnShow', 'tool'],
     listens: [['form', null, 'select']],
     defaults: { form: 'form' },
     nextOptions: ['submit'],
@@ -108,6 +109,29 @@ export const FIRST_PARTY = {
     model: ['UNDO', 'REDO'],
     options: ['key', 'limit', 'track', 'coalesce', 'coalesceMs', 'resetOn', 'undo', 'redo'],
     listens: [['undo', 'UNDO'], ['redo', 'REDO']],
+  },
+  // PLAN-6 L-3: chat(options) from 'sygnal/ai' (src/extra/ai/chat/behavior.ts). Its selectors are
+  // the host's (the panel markup is part of the host's view, often a helper function it calls).
+  // The chat driver's replies (DELTA, REPLY, FAILED), the tool loop (RESULTS, ASK) and DONE come
+  // from outside its intent; a host entry 'assistant.DONE' extends DONE
+  chat: {
+    stateKeys: ['messages', 'prompt', 'draft', 'status', 'pending', 'error'],
+    calculated: [],
+    model: ['PROMPT', 'SEND', 'STOP', 'REGENERATE', 'APPROVE', 'DENY', 'DONE', 'DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK'],
+    options: ['sink', 'form', 'prompt', 'stop', 'approve', 'deny', 'regenerate', 'instructions', 'model', 'agent', 'maxSteps', 'transportOptions'],
+    listens: [['form', 'SEND', 'select'], ['prompt', 'PROMPT', 'select'], ['stop', 'STOP'], ['approve', 'APPROVE'], ['deny', 'DENY'], ['regenerate', 'REGENERATE']],
+    intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE'],
+  },
+  // PLAN-6 M-3: commandBar(options) from 'sygnal/ai' (src/extra/ai/commandBar.ts). Its selectors are
+  // the host's. RUN comes from the input's Enter (or the form's submit); the fetch driver's replies
+  // (DECIDED, FAILED), ASK and DONE come from outside its intent; a host entry 'cmd.DONE' extends DONE
+  commandBar: {
+    stateKeys: ['text', 'status', 'command', 'pending', 'unsure', 'result', 'error'],
+    calculated: [],
+    model: ['INPUT', 'RUN', 'DECIDED', 'FAILED', 'ASK', 'APPROVE', 'DENY', 'DONE'],
+    options: ['input', 'form', 'decide', 'below', 'escalate', 'agent', 'sink', 'approve', 'deny', 'freeText'],
+    listens: [['input', 'INPUT', 'select'], ['form', 'RUN', 'select'], ['approve', 'APPROVE'], ['deny', 'DENY']],
+    intent: ['RUN', 'DECIDED', 'FAILED', 'ASK', 'DONE'],
   },
   // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
   // element events of a required option, its timers' actions)

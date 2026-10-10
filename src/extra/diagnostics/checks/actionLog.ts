@@ -7,7 +7,7 @@
  *
  * 0 B in apps: nothing in the core calls this. actionHooks() is a hook layer of the core
  * (04-hooks-contract §3.3): onAction opens the record (the core passes the cause: 'intent',
- * 'next', 'reply', 'built-in', 'simulateAction'; an intent action a behavior owns is
+ * 'next', 'reply', 'built-in', 'simulateAction', 'agent' (PLAN-6 A-1, G-597); an intent action a behavior owns is
  * 'behavior'), wrapHandler sees which sinks produced a value. (The old core's version patched
  * each instance; R5 removed it.)
  *
@@ -18,7 +18,7 @@
  */
 import {isAbort, ORIGINAL} from '../../../shared'
 
-export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 export interface ActionRecord {
   type: string
@@ -78,7 +78,7 @@ export function actionHooks(listener: ActionListener, only?: (inst: any) => bool
       const opened = type == 'INITIALIZE' && init.get(inst)
       if (opened) { init.delete(inst); cur.set(inst, [opened, order]); return }
       const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) ? 'built-in'
-        : a.cause == 'next' || a.cause == 'reply' ? a.cause
+        : a.cause == 'next' || a.cause == 'reply' || a.cause == 'agent' ? a.cause
         : owned && Object.prototype.hasOwnProperty.call(owned, type) ? 'behavior' : 'intent'
       const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow(), ...(a.source !== undefined && {source: a.source})}
       cur.set(inst, [rec, order])

@@ -1,0 +1,568 @@
+/**
+ * PLAN-6 E-1: the dev MCP endpoint of sygnal/vite (`sygnal({ mcp: true })`), dev server only.
+ *
+ * `/__sygnal/mcp` speaks MCP's streamable HTTP transport: JSON-RPC 2.0 over POST, answered as
+ * one `application/json` body, in both protocol eras (G-655: a dual-era server):
+ *
+ * - legacy, the `initialize` revisions (2024-11-05 … 2025-11-25). G-638: JSON replies make a
+ *   complete server under the spec (the client must accept JSON or SSE; a server without a GET
+ *   stream answers 405; session ids are optional, "MAY assign"). Methods: initialize, ping,
+ *   tools/list, tools/call; notifications get 202; batches (2025-03-26) are answered.
+ * - modern, the stateless 2026-07-28 revision (no initialize, no sessions, no ping): each request
+ *   carries `_meta['io.modelcontextprotocol/protocolVersion']` and `.../clientCapabilities`, and
+ *   the `MCP-Protocol-Version`, `Mcp-Method` and (tools/call) `Mcp-Name` headers, which must
+ *   match the body (else 400 with -32020 HeaderMismatch; missing `_meta` fields: 400, -32602).
+ *   Methods: server/discover, tools/list, tools/call; any other gets 404 with -32601. Results
+ *   carry `resultType: 'complete'` and `_meta['io.modelcontextprotocol/serverInfo']`; tools/list
+ *   and server/discover are cacheable results (`ttlMs`, `cacheScope`). No subscriptions/listen
+ *   (the tool list never changes), no MRTR input requests, no logging.
+ *
+ * The era comes from each request: a 2026-07-28 header or `_meta` version is modern, anything else
+ * legacy (no header: 2025-03-26, as the spec allows). An unknown version gets 400 with -32022
+ * (UnsupportedProtocolVersion, `data: { supported, requested }`), so a modern client retries
+ * with one this server speaks. The server never sends requests or notifications of its own (no
+ * sampling, no progress, tools/list never changes), so an SSE stream would carry nothing; without
+ * session ids each POST stands alone (the page state lives in the browser, not in a session).
+ * GET and DELETE get 405. Spec: modelcontextprotocol.io/specification/2026-07-28/basic/versioning
+ * and .../basic/transports/streamable-http. Hand-written like sygnal-check's stdio server (no
+ * dependency, D209).
+ *
+ * Tools that read the page (get_state, dispatch, component_tree, recent_actions,
+ * get_diagnostics, copy_as_test, agent_tools) go to an open tab through a PageBridge: in the dev
+ * server, Vite's HMR channel (custom events 'sygnal:mcp:*', see src/extra/devMcp.ts), request /
+ * response with ids and a timeout. With several tabs the most recently loaded or focused one
+ * answers, or the `tab` argument picks one; the result says which (`tab`), and `tabs` lists
+ * them with their apps. G-638: every run() app of a page is served: `app` (an index, or the
+ * root component's name) picks one on get_state, dispatch, component_tree, copy_as_test and
+ * agent_tools (default: the first, or the app that has `component`); `apps` lists them. check / graph / explain run sygnal-check's own MCP server in-process when sygnal-check
+ * is installed in the project.
+ *
+ * Security (the endpoint can read and change the running app): requests must come from the
+ * loopback interface; the Host header must be localhost, a *.localhost name, a loopback IP or a
+ * name in Vite's `server.allowedHosts`; a request with an Origin header must come from a
+ * localhost / loopback origin (a web page elsewhere, or a DNS-rebinding page, gets 403).
+ */
+// @ts-ignore
+import fs from 'node:fs'
+// @ts-ignore
+import path from 'node:path'
+// @ts-ignore
+import { createRequire } from 'node:module'
+// @ts-ignore
+import { pathToFileURL } from 'node:url'
+
+export const MCP_PATH = '/__sygnal/mcp'
+export const MCP_HELLO = 'sygnal:mcp:hello'
+export const MCP_REQUEST = 'sygnal:mcp:request'
+export const MCP_RESPONSE = 'sygnal:mcp:response'
+/** G-655: the stateless revisions (per-request `_meta`, no initialize), newest first */
+export const MODERN_VERSIONS = ['2026-07-28']
+/** the `initialize` revisions, newest first; initialize answers with the client's version when it knows it */
+export const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
+export const SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS]
+const META = 'io.modelcontextprotocol/'
+const INSTRUCTIONS = 'The running Sygnal apps in the dev server\'s open page: component_tree to orient, get_state / recent_actions / get_diagnostics to read, dispatch or agent_tools to act, copy_as_test to turn a session into a test; apps lists the page\'s run() apps when there are several (`app` picks one). check, graph and explain (when present) are sygnal-check on the sources.'
+/** 2026-07-28 cacheable results (tools/list, server/discover): the list is fixed while the dev server runs, not across restarts */
+const CACHE = { ttlMs: 0, cacheScope: 'private' }
+const MAX_BODY = 1 << 20
+
+export interface McpPluginOptions {
+  /** ms to wait for the page's answer (a confirm dialog extends it to 5 minutes) @default 10000 */
+  timeout?: number
+  /**
+   * Consequential agent tools (`agent.actions.X.consequential`), called with agent_tools:
+   * 'page' asks in the page (window.confirm), true runs them, false declines them.
+   * @default 'page'
+   */
+  confirm?: boolean | 'page'
+}
+
+export interface TabInfo { id: number; url: string; title: string; active: number; apps?: Array<{ index: number; component: string }> }
+
+export interface PageBridge {
+  tabs(): TabInfo[]
+  request(tab: number, tool: string, args: any, timeout: number): Promise<any>
+}
+
+class ToolError extends Error {}
+
+const isObj = (v: any) => !!v && typeof v === 'object' && !Array.isArray(v)
+const tabSchema = { type: 'integer', description: 'The tab to ask (see tabs); default: the most recently loaded or focused tab' }
+const componentSchema = { type: ['string', 'integer'], description: 'A component name, or an instance id (see component_tree); default: the root' }
+const appSchema = { type: ['string', 'integer'], description: "The app on the page: an index or the root component's name (see apps); default: the first app, or the one that has `component`" }
+const obj = (properties: Record<string, any>, required?: string[]) => ({
+  type: 'object', properties: { ...properties, tab: tabSchema }, ...(required ? { required } : {}), additionalProperties: false,
+})
+
+/** The tools answered by the page */
+export const PAGE_TOOLS = [
+  {
+    name: 'get_state',
+    title: 'Get component state',
+    description: "The live state of a component instance in the open page (the root by default). With several instances of a component (Collection items) you get each one's id and state. `path` reads one field: 'todos.0.text' or ['todos', 0, 'text'].",
+    inputSchema: obj({ component: componentSchema, app: appSchema, path: { type: ['string', 'array'], items: { type: ['string', 'integer'] }, description: "A field path: 'a.b.0' or ['a', 'b', 0]" } }),
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'dispatch',
+    title: 'Dispatch an action',
+    description: "Send an action to a component instance in the open page, as if its intent had produced it (recorded with cause 'agent'), and wait for the render. Returns the instance's new state. The action must be one of the component's model entries (an unknown name lists them).",
+    inputSchema: obj({ component: componentSchema, app: appSchema, action: { type: 'string', description: "The action name, e.g. 'ADD'" }, data: { description: 'The action data (any JSON value)' } }, ['action']),
+  },
+  {
+    name: 'component_tree',
+    title: 'Component tree (inspect)',
+    description: "The running apps' graph from inspect(): component instances (id, parentId, kind), their actions and what triggers them, state keys, context, EVENTS, children, intent selectors (matched or not) and the runtime diagnostics attached to each. `app` keeps one app's instances, `component` only that component's.",
+    inputSchema: obj({ component: componentSchema, app: { ...appSchema, description: "Only this app's instances: an index or the root component's name (see apps); default: every app" } }),
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'recent_actions',
+    title: 'Recent actions',
+    description: "The DevTools action log of the open page, newest last: type, data, component, instance, cause ('intent', 'agent', 'reply', ...), the sinks it reached and the state before / after a STATE change.",
+    inputSchema: obj({
+      limit: { type: 'integer', minimum: 1, maximum: 500, description: 'How many (default 20)' },
+      component: { type: 'string', description: 'Only this component' },
+      type: { type: 'string', description: 'Only this action type' },
+      cause: { type: 'string', enum: ['intent', 'next', 'reply', 'built-in', 'simulateAction', 'behavior', 'agent', 'setState'], description: 'Only this cause' },
+    }),
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'get_diagnostics',
+    title: 'Runtime diagnostics',
+    description: 'The runtime diagnostics the open page reported (SYG codes): code, severity, component, message, fix and docsUrl, with a summary. Use explain for a code you do not know.',
+    inputSchema: obj({
+      code: { type: 'string', description: "Only this code, e.g. 'SYG104'" },
+      severity: { type: 'string', enum: ['error', 'warn', 'info'] },
+      limit: { type: 'integer', minimum: 1, maximum: 500, description: 'How many, newest (default 100)' },
+    }),
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'copy_as_test',
+    title: 'Copy session as test',
+    description: "DevTools' Copy as test: a Vitest + renderComponent test file that replays what happened to a component instance in the open page (default: the root) and asserts its final state. Returns { code, complete, warnings, replayed }.",
+    inputSchema: obj({ component: componentSchema, app: appSchema, componentImport: { type: 'string', description: "Where the test imports the component from: a module path ('./App.jsx') or a whole import line" } }),
+    annotations: { readOnlyHint: true },
+  },
+  {
+    name: 'agent_tools',
+    title: "The app's agent tools",
+    description: "The open page's own agent tools (the `agent` statics, sygnal/ai): without `call`, the tools offered now (name, description, inputSchema, annotations) and the readable context; with `call`, runs that tool with `input` under the app's rules (validation, `when`, a consequential tool asks the person in the page first).",
+    inputSchema: obj({
+      call: { type: 'string', description: 'A tool name from the list' },
+      input: { description: 'The tool input' },
+      all: { type: 'boolean', description: 'List also the declared tools that are not offered, with why' },
+      app: { ...appSchema, description: "The app whose tools to use: an index or the root component's name (see apps); default: the first" },
+    }),
+  },
+  {
+    name: 'apps',
+    title: 'Apps on the page',
+    description: "The Sygnal apps (run() calls) running in the open page: index, root component, root instance id and instance count. The first is the default of the tools' `app` argument.",
+    inputSchema: obj({}),
+    annotations: { readOnlyHint: true },
+  },
+]
+
+const TABS_TOOL = {
+  name: 'tabs',
+  title: 'Open pages',
+  description: 'The pages of this dev server connected to the endpoint (id, url, title, apps: { index, component } per run() app); the page tools use the most recently loaded or focused one unless given `tab`.',
+  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  annotations: { readOnlyHint: true },
+}
+
+/** sygnal-check's MCP server (its `src/mcp.js`), loaded from the project; undefined when missing */
+export async function loadCheckServer(root: string): Promise<any> {
+  try {
+    const main = createRequire(path.join(root, 'package.json')).resolve('sygnal-check')
+    const file = path.join(path.dirname(main), 'mcp.js')
+    if (!fs.existsSync(file)) return undefined
+    const mod = await import(/* @vite-ignore */ pathToFileURL(file).href)
+    if (typeof mod.createMcpServer !== 'function' || !Array.isArray(mod.TOOLS)) return undefined
+    return { tools: mod.TOOLS, server: mod.createMcpServer({ cwd: root }) }
+  } catch (_) {
+    return undefined
+  }
+}
+
+export interface DevMcpServerOptions extends McpPluginOptions {
+  bridge: PageBridge
+  /** sygnal-check's server: { tools, server: { handle(msg) } } (or a promise of it) */
+  check?: any
+  version?: string
+  /** the dev server's URL, for the "no page open" hint */
+  url?: () => string | undefined
+}
+
+/** The JSON-RPC side of the endpoint (transport-free; tests drive it directly) */
+export function createDevMcpServer(o: DevMcpServerOptions) {
+  const timeout = o.timeout && o.timeout > 0 ? o.timeout : 10000
+  const result = (id: any, value: any) => ({ jsonrpc: '2.0', id, result: value })
+  const error = (id: any, code: number, message: string) => ({ jsonrpc: '2.0', id, error: { code, message } })
+  let check: any
+  const getCheck = async () => (check === undefined ? (check = (await o.check) || null) : check)
+
+  const pickTab = (want: any): { tab: TabInfo; note?: string } => {
+    const tabs = o.bridge.tabs()
+    if (!tabs.length) {
+      const url = o.url?.()
+      throw new ToolError(`no page is connected: open the app${url ? ` (${url})` : ''} in a browser, with the dev server running`)
+    }
+    if (want !== undefined && want !== null) {
+      const tab = tabs.find(t => t.id === Number(want))
+      if (!tab) throw new ToolError(`no tab ${want}; open tabs: ${tabs.map(t => `${t.id} ${t.url}`).join(', ')}`)
+      return { tab }
+    }
+    const tab = tabs.reduce((a, b) => (b.active > a.active ? b : a))
+    return { tab, note: tabs.length > 1 ? `${tabs.length} tabs are open; used tab ${tab.id} (the most recently loaded or focused). Pass tab to choose one (see tabs).` : undefined }
+  }
+
+  const content = (value: any, isError = false) => {
+    const structured = isObj(value) ? value : { value }
+    return { content: [{ type: 'text', text: JSON.stringify(structured, null, 2) }], structuredContent: structured, isError }
+  }
+
+  async function callTool(name: string, args: any) {
+    if (name === 'tabs') return content({ tabs: o.bridge.tabs().map(({ id, url, title, apps }) => ({ id, url, title, ...(apps ? { apps } : {}) })) })
+    const { tab: want, ...rest } = args
+    const { tab, note } = pickTab(want)
+    const value = await o.bridge.request(tab.id, name, rest, timeout)
+    const out = isObj(value) ? value : { value }
+    return content({ ...out, tab: { id: tab.id, url: tab.url, title: tab.title }, ...(note ? { tabNote: note } : {}) })
+  }
+
+  const serverInfo = { name: 'sygnal-dev', title: 'Sygnal dev server', version: o.version || '0.0.0' }
+
+  async function handleMessage(msg: any, modern: boolean): Promise<any> {
+    if (!isObj(msg) || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
+      return isObj(msg) && 'id' in msg && !('result' in msg || 'error' in msg) ? error(msg.id ?? null, -32600, 'Invalid Request') : null
+    }
+    if (!('id' in msg) || msg.id === null) return null // a notification
+    const { id, method } = msg
+    const params = isObj(msg.params) ? msg.params : {}
+    // G-655: 2026-07-28 removed initialize and ping, and added server/discover
+    if (modern ? method === 'initialize' || method === 'ping' : method === 'server/discover') return error(id, -32601, `Method not found: ${method}`)
+    switch (method) {
+      case 'initialize': {
+        const requested = params.protocolVersion
+        return result(id, {
+          protocolVersion: LEGACY_VERSIONS.includes(requested) ? requested : LEGACY_VERSIONS[0],
+          capabilities: { tools: { listChanged: false } },
+          serverInfo,
+          instructions: INSTRUCTIONS,
+        })
+      }
+      case 'server/discover':
+        return result(id, { supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} }, instructions: INSTRUCTIONS, ...CACHE })
+      case 'ping':
+        return result(id, {})
+      case 'tools/list': {
+        const c = await getCheck()
+        return result(id, { tools: [...PAGE_TOOLS, TABS_TOOL, ...(c ? c.tools : [])], ...(modern ? CACHE : {}) })
+      }
+      case 'tools/call': {
+        const name = params.name
+        const args = isObj(params.arguments) ? params.arguments : {}
+        if (name === 'tabs' || PAGE_TOOLS.some(t => t.name === name)) {
+          try {
+            return result(id, await callTool(name, args))
+          } catch (err: any) {
+            return result(id, { content: [{ type: 'text', text: err instanceof ToolError ? err.message : `${name} failed: ${err?.message || err}` }], isError: true })
+          }
+        }
+        const c = await getCheck()
+        if (c && c.tools.some((t: any) => t.name === name)) {
+          // without `_meta`, sygnal-check's server answers in the initialize era's shape (G-656: it
+          // speaks 2026-07-28 too, but this endpoint checked the envelope and adds the fields itself)
+          const { _meta, ...rest } = params
+          return { ...c.server.handle({ ...msg, params: { ...rest, arguments: args } }), id }
+        }
+        return error(id, -32602, `Unknown tool: ${name}`)
+      }
+      default:
+        return error(id, -32601, `Method not found: ${method}`)
+    }
+  }
+
+  /**
+   * One message (or a legacy batch); never throws. `modern`: a 2026-07-28 request whose envelope
+   * (version, headers, `_meta` fields) the transport checked (see mcpMiddleware); its result is
+   * marked `resultType: 'complete'` and names the server in `_meta`.
+   */
+  async function handle(msg: any, modern = false): Promise<any> {
+    if (Array.isArray(msg)) {
+      if (modern) return error(null, -32600, 'Invalid Request: one JSON-RPC message per POST')
+      const out = (await Promise.all(msg.map((m: any) => handle(m)))).filter(Boolean)
+      return out.length ? out : null
+    }
+    try {
+      const out = await handleMessage(msg, modern)
+      if (modern && out && isObj(out.result)) {
+        const meta = isObj(out.result._meta) ? out.result._meta : {}
+        out.result = { resultType: 'complete', ...out.result, _meta: { ...meta, [META + 'serverInfo']: serverInfo } }
+      }
+      return out
+    } catch (err: any) {
+      return error(isObj(msg) && 'id' in msg ? msg.id ?? null : null, -32603, `Internal error: ${err?.message || err}`)
+    }
+  }
+
+  return { handle }
+}
+
+// ---------------------------------------------------------------- security
+
+const LOOPBACK_IP = /^(127\.\d{1,3}\.\d{1,3}\.\d{1,3}|::1|::ffff:127\.\d{1,3}\.\d{1,3}\.\d{1,3})$/
+
+/** The host part of a Host header value or URL host ('[::1]:5173' → '::1') */
+function hostname(host: string): string {
+  const h = host.trim().toLowerCase()
+  if (h.startsWith('[')) return h.slice(1, h.indexOf(']') > 0 ? h.indexOf(']') : undefined)
+  const i = h.lastIndexOf(':')
+  return i > 0 && h.indexOf(':') === i ? h.slice(0, i) : h
+}
+
+const isLocalName = (h: string) => h === 'localhost' || h.endsWith('.localhost') || LOOPBACK_IP.test(h)
+
+/** Vite's allowedHosts entries: 'example.test', or '.example.test' for it and its subdomains */
+function inAllowed(h: string, allowed: any): boolean {
+  if (!Array.isArray(allowed)) return false
+  return allowed.some((a: any) => {
+    if (typeof a !== 'string' || !a) return false
+    const e = a.toLowerCase()
+    return e.startsWith('.') ? h === e.slice(1) || h.endsWith(e) : h === e
+  })
+}
+
+/** Why the request is refused (403), or null */
+export function refusal(req: any, allowedHosts?: any): string | null {
+  const remote = String(req?.socket?.remoteAddress || '')
+  if (!LOOPBACK_IP.test(remote)) return `the Sygnal MCP endpoint only answers requests from this machine (not ${remote || 'an unknown address'})`
+  const host = req?.headers?.host
+  if (typeof host !== 'string' || !host) return 'missing Host header'
+  const h = hostname(host)
+  if (!isLocalName(h) && !inAllowed(h, allowedHosts)) return `Host ${host} is not a local name (add it to server.allowedHosts to allow it)`
+  const origin = req?.headers?.origin
+  if (origin !== undefined && origin !== 'null') {
+    let oh = ''
+    try { oh = new URL(String(origin)).hostname.replace(/^\[|\]$/g, '').toLowerCase() } catch (_) {}
+    if (!oh || (!isLocalName(oh) && !inAllowed(oh, allowedHosts))) return `Origin ${origin} is not allowed`
+  } else if (origin === 'null') {
+    return 'Origin null is not allowed'
+  }
+  return null
+}
+
+// ---------------------------------------------------------------- HTTP
+
+function send(res: any, status: number, body?: any, headers: Record<string, string> = {}) {
+  res.statusCode = status
+  for (const k in headers) res.setHeader(k, headers[k])
+  if (body === undefined) return res.end()
+  res.setHeader('Content-Type', 'application/json')
+  res.end(JSON.stringify(body))
+}
+
+function readBody(req: any): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let size = 0
+    const chunks: any[] = []
+    req.on('data', (c: any) => {
+      size += c.length
+      if (size > MAX_BODY) { reject(new Error('too large')); req.destroy?.() } else chunks.push(c)
+    })
+    req.on('end', () => resolve((globalThis as any).Buffer.concat(chunks).toString('utf8')))
+    req.on('error', reject)
+  })
+}
+
+/** An `Mcp-Name` value: plain, or the spec's `=?base64?…?=` sentinel for one that isn't header-safe */
+function headerValue(v: string): string {
+  const m = /^=\?base64\?(.*)\?=$/.exec(v)
+  return m ? (globalThis as any).Buffer.from(m[1], 'base64').toString('utf8') : v
+}
+
+/**
+ * G-655: why a 2026-07-28 request's envelope is refused, as [code, message], or null. The spec
+ * (basic/index "_meta", transports/streamable-http "Server Validation"): `_meta` must carry the
+ * protocol version and the client capabilities (-32602), and the MCP-Protocol-Version, Mcp-Method
+ * and (tools/call, resources/read, prompts/get) Mcp-Name headers must be there and match the body
+ * (-32020 HeaderMismatch). This server marks no parameter with `x-mcp-header`, so no
+ * Mcp-Param-* header is required.
+ */
+function modernEnvelope(msg: any, headers: any): [number, string] | null {
+  const params = isObj(msg.params) ? msg.params : {}
+  const meta = isObj(params._meta) ? params._meta : {}
+  if (typeof meta[META + 'protocolVersion'] !== 'string') return [-32602, `Invalid params: _meta["${META}protocolVersion"] is required`]
+  if (!isObj(meta[META + 'clientCapabilities'])) return [-32602, `Invalid params: _meta["${META}clientCapabilities"] is required`]
+  const header = headers['mcp-protocol-version']
+  if (header !== meta[META + 'protocolVersion']) {
+    return [-32020, header === undefined ? 'Header mismatch: MCP-Protocol-Version header is required' : `Header mismatch: MCP-Protocol-Version header value '${header}' does not match body value '${meta[META + 'protocolVersion']}'`]
+  }
+  const method = headers['mcp-method']
+  if (method !== msg.method) return [-32020, method === undefined ? 'Header mismatch: Mcp-Method header is required' : `Header mismatch: Mcp-Method header value '${method}' does not match body value '${msg.method}'`]
+  if (msg.method === 'tools/call' || msg.method === 'prompts/get' || msg.method === 'resources/read') {
+    const want = msg.method === 'resources/read' ? params.uri : params.name
+    const name = headers['mcp-name']
+    if (typeof name !== 'string') return [-32020, 'Header mismatch: Mcp-Name header is required']
+    if (headerValue(name) !== want) return [-32020, `Header mismatch: Mcp-Name header value '${name}' does not match body value '${want}'`]
+  }
+  return null
+}
+
+/** The connect middleware for MCP_PATH */
+export function mcpMiddleware(server: { handle(msg: any, modern?: boolean): Promise<any> }, allowedHosts: () => any) {
+  return async (req: any, res: any, next: any) => {
+    const url = String(req.url || '').replace(/[?#].*$/, '')
+    if (url !== MCP_PATH && url !== MCP_PATH + '/') return next()
+    const why = refusal(req, allowedHosts())
+    if (why) return send(res, 403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Forbidden: ${why}` } })
+    // G-638: no SSE stream on GET (the spec's "MUST ... return 405" for a server that offers none), no sessions to DELETE
+    if (req.method !== 'POST') return send(res, 405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Method not allowed: this endpoint takes JSON-RPC over POST and answers with application/json (no SSE stream, no sessions)' } }, { Allow: 'POST' })
+    let msg: any
+    try {
+      msg = JSON.parse(await readBody(req))
+    } catch (err: any) {
+      if (err?.message === 'too large') return send(res, 413, { jsonrpc: '2.0', id: null, error: { code: -32600, message: 'Request too large' } })
+      return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })
+    }
+    // G-655: the era is per request: a 2026-07-28 version in the header or in `_meta` is modern
+    // (stateless), anything else the initialize era (no header: 2025-03-26)
+    const id = isObj(msg) && 'id' in msg ? msg.id ?? null : null
+    const fail = (status: number, code: number, message: string, data?: any) => send(res, status, { jsonrpc: '2.0', id, error: { code, message, ...(data ? { data } : {}) } })
+    const header = req.headers['mcp-protocol-version']
+    const meta = isObj(msg) && isObj(msg.params) && isObj(msg.params._meta) ? msg.params._meta : {}
+    const metaVersion = meta[META + 'protocolVersion']
+    for (const requested of [header, metaVersion]) {
+      if (requested !== undefined && !SUPPORTED_VERSIONS.includes(requested)) {
+        return fail(400, -32022, 'Unsupported protocol version', { supported: SUPPORTED_VERSIONS, requested })
+      }
+    }
+    const modern = MODERN_VERSIONS.includes(header) || MODERN_VERSIONS.includes(metaVersion)
+    if (modern) {
+      if (!isObj(msg)) return fail(400, -32600, 'Invalid Request: one JSON-RPC message per POST')
+      if ('id' in msg && msg.id !== null) {
+        const why = modernEnvelope(msg, req.headers)
+        if (why) return fail(400, why[0], why[1])
+      }
+    }
+    const out = await server.handle(msg, modern)
+    if (out === null || out === undefined) return send(res, 202)
+    // 2026-07-28: a method this server doesn't implement is 404 (the JSON-RPC body tells it from a missing endpoint)
+    send(res, modern && out.error?.code === -32601 ? 404 : 200, out)
+  }
+}
+
+// ---------------------------------------------------------------- the page bridge (Vite's HMR channel)
+
+/** A PageBridge over the dev server's HMR channel (server.ws / environments.client.hot) */
+export function hmrBridge(server: any): PageBridge {
+  const ws = server?.ws || server?.environments?.client?.hot
+  const tabs = new Map<any, TabInfo>()
+  const pending = new Map<number, { tab: number; resolve: (v: any) => void; reject: (e: any) => void; timer: any; client: any }>()
+  let nextTab = 1
+  let nextReq = 1
+  let clock = 0
+  const fail = (client: any) => {
+    const t = tabs.get(client)
+    tabs.delete(client)
+    if (!t) return
+    for (const [id, p] of pending) {
+      if (p.client !== client) continue
+      clearTimeout(p.timer)
+      pending.delete(id)
+      p.reject(new ToolError(`tab ${t.id} closed before it answered`))
+    }
+  }
+  if (ws && typeof ws.on === 'function') {
+    ws.on(MCP_HELLO, (data: any, client: any) => {
+      if (!client) return
+      let t = tabs.get(client)
+      if (!t) {
+        tabs.set(client, t = { id: nextTab++, url: '', title: '', active: 0 })
+        // Vite's socket client carries its WebSocket: a closed tab leaves at once
+        try { client.socket?.once?.('close', () => fail(client)) } catch (_) {}
+      }
+      t.url = String(data?.url || '')
+      t.title = String(data?.title || '')
+      if (Array.isArray(data?.apps)) t.apps = data.apps.map((a: any) => ({ index: Number(a?.index), component: String(a?.component ?? '') }))
+      // an apps update (an HMR swap, a second run()) is not a focus
+      if (!data?.update || !t.active) t.active = ++clock
+    })
+    ws.on(MCP_RESPONSE, (data: any, client: any) => {
+      const p = data && pending.get(data.id)
+      if (!p || p.client !== client) return
+      if (data.waiting) {
+        clearTimeout(p.timer)
+        p.timer = setTimeout(() => expire(data.id), 5 * 60_000)
+        return
+      }
+      clearTimeout(p.timer)
+      pending.delete(data.id)
+      if (data.ok) p.resolve(data.result)
+      else p.reject(new ToolError(String(data.error || 'the page reported an error')))
+    })
+  }
+  /** tabs whose socket is still open (when the channel tells) */
+  const live = () => {
+    let open: any
+    try { open = ws?.clients } catch (_) {}
+    for (const c of [...tabs.keys()]) {
+      const closed = c.socket && typeof c.socket.readyState === 'number' && c.socket.readyState > 1
+      if (closed || (open instanceof Set && c.socket && !open.has(c))) fail(c)
+    }
+    return tabs
+  }
+  function expire(id: number) {
+    const p = pending.get(id)
+    if (!p) return
+    pending.delete(id)
+    p.reject(new ToolError(`tab ${p.tab} did not answer in time (is the page frozen, or a dialog open?)`))
+  }
+  return {
+    tabs: () => [...live().values()].map(t => ({ ...t, ...(t.apps ? { apps: t.apps.map(a => ({ ...a })) } : {}) })),
+    request(tabId, tool, args, ms) {
+      const client = [...live().entries()].find(([, t]) => t.id === tabId)?.[0]
+      if (!client) return Promise.reject(new ToolError(`no tab ${tabId}`))
+      const id = nextReq++
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => expire(id), ms)
+        pending.set(id, { tab: tabId, resolve, reject, timer, client })
+        try {
+          client.send({ type: 'custom', event: MCP_REQUEST, data: { id, tool, args } })
+        } catch (err: any) {
+          clearTimeout(timer)
+          pending.delete(id)
+          fail(client)
+          reject(new ToolError(`tab ${tabId} is gone: ${err?.message || err}`))
+        }
+      })
+    },
+  }
+}
+
+/** Wire the endpoint into a Vite dev server */
+export function attachMcp(server: any, root: string, options: McpPluginOptions, version: string | undefined) {
+  const bridge = hmrBridge(server)
+  const mcp = createDevMcpServer({
+    ...options,
+    bridge,
+    version,
+    check: loadCheckServer(root),
+    url: () => server?.resolvedUrls?.local?.[0],
+  })
+  server.middlewares.use(mcpMiddleware(mcp, () => server?.config?.server?.allowedHosts))
+  return mcp
+}
+
+/** 'virtual:sygnal/mcp': connects the page (dev only) */
+export function mcpClientModule(options: McpPluginOptions): string {
+  const confirm = options.confirm === undefined ? 'page' : options.confirm
+  return `import { agentTools } from 'sygnal';
+import { installMcpBridge } from 'sygnal/devtools';
+if (import.meta.hot) installMcpBridge(import.meta.hot, { agentTools, confirm: ${JSON.stringify(confirm)} });
+`
+}

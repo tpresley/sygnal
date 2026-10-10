@@ -47,6 +47,9 @@
  * | SYG664 | browser source the driver wasn't made with             | browserSources.ts |
  * | SYG665 | browser source failed with no error action             | browserSources.ts |
  * | SYG668 | intersection / resize with no element to observe       | browserSources.ts |
+ * | SYG673 | malformed chat stream event (makeChatDriver)           | chat.ts        |
+ * | SYG675 | tool sent non-strict under strict (L-2 transports, info)| chat.ts        |
+ * | SYG677 | chat request sent from outside a component             | chat.ts        |
  * | SYG238 | a root with a model but no initialState: renders nothing | state.ts       |
  * | SYG223 | persist pick/omit key not in initialState              | persist.ts     |
  * | SYG224 | persist on a component that isn't the root             | persist.ts     |
@@ -94,6 +97,7 @@ import {routerCheck, installRouterHooks} from './router'
 import {fetchCheck} from './fetch'
 import {timersCheck, installTimerHooks} from './timers'
 import {installBrowserSourceHooks} from './browserSources'
+import {installChatHooks} from './chat'
 import {persistCheck} from './persist'
 import {viewTransitionsCheck} from './viewTransitions'
 import {staticsCheck} from './statics'
@@ -151,6 +155,7 @@ export function installChecks(): () => void {
   const uninstallControls = installControlHooks()
   const uninstallTimers = installTimerHooks()
   const uninstallBrowser = installBrowserSourceHooks()
+  const uninstallChat = installChatHooks()
   const uninstallElementCommands = installElementCommandHooks()
   const uninstallWidgets = installWidgetHooks()
   const uninstallVirtual = installVirtualHooks()
@@ -167,6 +172,7 @@ export function installChecks(): () => void {
     uninstallControls()
     uninstallTimers()
     uninstallBrowser()
+    uninstallChat()
     uninstallElementCommands()
     uninstallWidgets()
     uninstallVirtual()

@@ -53,6 +53,11 @@ export const TS_EXTRA_DEV_DEPENDENCIES = {
  * installs the union in its shared node_modules.
  */
 const L_REACT_DEPS = { '@hookform/resolvers': '^5.9.1', 'react-hook-form': '^7.89.0', 'react-router': '^7.18.4', zod: '^4.6.5' }
+// PLAN-6 4-E (p6 tier, 44-47): exact pins (the AI SDK moves fast; a trial must get the version the
+// references were checked with). React: the AI SDK 7 client (useChat, client tools) for 44-46; zod
+// for the tool inputs of 45 and 47 (both arms).
+const P6_AI_SDK = { '@ai-sdk/react': '4.0.140', ai: '7.0.137' }
+const P6_ZOD = { zod: '4.6.5' }
 export const TASK_EXTRA_DEPENDENCIES = {
   // PLAN-5 4-E (p5 tier): libraries both arms would have (zod for 30's schema, Chart.js for 32).
   sygnal: {
@@ -62,6 +67,9 @@ export const TASK_EXTRA_DEPENDENCIES = {
     '41-expenses-budgets': { zod: '^4.6.5' },
     '42-expenses-drafts': { zod: '^4.6.5' },
     '43-expenses-remove-settings': { zod: '^4.6.5' },
+    // p6 tier: zod for the agent tools' inputs
+    '45-packing-assistant': P6_ZOD,
+    '47-board-agent-tools': P6_ZOD,
   },
   react: {
     '24-list-detail-cache': { '@tanstack/react-query': '^5.104.1' },
@@ -75,6 +83,11 @@ export const TASK_EXTRA_DEPENDENCIES = {
     '41-expenses-budgets': L_REACT_DEPS,
     '42-expenses-drafts': L_REACT_DEPS,
     '43-expenses-remove-settings': L_REACT_DEPS,
+    // p6 tier (exact pins)
+    '44-streaming-chat': P6_AI_SDK,
+    '45-packing-assistant': { ...P6_AI_SDK, ...P6_ZOD },
+    '46-ticket-triage': P6_AI_SDK,
+    '47-board-agent-tools': P6_ZOD,
   },
 }
 

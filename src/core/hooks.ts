@@ -82,7 +82,7 @@ export interface Def {
 }
 
 /** Where an action came from (testing's t.actions `cause`, devtools, the action log) */
-export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'parent' | 'setState'
+export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'parent' | 'setState' | 'agent'
 
 /**
  * A read-only view of a live instance: everything devtools, diagnostics and testing read today

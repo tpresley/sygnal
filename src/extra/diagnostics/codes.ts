@@ -170,6 +170,11 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 3-F G-419: a Collection's viewTransitionName (checks/next.ts)
   SYG148: 'Collection viewTransitionName is not a CSS identifier',
   SYG149: 'Two items with the same view-transition name',
+  // PLAN-6 K-1: static only (sygnal-check rules/syg150-agent.js, syg152, syg153)
+  SYG150: 'Agent action has no model entry',
+  SYG151: 'Misspelled agent static',
+  SYG152: 'LLM request without an ok action',
+  SYG153: 'WebMCP form attribute set as a DOM property',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
@@ -178,6 +183,11 @@ export const CODE_TITLES: Record<string, string> = {
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
   // PLAN-5 3-H (G-449): sortable over a list shown in another order (checks/sortable.ts)
   SYG435: 'Sortable list shown filtered or in another order',
+  // PLAN-6 A-1 (sygnal/ai agent layer)
+  SYG440: 'Two agent declarations with the same name',
+  SYG441: 'Agent Collection items without unique ids',
+  // PLAN-6 L-3 (src/extra/ai/chat/behavior.ts; legacy error(): prints even when diagnostics are off)
+  SYG442: 'Chat or command bar behavior not connected to its app',
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
@@ -228,6 +238,15 @@ export const CODE_TITLES: Record<string, string> = {
   SYG237: 'Two forms in one component listen on the same form selector',
   // PLAN-5 2-R (G-393; checks/state.ts; dev entry)
   SYG238: 'Root component with a model but no initial state',
+  // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent; runtime, while an agent layer runs)
+  SYG240: 'Agent action input has no JSON Schema form',
+  SYG241: 'Agent read, when or label threw',
+  SYG243: 'Agent action input schema converted with losses',
+  // PLAN-6 A-2 (src/extra/ai/webmcp.ts; reported with the severity passed, dev)
+  SYG242: 'WebMCP tool over a size budget',
+  SYG244: 'Agent read returns strings, untrusted not declared',
+  // PLAN-6 A-3 (D291; checks/forms.ts, through the bridge's form hook)
+  SYG245: 'form tool option is not made by formTool()',
   SYG402: 'Context is not an object',
   SYG403: 'Invalid context entry',
   SYG404: 'Context stream errored',
@@ -303,6 +322,19 @@ export const CODE_TITLES: Record<string, string> = {
   SYG668: 'Browser source has no element to observe',
   // PLAN-5 2-T (G-410): Sygnal components / widget tags / special JSX inside a fromZag render
   SYG669: 'Sygnal component inside a fromZag render',
+  // PLAN-6 L-1: makeChatDriver (src/extra/ai/chat/driver.ts; SYG673/677 dev, SYG678/679 legacy error())
+  // PLAN-6 L-2: transports (src/extra/ai/transports/; SYG670 legacy error() + the request fails, SYG675 dev)
+  SYG670: 'Auth header sent from the browser to a hosted endpoint',
+  // PLAN-6 3-W2 (D285): `strict: true` instead of `strict: strictSchemas` (dev)
+  SYG672: 'Strict mode without the strict layer',
+  SYG673: 'Malformed chat stream event',
+  SYG675: 'Tool sent non-strict under strict mode',
+  SYG677: 'Chat request sent from outside a component',
+  SYG678: 'Chat request failed with no error action',
+  SYG679: 'Invalid chat request',
+  // PLAN-6 A-2: experimentalExposeWebMcp (src/extra/ai/webmcp.ts; dev)
+  SYG674: 'WebMCP not available',
+  SYG676: 'WebMCP registerTool rejected',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -316,6 +348,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG722: 'Menu, Select or Combobox without an accessible name',
   // PLAN-5 B-1 (3-D): static only (sygnal-check)
   SYG724: 'Sortable handle not keyboard-accessible, or no live region',
+  // PLAN-6 K-1: static only (sygnal-check rules/a11y/syg730-hover-only.js, syg731-toggle-state.js)
+  SYG730: 'Action reachable only by hovering',
+  SYG731: 'Toggled state shown only by a class',
   SYG901: "Retired in 6.0: Sub-component sink stream errored",
   SYG902: "Retired in 6.0: EFFECT stream errored",
   SYG903: "Retired in 6.0: Component factory returned invalid sinks",
@@ -374,6 +409,16 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG236: 'warn',
   SYG237: 'warn',
   SYG238: 'warn',
+  // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent): reported by the layer itself with the
+  // severity passed, like SYG611, so the main bundle's table doesn't grow
+  SYG240: 'error',
+  SYG241: 'error',
+  SYG243: 'warn',
+  // PLAN-6 A-2 (WebMCP, reported with the severity passed)
+  SYG242: 'warn',
+  SYG244: 'warn',
+  // PLAN-6 A-3 (D291): a plain object as form()'s tool (checks/forms.ts)
+  SYG245: 'error',
   SYG421: 'error',
   SYG611: 'error',
   // PLAN-3 5-4b: router (SYG620 is reported by the router itself, like SYG611) and G-167
@@ -434,6 +479,17 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG667: 'error',
   SYG668: 'warn',
   SYG669: 'warn',
+  // PLAN-6 L-1 (makeChatDriver reports them with an explicit severity, like SYG611)
+  SYG670: 'error',
+  SYG672: 'error',
+  SYG673: 'warn',
+  SYG675: 'info',
+  SYG677: 'warn',
+  SYG678: 'error',
+  SYG679: 'error',
+  // PLAN-6 A-2 (experimentalExposeWebMcp reports them with an explicit severity)
+  SYG674: 'info',
+  SYG676: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
@@ -442,6 +498,10 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG434: 'warn',
   // PLAN-5 3-H (G-449): sortable (checks/sortable.ts)
   SYG435: 'warn',
+  // PLAN-6 A-1 (sygnal/ai agent layer)
+  SYG440: 'warn',
+  SYG441: 'warn',
+  SYG442: 'error',
   // PLAN-4 GS-3: a11y lane, static only (sygnal-check; warn, also under --strict; error with --a11y=error, D144); listed so the entry knows its title
   SYG701: 'warn',
   SYG702: 'warn',
@@ -454,6 +514,13 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG722: 'warn',
   // PLAN-5 B-1 (3-D): static only (sygnal-check)
   SYG724: 'warn',
+  // PLAN-6 K-1: static only (sygnal-check); listed so the entry knows their titles
+  SYG150: 'warn',
+  SYG151: 'warn',
+  SYG152: 'warn',
+  SYG153: 'warn',
+  SYG730: 'warn',
+  SYG731: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

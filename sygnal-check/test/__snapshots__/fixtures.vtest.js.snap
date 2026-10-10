@@ -50,10 +50,10 @@ exports[`bad fixtures > events-no-counterpart.jsx 1`] = `
 exports[`bad fixtures > intent-model-mismatch.jsx 1`] = `
 [
   "test/fixtures/bad/intent-model-mismatch.jsx:18:3 SYG101 Form: intent action 'SAVE' has no model entry, so it does nothing (add 'SAVE' to Form.model, or fix the spelling to match an existing model key)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:24:3 SYG102 Form: model entry 'SAV' is never triggered: no intent action, built-in action, reply action (ok/error) or next('SAV') call uses it (add 'SAV' to Form.intent, name it in a request (ok: 'SAV'), call next('SAV') from another entry, or remove it)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:27:3 SYG102 Form: model entry 'LOG_IT' is never triggered: no intent action, built-in action, reply action (ok/error) or next('LOG_IT') call uses it (add 'LOG_IT' to Form.intent, name it in a request (ok: 'LOG_IT'), call next('LOG_IT') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:24:3 SYG102 Form: model entry 'SAV' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('SAV') call uses it (add 'SAV' to Form.intent, name it in a request (ok: 'SAV'), call next('SAV') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:27:3 SYG102 Form: model entry 'LOG_IT' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('LOG_IT') call uses it (add 'LOG_IT' to Form.intent, name it in a request (ok: 'LOG_IT'), call next('LOG_IT') from another entry, or remove it)",
   "test/fixtures/bad/intent-model-mismatch.jsx:36:33 SYG101 Orphan: intent action 'GO' has no model entry, so it does nothing (add 'GO' to Orphan.model, or fix the spelling to match an existing model key)",
-  "test/fixtures/bad/intent-model-mismatch.jsx:45:3 SYG102 Silent: model entry 'STOP' is never triggered: no intent action, built-in action, reply action (ok/error) or next('STOP') call uses it (add an intent that returns 'STOP', name it in a request (ok: 'STOP'), call next('STOP') from another entry, or remove it)",
+  "test/fixtures/bad/intent-model-mismatch.jsx:45:3 SYG102 Silent: model entry 'STOP' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('STOP') call uses it (add an intent that returns 'STOP', name it in a request (ok: 'STOP'), call next('STOP') from another entry, or remove it)",
 ]
 `;
 
@@ -69,10 +69,10 @@ exports[`bad fixtures > parent-selects-child.jsx 1`] = `
 exports[`bad fixtures > reply-actions.jsx 1`] = `
 [
   "test/fixtures/bad/reply-actions.jsx:20:78 SYG112 [error] Quote: the HTTP request of 'LOAD' names 'FIALED' as its error reply action, but Quote has no model entry 'FIALED', so the reply is dropped (did you mean 'FAILED'?) (rename it to the existing entry: error: 'FAILED')",
-  "test/fixtures/bad/reply-actions.jsx:23:3 SYG102 Quote: model entry 'FAILED' is never triggered: no intent action, built-in action, reply action (ok/error) or next('FAILED') call uses it (add 'FAILED' to Quote.intent, name it in a request (ok: 'FAILED'), call next('FAILED') from another entry, or remove it)",
-  "test/fixtures/bad/reply-actions.jsx:25:3 SYG102 Quote: model entry 'HYDRATE' is never triggered: no intent action, built-in action, reply action (ok/error) or next('HYDRATE') call uses it (add 'HYDRATE' to Quote.intent, name it in a request (ok: 'HYDRATE'), call next('HYDRATE') from another entry, or remove it)",
+  "test/fixtures/bad/reply-actions.jsx:23:3 SYG102 Quote: model entry 'FAILED' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('FAILED') call uses it (add 'FAILED' to Quote.intent, name it in a request (ok: 'FAILED'), call next('FAILED') from another entry, or remove it)",
+  "test/fixtures/bad/reply-actions.jsx:25:3 SYG102 Quote: model entry 'HYDRATE' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('HYDRATE') call uses it (add 'HYDRATE' to Quote.intent, name it in a request (ok: 'HYDRATE'), call next('HYDRATE') from another entry, or remove it)",
   "test/fixtures/bad/reply-actions.jsx:40:12 SYG112 [error] Chat: Chat.connections names 'DISCONECTED' as its close reply action, but Chat has no model entry 'DISCONECTED', so those events are dropped (did you mean 'DISCONNECTED'?) (rename it to the existing entry: close: 'DISCONNECTED')",
-  "test/fixtures/bad/reply-actions.jsx:47:3 SYG102 Chat: model entry 'DISCONNECTED' is never triggered: no intent action, built-in action, reply action (ok/error) or next('DISCONNECTED') call uses it (add an intent that returns 'DISCONNECTED', name it in a request (ok: 'DISCONNECTED'), call next('DISCONNECTED') from another entry, or remove it)",
+  "test/fixtures/bad/reply-actions.jsx:47:3 SYG102 Chat: model entry 'DISCONNECTED' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('DISCONNECTED') call uses it (add an intent that returns 'DISCONNECTED', name it in a request (ok: 'DISCONNECTED'), call next('DISCONNECTED') from another entry, or remove it)",
 ]
 `;
 

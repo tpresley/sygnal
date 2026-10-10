@@ -105,10 +105,35 @@ export interface SygnalPluginOptions {
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet. It installs the DevTools bridge
    * (`window.__SYGNAL_DEVTOOLS__`) for the browser extension. Production builds
-   * never contain it. false: not injected.
+   * never contain it. false: not injected. `{ redux: true }` also sends the actions and the
+   * root's state to the Redux DevTools extension (connectReduxDevtools() from 'sygnal/devtools').
    * @default true
    */
-  devtools?: boolean
+  devtools?: boolean | { redux?: boolean }
+
+  /**
+   * Serve an MCP endpoint at `/__sygnal/mcp` on the dev server (streamable HTTP; requests from
+   * this machine with a local Host / Origin only), so a coding agent can read and drive the
+   * running apps in the open page: get_state, dispatch, component_tree, recent_actions,
+   * get_diagnostics, copy_as_test, agent_tools, apps, tabs, and sygnal-check's check / graph /
+   * explain when it is installed. Every run() app of the page is served (`app` picks one).
+   * MCP revisions 2026-07-28 (stateless) and 2024-11-05 … 2025-11-25 (initialize); answers are
+   * application/json (no SSE stream, no sessions). Dev server only; it also loads
+   * 'sygnal/devtools' in the page.
+   * @default false
+   */
+  mcp?: boolean | McpPluginOptions
+}
+
+export interface McpPluginOptions {
+  /** ms to wait for the page's answer (an open confirm dialog extends it to 5 minutes) @default 10000 */
+  timeout?: number
+  /**
+   * Consequential agent tools called with agent_tools: 'page' asks the person in the page
+   * (window.confirm), true runs them, false declines them.
+   * @default 'page'
+   */
+  confirm?: boolean | 'page'
 }
 
 /**

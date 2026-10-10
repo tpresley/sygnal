@@ -1,6 +1,6 @@
 ---
 title: Recipes
-description: Using popular JavaScript libraries (charts, editors, carousels, tables, grids, icons, translations) with Sygnal
+description: Using popular JavaScript libraries (charts, editors, carousels, tables, grids, icons, translations) with Sygnal, and AI recipes with sygnal/ai
 ---
 
 Most JavaScript UI libraries don't need a Sygnal version. A library that builds its UI inside an element you give it becomes a JSX tag with [`defineWidget`](/guide/widgets/); a library that only computes (a table model, a translation) is called from the view or the context, as a pure function of state. Each recipe shows the code, how to test it, what it adds to the bundle, and the mistakes to avoid.
@@ -23,6 +23,16 @@ Elsewhere in the docs:
 - **Date pickers** (flatpickr): the [Widgets](/guide/widgets/) guide's example.
 - **Web components** (Web Awesome, Shoelace): no wrapper needed, see [Web components](/guide/web-components/).
 - **Forms with validation** (zod, valibot): the [`form` behavior](/guide/forms/).
+
+## AI
+
+Recipes for [`sygnal/ai`](/guide/ai-chat/): models through the chat driver and decision requests, no library beyond a schema validator.
+
+| Recipe | Model | How |
+|---|---|---|
+| [Support inbox](/recipes/ai-support-inbox/) | A decision model, a chat model for the unsure tickets | A `decide()` resource per Collection item, escalation with structured output |
+| [Structured output into a form](/recipes/ai-form-fill/) | A chat model | `output` schema, `form.CHANGE` per extracted field |
+| [On-device summaries](/recipes/ai-summarize/) | Chrome's built-in model | `chromePrompt()`, an excerpt where it is unavailable |
 
 ## Choosing a pattern
 

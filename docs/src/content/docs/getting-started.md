@@ -13,7 +13,7 @@ By the end of this guide, you'll have a working Sygnal application with interact
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) (v12 or higher)
+- [Node.js](https://nodejs.org/) 20.19 or later (or 22.12 or later on Node 22+): Sygnal's Vite plugin needs Vite 7 or 8, which need these versions
 - A package manager (npm, yarn, or pnpm)
 
 ## Quick Start

@@ -1,7 +1,7 @@
 'use strict'
 
 // export sygnal core functions
-export { ABORT } from "./shared"
+export { ABORT, abort } from "./shared"
 export { defineComponent } from "./defineComponent"
 export { Collection } from "./collection"
 export { VirtualCollection } from "./extra/virtual"
@@ -48,6 +48,26 @@ export { renderToString } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtoolsHook'
 export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
+// PLAN-6 (D253): the implementation of 'sygnal/ai' (documented import: 'sygnal/ai', src/ai.ts)
+export { messageText, withToolResults } from './extra/ai/index'
+export { decide, choice, noul, score } from './extra/ai/index'
+export { agentTools, toJsonSchema, parseInput, jsonSchema } from './extra/ai/index'
+// PLAN-6 L-1 (1-L)
+export { makeChatDriver, outputJsonSchema } from './extra/ai/index'
+// PLAN-6 A-2 (2-W)
+export { experimentalExposeWebMcp } from './extra/ai/index'
+// PLAN-6 L-3 (2-C)
+export { chat } from './extra/ai/index'
+// L-2 (2-T)
+export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './extra/ai/index'
+// PLAN-6 M-2 / M-3 (3-M)
+export { answers, commandBar } from './extra/ai/index'
+// L-2 (3-W2): wave 2 + the strict layer (D285)
+export { anthropicMessages, agui, fromAISDK, strictSchemas } from './extra/ai/index'
+// PLAN-6 X-1 (3-X)
+export { makeMcpAppDriver } from './extra/ai/index'
+// A-3 (3-A3, experimental, D291)
+export { formTool } from './extra/ai/index'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

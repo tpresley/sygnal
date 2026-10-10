@@ -57,7 +57,7 @@ describe('a11y lane plumbing', () => {
   it('a11y rules are core rules (on by default)', () => {
     expect(a11yRules.length).toBeGreaterThan(0)
     for (const r of a11yRules) expect(coreRules).toContain(r)
-    expect(a11yRules.flatMap(r => r.codes).sort()).toEqual(['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708', 'SYG722', 'SYG724'])
+    expect(a11yRules.flatMap(r => r.codes).sort()).toEqual(['SYG701', 'SYG702', 'SYG703', 'SYG704', 'SYG705', 'SYG706', 'SYG707', 'SYG708', 'SYG722', 'SYG724', 'SYG730', 'SYG731'])
   })
 
   // D144 (amends D111): warn even under strict; a11y: 'error' is the explicit opt-in
@@ -120,7 +120,8 @@ App.model = { OPEN: (s) => s }`)).toEqual(['SYG701 6'])
     expect(one(comp('<div className="card"><Child /></div>', "DOM.click('.card')"))).toEqual([])
     expect(one(comp('<div className="card">{props.children}</div>', "DOM.click('.card')"))).toEqual([])
     expect(one(comp('<div className="card">Open</div>', "DOM.click('[data-x] .card')"))).toEqual([])
-    expect(one(comp('<div className="card">Open</div>', "DOM.mouseenter('.card')"))).toEqual([])
+    // not a click (a hover-only action is SYG730, PLAN-6 K-1)
+    expect(one(comp('<div className="card">Open</div>', "DOM.mouseenter('.card')"))).toEqual(['SYG730 5'])
     expect(one(comp('<div className="card">Open</div>', "DOM.click('document')"))).toEqual([])
   })
 
@@ -226,7 +227,7 @@ App.model = { GO: (s) => s }`)
   it('accepts an href, role + tabIndex, or no click listener', () => {
     expect(one(comp('<a className="more" href="#more">More</a>', "DOM.click('.more')"))).toEqual([])
     expect(one(comp('<a className="more" role="button" tabIndex={0}>More</a>', "DOM.click('.more')"))).toEqual([])
-    expect(one(comp('<a className="more">More</a>', "DOM.mouseenter('.more')"))).toEqual([])
+    expect(one(comp('<a className="more">More</a>', "DOM.mouseenter('.more')"))).toEqual(['SYG730 5']) // hover-only: SYG730
   })
 })
 

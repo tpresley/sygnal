@@ -2,6 +2,9 @@
 title: 'Sygnal'
 description: 'An intuitive reactive component framework built on Cycle.js patterns.'
 template: splash
+banner:
+  content: |
+    Sygnal 6.1 adds <code>sygnal/ai</code>: streaming LLM chat, decision models, and apps that AI agents can operate. <a href="/guide/ai-chat/">Get started</a> · <a href="https://github.com/tpresley/sygnal/releases/tag/v6.1.0">Release notes</a>
 hero:
   tagline: An intuitive reactive component framework built on Cycle.js patterns. Pure components, automatic state management, and zero boilerplate.
   actions:
@@ -44,8 +47,12 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
     Silent wiring mistakes (a selector typo, an action with no handler, an event nobody hears) become coded messages with a fix, in the dev server, in tests, and from the `sygnal-check` static checker.
   </Card>
 
+  <Card title="AI Built In" icon="star">
+    `sygnal/ai` streams LLM chat through a driver like HTTP (local models with Ollama, any provider through an AI SDK server), asks decision models typed questions, and runs an in-app assistant. Declare what agents may do with the `agent` static, and they can operate your app, in the page or through WebMCP. See [AI Chat](/guide/ai-chat/), [Decisions](/guide/ai-decisions/) and [Agents](/guide/agent/).
+  </Card>
+
   <Card title="Built for Agents" icon="puzzle">
-    A single `llms.txt` reference, canonical forms enforced by strict mode, an app graph from `inspect()`, and an MCP server, so coding agents can write and debug Sygnal code without guessing.
+    A single `llms.txt` reference, canonical forms enforced by strict mode, an app graph from `inspect()`, an MCP server, and a dev MCP endpoint (`sygnal({ mcp: true })`) with the running app's state, so coding agents can write and debug Sygnal code without guessing.
   </Card>
 
   <Card title="Collections" icon="list-format">

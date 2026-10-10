@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-6 4-E eval (6.x with sygnal/ai): this checkout's packed build and its skills/sygnal-dev, isolated per trial, on the current starter (sygnal-check + AGENTS.md). Same content as branch.json / p5-final.json, under its own name so the PLAN-6 runs are labeled. The p6 tier (44-47) in both arms, on Opus, Sonnet and Haiku",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}

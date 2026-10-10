@@ -66,6 +66,8 @@ export const MODULES: Record<string, () => Promise<any>> = {
   'sygnal/zag': () => import('sygnal/zag'),
   'sygnal/react': () => import('sygnal/react'),
   'sygnal/element': () => import('sygnal/element'),
+  // the LLM driver of the live runtime (runtime.ts) comes from this entry too
+  'sygnal/ai': () => import('sygnal/ai'),
 
   // Recipes (versions: dev-plans/research/p5-recipes/package.json)
   'chart.js': () => import('chart.js'),

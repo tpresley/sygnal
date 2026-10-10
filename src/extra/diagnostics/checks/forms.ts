@@ -22,6 +22,8 @@
  *   SYG235 (warn) a `check` key that isn't a field of `values`
  *   SYG236 (warn) an array of objects in `values` with a row without an `id`
  *   SYG237 (warn) two form uses of one host with the same form selector (G-374)
+ *   SYG245 (error, reported) PLAN-6 A-3 (D291): a `tool` option not made by formTool() (no `$`
+ *          hook: a plain object); the form offers no tool
  */
 import type {DiagnosticCheck} from '../index'
 import {devReport, once, nameOf} from './shared'
@@ -123,6 +125,12 @@ export const formsCheck: DiagnosticCheck = {
       } else sels[sel] = key
       if (!once(`SYG23x:${name}:${key}`)) continue
       const o = b.options || {}, values = o.values || {}
+      if (o.tool && typeof o.tool.$ != 'function') devReport('SYG245', {
+        component,
+        message: `${name}'s form '${key}': the tool option is ${typeof o.tool == 'object' ? 'a plain object' : what(o.tool)}, not made by formTool(), so the form isn't offered to the browser's agent`,
+        fix: `Wrap it: import { formTool } from 'sygnal/ai', then form(schema, { ..., tool: formTool({ name: '${o.tool?.name || 'sign_up'}', description: '...' }) })`,
+        data: {key, tool: o.tool},
+      })
       const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim()), own = ownActions(b)
       const clash = own.includes(o.submit)
       if (typeof o.submit != 'string' || !model.includes(o.submit) || clash) {

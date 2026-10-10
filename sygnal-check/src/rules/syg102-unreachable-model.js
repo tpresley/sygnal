@@ -15,6 +15,10 @@
  * actions namespaced, others as they are) and reply actions (not namespaced,
  * D123). A component with an opaque behavior (one from a package) is not
  * checked: that behavior may dispatch anything.
+ *
+ * Agents (PLAN-6 K-1, G-614): an `agent.actions` key is a trigger, and so are an LLM request's
+ * `delta` / `tool` reply keys (model/modelEntries.js LLM_REPLY_KEYS). An agent declaration whose
+ * actions can't be listed (a spread) makes the component's findings info, like a dynamic next().
  */
 import { BUILTIN_ACTIONS } from '../model/modelEntries.js'
 import { behaviorActions, openPrefixes } from '../model/behaviors.js'
@@ -34,6 +38,8 @@ export default {
       const triggers = new Set((comp.intent?.actions || []).map(a => a.name))
       // PLAN-4 GS-5: persist() sends RESTORE (after hydration, and with sync)
       if (comp.staticProps.persist) triggers.add('RESTORE')
+      // PLAN-6 K-1 (G-614): an `agent.actions` entry is a trigger (agents dispatch it, cause 'agent')
+      for (const a of comp.agent?.actions || []) triggers.add(a.name)
       const nextTargets = new Set(model.nextTargets.map(t => t.name))
       const replies = new Set([...model.replyTargets, ...(comp.connections?.targets || [])].map(t => t.name))
       const owned = behaviorActions(uses)
@@ -47,7 +53,8 @@ export default {
       }
       const dynamicNext = model.dynamicNext.length > 0
       const dynamicReplies = model.replyDynamic.length > 0 || (comp.connections?.dynamic.length || 0) > 0
-      const dynamic = dynamicNext || dynamicReplies || behaviorDynamic
+      const agentDynamic = !!comp.agent && !comp.agent.actionsKnown
+      const dynamic = dynamicNext || dynamicReplies || behaviorDynamic || agentDynamic
       const seen = new Set()
       for (const e of model.entries) {
         if (seen.has(e.action)) continue
@@ -76,7 +83,7 @@ export default {
           component: comp.name,
           file: e.file,
           node: e.node,
-          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, reply action (ok/error) or next('${e.action}') call uses it` +
+          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('${e.action}') call uses it` +
             (dynamicNext ? ' (a next() call with a non-literal name might)' : dynamicReplies || behaviorDynamic ? ' (a request with a non-literal ok/error name might)' : ''),
           fix: comp.intent
             ? `add '${e.action}' to ${comp.name}.intent, name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`

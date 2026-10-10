@@ -51,7 +51,7 @@ Form.model  = { SAVE: (state) => ({ ...state, saved: true }) }
 
 Severity: `info` at runtime, `warn` in sygnal-check · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info; it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches, and those a behavior's `timers` names. A behavior's own actions (`'tip.SHOW'`: its timers, `next()` calls or replies may trigger them) are not reported; the static checker follows `uses` through factory functions that pass their options on (`(opts) => tooltip(opts)`).
+A model entry has no intent action of the same name and is not a built-in action (`BOOTSTRAP`, `INITIALIZE`, `DISPOSE`, `READY`, `RESOURCE`; `HYDRATE` is an ordinary action since 6.0), so nothing in the intent can trigger it. A request also triggers the reply actions it names (`{ url, ok: 'LOADED', error: 'FAILED' }` sent to a driver sink), and so does a `connections` entry (`message`, `open`, `close`, `error`) or a request a `resources` entry derives (`ok`, `error`). A `RESOURCE` entry replaces the built-in reducer that writes `state[name]` for a `resources` static. It may still be reached through `next('ACTION')`, which the runtime cannot know in advance, so the runtime check reports it as info; it counts the `ok`/`error` string literals it finds in the source of the component's non-STATE sink functions. The static checker also accounts for `next()` calls and reply-action names with string literals and reports it as warn, downgraded to info when a `next()` call or an `ok`/`error` value uses a non-literal name. It also counts the actions a `timers` static names (`{ every: 100, action: 'TICK' }`, `{ frame: 'FRAME' }`), which the timer driver dispatches, and those a behavior's `timers` names. A behavior's own actions (`'tip.SHOW'`: its timers, `next()` calls or replies may trigger them) are not reported; the static checker follows `uses` through factory functions that pass their options on (`(opts) => tooltip(opts)`). An `agent.actions` key (sygnal/ai: agents dispatch it) is a trigger too, and so are the `delta` and `tool` reply actions of an LLM request (`{ messages, delta: 'DELTA', tool: 'TOOL', ok: 'DONE' }`); the static checker follows a request a local helper builds (`LLM: (state) => ask(state.messages)`).
 
 **Fix:** Add the action to the component's `intent`, name it in a request (`HTTP: (state) => ({ url, ok: 'ACTION' })`), dispatch it with `next('ACTION')` from another entry, or remove the dead model entry.
 
@@ -492,6 +492,46 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 After a render, two rendered elements on the page (not in a `display: none` subtree, such as a hidden tab panel: the browser doesn't capture those) have the same `view-transition-name` from Collections with the same `viewTransitionName` prefix: the same item `id` is in two of them at once (an 'All' list and a 'Favorites' list both named `card`). A name must be unique when a View Transition starts, so the browser skips the whole transition (Chromium logs `Unexpected duplicate view-transition-name`). The same prefix on several Collections is meant for one item moving between them, never shown in two at once. The dev entry checks the rendered page after each patch while a Collection with a prefix is mounted, and reports each name once.
 
 **Fix:** Give Collections that can show the same item at the same time different prefixes (`viewTransitionName="all"` and `viewTransitionName="fav"`), or set the item's own `style={{ viewTransitionName }}` where it needs one.
+
+### SYG150
+
+**Agent action has no model entry**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A component's `agent` declaration (sygnal/ai) lists an action under `actions` that the component's `model` has no entry for (and no behavior of its `uses` owns). The agent layer offers it as a tool, and every call dispatches an action nothing handles, so the call fails with "changed nothing" and the model retries or gives up. Usually a typo, or an entry renamed on one side only. sygnal-check reports it when the declaration and the model are object literals it can read (no spreads), and suggests the closest model entry. TypeScript catches it only when every key is wrong.
+
+**Fix:** Rename the key to the model entry it means (`actions: { ADD: { description: 'Add a todo', input } }` for `model.ADD`), or add the model entry: `TodoApp.model = { ..., ADD: (state, text) => ({ ...state, todos: [...state.todos, { id: state.nextId, text }] }) }`.
+
+### SYG151
+
+**Misspelled agent static**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A component has a static named like the agent declaration but spelled differently: `agents`, `tools`, `Agent`, `tool`. The agent layer (the chat behavior, WebMCP, the command bar, `t.tools()`) reads only `Component.agent`, so the component offers no tools and its `read` projection never reaches the model, without any error. Reported on a component (a function with other Sygnal statics) or on an object with `actions` or `read`.
+
+**Fix:** Rename the static: `TodoApp.agent = { name: 'todos', description: 'The todo list', read: (state) => ({ todos: state.todos }), actions: { ADD: { description: 'Add a todo', input: z.string() } } }`.
+
+### SYG152
+
+**LLM request without an ok action**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A model sends an LLM request (an object with `messages`, sent to the chat driver of sygnal/ai) that names no `ok` reply action. The driver delivers the finished reply (the assistant `message`, its `text`, `toolCalls`, `finishReason` and `usage`) only as the `ok` action, so the reply is lost: a `delta` action shows the text while it streams, but the final message never reaches the state and the status never leaves streaming. sygnal-check follows requests that local helpers build; a request with a spread (`{ ...base, messages }`) is not reported, since the spread may name `ok`.
+
+**Fix:** Name the actions the reply arrives as, and handle them: `LLM: (state) => ({ messages: state.messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' })` with `DONE: (state, { message }) => ({ ...state, messages: [...state.messages, message], draft: '' })`. For a whole conversation with tools, the `chat` behavior does this for you.
+
+### SYG153
+
+**WebMCP form attribute set as a DOM property**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has `toolparamdescription`) written as a plain JSX attribute. WebMCP's declarative API reads these as HTML attributes, but Sygnal's JSX pragma turns an attribute it doesn't know into a DOM property (`form.toolname = ...`), which the browser ignores: the form is never offered to the browser's agent, and nothing reports it at run time (D269).
+
+**Fix:** For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })` with `formTool` from `sygnal/ai` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname="sign_up" attrs-tooldescription="Create an account">` and `<input name="email" attrs-toolparamdescription="The email to sign up with" />` (or `attrs={{ toolname: 'sign_up' }}`).
 
 ## SYG2xx: State and reducers
 
@@ -972,6 +1012,66 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A root component (the one passed to `run()` or `renderComponent()`) has a `model` but no `initialState`, so its state is `undefined` and its view doesn't run: the page (or the test's `t.html()`) stays empty until an action sets the whole state. A root without a model renders anyway (from `initialState`, or with no state), and a child gets its state from its parent, so neither is reported. The state may also come from `renderComponent(C, { initialState })` or an HMR swap; then nothing is reported either. Reported once per component.
 
 **Fix:** Give the root its start state: `App.initialState = { count: 0 }`. If the state really arrives later (from a request), start from a placeholder such as `{ status: 'loading' }` and render that.
+
+### SYG240
+
+**Agent action input has no JSON Schema form**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+An `agent.actions` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`. sygnal-check reports the cases it can see in the source before the app runs: a Valibot schema without `toStandardJsonSchema()`, a Zod Mini schema (`zod/mini`), and a JSON Schema object literal not wrapped with `jsonSchema()`.
+
+**Fix:** Use a supported schema: `input: z.string().min(1)`, `input: toStandardJsonSchema(v.picklist(['all', 'done']))`, or `input: jsonSchema({ type: 'integer' })`. For Zod Mini keep its validation with `jsonSchema(z.toJSONSchema(s), { validate: s })`. A `Date` can't come from JSON, and Zod's JSON Schema conversion throws for `z.date()` and `z.coerce.date()` alike (the field reaches the model with no schema, SYG243): take an ISO string, `z.iso.datetime()` (convert it in the reducer) or `z.iso.datetime().transform((s) => new Date(s))` (the model sees the string, the action gets a `Date`).
+
+### SYG241
+
+**Agent read, when or label threw**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, and a throwing `label` leaves the key unlabelled. The app keeps running. Reported once per declaration and function.
+
+**Fix:** Make the function total over every state the component can have: guard optional fields (`state.todos?.length ?? 0`), and keep it a pure function of the state it gets.
+
+### SYG242
+
+**WebMCP tool over a size budget**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`experimentalExposeWebMcp()` keeps every tool inside Chrome's WebMCP budgets, which neither Chrome 153 nor the polyfill enforce: a tool name of at most 30 characters, a description of at most 500, a parameter description of at most 150, and a result of at most 1,500 characters of JSON. Something went over, and it was cut so the agent still gets a usable tool: a long name keeps its first 25 characters plus `_` and a 4-character hash of the whole (so names stay unique), a description or parameter description ends in `…`, and a long result keeps `ok` and `error`, gets `truncated: true`, and carries its `state` as a cut JSON string. The state summary appended to descriptions (D250) is shortened to fit without a report. Reported once per tool and part, in development.
+
+**Fix:** Shorten the `agent` declaration's `name`, the action names or the `description` texts, or make `read` return a smaller projection (counts and the fields an agent needs, not the whole state). A Collection item tool's key description lists every item's label: a shorter `label` keeps more of them.
+
+### SYG243
+
+**Agent action input schema converted with losses**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action. sygnal-check reports a `Date` in an `input` before the app runs (`z.date()`, `z.coerce.date()`, Valibot `v.date()`, ArkType `'Date'`): JSON can't carry a Date, so the model gets no schema for that field and the string it sends fails validation.
+
+**Fix:** Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement. For a date, take an ISO string and convert it in the reducer: `z.iso.datetime()` (Zod), `v.pipe(v.string(), v.isoDateTime())` (Valibot), `'string.date.iso'` (ArkType).
+
+### SYG244
+
+**Agent read returns strings, untrusted not declared**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+WebMCP marks a tool whose results may carry text from users (or other untrusted sources) with `untrustedContentHint`, so the agent treats that text as data, not instructions. `experimentalExposeWebMcp()` takes the hint from the declaration's `untrusted` field. This declaration doesn't set it and its `read` projection contains string values that aren't clearly the app's own (the rule: a string is user text unless it is under a key named `id`, `status`, `type` or `kind`, or is one of the string enum values of the same declaration's action inputs, such as a filter name), so the layer assumes they may be user-entered and adds the hint to the declaration's tools (and to the tools of declarations without a `read`, whose results carry this projection). The state summary in their descriptions is labelled as data. Reported once per declaration, in development.
+
+**Fix:** Declare it: `untrusted: true` when `read` returns user-entered text (todo texts, names, messages), `untrusted: false` when its strings are only the app's own (enum values, labels the app wrote).
+
+### SYG245
+
+**form tool option is not made by formTool()**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`form(schema, { tool })` (experimental, PLAN-6 A-3) offers the form to the browser's agent as a declarative WebMCP tool, but only when `tool` is made by `formTool({ name, description, autosubmit })` from `sygnal/ai`. The tool code lives in `formTool` so that apps using `form` without a tool don't carry it (D291); the form behavior only calls the hook on the object it is given. A plain `{ name, description }` object has no such hook: the form works as before but writes no `toolname` attributes and answers no agent. Reported once, in development.
+
+**Fix:** Wrap the object: `import { formTool } from 'sygnal/ai'`, then `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })`.
 
 ## SYG3xx: Streams
 
@@ -1488,6 +1588,36 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 **Fix:** Reorder only a list that is shown as it is stored: drop the Collection's `sort` for a reorderable list (sort the array itself, once, if it needs an initial order), and while a filter hides entries hide the drag handles (or render the full list) so a move can't pass hidden ones.
 
+### SYG440
+
+**Two agent declarations with the same name**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+Agent tools are named after the declaration (`agent.name`, else the component name): `todos_read`, `todos_add`. Two shown instances with different declarations, or the same non-item component rendered twice, produce the same tool names, so only the first one's tools are offered and the other can't be reached. (Collection items of one component are one keyed tool and are not reported.) Reported once per name while an agent layer runs. sygnal-check reports two declarations with the same literal name (or none, so the component names collide) when one component renders both, directly or through its children.
+
+**Fix:** Give each declaration its own `agent.name` (for a component rendered twice, derive it from a prop: `Panel.agent = { name: 'left_panel', ... }` on a wrapper per place), or narrow the layer with `agentTools(app, { from })`.
+
+### SYG441
+
+**Agent Collection items without unique ids**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+A Collection item component's `agent` actions become one tool with an `id` parameter whose values are the items' ids. Items without an `id` are keyed by their index, which shifts when an item is added or removed, so a model's call can reach the wrong item. Items whose ids repeat across Collections of the same item component (the same card id in two board lanes) are ambiguous: the call reaches the first. Reported once per declaration while an agent layer runs. sygnal-check reports an item component with an `agent` whose items visibly lack an id: an object literal without `id` in the parent's `initialState` array the Collection renders, or appended to it by the parent's model (`[...state.todos, { text }]`). The same id in two Collections depends on the data and is reported at run time only.
+
+**Fix:** Give every item an `id` that is unique across all the Collections of that item component (`{ id: 'todo-1', ... }`), or add an owner-level action that takes the qualified key (`MOVE_CARD: { input: z.object({ lane, card }) }`).
+
+### SYG442
+
+**Chat or command bar behavior not connected to its app**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+The `chat` and `commandBar` behaviors (sygnal/ai) run agent actions through the app's runtime, which they reach through a hook layer every app picks up when it starts. The first `chat()` or `commandBar()` call installs that layer, and also adds it to the app already running that `run()` registered (the page's first live app), so a component using one of them loaded lazily into that app works. Another app started before the first call (a second `run()` on the page, a `sygnal/element` custom element) can't be found and has none: its assistant still streams replies, but sends no tools, no `read` context, and runs no tool calls; its command bar runs no commands (its `error` says so). Reported once per behavior, also when diagnostics are off.
+
+**Fix:** Make the first `chat()` / `commandBar()` call happen before `run()`: define the host component (or call the factory once) in a module the entry imports, not only in a component loaded later.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501
@@ -1860,7 +1990,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 
 A component's model sends to a sink (for example `HTTP: (state) => ({ url: '/api/x' })`), or its intent reads a source (`HTTP.select('x')`), but `run()` got no driver with that name. Values sent to a sink without a driver are dropped silently, and a source without a driver is `undefined`, so the intent then fails with "Cannot read properties of undefined". `renderComponent()` does not report this: in tests it records such sinks (`t.requests(name)`) and fakes such sources (`t.respond` / `t.fail`), so a test suite can pass while the app drops every request. sygnal-check reports the sink case before the app runs: a model sink of a component that a `run()` call renders, when that call's drivers are an object literal (or absent) without that name. It says nothing when no `run()` call is in the checked files (Vike, Astro, a library), when the drivers can't be listed (a variable from another module, a spread, a computed key), or for the sinks the core handles itself (`STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST`, `LOG`).
 
-**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
+**Fix:** Pass the driver to `run()` under exactly that name: `run(App, { HTTP: makeFetchDriver() })` for HTTP requests, `run(App, { LLM: makeChatDriver({ transport: openResponses({ baseURL, model }) }) })` (from `sygnal/ai`) for an LLM chat sink, `driverFromAsync(fn)` for any promise-returning function, or your own driver. Check the spelling against the drivers you pass.
 
 ### SYG610
 
@@ -2122,6 +2252,96 @@ A `fromZag(zag, render)` widget's `render` returned a Sygnal component (`<Badge 
 
 **Fix:** Render plain elements in the `render` function (`<span className="badge">{props.text}</span>` instead of `<Badge text={props.text} />`). Pass data in through the widget's props, and put components, widgets and special JSX around the widget tag in the component's view instead of inside it.
 
+### SYG670
+
+**Auth header sent from the browser to a hosted endpoint**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A `sygnal/ai` HTTP transport (`openResponses`, `chatCompletions`, `anthropicMessages`, `uiMessageStream`, `agui`) running in a browser was about to send an auth header (`Authorization`, `x-api-key`, `api-key`, `x-goog-api-key`) to a host that is neither local (`localhost`, `127.0.0.1`, `[::1]`, `*.localhost`) nor the page's own origin. A key in browser code ships to everyone who opens the page, who can then spend it. The request is refused before anything is sent: the chat request fails (its `error` action gets the error, or SYG678 logs it) and this message is logged, in production too. Requests to the page's own origin (the app's server or proxy) and to local servers such as Ollama are allowed, and so is every request outside a browser (SSR, tests).
+
+**Fix:** Call the provider from your server and point the transport at that route: an AI SDK route with `uiMessageStream('/api/chat')`, or your own proxy with `openResponses({ baseURL: '/api/llm' })`, so the key stays there. Only for a key the user typed in themselves (a bring-your-own-key tool), pass `dangerouslyAllowBrowser: true` to the transport.
+
+### SYG672
+
+**Strict mode without the strict layer**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A transport (`openResponses`, `chatCompletions`, `anthropicMessages`) was given `strict: true`. Strict mode rewrites every tool schema (and the `output` schema) into the provider's strict subset, and that code is imported separately, as `strictSchemas` from `sygnal/ai`, so apps that don't use strict mode don't carry it (about 1.1 KB gzipped). `strict` takes that import, not a boolean. The transport sends its requests non-strict: the model may produce arguments outside the schemas, and the agent layer and the chat driver still validate every call. Reported in development, once per transport.
+
+**Fix:** Import the strict layer and pass it: `import { openResponses, strictSchemas } from 'sygnal/ai'` and `openResponses({ baseURL, model, strict: strictSchemas })`. Or drop `strict` to send portable schemas.
+
+### SYG673
+
+**Malformed chat stream event**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A chat transport (the `transport` of `makeChatDriver()`, from `sygnal/ai` or your own) yielded an event the driver can't use: not an object with a string `type`, a `text` or `reasoning` event whose `delta` isn't a string, a `tool-call` with no tool `name`, or a `tool-result` / `tool-error` whose `id` matches no tool call of the reply. The event is skipped and the stream goes on, so the reply may miss text or a tool call. Events of an unknown type are ignored silently, as the Open Responses spec requires; this is only for known types with the wrong shape. Reported for the first five such events per driver, in development.
+
+**Fix:** Fix the transport so it yields `ChatEvent`s (see `sygnal/ai`): `{ type: 'text', delta: 'Hi' }`, `{ type: 'reasoning', delta }`, `{ type: 'tool-call', id, name, input }`, `{ type: 'tool-result', id, output }`, `{ type: 'data', name, data }`, `{ type: 'finish', reason, usage }`. A transport that parses a wire format should map each provider event to one of these and drop the ones it doesn't know.
+
+### SYG674
+
+**WebMCP not available**
+
+Severity: `info` · Reported by: the Sygnal runtime (every app, production included)
+
+`experimentalExposeWebMcp()` found no WebMCP context: no `modelContext` option, and neither `document.modelContext` nor the older `navigator.modelContext` exists. That is the normal case in browsers without WebMCP (Chrome before the origin trial, Firefox, Safari) and on insecure pages, so it is only information: the call does nothing and returns a `stop()` whose `available` is `false`. Chrome 153 exposes WebMCP behind `chrome://flags/#enable-webmcp-testing` (`--enable-features=WebMCP`) or an origin trial token.
+
+**Fix:** Nothing to fix. To try it elsewhere, install `@mcp-b/webmcp-polyfill` (`installWebMCP()`) before the call, or pass `modelContext`. Use `stop.available` to show or hide UI that depends on an agent.
+
+### SYG675
+
+**Tool sent non-strict under strict mode**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A transport with `strict: strictSchemas` (`openResponses`, `chatCompletions`, `anthropicMessages`) rewrites each tool's input schema (and the `output` schema) into the provider's strict subset, so the model can only produce arguments that match. A schema with no strict form, such as a record (`z.record()`, `additionalProperties` with a schema) or a non-object root, and for Anthropic also a recursive schema, a value of any type, or a schema past Anthropic's per-request limits (20 strict tools, 24 optional and 16 union-typed parameters across the strict schemas), is sent non-strict on its own while the other tools stay strict. The model may then send arguments outside that schema; the agent layer and the chat driver still validate every call and return the issues. Collected in development (info), once per tool and transport.
+
+**Fix:** Give the schema a strict form: an object root with named properties instead of a record (for example an array of `{ key, value }` objects). Or accept the non-strict tool: validation still protects the state.
+
+### SYG676
+
+**WebMCP registerTool rejected**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`experimentalExposeWebMcp()` registers each agent tool with `document.modelContext.registerTool()`, which returns a Promise. The browser refused one: most often `InvalidStateError: Duplicate tool name` (another script, a second `experimentalExposeWebMcp()` call on the same page, or a declarative form registered the same name first), or an invalid name or empty description. The rejection is reported, never thrown, and that tool stays unavailable to the agent until its name, description or schema changes. Reported once per tool and registration, in development.
+
+**Fix:** Give each exposure its own `prefix` (`experimentalExposeWebMcp(app, { prefix: 'shop_' })`), rename the clashing `agent` declaration or form `toolname`, and call `stop()` before exposing the same app again.
+
+### SYG677
+
+**Chat request sent from outside a component**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request reached `makeChatDriver()` without the sender stamp the core puts on every value a component's model sends. The chat driver answers only with reply actions (`delta`, `tool`, `ok`, `error`) on the component that sent the request, and it has no `select()` stream, so a request from anywhere else (a stream written into the driver's sink by hand, a driver wrapper that rebuilds the request object, a test that calls the driver directly) could never be answered. It is dropped, and nothing is streamed.
+
+**Fix:** Send chat requests from a component's model: `SEND: { LLM: (state) => ({ messages: state.messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }`. A wrapper around the driver must pass the request object through unchanged (or copy its non-enumerable sender stamp). In tests, use `renderComponent`'s LLM fake (`t.stream('LLM', chunks)`).
+
+### SYG678
+
+**Chat request failed with no error action**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A `makeChatDriver()` request failed (the network or the provider returned an error, the transport threw, or the structured `output` was not valid JSON or failed its schema), and the request names no `error` action. The chat driver has no `errors()` stream, so without an `error` action the component never hears of the failure and stays in its streaming state. The driver logs the failure with this code, in production too. A stream that was aborted (`abort`, `latest`, a removed component, the app disposed) is not a failure and is never reported.
+
+**Fix:** Name an `error` action on the request and handle it: `{ messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' }` with `FAILED: (state, { error, issues }) => ({ ...state, status: 'error', error: error.message })`. In tests, `t.fail('LLM', error)` drives that action.
+
+### SYG679
+
+**Invalid chat request**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+A value sent to a `makeChatDriver()` sink is not a request the driver can send: it isn't an object, it has no `messages` array, its `coalesce` is not `'frame'`, `'none'` or a number of milliseconds, or its `output` is not a Standard Schema (an object with `~standard.validate`). The request is not sent, so no reply action follows. Stopping a stream is `{ abort: key }` or `{ abort: true }`, not a request.
+
+**Fix:** Send `{ messages: [...], ok: 'DONE', error: 'FAILED' }` (add `delta: 'DELTA'` to stream, `key` to name the request, `output: schema` for structured output with a Zod, Valibot or ArkType schema), or `{ abort: 'reply' }` to stop one. Return `ABORT` (or nothing) from the model entry when there is nothing to send.
+
 ## SYG9xx: Internal
 
 ### SYG900
@@ -2265,3 +2485,23 @@ Severity: `warn` · Reported by: `sygnal-check`
 A `sortable` use whose keyboard path or announcements can't work. Keyboard moves start on the handle (the item when there is no `handle` option): sygnal-check finds the elements that match it in the host's view and the views it renders (Collection items, children) and reports one that can't take focus (not a button, field, link with `href` or `summary`, no `tabIndex` or `tabIndex={-1}`, not contenteditable), or a focusable one other than a `<button>` (SYG705 covers those) with no `aria-label` / `aria-labelledby` / `title` and no content. It also reports a host that renders no live region (an element with `aria-live`, or `role="status"`, `"alert"` or `"log"`) in those views, since the pick-up, move and drop announcements are `state.<key>.message`. Options that aren't literal strings, selectors beyond tag / `.class` / `#id` (or the default `[data-id]`), elements with spread props and views it can't follow are skipped. It is a warning, also under `--strict`; `--a11y=error` makes it an error.
 
 **Fix:** Render the handle as `<button type="button" className="grip" aria-label={'Reorder ' + state.title} aria-describedby={context.sort.helpId}>`, and the message in a live region: `<p role="status" aria-live="assertive">{state.sort.message}</p>`. An app-wide announcer elsewhere: `// sygnal-ignore SYG724`.
+
+### SYG730
+
+**Action reachable only by hovering**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An intent action's stream comes only from `mouseenter` / `mouseover` (or `pointerenter` / `pointerover`) listeners, nothing else triggers it (no other DOM event in that stream, no `next()`, reply action, connection, timer or behavior), and its model entry changes the state. Keyboard users never hover and touch screens hover only on a tap, so what it shows (a tooltip, a preview, a menu) or does can't be reached by them. An `agent` declaration doesn't count as a path: it serves agents, not people. Only streams the checker can see in full are judged (DOM listeners with literal event names, xstream operators, callbacks); an entry without a STATE sink (a prefetch on hover) is not reported. It is a warning, also under `--strict`; `--a11y=error` makes it an error.
+
+**Fix:** Trigger the action from focus too, and close it on blur and Escape as on mouse leave: `SHOW: xs.merge(DOM.mouseenter('.card'), DOM.focusin('.card'))`, `HIDE: xs.merge(DOM.mouseleave('.card'), DOM.focusout('.card'))`; give the element a way to take focus (a `<button>`). For a tooltip, `tooltip()` from `sygnal/ui` handles hover, focus and Escape.
+
+### SYG731
+
+**Toggled state shown only by a class**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An element that a click listener targets shows an on/off or selected state only through a class that follows the state (`className={{ done: state.done }}`, `className={state.filter === 'done' ? 'selected' : ''}`), while the click's own STATE reducer flips that field (`done: !state.done`) or, for an equality, writes it (`filter: 'done'`). Sighted users see the change; a screen reader announces a plain button. To keep false positives low the class must follow a field the reducer toggles or selects (a busy class such as `{ saving: state.saving }` on a Save button is not reported), and elements that carry state natively (checkbox / radio inputs, `select`, `option`, `details` / `summary`, `label`) or already have `aria-pressed`, `aria-checked`, `aria-expanded`, `aria-selected` or `aria-current` are fine. It is a warning, also under `--strict`; `--a11y=error` makes it an error.
+
+**Fix:** Expose the state with the same condition as the class: `<button className={{ done: state.done }} aria-pressed={state.done}>`; `aria-selected` for a tab or listbox option, `aria-expanded` for a disclosure, `aria-checked` with `role="switch"`, `aria-current="page"` for the current link. Or use a native `<input type="checkbox">` with a label.

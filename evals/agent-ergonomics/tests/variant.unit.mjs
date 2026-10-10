@@ -380,6 +380,15 @@ test('PLAN-5 4-E variants: p5-final is branch; the F-1 pair differs only in its 
   for (const helper of ['formErrors', 'setField', 'checkForm', 'replyErrors', 'focusInvalid', 'processForm']) assert.match(appendB['AGENTS.md'], new RegExp(helper))
 })
 
+test('PLAN-6 4-E variant: p6-final is branch under its own name', async () => {
+  const load = (n) => loadVariant(n, { evalRoot: EVAL_ROOT })
+  const [br, fin] = await Promise.all([load('branch'), load('p6-final')])
+  const res = (x) => resolveVariant(x, { repoRoot: REPO_ROOT, model: 'claude-opus-5-5' })
+  const strip = ({ name, hash, file, paths, ...rest }) => rest
+  assert.deepEqual(strip(res(fin)), strip(res(br)), 'p6-final has exactly the content of branch')
+  assert.notEqual(res(fin).hash, res(br).hash, 'the name is hashed, so the runs are labeled')
+})
+
 test('claudeIsolation + buildClaudeArgs: isolated skills per arm, MCP only where asked', () => {
   const v = { skill: { name: 'sygnal-dev' }, mcp: { arms: ['sygnal'] } }
   const mat = { skillRoot: '/run/_variant/skillroot', mcpConfig: '/run/_variant/mcp.json', mcpAllow: ['mcp__sygnal-check'] }

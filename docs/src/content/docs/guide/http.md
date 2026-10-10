@@ -299,3 +299,5 @@ For reads, see the [pagination and infinite list recipes](/guide/resources/#reci
 - [Sockets](/guide/sockets/): WebSocket and server-sent events with `makeSocketDriver()`
 - [Custom Drivers](/guide/custom-drivers/): `driverFromAsync()` for any promise-returning function, and hand-written drivers
 - [Server Functions](/integration/server-functions/): calling Telefunc functions through a driver with reply actions
+- [AI Chat](/guide/ai-chat/): the chat driver, whose requests and reply actions work like these, with streamed text
+- [AI Decisions](/guide/ai-decisions/): `decide()` builds a request for this driver, for typed answers from a decision model

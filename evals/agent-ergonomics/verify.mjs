@@ -125,7 +125,7 @@ let ok = true
   const read = (p) => fs.readFileSync(p, 'utf8')
   const sy = armPaths('sygnal')
   const re = armPaths('react')
-  for (const f of ['queries.js', 'project.js']) {
+  for (const f of ['queries.js', 'project.js', 'aiserver.js']) {
     if (read(path.join(sy.support, f)) !== read(path.join(re.support, f))) {
       console.log(`MISMATCH: hidden/_support/${f} differs from react/hidden/_support/${f}`)
       ok = false

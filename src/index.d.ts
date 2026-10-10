@@ -8,9 +8,17 @@ import type { StateSource } from './cycle/state/StateSource'
 import xsDefault from 'xstream'
 import type { InspectGraph, InspectOptions } from './extra/diagnostics/checks/public'
 import type { MemoryStream, Stream } from 'xstream'
+// './ai.d', not './ai': that resolves to src/ai.ts (the re-exporting entry), whose types are any
+import type { AgentDeclaration, AgentTool, AgentResult, AgentConfirm } from './ai.d'
 
 export declare const ABORT: unique symbol
 export type ABORT = typeof ABORT
+/**
+ * PLAN-6 (D259): ABORT with a reason. A reducer returns `abort('the todo already has that text')`:
+ * no change, as ABORT; when an agent's tool call ran the action, the reason is its error
+ * (`'RENAME was refused: the todo already has that text'`).
+ */
+export declare function abort(reason?: string): ABORT
 
 export type DriverSpec<SOURCE = any, SINK = any> = {
   source: SOURCE;
@@ -978,11 +986,28 @@ export interface FormOptions<V = any> {
    * them when the user comes back)
    */
   resetOnShow?: boolean;
+  /**
+   * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
+   * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
+   * `tool: formTool({ name, description, autosubmit? })` (`formTool` from 'sygnal/ai'; D291: an app
+   * that doesn't import it doesn't carry the tool code). The behavior writes `toolname` /
+   * `tooldescription` / `toolautosubmit` on the `<form>` and a `toolparamdescription` on each
+   * named field (from its `<label>`, then its `aria-label`) as attributes; the view writes
+   * nothing. An agent's submit runs the same validation as a user's, and the agent's call answers
+   * a `FormToolResult`. A user's submit is unchanged. A plain object here is SYG245 (dev).
+   */
+  tool?: import('./ai.d').FormToolHandle;
 }
 
 export interface FormActions {
   /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
   CHANGE: { name: string; value: any; item?: any };
+  /**
+   * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
+   * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
+   * cleared; other fields keep their values, unknown names are skipped (G-647)
+   */
+  SET: { values: Record<string, any> };
   /** A field lost focus (focusout): its name */
   BLUR: string;
   /** The form element's submit (default prevented) */
@@ -1423,6 +1448,14 @@ export type Component<
    */
   context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT>;
   onError?: (error: Error, info: { componentName: string }) => any;
+  /**
+   * PLAN-6 A-1: what agents (the in-app assistant, WebMCP, coding agents) may do with this
+   * component and see of it: `{ name, description?, read?, label?, actions: { ACTION:
+   * { description, input?, consequential?, when?, idempotent? } } }`. Only the listed actions
+   * become tools; their keys are checked against the model's actions, and `input`'s output
+   * against the action's data. See `agentTools` in 'sygnal/ai'.
+   */
+  agent?: AgentDeclaration<STATE & CALCULATED, ACTIONS>;
   debug?: boolean;
   /**
    * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
@@ -1805,7 +1838,7 @@ export interface DevToolsCopyAsTestOptions {
   environment?: string
 }
 
-export type DevToolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type DevToolsActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 /** One instance's recorded session (the same as SessionRecording in 'sygnal/devtools') */
 export interface DevToolsSessionRecording {
@@ -2998,6 +3031,16 @@ export interface SimulatedEventInit {
   [prop: string]: any;
 }
 
+/** PLAN-6 L-4: a chunk t.stream sends into an LLM fake's stream */
+export type FakeChatChunk =
+  | string
+  | { reasoning: string }
+  | { toolCall: { id?: string; name: string; input?: unknown } }
+  | { toolResult: { id: string; output: unknown } }
+  | { data: unknown; name?: string; id?: string }
+  | { finish: string | { reason?: string; usage?: unknown } }
+  | import('./ai.d').ChatEvent
+
 /**
  * Which request a t.respond()/t.fail() answers, as options. An object with only these keys is
  * options; any other object is a request pattern (see `respond`).
@@ -3129,6 +3172,12 @@ export interface RenderOptions {
    */
   resourceSink?: string;
   /**
+   * PLAN-6 L-4: the driverless sink served by the LLM fake (default 'LLM'): the real
+   * makeChatDriver over an in-memory transport. Its requests are listed by t.requests and stay
+   * pending until t.stream / t.respond / t.fail answer them.
+   */
+  llmSink?: string;
+  /**
    * PLAN-3 5-3: options for the HTTP fakes' makeFetchDriver (all but `fetch`), e.g.
    * `{ cache: queryCache() }`. Focus / reconnect refetches come only from t.focus() / t.online()
    */
@@ -3235,7 +3284,7 @@ export type ActiveTimer = TimerSpec & {
  * `let t: RenderResult<State>`. Defaults to `any` (untyped tests compile as before).
  */
 /** PLAN-4 GS-10: where an action in `t.actions` came from */
-export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior'
+export type ActionCause = 'intent' | 'next' | 'reply' | 'built-in' | 'simulateAction' | 'behavior' | 'agent'
 
 /**
  * PLAN-4 GS-10: one action in renderComponent's `t.actions`. `sinks` fills in as the action's
@@ -3252,7 +3301,7 @@ export interface TestAction {
   instance: string
   /** The sinks that produced a value: not ABORT; STATE not the unchanged state; EFFECT when it ran */
   sinks: string[]
-  /** 'intent' | 'next' (a reducer's or EFFECT's next()) | 'reply' (reply actions) | 'built-in' (INITIALIZE, BOOTSTRAP, DISPOSE, RESOURCE) | 'simulateAction' | 'behavior' */
+  /** 'intent' | 'next' (a reducer's or EFFECT's next()) | 'reply' (reply actions) | 'built-in' (INITIALIZE, BOOTSTRAP, DISPOSE, RESOURCE) | 'simulateAction' | 'behavior' | 'agent' (an agent's tool call, sygnal/ai) */
   cause: ActionCause
   /** ms since renderComponent() was called (the fake clock under fake timers) */
   at: number
@@ -3367,6 +3416,8 @@ export interface RenderResult<STATE = any> {
    * delivered after them, waiting up to 1s (half of timeoutMs if lower) for the request.
    * Resolves once the reply has been reduced and the tree rendered; rejects (and, if not
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
+   * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end
+   * of the stream (a non-string `value` is sent as JSON, for structured output).
    */
   respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
@@ -3375,8 +3426,22 @@ export interface RenderResult<STATE = any> {
    * `{ error, category, request, status, body }` on `HTTP.errors(category)`. `error`: an HTTP
    * status (an error response: 404 → the driver's Error 'HTTP 404: url', status 404), or an
    * Error / message (a network failure: no status).
+   * On the LLM fake: the stream fails with `error` (a number: Error 'HTTP 429' with `status`), and
+   * the request's `error` action gets `{ key, error, request }`; a request with no `error` action
+   * throws (the driver would only log it, SYG678).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * PLAN-6 L-4: stream into a pending request of the LLM fake (the sink named by `llmSink`,
+   * default 'LLM': the real makeChatDriver over an in-memory transport). Chunks: strings (text),
+   * `{ reasoning }`, `{ toolCall: { id?, name, input } }`, `{ toolResult: { id, output } }`,
+   * `{ data, name?, id? }`, `{ finish: reason | { reason, usage } }`, or ChatEvents. Each call is
+   * one frame: at most one `delta` action, with no timers involved (fake timers work unchanged).
+   * The stream then ends (the `ok` action) unless `{ end: false }` is passed, as the last
+   * argument or in the target options; a `{ finish }` chunk ends it too. The request is chosen
+   * as in respond. Resolves once the replies are reduced and the tree rendered.
+   */
+  stream: (sinkName: string, chunks: FakeChatChunk[], target?: string | (FakeReplyOptions & { end?: boolean }) | Record<string, any> | ((request: any) => boolean), options?: { end?: boolean }) => Promise<void>;
   /**
    * A driverless sink that gets `{ connections }` / `{ to }` values (e.g. `WS` with no
    * `drivers: { WS }`) is a fake makeSocketDriver: diffed per component and connection name,
@@ -3517,6 +3582,24 @@ export interface RenderResult<STATE = any> {
     <P = any, I = any>(selector: string): WidgetHandle<P, I>;
     <CONTROL extends AnyControl>(control: CONTROL): WidgetHandle<CONTROL extends { readonly [CONTROL]: { props: infer P } } ? P : any>;
   };
+  /**
+   * PLAN-6 A-4: the agent tools of the shown instances' `agent` declarations (`{ name,
+   * description, inputSchema, annotations }`); a declared tool that can't be offered (SYG240) is
+   * listed with its `error`.
+   */
+  tools: () => AgentTool[];
+  /**
+   * PLAN-6 A-4: run a tool as an agent does (cause 'agent'); resolves with the result after the
+   * flush. A consequential tool throws unless `confirm` says the user's answer (D261):
+   * `t.callTool('todo_remove', { id: 1 }, { confirm: true })`.
+   */
+  callTool: (name: string, args?: unknown, options?: { confirm?: AgentConfirm }) => Promise<AgentResult>;
+  /**
+   * PLAN-6 A-4: what a model sees of the app: the `read` projections keyed by declaration `name`
+   * (an item declaration's: an array, one projection per live item, each with its `id`).
+   * `agent = { name: 'todos', read: s => ({ todos: s.todos }) }` gives `{ todos: { todos: [...] } }`
+   */
+  agentContext: () => Record<string, unknown>;
 }
 
 /** `t.widget(target)` (PLAN-5 W-1) */
@@ -3642,3 +3725,33 @@ declare global {
     type LibraryManagedAttributes<C, P> = ElementProps<P>
   }
 }
+
+// PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
+export { messageText, withToolResults } from './ai.d'
+export { decide, choice, noul, score } from './ai.d'
+export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
+export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'
+// PLAN-6 L-1 (1-L)
+export { makeChatDriver, outputJsonSchema } from './ai.d'
+// PLAN-6 A-2 (2-W)
+export { experimentalExposeWebMcp } from './ai.d'
+export type { ExposeWebMcpOptions, WebMcpHandle } from './ai.d'
+export { formTool } from './ai.d'
+export type { FormTool, FormToolHandle, FormToolResult } from './ai.d'
+// L-2 (2-T)
+export { openResponses, chatCompletions, uiMessageStream, chromePrompt, encodeOpenResponses } from './ai.d'
+export type { OpenResponsesOptions, ChatCompletionsOptions, UIMessageStreamOptions, ChromePromptOptions, ChromePromptTransport, ChromePromptStatus, HttpTransportOptions, OpenResponsesEvent, ChatUsage } from './ai.d'
+// L-2 (3-W2)
+export { anthropicMessages, agui, fromAISDK, strictSchemas } from './ai.d'
+export type { AnthropicMessagesOptions, AguiOptions, FromAISDKOptions, StrictSchemas, StrictDialect } from './ai.d'
+export type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatCall, ChatEvent, ChatTransport, ChatDriverOptions, ChatSource, ChatTool, ChatOutputSchema, ChatOutputOf } from './ai.d'
+// PLAN-6 L-3 (2-C)
+export { chat } from './ai.d'
+export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from './ai.d'
+// PLAN-6 M-2 / M-3 (3-M)
+export { answers, commandBar } from './ai.d'
+export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, CommandBarActions, CommandBarOptions, CommandBarResult, CommandBarUnsure } from './ai.d'
+// PLAN-6 X-1 (3-X)
+export { makeMcpAppDriver } from './ai.d'
+export type { McpAppDriverOptions, McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext, McpContentBlock, McpAppDisplayMode } from './ai.d'
+export type { McpHostInfo, McpSamplingRequest, McpLogLevel, McpDownloadItem, McpResourceContents } from './ai.d'

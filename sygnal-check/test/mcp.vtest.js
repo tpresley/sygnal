@@ -127,7 +127,7 @@ describe('createMcpServer().handle', () => {
   const { handle } = createMcpServer({ cwd: pkgRoot })
   it('ignores notifications and negotiates the protocol version', () => {
     expect(handle({ jsonrpc: '2.0', method: 'notifications/initialized' })).toBe(null)
-    expect(handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '1999-01-01' } }).result.protocolVersion).toBe('2025-06-18')
+    expect(handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '1999-01-01' } }).result.protocolVersion).toBe('2025-11-25')
     expect(handle({ jsonrpc: '2.0', id: 2, method: 'initialize', params: { protocolVersion: '2024-11-05' } }).result.protocolVersion).toBe('2024-11-05')
   })
 })
@@ -137,7 +137,7 @@ describe('createMcpServer().handle never throws (R2)', () => {
   it('treats params: null / non-object params as {}', () => {
     for (const params of [null, 5, 'x', [1, 2], true]) {
       const init = handle({ jsonrpc: '2.0', id: 1, method: 'initialize', params })
-      expect(init.result.protocolVersion).toBe('2025-06-18')
+      expect(init.result.protocolVersion).toBe('2025-11-25')
       const call = handle({ jsonrpc: '2.0', id: 2, method: 'tools/call', params })
       expect(call.error).toEqual({ code: -32602, message: 'Unknown tool: undefined' })
       expect(handle({ jsonrpc: '2.0', id: 3, method: 'tools/list', params }).result.tools.length).toBe(3)
@@ -154,7 +154,7 @@ describe('createMcpServer().handle never throws (R2)', () => {
       s.raw(JSON.stringify({ jsonrpc: '2.0', id: 'raw', method: 'initialize', params: null }))
       const ping = await s.request('ping')
       expect(ping.result).toEqual({})
-      expect(s.lines[0].result.protocolVersion).toBe('2025-06-18')
+      expect(s.lines[0].result.protocolVersion).toBe('2025-11-25')
     } finally { await s.close() }
   })
 })

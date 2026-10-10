@@ -1,6 +1,6 @@
 {
   "name": "create-sygnal-app",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Scaffold a new Sygnal project",
   "type": "module",
   "bin": {
@@ -16,7 +16,9 @@
     "template-vike",
     "template-vike-ts",
     "template-astro",
-    "template-astro-ts"
+    "template-astro-ts",
+    "template-mcp-app",
+    "template-mcp-app-ts"
   ],
   "keywords": [
     "sygnal",

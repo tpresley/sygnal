@@ -91,6 +91,18 @@ describe('SYG609: sink or source with no driver', () => {
     expect(found[0].data).toMatchObject({ name: 'API', kind: 'sink', action: 'SAVE' })
   })
 
+  it('an LLM sink gets the chat driver as the fix (PLAN-6 G-620)', async () => {
+    function Chat() { return h('button', { className: 'ask' }, 'ask') }
+    Chat.initialState = { messages: [] }
+    Chat.intent = ({ DOM }) => ({ ASK: DOM.click('.ask') })
+    Chat.model = { ASK: { LLM: s => ({ messages: s.messages, ok: 'DONE' }) }, DONE: s => s }
+    app = run(Chat, {}, { mountPoint: '#root', diagnostics: 'collect' })
+    await vi.waitFor(() => expect(diagnostics('SYG609')).toHaveLength(1), { timeout: 5000, interval: 5 })
+    const [d] = diagnostics('SYG609')
+    expect(d.fix).toContain('makeChatDriver({ transport: openResponses(')
+    expect(d.fix).not.toContain('makeFetchDriver')
+  })
+
   it('is not reported when the driver is passed, for built-in sinks, or under renderComponent', async () => {
     function App() { return h('div', null, 'x') }
     App.initialState = {}
