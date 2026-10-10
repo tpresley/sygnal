@@ -568,8 +568,21 @@ A transport speaks one wire format. Pick the one your server or model speaks; ev
 
 Each HTTP transport takes `headers` (an object, or a function of the request), `fetch` (another fetch: a test server, a proxy, SSR), `body` (extra JSON fields for every request) and `dangerouslyAllowBrowser`.
 
-- `chromePrompt()` sends no tools (the Prompt API has none yet), and fails on a `system` message in the middle of a conversation: put system text in `instructions`. Its `status()` resolves with `'available'`, `'downloadable'`, `'downloading'` or `'unavailable'`.
-- `fromAISDK` takes `streamText` (and `Output`, for structured output) from your own `ai` import, so Sygnal never depends on the AI SDK: `fromAISDK({ streamText, Output, model: anthropic('claude-opus-5-5') })`.
+- `chromePrompt()` sends no tools (the Prompt API has none yet). The Prompt API takes one system prompt, so `instructions` and every `system` message, wherever it is in the conversation, are joined into it. Its `status()` resolves with `'available'`, `'downloadable'`, `'downloading'` or `'unavailable'`; a component reads it through [`driverFromAsync`](/guide/custom-drivers/), with no awaiting in `main.js`:
+
+  ```js
+  // main.js
+  const onDevice = chromePrompt()
+  run(App, { LLM: makeChatDriver({ transport: onDevice }), MODEL: driverFromAsync(onDevice.status) })
+
+  // App.jsx
+  App.model = {
+    BOOTSTRAP: { MODEL: () => ({ ok: 'MODEL_STATUS' }) },
+    MODEL_STATUS: (state, status) => ({ ...state, model: status }),   // 'available', 'downloadable', …
+  }
+  ```
+
+- `fromAISDK` takes `streamText` (and `Output`, for structured output) from your own `ai` import, so Sygnal never depends on the AI SDK: `fromAISDK({ streamText, Output, model: anthropic('claude-opus-5-5') })`. A request's `model` picks another model: a model id is resolved through the `models` option, a provider or a map (`fromAISDK({ streamText, model: anthropic('claude-opus-5-5'), models: anthropic })`, then `{ model: 'claude-haiku-5-5', ... }` on a request). A model id without `models`, or one `models` doesn't resolve, fails the request: it never falls back to the AI SDK's global provider or to the default model.
 
 ### Strict schemas
 
@@ -581,7 +594,7 @@ import { makeChatDriver, openResponses, strictSchemas } from 'sygnal/ai'
 makeChatDriver({ transport: openResponses({ baseURL: '/api/openai/v1', model: 'gpt-6-luna', strict: strictSchemas }) })
 ```
 
-`strictSchemas` rewrites each schema to the provider's subset (optional keys become required and nullable; the nulls are dropped again before validation). A schema with no strict form is sent non-strict, with a [SYG675](/reference/errors/#syg675) warning in development. It is an import, not `strict: true`, so apps that don't use strict mode don't carry it; `strict: true` is a development error ([SYG672](/reference/errors/#syg672)). Without it, Claude may reject an `output` schema that uses keywords outside its subset (a 400); `strict: strictSchemas` on `anthropicMessages` avoids that.
+`strictSchemas` rewrites each schema to the provider's subset (optional keys become required and nullable; the nulls are dropped again before validation). A schema with no strict form is sent non-strict, with a [SYG675](/reference/errors/#syg675) warning in development. It is an import, not `strict: true`, so apps that don't use strict mode don't carry it; `strict: true` is a development error ([SYG672](/reference/errors/#syg672)). Claude's structured output always uses its subset, so without `strict`, `anthropicMessages` still sends the `output` schema in it: keywords Claude doesn't support (`minLength`, `pattern`, `minimum`, `uniqueItems`, …) move into the description, where the model still reads them, and every object gets `additionalProperties: false`. The reply is validated against your original schema. Tool schemas without `strict` go as they are: Claude takes any JSON Schema there.
 
 ### Writing your own transport
 

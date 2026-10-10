@@ -10,6 +10,8 @@ import { validateUIMessages, convertToModelMessages } from 'ai'
 import run from '../src/extra/run.ts'
 import { createElement as h } from '../src/pragma/index.ts'
 import { makeChatDriver } from '../src/extra/ai/chat/driver.ts'
+import { driverFromAsync } from '../src/extra/driverFactories.ts'
+import { renderComponent } from '../src/extra/testing.ts'
 import { openResponses } from '../src/extra/ai/transports/openResponses.ts'
 import { chatCompletions } from '../src/extra/ai/transports/chatCompletions.ts'
 import { uiMessageStream } from '../src/extra/ai/transports/uiMessageStream.ts'
@@ -127,6 +129,8 @@ describe('chromePrompt (LanguageModel stub)', () => {
     const LanguageModel = {
       availability: vi.fn(async () => availability),
       create: vi.fn(async opts => {
+        // as the Prompt API: a system prompt only as the first initial prompt
+        if ((opts.initialPrompts || []).some((p, i) => i > 0 && p.role == 'system')) throw new TypeError('system role is only allowed first')
         log.created.push(opts)
         return {
           promptStreaming: (input, o) => { log.prompts.push([input, o]); return new ReadableStream({ start(c) { chunks.forEach(x => c.enqueue(x)); c.close() } }) },
@@ -151,6 +155,38 @@ describe('chromePrompt (LanguageModel stub)', () => {
     expect(log.prompts[0][0]).toBe('three')
     expect(log.prompts[0][1].responseConstraint).toEqual({ type: 'object', properties: { a: { type: 'string' } }, required: ['a'] })
     expect(log.destroyed).toBe(1)
+  })
+
+  it('G-630: system messages anywhere (and instructions) are joined into the one first system prompt', async () => {
+    const { LanguageModel, log } = stub()
+    const sys = text => ({ role: 'system', parts: [{ type: 'text', text }] })
+    const ev = await collect(chromePrompt({ LanguageModel }), { instructions: 'Be brief', messages: [sys('Rule 1.'), user('one'), { role: 'assistant', content: 'two' }, sys('Now in French.'), user('three'), sys('After.')] })
+    expect(ev.at(-1)).toEqual({ type: 'finish', reason: 'stop' })
+    expect(log.created[0].initialPrompts).toEqual([{ role: 'system', content: 'Be brief\n\nRule 1.\n\nNow in French.\n\nAfter.' }, { role: 'user', content: 'one' }, { role: 'assistant', content: 'two' }])
+    expect(log.prompts[0][0]).toBe('three')
+    // no instructions, no system messages: no system prompt
+    await collect(chromePrompt({ LanguageModel }), { messages: [user('a')] })
+    expect(log.created[1].initialPrompts).toEqual([])
+  })
+
+  it('G-647: a component reads status() through driverFromAsync (no awaiting in main.js)', async () => {
+    const { LanguageModel } = stub('downloadable')
+    const transport = chromePrompt({ LanguageModel })
+    const seen = []
+    function T({ state }) { return h('p', { className: 'model' }, state.model) }
+    T.initialState = { model: 'checking' }
+    T.model = {
+      BOOTSTRAP: { MODEL: () => ({ ok: 'MODEL_STATUS' }) },
+      MODEL_STATUS: (s, status) => { seen.push(status); return { ...s, model: status } },
+    }
+    app = run(T, { LLM: makeChatDriver({ transport }), MODEL: driverFromAsync(transport.status) }, { mountPoint: '#root' })
+    await until(() => document.querySelector('.model')?.textContent == 'downloadable', 'the status')
+    expect(seen).toEqual(['downloadable'])
+    // in a test (the summarize recipe): the MODEL fake answers it
+    const t = renderComponent(T)
+    await t.respond('MODEL', 'available')
+    expect(t.state.model).toBe('available')
+    t.dispose()
   })
 
   it('under the driver: text reaches ok; unavailable fails with status', async () => {

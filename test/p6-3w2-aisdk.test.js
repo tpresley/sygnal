@@ -4,7 +4,7 @@
 // without execute, structured output through Output, errors and abort.
 import { describe, it, expect } from 'vitest'
 import { z } from 'zod'
-import { streamText, Output } from 'ai'
+import { streamText, Output, customProvider } from 'ai'
 import { MockLanguageModelV4, convertArrayToReadableStream } from 'ai/test'
 import { fromAISDK, toModelMessages } from '../src/extra/ai/transports/fromAISDK.ts'
 import { toJsonSchema } from '../src/extra/ai/schema/index.ts'
@@ -82,9 +82,9 @@ describe('fromAISDK: the stream', () => {
 })
 
 describe('fromAISDK: the request', () => {
-  it('instructions, settings, structured output through Output.object, the request model ignored', async () => {
+  it('instructions, settings, structured output through Output.object', async () => {
     const m = model([{ type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', delta: '{"a":"x"}' }, { type: 'text-end', id: 't' }, finish('stop')])
-    const ev = await collect(fromAISDK({ streamText, Output, model: m, temperature: 0.2 }), { instructions: 'Be brief', model: 'other', messages: [user('x')], output: z.object({ a: z.string() }) })
+    const ev = await collect(fromAISDK({ streamText, Output, model: m, temperature: 0.2 }), { instructions: 'Be brief', messages: [user('x')], output: z.object({ a: z.string() }) })
     expect(ev.filter(e => e.type == 'text').map(e => e.delta).join('')).toBe('{"a":"x"}')
     const call = m.doStreamCalls[0]
     expect(call.temperature).toBe(0.2)
@@ -133,4 +133,39 @@ describe('fromAISDK: the request', () => {
       { role: 'assistant', content: [{ type: 'text', text: 'Done.' }] },
     ])
   })
+})
+
+describe('fromAISDK: the request’s model (G-637)', () => {
+  const textModel = (text, id) => {
+    const m = model([{ type: 'text-start', id: 't' }, { type: 'text-delta', id: 't', delta: text }, { type: 'text-end', id: 't' }, finish('stop')])
+    Object.defineProperty(m, 'modelId', { value: id })
+    return m
+  }
+  const text = ev => ev.filter(e => e.type == 'text').map(e => e.delta).join('')
+  const fast = textModel('fast', 'fast'), smart = textModel('smart', 'smart'), base = textModel('base', 'base')
+
+  it('without a request model: the model option', async () => {
+    expect(text(await collect(fromAISDK({ streamText, model: base }), { messages: [user('x')] }))).toBe('base')
+  })
+
+  it('a LanguageModel object on the request is used as is', async () => {
+    expect(text(await collect(fromAISDK({ streamText, model: base }), { messages: [user('x')], model: smart }))).toBe('smart')
+  })
+
+  it('a string through `models`: a map, a provider function (customProvider), an unknown id is an Error', async () => {
+    expect(text(await collect(fromAISDK({ streamText, model: base, models: { fast, smart } }), { messages: [user('x')], model: 'fast' }))).toBe('fast')
+    const provider = customProvider({ languageModels: { fast, smart } })
+    expect(text(await collect(fromAISDK({ streamText, model: base, models: id => provider.languageModel(id) }), { messages: [user('x')], model: 'smart' }))).toBe('smart')
+    await expect(collect(fromAISDK({ streamText, model: base, models: { fast, smart } }), { messages: [user('x')], model: 'slow' }))
+      .rejects.toThrow("fromAISDK: no model 'slow': the models option doesn't resolve it (it has fast, smart)")
+  })
+
+  it('a string without `models` is an Error (never the AI SDK’s global provider, never silently the option’s model)', async () => {
+    const seen = []
+    const spy = o => { seen.push(o); return streamText(o) }
+    await expect(collect(fromAISDK({ streamText: spy, model: base }), { messages: [user('x')], model: 'acme/fast' }))
+      .rejects.toThrow("fromAISDK: no model 'acme/fast': pass models")
+    expect(seen).toEqual([])
+  })
+
 })
