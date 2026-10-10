@@ -2,9 +2,9 @@
 
 **Goal:** show `sygnal-check`'s findings in the editor *while the code is being written*, for people (VS Code, Neovim, Zed, Helix, JetBrains) and for coding agents (Claude Code), from one language server. The wiring bugs it finds fail silently at runtime: a misspelled action does nothing, and a selector that doesn't match fires nothing. Today they appear only when someone runs the CLI or the MCP server, or after a save while the Vite dev server runs.
 
-**Release:** proposed **sygnal-check 0.4.0** (additive: the `lsp` subcommand, the shared config file, end ranges); **create-sygnal-app 2.2.0** (templates recommend the extension and carry the config); the VS Code extension **0.1.0** on its own version line. `sygnal` itself changes only if P7-Q3 has the Vite plugin read the shared config: a patch, **6.1.1**. P7-Q1.
+**Release (D297):** **sygnal-check 0.4.0** (additive: the `lsp` subcommand, the shared config file, end ranges); **create-sygnal-app 2.2.0** (templates recommend the extension and carry the config); the VS Code extension **0.1.0** on its own version line. `sygnal` itself changes only if P7-Q3 has the Vite plugin read the shared config: a patch, **6.1.1**. P7-Q1.
 
-**Status:** proposed, not started. The research and the decision to build it: [`research/ide-tooling.md`](research/ide-tooling.md) (the user agreed with its recommendations on 2026-10-10). Phase 0 cuts `plan7-integration` from `main` and creates `dev-plans/PLAN-7-status.md` in the PLAN-6 format.
+**Status:** planned, not started; §5's questions answered (D297–D304, 2026-10-10). The research and the decision to build it: [`research/ide-tooling.md`](research/ide-tooling.md) (the user agreed with its recommendations on 2026-10-10). Phase 0 cuts `plan7-integration` from `main` and creates `dev-plans/PLAN-7-status.md` in the PLAN-6 format.
 
 **Branches:**
 - integration: `plan7-integration`;
@@ -14,7 +14,7 @@
 **IDs:**
 - items C- (checker groundwork), L- (language server), V- (VS Code extension), I- (other integrations: the Claude Code plugin, other editors, templates), N- (navigation and completions, gated), D- (docs), E- (eval);
 - questions P7-Q1…;
-- decisions and gaps continue the global numbering: **D297…** and **G-657…** (PLAN-6 ended at D296 and G-656).
+- decisions and gaps continue the global numbering: **D297…** (D297–D304 taken by §5) and **G-657…** (PLAN-6 ended at D296 and G-656).
 
 **Inputs:**
 - The research: [`research/ide-tooling.md`](research/ide-tooling.md) (landscape, experiments A and B, delivery options) and the proof of concept in [`research/ide-tooling-poc/`](research/ide-tooling-poc/) (`server.mjs`: a zero-dependency LSP over stdio with diagnostics, hover and quick fixes; `client.mjs`: a scripted editor; `bench.mjs`; the fixture with the three component forms). Subagents read both before starting an item.
@@ -222,7 +222,7 @@ Measure failed runs, iterations, wall time, cost, peak context, and the wiring b
 
 | Phase | Work | Detail |
 |---|---|---|
-| **0: Setup** (coordinator; spikes by subagents on `exp/p7-*`) | **0-A** baseline | Cut `plan7-integration` from `main`. Create `PLAN-7-status.md`, record the answers to §5 as D297… Re-run the PoC and `bench.mjs` on the branch. Generate the large-project fixture for the latency gate (§3). Estimate E-1's spend for the user. |
+| **0: Setup** (coordinator; spikes by subagents on `exp/p7-*`) | **0-A** baseline | Cut `plan7-integration` from `main`. Create `PLAN-7-status.md`, copy D297–D304 (§5) into it. Re-run the PoC and `bench.mjs` on the branch. Generate the large-project fixture for the latency gate (§3). Estimate E-1's spend for the user. |
 | | **0-S1** ranges | Run C-2's audit as a spike: for each rule, which node it should underline, and how many need changes. Output: a table per rule, the effort for C-2, and any rule whose finding has no single good node. |
 | | **0-S2** clients | Drive the PoC server from real clients: VS Code (a throwaway extension), Neovim, Helix, LSP4IJ, and Claude Code through a local plugin (`lspServers`). Record per client: does it use push or pull diagnostics, does it render `codeDescription` and `data`, does it send `didChangeWatchedFiles`, and how Claude Code surfaces the diagnostics to the model (after each edit, as a tool, both; any flag). Output: the capability matrix L-1 targets, and E-1's design. |
 | | **0-S3** positions | Size N-1: which model structures already keep their nodes, and what's missing. Output: an estimate in days, for P7-Q6. |
@@ -259,16 +259,18 @@ None. The plan adds no runtime or static codes. A malformed config file (C-5) is
 
 ## 5. Decisions before Phase 1
 
+The user accepted every recommendation on 2026-10-10 (D297–D304); 0-A copies them into `PLAN-7-status.md`.
+
 | # | Question | Recommendation |
 |---|---|---|
-| P7-Q1 | Release | **sygnal-check 0.4.0, create-sygnal-app 2.2.0, extension 0.1.0**; `sygnal` 6.1.1 only for P7-Q3's Vite default. N- items (if any) as sygnal-check 0.5.0 / extension 0.2.0. |
-| P7-Q2 | Where the server lives | **Inside `sygnal-check` as `sygnal-check lsp`, hand-written** (as `mcp` is), not a separate `sygnal-language-server` package on `vscode-languageserver`. One version to keep in step with the rules, `npx --no-install sygnal-check lsp` works wherever the CLI does, and the dependency list stays `@babel/parser`. The protocol surface we need (lifecycle, sync, publish/pull diagnostics, hover, code actions, later completion/definition/rename) is small, and a client library checks conformance in tests. |
-| P7-Q3 | Shared config | **Add `sygnal-check.config.json` / the `package.json` `"sygnal-check"` key (C-5), and let the Vite plugin's `check` option default to it.** Without it, the editor and the Vite overlay can disagree (the overlay takes `strict` from `diagnostics.strict` in `vite.config`, which the server must not evaluate). Cost: a `sygnal` patch release. The alternative (editor settings only) is less code and guarantees drift. |
-| P7-Q4 | Extension identity and publishing | **Publisher `sygnal` (or the user's existing one), extension id `sygnal.sygnal`, source in `editors/vscode/`, published to the VS Code Marketplace and Open VSX by the user**, with `vscode-languageclient` bundled in the `.vsix` (D209 covers npm builds; an extension can't do otherwise). The user creates the publisher accounts and keeps the tokens; agents never publish. |
-| P7-Q5 | Which `sygnal-check` the extension runs | **The workspace's copy first, the bundled copy as a fallback with a visible note.** The editor matches the project's CLI and CI version; projects without `sygnal-check` (or with an older one) still get diagnostics. |
-| P7-Q6 | Navigation and completions (N-1/N-2) | **Gate them after Phase 2.** Decide on 0-S3's estimate and first-release feedback. The diagnostics, hover and fixes carry most of the value the research found. |
-| P7-Q7 | E-1 eval and its decision rule | **Run it on Haiku and Sonnet, after the release point, with spend approved first.** Recommend the plugin in agent docs only on ≥ 20% fewer failed runs or iterations with no pass-rate loss (E1/E8 showed tools agents *can* use don't help Opus on planted bugs). |
-| P7-Q8 | The Claude Code plugin's contents | **The LSP server plus the `sygnal-dev` skill; the MCP server not enabled by default.** The skill finally gets a one-step install; E8 showed the MCP server isn't worth the agent's attention by default. |
+| P7-Q1 | Release | **User, 2026-10-10: accepted (D297).** **sygnal-check 0.4.0, create-sygnal-app 2.2.0, extension 0.1.0**; `sygnal` 6.1.1 only for P7-Q3's Vite default. N- items (if any) as sygnal-check 0.5.0 / extension 0.2.0. |
+| P7-Q2 | Where the server lives | **User, 2026-10-10: accepted (D298).** **Inside `sygnal-check` as `sygnal-check lsp`, hand-written** (as `mcp` is), not a separate `sygnal-language-server` package on `vscode-languageserver`. One version to keep in step with the rules, `npx --no-install sygnal-check lsp` works wherever the CLI does, and the dependency list stays `@babel/parser`. The protocol surface we need (lifecycle, sync, publish/pull diagnostics, hover, code actions, later completion/definition/rename) is small, and a client library checks conformance in tests. |
+| P7-Q3 | Shared config | **User, 2026-10-10: accepted (D299).** **Add `sygnal-check.config.json` / the `package.json` `"sygnal-check"` key (C-5), and let the Vite plugin's `check` option default to it.** Without it, the editor and the Vite overlay can disagree (the overlay takes `strict` from `diagnostics.strict` in `vite.config`, which the server must not evaluate). Cost: a `sygnal` patch release. The alternative (editor settings only) is less code and guarantees drift. |
+| P7-Q4 | Extension identity and publishing | **User, 2026-10-10: accepted (D300).** **Publisher `sygnal` (or the user's existing one), extension id `sygnal.sygnal`, source in `editors/vscode/`, published to the VS Code Marketplace and Open VSX by the user**, with `vscode-languageclient` bundled in the `.vsix` (D209 covers npm builds; an extension can't do otherwise). The user creates the publisher accounts and keeps the tokens; agents never publish. |
+| P7-Q5 | Which `sygnal-check` the extension runs | **User, 2026-10-10: accepted (D301).** **The workspace's copy first, the bundled copy as a fallback with a visible note.** The editor matches the project's CLI and CI version; projects without `sygnal-check` (or with an older one) still get diagnostics. |
+| P7-Q6 | Navigation and completions (N-1/N-2) | **User, 2026-10-10: accepted (D302).** **Gate them after Phase 2.** Decide on 0-S3's estimate and first-release feedback. The diagnostics, hover and fixes carry most of the value the research found. |
+| P7-Q7 | E-1 eval and its decision rule | **User, 2026-10-10: accepted (D303).** **Run it on Haiku and Sonnet, after the release point, with spend approved first.** Recommend the plugin in agent docs only on ≥ 20% fewer failed runs or iterations with no pass-rate loss (E1/E8 showed tools agents *can* use don't help Opus on planted bugs). |
+| P7-Q8 | The Claude Code plugin's contents | **User, 2026-10-10: accepted (D304).** **The LSP server plus the `sygnal-dev` skill; the MCP server not enabled by default.** The skill finally gets a one-step install; E8 showed the MCP server isn't worth the agent's attention by default. |
 
 ## 6. Risks
 
