@@ -2,6 +2,7 @@
  * sygnal-check [paths...] [--json] [--strict] [--a11y=warn|error] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose] [--config <file> | --no-config]
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
+ * sygnal-check lsp            (language server on stdio; see src/lsp/server.js and bin/sygnal-check.js)
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -19,6 +20,8 @@ const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
        sygnal-check explain --all [--json]      the whole error reference
        sygnal-check mcp                         run the MCP server (stdio): check, graph, explain
+       sygnal-check lsp                         run the language server (stdio) for editors:
+                                                diagnostics, hover, quick fixes
 
 Statically checks Sygnal components for wiring bugs that fail silently at
 runtime (intent selectors missing from the view, intent/model mismatches,

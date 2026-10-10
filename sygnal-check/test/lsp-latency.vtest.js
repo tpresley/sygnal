@@ -10,6 +10,16 @@
 //     first): median of 15 <= 300 ms.
 // The limits only go down.
 //
+// The language server (PLAN-7 L-1), on the same project, checks in its worker thread with the
+// default 150 ms debounce and --strict:
+//   - an unsaved edit (didChange, no save) that adds a finding → its publishDiagnostics:
+//     median of 10 <= 500 ms (debounce included);
+//   - a hover sent right after a didSave (the check starts at once) is answered from the last
+//     results while the check runs: <= 50 ms, before the check's publish.
+//   Measured 2026-10-10 (same machine): didChange → publish median 454 ms under vitest (446-464;
+//   a standalone script: 412-433 ms, the worker's check 261-280 ms + the 150 ms debounce); hover
+//   during a check 0.3 ms. The headroom is ~10 %, the same as the check gate's (G-660).
+//
 // Measured 2026-10-10 (Apple M3 Max, Node 24.14.0), bench-edit.mjs beside gen-large.mjs:
 //   cold 438 ms, warm without a cache 351 ms, warm with the cache after a one-file edit 272 ms
 //   (1 parse per edit; ~66 ms model build + ~190 ms rules). This test, run alone under vitest
@@ -23,6 +33,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkFiles, createParseCache } from '../src/index.js'
 import { expandInputs } from '../src/files.js'
+import { startServer, uriOf } from './lsp-helpers.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const enabled = process.env.SYGNAL_CHECK_LATENCY === '1'
@@ -80,4 +91,57 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
     expect(cold).toBeLessThanOrEqual(2000)
     expect(warmEdit).toBeLessThanOrEqual(300)
   }, 60_000)
+
+  it('language server: didChange → publish <= 500 ms with the debounce; hover <= 50 ms during a check (worker)', async () => {
+    fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "latency", "private": true }')
+    const client = startServer({ server: { worker: true, debounce: 150 } })
+    try {
+      const t0 = performance.now()
+      await client.initialize({ workspaceFolders: [{ uri: uriOf(dir), name: 'latency' }], initializationOptions: { strict: true } })
+      const cold = performance.now() - t0
+      expect(client.server.usingWorker).toBe(true)
+      const file = files.find(f => f.endsWith('.jsx') && /\.intent\s*=/.test(fs.readFileSync(f, 'utf8')))
+      const uri = uriOf(file)
+      const original = fs.readFileSync(file, 'utf8')
+      const planted = (i) => original + `\nfunction Zq${i}() { return <div className="a" /> }\nZq${i}.intent = ({ DOM }) => ({ GO: DOM.click('.nope${i}') })\nZq${i}.model = { GO: (s) => s }\n`
+      const has = (i) => () => client.diags(file).some(d => d.message.includes(`.nope${i}'`))
+      client.open(file, original)
+      await client.settle()
+      let version = 2
+      const edit = async (i) => {
+        const t = performance.now()
+        client.change(file, planted(i), version++)
+        await client.waitFor(has(i), 10_000)
+        return performance.now() - t
+      }
+      for (let i = 0; i < 3; i++) await edit(1000 + i) // warm-up
+      const times = []
+      for (let i = 0; i < 10; i++) times.push(await edit(i))
+      const publish = median(times)
+
+      // hover while the check after a save runs in the worker
+      await client.settle()
+      const target = client.diags(file).find(d => d.message.includes(".nope9'"))
+      const hovers = []
+      for (let i = 0; i < 5; i++) {
+        client.change(file, planted(2000 + i), version++)
+        client.save(file)
+        const t = performance.now()
+        const h = await client.request('textDocument/hover', { textDocument: { uri }, position: target.range.start })
+        hovers.push(performance.now() - t)
+        expect(h).not.toBeNull()
+        expect(has(2000 + i)()).toBe(false) // answered before the check's publish
+        await client.waitFor(has(2000 + i), 10_000)
+        await client.settle()
+        const again = client.diags(file).find(d => d.message.includes(`.nope${2000 + i}'`))
+        target.range = again.range
+      }
+      const hover = Math.max(...hovers)
+      console.log(`lsp latency: ${files.length} files, ${lines} lines: initialize + first publish ${Math.round(cold)} ms; didChange → publish ${Math.round(publish)} ms (median of ${times.length}, ${Math.round(Math.min(...times))}-${Math.round(Math.max(...times))}, 150 ms debounce included); hover during a check ${hover.toFixed(1)} ms (max of ${hovers.length})`)
+      expect(publish).toBeLessThanOrEqual(500)
+      expect(hover).toBeLessThanOrEqual(50)
+    } finally {
+      client.server.dispose()
+    }
+  }, 120_000)
 })

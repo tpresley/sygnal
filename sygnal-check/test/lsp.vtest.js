@@ -4,6 +4,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { coreRules } from '../src/rules/index.js'
 import { startServer, copyFixture, tempDir, pocFixture, uriOf, applyTextEdits, where, tick } from './lsp-helpers.js'
 
 const cleanup = []
@@ -270,6 +271,17 @@ describe('diagnostics', () => {
   it('produces nothing for a folder without Sygnal components', async () => {
     const { client } = await project({ 'src/util.js': 'export const add = (a, b) => a + b\n', 'src/broken.js': 'export const x = (' })
     expect(client.publishes).toEqual([])
+  })
+
+  it("logs a crashed rule's SYG900 (no file) instead of publishing it", async () => {
+    const boom = { id: 'test-boom', run() { throw new Error('boom') } }
+    coreRules.push(boom) // in-thread checks share this module instance
+    cleanup.push(() => coreRules.splice(coreRules.indexOf(boom), 1))
+    const { client, C } = await poc()
+    expect(client.diags(C)).toHaveLength(3)
+    expect([...client.diagnostics.values()].flat().filter(d => d.code === 'SYG900')).toEqual([])
+    const logged = client.messages.filter(m => m.method === 'window/logMessage' && m.params.type === 1)
+    expect(logged.map(m => m.params.message)).toEqual([expect.stringMatching(/^\[sygnal\] SYG900 sygnal-check rule 'test-boom' threw: boom/)])
   })
 
   it('checks in a worker thread by default, with the same results', async () => {
