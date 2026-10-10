@@ -502,6 +502,56 @@ run(Chat, { LLM: makeChatDriver({ transport }) })
 
 `uiMessageStream(url, { headers })` takes headers, as an object or a function of the request, for a session token your server checks. Same-origin requests carry the page's cookies anyway.
 
+### What `uiMessageStream` sends
+
+Each request is one `POST` to the URL with a JSON body and the headers `content-type: application/json` plus your `headers` option. With the transport `uiMessageStream('/api/chat', { body: { tenant: 'acme' } })` and this request:
+
+```js
+// the value the LLM sink sends
+const request = {
+  messages: [
+    { id: 'u1', role: 'user', parts: [{ type: 'text', text: 'Where is my order?' }] },
+    { id: 'a1', role: 'assistant', parts: [{ type: 'text', text: 'Which order number?' }] },
+    { role: 'user', content: '42' },
+  ],
+  instructions: 'Be brief',
+  chatId: 'chat-1',
+  body: { locale: 'en' },
+  ok: 'DONE',
+}
+```
+
+the body is:
+
+```json
+{
+  "id": "chat-1",
+  "messages": [
+    { "id": "u1", "role": "user", "parts": [{ "type": "text", "text": "Where is my order?" }] },
+    { "id": "a1", "role": "assistant", "parts": [{ "type": "text", "text": "Which order number?" }] },
+    { "id": "m2", "role": "user", "parts": [{ "type": "text", "text": "42" }] }
+  ],
+  "trigger": "submit-message",
+  "instructions": "Be brief",
+  "tenant": "acme",
+  "locale": "en"
+}
+```
+
+| Key | Sent | Value |
+|---|---|---|
+| `id` | when the request has `chatId` | The request's `chatId` |
+| `messages` | always | AI SDK `UIMessage`s `{ id, role, parts, metadata? }`: a `content` string becomes one text part, a message without an `id` gets `m<index>`. The [`chat()` behavior](/guide/agent/) adds its app-state message (id `sygnal-app-state`) |
+| `trigger` | always | `'submit-message'`. There is no other value: a regenerate sends the conversation again |
+| `messageId` | with `continue: true` | The last message's id, when it is the assistant's: the reply continues it (after tool results or an approval) |
+| `instructions`, `model` | when the request has them | From the request. The server should ignore them, or check them against a short list |
+| `tools` | when the request has them | `{ name: { description, inputSchema } }`: client tools, declared on the server without `execute` |
+| `output` | with `output` | `{ schema }`: the JSON Schema of the [structured output](#structured-output) |
+
+Then the transport's `body` option is merged over those keys, and the request's own `body` over that: per-request fields win, and both can overwrite the keys above, so give yours other names. The [`chat()` behavior](/guide/agent/) puts its `transportOptions` into each request, so `transportOptions: { chatId: 'chat-1', body: { locale: 'en' } }` sets `id` and adds `locale`. Other request keys (`key`, `ok`, `delta`, `coalesce`, …) are not sent.
+
+An AI SDK 7 route needs only `messages`: `await convertToModelMessages(messages)` takes them as they are. It reads `tools` if the app has client tools, and `id` if it stores conversations. It ignores `trigger` and `messageId` (the client builds the continued message), and it should ignore `model` and `instructions` and set its own, as [the route above](#shipping-it) does.
+
 ## Transports
 
 A transport speaks one wire format. Pick the one your server or model speaks; every transport gives the component the same actions and the same messages.
