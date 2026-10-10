@@ -1,0 +1,31 @@
+{
+  "name": "sygnal",
+  "displayName": "Sygnal",
+  "version": "0.1.0",
+  "description": "Sygnal for Claude Code: the sygnal-dev skill, and sygnal-check's wiring findings after every edit through its language server",
+  "author": {
+    "name": "Troy Presley",
+    "url": "https://github.com/tpresley"
+  },
+  "homepage": "https://sygnal.js.org/integration/agents/",
+  "repository": "https://github.com/tpresley/sygnal",
+  "license": "MIT",
+  "keywords": ["sygnal", "cycle.js", "lsp", "diagnostics", "static-analysis"],
+  "lspServers": {
+    "sygnal": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/sygnal-lsp.mjs"],
+      "extensionToLanguage": {
+        ".js": "javascript",
+        ".jsx": "javascriptreact",
+        ".ts": "typescript",
+        ".tsx": "typescriptreact",
+        ".mjs": "javascript",
+        ".cjs": "javascript"
+      },
+      "settings": {},
+      "startupTimeout": 30000,
+      "shutdownTimeout": 3000
+    }
+  }
+}

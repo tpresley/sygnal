@@ -1,0 +1,17 @@
+{
+  "name": "sygnal",
+  "description": "Claude Code plugins for Sygnal, the reactive JSX component framework",
+  "owner": {
+    "name": "Troy Presley",
+    "url": "https://github.com/tpresley"
+  },
+  "plugins": [
+    {
+      "name": "sygnal",
+      "source": "./editors/claude-code",
+      "description": "The sygnal-dev skill, and sygnal-check's wiring findings after every edit through its language server",
+      "category": "development",
+      "tags": ["sygnal", "lsp", "skill"]
+    }
+  ]
+}
