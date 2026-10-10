@@ -15,12 +15,13 @@
 // The language server (PLAN-7 L-1), on the same project, checks in its worker thread with the
 // default 150 ms debounce and --strict:
 //   - an unsaved edit (didChange, no save) that adds a finding → its publishDiagnostics:
-//     median of 10 <= 500 ms (debounce included);
+//     median of 10 <= 400 ms (debounce included; was 500 ms, lowered after G-660: D313);
 //   - a hover sent right after a didSave (the check starts at once) is answered from the last
 //     results while the check runs: <= 50 ms, before the check's publish.
 //   Measured 2026-10-10 (same machine): didChange → publish median 454 ms under vitest (446-464;
 //   a standalone script: 412-433 ms, the worker's check 261-280 ms + the 150 ms debounce); hover
-//   during a check 0.3 ms. The headroom is ~10 %, the same as the check gate's (G-660).
+//   during a check 0.3 ms. The headroom was ~10 %, the same as the check gate's (G-660).
+//   After G-660 (merged): didChange → publish median 263-264 ms (253-276) under vitest, hover 0.3 ms.
 //
 // Measured 2026-10-10 (Apple M3 Max, Node 24.14.0), bench-edit.mjs beside gen-large.mjs:
 //   cold 438 ms, warm without a cache 351 ms, warm with the cache after a one-file edit 272 ms
@@ -98,7 +99,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
     expect(warmEdit).toBeLessThanOrEqual(150)
   }, 60_000)
 
-  it('language server: didChange → publish <= 500 ms with the debounce; hover <= 50 ms during a check (worker)', async () => {
+  it('language server: didChange → publish <= 400 ms with the debounce; hover <= 50 ms during a check (worker)', async () => {
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "latency", "private": true }')
     const client = startServer({ server: { worker: true, debounce: 150 } })
     try {
@@ -144,7 +145,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
       }
       const hover = Math.max(...hovers)
       console.log(`lsp latency: ${files.length} files, ${lines} lines: initialize + first publish ${Math.round(cold)} ms; didChange → publish ${Math.round(publish)} ms (median of ${times.length}, ${Math.round(Math.min(...times))}-${Math.round(Math.max(...times))}, 150 ms debounce included); hover during a check ${hover.toFixed(1)} ms (max of ${hovers.length})`)
-      expect(publish).toBeLessThanOrEqual(500)
+      expect(publish).toBeLessThanOrEqual(400)
       expect(hover).toBeLessThanOrEqual(50)
     } finally {
       client.server.dispose()
