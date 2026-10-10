@@ -1,6 +1,7 @@
 /**
  * File discovery (paths, directories, simple globs) and relative import
- * resolution.
+ * resolution. Both also see in-memory sources (an editor's unsaved buffers,
+ * PLAN-7 C-1): see toSourceMap().
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -32,6 +33,39 @@ function walkDir(dir, out, opts) {
 
 const GLOB_CHARS = /[*?{[]/
 
+const EMPTY_SOURCES = new Map()
+
+/**
+ * Normalize the `sources` option (Map<path, text> or { [path]: text }) into a
+ * Map keyed by absolute, normalized paths; relative keys resolve against cwd.
+ * Returns a shared empty Map when there are none.
+ */
+export function toSourceMap(sources, cwd = process.cwd()) {
+  if (!sources) return EMPTY_SOURCES
+  const entries = sources instanceof Map ? [...sources] : Object.entries(sources)
+  if (!entries.length) return EMPTY_SOURCES
+  const map = new Map()
+  for (const [k, text] of entries) if (typeof text === 'string') map.set(path.resolve(cwd, k), text)
+  return map
+}
+
+/**
+ * Source-only files (in `sources`, not necessarily on disk) under `dir` that
+ * the directory walk would have picked: a source file, no dot or ignored
+ * directory on the way.
+ */
+function sourcesUnder(dir, sources, opts) {
+  const out = []
+  for (const file of sources.keys()) {
+    const rel = path.relative(dir, file)
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue
+    const dirs = rel.split(path.sep).slice(0, -1)
+    if (dirs.some(d => d.startsWith('.') || IGNORED_DIRS.has(d))) continue
+    if (isSourceFile(file, opts)) out.push(file)
+  }
+  return out
+}
+
 /** Convert a glob (supports **, *, ?, {a,b}) to a RegExp over '/'-separated paths. */
 export function globToRegExp(glob) {
   let re = ''
@@ -59,8 +93,13 @@ export function globToRegExp(glob) {
  * Directories are walked recursively (node_modules, dist etc. skipped).
  * Test files (*.test.* / *.spec.*) found through a directory or a glob are
  * included only with includeTests; a file named explicitly always is.
+ *
+ * With `sources` (toSourceMap), files that exist only in memory count as
+ * well: one named explicitly is never missing, and one under a directory
+ * input (or matching a glob) is added when it passes the walk's filters.
  */
-export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false } = {}) {
+export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false, sources } = {}) {
+  const srcs = toSourceMap(sources, cwd)
   const out = new Set()
   const missing = []
   for (const input of inputs) {
@@ -73,15 +112,18 @@ export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false
       const re = globToRegExp(path.resolve(cwd, norm).split(path.sep).join('/'))
       const files = []
       walkDir(base, files, { includeTests })
+      files.push(...sourcesUnder(base, srcs, { includeTests }))
       for (const f of files) if (re.test(f.split(path.sep).join('/'))) out.add(f)
       continue
     }
     const abs = path.resolve(cwd, input)
+    if (srcs.has(abs)) { out.add(abs); continue }
     let st
     try { st = fs.statSync(abs) } catch { missing.push(input); continue }
     if (st.isDirectory()) {
       const files = []
       walkDir(abs, files, { includeTests })
+      files.push(...sourcesUnder(abs, srcs, { includeTests }))
       files.forEach(f => out.add(f))
     } else {
       out.add(abs)
@@ -90,8 +132,16 @@ export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false
   return { files: [...out].sort(), missing }
 }
 
-/** Resolve a relative import specifier to a source file, or null. */
-export function resolveImport(fromFile, spec) {
+export function diskIsFile(p) {
+  try { return fs.statSync(p).isFile() } catch { return false }
+}
+
+/**
+ * Resolve a relative import specifier to a source file, or null.
+ * `isFile(absPath)` decides whether a candidate exists (default: the disk);
+ * Project passes one that sees its in-memory sources first.
+ */
+export function resolveImport(fromFile, spec, { isFile = diskIsFile } = {}) {
   if (!spec.startsWith('.') && !spec.startsWith('/')) return null
   const base = path.resolve(path.dirname(fromFile), spec)
   const candidates = [base]
@@ -104,7 +154,7 @@ export function resolveImport(fromFile, spec) {
   for (const e of SOURCE_EXTENSIONS) candidates.push(base + e)
   for (const e of SOURCE_EXTENSIONS) candidates.push(path.join(base, 'index' + e))
   for (const c of candidates) {
-    try { if (fs.statSync(c).isFile() && SOURCE_EXTENSIONS.includes(path.extname(c))) return c } catch { /* next */ }
+    if (SOURCE_EXTENSIONS.includes(path.extname(c)) && isFile(c)) return c
   }
   return null
 }
