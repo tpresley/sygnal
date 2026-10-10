@@ -1,0 +1,48 @@
+<application>
+  <component name="UserDefinedLanguageServerSettingsState">
+    <state>
+      <map>
+        <entry key="sygnal">
+          <value>
+            <UserDefinedLanguageServerItemSettings>
+              <option name="serverId" value="sygnal" />
+              <option name="serverName" value="Sygnal" />
+              <option name="commandLine" value="@CMD@" />
+              <option name="workingDir" value="$PROJECT_DIR$" />
+              <option name="mappings">
+                <ServerMappingSettings languageId="javascript">
+                  <fileType>
+                    <option name="patterns">
+                      <option value="*.js" />
+                    </option>
+                  </fileType>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="javascriptreact">
+                  <fileType>
+                    <option name="patterns">
+                      <option value="*.jsx" />
+                    </option>
+                  </fileType>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="typescript">
+                  <fileType>
+                    <option name="patterns">
+                      <option value="*.ts" />
+                    </option>
+                  </fileType>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="typescriptreact">
+                  <fileType>
+                    <option name="patterns">
+                      <option value="*.tsx" />
+                    </option>
+                  </fileType>
+                </ServerMappingSettings>
+              </option>
+            </UserDefinedLanguageServerItemSettings>
+          </value>
+        </entry>
+      </map>
+    </state>
+  </component>
+</application>

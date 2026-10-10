@@ -1,0 +1,17 @@
+<application>
+  <component name="LanguageServerSettingsState">
+    <state>
+      <map>
+        <entry key="sygnal">
+          <value>
+            <LanguageServerDefinitionSettings>
+              <option name="configurationContent" value="{ &quot;sygnal&quot;: { &quot;strict&quot;: true } }" />
+              <option name="initializationOptionsContent" value="{}" />
+              <option name="serverTrace" value="verbose" />
+            </LanguageServerDefinitionSettings>
+          </value>
+        </entry>
+      </map>
+    </state>
+  </component>
+</application>
