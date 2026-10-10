@@ -76,8 +76,16 @@ the starters (G-632) didn't show up as extra work.
 ## 3. Operability
 
 On the reference solutions, after the G-650 fix (`operability.mjs`, qwen3:8b, 3 runs): task 47
-Sygnal 12/12, React 12/12; task 45 Sygnal 8/9, React 9/9. On the trials' own code:
-`OPERABILITY_PENDING`.
+Sygnal 12/12, React 12/12; task 45 Sygnal 8/9, React 9/9. On the trials' own code (the 20 Opus
+trials of tasks 45 and 47, 1 run per fixed task, machine load 70–106):
+
+| Task | Sygnal | React |
+|---|---|---|
+| 45 (in-app assistant: add, pack, remove with consent) | 15/15 (5 of 5 trials fully operable) | 15/15 (5 of 5) |
+| 47 (WebMCP board: add, move, remove, move-all) | 20/20 (5 of 5) | 18/20 (4 of 5; trial 4: 2 timeouts) |
+
+Every app the Sygnal agents built could be operated by a small local model through its declared
+tools, in both tasks. Data: `operability.mjs --run p6-final-opus --runs 1`.
 
 ## Gaps
 
