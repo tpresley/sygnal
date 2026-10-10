@@ -162,8 +162,6 @@ export const form = (schema: any, o: any = {}): any => {
     // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
     // its value, unchecked removes it
     CHANGE: (s, d) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : []),
-    // G-647: several fields at once ({ values: { name: value } }, names as in CHANGE), as if typed
-    SET: (s, d) => put(s, Object.entries(d?.values || {})),
     BLUR: (s, n, k) => {
       if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
@@ -190,6 +188,8 @@ export const form = (schema: any, o: any = {}): any => {
       return edit(s, setField(s.values, field, getField(s.values, field).filter((r: any) => r.id + '' != id)),
         {touched: drop(s.touched, p), server: drop(s.server, p)})
     },
+    // G-647: several fields at once ({ values: { name: value } }, names as in CHANGE), as if typed
+    SET: (s, d) => put(s, Object.entries(d?.values || {})),
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
       return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
