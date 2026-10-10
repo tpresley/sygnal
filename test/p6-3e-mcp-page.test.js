@@ -142,6 +142,45 @@ describe('installMcpBridge', () => {
     expect(t.replayed).toBeGreaterThan(0)
   })
 
+  it('G-638: every run() app: apps, `app` by index or root name, the app that has `component`, hello updates, HMR keeps the place', async () => {
+    function Widget({ state }) { return h('b.pings', String(state.pings)) }
+    Widget.initialState = { pings: 0 }
+    Widget.model = { PING: (s) => ({ pings: s.pings + 1 }) }
+    Widget.agent = { name: 'widget', description: 'a widget', read: (s) => ({ pings: s.pings }), actions: { PING: { description: 'Ping it' } } }
+    mount()
+    document.body.insertAdjacentHTML('beforeend', '<div id="w"></div>')
+    const w = run(Widget, {}, { mountPoint: '#w', diagnostics: 'collect' })
+    try {
+      await until(() => expect(document.querySelector('.pings')).toBeTruthy())
+      const { apps } = await ask('apps')
+      expect(apps.map((a) => [a.index, a.component, !!a.default])).toEqual([[0, 'App', true], [1, 'Widget', false]])
+      // the page tells the server (a hello with update: true)
+      await until(() => {
+        const last = hot.sent.filter(([e]) => e === 'sygnal:mcp:hello').at(-1)[1]
+        expect(last).toMatchObject({ update: true, apps: [{ index: 0, component: 'App' }, { index: 1, component: 'Widget' }] })
+      })
+      expect((await ask('get_state')).component).toBe('App')
+      expect(await ask('get_state', { app: 1 })).toMatchObject({ component: 'Widget', state: { pings: 0 } })
+      expect((await ask('get_state', { app: 'Widget' })).component).toBe('Widget')
+      // no app: the one that has the component
+      expect((await ask('get_state', { component: 'Widget' })).state).toEqual({ pings: 0 })
+      expect(await ask('dispatch', { app: 'Widget', action: 'PING' })).toMatchObject({ ok: true, component: 'Widget', state: { pings: 1 } })
+      expect(document.querySelector('.pings').textContent).toBe('1')
+      expect((await ask('agent_tools', { app: 1 })).tools.map((t) => t.name)).toEqual(['widget_read', 'widget_ping'])
+      expect((await ask('agent_tools')).tools.map((t) => t.name)).toEqual(['todos_read', 'todos_add', 'todos_clear'])
+      expect((await ask('component_tree', { app: 1 })).components.map((c) => c.name)).toEqual(['Widget'])
+      await expect(ask('get_state', { app: 5 })).rejects.toThrow(/no app 5; apps: 0 App, 1 Widget/)
+      await expect(ask('get_state', { app: 'Nope' })).rejects.toThrow(/no app "Nope"/)
+      // an HMR swap of the second app keeps index 1 and its state
+      w.hmr(Widget)
+      await until(async () => expect(await ask('get_state', { app: 1 })).toMatchObject({ component: 'Widget', state: { pings: 1 } }))
+      expect((await ask('apps')).apps.map((a) => a.component)).toEqual(['App', 'Widget'])
+    } finally {
+      w.dispose()
+    }
+    await until(async () => expect((await ask('apps')).apps.map((a) => a.component)).toEqual(['App']))
+  })
+
   it('no app on the page: a clear error; unknown page tools too', async () => {
     document.body.innerHTML = ''
     await expect(ask('get_state')).rejects.toThrow(/no Sygnal app is running/)

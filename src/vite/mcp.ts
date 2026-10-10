@@ -2,8 +2,17 @@
  * PLAN-6 E-1: the dev MCP endpoint of sygnal/vite (`sygnal({ mcp: true })`), dev server only.
  *
  * `/__sygnal/mcp` speaks MCP's streamable HTTP transport: JSON-RPC 2.0 over POST, answered as
- * one `application/json` body (no SSE stream: GET and DELETE get 405, which the spec allows;
- * no session ids). Hand-written like sygnal-check's stdio server (no dependency, D209).
+ * one `application/json` body. G-638: that is a complete server under the spec (2025-03-26 to
+ * 2025-11-25, "Streamable HTTP"): for a POSTed request the server returns either
+ * `Content-Type: text/event-stream` or `application/json`, and the client must accept both; a
+ * server that offers no stream on GET answers 405; session ids (`Mcp-Session-Id`) are optional
+ * ("MAY assign"). This server never sends requests or notifications to the client (no sampling,
+ * no progress, tools/list never changes), so an SSE stream would carry nothing; without session
+ * ids each POST stands alone (the page state lives in the browser, not in a session). GET and
+ * DELETE get 405. The stateless 2026-07-28 revision (no initialize, per-request `_meta`) is not
+ * served yet: its request (MCP-Protocol-Version: 2026-07-28) gets 400 with a non-modern error
+ * (-32000, never -32022), which the spec's dual-era clients take as "legacy server" and fall
+ * back to initialize. Hand-written like sygnal-check's stdio server (no dependency, D209).
  * Methods: initialize, ping, tools/list, tools/call; notifications get 202.
  *
  * Tools that read the page (get_state, dispatch, component_tree, recent_actions,
@@ -11,7 +20,9 @@
  * server, Vite's HMR channel (custom events 'sygnal:mcp:*', see src/extra/devMcp.ts), request /
  * response with ids and a timeout. With several tabs the most recently loaded or focused one
  * answers, or the `tab` argument picks one; the result says which (`tab`), and `tabs` lists
- * them. check / graph / explain run sygnal-check's own MCP server in-process when sygnal-check
+ * them with their apps. G-638: every run() app of a page is served: `app` (an index, or the
+ * root component's name) picks one on get_state, dispatch, component_tree, copy_as_test and
+ * agent_tools (default: the first, or the app that has `component`); `apps` lists them. check / graph / explain run sygnal-check's own MCP server in-process when sygnal-check
  * is installed in the project.
  *
  * Security (the endpoint can read and change the running app): requests must come from the
@@ -47,7 +58,7 @@ export interface McpPluginOptions {
   confirm?: boolean | 'page'
 }
 
-export interface TabInfo { id: number; url: string; title: string; active: number }
+export interface TabInfo { id: number; url: string; title: string; active: number; apps?: Array<{ index: number; component: string }> }
 
 export interface PageBridge {
   tabs(): TabInfo[]
@@ -59,6 +70,7 @@ class ToolError extends Error {}
 const isObj = (v: any) => !!v && typeof v === 'object' && !Array.isArray(v)
 const tabSchema = { type: 'integer', description: 'The tab to ask (see tabs); default: the most recently loaded or focused tab' }
 const componentSchema = { type: ['string', 'integer'], description: 'A component name, or an instance id (see component_tree); default: the root' }
+const appSchema = { type: ['string', 'integer'], description: "The app on the page: an index or the root component's name (see apps); default: the first app, or the one that has `component`" }
 const obj = (properties: Record<string, any>, required?: string[]) => ({
   type: 'object', properties: { ...properties, tab: tabSchema }, ...(required ? { required } : {}), additionalProperties: false,
 })
@@ -69,20 +81,20 @@ export const PAGE_TOOLS = [
     name: 'get_state',
     title: 'Get component state',
     description: "The live state of a component instance in the open page (the root by default). With several instances of a component (Collection items) you get each one's id and state. `path` reads one field: 'todos.0.text' or ['todos', 0, 'text'].",
-    inputSchema: obj({ component: componentSchema, path: { type: ['string', 'array'], items: { type: ['string', 'integer'] }, description: "A field path: 'a.b.0' or ['a', 'b', 0]" } }),
+    inputSchema: obj({ component: componentSchema, app: appSchema, path: { type: ['string', 'array'], items: { type: ['string', 'integer'] }, description: "A field path: 'a.b.0' or ['a', 'b', 0]" } }),
     annotations: { readOnlyHint: true },
   },
   {
     name: 'dispatch',
     title: 'Dispatch an action',
     description: "Send an action to a component instance in the open page, as if its intent had produced it (recorded with cause 'agent'), and wait for the render. Returns the instance's new state. The action must be one of the component's model entries (an unknown name lists them).",
-    inputSchema: obj({ component: componentSchema, action: { type: 'string', description: "The action name, e.g. 'ADD'" }, data: { description: 'The action data (any JSON value)' } }, ['action']),
+    inputSchema: obj({ component: componentSchema, app: appSchema, action: { type: 'string', description: "The action name, e.g. 'ADD'" }, data: { description: 'The action data (any JSON value)' } }, ['action']),
   },
   {
     name: 'component_tree',
     title: 'Component tree (inspect)',
-    description: "The running app's graph from inspect(): component instances (id, parentId, kind), their actions and what triggers them, state keys, context, EVENTS, children, intent selectors (matched or not) and the runtime diagnostics attached to each. `component` keeps only that component's instances.",
-    inputSchema: obj({ component: componentSchema }),
+    description: "The running apps' graph from inspect(): component instances (id, parentId, kind), their actions and what triggers them, state keys, context, EVENTS, children, intent selectors (matched or not) and the runtime diagnostics attached to each. `app` keeps one app's instances, `component` only that component's.",
+    inputSchema: obj({ component: componentSchema, app: { ...appSchema, description: "Only this app's instances: an index or the root component's name (see apps); default: every app" } }),
     annotations: { readOnlyHint: true },
   },
   {
@@ -112,7 +124,7 @@ export const PAGE_TOOLS = [
     name: 'copy_as_test',
     title: 'Copy session as test',
     description: "DevTools' Copy as test: a Vitest + renderComponent test file that replays what happened to a component instance in the open page (default: the root) and asserts its final state. Returns { code, complete, warnings, replayed }.",
-    inputSchema: obj({ component: componentSchema, componentImport: { type: 'string', description: "Where the test imports the component from: a module path ('./App.jsx') or a whole import line" } }),
+    inputSchema: obj({ component: componentSchema, app: appSchema, componentImport: { type: 'string', description: "Where the test imports the component from: a module path ('./App.jsx') or a whole import line" } }),
     annotations: { readOnlyHint: true },
   },
   {
@@ -123,14 +135,22 @@ export const PAGE_TOOLS = [
       call: { type: 'string', description: 'A tool name from the list' },
       input: { description: 'The tool input' },
       all: { type: 'boolean', description: 'List also the declared tools that are not offered, with why' },
+      app: { ...appSchema, description: "The app whose tools to use: an index or the root component's name (see apps); default: the first" },
     }),
+  },
+  {
+    name: 'apps',
+    title: 'Apps on the page',
+    description: "The Sygnal apps (run() calls) running in the open page: index, root component, root instance id and instance count. The first is the default of the tools' `app` argument.",
+    inputSchema: obj({}),
+    annotations: { readOnlyHint: true },
   },
 ]
 
 const TABS_TOOL = {
   name: 'tabs',
   title: 'Open pages',
-  description: 'The pages of this dev server connected to the endpoint (id, url, title); the page tools use the most recently loaded or focused one unless given `tab`.',
+  description: 'The pages of this dev server connected to the endpoint (id, url, title, apps: { index, component } per run() app); the page tools use the most recently loaded or focused one unless given `tab`.',
   inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   annotations: { readOnlyHint: true },
 }
@@ -187,7 +207,7 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
   }
 
   async function callTool(name: string, args: any) {
-    if (name === 'tabs') return content({ tabs: o.bridge.tabs().map(({ id, url, title }) => ({ id, url, title })) })
+    if (name === 'tabs') return content({ tabs: o.bridge.tabs().map(({ id, url, title, apps }) => ({ id, url, title, ...(apps ? { apps } : {}) })) })
     const { tab: want, ...rest } = args
     const { tab, note } = pickTab(want)
     const value = await o.bridge.request(tab.id, name, rest, timeout)
@@ -209,7 +229,7 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
           protocolVersion: SUPPORTED_VERSIONS.includes(requested) ? requested : SUPPORTED_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: 'sygnal-dev', title: 'Sygnal dev server', version: o.version || '0.0.0' },
-          instructions: 'The running Sygnal app in the dev server\'s open page: component_tree to orient, get_state / recent_actions / get_diagnostics to read, dispatch or agent_tools to act, copy_as_test to turn a session into a test. check, graph and explain (when present) are sygnal-check on the sources.',
+          instructions: 'The running Sygnal apps in the dev server\'s open page: component_tree to orient, get_state / recent_actions / get_diagnostics to read, dispatch or agent_tools to act, copy_as_test to turn a session into a test; apps lists the page\'s run() apps when there are several (`app` picks one). check, graph and explain (when present) are sygnal-check on the sources.',
         })
       }
       case 'ping':
@@ -326,7 +346,8 @@ export function mcpMiddleware(server: { handle(msg: any): Promise<any> }, allowe
     if (url !== MCP_PATH && url !== MCP_PATH + '/') return next()
     const why = refusal(req, allowedHosts())
     if (why) return send(res, 403, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Forbidden: ${why}` } })
-    if (req.method !== 'POST') return send(res, 405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Method not allowed: this endpoint takes JSON-RPC over POST (no SSE stream)' } }, { Allow: 'POST' })
+    // G-638: no SSE stream on GET (the spec's "MUST ... return 405" for a server that offers none), no sessions to DELETE
+    if (req.method !== 'POST') return send(res, 405, { jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Method not allowed: this endpoint takes JSON-RPC over POST and answers with application/json (no SSE stream, no sessions)' } }, { Allow: 'POST' })
     const version = req.headers['mcp-protocol-version']
     if (version !== undefined && !SUPPORTED_VERSIONS.includes(String(version))) {
       return send(res, 400, { jsonrpc: '2.0', id: null, error: { code: -32000, message: `Unsupported MCP-Protocol-Version ${version}; supported: ${SUPPORTED_VERSIONS.join(', ')}` } })
@@ -376,7 +397,9 @@ export function hmrBridge(server: any): PageBridge {
       }
       t.url = String(data?.url || '')
       t.title = String(data?.title || '')
-      t.active = ++clock
+      if (Array.isArray(data?.apps)) t.apps = data.apps.map((a: any) => ({ index: Number(a?.index), component: String(a?.component ?? '') }))
+      // an apps update (an HMR swap, a second run()) is not a focus
+      if (!data?.update || !t.active) t.active = ++clock
     })
     ws.on(MCP_RESPONSE, (data: any, client: any) => {
       const p = data && pending.get(data.id)
@@ -409,7 +432,7 @@ export function hmrBridge(server: any): PageBridge {
     p.reject(new ToolError(`tab ${p.tab} did not answer in time (is the page frozen, or a dialog open?)`))
   }
   return {
-    tabs: () => [...live().values()].map(t => ({ ...t })),
+    tabs: () => [...live().values()].map(t => ({ ...t, ...(t.apps ? { apps: t.apps.map(a => ({ ...a })) } : {}) })),
     request(tabId, tool, args, ms) {
       const client = [...live().entries()].find(([, t]) => t.id === tabId)?.[0]
       if (!client) return Promise.reject(new ToolError(`no tab ${tabId}`))

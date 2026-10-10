@@ -4,20 +4,29 @@
  * module (served by the dev server, never in a build) calls installMcpBridge(import.meta.hot).
  *
  * The protocol, over Vite's HMR channel (custom events):
- *   page → server  'sygnal:mcp:hello'     { url, title, focused }   on load, focus and when shown
+ *   page → server  'sygnal:mcp:hello'     { url, title, focused, apps, update? }   on load, focus,
+ *                                         when shown, and (update: true) when the apps change
  *   server → page  'sygnal:mcp:request'   { id, tool, args }
  *   page → server  'sygnal:mcp:response'  { id, ok: true, result } | { id, ok: false, error }
  *                                         | { id, waiting: true }   (a confirm dialog is open:
  *                                           the server waits longer)
  *
- * The tools read the app that registered itself as window.__SYGNAL_DEVTOOLS_APP__ (the first
- * run() of the page) through its runtime API, the DevTools bridge (diagnostics, action log,
- * copy as test), the diagnostics core's inspect(), and the A-1 agent layer (agentTools, passed
- * in by the virtual module from the app's own 'sygnal', so there is one core).
+ * The tools read the page's apps through their runtime APIs, the DevTools bridge (diagnostics,
+ * action log, copy as test), the diagnostics core's inspect(), and the A-1 agent layer
+ * (agentTools, passed in by the virtual module from the app's own 'sygnal', so there is one core).
+ *
+ * G-638: every run() of the page is served. The bridge registers a dev hook layer
+ * (`__SYGNAL_DIAGNOSTICS__.layers`, read by each app at its start: no core bytes), so it sees each
+ * app's runtime API in start order; an HMR successor (disposed and started in the same tick)
+ * keeps its predecessor's place. `app` (an index, or the root component's name) picks one; the
+ * default is the first. An app started before the bridge was installed is still found through
+ * window.__SYGNAL_DEVTOOLS_APP__. The hello carries the apps ({ index, component }) and is sent
+ * again (`update: true`, not a focus) when they change.
  */
 import {getDevTools} from './devtools'
 import {getActions, getSession, preview} from './devtoolsActions'
 import {sessionToTest} from './copyAsTest'
+import {addLayer} from './devtoolsNext'
 
 export const MCP_HELLO = 'sygnal:mcp:hello'
 export const MCP_REQUEST = 'sygnal:mcp:request'
@@ -31,7 +40,7 @@ export interface McpBridgeOptions {
    * window.confirm() (default), true runs them, false declines them.
    */
   confirm?: boolean | 'page'
-  /** the app (default: window.__SYGNAL_DEVTOOLS_APP__) */
+  /** the app to serve, alone (default: every run() of the page) */
   app?: () => any
 }
 
@@ -47,14 +56,102 @@ const g: any = globalThis
 /** JSON-safe copy (functions, DOM nodes, cycles, Maps, Sets described) */
 const plain = (v: any) => (v === undefined ? null : preview(v))
 
-function currentApp(o: McpBridgeOptions): any {
-  const app = o.app ? o.app() : g.window?.__SYGNAL_DEVTOOLS_APP__
-  if (!app || !app.__runtime) throw new ToolError('no Sygnal app is running on this page (run() has not been called, or the app was disposed)')
-  return app
+// ---------------------------------------------------------------- the page's apps (G-638)
+
+/** runtime APIs of the apps started since the bridge was installed, in start order */
+const started: any[] = []
+let gone = -1
+let tracking = false
+const listeners = new Set<() => void>()
+const changed = () => listeners.forEach(f => { try { f() } catch (_) {} })
+const alive = (api: any) => {
+  try { const r = api?.root; return !!r && !r.disposed } catch (_) { return false }
+}
+
+/** the dev hook layer: each app's runtime API at its start; its root's dispose ends it */
+function appLayer(api: any) {
+  // an HMR swap (or any app started in the tick its predecessor ended) takes the same place
+  if (gone >= 0 && gone < started.length && !alive(started[gone])) started[gone] = api
+  else started.push(api)
+  gone = -1
+  changed()
+  return {
+    onDispose(iv: any) {
+      if (!iv?.isRoot) return
+      const i = started.indexOf(api)
+      if (i < 0) return
+      gone = i
+      queueMicrotask(() => {
+        if (gone === i) gone = -1
+        const j = started.indexOf(api)
+        if (j >= 0) started.splice(j, 1)
+        changed()
+      })
+    },
+  }
+}
+
+function trackApps() {
+  if (tracking) return
+  tracking = true
+  addLayer(appLayer)
+}
+
+interface AppRef { api: any; target: any }
+
+/** the live apps of the page, the first app first */
+export function pageApps(o: McpBridgeOptions = {}): AppRef[] {
+  if (o.app) {
+    const app = o.app()
+    return app?.__runtime && alive(app.__runtime) ? [{api: app.__runtime, target: app}] : []
+  }
+  // each runtime.api() is a new object: an app is known by its root instance (ids are page-unique)
+  const first = g.window?.__SYGNAL_DEVTOOLS_APP__
+  const firstRoot = first?.__runtime && alive(first.__runtime) ? first.__runtime.root.id : undefined
+  const ref = (api: any): AppRef => ({api, target: firstRoot !== undefined && api.root.id === firstRoot ? first : api})
+  const out = started.filter(alive).map(ref)
+  if (firstRoot !== undefined && !out.some(a => a.api.root.id === firstRoot)) out.unshift({api: first.__runtime, target: first})
+  return out
+}
+
+const appSummary = (a: AppRef, index: number) => {
+  let component = '?'
+  try { component = a.api.root.name } catch (_) {}
+  return {index, component}
+}
+
+const appsLine = (apps: AppRef[]) => apps.map((a, i) => `${i} ${appSummary(a, i).component}`).join(', ')
+
+/** the app `want` names (an index, or the root component's name); the first when omitted */
+function pickApp(o: McpBridgeOptions, want: any): AppRef {
+  const apps = pageApps(o)
+  if (!apps.length) throw new ToolError('no Sygnal app is running on this page (run() has not been called, or the app was disposed)')
+  if (want === undefined || want === null || want === '') return apps[0]
+  if (typeof want == 'number' || /^\d+$/.test(String(want))) {
+    const a = apps[Number(want)]
+    if (!a) throw new ToolError(`no app ${want}; apps: ${appsLine(apps)}`)
+    return a
+  }
+  const named = apps.filter(a => { try { return a.api.root.name === want } catch (_) { return false } })
+  if (!named.length) throw new ToolError(`no app ${JSON.stringify(want)}; apps: ${appsLine(apps)}`)
+  if (named.length > 1) throw new ToolError(`${named.length} apps have the root ${want}; pass an index (apps: ${appsLine(apps)})`)
+  return named[0]
+}
+
+/**
+ * The runtime API to use: `app`'s; without `app`, the first app, unless `component` (a name or
+ * an instance id; ids are unique on the page) is only in another one
+ */
+function runtimeFor(o: McpBridgeOptions, args: any): any {
+  const c = args.component
+  const first = pickApp(o, args.app).api
+  if ((args.app !== undefined && args.app !== null) || c === undefined || c === null || c === '' || find(first, c).length) return first
+  const owners = pageApps(o).filter(a => { try { return find(a.api, c).length > 0 } catch (_) { return false } })
+  return owners.length == 1 ? owners[0].api : first
 }
 
 /** every instance of the app, root first (depth-first) */
-function instances(rt: any): any[] {
+function allInstances(rt: any): any[] {
   const out: any[] = []
   const walk = (iv: any) => {
     if (!iv) return
@@ -68,7 +165,7 @@ function instances(rt: any): any[] {
 /** The instances `component` names: a component name, or an instance id (number or digits); root when omitted */
 function find(rt: any, component: any): any[] {
   if (component === undefined || component === null || component === '') return rt.root ? [rt.root] : []
-  const all = instances(rt)
+  const all = allInstances(rt)
   if (typeof component == 'number' || /^\d+$/.test(String(component))) {
     const iv = all.find(i => String(i.id) === String(component))
     return iv ? [iv] : []
@@ -77,7 +174,7 @@ function find(rt: any, component: any): any[] {
 }
 
 function names(rt: any): string {
-  return [...new Set(instances(rt).map(i => i.name))].join(', ')
+  return [...new Set(allInstances(rt).map(i => i.name))].join(', ')
 }
 
 function one(rt: any, component: any, verb: string): any {
@@ -119,10 +216,10 @@ const serializeAction = (a: any) => ({
 /** The tool implementations; `id` is the request id (for the confirm notice). Exported for tests. */
 export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void = () => {}) {
   const agents = new WeakMap<object, any>()
-  const agentsOf = (app: any) => {
+  const agentsOf = (target: any) => {
     if (typeof o.agentTools != 'function') throw new ToolError('the agent layer is not available (agentTools from sygnal/ai)')
-    let t = agents.get(app)
-    if (!t) agents.set(app, t = o.agentTools(app))
+    let t = agents.get(target)
+    if (!t) agents.set(target, t = o.agentTools(target))
     return t
   }
   const confirmFor = (id: any) => {
@@ -139,8 +236,16 @@ export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void 
   }
 
   const tools: Record<string, (args: any, id: any) => any> = {
+    apps() {
+      return {apps: pageApps(o).map((a, i) => {
+        let id, instances = 0
+        try { id = a.api.root.id; instances = allInstances(a.api).length } catch (_) {}
+        return {...appSummary(a, i), id, instances, ...(i === 0 ? {default: true} : {})}
+      })}
+    },
+
     get_state(args) {
-      const rt = currentApp(o).__runtime
+      const rt = runtimeFor(o, args)
       const found = find(rt, args.component)
       if (!found.length) throw new ToolError(`no component ${JSON.stringify(args.component)} is shown now; components: ${names(rt) || 'none'}`)
       const withPath = (iv: any) => {
@@ -154,7 +259,7 @@ export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void 
 
     async dispatch(args) {
       if (typeof args.action != 'string' || !args.action) throw new ToolError('dispatch needs action: the action name, e.g. "ADD"')
-      const rt = currentApp(o).__runtime
+      const rt = runtimeFor(o, args)
       const iv = one(rt, args.component, 'dispatch to')
       const known = actionNames(iv)
       if (!known.includes(args.action) && !args.action.includes('.')) {
@@ -168,17 +273,21 @@ export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void 
     },
 
     component_tree(args) {
-      currentApp(o)
+      // every app's instances, unless `app` names one
+      const app = pickApp(o, args.app)
       const inspect = g.__SYGNAL_DIAGNOSTICS__?.inspect || (getDevTools() as any).inspect
       if (typeof inspect != 'function') {
         throw new ToolError("component_tree needs the runtime diagnostics ('sygnal/diagnostics'), which sygnal({ diagnostics: 'off' }) leaves out")
       }
       const graph = inspect()
-      if (args.component && graph && Array.isArray(graph.components)) {
-        const keep = graph.components.filter((c: any) => c.name === args.component || String(c.id) === String(args.component))
-        return {...graph, components: keep}
+      if (!graph || !Array.isArray(graph.components)) return graph
+      let keep = graph.components
+      if (args.app !== undefined && args.app !== null) {
+        const ids = new Set(allInstances(app.api).map((i: any) => String(i.id)))
+        keep = keep.filter((c: any) => ids.has(String(c.id)))
       }
-      return graph
+      if (args.component) keep = keep.filter((c: any) => c.name === args.component || String(c.id) === String(args.component))
+      return keep === graph.components ? graph : {...graph, components: keep}
     },
 
     recent_actions(args) {
@@ -207,11 +316,8 @@ export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void 
     },
 
     copy_as_test(args) {
-      let target: any
-      if (args.component !== undefined) {
-        const rt = currentApp(o).__runtime
-        target = String(one(rt, args.component, 'copy').id)
-      }
+      // the default app's root by default (the DevTools default would be the newest root)
+      const target = String(one(runtimeFor(o, args), args.component, 'copy').id)
       try {
         const rec = getSession(target)
         // a module path ('./App.jsx') or a whole import line
@@ -224,7 +330,7 @@ export function pageTools(o: McpBridgeOptions, notifyWaiting: (id: any) => void 
     },
 
     async agent_tools(args, id) {
-      const t = agentsOf(currentApp(o))
+      const t = agentsOf(pickApp(o, args.app).target)
       if (args.call === undefined) return {tools: t.list(args.all ? {all: true} : undefined), context: plain(t.context())}
       if (typeof args.call != 'string') throw new ToolError('call must be a tool name (see agent_tools without call)')
       const result = await t.call(args.call, args.input, {confirm: confirmFor(id)})
@@ -243,11 +349,21 @@ let installed: Hot | null = null
 export function installMcpBridge(hot: Hot | undefined, options: McpBridgeOptions = {}): void {
   if (!hot || installed === hot) return
   installed = hot
+  if (!options.app) trackApps()
   const tools = pageTools(options, (id) => hot.send(MCP_RESPONSE, {id, waiting: true}))
-  const hello = () => {
+  const hello = (update?: boolean) => {
     const d = g.document
-    hot.send(MCP_HELLO, {url: String(g.location?.href || ''), title: String(d?.title || ''), focused: !!d?.hasFocus?.()})
+    let apps: any[] = []
+    try { apps = pageApps(options).map(appSummary) } catch (_) {}
+    hot.send(MCP_HELLO, {url: String(g.location?.href || ''), title: String(d?.title || ''), focused: !!d?.hasFocus?.(), apps, ...(update ? {update: true} : {})})
   }
+  // the apps changed: tell the server after the tick (when the new roots exist)
+  let queued = false
+  listeners.add(() => {
+    if (queued) return
+    queued = true
+    setTimeout(() => { queued = false; hello(true) }, 0)
+  })
   hot.on(MCP_REQUEST, async (msg: any) => {
     if (!msg || msg.id === undefined) return
     const fn = Object.prototype.hasOwnProperty.call(tools, msg.tool) ? tools[msg.tool] : undefined
@@ -261,10 +377,10 @@ export function installMcpBridge(hot: Hot | undefined, options: McpBridgeOptions
     }
   })
   // the server answers this after a reconnect too (a restarted dev server)
-  hot.on('vite:ws:connect', hello)
+  hot.on('vite:ws:connect', () => hello())
   hello()
   if (typeof g.addEventListener == 'function') {
-    g.addEventListener('focus', hello)
+    g.addEventListener('focus', () => hello())
     g.document?.addEventListener?.('visibilitychange', () => { if (g.document.visibilityState == 'visible') hello() })
   }
 }

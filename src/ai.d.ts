@@ -1076,6 +1076,45 @@ export type McpAppRequest =
   | ({ message: string | McpContentBlock[] } & McpReplies)
   | ({ openLink: string } & McpReplies)
   | ({ displayMode: McpAppDisplayMode } & McpReplies)
+  /** G-641: `ui/download-file` (the host asks the person first); a bare resource contents object is embedded */
+  | ({ downloadFile: McpDownloadItem | McpDownloadItem[] } & McpReplies)
+  /** `resources/read` on the MCP server through the host; ok gets `{ contents }` */
+  | ({ readResource: string | { uri: string; [key: string]: unknown } } & McpReplies)
+  /** `resources/list` through the host; ok gets `{ resources, nextCursor? }` */
+  | ({ listResources: true | { cursor?: string } } & McpReplies)
+  /** `sampling/createMessage`: a completion from the host's model (check `hostCapabilities.sampling`); maxTokens defaults to 1024 */
+  | ({ createMessage: string | McpSamplingRequest } & McpReplies)
+  /** `notifications/message`: a log line for the host (not shown to the model); ok runs once sent */
+  | ({ log: unknown; level?: McpLogLevel; logger?: string } & McpReplies)
+  /** `ui/notifications/request-teardown`: ask the host to remove the view (it may send `teardown`); ok runs once sent */
+  | ({ requestTeardown: true } & McpReplies)
+
+/** resource contents for `downloadFile`: `{ uri, mimeType?, text }` or `{ uri, mimeType?, blob }` (base64) */
+export type McpResourceContents = { uri: string; mimeType?: string; text: string; [key: string]: any } | { uri: string; mimeType?: string; blob: string; [key: string]: any }
+/** an EmbeddedResource / ResourceLink content block, or bare resource contents (embedded for you) */
+export type McpDownloadItem = McpContentBlock | McpResourceContents
+export type McpLogLevel = 'debug' | 'info' | 'notice' | 'warning' | 'error' | 'critical' | 'alert' | 'emergency'
+/** MCP CreateMessageRequest params; `messages` may be one user text */
+export interface McpSamplingRequest {
+  messages: string | Array<{ role: 'user' | 'assistant'; content: McpContentBlock | McpContentBlock[] }>
+  maxTokens?: number
+  systemPrompt?: string
+  temperature?: number
+  stopSequences?: string[]
+  modelPreferences?: Record<string, any>
+  includeContext?: 'none' | 'thisServer' | 'allServers'
+  metadata?: Record<string, any>
+  tools?: any[]
+  toolChoice?: any
+  [key: string]: any
+}
+/** the handshake's answer: `MCP.select('host')` */
+export interface McpHostInfo {
+  hostInfo?: { name: string; version: string; [key: string]: any }
+  /** openLinks, downloadFile, serverTools, serverResources, logging, sampling, updateModelContext, message, ... */
+  hostCapabilities: Record<string, any>
+  protocolVersion?: string
+}
 
 export interface McpAppSource {
   readonly __sygnalReplies: true
@@ -1088,6 +1127,8 @@ export interface McpAppSource {
   select(type: 'host-context-changed'): Stream<McpHostContext>
   /** the host is about to remove the view (answered after the actions it caused have run) */
   select(type: 'teardown'): Stream<{}>
+  /** the handshake's hostInfo, hostCapabilities and protocolVersion (replayed) */
+  select(type: 'host'): Stream<McpHostInfo>
   dispose(): void
 }
 
@@ -1119,8 +1160,9 @@ export interface McpAppDriverOptions {
  * makeMcpAppDriver(options?): the MCP Apps bridge as a driver, for a Sygnal app shown by an MCP
  * host (Claude, ChatGPT, VS Code, ...) in a sandboxed iframe. It does the `ui/initialize`
  * handshake on start. Source: `MCP.select('tool-input' | 'tool-input-partial' | 'tool-result' |
- * 'tool-cancelled' | 'host-context-changed' | 'teardown')`. Sinks: `{ callTool, args, ok, error }`,
- * `{ updateModelContext }`, `{ message }`, `{ openLink }`, `{ displayMode }`.
+ * 'tool-cancelled' | 'host-context-changed' | 'teardown' | 'host')`. Sinks: `{ callTool, args, ok, error }`,
+ * `{ updateModelContext }`, `{ message }`, `{ openLink }`, `{ displayMode }`, `{ downloadFile }`,
+ * `{ readResource }`, `{ listResources }`, `{ createMessage }`, `{ log }`, `{ requestTeardown }`.
  *
  *   run(WeatherCard, { MCP: makeMcpAppDriver() })
  */

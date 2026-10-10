@@ -2,7 +2,7 @@
 import { expectTypeOf } from 'vitest'
 import xs from 'xstream'
 import { makeMcpAppDriver, agentTools } from 'sygnal/ai'
-import type { McpAppSource, McpAppRequest, McpToolResult, McpHostContext, McpAppError } from 'sygnal/ai'
+import type { McpAppSource, McpAppRequest, McpToolResult, McpHostContext, McpAppError, McpHostInfo } from 'sygnal/ai'
 import { makeMcpAppDriver as fromCore, run } from 'sygnal'
 import type { Stream } from 'xstream'
 
@@ -32,7 +32,22 @@ const ok: McpAppRequest[] = [
   { message: [{ type: 'text', text: 'hi' }] },
   { openLink: 'https://example.com' },
   { displayMode: 'fullscreen', ok: 'MODE' },
+  // G-641
+  { downloadFile: { uri: 'file:///r.csv', mimeType: 'text/csv', text: 'a,b' } },
+  { downloadFile: [{ type: 'resource_link', uri: 'https://example.com/a', name: 'a' }], error: 'FAILED' },
+  { readResource: 'file:///a.txt', ok: 'READ' },
+  { listResources: true, ok: 'LIST' },
+  { listResources: { cursor: 'c2' } },
+  { createMessage: 'Weather in Oslo?', ok: 'SAMPLED' },
+  { createMessage: { messages: [{ role: 'user', content: { type: 'text', text: 'hi' } }], maxTokens: 200 } },
+  { log: { step: 1 }, level: 'debug', logger: 'weather' },
+  { requestTeardown: true },
 ]
+expectTypeOf(src.select('host')).toEqualTypeOf<Stream<McpHostInfo>>()
+src.select('host').map((h) => !!h.hostCapabilities.sampling)
+// @ts-expect-error not a log level
+const badLevel: McpAppRequest = { log: 'x', level: 'verbose' }
+void badLevel
 // @ts-expect-error not a display mode
 const bad: McpAppRequest = { displayMode: 'big' }
 expectTypeOf<McpAppError['error']>().toEqualTypeOf<string>()

@@ -49,9 +49,9 @@ function pair() {
   return { host, win, transport, wire, listeners }
 }
 
-async function connect(opts = {}, hostContext = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'] }) {
+async function connect(opts = {}, hostContext = { theme: 'light', displayMode: 'inline', availableDisplayModes: ['inline', 'fullscreen'] }, caps = {}) {
   const p = pair()
-  bridge = new AppBridge(null, { name: 'test-host', version: '1.0.0' }, { openLinks: {}, serverTools: {}, updateModelContext: { structuredContent: {} }, message: { text: {} } }, { hostContext })
+  bridge = new AppBridge(null, { name: 'test-host', version: '1.0.0' }, { openLinks: {}, serverTools: {}, updateModelContext: { structuredContent: {} }, message: { text: {} }, ...caps }, { hostContext })
   const initialized = new Promise((r) => { bridge.oninitialized = r })
   await bridge.connect(p.transport)
   return { ...p, initialized, opts: { host: p.host, window: p.win, autoResize: false, ...opts } }
@@ -193,6 +193,55 @@ describe('makeMcpAppDriver (X-1)', () => {
       ['mode', { mode: 'fullscreen' }],
     ])
     expect(replies).toEqual([{ mode: 'fullscreen' }])
+  })
+
+  it('G-641: downloadFile, readResource, listResources, createMessage, log, requestTeardown and the host source', async () => {
+    const c = await connect({}, undefined, { downloadFile: {}, serverResources: {}, logging: {}, sampling: {} })
+    const host = []
+    bridge.ondownloadfile = async (p) => { host.push(['download', p]); return p.contents.length > 1 ? { isError: true } : {} }
+    bridge.onreadresource = async (p) => { host.push(['read', p]); return { contents: [{ uri: p.uri, mimeType: 'text/plain', text: 'hello' }] } }
+    bridge.onlistresources = async (p) => { host.push(['list', p]); return { resources: [{ uri: 'file:///a.txt', name: 'a' }] } }
+    bridge.oncreatesamplingmessage = async (p) => { host.push(['sample', p]); return { role: 'assistant', content: { type: 'text', text: 'Sunny' }, model: 'm' } }
+    bridge.onloggingmessage = (p) => host.push(['log', p])
+    bridge.onrequestteardown = (p) => host.push(['teardown', p])
+    const replies = []
+    let info
+    function View() { return h('div', {}, h('button', { className: 'x' }, 'x')) }
+    View.initialState = {}
+    View.intent = ({ DOM, MCP }) => ({ X: DOM.click('.x'), HOST: MCP.select('host') })
+    const r = (name) => (s, d) => { replies.push([name, d]); return s }
+    View.model = {
+      HOST: (s, d) => { info = d; return s },
+      X: { MCP: () => ({ downloadFile: { uri: 'file:///report.csv', mimeType: 'text/csv', text: 'a,b' }, ok: 'D1', error: 'E' }) },
+      D1: { MCP: () => ({ downloadFile: [{ type: 'resource_link', uri: 'https://example.com/a', name: 'a' }, { type: 'resource_link', uri: 'https://example.com/b', name: 'b' }], ok: 'E', error: 'D2' }) },
+      D2: { MCP: () => ({ readResource: 'file:///a.txt', ok: 'R1' }) },
+      R1: { MCP: (s, d) => ({ listResources: true, ok: 'L1' }), STATE: r('read') },
+      L1: { MCP: () => ({ createMessage: 'Weather in Oslo?', ok: 'S1' }), STATE: r('list') },
+      S1: { MCP: () => ({ log: { step: 'sampled' }, level: 'debug', logger: 'weather', ok: 'G1' }), STATE: r('sample') },
+      G1: { MCP: () => ({ requestTeardown: true, ok: 'T1' }) },
+      T1: r('teardown-sent'),
+      E: r('error'),
+    }
+    await mount(View, { MCP: makeMcpAppDriver(c.opts) })
+    await c.initialized
+    document.querySelector('.x').click()
+    await sleep(20)
+    expect(info).toMatchObject({ hostInfo: { name: 'test-host' }, hostCapabilities: { downloadFile: {}, sampling: {}, logging: {}, serverResources: {} }, protocolVersion: expect.any(String) })
+    expect(host).toEqual([
+      ['download', { contents: [{ type: 'resource', resource: { uri: 'file:///report.csv', mimeType: 'text/csv', text: 'a,b' } }] }],
+      ['download', { contents: [{ type: 'resource_link', uri: 'https://example.com/a', name: 'a' }, { type: 'resource_link', uri: 'https://example.com/b', name: 'b' }] }],
+      ['read', { uri: 'file:///a.txt' }],
+      ['list', {}],
+      ['sample', { messages: [{ role: 'user', content: { type: 'text', text: 'Weather in Oslo?' } }], maxTokens: 1024 }],
+      ['log', { level: 'debug', logger: 'weather', data: { step: 'sampled' } }],
+      ['teardown', {}],
+    ])
+    expect(replies.map(([n]) => n)).toEqual(['read', 'list', 'sample', 'teardown-sent'])
+    expect(replies[0][1].contents[0].text).toBe('hello')
+    expect(replies[1][1].resources[0].uri).toBe('file:///a.txt')
+    expect(replies[2][1].content.text).toBe('Sunny')
+    const methods = c.wire.filter(([d]) => d == 'view→host').map(([, m]) => m.method).filter(Boolean)
+    expect(methods).toEqual(expect.arrayContaining(['ui/download-file', 'resources/read', 'resources/list', 'sampling/createMessage', 'notifications/message', 'ui/notifications/request-teardown']))
   })
 
   it('teardown: emitted, answered after the actions it caused (their requests are sent first)', async () => {

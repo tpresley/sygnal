@@ -19,6 +19,17 @@ npm test             # the view and the server, no host needed
 
 `node server/server.js --stdio` runs the same server over stdio. `PORT=4000 npm run serve` picks another port.
 
+### Before Sygnal 6.1.0 is published
+
+This project needs `sygnal` 6.1 (`makeMcpAppDriver` from `sygnal/ai`). Until 6.1.0 is on npm, `npm install` can't resolve `^6.1.0`; use a local build of a Sygnal checkout that has it (one where `src/extra/ai/mcpApp.ts` exists):
+
+```bash
+npm ci --prefix ../sygnal && npm run build --prefix ../sygnal
+npm install ../sygnal          # a link to the checkout; or `npm pack` in it, then npm install ../sygnal/sygnal-<version>.tgz
+```
+
+`npm install <folder>` writes `"sygnal": "file:../sygnal"` into `package.json`; set it back to `"^6.1.0"` once the release is out.
+
 ## Try it in a host
 
 Ask the model for a forecast ("What's the weather in Lisbon this week?") once the server is connected.
