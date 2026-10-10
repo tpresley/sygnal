@@ -86,10 +86,18 @@ export function eventSinkTypes(project, file, valueNode) {
   return out
 }
 
+/** `decide(...)` or `decide.openai(...)` with `decide` imported from 'sygnal/ai' (G-648). */
+function isDecideCall(file, call) {
+  let callee = unwrap(call.callee)
+  if (callee?.type === 'MemberExpression' && !callee.computed && callee.property?.name === 'openai') callee = unwrap(callee.object)
+  return isSygnalImport(file, callee, 'decide')
+}
+
 /**
  * Object literals a sink value can produce: the object itself, or a function's returns (through
  * ?:, &&, ||), and (PLAN-6 K-1, 0-S5) the returns of a local helper it calls
- * (`LLM: (state) => ask(state.messages)` with `const ask = (messages) => ({ messages, ok: 'DONE' })`).
+ * (`LLM: (state) => ask(state.messages)` with `const ask = (messages) => ({ messages, ok: 'DONE' })`),
+ * and (G-648) the options object of a `decide({ ..., ok: 'TRIAGED' })` / `decide.openai(...)` call.
  */
 export function returnedObjects(project, file, valueNode, depth = 0, seen = new Set()) {
   const r = resolveExpr(project, file, valueNode)
@@ -104,7 +112,11 @@ export function returnedObjects(project, file, valueNode, depth = 0, seen = new 
     if (e.type === 'LogicalExpression') { collect(e.right); if (e.operator !== '&&') collect(e.left); return }
     if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1]); return }
     if (e.type === 'ObjectExpression') objs.push({ node: e, file: r.file })
-    else if (e.type === 'CallExpression' && depth < 3 && unwrap(e.callee).type === 'Identifier') {
+    else if (e.type === 'CallExpression' && isDecideCall(r.file, e)) {
+      // G-648: decide() / decide.openai() (sygnal/ai) pass their reply keys through to the request
+      const arg = e.arguments[0] && resolveExpr(project, r.file, e.arguments[0])
+      if (arg?.node?.type === 'ObjectExpression') objs.push({ node: arg.node, file: arg.file })
+    } else if (e.type === 'CallExpression' && depth < 3 && unwrap(e.callee).type === 'Identifier') {
       const h = resolveExpr(project, r.file, e.callee)
       if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen))
     }

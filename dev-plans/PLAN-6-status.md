@@ -158,7 +158,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-607 | 0-S4 | No `repair` step | ✅ fixed (1-A: `repair`, D264) |
 | G-608 | 0-S4 | ArkType rebuilds `~standard` on each read: cache by schema object | ✅ fixed (1-A: cache by schema object) |
 | G-609 | 0-S4 | Anthropic caps strict tools per request | ✅ fixed (3-W2: per-tool fallback) |
-| G-610 | 0-S4 | ArkType's `.describe()` replaces its own error messages | open (docs) |
+| G-610 | 0-S4 | ArkType's `.describe()` replaces its own error messages | ✅ fixed (`p6-gap-docs`: agent.md "Input schemas", ai-chat.md) |
 | G-611 | 0-S4 | `sygnal-check` candidates: an unwrapped Valibot `input`; a `Date` `input` | ✅ fixed (3-K) |
 | G-612 | 0-S5 | check-live never clicks: Stop / abort in demos unchecked | ✅ by design (D275) |
 | G-613 | 0-S5 | A scripted transport is invisible to check-live | ✅ moot (D274: no scripted transport) |
@@ -190,18 +190,18 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-639 | merge of 3-F | The main rollup run peaks ≈ 5.1 GB (25 configs, each a full TypeScript program) and OOM'd at Node's 4 GB default: build now uses an 8 GB heap; sharing one TS program across configs is the real fix | open (build) |
 | G-640 | 3-F | `chat` messages have no ids; `uiMessageStream` numbers them by position, so the inserted app-state message shifts ids between requests; an AI SDK server that stores client messages also stores the app-state message (marked `metadata.sygnal`) | open (L-3) |
 | G-641 | 3-X | The `mcp-app` template asks for `sygnal` ^6.1.0 (installable after the release); `ui/download-file`, view-initiated `request-teardown`, `readServerResource`, logging and sampling aren't wrapped | open |
-| G-642 | 3-X | Parallel workers shared the session scratchpad and collided (one worker's `gate.log` in another's): give each worker its own subfolder | open (process) |
+| G-642 | 3-X | Parallel workers shared the session scratchpad and collided (one worker's `gate.log` in another's): give each worker its own subfolder | ✅ fixed (`p6-gap-docs`: CLAUDE.md "Parallel agents") |
 | G-643 | Phase 3 gate | MCP Apps `autoResize` measured only in `requestAnimationFrame`; WebKit throttles rAF in an off-screen iframe, so size reports stopped (the 3-X browser test failed in the full WebKit suite, passed alone) — also real for a view scrolled out of a host's chat | ✅ fixed (rAF raced with a 100 ms timer) |
 | G-644 | 4-D2 | `chat` and `commandBar` put `agent.label` text (user-entered) into the item tool's parameter description, outside the framed app-state block: the D286 / G-631 channel again (WebMCP already strips it) | ✅ fixed (4-F) |
 | G-645 | 4-D2 | `integration/testing.md` doesn't list `'agent'` among `cause` values; `t.agentContext()` nests the projection under the declaration name (`todos.todos`) | ✅ fixed (4-F) |
 | G-646 | 4-D1 | Raw chat driver ergonomics: apps write tool outputs into `tool-<name>` parts by hand before resending; a `tool` reply's input isn't validated (only `chat` validates) | ✅ fixed (4-F: `withToolResults`; raw driver doesn't validate, documented) |
 | G-647 | 4-D1 | `chromePrompt().status()` is a Promise (a component can't read it; pick the transport in `main.js` or handle `error.status === 'unavailable'`); the `form` behavior has no bulk "set values" (one `form.CHANGE` per field) | open (docs / later) |
-| G-648 | 4-E | sygnal-check: false SYG102 for `ok`/`error` passed inside a `decide()` call | open (K-1) |
+| G-648 | 4-E | sygnal-check: false SYG102 for `ok`/`error` passed inside a `decide()` call | ✅ fixed (`p6-gap-docs`: decide() options read as a request) |
 | G-649 | 4-E | A-1 reports `removed: true` when a moved card only leaves its filtered Collection | ✅ fixed (`p6-g650`) |
 | G-650 | 4-E | Task 47 operability: Sygnal 6/12 vs React 10/12 (shared Ollama); rerun alone: **Sygnal 5/12 vs React 11/12**, every Sygnal failure = 0 tool calls + 240 s timeout on move/remove (the model stalls; suspected: D286's id-only, title-less tool text) | ✅ fixed (`p6-g650`, D296) |
 | G-651 | eval (REPORT-v6) | The chat guide didn't document `uiMessageStream`'s request body; agents read the built code (tasks 44–45) | ✅ fixed (4-G) |
 | G-652 | eval (REPORT-v6) | The WebMCP guide didn't describe the default confirm dialog's DOM or how to test it (task 47) | ✅ fixed (4-G) |
-| G-653 | eval (REPORT-v6) | Haiku 5.5 cost ≈ 3× the Haiku 4.5-based estimate ($60.34 vs ≈ $19); total spend $118.66 vs the $90 budget | open (process: pilot models without records before estimating) |
+| G-653 | eval (REPORT-v6) | Haiku 5.5 cost ≈ 3× the Haiku 4.5-based estimate ($60.34 vs ≈ $19); total spend $118.66 vs the $90 budget | ✅ fixed (`p6-gap-docs`: pilot rule in run.md and P6-RUNBOOK.md) |
 | G-654 | 4-G | A transport `body` / request `body` could overwrite `uiMessageStream`'s `id`/`messages`/`trigger`/`messageId` | ✅ fixed (coordinator) |
 
 ## Log

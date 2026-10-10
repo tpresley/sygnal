@@ -264,7 +264,7 @@ QuickAdd.model = {
 
 - `value` is the schema's **output**: transforms and defaults have run, and its type is the schema's output type.
 - A schema whose root isn't an object (a `z.array(...)`, a `z.enum(...)`) is sent wrapped as `{ value }` and unwrapped again, because providers want an object at the root.
-- `.describe()` texts go to the model with the schema. They are the best place to say what a field means.
+- `.describe()` texts go to the model with the schema. They are the best place to say what a field means. With ArkType, a field's `.describe()` also replaces the expected text in its `issues` messages (`title must be What to do (was a number)`); see [Input schemas](/guide/agent/#input-schemas) for how to keep both.
 - Small local models follow a schema less reliably than hosted ones. Handle `issues` in `error` (ask again, or show the text), and keep schemas small and flat.
 - For OpenAI's and Anthropic's strict schema modes, see [Strict schemas](#strict-schemas).
 
