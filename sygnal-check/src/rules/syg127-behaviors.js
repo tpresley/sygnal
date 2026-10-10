@@ -13,6 +13,7 @@
  */
 import { walk, unwrap, stringValue, propName } from '../ast.js'
 import { closestName } from '../names.js'
+import { renameFix, stringEdit, keyEdit } from '../edits.js'
 import { sygnalImport, behaviorActions, openPrefixes } from '../model/behaviors.js'
 import { analyzeModel } from '../model/modelEntries.js'
 import { resolveExpr } from '../model/resolve.js'
@@ -64,6 +65,7 @@ function reportUses(project, report, comp) {
         message: `behavior '${e.def.name}' (uses key '${e.key}') has no option '${name}'${near ? `; did you mean '${near}'?` : ''} It reads: ${[...names].join(', ') || 'none'}`,
         fix: near ? `rename '${name}' to '${near}'` : `remove '${name}', or use one of the options it reads`,
         data: { key: e.key, reason: 'option', option: name, ...(near ? { suggestion: near } : {}) },
+        fixes: near && renameFix(`Rename '${name}' to '${near}'`, keyEdit(opt.file, opt.keyNode, near)),
       })
     }
   }
@@ -101,6 +103,7 @@ function checkNames(report, comp, file, optionsNode, known, open, where) {
         message: `${where} ${opt} names '${name}', which has no model entry, so ${EFFECT_OF[opt]}${near ? `; did you mean '${near}'?` : ''}`,
         fix: near ? `rename '${name}' to '${near}'` : `use the name of a model entry, or add '${name}' to the model`,
         data: { action: name, option: opt },
+        fixes: near && renameFix(`Change '${name}' to '${near}'`, stringEdit(file, node, near)),
       })
     }
   }

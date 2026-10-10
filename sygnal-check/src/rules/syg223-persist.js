@@ -13,6 +13,7 @@
  */
 import { unwrap, propName, stringValue } from '../ast.js'
 import { closestName } from '../names.js'
+import { renameFix, stringEdit } from '../edits.js'
 import { sygnalImport } from '../model/behaviors.js'
 import { resolveExpr } from '../model/resolve.js'
 import { findApps } from '../model/apps.js'
@@ -51,6 +52,7 @@ function reportKeys(project, report, comp) {
         message: `persist ${opt} names '${k}', which is not a key of ${comp.name}.initialState, so it is ${opt === 'pick' ? 'never saved' : 'never left out'}${near ? ` (did you mean '${near}'?)` : ''}`,
         fix: near ? `rename '${k}' to '${near}'` : `use top-level keys of initialState in ${opt} (${keys.join(', ')}), or add '${k}' to initialState`,
         data: { option: opt, key: k, ...(near ? { suggestion: near } : {}) },
+        fixes: near && renameFix(`Change '${k}' to '${near}'`, stringEdit(r.file, el, near)),
       })
     }
   }

@@ -8,7 +8,7 @@
  * by hand). A raw EVENTS function becomes event('TYPE', ...) on the way
  * (see SYG505).
  */
-import { modelEntries, fnOf, rawEventRewrite, ensureEventImport, text, keyText } from './shared.js'
+import { modelEntries, fnOf, rawEventRewrite, ensureEventImport, text, keyText, rewriteFix } from './shared.js'
 
 /** Canonical value text for a shorthand entry, and whether it is exact. */
 function canonicalValue(project, e) {
@@ -54,7 +54,7 @@ export default {
             ? `use the object form and merge it into the existing '${e.action}' entry: \`${keyText(e.action)}: { …, ${e.sink}: ${shown} }\``
             : `use the object form: \`${rewrite}\``,
           data: { key: e.key, action: e.action, sink: e.sink },
-          edits,
+          fixes: rewriteFix(e.file, `Rewrite '${e.key}' to the object form`, edits),
         })
       }
     }

@@ -1,0 +1,1 @@
+{ "compilerOptions": { "strict": true, "jsx": "react-jsx", "jsxImportSource": "sygnal", "module": "esnext", "moduleResolution": "bundler", "target": "es2022", "noEmit": true, "allowJs": true, "checkJs": true, "skipLibCheck": true }, "include": ["src"] }

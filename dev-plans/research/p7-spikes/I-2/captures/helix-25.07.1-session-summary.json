@@ -1,0 +1,230 @@
+{
+  "clientInfo": {
+    "name": "helix",
+    "version": "25.07.1 (a05c151b)"
+  },
+  "rootUri": "file://<scratch>/hx/proj-helix-strict",
+  "workspaceFolders": [
+    {
+      "name": "proj-helix-strict",
+      "uri": "file://<scratch>/hx/proj-helix-strict"
+    }
+  ],
+  "initializationOptions": {
+    "sygnal": {
+      "strict": true
+    }
+  },
+  "caps": {
+    "textDocument.publishDiagnostics": {
+      "tagSupport": {
+        "valueSet": [
+          1,
+          2
+        ]
+      },
+      "versionSupport": true
+    },
+    "textDocument.diagnostic (pull)": null,
+    "textDocument.hover.contentFormat": [
+      "markdown"
+    ],
+    "textDocument.codeAction": {
+      "codeActionLiteralSupport": {
+        "codeActionKind": {
+          "valueSet": [
+            "",
+            "quickfix",
+            "refactor",
+            "refactor.extract",
+            "refactor.inline",
+            "refactor.rewrite",
+            "source",
+            "source.organizeImports"
+          ]
+        }
+      },
+      "dataSupport": true,
+      "disabledSupport": true,
+      "isPreferredSupport": true,
+      "resolveSupport": {
+        "properties": [
+          "edit",
+          "command"
+        ]
+      }
+    },
+    "textDocument.synchronization": null,
+    "workspace.configuration": true,
+    "workspace.didChangeConfiguration": {
+      "dynamicRegistration": false
+    },
+    "workspace.didChangeWatchedFiles": {
+      "dynamicRegistration": true,
+      "relativePatternSupport": false
+    },
+    "workspace.workspaceFolders": true,
+    "workspace.workspaceEdit": {
+      "documentChanges": true,
+      "failureHandling": "abort",
+      "normalizesLineEndings": false,
+      "resourceOperations": [
+        "create",
+        "rename",
+        "delete"
+      ]
+    },
+    "general.positionEncodings": [
+      "utf-8",
+      "utf-32",
+      "utf-16"
+    ],
+    "window.workDoneProgress": true
+  },
+  "clientSent": {
+    "initialize": 1,
+    "initialized": 1,
+    "workspace/didChangeConfiguration": 1,
+    "textDocument/didOpen": 3,
+    "(response)": 3,
+    "textDocument/hover": 2,
+    "textDocument/codeAction": 2,
+    "textDocument/didChange": 2,
+    "textDocument/didSave": 2,
+    "workspace/didChangeWatchedFiles": 2,
+    "shutdown": 1,
+    "exit": 1
+  },
+  "serverSent": {
+    "(response)": 6,
+    "client/registerCapability": 1,
+    "workspace/configuration": 2,
+    "textDocument/publishDiagnostics": 7
+  },
+  "serverRequests": [
+    {
+      "t": 451,
+      "method": "client/registerCapability",
+      "params": {
+        "registrations": [
+          {
+            "id": "sygnal-watched-files",
+            "method": "workspace/didChangeWatchedFiles",
+            "registerOptions": {
+              "watchers": [
+                {
+                  "globPattern": "**/*.{js,jsx,ts,tsx,mjs,cjs}"
+                },
+                {
+                  "globPattern": "**/sygnal-check.config.json"
+                },
+                {
+                  "globPattern": "**/package.json"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "answeredAfterMs": 1545,
+      "result": null
+    },
+    {
+      "t": 452,
+      "method": "workspace/configuration",
+      "params": {
+        "items": [
+          {
+            "scopeUri": "file://<scratch>/hx/proj-helix-strict",
+            "section": "sygnal"
+          }
+        ]
+      },
+      "answeredAfterMs": 1545,
+      "result": [
+        {
+          "strict": true
+        }
+      ]
+    },
+    {
+      "t": 1997,
+      "method": "workspace/configuration",
+      "params": {
+        "items": [
+          {
+            "scopeUri": "file://<scratch>/hx/proj-helix-strict",
+            "section": "sygnal"
+          }
+        ]
+      },
+      "answeredAfterMs": 2,
+      "result": [
+        {
+          "strict": true
+        }
+      ]
+    }
+  ],
+  "watchedFileEvents": [
+    [
+      "2 src/C.jsx"
+    ],
+    [
+      "2 src/C.jsx"
+    ]
+  ],
+  "workspaceFolderChanges": [],
+  "codeActions": [
+    {
+      "triggerKind": 1,
+      "diagnostics": [
+        "SYG110 +data"
+      ],
+      "answered": [
+        "Change '.incc' to '.inc'",
+        "Suppress SYG110 on this line"
+      ]
+    },
+    {
+      "triggerKind": 1,
+      "diagnostics": [
+        "SYG102 +data"
+      ],
+      "answered": [
+        "Remove the unreachable entry 'INCREMNT'",
+        "Suppress SYG102 on this line"
+      ]
+    }
+  ],
+  "hovers": [
+    {
+      "position": {
+        "character": 55,
+        "line": 4
+      },
+      "kind": "markdown"
+    },
+    {
+      "position": {
+        "character": 28,
+        "line": 6
+      },
+      "kind": "markdown"
+    }
+  ],
+  "end": [
+    {
+      "t": 0,
+      "event": "start"
+    },
+    {
+      "t": 37451,
+      "method": "shutdown"
+    },
+    {
+      "t": 37452,
+      "method": "exit"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "Sygnal component": {
+    "prefix": ["sygcomp", "sygnal-component"],
+    "description": "A Sygnal component in the canonical forms: destructured view, intent, object-form model, initialState",
+    "body": [
+      "function ${1:Counter}({ state }) {",
+      "  return (",
+      "    <div className=\"${2:counter}\">",
+      "      <button className=\"${3:increment}\">+</button>",
+      "      <span>{state.${4:count}}</span>",
+      "    </div>",
+      "  )",
+      "}",
+      "",
+      "$1.initialState = { $4: 0 }",
+      "",
+      "$1.intent = ({ DOM }) => ({",
+      "  ${5:INCREMENT}: DOM.click('.$3'),",
+      "})",
+      "",
+      "$1.model = {",
+      "  $5: (state) => ({ ...state, $4: state.$4 + 1 }),",
+      "}",
+      "",
+      "export default $1",
+      "$0"
+    ]
+  },
+  "Sygnal model entry with EFFECT": {
+    "prefix": ["sygeffect", "sygnal-effect"],
+    "description": "A model entry that only runs a side effect (EFFECT sink; call next('ACTION', data) to dispatch)",
+    "body": [
+      "${1:SAVE}: {",
+      "  EFFECT: (state, data, next) => {",
+      "    ${0:console.log(data)}",
+      "  },",
+      "},"
+    ]
+  },
+  "Sygnal model entry emitting an EVENTS event": {
+    "prefix": ["sygevent", "sygnal-event"],
+    "description": "A model entry that updates state and emits a global event with event() (import { event } from 'sygnal'; receive it with EVENTS.select('TYPE'))",
+    "body": [
+      "${1:SAVE}: {",
+      "  STATE: (state, data) => ({ ...state, ${2:saved}: true }),",
+      "  EVENTS: event('${3:SAVED}', (state, data) => ${4:data}),",
+      "},$0"
+    ]
+  }
+}

@@ -13,7 +13,7 @@
 import { walk, unwrap, memberName, stringValue } from '../../ast.js'
 import { findBinding } from '../../scope.js'
 import { sourceAliases, isSourceRef } from '../../model/intent.js'
-import { IDENT } from './shared.js'
+import { IDENT, rewriteFix } from './shared.js'
 
 /**
  * 'component' when binding `b` can stand in for the string, 'factory' for a
@@ -76,7 +76,7 @@ export default {
             ? `pass the component function: \`CHILD.select(${name})\`${hint}`
             : 'pass the child component function to CHILD.select()',
           data: { name },
-          edits: resolvable ? [{ file: file.path, start: arg.start, end: arg.end, text: name }] : undefined,
+          fixes: resolvable ? rewriteFix(file, `Pass the component: CHILD.select(${name})`, [{ file: file.path, start: arg.start, end: arg.end, text: name }]) : undefined,
         })
         return true
       })

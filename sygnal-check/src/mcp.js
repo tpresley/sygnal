@@ -29,6 +29,10 @@
  *   graph({ paths?, strict?, a11y? })  → InspectGraph (schema/inspect.schema.json)
  *   explain({ code })           → Explanation (title, severity, explanation, fix, docsUrl)
  * Each result is returned as structuredContent and as JSON text content.
+ * check and graph apply the config file found from the server's working directory
+ * (sygnal-check.config.json / package.json "sygnal-check", re-read on each call; src/config.js):
+ * its strict, a11y, ignore, paths and includeTests, below the tool's explicit arguments. Its
+ * findings (SYG900) are in the diagnostics.
  *
  *   createMcpServer({ cwd }) → { handle(message) → response | null }  (never throws:
  *     non-object params are treated as {}, failures become -32603 errors)
@@ -39,8 +43,10 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { expandInputs } from './files.js'
-import { checkFiles } from './index.js'
+import { checkFiles, withConfigDiagnostics } from './index.js'
 import { graphFiles } from './graph.js'
+import { resolveOptions } from './config.js'
+import { createParseCache } from './cache.js'
 import { getExplanation, suggestCodes } from './explain.js'
 
 /** the stateless revisions (per-request `_meta`, no initialize), newest first */
@@ -57,7 +63,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(impo
 const pathsSchema = {
   type: 'array',
   items: { type: 'string' },
-  description: "Files, directories or globs, relative to the server's working directory (default: [\"src\"])",
+  description: "Files, directories or globs, relative to the server's working directory (default: the config file's paths, else [\"src\"])",
 }
 const strictSchema = { type: 'boolean', description: 'Also run the strict-mode canonical-form rules (SYG501-508)' }
 const a11ySchema = { type: 'string', enum: ['warn', 'error'], description: "Severity of the a11y findings (SYG701-708): 'warn' (default, also with strict) or 'error'" }
@@ -92,15 +98,20 @@ class ToolError extends Error {}
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
-function filesFor(cwd, paths) {
+/** The tool's settings (arguments > config file > defaults) and the files to check. */
+function settingsFor(cwd, args) {
+  const { paths } = args
   if (paths !== undefined && (!Array.isArray(paths) || paths.some(p => typeof p !== 'string'))) {
     throw new ToolError('paths must be an array of strings')
   }
-  const list = paths && paths.length ? paths : ['src']
-  const { files, missing } = expandInputs(list, { cwd })
-  if (missing.length) throw new ToolError(`no such file or directory: ${missing.join(', ')}`)
-  if (!files.length) throw new ToolError(`no source files found in ${list.join(', ')}`)
-  return files
+  const strict = args.strict === undefined || args.strict === null ? undefined : !!args.strict
+  const { options, config } = resolveOptions({ cwd, strict, a11y: a11yOf(args) })
+  const list = paths && paths.length ? paths : options.paths
+  const shown = (p) => path.isAbsolute(p) ? (path.relative(cwd, p) || '.') : p
+  const { files, missing } = expandInputs(list, { cwd, includeTests: options.includeTests })
+  if (missing.length) throw new ToolError(`no such file or directory: ${missing.map(shown).join(', ')}`)
+  if (!files.length) throw new ToolError(`no source files found in ${list.map(shown).join(', ')}`)
+  return { files, options, configDiagnostics: config.diagnostics }
 }
 
 function summarize(diags) {
@@ -113,14 +124,16 @@ function a11yOf(args) {
   return args.a11y
 }
 
-function callTool(name, args, cwd) {
+function callTool(name, args, cwd, cache) {
   args = isObj(args) ? args : {}
   if (name === 'check') {
-    const diagnostics = checkFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict, a11y: a11yOf(args) })
+    const { files, options, configDiagnostics } = settingsFor(cwd, args)
+    const diagnostics = withConfigDiagnostics(checkFiles(files, { ...options, cache }), configDiagnostics, options.ignore)
     return { diagnostics, summary: summarize(diagnostics) }
   }
   if (name === 'graph') {
-    return graphFiles(filesFor(cwd, args.paths), { cwd, strict: !!args.strict, a11y: a11yOf(args) })
+    const { files, options, configDiagnostics } = settingsFor(cwd, args)
+    return graphFiles(files, { ...options, cache, extraDiagnostics: configDiagnostics })
   }
   if (name === 'explain') {
     const e = typeof args.code === 'string' ? getExplanation(args.code) : undefined
@@ -137,6 +150,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
   const result = (id, value) => ({ jsonrpc: '2.0', id, result: value })
   const error = (id, code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data !== undefined ? { data } : {}) } })
   const serverInfo = { name: 'sygnal-check', version: pkg.version }
+  const cache = createParseCache() // PLAN-7 C-3: unchanged files aren't re-parsed between calls
 
   /**
    * A request's era from its `_meta`: 'modern', 'legacy', or an error response (an unknown
@@ -203,7 +217,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
         const tool = TOOLS.find(t => t.name === params.name)
         if (!tool) return error(id, -32602, `Unknown tool: ${params.name}`)
         try {
-          const value = callTool(tool.name, params.arguments, cwd)
+          const value = callTool(tool.name, params.arguments, cwd, cache)
           return result(id, { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value, isError: false })
         } catch (err) {
           const text = err instanceof ToolError ? err.message : `sygnal-check ${tool.name} failed: ${err?.message || err}`

@@ -1,0 +1,25 @@
+# 1966 edits over examples/kanban/src, examples/plan5-showcase/src, examples/ai-panel-spa/src
+
+| edit | n | A: errorRecovery parse usable | B: + repair suffix | C: line-prefix context |
+|---|---|---|---|---|
+| key-typing | 251 | 0% | 100% | 100% |
+| key-colon | 251 | 0% | 100% | 100% |
+| open-call | 115 | 0% | 100% | 100% |
+| truncate | 617 | 0% | 14% | 99% |
+| autoclosed | 366 | 100% | 100% | 100% |
+| unterminated | 366 | 0% | 100% | 100% |
+| **all** | 1966 | 19% | 73% | 100% |
+
+| site | n | A | B | C |
+|---|---|---|---|---|
+| intent-key | 460 | 0% | 75% | 99% |
+| model-key | 408 | 0% | 84% | 100% |
+| selector | 303 | 33% | 67% | 100% |
+| collection-from | 33 | 33% | 67% | 100% |
+| className | 696 | 33% | 67% | 100% |
+| reply | 18 | 33% | 78% | 100% |
+| next | 48 | 31% | 92% | 100% |
+
+A failures by reason: {"UnexpectedToken":984,"UnterminatedString":616,"cursor outside":1}
+B failures by edit:reason: {"truncate:UnexpectedToken":176,"truncate:UnterminatedString":355,"autoclosed:cursor outside":1,"unterminated:UnterminatedString":1}
+Repair suffixes that worked: {": 0,":251,"0,":251,"'),":115," }":70,"'":122,"\"":243,"'})}}":2,"')}}":2,"')}}}}":3,"')}}}}}":3,"')}}}}}}":3,"')}}}":3}

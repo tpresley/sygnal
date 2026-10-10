@@ -1,0 +1,24 @@
+# Helix config for the Sygnal language server (I-2). Put it in the project as .helix/languages.toml,
+# or merge it into ~/.config/helix/languages.toml. The `language-servers` lists replace Helix's
+# defaults, so they repeat typescript-language-server first (it stays the primary server).
+[language-server.sygnal]
+command = "npx"
+args = ["--no-install", "sygnal-check", "lsp"]
+# Sent as initializationOptions, and answered on workspace/configuration (section "sygnal").
+config = { sygnal = { strict = true } }
+
+[[language]]
+name = "javascript"
+language-servers = ["typescript-language-server", "sygnal"]
+
+[[language]]
+name = "jsx"
+language-servers = ["typescript-language-server", "sygnal"]
+
+[[language]]
+name = "typescript"
+language-servers = ["typescript-language-server", "sygnal"]
+
+[[language]]
+name = "tsx"
+language-servers = ["typescript-language-server", "sygnal"]

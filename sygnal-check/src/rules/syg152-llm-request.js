@@ -27,7 +27,8 @@ export default {
         report({
           code: 'SYG152',
           component: comp.name,
-          file: r.file, node: obj,
+          // C-2: a finding about a missing key: underline the `messages` key that makes it an LLM request
+          file: r.file, node: obj.properties.find(p => propName(p) === 'messages')?.key || obj, anchor: obj,
           message: `the ${r.sink} request '${r.action}' sends has messages but no ok reply action: the finished reply (message, text, toolCalls, usage) arrives only as ok, so it is lost` +
             (keys.includes('delta') ? ' (delta shows the text while it streams, but the final message never reaches the state)' : ''),
           fix: `name the action the reply arrives as: { messages, ok: 'REPLIED', error: 'FAILED' }, and add model entries for them (REPLIED: (state, { message }) => ...)`,

@@ -4,8 +4,8 @@
  * Each rule follows the interface documented in ../index.js with
  * `strict: true`; they only run with `--strict` / `check(…, { strict: true })`.
  *
- * Rules may attach `edits: [{ file, start, end, text }]` to a report for the
- * mechanical rewrites applied by `--fix` (see ../../fix.js).
+ * Rules attach their mechanical rewrites to a report as a `fixAll` fix (shared.js rewriteFix,
+ * PLAN-7 C-4): `--fix` applies them (see ../../fix.js), an editor offers them.
  */
 import positionalView from './syg501-positional-view.js'
 import effectInState from './syg503-effect-in-state.js'

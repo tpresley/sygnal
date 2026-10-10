@@ -149,7 +149,7 @@ export default {
         }
         if (complete && !elements.some(i => i.spread || i.kind === 'component') && !elements.some(isLive)) {
           report({
-            code: 'SYG724', component: comp.name, file: e.file, node: e.node,
+            code: 'SYG724', component: comp.name, file: e.file, node: e.keyNode || e.node, // C-2: the uses key (a missing live region)
             message: `sortable '${e.key}': ${comp.name} renders no live region (aria-live, or role="status" / "alert" / "log"), so the pick-up, move and drop announcements in state.${e.key}.message never reach screen-reader users`,
             fix: `render the message in a live region: <p role="status" aria-live="assertive">{state.${e.key}.message}</p>`,
             data: { key: e.key, problem: 'live-region' },

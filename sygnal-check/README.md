@@ -9,6 +9,7 @@ npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
 npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
+npx sygnal-check lsp             # language server (stdio) for editors
 ```
 
 It parses JS, JSX, TS and TSX with `@babel/parser`. It never runs your code and doesn't depend on `sygnal`.
@@ -28,7 +29,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 
 | Option | |
 |---|---|
-| `--json` | Print an array of diagnostics (see below) |
+| `--json` | Print an array of diagnostics (see [JSON output](#json-output)) |
 | `--fail-on=warn\|error\|never` | Exit with code 1 when a diagnostic at this level or above exists. The default is `warn`. Info never fails the run |
 | `--verbose` | Also print info-level findings |
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
@@ -38,10 +39,56 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
 | `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
+| `--config <file>` | Read this JSON [config file](#configuration) instead of looking for `sygnal-check.config.json` / the `package.json` key (also `--config=<file>`; a missing file exits 2) |
+| `--no-config` | Ignore config files: flags and defaults only |
+
+Flags override the [config file](#configuration). With no paths on the command line, the config's `paths` are checked (else `src`).
 
 Exit codes: `0` clean, `1` findings at or above `--fail-on`, `2` usage error (bad option, no files, unknown code for `explain`).
 
 Subcommands: [`sygnal-check explain <code>`](#explaining-a-code) and [`sygnal-check mcp`](#mcp-server).
+
+## Configuration
+
+Put the project's settings in `sygnal-check.config.json` at the project root, so the CLI, the MCP server, the editor and the [Vite plugin](https://sygnal.js.org/integration/bundler-config/) all check with them:
+
+```json
+{
+  "strict": true,
+  "a11y": "error",
+  "ignore": ["SYG105"],
+  "paths": ["src", "pages"],
+  "includeTests": false
+}
+```
+
+Or under the `"sygnal-check"` key of `package.json`:
+
+```json
+{
+  "name": "my-app",
+  "sygnal-check": { "strict": true }
+}
+```
+
+| Key | Type | Default | |
+|---|---|---|---|
+| `strict` | boolean | `false` | Also run the [strict-mode](#strict-mode) rules (`--strict`) |
+| `a11y` | `"warn"` \| `"error"` | `"warn"` | Severity of the [a11y lane](#accessibility-syg7xx) (`--a11y`) |
+| `ignore` | string[] | `[]` | Codes to drop entirely, e.g. `["SYG105"]` |
+| `paths` | string[] | `["src"]` | Files, directories or globs to check when none are given, relative to the config file |
+| `includeTests` | boolean | `false` | Also scan `*.test.*` / `*.spec.*` files (`--include-tests`) |
+
+`$schema` is allowed and ignored. Settings are taken from, highest first:
+
+1. explicit options: command-line flags, the API's options, the MCP tools' arguments, editor settings, the Vite plugin's `check` options;
+2. `sygnal-check.config.json`;
+3. the `"sygnal-check"` key in `package.json`;
+4. the defaults above.
+
+The project root is found from the working directory upwards: the first directory with a `sygnal-check.config.json` or a `package.json`. The search stops there, so a config file above the nearest `package.json` is never used. If that directory has both the file and the `package.json` key, the file wins and an info finding says the key is ignored. An explicit option replaces the config's value (an `ignore` list is not merged).
+
+The config is JSON only; sygnal-check never runs a JS config. Mistakes are findings on the config file, never crashes: an unknown key or a value of the wrong type is a SYG900 warning with a "did you mean" (the value is ignored), and malformed JSON is one SYG900 finding at the parser's position (the file is then ignored and the defaults apply).
 
 ## Rules
 
@@ -113,7 +160,7 @@ The a11y lane runs by default, also in the Vite plugin's dev checker. It reports
 | SYG507 | info | `.context` for top-down data | a component that receives prop `p` and passes it on unchanged to its own child component (`<A>` → `<X>` → `<Y>`, 3 levels) | no |
 | SYG508 | warn | reply actions, `LOAD: { HTTP: (state) => ({ url, ok: 'LOADED', error: 'FAILED' }) }` | `X.select('c')` / `X.errors('c')` in an intent when the same component's model sends sink `X` an object with `category: 'c'` (or driverFromAsync's `selector` property) and no `ok`/`error`, and `X` is a reply-action driver: `makeFetchDriver()`/`driverFromAsync()`/`makeSocketDriver()` under that key somewhere in the scanned files, or `HTTP` not registered as another `…Driver()` | no |
 
-`--fix` adds `event` to the file's existing `import { … } from 'sygnal'` when a rewrite needs it (and skips the rewrite when there is no such import, or `event` is bound to something else), and removes an `emit` import the rewrite left unused. It re-checks after every pass; running it again changes nothing. Review the diff: it rewrites source files in place.
+`--fix` adds `event` to the file's existing `import { … } from 'sygnal'` when a rewrite needs it (and skips the rewrite when there is no such import, or `event` is bound to something else), and removes an `emit` import the rewrite left unused. It also deletes the SYG612 statics that only need deleting (`storeCalculatedInState`, a source name set to its default). It re-checks after every pass; running it again changes nothing. Review the diff: it rewrites source files in place. Each rewrite is also in the finding's `fixes` (marked `fixAll`, see [JSON output](#json-output)), so an editor applies the same edits.
 
 The runtime has a matching opt-in strict mode for the rules it can detect reliably (SYG501, SYG504): `import { configureStrict } from 'sygnal/diagnostics'; configureStrict(true)`, or `renderComponent(C, { strict: true })` in tests.
 
@@ -121,7 +168,7 @@ The runtime has a matching opt-in strict mode for the rules it can detect reliab
 
 A control comes from `controls({ Key: 'tag' })` (`import { controls } from 'sygnal'`) and renders its element with `data-control="Key"`; anywhere a selector is accepted, it resolves to `[data-control="Key"]`. The checker follows controls declared as `const { Add } = controls({…})`, `const C = controls({…})` (used as `<C.Add>` / `DOM.click(C.Add)`), and imported from a relative module, including `export { Add } from './controls'` and `export * from './controls'` re-exports. A control tag renders in the component's own scope (it is not a child component), and a control in a template-string selector (`` `li ${Done}` ``) counts as listened to.
 
-`--fix --controls` (or `--controls`) converts a selector such as `DOM.click('.add')` into a control when the class is on exactly one intrinsic element of the component's own view as a static `className` string, and nowhere else: no other element (or dynamic className, spread, `<Collection className>`) that might produce it, no child view, no JSX passed in, and no other selector in the project (compound, `document`/`body`). It adds the key (the class in PascalCase, numbered when the name is taken) to the file's `const { … } = controls({ … })` or adds one after the imports, replaces the tag and every `'.add'` selector of that intent, and adds `controls` to the file's `import { … } from 'sygnal'`. The class stays on the element when a CSS/SCSS/Less/HTML file in the project mentions `.add`, a string in another source file does (a test's `simulateEvent('.add', …)`), or `--keep-classes` is set. An element whose rendered markup a string asserts (`toContain('<button class="add">')`) is left alone, since the control adds `data-control` to it. Running it again changes nothing. It is opt-in: controls are an alternative form in 6.0, and class selectors stay canonical (PLAN-4 D141).
+`--fix --controls` (or `--controls`) converts a selector such as `DOM.click('.add')` into a control when the class is on exactly one intrinsic element of the component's own view as a static `className` string, and nowhere else: no other element (or dynamic className, spread, `<Collection className>`) that might produce it, no child view, no JSX passed in, and no other selector in the project (compound, `document`/`body`). It adds the key (the class in PascalCase, numbered when the name is taken) to the file's `const { … } = controls({ … })` or adds one after the imports, replaces the tag and every `'.add'` selector of that intent, and adds `controls` to the file's `import { … } from 'sygnal'`. The class stays on the element when a CSS/SCSS/Less/HTML file in the project mentions `.add`, a string in another source file does (a test's `simulateEvent('.add', …)`), or `--keep-classes` is set. An element whose rendered markup a string asserts (`toContain('<button class="add">')`) is left alone, since the control adds `data-control` to it. Running it again changes nothing. It is opt-in: controls are an alternative form in 6.0, and class selectors stay canonical (PLAN-4 D141). `controlFixes(absPaths, { cwd, sources?, keepClasses? })` returns the same conversions one class at a time, as editor refactors located at the selector (see [Programmatic API](#programmatic-api)).
 
 ### Behaviors
 
@@ -198,7 +245,7 @@ SYG104: Intent selector crosses an isolation boundary
 
 ## MCP server
 
-`sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is `["src"]`.
+`sygnal-check mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server on stdio, so an agent can call the checker as tools. Paths are resolved against the server's working directory (start it in the project root); the default is the [config file](#configuration)'s `paths`, else `["src"]`. `check` and `graph` apply the config file found from that directory (re-read on every call); a tool's `strict` / `a11y` / `paths` arguments win over it.
 
 | Tool | Arguments | Returns |
 |---|---|---|
@@ -231,6 +278,87 @@ The server is a minimal hand-written JSON-RPC 2.0 implementation, so it adds no 
 
 A protocol version it doesn't know gets the spec's "unsupported protocol version" error (`-32022`) listing the versions it speaks; a 2026-07-28 request without client capabilities gets `-32602`.
 
+## Language server
+
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, and quick fixes. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+
+**Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
+
+```bash
+npx --no-install sygnal-check lsp
+```
+
+Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescriptreact`, and the workspace folder(s) as its root. The server exits when its stdin closes, so the client doesn't need to send `exit`. `createLspServer({ input, output })` in the programmatic API runs it on any pair of streams.
+
+### Capabilities
+
+| | |
+|---|---|
+| Lifecycle | `initialize`, `initialized`, `shutdown`, `exit`; `$/cancelRequest` (a cancelled request is answered with `-32800`); `$/setTrace`; other `$/` notifications are ignored |
+| Workspace | one project per workspace folder (`workspaceFolders`, else `rootUri` / `rootPath`, else the working directory); `workspace/didChangeWorkspaceFolders`. A folder whose files define no Sygnal component gets no diagnostics |
+| Documents | full text sync (`didOpen`, `didChange`, `didSave`, `didClose`). Open documents are checked from their unsaved text. Closing a document re-checks it from disk |
+| Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
+| Hover | on a finding: its code, title, explanation, fix and docs URL (Markdown, with the URL itself as the link text so editors that hide link targets still show it; plain text for clients without Markdown) |
+| Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
+| File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
+
+**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
+
+The server checks at once on `didOpen`, `didSave`, `didClose`, a watched-file event or a settings change. After a `didChange` without a save, it waits about 150 ms for typing to pause. A newer change replaces a check that is still waiting; it doesn't queue another one.
+
+Files that aren't open are read from disk on every check, so a client without file watching still sees changes on disk at the next check.
+
+### Diagnostics
+
+The server pushes diagnostics only (`textDocument/publishDiagnostics`). It sends a file only when its list changed, and an empty list when a file's findings cleared. It doesn't offer pull diagnostics: an editor offered both would show each finding twice, and pulling only covers open files, which loses the findings a change causes in other files.
+
+Each diagnostic has:
+
+- `range`: the finding's start and end;
+- `severity`: error 1, warning 2, information 3;
+- `code` (`SYG110`) and `codeDescription.href` (its docs page), the latter only for clients that advertise `codeDescriptionSupport`;
+- `source: "sygnal"`;
+- `message` in the CLI's form, `Component: message (fix)`, so it makes sense without the link;
+- `relatedInformation` for the other side of a pair or cross-file finding (`related` in the JSON output), for clients that advertise `relatedInformation`;
+- `data.fixes`: the finding's fixes as LSP edits.
+
+Each file's list is sorted errors first. Info findings are left out unless `sygnal.verbose` is set, as in the CLI.
+
+**A file that doesn't parse** (in the middle of an edit) keeps its last findings unchanged until it parses again, and the other files' findings stay as they were. The parse error itself is shown as a SYG900.
+
+**Other findings.** A malformed or unknown key in the config file is a SYG900 on that config file. A rule that crashes is logged with `window/logMessage`, not shown as a diagnostic.
+
+### Code actions
+
+| Action | Kind | What it does |
+|---|---|---|
+| A finding's fixes | `quickfix` (or `refactor.rewrite` for a removal) | The edits from the finding's `fixes` (see [JSON output](#json-output)): "Change '.incc' to '.inc'", "Add a model entry for 'X'", a canonical-form rewrite. `isPreferred` marks a single unambiguous suggestion. An edit can be in another file |
+| Suppress SYGnnn on this line | `quickfix` | Inserts `// sygnal-ignore-next-line SYGnnn` above the finding's first line, with the line's indentation. Inside JSX children it inserts `{/* sygnal-ignore-next-line SYGnnn */}` (see [Suppressing a finding](#suppressing-a-finding)) |
+| Fix all auto-fixable Sygnal problems | `source.fixAll.sygnal` | What `--fix` does for the file, on its unsaved text, as one edit. Like `--fix`, it applies the strict-mode rewrites whatever the settings. Offered when `context.only` asks for `source`, `source.fixAll` or `source.fixAll.sygnal` (VS Code: `"editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }`), and in an invoked request without `only` (editors such as Helix never send one) when the cursor is on a finding and the file has an auto-fixable one |
+| Convert '.x' to the control X | `refactor.rewrite` | The `--controls` conversion of one selector. Offered only when `context.only` asks for refactors |
+
+Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
+
+### Settings
+
+| Setting | Type | |
+|---|---|---|
+| `sygnal.strict` | boolean | also run the strict-mode rules |
+| `sygnal.a11y` | `"warn"` \| `"error"` | severity of the a11y findings |
+| `sygnal.ignore` | string[] | codes to drop |
+| `sygnal.paths` | string[] | files, directories or globs to check, relative to the workspace folder |
+| `sygnal.verbose` | boolean | also show info findings (default false) |
+| `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
+
+The server reads settings from two places:
+
+- `initializationOptions`, either flat (`{ "strict": true }`) or under `sygnal` (`{ "sygnal": { "strict": true } }`);
+- `workspace/configuration`, section `sygnal`, once per workspace folder, when the client supports it. These values win over `initializationOptions`.
+
+After a `workspace/didChangeConfiguration` the server asks for the configuration again and ignores the notification's own payload.
+
+**Precedence with the config file.** A setting the editor sets overrides the [config file](#configuration) (`sygnal-check.config.json` or the `package.json` key, found from each workspace folder). A setting left unset, or set to `null`, leaves the config file in charge. So with no editor settings, the editor, the CLI and CI all check with the same config. A list setting (`ignore`, `paths`) replaces the file's list; it is not merged with it.
+
 ## How an agent should use inspect, check and explain
 
 1. **Orient with the graph before editing.** Run `sygnal-check --graph --json` (or the `graph` tool) on `src`. It lists every component with its actions and what triggers them, its state keys, context, EVENTS traffic, children and DOM selectors. Use it instead of reading every file to find where an action, event or child lives.
@@ -255,16 +383,42 @@ OPEN: DOM.click('.other'), // sygnal-ignore
 
 Without codes, the comment suppresses every code on that line.
 
+A comment matches the line a finding starts on (`line` in the JSON). A few findings underline a narrower part of a multi-line construct than the line they used to start on (SYG731 the `className` attribute, SYG152 the `messages` key, SYG422 the bad timer property or the timer's name); for those a comment above the whole element or object still works.
+
 ## Programmatic API
 
 ```js
 import { check } from 'sygnal-check'
 
 const diagnostics = check(['src'], { cwd: process.cwd() })
-// [{ code, severity, component, message, fix, docsUrl, text, data?, file, line, column }]
+// [{ code, severity, component, message, fix, docsUrl, file, line, column, endLine, endColumn, related?, fixes?, data?, text }]
 ```
 
-This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based), without `timestamp`.
+This is the runtime `Diagnostic` shape plus the source location, without `timestamp`. `--json` prints the same objects.
+
+`createLspServer({ input, output, worker?, debounce? })` runs the [language server](#language-server) on a pair of streams (`worker: false` checks on the calling thread) and returns `{ done, idle(), dispose() }`; `done` resolves with the exit code.
+
+### JSON output
+
+| Field | |
+|---|---|
+| `file` | the path, relative to `cwd` |
+| `line`, `column` | where the finding starts, 1-based |
+| `endLine`, `endColumn` | where it ends: 1-based, `endColumn` **exclusive** (one past the last character). The range is the part an editor underlines: the selector string, the model key, the JSX attribute, `<img` for a missing `alt`. Columns count UTF-16 code units, like Babel's `loc` and LSP's default position encoding, so an LSP range is `line - 1`, `column - 1` .. `endLine - 1`, `endColumn - 1`. A parse error (SYG900) is one character at the parser's position |
+| `related` | optional: the other locations of a pair or cross-file finding, `[{ file, line, column, endLine, endColumn, message }]` (same units). SYG104: the child's tag and the element inside it that renders the class, id or control; SYG105: a near-miss event type on the other side (`'DOC_SAVE'` emitted, `'DOC_SAVED'` selected); SYG128: the first declaration of the key; SYG129: the tag that renders the grandchild; SYG440: the other declaration with the name; SYG609 / SYG643: the `run()` call |
+| `fixes` | optional: mechanical fixes as text edits, `[{ title, kind, preferred?, fixAll?, edits: [{ file, start, end, line, column, endLine, endColumn, text }] }]`. `kind` is `'quickfix'` or `'refactor'`; `preferred` marks the one obvious fix (a single "did you mean"); `fixAll` marks a rewrite `--fix` applies. Apply all of a fix's edits together: each replaces `start`..`end` of `file` (UTF-16 offsets; the same range as `line`/`column`..`endLine`/`endColumn`, same units as above) with `text`, and they never overlap. An edit can be in another file than the finding. The `fix` field stays the human-readable text |
+
+Which findings have fixes:
+
+| Fix | Codes |
+|---|---|
+| the "did you mean" name, as a preferred quick fix | SYG110 (the class or id in a literal selector), SYG112 (a reply action), SYG127 (a behavior option key), SYG226 (an undo `track`/`resetOn`/`coalesce` name), SYG140 (a widget's dispatched event), SYG141 (the event listened for), SYG142 and SYG641 (a command key), SYG150 (the `agent.actions` key), SYG151 (`agents` → `agent`), SYG223 (a persist `pick`/`omit` key), SYG707 (an `aria-*` name, a role) |
+| the near-miss event type on the other side, not preferred (either side may be the typo) | SYG105 |
+| the `--fix` rewrites (`fixAll`), with the `event` / `emit` import edits | SYG504, SYG505, SYG506, SYG612 (removed statics) |
+| "Add a model entry for `X`", a stub `X: (state, data) => state, // TODO` (only when the model is an object literal in the component's file) | SYG101 |
+| "Remove the unreachable entry `X`", a refactor, never preferred | SYG102 |
+
+A SYG900 for a rule that crashed has no source location: `file` is `''`, `line` and `column` are 0, and there is no `endLine` / `endColumn`. The text output (`file:line:col CODE ...`) doesn't show ranges, related locations or fixes. The graph's diagnostics (`--graph --json`) carry the same fields, `fixes` included.
 
 `check(inputs, options)` takes:
 
@@ -274,16 +428,25 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.includeTests`: also scan test and spec files.
 - `options.strict`: also run the strict-mode rules (SYG501, SYG503-508).
 - `options.a11y`: `'warn'` (default) or `'error'`, the severity of the a11y lane (SYG701-708). `strict` doesn't change it.
-
 - `options.rules`: a custom rule list.
+- `options.sources`: in-memory file contents, a `Map<path, text>` or a `{ [path]: text }` object (an editor's unsaved buffers; relative paths resolve against `cwd`). A file in it is read from there instead of the disk, and relative imports resolve to its paths, so a new, unsaved file is found. A file that exists only in `sources` is checked when it is named in `inputs`, or when it lies under a directory input (or matches a glob) and passes the same filters as files found on disk (source extension, no `node_modules` or dot directory, tests only with `includeTests`). `fixFiles()` takes it too and then fixes in memory (below).
+- `options.config`: `false` to skip the [config file](#configuration) (for callers that resolved the settings already), or a path to read instead of looking for one. By default `check()` reads it from `cwd`, and when `inputs` is left out, checks the config's `paths` (else `src`). Its findings (SYG900) are in the result.
+- `options.defaults`: fallbacks for `strict`, `a11y`, `ignore`, `paths` and `includeTests` that sit below the config file (the Vite plugin passes its `diagnostics` settings here).
+- `options.cache`: a parse cache kept across checks (`createParseCache()` or `new ParseCache()`, both exported), for an editor or a watcher that re-checks the same project. A file whose text (from `sources` or the disk) is unchanged since the last check isn't parsed again; a file that failed to parse keeps reporting the same SYG900. Only the parse is shared: each check builds its own model, so results are the same as without a cache. A check drops the entries the previous check didn't use (a deleted or no longer imported file); `cache.delete(path)` and `cache.clear()` drop entries by hand, and `cache.stats` counts `{ hits, parses }`. Use one cache per project. The CLI doesn't use one; the MCP server keeps one for its life.
 
-`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
+`loadConfig(cwd, { file? })` returns `{ config, file, diagnostics }`: the valid keys found (with `paths` made absolute), the absolute path of the file read (or `null`), and the SYG900 findings. `resolveOptions(options)` returns `{ options, config }`: the options merged in the order above, and `loadConfig`'s result. `checkFiles()` and `graphFiles()`, which take already expanded files, read no config file.
 
-`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
+`checkFiles(absPaths, options)` is `check()` for an already expanded list of absolute paths; a path that exists only in `options.sources` is checked too.
+
+`fixFiles(absPaths, { cwd })` applies the `--fix` rewrites (the findings' `fixAll` fixes) in place and returns `{ fixed, files, passes, diagnostics }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. With `sources` it reads the files from there and writes nothing (unless `write: true`); the result adds `texts` (a `Map` of absolute path → fixed text, for each changed file) and `edits` (one edit per changed file, against its text in `sources`, in the `fixes` edit shape). In one pass it applies every fix that doesn't overlap one already taken (an insertion touching another fix's edit counts as overlapping), then re-checks; the rest wait for the next pass. A fixable diagnostic also keeps its `--fix` edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`, absolute paths).
+
+`controlFixes(absPaths, { cwd, sources?, keepClasses? })` returns the `--controls` conversions as refactors, one per class, under the same conditions: `[{ title, kind: 'refactor', file, line, column, endLine, endColumn, control, class, edits }]`, located at the first selector it rewrites. `applyEdits(text, edits)` applies non-overlapping `{ start, end, text }` edits to a string.
+
+`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`, `sources` and `cache` included; `graphFiles(absPaths, options)` takes an expanded list. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
 
 `getExplanation(code)`, `listExplanations()`, `formatExplanation(entry)` and the raw `EXPLANATIONS` table back `explain`. The MCP server lives in `src/mcp.js` (`createMcpServer({ cwd }).handle(message)`, `runMcpServer({ stdin, stdout, cwd })`).
 
-For tooling, `buildProject(files)` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
+For tooling, `buildProject(files, { cwd, sources, cache })` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
 
 ## Writing a rule
 
@@ -302,7 +465,9 @@ export default {
 }
 ```
 
-a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies with `--a11y=error`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies with `--a11y=error`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`. A report may carry `fixes: [{ title, kind?, preferred?, fixAll?, edits: [{ file, start, end, text }] }]` (absolute path, source offsets; the runner adds the positions and relative paths); `fixAll: true` makes `--fix` apply it. `src/edits.js` has helpers for the common edits (a string literal, an object key). The older `edits: [...]` on a report still works and becomes one `fixAll` fix. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+
+A rule never writes to an AST node: with a parse cache the AST outlives the check (the cache tests run every rule over frozen ASTs). A module-level cache keyed by AST nodes holds only what the AST alone determines; anything that depends on the project or holds a `FileInfo` is keyed by the project or the `FileInfo` (both are per check).
 
 ## Development
 
@@ -310,4 +475,4 @@ a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; the
 cd sygnal-check && npm install && npm test
 ```
 
-Tests are named `*.vtest.js` so that the repo root's config-less `vitest run` doesn't pick them up.
+Tests are named `*.vtest.js` so that the repo root's config-less `vitest run` doesn't pick them up. The language server's latency gate is opt-in: `SYGNAL_CHECK_LATENCY=1 npx vitest run test/lsp-latency.vtest.js`.

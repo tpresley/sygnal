@@ -1,0 +1,116 @@
+{
+ "type": "attachment",
+ "timestamp": "2026-10-10T11:23:59.111Z",
+ "attachment": {
+  "type": "diagnostics",
+  "files": [
+   {
+    "uri": "<project>/src/A.tsx",
+    "diagnostics": [
+     {
+      "message": "Counter: intent action 'INCREMENT' has no model entry, so it does nothing (add 'INCREMENT' to Counter.model, or fix the spelling to match an existing model key)",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 4,
+        "character": 33
+       },
+       "end": {
+        "line": 4,
+        "character": 42
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG101"
+     },
+     {
+      "message": "Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action never fires (did you mean '.inc'? The view renders className=\"inc\")",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 4,
+        "character": 54
+       },
+       "end": {
+        "line": 4,
+        "character": 61
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG110"
+     },
+     {
+      "message": "Counter: model entry 'INCREMNT' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('INCREMNT') call uses it (add 'INCREMNT' to Counter.intent, name it in a request (ok: 'INCREMNT'), call next('INCREMNT') from another entry, or remove it)",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 5,
+        "character": 18
+       },
+       "end": {
+        "line": 5,
+        "character": 26
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG102"
+     }
+    ]
+   },
+   {
+    "uri": "<project>/src/B.tsx",
+    "diagnostics": [
+     {
+      "message": "Counter: intent action 'INCREMENT' has no model entry, so it does nothing (add 'INCREMENT' to Counter.model, or fix the spelling to match an existing model key)",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 3,
+        "character": 53
+       },
+       "end": {
+        "line": 3,
+        "character": 62
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG101"
+     },
+     {
+      "message": "Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action never fires (did you mean '.inc'? The view renders className=\"inc\")",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 3,
+        "character": 74
+       },
+       "end": {
+        "line": 3,
+        "character": 81
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG110"
+     },
+     {
+      "message": "Counter: model entry 'INCREMNT' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('INCREMNT') call uses it (add 'INCREMNT' to Counter.intent, name it in a request (ok: 'INCREMNT'), call next('INCREMNT') from another entry, or remove it)",
+      "severity": "Warning",
+      "range": {
+       "start": {
+        "line": 8,
+        "character": 18
+       },
+       "end": {
+        "line": 8,
+        "character": 26
+       }
+      },
+      "source": "sygnal",
+      "code": "SYG102"
+     }
+    ]
+   }
+  ],
+  "isNew": true
+ }
+}

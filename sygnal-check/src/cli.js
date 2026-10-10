@@ -1,9 +1,13 @@
 /**
- * sygnal-check [paths...] [--json] [--strict] [--a11y=warn|error] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose]
+ * sygnal-check [paths...] [--json] [--strict] [--a11y=warn|error] [--fix] [--controls] [--keep-classes] [--graph] [--fail-on=warn|error|never] [--verbose] [--config <file> | --no-config]
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
+ * sygnal-check lsp            (language server on stdio; see src/lsp/server.js and bin/sygnal-check.js)
  */
+import fs from 'node:fs'
+import path from 'node:path'
 import { checkFiles, maxSeverity, sortDiagnostics } from './index.js'
+import { resolveOptions } from './config.js'
 import { formatDiagnostics } from './format.js'
 import { SEVERITY_RANK } from './diagnostic.js'
 import { expandInputs } from './files.js'
@@ -16,12 +20,18 @@ const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
        sygnal-check explain --all [--json]      the whole error reference
        sygnal-check mcp                         run the MCP server (stdio): check, graph, explain
+       sygnal-check lsp                         run the language server (stdio) for editors:
+                                                diagnostics, hover, quick fixes
 
 Statically checks Sygnal components for wiring bugs that fail silently at
 runtime (intent selectors missing from the view, intent/model mismatches,
 EVENTS without a counterpart, bad Collection 'from' fields).
 
-Paths are files, directories or globs (default: src).
+Paths are files, directories or globs (default: the config's paths, else src).
+
+Settings come from the flags, then sygnal-check.config.json (or the
+"sygnal-check" key in package.json) in the project root, then the defaults.
+The project root is the first directory from here up with either file.
 
 Options:
   --json                 print diagnostics as JSON
@@ -48,15 +58,23 @@ Options:
                          diagnostics list; with --json, as InspectGraph JSON
                          (schema/inspect.schema.json, the same shape as the
                          runtime inspect()). Exits 0 unless the files can't be read
+  --config <file>        read this JSON config file instead of looking for
+                         sygnal-check.config.json / package.json
+  --no-config            ignore config files (flags and defaults only)
   -h, --help             show this help
 
 Suppress a finding with a comment on the same line or the line above:
   // sygnal-ignore SYG110
 `
 
+/**
+ * The flags. strict / a11y / includeTests stay undefined unless given and paths empty, so the
+ * config file (or the defaults) decide: see resolveOptions in src/config.js.
+ */
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: false, a11y: 'warn', fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: false, help: false }
-  for (const a of argv) {
+  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false }
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i]
     if (a === '--json') opts.json = true
     else if (a === '--strict') opts.strict = true
     else if (a === '--fix') opts.fix = opts.strict = true
@@ -68,13 +86,21 @@ export function parseArgs(argv) {
     else if (a === '-h' || a === '--help') opts.help = true
     else if (a.startsWith('--fail-on=')) opts.failOn = a.slice('--fail-on='.length)
     else if (a.startsWith('--a11y=')) opts.a11y = a.slice('--a11y='.length)
+    else if (a === '--no-config') opts.noConfig = true
+    else if (a === '--config') {
+      if (i + 1 >= argv.length || argv[i + 1].startsWith('-')) throw new Error('--config needs a file')
+      opts.config = argv[++i]
+    } else if (a.startsWith('--config=')) {
+      opts.config = a.slice('--config='.length)
+      if (!opts.config) throw new Error('--config needs a file')
+    }
     else if (a.startsWith('-')) throw new Error(`unknown option ${a}`)
     else opts.paths.push(a)
   }
   if (!['warn', 'error', 'never'].includes(opts.failOn)) throw new Error(`--fail-on must be warn, error or never (got '${opts.failOn}')`)
-  if (!['warn', 'error'].includes(opts.a11y)) throw new Error(`--a11y must be warn or error (got '${opts.a11y}')`)
+  if (opts.a11y !== undefined && !['warn', 'error'].includes(opts.a11y)) throw new Error(`--a11y must be warn or error (got '${opts.a11y}')`)
   if (opts.graph && opts.fix) throw new Error('--graph and --fix cannot be combined')
-  if (opts.paths.length === 0) opts.paths = ['src']
+  if (opts.config !== undefined && opts.noConfig) throw new Error('--config and --no-config cannot be combined')
   return opts
 }
 
@@ -119,16 +145,35 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     return 2
   }
   if (opts.help) { stdout.write(HELP); return 0 }
+  if (opts.config !== undefined && !fs.existsSync(path.resolve(cwd, opts.config))) {
+    stderr.write(`sygnal-check: config file not found: ${opts.config}\n`)
+    return 2
+  }
 
-  const { files, missing } = expandInputs(opts.paths, { cwd, includeTests: opts.includeTests })
-  for (const m of missing) stderr.write(`sygnal-check: no such file or directory: ${m}\n`)
+  // flags > config file > defaults; the config's findings (SYG900) are reported with the rest
+  const { options: settings, config } = resolveOptions({
+    cwd,
+    config: opts.noConfig ? false : opts.config,
+    strict: opts.strict,
+    a11y: opts.a11y,
+    includeTests: opts.includeTests,
+  })
+  const ignore = settings.ignore
+  const configDiags = ignore.length ? config.diagnostics.filter(d => !ignore.includes(d.code)) : config.diagnostics
+  // paths on the command line are relative to the cwd; the config's are already absolute
+  const paths = opts.paths.length ? opts.paths : settings.paths
+  const shown = (p) => path.isAbsolute(p) ? (path.relative(cwd, p) || '.') : p
+
+  const { files, missing } = expandInputs(paths, { cwd, includeTests: settings.includeTests })
+  for (const m of missing) stderr.write(`sygnal-check: no such file or directory: ${shown(m)}\n`)
   if (files.length === 0) {
-    stderr.write(`sygnal-check: no source files found in ${opts.paths.join(', ')}\n`)
+    for (const d of configDiags) stderr.write(`sygnal-check: ${d.file}:${d.line}:${d.column} ${d.message}\n`)
+    stderr.write(`sygnal-check: no source files found in ${paths.map(shown).join(', ')}\n`)
     return 2
   }
 
   if (opts.graph) {
-    const g = graphFiles(files, { cwd, strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests })
+    const g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, extraDiagnostics: config.diagnostics })
     stdout.write((opts.json ? JSON.stringify(g, null, 2) : formatGraph(g, { verbose: opts.verbose })) + '\n')
     return 0
   }
@@ -141,7 +186,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     if (opts.controls) stderr.write(`sygnal-check: converted ${r.controls} selector${r.controls === 1 ? '' : 's'} to controls in ${r.controlFiles} file${r.controlFiles === 1 ? '' : 's'}\n`)
     fixDiags = r.diagnostics // SYG900 "fix skipped" (a rewrite that would not parse was rolled back)
   }
-  const diags = sortDiagnostics([...fixDiags, ...checkFiles(files, { cwd, strict: opts.strict, a11y: opts.a11y })])
+  const diags = sortDiagnostics([...configDiags, ...fixDiags, ...checkFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore })])
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 

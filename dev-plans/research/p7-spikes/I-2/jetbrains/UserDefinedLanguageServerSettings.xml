@@ -1,0 +1,53 @@
+<application>
+  <component name="UserDefinedLanguageServerSettingsState">
+    <state>
+      <map>
+        <entry key="sygnal">
+          <value>
+            <UserDefinedLanguageServerItemSettings>
+              <option name="serverId" value="sygnal" />
+              <option name="serverName" value="Sygnal" />
+              <option name="commandLine" value="@CMD@" />
+              <option name="workingDir" value="$PROJECT_DIR$" />
+              <option name="includeSystemEnvironmentVariables" value="true" />
+              <option name="mappings">
+                <ServerMappingSettings languageId="javascript">
+                  <option name="fileNamePatterns">
+                    <list>
+                      <option value="*.js" />
+                      <option value="*.mjs" />
+                      <option value="*.cjs" />
+                    </list>
+                  </option>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="javascriptreact">
+                  <option name="fileNamePatterns">
+                    <list>
+                      <option value="*.jsx" />
+                    </list>
+                  </option>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="typescript">
+                  <option name="fileNamePatterns">
+                    <list>
+                      <option value="*.ts" />
+                      <option value="*.mts" />
+                      <option value="*.cts" />
+                    </list>
+                  </option>
+                </ServerMappingSettings>
+                <ServerMappingSettings languageId="typescriptreact">
+                  <option name="fileNamePatterns">
+                    <list>
+                      <option value="*.tsx" />
+                    </list>
+                  </option>
+                </ServerMappingSettings>
+              </option>
+            </UserDefinedLanguageServerItemSettings>
+          </value>
+        </entry>
+      </map>
+    </state>
+  </component>
+</application>

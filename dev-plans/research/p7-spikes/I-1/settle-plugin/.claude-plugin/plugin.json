@@ -1,0 +1,6 @@
+{
+  "name": "sygnal-i1-settle",
+  "version": "0.0.0",
+  "description": "I-1 G-658 probe: a PostToolUse hook on Edit/Write that waits 300 ms, so a language server's publish after the edit can land before Claude Code builds the next request's attachments",
+  "author": { "name": "Troy Presley" }
+}

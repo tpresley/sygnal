@@ -51,13 +51,91 @@ export function childNodes(node) {
 }
 
 /**
- * Depth-first walk. `visit(node, parent)` may return false to skip the
- * node's children.
+ * Depth-first pre-order walk. `visit(node, parent)` may return false to skip
+ * the node's children. Children are visited in `childNodes` order; type-only
+ * declarations (TYPE_ONLY) are never visited, nor is anything under them.
+ *
+ * A walk from a `Program` (every rule walks every file, G-660) runs over a
+ * flat pre-order list of the program's nodes, built on its first walk and kept
+ * per Program node (WeakMap: it lives exactly as long as the AST, which the
+ * parse cache reuses across builds). This relies on ASTs not changing after
+ * parsing, which the frozen-AST parity tests (p7-c3-cache) enforce.
  */
 export function walk(node, visit, parent = null) {
   if (!node || TYPE_ONLY.has(node.type)) return
+  if (node.type === 'Program') walkFlat(flatOf(node), visit, parent)
+  else walkTree(node, visit, parent)
+}
+
+// The recursive walk (any root other than a Program), without the
+// intermediate children array of `childNodes`, same order.
+function walkTree(node, visit, parent) {
   if (visit(node, parent) === false) return
-  for (const c of childNodes(node)) walk(c, visit, node)
+  const keys = Object.keys(node)
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    if (SKIP_KEYS.has(key)) continue
+    const v = node[key]
+    if (!v || typeof v !== 'object') continue
+    if (Array.isArray(v)) {
+      for (let j = 0; j < v.length; j++) {
+        const c = v[j]
+        if (c && typeof c.type === 'string' && !TYPE_ONLY.has(c.type)) walkTree(c, visit, node)
+      }
+    } else if (typeof v.type === 'string' && !TYPE_ONLY.has(v.type)) {
+      walkTree(v, visit, node)
+    }
+  }
+}
+
+/**
+ * A Program's walk order, flattened: `nodes[i]` in pre-order, `parents[i]` its
+ * parent, `ends[i]` the index after its subtree (where a skip continues).
+ */
+const flatCache = new WeakMap()
+
+function flatOf(program) {
+  let flat = flatCache.get(program)
+  if (!flat) {
+    flat = { nodes: [], parents: [], ends: [] }
+    flatten(program, null, flat)
+    flatCache.set(program, flat)
+  }
+  return flat
+}
+
+function flatten(node, parent, flat) {
+  const { nodes, parents, ends } = flat
+  const at = nodes.length
+  nodes.push(node)
+  parents.push(parent)
+  ends.push(0)
+  const keys = Object.keys(node)
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    if (SKIP_KEYS.has(key)) continue
+    const v = node[key]
+    if (!v || typeof v !== 'object') continue
+    if (Array.isArray(v)) {
+      for (let j = 0; j < v.length; j++) {
+        const c = v[j]
+        if (c && typeof c.type === 'string' && !TYPE_ONLY.has(c.type)) flatten(c, node, flat)
+      }
+    } else if (typeof v.type === 'string' && !TYPE_ONLY.has(v.type)) {
+      flatten(v, node, flat)
+    }
+  }
+  ends[at] = nodes.length
+}
+
+function walkFlat(flat, visit, parent) {
+  const { nodes, parents, ends } = flat
+  const n = nodes.length
+  if (visit(nodes[0], parent) === false) return
+  for (let i = 1; i < n;) {
+    if (visit(nodes[i], parents[i]) === false) i = ends[i]
+    else i++
+  }
 }
 
 /** Records parent pointers for every node under `root` into `parents`. */
@@ -114,6 +192,35 @@ export function stringValue(node) {
 export function loc(node) {
   const s = node?.loc?.start
   return s ? { line: s.line, column: s.column + 1 } : { line: 1, column: 1 }
+}
+
+/**
+ * The range end of a node (PLAN-7 C-2, spike 0-S1): 1-based line, 1-based
+ * column one past the last character (exclusive), so the underlined text is
+ * source line `line`.slice(column - 1) .. line `endLine`.slice(0, endColumn - 1).
+ * Without a node location: a one-character range at the start.
+ */
+export function endLoc(node) {
+  const e = node?.loc?.end
+  if (e) return { endLine: e.line, endColumn: e.column + 1 }
+  const { line, column } = loc(node)
+  return { endLine: line, endColumn: column + 1 }
+}
+
+/** The FileInfo whose AST contains `node` (`hint` is tried first), or null. */
+export function fileOfNode(project, node, hint) {
+  if (hint && fileContains(hint, node)) return hint
+  for (const f of project.files.values()) if (f && f !== hint && fileContains(f, node)) return f
+  return null
+}
+
+function fileContains(file, node) {
+  let n = node
+  while (n) {
+    if (n === file.ast.program) return true
+    n = file.parents.get(n)
+  }
+  return false
 }
 
 export function jsxName(nameNode) {

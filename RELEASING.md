@@ -10,6 +10,8 @@ This repository publishes three npm packages:
 
 Publish them in the order below, so that each package's dependencies are on the registry before anything that installs them.
 
+Two editor integrations ship from this repository too, outside npm (PLAN-7). Release them after `sygnal-check` (they run its language server): the VS Code extension (`editors/vscode/`, [§8](#8-the-vs-code-extension-editorsvscode)) and the Claude Code plugin (`editors/claude-code/`, [§9](#9-the-claude-code-plugin-editorsclaude-code)).
+
 The steps use placeholders for the versions. Choose them first (the choice is the maintainer's; see the `[Unreleased]` entry in `CHANGELOG.md`, or the newest one, for what changed):
 
 | Placeholder | Package | Last published |
@@ -52,6 +54,7 @@ Set the versions (no `npm version`: it also commits and tags):
   ```bash
   grep -n -E '"sygnal(-check)?":' create-sygnal-app/template-*/package.json
   ```
+  The templates' `sygnal-check.config.json` (PLAN-7 I-3) is read only from `sygnal-check` 0.4.0 on (0.3.0 never opens it), so the range must reach 0.4.0 for new projects to use it.
 - `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph.
 - `ROADMAP.md`: the release line names the template range (`sygnal` ^6.0.0); update it if it still describes the current release.
 
@@ -109,8 +112,8 @@ Expect:
   - `dist/shims/globalthis.cjs` (the `sygnal/shims/globalthis` export used by the Vite plugin's alias);
   - `src/`, used for the sub-entry types such as `src/jsx.d.ts`, `src/ai.d.ts` and `src/vite/plugin.d.ts`;
   - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
-- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
-- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test; the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
+- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/`, `rules/` and, from 0.4.0, `lsp/` for the language server), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
+- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json`, a `*.test.*.tmpl` starter test, and (PLAN-7 I-3) `.vscode/extensions.json` and `sygnal-check.config.json` (the dot-directory must be in the tarball); the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
 
 ## 4. Smoke check the templates before publishing
 
@@ -187,3 +190,50 @@ Every project must install `sygnal` <SYGNAL> and `sygnal-check` <CHECK>. Each on
 This can be scripted with Playwright (`browser-tests/` has it installed): load the page, click, and assert on `.counter-display`, `h1` and a `window` flag set before navigating that would be lost by a full reload.
 
 If a smoke check fails, fix the problem on `main` and publish a patch release of the affected package.
+
+## 8. The VS Code extension (`editors/vscode/`)
+
+The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
+
+**One-time setup (the maintainer's accounts):**
+- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or pass `-p $VSCE_PAT` when publishing.
+- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal -p $OVSX_PAT`.
+
+**Each release:**
+1. Bump `version` in `editors/vscode/package.json` and add a section to `editors/vscode/CHANGELOG.md`. The extension has its own version line (0.1.0 first). If the minimum server version changes, update `MIN_LSP_VERSION` in `editors/vscode/src/resolve.ts`, the extension README and the smoke test text. The Marketplace doesn't take pre-release semver: use `vsce publish --pre-release` with an odd minor for pre-releases.
+2. Gate:
+   ```bash
+   npm ci --prefix sygnal-check
+   npm ci --prefix editors/vscode
+   npm --prefix editors/vscode test      # type check, unit tests, build, smoke test in the installed VS Code
+   ```
+   The smoke test opens VS Code from `/Applications/Visual Studio Code.app` (`VSCODE_PATH` overrides it) and downloads nothing. The root `npm test` includes the snippets gate (`test/p7-v1-snippets.test.js`).
+3. Package and inspect:
+   ```bash
+   npm --prefix editors/vscode run package     # writes editors/vscode/sygnal-<version>.vsix
+   npx --prefix editors/vscode vsce ls --tree  # the bundle, server/sygnal-check with @babel/parser, snippets, icon; no sources or tests
+   ```
+   Expect about 540 KB. Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
+4. Publish the same file to both registries:
+   ```bash
+   npx --prefix editors/vscode vsce publish --packagePath editors/vscode/sygnal-<version>.vsix -p $VSCE_PAT
+   npx ovsx publish editors/vscode/sygnal-<version>.vsix -p $OVSX_PAT
+   ```
+5. Tag `vscode-v<version>` and attach the `.vsix` to the GitHub release.
+
+## 9. The Claude Code plugin (`editors/claude-code/`)
+
+The marketplace file (`.claude-plugin/marketplace.json`, name `sygnal`) is read from `main` when users run `/plugin marketplace add tpresley/sygnal`. The plugin's skill is a symlink to `skills/sygnal-dev/`, copied into the user's plugin cache at install. Users get a new copy only when `version` in `editors/claude-code/.claude-plugin/plugin.json` changes; auto-update is off by default for third-party marketplaces.
+
+1. **When:** bump the plugin's `version` in any release that changes `editors/claude-code/` **or `skills/sygnal-dev/`**: patch for skill text or docs, minor for new plugin behaviour.
+2. **Order:** publish `sygnal-check` first when the plugin needs a newer server (0.1.0 needs sygnal-check ≥ 0.4.0 for diagnostics; the skill works without it, and the plugin's launcher stays quiet without a capable sygnal-check).
+3. **Check:**
+   ```bash
+   claude plugin validate editors/claude-code   # one expected warning: the skill symlink isn't followed by the validator
+   claude plugin validate skills
+   claude plugin validate --strict .
+   npx vitest run test/p7-i1-claude-plugin.test.js
+   ```
+4. **Merge to `main` and push.** Then `claude plugin tag editors/claude-code --push` (try `--dry-run` first) creates and pushes `sygnal--v<version>`, after checking that `plugin.json` and the marketplace entry agree. Installs follow `main`; the tag is for history and for plugins that depend on this one.
+5. **Smoke test** in a scratch `CLAUDE_CONFIG_DIR`: `claude plugin marketplace add tpresley/sygnal`, `claude plugin install sygnal@sygnal`, then `claude plugin details sygnal@sygnal` must list one skill and one LSP server.
+6. Add a line about it to the `CHANGELOG.md` entry of the release that ships it.

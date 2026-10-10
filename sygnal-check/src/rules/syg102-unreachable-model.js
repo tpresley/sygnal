@@ -22,6 +22,24 @@
  */
 import { BUILTIN_ACTIONS } from '../model/modelEntries.js'
 import { behaviorActions, openPrefixes } from '../model/behaviors.js'
+import { removeEntryEdits } from '../model/modelEdits.js'
+
+/**
+ * PLAN-7 C-4 (editor only): "Remove the unreachable entry X", a refactor (never preferred:
+ * the entry may be waiting for its trigger). Removes every entry of the action in the model
+ * object literal (`X` and `'X | SINK'`).
+ */
+function removeFix(model, e) {
+  const prop = e.file?.parents?.get(e.node)
+  const obj = prop && e.file.parents.get(prop)
+  if (prop?.key !== e.node || obj?.type !== 'ObjectExpression') return undefined
+  const props = model.entries
+    .filter(x => x.action === e.action && x.file === e.file)
+    .map(x => e.file.parents.get(x.node))
+    .filter(p => p && obj.properties.includes(p))
+  const edits = removeEntryEdits(e.file, obj, [...new Set(props)])
+  return edits ? [{ title: `Remove the unreachable entry '${e.action}'`, kind: 'refactor', edits }] : undefined
+}
 
 export default {
   id: 'unreachable-model',
@@ -74,6 +92,7 @@ export default {
               (actions.length ? ` (its actions: ${actions.join(', ')})` : ''),
             fix: `use one of the behavior's actions (${actions.map(a => `'${entry.key}.${a}'`).join(', ') || 'none'}), or remove the entry`,
             data: { action: e.action, behavior: entry.key },
+            fixes: removeFix(model, e),
           })
           continue
         }
@@ -89,6 +108,7 @@ export default {
             ? `add '${e.action}' to ${comp.name}.intent, name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`
             : `add an intent that returns '${e.action}', name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`,
           data: { action: e.action },
+          fixes: removeFix(model, e),
         })
       }
     }

@@ -1,0 +1,20 @@
+{
+  "name": "sygnal-0s2-probe",
+  "version": "0.0.0",
+  "description": "0-S2 spike: the PoC Sygnal language server, instrumented, as a Claude Code LSP plugin",
+  "author": { "name": "Troy Presley" },
+  "lspServers": {
+    "sygnal": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/launch.mjs"],
+      "extensionToLanguage": {
+        ".js": "javascript",
+        ".jsx": "javascriptreact",
+        ".ts": "typescript",
+        ".tsx": "typescriptreact"
+      },
+      "initializationOptions": { "strict": true, "probe": "initializationOptions arrived" },
+      "settings": { "sygnal": { "strict": true, "probe": "settings arrived" } }
+    }
+  }
+}

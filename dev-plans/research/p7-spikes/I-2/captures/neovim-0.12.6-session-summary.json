@@ -1,0 +1,311 @@
+{
+  "clientInfo": {
+    "version": "0.12.6",
+    "name": "Neovim"
+  },
+  "rootUri": "file://<scratch>/nvim/proj-nvim-strict",
+  "workspaceFolders": [
+    {
+      "name": "<scratch>/nvim/proj-nvim-strict",
+      "uri": "file://<scratch>/nvim/proj-nvim-strict"
+    }
+  ],
+  "trace": "off",
+  "caps": {
+    "textDocument.publishDiagnostics": {
+      "relatedInformation": true,
+      "tagSupport": {
+        "valueSet": [
+          1,
+          2
+        ]
+      },
+      "dataSupport": true
+    },
+    "textDocument.diagnostic (pull)": {
+      "relatedInformation": true,
+      "relatedDocumentSupport": true,
+      "dynamicRegistration": true,
+      "tagSupport": {
+        "valueSet": [
+          1,
+          2
+        ]
+      },
+      "dataSupport": true
+    },
+    "textDocument.hover.contentFormat": [
+      "markdown",
+      "plaintext"
+    ],
+    "textDocument.codeAction": {
+      "honorsChangeAnnotations": true,
+      "disabledSupport": true,
+      "resolveSupport": {
+        "properties": [
+          "edit",
+          "command"
+        ]
+      },
+      "dynamicRegistration": true,
+      "codeActionLiteralSupport": {
+        "codeActionKind": {
+          "valueSet": [
+            "",
+            "quickfix",
+            "refactor",
+            "refactor.extract",
+            "refactor.inline",
+            "refactor.rewrite",
+            "source",
+            "source.organizeImports"
+          ]
+        }
+      },
+      "isPreferredSupport": true,
+      "dataSupport": true
+    },
+    "textDocument.synchronization": {
+      "dynamicRegistration": false,
+      "willSaveWaitUntil": true,
+      "didSave": true,
+      "willSave": true
+    },
+    "workspace.configuration": true,
+    "workspace.didChangeConfiguration": {
+      "dynamicRegistration": false
+    },
+    "workspace.didChangeWatchedFiles": {
+      "dynamicRegistration": true,
+      "relativePatternSupport": true
+    },
+    "workspace.workspaceFolders": true,
+    "workspace.workspaceEdit": {
+      "normalizesLineEndings": true,
+      "changeAnnotationSupport": {
+        "groupsOnLabel": true
+      },
+      "resourceOperations": [
+        "rename",
+        "create",
+        "delete"
+      ]
+    },
+    "general.positionEncodings": [
+      "utf-8",
+      "utf-16",
+      "utf-32"
+    ],
+    "window.workDoneProgress": true
+  },
+  "clientSent": {
+    "initialize": 1,
+    "initialized": 1,
+    "workspace/didChangeConfiguration": 1,
+    "textDocument/didOpen": 2,
+    "(response)": 4,
+    "textDocument/hover": 2,
+    "textDocument/codeAction": 4,
+    "textDocument/didChange": 3,
+    "workspace/didChangeWatchedFiles": 2,
+    "workspace/didChangeWorkspaceFolders": 1,
+    "shutdown": 1,
+    "exit": 1
+  },
+  "serverSent": {
+    "(response)": 8,
+    "client/registerCapability": 1,
+    "workspace/configuration": 3,
+    "textDocument/publishDiagnostics": 12
+  },
+  "serverRequests": [
+    {
+      "t": 328,
+      "method": "client/registerCapability",
+      "params": {
+        "registrations": [
+          {
+            "id": "sygnal-watched-files",
+            "method": "workspace/didChangeWatchedFiles",
+            "registerOptions": {
+              "watchers": [
+                {
+                  "globPattern": "**/*.{js,jsx,ts,tsx,mjs,cjs}"
+                },
+                {
+                  "globPattern": "**/sygnal-check.config.json"
+                },
+                {
+                  "globPattern": "**/package.json"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "answeredAfterMs": 4,
+      "result": null
+    },
+    {
+      "t": 329,
+      "method": "workspace/configuration",
+      "params": {
+        "items": [
+          {
+            "scopeUri": "file://<scratch>/nvim/proj-nvim-strict",
+            "section": "sygnal"
+          }
+        ]
+      },
+      "answeredAfterMs": 3,
+      "result": [
+        {
+          "strict": true
+        }
+      ]
+    },
+    {
+      "t": 329,
+      "method": "workspace/configuration",
+      "params": {
+        "items": [
+          {
+            "scopeUri": "file://<scratch>/nvim/proj-nvim-strict",
+            "section": "sygnal"
+          }
+        ]
+      },
+      "answeredAfterMs": 4,
+      "result": [
+        {
+          "strict": true
+        }
+      ]
+    },
+    {
+      "t": 2007,
+      "method": "workspace/configuration",
+      "params": {
+        "items": [
+          {
+            "scopeUri": "file://<scratch>/nvim/proj-nvim-strict",
+            "section": "sygnal"
+          },
+          {
+            "scopeUri": "file://<scratch>/nvim/proj-nvim-strict-b",
+            "section": "sygnal"
+          }
+        ]
+      },
+      "answeredAfterMs": 0,
+      "result": [
+        {
+          "strict": true
+        },
+        {
+          "strict": true
+        }
+      ]
+    }
+  ],
+  "watchedFileEvents": [
+    [
+      "1 src/D.jsx"
+    ],
+    [
+      "3 src/D.jsx"
+    ]
+  ],
+  "workspaceFolderChanges": [
+    {
+      "removed": [],
+      "added": [
+        {
+          "name": "<scratch>/nvim/proj-nvim-strict-b",
+          "uri": "file://<scratch>/nvim/proj-nvim-strict-b"
+        }
+      ]
+    }
+  ],
+  "codeActions": [
+    {
+      "triggerKind": 1,
+      "diagnostics": [
+        "SYG101 +data +codeDescription",
+        "SYG110 +data +codeDescription"
+      ],
+      "answered": [
+        "Change '.incc' to '.inc'",
+        "Add a model entry for 'INCREMENT'",
+        "Suppress SYG101 on this line",
+        "Suppress SYG110 on this line"
+      ]
+    },
+    {
+      "triggerKind": 1,
+      "diagnostics": [
+        "SYG110 +data +codeDescription"
+      ],
+      "answered": [
+        "Change '.incc' to '.inc'",
+        "Suppress SYG110 on this line"
+      ]
+    },
+    {
+      "triggerKind": 1,
+      "diagnostics": [
+        "SYG102 +data +codeDescription"
+      ],
+      "answered": [
+        "Remove the unreachable entry 'INCREMNT'",
+        "Suppress SYG102 on this line"
+      ]
+    },
+    {
+      "only": [
+        "source.fixAll.sygnal"
+      ],
+      "triggerKind": 1,
+      "diagnostics": [],
+      "answered": [
+        "Fix all auto-fixable Sygnal problems"
+      ]
+    }
+  ],
+  "hovers": [
+    {
+      "position": {
+        "character": 55,
+        "line": 4
+      },
+      "kind": "markdown"
+    },
+    {
+      "position": {
+        "character": 55,
+        "line": 4
+      },
+      "kind": "markdown"
+    }
+  ],
+  "end": [
+    {
+      "t": 0,
+      "event": "start"
+    },
+    {
+      "t": 2015,
+      "method": "shutdown"
+    },
+    {
+      "t": 2015,
+      "method": "exit"
+    },
+    {
+      "t": 2030,
+      "event": "exit",
+      "code": 0,
+      "signal": null
+    }
+  ]
+}

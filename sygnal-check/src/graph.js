@@ -5,7 +5,10 @@
  *
  *   graph(inputs, options) → InspectGraph
  *     inputs   file paths, directories, or globs (string or string[])
- *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules? }  (as check())
+ *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules?, sources?, config?, defaults? }
+ *              (as check(): the config file applies; its findings are app-wide diagnostics)
+ *   graphFiles(files, options) → InspectGraph   (expanded files; reads no config file;
+ *     options.extraDiagnostics: findings to add, e.g. resolveOptions().config.diagnostics)
  *
  *   buildGraph(project, diagnostics) → InspectGraph   (already built project)
  *
@@ -55,6 +58,7 @@ import { expandInputs } from './files.js'
 import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { runRules, sortDiagnostics } from './run.js'
+import { resolveOptions } from './config.js'
 import { walk, unwrap, propName, memberName, stringValue, loc } from './ast.js'
 import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
@@ -66,19 +70,20 @@ import { agentName } from './model/agent.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
-export function graph(inputs = ['src'], options = {}) {
-  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const list = Array.isArray(inputs) ? inputs : [inputs]
-  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests })
-  return graphFiles(files, { ...options, cwd })
+export function graph(inputs, options = {}) {
+  const { options: opts, config } = resolveOptions(options)
+  const list = inputs == null ? opts.paths : Array.isArray(inputs) ? inputs : [inputs]
+  const { files } = expandInputs(list, { cwd: opts.cwd, includeTests: opts.includeTests, sources: opts.sources })
+  return graphFiles(files, { ...opts, extraDiagnostics: config.diagnostics })
 }
 
 /** graph() for an already expanded list of absolute file paths (see expandInputs). */
 export function graphFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd })
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
+  if (options.extraDiagnostics?.length) diags = [...options.extraDiagnostics, ...diags]
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
   return buildGraph(project, sortDiagnostics(diags))
 }
@@ -156,7 +161,14 @@ function slimDiagnostic(d) {
   if (d.fix) out.fix = d.fix
   if (d.docsUrl) out.docsUrl = d.docsUrl
   if (d.data !== undefined) out.data = d.data
-  if (d.file) { out.file = d.file; out.line = d.line; out.column = d.column }
+  if (d.file) {
+    out.file = d.file; out.line = d.line; out.column = d.column
+    // PLAN-7 C-2: the range end and the related locations
+    if (d.endLine !== undefined) { out.endLine = d.endLine; out.endColumn = d.endColumn }
+  }
+  if (d.related?.length) out.related = d.related
+  // PLAN-7 C-4: the fixes as edits (the same objects, no copy)
+  if (d.fixes?.length) out.fixes = d.fixes
   return out
 }
 

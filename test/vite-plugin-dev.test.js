@@ -527,6 +527,98 @@ export default App
     delete globalThis.__checkCalls
   })
 
+  // PLAN-7 C-5 (D299): the config file is the default of the check option:
+  // explicit check.* > sygnal-check.config.json / package.json "sygnal-check" > the diagnostics defaults
+  const writeConfig = (dir, config) => fs.writeFileSync(path.join(dir, 'sygnal-check.config.json'), JSON.stringify(config))
+
+  it('the config file sits between explicit check options and the diagnostics defaults', async () => {
+    const dir = project({ files: { 'App.jsx': BUGGY } })
+    writeConfig(dir, { ignore: [] })
+    // diagnostics.ignore would drop SYG101; the config file's ignore wins over it
+    const server = start(dir, { diagnostics: { ignore: ['SYG101'] } })
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/SYG101 App:/)
+    // an explicit check.ignore wins over the config file
+    const explicit = start(dir, { check: { ignore: ['SYG101'] } })
+    await until(() => explicit.logs.length > 0)
+    expect(explicit.logs[0]).toEqual(['info', 'sygnal-check: 0 warnings'])
+  })
+
+  it("the config file's a11y and the package.json key apply; check.a11y wins", async () => {
+    const dir = project({ files: { 'App.jsx': CLICK_DIV } })
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'app', type: 'module', 'sygnal-check': { a11y: 'error' } }))
+    const server = start(dir)
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/SYG701 \[error\]/)
+    expect(overlayOf(server)).toHaveLength(1)
+    const warn = start(dir, { check: { a11y: 'warn' } })
+    await until(() => warn.logs.length > 0)
+    expect(warn.logs[0][1]).not.toMatch(/\[error\]/)
+    expect(overlayOf(warn)).toEqual([])
+  })
+
+  it("the config file's paths replace the default include; check.include wins", async () => {
+    const dir = project({ files: { 'App.jsx': BUGGY } })
+    fs.mkdirSync(path.join(dir, 'other'))
+    fs.writeFileSync(path.join(dir, 'other', 'B.jsx'), BUGGY.replace(/App/g, 'B'))
+    writeConfig(dir, { paths: ['other'] })
+    const server = start(dir)
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/^other\/B\.jsx:2:\d+ SYG101 B:/)
+    expect(server.logs[0][1]).not.toMatch(/App\.jsx/)
+    const explicit = start(dir, { check: { include: ['src'] } })
+    await until(() => explicit.logs.length > 0)
+    expect(explicit.logs[0][1]).toMatch(/^src\/App\.jsx/)
+    expect(explicit.logs[0][1]).not.toMatch(/B\.jsx/)
+  })
+
+  it('a malformed config file is a SYG900 finding in the terminal, not a failure', async () => {
+    const dir = project({ files: { 'App.jsx': BUGGY } })
+    fs.writeFileSync(path.join(dir, 'sygnal-check.config.json'), '{ "strict": tru }')
+    const server = start(dir)
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][0]).toBe('warn')
+    expect(server.logs[0][1]).toMatch(/sygnal-check\.config\.json:1:\d+ SYG900 sygnal-check\.config\.json is not valid JSON/)
+    expect(server.logs[0][1]).toMatch(/SYG101 App:/)
+  })
+
+  it('a change to the config file re-checks', async () => {
+    const dir = project({ files: { 'App.jsx': BUGGY } })
+    const server = start(dir)
+    await until(() => server.logs.length > 0)
+    expect(server.logs[0][1]).toMatch(/SYG101/)
+    writeConfig(dir, { ignore: ['SYG101'] })
+    server.emit('change', path.join(dir, 'sygnal-check.config.json'))
+    await until(() => server.logs.length > 1)
+    expect(server.logs[1]).toEqual(['info', 'sygnal-check: 0 warnings'])
+  })
+
+  it('passes explicit values and the diagnostics defaults separately to a config-aware sygnal-check', async () => {
+    const recorder = `export function loadConfig() { return { config: {}, file: null, diagnostics: [] } }
+export function check(inputs, options) { globalThis.__awareCalls.push({ inputs, options }); return [] }`
+    globalThis.__awareCalls = []
+    start(project({ checker: recorder }), { diagnostics: { strict: true, ignore: ['SYG105'] } })
+    start(project({ checker: recorder }), { diagnostics: { strict: true }, check: { strict: false, a11y: 'error', include: ['app'], ignore: ['SYG101'] } })
+    await until(() => globalThis.__awareCalls.length === 2)
+    const calls = globalThis.__awareCalls.sort((a, b) => a.inputs[0].localeCompare(b.inputs[0]))
+    expect(calls[0].inputs).toEqual(['app'])
+    expect(calls[0].options).toMatchObject({ strict: false, ignore: ['SYG101'], a11y: 'error', defaults: { strict: true, ignore: [] } })
+    expect(calls[1].inputs).toEqual(['src'])
+    expect(calls[1].options).toMatchObject({ strict: undefined, ignore: undefined, a11y: undefined, defaults: { strict: true, ignore: ['SYG105'] } })
+    delete globalThis.__awareCalls
+  })
+
+  it('an older sygnal-check (no loadConfig) gets the same options as before, whatever the config file says', async () => {
+    const recorder = `export function check(inputs, options) { globalThis.__oldCalls.push({ inputs, options }); return [] }`
+    globalThis.__oldCalls = []
+    const dir = project({ checker: recorder })
+    writeConfig(dir, { strict: false, paths: ['lib'], a11y: 'error' })
+    start(dir, { diagnostics: { strict: true } })
+    await until(() => globalThis.__oldCalls.length === 1)
+    expect(globalThis.__oldCalls[0]).toEqual({ inputs: ['src'], options: { cwd: dir, strict: true, ignore: [], a11y: 'warn' } })
+    delete globalThis.__oldCalls
+  })
+
   it('never fails the dev server: a checker that throws only logs a warning', async () => {
     const server = start(project({ checker: `export function check() { throw new Error('boom') }` }))
     await until(() => server.logs.length > 0)

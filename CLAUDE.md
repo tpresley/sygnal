@@ -26,7 +26,8 @@ npm run test:recipes   # the docs recipes' code (dev-plans/research/p5-recipes, 
 node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
 node scripts/perf-report.mjs         # timing ratios to React vs the timing targets (warn-only, ~1.5 min, not in npm test);
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
-npm --prefix sygnal-check test       # static checker package (492 tests, *.vtest.js)
+npm --prefix sygnal-check test       # static checker package (1,003 tests, *.vtest.js; SYGNAL_CHECK_LATENCY=1 adds the latency gates)
+npm --prefix editors/vscode test     # the VS Code extension: typecheck, unit, build, smoke test in the installed VS Code (not in npm test)
 npm --prefix docs run build          # docs site + internal link check
 npm --prefix docs run check-live     # every live example of the built docs/dist in Playwright; must pass on BROWSER=chromium, firefox and webkit
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
@@ -105,7 +106,8 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/cycle/dom/DocumentDOMSource.ts` — Enhanced with `.select()` chaining for CSS-filtered document events
 
 **Outside `src/`:**
-- `sygnal-check/` — Separate package: static checker (`@babel/parser`), rules in `src/rules/` (strict ones in `src/rules/strict/`), `--fix`, `--graph`, `explain` (`src/explanations.js` → `explanations.json`, the source of the docs error reference), MCP server (`src/mcp.js`). Tests are `*.vtest.js` (not collected by the root vitest)
+- `sygnal-check/` — Separate package: static checker (`@babel/parser`), rules in `src/rules/` (strict ones in `src/rules/strict/`), `--fix`, `--graph`, `explain` (`src/explanations.js` → `explanations.json`, the source of the docs error reference), MCP server (`src/mcp.js`), language server (`src/lsp/`, `sygnal-check lsp`: checks in a worker thread, push diagnostics, hover, code actions; PLAN-7), the config file (`src/config.js`: `sygnal-check.config.json` / the `package.json` key). Tests are `*.vtest.js` (not collected by the root vitest)
+- `editors/vscode/` — the VS Code extension (`sygnal.sygnal`; its own package, bundles a copy of sygnal-check); `editors/claude-code/` + `.claude-plugin/marketplace.json` — the Claude Code plugin (the language server + a symlink to `skills/sygnal-dev`). Excluded from the root vitest; release steps in RELEASING.md §8–§9
 - `test/` — Library vitest suites; `test/docs-errors.test.js` fails when `docs/.../reference/errors.md` is out of date
 - `type-tests/` — `tsc`-checked type tests (`test:types`); `type-tests/registry/` compiles the SygnalEvents augmentation separately
 - `browser-tests/` — Real-browser suite (`test:browser`, free port). `BROWSER=firefox|webkit` runs another cached Playwright engine (never download browsers); `BROWSER_TESTS_ONLY=<substring>` runs only the suites whose function name contains it (`main.js` list). Chromium runs with `--enable-features=WebMCP` (PLAN-6 D267); `BROWSER_ARGS` adds launch args, `BROWSER_TESTS_TIMEOUT_MS` raises the 180 s limit on a loaded machine. Real input for tests: `window.__pwType(sel, text)`, `window.__pw(action, sel, arg)` (Playwright locator: click, hover, focus, press, fill, type, mouse-away, role, aria) and `window.__pwInput(steps)` (mouse move/down/up, keys, waits; touch via CDP, Chromium only); pointer input needs an on-screen element: `mountOnScreen()` / `clearStage()` from `harness.js`

@@ -222,7 +222,53 @@
         "data": {},
         "file": { "type": "string" },
         "line": { "type": "integer" },
-        "column": { "type": "integer" }
+        "column": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "endColumn": { "type": "integer" },
+        "related": { "type": "array", "items": { "$ref": "#/$defs/relatedLocation" } },
+        "fixes": { "type": "array", "items": { "$ref": "#/$defs/fix" } }
+      }
+    },
+    "fix": {
+      "type": "object",
+      "description": "a mechanical fix (static only): its edits are applied together",
+      "required": ["title", "kind", "edits"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "kind": { "enum": ["quickfix", "refactor"] },
+        "preferred": { "type": "boolean", "description": "the one obvious fix (LSP isPreferred)" },
+        "fixAll": { "type": "boolean", "description": "a mechanical rewrite sygnal-check --fix applies" },
+        "edits": { "type": "array", "items": { "$ref": "#/$defs/textEdit" } }
+      }
+    },
+    "textEdit": {
+      "type": "object",
+      "description": "replace start..end (UTF-16 offsets; the same range 1-based as line/column..endLine/endColumn, endColumn exclusive) of file with text",
+      "required": ["file", "start", "end", "line", "column", "endLine", "endColumn", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "start": { "type": "integer" },
+        "end": { "type": "integer" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "endColumn": { "type": "integer" },
+        "text": { "type": "string" }
+      }
+    },
+    "relatedLocation": {
+      "type": "object",
+      "required": ["file", "line", "column", "endLine", "endColumn", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "endColumn": { "type": "integer" },
+        "message": { "type": "string" }
       }
     }
   }

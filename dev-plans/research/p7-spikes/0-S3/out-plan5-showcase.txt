@@ -1,0 +1,471 @@
+# examples/plan5-showcase/src: 50 files, 43 components, model built in 46 ms
+
+## Environment  (examples/plan5-showcase/src/demos/browser/Environment.jsx)
+  DRAFT
+    intent  examples/plan5-showcase/src/demos/browser/Environment.jsx:47:3-8
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:61:3-8
+  STORE
+    intent  examples/plan5-showcase/src/demos/browser/Environment.jsx:48:3-8
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:63:3-8
+  FORGET
+    intent  examples/plan5-showcase/src/demos/browser/Environment.jsx:49:3-9
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:64:3-9
+  COPY
+    intent  examples/plan5-showcase/src/demos/browser/Environment.jsx:50:3-7
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:65:3-7
+  DARK
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:54:3-7
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:37:59-63  browser.action
+  WIDE
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:55:3-7
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:38:49-53  browser.action
+  VISIBLE
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:56:3-10
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:39:41-48  browser.action
+  ONLINE
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:57:3-9
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:40:36-42  browser.action
+  STORED
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:58:3-9
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:41:36-42  browser.action
+  RESIZED
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:59:3-10
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:42:43-50  browser.action
+  SENTINEL
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:60:3-11
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:43:51-59  browser.action
+  COPIED
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:66:3-9
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:65:58-64  BROWSER.ok
+  FAILED
+    model   examples/plan5-showcase/src/demos/browser/Environment.jsx:67:3-9
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:63:77-83  BROWSER.error
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:64:49-55  BROWSER.error
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:65:75-81  BROWSER.error
+    reply   examples/plan5-showcase/src/demos/browser/Environment.jsx:41:53-59  browser.error
+
+## Gauge  (examples/plan5-showcase/src/demos/browser/Gauge.jsx)
+  BUMP
+    intent  examples/plan5-showcase/src/demos/browser/Gauge.jsx:14:32-36
+    model   examples/plan5-showcase/src/demos/browser/Gauge.jsx:17:3-7
+  INITIALIZE
+    model   examples/plan5-showcase/src/demos/browser/Gauge.jsx:16:3-13
+
+## Cart  (examples/plan5-showcase/src/demos/core/CartContextTest.jsx)
+
+## Term  (examples/plan5-showcase/src/demos/core/Glossary.jsx)
+  STAR
+    intent  examples/plan5-showcase/src/demos/core/Glossary.jsx:17:31-35
+    model   examples/plan5-showcase/src/demos/core/Glossary.jsx:18:16-20
+
+## Glossary  (examples/plan5-showcase/src/demos/core/Glossary.jsx)
+  REVERSE
+    intent  examples/plan5-showcase/src/demos/core/Glossary.jsx:40:35-42
+    model   examples/plan5-showcase/src/demos/core/Glossary.jsx:42:3-10
+  SORT
+    intent  examples/plan5-showcase/src/demos/core/Glossary.jsx:40:67-71
+    model   examples/plan5-showcase/src/demos/core/Glossary.jsx:43:3-7
+
+## Signup  (examples/plan5-showcase/src/demos/core/Hydrate.jsx)
+  CLICK
+    intent  examples/plan5-showcase/src/demos/core/Hydrate.jsx:22:33-38
+    model   examples/plan5-showcase/src/demos/core/Hydrate.jsx:24:3-8
+  NICK
+    intent  examples/plan5-showcase/src/demos/core/Hydrate.jsx:22:61-65
+    model   examples/plan5-showcase/src/demos/core/Hydrate.jsx:25:3-7
+
+## Counter  (examples/plan5-showcase/src/demos/core/PatchError.jsx)
+  INC
+    intent  examples/plan5-showcase/src/demos/core/PatchError.jsx:20:34-37
+    model   examples/plan5-showcase/src/demos/core/PatchError.jsx:22:3-6
+  ARM
+    intent  examples/plan5-showcase/src/demos/core/PatchError.jsx:20:58-61
+    model   examples/plan5-showcase/src/demos/core/PatchError.jsx:23:3-6
+
+## Pin  (examples/plan5-showcase/src/demos/core/Pin.jsx)
+  PIN
+    intent  examples/plan5-showcase/src/demos/core/Pin.jsx:15:30-33
+    model   examples/plan5-showcase/src/demos/core/Pin.jsx:17:3-6
+
+## QuoteCard  (examples/plan5-showcase/src/demos/core/Quotes.jsx)
+  NEXT
+    intent  examples/plan5-showcase/src/demos/core/Quotes.jsx:23:36-40
+    model   examples/plan5-showcase/src/demos/core/Quotes.jsx:26:3-7
+  REFRESH
+    intent  examples/plan5-showcase/src/demos/core/Quotes.jsx:23:62-69
+    model   examples/plan5-showcase/src/demos/core/Quotes.jsx:27:3-10
+  REMOVE
+    intent  examples/plan5-showcase/src/demos/core/Quotes.jsx:23:94-100
+    model   examples/plan5-showcase/src/demos/core/Quotes.jsx:28:3-9
+
+## Quotes  (examples/plan5-showcase/src/demos/core/Quotes.jsx)
+  ADD
+    intent  examples/plan5-showcase/src/demos/core/Quotes.jsx:41:33-36
+    model   examples/plan5-showcase/src/demos/core/Quotes.jsx:43:3-6
+
+## Scoreboard  (examples/plan5-showcase/src/demos/core/Scoreboard.jsx)
+  POINT
+    intent  examples/plan5-showcase/src/demos/core/Scoreboard.jsx:32:37-42
+    model   examples/plan5-showcase/src/demos/core/Scoreboard.jsx:34:3-8
+  RENAME
+    intent  examples/plan5-showcase/src/demos/core/Scoreboard.jsx:32:65-71
+    model   examples/plan5-showcase/src/demos/core/Scoreboard.jsx:35:3-9
+
+## InfoCard  (examples/plan5-showcase/src/demos/core/ShadowCard.jsx)
+  FOLD
+    intent  examples/plan5-showcase/src/demos/core/ShadowCard.jsx:20:35-39
+    model   examples/plan5-showcase/src/demos/core/ShadowCard.jsx:21:20-24
+
+## Host  (examples/plan5-showcase/src/demos/core/ShadowCard.jsx)
+  INC
+    intent  examples/plan5-showcase/src/demos/core/ShadowCard.jsx:47:31-34
+    model   examples/plan5-showcase/src/demos/core/ShadowCard.jsx:48:16-19
+
+## Editor  (examples/plan5-showcase/src/demos/core/Tasks.jsx)
+  DRAFT
+    intent  examples/plan5-showcase/src/demos/core/Tasks.jsx:20:33-38
+    model   examples/plan5-showcase/src/demos/core/Tasks.jsx:23:3-8
+  ROUTE
+    model   examples/plan5-showcase/src/demos/core/Tasks.jsx:22:3-8
+    reply   examples/plan5-showcase/src/demos/core/Tasks.jsx:19:17-22  route.route
+
+## Tasks  (examples/plan5-showcase/src/demos/core/Tasks.jsx)
+  BACK
+    intent  examples/plan5-showcase/src/demos/core/Tasks.jsx:64:32-36
+    model   examples/plan5-showcase/src/demos/core/Tasks.jsx:67:3-7
+  ROUTE
+    model   examples/plan5-showcase/src/demos/core/Tasks.jsx:66:3-8
+    reply   examples/plan5-showcase/src/demos/core/Tasks.jsx:62:16-21  route.route
+
+## SettingsPage  (examples/plan5-showcase/src/demos/forms/Expenses.jsx)
+  CATEGORY
+    intent  examples/plan5-showcase/src/demos/forms/Expenses.jsx:29:39-47
+    model   examples/plan5-showcase/src/demos/forms/Expenses.jsx:31:3-11
+
+## NewExpensePage  (examples/plan5-showcase/src/demos/forms/Expenses.jsx)
+  SAVE
+    model   examples/plan5-showcase/src/demos/forms/Expenses.jsx:64:3-7
+  ! uses.form: next/reply names inside the behavior (SAVE) kept as strings only
+
+## Expenses  (examples/plan5-showcase/src/demos/forms/Expenses.jsx)
+  GO
+    intent  examples/plan5-showcase/src/demos/forms/Expenses.jsx:83:3-5
+    model   examples/plan5-showcase/src/demos/forms/Expenses.jsx:89:20-22
+
+## Signup  (examples/plan5-showcase/src/demos/forms/Signup.jsx)
+  form.ADD
+    intent  examples/plan5-showcase/src/demos/forms/Signup.jsx:56:4-12
+  form.REMOVE
+    intent  examples/plan5-showcase/src/demos/forms/Signup.jsx:57:4-15
+  SIGN_UP
+    model   examples/plan5-showcase/src/demos/forms/Signup.jsx:61:3-10
+  form.DONE
+    model   examples/plan5-showcase/src/demos/forms/Signup.jsx:62:4-13
+    reply   examples/plan5-showcase/src/demos/forms/Signup.jsx:61:97-106  HTTP.ok
+  form.ERRORS
+    reply   examples/plan5-showcase/src/demos/forms/Signup.jsx:61:117-128  HTTP.error
+  ! uses.form: next/reply names inside the behavior (SIGN_UP) kept as strings only
+
+## Row  (examples/plan5-showcase/src/demos/gestures/Checklist.jsx)
+  TITLE
+    intent  examples/plan5-showcase/src/demos/gestures/Checklist.jsx:10:30-35
+    model   examples/plan5-showcase/src/demos/gestures/Checklist.jsx:11:15-20
+
+## Checklist  (examples/plan5-showcase/src/demos/gestures/Checklist.jsx)
+  ADD
+    intent  examples/plan5-showcase/src/demos/gestures/Checklist.jsx:23:36-39
+    model   examples/plan5-showcase/src/demos/gestures/Checklist.jsx:25:3-6
+
+## Kanban  (examples/plan5-showcase/src/demos/gestures/Kanban.jsx)
+  sort.DROPPED
+    model   examples/plan5-showcase/src/demos/gestures/Kanban.jsx:58:4-16
+  sort.INIT
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.HELP
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.END
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.PRESS
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.MOVE
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.UP
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.CANCEL
+    model   <no position>  first-party behavior 'sortable' (no source)
+  sort.KEY
+    model   <no position>  first-party behavior 'sortable' (no source)
+  history.UNDO
+    model   <no position>  first-party behavior 'undo' (no source)
+  history.REDO
+    model   <no position>  first-party behavior 'undo' (no source)
+
+## Mixer  (examples/plan5-showcase/src/demos/gestures/Mixer.jsx)
+  knob.STEP
+    model   examples/plan5-showcase/src/demos/gestures/nudge.js:19:5-9  behavior def (re-derived; key 'STEP')
+  knob.COMMIT
+    model   examples/plan5-showcase/src/demos/gestures/nudge.js:25:5-11  behavior def (re-derived; key 'COMMIT')
+  knob.CANCEL
+    model   examples/plan5-showcase/src/demos/gestures/nudge.js:26:5-11  behavior def (re-derived; key 'CANCEL')
+  history.UNDO
+    model   <no position>  first-party behavior 'undo' (no source)
+  history.REDO
+    model   <no position>  first-party behavior 'undo' (no source)
+  ! uses.knob: next/reply names inside the behavior (COMMIT) kept as strings only
+
+## Favourite  (examples/plan5-showcase/src/demos/integrations/Hearts.jsx)
+  RATE
+    intent  examples/plan5-showcase/src/demos/integrations/Hearts.jsx:25:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Hearts.jsx:31:3-7
+  MORE
+    intent  examples/plan5-showcase/src/demos/integrations/Hearts.jsx:26:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Hearts.jsx:32:3-7
+  CLEAR
+    intent  examples/plan5-showcase/src/demos/integrations/Hearts.jsx:27:3-8
+    model   examples/plan5-showcase/src/demos/integrations/Hearts.jsx:33:3-8
+
+## Review  (examples/plan5-showcase/src/demos/integrations/Review.jsx)
+  DISH
+    intent  examples/plan5-showcase/src/demos/integrations/Review.jsx:34:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Review.jsx:42:3-7
+  SPICY
+    intent  examples/plan5-showcase/src/demos/integrations/Review.jsx:35:3-8
+    model   examples/plan5-showcase/src/demos/integrations/Review.jsx:43:3-8
+  RATE
+    intent  examples/plan5-showcase/src/demos/integrations/Review.jsx:36:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Review.jsx:44:3-7
+  WORD
+    intent  examples/plan5-showcase/src/demos/integrations/Review.jsx:37:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Review.jsx:45:3-7
+  SEND
+    intent  examples/plan5-showcase/src/demos/integrations/Review.jsx:38:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Review.jsx:46:3-7
+
+## Sales  (examples/plan5-showcase/src/demos/integrations/Sales.jsx)
+  SELECT
+    intent  examples/plan5-showcase/src/demos/integrations/Sales.jsx:30:3-9
+    model   examples/plan5-showcase/src/demos/integrations/Sales.jsx:37:3-9
+  ADD_SALE
+    intent  examples/plan5-showcase/src/demos/integrations/Sales.jsx:31:3-11
+    model   examples/plan5-showcase/src/demos/integrations/Sales.jsx:38:3-11
+  MONTH
+    intent  examples/plan5-showcase/src/demos/integrations/Sales.jsx:32:3-8
+    model   examples/plan5-showcase/src/demos/integrations/Sales.jsx:39:3-8
+  SHOW
+    intent  examples/plan5-showcase/src/demos/integrations/Sales.jsx:33:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Sales.jsx:40:3-7
+
+## Stopwatch  (examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx)
+  TICK
+    intent  examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:30:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:38:3-7
+  FASTER
+    intent  examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:31:3-9
+    model   examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:39:3-9
+  RESET
+    intent  examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:32:3-8
+    model   examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:40:3-8
+  BREAK
+    intent  examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:33:3-8
+    model   examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:41:3-8
+  REPAIR
+    intent  examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:34:3-9
+    model   examples/plan5-showcase/src/demos/integrations/Stopwatch.jsx:43:3-9
+
+## Toolbar  (examples/plan5-showcase/src/demos/integrations/Toolbar.jsx)
+  PICK
+    intent  examples/plan5-showcase/src/demos/integrations/Toolbar.jsx:36:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Toolbar.jsx:41:3-7
+  OPEN
+    intent  examples/plan5-showcase/src/demos/integrations/Toolbar.jsx:37:3-7
+    model   examples/plan5-showcase/src/demos/integrations/Toolbar.jsx:42:3-7
+
+## Card  (examples/plan5-showcase/src/demos/lists/Board.jsx)
+  MOVE
+    intent  examples/plan5-showcase/src/demos/lists/Board.jsx:11:31-35
+    model   examples/plan5-showcase/src/demos/lists/Board.jsx:12:16-20
+
+## Board  (examples/plan5-showcase/src/demos/lists/Board.jsx)
+  MOVE
+    intent  examples/plan5-showcase/src/demos/lists/Board.jsx:41:3-7
+    model   examples/plan5-showcase/src/demos/lists/Board.jsx:47:3-7
+  SHUFFLE
+    intent  examples/plan5-showcase/src/demos/lists/Board.jsx:42:3-10
+    model   examples/plan5-showcase/src/demos/lists/Board.jsx:53:3-10
+  REVERSE
+    intent  examples/plan5-showcase/src/demos/lists/Board.jsx:43:3-10
+    model   examples/plan5-showcase/src/demos/lists/Board.jsx:54:3-10
+
+## Item  (examples/plan5-showcase/src/demos/lists/Groceries.jsx)
+  REMOVE
+    intent  examples/plan5-showcase/src/demos/lists/Groceries.jsx:11:31-37
+    model   examples/plan5-showcase/src/demos/lists/Groceries.jsx:13:16-22
+
+## Groceries  (examples/plan5-showcase/src/demos/lists/Groceries.jsx)
+  ADD
+    intent  examples/plan5-showcase/src/demos/lists/Groceries.jsx:40:36-39
+    model   examples/plan5-showcase/src/demos/lists/Groceries.jsx:43:3-6
+  INSPECT
+    intent  examples/plan5-showcase/src/demos/lists/Groceries.jsx:40:60-67
+    model   examples/plan5-showcase/src/demos/lists/Groceries.jsx:44:3-10
+  CHILDREN
+    model   examples/plan5-showcase/src/demos/lists/Groceries.jsx:47:3-11
+    next    examples/plan5-showcase/src/demos/lists/Groceries.jsx:45:42-50
+
+## Row  (examples/plan5-showcase/src/demos/lists/People.jsx)
+  STAR
+    intent  examples/plan5-showcase/src/demos/lists/People.jsx:16:30-34
+    model   examples/plan5-showcase/src/demos/lists/People.jsx:17:15-19
+
+## People  (examples/plan5-showcase/src/demos/lists/People.jsx)
+  TARGET
+    intent  examples/plan5-showcase/src/demos/lists/People.jsx:45:3-9
+    model   examples/plan5-showcase/src/demos/lists/People.jsx:51:3-9
+  JUMP
+    intent  examples/plan5-showcase/src/demos/lists/People.jsx:46:3-7
+    model   examples/plan5-showcase/src/demos/lists/People.jsx:53:3-7
+  TOP
+    intent  examples/plan5-showcase/src/demos/lists/People.jsx:47:3-6
+    model   examples/plan5-showcase/src/demos/lists/People.jsx:54:3-6
+
+## Account  (examples/plan5-showcase/src/demos/ui/Account.jsx)
+  YES
+    intent  examples/plan5-showcase/src/demos/ui/Account.jsx:24:34-37
+    model   examples/plan5-showcase/src/demos/ui/Account.jsx:26:3-6
+  NO
+    intent  examples/plan5-showcase/src/demos/ui/Account.jsx:24:66-68
+    model   examples/plan5-showcase/src/demos/ui/Account.jsx:27:3-5
+  confirm.CANCEL
+    model   examples/plan5-showcase/src/demos/ui/Account.jsx:29:4-18
+  confirm.OPEN
+    model   <no position>  first-party behavior 'dialog' (no source)
+  confirm.CLOSE
+    model   <no position>  first-party behavior 'dialog' (no source)
+  confirm.TOGGLED
+    model   <no position>  first-party behavior 'dialog' (no source)
+  confirm.CLOSED
+    model   <no position>  first-party behavior 'dialog' (no source)
+
+## Faq  (examples/plan5-showcase/src/demos/ui/Faq.jsx)
+  faq.TOGGLE
+    model   <no position>  first-party behavior 'accordion' (no source)
+  faq.EXPAND
+    model   <no position>  first-party behavior 'accordion' (no source)
+  faq.COLLAPSE
+    model   <no position>  first-party behavior 'accordion' (no source)
+  faq.MOVE
+    model   <no position>  first-party behavior 'accordion' (no source)
+
+## Filters  (examples/plan5-showcase/src/demos/ui/Filters.jsx)
+  ONLY_OPEN
+    intent  examples/plan5-showcase/src/demos/ui/Filters.jsx:26:3-12
+    model   examples/plan5-showcase/src/demos/ui/Filters.jsx:29:19-28
+  filters.OPEN
+    intent  examples/plan5-showcase/src/demos/ui/Filters.jsx:27:4-16
+  filters.CLOSE
+    model   <no position>  first-party behavior 'popover' (no source)
+  filters.TOGGLE
+    model   <no position>  first-party behavior 'popover' (no source)
+  filters.TOGGLED
+    model   <no position>  first-party behavior 'popover' (no source)
+
+## Editor  (examples/plan5-showcase/src/demos/ui/Notes.jsx)
+  TEXT
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:23:3-7
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:31:3-7
+  SAVE
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:24:3-7
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:32:3-7
+  FAIL
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:25:3-7
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:33:3-7
+  UPLOAD
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:26:3-9
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:35:3-9
+  FINISH
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:27:3-9
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:36:3-9
+  CLEAR
+    intent  examples/plan5-showcase/src/demos/ui/Notes.jsx:28:3-8
+    model   examples/plan5-showcase/src/demos/ui/Notes.jsx:37:3-8
+
+## Order  (examples/plan5-showcase/src/demos/ui/Order.jsx)
+  details.TOGGLE
+    model   examples/plan5-showcase/src/demos/ui/Order.jsx:21:18-32
+  details.OPEN
+    model   <no position>  first-party behavior 'disclosure' (no source)
+  details.CLOSE
+    model   <no position>  first-party behavior 'disclosure' (no source)
+
+## Picker  (examples/plan5-showcase/src/demos/ui/Picker.jsx)
+  ACTION
+    intent  examples/plan5-showcase/src/demos/ui/Picker.jsx:40:3-9
+    model   examples/plan5-showcase/src/demos/ui/Picker.jsx:46:3-9
+  SIZE
+    intent  examples/plan5-showcase/src/demos/ui/Picker.jsx:41:3-7
+    model   examples/plan5-showcase/src/demos/ui/Picker.jsx:47:3-7
+  CITY
+    intent  examples/plan5-showcase/src/demos/ui/Picker.jsx:42:3-7
+    model   examples/plan5-showcase/src/demos/ui/Picker.jsx:48:3-7
+  CLEAR_CITY
+    intent  examples/plan5-showcase/src/demos/ui/Picker.jsx:43:3-13
+    model   examples/plan5-showcase/src/demos/ui/Picker.jsx:49:3-13
+
+## Profile  (examples/plan5-showcase/src/demos/ui/Profile.jsx)
+  NAME
+    intent  examples/plan5-showcase/src/demos/ui/Profile.jsx:34:3-7
+    model   examples/plan5-showcase/src/demos/ui/Profile.jsx:40:3-7
+  SAVE
+    intent  examples/plan5-showcase/src/demos/ui/Profile.jsx:35:3-7
+    model   examples/plan5-showcase/src/demos/ui/Profile.jsx:41:3-7
+  PING
+    intent  examples/plan5-showcase/src/demos/ui/Profile.jsx:36:3-7
+    model   examples/plan5-showcase/src/demos/ui/Profile.jsx:45:3-7
+  profile.OPEN
+    model   <no position>  first-party behavior 'dialog' (no source)
+  profile.CLOSE
+    model   <no position>  first-party behavior 'dialog' (no source)
+  profile.TOGGLED
+    model   <no position>  first-party behavior 'dialog' (no source)
+  profile.CLOSED
+    model   <no position>  first-party behavior 'dialog' (no source)
+  profile.CANCEL
+    model   <no position>  first-party behavior 'dialog' (no source)
+
+## Settings  (examples/plan5-showcase/src/demos/ui/Settings.jsx)
+  GO_BILLING
+    intent  examples/plan5-showcase/src/demos/ui/Settings.jsx:31:35-45
+    model   examples/plan5-showcase/src/demos/ui/Settings.jsx:33:3-13
+  tabs.SELECT
+    next    examples/plan5-showcase/src/demos/ui/Settings.jsx:33:54-65
+  tabs.MOVE
+    model   <no position>  first-party behavior 'tabs' (no source)
+
+## Toolbar  (examples/plan5-showcase/src/demos/ui/Toolbar.jsx)
+  saveTip.ENTER
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  saveTip.LEAVE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  saveTip.SHOW
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  saveTip.HIDE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  saveTip.ESCAPE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  saveTip.TOGGLED
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.ENTER
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.LEAVE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.SHOW
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.HIDE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.ESCAPE
+    model   <no position>  first-party behavior 'tooltip' (no source)
+  shareTip.TOGGLED
+    model   <no position>  first-party behavior 'tooltip' (no source)
+
+# totals: 144 actions, 234 occurrences, 43 without a position
+# not locatable with the current model: {"behavior next/reply strings":3,"behavior first-party (no source)":43}

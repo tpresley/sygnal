@@ -1,0 +1,21 @@
+{
+  "name": "sygnal-i1-raw-npx",
+  "version": "0.0.0",
+  "description": "I-1 run 2: the plugin's language server as the bare documented start command (npx --no-install sygnal-check lsp), no launcher, to see what Claude Code does when it fails",
+  "author": { "name": "Troy Presley" },
+  "lspServers": {
+    "sygnal": {
+      "command": "npx",
+      "args": ["--no-install", "sygnal-check", "lsp"],
+      "extensionToLanguage": {
+        ".js": "javascript",
+        ".jsx": "javascriptreact",
+        ".ts": "typescript",
+        ".tsx": "typescriptreact",
+        ".mjs": "javascript",
+        ".cjs": "javascript"
+      },
+      "settings": {}
+    }
+  }
+}

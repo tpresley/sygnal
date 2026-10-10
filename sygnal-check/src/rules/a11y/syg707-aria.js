@@ -8,6 +8,21 @@
  */
 import { attrString, elementsOf, componentName } from './shared.js'
 import { editDistance } from '../../names.js'
+import { renameFix, stringEdit } from '../../edits.js'
+
+/**
+ * PLAN-7 C-4: the role attribute's string with the one bad role token replaced; null when the
+ * value isn't a literal string or the token appears more than once.
+ */
+function roleEdit(file, attr, value, bad, near) {
+  if (attr?.type !== 'JSXAttribute') return null
+  let v = attr.value
+  if (v?.type === 'JSXExpressionContainer') v = v.expression
+  if (v?.type !== 'StringLiteral' || v.value !== value) return null
+  const tokens = value.split(/(\s+)/)
+  if (tokens.filter(t => t === bad).length !== 1) return null
+  return stringEdit(file, v, tokens.map(t => (t === bad ? near : t)).join(''))
+}
 
 export const ARIA_ATTRIBUTES = new Set([
   'aria-activedescendant', 'aria-atomic', 'aria-autocomplete', 'aria-braillelabel', 'aria-brailleroledescription',
@@ -65,6 +80,9 @@ export default {
             message: `${name} is not an ARIA attribute, so assistive technology ignores it`,
             fix: near ? `did you mean ${near}?` : 'use an attribute from the WAI-ARIA list (https://www.w3.org/TR/wai-aria-1.2/#state_prop_def), or a data-* attribute for your own data',
             data: { attribute: name, suggestion: near || undefined },
+            fixes: near && a.node?.type === 'JSXAttribute' && a.node.name.type === 'JSXIdentifier'
+              ? renameFix(`Change ${name} to ${near}`, { file: info.file.path, start: a.node.name.start, end: a.node.name.end, text: near })
+              : undefined,
           })
         }
         if (lower === 'role') {
@@ -82,6 +100,7 @@ export default {
               : `role="${v}": '${r}' is not a WAI-ARIA role, so assistive technology ignores it`,
             fix: abstract ? 'use a concrete role (e.g. button, checkbox, tab, region) or none' : near ? `did you mean role="${near}"?` : 'use a role from the WAI-ARIA list (https://www.w3.org/TR/wai-aria-1.2/#role_definitions), or remove it',
             data: { role: r, suggestion: near || undefined },
+            fixes: near && renameFix(`Change role "${r}" to "${near}"`, roleEdit(info.file, a.node, v, r, near)),
           })
         }
       }

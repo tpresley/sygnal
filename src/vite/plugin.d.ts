@@ -16,24 +16,37 @@ export interface DiagnosticsPluginOptions {
   ignore?: string[]
 }
 
+/**
+ * sygnal-check in dev. A setting left out comes from the project's
+ * sygnal-check config file (`sygnal-check.config.json`, or the
+ * `"sygnal-check"` key in package.json; its `paths` stand in for `include`),
+ * so the overlay, the CLI and the editor agree; without one, from the
+ * defaults below. A sygnal-check older than 0.4.0 reads no config file.
+ */
 export interface CheckPluginOptions {
   /**
    * Also run sygnal-check's strict (SYG5xx) rules.
-   * @default the `diagnostics` strict setting
+   * @default the config file's `strict`, else the `diagnostics` strict setting
    */
   strict?: boolean
+  /**
+   * Severity of the a11y lane (SYG701-708). 'warn' keeps it a warning, also
+   * under `strict` (D144); 'error' makes it an error, which opens the overlay.
+   * @default the config file's `a11y`, else 'warn'
+   */
+  a11y?: 'warn' | 'error'
   /**
    * Files, directories or globs to check, relative to the Vite root.
    * By default the existing ones of src/, pages/ and renderer/ (Vike apps),
    * else the project root (node_modules, dist and other build output are
    * skipped); a one-time notice is logged when the default finds no
    * directory or when none of the given paths exists.
-   * @default ['src', 'pages', 'renderer'] (those that exist), else ['.']
+   * @default the config file's `paths`, else ['src', 'pages', 'renderer'] (those that exist), else ['.']
    */
   include?: string[]
   /**
    * Codes to drop.
-   * @default the `diagnostics` ignore list
+   * @default the config file's `ignore`, else the `diagnostics` ignore list
    */
   ignore?: string[]
   /**

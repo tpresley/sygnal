@@ -214,17 +214,21 @@ function firstPartyDef(name) {
   }
 }
 
-const defCache = new WeakMap() // defineBehavior CallExpression → BehaviorDef
+// project → (defineBehavior CallExpression → BehaviorDef): per build, since the AST can be shared
+// across builds through a ParseCache while the definition depends on the other files
+const defCache = new WeakMap()
 
 /** A defineBehavior({ ... }) call's definition. */
 function userDef(project, file, call, name) {
-  if (defCache.has(call)) return defCache.get(call)
+  let byCall = defCache.get(project)
+  if (!byCall) defCache.set(project, byCall = new WeakMap())
+  if (byCall.has(call)) return byCall.get(call)
   const def = {
     name, firstParty: false, file, node: call,
     stateKeys: null, calculated: [], model: null, intentActions: null,
     listens: [], optionNames: null, nextTargets: [], replyTargets: [], dynamic: false, nextOptions: [],
   }
-  defCache.set(call, def)
+  byCall.set(call, def)
   const keys = project.objectKeys(file, call.arguments[0])
   if (!keys) return def
   const at = (k) => keys.get(k)

@@ -1,6 +1,6 @@
 {
   "name": "sygnal-check",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Static checker for Sygnal apps: finds intent/model/view/EVENTS wiring bugs that fail silently at runtime",
   "type": "module",
   "main": "./src/index.js",
@@ -44,6 +44,7 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "vscode-languageserver-protocol": "3.18.4"
   }
 }

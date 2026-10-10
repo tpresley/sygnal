@@ -12,6 +12,8 @@ import { configDefaults, defineConfig } from 'vitest/config'
 // - .claude/**: agent worktrees (full repo copies) would otherwise be collected.
 // - dev-plans/**: throwaway research experiments, each with its own package.json
 //   and dependencies (run with `npm --prefix dev-plans/research/<dir> test`).
+// - editors/**: the VS Code extension (its own node:test unit tests and a smoke
+//   test in VS Code: `npm --prefix editors/vscode test`).
 export default defineConfig({
   test: {
     exclude: [
@@ -24,6 +26,7 @@ export default defineConfig({
       'docs/**',
       '.claude/**',
       'dev-plans/**',
+      'editors/**',
     ],
   },
 })

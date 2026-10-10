@@ -16,7 +16,7 @@
 import { walk, unwrap, memberName, propName } from '../ast.js'
 import { controlsOf, resolveControl } from '../model/controls.js'
 import { assumedListened } from '../model/behaviors.js'
-import { loc } from '../ast.js'
+import { loc, fileOfNode } from '../ast.js'
 
 const COMPONENT_STATICS = new Set(['intent', 'model', 'initialState'])
 
@@ -97,7 +97,7 @@ function reportUnlistened(project, report) {
           code: 'SYG126',
           component: comp.name,
           file: nodes[0] && fileOf(project, nodes[0], comp),
-          node: nodes[0],
+          node: nodes[0], endNode: nodes[0]?.name, // C-2: "<Control"
           message: `${comp.name} renders control <${control.key}>, but its intent never listens to it`,
           fix: `listen to it in the intent (e.g. DOM.click(${control.key})), or render a plain ${control.element ? `<${control.element}>` : 'element'} if it needs no events`,
           data: { control: control.key },
@@ -121,18 +121,7 @@ export function listenedControls(project, comp) {
 
 /** The FileInfo a JSX node belongs to (the component's own file, a helper's, or a parent's). */
 function fileOf(project, node, comp) {
-  if (contains(comp.file, node)) return comp.file
-  for (const f of project.files.values()) if (f && contains(f, node)) return f
-  return comp.file
-}
-
-function contains(file, node) {
-  let n = node
-  while (n) {
-    if (n === file.ast.program) return true
-    n = file.parents.get(n)
-  }
-  return false
+  return fileOfNode(project, node, comp.file) || comp.file
 }
 
 function reportDuplicates(project, report) {
@@ -145,6 +134,7 @@ function reportDuplicates(project, report) {
         code: 'SYG128',
         file,
         node: control.keyNode,
+        related: [{ node: first.keyNode, message: `'${control.key}' is first declared here` }],
         message: `control key '${control.key}' is already declared ${same ? 'earlier in this controls() call' : 'by another controls() call in this file'} (line ${loc(first.keyNode).line}); both render data-control="${control.key}", so each one's listeners would match the other's elements`,
         fix: same ? `remove the repeated '${control.key}' key` : `rename one of the keys, or declare both controls in one controls() call`,
         data: { control: control.key, firstLine: loc(first.keyNode).line },

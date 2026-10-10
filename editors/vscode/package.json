@@ -1,0 +1,192 @@
+{
+  "name": "sygnal",
+  "displayName": "Sygnal",
+  "description": "Sygnal's static checker in the editor: wiring bugs that fail silently (intent/model/view, EVENTS, child components, Collections) as you type, with explanations and quick fixes.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "sygnal",
+  "license": "MIT",
+  "author": "Troy Presley <troy.presley@gmail.com>",
+  "icon": "images/icon.png",
+  "homepage": "https://sygnal.js.org/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tpresley/sygnal.git",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/tpresley/sygnal/issues"
+  },
+  "engines": {
+    "vscode": "^1.91.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Snippets"
+  ],
+  "keywords": [
+    "sygnal",
+    "cycle.js",
+    "mvi",
+    "jsx",
+    "lint",
+    "diagnostics"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/sygnal-check.config.json",
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In an untrusted workspace the extension runs only its bundled sygnal-check, never the copy in the workspace's node_modules."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "sygnal.restartServer",
+        "title": "Restart Server",
+        "category": "Sygnal"
+      },
+      {
+        "command": "sygnal.showOutput",
+        "title": "Show Output",
+        "category": "Sygnal"
+      },
+      {
+        "command": "sygnal.explainCode",
+        "title": "Explain Code…",
+        "category": "Sygnal"
+      },
+      {
+        "command": "sygnal.fixAll",
+        "title": "Fix All in File",
+        "category": "Sygnal",
+        "enablement": "editorLangId =~ /^(java|type)script(react)?$/"
+      }
+    ],
+    "configuration": {
+      "title": "Sygnal",
+      "properties": {
+        "sygnal.strict": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Also run the strict-mode rules (canonical forms, SYG5xx), like `sygnal-check --strict`. Unset (`null`): the config file (`sygnal-check.config.json` or the `sygnal-check` key in `package.json`) decides."
+        },
+        "sygnal.a11y": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "warn",
+            "error",
+            null
+          ],
+          "enumDescriptions": [
+            "Accessibility findings (SYG7xx) are warnings.",
+            "Accessibility findings (SYG7xx) are errors.",
+            "Unset: the config file decides (default: warn)."
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Severity of the accessibility findings (SYG7xx), like `sygnal-check --a11y=error`. Unset (`null`): the config file decides."
+        },
+        "sygnal.ignore": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string",
+            "pattern": "^SYG\\d{3}$"
+          },
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Codes to drop entirely, e.g. `[\"SYG105\"]`. Replaces the config file's list (not merged). Unset (`null`): the config file decides."
+        },
+        "sygnal.paths": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Files, directories or globs to check, relative to the workspace folder (e.g. `[\"src\"]`, or `[\"pages\"]` for Vike). Replaces the config file's list. Unset (`null`): the config file decides."
+        },
+        "sygnal.verbose": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Also show info findings (hints that need a judgment call), like `sygnal-check --verbose`. Unset (`null`): off."
+        },
+        "sygnal.trace.server": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "off",
+            "messages",
+            "verbose",
+            null
+          ],
+          "enumDescriptions": [
+            "Log errors and warnings only.",
+            "Also log each check, and trace the LSP messages in the output.",
+            "Also log each message the server receives, with full message traces."
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "What the language server logs to the **Sygnal** output channel (`Sygnal: Show Output`). Unset (`null`): `off`."
+        }
+      }
+    },
+    "snippets": [
+      {
+        "language": "javascriptreact",
+        "path": "./snippets/javascriptreact.json"
+      },
+      {
+        "language": "typescriptreact",
+        "path": "./snippets/typescriptreact.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "package": "node scripts/build.mjs --production && vsce package --no-dependencies",
+    "test": "npm run typecheck && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/unit/*.test.mts && node scripts/build.mjs && node test/smoke/run.mjs",
+    "test:unit": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test test/unit/*.test.mts",
+    "test:smoke": "node scripts/build.mjs && node test/smoke/run.mjs"
+  },
+  "dependencies": {
+    "vscode-languageclient": "10.1.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "1.91.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.0.0",
+    "esbuild": "0.28.2",
+    "typescript": "^5.4.5"
+  }
+}

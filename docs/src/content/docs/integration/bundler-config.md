@@ -40,10 +40,10 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `diagnostics.strict` | `boolean` | `false` | Turn on the [strict-mode](/guide/strict-mode/) runtime checks; also the default for `check.strict` |
 | `diagnostics.ignore` | `string[]` | `[]` | Codes to drop, at runtime and in `sygnal-check` |
 | `check` | `boolean` or `{ strict, a11y, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server (skipped silently when it isn't installed) |
-| `check.strict` | `boolean` | `diagnostics.strict` | Also run the strict rules (SYG501-508) |
-| `check.a11y` | `'warn' \| 'error'` | `'warn'` | Severity of the [accessibility](/guide/accessibility/) findings (SYG701-708). They stay warnings with `strict`; `'error'` makes them errors, which open the overlay |
-| `check.include` | `string[]` | the existing `src/`, `pages/`, `renderer/` directories, else the project root | Files, directories or globs to check, relative to the Vite root |
-| `check.ignore` | `string[]` | `diagnostics.ignore` | Codes to drop |
+| `check.strict` | `boolean` | the config file's `strict`, else `diagnostics.strict` | Also run the strict rules (SYG501-508) |
+| `check.a11y` | `'warn' \| 'error'` | the config file's `a11y`, else `'warn'` | Severity of the [accessibility](/guide/accessibility/) findings (SYG701-708). They stay warnings with `strict`; `'error'` makes them errors, which open the overlay |
+| `check.include` | `string[]` | the config file's `paths`, else the existing `src/`, `pages/`, `renderer/` directories, else the project root | Files, directories or globs to check, relative to the Vite root |
+| `check.ignore` | `string[]` | the config file's `ignore`, else `diagnostics.ignore` | Codes to drop |
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 | `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
@@ -57,6 +57,14 @@ sygnal({
   diagnostics: { mode: 'error', strict: true, ignore: ['SYG105'] },
   check: { include: ['src', 'lib'] },
 })
+```
+
+#### The sygnal-check config file
+
+The `check` option's defaults come from the project's [sygnal-check config file](/integration/editors/#the-config-file) when there is one: `sygnal-check.config.json` at the project root, or the `"sygnal-check"` key in `package.json`. That is the file the `sygnal-check` CLI, its MCP server and the [editor](/integration/editors/) read too, so the dev overlay and the editor report the same findings. A `check` option you set still wins; a setting neither sets falls back to `diagnostics.strict` / `diagnostics.ignore` and the defaults above. The plugin re-checks when the config file changes; a change to its `paths` applies after a dev server restart. sygnal-check before 0.4.0 has no config file, and the `check` option works as before.
+
+```json
+{ "strict": true, "ignore": ["SYG105"] }
 ```
 
 ### What the plugin does in dev
