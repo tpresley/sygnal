@@ -1,0 +1,23 @@
+{
+  "name": "sygnal-0s2-probe",
+  "displayName": "Sygnal 0-S2 probe",
+  "private": true,
+  "version": "0.0.0",
+  "publisher": "sygnal-spike",
+  "engines": { "vscode": "^1.90.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:javascriptreact", "onLanguage:javascript", "onLanguage:typescript", "onLanguage:typescriptreact"],
+  "contributes": {
+    "configuration": {
+      "title": "Sygnal (spike)",
+      "properties": {
+        "sygnal.strict": { "type": ["boolean", "null"], "default": null, "description": "Strict mode (unset: the config file decides)" },
+        "sygnal.a11y": { "type": ["boolean", "null"], "default": null, "scope": "resource" },
+        "sygnal.trace.server": { "type": "string", "enum": ["off", "messages", "verbose"], "default": "off" }
+      }
+    }
+  },
+  "scripts": { "test": "node test/run.mjs" },
+  "dependencies": { "vscode-languageclient": "10.1.2" },
+  "devDependencies": { "@vscode/test-electron": "3.1.0" }
+}
