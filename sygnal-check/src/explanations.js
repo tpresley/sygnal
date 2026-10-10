@@ -1229,8 +1229,8 @@ export const EXPLANATIONS = {
     title: "A diagnostics check threw",
     severity: "warn",
     reportedBy: ["dev-entry", "static"],
-    explanation: "A diagnostics check itself crashed: one of the `sygnal/diagnostics` runtime checks threw inside a hook, or a `sygnal-check` rule threw (or a file could not be parsed). The failure is isolated, so the app and the other checks keep running, but that check produced no results for the code involved. This points to a bug in the checker, or (for parse errors) a syntax error in your file.",
-    fix: "For a parse error, fix the syntax error in the named file; otherwise please report it to Sygnal with the file or component that triggers it.",
+    explanation: "A diagnostics check itself crashed: one of the `sygnal/diagnostics` runtime checks threw inside a hook, or a `sygnal-check` rule threw (or a file could not be parsed). The failure is isolated, so the app and the other checks keep running, but that check produced no results for the code involved. This points to a bug in the checker, or (for parse errors) a syntax error in your file. `sygnal-check` also reports problems in its config file (`sygnal-check.config.json` or the `\"sygnal-check\"` key in `package.json`) under this code: malformed JSON, an unknown key or a value of the wrong type (warnings, with the closest key suggested), and both files present (info: the `package.json` key is ignored). A broken config file falls back to the defaults.",
+    fix: "For a parse error, fix the syntax error in the named file; for a config-file finding, fix or remove the named key (or the JSON syntax); otherwise please report it to Sygnal with the file or component that triggers it.",
   },
   SYG901: {
     title: "Retired in 6.0: Sub-component sink stream errored",
