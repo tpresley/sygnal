@@ -28,7 +28,7 @@ Tracks progress for [PLAN-7.md](PLAN-7.md) (editor tooling: `sygnal-check lsp`, 
 | 0-A | Baseline: integration branch, this file, PoC + bench re-run, large-project fixture, E-1 spend estimate | ✅ | `plan7-integration` | — | Below: [0-A results](#0-a-results) |
 | 0-S1 | Ranges audit per rule | running | `exp/p7-s1` | | report → `research/p7-spikes/0-S1.md` |
 | 0-S2 | Client capability matrix (VS Code, Claude Code; Neovim/Helix/LSP4IJ from docs, not installed) | running | `exp/p7-s2` | | report → `research/p7-spikes/0-S2.md` |
-| 0-S3 | Positions for N-1/N-2: estimate | running | `exp/p7-s3` | | report → `research/p7-spikes/0-S3.md` |
+| 0-S3 | Positions for N-1/N-2: estimate | ✅ merged | `exp/p7-s3` | `82a3f797` | [`0-S3.md`](research/p7-spikes/0-S3.md). Action occurrences already keep their nodes (289/289 located on 3 examples); missing: view class/id token offsets (largest), `calculated`/`context` keys, behavior definitions' actions, `CHILD.select`, a range helper. Babel `errorRecovery` gives 0% on syntax-breaking edits; a repair suffix at the cursor → 100% on realistic mid-edit cases; text-before-cursor + last good AST → 100% (99% truncated). Estimate **≈ 15 days (11–19)**: N-1 5, completions 4, definition/references 2, rename 3, code lens 1. Order: completions → actions N-1 + definition/references → code lens → rest of N-1 → rename (≈ 7 days for the first two). Input for P7-Q6 (D302) |
 
 ## 0-A results
 
@@ -71,5 +71,7 @@ Cheaper variants if needed: Sonnet only (≈ $26–32), or Haiku only on the deb
 | G-657 | 0-A | med | L-1 | A whole-project check blocks the server's event loop (≈ 360 ms at 20k lines), delaying hover/code actions/completions | Open → Phase 2 (worker thread or cancellable checks) |
 
 ## Log
+
+- 2026-10-10: 0-S3 merged (`fdfcb329`). Two notes for L-1 beyond N-: mid-edit syntax errors are the normal state of a file being typed (so §6's "keep the last good findings, marked stale" is required, not optional), and Babel columns are UTF-16 code units like LSP positions (no conversion).
 
 - 2026-10-10: Phase 0 started. `plan7-integration` cut at `eb208337`. 0-A done (above). Spikes 0-S1, 0-S2 and 0-S3 started in agent worktrees. Neovim, Helix and JetBrains IDEs aren't installed here, so 0-S2 drives VS Code and Claude Code and documents the others from their docs.
