@@ -1,7 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
-import typescript from '@rollup/plugin-typescript';
+import typescriptPlugin from '@rollup/plugin-typescript';
 import pkg from './package.json' with { type: "json" };
 
 // Runtime dependencies stay external in the npm (CJS/ESM) builds (D209): snabbdom, xstream and
@@ -64,6 +64,31 @@ const virtualCoreEnv = () => ({
 		return { code: code.replace(/process\.env\.NODE_ENV/g, '"production"'), map: null }
 	},
 })
+
+// G-639: each config gets its own @rollup/plugin-typescript instance, and each instance keeps its
+// whole TypeScript watch program (every source file, the type checker) and its emitted files alive
+// after its build: it closes the program in buildEnd but keeps the reference. The CLI holds all the
+// configs, so the ~25 programs added up to ≈ 5 GB in one process. This wrapper creates the instance
+// at the build's start, delegates every hook to it, and drops it when the bundle is closed (after
+// all of the config's outputs are written), so one program is alive at a time. Same plugin, same
+// options: the output is unchanged.
+const TS_HOOKS = ['buildStart', 'watchChange', 'buildEnd', 'renderStart', 'resolveId', 'load', 'generateBundle']
+const typescript = (options) => {
+	let inner = null
+	const plugin = {
+		name: 'typescript',
+		closeBundle() {
+			inner = null
+		},
+	}
+	for (const hook of TS_HOOKS) {
+		plugin[hook] = function (...args) {
+			inner ??= typescriptPlugin(options)
+			return inner[hook]?.apply(this, args)
+		}
+	}
+	return plugin
+}
 
 const sourcemapOptions = {
 	sourcemap: true,

@@ -142,7 +142,7 @@
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",
     "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "npm run clean && node --max-old-space-size=8192 node_modules/rollup/dist/bin/rollup -c && node --max-old-space-size=8192 node_modules/rollup/dist/bin/rollup -c rollup.config.dts.mjs && node scripts/copy-guides.mjs",
+    "build": "npm run clean && npx rollup -c && npx rollup -c rollup.config.dts.mjs && node scripts/copy-guides.mjs",
     "build:types": "npx rollup -c rollup.config.dts.mjs",
     "build:all": "npm run build",
     "build:devtools": "node devtools/build.mjs",
