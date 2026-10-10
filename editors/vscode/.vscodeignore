@@ -1,0 +1,10 @@
+# Whitelist: only the bundle, the bundled server, snippets, the icon and the docs go into the .vsix.
+**
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE
+!images/icon.png
+!dist/extension.js
+!snippets/*.json
+!server/**
