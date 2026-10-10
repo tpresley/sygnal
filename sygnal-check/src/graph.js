@@ -5,7 +5,10 @@
  *
  *   graph(inputs, options) → InspectGraph
  *     inputs   file paths, directories, or globs (string or string[])
- *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules?, sources? }  (as check())
+ *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules?, sources?, config?, defaults? }
+ *              (as check(): the config file applies; its findings are app-wide diagnostics)
+ *   graphFiles(files, options) → InspectGraph   (expanded files; reads no config file;
+ *     options.extraDiagnostics: findings to add, e.g. resolveOptions().config.diagnostics)
  *
  *   buildGraph(project, diagnostics) → InspectGraph   (already built project)
  *
@@ -55,6 +58,7 @@ import { expandInputs } from './files.js'
 import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { runRules, sortDiagnostics } from './run.js'
+import { resolveOptions } from './config.js'
 import { walk, unwrap, propName, memberName, stringValue, loc } from './ast.js'
 import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
@@ -66,11 +70,11 @@ import { agentName } from './model/agent.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
-export function graph(inputs = ['src'], options = {}) {
-  const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const list = Array.isArray(inputs) ? inputs : [inputs]
-  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests, sources: options.sources })
-  return graphFiles(files, { ...options, cwd })
+export function graph(inputs, options = {}) {
+  const { options: opts, config } = resolveOptions(options)
+  const list = inputs == null ? opts.paths : Array.isArray(inputs) ? inputs : [inputs]
+  const { files } = expandInputs(list, { cwd: opts.cwd, includeTests: opts.includeTests, sources: opts.sources })
+  return graphFiles(files, { ...opts, extraDiagnostics: config.diagnostics })
 }
 
 /** graph() for an already expanded list of absolute file paths (see expandInputs). */
@@ -79,6 +83,7 @@ export function graphFiles(files, options = {}) {
   const project = buildProject(files, { cwd, sources: options.sources })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
+  if (options.extraDiagnostics?.length) diags = [...options.extraDiagnostics, ...diags]
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
   return buildGraph(project, sortDiagnostics(diags))
 }
