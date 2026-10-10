@@ -284,7 +284,7 @@ Use the free **LSP4IJ** plugin by Red Hat. It works in every JetBrains IDE (Inte
 3. **Server** tab:
    - Name: `Sygnal`;
    - Command: `sh -c "npx --no-install sygnal-check lsp"`. On Windows use `cmd /C npx --no-install sygnal-check lsp`, or point at the project's binary, `$PROJECT_DIR$/node_modules/.bin/sygnal-check lsp`.
-4. **Mappings** tab → File name patterns:
+4. **Mappings** tab → **File name patterns** (not Language or File type: IntelliJ IDEA Community has no JavaScript or TypeScript file types, so only patterns match there):
 
    | Pattern | Language ID |
    |---|---|

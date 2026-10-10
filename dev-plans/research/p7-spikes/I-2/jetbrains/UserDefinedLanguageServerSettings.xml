@@ -9,34 +9,39 @@
               <option name="serverName" value="Sygnal" />
               <option name="commandLine" value="@CMD@" />
               <option name="workingDir" value="$PROJECT_DIR$" />
+              <option name="includeSystemEnvironmentVariables" value="true" />
               <option name="mappings">
                 <ServerMappingSettings languageId="javascript">
-                  <fileType>
-                    <option name="patterns">
+                  <option name="fileNamePatterns">
+                    <list>
                       <option value="*.js" />
-                    </option>
-                  </fileType>
+                      <option value="*.mjs" />
+                      <option value="*.cjs" />
+                    </list>
+                  </option>
                 </ServerMappingSettings>
                 <ServerMappingSettings languageId="javascriptreact">
-                  <fileType>
-                    <option name="patterns">
+                  <option name="fileNamePatterns">
+                    <list>
                       <option value="*.jsx" />
-                    </option>
-                  </fileType>
+                    </list>
+                  </option>
                 </ServerMappingSettings>
                 <ServerMappingSettings languageId="typescript">
-                  <fileType>
-                    <option name="patterns">
+                  <option name="fileNamePatterns">
+                    <list>
                       <option value="*.ts" />
-                    </option>
-                  </fileType>
+                      <option value="*.mts" />
+                      <option value="*.cts" />
+                    </list>
+                  </option>
                 </ServerMappingSettings>
                 <ServerMappingSettings languageId="typescriptreact">
-                  <fileType>
-                    <option name="patterns">
+                  <option name="fileNamePatterns">
+                    <list>
                       <option value="*.tsx" />
-                    </option>
-                  </fileType>
+                    </list>
+                  </option>
                 </ServerMappingSettings>
               </option>
             </UserDefinedLanguageServerItemSettings>
