@@ -570,7 +570,11 @@ export interface RenderResult {
    * flush. A consequential tool needs `{ confirm: true | false | (info) => boolean }` (D261)
    */
   callTool: (name: string, args?: any, options?: {confirm?: Confirm}) => Promise<AgentResult>;
-  /** PLAN-6 A-4: the `read` projections by declaration name (item declarations: arrays with `id`) */
+  /**
+   * PLAN-6 A-4: what a model sees of the app: the `read` projections keyed by declaration `name`
+   * (an item declaration's: an array, one projection per live item, each with its `id`).
+   * `agent = { name: 'todos', read: s => ({ todos: s.todos }) }` gives `{ todos: { todos: [...] } }`
+   */
   agentContext: () => Record<string, any>;
 }
 

@@ -41,4 +41,30 @@ describe('sygnal/ai entry (PLAN-6)', () => {
     expect(ai.messageText({ role: 'user', content: 'yo' })).toBe('yo')
     expect(ai.messageText(null)).toBe('')
   })
+
+  // PLAN-6 4-F: the raw driver's tool loop writes the outputs into the message's tool parts
+  it('withToolResults answers the open tool parts by call id, tool name or a function', () => {
+    const m = { role: 'assistant', parts: [
+      { type: 'text', text: 'On it.' },
+      { type: 'tool-add', toolCallId: 'c1', state: 'input-available', input: { name: 'milk' } },
+      { type: 'tool-add', toolCallId: 'c2', state: 'input-available', input: { name: 'eggs' } },
+      { type: 'tool-find', toolCallId: 'c3', state: 'input-available', input: {} },
+      { type: 'tool-add', toolCallId: 'c0', state: 'output-available', input: {}, output: 'old' },
+    ] }
+    const byKey = ai.withToolResults(m, { c1: { ok: 1 }, add: { ok: 2 } })
+    expect(byKey.parts.map((p) => p.state)).toEqual([undefined, 'output-available', 'output-available', 'input-available', 'output-available'])
+    expect(byKey.parts.map((p) => p.output)).toEqual([undefined, { ok: 1 }, { ok: 2 }, undefined, 'old'])
+    expect(m.parts[1].state).toBe('input-available')
+    const byFn = ai.withToolResults(m, (call) => {
+      if (call.name === 'find') throw new Error('not found')
+      return call.input.name === 'eggs' ? new Error('no eggs') : [call.id, call.input.name]
+    })
+    expect(byFn.parts.slice(1, 4)).toEqual([
+      { type: 'tool-add', toolCallId: 'c1', state: 'output-available', input: { name: 'milk' }, output: ['c1', 'milk'] },
+      { type: 'tool-add', toolCallId: 'c2', state: 'output-error', input: { name: 'eggs' }, errorText: 'no eggs' },
+      { type: 'tool-find', toolCallId: 'c3', state: 'output-error', input: {}, errorText: 'not found' },
+    ])
+    expect(ai.withToolResults(m, {})).toBe(m)
+    expect(ai.withToolResults(null, {})).toBe(null)
+  })
 })

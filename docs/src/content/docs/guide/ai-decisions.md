@@ -322,10 +322,11 @@ TodoApp.uses = {
 }
 ```
 
-It reads the actions from the components' `agent` declarations, the same ones the in-app assistant and browser agents use.
+It reads the actions from the components' [`agent` declarations](/guide/agent/#the-agent-static), the same ones the in-app assistant and browser agents use. [Agents: a command bar](/guide/agent/#a-command-bar-commandbar) documents it: the questions it asks, its options and state, escalation, free-text arguments, and a live demo.
 
 ## Related
 
+- [Agents](/guide/agent/): the `agent` static, the command bar and the in-app assistant
 - [AI Chat](/guide/ai-chat/): the chat driver, transports, and shipping an AI SDK route
 - [Resources and Caching](/guide/resources/): the rules a decision resource follows
 - [Support inbox](/recipes/ai-support-inbox/): triage, sorting and escalation in a whole inbox

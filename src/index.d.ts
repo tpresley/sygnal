@@ -3588,7 +3588,11 @@ export interface RenderResult<STATE = any> {
    * `t.callTool('todo_remove', { id: 1 }, { confirm: true })`.
    */
   callTool: (name: string, args?: unknown, options?: { confirm?: AgentConfirm }) => Promise<AgentResult>;
-  /** PLAN-6 A-4: the `read` projections by declaration name (item declarations: arrays with `id`) */
+  /**
+   * PLAN-6 A-4: what a model sees of the app: the `read` projections keyed by declaration `name`
+   * (an item declaration's: an array, one projection per live item, each with its `id`).
+   * `agent = { name: 'todos', read: s => ({ todos: s.todos }) }` gives `{ todos: { todos: [...] } }`
+   */
   agentContext: () => Record<string, unknown>;
 }
 
@@ -3717,7 +3721,7 @@ declare global {
 }
 
 // PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
-export { messageText } from './ai.d'
+export { messageText, withToolResults } from './ai.d'
 export { decide, choice, noul, score } from './ai.d'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
 export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'

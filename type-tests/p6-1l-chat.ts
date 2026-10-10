@@ -1,6 +1,6 @@
 // PLAN-6 L-1 / L-4: makeChatDriver's request, reply and event types; the LLM fake's t.stream
 import xs from 'xstream'
-import { makeChatDriver, messageText, outputJsonSchema } from 'sygnal/ai'
+import { makeChatDriver, messageText, outputJsonSchema, withToolResults } from 'sygnal/ai'
 import type { ChatRequest, ChatAbort, ChatDelta, ChatOk, ChatError, ChatToolCall, ChatEvent, ChatTransport, ChatOutputOf, ChatOutputSchema, Message } from 'sygnal/ai'
 import { makeChatDriver as fromCore, renderComponent } from 'sygnal'
 import type { ChatRequest as CoreRequest, FakeChatChunk } from 'sygnal'
@@ -77,3 +77,9 @@ t.stream('LLM', 'Hi')
 export { structured, same, source }
 // 3-F (G-628): a reply that continues the last (assistant) message
 export const continued: ChatRequest = { messages, ok: 'DONE', continue: true }
+// 4-F: withToolResults keeps the message type; results by function or by key
+const asked: Message = { role: 'assistant', parts: [{ type: 'tool-add', toolCallId: 'c1', state: 'input-available', input: {} }] }
+export const answeredByKey: Message = withToolResults(asked, { add: { ok: true } })
+export const answeredByFn: Message = withToolResults(asked, (call) => (call.name === 'add' ? { ok: true } : new Error('unknown tool')))
+// @ts-expect-error results are a function or an object
+withToolResults(asked, 42)

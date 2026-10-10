@@ -142,7 +142,7 @@ App.agent = {
 }
 ```
 
-The driver answers the host's `tools/list` and `tools/call` with them and tells the host when the list changes (a `when`, a new Collection key). `agentTools` is passed in rather than switched on, so a view without tools doesn't carry the agent layer.
+The driver answers the host's `tools/list` and `tools/call` with them and tells the host when the list changes (a `when`, a new Collection key). As everywhere, a Collection item's `label` text is user text: the item parameter lists the ids, and the model reads the labels' contents through a `read` tool ([Agents: Collection items](/guide/agent/#collection-items)). `agentTools` is passed in rather than switched on, so a view without tools doesn't carry the agent layer.
 
 A consequential tool is declined unless you pass `confirm`, a function that asks the user in the view and resolves `true` to run the call. The host's own approval UI covers the server's tools, not the view's.
 

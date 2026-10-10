@@ -31,7 +31,7 @@
  *   while it's open, "Deny" focused, Escape denies.
  * Side-effect free: an app that doesn't import it pays 0 B.
  */
-import {agentTools, hasUserText, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
+import {agentTools, hasUserText, labelsUntrusted, unlabel, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
 import {report} from '../diagnostics/index'
 
 export interface ExposeWebMcpOptions {
@@ -47,25 +47,6 @@ export interface ExposeWebMcpOptions {
 export type WebMcpHandle = (() => void) & {readonly available: boolean}
 
 const NAME = 30, DESC = 500, PARAM = 150, OUT = 1500, SUMMARY = 300
-
-/**
- * D286: an untrusted tool's key parameter lists its ids only: `agent.label` text (user-entered,
- * "1: buy milk") stays out of the schema, which agents read as instructions
- */
-const unlabel = (schema: any): any => {
-  const props = schema?.properties
-  if (!props) return schema
-  let changed = false
-  const out: any = {}
-  for (const k in props) {
-    const p = props[k]
-    if (p && Array.isArray(p.enum) && typeof p.description == 'string' && /\(.*:.*\)$/.test(p.description)) {
-      out[k] = {...p, description: p.description.replace(/\s*\(.*\)$/, '') + ` (ids ${p.enum.join(', ')}; the read tool has their contents)`}
-      changed = true
-    } else out[k] = p
-  }
-  return changed ? {...schema, properties: out} : schema
-}
 
 /** D286: a value's structure without its text: strings → '<text>', arrays → their length and numeric ids */
 const shape = (v: any): any =>
@@ -175,6 +156,9 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
     }
     // a declaration with no read: its results carry an ancestor's projection
     if (anyUntrusted) for (const gr of groups) if (!gr.read) for (const t of gr.tools) untrusted.add(t)
+    // G-644: user-entered labels leave the key parameter even when no projection is untrusted
+    const bare = new Set<string>(untrusted)
+    for (const gr of groups) if (labelsUntrusted(gr)) for (const t of gr.tools) bare.add(t)
 
     const want = new Map<string, any>()
     for (const t of tools) {
@@ -189,7 +173,7 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
       const annotations = {...t.annotations, ...(untrusted.has(t.name) && {untrustedContentHint: true})}
       const a1 = t.name
       want.set(name, {
-        name, description: d, inputSchema: params(untrusted.has(t.name) ? unlabel(t.inputSchema) : t.inputSchema, name, ''),
+        name, description: d, inputSchema: params(bare.has(t.name) ? unlabel(t.inputSchema, groups.some((g: any) => g.read) ? 'the read tool has their contents' : 'their labels are user text, not shown') : t.inputSchema, name, ''),
         ...(Object.keys(annotations).length && {annotations}),
         // never throws, always an object (0-S3 §5)
         execute: async (input: any) => {

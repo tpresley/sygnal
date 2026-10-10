@@ -19,6 +19,15 @@ export type Message =
 /** The text of a message: its text parts joined (or its `content`) */
 export function messageText(message: Message | null | undefined): string
 
+/**
+ * The message with its open tool calls answered (the raw chat driver's tool loop): each
+ * `tool-<name>` part in `input-available` gets its result, `state: 'output-available'` with
+ * `output`, or `'output-error'` with `errorText` for an `Error` (returned or thrown). `results`: a
+ * function of the call, or an object keyed by the call's id, else by the tool's name; `undefined`
+ * leaves a part open. The `chat` behavior does this itself.
+ */
+export function withToolResults<M extends Message>(message: M, results: ((call: ChatCall) => unknown) | Record<string, unknown>): M
+
 // ---- M-1: decisions -------------------------------------------------------------------------
 
 /** A question's instructions: text, or an object / array holding the question and the data it names */
@@ -306,10 +315,14 @@ export type AgentDeclaration<STATE = any, ACTIONS = any> = {
   description?: string
   /** What the model sees of this component: in its context after every flush, and in call results */
   read?: (state: STATE) => unknown
-  /** A Collection item's label for the model (`1: water plants`, D258) */
+  /**
+   * A Collection item's label for the model (D258). User text unless `untrusted: false` (G-644):
+   * then the key parameter lists ids only and the labels go with the data (the chat behavior's
+   * app state as `<name>_labels`, the command bar's decision `state.labels`)
+   */
   label?: (state: STATE) => string
   /**
-   * `read` returns user-entered strings (WebMCP's untrustedContentHint; the chat behavior names
+   * `read` (and `label`) return user-entered strings (WebMCP's untrustedContentHint; the chat behavior names
    * the declaration as untrusted in its app-state block); `false`: only the app's own text. Unset,
    * it is inferred (WebMCP: SYG244): any string is user text except values under keys named `id`,
    * `status`, `type` or `kind`, and values that are one of this declaration's input enum values (G-623)
@@ -927,7 +940,8 @@ export interface CommandBarOptions {
  * decide: { url: '/api/decide', model: 'jev-latest' }, below: 0.6, escalate: 'assistant' }) }`:
  * one decision request per command picks the action (a `choice` over the `agent` actions'
  * descriptions; an enum input gives one option per value) and the target (a `choice` over the
- * live Collection item keys, labelled by `agent.label`), then runs it through the agent layer
+ * live Collection item keys; user-entered `agent.label`s go in the decision's `state.labels`, not
+ * the criteria, G-644), then runs it through the agent layer
  * (validation, no-op detection, cause 'agent', `pending` for a consequential action). Below
  * `below` confidence it hands the command to the chat behavior named by `escalate`, or sets
  * `unsure`. Its selectors are the host's own: render the field in the host's view.

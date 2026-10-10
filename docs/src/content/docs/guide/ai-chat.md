@@ -298,7 +298,7 @@ export default {
 
 ```jsx live live-height=260
 import { ABORT } from 'sygnal'
-import { messageText } from 'sygnal/ai'
+import { messageText, withToolResults } from 'sygnal/ai'
 
 const tools = {
   add_item: {
@@ -311,11 +311,8 @@ const said = (m) => messageText(m) || m.parts.filter((p) => p.type.startsWith('t
 const userSays = (text) => ({ role: 'user', parts: [{ type: 'text', text }] })
 const ask = (messages) => ({ messages, tools, key: 'reply', delta: 'DELTA', tool: 'TOOL', ok: 'DONE', error: 'FAILED' })
 
-// the reply with each add_item call answered: the tool's output goes into its part
-const answered = (message, items) => ({
-  ...message,
-  parts: message.parts.map((p) => (p.type === 'tool-add_item' ? { ...p, state: 'output-available', output: { items } } : p)),
-})
+// the reply with each add_item call answered: the output goes into the call's tool-add_item part
+const answered = (message, items) => withToolResults(message, { add_item: { items } })
 
 function Shopping({ state }) {
   const busy = state.status === 'streaming'
@@ -370,10 +367,11 @@ Shopping.model = {
 ```
 
 - **`tool` arrives before `ok`**, once per call, so `TOOL` has run by the time `DONE` builds the outputs from the state.
-- **The input is the model's, unchecked.** Check it in the reducer as you would any outside input.
+- **`withToolResults(message, results)`** answers the message's open tool calls: each `tool-<name>` part waiting for a result gets `state: 'output-available'` and the `output`. `results` is an object keyed by the call's `id` or, as here, the tool's name, or a function of the call (`{ id, name, input }`) that returns the output. An `Error` (returned or thrown) becomes `state: 'output-error'` with its message as `errorText`, which tells the model the call failed; `undefined` leaves the part open.
+- **The input is the model's, unchecked.** The driver doesn't validate a call's input against the tool's `inputSchema`. Check it in the reducer as you would any outside input.
 - **The loop needs a limit in a real app**: count the steps in state and stop sending after a few.
 
-This is the low-level form. For an in-app assistant that operates your components, the `chat` behavior (`uses = { assistant: chat({ … }) }`, from `sygnal/ai`) runs this loop for you: it builds the tools from the components' `agent` declarations, validates every call against its schema, asks the user before consequential ones, and stops after `maxSteps`.
+This is the low-level form. For an in-app assistant that operates your components, the [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) (`uses = { assistant: chat({ … }) }`, from `sygnal/ai`) runs this loop for you: it builds the tools from the components' [`agent` declarations](/guide/agent/#the-agent-static), validates every call against its schema, asks the user before consequential ones, and stops after `maxSteps`. [Agents](/guide/agent/) documents it.
 
 ## Testing
 
@@ -600,6 +598,7 @@ await page.route('**/v1/responses', (route) => route.fulfill({
 
 ## Related
 
+- [Agents](/guide/agent/): the `chat` behavior, an assistant that operates your components through their `agent` declarations
 - [AI Decisions](/guide/ai-decisions/): typed answers from decision models, and escalating unsure ones to chat
 - [Recipes](/recipes/overview/#ai): a support inbox, structured output into a form, on-device summaries
 - [HTTP](/guide/http/): the fetch driver, whose reply actions the chat driver shares

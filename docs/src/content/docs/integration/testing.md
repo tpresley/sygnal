@@ -511,7 +511,7 @@ expect(t.actions[1]).toMatchObject({ component: 'Counter', sinks: ['STATE'] })
 | `data` | Its data (the DOM event for a DOM intent stream) |
 | `component`, `instance` | The component that ran it, and that instance's id (the component id of [`inspect()`](#inspect)) |
 | `sinks` | The sinks that produced a value: not `ABORT`, not the unchanged state; `EFFECT` when it ran. Empty for an action with no model entry |
-| `cause` | `'intent'`, `'next'` (a reducer's or EFFECT's `next()`), `'reply'` ([reply actions](/guide/http/)), `'built-in'` (`INITIALIZE`, `BOOTSTRAP`, `DISPOSE`, `RESOURCE`), `'simulateAction'`, or `'behavior'` (a behavior's own trigger) |
+| `cause` | `'intent'`, `'next'` (a reducer's or EFFECT's `next()`), `'reply'` ([reply actions](/guide/http/)), `'built-in'` (`INITIALIZE`, `BOOTSTRAP`, `DISPOSE`, `RESOURCE`), `'simulateAction'`, `'behavior'` (a behavior's own trigger), or `'agent'` (an [agent's tool call](/guide/agent/#testing): `t.callTool()`, the `chat` behavior, the command bar, WebMCP) |
 | `at` | Milliseconds since `renderComponent()` was called (the fake clock under [fake timers](#fake-timers)) |
 
 An entry's `sinks` fill in as its reducers run, so read them after a wait. When a test fails because "nothing happened", `t.actions` shows whether the action ran at all, and what it produced.
@@ -639,6 +639,9 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `query`, `queryAll` | `(selector) => Element \| null`, `Element[]` | Elements of the latest render: snapshots on the mock DOM ([Reading Output](#reading-output)), real elements with `dom: 'real'` |
 | `container` | `Element \| null` | `dom: 'real'`: the mount element (`null` with the mock DOM) |
 | `widget` | `(selector \| control) => { props, instance, emit }` | A [widget's](/guide/widgets/#testing) host: the props the view passed it, the instance `mount` returned (`dom: 'real'`), and `emit(name, detail)` |
+| `tools` | `() => AgentTool[]` | The [agent tools](/guide/agent/#testing) the shown components' `agent` declarations offer (`{ name, description, inputSchema, annotations }`), plus declared tools that can't be offered, with their `error` |
+| `callTool` | `(name, args?, { confirm? }) => Promise<AgentResult>` | Run a tool as an agent does (cause `'agent'`); resolves with the result after the render. A consequential tool throws without `confirm` |
+| `agentContext` | `() => Record<string, any>` | What a model sees of the app: keyed by declaration `name`, each entry what that declaration's `read` returned (an item declaration's: an array of the items' projections, each with its `id`). So `agent = { name: 'todos', read: (s) => ({ todos: s.todos }) }` gives `{ todos: { todos: [...] } }` |
 
 ## Context
 

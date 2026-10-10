@@ -8,7 +8,7 @@
  * Layout (Phase 1): messages.ts (L-1 message helpers), chat/ (L-1 driver, L-2 transports),
  * agent/ (A-1 layer), schema/ (A-1 input contract), decide.ts (M-1).
  */
-export {messageText} from './messages'
+export {messageText, withToolResults} from './messages'
 export {decide, choice, noul, score} from './decide'
 // A-1 (1-A): the agent layer and the schema input contract
 export {agentTools} from './agent/index'

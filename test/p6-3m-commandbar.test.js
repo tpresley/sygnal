@@ -101,7 +101,12 @@ describe('commandBar', () => {
     const req = lastRequest()
     expect(req).toMatchObject({ url: '/api/decide', method: 'POST', ok: 'cmd.DECIDED', error: 'cmd.FAILED' })
     expect(req.json.model).toBe('jev-latest')
-    expect(req.json.state).toEqual({ command: 'I bought the milk', app: { todos: { todos: TodoApp.initialState.todos.map(({ id, text, done }) => ({ id, text, done })), filter: 'all' } } })
+    // G-644: the labels (user text) are data, in the decision's state; the criteria name ids only
+    expect(req.json.state).toEqual({
+      command: 'I bought the milk',
+      app: { todos: { todos: TodoApp.initialState.todos.map(({ id, text, done }) => ({ id, text, done })), filter: 'all' } },
+      labels: { 1: 'water plants', 2: 'buy milk', 3: 'call mom' },
+    })
     expect(req.json.questions.action).toEqual({
       type: 'choice',
       instructions: 'Which app action does the command ask for?',
@@ -117,9 +122,15 @@ describe('commandBar', () => {
     })
     expect(req.json.questions.target).toEqual({
       type: 'choice',
-      instructions: 'Which existing todo does the command refer to (none if it names no existing todo)?',
-      criteria: { none: 'No existing todo', 1: 'water plants', 2: 'buy milk', 3: 'call mom' },
+      instructions: "Which existing todo does the command refer to (none if it names no existing todo)? Each option's label is in state.labels.",
+      criteria: {
+        none: 'No existing todo',
+        1: 'The todo with id 1 (its label: state.labels["1"])',
+        2: 'The todo with id 2 (its label: state.labels["2"])',
+        3: 'The todo with id 3 (its label: state.labels["3"])',
+      },
     })
+    expect(JSON.stringify(req.json.questions)).not.toContain('buy milk')
     // a second RUN while deciding is ignored
     t.simulateAction('cmd.RUN', 'add eggs')
     await t.settle()
@@ -318,7 +329,8 @@ describe('commandBar', () => {
     expect(t.state.cmd.result).toMatchObject({ command: 'what have I finished?', escalated: 'assistant', reason: 'confidence', confidence: 0.43 })
     expect(t.state.assistant.status).toBe('submitted')
     const llm = t.requests('LLM')[0]
-    expect(llm.messages).toEqual([{ role: 'user', parts: [{ type: 'text', text: 'what have I finished?' }] }])
+    // (the app-state block before it carries the item labels, G-644)
+    expect(llm.messages.map((m) => m.id ?? m.parts[0].text)).toEqual(['sygnal-app-state', 'what have I finished?'])
     // the chat model gets the same tools
     expect(Object.keys(llm.tools)).toEqual(['todo_toggle', 'todo_remove'])
     await t.stream('LLM', [{ toolCall: { id: 'c1', name: 'todo_toggle', input: { id: 1 } } }])
@@ -329,6 +341,21 @@ describe('commandBar', () => {
     expect(t.state.assistant.status).toBe('ready')
   })
 
+  it('G-644: untrusted: false on the item declaration keeps its labels as the criteria (no state.labels)', async () => {
+    const decl = TodoItem.agent
+    try {
+      TodoItem.agent = { ...decl, untrusted: false }
+      t = renderComponent(TodoApp)
+      await run('I bought the milk')
+      expect(questionsOf().target).toEqual({
+        type: 'choice',
+        instructions: 'Which existing todo does the command refer to (none if it names no existing todo)?',
+        criteria: { none: 'No existing todo', 1: 'water plants', 2: 'buy milk', 3: 'call mom' },
+      })
+      expect(lastRequest().json.state.labels).toBeUndefined()
+    } finally { TodoItem.agent = decl }
+  })
+
   it('the targets are the live items: a removed one is gone from the next decision', async () => {
     t = renderComponent(TodoApp)
     await run('delete buy milk')
@@ -336,7 +363,8 @@ describe('commandBar', () => {
     t.simulateEvent('.yes', 'click')
     await waitUntil(() => t.state.cmd.status === 'ready')
     await run('mark call mom done')
-    expect(questionsOf().target.criteria).toEqual({ none: 'No existing todo', 1: 'water plants', 3: 'call mom' })
+    expect(Object.keys(questionsOf().target.criteria)).toEqual(['1', '3', 'none'])
+    expect(lastRequest().json.state.labels).toEqual({ 1: 'water plants', 3: 'call mom' })
   })
 
   it('SYG442: an app started before the first commandBar() call runs no commands', async () => {
