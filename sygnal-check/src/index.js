@@ -14,10 +14,17 @@
  *     rules?:        explicit rule list (defaults to the registry)
  *     includeTests?: include *.test.* / *.spec.* files found through directories or globs
  *     ignore?:       codes to drop entirely, e.g. ['SYG105']
+ *     sources?:      in-memory file contents, Map<path, text> or { [path]: text } (an editor's
+ *                    unsaved buffers; relative paths resolve against cwd). A file is read from
+ *                    here before the disk, and import resolution sees these paths, so a new,
+ *                    unsaved file resolves. A source-only file is checked when it is named in
+ *                    inputs, or lies under a directory input / matches a glob and passes the
+ *                    same filters as the walk (PLAN-7 C-1). Not for fixFiles() yet: it writes to disk
  *   }
  *
  * checkFiles(files, options) → Diagnostic[]
- *   the same for an already expanded list of absolute file paths (expandInputs)
+ *   the same for an already expanded list of absolute file paths (expandInputs); a
+ *   source-only path in the list is checked
  *
  * Diagnostic = the runtime Diagnostic shape (code, severity, component,
  * message, fix, docsUrl, text, data?) + file, line, column.
@@ -44,14 +51,14 @@ export { getExplanation, listExplanations, formatExplanation } from './explain.j
 export function check(inputs = ['src'], options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const list = Array.isArray(inputs) ? inputs : [inputs]
-  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests })
+  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests, sources: options.sources })
   return checkFiles(files, { ...options, cwd })
 }
 
 /** check() for an already expanded list of absolute file paths (see expandInputs). */
 export function checkFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd })
+  const project = buildProject(files, { cwd, sources: options.sources })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))

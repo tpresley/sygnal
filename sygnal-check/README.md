@@ -276,14 +276,17 @@ This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based
 - `options.a11y`: `'warn'` (default) or `'error'`, the severity of the a11y lane (SYG701-708). `strict` doesn't change it.
 
 - `options.rules`: a custom rule list.
+- `options.sources`: in-memory file contents, a `Map<path, text>` or a `{ [path]: text }` object (an editor's unsaved buffers; relative paths resolve against `cwd`). A file in it is read from there instead of the disk, and relative imports resolve to its paths, so a new, unsaved file is found. A file that exists only in `sources` is checked when it is named in `inputs`, or when it lies under a directory input (or matches a glob) and passes the same filters as files found on disk (source extension, no `node_modules` or dot directory, tests only with `includeTests`). `fixFiles()` doesn't support it yet: it rewrites the files on disk, so don't pass it there.
+
+`checkFiles(absPaths, options)` is `check()` for an already expanded list of absolute paths; a path that exists only in `options.sources` is checked too.
 
 `fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 
-`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
+`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`, `sources` included; `graphFiles(absPaths, options)` takes an expanded list. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
 
 `getExplanation(code)`, `listExplanations()`, `formatExplanation(entry)` and the raw `EXPLANATIONS` table back `explain`. The MCP server lives in `src/mcp.js` (`createMcpServer({ cwd }).handle(message)`, `runMcpServer({ stdin, stdout, cwd })`).
 
-For tooling, `buildProject(files)` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
+For tooling, `buildProject(files, { cwd, sources })` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
 
 ## Writing a rule
 

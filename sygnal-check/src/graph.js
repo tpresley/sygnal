@@ -5,7 +5,7 @@
  *
  *   graph(inputs, options) → InspectGraph
  *     inputs   file paths, directories, or globs (string or string[])
- *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules? }  (as check())
+ *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules?, sources? }  (as check())
  *
  *   buildGraph(project, diagnostics) → InspectGraph   (already built project)
  *
@@ -69,14 +69,14 @@ const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'swi
 export function graph(inputs = ['src'], options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const list = Array.isArray(inputs) ? inputs : [inputs]
-  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests })
+  const { files } = expandInputs(list, { cwd, includeTests: options.includeTests, sources: options.sources })
   return graphFiles(files, { ...options, cwd })
 }
 
 /** graph() for an already expanded list of absolute file paths (see expandInputs). */
 export function graphFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd })
+  const project = buildProject(files, { cwd, sources: options.sources })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))

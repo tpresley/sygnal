@@ -1,7 +1,7 @@
 /**
  * The per-project model that every rule queries.
  *
- * buildProject(files) parses the files and produces:
+ * buildProject(files, { cwd?, sources? }) parses the files and produces:
  *
  *   project.files        Map<absPath, FileInfo>   (scanned + loaded on demand)
  *   project.scanned      Set<absPath>             files diagnostics are reported for
@@ -33,6 +33,11 @@
  *     agent: AgentInfo | null          (model/agent.js: the `agent` static, PLAN-6 K-1)
  *   }
  *
+ * `sources` (Map<absPath, text> or a plain object; PLAN-7 C-1) holds an
+ * editor's unsaved buffers: loadFile reads a file from it before the disk,
+ * and import resolution counts a path in it as an existing file, so a new,
+ * unsaved file resolves.
+ *
  * The structure is plain data plus AST node references so later work (the
  * --graph output, strict rules) can serialize or query it without
  * re-parsing.
@@ -41,7 +46,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { parseSource, indexParents, walk, unwrap, isFunction, memberName, propName, loc } from '../ast.js'
 import { findBinding } from '../scope.js'
-import { resolveImport } from '../files.js'
+import { resolveImport, toSourceMap, diskIsFile } from '../files.js'
 import { resolveExpr } from './resolve.js'
 import { collectView, newSink } from './view.js'
 import { analyzeIntent } from './intent.js'
@@ -75,8 +80,9 @@ function parseSuppressions(ast) {
 }
 
 export class Project {
-  constructor({ cwd = process.cwd() } = {}) {
+  constructor({ cwd = process.cwd(), sources } = {}) {
     this.cwd = cwd
+    this.sources = toSourceMap(sources, cwd) // absPath → text (unsaved buffers)
     this.files = new Map()
     this.scanned = new Set()
     this.components = []
@@ -90,7 +96,8 @@ export class Project {
   loadFile(absPath) {
     if (this.files.has(absPath)) return this.files.get(absPath)
     let source
-    try { source = fs.readFileSync(absPath, 'utf8') } catch { this.files.set(absPath, null); return null }
+    if (this.sources.has(absPath)) source = this.sources.get(absPath)
+    else try { source = fs.readFileSync(absPath, 'utf8') } catch { this.files.set(absPath, null); return null }
     let ast
     try {
       ast = parseSource(source, absPath)
@@ -108,9 +115,12 @@ export class Project {
   }
 
   loadImport(fromFile, spec) {
-    const target = resolveImport(fromFile.path, spec)
+    const target = resolveImport(fromFile.path, spec, { isFile: this._isFile })
     return target ? this.loadFile(target) : null
   }
+
+  /** Whether a path exists for import resolution: an in-memory source, else a file on disk. */
+  _isFile = (p) => this.sources.has(p) || diskIsFile(p)
 
   isComponentFunction(file, fnNode) {
     return this._componentFns.has(fnNode)
