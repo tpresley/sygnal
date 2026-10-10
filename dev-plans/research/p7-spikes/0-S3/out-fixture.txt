@@ -1,0 +1,67 @@
+# dev-plans/research/p7-spikes/0-S3/fixture: 2 files, 1 components, model built in 9 ms
+
+## Edge  (dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx)
+  SAVE
+    intent  dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:23:3-7
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:28:3-7
+    agent   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:40:41-45
+  EXTERNAL
+    intent  dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:25:3-11
+  LOADED
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:34:3-9
+    reply   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:30:36-42  HTTP.ok
+    agent   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:40:72-78
+  FAILED
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:35:4-10  shorthand 'FAILED | EFFECT'
+    reply   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:30:53-59  HTTP.error
+  TICK
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:36:3-7
+  c.BUMP
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:37:4-10
+  UNDO
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:27:14-22  synthetic (undoable())
+  REDO
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:27:14-22  synthetic (undoable())
+  TRIAGED
+    reply   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:31:44-51  LLM.ok
+  POLL
+    reply   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:39:62-66  timers.action
+  c.RESET
+    model   dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:11:76-81  behavior def (re-derived; key 'RESET')
+  ! intent: not fully known (spread / computed key / single stream)
+  ! next(): 2 dynamic call(s)
+  ! uses.c: next/reply names inside the behavior (RESET) kept as strings only
+  other: {
+    "selectors": [
+      {
+        "selector": ".save",
+        "at": "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:23:20-25",
+        "matches": [
+          "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:18:51-55"
+        ]
+      },
+      {
+        "selector": "#count",
+        "at": "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:24:30-36",
+        "matches": [
+          "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:18:80-85"
+        ]
+      },
+      {
+        "selector": ".save",
+        "at": "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:20:37-42",
+        "matches": [
+          "dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:18:51-55"
+        ]
+      }
+    ],
+    "eventsSelected": [],
+    "eventsEmitted": [
+      "SAVED dev-plans/research/p7-spikes/0-S3/fixture/Edge.jsx:32:20-25"
+    ],
+    "collections": [],
+    "children": []
+  }
+
+# totals: 11 actions, 16 occurrences, 0 without a position
+# not locatable with the current model: {"intent not known":1,"next dynamic":2,"behavior next/reply strings":1}

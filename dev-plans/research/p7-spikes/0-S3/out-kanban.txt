@@ -1,0 +1,75 @@
+# examples/kanban/src: 5 files, 3 components, model built in 17 ms
+
+## LaneComponent  (examples/kanban/src/LaneComponent.jsx)
+  START_EDIT
+    intent  examples/kanban/src/LaneComponent.jsx:50:3-13
+    model   examples/kanban/src/LaneComponent.jsx:78:3-13
+  EDIT_TITLE
+    intent  examples/kanban/src/LaneComponent.jsx:53:3-13
+    model   examples/kanban/src/LaneComponent.jsx:79:3-13
+  FINISH_EDIT
+    intent  examples/kanban/src/LaneComponent.jsx:54:3-14
+    model   examples/kanban/src/LaneComponent.jsx:80:3-14
+  SHOW_ADD_TASK
+    intent  examples/kanban/src/LaneComponent.jsx:62:3-16
+    model   examples/kanban/src/LaneComponent.jsx:81:3-16
+  ADD_TASK
+    intent  examples/kanban/src/LaneComponent.jsx:63:3-11
+    model   examples/kanban/src/LaneComponent.jsx:83:3-11
+  CANCEL_ADD_TASK
+    intent  examples/kanban/src/LaneComponent.jsx:66:3-18
+    model   examples/kanban/src/LaneComponent.jsx:93:3-18
+  DELETE_LANE
+    intent  examples/kanban/src/LaneComponent.jsx:68:3-14
+    model   examples/kanban/src/LaneComponent.jsx:100:3-14
+  MOVE_LEFT
+    intent  examples/kanban/src/LaneComponent.jsx:69:3-12
+    model   examples/kanban/src/LaneComponent.jsx:101:3-12
+  MOVE_RIGHT
+    intent  examples/kanban/src/LaneComponent.jsx:70:3-13
+    model   examples/kanban/src/LaneComponent.jsx:102:3-13
+  DELETE_TASK
+    intent  examples/kanban/src/LaneComponent.jsx:72:3-14
+    model   examples/kanban/src/LaneComponent.jsx:98:3-14
+
+## RootComponent  (examples/kanban/src/RootComponent.jsx)
+  ADD_LANE
+    intent  examples/kanban/src/RootComponent.jsx:60:3-11
+    model   examples/kanban/src/RootComponent.jsx:84:3-11
+  DRAG_START
+    intent  examples/kanban/src/RootComponent.jsx:61:3-13
+    model   examples/kanban/src/RootComponent.jsx:116:3-13
+  DROP
+    intent  examples/kanban/src/RootComponent.jsx:62:3-7
+    model   examples/kanban/src/RootComponent.jsx:118:3-7
+  DRAG_END
+    intent  examples/kanban/src/RootComponent.jsx:63:3-11
+    model   examples/kanban/src/RootComponent.jsx:151:3-11
+  LANE_DRAG_START
+    intent  examples/kanban/src/RootComponent.jsx:64:3-18
+    model   examples/kanban/src/RootComponent.jsx:156:3-18
+  LANE_DROP
+    intent  examples/kanban/src/RootComponent.jsx:65:3-12
+    model   examples/kanban/src/RootComponent.jsx:158:3-12
+  LANE_DRAG_END
+    intent  examples/kanban/src/RootComponent.jsx:66:3-16
+    model   examples/kanban/src/RootComponent.jsx:176:3-16
+  DELETE_LANE
+    intent  examples/kanban/src/RootComponent.jsx:67:3-14
+    model   examples/kanban/src/RootComponent.jsx:96:3-14
+  MOVE_LANE_LEFT
+    intent  examples/kanban/src/RootComponent.jsx:68:3-17
+    model   examples/kanban/src/RootComponent.jsx:100:3-17
+  MOVE_LANE_RIGHT
+    intent  examples/kanban/src/RootComponent.jsx:69:3-18
+    model   examples/kanban/src/RootComponent.jsx:108:3-18
+  BOOTSTRAP
+    model   examples/kanban/src/RootComponent.jsx:73:3-12
+
+## TaskCard  (examples/kanban/src/TaskCard.jsx)
+  DELETE
+    intent  examples/kanban/src/TaskCard.jsx:17:3-9
+    model   examples/kanban/src/TaskCard.jsx:21:3-9
+
+# totals: 22 actions, 43 occurrences, 0 without a position
+# not locatable with the current model: none
