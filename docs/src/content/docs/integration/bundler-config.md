@@ -59,7 +59,9 @@ sygnal({
 })
 ```
 
-The `check` option's defaults come from the project's [sygnal-check config file](https://github.com/tpresley/sygnal/tree/main/sygnal-check#configuration) when there is one: `sygnal-check.config.json` at the project root, or the `"sygnal-check"` key in `package.json`. That is the file the `sygnal-check` CLI, its MCP server and the editor read too, so the dev overlay and the editor report the same findings. A `check` option you set still wins; a setting neither sets falls back to `diagnostics.strict` / `diagnostics.ignore` and the defaults above. The plugin re-checks when the config file changes; a change to its `paths` applies after a dev server restart. sygnal-check before 0.4.0 has no config file, and the `check` option works as before.
+#### The sygnal-check config file
+
+The `check` option's defaults come from the project's [sygnal-check config file](/integration/editors/#the-config-file) when there is one: `sygnal-check.config.json` at the project root, or the `"sygnal-check"` key in `package.json`. That is the file the `sygnal-check` CLI, its MCP server and the [editor](/integration/editors/) read too, so the dev overlay and the editor report the same findings. A `check` option you set still wins; a setting neither sets falls back to `diagnostics.strict` / `diagnostics.ignore` and the defaults above. The plugin re-checks when the config file changes; a change to its `paths` applies after a dev server restart. sygnal-check before 0.4.0 has no config file, and the `check` option works as before.
 
 ```json
 { "strict": true, "ignore": ["SYG105"] }

@@ -168,6 +168,7 @@ export default defineConfig({
             { label: 'PWA Helpers', slug: 'integration/pwa' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },
             { label: 'Debugging', slug: 'integration/debugging' },
+            { label: 'Editor Setup', slug: 'integration/editors' },
             { label: 'Building with AI Agents', slug: 'integration/agents' },
           ],
         },
