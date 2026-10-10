@@ -77,10 +77,14 @@ function names(v, array) {
   return out
 }
 
-const cache = new WeakMap() // call → Widget
+// file → (call → Widget): per FileInfo, so per build (an AST shared through a ParseCache
+// outlives the build; the Widget points at this build's FileInfo)
+const cache = new WeakMap()
 
 export function widgetOfCall(file, call, name) {
-  if (cache.has(call)) return cache.get(call)
+  let byCall = cache.get(file)
+  if (!byCall) cache.set(file, byCall = new WeakMap())
+  if (byCall.has(call)) return byCall.get(call)
   const i = Math.max(0, defIndex(file, call))
   const def = unwrap(call.arguments[i])
   let element = 'div', events = null, commands = null
@@ -98,7 +102,7 @@ export function widgetOfCall(file, call, name) {
   } else if (i && !def) events = [], commands = []   // an adapter without options: no events
   else element = null
   const w = { name, element, kind: 'widget', events, commands, file, call, def: def?.type === 'ObjectExpression' ? def : null }
-  cache.set(call, w)
+  byCall.set(call, w)
   return w
 }
 

@@ -20,6 +20,10 @@
  *                    unsaved file resolves. A source-only file is checked when it is named in
  *                    inputs, or lies under a directory input / matches a glob and passes the
  *                    same filters as the walk (PLAN-7 C-1). Not for fixFiles() yet: it writes to disk
+ *     cache?:        a ParseCache (createParseCache()) kept across checks: a file whose text is
+ *                    unchanged isn't parsed again, a cached parse failure reports the same SYG900;
+ *                    a check drops the entries the previous check didn't use (PLAN-7 C-3; also for
+ *                    buildProject(), graph(), graphFiles())
  *   }
  *
  * checkFiles(files, options) → Diagnostic[]
@@ -39,6 +43,7 @@ import { runRules, sortDiagnostics } from './run.js'
 export { CODES, listCodes, getCodeInfo, docsUrlFor } from './codes.js'
 export { coreRules, strictRules, a11yRules } from './rules/index.js'
 export { buildProject, Project } from './model/project.js'
+export { ParseCache, createParseCache } from './cache.js'
 export { makeDiagnostic, formatText } from './diagnostic.js'
 export { formatDiagnostics } from './format.js'
 export { fixFiles } from './fix.js'
@@ -58,7 +63,7 @@ export function check(inputs = ['src'], options = {}) {
 /** check() for an already expanded list of absolute file paths (see expandInputs). */
 export function checkFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd, sources: options.sources })
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))

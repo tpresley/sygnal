@@ -76,7 +76,7 @@ export function graph(inputs = ['src'], options = {}) {
 /** graph() for an already expanded list of absolute file paths (see expandInputs). */
 export function graphFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd, sources: options.sources })
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
