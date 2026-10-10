@@ -1,8 +1,27 @@
 /**
  * `sygnal-check mcp`: a minimal Model Context Protocol server on stdio
  * (newline-delimited JSON-RPC 2.0), hand-rolled to keep sygnal-check
- * dependency-free. It implements initialize, ping, tools/list and tools/call;
- * other requests get "method not found", notifications are ignored.
+ * dependency-free. A dual-era server (G-656), the era chosen per request:
+ *
+ * - legacy, the `initialize` revisions (2024-11-05 … 2025-11-25): initialize, ping,
+ *   tools/list, tools/call; JSON-RPC batches are answered.
+ * - modern, the stateless 2026-07-28 revision: a request whose
+ *   `_meta['io.modelcontextprotocol/protocolVersion']` is 2026-07-28. It must also carry
+ *   `_meta['io.modelcontextprotocol/clientCapabilities']` (else -32602). Methods:
+ *   server/discover, tools/list, tools/call (initialize and ping get -32601). Results carry
+ *   `resultType: 'complete'` and `_meta['io.modelcontextprotocol/serverInfo']`; tools/list and
+ *   server/discover are cacheable (`ttlMs`, `cacheScope`). On stdio all request metadata is in
+ *   the body (spec: basic/transports/stdio, "Request Metadata": there is no header layer), so
+ *   there is no MCP-Protocol-Version / Mcp-Method / Mcp-Name check and no -32020. A dual-era
+ *   client probes with server/discover (stdio, "Backward Compatibility") and stays modern.
+ *
+ * A `_meta` protocol version this server doesn't know gets -32022 (UnsupportedProtocolVersion,
+ * `data: { supported, requested }`); a request without one is legacy. Unknown methods get
+ * "method not found"; notifications (notifications/initialized, notifications/cancelled) are
+ * ignored: each request is answered synchronously, before a cancel could arrive, and the
+ * server sends nothing of its own (no progress, logging, list changes or input requests).
+ * sygnal/vite's dev endpoint (src/vite/mcp.ts) has the same protocol layer over HTTP; it is
+ * duplicated, not shared, so the two npm packages stay independent.
  *
  * Tools (paths are resolved against the server's working directory, default
  * ['src']):
@@ -24,7 +43,15 @@ import { checkFiles } from './index.js'
 import { graphFiles } from './graph.js'
 import { getExplanation, suggestCodes } from './explain.js'
 
-const SUPPORTED_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05']
+/** the stateless revisions (per-request `_meta`, no initialize), newest first */
+export const MODERN_VERSIONS = ['2026-07-28']
+/** the `initialize` revisions, newest first; initialize answers with the client's version when it knows it */
+export const LEGACY_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05']
+export const SUPPORTED_VERSIONS = [...MODERN_VERSIONS, ...LEGACY_VERSIONS]
+const META = 'io.modelcontextprotocol/'
+const INSTRUCTIONS = 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, explain for any SYG code.'
+/** 2026-07-28 cacheable results (tools/list, server/discover): fixed for the life of the process */
+const CACHE = { ttlMs: 3_600_000, cacheScope: 'private' }
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../package.json'), 'utf8'))
 
 const pathsSchema = {
@@ -108,9 +135,26 @@ function callTool(name, args, cwd) {
 
 export function createMcpServer({ cwd = process.cwd() } = {}) {
   const result = (id, value) => ({ jsonrpc: '2.0', id, result: value })
-  const error = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } })
+  const error = (id, code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data !== undefined ? { data } : {}) } })
+  const serverInfo = { name: 'sygnal-check', version: pkg.version }
 
-  function handleMessage(msg) {
+  /**
+   * A request's era from its `_meta`: 'modern', 'legacy', or an error response (an unknown
+   * version; a 2026-07-28 request without client capabilities)
+   */
+  function eraOf(id, params) {
+    const meta = isObj(params._meta) ? params._meta : {}
+    if (!(META + 'protocolVersion' in meta)) return 'legacy'
+    const requested = meta[META + 'protocolVersion']
+    if (!SUPPORTED_VERSIONS.includes(requested)) {
+      return error(id, -32022, 'Unsupported protocol version', { supported: SUPPORTED_VERSIONS, requested })
+    }
+    if (!MODERN_VERSIONS.includes(requested)) return 'legacy'
+    if (!isObj(meta[META + 'clientCapabilities'])) return error(id, -32602, `Invalid params: _meta["${META}clientCapabilities"] is required`)
+    return 'modern'
+  }
+
+  function handleMessage(msg, inBatch) {
     if (!msg || typeof msg !== 'object' || Array.isArray(msg) || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') {
       // a response from the client, or garbage
       return msg && typeof msg === 'object' && 'id' in msg && !('result' in msg || 'error' in msg)
@@ -121,20 +165,40 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
     if (!isRequest) return null // notifications (notifications/initialized, cancelled, ...)
     const { id, method } = msg
     const params = isObj(msg.params) ? msg.params : {}
+    const era = eraOf(id, params)
+    if (typeof era !== 'string') return era
+    const modern = era === 'modern'
+    if (modern && inBatch) return error(id, -32600, 'Invalid Request: 2026-07-28 messages are sent one per line, not in a batch')
+    const out = route(id, method, params, modern)
+    if (modern && isObj(out.result)) {
+      const meta = isObj(out.result._meta) ? out.result._meta : {}
+      out.result = { resultType: 'complete', ...out.result, _meta: { ...meta, [META + 'serverInfo']: serverInfo } }
+    }
+    return out
+  }
+
+  function route(id, method, params, modern) {
+    // 2026-07-28 removed initialize and ping, and added server/discover
+    if (modern && (method === 'initialize' || method === 'ping')) {
+      return error(id, -32601, `Method not found: ${method} is not in 2026-07-28 (send it without _meta["${META}protocolVersion"] for ${LEGACY_VERSIONS.join(', ')})`)
+    }
     switch (method) {
       case 'initialize': {
         const requested = params.protocolVersion
         return result(id, {
-          protocolVersion: SUPPORTED_VERSIONS.includes(requested) ? requested : SUPPORTED_VERSIONS[0],
+          protocolVersion: LEGACY_VERSIONS.includes(requested) ? requested : LEGACY_VERSIONS[0],
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: 'sygnal-check', version: pkg.version },
-          instructions: 'Static checker for Sygnal apps. Use graph to see the app structure, check for wiring diagnostics, explain for any SYG code.',
+          serverInfo,
+          instructions: INSTRUCTIONS,
         })
       }
+      case 'server/discover':
+        if (!modern) return error(id, -32602, `Invalid params: server/discover is a 2026-07-28 request; _meta["${META}protocolVersion"] and _meta["${META}clientCapabilities"] are required`)
+        return result(id, { supportedVersions: SUPPORTED_VERSIONS, capabilities: { tools: {} }, instructions: INSTRUCTIONS, ...CACHE })
       case 'ping':
         return result(id, {})
       case 'tools/list':
-        return result(id, { tools: TOOLS })
+        return result(id, { tools: TOOLS, ...(modern ? CACHE : {}) })
       case 'tools/call': {
         const tool = TOOLS.find(t => t.name === params.name)
         if (!tool) return error(id, -32602, `Unknown tool: ${params.name}`)
@@ -151,10 +215,13 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
     }
   }
 
-  /** Handle one message; never throws (an unexpected failure is a -32603 error). */
-  function handle(msg) {
+  /**
+   * Handle one message; never throws (an unexpected failure is a -32603 error). `inBatch`: it
+   * came in a JSON-RPC batch (the initialize era only; a 2026-07-28 request there is -32600).
+   */
+  function handle(msg, inBatch = false) {
     try {
-      return handleMessage(msg)
+      return handleMessage(msg, inBatch)
     } catch (err) {
       let id = null
       try { id = isObj(msg) && 'id' in msg ? msg.id ?? null : null } catch { /* keep null */ }
@@ -181,7 +248,7 @@ export function runMcpServer({ stdin = process.stdin, stdout = process.stdout, c
     }
     if (Array.isArray(msg)) {
       // JSON-RPC batch (older protocol revisions)
-      const out = msg.map(m => server.handle(m)).filter(Boolean)
+      const out = msg.map(m => server.handle(m, true)).filter(Boolean)
       if (out.length) send(out)
       return
     }

@@ -224,7 +224,12 @@ Any MCP client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, â€
 }
 ```
 
-The server is a minimal hand-written JSON-RPC 2.0 implementation (initialize, ping, tools/list, tools/call; protocol versions 2025-06-18, 2025-03-26 and 2024-11-05), so it adds no dependencies.
+The server is a minimal hand-written JSON-RPC 2.0 implementation, so it adds no dependencies. It speaks both protocol eras on the same process, chosen per request:
+
+- **2026-07-28** (stateless): no `initialize`. Each request carries `_meta["io.modelcontextprotocol/protocolVersion"]` and `_meta["io.modelcontextprotocol/clientCapabilities"]`; the server answers `server/discover`, `tools/list` and `tools/call`, with `resultType: "complete"` and its name and version in each result's `_meta`. On stdio this metadata lives only in the message body (there are no `MCP-Protocol-Version` / `Mcp-Method` headers). A client that speaks both eras probes with `server/discover` and stays on 2026-07-28.
+- **2024-11-05 to 2025-11-25**: the `initialize` handshake, then `tools/list`, `tools/call` and `ping`.
+
+A protocol version it doesn't know gets the spec's "unsupported protocol version" error (`-32022`) listing the versions it speaks; a 2026-07-28 request without client capabilities gets `-32602`.
 
 ## How an agent should use inspect, check and explain
 
