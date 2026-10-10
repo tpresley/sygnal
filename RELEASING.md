@@ -52,6 +52,7 @@ Set the versions (no `npm version`: it also commits and tags):
   ```bash
   grep -n -E '"sygnal(-check)?":' create-sygnal-app/template-*/package.json
   ```
+  The templates' `sygnal-check.config.json` (PLAN-7 I-3) is read only from `sygnal-check` 0.4.0 on (0.3.0 never opens it), so the range must reach 0.4.0 for new projects to use it.
 - `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph.
 - `ROADMAP.md`: the release line names the template range (`sygnal` ^6.0.0); update it if it still describes the current release.
 
@@ -110,7 +111,7 @@ Expect:
   - `src/`, used for the sub-entry types such as `src/jsx.d.ts`, `src/ai.d.ts` and `src/vite/plugin.d.ts`;
   - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
 - **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
-- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json` and a `*.test.*.tmpl` starter test; the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
+- **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json`, a `*.test.*.tmpl` starter test, and (PLAN-7 I-3) `.vscode/extensions.json` and `sygnal-check.config.json` (the dot-directory must be in the tarball); the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
 
 ## 4. Smoke check the templates before publishing
 
