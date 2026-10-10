@@ -99,6 +99,8 @@ Any client that takes a JSON config (`.mcp.json`, Claude Desktop, Cursor, …):
 }
 ```
 
+The server speaks both MCP protocol eras, so any client works with it. A **2026-07-28** client sends each request with its protocol version and client capabilities in `_meta` (on stdio there are no headers; everything is in the message) and gets `server/discover`, `tools/list` and `tools/call` without an `initialize`. A client that speaks both eras probes with `server/discover` first, as the spec describes, and stays on 2026-07-28. An older client (2024-11-05 to 2025-11-25) does the `initialize` handshake as before. A version the server doesn't know gets the spec's "unsupported protocol version" error (`-32022`), which lists the versions it speaks.
+
 ## Dev server MCP endpoint
 
 `sygnal-check mcp` reads your source. The dev server endpoint reads the app while it runs: with `mcp: true`, the [Vite plugin](/integration/bundler-config/#plugin-options) serves an MCP endpoint at `/__sygnal/mcp` (streamable HTTP), and an agent can look at the open page and act on it.

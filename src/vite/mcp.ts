@@ -275,7 +275,9 @@ export function createDevMcpServer(o: DevMcpServerOptions) {
         }
         const c = await getCheck()
         if (c && c.tools.some((t: any) => t.name === name)) {
-          const { _meta, ...rest } = params // sygnal-check's server speaks the initialize era
+          // without `_meta`, sygnal-check's server answers in the initialize era's shape (G-656: it
+          // speaks 2026-07-28 too, but this endpoint checked the envelope and adds the fields itself)
+          const { _meta, ...rest } = params
           return { ...c.server.handle({ ...msg, params: { ...rest, arguments: args } }), id }
         }
         return error(id, -32602, `Unknown tool: ${name}`)

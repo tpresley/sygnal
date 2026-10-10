@@ -204,7 +204,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-653 | eval (REPORT-v6) | Haiku 5.5 cost ≈ 3× the Haiku 4.5-based estimate ($60.34 vs ≈ $19); total spend $118.66 vs the $90 budget | ✅ fixed (`p6-gap-docs`: pilot rule in run.md and P6-RUNBOOK.md) |
 | G-654 | 4-G | A transport `body` / request `body` could overwrite `uiMessageStream`'s `id`/`messages`/`trigger`/`messageId` | ✅ fixed (coordinator) |
 | G-655 | `p6-gap-mcp` | The dev MCP endpoint speaks MCP 2025-03-26 … 2025-11-25 (JSON replies, no sessions); the new stateless 2026-07-28 revision isn't served: a client that speaks only 2026-07-28 can't connect (dual-revision clients fall back) | ✅ fixed (`p6-gap-mcp2026`: per-request routing by version; 2026-07-28 `_meta`, required headers, -32020/-32022, `server/discover`, `resultType`/`ttlMs`/`cacheScope`; tested with `@modelcontextprotocol/client` 2.3.1 pinned to 2026-07-28, default and auto modes, unit + 3-engine e2e) |
-| G-656 | `p6-gap-mcp2026` | `sygnal-check`'s own stdio MCP server (`sygnal-check/src/mcp.js`) speaks only the `initialize` style; a 2026-07-28-only client can't use it | open (follow-up) |
+| G-656 | `p6-gap-mcp2026` | `sygnal-check`'s own stdio MCP server (`sygnal-check/src/mcp.js`) speaks only the `initialize` style; a 2026-07-28-only client can't use it | ✅ fixed (`p6-gap-checkmcp`: dual-era stdio server, era per request from `_meta`; `server/discover`, `resultType`, `ttlMs`/`cacheScope`, -32022/-32602; on stdio all metadata is in the body (no headers, no -32020); legacy list gains 2025-11-25; tested with `@modelcontextprotocol/client` 2.3.1 over stdio pinned, default and auto, plus error cases) |
 
 ## Log
 
