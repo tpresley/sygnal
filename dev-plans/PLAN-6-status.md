@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** **Phases 0–4 complete** (2026-10-09). Everything is on `plan6-integration`; full gate green on Chromium, Firefox and WebKit; eval done (`evals/agent-ergonomics/results/REPORT-v6.md`: Sygnal 60/60 on the new tier, S-14 within the bar). Release prep done (`d7ea3f63`); no open gaps. Left: merge to `main` and publish (the user's).
+**State:** **Phases 0–4 complete** (2026-10-09). Everything is on `plan6-integration`; full gate green on Chromium, Firefox and WebKit; eval done (`evals/agent-ergonomics/results/REPORT-v6.md`: Sygnal 60/60 on the new tier, S-14 within the bar). **Released 2026-10-10** (sygnal 6.1.0, sygnal-check 0.3.0, create-sygnal-app 2.1.0); registry smoke green. PLAN-6 complete.
 
 ## Decisions
 
@@ -240,3 +240,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — G-655 merged (dev MCP endpoint serves 2026-07-28 alongside older revisions). vitest 4,315; MCP tests 25/25; size 42,690 B. G-656 opened (sygnal-check's stdio MCP server).
 - 2026-10-09 — G-656 merged: sygnal-check's stdio MCP server speaks 2026-07-28 alongside `initialize` (unknown old versions now answered with 2025-11-25). **No open gaps.**
 - 2026-10-10 — Release prep `d7ea3f63` (sygnal 6.1.0, sygnal-check 0.3.0, create-sygnal-app 2.1.0; CHANGELOG 6.1.0, ROADMAP §19, RELEASING pack list + mcp-app smoke). Gates: vitest 4,315, examples, types, perf gate; sygnal-check 714/714; samples 776 clean; error docs current; docs build 97 pages; size (a) 42,690 B / (b) 38,679 B; pack contents as expected; all 10 templates smoke-tested from local tarballs. Browser runner default limit 90 → 180 s (the suite takes ≈ 85–95 s now); Chromium 375/375, Firefox 374/374, WebKit 374/374, WebMCP pages green, at the default limit. Ready to merge to `main` and publish (the maintainer's).
+- 2026-10-10 — **Released** (maintainer): sygnal 6.1.0, sygnal-check 0.3.0, create-sygnal-app 2.1.0 on npm; `main` = `6e07acfc`, tag `v6.1.0`. Registry smoke (RELEASING step 7): all 10 templates install 6.1.0 / 0.3.0, tests pass, `sygnal-check --strict` 0 warnings, `tsc` clean (5 TS), builds pass, `llms.txt` shipped; mcp-app server: `tools/list` → `get_forecast`, `resources/read` → the built view (120 KB HTML); Vike navigation in Chromium (both): counter, client-side nav without reload, one nav bar, no console problems. RELEASING "Last published" updated. **PLAN-6 complete.**
