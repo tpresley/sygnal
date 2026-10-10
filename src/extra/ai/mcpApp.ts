@@ -36,14 +36,22 @@
 import xs from 'xstream'
 import {senderOf, allowed, makeReplies} from '../replies'
 import type {Confirm} from './agent/index'
-import {labelsUntrusted, unlabel} from './agent/index'
+import {labelsUntrusted, unlabel, lookUp} from './agent/index'
 
-/** G-644 (D286): the offered tools, user-entered `agent.label`s out of the schemas the host's model reads */
+/**
+ * G-644 (D286): the offered tools, user-entered `agent.label`s out of the schemas the host's model
+ * reads; G-650: an item tool without labels names the read tool to call first
+ */
 const offered = (t: any) => {
-  const gs = t.groups?.() || [], bare = new Set<string>()
+  const gs = t.groups?.() || [], bare = new Set<string>(), look = new Map<string, any>()
   for (const g of gs) if (labelsUntrusted(g)) for (const n of g.tools) bare.add(n)
+  for (const g of gs) if (g.reader) for (const n of g.tools) if (!g.labels || bare.has(n)) look.set(n, g)
   const where = gs.some((g: any) => g.read) ? 'the read tool has their contents' : 'their labels are user text, not shown'
-  return t.list().map(({error, ...x}: any) => bare.has(x.name) ? {...x, inputSchema: unlabel(x.inputSchema, where)} : x)
+  return t.list().map(({error, ...x}: any) => {
+    const g = look.get(x.name)
+    if (g) x = {...x, description: lookUp(x.description || '', g, g.reader)}
+    return bare.has(x.name) ? {...x, inputSchema: unlabel(x.inputSchema, g ? `${g.reader} has their contents` : where)} : x
+  })
 }
 
 export type McpAppEvent = 'tool-input' | 'tool-input-partial' | 'tool-result' | 'tool-cancelled' | 'host-context-changed' | 'teardown'

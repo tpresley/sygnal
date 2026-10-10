@@ -24,14 +24,17 @@
  *   `kind` keys, not one of the declaration's input enum values; G-623), with SYG244 (dev).
  * - Context (D250): A-1's read tool per declaration, plus a short summary of that declaration's
  *   projection at the end of each of its tool descriptions, re-registered when it changes. An
- *   untrusted projection's summary is its structure only (D286): user text never goes into a
- *   description, where an agent would read it as instructions.
+ *   untrusted projection gets no summary (D286, G-650): user text never goes into a description,
+ *   where an agent would read it as instructions, and a structure-only one misled small models.
+ * - Item tools whose key parameter lists ids without labels (`unlabel`, or no `label`) name the read
+ *   tool with the items' data: "Call board_read first to find the card's id." (G-650: small models
+ *   guessed ids otherwise).
  * - Consequential calls: the `confirm` option, by default a native modal `<dialog>` appended to
  *   `document.body` (outside the app's tree): labelled and described, the rest of the page inert
  *   while it's open, "Deny" focused, Escape denies.
  * Side-effect free: an app that doesn't import it pays 0 B.
  */
-import {agentTools, hasUserText, labelsUntrusted, unlabel, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
+import {agentTools, hasUserText, labelsUntrusted, unlabel, lookUp, Confirm, ConfirmInfo, AgentTool, AgentResult} from './agent/index'
 import {report} from '../diagnostics/index'
 
 export interface ExposeWebMcpOptions {
@@ -48,12 +51,6 @@ export type WebMcpHandle = (() => void) & {readonly available: boolean}
 
 const NAME = 30, DESC = 500, PARAM = 150, OUT = 1500, SUMMARY = 300
 
-/** D286: a value's structure without its text: strings → '<text>', arrays → their length and numeric ids */
-const shape = (v: any): any =>
-  typeof v == 'string' ? '<text>'
-  : Array.isArray(v) ? `${v.length} item${v.length == 1 ? '' : 's'}` + (v.length && v.every(x => x && typeof x.id == 'number') ? ` (ids ${v.map(x => x.id).join(', ')})` : '')
-  : v && typeof v == 'object' ? Object.fromEntries(Object.keys(v).map(k => [k, shape(v[k])]))
-  : v
 const g: any = globalThis
 
 /** cut to n characters with an ellipsis, never inside a surrogate pair */
@@ -145,12 +142,13 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
         dev('SYG244', gr.name, `agent '${gr.name}': read returns strings, so its WebMCP tools get untrustedContentHint; declare untrusted: true (user-entered text) or untrusted: false (only the app's own text)`)
       }
       // D286 (G-622): descriptions are read as instructions and untrustedContentHint covers only
-      // results, so an untrusted projection is summarised by its structure (counts, numeric ids,
-      // numbers, booleans), never its text; the read tool returns the contents with the hint
-      const json = v === undefined ? '' : JSON.stringify(u ? shape(v) : v)
+      // results, so an untrusted projection gets no summary; the read tool returns the contents
+      // with the hint. G-650: the structure-only summary D286 had at first ("5 items (ids 1, 2, …)")
+      // read as the read tool's output to small models ("it has no titles"), which then guessed ids
+      const json = v === undefined || u ? '' : JSON.stringify(v)
       for (const t of gr.tools) {
         if (u) untrusted.add(t)
-        if (json) summary.set(t, (u ? '\n\nCurrent state (structure only; the read tool returns the contents): ' : '\n\nCurrent state: ') + cut(json, SUMMARY))
+        if (json) summary.set(t, '\n\nCurrent state: ' + cut(json, SUMMARY))
       }
       anyUntrusted ||= !!u
     }
@@ -159,21 +157,26 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
     // G-644: user-entered labels leave the key parameter even when no projection is untrusted
     const bare = new Set<string>(untrusted)
     for (const gr of groups) if (labelsUntrusted(gr)) for (const t of gr.tools) bare.add(t)
+    // G-650: an item tool whose ids come without labels says which read tool to call first
+    const reader = new Map<string, {g: any; read: string}>()
+    for (const gr of groups) if (gr.reader) for (const t of gr.tools) if (!gr.labels || bare.has(t)) reader.set(t, {g: gr, read: nameOf(gr.reader)})
 
     const want = new Map<string, any>()
     for (const t of tools) {
       const name = nameOf(t.name)
+      const look = reader.get(t.name), room = DESC - (look ? lookUp('', look.g, look.read).length + 2 : 0)
       let d = t.description || t.name.replace(/_/g, ' ')
-      if (d.length > DESC) {
-        dev('SYG242', name + 'd', `the description of ${name} is longer than ${DESC} characters; it is cut`)
-        d = cut(d, DESC)
+      if (d.length > room) {
+        dev('SYG242', name + 'd', `the description of ${name} is longer than ${room} characters; it is cut`)
+        d = cut(d, room)
       }
+      if (look) d = lookUp(d, look.g, look.read)
       const sum = summary.get(t.name)
       if (sum && DESC - d.length > 60) d += cut(sum, DESC - d.length)
       const annotations = {...t.annotations, ...(untrusted.has(t.name) && {untrustedContentHint: true})}
       const a1 = t.name
       want.set(name, {
-        name, description: d, inputSchema: params(bare.has(t.name) ? unlabel(t.inputSchema, groups.some((g: any) => g.read) ? 'the read tool has their contents' : 'their labels are user text, not shown') : t.inputSchema, name, ''),
+        name, description: d, inputSchema: params(bare.has(t.name) ? unlabel(t.inputSchema, look ? `${look.read} has their contents` : groups.some((g: any) => g.read) ? 'the read tool has their contents' : 'their labels are user text, not shown') : t.inputSchema, name, ''),
         ...(Object.keys(annotations).length && {annotations}),
         // never throws, always an object (0-S3 §5)
         execute: async (input: any) => {

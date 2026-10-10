@@ -173,6 +173,25 @@ describe('Collection items: routing, labels, sort / filter, removal', () => {
     expect(await t.callTool('todo_remove', { id: 1 }, { confirm: true })).toEqual({ ok: true, removed: true, state: { todos: [{ id: 2, text: 'buy milk', done: true }], filter: 'all' } })
   })
 
+  it('G-650: an item a filter moves to another Collection (a card to another column) is not reported removed', async () => {
+    function Card({ state }) { return h('li', null, state.title) }
+    Card.model = { MOVE: (s, column) => ({ ...s, column }) }
+    Card.agent = { name: 'card', label: (s) => s.title, actions: { MOVE: { description: 'Move the card', input: z.enum(['todo', 'done']) } } }
+    function Board() {
+      return h('main', null, ...['todo', 'done'].map((c) => h('ul', null, h(Collection, { of: Card, from: 'cards', filter: (x) => x.column === c }))))
+    }
+    Board.initialState = { cards: [{ id: 1, title: 'Fix bug', column: 'todo' }, { id: 2, title: 'Ship', column: 'done' }] }
+    Board.agent = { name: 'board', read: (s) => ({ cards: s.cards }), untrusted: true, actions: {} }
+    t = renderComponent(Board)
+    await t.ready()
+    expect(await t.callTool('card_move', { id: 1, value: 'done' })).toEqual({ ok: true, state: { cards: [{ id: 1, title: 'Fix bug', column: 'done' }, { id: 2, title: 'Ship', column: 'done' }] } })
+    // the read tool with the cards' data (the nearest declaration with a read), for consumers that name it (WebMCP, MCP Apps)
+    mount(Board)
+    await app.__runtime.flushed()
+    layer = agentTools(app)
+    expect(layer.groups().map((g) => [g.name, g.reader])).toEqual([['board', undefined], ['card', 'board_read']])
+  })
+
   it('removed while the user confirms: the call is re-resolved and fails', async () => {
     t = renderComponent(TodoApp)
     await t.ready()

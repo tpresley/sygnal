@@ -50,7 +50,7 @@ export interface ConfirmInfo {tool: string; component: string; action: string; d
 export type Confirm = boolean | ((info: ConfirmInfo) => boolean | Promise<boolean>)
 export type AgentResult = {ok: boolean; [k: string]: any}
 /** internal (A-2): one declaration's offered tools */
-export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]; enums: Set<string>; labels?: Record<string, string>}
+export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]; enums: Set<string>; labels?: Record<string, string>; reader?: string}
 export interface AgentToolsOptions {
   /** consequential calls: resolve true to run (default: decline) */
   confirm?: Confirm
@@ -131,6 +131,16 @@ export const unlabel = (schema: any, where: string): any => {
     } else out[k] = p
   }
   return changed ? {...schema, properties: out} : schema
+}
+
+/**
+ * G-650: the sentence an item tool's description gets when its key parameter has no labels (unlabel)
+ * and the labels are behind a read tool: without it, small models guess an id instead of reading
+ * first. Fixed text (the read tool's and the declaration's names), never a label
+ */
+export const lookUp = (d: string, g: AgentGroup, read: string) => {
+  d = d.trim()
+  return d + (!d ? '' : /[.!?]$/.test(d) ? ' ' : '. ') + `Call ${read} first to find the ${g.name}'s id.`
 }
 
 interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any; enums: Set<string>}
@@ -349,6 +359,14 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       if (d?.read && !i.disposed) return project(i, d)
     }
   }
+  /** G-650: the read tool with an item declaration's data: its own, else the nearest ancestor's */
+  const readerOf = (e: Entry): string | undefined => {
+    const iv = e.ivs.find(iv => !iv.disposed)
+    for (let i = iv; i; i = i.parentId !== undefined ? api.get(i.parentId) : undefined) {
+      const d = declOf(i), n = d?.read && !i.disposed && snake(d.name ?? i.name) + '_read'
+      if (n && recs.has(n)) return n
+    }
+  }
   /** the live keys (with labels) of an item tool, for an error */
   const keysOf = (e: Entry) => e.ivs.filter(iv => !iv.disposed).map(iv => { const l = e.decl.label && labelOf(iv); return l ? `${keyOf(iv)} (${l})` : keyOf(iv) })
   const missing = (e: Entry, view: any, k: any): AgentResult => {
@@ -418,8 +436,11 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     if (!rec.ran) return {ok: false, error: `${name} did not run: its target was removed first`}
     const out = rec.out, threw = out.find(x => x.kind == 'threw'), refused = out.find(x => x.kind == 'abort' && x.reason)
     if (threw) return {ok: false, error: `${action} failed: ${threw.error?.message ?? threw.error}`, state: resultState(iv)}
-    const state = iv.disposed ? resultState(api.get(iv.parentId)) : resultState(iv)
-    if (out.some(x => x.kind == 'changed' || x.kind == 'sent' || x.kind == 'effect')) return iv.disposed ? {ok: true, removed: true, state} : {ok: true, state}
+    // G-650: an item a filter moved to another Collection (a card to another column) is a new instance, not removed
+    if (iv.disposed && e.item) iv = resolve() || iv
+    const gone = iv.disposed
+    const state = gone ? resultState(api.get(iv.parentId)) : resultState(iv)
+    if (out.some(x => x.kind == 'changed' || x.kind == 'sent' || x.kind == 'effect')) return gone ? {ok: true, removed: true, state} : {ok: true, state}
     if (refused) return {ok: false, error: `${action} was refused: ${refused.reason}`, state}
     return a.idempotent ? {ok: true, unchanged: true, state} : {ok: false, error: `${action} changed nothing (already so, or the input matched nothing)`, state}
   }
@@ -446,7 +467,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
           const id = keyOf(iv), l = !iv.disposed && id != null ? labelOf(iv) : undefined
           if (l !== undefined) labels[id] = l
         }
-        return {name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name), enums: e.enums, ...(e.item && e.decl.label && {labels})}
+        return {name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name), enums: e.enums, ...(e.item && e.decl.label && {labels}), ...(e.item && {reader: readerOf(e)})}
       })
     },
     /** internal (M-3, the command bar): the live Collection items by declaration name, with their key and `agent.label` */

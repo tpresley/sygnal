@@ -137,15 +137,18 @@ describe('experimentalExposeWebMcp: tools', () => {
     expect(mc.entry('my_todos_add').exposedTo).toEqual(['https://agent.example'])
     const add = mc.tool('my_todos_add')
     expect(add.inputSchema).toEqual({ type: 'object', properties: { value: { type: 'string', minLength: 1, description: 'The todo text' } }, required: ['value'], additionalProperties: false })
-    // D286: an untrusted projection is summarised by structure only, never its text
-    expect(add.description).toBe('Add a todo\n\nCurrent state (structure only; the read tool returns the contents): {"todos":"2 items (ids 1, 2)","filter":"<text>"}')
-    expect(add.description).not.toContain('buy milk')
+    // D286 / G-650: an untrusted projection gets no summary in the descriptions (no user text, and no
+    // structure-only summary that small models took for the read tool's output)
+    expect(add.description).toBe('Add a todo')
     expect(mc.tool('my_todos_read').annotations).toEqual({ readOnlyHint: true, untrustedContentHint: true })
     expect(mc.tool('my_todos_clear_done').annotations).toEqual({ consequentialHint: true, untrustedContentHint: true })
     // item tools carry the list's projection in their results
     expect(mc.tool('my_todo_remove').annotations).toEqual({ consequentialHint: true, untrustedContentHint: true })
-    // D286: item labels (user text) stay out of an untrusted tool's schema
-    expect(mc.tool('my_todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; the read tool has their contents)' })
+    // D286: item labels (user text) stay out of an untrusted tool's schema; G-650: the item tools
+    // name the read tool with their data (prefixed), so an agent reads before it picks an id
+    expect(mc.tool('my_todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; my_todos_read has their contents)' })
+    expect(mc.tool('my_todo_toggle').description).toBe('Mark the todo done, or not done again. Call my_todos_read first to find the todo\'s id.')
+    expect(mc.tool('my_todos_add').description).not.toMatch(/first to find/)
   })
 
   it('round trip: read, add (DOM, item enum re-registered), item tool, unknown id, invalid input, no-op, throw', async () => {
@@ -216,17 +219,33 @@ describe('experimentalExposeWebMcp: tools', () => {
     const n0 = mc.registered
     await sleep()
     expect(mc.registered).toBe(n0)
-    // D286: the projection is untrusted, so its summary is structure only: a new filter text
-    // changes nothing in the descriptions and nothing is re-registered
+    // D286 / G-650: the projection is untrusted, so it has no summary: a new filter text or a
+    // third todo changes no list-level description and re-registers nothing but the item tools
+    // (their id enum changed)
     await mc.call('todos_set_filter', { value: 'done' })
     await sleep()
     expect(mc.registered).toBe(n0)
-    expect(mc.tool('todos_add').description).not.toMatch(/done/)
-    // a structural change (a third todo) changes the summary: those tools are re-registered
+    expect(mc.tool('todos_add').description).toBe('Add a todo')
+    const add = mc.tool('todos_add')
     await mc.call('todos_add', { value: 'read' })
     await sleep()
-    expect(mc.tool('todos_add').description).toMatch(/"todos":"3 items \(ids 1, 2, 3\)"/)
+    expect(mc.tool('todos_add')).toBe(add)
     expect(mc.registered).toBeGreaterThan(n0)
+  })
+
+  it('a trusted projection: its summary changes the descriptions, and those tools are re-registered', async () => {
+    mount(TodoApp)
+    await app.__runtime.flushed()
+    const mc = fakeModelContext()
+    stop = experimentalExposeWebMcp(app, { modelContext: mc, confirm: true })
+    await mc.call('todos_show_stats', { value: true })
+    await sleep()
+    const bump = mc.tool('stats_bump')
+    expect(bump.description).toBe('Count a view\n\nCurrent state: {"views":0}')
+    await mc.call('stats_bump')
+    await sleep()
+    expect(mc.tool('stats_bump')).not.toBe(bump)
+    expect(mc.tool('stats_bump').description).toBe('Count a view\n\nCurrent state: {"views":1}')
   })
 })
 
@@ -363,7 +382,7 @@ describe('experimentalExposeWebMcp: budgets, hints, rejections, teardown', () =>
       const mc = fakeModelContext()
       stop = experimentalExposeWebMcp(app, { modelContext: mc })
       expect(mc.tool('todo_toggle').annotations).toBeUndefined()
-      expect(mc.tool('todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; the read tool has their contents)' })
+      expect(mc.tool('todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; todos_read has their contents)' })
       stop()
       app.dispose()
       TodoItem.agent = { ...item, untrusted: false }
@@ -372,6 +391,8 @@ describe('experimentalExposeWebMcp: budgets, hints, rejections, teardown', () =>
       const mc2 = fakeModelContext()
       stop = experimentalExposeWebMcp(app, { modelContext: mc2 })
       expect(mc2.tool('todo_toggle').inputSchema.properties.id.description).toBe('Which todo (1: buy milk; 2: walk dog)')
+      // labels in the schema: no read-first sentence
+      expect(mc2.tool('todo_toggle').description).toBe('Mark the todo done, or not done again')
     } finally { TodoApp.agent = decl; TodoItem.agent = item }
   })
 
