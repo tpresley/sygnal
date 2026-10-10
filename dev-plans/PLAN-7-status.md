@@ -6,7 +6,7 @@ Tracks progress for [PLAN-7.md](PLAN-7.md) (editor tooling: `sygnal-check lsp`, 
 
 **Integration branch:** `plan7-integration`, cut on 2026-10-10 at `eb208337` (= `main` `b02eb715` merged into the research branch `claude/sygnal-ide-plugins-research-4d5a79` at `2831b13e`, + the research, the plan and D297–D304), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`. `origin/main` had no newer commits at the cut. Spikes run in agent worktrees on `exp/p7-s1` … `exp/p7-s3`.
 
-**State:** Phase 0 complete (2026-10-10). **Phase 1 complete** (2026-10-10): wave 1 = C-1 ✅, C-2 ✅, C-5 ✅; wave 2 = C-3 ✅, C-4 ✅.
+**State:** Phase 0 complete (2026-10-10). Phase 1 complete (2026-10-10). **Phase 2 in progress** (started 2026-10-10): wave A = L-1/L-2 (server), G-660 (AST walk speed), I-3 (templates) in parallel; wave B after L-1 = V-1, I-1 (+ G-658's debug run), I-2; wave C = D-1/D-2.
 
 ## Decisions
 
@@ -45,6 +45,14 @@ Tracks progress for [PLAN-7.md](PLAN-7.md) (editor tooling: `sygnal-check lsp`, 
 | C-5 | Shared config (CLI, MCP, Vite default) | ✅ merged | `p7-c5` | `bb78461a` (merge `42bdd3df`) | `src/config.js`: `loadConfig`, `resolveOptions`; keys `strict`, `a11y`, `ignore`, `paths`, `includeTests` (+ `$schema` ignored). `check()`/`graph()` apply it (inputs omitted → config `paths`); `checkFiles()`/`graphFiles()` read none. CLI `--config`/`--no-config`; MCP `check`/`graph` re-read it per call; Vite precedence D311. Docs: README "Configuration", `integration/bundler-config.md`. D309–D311. Merge conflicts with C-1 in `index.js`/`graph.js`/README resolved by the coordinator (config-aware `check()`/`graph()` pass `sources` through). 44 + 7 tests; sygnal-check 849 after merge |
 
 **Phase 1 baseline** (`plan7-integration` at `752e3516`, before any Phase 1 merge, full worktree setup): `npm test` green: vitest 4,315 passed / 33 skipped (406 files), the 12 example suites, types, perf gate, browser 375/375 (Chromium) + WebMCP native 22/22, polyfill 22/22, none 1/1; `npm --prefix sygnal-check test` 714/714; doc samples 777 clean; error docs up to date. After C-1: sygnal-check 725/725, doc samples clean, vitest unchanged.
+
+| L-1/L-2 | `sygnal-check lsp` + tests | running | `p7-l1` | | worker-thread checks (G-657), push only (D305), 0-S2 requirements |
+| G-660 | AST walk speed | running | `p7-g660` | | `ast.js` only |
+| I-3 | Templates: `.vscode/extensions.json`, `sygnal-check.config.json` | running | `p7-i3` | | all 10 templates |
+| V-1 | VS Code extension | waiting for L-1 | | | |
+| I-1 | Claude Code plugin (+ G-658) | waiting for L-1 | | | |
+| I-2 | Other editors | waiting for L-1 | | | G-659: installs need the user's OK |
+| D-1/D-2 | Docs | waiting for V-1/I-1 | | | |
 
 ## 0-A results
 
