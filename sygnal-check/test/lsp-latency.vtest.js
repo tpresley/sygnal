@@ -5,17 +5,23 @@
 // Generates the 20k-line project of PLAN-7 0-A (dev-plans/research/p7-spikes/0-A/gen-large.mjs:
 // the kanban, plan5-showcase and ai-panel-spa src/ trees, tests excluded, copied round-robin until
 // 20,000 lines; 14 copies, 327 files, 20.8k lines) into a temp dir and checks it with --strict:
-//   - a cold first check (the process and module already loaded, a fresh ParseCache) <= 2 s;
+//   - a cold first check (the process and module already loaded, a fresh ParseCache) <= 1 s
+//     (was 2 s);
 //   - a re-check after a one-file edit through `sources`, with the warm cache (3 untimed edits
-//     first): median of 15 <= 300 ms.
+//     first): median of 15 <= 150 ms (was 300 ms; lowered after G-660, about 2x the measured
+//     time, for slower and noisier machines).
 // The limits only go down.
 //
 // Measured 2026-10-10 (Apple M3 Max, Node 24.14.0), bench-edit.mjs beside gen-large.mjs:
 //   cold 438 ms, warm without a cache 351 ms, warm with the cache after a one-file edit 272 ms
 //   (1 parse per edit; ~66 ms model build + ~190 ms rules). This test, run alone under vitest
 //   (--reporter=verbose --silent=false prints its log line), 5 runs: cold 399-465 ms, warm
-//   one-file edit 257-279 ms. The headroom is ~10 %: the rules' AST walks (ast.js walk/childNodes,
-//   ~70 % of a warm check's self time) are the next thing to make faster, not more caching.
+//   one-file edit 257-279 ms. The headroom was ~10 %; the rules' AST walks (ast.js walk/childNodes)
+//   were ~70 % of a warm check's self time.
+// After G-660 (ast.js: a flat pre-order node list per Program, built once per AST), same machine:
+//   cold 229 ms, warm without a cache 150 ms, warm one-file edit 79 ms (bench medians); this test
+//   alone, 5 runs: cold 236-245 ms, warm one-file edit 80-97 ms. Next hot spots: walkTree (~13 %)
+//   and scope.js (findBinding / declInScope, ~23 %).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -62,7 +68,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
   })
   afterAll(() => { if (dir) fs.rmSync(dir, { recursive: true, force: true }) })
 
-  it('20k lines: cold <= 2 s, a one-file edit re-checks in <= 300 ms warm with the parse cache', () => {
+  it('20k lines: cold <= 1 s, a one-file edit re-checks in <= 150 ms warm with the parse cache', () => {
     expect(lines).toBeGreaterThanOrEqual(20000)
     const cache = createParseCache()
     const opts = { cwd: dir, strict: true, cache }
@@ -77,7 +83,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
     const warmEdit = median(edits)
     console.log(`latency gate: ${files.length} files, ${lines} lines: cold ${Math.round(cold)} ms, warm one-file edit ${Math.round(warmEdit)} ms (median of ${edits.length})`)
     expect(cache.stats.parses - parses).toBe(edits.length) // one parse per edit
-    expect(cold).toBeLessThanOrEqual(2000)
-    expect(warmEdit).toBeLessThanOrEqual(300)
+    expect(cold).toBeLessThanOrEqual(1000)
+    expect(warmEdit).toBeLessThanOrEqual(150)
   }, 60_000)
 })
