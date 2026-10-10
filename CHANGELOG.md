@@ -4,10 +4,14 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## [Unreleased]
 
-PLAN-7 (editor tooling) in progress: the checker groundwork for `sygnal-check lsp`. Planned release: `sygnal` 6.1.1, `sygnal-check` 0.4.0 (D297).
+PLAN-7 (editor tooling) in progress: a language server, `sygnal-check lsp`, shows the checker's findings in the editor while you type, for VS Code (a new extension), Claude Code (a new plugin), Neovim, Helix and other LSP editors. Planned release: `sygnal` 6.1.1, `sygnal-check` 0.4.0, `create-sygnal-app` 2.2.0, the VS Code extension 0.1.0 and the Claude Code plugin 0.1.0 (D297).
 
 ### Added
 
+- **`sygnal-check lsp`: a language server.** Stdio, part of `sygnal-check` (no new dependency). Findings for the whole project while you type, including unsaved buffers, with exact ranges and related locations; a hover with each code's explanation; quick fixes ("did you mean", the strict rewrites, "add a model entry"), "fix all" (what `--fix` does, on the unsaved text) and "suppress on this line". Checks run in a worker thread: on a 20,000-line project an edit shows its findings in about 260 ms (150 ms of it the typing pause) and a hover answers in under 1 ms during a check. Diagnostics are pushed, never pulled. Settings (`sygnal.strict`, `a11y`, `ignore`, `paths`, `verbose`, `trace.server`) override the config file per folder.
+- **VS Code extension** (`editors/vscode/`, id `sygnal.sygnal`): runs the project's `sygnal-check` when it has the language server, else a bundled copy (always the bundled one in an untrusted workspace); commands Restart Server, Show Output, Explain Code…, Fix All in File; per-folder settings; snippets for a canonical component, an `EFFECT` entry and an `EVENTS` entry (JS and TS).
+- **Claude Code plugin** (`editors/claude-code/`, marketplace `.claude-plugin/marketplace.json`: `/plugin marketplace add tpresley/sygnal`, `/plugin install sygnal@sygnal`): the `sygnal-dev` skill in one install, and the language server, so the agent sees findings after its edits. Without a capable `sygnal-check` in the project the server stays quiet.
+- **Templates** (`create-sygnal-app`, all 10): `.vscode/extensions.json` recommends the extension, and `sygnal-check.config.json` sets `strict: true` (the Vike templates also `paths: ["pages"]`), so `npx sygnal-check`, the dev overlay and the editor check the same files the same way.
 - **`sygnal-check` config file.** `sygnal-check.config.json`, or a `"sygnal-check"` key in `package.json`: `strict`, `a11y`, `ignore`, `paths`, `includeTests`. JSON only. It is found from the working directory up to the nearest project root. The CLI (`--config <file>`, `--no-config`), the MCP server, `check()` / `graph()` and the Vite plugin read it, so the editor, the dev overlay and CI agree. Flags and explicit options win over it; problems in it are SYG900 findings on the file, never a crash.
 - **`sygnal/vite`: the `check` option defaults to the config file.** Explicit `check.*` options win, then the config file, then the `diagnostics.strict` / `diagnostics.ignore` defaults. Editing the config file re-checks. An older `sygnal-check` without config support gets exactly the options it got before. `plugin.d.ts` now also types `check.a11y`.
 - **Ranges on findings.** Every `sygnal-check` diagnostic has `endLine` / `endColumn` (exclusive, UTF-16 columns, as editors count). Findings on multi-line elements underline the tag name; `sygnal-ignore` comments keep matching where they did. Pair and cross-file findings carry `related` locations (SYG104: the child element that renders the class; SYG105, SYG128, SYG129, SYG440, SYG609, SYG643).
@@ -18,7 +22,7 @@ PLAN-7 (editor tooling) in progress: the checker groundwork for `sygnal-check ls
 ### Changed
 
 - SYG900's explanation also covers config-file findings.
-- `sygnal-check` performance: a one-file re-check of a 20,000-line project takes about 270 ms with a cache (about 350 ms without).
+- `sygnal-check` performance: walks over a whole file use a flat node list built once per parse. A 20,000-line project checks in about 230 ms cold (was about 400 ms) and re-checks after a one-file edit in about 80 ms with a cache (was about 350 ms without one).
 
 ### Fixed
 
