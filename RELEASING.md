@@ -112,7 +112,7 @@ Expect:
   - `dist/shims/globalthis.cjs` (the `sygnal/shims/globalthis` export used by the Vite plugin's alias);
   - `src/`, used for the sub-entry types such as `src/jsx.d.ts`, `src/ai.d.ts` and `src/vite/plugin.d.ts`;
   - `llms.txt`, `CHANGELOG.md`, `README.md`, `LICENSE` and `package.json`.
-- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/` and `rules/`), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
+- **`sygnal-check`**: `bin/sygnal-check.js`, `src/` (including `model/`, `rules/` and, from 0.4.0, `lsp/` for the language server), `schema/inspect.schema.json`, `explanations.json`, `README.md`, `LICENSE` and `package.json`.
 - **`create-sygnal-app`**: `index.js`, `README.md`, `LICENSE`, `package.json`, and all ten `template-*` folders. Each folder has an `AGENTS.md`, a `CLAUDE.md`, a `package.json`, a `*.test.*.tmpl` starter test, and (PLAN-7 I-3) `.vscode/extensions.json` and `sygnal-check.config.json` (the dot-directory must be in the tarball); the two `template-mcp-app*` folders (6.1.0) also have `server/` (`server.js`, `forecast.js`, `server.test.js.tmpl`).
 
 ## 4. Smoke check the templates before publishing

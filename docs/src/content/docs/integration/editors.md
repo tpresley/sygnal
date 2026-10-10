@@ -3,8 +3,8 @@ title: Editor Setup
 description: sygnal-check's findings, explanations and quick fixes in VS Code, Claude Code, Neovim, Helix, JetBrains IDEs and any LSP editor, and how they share one config with the CLI, the Vite plugin and CI
 ---
 
-:::note[Upcoming]
-Everything on this page needs **sygnal-check 0.4.0**, the first version with the language server. sygnal-check 0.4.0, the VS Code extension and the Claude Code plugin are not released yet at the time of writing. Until they are, the CLI and the [Vite plugin](/integration/bundler-config/#plugin-options) check your code as before.
+:::note
+Everything on this page needs **sygnal-check 0.4.0** or later, the first version with the language server (`npm install -D sygnal-check@latest`). Projects created with `create-sygnal-app` 2.2.0 or later have it.
 :::
 
 `sygnal-check` runs as a language server, `sygnal-check lsp`. Your editor then shows its findings while you type, with the same rules and the same settings as the CLI, the Vite dev server and CI.

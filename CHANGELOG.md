@@ -2,9 +2,18 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## 6.1.1 — 2026-10-10
 
-PLAN-7 (editor tooling) in progress: a language server, `sygnal-check lsp`, shows the checker's findings in the editor while you type, for VS Code (a new extension), Claude Code (a new plugin), Neovim, Helix and other LSP editors. Planned release: `sygnal` 6.1.1, `sygnal-check` 0.4.0, `create-sygnal-app` 2.2.0, the VS Code extension 0.1.0 and the Claude Code plugin 0.1.0 (D297).
+Editor tooling (PLAN-7). A language server, `sygnal-check lsp`, shows the checker's findings in the editor while you type: an intent selector that matches nothing, an action with no model entry, an EVENTS type nobody listens to, and the other wiring bugs that fail silently at runtime and that TypeScript can't see. It runs in VS Code (a new extension), Claude Code (a new plugin), Neovim, Helix, JetBrains IDEs (LSP4IJ) and any other LSP editor, all from the one server in `sygnal-check`, so the editor, the CLI, the Vite overlay and CI report the same findings from the same config file.
+
+`sygnal` itself only changes in `sygnal/vite` (the `check` option reads the config file) and in the static diagnostic types: the core doesn't change (the size gate measures 42,690 B, as in 6.1.0).
+
+**Measured impact.** On a generated 20,000-line project (`dev-plans/research/p7-spikes/0-A`, Apple M3 Max): a cold check takes about 230 ms (was about 400 ms) and a re-check after a one-file edit about 80 ms with the parse cache; in the editor an edit shows its findings about 260 ms later (150 ms of it the typing pause), and a hover answers in under 1 ms while a check runs. The server reports exactly what the CLI reports on every example app and fixture set (40 parity cases). Verified clients: VS Code 1.138, Claude Code 2.1.287, Neovim 0.12, Helix 25.07 and IntelliJ IDEA Community 2025.2 with LSP4IJ 0.21. Size: the kanban gate is unchanged, (a) 42,690 B with `nativeGlobalThis: false` (budget 42,700 B) and (b) 38,679 B by default. Whether in-editor findings help coding agents is measured after the release (PLAN-7 E-1).
+
+**Companion packages.**
+- **`sygnal-check` 0.4.0:** the language server (`sygnal-check lsp`), the config file, ranges, `related` locations and fixes on every finding, `sources` and a parse cache in the API, and a faster checker.
+- **`create-sygnal-app` 2.2.0:** every template depends on `sygnal` ^6.1.1 and `sygnal-check` ^0.4.0, recommends the VS Code extension and carries `sygnal-check.config.json` (`strict: true`).
+- **VS Code extension 0.1.0** (`sygnal.sygnal`, VS Code Marketplace and Open VSX) and **Claude Code plugin 0.1.0** (`/plugin marketplace add tpresley/sygnal`): new; see the [editor setup guide](https://sygnal.js.org/integration/editors/).
 
 ### Added
 

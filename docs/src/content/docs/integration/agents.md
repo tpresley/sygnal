@@ -35,7 +35,7 @@ Projects created with `create-sygnal-app` (without prompts: `npm create sygnal-a
 
 `sygnal-dev` is a Claude Code skill for building Sygnal apps: the workflow (scaffold, write, test, check, inspect) and the canonical forms, with `llms.txt` for the API. Claude Code loads it whenever it works on Sygnal code.
 
-**Install it with the Sygnal plugin** (upcoming: not released yet at the time of writing):
+**Install it with the Sygnal plugin:**
 
 ```text
 /plugin marketplace add tpresley/sygnal
