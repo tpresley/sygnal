@@ -502,14 +502,22 @@ What it asks the decision model, as one `decide()` request through the app's `HT
 | `form` | | A form whose submit runs the command |
 | `run` | | A button whose click runs the field's command (a Go button) |
 | `decide` | required | The decision request: `{ url, model }` (plus any [`makeFetchDriver`](/guide/http/) request keys), or a function `(q) => decide.openai({ ...q, url, model })` |
-| `below` | `0.6` | Below this confidence (the action's, and the target's for an item action) nothing runs |
+| `below` | `0.6` | Below this confidence (the action's, and the target's for an item action) nothing runs: the command goes to `escalate`, or `unsure` is set |
 | `escalate` | | The `uses` key of a `chat` behavior on the same host: an unsure command goes to its `SEND` |
-| `approve`, `deny` | | Buttons for a consequential action |
+| `approve`, `deny` | | Buttons that answer `pending`: run, or don't run, an action declared `consequential: true` |
 | `freeText` | a heuristic | `(command, tool) => string \| undefined`: the text argument of an action whose input is one string |
 | `agent` | the host's and its shown descendants' | `[Comp, ...]`: only these components' actions |
 | `sink` | `'HTTP'` | The fetch driver's name |
 
 The slice, `state.cmd`: `text` (the field; cleared after a command ran), `status` (`'ready'`, `'deciding'`, `'running'`, `'error'`), `command`, `pending`, `unsure`, `result` and `error`. `unsure` says why nothing ran: `{ command, reason, tool, description, target, label, confidence }`, with `reason` one of `'confidence'`, `'no-action'` (the model picked none), `'target'` (no clear item) or `'input'` (the action needs an argument the bar can't fill). Actions: `cmd.RUN` (with a string as data, it runs that command), `cmd.APPROVE`, `cmd.DENY` and `cmd.DONE` (a command ran; a host `'cmd.DONE'` entry runs after it).
+
+**Confidence and approval are separate.** `below` is about the *model*: is it sure which action (and item) the command means? `approve` and `deny` are about the *action*: did you declare it `consequential: true` in your `agent` declaration? A command goes through both, in this order:
+
+1. The decision comes back. If its confidence is below `below`, nothing runs: the command goes to `escalate`, or `state.cmd.unsure` says why.
+2. The model is sure. If the action isn't consequential, it runs right away.
+3. The action is consequential (`REMOVE: { description: 'Delete the todo', consequential: true }`): nothing runs yet. `state.cmd.pending` holds what it would do (`description`, the item's `label`, the input), the view asks, a click on `approve` runs it and a click on `deny` drops it (the result is `{ ok: false, error: 'the user declined' }`).
+
+So the user is asked to confirm only for actions you marked consequential, however sure the model is; and an unsure command never gets as far as the question. It's the same rule the [`chat` assistant](#an-in-app-assistant-chat) and [WebMCP](/guide/webmcp/) apply to consequential actions. Without `approve` / `deny` selectors, answer `pending` from your own intent with `'cmd.APPROVE'` / `'cmd.DENY'`.
 
 **Escalating to a chat model.** With a `chat` behavior on the same component, `escalate` hands every command the bar isn't sure about to the assistant, which can ask back or fill arguments:
 
