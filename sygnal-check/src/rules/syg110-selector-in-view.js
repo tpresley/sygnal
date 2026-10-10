@@ -13,6 +13,7 @@
  */
 import { selectorRequirements } from '../selectors.js'
 import { editDistance } from '../names.js'
+import { renderedAt } from '../model/view.js'
 
 const MAX_CHILD_DEPTH = 6
 
@@ -29,22 +30,23 @@ function patternMatch(sink, kind, name) {
 /**
  * Breadth-first search through child components for an exact class/id
  * (or, with kind 'control', a control: `name` is the Control).
- * @returns {{ child: string, via: string[] } | null}
+ * `usage` is the child's tag in `sink`, `sink` the scope that renders it.
+ * @returns {{ child: string, via: string[], usage, sink } | null}
  */
 export function findInChildren(project, sink, kind, name, has = viewHas) {
   const visited = new Set()
-  let frontier = sink.children.map(c => ({ usage: c, path: [c.name] }))
+  let frontier = sink.children.map(c => ({ usage: c, path: [c.name], root: c }))
   for (let depth = 0; depth < MAX_CHILD_DEPTH && frontier.length; depth++) {
     const next = []
-    for (const { usage, path } of frontier) {
-      if (has(usage.injected, kind, name)) return { child: path[0], via: path }
+    for (const { usage, path, root } of frontier) {
+      if (has(usage.injected, kind, name)) return { child: path[0], via: path, usage: root, sink: usage.injected }
       const childSink = usage.ref ? project.viewOf(usage.ref) : null
       if (childSink && !visited.has(childSink)) {
         visited.add(childSink)
-        if (has(childSink, kind, name)) return { child: path[0], via: path }
-        for (const c of childSink.children) next.push({ usage: c, path: [...path, c.name] })
+        if (has(childSink, kind, name)) return { child: path[0], via: path, usage: root, sink: childSink }
+        for (const c of childSink.children) next.push({ usage: c, path: [...path, c.name], root })
       }
-      for (const c of usage.injected.children) next.push({ usage: c, path: [...path, c.name] })
+      for (const c of usage.injected.children) next.push({ usage: c, path: [...path, c.name], root })
     }
     frontier = next
   }
@@ -55,6 +57,16 @@ const tag = (control) => `<${control.key}>`
 // a behavior's option selector names its uses entry in the message
 const via = (sel) => sel.behavior ? `behavior '${sel.behavior}' (option ${sel.option}): ` : ''
 const show = (kind, name) => (kind === 'class' ? '.' : '#') + name
+
+/** SYG104's related locations: the child's tag in this view, and the element inside it that renders the target. */
+function childRelated(project, inChild, kind, name, what) {
+  const out = []
+  const u = inChild.usage
+  if (u?.node && u.file) out.push({ node: u.node.name || u.node, file: u.file, message: `<${inChild.child}> is rendered here; its DOM events stay inside it` })
+  const at = renderedAt(project, inChild.sink, kind, name)
+  if (at) out.push({ ...at, message: `${what} is rendered here, inside <${inChild.child}>` })
+  return out
+}
 
 export default {
   id: 'selector-in-view',
@@ -104,6 +116,7 @@ export default {
               component: comp.name,
               file,
               node: sel.node,
+              related: childRelated(project, inChild, kind, name, show(kind, name)),
               message: `${via(sel)}selector '${sel.selector}' targets ${show(kind, name)}, which is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
               fix: `handle it in <${child}> and send it up via PARENT or EVENTS`,
               data: { selector: sel.selector, [kind]: name, child, path: inChild.via },
@@ -156,6 +169,7 @@ function checkControl(project, report, comp, sel, control, view, injected) {
       component: comp.name,
       file,
       node: sel.node,
+      related: childRelated(project, inChild, 'control', control, `control ${tag(control)}`),
       message: `${call} listens to control ${tag(control)}, but control ${tag(control)} is only rendered inside child component <${child}>${where}; parents can't see DOM events inside child components`,
       fix: `listen to ${control.key} in <${child}>'s intent and send it up via PARENT or EVENTS, or render ${tag(control)} in ${comp.name}'s own view`,
       data: { selector: sel.selector, control: control.key, child, path: inChild.via },

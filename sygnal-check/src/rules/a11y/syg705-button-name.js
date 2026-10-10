@@ -121,7 +121,7 @@ export default {
         code: 'SYG705',
         component: componentName(project, info.file, info.el),
         file: info.file,
-        node: info.opening,
+        node: info.opening, endNode: info.opening.name, // C-2: underline "<tag", not the whole opening element
         message: `${what} has no accessible name (no text, aria-label, aria-labelledby or title), so screen readers announce only "button"`,
         fix: 'put text in it, or for an icon-only button add aria-label="Close" (and aria-hidden="true" on the icon)',
         data: { element: 'button' },

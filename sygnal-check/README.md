@@ -28,7 +28,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 
 | Option | |
 |---|---|
-| `--json` | Print an array of diagnostics (see below) |
+| `--json` | Print an array of diagnostics (see [JSON output](#json-output)) |
 | `--fail-on=warn\|error\|never` | Exit with code 1 when a diagnostic at this level or above exists. The default is `warn`. Info never fails the run |
 | `--verbose` | Also print info-level findings |
 | `--include-tests` | Also scan `*.test.*` / `*.spec.*` files found through directories or globs (skipped by default; a file named explicitly is always scanned) |
@@ -255,16 +255,29 @@ OPEN: DOM.click('.other'), // sygnal-ignore
 
 Without codes, the comment suppresses every code on that line.
 
+A comment matches the line a finding starts on (`line` in the JSON). A few findings underline a narrower part of a multi-line construct than the line they used to start on (SYG731 the `className` attribute, SYG152 the `messages` key, SYG422 the bad timer property or the timer's name); for those a comment above the whole element or object still works.
+
 ## Programmatic API
 
 ```js
 import { check } from 'sygnal-check'
 
 const diagnostics = check(['src'], { cwd: process.cwd() })
-// [{ code, severity, component, message, fix, docsUrl, text, data?, file, line, column }]
+// [{ code, severity, component, message, fix, docsUrl, file, line, column, endLine, endColumn, related?, data?, text }]
 ```
 
-This is the runtime `Diagnostic` shape plus `file`, `line` and `column` (1-based), without `timestamp`.
+This is the runtime `Diagnostic` shape plus the source location, without `timestamp`. `--json` prints the same objects.
+
+### JSON output
+
+| Field | |
+|---|---|
+| `file` | the path, relative to `cwd` |
+| `line`, `column` | where the finding starts, 1-based |
+| `endLine`, `endColumn` | where it ends: 1-based, `endColumn` **exclusive** (one past the last character). The range is the part an editor underlines: the selector string, the model key, the JSX attribute, `<img` for a missing `alt`. Columns count UTF-16 code units, like Babel's `loc` and LSP's default position encoding, so an LSP range is `line - 1`, `column - 1` .. `endLine - 1`, `endColumn - 1`. A parse error (SYG900) is one character at the parser's position |
+| `related` | optional: the other locations of a pair or cross-file finding, `[{ file, line, column, endLine, endColumn, message }]` (same units). SYG104: the child's tag and the element inside it that renders the class, id or control; SYG105: a near-miss event type on the other side (`'DOC_SAVE'` emitted, `'DOC_SAVED'` selected); SYG128: the first declaration of the key; SYG129: the tag that renders the grandchild; SYG440: the other declaration with the name; SYG609 / SYG643: the `run()` call |
+
+A SYG900 for a rule that crashed has no source location: `file` is `''`, `line` and `column` are 0, and there is no `endLine` / `endColumn`. The text output (`file:line:col CODE ...`) doesn't show ranges or related locations. The graph's diagnostics (`--graph --json`) carry the same fields.
 
 `check(inputs, options)` takes:
 

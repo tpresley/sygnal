@@ -189,7 +189,7 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
  *   replyDynamic: Array<{ node, file }>,
  *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
- *   sinkValues: Array<{ action, sink, node, file }>,  // every non-STATE-shorthand sink value (PLAN-4 GS-2: ELEMENT)
+ *   sinkValues: Array<{ action, sink, node, keyNode, file }>,  // every non-STATE-shorthand sink value (PLAN-4 GS-2: ELEMENT)
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
@@ -231,7 +231,7 @@ export function analyzeModel(project, file, modelNode) {
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
       addReplies(action, sink, value)
-      res.sinkValues.push({ action, sink, node: value, file: mfile })
+      res.sinkValues.push({ action, sink, node: value, keyNode: p.key, file: mfile })
     } else if (value && value.type === 'ObjectExpression') {
       sinks = []
       for (const sp of value.properties) {
@@ -242,7 +242,7 @@ export function analyzeModel(project, file, modelNode) {
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
         if (sname === 'EVENTS') addEvents(sval)
         addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
-        res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile })
+        res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), keyNode: sp.key, file: mfile })
       }
     } else {
       sinks = ['STATE']

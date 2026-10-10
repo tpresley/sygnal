@@ -222,7 +222,23 @@
         "data": {},
         "file": { "type": "string" },
         "line": { "type": "integer" },
-        "column": { "type": "integer" }
+        "column": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "endColumn": { "type": "integer" },
+        "related": { "type": "array", "items": { "$ref": "#/$defs/relatedLocation" } }
+      }
+    },
+    "relatedLocation": {
+      "type": "object",
+      "required": ["file", "line", "column", "endLine", "endColumn", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "endLine": { "type": "integer" },
+        "endColumn": { "type": "integer" },
+        "message": { "type": "string" }
       }
     }
   }

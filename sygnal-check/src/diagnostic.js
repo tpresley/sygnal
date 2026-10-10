@@ -14,7 +14,8 @@ export function formatText(code, { component, message, fix }) {
 /**
  * Build a Diagnostic. Shape = the runtime Diagnostic (code, severity,
  * component, message, fix, data, docsUrl, text) plus the source location
- * (file, line, column; line and column are 1-based). There is no
+ * (file, line, column; line and column are 1-based), its end (endLine,
+ * endColumn: exclusive) and optional `related` locations. There is no
  * `timestamp` (static results are not time-ordered).
  */
 export function makeDiagnostic(code, details) {
@@ -30,6 +31,13 @@ export function makeDiagnostic(code, details) {
     line: details.line,
     column: details.column,
   }
+  // PLAN-7 C-2: the range end (1-based, endColumn exclusive, UTF-16 units like Babel's loc)
+  if (details.endLine !== undefined) {
+    d.endLine = details.endLine
+    d.endColumn = details.endColumn
+  }
+  // other locations of a pair / cross-file finding: [{ file, line, column, endLine, endColumn, message }]
+  if (details.related?.length) d.related = details.related
   if (details.data !== undefined) d.data = details.data
   d.text = formatText(code, d)
   return d

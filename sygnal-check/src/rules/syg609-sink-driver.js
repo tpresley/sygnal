@@ -44,7 +44,8 @@ export default {
           code: 'SYG609',
           component: comp.name,
           file: v.file,
-          node: v.node,
+          node: v.keyNode || v.node, // C-2: the sink key (HTTP:), not the whole value
+          related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${sink} driver` }],
           message: `Model entry '${v.action}' sends to the ${sink} sink, but the run() call that renders ${comp.name} (${at}) ` +
             `registers no driver named ${sink}, so every value sent there is dropped`,
           fix: `Pass a driver named ${sink} to run(): ${example}` +

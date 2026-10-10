@@ -4,6 +4,18 @@
  * literals only; when the project also has non-literal emits (or selects),
  * the finding is downgraded to info because the dynamic one might match.
  */
+import { closestName } from '../names.js'
+
+/**
+ * PLAN-7 C-2: a near-miss type on the other side ('DOC_SAVE' emitted, 'DOC_SAVED' selected)
+ * as a related location; nothing when no type is close.
+ */
+function nearMiss(type, others, what) {
+  const near = closestName(type, new Set(others.map(o => o.type)))
+  const at = near && others.find(o => o.type === near && o.node && o.file)
+  return at ? [{ node: at.node, file: at.file, message: `'${near}' is ${what} here` }] : undefined
+}
+
 export default {
   id: 'events-counterpart',
   codes: ['SYG105'],
@@ -23,6 +35,7 @@ export default {
         component: ownerName(s),
         file: s.file,
         node: s.node,
+        related: nearMiss(s.type, emitted, 'emitted'),
         message: `EVENTS.select('${s.type}') but nothing in the scanned files emits '${s.type}'` +
           (dynamicEmitted.length ? ' (a non-literal emit might)' : ''),
         fix: `emit it from a model entry with EVENTS: event('${s.type}', …), or fix the event name`,
@@ -37,6 +50,7 @@ export default {
         component: ownerName(e),
         file: e.file,
         node: e.node,
+        related: nearMiss(e.type, selected, 'selected'),
         message: `EVENTS type '${e.type}' is emitted but nothing in the scanned files selects it` +
           (dynamicSelected.length ? ' (a non-literal EVENTS.select() might)' : ''),
         fix: `listen with EVENTS.select('${e.type}') in the receiving component's intent, or fix the event name`,

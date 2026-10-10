@@ -165,6 +165,21 @@ export interface InspectDiagnostic {
   file?: string
   line?: number
   column?: number
+  /** static only: the range end (1-based; endColumn exclusive, UTF-16 units) */
+  endLine?: number
+  endColumn?: number
+  /** static only: the other locations of a pair or cross-file finding */
+  related?: InspectRelatedLocation[]
+}
+
+/** A diagnostic's other location (static only; same units as InspectDiagnostic's range). */
+export interface InspectRelatedLocation {
+  file: string
+  line: number
+  column: number
+  endLine: number
+  endColumn: number
+  message: string
 }
 
 export interface InspectComponent {

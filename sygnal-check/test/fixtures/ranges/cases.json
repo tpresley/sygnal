@@ -1,0 +1,186 @@
+{
+  "SYG101": {
+    "App.jsx": "\nfunction A() { return <button className=\"h\">h</button> }\nA.intent = ({ DOM }) => ({ HYDRATE: DOM.click('.h') })\nA.model = {}\n"
+  },
+  "SYG102": {
+    "T.jsx": "export function T() { return <p /> }\nT.timers = (state) => ({ x: state.on && 100 })\nT.model = { A: (s) => s }\n"
+  },
+  "SYG104": {
+    "App.jsx": "import { controls } from 'sygnal'\nconst { Go } = controls({ Go: 'button' })\nfunction Card({ children }) { return <section>{children}</section> }\nexport function App() { return <Card><Go>go</Go></Card> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click(Go) })\nApp.model = { GO: (s) => s }\n"
+  },
+  "SYG105": {
+    "App.jsx": "import { emit } from 'sygnal'\nconst event = 1\nfunction App() { return <button className=\"go\">go</button> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = { GO: emit('GONE') }\nexport default App\n"
+  },
+  "SYG110": {
+    "src/App.jsx": "function App() { return <div className=\"a\">x</div> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.b') })\nApp.model = { GO: s => s }\nexport default App\n"
+  },
+  "SYG111": {
+    "C.jsx": "\nexport function C({ state }) {\n  return <div><input className=\"f\" value={null} /><button className=\"tick\">{state.n}</button></div>\n}\nC.initialState = { n: 0, x: null, on: null }\nC.intent = ({ DOM }) => ({ TICK: DOM.click('.tick') })\nC.model = { TICK: (s) => ({ ...s, n: s.n + 1 }), SET: (s) => s }\n"
+  },
+  "SYG112": {
+    "App.jsx": "\nfunction Chat({ state }) { return <ul className=\"m\">{state.n}</ul> }\nChat.connections = (state) => ({ room: { socket: '/ws', message: 'RECIEVED', error: 'SOCKET_ERROR' } })\nChat.model = { RECEIVED: (s) => s, SOCKET_ERROR: (s) => s }\n"
+  },
+  "SYG124": {
+    "TodoItem.jsx": "export default function TodoItem({ state }) { return <li>{state.t}</li> }\nTodoItem.intent = ({ DOM }) => ({ X: DOM.click('li') })\nTodoItem.model = { X: { PARENT: (s) => s } }\n",
+    "App.jsx": "import { controls } from 'sygnal'\nimport TodoItem from './TodoItem.jsx'\nconst { Add } = controls({ Add: 'button' })\nfunction Badge() { return <span>!</span> }\nconst handler = () => '.x'\nexport function App() { return <div className=\"x\"><Add /><TodoItem /><Badge /></div> }\nApp.intent = ({ DOM }) => ({ A: DOM.click(TodoItem), B: DOM.click(Add) })\nApp.model = { A: (s) => s }\n"
+  },
+  "SYG125": {
+    "controls.js": "import { controls } from 'sygnal'\nexport const { Add } = controls({ Add: 'button' })\n",
+    "App.jsx": "import { Add } from './controls.js'\nAdd.model = {}\n"
+  },
+  "SYG126": {
+    "App.jsx": "import { controls } from 'sygnal'\nconst { A, B } = controls({ A: 'button', B: 'button' })\nexport function App() { return <div><A /><B /><A /></div> }\nApp.initialState = {}\n"
+  },
+  "SYG127": {
+    "C.jsx": "import { defineBehavior, pager } from 'sygnal'\nconst counter = defineBehavior({ initialState: { n: 0 } })\nexport function C() { return <div /> }\nC.uses = { pager, counter, raw: { initialState: { a: 1 } }, inline: defineBehavior({ initialState: {} }) }\n"
+  },
+  "SYG128": {
+    "a.js": "import { controls } from 'sygnal'\nexport const C = controls({ Add: 'button', Add: 'a' })\n"
+  },
+  "SYG129": {
+    "src/Card.jsx": "export function Card({ state }) { return <li className=\"c\">x</li> }\nCard.intent = ({ DOM }) => ({ GO: DOM.click('.c') })\nCard.model = { GO: { PARENT: () => 1 } }\n",
+    "src/List.jsx": "import { Card } from './Card.jsx'\nexport function List({ state }) { return <ul><Card state=\"card\" /></ul> }\n",
+    "src/App.jsx": "import { List } from './List.jsx'\nimport { Card } from './Card.jsx'\nexport function App() { return <div><List /></div> }\nApp.initialState = {}\nApp.intent = (sources) => ({ GO: sources.CHILD.select(Card) })\nApp.model = { GO: (s) => s }\n"
+  },
+  "SYG140": {
+    "w.js": "\nimport { defineWidget } from 'sygnal'\nexport const Stars = defineWidget({\n  mount(el, props, emit) { el.onclick = () => { emit('rate', 1); emit('rtae', 2) }; return {} },\n  events: ['rate'],\n})\n"
+  },
+  "SYG141": {
+    "Order.jsx": "\nimport { Menu } from 'sygnal/ui/menu'\nimport { Select } from 'sygnal/ui/select'\nimport { Combobox } from 'sygnal/ui/combobox'\nexport function Order({ state }) {\n  return <div>\n    <Menu className=\"actions\" label=\"Actions\" items={['edit']} />\n    <Select className=\"size\" label=\"Size\" items={['S', 'M']} value={state.size} />\n    <Combobox className=\"city\" label=\"City\" items={['Paris']} value={state.city} />\n    <button className=\"open\">Open</button>\n  </div>\n}\nOrder.initialState = { size: null, city: null, last: '' }\nOrder.intent = ({ DOM }) => ({ PICK: DOM.select('.actions').events('selet').detail(), X: DOM.select(Menu).events('select') })\nOrder.model = { PICK: (s) => s, X: (s) => s, OPEN: { ELEMENT: { opne: '.size' } } }\n"
+  },
+  "SYG142": {
+    "Order.jsx": "\nimport { Menu } from 'sygnal/ui/menu'\nimport { Select } from 'sygnal/ui/select'\nimport { Combobox } from 'sygnal/ui/combobox'\nexport function Order({ state }) {\n  return <div>\n    <Menu className=\"actions\" label=\"Actions\" items={['edit']} />\n    <Select className=\"size\" label=\"Size\" items={['S', 'M']} value={state.size} />\n    <Combobox className=\"city\" label=\"City\" items={['Paris']} value={state.city} />\n    <button className=\"open\">Open</button>\n  </div>\n}\nOrder.initialState = { size: null, city: null, last: '' }\nOrder.intent = ({ DOM }) => ({ OPEN: DOM.click('.actions') })\nOrder.model = { OPEN: { ELEMENT: { opne: '.size' } } }\n"
+  },
+  "SYG143": {
+    "Order.jsx": "\nimport { Menu } from 'sygnal/ui/menu'\nimport { Select } from 'sygnal/ui/select'\nimport { Combobox } from 'sygnal/ui/combobox'\nexport function Order({ state }) {\n  return <div>\n    <Menu className=\"actions\" label=\"Actions\" items={['edit']} />\n    <Select className=\"size\" label=\"Size\" items={['S', 'M']} value={state.size} />\n    <Combobox className=\"city\" label=\"City\" items={['Paris']} value={state.city} />\n    <button className=\"open\">Open</button>\n  </div>\n}\nOrder.initialState = { size: null, city: null, last: '' }\nOrder.intent = ({ DOM }) => ({ PICK: DOM.select('.actions').events('selet').detail(), X: DOM.select(Menu).events('select') })\nOrder.model = { PICK: (s) => s, X: (s) => s, OPEN: { ELEMENT: { opne: '.size' } } }\n"
+  },
+  "SYG144": {
+    "w.js": "\nimport { defineWidget } from 'sygnal'\nexport const Picker = defineWidget({ tag: 'input', mount: (el, p, emit) => ({}), events: ['change', 'pick'] })\n"
+  },
+  "SYG150": {
+    "Counter.jsx": "import { z } from 'zod'\nexport default function Counter({ state }) {\n  return <p>{state.count}</p>\n}\nCounter.initialState = { count: 0 }\nCounter.model = {\n  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),\n  SET: (state, n) => ({ ...state, count: n }),\n}\nCounter.agent = { actions: { INCREMNT: { description: 'Add one' }, SET: { description: 'Set', input: z.number() }, RESET: { description: 'Back to 0' } } }\n"
+  },
+  "SYG151": {
+    "Counter.jsx": "import { z } from 'zod'\nexport default function Counter({ state }) {\n  return <p>{state.count}</p>\n}\nCounter.initialState = { count: 0 }\nCounter.model = {\n  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),\n  SET: (state, n) => ({ ...state, count: n }),\n}\nCounter.tools = { actions: { INCREMENT: { description: 'Add one' } } }\n"
+  },
+  "SYG152": {
+    "Chat.jsx": "export default function Chat({ state }) {\n  return <form className=\"ask\"><label>Ask <input className=\"prompt\" value={state.prompt} /></label><button type=\"submit\">Send</button></form>\n}\nChat.initialState = { messages: [], prompt: '', draft: '' }\nChat.intent = ({ DOM }) => ({ TYPE: DOM.input('.prompt').value(), SEND: DOM.select('.ask').events('submit', { preventDefault: true }) })\nChat.model = {\n  TYPE: (state, prompt) => ({ ...state, prompt }),\n  SEND: { LLM: (state) => ({ messages: state.messages, delta: 'DELTA', error: 'FAILED' }) },\n  DELTA: (state, { text }) => ({ ...state, draft: text }),\n  TOOL: (state, { call }) => ({ ...state, call }),\n  DONE: (state, { message }) => ({ ...state, messages: [...state.messages, message], draft: '' }),\n  FAILED: (state) => ({ ...state, draft: '' }),\n}\n"
+  },
+  "SYG153": {
+    "Signup.jsx": "export default function Signup({ state }) {\n  return <form toolname=\"sign_up\"><label>Email <input name=\"email\" toolparamdescription=\"Your email\" /></label><button type=\"submit\">Sign up</button></form>\n}\nSignup.initialState = {}\n"
+  },
+  "SYG223": {
+    "TodoApp.jsx": "import { persist } from 'sygnal'\nexport function TodoApp({ state }) {\n  return <ul>{state.todos.map(t => <li>{t}</li>)}<p>{state.filter}</p></ul>\n}\nTodoApp.initialState = { todos: [], filter: 'all', draft: '' }\nTodoApp.model = {\n  CLEAR: { STATE: () => ({ todos: [], filter: 'all', draft: '' }), PERSIST: { clear: true } },\n  RESTORE: (state, saved) => ({ ...state, ...saved }),\n}\nTodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filtr'] })\n"
+  },
+  "SYG224": {
+    "TodoApp.jsx": "import { persist } from 'sygnal'\nexport function TodoApp({ state }) {\n  return <ul>{state.todos.map(t => <li>{t}</li>)}<p>{state.filter}</p></ul>\n}\nTodoApp.initialState = { todos: [], filter: 'all', draft: '' }\nTodoApp.model = {\n  CLEAR: { STATE: () => ({ todos: [], filter: 'all', draft: '' }), PERSIST: { clear: true } },\n  RESTORE: (state, saved) => ({ ...state, ...saved }),\n}\nTodoApp.persist = persist({ key: 'todo-app', pick: ['todos'] })\n",
+    "main.jsx": "import { run } from 'sygnal'\nimport { TodoApp } from './TodoApp.jsx'\nfunction Root({ state }) { return <main><TodoApp state=\"list\" /></main> }\nRoot.initialState = { list: { todos: [], filter: 'all', draft: '' } }\nrun(Root)\n"
+  },
+  "SYG226": {
+    "C.jsx": "import { controls, undo, pager } from 'sygnal'\nconst { Undo, Newer } = controls({ Undo: 'button', Newer: 'button' })\nexport function C({ state }) { return <div><Undo>Undo</Undo><Newer>Newer</Newer>{state.doc.n}</div> }\nC.initialState = { doc: { n: 0 } }\nC.model = { SET: (s, n) => ({ ...s, doc: { n } }) }\nC.uses = { pager: pager({ next: Newer }), history: undo({ key: 'doc', undo: Undo, track: ['SET', 'pager.NEXT', 'SETT'] }) }\n"
+  },
+  "SYG240": {
+    "Counter.jsx": "\nexport default function Counter({ state }) {\n  return <p>{state.count}</p>\n}\nCounter.initialState = { count: 0 }\nCounter.model = {\n  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),\n  SET: (state, n) => ({ ...state, count: n }),\n}\nCounter.agent = { actions: { SET: { description: 'Set', input: { type: 'integer' } } } }\n"
+  },
+  "SYG243": {
+    "Counter.jsx": "import { z } from 'zod'\nexport default function Counter({ state }) {\n  return <p>{state.count}</p>\n}\nCounter.initialState = { count: 0 }\nCounter.model = {\n  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),\n  SET: (state, n) => ({ ...state, count: n }),\n}\nCounter.agent = { actions: { SET: { description: 'Set', input: z.date() } } }\n"
+  },
+  "SYG401": {
+    "collection-from.jsx": "// <Collection from=\"x\"> pointing at a missing or non-array initialState field.\nimport { Collection } from 'sygnal'\n\nfunction Item({ state }) {\n  return <li className=\"item\">{state.text}</li>\n}\n\nconst BASE = { items: [], config: { pageSize: 10 } }\n\nfunction List({ state }) {\n  return (\n    <ul className=\"list\">\n      <Collection of={Item} from=\"item\" /> {/* expect: SYG401 */}\n      <collection of={Item} from=\"config\" /> {/* expect: SYG401 */}\n      <Collection of={Item} from=\"items\" />\n      <Collection of={Item} from=\"visible\" />\n    </ul>\n  )\n}\n\nList.initialState = { ...BASE, title: 'List' }\nList.calculated = { visible: (state) => state.items.slice(0, 10) }\n\nexport default List\n"
+  },
+  "SYG405": {
+    "Search.jsx": "export function Search({ state }) {\n  return <input className=\"q\" />\n}\nSearch.initialState = {}",
+    "App.jsx": "import { Search } from './Search.jsx'\nexport function App({ state }) {\n  return <label>Find <Search /></label>\n}\nApp.initialState = {}"
+  },
+  "SYG422": {
+    "T.jsx": "export function T() { return <p /> }\nT.timers = (state) => ({ x: state.on && 100 })\nT.model = { A: (s) => s }\n"
+  },
+  "SYG440": {
+    "App.jsx": "import Left from './Left.jsx'\nimport Right from './Right.jsx'\nexport default function App() { return <div><Left /><Right /></div> }\nApp.initialState = { x: 1 }\n",
+    "Left.jsx": "export default function Left({ state }) { return <p>{state.x}</p> }\nLeft.model = { PING: (state) => ({ ...state }) }\nLeft.agent = { name: 'panel', actions: { PING: { description: 'Ping' } } }\n",
+    "Right.jsx": "export default function Right({ state }) { return <p>{state.x}</p> }\nRight.model = { PING: (state) => ({ ...state }) }\nRight.agent = { name: 'panel', actions: { PING: { description: 'Ping' } } }\n"
+  },
+  "SYG441": {
+    "TodoApp.jsx": "import { z } from 'zod'\nimport { Collection } from 'sygnal'\nimport TodoItem from './TodoItem.jsx'\n\nexport default function TodoApp({ state }) {\n  return (\n    <main>\n      <form className=\"new\">\n        <label>New todo <input className=\"text\" value={state.text} /></label>\n      </form>\n      <ul className=\"todos\"><Collection of={TodoItem} from=\"todos\" /></ul>\n      <button type=\"button\" className=\"clear\" disabled={!state.todos.some((t) => t.done)}>Clear done</button>\n    </main>\n  )\n}\n\nTodoApp.initialState = { todos: [], text: '', filter: 'all', nextId: 1 }\nTodoApp.intent = ({ DOM }) => ({\n  TYPE: DOM.input('.text').value(),\n  SUBMIT: DOM.select('.new').events('submit', { preventDefault: true }),\n  CLEAR_DONE: DOM.click('.clear'),\n})\nTodoApp.model = {\n  TYPE: (state, text) => ({ ...state, text }),\n  SUBMIT: (state) => ({ ...state, ...addTodo(state, state.text), text: '' }),\n  ADD: (state, text) => ({ ...state, ...addTodo(state, text) }),\n  SET_FILTER: (state, filter) => ({ ...state, filter }),\n  CLEAR_DONE: (state) => ({ ...state, todos: state.todos.filter((t) => !t.done) }),\n}\nconst addTodo = (state, text) => ({ todos: [...state.todos, { text, done: false }], nextId: state.nextId + 1 })\n\nTodoApp.agent = {\n  name: 'todos',\n  description: 'The todo list',\n  read: (state) => ({ todos: state.todos.map(({ id, text, done }) => ({ id, text, done })), filter: state.filter }),\n  actions: {\n    ADD: { description: 'Add a todo', input: z.string().min(1).describe('The todo text') },\n    SET_FILTER: { description: 'Which todos to show', input: z.enum(['all', 'active', 'done']) },\n    CLEAR_DONE: {\n      description: 'Delete every todo that is done',\n      consequential: true,\n      when: (state) => state.todos.some((t) => t.done),\n    },\n  },\n}\n",
+    "TodoItem.jsx": "export default function TodoItem({ state }) {\n  return (\n    <li>\n      <label><input type=\"checkbox\" className=\"done\" checked={state.done} /> {state.text}</label>\n      <button type=\"button\" className=\"remove\" aria-label={`Remove ${state.text}`}>×</button>\n    </li>\n  )\n}\nTodoItem.intent = ({ DOM }) => ({ TOGGLE: DOM.change('.done'), REMOVE: DOM.click('.remove') })\nTodoItem.model = {\n  TOGGLE: (state) => ({ ...state, done: !state.done }),\n  REMOVE: () => undefined,\n}\nTodoItem.agent = {\n  name: 'todo',\n  description: 'A todo',\n  actions: {\n    TOGGLE: { description: 'Mark the todo done, or not done again' },\n    REMOVE: { description: 'Delete the todo', consequential: true },\n  },\n}\n"
+  },
+  "SYG501": {
+    "positional-view.jsx": "// SYG501: views that use the positional (props, state, context) arguments.\nfunction Counter(props, state) { // expect: SYG501 error\n  return (\n    <div className=\"counter\">\n      <button className=\"inc\">+</button>\n      <span>{state.count}</span>\n      <Badge label=\"count\" />\n      <Panel title=\"x\" />\n    </div>\n  )\n}\n\n// a plain function rendered as a component tag is checked too\nconst Badge = ({ label }, state, context) => <i className={context.theme}>{label}{state.count}</i> // expect: SYG501 error\n\n// a first-param name starting with _ is dropped from the rewrite\nfunction Panel(_props, { count }) { // expect: SYG501 error\n  return <section>{count}</section>\n}\n\nCounter.initialState = { count: 0 }\nCounter.intent = ({ DOM }) => ({ INC: DOM.select('.inc').events('click') })\nCounter.model = { INC: state => ({ ...state, count: state.count + 1 }) }\n\nexport default Counter\n"
+  },
+  "SYG503": {
+    "reducers.jsx": "// SYG503 (side effect + ABORT in STATE). The no-op forms below were SYG502, retired in 6.0\n// (PLAN-4 GS-4): they must not be reported.\nimport { ABORT, createCommand } from 'sygnal'\n\nconst player = createCommand()\n\nfunction Player({ state }) {\n  return (\n    <div className=\"player\">\n      <button className=\"save\">save</button>\n      <button className=\"reset\">reset</button>\n      <button className=\"maybe\">maybe</button>\n      <button className=\"mutate\">mutate</button>\n      <button className=\"play\">play</button>\n      <button className=\"log\">log</button>\n      <span>{state.title}</span>\n    </div>\n  )\n}\n\nPlayer.initialState = { title: '', saved: false }\n\nPlayer.intent = ({ DOM }) => ({\n  SAVE: DOM.click('.save'),\n  RESET: DOM.click('.reset'),\n  MAYBE: DOM.click('.maybe'),\n  MUTATE: DOM.click('.mutate'),\n  PLAY: DOM.click('.play'),\n  LOG: DOM.click('.log'),\n})\n\nfunction mutate(state) {\n  state.saved = true\n}\n\nPlayer.model = {\n  SAVE: (state) => state.title ? { ...state, saved: true } : state,\n  RESET: (state) => {\n    if (!state.saved) return\n    return { ...state, saved: false }\n  },\n  MAYBE: (state, data) => {\n    if (data) {\n      return { ...state, title: data }\n    }\n  },\n  MUTATE: mutate,\n  PLAY: (state) => {\n    player.send('play') // expect: SYG503\n    return ABORT\n  },\n  LOG: {\n    STATE: (state, data) => {\n      console.log('LOG', data) // expect: SYG503\n      if (!data) return ABORT\n      return { ...state, title: data }\n    },\n  },\n}\n\nexport default Player\n"
+  },
+  "SYG504": {
+    "App.jsx": "function App() { return <button className=\"go\">go</button> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = {\n  GO: (state) => ({ ...state, n: 1 }),\n  'GO | EFFECT': () => console.log('go'),\n}\nexport default App\n"
+  },
+  "SYG505": {
+    "App.jsx": "import { emit } from 'sygnal'\nconst event = 1\nfunction App() { return <button className=\"go\">go</button> }\nApp.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nApp.model = { GO: emit('GONE') }\nexport default App\n"
+  },
+  "SYG506": {
+    "P.jsx": "import { Collection, component } from 'sygnal'\nimport Other from './Other.jsx'\nimport * as NS from './Other.jsx'\nconst Thing = 'thing'\nconst Arrow = () => <div />\nfunction Fn() { return <div /> }\nclass Klass {}\nconst Made = component({ view: () => <div /> })\nexport function P({ state }) { return <div><Collection of={Other} from=\"items\" /></div> }\nP.intent = ({ CHILD }) => ({\n  A: CHILD.select(Other),\n  B: CHILD.select('Thing'),\n  C: CHILD.select(Arrow),\n  D: CHILD.select(Fn),\n  E: CHILD.select(Klass),\n  F: CHILD.select('NS'),\n  G: CHILD.select('Made'),\n})\nP.model = { A: s => s, B: s => s, C: s => s, D: s => s, E: s => s, F: s => s, G: s => s }\n"
+  },
+  "SYG507": {
+    "prop-drilling.jsx": "// SYG507 (info): a prop passed on unchanged through 3 component levels.\nfunction App({ state }) {\n  return (\n    <div className=\"app\">\n      <Toolbar theme={state.theme} user={state.user} />\n    </div>\n  )\n}\n\nfunction Toolbar({ theme, user, ...props }) {\n  return (\n    <nav>\n      <Menu theme={theme} /> {/* expect: SYG507 info */}\n      <Avatar user={props.user} name={user.name} />\n    </nav>\n  )\n}\n\nfunction Menu(props) {\n  return <ul className={props.theme}><Item theme={props.theme} /></ul> // expect: SYG507 info\n}\n\nfunction Item({ theme }) {\n  return <li className={theme}>item</li>\n}\n\nfunction Avatar({ name }) {\n  return <img alt={name} />\n}\n\nApp.initialState = { theme: 'dark', user: { name: 'a' } }\n\nexport default App\n"
+  },
+  "SYG508": {
+    "Quote.jsx": "\nfunction Quote({ state }) { return <button className=\"load\">{state.status}</button> }\nQuote.initialState = { status: 'idle' }\nQuote.intent = ({ DOM, HTTP }) => ({ LOAD: DOM.click('.load'), LOADED: HTTP.select('quote') })\nQuote.model = {\n  LOAD: { HTTP: (state) => ({ category: 'quote', url: '/q' }) },\n  LOADED: (state, quote) => ({ ...state, status: 'done', quote }),\n}\n"
+  },
+  "SYG609": {
+    "src/Chat.jsx": "export function Chat() { return <p>chat</p> }\nChat.intent = ({ DOM }) => ({ SEND: DOM.click('p') })\nChat.model = { SEND: { WS: () => ({ send: 'hi' }) } }\n",
+    "src/App.jsx": "import { Chat } from './Chat.jsx'\nexport function App() { return <main><Chat /></main> }\nApp.initialState = {}\n",
+    "src/main.js": "import { run, makeFetchDriver, makeSocketDriver } from 'sygnal'\nimport { App } from './App.jsx'\n\nrun(App, { HTTP: makeFetchDriver() })\n"
+  },
+  "SYG612": {
+    "App.jsx": "function App({ state }) { return <div>{state.n}</div> }\nApp.initialState = { n: 0 }\nApp.stateSourceName = 'APP'\n"
+  },
+  "SYG634": {
+    "App.jsx": "\nfunction Search({ state }) { return <input className=\"q\" value={state.q} /> }\nSearch.initialState = { q: '', results: [] }\nSearch.intent = ({ DOM }) => ({ TYPE: DOM.input('.q').value() })\nSearch.model = {\n  TYPE: {\n    STATE: (state, q) => ({ ...state, q }),\n    HTTP: (state, q) => ({ url: '/api/search', query: { q }, ok: 'RESULTS', key: q, latest: true }),\n  },\n  RESULTS: (state, results) => ({ ...state, results }),\n}\n"
+  },
+  "SYG640": {
+    "F.jsx": "import { controls } from 'sygnal'\nconst { Email, Go } = controls({ Email: 'input', Go: 'button' })\nexport function F() { return <div><Email /><Go>go</Go></div> }\nF.intent = ({ DOM }) => ({ GO: DOM.click(Go) })\nF.model = { GO: { ELEMENT: (s) => s.a ? { ShowModal: Email } : [{ focus: Email }, { scrollIntoview: '.x' }] } }\n"
+  },
+  "SYG641": {
+    "F.jsx": "import { controls } from 'sygnal'\nconst { Email, Go } = controls({ Email: 'input', Go: 'button' })\nexport function F() { return <div><Email /><Go>go</Go></div> }\nF.intent = ({ DOM }) => ({ GO: DOM.click(Go) })\nF.model = { GO: { ELEMENT: { fokus: Email } } }\n"
+  },
+  "SYG643": {
+    "src/Feed.jsx": "export function Feed() { return <p /> }\nFeed.connections = { feed: { url: 'wss://x', message: 'MSG' } }\nFeed.model = { MSG: (s) => s }\n",
+    "src/App.jsx": "import { Collection, Switchable } from 'sygnal'\nimport { Feed } from './Feed.jsx'\nimport { Quote } from './Quote.jsx'\nexport function App() { return <main><Collection of={Feed} from=\"feeds\" /><Switchable of={{ quote: Quote }} current=\"quote\" /></main> }\nApp.initialState = { feeds: [] }\n",
+    "src/main.js": "import { run, makeFetchDriver } from 'sygnal'\nimport { App } from './App.jsx'\nrun(App, { HTTP: makeFetchDriver() })\n"
+  },
+  "SYG701": {
+    "App.jsx": "export function App() { return <ul><li className=\"x\"><b>a</b></li></ul> }\nApp.intent = ({ DOM }) => ({ X: DOM.click('.x b'), Y: DOM.click('li.x') })\nApp.model = { X: (s) => s, Y: (s) => s }\n"
+  },
+  "SYG702": {
+    "App.jsx": "export function Search({ state }) {\n  return <div><input className=\"q\" /></div>\n}\nSearch.initialState = {}"
+  },
+  "SYG703": {
+    "App.jsx": "export function App() {\n  return <img src=\"a.png\" />\n}\nApp.initialState = {}\n"
+  },
+  "SYG704": {
+    "App.jsx": "export function App() { return <div><button className=\"x\">a</button><a className=\"x\">b</a></div> }\nApp.intent = ({ DOM }) => ({ X: DOM.click('.x') })\nApp.model = { X: (s) => s }\n"
+  },
+  "SYG705": {
+    "App.jsx": "import { controls } from 'sygnal'\nconst { A, B } = controls({ A: 'button', B: 'button' })\nexport function App() { return <div><A /><B /><A /></div> }\nApp.initialState = {}\n"
+  },
+  "SYG706": {
+    "App.jsx": "export function App({ state, uid }) {\n  return <div>\n    <div tabIndex={2}>a</div>\n    <div tabindex=\"1\">b</div>\n  </div>\n}\nApp.initialState = {}\n"
+  },
+  "SYG707": {
+    "App.jsx": "export function App({ state, uid }) {\n  return <div>\n    <div aria-lable=\"x\">a</div>\n    <div role=\"buton\">b</div>\n    <div role=\"widget\">c</div>\n    <div role=\"button tabz\">d</div>\n  </div>\n}\nApp.initialState = {}\n"
+  },
+  "SYG708": {
+    "App.jsx": "export function App({ state, uid }) {\n  return <form>\n    <label for={uid('a')}>A</label><input id={uid('b')} />\n  </form>\n}\nApp.initialState = {}\n"
+  },
+  "SYG722": {
+    "View.jsx": "import { Menu } from 'sygnal/ui/menu'\nimport { Select } from 'sygnal/ui/select'\nimport { Combobox } from 'sygnal/ui/combobox'\n\nexport const V = () => <Combobox items={['a']} />"
+  },
+  "SYG724": {
+    "TaskList.jsx": "import { Collection, sortable } from 'sygnal'\n\nfunction Task({ state, context }) {\n  const cls = context.sort.dragging === String(state.id) ? 'task dragging' : 'task'\n  return (\n    <li className={cls} data-id={state.id}>\n      <span className=\"grip\">⠿</span>\n      <span className=\"title\">{state.title}</span>\n    </li>\n  )\n}\n\nexport function TaskList({ state }) {\n  return (\n    <section>\n      <p id={state.sort.helpId} hidden>Press Space to pick up a task, the arrow keys to move it, Space to drop it.</p>\n      <ul className=\"tasks\"><Collection of={Task} from=\"tasks\" /></ul>\n      <p role=\"status\" aria-live=\"assertive\">{state.sort.message}</p>\n    </section>\n  )\n}\nTaskList.initialState = { tasks: [{ id: 1, title: 'Write spec' }, { id: 2, title: 'Ship' }] }\nTaskList.uses = { sort: sortable({ from: 'tasks', item: '.task', handle: '.grip' }) }\nTaskList.context = { sort: (state) => state.sort }\nTaskList.model = {\n  'sort.DROPPED': { EFFECT: (state, move) => console.log(move) },\n}\n"
+  },
+  "SYG730": {
+    "App.jsx": "export function App({ state, uid }) {\n  return <a className=\"more\">More</a>\n}\nApp.initialState = {}\nApp.intent = ({ DOM }) => ({ GO: DOM.mouseenter('.more') })\nApp.model = { GO: (s) => s }"
+  },
+  "SYG731": {
+    "Star.jsx": "export default function Star({ state }) {\n  return <div><button type=\"button\" className={{ star: true, on: state.on }}>Star</button></div>\n}\nStar.initialState = { on: false, filter: 'all' }\nStar.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.star') })\nStar.model = { TOGGLE: (state) => ({ ...state, on: !state.on }) }\n"
+  }
+}

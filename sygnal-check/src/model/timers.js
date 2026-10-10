@@ -6,9 +6,10 @@
  *
  * analyzeTimers(project, file, node) → {
  *   known     every timer map was an object literal the checker could read
- *   specs     [{ name, nameNode, node, file, problem }]   one per literal spec (a name can have several:
+ *   specs     [{ name, nameNode, node, file, problem, problemNode }]   one per literal spec (a name can have several:
  *             `on ? { every: 100, ... } : { after: 0, ... }`); problem: why makeTimerDriver() can't run it
- *             ('' when it can, null when undecidable), worded as the runtime's SYG422
+ *             ('' when it can, null when undecidable), worded as the runtime's SYG422; problemNode: the
+             property with the wrong value, or the spec when it isn't an object (null otherwise)
  *   targets   [{ name, key, node, file, timer: true }]    the action names (`action`, `frame`) — reply
  *             actions the timer driver dispatches (SYG102 triggers, SYG112 names)
  *   dynamic   [{ node, file }]                            action names (or maps) it can't read
@@ -58,32 +59,43 @@ function alternatives(e, out = [], depth = 0) {
 
 /** Why a spec (an AST node) can't run: a problem string, '' when it can, null when undecidable. */
 export function specProblem(file, node) {
+  return specCheck(file, node).problem
+}
+
+/**
+ * specProblem() with the node the problem is about (PLAN-7 C-2): `at` is the property with the
+ * wrong value (`every: 0`, `action: 42`), the spec itself when it isn't an object, and null when
+ * the problem is a missing key (the caller underlines the timer's name instead).
+ */
+export function specCheck(file, node) {
   const text = (n) => file.source.slice(n.start, n.end)
+  const ok = (problem) => ({ problem, at: null })
   if (node.type !== 'ObjectExpression') {
     const v = literal(node)
-    if (!v.known || !v.value) return null   // falsy: the timer is stopped
-    return typeof v.value === 'object' ? null : 'is not an object ({ every, action }, { after, action } or { frame: action })'
+    if (!v.known || !v.value) return ok(null)   // falsy: the timer is stopped
+    return typeof v.value === 'object' ? ok(null) : { problem: 'is not an object ({ every, action }, { after, action } or { frame: action })', at: node }
   }
-  if (node.properties.some(p => p.type !== 'ObjectProperty')) return null   // spreads, methods
+  if (node.properties.some(p => p.type !== 'ObjectProperty')) return ok(null)   // spreads, methods
   const props = new Map()
   for (const p of node.properties) {
     const k = propName(p)
-    if (k == null) return null
-    props.set(k, p.value)
+    if (k == null) return ok(null)
+    props.set(k, p)
   }
-  const get = (k) => props.has(k) ? literal(props.get(k)) : { known: true, value: undefined }
+  const get = (k) => props.has(k) ? literal(props.get(k).value) : { known: true, value: undefined }
+  const bad = (problem, k) => ({ problem, at: props.get(k) || null })
   const frame = get('frame')
-  if (!frame.known) return null
-  if (frame.value) return typeof frame.value === 'string' ? '' : 'frame must be the action name (a string)'
+  if (!frame.known) return ok(null)
+  if (frame.value) return typeof frame.value === 'string' ? ok('') : bad('frame must be the action name (a string)', 'frame')
   const action = get('action')
-  if (!action.known) return null
-  if (!action.value || typeof action.value !== 'string') return 'has no action (a string)'
+  if (!action.known) return ok(null)
+  if (!action.value || typeof action.value !== 'string') return bad('has no action (a string)', 'action')
   const every = get('every'), after = get('after')
-  if (!every.known || !after.known) return null
-  if (every.value == null && after.value == null) return 'has neither every nor after'
-  if (every.value != null && after.value != null) return 'has both every and after'
-  if (every.value != null) return every.value > 0 && every.value < Infinity ? '' : `every must be a positive number of ms (got ${text(props.get('every'))})`
-  return after.value >= 0 && after.value < Infinity ? '' : `after must be a number of ms, 0 or more (got ${text(props.get('after'))})`
+  if (!every.known || !after.known) return ok(null)
+  if (every.value == null && after.value == null) return ok('has neither every nor after')
+  if (every.value != null && after.value != null) return ok('has both every and after')
+  if (every.value != null) return every.value > 0 && every.value < Infinity ? ok('') : bad(`every must be a positive number of ms (got ${text(props.get('every').value)})`, 'every')
+  return after.value >= 0 && after.value < Infinity ? ok('') : bad(`after must be a number of ms, 0 or more (got ${text(props.get('after').value)})`, 'after')
 }
 
 /** A literal spec's fields for the graph: { every?, after?, frame?, action?, background? } */
@@ -108,16 +120,20 @@ export function analyzeTimers(project, file, node, keys = null) {
   if (!r?.node) { res.known = false; res.dynamic.push({ node, file }); return res }
   const f = r.file
 
+  const spec = (name, nameNode, s, vfile) => {
+    const { problem, at } = keys ? { problem: '', at: null } : specCheck(vfile, s)
+    return { name, nameNode, node: s, file: vfile, problem, problemNode: at }
+  }
   const addSpec = (name, nameNode, value, vfile) => {
     for (const s of alternatives(value)) {
       if (s.type !== 'ObjectExpression') {
         const v = literal(s)
         if (v.known && !v.value) continue   // a stopped timer
         if (!v.known) { res.known = false; res.dynamic.push({ node: s, file: vfile }) }
-        res.specs.push({ name, nameNode, node: s, file: vfile, problem: keys ? '' : specProblem(vfile, s) })
+        res.specs.push(spec(name, nameNode, s, vfile))
         continue
       }
-      res.specs.push({ name, nameNode, node: s, file: vfile, problem: keys ? '' : specProblem(vfile, s) })
+      res.specs.push(spec(name, nameNode, s, vfile))
       for (const p of s.properties) {
         if (p.type === 'SpreadElement') { res.dynamic.push({ node: p, file: vfile }); continue }
         const k = propName(p)
@@ -135,7 +151,8 @@ export function analyzeTimers(project, file, node, keys = null) {
       const value = p.type === 'ObjectMethod' ? p : p.value
       if (!perTimerFunctions) { addSpec(name, p.key, value, ofile); continue }
       const fr = resolveExpr(project, ofile, value)
-      if (fr?.node && isFunction(fr.node)) returnedExpressions(fr.node).forEach(e => addSpec(name, p.key, e, fr.file))
+      // (nameNode only in the spec's own file: SYG422 locates findings with it)
+      if (fr?.node && isFunction(fr.node)) returnedExpressions(fr.node).forEach(e => addSpec(name, fr.file === ofile ? p.key : null, e, fr.file))
       else { res.known = false; res.dynamic.push({ node: value, file: ofile }) }
     }
   }
