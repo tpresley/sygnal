@@ -400,6 +400,8 @@ npm install -D sygnal-check
 npx --no-install sygnal-check
 ```
 
+Set up your editor to see the same findings as you type: see [Editor Setup](/integration/editors/) for VS Code, Claude Code, Neovim, Helix and others.
+
 Test components with `renderComponent()`, driving them with real DOM events:
 
 ```jsx
@@ -443,6 +445,7 @@ See [Diagnostics](/guide/diagnostics/) and [Testing](/integration/testing/).
 
 - **[Detailed Guide](/guide/architecture/)** — Deep dive into state management, collections, switchable components, custom drivers, context, and more.
 - **[API Reference](/reference/api/)** — Complete reference for all Sygnal exports and configuration options.
+- **[Editor Setup](/integration/editors/)** — `sygnal-check`'s findings, explanations and quick fixes in your editor.
 - **[Building with AI Agents](/integration/agents/)** — `llms.txt`, the `sygnal-check` tooling and MCP server for coding agents.
 - **[Examples](https://github.com/tpresley/sygnal/tree/main/examples)** — Working example applications.
 - **[Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc)** — Full TodoMVC implementation ([Live Demo](https://tpresley.github.io/sygnal-todomvc/)).

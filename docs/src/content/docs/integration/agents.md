@@ -1,6 +1,6 @@
 ---
 title: Building with AI Agents
-description: llms.txt, the sygnal-dev skill, sygnal-check, the MCP servers and inspect
+description: llms.txt, the Claude Code plugin and the sygnal-dev skill, sygnal-check, the MCP servers and inspect
 ---
 
 Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). Its goal is that an agent never has to guess: one reference that shows only the canonical forms, checks that turn silent wiring bugs into coded messages, and a graph of the app it can read instead of the source. Everything here is also useful without an agent.
@@ -8,7 +8,7 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 | Tool | What it gives the agent |
 |---|---|
 | [`llms.txt`](#llmstxt) | A compact reference of the canonical forms, in one file |
-| [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow |
+| [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow; installed by the Sygnal plugin |
 | [`sygnal-check`](#sygnal-check) | Static wiring checks, strict mode, `--fix`, the app graph, `explain` |
 | [MCP server](#mcp-server) | `check`, `graph` and `explain` as tools |
 | [Dev server MCP endpoint](#dev-server-mcp-endpoint) | The running app in the open page: state, actions, diagnostics, its agent tools |
@@ -33,7 +33,18 @@ Projects created with `create-sygnal-app` (without prompts: `npm create sygnal-a
 
 ## The sygnal-dev skill
 
-The repository's `skills/sygnal-dev/` folder is a Claude Code skill for building Sygnal apps. Copy the folder into your project's `.claude/skills/` (or `~/.claude/skills/` to use it in every project). Claude Code then loads it whenever it works on Sygnal code. The skill carries the workflow (scaffold, write, test, check, inspect) and points to `llms.txt` for the API.
+`sygnal-dev` is a Claude Code skill for building Sygnal apps: the workflow (scaffold, write, test, check, inspect) and the canonical forms, with `llms.txt` for the API. Claude Code loads it whenever it works on Sygnal code.
+
+**Install it with the Sygnal plugin** (upcoming: not released yet at the time of writing):
+
+```text
+/plugin marketplace add tpresley/sygnal
+/plugin install sygnal@sygnal
+```
+
+The plugin also runs sygnal-check's language server, so Claude sees the checker's findings after each edit without running it. That needs `sygnal-check` 0.4.0 or later in the project. See [Editor Setup](/integration/editors/#claude-code) for what it adds and how to turn the findings off.
+
+**Or copy it:** the repository's `skills/sygnal-dev/` folder goes into your project's `.claude/skills/` (or `~/.claude/skills/` for every project). Use this for other agents that read Claude-style skills, or on Windows without symbolic links in git (the plugin then installs without the skill).
 
 ## sygnal-check
 
@@ -69,7 +80,7 @@ To silence one finding, put `// sygnal-ignore SYG110` on the line or the line ab
 
 For apps that use `sygnal/ai`, it also checks the [`agent` static](/guide/agent/) (an action with no model entry SYG150, a misspelled `agents` / `tools` SYG151, duplicate names SYG440, Collection items without ids SYG441, inputs with no JSON Schema form SYG240 / SYG243), LLM requests without an `ok` action (SYG152) and a bare `toolname` on a `<form>` (SYG153), plus two accessibility rules for agents that read the page: hover-only actions (SYG730) and toggled state shown only by a class (SYG731). `--graph` lists the `agent` declarations.
 
-The [Vite plugin](/integration/bundler-config/#plugin-options) runs `sygnal-check` in the dev server when it is installed.
+The [Vite plugin](/integration/bundler-config/#plugin-options) runs `sygnal-check` in the dev server when it is installed, and [editors](/integration/editors/) show its findings as you type. All of them read the same [config file](/integration/editors/#the-config-file).
 
 ## MCP server
 
