@@ -5,7 +5,7 @@
 #   $1/fixture-missing  the same fixture with no package.json and no node_modules (runs 2 and 3)
 # Then: cp -R "$1/fixture-base" "$1/fx1" && sh run1.sh "$1/fx1" "$1/run1"   (a fresh copy per run)
 set -e
-repo=/Users/troy/Documents/Displera/sygnal/.claude/worktrees/agent-a736a514fd884b7dd
+repo=/Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnal-ide-plugins-research-4d5a79
 mkdir -p "$1/pack" "$1/fixture-base" "$1/fixture-missing"
 npm pack "$repo/sygnal-check" --pack-destination "$1/pack"
 cp -R "$repo/dev-plans/research/ide-tooling-poc/fixture/." "$1/fixture-base/"
