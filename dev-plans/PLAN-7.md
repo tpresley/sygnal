@@ -4,7 +4,7 @@
 
 **Release (D297):** **sygnal-check 0.4.0** (additive: the `lsp` subcommand, the shared config file, end ranges); **create-sygnal-app 2.2.0** (templates recommend the extension and carry the config); the VS Code extension **0.1.0** on its own version line. `sygnal` itself changes only if P7-Q3 has the Vite plugin read the shared config: a patch, **6.1.1**. P7-Q1.
 
-**Status:** planned, not started; §5's questions answered (D297–D304, 2026-10-10). The research and the decision to build it: [`research/ide-tooling.md`](research/ide-tooling.md) (the user agreed with its recommendations on 2026-10-10). Phase 0 cuts `plan7-integration` from `main` and creates `dev-plans/PLAN-7-status.md` in the PLAN-6 format.
+**Status:** Phase 0 complete (2026-10-10); §5's questions answered (D297–D304); 0-S2's findings amend L-1, V-1, I-1 and E-1 (D305–D308). Tracker: [`PLAN-7-status.md`](PLAN-7-status.md). The research and the decision to build it: [`research/ide-tooling.md`](research/ide-tooling.md) (the user agreed with its recommendations on 2026-10-10). Phase 0 cuts `plan7-integration` from `main` and creates `dev-plans/PLAN-7-status.md` in the PLAN-6 format.
 
 **Branches:**
 - integration: `plan7-integration`;
@@ -91,14 +91,18 @@ All in `sygnal-check/`, each item tested on its own, released with L-1.
 
 **L-1 `sygnal-check lsp`** (P1)
 - **Transport:** stdio, `Content-Length` framing, JSON-RPC 2.0. Hand-written in `src/lsp/` (protocol, document store, server), exported as `createLspServer()` for tests and run from `bin/` like `mcp`.
-- **Lifecycle:** `initialize` (workspace folders, client capabilities, `initializationOptions` for settings), `initialized`, `shutdown`, `exit`, `$/cancelRequest` (cancels a pending check), `workspace/didChangeConfiguration`, `workspace/didChangeWatchedFiles` (re-check when a file changes on disk, a branch switch, a config change).
+- **Lifecycle:** `initialize` (workspace folders, client capabilities, `initializationOptions` for settings), `initialized`, `shutdown`, `exit`, `$/cancelRequest` (cancels a pending check; a cancelled request is answered with `-32800`), `workspace/didChangeConfiguration`, `workspace/didChangeWatchedFiles` (re-check when a file changes on disk, a branch switch, a config change). From 0-S2 (D305–D306):
+  - read `workspaceFolders` even when the client advertises `workspaceFolders: false` (Claude Code sends one folder anyway); multi-root otherwise as below;
+  - register `workspace/didChangeWatchedFiles` and `workspace/didChangeConfiguration` **dynamically** when the client allows it (VS Code sends neither without registration); after any `didChangeConfiguration`, request `workspace/configuration` per folder again and ignore the notification's payload (VS Code's is window-scoped);
+  - without watchers (Claude Code; Neovim on Linux), rely on `didSave` and re-read from disk;
+  - exit when stdin ends, without waiting for `exit` (Claude Code sends `shutdown` and never `exit`); ignore unknown `$/` notifications (VS Code sends `$/setTrace` repeatedly).
 - **Documents:** full sync first (`TextDocumentSyncKind.Full`); incremental sync only if profiling shows the copying matters (it didn't in the PoC).
-- **Checking:** one project per workspace folder (multi-root works, and a folder without Sygnal components produces nothing). Debounced (≈150 ms) whole-project check on change, using C-1 overlays and the C-3 cache. Results are published for every file with findings, and cleared for files that no longer have any.
+- **Checking:** one project per workspace folder (multi-root works, and a folder without Sygnal components produces nothing). Whole-project check using C-1 overlays and the C-3 cache: **immediately on `didSave`**, debounced (≈150 ms) only for `didChange` without a save (D306: Claude Code sends `didSave` with every edit and builds its next model request ≈ 10 ms after the tool result, without waiting for the server). Publish **only the files whose findings changed**, plus an empty list for files that cleared; sort each file's findings by severity (Claude Code delivers at most 10 per file, errors first). The check runs off the request path (G-657).
 - **Diagnostics:** `range` from C-2, `severity` mapped (error → Error, warn → Warning, info → Information, shown only if `verbose` is set, as in the CLI), `code` + `codeDescription.href` (the docs URL), `source: 'sygnal'`, the component name and the fix text in the message (as the CLI prints them), `data` carrying the fix edits.
 - **Hover:** on a finding, the `explain` text (title, explanation, fix, docs link), as in the PoC.
-- **Code actions:** quick fixes from C-4 (`isPreferred` for a single unambiguous suggestion); `source.fixAll.sygnal` applies every mechanical fix in the file (what `--fix` does for it); a "Suppress SYGnnn on this line" action that writes the checker's existing suppression comment (`// sygnal-ignore-next-line SYG110`, or `{/* … */}` inside JSX).
-- **Pull diagnostics** (`textDocument/diagnostic`, LSP 3.17) as well as push, because some clients prefer it. Same results.
-- **Robustness:** a rule that throws produces SYG900 for that file (as today) and never kills the server; a parse error in the file being edited keeps the *other* files' findings and drops only the stale ones for that file; requests are answered in order of arrival; the server logs to stderr / `window/logMessage` only at the configured level.
+- **Code actions:** answer the frequent automatic requests (`triggerKind: 2`) fast, with `[]` when nothing applies, and honour `only: ['source.fixAll']`. Quick fixes from C-4 (`isPreferred` for a single unambiguous suggestion); `source.fixAll.sygnal` applies every mechanical fix in the file (what `--fix` does for it); a "Suppress SYGnnn on this line" action that writes the checker's existing suppression comment (`// sygnal-ignore-next-line SYG110`, or `{/* … */}` inside JSX).
+- **Push diagnostics only** in 0.4.0 (D305). 0-S2: VS Code shows every finding twice when a server offers both push and pull, and pull alone covers only open documents, which loses the cross-file findings; Claude Code has no pull. Pull (with `workspace/diagnostic`) can come later as an explicit opt-in that turns push off.
+- **Robustness:** a rule that throws produces SYG900 for that file (as today) and never kills the server; a parse error in the file being edited keeps the *other* files' findings and that file's last good findings, unchanged, until it parses again (§6); requests are answered in order of arrival; the server logs to stderr / `window/logMessage` only at the configured level.
 - **Settings:** `sygnal.strict`, `sygnal.a11y`, `sygnal.ignore`, `sygnal.paths`, `sygnal.verbose`, `sygnal.trace.server`. Editor settings override the C-5 config file, but the extension's defaults are "unset", so by default the file decides.
 
 **L-2 Tests** (P1, with L-1)
@@ -114,7 +118,7 @@ All in `sygnal-check/`, each item tested on its own, released with L-1.
 - **Finding the server:** the workspace's own `node_modules/sygnal-check` first (the same version as the project's CLI and CI, the way the ESLint extension uses the workspace's ESLint). Fallback: a copy bundled with the extension, with a status-bar note "using the bundled sygnal-check 0.4.x". If the workspace copy is older than 0.4 (no `lsp`), say so once and offer the bundled one (P7-Q5).
 - **Activation:** on a workspace containing a `package.json` that depends on `sygnal`, or on `sygnal-check.config.json`; languages `javascript`, `javascriptreact`, `typescript`, `typescriptreact`.
 - **Commands:** "Sygnal: Restart Server", "Sygnal: Show Output", "Sygnal: Explain Code…" (a picker over `explain`), "Sygnal: Fix All in File".
-- **Settings:** the L-1 settings, contributed with descriptions and enums.
+- **Settings:** the L-1 settings, contributed with descriptions and enums, every one with `"scope": "resource"` (0-S2: otherwise VS Code ignores folder-level values).
 - **Snippets:** a component skeleton (view, `intent`, `model`, `initialState`) in JS and TS canonical forms, generated from `PLAN-1-canonical-forms.md`'s forms and checked by `sygnal-check --strict` in a test, so they can't drift.
 - **Tests:** `@vscode/test-electron` smoke test (activate on a fixture, get the three findings, apply a quick fix). Runs in CI, not in `npm test` (it downloads VS Code), like `test:recipes`.
 - **Publishing:** VS Code Marketplace and Open VSX (for VSCodium, Cursor, Windsurf and similar). The publisher accounts and tokens are the user's (P7-Q4); RELEASING.md gets a section.
@@ -124,10 +128,16 @@ All in `sygnal-check/`, each item tested on its own, released with L-1.
 **I-1 Claude Code plugin** (P1)
 - A plugin in the repository (`editors/claude-code/` with `.claude-plugin/plugin.json`) and a marketplace file (`.claude-plugin/marketplace.json` at the root, so `/plugin marketplace add tpresley/sygnal` works).
 - Contents:
-  - `lspServers`: `sygnal` → `npx --no-install sygnal-check lsp`, mapping `.js .jsx .ts .tsx`;
+  - `lspServers` **inline in `plugin.json`** (0-S2: `claude plugin validate` doesn't read `.lsp.json`): `sygnal` → `npx --no-install sygnal-check lsp`, mapping `.js .jsx .ts .tsx`, with `"settings": {}` so the server gets a `workspace/configuration` channel (D307);
   - the **`sygnal-dev` skill**, which today users have to copy into `.claude/skills/` by hand (`integration/agents.md`). One install now gives the skill and the editor diagnostics;
   - **not** the MCP server by default (E8: unprompted use was shallow, and the CLI covers it). It stays one documented line to add.
-- Verify, in Phase 0 (0-S2), how the current Claude Code release surfaces plugin LSP diagnostics: after each edit, as a tool, or both; whether an environment flag is still needed. The plan's E-1 design depends on it.
+- How Claude Code 2.1.287 delivers diagnostics (0-S2, [`research/p7-spikes/0-S2.md`](research/p7-spikes/0-S2.md)). No flag is needed. The server starts at the first Edit/Write of a mapped file. Published findings go into a pending registry and reach the model as a `<new-diagnostics>` system reminder with the *next* request after a tool result: not in the tool result, and not through the `LSP` tool, which the model never called.
+  - Each identical finding (message, severity, range, source, code) is delivered **once per session**.
+  - At most 10 per file and 30 per attachment.
+  - Findings for files the agent never touched are delivered too.
+  - `codeDescription`, `relatedInformation` and `data` are dropped, and there are no code actions.
+- So **messages must stand on their own** (D307): the component, the problem and the fix in the text, as the CLI already prints them. Nothing the model needs can live in the docs link or in `data`.
+- G-658 (open): in two runs, a finding left in the edited file after the agent's last edit was never delivered. Settle it with one `--debug-file` run (≈ $0.03) in Phase 2, before E-1.
 
 **I-2 Other editors** (P2, docs-first)
 - Documented setups, each tested once by hand and recorded in the status file:
@@ -174,10 +184,10 @@ The plugin differs in one way: findings arrive *without the agent choosing to lo
 
 **Hypothesis:** with the plugin, agents on smaller models introduce and keep fewer wiring bugs while *writing* features (not only on planted-bug debug tasks), so they need fewer failed test runs and iterations.
 
-**Harness work:**
-- a `plugins` variant field (a plugin directory installed for the Sygnal arm only, with the same isolation guarantees as `mcp`: `--setting-sources project,local` and nothing from the user's settings);
-- recorded in the variant hash;
-- a transcript counter for LSP diagnostic events.
+**Harness work** (D308, from 0-S2):
+- a `plugins` variant field (a plugin directory passed with `--plugin-dir` for the Sygnal arm only; `--setting-sources project,local` isolates it correctly, and no flag is needed), recorded in the variant hash;
+- a counter for diagnostics attachments read from the **stored session file** (`~/.claude/projects/<slug>/<session>.jsonl`), since the stream-json transcript never shows them; it records each finding's code, file, and whether it arrived **before the agent's last edit** (only those can change the outcome);
+- task starters that are clean under `sygnal-check --strict`, so the plugin arm doesn't mostly measure findings in files the agent never touches (they are delivered too).
 
 **What runs:** variant `e1-lsp` (`p6-final` + the plugin) against `p6-final`, on **Haiku and Sonnet**:
 - the tier-1 feature tasks;
@@ -278,9 +288,9 @@ The user accepted every recommendation on 2026-10-10 (D297–D304); 0-A copies t
 |---|---|
 | Ranges are wrong or too wide, so squiggles look sloppy | 0-S1's audit per rule; a range snapshot test per rule fixture (C-2) |
 | Whole-project checks get slow on large apps | C-3 parse cache; the latency gate on a generated 20k-line project; if a real app exceeds it, scope the rules that are per-component to the changed files' components (incremental rules are a later item, not built speculatively) |
-| Mid-edit, unparseable files cause flicker (findings vanish and reappear) | Keep the last good findings for a file whose new text doesn't parse, marked stale, until it parses again; the fuzz gate |
+| Mid-edit, unparseable files cause flicker (findings vanish and reappear) | Keep the last good findings for a file whose new text doesn't parse, **unchanged** (no "stale" marker in the message: Claude Code would deliver the changed text as a new finding), until it parses again. 0-S3: every syntax-breaking edit fails to parse, so this is the normal path, not an edge case. The fuzz gate |
 | The editor and CI disagree | One rules source; the parity gate; the shared config (P7-Q3); the extension prefers the workspace's `sygnal-check` (P7-Q5) |
-| Claude Code's plugin LSP support changes or needs a flag | 0-S2 records the current behaviour; I-1 is a manifest, cheap to adjust; the plugin's skill works without the LSP |
+| Claude Code's plugin LSP support changes or needs a flag | 0-S2 recorded 2.1.287's behaviour (no flag; delivery as a system reminder after the next tool result); recheck at each phase start; I-1 is a manifest, cheap to adjust; the plugin's skill works without the LSP |
 | False positives become more visible in the editor than in the CLI | Info stays hidden by default (as in the CLI); the suppress action; findings that fall back to info today (dynamic classes, spreads) stay info |
 | Two new release channels (Marketplace, Open VSX) add maintenance | The extension is a thin client: its version moves only for client changes; the rules ship through npm with `sygnal-check`; a RELEASING.md section with the exact steps |
-| Agents get noise from diagnostics on half-written code | E-1 measures it; the debounce; Claude Code delivers diagnostics after an edit, not per keystroke; if it hurts, the plugin ships without `lspServers` for agents |
+| Agents get noise from diagnostics on half-written code, or on files they never touched (0-S2: Claude Code delivers those too) | E-1 measures it on clean starters; each identical finding is delivered once per session; Claude Code delivers after an edit, not per keystroke; if it hurts, the plugin sets `diagnostics: false` or ships without `lspServers` for agents |
