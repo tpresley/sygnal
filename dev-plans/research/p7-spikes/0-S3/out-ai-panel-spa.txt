@@ -1,0 +1,94 @@
+# examples/ai-panel-spa/src: 13 files, 5 components, model built in 30 ms
+
+## RootComponent  (examples/ai-panel-spa/src/RootComponent.jsx)
+  REQUEST_SUCCESS
+    intent  examples/ai-panel-spa/src/RootComponent.jsx:112:3-18
+    model   examples/ai-panel-spa/src/RootComponent.jsx:186:3-18
+  REQUEST_ERROR
+    intent  examples/ai-panel-spa/src/RootComponent.jsx:113:3-16
+    model   examples/ai-panel-spa/src/RootComponent.jsx:420:3-16
+  REQUEST_MODERATOR_TURN
+    model   examples/ai-panel-spa/src/RootComponent.jsx:117:3-25
+    next    examples/ai-panel-spa/src/RootComponent.jsx:199:15-37
+    next    examples/ai-panel-spa/src/RootComponent.jsx:318:17-39
+  REQUEST_PANELIST_TURN
+    model   examples/ai-panel-spa/src/RootComponent.jsx:130:3-24
+    next    examples/ai-panel-spa/src/RootComponent.jsx:257:15-36
+    next    examples/ai-panel-spa/src/RootComponent.jsx:300:19-40
+    next    examples/ai-panel-spa/src/RootComponent.jsx:378:15-36
+  REQUEST_FOLLOW_UP_MODERATOR
+    model   examples/ai-panel-spa/src/RootComponent.jsx:142:3-30
+    next    examples/ai-panel-spa/src/RootComponent.jsx:293:19-46
+    next    examples/ai-panel-spa/src/RootComponent.jsx:311:19-46
+  GENERATE_SESSION_TITLE
+    model   examples/ai-panel-spa/src/RootComponent.jsx:158:3-25
+    next    examples/ai-panel-spa/src/RootComponent.jsx:241:17-39
+    next    examples/ai-panel-spa/src/RootComponent.jsx:361:17-39
+  SAVE_SESSION_HISTORY
+    model   examples/ai-panel-spa/src/RootComponent.jsx:166:3-23
+    next    examples/ai-panel-spa/src/RootComponent.jsx:408:13-33
+    next    examples/ai-panel-spa/src/RootComponent.jsx:433:13-33
+
+## DebugLogDrawer  (examples/ai-panel-spa/src/components/DebugLogDrawer.jsx)
+  TOGGLE_DEBUG
+    intent  examples/ai-panel-spa/src/components/DebugLogDrawer.jsx:30:3-15
+    model   examples/ai-panel-spa/src/components/DebugLogDrawer.jsx:34:3-15
+
+## HistoryDrawer  (examples/ai-panel-spa/src/components/HistoryDrawer.jsx)
+  TOGGLE_HISTORY
+    intent  examples/ai-panel-spa/src/components/HistoryDrawer.jsx:63:3-17
+    model   examples/ai-panel-spa/src/components/HistoryDrawer.jsx:75:3-17
+  OPEN_HISTORY_SESSION
+    intent  examples/ai-panel-spa/src/components/HistoryDrawer.jsx:64:3-23
+    model   examples/ai-panel-spa/src/components/HistoryDrawer.jsx:81:3-23
+  DELETE_HISTORY_SESSION
+    intent  examples/ai-panel-spa/src/components/HistoryDrawer.jsx:65:3-25
+    model   examples/ai-panel-spa/src/components/HistoryDrawer.jsx:107:3-25
+  HYDRATE_HISTORY_SESSIONS
+    intent  examples/ai-panel-spa/src/components/HistoryDrawer.jsx:66:3-27
+    model   examples/ai-panel-spa/src/components/HistoryDrawer.jsx:70:3-27
+
+## SetupCard  (examples/ai-panel-spa/src/components/SetupCard.jsx)
+  HYDRATE_API_KEY
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:76:3-18
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:85:3-18
+  HYDRATE_MODEL
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:77:3-16
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:90:3-16
+  SET_API_KEY
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:78:3-14
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:95:3-14
+  SET_MODEL
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:79:3-12
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:100:3-12
+  SET_TOPIC
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:80:3-12
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:105:3-12
+  TOGGLE_DISCUSSION
+    intent  examples/ai-panel-spa/src/components/SetupCard.jsx:81:3-20
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:107:3-20
+  RUN_ANALYSIS
+    model   examples/ai-panel-spa/src/components/SetupCard.jsx:185:3-15
+    next    examples/ai-panel-spa/src/components/SetupCard.jsx:163:13-25
+
+## TranscriptCard  (examples/ai-panel-spa/src/components/TranscriptCard.jsx)
+  COPY_TRANSCRIPT
+    intent  examples/ai-panel-spa/src/components/TranscriptCard.jsx:184:3-18
+    model   examples/ai-panel-spa/src/components/TranscriptCard.jsx:232:3-18
+  SET_FOLLOW_UP_INPUT
+    intent  examples/ai-panel-spa/src/components/TranscriptCard.jsx:185:3-22
+    model   examples/ai-panel-spa/src/components/TranscriptCard.jsx:247:3-22
+  SUBMIT_FOLLOW_UP
+    intent  examples/ai-panel-spa/src/components/TranscriptCard.jsx:186:3-19
+    model   examples/ai-panel-spa/src/components/TranscriptCard.jsx:251:3-19
+  SUBMIT_FOLLOW_UP_ENTER
+    intent  examples/ai-panel-spa/src/components/TranscriptCard.jsx:187:3-25
+    model   examples/ai-panel-spa/src/components/TranscriptCard.jsx:252:3-25
+  CLEAR_COPY_TRANSCRIPT_SUCCESS
+    model   examples/ai-panel-spa/src/components/TranscriptCard.jsx:243:3-32
+    next    examples/ai-panel-spa/src/components/TranscriptCard.jsx:234:13-42
+  REQUEST_FOLLOW_UP_MODERATOR
+    next    examples/ai-panel-spa/src/components/TranscriptCard.jsx:204:9-36
+
+# totals: 25 actions, 55 occurrences, 0 without a position
+# not locatable with the current model: none
