@@ -1,0 +1,171 @@
+=== 01-open-C.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>
+    3  }
+    4  Counter.initialState = { count: 0 }
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }
+    7  export default Counter
+ NOR   src/C.jsx                                                                                                                                                                        ● 3  1 sel  1:1
+Loaded 1 file.
+=== 02-cursor-on-SYG110.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>             Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action
+    3  }                                                                                                                             never fires (did you mean '.inc'? The view renders className="inc")
+    4  Counter.initialState = { count: 0 }                                                                                                                                                      (SYG110)
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }
+    7  export default Counter
+ NOR   src/C.jsx                                                                                                                                                                       ● 3  1 sel  5:56
+=== 03-hover-SYG110.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>             Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action
+    3  }                                                                                                                             never fires (did you mean '.inc'? The view renders className="inc")
+    4  Counter.initialState = { count: 0 }                                                                                                                                                      (SYG110)
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, cou
+    7  export default Counter                                  SYG110: Intent selector not present in the component view
+                                                               A class or id selector used in the intent (DOM.select('.x'), DOM.click('.x'), ...) is never rendered by the
+                                                               component's own view, nor by JSX passed into it as children/slots, so the action never fires. For a control
+                                                               (DOM.click(Add)), the view never renders <Add>. It is reported as info instead of warn when a dynamic className/id in
+                                                               the view might produce the name, or when the selector itself is not a static string and could not be checked.
+                                                               Fix: Fix the selector to match the view, or add the class/id to the element, e.g. className="x"; use a string literal
+                                                               (or module-level const) selector so it can be checked. For a control, render it in the view (<Add>Add</Add>) or listen
+                                                               to a control the view does render.
+                                                               Docs
+ NOR   src/C.jsx                                                                                                                                                                       ● 3  1 sel  5:56
+=== 04-diagnostics-picker.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>             Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action
+    3  }  ┌────────────────────────────────────────────────────────────────────────────────────────┐┌────────────────────────────────────────────────────────────────────────────────────────┐ame="inc")
+    4  Cou│                                                                                    3/3 ││ function Counter({ state }) {                                                          │  (SYG110)
+●   5  Cou│────────────────────────────────────────────────────────────────────────────────────────││   return <div><button className="inc">+</button><span>{state.count}</span></div>       │
+●   6  Cou│   severity source code   message                                                       ││ }                                                                                      │
+    7  exp│ > WARN     sygnal SYG101 Counter: intent action 'INCREMENT' has no model entry, so it d││ Counter.initialState = { count: 0 }                                                    │
+    ~     │   WARN     sygnal SYG110 Counter: selector '.incc' targets .incc, but Counter's view ne││ Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })                      │
+          │   WARN     sygnal SYG102 Counter: model entry 'INCREMNT' is never triggered: no intent ││ Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }        │
+          │                                                                                        ││ export default Counter                                                                 │
+          └────────────────────────────────────────────────────────────────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
+ NOR   src/C.jsx                                                                                                                                                                       ● 3  1 sel  5:56
+=== 05-code-actions-SYG110.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>             Counter: selector '.incc' targets .incc, but Counter's view never renders that class, so this action
+    3  }                                                                                                                             never fires (did you mean '.inc'? The view renders className="inc")
+    4  Counter.initialState = { count: 0 }                                                                                                                                                      (SYG110)
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, cou Change '.incc' to '.inc'
+    7  export default Counter                                  Suppress SYG110 on this line
+ NOR   src/C.jsx                                                                                                                                                                       ● 3  1 sel  5:56
+=== 07-code-actions-SYG102.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>              Counter: model entry 'INCREMNT' is never triggered: no intent action, built-in action, reply action
+    3  }                                                                                            (ok/error), agent action or next('INCREMNT') call uses it (add 'INCREMNT' to Counter.intent, name it
+    4  Counter.initialState = { count: 0 }                                                                        in a request (ok: 'INCREMNT'), call next('INCREMNT') from another entry, or remove it)
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.inc') })                                                                                                                         (SYG102)
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }
+    7  export default Coun Suppress SYG102 on this line
+    ~                      Remove the unreachable entry 'INCREMNT'
+ NOR   src/C.jsx                                                                                                                                                                       ● 2  1 sel  6:20
+=== 09-workspace-diagnostics.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>
+    3  }  ┌────────────────────────────────────────────────────────────────────────────────────────┐┌────────────────────────────────────────────────────────────────────────────────────────┐
+    4  Cou│                                                                                  10/10 ││ function Counter({ state }: any) {                                                     │
+●   5  Cou│────────────────────────────────────────────────────────────────────────────────────────││   return <div><button className="inc">+</button><span>{state.count}</span></div>       │
+    6  // │   severity source code   path    message                                               ││ }                                                                                      │
+    7  Cou│ > WARN     sygnal SYG101 s/A.tsx Counter: intent action 'INCREMENT' has no model entry,││ Counter.initialState = { count: 0 }                                                    │
+    8  exp│   WARN     sygnal SYG110 s/A.tsx Counter: selector '.incc' targets .incc, but Counter's││ Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })                      │
+    ~     │   WARN     sygnal SYG102 s/A.tsx Counter: model entry 'INCREMNT' is never triggered: no││ Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }        │
+          │   WARN     sygnal SYG101 s/B.tsx Counter: intent action 'INCREMENT' has no model entry,││ export default Counter                                                                 │
+          │   WARN     sygnal SYG110 s/B.tsx Counter: selector '.incc' targets .incc, but Counter's││                                                                                        │
+          │   WARN     sygnal SYG102 s/B.tsx Counter: model entry 'INCREMNT' is never triggered: no││                                                                                        │
+          │   WARN     sygnal SYG101 s/C.jsx Counter: intent action 'INCREMENT' has no model entry,││                                                                                        │
+          │   WARN     sygnal SYG505 s/E.jsx Emitter: model entry 'GO' uses emit() (use the object ││                                                                                        │
+          │   WARN     sygnal SYG105 s/E.jsx Emitter: EVENTS type 'WENT' is emitted but nothing in ││                                                                                        │
+          │   WARN     sygnal SYG105 s/F.jsx Listener: EVENTS.select('WENTT') but nothing in the sc││                                                                                        │
+          └────────────────────────────────────────────────────────────────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
+ NOR   src/C.jsx                                                                                                                                                                       ● 1  1 sel  7:20
+=== 10-E-cursor-on-SYG105.txt
+    1  import { emit } from 'sygnal'
+    2  function Emitter({ state }) {                                                                             Emitter: model entry 'GO' uses emit() (use the object form with event(): `GO: { EVENTS:
+    3    return <button className="go">{state.n}</button>                                                                                                          event('WENT', (state) => state.n) }`)
+    4  }                                                                                                                                                                                        (SYG505)
+    5  Emitter.initialState = { n: 0 }                                                                   Emitter: EVENTS type 'WENT' is emitted but nothing in the scanned files selects it (listen with
+    6  Emitter.intent = ({ DOM }) => ({ GO: DOM.click('.go') })                                                        EVENTS.select('WENT') in the receiving component's intent, or fix the event name)
+●   7  Emitter.model = { GO: emit('WENT', (state) => state.n) }                                                                                                                                 (SYG105)
+    8  export default Emitter
+ NOR   src/E.jsx                                                                                                                                                                       ● 2  1 sel  7:29
+=== 11-E-hover-SYG105.txt
+    1  import { emit } from 'sygnal'
+    2  function Emitter({ state }) {                                                                             Emitter: model entry 'GO' uses emit() (use the object form with event(): `GO: { EVENTS:
+    3    return <button className="go">{state.n}</button>                                                                                                          event('WENT', (state) => state.n) }`)
+    4  }                                                                                                                                                                                        (SYG505)
+    5  Emitter.initialState = { n: 0 }                                                                   Emitter: EVENTS type 'WENT' is emitted but nothing in the scanned files selects it (listen with
+    6  Emitter.intent = ({ DOM }) => ({ GO: DOM.click('.go') })                                                        EVENTS.select('WENT') in the receiving component's intent, or fix the event name)
+●   7  Emitter.model = { GO: emit('WENT', (state) => state.n) }                                                                                                                                 (SYG105)
+    8  export default Emitter                                                                                                                             ▐
+    ~                               SYG505: Non-canonical EVENTS emit                                                                                     ▐
+                                                                                                                                                          ▐
+                                    Strict mode only (sygnal-check --strict). A model entry emits a global event with emit('TYPE', fn) (as the whole entry▐
+                                    or spread into the object form), or its EVENTS sink builds the { type: 'TYPE', data } object by hand. The canonical   ▐
+                                    form is an EVENTS sink using event() inside the object form. --fix rewrites the common cases and adds the event       ▐
+                                    import.                                                                                                               ▐
+                                                                                                                                                          ▐
+                                    Fix: Use ACTION: { EVENTS: event('TYPE', (state, data) => payload) }.                                                 ▐
+                                                                                                                                                          ▐
+                                    Docs                                                                                                                  ▐
+                                                                                                                                                          ▐
+                                    ───                                                                                                                   ▐
+                                                                                                                                                          ▐
+                                    SYG105: EVENTS type selected but never emitted, or emitted but never selected                                         ▐
+                                                                                                                                                          ▐
+                                    An EVENTS bus type is emitted with nothing selecting it, or selected with EVENTS.select(type) but never emitted. The  ▐
+                                    bus is a broadcast, so an event that nobody has subscribed to when it is emitted is dropped; a mismatched name usually▐
+                                    means a typo. At runtime the emitted-not-selected case is reported when the event is emitted, while                   ▐
+                                    selected-not-emitted is only reported on demand via checkEventBus() (inspect/test helpers); EVENTS.select() with no   ▐
+                                    type counts as selecting everything. The static checker compares string-literal types across the scanned files and    ▐
+                                    reports warn, or info when non-literal emits/selects exist.                                                           ▐
+                                                                                                                                                          ▐
+                                    Fix: Make the names match: emit from a model entry, e.g. { EVENTS: event('TYPE', data) }, and subscribe with          ▐
+                                    EVENTS.select('TYPE') in the receiving component's intent.                                                            ▐
+                                                                                                                                                          ▐
+ NOR   src/E.jsx                                                                                                                                                                       ● 2  1 sel  7:29
+=== 02-open-a-b-C.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>
+    3  }
+    4  Counter.initialState = { count: 0 }
+●   5  Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })
+●   6  Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }
+    7  export default Counter
+ NOR   a-b/src/C.jsx                                                                                                                                                                    ● 3  1 sel  1:1
+=== 03-workspace-diagnostics.txt
+    1  function Counter({ state }) {
+    2    return <div><button className="inc">+</button><span>{state.count}</span></div>
+    3  }  ┌────────────────────────────────────────────────────────────────────────────────────────┐┌────────────────────────────────────────────────────────────────────────────────────────┐
+    4  Cou│                                                                                  21/21 ││ function Counter({ state }: any) {                                                     │
+●   5  Cou│────────────────────────────────────────────────────────────────────────────────────────││   return <div><button className="inc">+</button><span>{state.count}</span></div>       │
+●   6  Cou│   severity source code   path      message                                             ││ }                                                                                      │
+    7  exp│ > WARN     sygnal SYG101 a/s/A.tsx Counter: intent action 'INCREMENT' has no model entr││ Counter.initialState = { count: 0 }                                                    │
+    ~     │   WARN     sygnal SYG110 a/s/A.tsx Counter: selector '.incc' targets .incc, but Counter││ Counter.intent = ({ DOM }) => ({ INCREMENT: DOM.click('.incc') })                      │
+          │   WARN     sygnal SYG102 a/s/A.tsx Counter: model entry 'INCREMNT' is never triggered: ││ Counter.model = { INCREMNT: (state) => ({ ...state, count: state.count + 1 }) }        │
+          │   WARN     sygnal SYG101 a/s/B.tsx Counter: intent action 'INCREMENT' has no model entr││ export default Counter                                                                 │
+          │   WARN     sygnal SYG110 a/s/B.tsx Counter: selector '.incc' targets .incc, but Counter││                                                                                        │
+          │   WARN     sygnal SYG102 a/s/B.tsx Counter: model entry 'INCREMNT' is never triggered: ││                                                                                        │
+          │   WARN     sygnal SYG101 a/s/C.jsx Counter: intent action 'INCREMENT' has no model entr││                                                                                        │
+          │   WARN     sygnal SYG110 a/s/C.jsx Counter: selector '.incc' targets .incc, but Counter││                                                                                        │
+          │   WARN     sygnal SYG102 a/s/C.jsx Counter: model entry 'INCREMNT' is never triggered: ││                                                                                        │
+          │   WARN     sygnal SYG505 a/s/E.jsx Emitter: model entry 'GO' uses emit() (use the objec││                                                                                        │
+          │   WARN     sygnal SYG105 a/s/E.jsx Emitter: EVENTS type 'WENT' is emitted but nothing i││                                                                                        │
+          │   WARN     sygnal SYG105 a/s/F.jsx Listener: EVENTS.select('WENTT') but nothing in the ││                                                                                        │
+          │   WARN     sygnal SYG101 a/s/A.tsx Counter: intent action 'INCREMENT' has no model entr││                                                                                        │
+          │   WARN     sygnal SYG110 a/s/A.tsx Counter: selector '.incc' targets .incc, but Counter││                                                                                        │
+          │   WARN     sygnal SYG102 a/s/A.tsx Counter: model entry 'INCREMNT' is never triggered: ││                                                                                        │
+          │   WARN     sygnal SYG101 a/s/B.tsx Counter: intent action 'INCREMENT' has no model entr││                                                                                        │
+          │   WARN     sygnal SYG110 a/s/B.tsx Counter: selector '.incc' targets .incc, but Counter││                                                                                        │
+          │   WARN     sygnal SYG102 a/s/B.tsx Counter: model entry 'INCREMNT' is never triggered: ││                                                                                        │
+          │   WARN     sygnal SYG101 a/s/C.jsx Counter: intent action 'INCREMENT' has no model entr││                                                                                        │
+          │   WARN     sygnal SYG110 a/s/C.jsx Counter: selector '.incc' targets .incc, but Counter││                                                                                        │
+          │   WARN     sygnal SYG102 a/s/C.jsx Counter: model entry 'INCREMNT' is never triggered: ││                                                                                        │
+          └────────────────────────────────────────────────────────────────────────────────────────┘└────────────────────────────────────────────────────────────────────────────────────────┘
+ NOR   a-b/src/C.jsx                                                                                                                                                                    ● 3  1 sel  1:1

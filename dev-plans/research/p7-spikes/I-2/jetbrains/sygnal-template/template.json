@@ -1,0 +1,14 @@
+{
+  "id": "sygnal-check",
+  "name": "Sygnal",
+  "programArgs": {
+    "windows": "cmd /C npx --no-install sygnal-check lsp",
+    "default": "sh -c \"npx --no-install sygnal-check lsp\""
+  },
+  "fileTypeMappings": [
+    { "fileType": { "patterns": ["*.js", "*.mjs", "*.cjs"] }, "languageId": "javascript" },
+    { "fileType": { "patterns": ["*.jsx"] }, "languageId": "javascriptreact" },
+    { "fileType": { "patterns": ["*.ts", "*.mts", "*.cts"] }, "languageId": "typescript" },
+    { "fileType": { "patterns": ["*.tsx"] }, "languageId": "typescriptreact" }
+  ]
+}
