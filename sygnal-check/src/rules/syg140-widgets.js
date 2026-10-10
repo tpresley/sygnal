@@ -30,6 +30,7 @@ import { widgetsInFile, NATIVE_EVENTS } from '../model/widgets.js'
 import { NATIVE_COMMAND_NAMES, DOM_MUTATORS, ELEMENT_METHODS } from '../model/elementCommands.js'
 import { selectorRequirements, GLOBAL_SELECTORS } from '../selectors.js'
 import { editDistance } from '../names.js'
+import { renameFix, stringEdit, keyEdit } from '../edits.js'
 
 const nameOf = (w) => w.name ? `widget ${w.name}` : `widget <${w.element || '?'}>`
 const quote = (xs) => xs.map(x => `'${x}'`).join(', ')
@@ -86,6 +87,7 @@ function checkDefinition(w, report) {
       message: `${nameOf(w)}'s mount() dispatches '${name}', which is not one of its declared events (${w.events.length ? quote(w.events) : 'it declares none'})` + (hint ? ` (did you mean '${hint}'?)` : ''),
       fix: hint ? `${emitParam.name}('${hint}', …)` : `add '${name}' to the widget's events: events: [${quote([...w.events, name])}]`,
       data: { event: name, events: w.events },
+      fixes: hint && renameFix(`Change '${name}' to '${hint}'`, stringEdit(file, n.arguments[0], hint)),
     })
     return true
   })
@@ -133,6 +135,7 @@ function widgetsFor(sink, selector) {
 /** The event each intent selector listens for: `DOM.select(x).events('e')`, or `DOM.e(x)` */
 function selectorEvents(intent) {
   const byNode = new Map()
+  byNode.nodes = new Map() // selector node → the `.events('x')` string node (PLAN-7 C-4)
   walk(intent.fn.body, (n) => {
     if (n.type !== 'CallExpression') return true
     const c = unwrap(n.callee)
@@ -142,7 +145,7 @@ function selectorEvents(intent) {
     const ic = unwrap(inner.callee)
     if (ic?.type !== 'MemberExpression' || memberName(ic) !== 'select' || !inner.arguments[0]) return true
     const name = n.arguments.length ? stringValue(n.arguments[0]) : null
-    if (name != null) byNode.set(inner.arguments[0], name)
+    if (name != null) { byNode.set(inner.arguments[0], name); byNode.nodes.set(inner.arguments[0], n.arguments[0]) }
     return true
   })
   return byNode
@@ -183,9 +186,22 @@ function checkListeners(project, comp, report) {
       node: sel.node,
       message: `${comp.name}'s intent listens for '${event}' on ${what}, which doesn't declare that event (it declares ${quote(declared)}): did you mean '${hint}'?`,
       fix: `listen for '${hint}'`,
+      fixes: renameFix(`Listen for '${hint}'`, listenerEdit(sel.file || intent.file, sel, events, hint)),
       data: { event, events: declared, ...(sel.control ? { control: sel.control.key } : { selector: sel.selector }) },
     })
   }
+}
+
+/**
+ * PLAN-7 C-4: the edit renaming a listener's event: the `.events('x')` string, or the
+ * `DOM.x(...)` shorthand's method name; null when neither is literal.
+ */
+function listenerEdit(file, sel, events, hint) {
+  if (sel.method === 'select') return stringEdit(file, events.nodes.get(sel.node), hint)
+  const call = file.parents.get(sel.node)
+  const callee = call?.type === 'CallExpression' ? unwrap(call.callee) : null
+  if (callee?.type !== 'MemberExpression' || callee.computed || callee.property.type !== 'Identifier' || !/^[A-Za-z_$][\w$]*$/.test(hint)) return null
+  return { file: file.path, start: callee.property.start, end: callee.property.end, text: hint }
 }
 
 const isMethodOf = (tag, method) => NATIVE_COMMAND_NAMES.includes(method) || ELEMENT_METHODS.has(method) || DOM_MUTATORS.test(method) ||
@@ -225,6 +241,7 @@ function checkCommands(comp, report) {
         (hint ? ` (did you mean '${hint}'?)` : '') + (declared.length ? `; it declares: ${declared.join(', ')}` : '; it declares none') +
         (hint ? '' : ` (fine if the library adds ${cmd.method}() to the host element)`),
       fix: hint ? `send { ${hint}: … }` : `add '${cmd.method}' to the widget's commands, or send one it declares`,
+      fixes: hint && renameFix(`Change '${cmd.method}' to '${hint}'`, keyEdit(cmd.file, cmd.methodNode, hint)),
       data: { method: cmd.method, action: cmd.action, commands: declared },
     })
   }

@@ -273,3 +273,55 @@ export function ensureEventImport(file, at) {
   const last = specs[specs.length - 1]
   return [{ file: file.path, start: last.end, end: last.end, text: ', event' }]
 }
+
+/**
+ * PLAN-7 C-4: the import edit that goes with a rewrite that replaces `emit(…)` calls. When the
+ * rewrite (`edits`, in `file`) leaves the `emit` import from 'sygnal' unused, the edits gain its
+ * removal, as `--fix` did after applying them (fix.js removeUnusedEmitImport): the specifier and
+ * its comma, or the whole declaration when it was the only one. When `emit` is the only
+ * specifier and the rewrite adds `, event` right after it, the two become one edit (`emit` →
+ * `event`). Uses inside the replaced ranges don't count; a use in the new text does.
+ */
+export function withEmitImportCleanup(file, edits) {
+  if (!edits?.length) return edits
+  const isEmit = (s) => s.type === 'ImportSpecifier' && (s.imported.name || s.imported.value) === 'emit'
+  const imp = file.ast.program.body.find(s => s.type === 'ImportDeclaration' && s.source.value === 'sygnal' && s.specifiers.some(isEmit))
+  if (!imp) return edits
+  const specs = imp.specifiers
+  const i = specs.findIndex(isEmit)
+  const spec = specs[i]
+  const local = spec.local.name
+  const own = edits.filter(e => e.file === file.path)
+  const inside = (n) => own.some(e => n.start >= e.start && n.end <= e.end)
+  let replaced = 0
+  let uses = 0
+  walk(file.ast.program, (n) => {
+    if (n === imp) return false
+    if ((n.type === 'Identifier' || n.type === 'JSXIdentifier') && n.name === local) {
+      if (inside(n)) replaced++
+      else uses++
+    }
+    return true
+  })
+  const re = new RegExp(`(^|[^\\w$])${local.replace(/\$/g, '\\$')}(?![\\w$])`)
+  if (!replaced || uses || own.some(e => re.test(e.text))) return edits
+  if (specs.length === 1) {
+    const add = own.find(e => e.start === spec.end && e.end === spec.end && e.text.startsWith(', '))
+    if (add) return [...edits.filter(e => e !== add), { file: file.path, start: spec.start, end: spec.end, text: add.text.slice(2) }]
+    const src = file.source
+    let end = imp.end
+    while (src[end] === ' ' || src[end] === '\t') end++
+    if (src[end] === '\r') end++
+    if (src[end] === '\n') end++
+    return [...edits, { file: file.path, start: imp.start, end, text: '' }]
+  }
+  const start = i > 0 ? specs[i - 1].end : spec.start
+  const end = i > 0 ? spec.end : specs[i + 1].start
+  return [...edits, { file: file.path, start, end, text: '' }]
+}
+
+/** The `fixes` of a strict rewrite (applied by --fix): one preferred quick fix; undefined without edits. */
+export function rewriteFix(file, title, edits) {
+  if (!edits?.length) return undefined
+  return [{ title, kind: 'quickfix', preferred: true, fixAll: true, edits: withEmitImportCleanup(file, edits) }]
+}

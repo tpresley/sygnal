@@ -22,6 +22,7 @@ import { NATIVE_COMMAND_NAMES, DOM_MUTATORS, ELEMENT_METHODS } from '../model/el
 import { selectorRequirements, GLOBAL_SELECTORS } from '../selectors.js'
 import { findInChildren } from './syg110-selector-in-view.js'
 import { editDistance } from '../names.js'
+import { renameFix, keyEdit } from '../edits.js'
 
 // the runtime's suggestion rule (src/extra/diagnostics/checks/elementCommands.ts closest()):
 // a case-insensitive match, or an edit distance under 3
@@ -67,6 +68,7 @@ function checkMethod(cmd, comp, report) {
     fix: `the first key of a command is the method: { ${hint}: ${cmd.file.source.slice(cmd.targetNode.start, cmd.targetNode.end)} }` +
       ` (the documented commands: ${NATIVE_COMMAND_NAMES.join(', ')}${specCommands.length ? `; ${control.key}'s own: ${specCommands.join(', ')}` : ''})`,
     data: { method, action: cmd.action, suggestion: hint, ...where },
+    fixes: renameFix(`Change '${method}' to '${hint}'`, keyEdit(cmd.file, cmd.methodNode, hint)),
   })
 }
 

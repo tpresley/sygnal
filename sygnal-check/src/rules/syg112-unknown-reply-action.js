@@ -15,6 +15,7 @@
  * driver a sink goes to.
  */
 import { closestName } from '../names.js'
+import { renameFix, stringEdit } from '../edits.js'
 
 const ACTION_LIKE = /^[A-Z][A-Z0-9_]*$/
 
@@ -56,6 +57,7 @@ export default {
             ? `rename it to the existing entry: ${t.key}: '${near}'`
             : `add the entry to ${comp.name}.model, e.g. ${t.name}: (state, data) => ({ ...state, ... }), or fix the name to match an existing model key`,
           data: { action: t.name, key: t.key, ...(near ? { suggestion: near } : {}) },
+          fixes: near && renameFix(`Change '${t.name}' to '${near}'`, stringEdit(t.file, t.node, near)),
         })
       }
     }

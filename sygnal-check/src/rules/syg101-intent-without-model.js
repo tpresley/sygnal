@@ -10,6 +10,19 @@
  * component's `uses` entry.
  */
 import { behaviorActions, openPrefixes } from '../model/behaviors.js'
+import { modelObject } from './strict/shared.js'
+import { addEntryEdits } from '../model/modelEdits.js'
+
+/**
+ * PLAN-7 C-4 (editor only): "Add a model entry for X", a stub in the component's model when
+ * it is an object literal in the component's own file.
+ */
+function stubFix(project, comp, name) {
+  const r = modelObject(project, comp)
+  if (!r || r.file.path !== comp.file.path) return undefined
+  const edits = addEntryEdits(r.file, r.node, name)
+  return edits ? [{ title: `Add a model entry for '${name}'`, kind: 'quickfix', edits }] : undefined
+}
 
 export default {
   id: 'intent-without-model',
@@ -33,6 +46,7 @@ export default {
           message: `intent action '${a.name}' has no model entry, so it does nothing`,
           fix: `add '${a.name}' to ${comp.name}.model, or fix the spelling to match an existing model key`,
           data: { action: a.name },
+          fixes: comp.model ? stubFix(project, comp, a.name) : undefined,
         })
       }
       for (const [name, b] of owned) {

@@ -19,7 +19,7 @@
  *                    here before the disk, and import resolution sees these paths, so a new,
  *                    unsaved file resolves. A source-only file is checked when it is named in
  *                    inputs, or lies under a directory input / matches a glob and passes the
- *                    same filters as the walk (PLAN-7 C-1). Not for fixFiles() yet: it writes to disk
+ *                    same filters as the walk (PLAN-7 C-1). fixFiles() with sources fixes in memory
  *   }
  *
  * checkFiles(files, options) → Diagnostic[]
@@ -27,7 +27,8 @@
  *   source-only path in the list is checked
  *
  * Diagnostic = the runtime Diagnostic shape (code, severity, component,
- * message, fix, docsUrl, text, data?) + file, line, column.
+ * message, fix, docsUrl, text, data?) + file, line, column, endLine, endColumn,
+ * related? and fixes? (PLAN-7 C-2, C-4; see README "JSON output").
  */
 import path from 'node:path'
 import { expandInputs } from './files.js'
@@ -42,6 +43,8 @@ export { buildProject, Project } from './model/project.js'
 export { makeDiagnostic, formatText } from './diagnostic.js'
 export { formatDiagnostics } from './format.js'
 export { fixFiles } from './fix.js'
+export { controlFixes } from './fixControls.js'
+export { applyEdits } from './edits.js'
 export { runRules, sortDiagnostics }
 export { graph, graphFiles, buildGraph } from './graph.js'
 export { validate as validateSchema } from './schema.js'

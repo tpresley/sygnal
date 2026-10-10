@@ -27,6 +27,14 @@ import { resolveExpr } from '../model/resolve.js'
 import { behaviorActions, openPrefixes } from '../model/behaviors.js'
 import { agentName } from '../model/agent.js'
 import { BUILTIN_ACTIONS } from '../model/modelEntries.js'
+import { renameFix, keyEdit, stringEdit } from '../edits.js'
+
+/** PLAN-7 C-4: the edit renaming `X.agents` / `X['tools']` to `agent`; null for a computed name. */
+function staticEdit(file, member) {
+  const p = member.property
+  if (!member.computed && p.type === 'Identifier') return { file: file.path, start: p.start, end: p.end, text: 'agent' }
+  return member.computed ? stringEdit(file, p, 'agent') : null
+}
 
 const MISSPELLED = new Set(['agents', 'Agent', 'Agents', 'AGENT', 'tools', 'tool', 'Tools', 'agnet', 'aget', 'agen'])
 
@@ -256,6 +264,7 @@ export default {
           message: `${obj.name}.${prop}: did you mean \`agent\`? The agent layer (sygnal/ai) reads only ${obj.name}.agent, so no tool is offered for ${obj.name}`,
           fix: `rename it: ${obj.name}.agent = { name, description, read, actions: { ACTION: { description } } }`,
           data: { static: prop, expected: 'agent' },
+          fixes: renameFix(`Rename ${obj.name}.${prop} to ${obj.name}.agent`, staticEdit(file, n.left)),
         })
         return true
       })
@@ -285,6 +294,7 @@ export default {
               ? `rename the key to '${near}', or add ${comp.name}.model.${act.name}`
               : `add a model entry: ${comp.name}.model = { ${act.name}: (state, data) => ({ ...state }) }, or remove the action from agent.actions`,
             data: { action: act.name, ...(near && { suggestion: near }) },
+            fixes: near && renameFix(`Rename '${act.name}' to '${near}'`, keyEdit(act.file, act.node, near)),
           })
         }
       }

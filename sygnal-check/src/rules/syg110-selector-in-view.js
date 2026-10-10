@@ -14,6 +14,7 @@
 import { selectorRequirements } from '../selectors.js'
 import { editDistance } from '../names.js'
 import { renderedAt } from '../model/view.js'
+import { renameFix, stringEdit } from '../edits.js'
 
 const MAX_CHILD_DEPTH = 6
 
@@ -138,14 +139,16 @@ export default {
             })
             continue
           }
+          const hint = closestHint(view, kind, name)
           report({
             code: 'SYG110',
             component: comp.name,
             file,
             node: sel.node,
             message: `${via(sel)}selector '${sel.selector}' targets ${show(kind, name)}, but ${comp.name}'s view never renders ${kind === 'class' ? 'that class' : 'that id'}, so this action never fires`,
-            fix: closestHint(view, kind, name) || `add ${kind === 'class' ? 'className' : 'id'}="${name}" to the element in the view, or fix the selector`,
+            fix: hint?.text || `add ${kind === 'class' ? 'className' : 'id'}="${name}" to the element in the view, or fix the selector`,
             data: { selector: sel.selector, [kind]: name },
+            fixes: hint && renameFix(`Change '${show(kind, name)}' to '${show(kind, hint.best)}'`, selectorEdit(file, sel, kind, name, hint.best)),
           })
         }
       }
@@ -193,7 +196,22 @@ function commonPrefix(a, b) {
   return i
 }
 
-/** Suggest the closest class/id the view does render (typos, -btn vs -button). */
+/**
+ * PLAN-7 C-4: the edit for a "did you mean": the selector string literal with its one `.name`
+ * (or `#name`) replaced; null when the selector isn't a literal or names it more than once.
+ */
+function selectorEdit(file, sel, kind, name, best) {
+  const node = sel.node
+  if (node?.type !== 'StringLiteral' || node.value !== sel.selector) return null
+  const sigil = kind === 'class' ? '\\.' : '#'
+  const re = new RegExp(`${sigil}${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])`, 'g')
+  const hits = [...sel.selector.matchAll(re)]
+  if (hits.length !== 1) return null
+  const value = sel.selector.slice(0, hits[0].index) + (kind === 'class' ? '.' : '#') + best + sel.selector.slice(hits[0].index + hits[0][0].length)
+  return stringEdit(file, node, value)
+}
+
+/** Suggest the closest class/id the view does render (typos, -btn vs -button): { text, best } or null. */
 function closestHint(view, kind, name) {
   let best = null
   let bestScore = Infinity
@@ -206,7 +224,7 @@ function closestHint(view, kind, name) {
   }
   if (best && bestScore <= Math.max(2, Math.floor(name.length / 3))) {
     const sigil = kind === 'class' ? '.' : '#'
-    return `did you mean '${sigil}${best}'? The view renders ${kind === 'class' ? 'className' : 'id'}="${best}"`
+    return { text: `did you mean '${sigil}${best}'? The view renders ${kind === 'class' ? 'className' : 'id'}="${best}"`, best }
   }
   return null
 }

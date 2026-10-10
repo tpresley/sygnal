@@ -11,7 +11,7 @@
  * import), and single-expression raw EVENTS arrows in the object form.
  */
 import { unwrap } from '../../ast.js'
-import { modelEntries, sinkProps, isEmitCall, fnOf, rawEventRewrite, ensureEventImport, text, keyText } from './shared.js'
+import { modelEntries, sinkProps, isEmitCall, fnOf, rawEventRewrite, ensureEventImport, text, keyText, rewriteFix } from './shared.js'
 
 const argsText = (file, call) => call.arguments.map(a => text(file, a)).join(', ')
 
@@ -24,10 +24,10 @@ export default {
     for (const comp of project.components) {
       for (const e of modelEntries(project, comp)) {
         const { file } = e
-        const hit = (node, message, rewrite, fix, edits) => report({
+        const hit = (node, message, rewrite, fix, edits, title = 'Use event() in the object form') => report({
           code: 'SYG505', component: comp.name, file, node, message,
           fix: `${fix || 'use the object form with event()'}: \`${rewrite}\``,
-          data: { action: e.action }, edits,
+          data: { action: e.action }, fixes: rewriteFix(file, title, edits),
         })
         const withImport = (at, edit) => {
           const imp = ensureEventImport(file, at)
@@ -51,7 +51,8 @@ export default {
             const value = `EVENTS: event(${argsText(file, unwrap(p.argument))})`
             hit(p, `model entry '${e.action}' spreads emit() into the object form`, value,
               `replace the spread with an EVENTS sink`,
-              hasEvents ? undefined : withImport(p, { file: file.path, start: p.start, end: p.end, text: value }))
+              hasEvents ? undefined : withImport(p, { file: file.path, start: p.start, end: p.end, text: value }),
+              'Replace the emit() spread with an EVENTS sink')
           }
         }
 
