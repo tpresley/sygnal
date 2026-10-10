@@ -105,6 +105,8 @@ Cheaper variants if needed: Sonnet only (≈ $26–32), or Haiku only on the deb
 
 ## Log
 
+- 2026-10-10: Release gates green on the release commit (`ad1d91ff`): RELEASING §2 (fresh installs, `build:all`, `npm test`, sygnal-check, doc samples, error docs, size gate, docs build, check-live × 3), §3 (pack contents: sygnal 6.1.1, sygnal-check 0.4.0 with `src/lsp/`, create-sygnal-app 2.2.0 with both new files in all 10 templates), §4 (all 10 templates from local tarballs: tests, strict check, config check, tsc, build; `sygnal-check lsp` starts from a scaffolded project). **PR: https://github.com/tpresley/sygnal/pull/18** (`plan7-integration` → `main`). Left for the user: the extension's GUI smoke, the Vike browser check, publishing (npm, Marketplace, Open VSX), RELEASING's last-published table.
+
 - 2026-10-10: Release prep (user-approved): sygnal 6.1.1, sygnal-check 0.4.0, create-sygnal-app 2.2.0 (templates `sygnal` ^6.1.1, `sygnal-check` ^0.4.0), extension 0.1.0 and plugin 0.1.0 (unchanged); CHANGELOG `6.1.1 — 2026-10-10` with measured impact and companion packages; ROADMAP §20 → 6.1.1; docs' "Upcoming" notes replaced; RELEASING §3 expects `src/lsp/`; CLAUDE.md lists the server and `editors/`. PR to `main` follows; publishing stays with the user.
 
 - 2026-10-10: JetBrains verified: the first user run showed no Sygnal findings (the hand-written LSP4IJ XML used the template format, so no mapping matched); fixed (`fileNamePatterns`), the server started and published in a coordinator re-run, and the user confirmed the findings and quick fixes in the IDE. Docs: the JetBrains caution replaced by the tested versions. G-659 closed.
