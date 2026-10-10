@@ -9,6 +9,7 @@ npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
 npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
+npx sygnal-check lsp             # language server (stdio) for editors
 ```
 
 It parses JS, JSX, TS and TSX with `@babel/parser`. It never runs your code and doesn't depend on `sygnal`.
@@ -277,6 +278,87 @@ The server is a minimal hand-written JSON-RPC 2.0 implementation, so it adds no 
 
 A protocol version it doesn't know gets the spec's "unsupported protocol version" error (`-32022`) listing the versions it speaks; a 2026-07-28 request without client capabilities gets `-32602`.
 
+## Language server
+
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, and quick fixes. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+
+**Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
+
+```bash
+npx --no-install sygnal-check lsp
+```
+
+Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescriptreact`, and the workspace folder(s) as its root. The server exits when its stdin closes, so the client doesn't need to send `exit`. `createLspServer({ input, output })` in the programmatic API runs it on any pair of streams.
+
+### Capabilities
+
+| | |
+|---|---|
+| Lifecycle | `initialize`, `initialized`, `shutdown`, `exit`; `$/cancelRequest` (a cancelled request is answered with `-32800`); `$/setTrace`; other `$/` notifications are ignored |
+| Workspace | one project per workspace folder (`workspaceFolders`, else `rootUri` / `rootPath`, else the working directory); `workspace/didChangeWorkspaceFolders`. A folder whose files define no Sygnal component gets no diagnostics |
+| Documents | full text sync (`didOpen`, `didChange`, `didSave`, `didClose`). Open documents are checked from their unsaved text. Closing a document re-checks it from disk |
+| Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
+| Hover | on a finding: its code, title, explanation, fix and docs link (Markdown, or plain text for clients without Markdown) |
+| Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
+| File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
+
+**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
+
+The server checks at once on `didOpen`, `didSave`, `didClose`, a watched-file event or a settings change. After a `didChange` without a save, it waits about 150 ms for typing to pause. A newer change replaces a check that is still waiting; it doesn't queue another one.
+
+Files that aren't open are read from disk on every check, so a client without file watching still sees changes on disk at the next check.
+
+### Diagnostics
+
+The server pushes diagnostics only (`textDocument/publishDiagnostics`). It sends a file only when its list changed, and an empty list when a file's findings cleared. It doesn't offer pull diagnostics: an editor offered both would show each finding twice, and pulling only covers open files, which loses the findings a change causes in other files.
+
+Each diagnostic has:
+
+- `range`: the finding's start and end;
+- `severity`: error 1, warning 2, information 3;
+- `code` (`SYG110`) and `codeDescription.href` (its docs page);
+- `source: "sygnal"`;
+- `message` in the CLI's form, `Component: message (fix)`, so it makes sense without the link;
+- `relatedInformation` for the other side of a pair or cross-file finding (`related` in the JSON output);
+- `data.fixes`: the finding's fixes as LSP edits.
+
+Each file's list is sorted errors first. Info findings are left out unless `sygnal.verbose` is set, as in the CLI.
+
+**A file that doesn't parse** (in the middle of an edit) keeps its last findings unchanged until it parses again, and the other files' findings stay as they were. The parse error itself is shown as a SYG900.
+
+**Other findings.** A malformed or unknown key in the config file is a SYG900 on that config file. A rule that crashes is logged with `window/logMessage`, not shown as a diagnostic.
+
+### Code actions
+
+| Action | Kind | What it does |
+|---|---|---|
+| A finding's fixes | `quickfix` (or `refactor.rewrite` for a removal) | The edits from the finding's `fixes` (see [JSON output](#json-output)): "Change '.incc' to '.inc'", "Add a model entry for 'X'", a canonical-form rewrite. `isPreferred` marks a single unambiguous suggestion. An edit can be in another file |
+| Suppress SYGnnn on this line | `quickfix` | Inserts `// sygnal-ignore-next-line SYGnnn` above the finding's first line, with the line's indentation. Inside JSX children it inserts `{/* sygnal-ignore-next-line SYGnnn */}` (see [Suppressing a finding](#suppressing-a-finding)) |
+| Fix all auto-fixable Sygnal problems | `source.fixAll.sygnal` | What `--fix` does for the file, on its unsaved text, as one edit. Like `--fix`, it applies the strict-mode rewrites whatever the settings. Offered when `context.only` asks for `source`, `source.fixAll` or `source.fixAll.sygnal` (VS Code: `"editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }`) |
+| Convert '.x' to the control X | `refactor.rewrite` | The `--controls` conversion of one selector. Offered only when `context.only` asks for refactors |
+
+Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
+
+### Settings
+
+| Setting | Type | |
+|---|---|---|
+| `sygnal.strict` | boolean | also run the strict-mode rules |
+| `sygnal.a11y` | `"warn"` \| `"error"` | severity of the a11y findings |
+| `sygnal.ignore` | string[] | codes to drop |
+| `sygnal.paths` | string[] | files, directories or globs to check, relative to the workspace folder |
+| `sygnal.verbose` | boolean | also show info findings (default false) |
+| `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
+
+The server reads settings from two places:
+
+- `initializationOptions`, either flat (`{ "strict": true }`) or under `sygnal` (`{ "sygnal": { "strict": true } }`);
+- `workspace/configuration`, section `sygnal`, once per workspace folder, when the client supports it. These values win over `initializationOptions`.
+
+After a `workspace/didChangeConfiguration` the server asks for the configuration again and ignores the notification's own payload.
+
+**Precedence with the config file.** A setting the editor sets overrides the [config file](#configuration) (`sygnal-check.config.json` or the `package.json` key, found from each workspace folder). A setting left unset, or set to `null`, leaves the config file in charge. So with no editor settings, the editor, the CLI and CI all check with the same config. A list setting (`ignore`, `paths`) replaces the file's list; it is not merged with it.
+
 ## How an agent should use inspect, check and explain
 
 1. **Orient with the graph before editing.** Run `sygnal-check --graph --json` (or the `graph` tool) on `src`. It lists every component with its actions and what triggers them, its state keys, context, EVENTS traffic, children and DOM selectors. Use it instead of reading every file to find where an action, event or child lives.
@@ -313,6 +395,8 @@ const diagnostics = check(['src'], { cwd: process.cwd() })
 ```
 
 This is the runtime `Diagnostic` shape plus the source location, without `timestamp`. `--json` prints the same objects.
+
+`createLspServer({ input, output, worker?, debounce? })` runs the [language server](#language-server) on a pair of streams (`worker: false` checks on the calling thread) and returns `{ done, idle(), dispose() }`; `done` resolves with the exit code.
 
 ### JSON output
 
@@ -391,4 +475,4 @@ A rule never writes to an AST node: with a parse cache the AST outlives the chec
 cd sygnal-check && npm install && npm test
 ```
 
-Tests are named `*.vtest.js` so that the repo root's config-less `vitest run` doesn't pick them up.
+Tests are named `*.vtest.js` so that the repo root's config-less `vitest run` doesn't pick them up. The language server's latency gate is opt-in: `SYGNAL_CHECK_LATENCY=1 npx vitest run test/lsp-latency.vtest.js`.
