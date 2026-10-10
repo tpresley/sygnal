@@ -52,7 +52,7 @@ Tracks progress for [PLAN-7.md](PLAN-7.md) (editor tooling: `sygnal-check lsp`, 
 | I-3 | Templates: `.vscode/extensions.json`, `sygnal-check.config.json` | ✅ merged | `p7-i3` | `e2cf502d` (merge `f5cd06d7`) | All 10 templates: `{"recommendations":["sygnal.sygnal"]}` and `{"strict": true}` (vike/vike-ts add `"paths": ["pages"]`, matching their AGENTS.md; mcp-app checks `src` only, as its AGENTS.md). `npm pack` includes both; the scaffolder copies dot entries as-is. sygnal-check 0.3.0 never opens the file (its walker collects only JS/TS). `test/create-sygnal-app-templates.test.js` (22: pack, scaffold all 10 offline with a prompt stub, `loadConfig`/`check()` match AGENTS.md's command, 0 findings). RELEASING.md: the templates' `sygnal-check` range must go to `^0.4.0` for the config to take effect; with 0.4.0 the dev overlay runs strict from the config. Root vitest 4,344 / 33 skipped after merge |
 | V-1 | VS Code extension | waiting for L-1 | | | |
 | I-1 | Claude Code plugin (+ G-658) | waiting for L-1 | | | |
-| I-2 | Other editors | waiting for L-1 | | | G-659: installs need the user's OK |
+| I-2 | Other editors | waiting for L-1 | | | G-659: installs approved by the user (2026-10-10) |
 | D-1/D-2 | Docs | waiting for V-1/I-1 | | | |
 
 ## 0-A results
@@ -96,7 +96,7 @@ Cheaper variants if needed: Sonnet only (≈ $26–32), or Haiku only on the deb
 | G-657 | 0-A | med | L-1 | A whole-project check blocks the server's event loop (≈ 360 ms at 20k lines), delaying hover/code actions/completions | Open → Phase 2. C-3: the parse cache can't cross a thread (AST class instances, WeakMaps), so the worker owns the cache and runs checks; the main thread sends `{ path: text }` overlays and keeps the last results for hover/code actions; one cache per workspace folder, builds never interleave on one cache |
 | G-658 | 0-S2 | med | I-1 / E-1 | Claude Code didn't deliver a finding left in the edited file after the agent's last edit (runs 3 and 4; in run 4 the server had published it before the tool result). Unexplained from the bundled code | Open → Phase 2: one `--debug-file` run (≈ $0.03) before E-1 |
 | G-660 | C-3 | low → ✅ | sygnal-check perf | The latency gate passes with ≈ 10% headroom (272 ms vs 300 ms at 20k lines). Profile: `ast.js` `walk`/`childNodes` ≈ 70% of self time (every rule walks every file); a per-node-type child-key table is the proposed fix (a per-node WeakMap gave ≈ 240 ms but slowed cold runs) | ✅ Fixed (`p7-g660`): 20k one-file edit 79 ms |
-| G-659 | 0-S2 | low | V-1 / I-2 | Neovim, Helix and JetBrains (LSP4IJ) setups are written from docs and untested (not installed on this machine) | Open → Phase 2 (I-2): install and test, with the user's OK |
+| G-659 | 0-S2 | low | V-1 / I-2 | Neovim, Helix and JetBrains (LSP4IJ) setups are written from docs and untested (not installed on this machine) | Open → Phase 2 (I-2). **User, 2026-10-10: approved installing them when needed** (Homebrew `neovim`, `helix`; a JetBrains IDE, e.g. IntelliJ IDEA Community, plus the LSP4IJ plugin) |
 
 ## Log
 
