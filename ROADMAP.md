@@ -372,7 +372,7 @@ Outcome: on four new eval tasks Sygnal agents passed 60/60 (React with the AI SD
 
 ### 20. Language Server, VS Code Extension and Claude Code Plugin (PLAN-7)
 
-**Status:** `PLANNED`, decisions D297–D304 taken ([PLAN-7](dev-plans/PLAN-7.md); research in [`ide-tooling.md`](dev-plans/research/ide-tooling.md)). Proposed release: `sygnal-check` 0.4.0, `create-sygnal-app` 2.2.0, VS Code extension 0.1.0.
+**Status:** `IN PROGRESS`: Phases 0–2 done (at the release point), decisions D297–D315 ([PLAN-7](dev-plans/PLAN-7.md); research in [`ide-tooling.md`](dev-plans/research/ide-tooling.md)). Proposed release: `sygnal-check` 0.4.0, `create-sygnal-app` 2.2.0, VS Code extension 0.1.0.
 
 Show `sygnal-check`'s findings in the editor while the code is being written, from one language server (`sygnal-check lsp`) for VS Code, other LSP editors and Claude Code. TypeScript can't see Sygnal's string-wired seams (intent ↔ model keys, selectors ↔ view classes, EVENTS types, reply actions), and in JS or untyped TS it reports none of them.
 
