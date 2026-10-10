@@ -343,6 +343,11 @@ export default {
             code: 'SYG440',
             component: B.c.name,
             file: B.c.agent.nameNode ? B.c.agent.file : B.c.file, node: at,
+            related: [{
+              node: A.c.agent.nameNode || A.c.staticPropNodes.agent,
+              file: A.c.agent.nameNode ? A.c.agent.file : A.c.file,
+              message: `${A.c.name}.agent is also named '${A.name}'`,
+            }],
             message: `${B.c.name}.agent and ${A.c.name}.agent are both named '${A.name}' (tools ${A.name}_…) in one app: only the first one shown is offered, the other's tools can't be reached`,
             fix: `give each declaration its own name: ${B.c.name}.agent = { name: '${A.name}_2', ... }`,
             data: { name: A.name, other: A.c.name },

@@ -116,6 +116,35 @@ export function loc(node) {
   return s ? { line: s.line, column: s.column + 1 } : { line: 1, column: 1 }
 }
 
+/**
+ * The range end of a node (PLAN-7 C-2, spike 0-S1): 1-based line, 1-based
+ * column one past the last character (exclusive), so the underlined text is
+ * source line `line`.slice(column - 1) .. line `endLine`.slice(0, endColumn - 1).
+ * Without a node location: a one-character range at the start.
+ */
+export function endLoc(node) {
+  const e = node?.loc?.end
+  if (e) return { endLine: e.line, endColumn: e.column + 1 }
+  const { line, column } = loc(node)
+  return { endLine: line, endColumn: column + 1 }
+}
+
+/** The FileInfo whose AST contains `node` (`hint` is tried first), or null. */
+export function fileOfNode(project, node, hint) {
+  if (hint && fileContains(hint, node)) return hint
+  for (const f of project.files.values()) if (f && f !== hint && fileContains(f, node)) return f
+  return null
+}
+
+function fileContains(file, node) {
+  let n = node
+  while (n) {
+    if (n === file.ast.program) return true
+    n = file.parents.get(n)
+  }
+  return false
+}
+
 export function jsxName(nameNode) {
   if (!nameNode) return null
   if (nameNode.type === 'JSXIdentifier') return nameNode.name

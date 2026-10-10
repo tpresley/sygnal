@@ -152,7 +152,7 @@ export default {
           report({
             code: 'SYG731',
             component: comp.name,
-            file: t.file, node: t.opening,
+            file: t.file, node: cls.node, anchor: t.opening, // C-2: the className attribute that carries the state
             message: `<${t.tag}> (line ${loc(t.opening).line}) is clicked to change '${field}' ('${action}') and shows it only through its class: screen-reader users don't hear whether it is on`,
             fix: t.tag === 'a'
               ? `mark the current one: aria-current={${cond} ? 'page' : undefined}`

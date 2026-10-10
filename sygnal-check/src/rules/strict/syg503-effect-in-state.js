@@ -59,7 +59,7 @@ export default {
           code: 'SYG503',
           component: comp.name,
           file,
-          node: first,
+          node: first.expression, // C-2: the call, without the ";"
           message: `the STATE reducer for '${action}' runs a side effect (\`${call}\`) and returns ABORT`,
           fix: onlyAbort
             ? `move it to an EFFECT sink: \`${action}: { EFFECT: (state, data, next) => { ${call} } }\` (no return value needed)`

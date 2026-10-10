@@ -64,7 +64,7 @@ export default {
         code: 'SYG702',
         component: componentName(project, info.file, info.el),
         file: info.file,
-        node: info.opening,
+        node: info.opening, endNode: info.opening.name, // C-2: underline "<tag", not the whole opening element
         message: sibling
           ? `${what} has no label: the <label> next to it (line ${sibling}) isn't linked to it, so screen readers announce the field without a name`
           : `${what} has no label, so screen readers announce it without a name`,

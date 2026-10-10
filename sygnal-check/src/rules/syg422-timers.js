@@ -27,7 +27,9 @@ function reportSpecs(project, report) {
         code: 'SYG422',
         component: comp.name,
         file: s.file,
-        node: s.node,
+        // C-2: the property with the wrong value (`every: 0`), or for a missing key the timer's name;
+        // `anchor` keeps `// sygnal-ignore` comments written above the spec working
+        node: s.problemNode || s.nameNode || s.node, anchor: s.node,
         message: `Timer '${s.name}' ${s.problem}; it is not started`,
         fix: `declare ${s.name}: { every: 100, action: 'TICK' }, { after: 5000, action: 'EXPIRE' } or { frame: 'FRAME' } (falsy to stop it)`,
         data: { name: s.name },
@@ -52,6 +54,7 @@ function reportMissingDrivers(project, report) {
         component: comp.name,
         file: comp.file,
         node: comp.staticPropNodes[k] || comp.staticProps[k],
+        related: [{ node: lacking.call.callee, file: lacking.file, message: `this run() call registers no ${DRIVER_OF[k]} driver` }],
         message: `${comp.name} declares ${comp.name}.${k}, but the run() call that renders it (${at}) registers no ${DRIVER_OF[k]} driver, so ${EFFECT[k]}`,
         fix: `register the driver: run(App, { ${KEY[k]}: ${DRIVER_OF[k]}, ... }) (any key; the core finds it by the static it takes)`,
         data: { static: k, driver: DRIVER_OF[k] },

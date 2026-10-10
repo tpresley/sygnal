@@ -31,7 +31,7 @@ export default {
         code: 'SYG722',
         component: componentName(project, info.file, info.el),
         file: info.file,
-        node: info.opening,
+        node: info.opening, endNode: info.opening.name, // C-2: underline "<tag", not the whole opening element
         message: `<${part}> (${sub}) has no accessible name (no label, aria-label or aria-labelledby), so screen readers announce its ${CONTROL[part]} without a name`,
         fix: part === 'Menu'
           ? 'give it label="Actions" (the trigger text), or aria-label="More actions" for an icon-only trigger'

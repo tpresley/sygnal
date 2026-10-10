@@ -156,7 +156,12 @@ function slimDiagnostic(d) {
   if (d.fix) out.fix = d.fix
   if (d.docsUrl) out.docsUrl = d.docsUrl
   if (d.data !== undefined) out.data = d.data
-  if (d.file) { out.file = d.file; out.line = d.line; out.column = d.column }
+  if (d.file) {
+    out.file = d.file; out.line = d.line; out.column = d.column
+    // PLAN-7 C-2: the range end and the related locations
+    if (d.endLine !== undefined) { out.endLine = d.endLine; out.endColumn = d.endColumn }
+  }
+  if (d.related?.length) out.related = d.related
   return out
 }
 

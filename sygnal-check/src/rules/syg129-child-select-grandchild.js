@@ -27,7 +27,10 @@ function usagesOf(sink, out = [], depth = 0) {
   return out
 }
 
-/** Path of view functions from `start` (exclusive) down to the one that renders `target`, or null. */
+/**
+ * Path of view functions from `start` (exclusive) down to the one that renders `target`, and
+ * that one's usage of it (the `<X>` tag), or null.
+ */
 function findPath(project, startUsages, target) {
   const seen = new Set()
   const queue = startUsages.filter(u => u.ref).map(u => ({ ref: u.ref, path: [u.ref] }))
@@ -38,7 +41,8 @@ function findPath(project, startUsages, target) {
     const sink = project.viewOf(ref)
     if (!sink) continue
     const uses = usagesOf(sink)
-    if (uses.some(u => u.ref?.node === target.node)) return path
+    const usage = uses.find(u => u.ref?.node === target.node)
+    if (usage) return { path, usage }
     for (const u of uses) if (u.ref && !seen.has(u.ref.node)) queue.push({ ref: u.ref, path: [...path, u.ref] })
   }
   return null
@@ -91,14 +95,16 @@ export default {
         if (own.some(u => !u.ref && (u.name === arg.name || u.name === xName))) continue
         const mentions = new RegExp(`\\b(${[...new Set([arg.name, xName])].join('|')})\\b`)
         if (mentions.test(viewText)) continue
-        const path = findPath(project, own, target)
-        if (!path) continue
+        const found = findPath(project, own, target)
+        if (!found) continue
+        const { path, usage } = found
         const names = [comp.name, ...path.map(ref => ownerName(project, ref)), xName]
         report({
           code: 'SYG129',
           component: comp.name,
           file,
-          node: call,
+          node: arg, // C-2: the selected component, not the whole CHILD.select() call
+          related: usage.file ? [{ node: usage.node?.name || usage.node, file: usage.file, message: `${names[names.length - 2]} renders <${xName}> here` }] : undefined,
           message: `CHILD.select(${arg.name}) never fires: a component's PARENT output reaches only the component that renders it, ` +
             `and ${comp.name} doesn't render ${xName}; it is rendered further down (${names.join(' > ')})`,
           fix: relayFix(names),

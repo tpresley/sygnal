@@ -20,7 +20,7 @@ export default {
         code: 'SYG703',
         component: componentName(project, info.file, info.el),
         file: info.file,
-        node: info.opening,
+        node: info.opening, endNode: info.opening.name, // C-2: underline "<tag", not the whole opening element
         message: `<${info.name}> has no alt text, so screen readers read out the file name or skip it`,
         fix: 'add alt="what the image shows"; for a purely decorative image use alt=""',
         data: { element: 'img' },

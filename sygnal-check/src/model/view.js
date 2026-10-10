@@ -13,7 +13,7 @@
  *   - JSX in module-level helper functions that the view references (e.g.
  *     `{items.map(renderItem)}`) is part of the view.
  */
-import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, propName, stringValue, loc } from '../ast.js'
+import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, propName, stringValue, loc, fileOfNode } from '../ast.js'
 import { evalStrings, tokenize, classTokens, DYN } from '../strings.js'
 import { hyperscriptSel } from '../selectors.js'
 import { findBinding } from '../scope.js'
@@ -109,6 +109,28 @@ function handleHtmlAttrs(project, file, opening, sink) {
       }
     }
   }
+}
+
+/**
+ * Where `sink` renders a class / id / control (PLAN-7 C-2's `related` locations):
+ * { node, file } of the className / id attribute (or the tag name) of the first
+ * JSX element that renders it, or null (hyperscript, or not found).
+ */
+export function renderedAt(project, sink, kind, name) {
+  if (kind === 'control') {
+    const opening = sink.controls.get(name)?.[0]
+    const file = opening && fileOfNode(project, opening)
+    return file ? { node: opening.name, file } : null
+  }
+  for (const { node, file } of sink.elements) {
+    const opening = node.openingElement
+    const own = newSink()
+    handleHtmlAttrs(project, file, opening, own)
+    if (!(kind === 'class' ? own.classes : own.ids).names.has(name)) continue
+    const attr = kind === 'class' ? jsxAttr(opening, 'className') || jsxAttr(opening, 'class') : jsxAttr(opening, 'id')
+    return { node: attr || opening.name, file }
+  }
+  return null
 }
 
 /**
