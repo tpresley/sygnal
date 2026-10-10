@@ -29,8 +29,10 @@
  *   `none` ("none of these"). An action whose input is one enum (or boolean) field becomes one
  *   option per value (`todos_set_filter=done`), so the model picks the argument too;
  * - target (only when an item action exists): a `choice` over the live Collection item keys,
- *   described by `agent.label` (D258), plus `none`.
- * The decision `state` is `{ command, app }`, `app` being the `read` projections (A-1's context).
+ *   described by `agent.label` (D258), plus `none`. User-entered labels (A-1's labelsUntrusted,
+ *   G-644) stay out of the criteria, which a model reads like instructions: the option is described
+ *   by kind and id, and its label goes into the decision's `state.labels` (option -> label).
+ * The decision `state` is `{ command, app, labels? }`, `app` being the `read` projections (A-1's context).
  * Then the call runs through A-1's `call()` (validation, repair, no-op detection, cause 'agent',
  * `confirm` → `pending` for a consequential action).
  *
@@ -47,7 +49,7 @@
 import xs from 'xstream'
 import {defineBehavior} from '../behaviors'
 import {ABORT} from '../../shared'
-import {agentTools} from './agent/index'
+import {agentTools, labelsUntrusted} from './agent/index'
 import {decide as decideRequest} from './decide'
 import {linked, engineOf, checkLinked} from './link'
 
@@ -81,8 +83,11 @@ export const freeText = (command: string): string | undefined => {
 /** the questions for `command` over the live tools; `e.asked` maps the answers back */
 function ask(e: Engine, command: string) {
   const t = toolsOf(e), opts = new Map<string, Opt>(), items = new Map<string, {key: string; name: string}>()
-  const groups = new Map<string, string>()
-  for (const g of t.groups()) for (const n of g.tools) groups.set(n, g.name)
+  const groups = new Map<string, string>(), bare = new Set<string>()
+  for (const g of t.groups()) {
+    for (const n of g.tools) groups.set(n, g.name)
+    if (labelsUntrusted(g)) bare.add(g.name)
+  }
   const targets = t.targets()
   const itemNames = new Set(targets.map((x: any) => x.name))
   for (const tool of t.list()) {
@@ -112,14 +117,24 @@ function ask(e: Engine, command: string) {
     action: {type: 'choice', instructions: 'Which app action does the command ask for?',
       criteria: {...Object.fromEntries([...opts].map(([k, v]) => [k, v.description])), none: 'None of these actions'}},
   }
+  // G-644: user-entered labels are data: they go into the decision's `state` (`labels`: option ->
+  // label), and the criteria (read like instructions) name the option by kind and id only
+  const labels: Record<string, string> = {}
   if (items.size && tmap.size) {
     const what = kinds.length == 1 ? kinds[0] : 'item'
-    questions.target = {type: 'choice', instructions: `Which existing ${what} does the command refer to (none if it names no existing ${what})?`,
-      criteria: {none: `No existing ${what}`, ...Object.fromEntries([...tmap].map(([k, x]) => [k, x.label ?? `${x.name} ${x.id}`]))}}
+    const desc = (k: string, x: any) => {
+      if (x.label == null) return `${x.name} ${x.id}`
+      if (!bare.has(x.name)) return x.label
+      labels[k] = x.label
+      return `The ${x.name} with id ${x.id} (its label: state.labels["${k}"])`
+    }
+    questions.target = {type: 'choice', instructions: `Which existing ${what} does the command refer to (none if it names no existing ${what})?`
+      + (bare.size ? " Each option's label is in state.labels." : ''),
+      criteria: {none: `No existing ${what}`, ...Object.fromEntries([...tmap].map(([k, x]) => [k, desc(k, x)]))}}
   }
   e.asked = {command, opts, targets: tmap, items}
   const ctx = t.context()
-  return {questions, state: Object.keys(ctx).length ? {command, app: ctx} : {command}}
+  return {questions, state: {command, ...(Object.keys(ctx).length && {app: ctx}), ...(Object.keys(labels).length && {labels})}}
 }
 
 /** one step's outcome per (slice, data): STATE and the sink / EFFECT of an action read the same one */

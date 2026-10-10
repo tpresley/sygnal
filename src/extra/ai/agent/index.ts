@@ -17,7 +17,7 @@
  *   fires one of those hooks (G-595);
  * - Collection items: one tool per item declaration with a key parameter (`id`, or `item` when
  *   the input has its own `id`, D265), an enum of the live keys (`state.id`, G-592) labelled by
- *   `agent.label(state)` (D258); a key hidden by the Collection's filter gets an error that says
+ *   `agent.label(state)` (D258; consumers strip user-entered labels with `unlabel`, G-644); a key hidden by the Collection's filter gets an error that says
  *   so (D257);
  * - a call: serialized (D260), then the tool, the input (`parseInput`: unwrap, repair, validate),
  *   the target, `when`, `confirm` for a consequential action (awaited BEFORE dispatch, then the
@@ -50,7 +50,7 @@ export interface ConfirmInfo {tool: string; component: string; action: string; d
 export type Confirm = boolean | ((info: ConfirmInfo) => boolean | Promise<boolean>)
 export type AgentResult = {ok: boolean; [k: string]: any}
 /** internal (A-2): one declaration's offered tools */
-export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]; enums: Set<string>}
+export interface AgentGroup {name: string; untrusted?: boolean; read: boolean; tools: string[]; enums: Set<string>; labels?: Record<string, string>}
 export interface AgentToolsOptions {
   /** consequential calls: resolve true to run (default: decline) */
   confirm?: Confirm
@@ -103,6 +103,34 @@ export function hasUserText(v: any, enums?: Set<string>, d = 0): boolean {
   if (!v || typeof v != 'object') return false
   if (Array.isArray(v)) return v.some(x => hasUserText(x, enums, d + 1))
   return Object.keys(v).some(k => !OWN_KEYS.test(k) && hasUserText(v[k], enums, d + 1))
+}
+
+/**
+ * D286 / G-644: whether an item declaration's `agent.label` texts are user-entered: `untrusted` as
+ * declared, else inferred by hasUserText (so any label text but the app's own enum values; declare
+ * `untrusted: false` to keep the labels in the schema). Shared by WebMCP, chat and the command bar
+ */
+export const labelsUntrusted = (g: AgentGroup): boolean =>
+  !!g.labels && Object.keys(g.labels).length > 0 && (g.untrusted ?? hasUserText(Object.values(g.labels), g.enums))
+
+/**
+ * D286 / G-644: an item tool's key parameter (`id` / `item`: an enum with "Which todo (1: buy
+ * milk; …)") with its ids only: `agent.label` text stays out of the schema, which agents read as
+ * instructions. `where` says where the labels are instead ("the read tool has their contents")
+ */
+export const unlabel = (schema: any, where: string): any => {
+  const props = schema?.properties
+  if (!props) return schema
+  let changed = false
+  const out: any = {}
+  for (const k in props) {
+    const p = props[k], d = p?.description
+    if (p && Array.isArray(p.enum) && typeof d == 'string' && /^Which \S+ \(/.test(d)) {
+      out[k] = {...p, description: d.slice(0, d.indexOf(' (')) + ` (ids ${p.enum.join(', ')}; ${where})`}
+      changed = true
+    } else out[k] = p
+  }
+  return changed ? {...schema, properties: out} : schema
 }
 
 interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any; enums: Set<string>}
@@ -409,10 +437,17 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       return () => { listeners.delete(fn) }
     },
     stop() { stopped = true; off?.(); listeners.clear() },
-    /** internal (A-2, WebMCP): the offered tools grouped by declaration, with `untrusted` as declared */
+    /** internal (A-2, WebMCP; chat; the command bar): the offered tools grouped by declaration, with `untrusted` as declared and an item declaration's live labels (id → `agent.label`) */
     groups(): AgentGroup[] {
       const rs = [...build().values()]
-      return entries.map(e => ({name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name), enums: e.enums}))
+      return entries.map(e => {
+        const labels: Record<string, string> = {}
+        if (e.item && e.decl.label) for (const iv of e.ivs) {
+          const id = keyOf(iv), l = !iv.disposed && id != null ? labelOf(iv) : undefined
+          if (l !== undefined) labels[id] = l
+        }
+        return {name: e.name, untrusted: e.decl.untrusted, read: !!e.decl.read, tools: rs.filter(r => r.e === e && !r.off).map(r => r.tool.name), enums: e.enums, ...(e.item && e.decl.label && {labels})}
+      })
     },
     /** internal (M-3, the command bar): the live Collection items by declaration name, with their key and `agent.label` */
     targets(): Array<{name: string; id: any; label?: string}> {

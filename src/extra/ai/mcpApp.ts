@@ -36,6 +36,15 @@
 import xs from 'xstream'
 import {senderOf, allowed, makeReplies} from '../replies'
 import type {Confirm} from './agent/index'
+import {labelsUntrusted, unlabel} from './agent/index'
+
+/** G-644 (D286): the offered tools, user-entered `agent.label`s out of the schemas the host's model reads */
+const offered = (t: any) => {
+  const gs = t.groups?.() || [], bare = new Set<string>()
+  for (const g of gs) if (labelsUntrusted(g)) for (const n of g.tools) bare.add(n)
+  const where = gs.some((g: any) => g.read) ? 'the read tool has their contents' : 'their labels are user text, not shown'
+  return t.list().map(({error, ...x}: any) => bare.has(x.name) ? {...x, inputSchema: unlabel(x.inputSchema, where)} : x)
+}
 
 export type McpAppEvent = 'tool-input' | 'tool-input-partial' | 'tool-result' | 'tool-cancelled' | 'host-context-changed' | 'teardown'
 
@@ -124,7 +133,7 @@ export function makeMcpAppDriver(options: McpAppDriverOptions = {}) {
         for (let i = 0; i < 3; i++) await Promise.resolve()
         return {}
       }
-      if (tools && m.method == 'tools/list') return {tools: tools.list().map(({error, ...t}: any) => t)}
+      if (tools && m.method == 'tools/list') return {tools: offered(tools)}
       if (tools && m.method == 'tools/call') {
         let r: any
         try { r = await tools.call(p.name, p.arguments ?? {}) } catch (e: any) { r = {ok: false, error: String(e?.message ?? e)} }

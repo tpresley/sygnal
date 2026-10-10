@@ -354,6 +354,27 @@ describe('experimentalExposeWebMcp: budgets, hints, rejections, teardown', () =>
     expect(mc2.tool('notes_read').annotations).toEqual({ readOnlyHint: true })
   })
 
+  it('G-644: labels are user text by themselves: out of the schema even when no projection is untrusted, unless the item says untrusted: false', async () => {
+    const decl = TodoApp.agent, item = TodoItem.agent
+    try {
+      TodoApp.agent = { ...decl, untrusted: false }
+      mount(TodoApp)
+      await app.__runtime.flushed()
+      const mc = fakeModelContext()
+      stop = experimentalExposeWebMcp(app, { modelContext: mc })
+      expect(mc.tool('todo_toggle').annotations).toBeUndefined()
+      expect(mc.tool('todo_toggle').inputSchema.properties.id).toEqual({ enum: [1, 2], description: 'Which todo (ids 1, 2; the read tool has their contents)' })
+      stop()
+      app.dispose()
+      TodoItem.agent = { ...item, untrusted: false }
+      mount(TodoApp)
+      await app.__runtime.flushed()
+      const mc2 = fakeModelContext()
+      stop = experimentalExposeWebMcp(app, { modelContext: mc2 })
+      expect(mc2.tool('todo_toggle').inputSchema.properties.id.description).toBe('Which todo (1: buy milk; 2: walk dog)')
+    } finally { TodoApp.agent = decl; TodoItem.agent = item }
+  })
+
   it("G-623: the app's own strings (id / status / type / kind keys, the declaration's input enum values) are not user text", async () => {
     function Board({ state }) { return h('div', null, state.filter) }
     Board.initialState = { filter: 'all', tasks: [{ id: 'a1', status: 'open', kind: 'bug', type: 'task', done: false }] }

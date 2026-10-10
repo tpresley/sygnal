@@ -64,7 +64,7 @@ Sygnal never depends on the polyfill; you install it yourself (`npm install -D @
 
 **Context.** An agent works much better when it knows the current state ([why](/guide/agent/#what-agents-see)). WebMCP has no channel for it other than tools, so Sygnal offers it two ways: the read tool (`todos_read`), and a short summary of the declaration's `read` projection at the end of each of its tool descriptions ("Current state: ..."), registered again when the projection changes. The agent sees the state without having to call anything first.
 
-For a declaration with user-entered text (`untrusted: true`, or [inferred](/guide/agent/#security)), the summary in the descriptions is the **structure only**: counts, numeric ids, numbers and booleans, every string replaced by `<text>`. Its Collection key parameters list the ids without their `label`s. Agents read descriptions as instructions, so text a user typed never goes there; the contents come only from the read tool, whose results are marked untrusted.
+For a declaration with user-entered text (`untrusted: true`, or [inferred](/guide/agent/#security)), the summary in the descriptions is the **structure only**: counts, numeric ids, numbers and booleans, every string replaced by `<text>`. Its Collection key parameters list the ids without their `label`s, and so do those of any item declaration with a `label` (labels count as user text unless the item declaration says `untrusted: false`). Agents read descriptions as instructions, so text a user typed never goes there; the contents come only from the read tool, whose results are marked untrusted.
 
 ### Hints
 
@@ -151,7 +151,7 @@ Signup.model = {
 
 ## Agents that read the page
 
-Most browser agents today don't use WebMCP at all: they read the accessibility tree, the same structure screen readers use, and act on roles, names and states. An app that is accessible is most of the way to an app that agents can operate, and Lighthouse's Agentic Browsing audits check the same things (accessible names, stable layout, registered WebMCP tools, forms without declarative tools).
+Most browser agents today don't use WebMCP at all: they read the accessibility tree, the same structure screen readers use, and act on roles, names and states. An app that is accessible is most of the way to an app that agents can operate, and Lighthouse's [Agentic Browsing audits](https://developer.chrome.com/docs/lighthouse/agentic-browsing/scoring) check the same things. As of October 2026 they cover accessible names, stable layout, registered WebMCP tools and forms without declarative tools; the category is new, so check the linked page for the current audits and how they are scored.
 
 [`sygnal-check`](/integration/agents/#sygnal-check)'s accessibility rules ([Accessibility](/guide/accessibility/)) cover the common gaps, with two aimed at agents:
 

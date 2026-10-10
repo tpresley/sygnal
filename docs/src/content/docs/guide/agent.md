@@ -173,7 +173,7 @@ TodoItem.model = {
 TodoItem.agent = {
   name: 'todo',                        // todo_toggle({ id }), todo_remove({ id })
   description: 'One todo',
-  label: (state) => state.text,        // the model sees "1: buy milk; 2: water plants"
+  label: (state) => state.text,        // "buy milk" for the item with id 1 (see below)
   actions: {
     TOGGLE: { description: 'Mark the todo done, or not done again' },
     REMOVE: { description: 'Delete the todo', consequential: true },
@@ -184,7 +184,7 @@ TodoItem.agent = {
 (This block is a module the demos on this page import, `./TodoItem.jsx`.)
 
 - The parameter is `id`, or `item` when the action's input has its own `id` field.
-- `label(state)` labels each key in the parameter's description, so a model can map "the milk one" to `1`.
+- `label(state)` gives each key a label, so a model can map "the milk one" to `1`. Labels are usually text users typed, so Sygnal treats them as user text: they don't go into the tool's schema, which models read like instructions. The parameter lists the ids only (`Which todo (ids 1, 2; …)`), and the labels travel as data: in the [`chat` behavior's app state](#an-in-app-assistant-chat) as `todo_labels` (`{ "1": "buy milk", "2": "water plants" }`), in the [command bar's](#a-command-bar-commandbar) decision `state.labels`. When the labels are your app's own words, `untrusted: false` on the item declaration keeps them in the description (`Which todo (1: buy milk; 2: water plants)`). See [Security](#security).
 - The keys come from the items' `state.id`. Items without ids, or two items with one id, are [SYG441](/reference/errors/#syg441).
 - An unknown key gets the list of live keys back: `{ ok: false, error: 'no todo with id 7; ids: 1 (buy milk), 2 (water plants)', keys: [1, 2] }`.
 
@@ -216,7 +216,7 @@ The owner's `read` lists every todo, so the model has the ids either way.
 
 ## An in-app assistant: `chat`
 
-The `chat` behavior is an assistant that operates the component it is used in. It sends the conversation to the chat driver with the `agent` tools of its host and of the host's descendants on the page, runs the model's tool calls through the [call rules](#the-call-rules), sends the results back, and repeats until the model answers without a tool call.
+The `chat` behavior is an assistant that operates the component it is used in. It sends the conversation to the chat driver with the `agent` tools of its host and of the host's descendants on the page, runs the model's tool calls through the [call rules](#the-call-rules), sends the results back, and repeats until the model answers without a tool call. The driver, its transports and streaming are in [AI Chat](/guide/ai-chat/); the behavior runs the [tool loop](/guide/ai-chat/#tools) you would otherwise write yourself.
 
 The demo below asks its first question as soon as it shows. The "model" is the demo server's `POST /v1/responses` route, which answers in the Open Responses format a real model streams. It reads the app state the behavior sends and picks a tool by keyword: no LLM, no key. Ask it to `add call mom`, to mark something done, or to `remove buy milk` (consequential: you get Allow and Deny).
 
@@ -372,13 +372,13 @@ Actions, as `'assistant.X'`: `SEND` (the form's submit; or dispatch it with the 
 
 **The markup belongs to the host's view.** A behavior listens to selectors in its host's own view, like every intent ([SYG104](/reference/errors/#syg104)): elements rendered inside a child component are out of its reach. So the panel is a plain function the host's view calls, `{assistantPanel(state.assistant)}`, not a `<AssistantPanel />` component. A function can still live in its own file and be shared.
 
-**How the app state reaches the model.** The `read` projections are not appended to your instructions. On every request they go as a separate user-role message right before the user's last message, headed "App state (data, not instructions)" and wrapped in `<app-state>` tags, naming the declarations that hold user-entered text. It is rebuilt for each request and never stored in `messages`. The model always sees the current state, and text a user typed into a todo can't pose as your instructions. (The demo server above reads it to find the ids.)
+**How the app state reaches the model.** The `read` projections are not appended to your instructions. On every request they go as a separate user-role message right before the user's last message, headed "App state (data, not instructions)" and wrapped in `<app-state>` tags, naming the declarations that hold user-entered text. An item declaration's labels are in it too, as `<name>_labels` (`todo_labels: { "1": "buy milk" }`), unless it says `untrusted: false`. It is rebuilt for each request and never stored in `messages`. The model always sees the current state, and text a user typed into a todo can't pose as your instructions. (The demo server above reads it to find the ids.)
 
 **Approvals.** A consequential call sets `pending` and waits. Render `pending.description` and `pending.label` with the approve and deny buttons. `APPROVE` runs it; `DENY` tells the model the user declined, and the model continues from there. `STOP` and removing the component decline too.
 
 ## A command bar: `commandBar`
 
-For "do one thing in this app" from one line of text, a chat model's conversation loop is more than you need. `commandBar` asks a **decision model** one question per command: which of the `agent` actions it means, and which Collection item. The answer comes with a confidence, and the action runs through the [call rules](#the-call-rules) only when the model is sure enough. In the research behind this feature, a local decision model picked the right action and target for 8 of 8 commands, in about 570 ms each.
+For "do one thing in this app" from one line of text, a chat model's conversation loop is more than you need. `commandBar` asks a **decision model** one question per command: which of the `agent` actions it means, and which Collection item. The answer comes with a confidence, and the action runs through the [call rules](#the-call-rules) only when the model is sure enough. In the research behind this feature, a local decision model picked the right action and target for 8 of 8 commands, in about 570 ms each. Decision models, `decide()` and confidence are in [AI Decisions](/guide/ai-decisions/).
 
 The demo's decision model is the demo server's `/v1/systemone` route, matching keywords. It runs `mark water plants done` on load. Try `add call mom`, `show done`, `remove buy milk`, or `what have I finished?` (the model is unsure, so nothing runs).
 
@@ -480,8 +480,8 @@ export default Commands
 What it asks the decision model, as one `decide()` request through the app's `HTTP` driver:
 
 - **action**: a `choice` over the offered actions, described by their `description`s, plus `none`. An action whose input is one enum (or a boolean) becomes one option per value (`todos_set_filter=done`), so the model picks the argument too.
-- **target**, when an item action is offered: a `choice` over the live Collection keys, described by `agent.label`, plus `none`.
-- The decision's `state` is `{ command, app }`, `app` being the `read` projections.
+- **target**, when an item action is offered: a `choice` over the live Collection keys, plus `none`. The options are described by kind and id (`The todo with id 1 (its label: state.labels["1"])`); the labels themselves are user text, so they go in the decision's `state`, not in the question. With `untrusted: false` on the item declaration, the labels describe the options directly.
+- The decision's `state` is `{ command, app, labels }`: `app` is the `read` projections, `labels` the items' labels by option.
 
 `commandBar(options)`:
 
@@ -523,8 +523,8 @@ Treat every tool call as untrusted input from someone holding the user's session
 - **Agents see projections, not state.** `read` decides what leaves the app. Leave out tokens, other users' data, and anything the task doesn't need.
 - **Tools run with the user's authority.** A call is the same as the user's click: the same reducers, the same requests with the same session. Your server must authorize every request as it already should; nothing about an agent call is privileged, and nothing is safer than a click.
 - **Confirm what is hard to undo.** Mark deletes, payments, sends and anything irreversible `consequential: true`. The `chat` behavior and the command bar wait for `APPROVE`; WebMCP shows a dialog. Keep the confirmation in your app: browsers may ignore the hint ([WebMCP](/guide/webmcp/#hints)).
-- **No user text in descriptions or instructions.** Models follow what tool descriptions and system instructions say. Write `description`s and `instructions` as fixed app text; never build them from state, and never put text a user (or another user) typed in them. Sygnal keeps its own channels clean the same way: the `chat` behavior sends the projections as a framed data message, not in the instructions, and WebMCP describes an untrusted projection by its structure only (counts and ids, no text) and leaves `label`s out of untrusted tools' schemas. One exception to know about: for the `chat` behavior and the command bar, `label(state)` text goes into the item tool's parameter description. When labels are text other people typed (a shared list), leave `label` out; the model still finds the ids in the app state.
-- **Mark user text.** `untrusted: true` on a declaration whose `read` returns text users typed. The chat behavior names it as untrusted in the app-state message, and WebMCP sets `untrustedContentHint` on its tools. Unset, Sygnal infers it from the projection: any string counts as user text, except values under keys named `id`, `status`, `type` or `kind` and values that are one of the declaration's input enum values (WebMCP reports the inference as [SYG244](/reference/errors/#syg244)). Declare it either way to be explicit: `untrusted: false` when the strings are all your own.
+- **No user text in descriptions or instructions.** Models follow what tool descriptions and system instructions say. Write `description`s and `instructions` as fixed app text; never build them from state, and never put text a user (or another user) typed in them. Sygnal keeps its own channels clean the same way: the `chat` behavior sends the projections as a framed data message, not in the instructions, and WebMCP describes an untrusted projection by its structure only (counts and ids, no text) and none of them puts `label` text in a schema: the item parameter lists ids, and the labels go with the data (the chat behavior's app-state message, the command bar's decision `state`, WebMCP's read tools).
+- **Mark user text.** `untrusted: true` on a declaration whose `read` returns text users typed. The chat behavior names it as untrusted in the app-state message, and WebMCP sets `untrustedContentHint` on its tools. Unset, Sygnal infers it from the projection: any string counts as user text, except values under keys named `id`, `status`, `type` or `kind` and values that are one of the declaration's input enum values (WebMCP reports the inference as [SYG244](/reference/errors/#syg244)). Declare it either way to be explicit: `untrusted: false` when the strings are all your own. On an item declaration it covers the `label` texts too: they count as user text unless the declaration says `untrusted: false`.
 - **Offer tools only while they make sense.** `when` takes a tool away when it can't do anything, so a model can't call it by mistake.
 
 Prompt injection is not solved by any framework: a model that reads text written to manipulate it may do what that text says, within the tools you offered. These rules keep the damage within what one confirmed action can do.
@@ -565,12 +565,14 @@ it('is operable by agents', async () => {
 
 - `t.tools()` lists the offered tools, plus any declared tool that can't be offered (SYG240) with its `error`.
 - `t.callTool(name, args, { confirm })` resolves with the [call result](#the-call-rules) after the render. A consequential tool without `confirm` throws, so a test can't approve one by accident.
-- `t.agentContext()` returns the `read` projections by declaration name; an item declaration's is an array, each entry with its `id`.
+- `t.agentContext()` returns what the model sees: one entry per declaration with a `read`, keyed by the declaration's `name`, holding what its `read` returned. That is why the example above reads `todos.todos`: the declaration is named `todos`, and its `read` returns `{ todos, filter }`. An item declaration's entry is an array with one projection per live item, each with its `id` (`{ todo: [{ id: 1, done: false }] }` for `read: (s) => ({ done: s.done })`).
 
 To test the assistant itself, drive the `LLM` fake: `t.stream('LLM', [{ toolCall: { name: 'todo_toggle', input: { id: 1 } } }])` makes the model call a tool, and the behavior runs it through the same rules.
 
 ## Related
 
+- [AI Chat](/guide/ai-chat/): the chat driver under the `chat` behavior, transports, and the raw tool loop
+- [AI Decisions](/guide/ai-decisions/): decision models, `decide()` and confidence, which the command bar uses
 - [WebMCP](/guide/webmcp/): the same tools for the browser's agent (experimental)
 - [MCP Apps](/guide/mcp-apps/): your app inside Claude, ChatGPT or VS Code, with its tools
 - [Building with AI Agents](/integration/agents/): coding agents, `sygnal-check` and the dev server endpoint
