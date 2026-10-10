@@ -5,6 +5,7 @@
  */
 import { makeDiagnostic } from './diagnostic.js'
 import { loc, endLoc } from './ast.js'
+import { lineStarts, locateEdit } from './edits.js'
 
 function isSuppressed(file, line, code) {
   for (const l of [line, line - 1]) {
@@ -30,11 +31,45 @@ function relatedLocations(project, related, file) {
 }
 
 /**
+ * `report({ fixes })` → the diagnostic's `fixes` (PLAN-7 C-4, edits.js): each edit gets its
+ * line/column range and a path relative to cwd. A fix with an edit in a file the project
+ * didn't load is dropped. A rule's legacy `edits` (strict --fix rewrites) become one
+ * `fixAll` fix.
+ */
+function locatedFixes(project, r, starts) {
+  const list = [...(r.fixes || [])]
+  if (r.edits?.length && !list.some(f => f.fixAll)) list.push({ title: `Apply the ${r.code} rewrite`, kind: 'quickfix', preferred: true, fixAll: true, edits: r.edits })
+  const out = []
+  for (const f of list) {
+    if (!f?.edits?.length) continue
+    const edits = []
+    for (const e of f.edits) {
+      const abs = typeof e.file === 'string' ? e.file : e.file?.path
+      const source = abs && project.files.get(abs)?.source
+      if (source == null) { edits.length = 0; break }
+      if (!starts.has(abs)) starts.set(abs, lineStarts(source))
+      edits.push(locateEdit(starts.get(abs), project.relPath(abs), e))
+    }
+    if (!edits.length) continue
+    out.push({ title: f.title, kind: f.kind || 'quickfix', ...(f.preferred ? { preferred: true } : {}), ...(f.fixAll ? { fixAll: true } : {}), edits })
+  }
+  return out.length ? out : undefined
+}
+
+/** The raw edits (absolute paths, offsets) of a report's `fixAll` fix: `diagnostic.edits`, kept for --fix's old API. */
+function rawFixAllEdits(r) {
+  const f = (r.fixes || []).find(x => x?.fixAll)
+  const edits = f ? f.edits : r.edits
+  return edits?.length ? edits.map(e => ({ file: typeof e.file === 'string' ? e.file : e.file.path, start: e.start, end: e.end, text: e.text })) : null
+}
+
+/**
  * Run rules over an already-built project.
  */
 export function runRules(project, rules) {
   const out = []
   const seen = new Set()
+  const starts = new Map() // absPath → line starts, for the fixes' positions
   for (const rule of rules) {
     const report = (r) => {
       let file = r.file
@@ -55,9 +90,11 @@ export function runRules(project, rules) {
         column,
         ...endLoc(r.endNode || node),
         related: relatedLocations(project, r.related, file),
+        fixes: locatedFixes(project, r, starts),
       })
-      // --fix rewrites (strict rules); non-enumerable so JSON output is unchanged
-      if (r.edits?.length) Object.defineProperty(d, 'edits', { value: r.edits })
+      // the --fix rewrite's raw edits (absolute paths), as before C-4; non-enumerable so JSON output is unchanged
+      const raw = rawFixAllEdits(r)
+      if (raw) Object.defineProperty(d, 'edits', { value: raw })
       out.push(d)
     }
     try {

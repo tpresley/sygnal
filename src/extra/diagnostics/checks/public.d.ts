@@ -170,6 +170,35 @@ export interface InspectDiagnostic {
   endColumn?: number
   /** static only: the other locations of a pair or cross-file finding */
   related?: InspectRelatedLocation[]
+  /** static only: mechanical fixes as text edits (sygnal-check, PLAN-7 C-4) */
+  fixes?: InspectFix[]
+}
+
+/** A fix for a static diagnostic: apply all of its edits together. */
+export interface InspectFix {
+  title: string
+  kind: 'quickfix' | 'refactor'
+  /** the one obvious fix (LSP `isPreferred`) */
+  preferred?: boolean
+  /** a mechanical rewrite `sygnal-check --fix` applies */
+  fixAll?: boolean
+  edits: InspectTextEdit[]
+}
+
+/**
+ * Replace `start`..`end` of `file` with `text`. Offsets count UTF-16 units; `line`/`column` ..
+ * `endLine`/`endColumn` are the same range, 1-based, `endColumn` exclusive. `file` may differ
+ * from the diagnostic's.
+ */
+export interface InspectTextEdit {
+  file: string
+  start: number
+  end: number
+  line: number
+  column: number
+  endLine: number
+  endColumn: number
+  text: string
 }
 
 /** A diagnostic's other location (static only; same units as InspectDiagnostic's range). */

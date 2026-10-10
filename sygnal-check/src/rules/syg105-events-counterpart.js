@@ -5,6 +5,7 @@
  * the finding is downgraded to info because the dynamic one might match.
  */
 import { closestName } from '../names.js'
+import { renameFix, stringEdit } from '../edits.js'
 
 /**
  * PLAN-7 C-2: a near-miss type on the other side ('DOC_SAVE' emitted, 'DOC_SAVED' selected)
@@ -14,6 +15,15 @@ function nearMiss(type, others, what) {
   const near = closestName(type, new Set(others.map(o => o.type)))
   const at = near && others.find(o => o.type === near && o.node && o.file)
   return at ? [{ node: at.node, file: at.file, message: `'${near}' is ${what} here` }] : undefined
+}
+
+/**
+ * PLAN-7 C-4: rename this side to the near-miss type. Not preferred: the other side may be the
+ * one to change (its own finding offers the opposite rename).
+ */
+function nearMissFix(e, others) {
+  const near = closestName(e.type, new Set(others.map(o => o.type)))
+  return near && e.file && renameFix(`Change '${e.type}' to '${near}'`, stringEdit(e.file, e.node, near), { preferred: false })
 }
 
 export default {
@@ -36,6 +46,7 @@ export default {
         file: s.file,
         node: s.node,
         related: nearMiss(s.type, emitted, 'emitted'),
+        fixes: nearMissFix(s, emitted),
         message: `EVENTS.select('${s.type}') but nothing in the scanned files emits '${s.type}'` +
           (dynamicEmitted.length ? ' (a non-literal emit might)' : ''),
         fix: `emit it from a model entry with EVENTS: event('${s.type}', …), or fix the event name`,
@@ -51,6 +62,7 @@ export default {
         file: e.file,
         node: e.node,
         related: nearMiss(e.type, selected, 'selected'),
+        fixes: nearMissFix(e, selected),
         message: `EVENTS type '${e.type}' is emitted but nothing in the scanned files selects it` +
           (dynamicSelected.length ? ' (a non-literal EVENTS.select() might)' : ''),
         fix: `listen with EVENTS.select('${e.type}') in the receiving component's intent, or fix the event name`,

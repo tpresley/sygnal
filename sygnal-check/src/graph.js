@@ -167,6 +167,8 @@ function slimDiagnostic(d) {
     if (d.endLine !== undefined) { out.endLine = d.endLine; out.endColumn = d.endColumn }
   }
   if (d.related?.length) out.related = d.related
+  // PLAN-7 C-4: the fixes as edits (the same objects, no copy)
+  if (d.fixes?.length) out.fixes = d.fixes
   return out
 }
 

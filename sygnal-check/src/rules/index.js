@@ -11,13 +11,14 @@
  *     run(project, report) { … }
  *   }
  *
- * `report({ code, component?, file, node, endNode?, anchor?, related?, message, fix?, severity?, data? })`
+ * `report({ code, component?, file, node, endNode?, anchor?, related?, fixes?, message, fix?, severity?, data? })`
  * — `file` is a FileInfo and `node` an AST node (for the location: its start
  * and, PLAN-7 C-2, its end as endLine/endColumn); `endNode` ends the range at
  * another node instead (`<tag` = the opening element .. its name); `anchor`, an
  * older, wider node whose line `// sygnal-ignore` comments also match;
  * `related: [{ node, file?, message }]`, the other side of a pair or cross-file
- * finding (`file` defaults to the finding's; emitted with its range); the
+ * finding (`file` defaults to the finding's; emitted with its range); `fixes`, mechanical
+ * fixes as edits (PLAN-7 C-4, ../edits.js; `fixAll: true` for the ones --fix applies); the
  * runner turns this into a Diagnostic, applies `// sygnal-ignore` comments
  * and drops findings located outside the scanned files.
  *

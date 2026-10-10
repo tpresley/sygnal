@@ -36,6 +36,10 @@
  * The declaration extends the file's existing `const { … } = controls({ … })`
  * or is added after the imports, and `controls` is merged into the file's
  * `import { … } from 'sygnal'` (or imported). Running it again changes nothing.
+ *
+ * PLAN-7 C-4: `sources` (an editor's buffers) is read before the disk, for the files and for
+ * the class usages; controlFixes() returns the same conversions one class at a time as editor
+ * refactors (edits.js shape).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -45,6 +49,7 @@ import { parseSource, walk, unwrap, jsxName, jsxAttr } from './ast.js'
 import { selectorRequirements } from './selectors.js'
 import { evalStrings, tokenize } from './strings.js'
 import { isSourceRef, sourceAliases } from './model/intent.js'
+import { applyEdits, lineStarts, locateEdit } from './edits.js'
 
 const SINGLE_CLASS = /^\s*\.(-?[_a-zA-Z][\w-]*)\s*$/
 const STYLE_FILES = /\.(css|scss|sass|less|styl|pcss|postcss|html|vue|svelte|astro)$/
@@ -97,10 +102,11 @@ function isRootCall(intent, sel) {
 
 // ---------------------------------------------------------------- class usage
 
-function projectRoot(file, cwd) {
+function projectRoot(file, cwd, sources) {
   let dir = path.dirname(file)
   for (let i = 0; i < 20; i++) {
-    if (fs.existsSync(path.join(dir, 'package.json'))) return dir
+    const pkg = path.join(dir, 'package.json')
+    if (sources.has(pkg) || fs.existsSync(pkg)) return dir
     const up = path.dirname(dir)
     if (up === dir) break
     dir = up
@@ -108,17 +114,34 @@ function projectRoot(file, cwd) {
   return cwd
 }
 
+const wanted = (name) => (STYLE_FILES.test(name) || SOURCE_FILES.test(name)) && !/\.d\.[cm]?ts$/.test(name)
+
 function listFiles(dir, out = []) {
   let entries
   try { entries = fs.readdirSync(dir, { withFileTypes: true }) } catch { return out }
   for (const e of entries) {
     if (e.isDirectory()) {
       if (!IGNORED_DIRS.has(e.name) && !e.name.startsWith('.')) listFiles(path.join(dir, e.name), out)
-    } else if (e.isFile() && (STYLE_FILES.test(e.name) || SOURCE_FILES.test(e.name)) && !/\.d\.[cm]?ts$/.test(e.name)) {
+    } else if (e.isFile() && wanted(e.name)) {
       out.push(path.join(dir, e.name))
     }
   }
   return out
+}
+
+/**
+ * The project's files under `root`: the disk walk, plus the files in `sources` (PLAN-7 C-1:
+ * an editor's buffers, read from there first) the walk would have picked.
+ */
+function projectFiles(root, sources) {
+  const out = new Set(listFiles(root))
+  for (const f of sources.keys()) {
+    const rel = path.relative(root, f)
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) continue
+    if (rel.split(path.sep).slice(0, -1).some(d => IGNORED_DIRS.has(d) || d.startsWith('.'))) continue
+    if (wanted(path.basename(f))) out.add(f)
+  }
+  return [...out]
 }
 
 /**
@@ -129,9 +152,10 @@ function listFiles(dir, out = []) {
 function classUsage(root, project) {
   const style = []
   const strings = [] // { node, text }
-  for (const f of listFiles(root)) {
+  for (const f of projectFiles(root, project.sources)) {
     let text
-    try { text = fs.readFileSync(f, 'utf8') } catch { continue }
+    if (project.sources.has(f)) text = project.sources.get(f)
+    else try { text = fs.readFileSync(f, 'utf8') } catch { continue }
     if (STYLE_FILES.test(f)) {
       style.push(text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/<!--[\s\S]*?-->/g, ' '))
       continue
@@ -313,6 +337,7 @@ function editsForFile(project, file, conversions, { keepClasses, usage }) {
     }
   }
   if (!keys.length) return null
+  const made = keys.map(k => k.key)
   const callee = controlsName || 'controls'
   const lastImport = [...ast.program.body].reverse().find(s => s.type === 'ImportDeclaration')
   const semi = lastImport && source.slice(lastImport.start, lastImport.end).trimEnd().endsWith(';') ? ';' : ''
@@ -345,50 +370,90 @@ function editsForFile(project, file, conversions, { keepClasses, usage }) {
       add(0, 0, (importText ? importText + '\n\n' : '') + decl + '\n\n')
     }
   }
-  return { edits, count: keys.length }
-}
-
-function applyEdits(source, edits) {
-  let out = source
-  for (const e of [...edits].sort((a, b) => b.start - a.start || b.end - a.end)) out = out.slice(0, e.start) + e.text + out.slice(e.end)
-  return out
+  return { edits, count: keys.length, keys: made }
 }
 
 function syntaxErrors(source, file) {
   try { return parseSource(source, file).errors?.length || 0 } catch { return Infinity }
 }
 
-/**
- * Convert single-class selectors to controls in `files` (absolute paths), in place.
- * @returns {{ controls: number, files: string[], skipped: string[] }}
- */
-export function convertControls(files, options = {}) {
+/** The planned conversions of the scanned files (Map<FileInfo, conversions>), the project and the class usages. */
+function plan(files, options) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd })
+  const project = buildProject(files, { cwd, sources: options.sources })
   const blocked = blockedClasses(project)
   const byFile = new Map()
   for (const comp of project.components) {
     if (!project.scanned.has(comp.file.path)) continue
-    const plan = planComponent(project, comp, blocked)
-    if (!plan.length) continue
+    const conversions = planComponent(project, comp, blocked)
+    if (!conversions.length) continue
     if (!byFile.has(comp.file)) byFile.set(comp.file, [])
-    byFile.get(comp.file).push(...plan)
+    byFile.get(comp.file).push(...conversions)
   }
   const usageByRoot = new Map()
+  const usageFor = (file) => {
+    const root = projectRoot(file.path, cwd, project.sources)
+    if (!usageByRoot.has(root)) usageByRoot.set(root, classUsage(root, project))
+    return usageByRoot.get(root)
+  }
+  return { project, byFile, usageFor }
+}
+
+/**
+ * Convert single-class selectors to controls in `files` (absolute paths): in place, or with
+ * `write: false` only in the result's `texts` (absPath → new text). `sources` (PLAN-7 C-1) is
+ * read before the disk, for the files and for the class usages (styles, strings in tests).
+ * @returns {{ controls: number, files: string[], skipped: string[], texts: Map<string, string> }}
+ */
+export function convertControls(files, options = {}) {
+  const { project, byFile, usageFor } = plan(files, options)
   let controls = 0
   const changed = []
   const skipped = []
+  const texts = new Map()
   for (const [file, conversions] of byFile) {
-    const root = projectRoot(file.path, cwd)
-    if (!usageByRoot.has(root)) usageByRoot.set(root, classUsage(root, project))
-    const r = editsForFile(project, file, conversions, { keepClasses: !!options.keepClasses, usage: usageByRoot.get(root) })
+    const r = editsForFile(project, file, conversions, { keepClasses: !!options.keepClasses, usage: usageFor(file) })
     if (!r) continue
     const after = applyEdits(file.source, r.edits)
     if (after === file.source) continue
     if (syntaxErrors(after, file.path) > syntaxErrors(file.source, file.path)) { skipped.push(file.path); continue }
-    fs.writeFileSync(file.path, after)
+    if (options.write !== false) fs.writeFileSync(file.path, after)
+    texts.set(file.path, after)
     controls += r.count
     changed.push(file.path)
   }
-  return { controls, files: changed, skipped }
+  return { controls, files: changed, skipped, texts }
+}
+
+/**
+ * The conversions as editor refactors (PLAN-7 C-4): one per class, under exactly the
+ * conditions `--controls` applies (the same plan, one conversion at a time), located at the
+ * first selector it rewrites:
+ *   [{ title, kind: 'refactor', file, line, column, endLine, endColumn, control, class,
+ *      edits: [{ file, start, end, line, column, endLine, endColumn, text }] }]
+ * A conversion whose rewrite would not parse is left out.
+ */
+export function controlFixes(files, options = {}) {
+  const { project, byFile, usageFor } = plan(files, options)
+  const out = []
+  for (const [file, conversions] of byFile) {
+    const starts = lineStarts(file.source)
+    const rel = project.relPath(file.path)
+    for (const conv of conversions) {
+      const r = editsForFile(project, file, [conv], { keepClasses: !!options.keepClasses, usage: usageFor(file) })
+      if (!r) continue
+      const after = applyEdits(file.source, r.edits)
+      if (after === file.source || syntaxErrors(after, file.path) > syntaxErrors(file.source, file.path)) continue
+      const sel = conv.selectors[0].node
+      const at = locateEdit(starts, rel, { start: sel.start, end: sel.end, text: '' })
+      out.push({
+        title: `Convert '.${conv.cls}' to the control ${r.keys[0]}`,
+        kind: 'refactor',
+        file: rel, line: at.line, column: at.column, endLine: at.endLine, endColumn: at.endColumn,
+        control: r.keys[0], class: conv.cls,
+        edits: [...r.edits].sort((a, b) => a.start - b.start).map(e => locateEdit(starts, rel, e)),
+      })
+    }
+  }
+  return out
 }

@@ -84,7 +84,7 @@ export default {
         message: `${what}, which Sygnal 6.0 removed`,
         fix: `${fix[0].toUpperCase()}${fix.slice(1)}. See ${GUIDE}#${anchor}`,
         data: { form: anchor, ...data },
-        edits,
+        fixes: edits && [{ title: `Remove ${component}.${data.static}`, kind: 'quickfix', preferred: true, fixAll: true, edits }],
       })
       walk(file.ast.program, (n, parent) => {
         // X.static = …

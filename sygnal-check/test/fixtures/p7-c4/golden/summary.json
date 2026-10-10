@@ -1,0 +1,30 @@
+{
+  "strict-bad": {
+    "fixed": 7,
+    "passes": 1,
+    "files": [
+      "model-forms.jsx",
+      "typed.tsx"
+    ]
+  },
+  "fix-input": {
+    "fixed": 10,
+    "passes": 1,
+    "files": [
+      "emit-first.jsx",
+      "emit-kept.jsx",
+      "emit-last.jsx",
+      "emit-only.jsx",
+      "emit-twice.jsx",
+      "removed.jsx"
+    ]
+  },
+  "controls-input": {
+    "fixed": 0,
+    "passes": 0,
+    "controls": 3,
+    "files": [
+      "App.jsx"
+    ]
+  }
+}

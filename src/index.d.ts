@@ -1792,6 +1792,8 @@ export type {
   InspectSelector,
   InspectDiagnostic,
   InspectRelatedLocation,
+  InspectFix,
+  InspectTextEdit,
   InspectRecentAction,
   InspectCommand,
   InspectTimer,
