@@ -112,7 +112,11 @@ export function startServer({ server: serverOpts = {}, onRequest } = {}) {
       for (let i = 0; i < 3; i++) { await server.idle(); await tick(); await tick() }
     },
     async initialize(params = {}) {
-      const result = await client.request('initialize', { processId: null, capabilities: {}, ...params })
+      // advertise what VS Code does for diagnostics (G-663 strips unadvertised fields); a test's
+      // own textDocument capabilities are merged over it
+      const caps = params.capabilities || {}
+      const capabilities = { ...caps, textDocument: { publishDiagnostics: { relatedInformation: true, codeDescriptionSupport: true }, ...caps.textDocument } }
+      const result = await client.request('initialize', { processId: null, ...params, capabilities })
       client.notify('initialized', {})
       await client.settle()
       return result

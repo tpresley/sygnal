@@ -299,7 +299,8 @@ describe('hover', () => {
     expect(h.contents.kind).toBe('markdown')
     expect(h.contents.value).toMatch(/^\*\*SYG110: .+\*\*\n\n/)
     expect(h.contents.value).toContain('**Fix:**')
-    expect(h.contents.value).toContain('[Docs](https://sygnal.js.org/reference/errors#syg110)')
+    // G-661: the URL is the link text (Helix and Neovim conceal link targets)
+    expect(h.contents.value).toContain('Docs: [https://sygnal.js.org/reference/errors#syg110](https://sygnal.js.org/reference/errors#syg110)')
     expect(h.range).toEqual(sel.range)
     expect(await client.request('textDocument/hover', { textDocument: { uri: uriOf(C) }, position: { line: 0, character: 0 } })).toBeNull()
   })
@@ -309,6 +310,24 @@ describe('hover', () => {
     const h = await client.request('textDocument/hover', { textDocument: { uri: uriOf(C) }, position: { line: 4, character: 56 } })
     expect(h.contents.kind).toBe('plaintext')
     expect(h.contents.value).toMatch(/^SYG110: /)
+  })
+})
+
+describe('G-663: capability-gated diagnostic fields', () => {
+  it('omits relatedInformation and codeDescription for a client that does not advertise them', async () => {
+    const { client, C } = await poc({ init: { capabilities: { textDocument: { publishDiagnostics: {} } } } })
+    const ds = client.diags(C)
+    expect(ds.map(d => d.code).sort()).toEqual(['SYG101', 'SYG102', 'SYG110'])
+    for (const d of ds) {
+      expect(d.codeDescription).toBeUndefined()
+      expect(d.relatedInformation).toBeUndefined()
+      expect(d.message).toMatch(/^Counter: /) // the message still stands alone (D307)
+    }
+  })
+
+  it('keeps them for a client that advertises them', async () => {
+    const { client, C } = await poc()
+    for (const d of client.diags(C)) expect(d.codeDescription?.href).toMatch(/^https:\/\/sygnal\.js\.org\/reference\/errors#syg/)
   })
 })
 
@@ -395,6 +414,25 @@ export default Child
     client.change(f, fixed)
     await client.settle()
     expect(await client.request('textDocument/codeAction', ctx(f, [], { only: ['source.fixAll.sygnal'] }))).toEqual([])
+  })
+
+  it('G-662: an invoked request without `only` also offers fix-all when the file has an auto-fixable finding; automatic ones never do', async () => {
+    const { client, file } = await project({ 'sygnal-check.config.json': '{ "strict": true }\n', 'src/Saver.jsx': EMIT })
+    const f = file('src/Saver.jsx')
+    client.open(f, EMIT)
+    await client.settle()
+    const d = client.diags(f).find(x => x.code === 'SYG505')
+    expect(d).toBeTruthy()
+    const kinds = (acts) => acts.map(a => a.kind)
+    const invoked = await client.request('textDocument/codeAction', ctx(f, [d], { triggerKind: 1 }))
+    expect(kinds(invoked)).toContain('source.fixAll.sygnal')
+    const noKind = await client.request('textDocument/codeAction', ctx(f, [d]))
+    expect(kinds(noKind)).toContain('source.fixAll.sygnal')
+    const automatic = await client.request('textDocument/codeAction', ctx(f, [d], { triggerKind: 2 }))
+    expect(kinds(automatic)).not.toContain('source.fixAll.sygnal')
+    expect(automatic.length).toBeGreaterThan(0) // its quick fixes are still offered
+    // no sygnal finding in the context: nothing, even when invoked
+    expect(await client.request('textDocument/codeAction', ctx(f, [], { triggerKind: 1 }))).toEqual([])
   })
 
   it('suppress inserts the comment above the line, in the JSX form inside JSX children', async () => {

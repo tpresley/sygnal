@@ -335,9 +335,13 @@ export function createLspServer({
     for (const l of res.logs) log(l.level, l.message)
     const next = new Map()
     let count = 0
+    // G-663: relatedInformation and codeDescription only for clients that advertise them
+    const pd = clientCaps.textDocument?.publishDiagnostics || {}
     for (const [abs, list] of res.files) {
       for (const d of list) {
         count++
+        if (!pd.relatedInformation) delete d.relatedInformation
+        if (!pd.codeDescriptionSupport) delete d.codeDescription
         for (const r of d.relatedInformation || []) r.location.uri = clientUri(r.location.uri)
         for (const f of d.data?.fixes || []) for (const e of f.edits) e.uri = clientUri(e.uri)
       }
@@ -448,7 +452,7 @@ export function createLspServer({
         const e = getExplanation(d.code)
         if (!e) { parts.push(markdown ? `**${d.code}**\n\n${d.message}` : `${d.code}\n\n${d.message}`); continue }
         parts.push(markdown
-          ? `**${d.code}: ${e.title}**\n\n${e.explanation}\n\n**Fix:** ${e.fix}\n\n[Docs](${e.docsUrl})`
+          ? `**${d.code}: ${e.title}**\n\n${e.explanation}\n\n**Fix:** ${e.fix}\n\nDocs: [${e.docsUrl}](${e.docsUrl})`
           : `${d.code}: ${e.title}\n\n${e.explanation}\n\nFix: ${e.fix}\n\n${e.docsUrl}`)
       }
       return { contents: { kind: markdown ? 'markdown' : 'plaintext', value: parts.join(markdown ? '\n\n---\n\n' : '\n\n') }, range: hits[0].range }
@@ -470,7 +474,10 @@ export function createLspServer({
         const m = stored.find(s => String(s.code) === String(d.code) && s.message === d.message && sameRange(s.range, d.range))
         if (m && !ours.includes(m)) ours.push(m)
       }
-      const wantFixAll = !!only && allows(only, 'source.fixAll.sygnal')
+      // G-662: also offered in an explicitly invoked request without `only` (Helix never sends
+      // one) when the file has an auto-fixable finding; never in the automatic ones (triggerKind 2)
+      const wantFixAll = only ? allows(only, 'source.fixAll.sygnal')
+        : ctx.triggerKind !== 2 && ours.length > 0 && stored.some(d => d.data?.fixes?.some(f => f.fixAll))
       const wantRefactors = !!only && allows(only, 'refactor.rewrite')
       if (!ours.length && !wantFixAll && !wantRefactors) return [] // the frequent automatic request (triggerKind 2)
 

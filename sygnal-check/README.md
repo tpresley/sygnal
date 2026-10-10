@@ -298,7 +298,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Workspace | one project per workspace folder (`workspaceFolders`, else `rootUri` / `rootPath`, else the working directory); `workspace/didChangeWorkspaceFolders`. A folder whose files define no Sygnal component gets no diagnostics |
 | Documents | full text sync (`didOpen`, `didChange`, `didSave`, `didClose`). Open documents are checked from their unsaved text. Closing a document re-checks it from disk |
 | Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
-| Hover | on a finding: its code, title, explanation, fix and docs link (Markdown, or plain text for clients without Markdown) |
+| Hover | on a finding: its code, title, explanation, fix and docs URL (Markdown, with the URL itself as the link text so editors that hide link targets still show it; plain text for clients without Markdown) |
 | Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
@@ -316,10 +316,10 @@ Each diagnostic has:
 
 - `range`: the finding's start and end;
 - `severity`: error 1, warning 2, information 3;
-- `code` (`SYG110`) and `codeDescription.href` (its docs page);
+- `code` (`SYG110`) and `codeDescription.href` (its docs page), the latter only for clients that advertise `codeDescriptionSupport`;
 - `source: "sygnal"`;
 - `message` in the CLI's form, `Component: message (fix)`, so it makes sense without the link;
-- `relatedInformation` for the other side of a pair or cross-file finding (`related` in the JSON output);
+- `relatedInformation` for the other side of a pair or cross-file finding (`related` in the JSON output), for clients that advertise `relatedInformation`;
 - `data.fixes`: the finding's fixes as LSP edits.
 
 Each file's list is sorted errors first. Info findings are left out unless `sygnal.verbose` is set, as in the CLI.
@@ -334,7 +334,7 @@ Each file's list is sorted errors first. Info findings are left out unless `sygn
 |---|---|---|
 | A finding's fixes | `quickfix` (or `refactor.rewrite` for a removal) | The edits from the finding's `fixes` (see [JSON output](#json-output)): "Change '.incc' to '.inc'", "Add a model entry for 'X'", a canonical-form rewrite. `isPreferred` marks a single unambiguous suggestion. An edit can be in another file |
 | Suppress SYGnnn on this line | `quickfix` | Inserts `// sygnal-ignore-next-line SYGnnn` above the finding's first line, with the line's indentation. Inside JSX children it inserts `{/* sygnal-ignore-next-line SYGnnn */}` (see [Suppressing a finding](#suppressing-a-finding)) |
-| Fix all auto-fixable Sygnal problems | `source.fixAll.sygnal` | What `--fix` does for the file, on its unsaved text, as one edit. Like `--fix`, it applies the strict-mode rewrites whatever the settings. Offered when `context.only` asks for `source`, `source.fixAll` or `source.fixAll.sygnal` (VS Code: `"editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }`) |
+| Fix all auto-fixable Sygnal problems | `source.fixAll.sygnal` | What `--fix` does for the file, on its unsaved text, as one edit. Like `--fix`, it applies the strict-mode rewrites whatever the settings. Offered when `context.only` asks for `source`, `source.fixAll` or `source.fixAll.sygnal` (VS Code: `"editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }`), and in an invoked request without `only` (editors such as Helix never send one) when the cursor is on a finding and the file has an auto-fixable one |
 | Convert '.x' to the control X | `refactor.rewrite` | The `--controls` conversion of one selector. Offered only when `context.only` asks for refactors |
 
 Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
