@@ -1,7 +1,7 @@
 /**
  * The per-project model that every rule queries.
  *
- * buildProject(files, { cwd?, sources? }) parses the files and produces:
+ * buildProject(files, { cwd?, sources?, cache? }) parses the files and produces:
  *
  *   project.files        Map<absPath, FileInfo>   (scanned + loaded on demand)
  *   project.scanned      Set<absPath>             files diagnostics are reported for
@@ -37,6 +37,11 @@
  * editor's unsaved buffers: loadFile reads a file from it before the disk,
  * and import resolution counts a path in it as an existing file, so a new,
  * unsaved file resolves.
+ *
+ * `cache` (a ParseCache, ../cache.js; PLAN-7 C-3) shares a file's parse
+ * (ast, parents, suppressions) or its parse failure across builds while the
+ * text is identical. Everything else (the FileInfo, components, the model,
+ * parseErrors) is built per Project.
  *
  * The structure is plain data plus AST node references so later work (the
  * --graph output, strict rules) can serialize or query it without
@@ -80,9 +85,10 @@ function parseSuppressions(ast) {
 }
 
 export class Project {
-  constructor({ cwd = process.cwd(), sources } = {}) {
+  constructor({ cwd = process.cwd(), sources, cache } = {}) {
     this.cwd = cwd
     this.sources = toSourceMap(sources, cwd) // absPath → text (unsaved buffers)
+    this.cache = cache || null // ParseCache (PLAN-7 C-3)
     this.files = new Map()
     this.scanned = new Set()
     this.components = []
@@ -98,20 +104,32 @@ export class Project {
     let source
     if (this.sources.has(absPath)) source = this.sources.get(absPath)
     else try { source = fs.readFileSync(absPath, 'utf8') } catch { this.files.set(absPath, null); return null }
-    let ast
-    try {
-      ast = parseSource(source, absPath)
-    } catch (err) {
-      this.parseErrors.push({ file: absPath, message: err.message, line: err.loc?.line || 1, column: (err.loc?.column ?? 0) + 1 })
+    const parsed = this.cache?.lookup(absPath, source) || this._parse(absPath, source)
+    if (parsed.error) {
+      this.parseErrors.push({ file: absPath, ...parsed.error })
       this.files.set(absPath, null)
       return null
     }
-    const file = { path: absPath, source, ast, parents: new WeakMap(), suppressions: parseSuppressions(ast), components: [] }
-    indexParents(ast.program, file.parents)
-    file.parents.set(ast.program, null)
+    // the parse products may be shared through the cache; the FileInfo and what hangs off it are this build's
+    const file = { path: absPath, source, ast: parsed.ast, parents: parsed.parents, suppressions: parsed.suppressions, components: [] }
     this.files.set(absPath, file)
     this._discoverComponents(file)
     return file
+  }
+
+  /** Parse a text into { text, ast, parents, suppressions } or { text, error } (stored in the cache, if any). */
+  _parse(absPath, text) {
+    let entry
+    try {
+      const ast = parseSource(text, absPath)
+      const parents = new WeakMap()
+      indexParents(ast.program, parents)
+      parents.set(ast.program, null)
+      entry = { text, ast, parents, suppressions: parseSuppressions(ast) }
+    } catch (err) {
+      entry = { text, error: { message: err.message, line: err.loc?.line || 1, column: (err.loc?.column ?? 0) + 1 } }
+    }
+    return this.cache ? this.cache.store(absPath, entry) : entry
   }
 
   loadImport(fromFile, spec) {
@@ -280,6 +298,7 @@ export class Project {
 
   /** Scan the given files and build the full model. */
   build(absPaths) {
+    this.cache?.beginBuild()
     for (const p of absPaths) {
       this.scanned.add(p)
       this.loadFile(p)

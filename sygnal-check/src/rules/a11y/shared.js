@@ -72,10 +72,14 @@ export function elementsOf(project) {
   return out
 }
 
-const described = new WeakMap() // JSXElement → Element
+// project → (JSXElement → Element): per build, since the AST can be shared across builds through
+// a ParseCache while the Element holds this build's FileInfo and control resolution
+const described = new WeakMap()
 
 export function describe(project, file, el) {
-  if (described.has(el)) return described.get(el)
+  let byEl = described.get(project)
+  if (!byEl) described.set(project, byEl = new WeakMap())
+  if (byEl.has(el)) return byEl.get(el)
   const opening = el.openingElement
   const name = jsxName(opening.name)
   let tag = null
@@ -88,7 +92,7 @@ export function describe(project, file, el) {
   }
   const { attrs, spread } = collectAttrs(opening)
   const info = { file, el, opening, name, tag, kind, control, attrs, spread }
-  described.set(el, info)
+  byEl.set(el, info)
   return info
 }
 

@@ -337,6 +337,7 @@ A SYG900 for a rule that crashed has no source location: `file` is `''`, `line` 
 - `options.sources`: in-memory file contents, a `Map<path, text>` or a `{ [path]: text }` object (an editor's unsaved buffers; relative paths resolve against `cwd`). A file in it is read from there instead of the disk, and relative imports resolve to its paths, so a new, unsaved file is found. A file that exists only in `sources` is checked when it is named in `inputs`, or when it lies under a directory input (or matches a glob) and passes the same filters as files found on disk (source extension, no `node_modules` or dot directory, tests only with `includeTests`). `fixFiles()` doesn't support it yet: it rewrites the files on disk, so don't pass it there.
 - `options.config`: `false` to skip the [config file](#configuration) (for callers that resolved the settings already), or a path to read instead of looking for one. By default `check()` reads it from `cwd`, and when `inputs` is left out, checks the config's `paths` (else `src`). Its findings (SYG900) are in the result.
 - `options.defaults`: fallbacks for `strict`, `a11y`, `ignore`, `paths` and `includeTests` that sit below the config file (the Vite plugin passes its `diagnostics` settings here).
+- `options.cache`: a parse cache kept across checks (`createParseCache()` or `new ParseCache()`, both exported), for an editor or a watcher that re-checks the same project. A file whose text (from `sources` or the disk) is unchanged since the last check isn't parsed again; a file that failed to parse keeps reporting the same SYG900. Only the parse is shared: each check builds its own model, so results are the same as without a cache. A check drops the entries the previous check didn't use (a deleted or no longer imported file); `cache.delete(path)` and `cache.clear()` drop entries by hand, and `cache.stats` counts `{ hits, parses }`. Use one cache per project. The CLI doesn't use one; the MCP server keeps one for its life.
 
 `loadConfig(cwd, { file? })` returns `{ config, file, diagnostics }`: the valid keys found (with `paths` made absolute), the absolute path of the file read (or `null`), and the SYG900 findings. `resolveOptions(options)` returns `{ options, config }`: the options merged in the order above, and `loadConfig`'s result. `checkFiles()` and `graphFiles()`, which take already expanded files, read no config file.
 
@@ -344,11 +345,11 @@ A SYG900 for a rule that crashed has no source location: `file` is `''`, `line` 
 
 `fixFiles(absPaths, { cwd })` applies the `--fix` rewrites in place and returns `{ fixed, files, passes }`; with `{ controls: true, keepClasses? }` it also converts selectors to controls and adds `controls` (how many it made) and `controlFiles`. A strict diagnostic that can be fixed mechanically carries its text edits on a non-enumerable `edits` property (`[{ file, start, end, text }]`).
 
-`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`, `sources` included; `graphFiles(absPaths, options)` takes an expanded list. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
+`graph(inputs, options)` returns the [app graph](#app-graph---graph) (`InspectGraph`). It takes the same options as `check()`, `sources` and `cache` included; `graphFiles(absPaths, options)` takes an expanded list. `buildGraph(project, diagnostics)` does the same for an already built project. `validateSchema(schema, value)` is the small JSON Schema validator the tests use.
 
 `getExplanation(code)`, `listExplanations()`, `formatExplanation(entry)` and the raw `EXPLANATIONS` table back `explain`. The MCP server lives in `src/mcp.js` (`createMcpServer({ cwd }).handle(message)`, `runMcpServer({ stdin, stdout, cwd })`).
 
-For tooling, `buildProject(files, { cwd, sources })` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
+For tooling, `buildProject(files, { cwd, sources, cache })` returns the intermediate project model the rules query: components, intents, models, view classes and ids, child usages, collections, and events.
 
 ## Writing a rule
 
@@ -368,6 +369,8 @@ export default {
 ```
 
 a11y rules go in `src/rules/a11y/` (registered in `src/rules/a11y/index.js`; they report at warn and are swapped for error-severity copies with `--a11y=error`). Strict-mode rules go in `src/rules/strict/`, with `strict: true`; a report may carry `edits: [{ file, start, end, text }]` (absolute path, source offsets) for `--fix`. Every code must exist, with the same title, in Sygnal's runtime registry (`src/extra/diagnostics/codes.ts`). `test/codes.vtest.js` enforces this.
+
+A rule never writes to an AST node: with a parse cache the AST outlives the check (the cache tests run every rule over frozen ASTs). A module-level cache keyed by AST nodes holds only what the AST alone determines; anything that depends on the project or holds a `FileInfo` is keyed by the project or the `FileInfo` (both are per check).
 
 ## Development
 

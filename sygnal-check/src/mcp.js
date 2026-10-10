@@ -46,6 +46,7 @@ import { expandInputs } from './files.js'
 import { checkFiles, withConfigDiagnostics } from './index.js'
 import { graphFiles } from './graph.js'
 import { resolveOptions } from './config.js'
+import { createParseCache } from './cache.js'
 import { getExplanation, suggestCodes } from './explain.js'
 
 /** the stateless revisions (per-request `_meta`, no initialize), newest first */
@@ -123,16 +124,16 @@ function a11yOf(args) {
   return args.a11y
 }
 
-function callTool(name, args, cwd) {
+function callTool(name, args, cwd, cache) {
   args = isObj(args) ? args : {}
   if (name === 'check') {
     const { files, options, configDiagnostics } = settingsFor(cwd, args)
-    const diagnostics = withConfigDiagnostics(checkFiles(files, options), configDiagnostics, options.ignore)
+    const diagnostics = withConfigDiagnostics(checkFiles(files, { ...options, cache }), configDiagnostics, options.ignore)
     return { diagnostics, summary: summarize(diagnostics) }
   }
   if (name === 'graph') {
     const { files, options, configDiagnostics } = settingsFor(cwd, args)
-    return graphFiles(files, { ...options, extraDiagnostics: configDiagnostics })
+    return graphFiles(files, { ...options, cache, extraDiagnostics: configDiagnostics })
   }
   if (name === 'explain') {
     const e = typeof args.code === 'string' ? getExplanation(args.code) : undefined
@@ -149,6 +150,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
   const result = (id, value) => ({ jsonrpc: '2.0', id, result: value })
   const error = (id, code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data !== undefined ? { data } : {}) } })
   const serverInfo = { name: 'sygnal-check', version: pkg.version }
+  const cache = createParseCache() // PLAN-7 C-3: unchanged files aren't re-parsed between calls
 
   /**
    * A request's era from its `_meta`: 'modern', 'legacy', or an error response (an unknown
@@ -215,7 +217,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
         const tool = TOOLS.find(t => t.name === params.name)
         if (!tool) return error(id, -32602, `Unknown tool: ${params.name}`)
         try {
-          const value = callTool(tool.name, params.arguments, cwd)
+          const value = callTool(tool.name, params.arguments, cwd, cache)
           return result(id, { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value, isError: false })
         } catch (err) {
           const text = err instanceof ToolError ? err.message : `sygnal-check ${tool.name} failed: ${err?.message || err}`
