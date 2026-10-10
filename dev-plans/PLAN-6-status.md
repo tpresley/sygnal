@@ -6,7 +6,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 
 **Integration branch:** `plan6-integration`, cut from `plan6-plan` (`e3c86070`, = `main` `2d3569bf` + the research and the plan) on 2026-10-09, in the main checkout. Spikes run in agent worktrees on `exp/p6-s1` … `exp/p6-s5`.
 
-**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 running: guides merged (4-D1, 4-D2); 4-L, 4-F merged; 4-E (eval tier 44–47 build) running; eval budget $90 (D295).
+**State:** Phase 0: 0-A and spikes 0-S1…0-S5 done (reports in `research/p6-spikes/` on each spike branch). P6-Q8…Q32 accepted as recommended (D251–D275); PLAN-6 updated with Phase 0's findings. Phase 1 complete (2026-10-09; full gate green). **Phase 2 complete** (2-T, 2-W, 2-C, DX-1 merged). Phase 3 running: 3-K, 3-M merged; **Phase 3 complete** (2026-10-09; closing gate green). Phase 4 running: guides merged (4-D1, 4-D2); 4-L, 4-F, 4-E merged; operability rerun for task 47, then the paid runs from the user's terminal (`P6-RUNBOOK.md`); eval budget $90 (D295).
 
 ## Decisions
 
@@ -120,6 +120,7 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | 4-D1 | Guides: AI chat, decisions; AI recipes | ✅ merged | `p6-4d1` (`a8e1597a`) | 2026-10-09 | `guide/ai-chat.md` (getting started on Ollama, driver, structured output, tools, testing, shipping with an AI SDK 7 route checked against `ai@7.0.137`, open-relay caution, transport table, `strictSchemas`, custom transports, encoder), `guide/ai-decisions.md`, recipes `ai-support-inbox`, `ai-form-fill`, `ai-summarize`; 8 demos (6 stream on load). check-live 92/92 × 3; samples 774 clean. Coordinator: copy-guides conflict resolved |
 | 4-L | Agent context: llms.txt + skill | ✅ merged | `p6-4l` (`253c0cf9`) | 2026-10-09 | `llms.txt` 313 → 319 lines (limit 315 → 320, D245): an AI section (chat request + replies + transports + tests; the `agent` static with a full example; decisions; the key rule SYG670 and `strictSchemas`; the guides list); `docs/public/llms.txt` synced. SKILL.md 42,100 → 42,699 B (+599): guide pointer + one AI bullet; skills-toc updated (0 missing). `test/p6-4l-agent-ai-samples.test.js` (32: fragments verbatim, run with the fakes, `--strict` clean) |
 | 4-F | Fixes found while documenting | ✅ merged | `p6-4f` (`2518ef57`) | 2026-10-09 | G-644: shared `labelsUntrusted`/`unlabel`; `chat` sends ids only in schemas, labels in `<app-state>`; `commandBar` criteria reference `state.labels`; WebMCP and MCP Apps `tools/list` strip labels too; `untrusted: false` keeps them. Experiment 5 on nimble 8/8 before and after (labels-only variant targets 4/4). G-645 docs. Cross-links; `commandBar` documented in `guide/agent.md`. `live-checks/ai` removed. Lighthouse note + link. `withToolResults(message, results)` (G-646; the raw driver doesn't validate, documented). check-live 91/91 × 3; samples 767; `test:ai-local` 32/32. Coordinator: `'agent'` added to llms.txt's `cause` list (line count unchanged) |
+| 4-E | Eval tier p6 (44–47), operability check, runbook | ✅ merged | `p6-4e` (`491327e4`, `f98e3271`) | 2026-10-09 | 44 streaming-chat, 45 packing-assistant, 46 ticket-triage, 47 board-agent-tools; both arms, hidden suites against a shared fake server (`hidden/_support/aiserver.js`), references + 2 mutants per arm. React: AI SDK 7 (`@ai-sdk/react` 4.0.140, `ai` 7.0.137, zod 4.6.5; CopilotKit not used: needs its own runtime and doesn't register with the browser's agent); 47 calls WebMCP directly. verify 96/96 (`--reruns 3`); fake-CLI pipeline 8/8; eval unit tests 71 + 63. `analysis/operability.mjs` (qwen3:8b; shared Ollama, timeouts): 45 S 8/9, R 9/9; 47 S 6/12, R 10/12 (rerun pending). Dry runs: opus $10.77, sonnet $4.83, haiku unknown, S-14 $26.40; p5-based ≈ $70 total. `P6-RUNBOOK.md`. No paid trials |
 
 ## Gaps
 
@@ -192,6 +193,9 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 | G-645 | 4-D2 | `integration/testing.md` doesn't list `'agent'` among `cause` values; `t.agentContext()` nests the projection under the declaration name (`todos.todos`) | ✅ fixed (4-F) |
 | G-646 | 4-D1 | Raw chat driver ergonomics: apps write tool outputs into `tool-<name>` parts by hand before resending; a `tool` reply's input isn't validated (only `chat` validates) | ✅ fixed (4-F: `withToolResults`; raw driver doesn't validate, documented) |
 | G-647 | 4-D1 | `chromePrompt().status()` is a Promise (a component can't read it; pick the transport in `main.js` or handle `error.status === 'unavailable'`); the `form` behavior has no bulk "set values" (one `form.CHANGE` per field) | open (docs / later) |
+| G-648 | 4-E | sygnal-check: false SYG102 for `ok`/`error` passed inside a `decide()` call | open (K-1) |
+| G-649 | 4-E | A-1 reports `removed: true` when a moved card only leaves its filtered Collection | open (A-1) |
+| G-650 | 4-E | Task 47 operability: Sygnal 6/12 vs React 10/12; the model guessed card ids without reading the board (D286 keeps titles out of descriptions under `untrusted: true`) — measured with a shared Ollama; rerun pending | open (investigating) |
 
 ## Log
 
@@ -216,3 +220,4 @@ Tracks progress for [PLAN-6.md](PLAN-6.md) (`sygnal/ai`: LLM inference in apps, 
 - 2026-10-09 — 4-D1 merged (`b6edc613`; copy-guides conflict). vitest 4,215; docs build ok; samples 774 clean. G-646, G-647. 4-F (G-644, G-645, cross-links, remove live-checks page, Lighthouse note, `withToolResults`) and 4-L (llms.txt ≤ 320, SKILL) started.
 - 2026-10-09 — 4-L merged (clean): llms.txt 319/320, SKILL.md 42,699 B.
 - 2026-10-09 — 4-F merged (clean); llms.txt `cause` list gains `'agent'`. vitest 4,252 (one load-timing flake in vite-plugin-dev, 3/3 on rerun at load ≈ 44); sygnal-check 700/700; size 42,690 B.
+- 2026-10-09 — 4-E merged (clean). G-648…G-650. Haiku id for the new tier: `claude-haiku-5-5` (current model; PLAN-5 used Haiku 4.5, so per-model comparisons with PLAN-5 don't apply to Haiku).
