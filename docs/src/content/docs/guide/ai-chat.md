@@ -155,7 +155,9 @@ The reply goes to **exactly the instance that sent the request**, as with the fe
 
 ### Messages
 
-Messages have the same shape as the AI SDK's `UIMessage`: a `role` and a list of `parts`. The parts a reply can have are `text`, `reasoning`, `tool-<name>` (a tool call, with its `state`, `input` and `output`), `file`, `source-*` and `data-*`. Because the shape is the AI SDK's, a conversation goes to an AI SDK server route unchanged.
+Messages have the same shape as the AI SDK's `UIMessage`: an `id`, a `role` and a list of `parts`. The parts a reply can have are `text`, `reasoning`, `tool-<name>` (a tool call, with its `state`, `input` and `output`), `file`, `source-*` and `data-*`. Because the shape is the AI SDK's, a conversation goes to an AI SDK server route unchanged.
+
+Every reply message has an `id` that doesn't change: the provider's (the response id, or an AI SDK server's message id) or, when the transport gives none, a new random one. A reply that continues a message (`continue: true`, after tool results or an approval) keeps that message's id. The [`chat()` behavior](/guide/agent/#an-in-app-assistant-chat) gives the user's messages an id when they are sent, so each message in `state.assistant.messages` keeps the same `id` from request to request: a server can store a conversation by message id. Messages you write yourself may leave it out.
 
 `messageText(message)` returns a message's text: its text parts joined, or its `content`. Render the other parts as your app needs them: a reasoning part in a collapsed `<details>`, a tool part as a line saying what the model did.
 
@@ -551,6 +553,32 @@ the body is:
 The transport's `body` option and then the request's own `body` are merged in (per-request fields win). They can add keys and replace `instructions`, `model`, `tools` and `output`, but not the protocol fields `id`, `messages`, `trigger` and `messageId`, which are always the transport's (as in the AI SDK's own transport). The [`chat()` behavior](/guide/agent/) puts its `transportOptions` into each request, so `transportOptions: { chatId: 'chat-1', body: { locale: 'en' } }` sets `id` and adds `locale`. Other request keys (`key`, `ok`, `delta`, `coalesce`, …) are not sent.
 
 An AI SDK 7 route needs only `messages`: `await convertToModelMessages(messages)` takes them as they are. It reads `tools` if the app has client tools, and `id` if it stores conversations. It ignores `trigger` and `messageId` (the client builds the continued message), and it should ignore `model` and `instructions` and set its own, as [the route above](#shipping-it) does.
+
+#### Storing conversations
+
+A route that saves the conversation (the AI SDK's `originalMessages` and `onFinish`) should not save the `chat()` behavior's app-state message: the app state is rebuilt for every request, and a stored copy would be sent again as stale data. That message is marked `metadata: { sygnal: 'sygnal-app-state', … }` (its id is always `sygnal-app-state`). Send every message to the model, and keep the others:
+
+```js
+// server: POST /api/chat, storing conversations
+import { streamText, convertToModelMessages, validateUIMessages } from 'ai'
+import { anthropic } from '@ai-sdk/anthropic'
+import { saveChat } from './store.js'                     // your store
+
+export async function POST(req) {
+  const body = await req.json()
+  // the model sees the app state; the store doesn't
+  const messages = await validateUIMessages({ messages: body.messages })
+  const stored = messages.filter((m) => !m.metadata?.sygnal)
+
+  const result = streamText({ model: anthropic('claude-opus-5-5'), messages: await convertToModelMessages(messages) })
+  return result.toUIMessageStreamResponse({
+    originalMessages: stored,
+    onFinish: ({ messages }) => saveChat(body.id, messages),
+  })
+}
+```
+
+The ids round-trip: the user's messages keep the ids the browser gave them, and the reply takes the id the server sends (with `generateMessageId`) or the client makes, so the next request names the same messages.
 
 ## Transports
 

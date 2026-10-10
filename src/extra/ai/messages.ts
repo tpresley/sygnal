@@ -12,6 +12,16 @@ export function messageText(message: any): string {
   return (message.parts || []).filter((p: any) => p && p.type === 'text').map((p: any) => p.text).join('')
 }
 
+/**
+ * G-640: a new message id, 16 random [0-9a-z] characters (the AI SDK's generateId is 16
+ * alphanumerics too). Ids name messages, they are no secret: Math.random is enough
+ */
+export const messageId = (): string => {
+  let s = ''
+  while (s.length < 16) s += Math.random().toString(36).slice(2)
+  return s.slice(0, 16)
+}
+
 const own = (o: any, k: any) => Object.prototype.hasOwnProperty.call(o, k)
 
 /**

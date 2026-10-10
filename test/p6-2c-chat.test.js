@@ -125,7 +125,7 @@ describe('chat behavior', () => {
     const req = last()
     // G-631: the read projections go as app state, a user-role data message right before the
     // last user message, never in the instructions
-    expect(req.messages).toEqual([appStateOf(req), { role: 'user', parts: [{ type: 'text', text: 'Hi' }] }])
+    expect(req.messages).toEqual([appStateOf(req), { id: expect.stringMatching(/^[0-9a-z]{16}$/), role: 'user', parts: [{ type: 'text', text: 'Hi' }] }])
     expect(req).toMatchObject({ key: 'assistant', ok: 'assistant.REPLY', delta: 'assistant.DELTA', error: 'assistant.FAILED' })
     expect(req.instructions).toBe('You help the user manage this todo list. Use the tools; keep replies short.')
     expect(req.continue).toBeUndefined()
@@ -139,7 +139,7 @@ describe('chat behavior', () => {
     await t.settle()
     expect(t.state.assistant.status).toBe('ready')
     expect(t.state.assistant.draft).toBe('')
-    expect(t.state.assistant.messages.at(-1)).toEqual({ role: 'assistant', parts: [{ type: 'text', text: 'Hello there' }] })
+    expect(t.state.assistant.messages.at(-1)).toEqual({ id: expect.stringMatching(/^[0-9a-z]{16}$/), role: 'assistant', parts: [{ type: 'text', text: 'Hello there' }] })
     expect(t.actions.filter((a) => a.type === 'assistant.DONE').length).toBe(1)
     expect(t.state.finished).toBe(1)
     expect(t.html()).toContain('Hello there')
@@ -228,7 +228,7 @@ describe('chat behavior', () => {
     t.simulateEvent('.stop', 'click')
     await t.settle()
     expect(t.state.assistant).toMatchObject({ status: 'ready', draft: '' })
-    expect(t.state.assistant.messages.at(-1)).toEqual({ role: 'assistant', parts: [{ type: 'text', text: 'Once upon' }] })
+    expect(t.state.assistant.messages.at(-1)).toEqual({ id: expect.stringMatching(/^[0-9a-z]{16}$/), role: 'assistant', parts: [{ type: 'text', text: 'Once upon' }] })
     expect(t.sinkValues('LLM').filter((r) => r.abort === 'assistant').length).toBe(1)
     // the stream is gone: nothing more arrives
     expect(() => t.stream('LLM', [' a time'])).toThrow(/no pending LLM request/)

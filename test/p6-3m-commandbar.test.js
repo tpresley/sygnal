@@ -330,7 +330,7 @@ describe('commandBar', () => {
     expect(t.state.assistant.status).toBe('submitted')
     const llm = t.requests('LLM')[0]
     // (the app-state block before it carries the item labels, G-644)
-    expect(llm.messages.map((m) => m.id ?? m.parts[0].text)).toEqual(['sygnal-app-state', 'what have I finished?'])
+    expect(llm.messages.map((m) => m.id === 'sygnal-app-state' ? m.id : m.parts[0].text)).toEqual(['sygnal-app-state', 'what have I finished?'])
     // the chat model gets the same tools
     expect(Object.keys(llm.tools)).toEqual(['todo_toggle', 'todo_remove'])
     await t.stream('LLM', [{ toolCall: { id: 'c1', name: 'todo_toggle', input: { id: 1 } } }])
