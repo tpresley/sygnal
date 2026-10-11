@@ -1,6 +1,8 @@
 /**
- * Go to definition and find references (PLAN-7 N-2, actions and EVENTS) on the main thread of
- * the language server, from the occurrence index (model/positions.js).
+ * Go to definition and find references (PLAN-7 N-2: actions and EVENTS; P4-3: class / id tokens,
+ * controls, state keys and Collection `from`, context, behaviors, constants, CHILD.select) on the
+ * main thread of the language server, from the occurrence index (model/positions.js). Why a
+ * definition found nothing (a dynamic className, a child's element) goes to the trace log (info).
  *
  *   createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log? }) → {
  *     snapshot(sources)                  before a check is sent: its sequence number and the
@@ -157,7 +159,9 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
 
   function definition(params) {
     return request(params, (lookup, occs) => {
-      const list = lookup.definition(occs)
+      const notes = []
+      const list = lookup.definition(occs, notes)
+      for (const n of new Set(notes)) log('info', `navigation: ${n}`)
       return list.length ? list.map(location) : null
     })
   }

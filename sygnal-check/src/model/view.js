@@ -14,8 +14,8 @@
  *     `{items.map(renderItem)}`) is part of the view.
  */
 import { walk, unwrap, isFunction, jsxName, jsxAttr, jsxAttrExpr, propName, stringValue, loc, fileOfNode } from '../ast.js'
-import { evalStrings, tokenize, classTokens, DYN } from '../strings.js'
-import { hyperscriptSel } from '../selectors.js'
+import { evalStrings, tokenize, classTokens, tokenSites, DYN } from '../strings.js'
+import { hyperscriptSel, selectorTokens } from '../selectors.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr, bindingValue } from './resolve.js'
 import { resolveControlJSX } from './controls.js'
@@ -40,6 +40,11 @@ export function newSink() {
     elements: [],
     // class name → number of class attributes / selectors that may produce it (--fix --controls)
     classCounts: new Map(),
+    // PLAN-7 N-1: where each static class / id token is written: [{ kind, name, file, start, end }]
+    // (kind 'control': a control's tag, with `control`)
+    // (UTF-16 offsets; a token the view renders but that can't be located, e.g. `'a' + 'b'`, has
+    // none; a dynamic value is in classes/ids.patterns)
+    tokens: [],
   }
 }
 
@@ -70,6 +75,27 @@ function addClassExpr(project, file, expr, sink) {
     tokenize(evalStrings(e, { fileInfo: file }), into)
   }
   mergeClasses(sink, into.names, into.patterns)
+  addSites(file, e, 'class', into.names, sink)
+}
+
+/** PLAN-7 N-1: the sites of the tokens an expression produces (tokenSites() filtered by its names). */
+function addSites(file, expr, kind, names, sink) {
+  if (!names.size) return
+  for (const s of tokenSites(expr, { fileInfo: file })) {
+    if (names.has(s.name)) sink.tokens.push({ kind, name: s.name, file, start: s.start, end: s.end })
+  }
+}
+
+/** A hyperscript selector literal's class / id tokens (h('div.a#b'), div('.a')). */
+function addHyperscript(file, arg, sel, sink) {
+  const { classes, ids } = hyperscriptSel(sel)
+  mergeClasses(sink, classes)
+  ids.forEach(i => sink.ids.names.add(i))
+  const raw = arg.extra?.raw
+  if (arg.type !== 'StringLiteral' || raw == null || raw.slice(1, -1) !== sel) return
+  for (const t of selectorTokens(sel, { hyperscript: true })) {
+    sink.tokens.push({ kind: t.kind, name: t.name, file, start: arg.start + 1 + t.index, end: arg.start + 1 + t.index + t.length })
+  }
 }
 
 function mergeClasses(sink, names, patterns = []) {
@@ -83,7 +109,9 @@ function mergeClasses(sink, names, patterns = []) {
 function addIdExpr(file, expr, sink) {
   const e = unwrap(expr)
   if (!e) return
-  tokenize(evalStrings(e, { fileInfo: file }), sink.ids)
+  const alts = evalStrings(e, { fileInfo: file })
+  tokenize(alts, sink.ids)
+  addSites(file, e, 'id', tokenize(alts).names, sink)
 }
 
 function handleHtmlAttrs(project, file, opening, sink) {
@@ -156,19 +184,11 @@ function visitInto(project, file, root, sink, visited) {
       // snabbdom hyperscript: h('div.a#b', ...)
       if (callee.type === 'Identifier' && callee.name === 'h') {
         const sel = stringValue(node.arguments[0])
-        if (sel) {
-          const { classes, ids } = hyperscriptSel(sel)
-          mergeClasses(sink, classes)
-          ids.forEach(i => sink.ids.names.add(i))
-        }
+        if (sel) addHyperscript(file, unwrap(node.arguments[0]), sel, sink)
       } else if (callee.type === 'Identifier' && HYPERSCRIPT_TAGS.has(callee.name) && isHyperscriptImport(file, callee)) {
         // hyperscript helpers: div('.a#b', …)
         const sel = stringValue(node.arguments[0])
-        if (sel) {
-          const { classes, ids } = hyperscriptSel(sel)
-          mergeClasses(sink, classes)
-          ids.forEach(i => sink.ids.names.add(i))
-        }
+        if (sel) addHyperscript(file, unwrap(node.arguments[0]), sel, sink)
       }
     }
     if (node.type === 'Identifier') followHelper(project, file, node, sink, visited)
@@ -263,6 +283,7 @@ function handleElement(project, file, el, sink, visited) {
   if (control) {
     if (!sink.controls.has(control)) sink.controls.set(control, [])
     sink.controls.get(control).push(opening)
+    sink.tokens.push({ kind: 'control', control, name: control.key, file, start: opening.name.start, end: opening.name.end })
   }
 
   // PLAN-5 W-1: a widget tag renders its host element here (opaque: no children of its own)

@@ -35,7 +35,9 @@ function indexOf(dir, opts = {}) {
 }
 
 /** `name kind line:col-endCol` for each occurrence (1-based, endCol exclusive), optionally of one file. */
-const brief = (index, file) => index.occurrences.filter(o => !file || o.file.endsWith(file))
+// wave A's occurrences: actions and EVENTS from literal names (no ns, no behavior definitions, no constants)
+const waveA = (o) => !o.ns && !o.kind.startsWith('behavior-') && !o.constant
+const brief = (index, file) => index.occurrences.filter(o => waveA(o) && (!file || o.file.endsWith(file)))
   .map(o => `${o.name} ${o.kind} ${o.line}:${o.column}-${o.endColumn}`)
 
 /** The source text an occurrence covers. */
@@ -68,7 +70,7 @@ describe('buildIndex: 0-S3 edge fixture', () => {
   const comp = index.components[0]
 
   it('every action kind, with its contents range', () => {
-    expect(index.components).toEqual([{ id: `${edge}:17`, name: 'Edge', file: edge, line: 17 }])
+    expect(index.components.map(({ flags, ...c }) => c)).toEqual([{ id: `${edge}:17`, name: 'Edge', file: edge, line: 17 }])
     expect(brief(index)).toEqual([
       'c.BUMP uses 20:15-16', 'c.RESET uses 20:15-16',
       'SAVE intent 23:3-7', 'EXTERNAL intent 25:3-11',
@@ -79,7 +81,7 @@ describe('buildIndex: 0-S3 edge fixture', () => {
       'LOADED model 34:3-9', 'FAILED model 35:4-10', 'TICK model 36:3-7', 'c.BUMP model 37:4-10',
       'POLL timer 39:62-66', 'SAVE agent 40:41-45', 'LOADED agent 40:72-78',
     ])
-    for (const o of index.occurrences) if (o.kind !== 'uses' && !o.synthetic) expect(textAt(o)).toBe(o.name.replace(/^c\./, o.kind === 'model' ? 'c.' : ''))
+    for (const o of index.occurrences.filter(waveA)) if (o.kind !== 'uses' && !o.synthetic) expect(textAt(o)).toBe(o.name.replace(/^c\./, o.kind === 'model' ? 'c.' : ''))
   })
 
   it('flags: shorthand sub-range, synthetic undoable() entries, behavior names, reply keys', () => {
@@ -102,12 +104,21 @@ describe('buildIndex: 0-S3 edge fixture', () => {
     expect(loaded.hit.endColumn).toBe(loaded.endColumn + 1)
   })
 
-  it('dynamic and computed names have no occurrence', () => {
+  it('names built from module constants: occurrences at the use site, with `via` (the model keeps them dynamic)', () => {
     // [ACTIONS.TICK] intent key, next(PREFIX + ...), EVENTS.select(SAVED) with an imported constant
-    expect(index.occurrences.filter(o => o.line === 24)).toEqual([])
-    expect(index.occurrences.filter(o => o.line === 29)).toEqual([])
-    expect(index.occurrences.some(o => o.kind === 'select')).toBe(false)
+    const cst = index.occurrences.filter(o => o.constant).map(o => `${o.name} ${o.kind} ${o.line}:${o.column}-${o.endColumn} via ${o.via.map(v => `${path.basename(v.file)}:${v.line}:${v.column} ${v.name}`).join(', ')}`)
+    expect(cst).toEqual([
+      'TICK intent 24:4-16 via Edge.jsx:15:19 TICK',
+      'SAVED select 25:27-32 via names.js:1:14 SAVED',
+      'LOAD_DONE next 29:35-51 via Edge.jsx:14:7 PREFIX',
+      'LOAD_MORE next 29:59-75 via Edge.jsx:14:7 PREFIX',
+    ])
     expect(project.components[0].model.dynamicNext).toHaveLength(2)
+    expect(project.events.dynamicSelected).toHaveLength(1)
+    const look = createLookup(index)
+    const tick = index.occurrences.find(o => o.constant && o.name === 'TICK')
+    expect(look.definition([tick]).map(o => `${path.basename(o.file)}:${o.line}:${o.column}`)).toEqual(['Edge.jsx:15:19', 'Edge.jsx:36:3'])
+    expect(index.components[0].flags).toMatchObject({ intentUnknown: true, dynamicNext: true, modelUnknown: false })
   })
 
   it('exclude leaves a file out', () => {
@@ -148,9 +159,10 @@ describe('buildIndex: built-ins, EVENTS, cross-file and shared definitions', () 
       'C.jsx': `import { intent } from './intent.js'\nimport { model } from './model.js'\nfunction C() { return <button className="inc" /> }\nC.intent = intent\nC.model = model\n`,
     })
     const { index } = indexOf(dir)
-    expect(index.occurrences.map(o => `${path.basename(o.file)} ${o.name} ${o.kind}`)).toEqual(['intent.js INC intent', 'model.js INC model'])
+    const actions = index.occurrences.filter(waveA)
+    expect(actions.map(o => `${path.basename(o.file)} ${o.name} ${o.kind}`)).toEqual(['intent.js INC intent', 'model.js INC model'])
     const look = createLookup(index)
-    const [i, m] = index.occurrences
+    const [i, m] = actions
     expect(look.definition([i])).toEqual([m])
     expect(look.definition([m])).toEqual([i])
   })
@@ -246,7 +258,7 @@ describe('parity with the 0-S3 prototype (positions.mjs) on every example', () =
           else located.push(`${path.resolve(repo, o.range.file)} ${o.range.start}-${o.range.end} ${a.name}`)
         }
       }
-      const actions = mine.filter(o => o.kind !== 'uses').map(o => `${o.file} ${o.start}-${o.end} ${o.name}`)
+      const actions = mine.filter(o => waveA(o) && o.kind !== 'uses').map(o => `${o.file} ${o.start}-${o.end} ${o.name}`)
       expect(actions.sort(), `${example} ${c.name}`).toEqual([...new Set(located)].sort())
       // the behavior names it couldn't locate (first-party: no source) or re-derived: at the uses key
       for (const name of behavior) expect(mine.some(o => o.kind === 'uses' && o.name === name), `${c.name} ${name}`).toBe(true)

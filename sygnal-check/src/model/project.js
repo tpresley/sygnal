@@ -20,9 +20,13 @@
  *     staticProps: { intent?, model?, initialState?, context?, calculated?, connections? }  (assigned value nodes)
  *     intent:  IntentInfo | null       (model/intent.js)
  *     model:   ModelInfo  | null       (model/modelEntries.js)
- *     initialState: { known, keys: Map<key, valueNode> } | null
+ *     initialState: { known, keys: Map<key, { node (value), keyNode, file }> } | null
  *     calculatedKeys: Set<string>
  *     contextKeys: Set<string>
+ *     calculatedEntries, contextEntries: Map<key, { node, keyNode, file }> | null   (PLAN-7 N-1:
+ *                                      the same keys with their nodes; null when unknown)
+ *     contextConsumed: [{ name, node }] | null   the context reads of the view (model/context.js)
+ *     contextReadsModel: [{ name, node, file }]  the context reads of the model's handlers
  *     connections: { targets, dynamic } | null  (action names in a `connections`, `resources`,
  *                                                `route` or `timers` static: reply actions)
  *     timers: TimersInfo | null        (model/timers.js: the `timers` static, PLAN-4 GS-7)
@@ -61,6 +65,7 @@ import { resolveSelectorControls } from './controls.js'
 import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
 import { analyzeAgent } from './agent.js'
+import { contextReads, reducerContextReads } from './context.js'
 
 const BROWSER_KEYS = ['action', 'error']
 import { analyzeCommands } from './elementCommands.js'
@@ -230,7 +235,7 @@ export class Project {
       }
       const k = propName(p)
       if (k == null) return null
-      keys.set(k, { node: p.type === 'ObjectMethod' ? p : unwrap(p.value), file: r.file })
+      keys.set(k, { node: p.type === 'ObjectMethod' ? p : unwrap(p.value), keyNode: p.key, file: r.file })
     }
     return keys
   }
@@ -241,6 +246,11 @@ export class Project {
       const r = resolveExpr(this, file, sp.intent)
       comp.intent = analyzeIntent(r.file, isFunction(r.node) ? r.node : null)
       for (const sel of comp.intent.selectors) resolveSelectorControls(this, comp.intent.file, sel)
+      // PLAN-7 N-1: CHILD.select(Child) → the child's function
+      for (const cs of comp.intent.childSelects) {
+        const t = cs.arg && cs.arg.type !== 'StringLiteral' ? resolveExpr(this, comp.intent.file, cs.arg) : null
+        cs.ref = t && isFunction(t.node) ? { file: t.file, node: t.node } : null
+      }
     }
     if (sp.model) comp.model = analyzeModel(this, file, sp.model)
     // PLAN-3 §1.3: action names a `connections` static sends socket/SSE events to
@@ -276,15 +286,22 @@ export class Project {
       const keys = this.objectKeys(file, sp.initialState)
       comp.initialState = { known: !!keys, keys: keys || new Map() }
     }
+    comp.calculatedEntries = null
+    comp.contextEntries = null
     if (sp.calculated) {
       const keys = this.objectKeys(file, sp.calculated)
       if (keys) comp.calculatedKeys = new Set(keys.keys())
+      comp.calculatedEntries = keys
     }
     if (sp.context) {
       const keys = this.objectKeys(file, sp.context)
       if (keys) comp.contextKeys = new Set(keys.keys())
+      comp.contextEntries = keys
     }
     if (comp.view) comp.viewInfo = this.viewOf({ file, node: comp.view })
+    // PLAN-7 N-1: the context entries the view and the reducers read (--graph contextConsumes: the view's)
+    comp.contextConsumed = comp.view ? contextReads(comp.view) : null
+    comp.contextReadsModel = sp.model ? reducerContextReads(this, file, sp.model) : []
     // PLAN-4 GS-2: the ELEMENT commands its model sends (literal command objects)
     comp.commands = analyzeCommands(this, comp)
     // PLAN-4 GS-1: `uses` resolved to behavior definitions; what their intents listen to

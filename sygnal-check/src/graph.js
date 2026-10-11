@@ -59,7 +59,7 @@ import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { runRules, sortDiagnostics } from './run.js'
 import { resolveOptions } from './config.js'
-import { walk, unwrap, propName, memberName, stringValue, loc } from './ast.js'
+import { memberName, stringValue, loc } from './ast.js'
 import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
 import { listenedControls } from './rules/syg124-controls.js'
@@ -67,6 +67,7 @@ import { behaviorActions } from './model/behaviors.js'
 import { specFields } from './model/timers.js'
 import { CAUSED_EVENTS } from './model/elementCommands.js'
 import { agentName } from './model/agent.js'
+import { contextNames } from './model/context.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -104,55 +105,6 @@ function usagesOf(sink, slot = false, out = [], seen = new Set()) {
 function collectionFrom(sink, usage) {
   const c = sink.collections.find(x => x.node === usage.node)
   return c ? c.from : null
-}
-
-/** Context fields a view function reads: ({ context }) => context.x, ({ context: { x } }), (props) => props.context.x */
-function contextConsumes(comp) {
-  const fn = comp.view
-  if (!fn || !fn.params) return null
-  const out = new Set()
-  const locals = new Set()
-  let propsName = null
-  let first = fn.params[0]
-  if (first?.type === 'AssignmentPattern') first = first.left
-  const fromPattern = (pat) => {
-    for (const p of pat.properties) {
-      if (p.type !== 'ObjectProperty') continue
-      const k = propName(p)
-      if (k) out.add(k)
-    }
-  }
-  if (first?.type === 'ObjectPattern') {
-    for (const p of first.properties) {
-      if (p.type !== 'ObjectProperty' || propName(p) !== 'context') continue
-      let v = p.value
-      if (v.type === 'AssignmentPattern') v = v.left
-      if (v.type === 'Identifier') locals.add(v.name)
-      else if (v.type === 'ObjectPattern') fromPattern(v)
-    }
-  } else if (first?.type === 'Identifier') {
-    propsName = first.name
-  }
-  const isContextRef = (n) => {
-    n = unwrap(n)
-    if (!n) return false
-    if (n.type === 'Identifier') return locals.has(n.name)
-    if (propsName && n.type === 'MemberExpression' && memberName(n) === 'context') {
-      const o = unwrap(n.object)
-      return o.type === 'Identifier' && o.name === propsName
-    }
-    return false
-  }
-  walk(fn.body, (n) => {
-    if ((n.type === 'MemberExpression' || n.type === 'OptionalMemberExpression') && isContextRef(n.object)) {
-      const k = memberName(n) ?? (n.computed ? stringValue(n.property) : null)
-      if (k) out.add(k)
-    } else if (n.type === 'VariableDeclarator' && n.id.type === 'ObjectPattern' && isContextRef(n.init)) {
-      fromPattern(n.id)
-    }
-    return true
-  })
-  return [...out]
 }
 
 function slimDiagnostic(d) {
@@ -314,7 +266,7 @@ export function buildGraph(project, diagnostics = []) {
       stateKeys: [...new Set([...(c.initialState ? c.initialState.keys.keys() : []), ...(c.uses?.entries || []).filter(e => e.status !== 'invalid').map(e => e.key)])],
       calculated: [...c.calculatedKeys],
       contextProvides: [...c.contextKeys],
-      contextConsumes: contextConsumes(c),
+      contextConsumes: contextNames(c.contextConsumed),
       eventsEmitted: [...emitted.get(c)],
       eventsSelected: [...selected.get(c)],
       children,
