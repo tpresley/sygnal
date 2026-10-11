@@ -133,7 +133,7 @@ Every setting is unset (`null`) by default, so the [config file](#the-config-fil
 
 To fix everything auto-fixable when you save:
 
-```json
+```json title=".vscode/settings.json"
 {
   "editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }
 }
@@ -224,7 +224,7 @@ It writes the server to the project's `.mcp.json`. Use `--scope user` for every 
 
 Neovim 0.11 and later configure language servers natively. Add this to your `init.lua`:
 
-```lua
+```lua title="init.lua"
 vim.lsp.config('sygnal', {
   cmd = { 'npx', '--no-install', 'sygnal-check', 'lsp' },
   filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
@@ -235,7 +235,7 @@ vim.lsp.enable('sygnal')
 
 It runs alongside your TypeScript server (`ts_ls`, `vtsls`, …), and Neovim merges the diagnostics. To override the [config file](#the-config-file) in the editor, add `settings`:
 
-```lua
+```lua title="init.lua"
 vim.lsp.config('sygnal', {
   -- …as above
   settings = { sygnal = { strict = true } },
@@ -247,13 +247,13 @@ vim.lsp.config('sygnal', {
 - **Quick fixes:** `gra` (or `:lua vim.lsp.buf.code_action()`) on a finding offers the fix and "Suppress SYGnnn on this line".
 - **Fix all** in the buffer:
 
-  ```lua
+  ```lua title="init.lua"
   vim.lsp.buf.code_action({ context = { only = { 'source.fixAll.sygnal' } }, apply = true })
   ```
 
   Map it to a key, or run it on save:
 
-  ```lua
+  ```lua title="init.lua"
   vim.api.nvim_create_autocmd('BufWritePre', {
     pattern = { '*.js', '*.jsx', '*.ts', '*.tsx' },
     callback = function()
@@ -266,7 +266,7 @@ vim.lsp.config('sygnal', {
 - **Rename:** `grn`. A refusal shows as an error message with the reason. Test files are left out, with a warning naming them.
 - **Completions:** turn on Neovim's built-in LSP completion for the server when it attaches (a completion plugin such as nvim-cmp or blink.cmp picks up every attached server instead):
 
-  ```lua
+  ```lua title="init.lua"
   vim.api.nvim_create_autocmd('LspAttach', {
     callback = function(args)
       local client = vim.lsp.get_client_by_id(args.data.client_id)
@@ -278,7 +278,7 @@ vim.lsp.config('sygnal', {
   ```
 - **Code lenses** show only after `vim.lsp.codelens.refresh()`, so refresh them on a few events:
 
-  ```lua
+  ```lua title="init.lua"
   vim.api.nvim_create_autocmd({ 'BufEnter', 'CursorHold', 'InsertLeave' }, {
     pattern = { '*.js', '*.jsx', '*.ts', '*.tsx' },
     callback = function() vim.lsp.codelens.refresh({ bufnr = 0 }) end,
@@ -291,7 +291,7 @@ On Linux, Neovim doesn't tell the server about files changed outside the editor 
 
 **Neovim 0.10 with nvim-lspconfig** (untested): register a custom server.
 
-```lua
+```lua title="init.lua"
 local configs = require('lspconfig.configs')
 if not configs.sygnal then
   configs.sygnal = {
@@ -309,7 +309,7 @@ require('lspconfig').sygnal.setup({})
 
 Add Sygnal to the JavaScript and TypeScript languages in `languages.toml`: the project's `.helix/languages.toml` (commit it to share it) or `~/.config/helix/languages.toml`.
 
-```toml
+```toml title="languages.toml"
 [language-server.sygnal]
 command = "npx"
 args = ["--no-install", "sygnal-check", "lsp"]
@@ -335,7 +335,7 @@ language-servers = ["typescript-language-server", "sygnal"]
 
 To override the [config file](#the-config-file) in the editor, add `config`:
 
-```toml
+```toml title="languages.toml"
 [language-server.sygnal]
 command = "npx"
 args = ["--no-install", "sygnal-check", "lsp"]
@@ -390,7 +390,7 @@ sygnal-lsp4ij/
 
 `template.json`:
 
-```json
+```json title="sygnal-lsp4ij/template.json"
 {
   "id": "sygnal-check",
   "name": "Sygnal",
@@ -442,7 +442,7 @@ The [sygnal-check README](https://github.com/tpresley/sygnal/tree/main/sygnal-ch
 
 Put the project's settings in `sygnal-check.config.json` at the project root:
 
-```json
+```json title="sygnal-check.config.json"
 {
   "strict": true,
   "a11y": "error",
@@ -454,7 +454,7 @@ Put the project's settings in `sygnal-check.config.json` at the project root:
 
 Or under the `"sygnal-check"` key of `package.json`:
 
-```json
+```json title="package.json"
 {
   "name": "my-app",
   "sygnal-check": { "strict": true }
