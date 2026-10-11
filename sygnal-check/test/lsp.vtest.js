@@ -69,6 +69,8 @@ describe('lifecycle', () => {
       codeActionProvider: { codeActionKinds: ['quickfix', 'refactor', 'refactor.rewrite', 'source.fixAll.sygnal'], resolveProvider: false },
       definitionProvider: true,
       referencesProvider: true,
+      codeLensProvider: { resolveProvider: false },
+      executeCommandProvider: { commands: ['sygnal.goTo'] },
       workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
     })
     expect(result.capabilities.diagnosticProvider).toBeUndefined() // D305

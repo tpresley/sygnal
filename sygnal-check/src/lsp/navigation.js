@@ -11,6 +11,7 @@
  *     drop(folder)
  *     definition(params) → Location[] | null | Promise<…>
  *     references(params) → Location[] | null | Promise<…>
+ *     entryFor(abs) → { lookup, index, … } | null | Promise<…>   (code lens: the same freshness)
  *   }
  *
  * Freshness. Every check (core.js) also returns the index of what it built, so the common case
@@ -55,6 +56,7 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
     hashes: snap.hashes,
     substituted: new Set(res?.substituted || []),
     lookup: createLookup(res?.index || { components: [], occurrences: [] }),
+    index: res?.index || null, // (code lens: its occurrences and `flow`)
   })
 
   function accept(folder, snap, res) {
@@ -137,6 +139,22 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
     return typeof entry?.then === 'function' ? entry.then(run) : run(entry)
   }
 
+  /**
+   * The index entry to answer about document `abs` from, under the same freshness rules (code
+   * lens, codelens.js): null when none is fresh or the document doesn't parse.
+   */
+  function entryFor(abs) {
+    const folder = abs && folderOf(abs)
+    if (!folder) return null
+    const fresh = (entry) => {
+      if (!entry || entry.substituted.has(abs)) return null
+      const text = overlaysUnder(folder).get(abs)
+      return (text === undefined ? undefined : hashOf(abs, text)) === entry.hashes.get(abs) ? entry : null
+    }
+    const entry = indexFor(folder)
+    return typeof entry?.then === 'function' ? entry.then(fresh) : fresh(entry)
+  }
+
   function definition(params) {
     return request(params, (lookup, occs) => {
       const list = lookup.definition(occs)
@@ -149,5 +167,5 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
     return request(params, (lookup, occs) => lookup.references(occs, includeDeclaration).map(location))
   }
 
-  return { snapshot, accept, track, drop, definition, references }
+  return { snapshot, accept, track, drop, definition, references, entryFor }
 }

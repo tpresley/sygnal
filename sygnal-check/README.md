@@ -280,7 +280,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, and go to definition / find references for actions and EVENTS types. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, go to definition / find references for actions and EVENTS types, and code lenses that say what each action does and what triggers it. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -302,6 +302,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
 | Definition | `textDocument/definition` on an action name or an EVENTS type ([below](#go-to-definition-and-references)) |
 | References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
+| Code lens | `textDocument/codeLens` on intent keys, model keys and EVENTS selects / emits ([below](#code-lens)); `workspace/executeCommand` for its jump command `sygnal.goTo`; `workspace/codeLens/refresh` when the client supports it |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
 **When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
@@ -361,6 +362,31 @@ Several targets come back as a list: a model or intent shared by components give
 
 **Freshness.** Each check also indexes these names, so a request is answered at once from the last check when the open documents are still what it checked. After an unsaved change the server builds the model again with the current text (no rules, the parse cache warm) and answers from that: about 5 ms on the examples, 50 ms on a 20,000-line project. Right after a save it waits for the check that the save started.
 
+### Code lens
+
+A line of text above each action and EVENTS name, from the same index as [go to definition](#go-to-definition-and-references):
+
+| On | Lens | Example |
+|---|---|---|
+| an intent key | the model entry handling it, its sinks (with the EVENTS types it emits and the reply actions its requests name) and its `next()` targets | `handled by model.SAVE · STATE, HTTP → LOADED/FAILED, EVENTS 'SAVED' · next → DONE` |
+| | no model entry (exactly when SYG101 reports it) | `no model entry` |
+| a model key | what triggers it: `intent`, `reply (HTTP ok from SAVE)`, `next from SAVE`, `agent tool`, `timer`, `connection (message)`, `resource`, `route`, `browser`, `behavior pager`, `persist`, `the core` (a built-in) | `triggered by intent, agent tool` |
+| | nothing triggers it (exactly when SYG102 reports it) | `not triggered`, or `not triggered (a dynamic name might)` when SYG102 is info |
+| `EVENTS.select('X')` | how many emitters `X` has in the project | `2 emitters`, `no emitters` |
+| an emitter of `X` | how many selects `X` has in the project | `1 listener` |
+
+Where the checker can't tell, the lens says so rather than guess: `handler not known statically` (a model with spreads), `trigger not known statically` (an intent it can't list, such as a computed key). A model shared by components gets one lens per component, prefixed with its name; `undoable()`'s `UNDO` and `REDO` are both at the `undoable` call, prefixed with the action.
+
+**Clicking a lens.** The LSP doesn't standardize a command for "show these locations", so the server picks one from the client's capabilities:
+
+- a client that lists `sygnal.showReferences` or `editor.action.showReferences` in `capabilities.experimental.commands.commands` (or in `initializationOptions.clientCommands`) gets that command with `[uri, position, locations]`, the arguments of VS Code's `editor.action.showReferences`. VS Code's own command needs its arguments as VS Code objects, so an extension registers `sygnal.showReferences`, converts the arguments and calls it (it shows the targets in a peek view);
+- else a client that advertises `window.showDocument.support` (VS Code and Neovim do) gets the server command `sygnal.goTo`: executing it opens the first target and returns them all;
+- else, and for a lens without a target (`no model entry`, `not triggered`), the lens is text only (`command: ""`).
+
+**Client support.** VS Code and LSP4IJ show code lenses. Neovim shows them after `vim.lsp.codelens.refresh()` (for example on `BufEnter`, `CursorHold` and `InsertLeave`). Helix has no code lens.
+
+**Freshness.** As for definition: the last check's index when the open documents are still what it checked, else one built for the request. After a check that changed any lens of the folder (a title or a target), the server sends `workspace/codeLens/refresh` when the client advertises `workspace.codeLens.refreshSupport`, so lenses in other files follow an edit. In a file that doesn't parse there are no lenses until it parses again. `sygnal.codeLens: false` turns them off.
+
 ### Settings
 
 | Setting | Type | |
@@ -371,6 +397,7 @@ Several targets come back as a list: a model or intent shared by components give
 | `sygnal.paths` | string[] | files, directories or globs to check, relative to the workspace folder |
 | `sygnal.verbose` | boolean | also show info findings (default false) |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
+| `sygnal.codeLens` | boolean | show [code lenses](#code-lens) (default true); an editor setting only, the config file has no such key |
 
 The server reads settings from two places:
 
