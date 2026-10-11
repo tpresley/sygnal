@@ -40,6 +40,8 @@
  * Hover: the `explain` entry of the finding under the cursor. Code actions: the findings' C-4
  * fixes, "Suppress SYGnnn on this line", `source.fixAll.sygnal` (fixFiles, strict, like --fix)
  * and the --controls conversions as refactors (only when `context.only` asks for refactors).
+ * Completions (N-2): Sygnal names in Sygnal contexts only, from the last check's completion index
+ * and the document's current text, on the main thread (completion.js).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -49,6 +51,7 @@ import { createChecker } from './checker.js'
 import { getExplanation } from '../explain.js'
 import { lineStarts } from '../edits.js'
 import { textHash } from './convert.js'
+import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
@@ -60,6 +63,7 @@ const LOG_TYPE = { error: 1, warn: 2, info: 3, debug: 4 }
 // the levels shown at each trace setting
 const LOG_LEVELS = { off: ['error', 'warn'], messages: ['error', 'warn', 'info'], verbose: ['error', 'warn', 'info', 'debug'] }
 
+const readText = (abs) => { try { return fs.readFileSync(abs, 'utf8') } catch { return null } }
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const isStrings = (v) => Array.isArray(v) && v.every(s => typeof s === 'string')
 const within = (abs, folder) => abs === folder || abs.startsWith(folder.endsWith(path.sep) ? folder : folder + path.sep)
@@ -315,7 +319,7 @@ export function createLspServer({
         const sources = overlaysUnder(folder)
         inFlight = folder
         checker.call('check', { folder, settings: settingsFor(folder), sources })
-          .then(res => apply(folder, res), err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+          .then(res => apply(folder, res, sources), err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
           .finally(() => { inFlight = null; pump() })
         return
       }
@@ -327,9 +331,10 @@ export function createLspServer({
     }
   }
 
-  function apply(folder, res) {
+  function apply(folder, res, sources) {
     const p = projects.get(folder)
     if (!p || exited) return
+    p.completion = indexState(res.completion, sources)
     p.checked = new Map(res.texts)
     p.substituted = new Set(res.substituted)
     for (const l of res.logs) log(l.level, l.message)
@@ -423,6 +428,7 @@ export function createLspServer({
         capabilities: {
           textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
           hoverProvider: true,
+          completionProvider: { triggerCharacters: TRIGGER_CHARACTERS, resolveProvider: false },
           codeActionProvider: { codeActionKinds: CODE_ACTION_KINDS, resolveProvider: false },
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
         },
@@ -456,6 +462,21 @@ export function createLspServer({
           : `${d.code}: ${e.title}\n\n${e.explanation}\n\nFix: ${e.fix}\n\n${e.docsUrl}`)
       }
       return { contents: { kind: markdown ? 'markdown' : 'plaintext', value: parts.join(markdown ? '\n\n---\n\n' : '\n\n') }, range: hits[0].range }
+    },
+
+    'textDocument/completion'(params) {
+      const abs = uriToPath(params.textDocument?.uri)
+      const folder = abs && isObj(params.position) && folderOf(abs)
+      if (!folder) return null
+      const text = overlays.get(abs) ?? readText(abs)
+      if (text == null) return null
+      const starts = lineStarts(text)
+      const offset = Math.min(text.length, (starts[params.position.line] ?? text.length) + (params.position.character || 0))
+      const snippets = !!clientCaps.textDocument?.completion?.completionItem?.snippetSupport
+      const t0 = performance.now()
+      const r = complete({ text, offset, file: abs, state: projects.get(folder).completion, snippets, readFile: readText })
+      if (r) log('debug', `completion: ${r.context ?? 'no context'} (${r.strategy ?? 'none'}${r.repair ? ` ${JSON.stringify(r.repair)}` : ''}), ${r.items.length} item(s), ${(performance.now() - t0).toFixed(1)} ms`)
+      return completionList(r)
     },
 
     'textDocument/codeAction'(params) {

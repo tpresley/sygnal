@@ -67,7 +67,7 @@ export function isSourceRef(node, name, { aliases, sourcesParam }) {
  * Describe a DOM select chain: DOM, DOM.select(a), DOM.select(a).select(b) …
  * @returns {{ global: boolean } | null}   null when `node` is not a DOM chain
  */
-function domChain(node, sa) {
+export function domChain(node, sa) {
   node = unwrap(node)
   if (isSourceRef(node, 'DOM', sa)) return { global: false, root: true }
   if (node?.type === 'CallExpression') {

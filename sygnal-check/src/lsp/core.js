@@ -6,7 +6,7 @@
  *
  *   createCore() → {
  *     check({ folder, settings, sources })  → { files: [[absPath, LspDiagnostic[]]], texts, logs,
- *                                              substituted, components, ms }
+ *                                              substituted, components, completion, ms }
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
  *     drop({ folder })                      forget a removed folder's caches
@@ -28,6 +28,9 @@
  * a fix still applies to the document as it is now.
  *
  * A crashed rule's SYG900 (no file) goes to `logs`, not into a document.
+ *
+ * `completion` is the completion index of the checked project (completionIndex.js; null without
+ * components): the main thread answers textDocument/completion from it (completion.js, N-2).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,6 +43,7 @@ import { expandInputs, toSourceMap } from '../files.js'
 import { createParseCache } from '../cache.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
+import { completionIndex } from './completionIndex.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
@@ -71,7 +75,7 @@ export function createCore() {
     })
     const srcs = toSourceMap(sources, folder)
     const { files } = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs })
-    if (!files.length) return { files: [], texts: [], logs, substituted: [], components: 0, ms: performance.now() - t0 }
+    if (!files.length) return { files: [], texts: [], logs, substituted: [], components: 0, completion: null, ms: performance.now() - t0 }
 
     let { project, diags } = build(files, options, srcs, p.cache)
     // last good findings: files that don't parse now, but did before
@@ -98,7 +102,8 @@ export function createCore() {
     }
     p.lastGood = lastGood
 
-    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, ms: performance.now() - t0 }
+    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, completion: null, ms: performance.now() - t0 }
+    const completion = completionIndex(project, { substituted: new Set(substituted.keys()) })
     // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
     const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
     if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
@@ -127,7 +132,7 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, ms: performance.now() - t0 }
+    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, completion, ms: performance.now() - t0 }
   }
 
   /** source.fixAll.sygnal: what `--fix` does for one file (strict, in memory), as one edit per changed file. */
