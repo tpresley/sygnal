@@ -109,21 +109,23 @@ export function experimentalExposeWebMcp(app: any, options: ExposeWebMcpOptions 
     for (const k of ['items', 'prefixItems', 'anyOf', 'allOf', 'oneOf', 'additionalProperties', 'not']) if (s[k] && typeof s[k] == 'object') o[k] = params(s[k], tool, path)
     return o
   }
-  /** a result within 1,500 characters of JSON: `state` and long fields are cut first */
+  /** a result within 1,500 characters of JSON: `state`, a query's `result` and long fields are cut first */
   const fit = (r: any, tool: string): any => {
     if (!r || typeof r != 'object') r = {ok: false, error: 'no result'}
     let s = JSON.stringify(r)
     if (s.length <= OUT) return r
-    dev('SYG242', tool + 'out', `a result of ${tool} is ${s.length} characters of JSON, over the budget of ${OUT}; its state is cut (make the agent.read projection smaller)`)
-    const {state, issues, keys, ...rest} = r
+    dev('SYG242', tool + 'out', `a result of ${tool} is ${s.length} characters of JSON, over the budget of ${OUT}; its ${'result' in r ? 'result' : 'state'} is cut (make ${'result' in r ? "the query's result" : 'the agent.read projection'} smaller)`)
+    const {state, result, issues, keys, ...rest} = r
     const o: any = {...rest, truncated: true}
     if (typeof o.error == 'string') o.error = cut(o.error, 400)
     if (issues) o.issues = issues.slice(0, 3)
     for (let room = OUT; room > 20; room = room / 2 | 0) {
       if (state !== undefined) o.state = cut(JSON.stringify(state), room)
+      if (result !== undefined) o.result = cut(JSON.stringify(result), room)
       if (JSON.stringify(o).length <= OUT) return o
     }
     delete o.state
+    delete o.result
     delete o.issues
     return o
   }

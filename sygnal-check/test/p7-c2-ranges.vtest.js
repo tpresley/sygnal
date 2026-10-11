@@ -76,6 +76,9 @@ const RANGES = [
   ['SYG226', 'C.jsx', 6, "'SETT'"],
   ['SYG240', 'Counter.jsx', 10, "{ type: 'integer' }"],
   ['SYG243', 'Counter.jsx', 10, 'z.date()'],
+  ['SYG246', 'Stats.jsx', 5, 'async (state) => state.n'],
+  ['SYG247', 'Pay.jsx', 6, 'pay'],
+  ['SYG248', 'Shop.jsx', 6, "'search'"],
   ['SYG401', 'collection-from.jsx', 13, 'from="item"'],
   ['SYG405', 'Search.jsx', 4, 'Search.initialState'],
   ['SYG422', 'T.jsx', 2, '100'],                  // a spec that isn't an object: the value

@@ -48,7 +48,8 @@
  *   agent        the `agent` static (sygnal/ai, PLAN-6 K-1): { name (the literal agent.name, null
  *                when absent or dynamic), tools (the tool-name prefix: name, else the component's,
  *                snake_case; null when dynamic), description, read (has a read projection),
- *                actions: [{ name, consequential, input }], partial? (spreads: incomplete) }
+ *                actions: [{ name, consequential, input }], queries?: [{ name, input }] (the read-only
+ *                agent.queries tools; omitted when none), partial? (spreads: incomplete) }
  *                (omitted when none). Actions only an agent dispatches have trigger 'agent'
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
  *                attached to their component, the rest app-wide
@@ -349,7 +350,8 @@ export function buildGraph(project, diagnostics = []) {
         read: a.read,
         actions: a.actions.map(x => ({ name: x.name, consequential: x.consequential, input: !!x.input })),
       }
-      if (!a.known || !a.actionsKnown) node.agent.partial = true
+      if (a.queries.length) node.agent.queries = a.queries.map(x => ({ name: x.name, input: !!x.input }))
+      if (!a.known || !a.actionsKnown || (a.queries.length && !a.queriesKnown)) node.agent.partial = true
     }
     if (controls.length) {
       node.controls = controls.map(({ name, element, kind, listened }) => {

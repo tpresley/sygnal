@@ -124,7 +124,20 @@
             }
           }
         },
-        "partial": { "const": true, "description": "the declaration or its actions have spreads: what is listed may be incomplete" }
+        "queries": {
+          "type": "array",
+          "description": "the read-only `agent.queries` tools (run(state, input) => result); omitted when none",
+          "items": {
+            "type": "object",
+            "required": ["name", "input"],
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "input": { "type": "boolean", "description": "the query takes input (has an input schema)" }
+            }
+          }
+        },
+        "partial": { "const": true, "description": "the declaration, its actions or its queries have spreads: what is listed may be incomplete" }
       }
     },
     "command": {
