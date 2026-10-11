@@ -189,3 +189,22 @@ export async function queryResult() {
   if (r.ok) return r.result
 }
 TodoApp.agent = { name: 'todos', queries: { n: { description: 'Count', run: (s) => s.todos.length } } }
+
+// --- until: wait for the action's result (a resource name or a predicate), timeout ------------
+export const u1: AgentDeclaration<State, Actions> = {
+  name: 'todos',
+  actions: {
+    ADD: { description: 'Add', input: z.string(), until: 'saved' },
+    SET_FILTER: { description: 'Filter', input: z.enum(['all', 'active', 'done']), until: (s) => s.filter !== 'all', timeout: 5000 },
+  },
+}
+export const u2: AgentDeclaration<State, Actions> = {
+  name: 'todos',
+  // @ts-expect-error until's predicate gets the component's state
+  actions: { ADD: { description: 'Add', input: z.string(), until: (s: { other: 1 }) => !!s.other } },
+}
+export async function pendingResult() {
+  set.cancel()
+  const r = await set.call('todos_add', { value: 'x' })
+  if (r.ok && r.pending) return r.note
+}

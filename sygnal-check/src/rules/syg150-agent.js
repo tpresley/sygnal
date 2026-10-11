@@ -23,6 +23,8 @@
  *         promise).
  * SYG247  an `agent.queries` key with the tool name of an `agent.actions` key (snake case, as the
  *         runtime names tools): the action keeps the name, the query is not offered.
+ * SYG248  an action's `until: 'name'` that isn't a key of the component's `resources` (an object
+ *         literal without spreads): nothing to wait for, the call answers at once.
  *
  * Only literal declarations are judged; spreads, computed keys and values the checker can't
  * follow are skipped.
@@ -164,6 +166,24 @@ function findDate(project, file, node) {
 }
 
 // ---------------------------------------------------------------------------
+// SYG248: the keys of a component's `resources` (null: none known, or not an object literal)
+
+function resourceKeys(project, comp) {
+  const node = comp.staticProps.resources
+  if (!node) return new Set()
+  const r = resolveExpr(project, comp.file, node)
+  const obj = r?.node
+  if (obj?.type !== 'ObjectExpression') return null
+  const keys = new Set()
+  for (const p of obj.properties) {
+    const k = p.type === 'SpreadElement' ? null : propName(p)
+    if (k == null) return null
+    keys.add(k)
+  }
+  return keys
+}
+
+// ---------------------------------------------------------------------------
 // The component tree (SYG440)
 
 function rendered(project, comp) {
@@ -244,7 +264,7 @@ function idlessItem(project, parent, from) {
 
 export default {
   id: 'agent',
-  codes: ['SYG150', 'SYG151', 'SYG440', 'SYG441', 'SYG240', 'SYG243', 'SYG246', 'SYG247'],
+  codes: ['SYG150', 'SYG151', 'SYG440', 'SYG441', 'SYG240', 'SYG243', 'SYG246', 'SYG247', 'SYG248'],
   description: 'agent static (sygnal/ai): actions without model entries, misspellings, name collisions, Collection items without ids, input schemas, queries',
   run(project, report) {
     // SYG151: X.agents = { ... } on a component
@@ -303,6 +323,23 @@ export default {
             fixes: near && renameFix(`Rename '${act.name}' to '${near}'`, keyEdit(act.file, act.node, near)),
           })
         }
+      }
+
+      // SYG248: until names no resource of the component
+      const resources = resourceKeys(project, comp)
+      for (const act of a.actions) {
+        if (act.until?.name == null || !resources || resources.has(act.until.name)) continue
+        const near = closest(act.until.name, [...resources])
+        report({
+          code: 'SYG248',
+          component: comp.name,
+          file: act.until.file, node: act.until.node,
+          message: `${comp.name}.agent.actions.${act.name}.until names '${act.until.name}', which is not one of ${comp.name}'s resources` +
+            (resources.size ? ` (${[...resources].join(', ')})` : ' (it has none)') + ': the call answers at once, without waiting' + (near ? ` (did you mean '${near}'?)` : ''),
+          fix: near ? `until: '${near}'` : `name a key of ${comp.name}.resources, or pass a function: until: (state) => state.status !== 'loading'`,
+          data: { action: act.name, until: act.until.name, ...(near && { suggestion: near }) },
+          fixes: near && renameFix(`Change until to '${near}'`, stringEdit(act.until.file, act.until.node, near)),
+        })
       }
 
       // SYG246 / SYG247: queries
