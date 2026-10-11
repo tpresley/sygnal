@@ -3,7 +3,7 @@ function tooltipText(member) {
   return `EXPERTISE: ${member.expertise}\n\n GOAL: ${member.goal}\n\n STYLE: ${guidelines}`
 }
 
-function PanelRosterCard({ panel }) {
+function PanelRosterCard({ panel, speakingId }) {
   if (!panel) {
     return (
       <article className="card panel-card">
@@ -25,7 +25,7 @@ function PanelRosterCard({ panel }) {
         {members.map((member) => (
           <div
             key={member.id}
-            className={member.isModerator ? 'panel-chip moderator' : 'panel-chip'}
+            className={`panel-chip${member.isModerator ? ' moderator' : ''}${member.id === speakingId ? ' speaking' : ''}`}
             data-tooltip={tooltipText(member)}
           >
             <span className="chip-name">{member.name}</span>

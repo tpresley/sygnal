@@ -1,70 +1,94 @@
-import { appendLog, buildAnalyzeRequest, validateInputs } from '../panelLogic.js'
+import { OLLAMA_URL } from '../config.js'
 
-const API_KEY_STORAGE_KEY = 'sygnal.aiPanel.apiKey'
-const MODEL_STORAGE_KEY = 'sygnal.aiPanel.model'
+const STATUS = {
+  idle: 'Idle',
+  assembling: 'Assembling panel',
+  completed: 'Completed',
+  stopped: 'Stopped',
+  error: 'Error',
+}
 
-function SetupCard({ state, busy, statusLabel, panelMemberCountText }) {
-  const canStart = state.discussionStarted !== true
-  const isNewSessionMode = state.discussionStarted === true && (
-    state.phase === 'completed' ||
-    (state.phase === 'idle' && state.activeRunId == null) ||
-    (state.phase === 'error' && state.activeRunId == null)
+const STEP = {
+  deciding: 'Choosing the next speaker',
+  handoff: 'Moderator is handing off',
+  speaking: 'Panelist is responding',
+  synthesizing: 'Moderator is summing up',
+}
+
+const statusLabel = (state) => (state.phase === 'deliberating' ? STEP[state.step] || 'Panel is deliberating' : STATUS[state.phase])
+
+const sizeOf = (m) => (m.details?.parameter_size ? ` (${m.details.parameter_size})` : '')
+
+function modelPickers(state, context) {
+  const models = state.models || { status: 'loading' }
+  if (models.status === 'loading' || models.status === 'idle') return <p className="models-note">Loading the installed models…</p>
+  if (models.status === 'error' && context.chatModels.length === 0) {
+    return (
+      <p className="error-text models-note">
+        Can't reach Ollama at {OLLAMA_URL}. Start it (<code>ollama serve</code>), then <button type="button" className="refresh-models link-button">try again</button>.
+      </p>
+    )
+  }
+
+  return (
+    <div className="setup-inline-fields">
+      <label>
+        Chat model
+        <select className="chat-model" disabled={context.busy}>
+          {context.chatModels.length === 0 && <option value="" selected>No chat models installed</option>}
+          {context.chatModels.map((m) => (
+            <option value={m.name} selected={m.name === state.chatModel}>{m.name}{sizeOf(m)}</option>
+          ))}
+        </select>
+      </label>
+
+      <label>
+        Next speaker chosen by
+        <select className="decision-model" disabled={context.busy}>
+          <option value="" selected={!state.decisionModel}>The moderator (chat model)</option>
+          {context.decisionModels.map((m) => (
+            <option value={m.name} selected={m.name === state.decisionModel}>{m.name} (decision model)</option>
+          ))}
+        </select>
+      </label>
+
+      <p className="models-note">
+        {context.decisionModels.length === 0
+          ? <>A decision model picks speakers in a fraction of the time: <code>ollama pull nimble</code>, then </>
+          : null}
+        <button type="button" className="refresh-models link-button">Refresh models</button>
+      </p>
+    </div>
   )
-  const isStopMode = state.discussionStarted === true && !isNewSessionMode
-  const actionLabel = canStart ? 'Start Panel Discussion' : (isStopMode ? 'Stop Discussion' : 'New Session')
-  const actionClass = isStopMode ? 'start-run stop-run' : (isNewSessionMode ? 'start-run new-session-run' : 'start-run')
-  const actionDisabled = canStart ? busy : false
+}
+
+function SetupCard({ state, context }) {
+  const running = context.busy
+  const done = state.phase === 'completed' || state.phase === 'stopped' || state.phase === 'error'
 
   return (
     <section className="card setup-card">
       <h2>Setup</h2>
 
-      <div className="setup-inline-fields">
-        <label>
-          Kindo API Key
-          <input
-            className="api-key-input"
-            type="password"
-            value={state.apiKey}
-            placeholder="Paste API key"
-          />
-        </label>
-
-        <label>
-          Model
-          <input
-            className="model-input"
-            type="text"
-            value={state.model}
-            placeholder="e.g. gpt-4.1-mini"
-          />
-        </label>
-      </div>
+      {modelPickers(state, context)}
 
       <label>
         Topic / Question
-        <textarea
-          className="topic-input"
-          rows="4"
-          value={state.topic}
-          placeholder="What should the panel discuss?"
-        />
+        <textarea className="topic-input" rows="4" value={state.topic} disabled={running} placeholder="What should the panel discuss?" />
       </label>
 
       <div className="actions-row">
-        <button
-          type="button"
-          className={actionClass}
-          disabled={actionDisabled}
-        >
-          {actionLabel}
-        </button>
+        {running
+          ? <button type="button" className="stop-run">Stop Discussion</button>
+          : done
+            ? <button type="button" className="new-session-run">New Session</button>
+            : <button type="button" className="start-run" disabled={!state.chatModel}>Start Panel Discussion</button>}
       </div>
 
       <div className="status-row">
-        <span className="status-pill">{statusLabel}</span>
-        <span className="status-pill">Turns: {state.turnCount}/{state.maxTurns}</span>
-        <span className="status-pill">Panel: {panelMemberCountText}</span>
+        <span className="status-pill">{statusLabel(state)}</span>
+        <span className="status-pill">Turns: {state.turnCount}/{state.turnLimit}</span>
+        <span className="status-pill">Panel: {state.panel ? `${1 + state.panel.experts.length} members` : '0 members'}</span>
       </div>
 
       {state.error ? <p className="error-text">{state.error}</p> : null}
@@ -72,119 +96,25 @@ function SetupCard({ state, busy, statusLabel, panelMemberCountText }) {
   )
 }
 
-SetupCard.intent = ({ DOM, STORAGE }) => ({
-  HYDRATE_API_KEY: STORAGE.get(API_KEY_STORAGE_KEY, ''),
-  HYDRATE_MODEL: STORAGE.get(MODEL_STORAGE_KEY, 'gpt-4.1-mini'),
-  SET_API_KEY: DOM.select('.api-key-input').events('input').map((event) => event.target.value),
-  SET_MODEL: DOM.select('.model-input').events('input').map((event) => event.target.value),
-  SET_TOPIC: DOM.select('.topic-input').events('input').map((event) => event.target.value),
-  TOGGLE_DISCUSSION: DOM.select('.start-run').events('click').mapTo(null)
+SetupCard.intent = ({ DOM }) => ({
+  CHOOSE_CHAT_MODEL: DOM.change('.chat-model').value(),
+  CHOOSE_DECISION_MODEL: DOM.change('.decision-model').value(),
+  SET_TOPIC: DOM.input('.topic-input').value(),
+  START: DOM.click('.start-run'),
+  STOP: DOM.click('.stop-run'),
+  NEW_SESSION: DOM.click('.new-session-run'),
+  REFRESH_MODELS: DOM.click('.refresh-models'),
 })
 
+// The choices are this card's; the run itself (requests and their replies) is the root's: PARENT
 SetupCard.model = {
-  HYDRATE_API_KEY: (state, apiKey) => ({
-    ...state,
-    apiKey: typeof apiKey === 'string' ? apiKey : ''
-  }),
-
-  HYDRATE_MODEL: (state, model) => ({
-    ...state,
-    model: (typeof model === 'string' && model.trim()) ? model : state.model
-  }),
-
-  SET_API_KEY: {
-    STATE: (state, apiKey) => ({ ...state, apiKey }),
-    STORAGE: (_, apiKey) => ({ key: API_KEY_STORAGE_KEY, value: apiKey })
-  },
-
-  SET_MODEL: {
-    STATE: (state, model) => ({ ...state, model }),
-    STORAGE: (_, model) => ({ key: MODEL_STORAGE_KEY, value: model })
-  },
-
+  CHOOSE_CHAT_MODEL: (state, chatModel) => ({ ...state, chatModel }),
+  CHOOSE_DECISION_MODEL: (state, decisionModel) => ({ ...state, decisionModel }),
   SET_TOPIC: (state, topic) => ({ ...state, topic }),
-
-  TOGGLE_DISCUSSION: {
-    STATE: (state, _, next) => {
-      const isNewSessionMode = state.discussionStarted === true && (
-        state.phase === 'completed' ||
-        (state.phase === 'idle' && state.activeRunId == null) ||
-        (state.phase === 'error' && state.activeRunId == null)
-      )
-
-      if (isNewSessionMode) {
-        return {
-          ...state,
-          topic: '',
-          phase: 'idle',
-          error: null,
-          panel: null,
-          transcript: [],
-          logs: [],
-          turnCount: 0,
-          pendingRequest: null,
-          activeRunId: null,
-          discussionStarted: false,
-          copyTranscriptSuccess: false,
-          followUpInput: '',
-          followUpQuestion: null,
-          pendingFollowUpQueue: [],
-          pendingSaveSession: null,
-          historyOpen: false,
-          debugOpen: false
-        }
-      }
-
-      if (state.discussionStarted === true) {
-
-        return {
-          ...state,
-          phase: 'idle',
-          pendingRequest: null,
-          activeRunId: null,
-          followUpQuestion: null,
-          pendingFollowUpQueue: [],
-          error: null,
-          logs: appendLog(state.logs, 'Discussion stopped by user')
-        }
-      }
-
-      const error = validateInputs(state)
-      if (error) {
-        return {
-          ...state,
-          error,
-          phase: 'idle',
-          logs: appendLog(state.logs, `Validation failed: ${error}`)
-        }
-      }
-
-      const nextRunId = (state.runCounter || 0) + 1
-      next('RUN_ANALYSIS', { runId: nextRunId }, 0)
-
-      return {
-        ...state,
-        discussionStarted: true,
-        runCounter: nextRunId,
-        activeRunId: nextRunId,
-        phase: 'analyzing',
-        panel: null,
-        transcript: [],
-        turnCount: 0,
-        pendingRequest: 'analyze-topic',
-        copyTranscriptSuccess: false,
-        followUpInput: '',
-        followUpQuestion: null,
-        pendingFollowUpQueue: [],
-        error: null,
-        logs: appendLog(state.logs, 'Starting topic analysis and panel assembly')
-      }
-    }
-  },
-
-  RUN_ANALYSIS: {
-    KINDO: (state, payload) => buildAnalyzeRequest(state, { runId: payload?.runId || state.activeRunId })
-  }
+  START: { PARENT: () => ({ command: 'start' }) },
+  STOP: { PARENT: () => ({ command: 'stop' }) },
+  NEW_SESSION: { PARENT: () => ({ command: 'new' }) },
+  REFRESH_MODELS: { PARENT: () => ({ command: 'refresh' }) },
 }
 
 export default SetupCard

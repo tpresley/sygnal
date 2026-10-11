@@ -1,41 +1,5 @@
 import { ABORT } from 'sygnal'
-import { appendLog, appendTranscript, extractRequestedSpeakerIds } from '../panelLogic.js'
-
-function toMarkdown(state) {
-  const lines = []
-  lines.push('# Virtual Panel Transcript')
-  lines.push('')
-  lines.push('## Topic')
-  lines.push(state.topic || 'Untitled topic')
-  lines.push('')
-
-  if (state.panel) {
-    lines.push('## Panelists')
-    lines.push(`- **Moderator:** ${state.panel.moderator.name} (${state.panel.moderator.role})`)
-    state.panel.experts.forEach((expert) => {
-      lines.push(`- **Expert:** ${expert.name} (${expert.role})`)
-    })
-    lines.push('')
-  }
-
-  lines.push('## Transcript')
-  if (!Array.isArray(state.transcript) || state.transcript.length === 0) {
-    lines.push('_No discussion turns yet._')
-    return lines.join('\n')
-  }
-
-  state.transcript.forEach((entry, index) => {
-    lines.push(`${index + 1}. **${entry.speakerName}**`)
-    const indented = String(entry.content || '')
-      .split('\n')
-      .map((line) => `   ${line}`)
-      .join('\n')
-    lines.push(indented)
-    lines.push('\n')
-  })
-
-  return lines.join('\n')
-}
+import { toMarkdown } from '../panel.js'
 
 function renderInlineMarkdown(text, keyPrefix) {
   const source = String(text || '')
@@ -115,11 +79,24 @@ function renderMarkdownBlock(content, keyPrefix) {
   return blocks.length ? blocks : [<p key={`${keyPrefix}-empty`}>{content}</p>]
 }
 
-function TranscriptCard({ state, speakerById }) {
-  const panel = state.panel
-  const transcript = state.transcript || []
-  const hasTranscript = transcript.length > 0
-  const copied = state.copyTranscriptSuccess === true
+function entryView(entry, index) {
+  return (
+    <div className={`entry ${entry.kind}`} key={`${entry.speakerId}-${index}`}>
+      <p className="entry-meta">
+        {entry.speakerName}
+        {entry.pickedBy ? <span className="picked-by">next speaker picked by {entry.pickedBy}</span> : null}
+      </p>
+      <div className="entry-content">
+        {entry.thinking && !entry.content
+          ? <p className="thinking">Thinking…</p>
+          : renderMarkdownBlock(entry.content, `entry-${index}`)}
+      </div>
+    </div>
+  )
+}
+
+function TranscriptCard({ state }) {
+  const hasTranscript = state.transcript.length > 0
   const canAskFollowUp = state.phase === 'completed' && !!state.panel
 
   return (
@@ -128,29 +105,18 @@ function TranscriptCard({ state, speakerById }) {
         <h2>Discussion Transcript</h2>
         <button
           type="button"
-          className={copied ? 'copy-transcript success' : 'copy-transcript'}
+          className={state.copied ? 'copy-transcript success' : 'copy-transcript'}
           disabled={!hasTranscript}
           title={hasTranscript ? 'Copy transcript as markdown' : 'No transcript to copy yet'}
         >
-          {copied ? 'Copied!' : 'Copy Markdown'}
+          {state.copied ? 'Copied!' : 'Copy Markdown'}
         </button>
       </div>
 
-      {hasTranscript ? (
-        <div className="transcript">
-          {transcript.map((entry, index) => {
-            const speaker = speakerById(panel, entry.speakerId)
-            const isModerator = speaker?.id === panel?.moderator?.id
-
-            return (
-              <div className={isModerator ? 'entry moderator' : 'entry'} key={`${entry.speakerId}-${index}`}>
-                <p className="entry-meta">{entry.speakerName}</p>
-                <div className="entry-content">
-                  {renderMarkdownBlock(entry.content, `entry-${index}`)}
-                </div>
-              </div>
-            )
-          })}
+      {hasTranscript || state.live ? (
+        <div className="transcript" aria-live="polite">
+          {state.transcript.map(entryView)}
+          {state.live ? entryView(state.live, state.transcript.length) : null}
         </div>
       ) : (
         <div className="transcript-empty">
@@ -159,97 +125,42 @@ function TranscriptCard({ state, speakerById }) {
       )}
 
       {canAskFollowUp ? (
-        <div className="followup-row">
+        <form className="followup-row">
           <input
             type="text"
             className="followup-input"
-            placeholder="Ask a follow-up question..."
-            value={state.followUpInput || ''}
+            placeholder="Ask a follow-up question (name a panelist to hear from them first)..."
+            value={state.followUpInput}
           />
-          <button
-            type="button"
-            className="followup-submit"
-            title="Submit follow-up"
-            aria-label="Submit follow-up"
-          >
-            →
-          </button>
-        </div>
+          <button type="submit" className="followup-submit" title="Submit follow-up" aria-label="Submit follow-up">→</button>
+        </form>
       ) : null}
     </article>
   )
 }
 
 TranscriptCard.intent = ({ DOM }) => ({
-  COPY_TRANSCRIPT: DOM.select('.copy-transcript').events('click').mapTo(null),
-  SET_FOLLOW_UP_INPUT: DOM.select('.followup-input').events('input').map((event) => event.target.value),
-  SUBMIT_FOLLOW_UP: DOM.select('.followup-submit').events('click').mapTo(null),
-  SUBMIT_FOLLOW_UP_ENTER: DOM.select('.followup-input').events('keydown')
-    .filter((event) => event.key === 'Enter')
-    .map((event) => {
-      event.preventDefault()
-      return null
-    })
+  COPY: DOM.click('.copy-transcript'),
+  SET_FOLLOW_UP: DOM.input('.followup-input').value(),
+  ASK: DOM.select('.followup-row').events('submit', { preventDefault: true }),
 })
 
-function submitFollowUp(state, _, next) {
-  if (state.phase !== 'completed' || !state.panel) return ABORT
-  const question = String(state.followUpInput || '').trim()
-  if (!question) return ABORT
-
-  const nextRunId = (state.runCounter || 0) + 1
-  const requestedSpeakerIds = extractRequestedSpeakerIds(question, state.panel)
-  const forceEnd = state.turnCount >= state.maxTurns
-
-  next('REQUEST_FOLLOW_UP_MODERATOR', {
-    question,
-    requestedSpeakerIds,
-    runId: nextRunId,
-    forceEnd
-  }, 0)
-
-  return {
-    ...state,
-    phase: 'deliberating',
-    pendingRequest: 'moderator-followup-plan',
-    activeRunId: nextRunId,
-    runCounter: nextRunId,
-    followUpQuestion: question,
-    followUpInput: '',
-    pendingFollowUpQueue: [],
-    discussionStarted: true,
-    error: null,
-    transcript: appendTranscript(state.transcript, {
-      speakerId: 'user-followup',
-      speakerName: 'You',
-      content: question
-    }),
-    logs: appendLog(state.logs, 'Submitted follow-up question to moderator')
-  }
-}
+const question = (state) => state.followUpInput.trim()
 
 TranscriptCard.model = {
-  COPY_TRANSCRIPT: {
-    STATE: (state, _, next) => {
-      next('CLEAR_COPY_TRANSCRIPT_SUCCESS', null, 1400)
-      return {
-        ...state,
-        copyTranscriptSuccess: true,
-        logs: appendLog(state.logs, 'Copied transcript to clipboard as markdown')
-      }
-    },
-    CLIPBOARD: (state) => ({ text: toMarkdown(state) })
+  COPY: { BROWSER: (state) => ({ copy: toMarkdown(state), ok: 'COPIED', error: 'COPY_FAILED' }) },
+  COPIED: (state, _, next) => {
+    next('COPY_RESET', null, 1400)
+    return { ...state, copied: true }
   },
-  CLEAR_COPY_TRANSCRIPT_SUCCESS: (state) => ({
-    ...state,
-    copyTranscriptSuccess: false
-  }),
-  SET_FOLLOW_UP_INPUT: (state, value) => ({
-    ...state,
-    followUpInput: value
-  }),
-  SUBMIT_FOLLOW_UP: submitFollowUp,
-  SUBMIT_FOLLOW_UP_ENTER: submitFollowUp
+  COPY_RESET: (state) => ({ ...state, copied: false }),
+  COPY_FAILED: (state, { message }) => ({ ...state, error: `Could not copy: ${message}` }),
+  SET_FOLLOW_UP: (state, followUpInput) => ({ ...state, followUpInput }),
+  // the root runs the follow-up: it owns the discussion's requests
+  ASK: {
+    STATE: (state) => (question(state) ? { ...state, followUpInput: '' } : ABORT),
+    PARENT: (state) => (question(state) ? { question: question(state) } : ABORT),
+  },
 }
 
 export default TranscriptCard

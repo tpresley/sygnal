@@ -1,22 +1,17 @@
 function DebugLogDrawer({ state }) {
-  const open = state.debugOpen === true
-  const logs = Array.isArray(state.logs) ? state.logs : []
+  const open = state.debugOpen
 
   return (
     <aside className={open ? 'debug-drawer open' : 'debug-drawer'}>
-      <button
-        type="button"
-        className="debug-toggle"
-        title={open ? 'Close debug log' : 'Open debug log'}
-      >
+      <button type="button" className="debug-toggle" title={open ? 'Close debug log' : 'Open debug log'}>
         {open ? 'Close Logs ◀' : 'Logs ▶'}
       </button>
 
       <div className="debug-content">
         <h3>Audit Log</h3>
-        {logs.length > 0 ? (
+        {state.logs.length > 0 ? (
           <ul className="log-list">
-            {logs.map((line, index) => <li key={index}>{line}</li>)}
+            {state.logs.map((line) => <li>{line}</li>)}
           </ul>
         ) : (
           <p className="history-empty">No events logged yet.</p>
@@ -27,18 +22,11 @@ function DebugLogDrawer({ state }) {
 }
 
 DebugLogDrawer.intent = ({ DOM }) => ({
-  TOGGLE_DEBUG: DOM.select('.debug-toggle').events('click').mapTo(null)
+  TOGGLE_DEBUG: DOM.click('.debug-toggle'),
 })
 
 DebugLogDrawer.model = {
-  TOGGLE_DEBUG: (state) => {
-    const nextOpen = !state.debugOpen
-    return {
-      ...state,
-      debugOpen: nextOpen,
-      historyOpen: nextOpen ? false : state.historyOpen
-    }
-  }
+  TOGGLE_DEBUG: (state) => ({ ...state, debugOpen: !state.debugOpen, historyOpen: false }),
 }
 
 export default DebugLogDrawer
