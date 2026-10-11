@@ -12,14 +12,14 @@
   --sl-color-black: #181818;
 }
 
+/* Every column wraps, and none gets narrower than 8rem. Keeping all but the last column on one
+   line made a long middle column push the last one down to a word per line; with a minimum width
+   instead, the browser shares the room between the columns, and a narrow screen scrolls the table
+   (Starlight makes it a scroll box) instead of squeezing a column. */
 table td,
 table th {
-  white-space: nowrap;
-}
-
-table td:last-child,
-table th:last-child {
   white-space: normal;
+  min-width: 8rem;
 }
 
 :root[data-theme='light'] {
