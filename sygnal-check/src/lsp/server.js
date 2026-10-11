@@ -26,7 +26,7 @@
  * Diagnostics are pushed, never pulled (D305): only the files whose list changed, and an empty
  * list for a file that cleared; each list sorted errors first. See convert.js for the shape.
  *
- * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, from
+ * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, codeLens, from
  * `initializationOptions` (flat, or under `sygnal`) and, when the client supports it,
  * `workspace/configuration` per folder (section `sygnal`), which wins. Defined values override
  * the config file (sygnal-check.config.json / package.json); unset or null leave it in charge.
@@ -45,6 +45,10 @@
  * check returns, or from the worker when a document changed since (navigation.js).
  * Completions (N-2): Sygnal names in Sygnal contexts only, from the last check's completion index
  * and the document's current text, on the main thread (completion.js).
+ *
+ * Code lens (PLAN-7 P4-4, codelens.js): on intent keys, model keys and EVENTS selects / emits,
+ * from the same index; `sygnal.codeLens: false` turns it off. `workspace/codeLens/refresh` after
+ * a check that changed the lenses (when the client supports it); the jump command per client.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -56,10 +60,11 @@ import { lineStarts } from '../edits.js'
 import { textHash } from './convert.js'
 import { createNavigation } from './navigation.js'
 import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
+import { createCodeLens, GO_TO } from './codelens.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
-export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server']
+export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server', 'codeLens']
 export const WATCHERS = ['**/*.{js,jsx,ts,tsx,mjs,cjs}', '**/sygnal-check.config.json', '**/package.json']
 export const CODE_ACTION_KINDS = ['quickfix', 'refactor', 'refactor.rewrite', 'source.fixAll.sygnal']
 const TRACE = ['off', 'messages', 'verbose']
@@ -97,6 +102,7 @@ export function readSettings(raw) {
   if (isStrings(s.paths) && s.paths.length) out.paths = [...s.paths]; else bad('paths', s.paths, 'a non-empty array of paths')
   if (typeof s.verbose === 'boolean') out.verbose = s.verbose; else bad('verbose', s.verbose, 'a boolean')
   if (TRACE.includes(trace)) out.trace = trace; else bad('trace.server', trace, "'off', 'messages' or 'verbose'")
+  if (typeof s.codeLens === 'boolean') out.codeLens = s.codeLens; else bad('codeLens', s.codeLens, 'a boolean')
   return { settings: out, problems }
 }
 
@@ -138,6 +144,7 @@ export function createLspServer({
   let exited = false
   let clientCaps = {}
   let initSettings = {}
+  let initOptions = {}
   const folderSettings = new Map() // folder → settings from workspace/configuration
   const projects = new Map() // folder → { dirty, timer, uris: Set, checked: Map<absPath, textHash>, substituted: Set }
   const overlays = new Map() // absPath → text of an open document
@@ -273,6 +280,7 @@ export function createLspServer({
     projects.delete(folder)
     folderSettings.delete(folder)
     nav.drop(folder)
+    lens.drop(folder)
     for (const uri of p.uris) publish(uri, [])
     checker.call('drop', { folder }).catch(() => {})
   }
@@ -306,6 +314,10 @@ export function createLspServer({
   }
 
   const nav = createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log })
+  const lens = createCodeLens({
+    nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf, uriFor, requestClient, log,
+    enabled: (folder) => ({ ...initSettings, ...(folderSettings.get(folder) || {}) }).codeLens !== false,
+  })
 
   const scheduleFor = (abs, delay) => { for (const f of folderList()) if (within(abs, f)) schedule(f, delay) }
 
@@ -327,7 +339,7 @@ export function createLspServer({
         const snap = nav.snapshot(sources)
         inFlight = folder
         const checked = checker.call('check', { folder, settings: settingsFor(folder), sources })
-          .then(res => { if (projects.has(folder) && !exited) nav.accept(folder, snap, res); apply(folder, res, sources) }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+          .then(res => { if (projects.has(folder) && !exited) lens.checked(folder, nav.accept(folder, snap, res)); apply(folder, res, sources) }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
         nav.track(folder, snap, checked)
         checked.finally(() => { inFlight = null; pump() })
         return
@@ -421,6 +433,7 @@ export function createLspServer({
       clientCaps = isObj(params.capabilities) ? params.capabilities : {}
       if (TRACE.includes(params.trace)) traceLevel = params.trace
       const { settings, problems } = readSettings(params.initializationOptions)
+      initOptions = isObj(params.initializationOptions) ? params.initializationOptions : {}
       initSettings = settings
       if (settings.trace) traceLevel = settings.trace
       let folders = []
@@ -441,6 +454,8 @@ export function createLspServer({
           codeActionProvider: { codeActionKinds: CODE_ACTION_KINDS, resolveProvider: false },
           definitionProvider: true,
           referencesProvider: true,
+          codeLensProvider: { resolveProvider: false },
+          executeCommandProvider: { commands: [GO_TO] },
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
         },
         serverInfo: { name: 'sygnal-check', version: pkg.version },
@@ -570,6 +585,12 @@ export function createLspServer({
   // PLAN-7 N-2: actions and EVENTS (navigation.js)
   requests['textDocument/definition'] = (params) => nav.definition(params)
   requests['textDocument/references'] = (params) => nav.references(params)
+  // PLAN-7 P4-4: code lens (codelens.js)
+  requests['textDocument/codeLens'] = (params) => lens.codeLens(params)
+  requests['workspace/executeCommand'] = (params) => {
+    if (params.command !== GO_TO) throw new ResponseError(ErrorCodes.InvalidParams, `unknown command: ${params.command}`)
+    return lens.executeCommand(params)
+  }
 
   /** `[{ uri, range, newText }]` → a WorkspaceEdit with the edits grouped by file. */
   function workspaceEdit(edits) {

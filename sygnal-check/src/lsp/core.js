@@ -33,7 +33,9 @@
  * `index` (PLAN-7 N-1/N-2): the occurrence index of the build (model/positions.js) for
  * definition / references, without the substituted files' occurrences. `index()` builds it alone
  * (the same files, last good substitution and cache, no rules) for a request on a document
- * changed since the last check (navigation.js).
+ * changed since the last check (navigation.js). The index also carries `flow` (flow.js): each
+ * model entry's sinks, EVENTS, next() and reply names and the SYG101/SYG102 verdicts, for code
+ * lens (codelens.js).
  * `completion` is the completion index of the checked project (completionIndex.js; null without
  * components): the main thread answers textDocument/completion from it (completion.js, N-2).
  */
@@ -50,6 +52,7 @@ import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
 import { completionIndex } from './completionIndex.js'
+import { buildFlow } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
@@ -113,8 +116,11 @@ export function createCore() {
     return { project, diags, options, config, srcs, substituted }
   }
 
-  /** The occurrence index (positions.js) of a build; files checked with their last good text are left out. */
-  const indexOf = (project, substituted) => buildIndex(project, { exclude: new Set(substituted.keys()) })
+  /**
+   * The occurrence index (positions.js) of a build; files checked with their last good text are
+   * left out. `flow` (flow.js): what each action does and what triggers it, for code lens.
+   */
+  const indexOf = (project, substituted) => ({ ...buildIndex(project, { exclude: new Set(substituted.keys()) }), flow: buildFlow(project) })
 
   function check({ folder, settings = {}, sources }) {
     const t0 = performance.now()
