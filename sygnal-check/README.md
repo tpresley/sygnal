@@ -280,7 +280,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, go to definition / find references for actions and EVENTS types, and code lenses that say what each action does and what triggers it. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, go to definition / find references for actions and EVENTS types, code lenses that say what each action does and what triggers it, and a rename that refuses when it can't find every use. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -304,6 +304,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
 | Completion | `textDocument/completion`, trigger characters `'` `"` `` ` `` `.` `#`; items only in Sygnal contexts ([below](#completions)) |
 | Code lens | `textDocument/codeLens` on intent keys, model keys and EVENTS selects / emits ([below](#code-lens)); `workspace/executeCommand` for its jump command `sygnal.goTo`; `workspace/codeLens/refresh` when the client supports it |
+| Rename | `textDocument/prepareRename` and `textDocument/rename` for actions, EVENTS types, class / id names, state keys and context entries; refuses when it can't find every use ([below](#rename)) |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
 **When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover, code actions and completions are answered while a check runs.
@@ -422,6 +423,51 @@ Where the checker can't tell, the lens says so rather than guess: `handler not k
 **Client support.** VS Code and LSP4IJ show code lenses. Neovim shows them after `vim.lsp.codelens.refresh()` (for example on `BufEnter`, `CursorHold` and `InsertLeave`). Helix has no code lens.
 
 **Freshness.** As for definition: the last check's index when the open documents are still what it checked, else one built for the request. After a check that changed any lens of the folder (a title or a target), the server sends `workspace/codeLens/refresh` when the client advertises `workspace.codeLens.refreshSupport`, so lenses in other files follow an edit. In a file that doesn't parse there are no lenses until it parses again. `sygnal.codeLens: false` turns them off.
+
+### Rename
+
+`textDocument/rename` renames a Sygnal name everywhere it is wired, and `textDocument/prepareRename` says up front whether it can (advertised as `renameProvider: { prepareProvider: true }` to clients that support `prepareRename`). These names are strings, so an occurrence a rename misses is an action that silently never runs, with no type error. The server therefore renames only when it can account for every use, and otherwise refuses with the reason (VS Code shows it, then offers TypeScript's rename if TypeScript has one).
+
+| Renames | What it edits |
+|---|---|
+| an action | every occurrence in its component: intent key, model key (a `'A \| SINK'` key's action part), `next('A')`, reply names, the `connections` / `resources` / `route` / `timers` / `browser` names, a behavior option naming it, the `agent.actions` key. A model or intent object shared by components: every component sharing it, each edit once. A user behavior's action (`'c.BUMP'`, or `BUMP` in its `defineBehavior()`): the host's keys and the definition, when one host uses the definition under one key |
+| an EVENTS type | every emitter and select in the project |
+| a class or id | the view tokens and intent selectors of the DOM scope the name resolves to |
+| a state key | the `initialState` / `calculated` key and the Collection `from` naming it |
+| a context entry | the providers' `.context` keys and every read resolving to them |
+
+An identifier key written shorthand keeps its value (`{ SAVE }` becomes `{ STORE: SAVE }`).
+
+**It refuses** (prepareRename and rename answer with an error, code `-32803`):
+
+| When | Message (example) |
+|---|---|
+| a built-in or an `undoable()` action | `BOOTSTRAP is built in: its name is fixed`; `UNDO is added by undoable(): its name is fixed` |
+| the component's intent or model can't be read in full (spreads, computed keys) | `can't rename INCREMENT: in Counter, its model is built with a spread or computed keys, so not every use can be found` |
+| a name built at run time in the component: `next(x)`, a reply, a connection / timer name | `can't rename GO: in C, it calls next() with a name built at run time` |
+| a name built from constants (`[ACTIONS.TICK]`, `EVENTS.select(SAVED)`) | `can't rename TICK: it is built from a constant (TICK at Edge.jsx:15) at Edge.jsx:24; rename the constant's value by hand` |
+| a first-party behavior's action, a `uses` key | `pages.NEXT belongs to the first-party behavior 'pages': its names are fixed` |
+| a user behavior's action when its definition has several hosts or keys | `can't rename c.BUMP: the behavior's definition (src/counter.js:3) is used by 2 hosts or keys, ...` |
+| a control or a component name (identifiers) | `<Add> is a control (an identifier): rename it with TypeScript's rename` |
+| EVENTS: any select or emit in the project whose type is built at run time, or any intent or model in the project that can't be read in full; Toaster's `TOAST` | `can't rename EVENTS 'SAVED': the project has 1 EVENTS select(s) with a type built at run time, ...` |
+| a class or id: the view has dynamic class names (ids); no intent selects it (styling only); it is in a CSS / markup file of the folder or the project uses a stylesheet the server can't read (a package, a remote `<link>`); a module constant holds it; a helper renders it in two views; a behavior option selects it; another DOM scope uses it too; only a child renders it | `can't rename '.save': it is also used in src/app.css:1, which sygnal-check doesn't rename (CSS / markup)` |
+| a state key: the `initialState` / `calculated` can't be read; no key declares it (a Collection item's state comes from its parent) | `can't rename 'rows': L's initialState is built in a way sygnal-check can't read` |
+| a context entry: a provider's `.context` can't be read; a component reads it with no provider the server can find | `can't rename context 'tone': Lone also reads it (src/Lone.jsx:1) with no provider sygnal-check can find` |
+| **any kind:** the name also appears in the project's source as a string, a property key or a member name (`.items`) that isn't one of its known uses | `can't rename GO: 'GO' also appears at src/C.jsx:5 (a string) where sygnal-check can't tell whether it is the same name; rename by hand` |
+| any file of the project has a syntax error | `can't rename while src/Other.jsx has a syntax error: its uses can't be found` |
+
+The last guard is what keeps state keys mostly unrenamable: a key is read as code (`state.items`, `{ ...state, items }`), which the server can't tie to the state, so it refuses and points to TypeScript's rename (typed state) or a rename by hand.
+
+**The new name** is checked per kind: an action name must be an identifier (a name that isn't SCREAMING_SNAKE_CASE is allowed, with a note in the log); an EVENTS type any non-empty string without quotes, backslashes or line breaks; a class or id a CSS identifier (a leading `.` / `#` is accepted); state and context keys identifiers. Renaming to an action the component already has, a built-in, an existing EVENTS type, or a class / id already in use is refused.
+
+**Change annotations.** For a client that supports them (`workspace.workspaceEdit.changeAnnotationSupport` with `documentChanges`), two groups need confirmation (`needsConfirmation: true`; VS Code shows the refactor preview):
+
+- **Agent tool name:** an `agent.actions` key, since renaming it changes the tool name an LLM sees. A client without annotations gets these edits anyway (they are part of the action) and a `window/showMessage` note.
+- **Test files:** the server also scans the folder's test files (`*.test.*` / `*.spec.*`, found under the workspace folder even when `includeTests` is off) for the name as a string (`describe('START_EDIT')`, `simulateAction('START_EDIT')`, a word of a test title for a SCREAMING_SNAKE name with an underscore) or a property (`model.START_EDIT`, `{ draggingLaneId: ... }`), and, for an action, state key or context entry, only in test files that import the component's files. A client without annotations gets the code edits only, and a `window/showMessage` warning naming the test files left out: test edits are never applied without a confirmation.
+
+**Freshness.** A rename always runs on the documents as they are: the worker builds the folder with the current unsaved text (never the last check's index), and if a document changes while it does, the request fails with "try again".
+
+**Limits.** Outside the scan: docs samples, other packages of a monorepo, files outside the workspace folder, CSS-in-JS and stylesheets from packages (a package stylesheet refuses class renames), TypeScript types that list action or EVENTS names (a `SygnalEvents` registry, an `ActionsOf<>` map: the type checker reports what's left). Devtools, HMR or `sygnal/element` code dispatching an action by name is caught only when the name appears as a string in the project.
 
 ### Settings
 

@@ -10,6 +10,8 @@
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
+ *     rename({ folder, settings, sources, file, line, column, newName? }) → Plan | null
+ *                                           (model/rename.js, on the folder as `sources` has it)
  *     drop({ folder })                      forget a removed folder's caches
  *   }
  *
@@ -51,6 +53,7 @@ import { createParseCache } from '../cache.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
+import { planRename } from '../model/rename.js'
 import { completionIndex } from './completionIndex.js'
 import { buildFlow } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
@@ -191,9 +194,15 @@ export function createCore() {
     }))
   }
 
+  /** prepareRename / rename (PLAN-7 P4-5): the plan of model/rename.js, built on `sources` as they are. */
+  function rename({ folder, settings = {}, sources, file, line, column, newName = null }) {
+    const prep = prepare({ folder, settings, sources }, false)
+    return prep ? planRename(prep, { folder, file, line, column, newName }) : null
+  }
+
   function drop({ folder }) {
     projects.delete(folder)
   }
 
-  return { check, index, fixAll, controls, drop }
+  return { check, index, fixAll, controls, rename, drop }
 }

@@ -71,6 +71,7 @@ describe('lifecycle', () => {
       definitionProvider: true,
       referencesProvider: true,
       codeLensProvider: { resolveProvider: false },
+      renameProvider: true,
       executeCommandProvider: { commands: ['sygnal.goTo'] },
       workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
     })
