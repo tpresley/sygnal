@@ -128,7 +128,8 @@ export const router = makeRouter({
 ```
 
 ```jsx
-// TaskPage.jsx: the page reads the same request
+// TaskPage.jsx
+// the page reads the same request
 TaskPage.resources = { task: (state) => routeData.task(state.route)[0] }
 
 // App.jsx: { prefetch } on the ROUTER sink, e.g. on hover, warms the route's data
@@ -168,7 +169,8 @@ export async function data(pageContext) {
 ```
 
 ```javascript
-// pages/+drivers.js: client-only; one cache for the session
+// pages/+drivers.js
+// client-only; one cache for the session
 import { makeFetchDriver, queryCache } from 'sygnal'
 
 export default { HTTP: makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) }) }
@@ -428,7 +430,8 @@ App.model = {
 ```
 
 ```javascript
-// main.js; the tests use renderComponent(App, { http: { cache: queryCache() } })
+// main.js
+// the tests use renderComponent(App, { http: { cache: queryCache() } })
 run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
 ```
 

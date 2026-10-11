@@ -13,13 +13,14 @@ For HTTP use [`makeFetchDriver()`](/guide/http/), and for WebSocket and SSE [`ma
 // main.js
 import { run, driverFromAsync } from 'sygnal'
 import { geocode } from './geo.js'   // async (address) => ({ lat, lng })
-import App from './App.jsx'
+import Place from './Place.jsx'
 
-run(App, { GEO: driverFromAsync(geocode) })
+run(Place, { GEO: driverFromAsync(geocode) })
 ```
 
 ```jsx
-function Place({ state }) {
+// Place.jsx
+export default function Place({ state }) {
   return (
     <div>
       <input className="address" aria-label="Address" value={state.address} />

@@ -332,9 +332,11 @@ Quote.model = {
     after: `Cart.calculated = { total: (state) => state.items.length }`,
   },
   SYG608: {
-    before: `// main.js, without the dev entry
+    before: `// main.js
+// without the dev entry
 run(App, {}, { diagnostics: { strict: true } })`,
-    after: `import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
+    after: `// main.js
+import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
 run(App, {}, { diagnostics: { strict: true } })`,
   },
 }

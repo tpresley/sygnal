@@ -549,7 +549,7 @@ test('shows the next quote', async () => {
 })
 ```
 
-```jsx
+```jsx title="Sygnal"
 import { it, expect } from 'vitest'
 import { renderComponent } from 'sygnal'
 import Quote from './Quote.jsx'

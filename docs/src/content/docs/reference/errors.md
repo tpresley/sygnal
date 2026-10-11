@@ -2001,13 +2001,15 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 Before:
 
 ```jsx
-// main.js, without the dev entry
+// main.js
+// without the dev entry
 run(App, {}, { diagnostics: { strict: true } })
 ```
 
 After:
 
 ```jsx
+// main.js
 import 'sygnal/diagnostics'   // dev only (the Vite plugin adds it in dev)
 run(App, {}, { diagnostics: { strict: true } })
 ```

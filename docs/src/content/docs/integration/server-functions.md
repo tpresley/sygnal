@@ -10,7 +10,8 @@ Install and set up Telefunc for Vike as its documentation describes; this page o
 ## A server function
 
 ```javascript
-// pages/quote/Quote.telefunc.js: runs on the server only
+// pages/quote/Quote.telefunc.js
+// runs on the server only
 import { getContext, Abort } from 'telefunc'
 
 export async function onLoadQuote(id) {
@@ -37,7 +38,8 @@ export default { RPC: driverFromAsync(call, { args: ['call', 'args'] }) }
 The component sends the call and names the reply actions:
 
 ```jsx
-function Quote({ state }) {
+// pages/quote/+Page.jsx
+export default function Quote({ state }) {
   return (
     <div>
       <button className="load">Load</button>
