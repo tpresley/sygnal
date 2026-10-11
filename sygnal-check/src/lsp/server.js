@@ -13,23 +13,46 @@
  * Requests are answered in arrival order; a handler never throws out (failures become -32603 and
  * a log message).
  *
- * Workspace: one project per workspace folder, read from `workspaceFolders` even when the client
+ * Workspace: the workspace folders are read from `workspaceFolders` even when the client
  * advertises `workspaceFolders: false` (Claude Code), else `rootUri`, `rootPath`, the cwd;
- * `workspace/didChangeWorkspaceFolders` adds and removes projects.
+ * `workspace/didChangeWorkspaceFolders` adds and removes them.
+ *
+ * Projects (G-666, roots.js): one per project root, not per workspace folder. A file's root is
+ * its nearest ancestor directory, up to and including its workspace folder, that is a Sygnal
+ * project (a sygnal-check.config.json, or a package.json depending on sygnal / sygnal-check or with
+ * a "sygnal-check" key), else the workspace folder itself (the fallback root). Each root has its
+ * own config (resolved from the root), `paths` (relative to the root), worker caches, navigation,
+ * completion, code lens and rename state; a root's check leaves out the files of roots nested in
+ * it. Which roots are checked:
+ *   - the workspace folder's own root, at startup, as before G-666: unless the folder isn't a
+ *     Sygnal project itself and has nested ones (roots.js hasNested, a bounded scan; the Sygnal
+ *     repository, a monorepo), where it is checked like the nested ones;
+ *   - any other root, from the first didOpen of a document in it; from then on it stays checked
+ *     (on changes, saves and watched-file events inside it) until its workspace folder is removed
+ *     or it stops being a root (its config or package.json changed).
+ * A watched sygnal-check.config.json / package.json change (or a didSave of one) re-detects the
+ * roots and re-checks every root; a didOpen re-detects them too (clients without file watching).
+ *
+ * Not checked (G-665): once per root and directory, an open document that looks like Sygnal source
+ * but lies outside its root's `paths` gets a `window/showMessage` (Info) saying so; once per root,
+ * a root with an open document whose `paths` match no source file at all. Each also goes to the
+ * log (warning). Clients that advertise no `window` capabilities (Claude Code) get the log only.
  *
  * Documents: full sync. Open documents are the checks' `sources` overlay (C-1); closing one drops
  * it and re-checks from disk. Checks run in the check worker (checker.js, core.js; G-657): at
  * once on didOpen / didSave / didClose / watched-file events / settings changes, ≈150 ms after
- * the last didChange without a save (D306). One check per folder at a time; a change while one
- * runs marks the folder dirty, and the newest state is checked next (no stale queue).
+ * the last didChange without a save (D306). One check at a time; a change while one runs marks
+ * its root dirty, and the newest state is checked next (no stale queue).
  *
  * Diagnostics are pushed, never pulled (D305): only the files whose list changed, and an empty
  * list for a file that cleared; each list sorted errors first. See convert.js for the shape.
  *
  * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, codeLens, from
  * `initializationOptions` (flat, or under `sygnal`) and, when the client supports it,
- * `workspace/configuration` per folder (section `sygnal`), which wins. Defined values override
- * the config file (sygnal-check.config.json / package.json); unset or null leave it in charge.
+ * `workspace/configuration` per project root (section `sygnal`, `scopeUri` the root's URI, so
+ * the client answers with the containing workspace folder's settings), which wins. Defined values
+ * override the root's config file (sygnal-check.config.json / package.json); unset or null leave
+ * it in charge.
  * After any `workspace/didChangeConfiguration` the server asks for the configuration again and
  * ignores the notification's payload (VS Code's is window-scoped, 0-S2).
  *
@@ -67,6 +90,8 @@ import { createNavigation } from './navigation.js'
 import { createRename } from './rename.js'
 import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
 import { createCodeLens, GO_TO } from './codelens.js'
+import { createRoots, looksLikeSygnal } from './roots.js'
+import { CONFIG_FILE } from '../config.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
@@ -88,6 +113,8 @@ const sameRange = (a, b) => a && b && a.start.line === b.start.line && a.start.c
   a.end.line === b.end.line && a.end.character === b.end.character
 /** Whether a kind passes `context.only` (no `only`: everything does). */
 const allows = (only, kind) => !only || only.some(k => kind === k || kind.startsWith(k + '.'))
+/** sygnal-check.config.json or package.json: a change re-detects the project roots. */
+const isConfigFile = (abs) => { const b = path.basename(abs); return b === CONFIG_FILE || b === 'package.json' }
 
 /**
  * The `sygnal` settings in one source: an object with the keys at the top or under `sygnal`
@@ -151,8 +178,13 @@ export function createLspServer({
   let clientCaps = {}
   let initSettings = {}
   let initOptions = {}
-  const folderSettings = new Map() // folder → settings from workspace/configuration
-  const projects = new Map() // folder → { dirty, timer, uris: Set, checked: Map<absPath, textHash>, substituted: Set }
+  const folders = new Set() // the workspace folders
+  const roots = createRoots() // project root detection (G-666)
+  let configStarted = false // the initialized notification arrived: roots activated later ask for their settings
+  const rootSettings = new Map() // root → settings from workspace/configuration
+  // root → { folder, dirty, timer, configuring, uris: Set, checked: Map<absPath, textHash>, substituted: Set }
+  const projects = new Map()
+  const told = new Set() // G-665: what was said once (per root, per root + directory)
   const overlays = new Map() // absPath → text of an open document
   const docUris = new Map() // absPath → the URI the client opened it with
   const published = new Map() // uri → { key, list }
@@ -268,45 +300,100 @@ export function createLspServer({
 
   // ---------------------------------------------------------------- projects and checks
 
-  const folderList = () => [...projects.keys()]
-  /** The innermost folder holding a path (for requests about one document). */
-  const folderOf = (abs) => folderList().filter(f => within(abs, f)).sort((a, b) => b.length - a.length)[0] || null
+  const rootList = () => [...projects.keys()]
+  /** The innermost workspace folder holding a path. */
+  const folderOf = (abs) => [...folders].filter(f => within(abs, f)).sort((a, b) => b.length - a.length)[0] || null
+  /** A file's project root (roots.js), checked or not; null outside every workspace folder. */
+  const detectRoot = (abs) => { const f = folderOf(abs); return f && roots.rootOf(abs, f) }
+  /** The checked project root of a file (for requests about one document), else null. */
+  const rootOf = (abs) => { const r = detectRoot(abs); return r && projects.has(r) ? r : null }
   const uriFor = (abs) => docUris.get(abs) ?? pathToUri(abs)
   /** A URI from the worker, as the client spelled it when it opened the document. */
   const clientUri = (uri) => { const abs = uriToPath(uri); return (abs && docUris.get(abs)) || uri }
+  /** How a path reads in messages: relative to its workspace folder, '/'-separated. */
+  const shown = (abs, folder) => (path.relative(folder, abs) || path.basename(abs)).split(path.sep).join('/')
 
+  /**
+   * Start checking a project root (inside workspace folder `folder`). After the initialized
+   * notification it first asks for the root's settings; an active root above it is re-checked
+   * (its findings on this root's files clear). false when it was already checked.
+   */
+  function activate(root, folder) {
+    if (projects.has(root)) return false
+    const p = { folder, dirty: false, timer: null, configuring: false, uris: new Set(), checked: new Map(), substituted: new Set() }
+    projects.set(root, p)
+    log('info', `project root ${root}${root === folder ? ' (the workspace folder)' : ''}`)
+    for (const r of rootList()) if (r !== root && within(root, r)) schedule(r, 0)
+    if (configStarted && clientCaps.workspace?.configuration) {
+      p.configuring = true
+      refreshConfiguration([root]).catch(() => {}).finally(() => { p.configuring = false; schedule(root, 0) })
+    } else if (ready) schedule(root, 0)
+    return true
+  }
+
+  function removeRoot(root) {
+    const p = projects.get(root)
+    if (!p) return
+    clearTimeout(p.timer)
+    projects.delete(root)
+    rootSettings.delete(root)
+    nav.drop(root)
+    lens.drop(root)
+    for (const uri of p.uris) publish(uri, [], root)
+    checker.call('drop', { folder: root }).catch(() => {})
+  }
+
+  /** A workspace folder: its own root is checked now unless it only holds nested projects. */
   function addFolder(folder) {
-    if (!projects.has(folder)) projects.set(folder, { dirty: false, timer: null, uris: new Set(), checked: new Map(), substituted: new Set() })
+    if (folders.has(folder)) return
+    folders.add(folder)
+    if (roots.isRoot(folder) || !roots.hasNested(folder)) activate(folder, folder)
+    else log('info', `${folder} holds nested Sygnal projects: each is checked once one of its files is opened`)
   }
 
   function removeFolder(folder) {
-    const p = projects.get(folder)
-    if (!p) return
-    clearTimeout(p.timer)
-    projects.delete(folder)
-    folderSettings.delete(folder)
-    nav.drop(folder)
-    lens.drop(folder)
-    for (const uri of p.uris) publish(uri, [])
-    checker.call('drop', { folder }).catch(() => {})
+    if (!folders.delete(folder)) return
+    for (const [r, p] of [...projects]) if (p.folder === folder) removeRoot(r)
   }
 
-  function settingsFor(folder) {
-    const s = { ...initSettings, ...(folderSettings.get(folder) || {}) }
+  /**
+   * Detect the roots again (a config or package.json may have changed): roots that no longer
+   * qualify are dropped, the open documents' roots are checked (activate() schedules each new one
+   * and the roots above it). Whether a root was dropped (its documents moved to other roots).
+   */
+  function redetect() {
+    roots.clear()
+    let dropped = false
+    for (const [r, p] of [...projects]) {
+      if (r === p.folder || roots.isRoot(r)) continue
+      log('info', `${r} is no longer a project root`)
+      removeRoot(r)
+      dropped = true
+    }
+    for (const abs of overlays.keys()) {
+      const r = detectRoot(abs)
+      if (r) activate(r, folderOf(abs))
+    }
+    return dropped
+  }
+
+  function settingsFor(root) {
+    const s = { ...initSettings, ...(rootSettings.get(root) || {}) }
     const out = { verbose: !!s.verbose }
     for (const k of ['strict', 'a11y', 'ignore', 'paths']) if (s[k] !== undefined) out[k] = s[k]
     return out
   }
 
-  function overlaysUnder(folder) {
+  /** The open documents whose project root is `root`. */
+  function overlaysUnder(root) {
     const out = new Map()
-    for (const [abs, text] of overlays) if (within(abs, folder)) out.set(abs, text)
+    for (const [abs, text] of overlays) if (within(abs, root) && detectRoot(abs) === root) out.set(abs, text)
     return out
   }
 
-  /** Check `folder` after `delay` ms (0: as soon as the worker is free). */
-  function schedule(folder, delay) {
-    const p = projects.get(folder)
+  /** Check `root` after `delay` ms (0: as soon as the worker is free). */
+  function schedule(root, delay) {
+    const p = projects.get(root)
     if (!p || exited) return
     clearTimeout(p.timer)
     p.timer = null
@@ -319,31 +406,33 @@ export function createLspServer({
     }
   }
 
-  const nav = createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log })
+  // (navigation, code lens and rename key their state by what `folderOf` returns: the project root)
+  const nav = createNavigation({ checker, overlaysUnder, settingsFor, folderOf: rootOf, uriFor, log })
   const lens = createCodeLens({
-    nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf, uriFor, requestClient, log,
-    enabled: (folder) => ({ ...initSettings, ...(folderSettings.get(folder) || {}) }).codeLens !== false,
+    nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf: rootOf, uriFor, requestClient, log,
+    enabled: (root) => ({ ...initSettings, ...(rootSettings.get(root) || {}) }).codeLens !== false,
   })
 
   // PLAN-7 P4-5: rename (rename.js), always on the documents as they are now
   const renamer = createRename({
-    checker, overlaysUnder, settingsFor, folderOf, uriFor, caps: () => clientCaps, log,
+    checker, overlaysUnder, settingsFor, folderOf: rootOf, uriFor, caps: () => clientCaps, log,
     notify: (type, message) => write({ method: 'window/showMessage', params: { type, message } }),
   })
 
-  const scheduleFor = (abs, delay) => { for (const f of folderList()) if (within(abs, f)) schedule(f, delay) }
+  /** Check the root of a document (when it is checked). */
+  const scheduleFor = (abs, delay) => { const r = rootOf(abs); if (r) schedule(r, delay) }
 
   function isIdle() {
     if (exited) return true
     if (!ready || inFlight) return false
-    for (const p of projects.values()) if (p.dirty || p.timer) return false
+    for (const p of projects.values()) if (p.dirty || p.timer || p.configuring) return false
     return true
   }
 
   function pump() {
     if (exited) return
     if (ready && !inFlight) {
-      const folder = folderList().find(f => projects.get(f).dirty)
+      const folder = rootList().find(r => projects.get(r).dirty && !projects.get(r).configuring)
       if (folder) {
         const p = projects.get(folder)
         p.dirty = false
@@ -381,6 +470,7 @@ export function createLspServer({
   function apply(folder, res, sources) {
     const p = projects.get(folder)
     if (!p || exited) return
+    notice(folder, p, res, sources)
     if (res.completion !== undefined) p.completion = indexState(res.completion, sources)
     p.checked = new Map(res.texts)
     p.substituted = new Set(res.substituted)
@@ -401,42 +491,78 @@ export function createLspServer({
     }
     log('info', `checked ${folder}: ${count} finding(s) in ${next.size} file(s), ${Math.round(res.ms)} ms` +
       (res.substituted.length ? `; kept the last good findings of ${res.substituted.length} file(s) that don't parse` : ''))
-    for (const uri of p.uris) if (!next.has(uri)) publish(uri, [])
-    for (const [uri, list] of next) publish(uri, list)
+    for (const uri of p.uris) if (!next.has(uri)) publish(uri, [], folder)
+    for (const [uri, list] of next) publish(uri, list, folder)
     p.uris = new Set(next.keys())
   }
 
-  /** Publish a file's list when it differs from what the client has (an empty list only to clear one). */
-  function publish(uri, list) {
+  /**
+   * G-665: say once what a check leaves out that the user may expect checked: open documents of
+   * Sygnal source outside the root's `paths` (once per root + directory), or `paths` that match
+   * no source file while a document of the root is open (once per root).
+   */
+  function notice(root, p, res, sources) {
+    const where = shown(root, p.folder)
+    const paths = (res.paths || []).join(', ')
+    if (res.noFiles) {
+      if (!sources.size || told.has(`none\0${root}`)) return
+      // (a plain folder that isn't a Sygnal project: only when an open document looks like one)
+      if (!roots.isRoot(root) && ![...sources.values()].some(looksLikeSygnal)) return
+      told.add(`none\0${root}`)
+      tell(`sygnal-check found no source files in ${paths} for ${where}; set "paths" in ${CONFIG_FILE}.`)
+      return
+    }
+    for (const abs of res.outside || []) {
+      const key = `out\0${root}\0${path.dirname(abs)}`
+      if (told.has(key)) continue
+      told.add(key)
+      tell(`${shown(abs, p.folder)} isn't checked: it's outside sygnal-check's paths (${paths}) for ${where}. Add its folder to "paths" in ${CONFIG_FILE}.`)
+    }
+  }
+
+  /** A message for the user: shown (window/showMessage, Info) when the client has window capabilities, and logged. */
+  function tell(message) {
+    log('warn', message)
+    if (isObj(clientCaps.window)) write({ method: 'window/showMessage', params: { type: 3, message } })
+  }
+
+  /**
+   * Publish a file's list when it differs from what the client has (an empty list only to clear
+   * one). `root`: the project publishing; an empty list from a root that didn't publish the
+   * current one is dropped (the file moved to another root, which has published it since).
+   */
+  function publish(uri, list, root) {
     const prev = published.get(uri)
     const key = JSON.stringify(list)
     if (!list.length) {
-      if (!prev) return
+      if (!prev || (root && prev.root !== root)) return
       published.delete(uri)
     } else {
-      if (prev?.key === key) return
-      published.set(uri, { key, list })
+      if (prev?.key === key) { prev.root = root; return }
+      published.set(uri, { key, list, root })
     }
     write({ method: 'textDocument/publishDiagnostics', params: { uri, diagnostics: list } })
   }
 
-  async function refreshConfiguration() {
+  /** Ask for the settings of `list` (default: every checked root), one item per root, scopeUri = the root. */
+  async function refreshConfiguration(list = rootList()) {
     if (!clientCaps.workspace?.configuration) return
-    const folders = folderList()
-    if (!folders.length) return
-    const res = await requestClient('workspace/configuration', { items: folders.map(f => ({ scopeUri: pathToUri(f), section: 'sygnal' })) }, configurationTimeout)
+    if (!list.length) return
+    const res = await requestClient('workspace/configuration', { items: list.map(r => ({ scopeUri: pathToUri(r), section: 'sygnal' })) }, configurationTimeout)
     if (!Array.isArray(res)) return
-    folders.forEach((f, i) => {
+    list.forEach((r, i) => {
       const { settings, problems } = readSettings(res[i])
       for (const m of problems) log('warn', m)
       if (settings.trace) traceLevel = settings.trace
-      folderSettings.set(f, settings)
+      if (projects.has(r)) rootSettings.set(r, settings)
     })
   }
 
-  const recheckAll = () => { for (const f of folderList()) schedule(f, 0) }
+  // (pump() also with no root to check: idle waiters are released)
+  const recheckAll = () => { for (const r of rootList()) schedule(r, 0); pump() }
 
   async function onInitialized() {
+    configStarted = true
     const ws = clientCaps.workspace || {}
     const registrations = []
     if (ws.didChangeWatchedFiles?.dynamicRegistration) {
@@ -467,11 +593,11 @@ export function createLspServer({
       if (!folders.length && params.rootUri) folders = [uriToPath(params.rootUri)].filter(Boolean)
       if (!folders.length && typeof params.rootPath === 'string' && params.rootPath) folders = [path.resolve(params.rootPath)]
       if (!folders.length) folders = [path.resolve(cwd)]
-      for (const f of folders) addFolder(f)
       initialized = true
       connected = true
       for (const m of problems) log('warn', m)
       log('info', `sygnal-check ${pkg.version} language server; folders: ${folders.join(', ')}; ${checker.usingWorker ? 'checks in a worker thread' : 'checks on the main thread'}`)
+      for (const f of folders) addFolder(f)
       return {
         capabilities: {
           textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
@@ -519,7 +645,7 @@ export function createLspServer({
 
     'textDocument/completion'(params) {
       const abs = uriToPath(params.textDocument?.uri)
-      const folder = abs && isObj(params.position) && folderOf(abs)
+      const folder = abs && isObj(params.position) && rootOf(abs)
       if (!folder) return null
       const text = overlays.get(abs) ?? readText(abs)
       if (text == null) return null
@@ -537,7 +663,7 @@ export function createLspServer({
       const abs = uriToPath(uri)
       const ctx = isObj(params.context) ? params.context : {}
       const only = Array.isArray(ctx.only) && ctx.only.length ? ctx.only : null
-      const folder = abs && folderOf(abs)
+      const folder = abs && rootOf(abs)
       if (!folder) return []
       const st = projects.get(folder)
       const stored = published.get(uri)?.list || []
@@ -643,27 +769,38 @@ export function createLspServer({
     },
     'workspace/didChangeWatchedFiles'(params) {
       const touched = new Set()
+      let configs = false
       for (const c of Array.isArray(params.changes) ? params.changes : []) {
         const abs = uriToPath(c?.uri)
         if (!abs) continue
         if (c.type === 3) overlays.delete(abs) // deleted: re-check from disk (its findings clear)
-        for (const f of folderList()) if (within(abs, f) || within(f, abs)) touched.add(f)
+        if (isConfigFile(abs)) { configs = true; continue }
+        // its root; a file outside every checked root may be imported by any root of its folder
+        const r = rootOf(abs)
+        if (r) touched.add(r)
+        else for (const [root, p] of projects) if (within(abs, p.folder)) touched.add(root)
+        for (const root of rootList()) if (within(root, abs)) touched.add(root) // a deleted directory
       }
-      for (const f of touched) schedule(f, 0)
+      // a config or package.json: the roots again, and every root re-checked (its config may differ)
+      if (configs) { redetect(); recheckAll(); return }
+      for (const r of touched) schedule(r, 0)
     },
     'workspace/didChangeWorkspaceFolders'(params) {
       const ev = isObj(params.event) ? params.event : {}
       for (const r of Array.isArray(ev.removed) ? ev.removed : []) { const f = uriToPath(r?.uri); if (f) removeFolder(f) }
-      const added = []
-      for (const a of Array.isArray(ev.added) ? ev.added : []) { const f = uriToPath(a?.uri); if (f && !projects.has(f)) { addFolder(f); added.push(f) } }
-      if (added.length) refreshConfiguration().catch(() => {}).finally(() => { for (const f of added) schedule(f, 0) })
+      // (activate() asks for each new root's settings, then checks it)
+      for (const a of Array.isArray(ev.added) ? ev.added : []) { const f = uriToPath(a?.uri); if (f) addFolder(f) }
+      for (const abs of overlays.keys()) { const r = detectRoot(abs); if (r) activate(r, folderOf(abs)) }
     },
     'textDocument/didOpen'(params) {
       const abs = docPath(params)
       if (!abs || typeof params.textDocument.text !== 'string') return
       docUris.set(abs, params.textDocument.uri)
       overlays.set(abs, params.textDocument.text)
-      scheduleFor(abs, 0)
+      // the roots afresh (a client without file watching may have added a config since): a
+      // dropped root re-checks every root, else the document's own root is checked
+      if (redetect()) recheckAll()
+      else scheduleFor(abs, 0)
     },
     'textDocument/didChange'(params) {
       const abs = docPath(params)
@@ -675,6 +812,7 @@ export function createLspServer({
       const abs = docPath(params)
       if (!abs) return
       if (typeof params.text === 'string' && overlays.has(abs)) overlays.set(abs, params.text)
+      if (isConfigFile(abs)) { redetect(); recheckAll(); return } // (clients without file watching)
       scheduleFor(abs, 0) // at once (D306: Claude Code saves with every edit)
     },
     'textDocument/didClose'(params) {

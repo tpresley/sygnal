@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export const SOURCE_EXTENSIONS = ['.jsx', '.tsx', '.js', '.ts', '.mjs', '.mts', '.cjs', '.cts']
-const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.astro', '.vite', '.next', '.svelte-kit', '.turbo', 'out'])
+export const IGNORED_DIRS = new Set(['node_modules', 'dist', 'build', 'coverage', '.git', '.astro', '.vite', '.next', '.svelte-kit', '.turbo', 'out'])
 
 export function isSourceFile(file, { includeTests = false } = {}) {
   if (!SOURCE_EXTENSIONS.includes(path.extname(file))) return false
