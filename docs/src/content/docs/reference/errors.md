@@ -1025,11 +1025,11 @@ An `agent.actions` or `agent.queries` entry's `input` must be a Standard Schema 
 
 ### SYG241
 
-**Agent read, query, when or label threw**
+**Agent read, query, when, until or label threw**
 
 Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
 
-The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's and query's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change, and a query's `run(state, input)` when an agent calls it. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, a throwing `label` leaves the key unlabelled, and a throwing query's call fails with `{ ok: false, error }` carrying the message. The app keeps running. Reported once per declaration and function.
+The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's and query's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change, a query's `run(state, input)` when an agent calls it, and an action's `until(state)` while its call waits. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, a throwing `label` leaves the key unlabelled, a throwing query's call fails with `{ ok: false, error }` carrying the message, and a throwing `until` ends the wait (the call answers with the state of now). The app keeps running. Reported once per declaration and function.
 
 **Fix:** Make the function total over every state the component can have: guard optional fields (`state.todos?.length ?? 0`), and keep it a pure function of the state it gets.
 
@@ -1081,7 +1081,7 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 
 An `agent.queries` entry is a read-only tool: its `run(state, input)` gets the component's current state and the validated input and returns the result the model sees, as `{ ok: true, result }`. It runs outside the action queue, so it must be a pure, synchronous function of what it gets: it can't wait for a request, and nothing it does reaches the app's state. This one is not: `run` is missing or not a function (the query is not offered), or it returned a promise (an `async` function, or one that calls `fetch`), so the call fails with `{ ok: false, error }`. Reported once per query while an agent layer runs. sygnal-check reports a missing `run` and an `async` one before the app runs.
 
-**Fix:** Compute the result from `state` and `input` and return it: `run: (state, { customer }) => state.invoices.filter((i) => i.customer === customer)`. For data that has to be fetched, use an action instead: its model entry sets what to load (a `resources` entry or a driver request), and the model reads the result from the component's `read` once it has loaded.
+**Fix:** Compute the result from `state` and `input` and return it: `run: (state, { customer }) => state.invoices.filter((i) => i.customer === customer)`. For data that has to be fetched, use an action instead: its model entry sets what to load (a `resources` entry or a driver request), and `until: 'resourceName'` on the action makes the call answer with the component's `read` once the data has arrived.
 
 ### SYG247
 
@@ -1092,6 +1092,16 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 Actions and queries of one `agent` declaration share its tool-name space: each becomes the tool `<name>_<key>`, with the key in snake case (`FIND` and `find` both give `orders_find`). This query's tool name is already taken by one of the declaration's actions, so the action keeps it and the query is not offered. Reported once per query while an agent layer runs; sygnal-check reports it before the app runs.
 
 **Fix:** Rename the query so its key names what it returns (`queries: { search: … }` next to an action `FIND`), or remove the duplicate.
+
+### SYG248
+
+**Agent action until names no resource**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+An `agent.actions` entry's `until` makes the call wait for the action's result: a string names one of the component's `resources`, and the call answers once that resource is neither loading nor refreshing. This string names no resource of the component (a typo, a resource declared on another component, or a component with no `resources`), so there is nothing to wait for: the call answers at once, with the state right after the action, as without `until`. Reported once per action while an agent layer runs; sygnal-check reports it before the app runs when the component's `resources` is an object literal.
+
+**Fix:** Name a key of the component's own `resources` (`until: 'search'` for `resources = { search: (state) => … }`), or pass a function for a result that arrives through a reply action: `until: (state) => state.status !== 'loading'`, with the action's own reducer setting `status: 'loading'`.
 
 ## SYG3xx: Streams
 

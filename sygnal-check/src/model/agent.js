@@ -2,7 +2,7 @@
  * PLAN-6 K-1: the `agent` static (sygnal/ai, A-1; src/extra/ai/agent/index.ts):
  *
  *   Comp.agent = { name, description?, read?, label?, untrusted?,
- *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent? } },
+ *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent?, until?, timeout? } },
  *                  queries: { find: { description, input?, when?, run: (state, input) => result } } }
  *
  * analyzeAgent(project, file, node) → AgentInfo
@@ -15,7 +15,8 @@
  *     read: boolean, label: boolean,
  *     actionsKnown: boolean,      `actions` is an object literal without spreads or computed keys
  *     actions: Array<{ name, node (the key), file, value (object literal | null), consequential: boolean,
- *                      idempotent: boolean, when: boolean, input: { node, file } | null }>,
+ *                      idempotent: boolean, when: boolean, input: { node, file } | null,
+ *                      until: { name: string | null (a string literal: a resource name), node, file } | null }>,
  *     queriesKnown: boolean,      `queries` is an object literal without spreads or computed keys
  *     queries: Array<{ name, node, file, value, when: boolean, input: { node, file } | null,
  *                      run: 'missing' | 'async' | 'sync' | 'unknown', runNode }>,
@@ -67,9 +68,17 @@ export function analyzeAgent(project, file, node) {
       idempotent: !!value && isTrue(prop(value, 'idempotent')),
       when: !!value && !!prop(value, 'when'),
       input: input?.type === 'ObjectProperty' ? { node: input.value, file: vr.file } : null,
+      until: untilOf(value && prop(value, 'until'), vr?.file),
     })
   }
   return info
+}
+
+/** an action's `until`: the resource name of a string literal (null for a function or anything else) */
+function untilOf(p, file) {
+  if (!p) return null
+  if (p.type !== 'ObjectProperty') return { name: null, node: p.key, file }
+  return { name: stringValue(p.value), node: p.value, file }
 }
 
 /** `agent.queries`: each entry's input and what its `run` is ('async' for an async function) */

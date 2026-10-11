@@ -52,6 +52,7 @@ export const CODES = {
   SYG243: { severity: 'warn', title: 'Agent action or query input schema converted with losses' },
   SYG246: { severity: 'error', title: 'Agent query is not a synchronous function' },
   SYG247: { severity: 'warn', title: 'Agent query has the tool name of an action' },
+  SYG248: { severity: 'warn', title: 'Agent action until names no resource' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG440: { severity: 'warn', title: 'Two agent declarations with the same name' },
   SYG441: { severity: 'warn', title: 'Agent Collection items without unique ids' },

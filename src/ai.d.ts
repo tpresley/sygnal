@@ -301,6 +301,15 @@ export type AgentAction<STATE, D> = {
   when?: (state: STATE) => boolean
   /** A call that changes nothing is a success (`{ ok: true, unchanged: true }`), not an error (D256) */
   idempotent?: boolean
+  /**
+   * The call answers once the action's result is in state, not right after the action: the name of
+   * one of the component's `resources` (done when it is neither loading nor refreshing), or a
+   * function of the state (for a result a reply action writes; the action's own reducer should
+   * mark it pending). Checked after the action and after every render that changed something
+   */
+  until?: string | ((state: STATE) => boolean)
+  /** With `until`: answer `{ ok: true, pending: true }` after this many ms (default 10,000) */
+  timeout?: number
 } & (AgentNoData<D> extends true ? { input?: never } : AgentIsAny<D> extends true ? { input?: AgentSchema<any> } : { input: AgentSchema<D> })
 
 /** What a query may return: any JSON-like value, but not a promise (a query is synchronous) */
@@ -387,12 +396,14 @@ export type AgentConfirm = boolean | ((info: AgentConfirmInfo) => boolean | Prom
  * - `{ ok: true, state }`: done; `state` is the nearest `read` projection (the item's, or its
  *   list's); `removed: true` when an item removed itself; `unchanged: true` for an idempotent no-op
  * - `{ ok: true, result }`: a query's result
+ * - `{ ok: true, pending: true, note, state }`: an `until` action whose result hadn't arrived
+ *   within `timeout`, or whose wait was cancelled (the chat turn was stopped or replaced)
  * - `{ ok: false, error, state?, issues?, keys? }`: invalid input (`issues`), an unknown or hidden
  *   key (`keys`), not available (`when`), declined, refused (`abort(reason)`), threw, or changed
  *   nothing ("already so, or the input matched nothing")
  */
 export type AgentResult =
-  | { ok: true; state?: unknown; removed?: true; unchanged?: true; result?: unknown }
+  | { ok: true; state?: unknown; removed?: true; unchanged?: true; result?: unknown; pending?: true; note?: string }
   | { ok: false; error: string; state?: unknown; issues?: AgentIssue[]; keys?: unknown[] }
 
 export interface AgentToolsOptions {
@@ -412,13 +423,15 @@ export interface AgentToolsOptions {
 export interface AgentToolSet {
   /** the tools offered now; `{ all: true }` adds declared tools that can't be offered, with `error` */
   list(options?: { all?: boolean }): AgentTool[]
-  /** run a tool as an agent (cause 'agent'); resolves after the action's flush */
+  /** run a tool as an agent (cause 'agent'); resolves after the action's flush (with `until`: once its result is in state) */
   call(name: string, args?: unknown, options?: { confirm?: AgentConfirm }): Promise<AgentResult>
   /** the `read` projections by declaration name (item declarations: arrays with `id`) */
   context(): Record<string, unknown>
   /** called with the tools and the context after each flush that changed either; returns unsubscribe */
   subscribe(listener: (change: { tools: AgentTool[]; context: Record<string, unknown> }) => void): () => void
-  /** detach from the app */
+  /** answer every call waiting on an action's `until` now, as `{ ok: true, pending: true }` */
+  cancel(): void
+  /** detach from the app (waiting calls answer as pending) */
   stop(): void
 }
 
