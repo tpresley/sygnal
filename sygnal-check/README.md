@@ -295,7 +295,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | | |
 |---|---|
 | Lifecycle | `initialize`, `initialized`, `shutdown`, `exit`; `$/cancelRequest` (a cancelled request is answered with `-32800`); `$/setTrace`; other `$/` notifications are ignored |
-| Workspace | one project per workspace folder (`workspaceFolders`, else `rootUri` / `rootPath`, else the working directory); `workspace/didChangeWorkspaceFolders`. A folder whose files define no Sygnal component gets no diagnostics |
+| Workspace | the workspace folders (`workspaceFolders`, else `rootUri` / `rootPath`, else the working directory); `workspace/didChangeWorkspaceFolders`. One project per [project root](#project-roots) inside them, so a monorepo's apps are checked apart. A project whose files define no Sygnal component gets no diagnostics |
 | Documents | full text sync (`didOpen`, `didChange`, `didSave`, `didClose`). Open documents are checked from their unsaved text. Closing a document re-checks it from disk |
 | Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
 | Hover | on a finding: its code, title, explanation, fix and docs URL (Markdown, with the URL itself as the link text so editors that hide link targets still show it; plain text for clients without Markdown) |
@@ -312,6 +312,34 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 The server checks at once on `didOpen`, `didSave`, `didClose`, a watched-file event or a settings change. After a `didChange` without a save, it waits about 150 ms for typing to pause. A newer change replaces a check that is still waiting; it doesn't queue another one.
 
 Files that aren't open are read from disk on every check, so a client without file watching still sees changes on disk at the next check.
+
+### Project roots
+
+A workspace folder can hold several Sygnal apps: a monorepo, or a repository with example apps. The server checks each app as its own project, with its own config file and `paths`.
+
+**The rule.** A file belongs to its nearest ancestor directory, up to and including the workspace folder, that is a Sygnal project. A directory is a Sygnal project when it contains:
+
+- a `sygnal-check.config.json`; or
+- a `package.json` that lists `sygnal` or `sygnal-check` in `dependencies`, `devDependencies` or `peerDependencies`, or has a `"sygnal-check"` key.
+
+Directories inside `node_modules`, `dist`, `build` and the other skipped directories, and dot directories, never count. When no directory qualifies, the file belongs to the workspace folder itself, so a plain folder is checked as one project.
+
+Each root's config is the [config file](#configuration) found from the root, and its `paths` (default `["src"]`) are relative to the root. A root's check leaves out the files of roots nested inside it: each file is checked once, by its nearest root.
+
+**When each root is checked:**
+
+- The workspace folder's own root is checked at startup. The exception is a folder that isn't a Sygnal project itself but has Sygnal projects below it, like the Sygnal repository or a monorepo whose root `package.json` doesn't depend on Sygnal. Its root is then checked like the nested ones.
+- Any other root is checked from the first time you open one of its files. After that it stays checked: changes, saves and file events inside it re-check it, even with none of its files open, until its workspace folder is removed.
+- A change to a `sygnal-check.config.json` or `package.json` (seen through file watching, a save, or the next opened document) finds the roots again and re-checks every root. A directory that stops being a project hands its files back to the root above it.
+
+A file outside every workspace folder isn't checked.
+
+**When a file isn't checked.** The server says so once, with `window/showMessage` (Info) and a warning in its log:
+
+- **The file is outside its project's `paths`.** This applies when the file looks like Sygnal source (it imports from `sygnal`, or sets component statics). Test files left out by `includeTests`, config files and files under skipped directories don't count. The message is said once per project and directory, for example: *examples/foo/app.tsx isn't checked: it's outside sygnal-check's paths (src) for examples/foo. Add its folder to "paths" in sygnal-check.config.json.*
+- **The project's `paths` match no source file at all.** This is said once per project, when one of its files is open, for example: *sygnal-check found no source files in src for examples/todomvc; set "paths" in sygnal-check.config.json.*
+
+A client that advertises no `window` capabilities, like Claude Code, gets the log line only.
 
 ### Diagnostics
 
@@ -463,11 +491,11 @@ The last guard is what keeps state keys mostly unrenamable: a key is read as cod
 **Change annotations.** For a client that supports them (`workspace.workspaceEdit.changeAnnotationSupport` with `documentChanges`), two groups need confirmation (`needsConfirmation: true`; VS Code shows the refactor preview):
 
 - **Agent tool name:** an `agent.actions` key, since renaming it changes the tool name an LLM sees. A client without annotations gets these edits anyway (they are part of the action) and a `window/showMessage` note.
-- **Test files:** the server also scans the folder's test files (`*.test.*` / `*.spec.*`, found under the workspace folder even when `includeTests` is off) for the name as a string (`describe('START_EDIT')`, `simulateAction('START_EDIT')`, a word of a test title for a SCREAMING_SNAKE name with an underscore) or a property (`model.START_EDIT`, `{ draggingLaneId: ... }`), and, for an action, state key or context entry, only in test files that import the component's files. A client without annotations gets the code edits only, and a `window/showMessage` warning naming the test files left out: test edits are never applied without a confirmation.
+- **Test files:** the server also scans the project's test files (`*.test.*` / `*.spec.*`, found under the [project root](#project-roots) even when `includeTests` is off) for the name as a string (`describe('START_EDIT')`, `simulateAction('START_EDIT')`, a word of a test title for a SCREAMING_SNAKE name with an underscore) or a property (`model.START_EDIT`, `{ draggingLaneId: ... }`), and, for an action, state key or context entry, only in test files that import the component's files. A client without annotations gets the code edits only, and a `window/showMessage` warning naming the test files left out: test edits are never applied without a confirmation.
 
 **Freshness.** A rename always runs on the documents as they are: the worker builds the folder with the current unsaved text (never the last check's index), and if a document changes while it does, the request fails with "try again".
 
-**Limits.** Outside the scan: docs samples, other packages of a monorepo, files outside the workspace folder, CSS-in-JS and stylesheets from packages (a package stylesheet refuses class renames), TypeScript types that list action or EVENTS names (a `SygnalEvents` registry, an `ActionsOf<>` map: the type checker reports what's left). Devtools, HMR or `sygnal/element` code dispatching an action by name is caught only when the name appears as a string in the project.
+**Limits.** Outside the scan: docs samples, other [project roots](#project-roots) (the other packages of a monorepo), files outside the workspace folder, CSS-in-JS and stylesheets from packages (a package stylesheet refuses class renames), TypeScript types that list action or EVENTS names (a `SygnalEvents` registry, an `ActionsOf<>` map: the type checker reports what's left). Devtools, HMR or `sygnal/element` code dispatching an action by name is caught only when the name appears as a string in the project.
 
 ### Settings
 
@@ -476,7 +504,7 @@ The last guard is what keeps state keys mostly unrenamable: a key is read as cod
 | `sygnal.strict` | boolean | also run the strict-mode rules |
 | `sygnal.a11y` | `"warn"` \| `"error"` | severity of the a11y findings |
 | `sygnal.ignore` | string[] | codes to drop |
-| `sygnal.paths` | string[] | files, directories or globs to check, relative to the workspace folder |
+| `sygnal.paths` | string[] | files, directories or globs to check, relative to each [project root](#project-roots) |
 | `sygnal.verbose` | boolean | also show info findings (default false) |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
 | `sygnal.codeLens` | boolean | show [code lenses](#code-lens) (default true); an editor setting only, the config file has no such key |
@@ -484,11 +512,11 @@ The last guard is what keeps state keys mostly unrenamable: a key is read as cod
 The server reads settings from two places:
 
 - `initializationOptions`, either flat (`{ "strict": true }`) or under `sygnal` (`{ "sygnal": { "strict": true } }`);
-- `workspace/configuration`, section `sygnal`, once per workspace folder, when the client supports it. These values win over `initializationOptions`.
+- `workspace/configuration`, section `sygnal`, once per [project root](#project-roots), when the client supports it. The request's `scopeUri` is the root, so the editor answers with the settings of the workspace folder that contains it. These values win over `initializationOptions`.
 
 After a `workspace/didChangeConfiguration` the server asks for the configuration again and ignores the notification's own payload.
 
-**Precedence with the config file.** A setting the editor sets overrides the [config file](#configuration) (`sygnal-check.config.json` or the `package.json` key, found from each workspace folder). A setting left unset, or set to `null`, leaves the config file in charge. So with no editor settings, the editor, the CLI and CI all check with the same config. A list setting (`ignore`, `paths`) replaces the file's list; it is not merged with it.
+**Precedence with the config file.** A setting the editor sets overrides the [config file](#configuration) (`sygnal-check.config.json` or the `package.json` key, found from each project root). A setting left unset, or set to `null`, leaves the config file in charge. So with no editor settings, the editor, the CLI and CI all check with the same config. A list setting (`ignore`, `paths`) replaces the file's list; it is not merged with it.
 
 ## How an agent should use inspect, check and explain
 

@@ -102,7 +102,8 @@ async function workspaceUsesSygnal(): Promise<boolean> {
   }
   if (!folders.length) return false
   if ((await vscode.workspace.findFiles('**/sygnal-check.config.json', EXCLUDE, 1)).length) return true
-  const pkgs = await vscode.workspace.findFiles('**/package.json', EXCLUDE, 50)
+  // a monorepo can hold many packages: 500 small package.json reads are cheap (node_modules excluded)
+  const pkgs = await vscode.workspace.findFiles('**/package.json', EXCLUDE, 500)
   return pkgs.some(uri => packageFileUsesSygnal(uri.fsPath))
 }
 
@@ -159,7 +160,7 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
     outputChannel: output,
     traceOutputChannel: output,
     // No synchronize: the server registers file watchers and didChangeConfiguration dynamically,
-    // and asks for the `sygnal` section per folder with workspace/configuration.
+    // and asks for the `sygnal` section per project root (scopeUri) with workspace/configuration.
   }
   client = new LanguageClient('sygnal', 'Sygnal', serverOptions, clientOptions)
   client.registerFeature(new ClientCommandsFeature())
