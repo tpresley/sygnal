@@ -51,7 +51,7 @@ export default {
 }
 ```
 
-```jsx live live-height=260
+```jsx live live-height=260 title="Chat.jsx"
 import { ABORT } from 'sygnal'
 import { messageText } from 'sygnal/ai'
 
@@ -243,7 +243,7 @@ export default {
 }
 ```
 
-```jsx live live-height=200
+```jsx live live-height=200 title="QuickAdd.jsx"
 import { z } from 'zod'
 import { ABORT } from 'sygnal'
 
@@ -342,7 +342,7 @@ export default {
 }
 ```
 
-```jsx live live-height=260
+```jsx live live-height=260 title="Shopping.jsx"
 import { ABORT } from 'sygnal'
 import { messageText, withToolResults } from 'sygnal/ai'
 
@@ -509,8 +509,8 @@ The transports refuse the other mistake for you. In a browser, a request with an
 
 The component never changes. Only the transport in `main.js` does: Ollama while you develop, your AI SDK route in production.
 
-```js
-// main.js: development, a local model
+```js title="main.js (development)"
+// a local model, through Ollama
 import { run } from 'sygnal'
 import { makeChatDriver, openResponses } from 'sygnal/ai'
 import Chat from './Chat.jsx'
@@ -520,8 +520,8 @@ run(Chat, {
 })
 ```
 
-```js
-// main.js: production, the AI SDK route above
+```js title="main.js (production)"
+// the AI SDK route above
 import { run } from 'sygnal'
 import { makeChatDriver, uiMessageStream } from 'sygnal/ai'
 import Chat from './Chat.jsx'
@@ -534,6 +534,7 @@ run(Chat, {
 Or pick one at build time, so the development transport isn't in the production bundle:
 
 ```js
+// main.js
 import { run } from 'sygnal'
 import { makeChatDriver, openResponses, uiMessageStream } from 'sygnal/ai'
 import Chat from './Chat.jsx'

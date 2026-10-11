@@ -16,7 +16,8 @@ export default defineConfig({ plugins: [sygnal()] })
 ```
 
 ```javascript
-// src/main.js — just run, no HMR boilerplate
+// src/main.js
+// just run, no HMR boilerplate
 import { run } from 'sygnal'
 import App from './App.jsx'
 
@@ -45,6 +46,7 @@ if (import.meta.hot) {
 ## Webpack Setup
 
 ```javascript
+// src/index.js
 import { run } from 'sygnal'
 import RootComponent from './RootComponent'
 

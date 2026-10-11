@@ -21,7 +21,7 @@ export default defineConfig({
 
 Use Sygnal components in `.astro` files with client directives for hydration:
 
-```astro
+```astro title="src/pages/index.astro"
 ---
 import Counter from '../components/Counter.jsx'
 ---

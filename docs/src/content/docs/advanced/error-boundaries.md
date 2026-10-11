@@ -125,7 +125,8 @@ Compared with React, which unmounts the whole tree when an error isn't caught by
 In a [Vike](/integration/vike/) app, the hook is the `sygnalOnError` config: define it in `+sygnalOnError.js` (or in `+config.js`). It is passed to `renderToString` on the server and to `run()` in the browser. (Vike's own `onError` is a different hook: server-only, called with `(error, pageContext)` for any error during rendering.)
 
 ```js
-// pages/+sygnalOnError.js: used by renderToString on the server and by run() in the browser
+// pages/+sygnalOnError.js
+// used by renderToString on the server and by run() in the browser
 export default function sygnalOnError(error, { componentName, action, phase }) {
   console.error('[' + phase + ']', componentName, action, error)
 }

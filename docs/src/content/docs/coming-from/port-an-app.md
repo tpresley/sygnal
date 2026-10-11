@@ -123,7 +123,7 @@ BookRow.model = {
 }
 ```
 
-```jsx live
+```jsx live title="BookFinder.jsx"
 import { Collection } from 'sygnal'
 import { BookRow } from './BookRow.jsx'
 
@@ -338,7 +338,7 @@ BookDetail.model = {
 }
 ```
 
-```jsx live
+```jsx live title="BookFinder.jsx"
 import { Collection } from 'sygnal'
 import { BookRow } from './BookRow.jsx'
 import { BookDetail } from './BookDetail.jsx'

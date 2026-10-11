@@ -159,7 +159,7 @@ export default {
 }
 ```
 
-```jsx live live-height=220
+```jsx live live-height=220 title="Ticket.jsx"
 import { ABORT } from 'sygnal'
 import { decide, choice, noul } from 'sygnal/ai'
 

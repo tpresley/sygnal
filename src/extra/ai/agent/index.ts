@@ -6,7 +6,8 @@
  * `t.tools()` / `t.callTool()` / `t.agentContext()` (A-4) all use it.
  *
  *   Comp.agent = { name, description?, read?, label?, untrusted?,
- *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent? } } }
+ *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent?, until?, timeout? } },
+ *                  queries: { find: { description, input?, when?, run: (state, input) => result } } }
  *
  * It reaches the app only through the runtime API (`root`, `get`, `dispatch`, `flushed`,
  * `addHooks`) and one hook layer, so the core pays 0 bytes:
@@ -25,12 +26,24 @@
  *   outcome measured by `wrapHandler` on that action only: success when a STATE handler changed
  *   the state structurally, a sink got a value or an EFFECT ran; `abort(reason)` refuses with the
  *   reason; otherwise "changed nothing" (`idempotent: true`: `{ ok: true, unchanged: true }`, D256);
+ * - `until`: an action whose result arrives later (a `resources` entry, a driver reply) answers
+ *   once it is in state: `until: 'search'` (the resource is neither loading nor refreshing) or
+ *   `until: (state) => boolean`, checked after the action's flush and after every flush that
+ *   changed something; `{ ok: true, pending: true, note, state }` after `timeout` (default 10 s) or
+ *   `cancel()` (the chat behavior's STOP / new turn); `removed: true` when the instance went away.
+ *   Calls run one at a time, so a waiting call delays the next one;
+ * - queries: read-only tools (`readOnlyHint`) that take an input, for data too large for `read`
+ *   or answers computed from the state: `run(state, input)` is a pure, synchronous function of the
+ *   instance's state; a call validates the input as for actions, checks `when`, and returns
+ *   `{ ok: true, result }` without dispatching anything (no confirm, no flush);
  * - `when` and `read`: cached by state identity per instance (reducers are immutable);
  * - HMR: given the `run()` result, it re-binds to `app.__runtime` after the root's dispose.
  * Diagnostics (dev, once each): SYG240 an input with no JSON Schema form (the tool is left out;
- * `list({ all: true })` shows it with `error`), SYG241 `read` / `when` / `label` threw, SYG243 a
- * lossy input schema, SYG440 two declarations with one name, SYG441 Collection items with no or
- * duplicate keys.
+ * `list({ all: true })` shows it with `error`), SYG241 `read` / `when` / `until` / `label` / a query threw,
+ * SYG243 a lossy input schema, SYG246 a query whose `run` is not a function or returned a promise,
+ * SYG247 a query with the tool name of an action (not offered), SYG248 `until` names no resource of
+ * the component (the call answers at once), SYG440 two declarations with one
+ * name, SYG441 Collection items with no or duplicate keys.
  */
 import {abortReason, isAbort, ORIGINAL} from '../../../shared'
 import {objIsEqual} from '../../../cycle/state/objIsEqual'
@@ -73,8 +86,8 @@ const dev = (code: string, decl: any, what: string, component: string, message: 
   if (!s) done.set(decl, s = new Set())
   if (s.has(code + what)) return
   s.add(code + what)
-  // severities are passed (DEV_CODE_SEVERITY, kept out of the main bundle's table): 240 / 241 error, 243 / 440 / 441 warn
-  try { report(code, {component, message, severity: code < 'SYG242' ? 'error' : 'warn'}) } catch (e) { queueMicrotask(() => { throw e }) }
+  // severities are passed (DEV_CODE_SEVERITY, kept out of the main bundle's table): 240 / 241 / 246 error, 243 / 247 / 248 / 440 / 441 warn
+  try { report(code, {component, message, severity: code < 'SYG242' || code == 'SYG246' ? 'error' : 'warn'}) } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
 /** the string `enum` / `const` values anywhere in a JSON Schema (the app's own words: filter names, statuses) */
@@ -144,7 +157,7 @@ export const lookUp = (d: string, g: AgentGroup, read: string) => {
 }
 
 interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any; enums: Set<string>}
-interface Rec {tool: AgentTool; e: Entry; action?: string; a?: any; key?: string; off?: 1}
+interface Rec {tool: AgentTool; e: Entry; action?: string; query?: string; a?: any; key?: string; off?: 1}
 interface Call {id: number; type: string; data: any; ran: boolean; out: Array<{kind: string; reason?: string; error?: any}>}
 
 /**
@@ -164,6 +177,15 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
   const owners = new Map<any, Map<any, any>>()
   const listeners = new Set<(change: {tools: AgentTool[]; context: Record<string, any>}) => void>()
   let last: any, scheduled = false
+  // `until`: calls waiting for their action's result to land in state, checked after each flush that changed something
+  const waiters = new Set<() => void>(), cancels = new Set<() => void>()
+  let waking = false
+  const wake = () => {
+    if (!waiters.size || waking) return
+    waking = true
+    queueMicrotask(() => api.flushed().then(() => { waking = false; for (const w of [...waiters]) w() }))
+  }
+  const changed = () => { dirty(); wake() }
 
   const dirty = () => {
     ver++
@@ -174,10 +196,10 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
   }
   const hooks = {
     onCreate: dirty,
-    onPatch: dirty,
-    onReducer: dirty,
+    onPatch: changed,
+    onReducer: changed,
     onDispose: (iv: any) => {
-      dirty()
+      changed()
       // HMR: run()'s hmr() disposes this app, starts its successor and swaps __runtime
       if (iv.isRoot && isApp) queueMicrotask(rebind)
     },
@@ -301,21 +323,28 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     for (const e of entries) {
       const d = e.decl
       if (d.read) recs.set(e.name + '_read', {e, tool: {name: e.name + '_read', description: `Read ${e.name}` + (d.description ? `: ${d.description}` : ''), inputSchema: {type: 'object', properties: {}}, annotations: {readOnlyHint: true, ...(d.untrusted && {untrustedContentHint: true})}}})
-      for (const action in d.actions) {
-        const a = d.actions[action], name = e.name + '_' + snake(action), comp = e.ivs[0].name
+      // the actions, then the queries (read-only, `run(state, input)`): one tool each
+      const defs: Array<[string, any, boolean]> = []
+      for (const k in d.actions) defs.push([k, d.actions[k], false])
+      for (const k in d.queries) defs.push([k, d.queries[k], true])
+      for (const [action, a, isQuery] of defs) {
+        const name = e.name + '_' + snake(action), comp = e.ivs[0].name, where = `agent.${isQuery ? 'queries' : 'actions'}.${action}`
+        if (isQuery && recs.has(name)) { dev('SYG247', d, action, comp, `${where} has the tool name ${name} of an action; the query is not offered (rename it)`); continue }
+        if (isQuery && typeof a?.run != 'function') { dev('SYG246', d, action, comp, `${where}.run is not a function; the query is not offered`); continue }
         const c = a.input ? toJsonSchema(a.input) : undefined
         if (c?.schema) enumsOf(c.schema, e.enums)
-        const tool: AgentTool = {name, description: a.description, inputSchema: c?.schema || {type: 'object', properties: {}}, annotations: a.consequential ? {consequentialHint: true} : {}}
-        const rec: Rec = {e, action, a, tool}
+        const tool: AgentTool = {name, description: a.description, inputSchema: c?.schema || {type: 'object', properties: {}},
+          annotations: isQuery ? {readOnlyHint: true, ...(d.untrusted && {untrustedContentHint: true})} : a.consequential ? {consequentialHint: true} : {}}
+        const rec: Rec = isQuery ? {e, query: action, a, tool} : {e, action, a, tool}
         recs.set(name, rec)
-        if (e.item) seen.set(name, {e: {...e, ivs: []}, action, a, tool})
+        if (e.item) seen.set(name, {...rec, e: {...e, ivs: []}})
         if (c?.error) {
           tool.error = `SYG240 ${c.error}`
           rec.off = 1
-          dev('SYG240', d, action, comp, `agent.actions.${action}.input: ${c.error}; the tool is not offered`)
+          dev('SYG240', d, action, comp, `${where}.input: ${c.error}; the tool is not offered`)
           continue
         }
-        if (c?.lossy) dev('SYG243', d, action, comp, `agent.actions.${action}.input: the model doesn't see ${c.lossy}`)
+        if (c?.lossy) dev('SYG243', d, action, comp, `${where}.input: the model doesn't see ${c.lossy}`)
         const live = e.ivs.filter(iv => whenOk(iv, action, a.when))
         if (!live.length) { rec.off = 1; continue }
         if (e.item) {
@@ -396,8 +425,8 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       return r ? {ok: false, error: `${name} is not available now`, state: resultState(r.e.ivs[0])} : {ok: false, error: `no tool ${name}; tools: ${list().map(t => t.name).join(', ')}`}
     }
     if (r.tool.error) return {ok: false, error: r.tool.error}
-    const {e, a, action} = r
-    if (!action) return {ok: true, state: context()[e.name]}
+    const {e, a, action, query} = r
+    if (!action && !query) return {ok: true, state: context()[e.name]}
     const key = r.key || 'id', view = e.view
     let raw = args ?? {}, k: any
     if (e.item) {
@@ -418,18 +447,20 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     }
     let iv = resolve()
     if (!iv) return e.item ? missing(e, view, k) : {ok: false, error: `${e.name} is not on the page`}
-    if (!whenOk(iv, action, a.when)) return {ok: false, error: `${name} is not available now`, state: resultState(iv)}
+    if (query) return ask(name, iv, query, a, data)
+    const type = action as string
+    if (!whenOk(iv, type, a.when)) return {ok: false, error: `${name} is not available now`, state: resultState(iv)}
     if (a.consequential) {
       const c = 'confirm' in o ? o.confirm : options.confirm
-      const info: ConfirmInfo = {tool: name, component: iv.name, action, description: a.description, input: data, ...(e.item && {key: k, label: labelOf(iv)})}
+      const info: ConfirmInfo = {tool: name, component: iv.name, action: type, description: a.description, input: data, ...(e.item && {key: k, label: labelOf(iv)})}
       if (!(typeof c == 'function' ? await c(info) : c === true)) return {ok: false, error: 'the user declined'}
       // the app may have changed while the user decided: resolve and check again
       iv = resolve()
       if (!iv) return e.item ? {...missing(e, view, k), error: `the ${e.name} with id ${JSON.stringify(k)} is gone`} : {ok: false, error: `${e.name} is not on the page any more`}
-      if (!whenOk(iv, action, a.when)) return {ok: false, error: `${name} is not available any more`, state: resultState(iv)}
+      if (!whenOk(iv, type, a.when)) return {ok: false, error: `${name} is not available any more`, state: resultState(iv)}
     }
-    const rec: Call = pending = {id: iv.id, type: action, data, ran: false, out: []}
-    api.dispatch(iv.id, action, data, 'agent')
+    const rec: Call = pending = {id: iv.id, type, data, ran: false, out: []}
+    api.dispatch(iv.id, type, data, 'agent')
     await api.flushed()
     if (pending === rec) pending = null
     if (current === rec) current = null
@@ -440,12 +471,66 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     if (iv.disposed && e.item) iv = resolve() || iv
     const gone = iv.disposed
     const state = gone ? resultState(api.get(iv.parentId)) : resultState(iv)
-    if (out.some(x => x.kind == 'changed' || x.kind == 'sent' || x.kind == 'effect')) return gone ? {ok: true, removed: true, state} : {ok: true, state}
+    if (out.some(x => x.kind == 'changed' || x.kind == 'sent' || x.kind == 'effect')) return gone ? {ok: true, removed: true, state} : a.until ? settle(name, iv, type, a) : {ok: true, state}
     if (refused) return {ok: false, error: `${action} was refused: ${refused.reason}`, state}
     return a.idempotent ? {ok: true, unchanged: true, state} : {ok: false, error: `${action} changed nothing (already so, or the input matched nothing)`, state}
   }
 
+  /** `until` as a predicate: a resource name is done when that resource is neither loading nor refreshing */
+  const doneTest = (iv: any, action: string, u: any): ((s: any) => boolean) | undefined => {
+    if (typeof u == 'function') return u
+    if (typeof u != 'string') return
+    const res = iv.def.view.resources
+    if (!res || !(u in res)) {
+      dev('SYG248', declOf(iv), 'until' + action, iv.name, `agent.actions.${action}.until names '${u}', which is not one of ${iv.name}'s resources${res ? ` (${Object.keys(res).join(', ')})` : ''}; the call answers at once`)
+      return
+    }
+    return (s: any) => { const r = s?.[u]; return !r || (r.status != 'loading' && !r.refreshing) }
+  }
+  /**
+   * `until`: answer once the action's result is in state (after this flush or a later one), or
+   * with `pending` on `timeout` / `cancel()`; `removed` when the instance went away meanwhile
+   */
+  function settle(name: string, iv: any, action: string, a: any): AgentResult | Promise<AgentResult> {
+    const test = doneTest(iv, action, a.until)
+    const holds = () => {
+      if (!test) return true
+      try { return !!test(iv.state) } catch (err: any) {
+        dev('SYG241', declOf(iv), 'until' + action, iv.name, `agent.actions.${action}.until threw: ${err?.message ?? err}`)
+        return true
+      }
+    }
+    const result = (extra?: any): AgentResult => ({ok: true, ...extra, state: iv.disposed ? resultState(api.get(iv.parentId)) : resultState(iv)})
+    if (holds()) return result()
+    return new Promise(resolve => {
+      const finish = (extra?: any) => { waiters.delete(check); cancels.delete(cancel); clearTimeout(timer); resolve(result(extra)) }
+      const cancel = () => finish({pending: true, note: `${name} is still in progress: its result will be in the app state later`})
+      const check = () => stopped ? cancel() : iv.disposed ? finish({removed: true}) : holds() && finish()
+      const timer = setTimeout(cancel, a.timeout ?? 10000)
+      waiters.add(check)
+      cancels.add(cancel)
+    })
+  }
+
+  /** a query call: `run(state, input)` on the instance's state now; nothing is dispatched */
+  function ask(name: string, iv: any, query: string, q: any, data: any): AgentResult {
+    if (!whenOk(iv, query, q.when)) return {ok: false, error: `${name} is not available now`}
+    let result: any
+    try { result = q.run(iv.state, data) } catch (err: any) {
+      const m = err?.message ?? err
+      dev('SYG241', declOf(iv), 'query' + query, iv.name, `agent.queries.${query}.run threw: ${m}`)
+      return {ok: false, error: `${name} failed: ${m}`}
+    }
+    if (result && typeof result.then == 'function') {
+      dev('SYG246', declOf(iv), 'promise' + query, iv.name, `agent.queries.${query}.run returned a promise: a query is a pure, synchronous function of the state`)
+      return {ok: false, error: `${name} is not available: it returned a promise`}
+    }
+    return {ok: true, result}
+  }
+
   return {
+    /** answer every call waiting on `until` now, as `pending` (a chat turn stopped or replaced) */
+    cancel() { for (const c of [...cancels]) c() },
     /** the offered tools; `{ all: true }` adds declared tools that can't be offered (`error`, SYG240) */
     list,
     /** run a tool as an agent: resolves with the result after the action's flush */
@@ -457,7 +542,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       dirty()
       return () => { listeners.delete(fn) }
     },
-    stop() { stopped = true; off?.(); listeners.clear() },
+    stop() { stopped = true; off?.(); listeners.clear(); for (const c of [...cancels]) c() },
     /** internal (A-2, WebMCP; chat; the command bar): the offered tools grouped by declaration, with `untrusted` as declared and an item declaration's live labels (id → `agent.label`) */
     groups(): AgentGroup[] {
       const rs = [...build().values()]

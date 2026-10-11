@@ -3733,7 +3733,7 @@ declare global {
 export { messageText, withToolResults } from './ai.d'
 export { decide, choice, noul, score } from './ai.d'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
-export type { AgentDeclaration, AgentAction, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'
+export type { AgentDeclaration, AgentAction, AgentQuery, AgentQueryResult, AgentSchema, AgentTool, AgentToolSet, AgentToolsOptions, AgentResult, AgentConfirm, AgentConfirmInfo, AgentIssue, ConvertedSchema, JsonSchemaObject, SchemaOutput } from './ai.d'
 // PLAN-6 L-1 (1-L)
 export { makeChatDriver, outputJsonSchema } from './ai.d'
 // PLAN-6 A-2 (2-W)

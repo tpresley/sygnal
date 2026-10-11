@@ -23,7 +23,8 @@
  *
  * Actions ('assistant.X'): SEND (the form's submit: the prompt; or a string as data), STOP (aborts
  * the stream, keeps the partial text and reasoning; calls that already ran keep their results,
- * G-626), REGENERATE (replays the last user turn), APPROVE, DENY,
+ * G-626; a call waiting on an action's `until` answers as pending: the tool set's cancel(), as on
+ * FAILED and a new turn), REGENERATE (replays the last user turn), APPROVE, DENY,
  * DONE (the turn is over: `{ message, text, finishReason, usage, steps }`; a host entry
  * 'assistant.DONE' runs after it, like 'form.DONE'). Internal: PROMPT (typing), DELTA / REPLY /
  * FAILED (the chat driver's reply actions), ASK (a consequential call waits), RESULTS (the tool
@@ -93,8 +94,14 @@ const askInfo = (p: any) => {
   const name = p.type.slice(5)
   return {tool: name, component: 'server', action: name, description: p.approval?.requestReason ?? `Run the ${name} tool`, input: p.input, approvalId: p.approval?.id}
 }
-/** a tool part with an A-1 result (`{ output }` or `{ error }`) */
-const withResult = (p: any, r: any) => 'error' in r ? {...p, state: 'output-error', errorText: r.error} : {...p, state: 'output-available', output: r.output}
+/**
+ * a tool part with an A-1 result (`{ output }` or `{ error }`); the other side's field goes (a late
+ * result replaces the "not run" error of a stopped turn, G-626)
+ */
+const withResult = (p: any, r: any) => {
+  const {output: _o, errorText: _e, ...rest} = p
+  return 'error' in r ? {...rest, state: 'output-error', errorText: r.error} : {...rest, state: 'output-available', output: r.output}
+}
 /**
  * The last message with its open tool parts closed (a turn stopped, failed or capped): a call
  * that already ran gets its result (`ran`, G-626), the others `why`; a server approval still
@@ -201,7 +208,8 @@ function appState(t: any, groups: any[], labels: Map<string, any>): any {
 function request(e: Engine | undefined, o: any, k: string, messages: any[], fresh: boolean) {
   const t = e && toolsOf(e)
   if (e) {
-    if (fresh) { e.turn++; e.steps = 0; e.answer?.(false) }
+    // a new turn: a call still waiting on `until` answers now, as pending
+    if (fresh) { e.turn++; e.steps = 0; e.answer?.(false); e.tools?.cancel() }
     e.steps++
   }
   const list = t ? t.list() : [], groups = t ? t.groups() : [], labels = new Map<string, any>(), bare = new Map<string, string>()
@@ -320,11 +328,11 @@ export const chat = (options: any = {}): any => {
         },
         [sink]: (s: any, _d: any, _n: any, _p: any, _o: any, k: string) => busy(s) ? {abort: k} : ABORT,
         // the turn moves on: a waiting confirm is declined, tool results still to come are dropped
-        EFFECT: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const e = busy(s) && E(p, k, o); if (e) { e.turn++; e.answer?.(false) } },
+        EFFECT: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const e = busy(s) && E(p, k, o); if (e) { e.turn++; e.answer?.(false); e.tools?.cancel() } },
       },
       FAILED: {
         STATE: (s: any, d: any) => ({...s, messages: closeOpen(s.messages, 'not run: the request failed'), draft: '', draftReasoning: '', status: 'error', pending: null, error: d?.error?.message ?? String(d?.error ?? 'error')}),
-        EFFECT: (_s: any, _d: any, _n: any, p: any, o: any, k: string) => { const e = E(p, k, o); if (e) { e.turn++; e.answer?.(false) } },
+        EFFECT: (_s: any, _d: any, _n: any, p: any, o: any, k: string) => { const e = E(p, k, o); if (e) { e.turn++; e.answer?.(false); e.tools?.cancel() } },
       },
       // (REPLY already set ready: a host entry gets the finished state)
       DONE: (s: any) => s.status == 'ready' ? ABORT : {...s, status: 'ready'},

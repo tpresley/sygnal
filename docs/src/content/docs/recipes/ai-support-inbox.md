@@ -68,7 +68,7 @@ export default {
 }
 ```
 
-```jsx live live-height=280
+```jsx live live-height=280 title="Inbox.jsx"
 import { z } from 'zod'
 import { ABORT, Collection } from 'sygnal'
 import { decide, choice, noul } from 'sygnal/ai'

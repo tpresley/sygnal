@@ -45,8 +45,7 @@ Chrome 153 has WebMCP behind a flag: enable **WebMCP for testing** at `chrome://
 
 **Other browsers: the polyfill.** [`@mcp-b/webmcp-polyfill`](https://www.npmjs.com/package/@mcp-b/webmcp-polyfill) installs a `document.modelContext` in any browser, so an agent extension that speaks it can call your tools. Load it before `experimentalExposeWebMcp`, in development only:
 
-```js
-// main.js (development)
+```js title="main.js (development)"
 import { run } from 'sygnal'
 import { experimentalExposeWebMcp } from 'sygnal/ai'
 import TodoApp from './TodoApp.jsx'
