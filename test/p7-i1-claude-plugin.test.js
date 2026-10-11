@@ -78,7 +78,7 @@ const initialize = cwd => ({ id: 1, method: 'initialize', params: { processId: p
 describe('plugin.json', () => {
   it('has the metadata a marketplace listing needs', () => {
     expect(plugin.name).toBe('sygnal')
-    expect(plugin.version).toBe('0.1.0')
+    expect(plugin.version).toMatch(/^\d+\.\d+\.\d+$/) // semver; bumped with each plugin release (RELEASING §9)
     expect(plugin.description).toMatch(/skill/)
     expect(plugin.description).toMatch(/language server/)
     expect(plugin.author.name).toBe('Troy Presley')
