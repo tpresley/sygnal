@@ -6,7 +6,8 @@
  *
  *   createCore() → {
  *     check({ folder, settings, sources })  → { files: [[absPath, LspDiagnostic[]]], texts, logs,
- *                                              substituted, components, ms }
+ *                                              substituted, components, index, ms }
+ *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
  *     drop({ folder })                      forget a removed folder's caches
@@ -28,6 +29,11 @@
  * a fix still applies to the document as it is now.
  *
  * A crashed rule's SYG900 (no file) goes to `logs`, not into a document.
+ *
+ * `index` (PLAN-7 N-1/N-2): the occurrence index of the build (model/positions.js) for
+ * definition / references, without the substituted files' occurrences. `index()` builds it alone
+ * (the same files, last good substitution and cache, no rules) for a request on a document
+ * changed since the last check (navigation.js).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,6 +46,7 @@ import { expandInputs, toSourceMap } from '../files.js'
 import { createParseCache } from '../cache.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
+import { buildIndex } from '../model/positions.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
@@ -54,26 +61,29 @@ export function createCore() {
     return p
   }
 
-  /** checkFiles() with the project kept: the same build, rules, ignore and order. */
-  function build(files, opts, sources, cache) {
+  /** checkFiles() with the project kept: the same build, rules, ignore and order (no rules: the model only). */
+  function build(files, opts, sources, cache, rules = true) {
     const project = buildProject(files, { cwd: opts.cwd, sources, cache })
+    if (!rules) return { project, diags: [] }
     let diags = runRules(project, selectRules({ strict: opts.strict, a11y: opts.a11y }))
     if (opts.ignore?.length) diags = diags.filter(d => !opts.ignore.includes(d.code))
     return { project, diags: sortDiagnostics(diags) }
   }
 
-  function check({ folder, settings = {}, sources }) {
-    const t0 = performance.now()
+  /**
+   * The folder's files built with `sources`, a file that doesn't parse now replaced by its last
+   * good text (`substituted`); with `rules`, checked. null when the folder has no source files.
+   */
+  function prepare({ folder, settings = {}, sources }, rules) {
     const p = projectFor(folder)
-    const logs = []
     const { options, config } = resolveOptions({
       cwd: folder, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
     })
     const srcs = toSourceMap(sources, folder)
     const { files } = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs })
-    if (!files.length) return { files: [], texts: [], logs, substituted: [], components: 0, ms: performance.now() - t0 }
+    if (!files.length) return null
 
-    let { project, diags } = build(files, options, srcs, p.cache)
+    let { project, diags } = build(files, options, srcs, p.cache, rules)
     // last good findings: files that don't parse now, but did before
     const broken = new Set(project.parseErrors.map(e => e.file))
     for (const f of project.files.values()) if (f?.ast?.errors?.length) broken.add(f.path)
@@ -86,7 +96,7 @@ export function createCore() {
     }
     if (substituted.size) {
       const parseErrors = diags.filter(d => isParseError(d) && substituted.has(path.resolve(folder, d.file)))
-      ;({ project, diags } = build(files, options, new Map([...srcs, ...substituted]), p.cache))
+      ;({ project, diags } = build(files, options, new Map([...srcs, ...substituted]), p.cache, rules))
       diags = sortDiagnostics([...diags, ...parseErrors])
     }
     // remember each file's last text that parsed cleanly
@@ -97,8 +107,22 @@ export function createCore() {
       if (entry && !entry.error && entry.text === f.source) lastGood.set(f.path, entry)
     }
     p.lastGood = lastGood
+    return { project, diags, options, config, srcs, substituted }
+  }
 
-    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, ms: performance.now() - t0 }
+  /** The occurrence index (positions.js) of a build; files checked with their last good text are left out. */
+  const indexOf = (project, substituted) => buildIndex(project, { exclude: new Set(substituted.keys()) })
+
+  function check({ folder, settings = {}, sources }) {
+    const t0 = performance.now()
+    const logs = []
+    const prep = prepare({ folder, settings, sources }, true)
+    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, ms: performance.now() - t0 }
+    const { project, options, config, srcs, substituted } = prep
+    let { diags } = prep
+    const index = indexOf(project, substituted)
+
+    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, index, ms: performance.now() - t0 }
     // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
     const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
     if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
@@ -127,7 +151,15 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, ms: performance.now() - t0 }
+    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, index, ms: performance.now() - t0 }
+  }
+
+  /** The occurrence index of the folder as `sources` has it, without running the rules (navigation on a changed document). */
+  function index({ folder, settings = {}, sources }) {
+    const t0 = performance.now()
+    const prep = prepare({ folder, settings, sources }, false)
+    if (!prep) return { index: null, substituted: [], ms: performance.now() - t0 }
+    return { index: indexOf(prep.project, prep.substituted), substituted: [...prep.substituted.keys()], ms: performance.now() - t0 }
   }
 
   /** source.fixAll.sygnal: what `--fix` does for one file (strict, in memory), as one edit per changed file. */
@@ -153,5 +185,5 @@ export function createCore() {
     projects.delete(folder)
   }
 
-  return { check, fixAll, controls, drop }
+  return { check, index, fixAll, controls, drop }
 }

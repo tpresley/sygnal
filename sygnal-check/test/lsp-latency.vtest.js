@@ -18,6 +18,13 @@
 //     median of 10 <= 400 ms (debounce included; was 500 ms, lowered after G-660: D313);
 //   - a hover sent right after a didSave (the check starts at once) is answered from the last
 //     results while the check runs: <= 50 ms, before the check's publish.
+//   - definition / references (PLAN-7 N-2): from the last check's index <= 50 ms (max of 10);
+//     right after an unsaved change (the worker builds the model, no rules) median <= 150 ms;
+//     right after a save (waits for the check it started) median <= 150 ms; a change while that
+//     check runs (the index is built after it) median <= 300 ms.
+//   Measured 2026-10-10 (same machine, alone under vitest): 0.0 ms (max 0.5); 45-52 ms (43-56);
+//   122 ms (113-140); 168 ms (157-202). On the examples (kanban, ai-panel-spa, plan5-showcase,
+//   worker on): 0.02-0.05 ms from the index, 3.6-6.6 ms after a change.
 //   Measured 2026-10-10 (same machine): didChange → publish median 454 ms under vitest (446-464;
 //   a standalone script: 412-433 ms, the worker's check 261-280 ms + the 150 ms debounce); hover
 //   during a check 0.3 ms. The headroom was ~10 %, the same as the check gate's (G-660).
@@ -147,6 +154,71 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
       console.log(`lsp latency: ${files.length} files, ${lines} lines: initialize + first publish ${Math.round(cold)} ms; didChange → publish ${Math.round(publish)} ms (median of ${times.length}, ${Math.round(Math.min(...times))}-${Math.round(Math.max(...times))}, 150 ms debounce included); hover during a check ${hover.toFixed(1)} ms (max of ${hovers.length})`)
       expect(publish).toBeLessThanOrEqual(400)
       expect(hover).toBeLessThanOrEqual(50)
+    } finally {
+      client.server.dispose()
+    }
+  }, 120_000)
+
+  it('language server: definition / references <= 50 ms from the last check, <= 150 ms right after a change (worker)', async () => {
+    fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "latency", "private": true }')
+    const client = startServer({ server: { worker: true, debounce: 150 } })
+    try {
+      await client.initialize({ workspaceFolders: [{ uri: uriOf(dir), name: 'latency' }], initializationOptions: { strict: true } })
+      const read = (f) => fs.readFileSync(f, 'utf8')
+      const file = files.find(f => f.endsWith('.jsx') && /\.intent\s*=/.test(read(f)) && /\.model\s*=/.test(read(f)))
+      const uri = uriOf(file)
+      const original = read(file)
+      client.open(file, original)
+      await client.settle()
+      // the first key after `.intent =`
+      const intentKey = (text) => {
+        const i = text.search(/\.intent\s*=/)
+        const m = /\b([A-Z][A-Z0-9_]*)\s*:/.exec(text.slice(i))
+        const before = text.slice(0, i + m.index)
+        return { line: before.split('\n').length - 1, character: before.length - before.lastIndexOf('\n') - 1 }
+      }
+      const ask = async (text, i) => {
+        const t = performance.now()
+        const method = i % 2 ? 'textDocument/references' : 'textDocument/definition'
+        const r = await client.request(method, { textDocument: { uri }, position: intentKey(text), context: { includeDeclaration: true } })
+        const ms = performance.now() - t
+        expect(r?.length).toBeGreaterThan(0)
+        return ms
+      }
+      const fresh = []
+      for (let i = 0; i < 10; i++) fresh.push(await ask(original, i))
+      const changed = []
+      let version = 2
+      for (let i = 0; i < 10; i++) {
+        // a change, then a request at once: the debounce hasn't run the check yet, the index is stale
+        const text = `// edit ${i}\n` + original
+        client.change(file, text, version++)
+        changed.push(await ask(text, i))
+        await client.settle()
+      }
+      // a save starts a check at once: a request right after it waits for that check; a further
+      // unsaved change makes the worker build an index after the check
+      const saved = [], behind = []
+      for (let i = 0; i < 10; i++) {
+        const text = `// saved ${i}\n` + original
+        client.change(file, text, version++)
+        client.save(file)
+        saved.push(await ask(text, i))
+        await client.settle()
+        const again = `// saved ${i}\n` + original
+        client.change(file, again + ' ', version++)
+        client.save(file)
+        const more = `// more ${i}\n` + again + ' '
+        client.change(file, more, version++)
+        behind.push(await ask(more, i))
+        await client.settle()
+      }
+      const stat = (a) => `${Math.round(median(a))} ms (median of ${a.length}, ${Math.round(Math.min(...a))}-${Math.round(Math.max(...a))})`
+      console.log(`lsp navigation: ${files.length} files, ${lines} lines: from the last check's index ${median(fresh).toFixed(1)} ms (median of ${fresh.length}, max ${Math.max(...fresh).toFixed(1)}); right after a change (index from the worker) ${stat(changed)}; right after a save (waits for its check) ${stat(saved)}; a change during a check (index after the check) ${stat(behind)}`)
+      expect(Math.max(...fresh)).toBeLessThanOrEqual(50)
+      expect(median(changed)).toBeLessThanOrEqual(150)
+      expect(median(saved)).toBeLessThanOrEqual(150)
+      expect(median(behind)).toBeLessThanOrEqual(300)
     } finally {
       client.server.dispose()
     }
