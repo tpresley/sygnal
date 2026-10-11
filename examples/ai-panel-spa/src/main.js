@@ -1,12 +1,14 @@
-import { run } from 'sygnal'
+import { run, makeFetchDriver, makeBrowserDriverWith, clipboardSource } from 'sygnal'
+import { makeChatDriver, openResponses } from 'sygnal/ai'
 import RootComponent from './RootComponent.jsx'
-import { createKindoDriver } from './createKindoDriver.js'
-import { createClipboardDriver } from './createClipboardDriver.js'
-import localStorageDriver from './localStorageDriver.js'
+import { OLLAMA_URL } from './config.js'
 import './styles.css'
 
 run(RootComponent, {
-  KINDO: createKindoDriver(),
-  STORAGE: localStorageDriver,
-  CLIPBOARD: createClipboardDriver()
+  // chat turns stream from Ollama; each request names its model (the Setup dropdown)
+  LLM: makeChatDriver({ transport: openResponses({ baseURL: `${OLLAMA_URL}/v1` }) }),
+  // the installed models (a resource) and the decision model's requests (decide())
+  HTTP: makeFetchDriver(),
+  // Copy Markdown
+  BROWSER: makeBrowserDriverWith(clipboardSource),
 })

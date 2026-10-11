@@ -82,11 +82,6 @@ textarea {
   color: var(--ink);
 }
 
-.api-key-input,
-.model-input {
-  font-size: 0.8rem;
-}
-
 textarea {
   resize: vertical;
 }
@@ -122,6 +117,7 @@ button:disabled {
 }
 
 .stop-run {
+  color: #fff;
   background: linear-gradient(135deg, #9f392a, #c2523e);
 }
 
@@ -165,7 +161,8 @@ button:disabled {
 
 .setup-inline-fields {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 0.8rem;
   gap: 0.8rem;
 }
 
@@ -513,4 +510,61 @@ button:disabled {
   .app-shell {
     padding: 1.1rem 0.75rem 2rem;
   }
+}
+
+/* model pickers */
+select {
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid var(--border);
+  background: #fffcf4;
+  border-radius: 10px;
+  padding: 0.6rem 0.6rem;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.models-note {
+  grid-column: 1 / -1;
+  margin: -0.4rem 0 0.8rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.link-button {
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+/* transcript entries */
+.entry.synthesis {
+  border-color: #92b5b1;
+  background: #e6f3f0;
+}
+
+.entry.user {
+  border-color: #e0b98a;
+  background: #fff3e0;
+}
+
+.picked-by {
+  margin-left: 0.6rem;
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+}
+
+.thinking {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.panel-chip.speaking {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px rgba(216, 132, 58, 0.25);
 }
