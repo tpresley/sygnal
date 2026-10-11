@@ -73,7 +73,6 @@ function Chat({ state }) {
   )
 }
 
-const userSays = (text) => ({ role: 'user', parts: [{ type: 'text', text }] })
 const ask = (messages) => ({ messages, key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED' })
 
 Chat.initialState = { messages: [], prompt: '', draft: '', status: 'ready', error: null }
@@ -87,16 +86,16 @@ Chat.intent = ({ DOM }) => ({
 Chat.model = {
   // the first question, as soon as the demo shows
   BOOTSTRAP: {
-    STATE: (state) => ({ ...state, messages: [userSays('How does a reply stream?')], status: 'streaming' }),
-    LLM: () => ask([userSays('How does a reply stream?')]),
+    STATE: (state) => ({ ...state, messages: [{ role: 'user', content: 'How does a reply stream?' }], status: 'streaming' }),
+    LLM: () => ask([{ role: 'user', content: 'How does a reply stream?' }]),
   },
   TYPE: (state, prompt) => ({ ...state, prompt }),
   SEND: {
     STATE: (state) => (state.prompt.trim()
-      ? { ...state, messages: [...state.messages, userSays(state.prompt)], prompt: '', status: 'streaming', error: null }
+      ? { ...state, messages: [...state.messages, { role: 'user', content: state.prompt }], prompt: '', status: 'streaming', error: null }
       : ABORT),
     // sinks see the state before the action: the conversation plus the prompt being sent
-    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, userSays(state.prompt)]) : ABORT),
+    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, { role: 'user', content: state.prompt }]) : ABORT),
   },
   STOP: {
     // keep the text that arrived; nothing arrives after the abort
@@ -116,11 +115,56 @@ Chat.model = {
 
 What the component does:
 
-- **The conversation is state.** `messages` holds the user's messages and the model's replies. Every request sends the whole conversation: models are stateless, so the history goes with each turn.
+- **The conversation is state.** `messages` holds the user's messages and the model's replies. Every request sends the whole conversation: models are stateless, so the history goes with each turn. A message you write yourself can be `{ role: 'user', content: text }`: the driver, `messageText()` and every transport accept that short form.
 - **`SEND` has two sinks.** `STATE` adds the user's message, `LLM` sends the request. Both see the state from before the action ([Model](/guide/model/#sinks-see-the-state-before-the-action)), so the `LLM` sink builds the message list with the prompt itself.
 - **`DELTA` shows the reply so far.** Its `text` is all the text received, not just the new piece, so the reducer only replaces `draft`.
 - **`DONE` gets the finished message** and appends it to the conversation as is.
 - **`STOP` aborts the request** by its key. Nothing arrives after an abort, not even `FAILED`.
+
+### The same chat with the `chat` behavior
+
+The component above shows how the driver works. For a conversation in your app, use the `chat` behavior from `sygnal/ai` instead: it holds the conversation, sends the requests, and handles streaming, Stop, failures and Retry. With `agent: false` it sends no tools, so it is a plain chat. Its markup stays in your view, and its options name the elements to listen to.
+
+This demo asks the same first question. Press **Stop** while it streams to keep the partial reply.
+
+```jsx live live-height=260
+import { chat, messageText } from 'sygnal/ai'
+
+function Chat({ state }) {
+  const c = state.chat
+  const busy = c.status === 'submitted' || c.status === 'streaming'
+  return (
+    <section className="chat">
+      <ol className="messages" aria-live="polite">
+        {c.messages.map((m) => <li key={m.id} className={m.role}><b>{m.role}:</b> {messageText(m)}</li>)}
+        {c.draft && <li className="assistant streaming"><b>assistant:</b> {c.draft}</li>}
+      </ol>
+      {c.error && <p role="alert">{c.error} <button type="button" className="retry">Retry</button></p>}
+      <form className="ask">
+        <label>Message <input className="prompt" value={c.prompt} /></label>
+        <button type="submit" disabled={busy}>Send</button>
+        <button type="button" className="stop" hidden={!busy}>Stop</button>
+      </form>
+    </section>
+  )
+}
+
+Chat.uses = {
+  chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }),
+}
+
+Chat.model = {
+  // the first question, as soon as the demo shows
+  BOOTSTRAP: { EFFECT: (state, data, next) => next('chat.SEND', 'How does a reply stream?') },
+}
+```
+
+- **`state.chat` is the behavior's slice**: `messages`, `prompt`, `draft`, `status` (`'ready'`, `'submitted'`, `'streaming'` or `'error'`) and `error`.
+- **Retry doesn't repeat the question.** `regenerate` sends the conversation again up to the last user message, without a second copy of it, and drops the failed partial reply.
+- **Every message has an `id`**, the user's too, so `key={m.id}` works and a server can store the conversation by message id.
+- **The host can drive it.** `next('chat.SEND', text)` sends a message, and a `'chat.DONE'` entry in the host's model runs when a reply is finished.
+
+Use the driver directly for one-off requests, like a summary or [structured output](#structured-output), or when you need your own state shape. The [`chat` behavior](/guide/agent/#options-and-state) documents its options, state and actions. Without `agent: false` it also runs your components' [agent tools](/guide/agent/).
 
 ## Requests
 
@@ -310,7 +354,6 @@ const tools = {
 }
 
 const said = (m) => messageText(m) || m.parts.filter((p) => p.type.startsWith('tool-')).map((p) => `(called ${p.type.slice(5)})`).join(' ')
-const userSays = (text) => ({ role: 'user', parts: [{ type: 'text', text }] })
 const ask = (messages) => ({ messages, tools, key: 'reply', delta: 'DELTA', tool: 'TOOL', ok: 'DONE', error: 'FAILED' })
 
 // the reply with each add_item call answered: the output goes into the call's tool-add_item part
@@ -345,9 +388,9 @@ Shopping.model = {
   TYPE: (state, prompt) => ({ ...state, prompt }),
   SEND: {
     STATE: (state) => (state.prompt.trim()
-      ? { ...state, messages: [...state.messages, userSays(state.prompt)], prompt: '', status: 'streaming', error: null }
+      ? { ...state, messages: [...state.messages, { role: 'user', content: state.prompt }], prompt: '', status: 'streaming', error: null }
       : ABORT),
-    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, userSays(state.prompt)]) : ABORT),
+    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, { role: 'user', content: state.prompt }]) : ABORT),
   },
   DELTA: (state, { text }) => ({ ...state, draft: text }),
   // runs the call as it arrives; the model's input is unchecked, so check it

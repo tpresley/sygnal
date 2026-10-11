@@ -363,7 +363,7 @@ In production the provider key belongs on your server: `makeChatDriver({ transpo
 | `prompt` | | The prompt field (its input sets `prompt`) |
 | `stop`, `approve`, `deny`, `regenerate` | | Buttons: their clicks dispatch `STOP`, `APPROVE`, `DENY`, `REGENERATE` |
 | `instructions` | | System instructions: your app's own text |
-| `agent` | the host's and its shown descendants' | Whose declarations become tools: `false` for none, `[Comp, ...]` for only these (inside the host) |
+| `agent` | the host's and its shown descendants' | Whose declarations become tools: `false` for none (a plain chat, [AI Chat](/guide/ai-chat/#the-same-chat-with-the-chat-behavior)), `[Comp, ...]` for only these (inside the host) |
 | `maxSteps` | `8` | The most requests per turn; tool calls in a reply past it are not run |
 | `sink` | `'LLM'` | The chat driver's name |
 | `model`, `transportOptions` | | A model id, and extra request keys for the transport |

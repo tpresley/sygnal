@@ -32,7 +32,10 @@ const FRAGMENTS = {
   chatProd: [['llms'], "transport: uiMessageStream('/api/chat')"],
   chatStream: [['llms'], "await t.stream('LLM', ['Hel', 'lo'])"],
   chatStreamSkill: [['skill'], "t.stream('LLM', ['Hi'])"],
-  chatRequestSkill: [['skill'], "{ messages, delta: 'DELTA', ok: 'DONE', error: 'FAILED' }"],
+  chatRequestSkill: [['skill'], "{ messages: [{ role: 'user', content: text }], delta: 'DELTA', ok: 'DONE', error: 'FAILED' }"],
+  chatPlain: [['llms', 'skill'], "uses = { chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }) }"],
+  chatPrompt: [['llms'], '<input className="prompt" value={state.chat.prompt} />'],
+  chatSendNext: [['llms'], "next('chat.SEND', text)"],
   agent: [['llms'], "TodoApp.agent = { name: 'todos', description: 'The todo list', read: (state) => ({ todos: state.todos.map(({ id, text, done }) => ({ id, text, done })) }), actions: { ADD: { description: 'Add a todo', input: z.string().min(1) }, CLEAR_DONE: { description: 'Delete the done todos', consequential: true } } }"],
   callTool: [['llms'], "await t.callTool('todos_add', { value: 'milk' })"],
   refuse: [['llms'], "abort('reason')"],
@@ -101,6 +104,27 @@ Chat.model = {
   ${F.chatDone},
   FAILED: (s, { error }) => ({ ...s, draft: '', error: error.message }),
 }
+`,
+  chatPlain: `import { chat, messageText } from 'sygnal/ai'
+export function Chat({ state }) {
+  const c = state.chat
+  return (
+    <section>
+      <ol>{c.messages.map((m) => <li className={m.role}>{messageText(m)}</li>)}</ol>
+      {c.draft && <p className="draft">{c.draft}</p>}
+      {c.error && <p role="alert">{c.error} <button type="button" className="retry">Retry</button></p>}
+      <form className="ask">
+        <label>Message ${F.chatPrompt}</label>
+        <button type="submit">Send</button>
+        <button type="button" className="stop">Stop</button>
+      </form>
+      <button type="button" className="example">Ask the example</button>
+    </section>
+  )
+}
+Chat.${F.chatPlain}
+Chat.intent = ({ DOM }) => ({ ASK_FROM_CODE: DOM.click('.example').map(() => 'From code') })
+Chat.model = { ASK_FROM_CODE: { EFFECT: (state, text, next) => ${F.chatSendNext} } }
 `,
   agent: `import { z } from 'zod'
 export function TodoApp({ state }) {
@@ -195,6 +219,40 @@ describe('chat', () => {
     expect(t.state.draft).toBe('')
     expect(() => t.stream('LLM', ['lo'])).toThrow()
     expect(t.state.messages).toHaveLength(1)
+  })
+
+  it('the plain chat behavior: streams, Stop keeps the partial reply, Retry does not repeat the question', async () => {
+    const { Chat } = await load('ChatPlain', MODULES.chatPlain)
+    t = renderComponent(Chat, { strict: true })
+    t.simulateEvent('.prompt', 'input', { value: 'Hi' })
+    t.simulateEvent('.ask', 'submit')
+    await t.settle()
+    const req = t.requests('LLM').at(-1)
+    expect(req.tools).toBeUndefined()
+    expect(req.messages.map(messageText)).toEqual(['Hi'])
+    await t.stream('LLM', ['Hel'], { end: false })
+    t.simulateEvent('.stop', 'click')
+    await t.settle()
+    expect(t.state.chat.messages.map(messageText)).toEqual(['Hi', 'Hel'])
+    t.simulateEvent('.prompt', 'input', { value: 'Again' })
+    t.simulateEvent('.ask', 'submit')
+    await t.settle()
+    await t.fail('LLM', 429)
+    expect(t.html()).toContain('HTTP 429')
+    t.simulateEvent('.retry', 'click')
+    await t.settle()
+    expect(t.requests('LLM').at(-1).messages.map(messageText)).toEqual(['Hi', 'Hel', 'Again'])
+    await t.respond('LLM', 'Hello')
+    expect(t.state.chat.messages.map(messageText)).toEqual(['Hi', 'Hel', 'Again', 'Hello'])
+    t.simulateEvent('.example', 'click')
+    await t.settle()
+    expect(t.requests('LLM').at(-1).messages.map(messageText).at(-1)).toBe('From code')
+    t.expectNoDiagnostics()
+  })
+
+  it("the skill's one-off request shape", () => {
+    expect(evaluate(F.chatRequestSkill.replace(/^\{/, '({').replace(/\}$/, '})'), { text: 'Summarise this' }))
+      .toEqual({ messages: [{ role: 'user', content: 'Summarise this' }], delta: 'DELTA', ok: 'DONE', error: 'FAILED' })
   })
 
   it('a failure reaches FAILED as { error }', async () => {
