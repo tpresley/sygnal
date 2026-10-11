@@ -5,6 +5,8 @@ import * as path from 'node:path'
 
 /** The first sygnal-check version with `sygnal-check lsp`. */
 export const MIN_LSP_VERSION = '0.4.0'
+/** The first sygnal-check with completions, go to definition / references, code lens and rename (PLAN-7 Phase 4). */
+export const FEATURES_VERSION = '0.5.0'
 
 export interface CheckCopy {
   /** The package directory (holds package.json, bin/, src/). */
@@ -113,6 +115,16 @@ export function usesSygnal(pkg: any): boolean {
 /** Whether a package.json file uses Sygnal (false when it can't be read). */
 export function packageFileUsesSygnal(file: string): boolean {
   return usesSygnal(readJson(file))
+}
+
+/**
+ * Whether the chosen copy is the workspace's own and predates the editor features (completions,
+ * definition / references, code lens, rename): it still runs, for its findings (D301), and the
+ * extension suggests an upgrade once. A copy with `src/lsp/completion.js` has them whatever its
+ * version says (the repository's checker before a release).
+ */
+export function lacksEditorFeatures(c: ServerChoice): boolean {
+  return c.source === 'workspace' && compareVersions(c.version, FEATURES_VERSION) < 0 && !fs.existsSync(path.join(c.dir, 'src', 'lsp', 'completion.js'))
 }
 
 /** The status bar tooltip for a choice. */

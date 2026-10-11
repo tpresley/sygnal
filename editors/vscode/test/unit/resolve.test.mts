@@ -7,6 +7,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   compareVersions, readCheckCopy, findWorkspaceCheck, chooseServer, usesSygnal, packageFileUsesSygnal, describeChoice,
+  lacksEditorFeatures,
 } from '../../src/resolve.ts'
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sygvsc-unit-'))
@@ -105,4 +106,17 @@ test('usesSygnal', () => {
   fs.writeFileSync(f, '{ not json'); assert.equal(packageFileUsesSygnal(f), false)
   fs.writeFileSync(f, '{"dependencies":{"sygnal":"6"}}'); assert.equal(packageFileUsesSygnal(f), true)
   assert.equal(packageFileUsesSygnal(path.join(tmp, 'none/package.json')), false)
+})
+
+test('lacksEditorFeatures: a workspace copy before 0.5.0 without the completion module', () => {
+  const old = folder('feat-old'); fakeCheck(path.join(old, 'node_modules/sygnal-check'), '0.4.0', { lsp: true })
+  assert.equal(lacksEditorFeatures(chooseServer([old], bundled)), true)
+  const cur = folder('feat-new'); fakeCheck(path.join(cur, 'node_modules/sygnal-check'), '0.5.0', { lsp: true })
+  assert.equal(lacksEditorFeatures(chooseServer([cur], bundled)), false)
+  // the repository's checker: an older version string, but it has the features
+  const repo = folder('feat-repo'); const d = fakeCheck(path.join(repo, 'node_modules/sygnal-check'), '0.4.0', { lsp: true })
+  fs.writeFileSync(path.join(d, 'src/lsp/completion.js'), '')
+  assert.equal(lacksEditorFeatures(chooseServer([repo], bundled)), false)
+  // the bundled copy never triggers it
+  assert.equal(lacksEditorFeatures(chooseServer([folder('feat-none')], bundled)), false)
 })

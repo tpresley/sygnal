@@ -8,14 +8,34 @@
 // copy bundled in the extension (D301); see resolve.ts. It runs on VS Code's own Node
 // (process.execPath with ELECTRON_RUN_AS_NODE) over stdio. No synchronize.fileEvents: the server
 // registers its watchers and didChangeConfiguration itself (0-S2).
+//
+// Code lenses (0.2.0): the client advertises the client command `sygnal.showReferences` in
+// `experimental.commands.commands` (a StaticFeature), so the server gives each lens that command
+// with `[uri, position, locations]` as JSON. The command converts them to VS Code objects and
+// opens VS Code's peek view (`editor.action.showReferences`, which checks the argument types).
+// The server's own `sygnal.goTo` is registered by vscode-languageclient, not here.
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
-import { LanguageClient, State, TransportKind, type LanguageClientOptions, type ServerOptions } from 'vscode-languageclient/node'
-import { chooseServer, describeChoice, packageFileUsesSygnal, type ServerChoice } from './resolve'
+import { LanguageClient, State, TransportKind, type ClientCapabilities, type FeatureState, type LanguageClientOptions, type Location as LspLocation, type Position as LspPosition, type ServerOptions, type StaticFeature } from 'vscode-languageclient/node'
+import { chooseServer, describeChoice, FEATURES_VERSION, lacksEditorFeatures, packageFileUsesSygnal, type ServerChoice } from './resolve'
 
 const LANGUAGES = ['javascript', 'javascriptreact', 'typescript', 'typescriptreact']
 const EXCLUDE = '**/node_modules/**'
+/** The client command the server gives code lenses (see the header). */
+export const SHOW_REFERENCES = 'sygnal.showReferences'
+
+/** Advertises SHOW_REFERENCES as a client command (`experimental.commands.commands`). */
+export class ClientCommandsFeature implements StaticFeature {
+  fillClientCapabilities(capabilities: ClientCapabilities): void {
+    const experimental = (capabilities.experimental ??= {}) as { commands?: { commands?: string[] } }
+    const commands = (experimental.commands ??= {})
+    commands.commands = [...new Set([...(commands.commands ?? []), SHOW_REFERENCES])]
+  }
+  initialize(): void { /* nothing to set up */ }
+  getState(): FeatureState { return { kind: 'static' } }
+  clear(): void { /* nothing to clear */ }
+}
 
 let client: LanguageClient | undefined
 let choice: ServerChoice | undefined
@@ -48,6 +68,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Sygnal
     vscode.commands.registerCommand('sygnal.showOutput', () => output.show(true)),
     vscode.commands.registerCommand('sygnal.explainCode', explainCode),
     vscode.commands.registerCommand('sygnal.fixAll', fixAll),
+    vscode.commands.registerCommand(SHOW_REFERENCES, showReferences),
     vscode.workspace.onDidChangeWorkspaceFolders(() => restart(show)),
     vscode.workspace.onDidGrantWorkspaceTrust(() => restart(show)),
     { dispose: () => disposeDetectWatchers() },
@@ -124,6 +145,7 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
   status.tooltip = `Sygnal: ${described}. Click for the output.`
   show(true)
   if (choice.reason === 'too-old') notifyUpgrade(choice)
+  else if (lacksEditorFeatures(choice)) notifyFeatures(choice)
 
   const run = {
     command: process.execPath,
@@ -140,6 +162,7 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
     // and asks for the `sygnal` section per folder with workspace/configuration.
   }
   client = new LanguageClient('sygnal', 'Sygnal', serverOptions, clientOptions)
+  client.registerFeature(new ClientCommandsFeature())
   client.onDidChangeState(e => {
     if (e.newState === State.Stopped && status) status.text = '$(warning) Sygnal'
     else if (e.newState === State.Running && choice) status.text = choice.source === 'workspace' ? '$(check) Sygnal' : '$(package) Sygnal'
@@ -180,6 +203,18 @@ function notifyUpgrade(c: ServerChoice) {
     `This workspace has sygnal-check ${c.old?.version}, which has no language server (it needs 0.4.0 or later). ` +
     `Sygnal is using the sygnal-check ${c.version} bundled with the extension. To use the project's version, ` +
     'upgrade it: npm i -D sygnal-check@latest.',
+    'Show Output',
+  ).then(pick => { if (pick) output.show(true) })
+}
+
+/** Once per workspace and version: the workspace copy runs, but has no completions, navigation, code lens or rename. */
+function notifyFeatures(c: ServerChoice) {
+  const key = `sygnal.featuresNotice:${c.dir}@${c.version}`
+  if (ctx.workspaceState.get(key)) return
+  void ctx.workspaceState.update(key, true)
+  void vscode.window.showInformationMessage(
+    `This workspace has sygnal-check ${c.version}: Sygnal shows its findings, but completions, go to definition, ` +
+    `code lenses and rename need sygnal-check ${FEATURES_VERSION} or later. Upgrade it: npm i -D sygnal-check@latest.`,
     'Show Output',
   ).then(pick => { if (pick) output.show(true) })
 }
@@ -232,6 +267,19 @@ async function explainCode(code?: string): Promise<vscode.TextDocument | undefin
     await vscode.window.showTextDocument(doc, { preview: true })
   }
   return doc
+}
+
+/**
+ * A code lens's click: `[uri, position, locations]` from the server as JSON (LSP shapes), shown
+ * in VS Code's peek view. Also accepts VS Code objects (a lens resolved by another path).
+ */
+async function showReferences(uri: string | vscode.Uri, position: LspPosition | vscode.Position, locations: Array<LspLocation | vscode.Location> = []): Promise<void> {
+  const c = client
+  const toUri = (u: string | vscode.Uri) => u instanceof vscode.Uri ? u : c ? c.protocol2CodeConverter.asUri(u) : vscode.Uri.parse(u)
+  const toPosition = (p: LspPosition | vscode.Position) => p instanceof vscode.Position ? p : new vscode.Position(p.line, p.character)
+  const toLocation = (l: LspLocation | vscode.Location) => l instanceof vscode.Location ? l
+    : new vscode.Location(toUri(l.uri), c ? c.protocol2CodeConverter.asRange(l.range) : new vscode.Range(l.range.start.line, l.range.start.character, l.range.end.line, l.range.end.character))
+  await vscode.commands.executeCommand('editor.action.showReferences', toUri(uri), toPosition(position), (locations ?? []).map(toLocation))
 }
 
 /** Applies the server's `source.fixAll.sygnal` action to the active file. Returns whether it changed. */

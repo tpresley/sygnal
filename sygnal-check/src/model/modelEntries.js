@@ -190,10 +190,11 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  *   replyDynamic: Array<{ node, file }>,
  *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
  *   sinkValues: Array<{ action, sink, node, keyNode, file }>,  // every non-STATE-shorthand sink value (PLAN-4 GS-2: ELEMENT)
+ *   computed: Array<{ node, file }>,   // PLAN-7 N-1: computed keys (`[ACTIONS.SAVE]`), not in `entries`
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [], sinkValues: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [], sinkValues: [], computed: [] }
   const r = resolveExpr(project, file, modelNode)
   // PLAN-4 GS-8: undoable(model, options) is the model plus UNDO / REDO (src/extra/undo.ts)
   if (r?.node?.type === 'CallExpression' && isSygnalImport(r.file, r.node.callee, 'undoable') && r.node.arguments[0]) {
@@ -223,7 +224,7 @@ export function analyzeModel(project, file, modelNode) {
   for (const p of obj.properties) {
     if (p.type === 'SpreadElement') { res.known = false; continue }
     const key = propName(p)
-    if (key == null) { res.known = false; continue }
+    if (key == null) { res.known = false; if (p.computed) res.computed.push({ node: p.key, file: mfile }); continue }
     const { action, sink, shorthand } = splitModelKey(key)
     const value = p.type === 'ObjectMethod' ? p : unwrap(p.value)
     let sinks

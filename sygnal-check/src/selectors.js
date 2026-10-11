@@ -76,3 +76,65 @@ export function hyperscriptSel(sel) {
   while ((m = re.exec(sel))) (m[1] === '.' ? classes : ids).push(m[2])
   return { classes, ids }
 }
+
+/**
+ * PLAN-7 N-1: where each class / id token of a selector is, as selectorRequirements() reads it
+ * (the same names, every occurrence: '.a .b, .a' gives three), or of a hyperscript selector
+ * (`hyperscript: true`, as hyperscriptSel() reads it).
+ *   → Array<{ kind: 'class' | 'id', name, index, length }>   index/length: of the name, in `selector`
+ */
+export function selectorTokens(selector, { hyperscript = false } = {}) {
+  const out = []
+  if (hyperscript) {
+    const re = /([.#])([\w-]+)/g
+    let m
+    while ((m = re.exec(selector))) out.push({ kind: m[1] === '.' ? 'class' : 'id', name: m[2], index: m.index + 1, length: m[2].length })
+    return out
+  }
+  if (GLOBAL_SELECTORS.has(selector.trim())) return out
+  const blanked = blankNested(selector)
+  const re = /([.#])((?:\\.|[\w-])+)/g
+  let m
+  while ((m = re.exec(blanked))) {
+    out.push({ kind: m[1] === '.' ? 'class' : 'id', name: m[2].replace(/\\(.)/g, '$1'), index: m.index + 1, length: m[2].length })
+  }
+  return out
+}
+
+/** stripNested() with every dropped character replaced by a space (offsets kept). */
+function blankNested(sel) {
+  const chars = sel.split('')
+  const blank = (from, to) => { for (let k = from; k < to && k < chars.length; k++) chars[k] = ' ' }
+  let i = 0
+  while (i < sel.length) {
+    const ch = sel[i]
+    if (ch === '\\') { i += 2; continue }
+    if (ch === '[') {
+      const end = sel.indexOf(']', i)
+      const to = end === -1 ? sel.length : end + 1
+      blank(i, to); i = to
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      const end = sel.indexOf(ch, i + 1)
+      const to = end === -1 ? sel.length : end + 1
+      blank(i, to); i = to
+      continue
+    }
+    if (ch === ':') {
+      const m = /^::?[\w-]+/.exec(sel.slice(i))
+      let to = i + (m ? m[0].length : 1)
+      if (sel[to] === '(') {
+        let depth = 0
+        for (; to < sel.length; to++) {
+          if (sel[to] === '(') depth++
+          else if (sel[to] === ')' && --depth === 0) { to++; break }
+        }
+      }
+      blank(i, to); i = to
+      continue
+    }
+    i++
+  }
+  return chars.join('')
+}

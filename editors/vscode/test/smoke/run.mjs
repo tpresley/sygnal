@@ -9,6 +9,9 @@
 //   b/  the PoC fixture + sygnal-check.config.json + S.jsx (not strict)
 //   c/  a package.json + node_modules/sygnal-check 0.3.0 without the language server (too old)
 // Scenario "workspace": the fixture with node_modules/sygnal-check linked to the repository's checker.
+// Scenario "features" (0.2.0): the kanban example (its tests included) + the PoC fixture's C.jsx +
+//   Flow.jsx / Listener.jsx (an action triggered by next(), an EVENTS type across files), for
+//   completions, definition / references, code lens and rename (bundled sygnal-check).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -85,7 +88,66 @@ function setupWorkspace() {
   return ws
 }
 
-const scenarios = { bundled: setupBundled, workspace: setupWorkspace }
+// Flow: SAVE is triggered by the intent and by next('SAVE'); FLOW_SAVED is selected in Listener.
+const FLOW_JSX = `import { event } from 'sygnal'
+
+function Flow({ state }) {
+  return (
+    <div id="flow-root" title="plain string">
+      <button className="save primary">Save</button>
+      <span className="count">{state.n}</span>
+      <input id="name" aria-label="Name" />
+    </div>
+  )
+}
+
+Flow.initialState = { n: 0 }
+
+Flow.intent = ({ DOM, EVENTS }) => ({
+  SAVE: DOM.click('.save'),
+  RESET: EVENTS.select('FLOW_RESET'),
+})
+
+Flow.model = {
+  SAVE: { STATE: (state) => ({ ...state, n: state.n + 1 }), EVENTS: event('FLOW_SAVED', (state) => state.n) },
+  RESET: (state, _data, next) => { next('SAVE'); return { ...state, n: 0 } },
+}
+
+export default Flow
+`
+const LISTENER_JSX = `import { event } from 'sygnal'
+
+function Listener({ state }) {
+  return <div><button className="clear">Clear</button><span>{state.saves}</span></div>
+}
+
+Listener.initialState = { saves: 0 }
+
+Listener.intent = ({ DOM, EVENTS }) => ({
+  ON_SAVED: EVENTS.select('FLOW_SAVED'),
+  CLEAR: DOM.click('.clear'),
+})
+
+Listener.model = {
+  ON_SAVED: (state) => ({ ...state, saves: state.saves + 1 }),
+  CLEAR: { EVENTS: event('FLOW_RESET') },
+}
+
+export default Listener
+`
+
+function setupFeatures() {
+  const ws = path.join(work, 'features')
+  fs.rmSync(ws, { recursive: true, force: true })
+  const kanban = path.join(repo, 'examples/kanban')
+  for (const entry of ['src', 'index.html', 'package.json', 'vite.config.js']) fs.cpSync(path.join(kanban, entry), path.join(ws, entry), { recursive: true })
+  fs.cpSync(path.join(fixture, 'src/C.jsx'), path.join(ws, 'src/C.jsx'))
+  write(path.join(ws, 'src/Flow.jsx'), FLOW_JSX)
+  write(path.join(ws, 'src/Listener.jsx'), LISTENER_JSX)
+  return ws
+}
+
+const scenarios = { bundled: setupBundled, workspace: setupWorkspace, features: setupFeatures }
 const only = process.argv[2]
 let failed = 0
 for (const [name, setup] of Object.entries(scenarios)) {

@@ -280,7 +280,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, and quick fixes. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, go to definition / find references for actions and EVENTS types, code lenses that say what each action does and what triggers it, and a rename that refuses when it can't find every use. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -300,9 +300,14 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
 | Hover | on a finding: its code, title, explanation, fix and docs URL (Markdown, with the URL itself as the link text so editors that hide link targets still show it; plain text for clients without Markdown) |
 | Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
+| Definition | `textDocument/definition` on an action name or an EVENTS type ([below](#go-to-definition-and-references)) |
+| References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
+| Completion | `textDocument/completion`, trigger characters `'` `"` `` ` `` `.` `#`; items only in Sygnal contexts ([below](#completions)) |
+| Code lens | `textDocument/codeLens` on intent keys, model keys and EVENTS selects / emits ([below](#code-lens)); `workspace/executeCommand` for its jump command `sygnal.goTo`; `workspace/codeLens/refresh` when the client supports it |
+| Rename | `textDocument/prepareRename` and `textDocument/rename` for actions, EVENTS types, class / id names, state keys and context entries; refuses when it can't find every use ([below](#rename)) |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
-**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
+**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover, code actions and completions are answered while a check runs.
 
 The server checks at once on `didOpen`, `didSave`, `didClose`, a watched-file event or a settings change. After a `didChange` without a save, it waits about 150 ms for typing to pause. A newer change replaces a check that is still waiting; it doesn't queue another one.
 
@@ -339,6 +344,131 @@ Each file's list is sorted errors first. Info findings are left out unless `sygn
 
 Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
 
+### Completions
+
+Completions fill in the names Sygnal connects by string, which TypeScript can't complete (in JavaScript `DOM` is `any`, so nothing completes them there today). The server returns items only at these positions. Everywhere else it answers `null` at once, so TypeScript's own completions stand alone.
+
+| Where the cursor is | What it offers |
+|---|---|
+| a key of the object the intent returns | model actions nothing triggers yet |
+| a key of the model object | actions that are triggered but have no model entry: intent actions, `next()` targets, reply names, `timers`/`browser`/`resources`/`connections`/`route` actions, `agent.actions`; then `BOOTSTRAP`, `INITIALIZE`, `DISPOSE` |
+| the selector of `DOM.select('…')` or a shorthand such as `DOM.click('…')` | the component's own view classes (`.x`) and ids (`#x`); after a `.` only classes, after a `#` only ids |
+| `EVENTS.select('…')` | EVENTS types emitted anywhere in the project |
+| `event('…')` / `emit('…')` | EVENTS types selected anywhere in the project, so an emitter matches its listeners |
+| `next('…')`; `ok` / `error` / `delta` / `tool` / `block: '…'` in a request a model entry returns; `action` / `frame` in `timers`, `action` / `error` in `browser`, `ok` / `error` in `resources`, `message` / `open` / `close` / `error` in `connections` | the model's actions |
+| `<Collection from="…">` or `from={'…'}` | the `initialState` and `calculated` keys of the component that renders it |
+
+Each item's `detail` says where the name comes from ("intent action · App (no model entry)", "class in App's view", "EVENTS type emitted in TodoItem.jsx"). Its `textEdit` replaces the key or the string contents being typed; for a selector, only the class or id token at the cursor. For a fresh model key (no `:` after it yet), a client that supports snippets gets `NAME: (state, data) => ({ ...state })`.
+
+The names come from the last check, and the position from the document's current text, so a completion needs no check of its own. It also works while you type, when the file doesn't parse: an unterminated string (`DOM.click('.`), a new key without a colon, an open call, or a file cut off after the cursor. The server tries the text as it is, then with a closing suffix at the cursor (a quote, `)`, `: 0,` ...), then reads the text before the cursor on its line against the last check. Names added since the last check (about 150 ms after typing pauses) appear at the next check.
+
+### Go to definition and references
+
+Actions, EVENTS types, class names, state keys and context entries are strings wired by name, so TypeScript can't follow them. The server can, on these names:
+
+- **action names:** an intent key, a model key (for a `'A | SINK'` key, its action part), a `next('X')` argument, a reply name in a request (`ok`, `error`, `delta`, `tool`, `block`, also inside `decide()`), an action named by `connections`, `resources`, `route`, `timers` or `browser`, an `agent.actions` key, a host's `'pager.NEXT'` model key, a `uses` entry key (it stands for the behavior's own actions), and in a user behavior's `defineBehavior({...})` (in its own file) its intent keys, model keys, `next()` and reply names, timer actions, plus an option naming a host action (`form(schema, { submit: 'SIGN_UP' })`);
+- **EVENTS types:** an `event('X')` / `emit('X')` argument, a `{ type: 'X' }` an EVENTS sink returns, an `EVENTS.select('X')` argument, and an imported `Toaster` (it selects `TOAST` and `TOAST_DISMISS`);
+- **names built from constants:** a computed key (`[ACTIONS.TICK]`), `next(PREFIX + '_DONE')`, `` next(`${PREFIX}_MORE`) ``, `EVENTS.select(SAVED)` with `SAVED` imported, when the value has exactly one definition (string literals, `+`, template literals, `const` declarations across imports, a key of a `const` object literal);
+- **class and id names:** each token a view renders (`className` / `class` / `id` strings, template literal parts, `classes()` / `clsx()` arguments and object keys, both sides of `?:`, `&&` and `+`, `h('div.a#b')`, JSX in helper functions the view calls), and each `.x` / `#y` of an intent selector (`'.a .b'` is two names; a behavior option's selector too);
+- **controls:** `DOM.click(Add)`, the `controls({ Add: ... })` key, and `<Add>` tags;
+- **state:** `initialState` and `calculated` keys, and a Collection's `from="x"` / `from={'x'}`;
+- **context:** a `.context` key, and `context.x` / `{ context: { x } }` in a view (also of a plain function rendered as a tag) or `props.context.x` in a reducer;
+- **children:** the argument of `CHILD.select(Child)`, a component's name, and the `PARENT` keys of its model.
+
+| From | Definition goes to |
+|---|---|
+| an intent key, `next('X')`, a reply name, a static's action name, an `agent.actions` key, a `uses` key, a trigger in a behavior definition | the model entry (or entries) handling the action in that component, the behavior definition's included |
+| a model key | the intent key(s) triggering it; when no intent key does, its other triggers (`next()`, replies, statics, `agent.actions`, the `uses` key, the behavior's intent) |
+| `EVENTS.select('X')` | every emitter of `X` in the project |
+| an emitter of `X` | every select of `X` in the project |
+| a name built from constants | as above, plus the constants' declarations |
+| a selector's `.x` / `#y` | the element(s) rendering it in the component's own view (JSX passed into it included). Rendered only inside a child (SYG104): the child's element, and the trace log says so |
+| a class or id the view renders | the selectors using it |
+| `DOM.click(Add)` | the `controls()` key and the `<Add>` tags in the view |
+| `<Add>` | the `controls()` key |
+| `from="x"` | the `initialState` or `calculated` key `x` |
+| an `initialState` / `calculated` key | the `from` attributes naming it |
+| `context.x` | the nearest component providing `x` on each render path up from the reader (itself first); several paths give several |
+| a `.context` key | the readers it reaches |
+| `CHILD.select(Child)` | `Child`'s name and the `PARENT` keys of its model |
+| a `PARENT` key, a component's name | the `CHILD.select()` calls listening to it |
+
+Several targets come back as a list: a model or intent shared by components gives every component's, and `undoable()`'s `UNDO` and `REDO` point at the `undoable` call. **References** lists every occurrence of the name in its scope: an action in its component, an EVENTS type in the project, a class in the views a selector resolves to (with the selectors on them), a context entry with its providers and their readers. With `includeDeclaration: false` it leaves out the declarations: model keys, emitters, the rendered classes, `controls()` keys, state keys, `.context` keys, component names.
+
+**Limits.** A name the checker can't read gives nothing, never a guess: a value that changes (`let`), a parameter, an intent or model with spreads. A selector whose class the view doesn't render literally gives nothing; when the view has a dynamic className that might produce it (`'tile-' + id`, `{...props}`), the trace log says so (`sygnal.trace.server` at `messages`). A token written across parts (`'a' + 'b'`) or with escapes renders but has no position. A built-in (`BOOTSTRAP`, `INITIALIZE`, ...) has no trigger to go to. A first-party behavior's actions (`pager`, `form`, ...) have no source, so they go to the `uses` key. A Collection item's `from` has no target when the item has no `initialState` (its state comes from its parent). In a file that doesn't parse, nothing navigates until it parses again.
+
+**Freshness.** Each check also indexes these names, so a request is answered at once from the last check when the open documents are still what it checked. After an unsaved change the server builds the model again with the current text (no rules, the parse cache warm) and answers from that: about 5 ms on the examples, 50 ms on a 20,000-line project. Right after a save it waits for the check that the save started.
+
+### Code lens
+
+A line of text above each action and EVENTS name, from the same index as [go to definition](#go-to-definition-and-references):
+
+| On | Lens | Example |
+|---|---|---|
+| an intent key | the model entry handling it, its sinks (with the EVENTS types it emits and the reply actions its requests name) and its `next()` targets | `handled by model.SAVE · STATE, HTTP → LOADED/FAILED, EVENTS 'SAVED' · next → DONE` |
+| | no model entry (exactly when SYG101 reports it) | `no model entry` |
+| a model key | what triggers it: `intent`, `reply (HTTP ok from SAVE)`, `next from SAVE`, `agent tool`, `timer`, `connection (message)`, `resource`, `route`, `browser`, `behavior pager`, `persist`, `the core` (a built-in) | `triggered by intent, agent tool` |
+| | nothing triggers it (exactly when SYG102 reports it) | `not triggered`, or `not triggered (a dynamic name might)` when SYG102 is info |
+| `EVENTS.select('X')` | how many emitters `X` has in the project | `2 emitters`, `no emitters` |
+| an emitter of `X` | how many selects `X` has in the project | `1 listener` |
+
+Where the checker can't tell, the lens says so rather than guess: `handler not known statically` (a model with spreads), `trigger not known statically` (an intent it can't list, such as a computed key). A model shared by components gets one lens per component, prefixed with its name; `undoable()`'s `UNDO` and `REDO` are both at the `undoable` call, prefixed with the action.
+
+**Clicking a lens.** The LSP doesn't standardize a command for "show these locations", so the server picks one from the client's capabilities:
+
+- a client that lists `sygnal.showReferences` or `editor.action.showReferences` in `capabilities.experimental.commands.commands` (or in `initializationOptions.clientCommands`) gets that command with `[uri, position, locations]`, the arguments of VS Code's `editor.action.showReferences`. VS Code's own command needs its arguments as VS Code objects, so an extension registers `sygnal.showReferences`, converts the arguments and calls it (it shows the targets in a peek view);
+- else a client that advertises `window.showDocument.support` (VS Code and Neovim do) gets the server command `sygnal.goTo`: executing it opens the first target and returns them all;
+- else, and for a lens without a target (`no model entry`, `not triggered`), the lens is text only (`command: ""`).
+
+**Client support.** VS Code and LSP4IJ show code lenses. Neovim shows them after `vim.lsp.codelens.refresh()` (for example on `BufEnter`, `CursorHold` and `InsertLeave`). Helix has no code lens.
+
+**Freshness.** As for definition: the last check's index when the open documents are still what it checked, else one built for the request. After a check that changed any lens of the folder (a title or a target), the server sends `workspace/codeLens/refresh` when the client advertises `workspace.codeLens.refreshSupport`, so lenses in other files follow an edit. In a file that doesn't parse there are no lenses until it parses again. `sygnal.codeLens: false` turns them off.
+
+### Rename
+
+`textDocument/rename` renames a Sygnal name everywhere it is wired, and `textDocument/prepareRename` says up front whether it can (advertised as `renameProvider: { prepareProvider: true }` to clients that support `prepareRename`). These names are strings, so an occurrence a rename misses is an action that silently never runs, with no type error. The server therefore renames only when it can account for every use, and otherwise refuses with the reason (VS Code shows it, then offers TypeScript's rename if TypeScript has one).
+
+| Renames | What it edits |
+|---|---|
+| an action | every occurrence in its component: intent key, model key (a `'A \| SINK'` key's action part), `next('A')`, reply names, the `connections` / `resources` / `route` / `timers` / `browser` names, a behavior option naming it, the `agent.actions` key. A model or intent object shared by components: every component sharing it, each edit once. A user behavior's action (`'c.BUMP'`, or `BUMP` in its `defineBehavior()`): the host's keys and the definition, when one host uses the definition under one key |
+| an EVENTS type | every emitter and select in the project |
+| a class or id | the view tokens and intent selectors of the DOM scope the name resolves to |
+| a state key | the `initialState` / `calculated` key and the Collection `from` naming it |
+| a context entry | the providers' `.context` keys and every read resolving to them |
+
+An identifier key written shorthand keeps its value (`{ SAVE }` becomes `{ STORE: SAVE }`).
+
+**It refuses** (prepareRename and rename answer with an error, code `-32803`):
+
+| When | Message (example) |
+|---|---|
+| a built-in or an `undoable()` action | `BOOTSTRAP is built in: its name is fixed`; `UNDO is added by undoable(): its name is fixed` |
+| the component's intent or model can't be read in full (spreads, computed keys) | `can't rename INCREMENT: in Counter, its model is built with a spread or computed keys, so not every use can be found` |
+| a name built at run time in the component: `next(x)`, a reply, a connection / timer name | `can't rename GO: in C, it calls next() with a name built at run time` |
+| a name built from constants (`[ACTIONS.TICK]`, `EVENTS.select(SAVED)`) | `can't rename TICK: it is built from a constant (TICK at Edge.jsx:15) at Edge.jsx:24; rename the constant's value by hand` |
+| a first-party behavior's action, a `uses` key | `pages.NEXT belongs to the first-party behavior 'pages': its names are fixed` |
+| a user behavior's action when its definition has several hosts or keys | `can't rename c.BUMP: the behavior's definition (src/counter.js:3) is used by 2 hosts or keys, ...` |
+| a control or a component name (identifiers) | `<Add> is a control (an identifier): rename it with TypeScript's rename` |
+| EVENTS: any select or emit in the project whose type is built at run time, or any intent or model in the project that can't be read in full; Toaster's `TOAST` | `can't rename EVENTS 'SAVED': the project has 1 EVENTS select(s) with a type built at run time, ...` |
+| a class or id: the view has dynamic class names (ids); no intent selects it (styling only); it is in a CSS / markup file of the folder or the project uses a stylesheet the server can't read (a package, a remote `<link>`); a module constant holds it; a helper renders it in two views; a behavior option selects it; another DOM scope uses it too; only a child renders it | `can't rename '.save': it is also used in src/app.css:1, which sygnal-check doesn't rename (CSS / markup)` |
+| a state key: the `initialState` / `calculated` can't be read; no key declares it (a Collection item's state comes from its parent) | `can't rename 'rows': L's initialState is built in a way sygnal-check can't read` |
+| a context entry: a provider's `.context` can't be read; a component reads it with no provider the server can find | `can't rename context 'tone': Lone also reads it (src/Lone.jsx:1) with no provider sygnal-check can find` |
+| **any kind:** the name also appears in the project's source as a string, a property key or a member name (`.items`) that isn't one of its known uses | `can't rename GO: 'GO' also appears at src/C.jsx:5 (a string) where sygnal-check can't tell whether it is the same name; rename by hand` |
+| any file of the project has a syntax error | `can't rename while src/Other.jsx has a syntax error: its uses can't be found` |
+
+The last guard is what keeps state keys mostly unrenamable: a key is read as code (`state.items`, `{ ...state, items }`), which the server can't tie to the state, so it refuses and points to TypeScript's rename (typed state) or a rename by hand.
+
+**The new name** is checked per kind: an action name must be an identifier (a name that isn't SCREAMING_SNAKE_CASE is allowed, with a note in the log); an EVENTS type any non-empty string without quotes, backslashes or line breaks; a class or id a CSS identifier (a leading `.` / `#` is accepted); state and context keys identifiers. Renaming to an action the component already has, a built-in, an existing EVENTS type, or a class / id already in use is refused.
+
+**Change annotations.** For a client that supports them (`workspace.workspaceEdit.changeAnnotationSupport` with `documentChanges`), two groups need confirmation (`needsConfirmation: true`; VS Code shows the refactor preview):
+
+- **Agent tool name:** an `agent.actions` key, since renaming it changes the tool name an LLM sees. A client without annotations gets these edits anyway (they are part of the action) and a `window/showMessage` note.
+- **Test files:** the server also scans the folder's test files (`*.test.*` / `*.spec.*`, found under the workspace folder even when `includeTests` is off) for the name as a string (`describe('START_EDIT')`, `simulateAction('START_EDIT')`, a word of a test title for a SCREAMING_SNAKE name with an underscore) or a property (`model.START_EDIT`, `{ draggingLaneId: ... }`), and, for an action, state key or context entry, only in test files that import the component's files. A client without annotations gets the code edits only, and a `window/showMessage` warning naming the test files left out: test edits are never applied without a confirmation.
+
+**Freshness.** A rename always runs on the documents as they are: the worker builds the folder with the current unsaved text (never the last check's index), and if a document changes while it does, the request fails with "try again".
+
+**Limits.** Outside the scan: docs samples, other packages of a monorepo, files outside the workspace folder, CSS-in-JS and stylesheets from packages (a package stylesheet refuses class renames), TypeScript types that list action or EVENTS names (a `SygnalEvents` registry, an `ActionsOf<>` map: the type checker reports what's left). Devtools, HMR or `sygnal/element` code dispatching an action by name is caught only when the name appears as a string in the project.
+
 ### Settings
 
 | Setting | Type | |
@@ -349,6 +479,7 @@ Fixes are offered only while the document's text is still the one the findings w
 | `sygnal.paths` | string[] | files, directories or globs to check, relative to the workspace folder |
 | `sygnal.verbose` | boolean | also show info findings (default false) |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
+| `sygnal.codeLens` | boolean | show [code lenses](#code-lens) (default true); an editor setting only, the config file has no such key |
 
 The server reads settings from two places:
 

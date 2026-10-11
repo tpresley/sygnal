@@ -26,7 +26,7 @@
  * Diagnostics are pushed, never pulled (D305): only the files whose list changed, and an empty
  * list for a file that cleared; each list sorted errors first. See convert.js for the shape.
  *
- * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, from
+ * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, codeLens, from
  * `initializationOptions` (flat, or under `sygnal`) and, when the client supports it,
  * `workspace/configuration` per folder (section `sygnal`), which wins. Defined values override
  * the config file (sygnal-check.config.json / package.json); unset or null leave it in charge.
@@ -40,6 +40,20 @@
  * Hover: the `explain` entry of the finding under the cursor. Code actions: the findings' C-4
  * fixes, "Suppress SYGnnn on this line", `source.fixAll.sygnal` (fixFiles, strict, like --fix)
  * and the --controls conversions as refactors (only when `context.only` asks for refactors).
+ *
+ * Definition / references (PLAN-7 N-2): actions and EVENTS types, from the occurrence index each
+ * check returns, or from the worker when a document changed since (navigation.js).
+ * Completions (N-2): Sygnal names in Sygnal contexts only, from the last check's completion index
+ * and the document's current text, on the main thread (completion.js).
+ *
+ * Code lens (PLAN-7 P4-4, codelens.js): on intent keys, model keys and EVENTS selects / emits,
+ * from the same index; `sygnal.codeLens: false` turns it off. `workspace/codeLens/refresh` after
+ * a check that changed the lenses (when the client supports it); the jump command per client.
+ *
+ * Rename (PLAN-7 P4-5, rename.js): prepareRename / rename of actions, EVENTS types, class / id
+ * tokens, state keys and context entries, always on the documents as they are (the worker's
+ * `rename` call); refusals are errors with the reason; test files' mentions are offered as a
+ * group that needs confirmation (change annotations), else left out with a warning.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -49,10 +63,14 @@ import { createChecker } from './checker.js'
 import { getExplanation } from '../explain.js'
 import { lineStarts } from '../edits.js'
 import { textHash } from './convert.js'
+import { createNavigation } from './navigation.js'
+import { createRename } from './rename.js'
+import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
+import { createCodeLens, GO_TO } from './codelens.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
-export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server']
+export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server', 'codeLens']
 export const WATCHERS = ['**/*.{js,jsx,ts,tsx,mjs,cjs}', '**/sygnal-check.config.json', '**/package.json']
 export const CODE_ACTION_KINDS = ['quickfix', 'refactor', 'refactor.rewrite', 'source.fixAll.sygnal']
 const TRACE = ['off', 'messages', 'verbose']
@@ -60,6 +78,7 @@ const LOG_TYPE = { error: 1, warn: 2, info: 3, debug: 4 }
 // the levels shown at each trace setting
 const LOG_LEVELS = { off: ['error', 'warn'], messages: ['error', 'warn', 'info'], verbose: ['error', 'warn', 'info', 'debug'] }
 
+const readText = (abs) => { try { return fs.readFileSync(abs, 'utf8') } catch { return null } }
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const isStrings = (v) => Array.isArray(v) && v.every(s => typeof s === 'string')
 const within = (abs, folder) => abs === folder || abs.startsWith(folder.endsWith(path.sep) ? folder : folder + path.sep)
@@ -89,6 +108,7 @@ export function readSettings(raw) {
   if (isStrings(s.paths) && s.paths.length) out.paths = [...s.paths]; else bad('paths', s.paths, 'a non-empty array of paths')
   if (typeof s.verbose === 'boolean') out.verbose = s.verbose; else bad('verbose', s.verbose, 'a boolean')
   if (TRACE.includes(trace)) out.trace = trace; else bad('trace.server', trace, "'off', 'messages' or 'verbose'")
+  if (typeof s.codeLens === 'boolean') out.codeLens = s.codeLens; else bad('codeLens', s.codeLens, 'a boolean')
   return { settings: out, problems }
 }
 
@@ -130,6 +150,7 @@ export function createLspServer({
   let exited = false
   let clientCaps = {}
   let initSettings = {}
+  let initOptions = {}
   const folderSettings = new Map() // folder → settings from workspace/configuration
   const projects = new Map() // folder → { dirty, timer, uris: Set, checked: Map<absPath, textHash>, substituted: Set }
   const overlays = new Map() // absPath → text of an open document
@@ -264,6 +285,8 @@ export function createLspServer({
     clearTimeout(p.timer)
     projects.delete(folder)
     folderSettings.delete(folder)
+    nav.drop(folder)
+    lens.drop(folder)
     for (const uri of p.uris) publish(uri, [])
     checker.call('drop', { folder }).catch(() => {})
   }
@@ -296,6 +319,18 @@ export function createLspServer({
     }
   }
 
+  const nav = createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log })
+  const lens = createCodeLens({
+    nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf, uriFor, requestClient, log,
+    enabled: (folder) => ({ ...initSettings, ...(folderSettings.get(folder) || {}) }).codeLens !== false,
+  })
+
+  // PLAN-7 P4-5: rename (rename.js), always on the documents as they are now
+  const renamer = createRename({
+    checker, overlaysUnder, settingsFor, folderOf, uriFor, caps: () => clientCaps, log,
+    notify: (type, message) => write({ method: 'window/showMessage', params: { type, message } }),
+  })
+
   const scheduleFor = (abs, delay) => { for (const f of folderList()) if (within(abs, f)) schedule(f, delay) }
 
   function isIdle() {
@@ -313,10 +348,26 @@ export function createLspServer({
         const p = projects.get(folder)
         p.dirty = false
         const sources = overlaysUnder(folder)
+        const snap = nav.snapshot(sources)
         inFlight = folder
-        checker.call('check', { folder, settings: settingsFor(folder), sources })
-          .then(res => apply(folder, res), err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
-          .finally(() => { inFlight = null; pump() })
+        // the index and completion index come as parts (core.js "Parts"): the index early when a
+        // request waits, else with the completion index after the diagnostics; the check is in
+        // flight until that late part (the lens refresh check after the requests it releases)
+        let lateIn
+        const late = new Promise(r => { lateIn = r })
+        const onPart = (part) => {
+          if (projects.has(folder) && !exited) {
+            if (part.completion !== undefined) projects.get(folder).completion = indexState(part.completion, sources)
+            if (part.error) log('error', `check of ${folder}: ${part.error}`)
+            const entry = nav.indexPart(folder, snap, part)
+            if (entry) setImmediate(() => { if (projects.has(folder) && !exited) lens.checked(folder, entry) })
+          }
+          if (part.completion !== undefined) lateIn()
+        }
+        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources }, { onPart })
+          .then(res => { if (projects.has(folder) && !exited) lens.checked(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+        nav.track(folder, snap, checked)
+        checked.finally(() => { inFlight = null; pump() })
         return
       }
     }
@@ -327,9 +378,10 @@ export function createLspServer({
     }
   }
 
-  function apply(folder, res) {
+  function apply(folder, res, sources) {
     const p = projects.get(folder)
     if (!p || exited) return
+    if (res.completion !== undefined) p.completion = indexState(res.completion, sources)
     p.checked = new Map(res.texts)
     p.substituted = new Set(res.substituted)
     for (const l of res.logs) log(l.level, l.message)
@@ -407,6 +459,7 @@ export function createLspServer({
       clientCaps = isObj(params.capabilities) ? params.capabilities : {}
       if (TRACE.includes(params.trace)) traceLevel = params.trace
       const { settings, problems } = readSettings(params.initializationOptions)
+      initOptions = isObj(params.initializationOptions) ? params.initializationOptions : {}
       initSettings = settings
       if (settings.trace) traceLevel = settings.trace
       let folders = []
@@ -423,7 +476,13 @@ export function createLspServer({
         capabilities: {
           textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
           hoverProvider: true,
+          completionProvider: { triggerCharacters: TRIGGER_CHARACTERS, resolveProvider: false },
           codeActionProvider: { codeActionKinds: CODE_ACTION_KINDS, resolveProvider: false },
+          definitionProvider: true,
+          referencesProvider: true,
+          codeLensProvider: { resolveProvider: false },
+          renameProvider: clientCaps.textDocument?.rename?.prepareSupport ? { prepareProvider: true } : true,
+          executeCommandProvider: { commands: [GO_TO] },
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
         },
         serverInfo: { name: 'sygnal-check', version: pkg.version },
@@ -456,6 +515,21 @@ export function createLspServer({
           : `${d.code}: ${e.title}\n\n${e.explanation}\n\nFix: ${e.fix}\n\n${e.docsUrl}`)
       }
       return { contents: { kind: markdown ? 'markdown' : 'plaintext', value: parts.join(markdown ? '\n\n---\n\n' : '\n\n') }, range: hits[0].range }
+    },
+
+    'textDocument/completion'(params) {
+      const abs = uriToPath(params.textDocument?.uri)
+      const folder = abs && isObj(params.position) && folderOf(abs)
+      if (!folder) return null
+      const text = overlays.get(abs) ?? readText(abs)
+      if (text == null) return null
+      const starts = lineStarts(text)
+      const offset = Math.min(text.length, (starts[params.position.line] ?? text.length) + (params.position.character || 0))
+      const snippets = !!clientCaps.textDocument?.completion?.completionItem?.snippetSupport
+      const t0 = performance.now()
+      const r = complete({ text, offset, file: abs, state: projects.get(folder).completion, snippets, readFile: readText })
+      if (r) log('debug', `completion: ${r.context ?? 'no context'} (${r.strategy ?? 'none'}${r.repair ? ` ${JSON.stringify(r.repair)}` : ''}), ${r.items.length} item(s), ${(performance.now() - t0).toFixed(1)} ms`)
+      return completionList(r)
     },
 
     'textDocument/codeAction'(params) {
@@ -533,6 +607,19 @@ export function createLspServer({
         return actions
       })()
     },
+  }
+
+  // PLAN-7 N-2: actions and EVENTS (navigation.js)
+  requests['textDocument/definition'] = (params) => nav.definition(params)
+  requests['textDocument/references'] = (params) => nav.references(params)
+  // PLAN-7 P4-4: code lens (codelens.js)
+  requests['textDocument/codeLens'] = (params) => lens.codeLens(params)
+  // PLAN-7 P4-5: rename (rename.js)
+  requests['textDocument/prepareRename'] = (params) => renamer.prepareRename(params)
+  requests['textDocument/rename'] = (params) => renamer.rename(params)
+  requests['workspace/executeCommand'] = (params) => {
+    if (params.command !== GO_TO) throw new ResponseError(ErrorCodes.InvalidParams, `unknown command: ${params.command}`)
+    return lens.executeCommand(params)
   }
 
   /** `[{ uri, range, newText }]` → a WorkspaceEdit with the edits grouped by file. */

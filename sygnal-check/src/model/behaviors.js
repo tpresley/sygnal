@@ -43,6 +43,8 @@
  *     listens: [{ option, method, action|null, node? }],  // DOM.<method>(option); method 'select': any event
  *     optionNames: Set<string> | null (null: reads options in a way we can't follow),
  *     nextTargets: string[], replyTargets: string[], dynamic: boolean,
+ *     analysis?: { model: ModelInfo | null, intent: IntentInfo | null, timers: TimersInfo | null }
+ *                                      // a user definition's analyses, with their nodes (PLAN-7 N-1)
  *   }
  */
 import { walk, unwrap, isFunction, propName, memberName, stringValue } from '../ast.js'
@@ -227,6 +229,7 @@ function userDef(project, file, call, name) {
     name, firstParty: false, file, node: call,
     stateKeys: null, calculated: [], model: null, intentActions: null,
     listens: [], optionNames: null, nextTargets: [], replyTargets: [], dynamic: false, nextOptions: [],
+    analysis: { model: null, intent: null, timers: null },
   }
   byCall.set(call, def)
   const keys = project.objectKeys(file, call.arguments[0])
@@ -242,6 +245,7 @@ function userDef(project, file, call, name) {
   }
   if (at('model')) {
     const m = analyzeModel(project, at('model').file, at('model').node)
+    def.analysis.model = m
     if (m.known) {
       def.model = new Map()
       // HOST (D197) is a STATE reducer on the host's whole state
@@ -255,6 +259,7 @@ function userDef(project, file, call, name) {
   let read = new Set()
   if (at('timers')) {
     const tm = analyzeTimers(project, at('timers').file, at('timers').node)
+    def.analysis.timers = tm
     for (const t of tm.targets) def.nextTargets.push(t.name)
     // an action named by an option ({ action: ping }): the use's option value is the trigger
     const tf = resolveExpr(project, at('timers').file, at('timers').node)
@@ -277,6 +282,7 @@ function userDef(project, file, call, name) {
   const fn = r && isFunction(r.node) ? r.node : null
   if (!fn) return def
   const intent = analyzeIntent(r.file, fn)
+  def.analysis.intent = intent
   def.intentActions = intent.known ? intent.actions.map(a => a.name) : null
   const opts = optionParam(r.file, fn)
   def.optionNames = opts.names && read && def.stateKeys ? new Set([...opts.names, ...read, ...stateOptions]) : null
