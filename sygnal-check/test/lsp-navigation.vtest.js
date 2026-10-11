@@ -161,28 +161,31 @@ describe('actions: each kind, both ways', () => {
     expect(await p.references('src/All.jsx', 'GO:', { includeDeclaration: false })).toEqual(['src/All.jsx:8:30 GO'])
   })
 
-  it('outside any occurrence (a sink key, a selector, plain code): null', async () => {
+  it('outside any occurrence (a sink key, a selector\'s quote, plain code): null', async () => {
     const p = await project({ 'src/All.jsx': ALL })
     expect(await p.definition('src/All.jsx', 'STATE:')).toBeNull()
-    expect(await p.definition('src/All.jsx', "'.go'", { offset: 2 })).toBeNull()
+    expect(await p.definition('src/All.jsx', "'.go'", { offset: 0 })).toBeNull()
     expect(await p.references('src/All.jsx', 'function All')).toBeNull()
     expect(await p.client.request('textDocument/definition', { textDocument: { uri: 'file:///nowhere/x.jsx' }, position: { line: 0, character: 0 } })).toBeNull()
   })
 })
 
 describe('0-S3 edge fixture', () => {
-  it('dynamic and computed names give null; the rest navigates', async () => {
+  it('names built from constants go to the action and the constant; the rest navigates', async () => {
     const p = await open(copyFixture(path.join(repo, 'dev-plans/research/p7-spikes/0-S3/fixture')), { init: { initializationOptions: { paths: ['.'] } } })
-    expect(await p.definition('Edge.jsx', '[ACTIONS.TICK]', { offset: 10 })).toBeNull()
-    expect(await p.definition('Edge.jsx', "PREFIX + '_DONE'", { offset: 11 })).toBeNull()
-    expect(await p.definition('Edge.jsx', '${PREFIX}_MORE', { offset: 10 })).toBeNull()
-    expect(await p.definition('Edge.jsx', 'EVENTS.select(SAVED)', { offset: 15 })).toBeNull()
+    expect(await p.definition('Edge.jsx', '[ACTIONS.TICK]', { offset: 10 })).toEqual(['Edge.jsx:15:19 TICK', 'Edge.jsx:36:3 TICK'])
+    // no model entry LOAD_DONE / LOAD_MORE: the constant only
+    expect(await p.definition('Edge.jsx', "PREFIX + '_DONE'", { offset: 11 })).toEqual(['Edge.jsx:14:7 PREFIX'])
+    expect(await p.definition('Edge.jsx', '${PREFIX}_MORE', { offset: 10 })).toEqual(['Edge.jsx:14:7 PREFIX'])
+    // SAVED: imported; its emitter (event('SAVED')) and the constant in names.js
+    expect(await p.definition('Edge.jsx', 'EVENTS.select(SAVED)', { offset: 15 })).toEqual(['Edge.jsx:32:20 SAVED', 'names.js:1:14 SAVED'])
     expect(await p.definition('Edge.jsx', "'TRIAGED'", { offset: 1 })).toBeNull() // no model entry: nothing
     expect(await p.definition('Edge.jsx', 'SAVE: DOM')).toEqual(['Edge.jsx:28:3 SAVE'])
     expect(await p.definition('Edge.jsx', 'SAVE: {', { nth: 0 })).toEqual(['Edge.jsx:23:3 SAVE'])
     expect(await p.references('Edge.jsx', 'SAVE: DOM')).toEqual(['Edge.jsx:23:3 SAVE', 'Edge.jsx:28:3 SAVE', 'Edge.jsx:40:41 SAVE'])
     expect(await p.definition('Edge.jsx', "'POLL'", { offset: 1 })).toBeNull()
-    expect(await p.definition('Edge.jsx', "'c.BUMP'", { offset: 1 })).toEqual(['Edge.jsx:20:15 c'])
+    // the behavior definition's intent key (and the uses key)
+    expect(await p.definition('Edge.jsx', "'c.BUMP'", { offset: 1 })).toEqual(['Edge.jsx:10:33 BUMP', 'Edge.jsx:20:15 c'])
   })
 })
 

@@ -110,10 +110,13 @@ export function returnedExpressions(fn) {
  *   actions: Array<{ name, node }>,
  *   selectors: Array<{ selector: string|null, node, method, dynamic, global,
  *                      control?, controls? }>,   // set by resolveSelectorControls (controls.js)
+ *   computed: Array<{ node }>,    // PLAN-7 N-1: computed keys (`[ACTIONS.TICK]`), not in `actions`
+ *   childSelects: Array<{ node, arg, ref? }>,  // PLAN-7 N-1: CHILD.select(X) calls (ref: X's
+ *                                 // function, set by the project)
  * }}
  */
 export function analyzeIntent(file, fn) {
-  const result = { fn, file, known: true, actions: [], selectors: [] }
+  const result = { fn, file, known: true, actions: [], selectors: [], computed: [], childSelects: [] }
   if (!fn || !isFunction(fn)) { result.known = false; return result }
   const sa = sourceAliases(fn)
 
@@ -126,7 +129,7 @@ export function analyzeIntent(file, fn) {
       for (const p of obj.properties) {
         if (p.type === 'SpreadElement') { result.known = false; continue }
         const name = propName(p)
-        if (name == null) { result.known = false; continue }
+        if (name == null) { result.known = false; if (p.computed) result.computed.push({ node: p.key }); continue }
         if (!seen.has(name)) { seen.add(name); result.actions.push({ name, node: p.key }) }
       }
     } else if (obj.type === 'Identifier') {
@@ -151,6 +154,10 @@ export function analyzeIntent(file, fn) {
     if (callee.type !== 'MemberExpression') return true
     const method = memberName(callee)
     if (!method) return true
+    if (method === 'select' && isSourceRef(callee.object, 'CHILD', sa)) {
+      result.childSelects.push({ node: n, arg: unwrap(n.arguments[0]) || null })
+      return true
+    }
     const chain = domChain(callee.object, sa)
     if (!chain) return true
     let takesSelector

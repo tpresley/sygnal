@@ -343,21 +343,38 @@ Fixes are offered only while the document's text is still the one the findings w
 
 ### Go to definition and references
 
-Actions and EVENTS types are strings wired by name, so TypeScript can't follow them. The server can, on these names:
+Actions, EVENTS types, class names, state keys and context entries are strings wired by name, so TypeScript can't follow them. The server can, on these names:
 
-- **action names:** an intent key, a model key (for a `'A | SINK'` key, its action part), a `next('X')` argument, a reply name in a request (`ok`, `error`, `delta`, `tool`, `block`, also inside `decide()`), an action named by `connections`, `resources`, `route`, `timers` or `browser`, an `agent.actions` key, a host's `'pager.NEXT'` model key, and a `uses` entry key (it stands for the behavior's own actions);
-- **EVENTS types:** an `event('X')` / `emit('X')` argument, a `{ type: 'X' }` an EVENTS sink returns, an `EVENTS.select('X')` argument, and an imported `Toaster` (it selects `TOAST` and `TOAST_DISMISS`).
+- **action names:** an intent key, a model key (for a `'A | SINK'` key, its action part), a `next('X')` argument, a reply name in a request (`ok`, `error`, `delta`, `tool`, `block`, also inside `decide()`), an action named by `connections`, `resources`, `route`, `timers` or `browser`, an `agent.actions` key, a host's `'pager.NEXT'` model key, a `uses` entry key (it stands for the behavior's own actions), and in a user behavior's `defineBehavior({...})` (in its own file) its intent keys, model keys, `next()` and reply names, timer actions, plus an option naming a host action (`form(schema, { submit: 'SIGN_UP' })`);
+- **EVENTS types:** an `event('X')` / `emit('X')` argument, a `{ type: 'X' }` an EVENTS sink returns, an `EVENTS.select('X')` argument, and an imported `Toaster` (it selects `TOAST` and `TOAST_DISMISS`);
+- **names built from constants:** a computed key (`[ACTIONS.TICK]`), `next(PREFIX + '_DONE')`, `` next(`${PREFIX}_MORE`) ``, `EVENTS.select(SAVED)` with `SAVED` imported, when the value has exactly one definition (string literals, `+`, template literals, `const` declarations across imports, a key of a `const` object literal);
+- **class and id names:** each token a view renders (`className` / `class` / `id` strings, template literal parts, `classes()` / `clsx()` arguments and object keys, both sides of `?:`, `&&` and `+`, `h('div.a#b')`, JSX in helper functions the view calls), and each `.x` / `#y` of an intent selector (`'.a .b'` is two names; a behavior option's selector too);
+- **controls:** `DOM.click(Add)`, the `controls({ Add: ... })` key, and `<Add>` tags;
+- **state:** `initialState` and `calculated` keys, and a Collection's `from="x"` / `from={'x'}`;
+- **context:** a `.context` key, and `context.x` / `{ context: { x } }` in a view (also of a plain function rendered as a tag) or `props.context.x` in a reducer;
+- **children:** the argument of `CHILD.select(Child)`, a component's name, and the `PARENT` keys of its model.
 
 | From | Definition goes to |
 |---|---|
-| an intent key, `next('X')`, a reply name, a static's action name, an `agent.actions` key, a `uses` key | the model entry (or entries) handling the action in that component |
-| a model key | the intent key(s) triggering it; when no intent key does, its other triggers (`next()`, replies, statics, `agent.actions`, the `uses` key) |
+| an intent key, `next('X')`, a reply name, a static's action name, an `agent.actions` key, a `uses` key, a trigger in a behavior definition | the model entry (or entries) handling the action in that component, the behavior definition's included |
+| a model key | the intent key(s) triggering it; when no intent key does, its other triggers (`next()`, replies, statics, `agent.actions`, the `uses` key, the behavior's intent) |
 | `EVENTS.select('X')` | every emitter of `X` in the project |
 | an emitter of `X` | every select of `X` in the project |
+| a name built from constants | as above, plus the constants' declarations |
+| a selector's `.x` / `#y` | the element(s) rendering it in the component's own view (JSX passed into it included). Rendered only inside a child (SYG104): the child's element, and the trace log says so |
+| a class or id the view renders | the selectors using it |
+| `DOM.click(Add)` | the `controls()` key and the `<Add>` tags in the view |
+| `<Add>` | the `controls()` key |
+| `from="x"` | the `initialState` or `calculated` key `x` |
+| an `initialState` / `calculated` key | the `from` attributes naming it |
+| `context.x` | the nearest component providing `x` on each render path up from the reader (itself first); several paths give several |
+| a `.context` key | the readers it reaches |
+| `CHILD.select(Child)` | `Child`'s name and the `PARENT` keys of its model |
+| a `PARENT` key, a component's name | the `CHILD.select()` calls listening to it |
 
-Several targets come back as a list: a model or intent shared by components gives every component's, and `undoable()`'s `UNDO` and `REDO` point at the `undoable` call. **References** lists every occurrence of the action in that component, or of the EVENTS type in the project, across files. With `includeDeclaration: false` it leaves out the declarations: the model keys for an action, the emitters for an EVENTS type.
+Several targets come back as a list: a model or intent shared by components gives every component's, and `undoable()`'s `UNDO` and `REDO` point at the `undoable` call. **References** lists every occurrence of the name in its scope: an action in its component, an EVENTS type in the project, a class in the views a selector resolves to (with the selectors on them), a context entry with its providers and their readers. With `includeDeclaration: false` it leaves out the declarations: model keys, emitters, the rendered classes, `controls()` keys, state keys, `.context` keys, component names.
 
-**Limits.** A name the checker can't read gives nothing, never a guess: a computed key (`[ACTIONS.TICK]`), a name built from constants (`next(PREFIX + '_DONE')`, `EVENTS.select(SAVED)` with `SAVED` imported), an intent or model with spreads. A built-in (`BOOTSTRAP`, `INITIALIZE`, ...) has no trigger to go to. A first-party behavior's actions (`pager`, `form`, ...) have no source, so they go to the `uses` key; a user behavior's own intent and model aren't followed yet either. Class names, context entries and Collection `from` don't navigate yet. In a file that doesn't parse, nothing navigates until it parses again.
+**Limits.** A name the checker can't read gives nothing, never a guess: a value that changes (`let`), a parameter, an intent or model with spreads. A selector whose class the view doesn't render literally gives nothing; when the view has a dynamic className that might produce it (`'tile-' + id`, `{...props}`), the trace log says so (`sygnal.trace.server` at `messages`). A token written across parts (`'a' + 'b'`) or with escapes renders but has no position. A built-in (`BOOTSTRAP`, `INITIALIZE`, ...) has no trigger to go to. A first-party behavior's actions (`pager`, `form`, ...) have no source, so they go to the `uses` key. A Collection item's `from` has no target when the item has no `initialState` (its state comes from its parent). In a file that doesn't parse, nothing navigates until it parses again.
 
 **Freshness.** Each check also indexes these names, so a request is answered at once from the last check when the open documents are still what it checked. After an unsaved change the server builds the model again with the current text (no rules, the parse cache warm) and answers from that: about 5 ms on the examples, 50 ms on a 20,000-line project. Right after a save it waits for the check that the save started.
 
