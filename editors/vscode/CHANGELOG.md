@@ -2,6 +2,8 @@
 
 ## 0.2.0
 
+- A one-time notice when the workspace's own sygnal-check is older than 0.5.0: it still runs for its findings, and the notice says completions, go to definition, code lenses and rename need 0.5.0.
+
 The language server's new features (sygnal-check 0.5.0, also bundled):
 
 - **Completions** for the names Sygnal wires by string: view classes and ids in a `DOM` selector, unhandled actions in a model key (as a snippet), EVENTS types in `EVENTS.select()` / `event()`, the model's actions in `next()` and reply names, state keys in `<Collection from>`.

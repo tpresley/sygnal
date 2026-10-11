@@ -18,7 +18,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { LanguageClient, State, TransportKind, type ClientCapabilities, type FeatureState, type LanguageClientOptions, type Location as LspLocation, type Position as LspPosition, type ServerOptions, type StaticFeature } from 'vscode-languageclient/node'
-import { chooseServer, describeChoice, packageFileUsesSygnal, type ServerChoice } from './resolve'
+import { chooseServer, describeChoice, FEATURES_VERSION, lacksEditorFeatures, packageFileUsesSygnal, type ServerChoice } from './resolve'
 
 const LANGUAGES = ['javascript', 'javascriptreact', 'typescript', 'typescriptreact']
 const EXCLUDE = '**/node_modules/**'
@@ -145,6 +145,7 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
   status.tooltip = `Sygnal: ${described}. Click for the output.`
   show(true)
   if (choice.reason === 'too-old') notifyUpgrade(choice)
+  else if (lacksEditorFeatures(choice)) notifyFeatures(choice)
 
   const run = {
     command: process.execPath,
@@ -202,6 +203,18 @@ function notifyUpgrade(c: ServerChoice) {
     `This workspace has sygnal-check ${c.old?.version}, which has no language server (it needs 0.4.0 or later). ` +
     `Sygnal is using the sygnal-check ${c.version} bundled with the extension. To use the project's version, ` +
     'upgrade it: npm i -D sygnal-check@latest.',
+    'Show Output',
+  ).then(pick => { if (pick) output.show(true) })
+}
+
+/** Once per workspace and version: the workspace copy runs, but has no completions, navigation, code lens or rename. */
+function notifyFeatures(c: ServerChoice) {
+  const key = `sygnal.featuresNotice:${c.dir}@${c.version}`
+  if (ctx.workspaceState.get(key)) return
+  void ctx.workspaceState.update(key, true)
+  void vscode.window.showInformationMessage(
+    `This workspace has sygnal-check ${c.version}: Sygnal shows its findings, but completions, go to definition, ` +
+    `code lenses and rename need sygnal-check ${FEATURES_VERSION} or later. Upgrade it: npm i -D sygnal-check@latest.`,
     'Show Output',
   ).then(pick => { if (pick) output.show(true) })
 }
