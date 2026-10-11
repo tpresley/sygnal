@@ -64,9 +64,10 @@ function rawFixAllEdits(r) {
 }
 
 /**
- * Run rules over an already-built project.
+ * Run rules over an already-built project. `parseErrors: false` leaves out the parse errors'
+ * SYG900 (the language server runs the rules in two calls and adds them once).
  */
-export function runRules(project, rules) {
+export function runRules(project, rules, { parseErrors = true } = {}) {
   const out = []
   const seen = new Set()
   const starts = new Map() // absPath → line starts, for the fixes' positions
@@ -112,7 +113,7 @@ export function runRules(project, rules) {
       }))
     }
   }
-  for (const e of project.parseErrors) {
+  for (const e of parseErrors ? project.parseErrors : []) {
     out.push(makeDiagnostic('SYG900', {
       message: `could not parse file: ${e.message}`,
       fix: 'fix the syntax error (sygnal-check skipped this file)',
