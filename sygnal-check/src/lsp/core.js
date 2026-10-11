@@ -5,7 +5,8 @@
  * those caches, one call at a time, so builds never interleave on a cache.
  *
  *   createCore() → {
- *     check({ folder, settings, sources })  → { files: [[absPath, LspDiagnostic[]]], texts, logs,
+ *     check({ folder, settings, sources }, { part?, wanted?, defer? })
+ *                                           → { files: [[absPath, LspDiagnostic[]]], texts, logs,
  *                                              substituted, components, index, completion, ms }
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
@@ -36,6 +37,22 @@
  * changed since the last check (navigation.js). The index also carries `flow` (flow.js): each
  * model entry's sinks, EVENTS, next() and reply names and the SYG101/SYG102 verdicts, for code
  * lens (codelens.js).
+ *
+ * Parts (P4 perf): `check(payload, { part, wanted?, defer? })` hands the index and the completion
+ * index over separately from the result (the worker posts each part as a message of the same
+ * call; checker.js), so neither waits for the other's work:
+ *   - early: `part({ index, substituted, ms })` as soon as the model is built and indexed, before
+ *     the rules run, when `wanted()` says a request waits on this check (navigation.js; always
+ *     without `defer`). Navigation and code lens answer from it at once.
+ *   - late (with `defer`): `defer(fn)` registers work for after the result is sent; it calls
+ *     `part({ index?, substituted?, completion })`: the index when it didn't go early, and always
+ *     the completion index, so a check's diagnostics are published without waiting for either.
+ *     (On an exception: `index: null` if it was still owed, `completion: null`, `error`.)
+ *   The result then has no `index`, and with `defer` no `completion` and `late: true`. Without
+ *   `part`, both are in the result as before.
+ * The flow's SYG101/SYG102 verdicts are the check's own: those two rules run first, per component
+ * (flow.js tapVerdicts), then the other rules; the diagnostics are the same as one runRules()
+ * over all of them. `index()` runs the two for the flow alone (≈ 0.4 ms on the 20k project).
  * `completion` is the completion index of the checked project (completionIndex.js; null without
  * components): the main thread answers textDocument/completion from it (completion.js, N-2).
  */
@@ -52,7 +69,7 @@ import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
 import { completionIndex } from './completionIndex.js'
-import { buildFlow } from './flow.js'
+import { buildFlow, tapVerdicts } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
@@ -67,20 +84,12 @@ export function createCore() {
     return p
   }
 
-  /** checkFiles() with the project kept: the same build, rules, ignore and order (no rules: the model only). */
-  function build(files, opts, sources, cache, rules = true) {
-    const project = buildProject(files, { cwd: opts.cwd, sources, cache })
-    if (!rules) return { project, diags: [] }
-    let diags = runRules(project, selectRules({ strict: opts.strict, a11y: opts.a11y }))
-    if (opts.ignore?.length) diags = diags.filter(d => !opts.ignore.includes(d.code))
-    return { project, diags: sortDiagnostics(diags) }
-  }
-
   /**
-   * The folder's files built with `sources`, a file that doesn't parse now replaced by its last
-   * good text (`substituted`); with `rules`, checked. null when the folder has no source files.
+   * The folder's files built with `sources` (the model: no rules), a file that doesn't parse now
+   * replaced by its last good text (`substituted`, with `parseErrors`: the new texts' parse SYG900s,
+   * as runRules() makes them, without the ignored codes). null when the folder has no source files.
    */
-  function prepare({ folder, settings = {}, sources }, rules) {
+  function prepare({ folder, settings = {}, sources }) {
     const p = projectFor(folder)
     const { options, config } = resolveOptions({
       cwd: folder, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
@@ -89,7 +98,8 @@ export function createCore() {
     const { files } = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs })
     if (!files.length) return null
 
-    let { project, diags } = build(files, options, srcs, p.cache, rules)
+    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache: p.cache })
+    let project = buildWith(srcs)
     // last good findings: files that don't parse now, but did before
     const broken = new Set(project.parseErrors.map(e => e.file))
     for (const f of project.files.values()) if (f?.ast?.errors?.length) broken.add(f.path)
@@ -100,10 +110,12 @@ export function createCore() {
       substituted.set(abs, good.text)
       p.cache.store(abs, good) // put the good parse back: the second build re-parses nothing
     }
+    let parseErrors = []
     if (substituted.size) {
-      const parseErrors = diags.filter(d => isParseError(d) && substituted.has(path.resolve(folder, d.file)))
-      ;({ project, diags } = build(files, options, new Map([...srcs, ...substituted]), p.cache, rules))
-      diags = sortDiagnostics([...diags, ...parseErrors])
+      // (runRules with no rules: only the parse errors' SYG900)
+      parseErrors = runRules(project, [])
+        .filter(d => !options.ignore?.includes(d.code) && isParseError(d) && substituted.has(path.resolve(folder, d.file)))
+      project = buildWith(new Map([...srcs, ...substituted]))
     }
     // remember each file's last text that parsed cleanly
     const lastGood = new Map()
@@ -113,26 +125,60 @@ export function createCore() {
       if (entry && !entry.error && entry.text === f.source) lastGood.set(f.path, entry)
     }
     p.lastGood = lastGood
-    return { project, diags, options, config, srcs, substituted }
+    return { project, parseErrors, options, config, srcs, substituted }
   }
 
   /**
    * The occurrence index (positions.js) of a build; files checked with their last good text are
-   * left out. `flow` (flow.js): what each action does and what triggers it, for code lens.
+   * left out. `flow` (flow.js): what each action does and what triggers it, for code lens;
+   * `verdicts`: the check's SYG101/SYG102 reports (tapVerdicts), else buildFlow runs those rules.
    */
-  const indexOf = (project, substituted) => ({ ...buildIndex(project, { exclude: new Set(substituted.keys()) }), flow: buildFlow(project) })
+  const indexOf = (project, substituted, verdicts) => ({ ...buildIndex(project, { exclude: new Set(substituted.keys()) }), flow: buildFlow(project, verdicts) })
 
-  function check({ folder, settings = {}, sources }) {
+  function check({ folder, settings = {}, sources }, { part, wanted, defer } = {}) {
     const t0 = performance.now()
     const logs = []
-    const prep = prepare({ folder, settings, sources }, true)
+    const prep = prepare({ folder, settings, sources })
     if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0 }
     const { project, options, config, srcs, substituted } = prep
-    let { diags } = prep
-    const index = indexOf(project, substituted)
+    const substitutedList = [...substituted.keys()]
+    const hasComponents = project.components.length > 0
 
-    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, index, completion: null, ms: performance.now() - t0 }
-    const completion = completionIndex(project, { substituted: new Set(substituted.keys()) })
+    // SYG101 / SYG102 first (their reports are the flow's verdicts), then the other rules
+    const selected = selectRules({ strict: options.strict, a11y: options.a11y })
+    const { rules, verdicts } = tapVerdicts(selected)
+    const first = rules.filter((r, i) => r !== selected[i]) // the tapped two
+    let diags = runRules(project, first, { parseErrors: false })
+    const indexNow = () => indexOf(project, substituted, verdicts)
+    const completionNow = () => hasComponents ? completionIndex(project, { substituted: new Set(substituted.keys()) }) : null
+    // where the index and the completion index go (see "Parts" above)
+    const early = !!part && (!defer || wanted?.() !== false)
+    let index
+    if (early) part({ index: indexNow(), substituted: substitutedList, ms: performance.now() - t0 })
+    else if (!part) index = indexNow()
+    const late = !!(part && defer)
+    if (late) {
+      defer(() => {
+        const out = {}
+        try {
+          if (!early) Object.assign(out, { index: indexNow(), substituted: substitutedList })
+          out.completion = completionNow()
+        } catch (err) {
+          // never leave a request waiting for this index: an empty one, and the error
+          if (!early && out.index === undefined) Object.assign(out, { index: null, substituted: substitutedList })
+          out.completion ??= null
+          out.error = err?.stack || String(err)
+        }
+        part(out)
+      })
+    }
+    // the result: with the index unless it went as a part, with the completion index unless late
+    const result = (res) => late ? { ...res, late: true } : { ...res, ...(part ? {} : { index }), completion: completionNow() }
+
+    if (!hasComponents) return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0 })
+    diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
+    if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
+    diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
     // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
     const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
     if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
@@ -161,13 +207,13 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, index, completion, ms: performance.now() - t0 }
+    return result({ files: out, texts: [...texts], logs, substituted: substitutedList, components: project.components.length, ms: performance.now() - t0 })
   }
 
   /** The occurrence index of the folder as `sources` has it, without running the rules (navigation on a changed document). */
   function index({ folder, settings = {}, sources }) {
     const t0 = performance.now()
-    const prep = prepare({ folder, settings, sources }, false)
+    const prep = prepare({ folder, settings, sources })
     if (!prep) return { index: null, substituted: [], ms: performance.now() - t0 }
     return { index: indexOf(prep.project, prep.substituted), substituted: [...prep.substituted.keys()], ms: performance.now() - t0 }
   }

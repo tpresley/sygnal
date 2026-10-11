@@ -338,8 +338,22 @@ export function createLspServer({
         const sources = overlaysUnder(folder)
         const snap = nav.snapshot(sources)
         inFlight = folder
-        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources })
-          .then(res => { if (projects.has(folder) && !exited) lens.checked(folder, nav.accept(folder, snap, res)); apply(folder, res, sources) }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+        // the index and completion index come as parts (core.js "Parts"): the index early when a
+        // request waits, else with the completion index after the diagnostics; the check is in
+        // flight until that late part (the lens refresh check after the requests it releases)
+        let lateIn
+        const late = new Promise(r => { lateIn = r })
+        const onPart = (part) => {
+          if (projects.has(folder) && !exited) {
+            if (part.completion !== undefined) projects.get(folder).completion = indexState(part.completion, sources)
+            if (part.error) log('error', `check of ${folder}: ${part.error}`)
+            const entry = nav.indexPart(folder, snap, part)
+            if (entry) setImmediate(() => { if (projects.has(folder) && !exited) lens.checked(folder, entry) })
+          }
+          if (part.completion !== undefined) lateIn()
+        }
+        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources }, { onPart })
+          .then(res => { if (projects.has(folder) && !exited) lens.checked(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
         nav.track(folder, snap, checked)
         checked.finally(() => { inFlight = null; pump() })
         return
@@ -355,7 +369,7 @@ export function createLspServer({
   function apply(folder, res, sources) {
     const p = projects.get(folder)
     if (!p || exited) return
-    p.completion = indexState(res.completion, sources)
+    if (res.completion !== undefined) p.completion = indexState(res.completion, sources)
     p.checked = new Map(res.texts)
     p.substituted = new Set(res.substituted)
     for (const l of res.logs) log(l.level, l.message)

@@ -33,6 +33,14 @@
 //   a standalone script: 412-433 ms, the worker's check 261-280 ms + the 150 ms debounce); hover
 //   during a check 0.3 ms. The headroom was ~10 %, the same as the check gate's (G-660).
 //   After G-660 (merged): didChange → publish median 263-264 ms (253-276) under vitest, hover 0.3 ms.
+//   After P4-1..P4-4 (completion index, code lens flow, the rest of N-1 built and posted with every
+//   check): didChange → publish 323-340 ms, definition right after a save 153-180 ms (over its
+//   limit), right after a change 84-87 ms, during a check 211-233 ms. P4 perf (p7-p4-perf): the
+//   index goes early (before the rules) only when a request waits on the check, else after the
+//   diagnostics with the completion index (core.js "Parts"); the flow reuses the check's SYG101 /
+//   SYG102 reports and caches its reference walk per AST; buildIndex dedupes on short keys; the
+//   lens signature groups by file once. 4 runs alone: didChange → publish 266-268 ms, after a
+//   save 66-68 ms, after a change 68-75 ms, during a check 183-188 ms, hover 0.2-0.3 ms.
 //
 // Measured 2026-10-10 (Apple M3 Max, Node 24.14.0), bench-edit.mjs beside gen-large.mjs:
 //   cold 438 ms, warm without a cache 351 ms, warm with the cache after a one-file edit 272 ms

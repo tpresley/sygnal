@@ -5,7 +5,9 @@
  *   createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriFor, requestClient, log? }) → {
  *     codeLens(params) → CodeLens[] | null | Promise<…>
  *     executeCommand(params) → Location[]            (the server command, GO_TO)
- *     checked(folder, entry)                          after a check: refresh when the lenses changed
+ *     checked(folder, entry)                          after a check's index (a part or the result):
+ *                                                     refresh when the lenses changed; the same
+ *                                                     entry again, or none: nothing
  *     drop(folder)
  *   }
  *
@@ -60,17 +62,20 @@ export function commandStrategy(caps = {}, initOptions = {}) {
 
 export function createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriFor, requestClient, log = () => {} }) {
   const signatures = new Map() // folder → signature of the last check's lenses
+  const lastEntry = new Map() // folder → the index entry they were computed from
   let strategy
   const strategyNow = () => strategy === undefined ? (strategy = commandStrategy(caps(), initOptions())) : strategy
 
   const location = (o) => ({ uri: uriFor(o.file), range: rangeOf(o) })
 
-  /** The lenses of one file of an index entry: [{ occ, title, targets }]. */
-  function lensesOf(entry, abs) {
+  const namesCache = new WeakMap() // index → Map<component id, name>
+
+  /** The lenses of one file of an index entry: [{ occ, title, targets }] (`occs`: that file's occurrences). */
+  function lensesOf(entry, abs, occs = entry.index.occurrences.filter(o => o.file === abs)) {
     const { lookup, index } = entry
     const flow = index.flow || {}
-    const names = new Map(index.components.map(c => [c.id, c.name]))
-    const occs = index.occurrences.filter(o => o.file === abs)
+    let names = namesCache.get(index)
+    if (!names) namesCache.set(index, names = new Map(index.components.map(c => [c.id, c.name])))
     const out = []
     for (const o of occs) {
       let lens = null
@@ -197,8 +202,13 @@ export function createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriF
     if (!enabled(folder)) return 'off'
     if (!entry?.index) return ''
     const parts = []
-    for (const abs of new Set(entry.index.occurrences.map(o => o.file))) {
-      for (const l of lensesOf(entry, abs)) {
+    const byFile = new Map() // (one pass, not a filter per file)
+    for (const o of entry.index.occurrences) {
+      const list = byFile.get(o.file)
+      if (list) list.push(o); else byFile.set(o.file, [o])
+    }
+    for (const [abs, occs] of byFile) {
+      for (const l of lensesOf(entry, abs, occs)) {
         parts.push(`${abs}\0${l.title}\0${l.targets.map(t => `${t.file}:${t.line}:${t.column}`).join(',')}`)
       }
     }
@@ -206,6 +216,10 @@ export function createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriF
   }
 
   function checked(folder, entry) {
+    // nothing new: no entry yet (a check whose index comes after its result), or the same entry
+    // again (a check's result after its index part, navigation.js)
+    if (!entry || lastEntry.get(folder) === entry) return
+    lastEntry.set(folder, entry)
     let sig
     try {
       sig = signatureOf(folder, entry)
@@ -221,7 +235,7 @@ export function createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriF
     requestClient('workspace/codeLens/refresh', undefined, 5000)
   }
 
-  const drop = (folder) => { signatures.delete(folder) }
+  const drop = (folder) => { signatures.delete(folder); lastEntry.delete(folder) }
 
   return { codeLens, executeCommand, checked, drop }
 }

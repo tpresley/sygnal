@@ -8,8 +8,12 @@
  *     snapshot(sources)                  before a check is sent: its sequence number and the
  *                                        hashes of the overlays it is sent with
  *     accept(folder, snap, result)       a check's (or an index call's) result: keeps its index
- *                                        when it is newer than the one kept
- *     track(folder, snap, promise)       a check in flight (settles after its accept())
+ *                                        when it is newer than the one kept (a check whose index
+ *                                        is a part: the entry of its early part, else the kept one)
+ *     indexPart(folder, snap, part)      a check's index part (core.js "Parts"): accepted, and the
+ *                                        requests waiting on that check answered
+ *     track(folder, snap, promise)       a check in flight (settles after its accept()), until
+ *                                        its index is in
  *     drop(folder)
  *     definition(params) → Location[] | null | Promise<…>
  *     references(params) → Location[] | null | Promise<…>
@@ -22,7 +26,10 @@
  * documents as they are now (same set of overlays, same text hashes) and the requested document
  * wasn't checked with its last good text. Otherwise (a document changed since the last check, a
  * request during the debounce) the request waits for a check in flight that was sent with the
- * documents as they are now (a save starts one at once), else it goes to the worker as an `index` call: the model is
+ * documents as they are now (a save starts one at once) until its index arrives: the request asks
+ * for it (checker.wantIndex), so the worker posts it before running the rules if the check hasn't
+ * got that far, else right after the diagnostics (core.js "Parts"). Else it goes to the worker as
+ * an `index` call: the model is
  * built with the current overlays and the warm parse cache (no rules), and its index answers the
  * request and replaces the kept one. Concurrent stale requests share one call. A document that
  * doesn't parse has no occurrences of its own (its last good text's positions may be off):
@@ -35,8 +42,9 @@ import { createLookup } from '../model/positions.js'
 export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log = () => {} }) {
   const kept = new Map() // folder → { seq, hashes: Map<abs, hash>, substituted: Set, lookup }
   const pending = new Map() // folder → { signature, promise }
-  const checking = new Map() // folder → { snap, promise }: the check in flight
+  const checking = new Map() // folder → { snap, ready, done, indexLate }: the check in flight (until its index is in)
   const hashCache = new Map() // abs → { text, hash }
+  const partEntries = new WeakMap() // snap → the entry of its check's index part
   let seq = 0
 
   const hashOf = (abs, text) => {
@@ -63,6 +71,15 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
 
   function accept(folder, snap, res) {
     if (!res) return null
+    // a check whose index comes as a part (core.js "Parts"): the entry made from it if it came
+    // early; else it comes after this result (the check stays in flight for requests until then)
+    // and the entry kept now stands
+    if (res.index === undefined) {
+      if (partEntries.has(snap)) return partEntries.get(snap)
+      const c = checking.get(folder)
+      if (c?.snap === snap) c.indexLate = true
+      return kept.get(folder) || null
+    }
     // forget the hashes of documents closed since (the cache holds their text)
     for (const abs of hashCache.keys()) if (!snap.hashes.has(abs) && folderOf(abs) === folder) hashCache.delete(abs)
     const entry = entryOf(snap, res)
@@ -72,10 +89,30 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
   }
 
   function track(folder, snap, promise) {
-    const c = { snap, promise }
+    let ready
+    const c = { snap, ready: new Promise(r => { ready = r }), indexLate: false }
+    // done: its index is in (a part, or the result), or it failed: release the requests waiting
+    c.done = () => {
+      ready()
+      if (checking.get(folder) === c) checking.delete(folder)
+    }
     checking.set(folder, c)
-    const clear = () => { if (checking.get(folder) === c) checking.delete(folder) }
-    promise.then(clear, clear)
+    promise.then(() => { if (!c.indexLate) c.done() }, c.done)
+    if (partEntries.has(snap)) c.done()
+  }
+
+  /**
+   * A check's index as a part (core.js "Parts": early, before its rules run, or late, after its
+   * result): kept like a result, and the requests waiting on that check are answered from it now.
+   * Returns the entry (for code lens); null for a part without an index.
+   */
+  function indexPart(folder, snap, part) {
+    if (part?.index === undefined) return null
+    const entry = accept(folder, snap, part) || entryOf(snap, part)
+    partEntries.set(snap, entry)
+    const c = checking.get(folder)
+    if (c?.snap === snap) c.done()
+    return entry
   }
 
   function drop(folder) {
@@ -99,7 +136,9 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
     const c = checking.get(folder)
     if (c && matches(c.snap.hashes, sources)) {
       log('debug', `navigation: waiting for the check in flight (${folder})`)
-      return c.promise.then(() => { const k2 = kept.get(folder); return k2?.seq >= c.snap.seq ? k2 : null })
+      checker.wantIndex?.()
+      // (ready: its index arrived, or the check failed)
+      return c.ready.then(() => { const k2 = kept.get(folder); return k2?.seq >= c.snap.seq ? k2 : null })
     }
     const snap = snapshot(sources)
     const signature = [...snap.hashes].map(([a, h]) => `${a}\0${h}`).sort().join('\n')
@@ -171,5 +210,5 @@ export function createNavigation({ checker, overlaysUnder, settingsFor, folderOf
     return request(params, (lookup, occs) => lookup.references(occs, includeDeclaration).map(location))
   }
 
-  return { snapshot, accept, track, drop, definition, references, entryFor }
+  return { snapshot, accept, indexPart, track, drop, definition, references, entryFor }
 }

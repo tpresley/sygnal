@@ -157,6 +157,17 @@ function lineStarts(text) {
   return out
 }
 
+/** A file's line starts, kept per AST (the parse cache reuses ASTs, and their texts, across builds). */
+const lineStartsCache = new WeakMap()
+function lineStartsOf(file) {
+  const key = file.ast?.program
+  const c = key && lineStartsCache.get(key)
+  if (c && c.text === file.source) return c.starts
+  const starts = lineStarts(file.source)
+  if (key) lineStartsCache.set(key, { text: file.source, starts })
+  return starts
+}
+
 /**
  * A name built from module constants, when it has exactly one value: { value, via: [{ file, node }] }
  * (via: the declarations it went through), or null.
@@ -254,13 +265,23 @@ const patternHit = (sink, kind, name) => (kind === 'class' ? sink.classes : sink
 export function buildIndex(project, { exclude } = {}) {
   const components = []
   const occurrences = []
-  const seen = new Set()
+  const seen = new Map() // abs → Set of dedupe keys
   const lines = new Map() // abs → line starts
+  // the long ids (component, target: 'absPath:…') as small numbers in the dedupe keys
+  const ids = new Map()
+  const short = (s) => {
+    if (s == null) return String(s)
+    let i = ids.get(s)
+    if (i === undefined) ids.set(s, i = ids.size)
+    return i
+  }
 
   const push = (abs, r, h, props) => {
-    const dedupe = `${abs}\0${r.start}\0${r.end}\0${props.kind}\0${props.name}\0${props.component}\0${props.scope ?? ''}\0${props.target ?? ''}`
-    if (seen.has(dedupe)) return null
-    seen.add(dedupe)
+    let inFile = seen.get(abs)
+    if (!inFile) seen.set(abs, inFile = new Set())
+    const dedupe = `${r.start}\0${r.end}\0${props.kind}\0${props.name}\0${short(props.component)}\0${props.scope ?? ''}\0${props.target == null ? '' : short(props.target)}`
+    if (inFile.has(dedupe)) return null
+    inFile.add(dedupe)
     const o = { file: abs, ...r, hit: h, ...props }
     if (props.component && !props.ns && BUILTIN_ACTIONS.has(props.name)) o.builtin = true
     occurrences.push(o)
@@ -290,7 +311,7 @@ export function buildIndex(project, { exclude } = {}) {
     const abs = pathOf(file)
     if (!abs || exclude?.has(abs) || typeof file.source !== 'string') return null
     let ls = lines.get(abs)
-    if (!ls) lines.set(abs, ls = lineStarts(file.source))
+    if (!ls) lines.set(abs, ls = lineStartsOf(file))
     const lc = (off) => {
       let lo = 0, hi = ls.length - 1
       while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ls[mid] <= off) lo = mid; else hi = mid - 1 }
@@ -583,7 +604,9 @@ export function buildIndex(project, { exclude } = {}) {
     }
   }
 
-  occurrences.sort((a, b) => a.file < b.file ? -1 : a.file > b.file ? 1 : a.hit.start - b.hit.start || a.start - b.start)
+  // by file (each path's rank in code-unit order, not a string comparison per pair), then position
+  const rank = new Map([...new Set(occurrences.map(o => o.file))].sort().map((f, i) => [f, i]))
+  occurrences.sort((a, b) => rank.get(a.file) - rank.get(b.file) || a.hit.start - b.hit.start || a.start - b.start)
   return { components, occurrences, flags: { dynamicSelected, dynamicEmitted } }
 }
 
