@@ -49,6 +49,11 @@
  * Code lens (PLAN-7 P4-4, codelens.js): on intent keys, model keys and EVENTS selects / emits,
  * from the same index; `sygnal.codeLens: false` turns it off. `workspace/codeLens/refresh` after
  * a check that changed the lenses (when the client supports it); the jump command per client.
+ *
+ * Rename (PLAN-7 P4-5, rename.js): prepareRename / rename of actions, EVENTS types, class / id
+ * tokens, state keys and context entries, always on the documents as they are (the worker's
+ * `rename` call); refusals are errors with the reason; test files' mentions are offered as a
+ * group that needs confirmation (change annotations), else left out with a warning.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -59,6 +64,7 @@ import { getExplanation } from '../explain.js'
 import { lineStarts } from '../edits.js'
 import { textHash } from './convert.js'
 import { createNavigation } from './navigation.js'
+import { createRename } from './rename.js'
 import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
 import { createCodeLens, GO_TO } from './codelens.js'
 
@@ -319,6 +325,12 @@ export function createLspServer({
     enabled: (folder) => ({ ...initSettings, ...(folderSettings.get(folder) || {}) }).codeLens !== false,
   })
 
+  // PLAN-7 P4-5: rename (rename.js), always on the documents as they are now
+  const renamer = createRename({
+    checker, overlaysUnder, settingsFor, folderOf, uriFor, caps: () => clientCaps, log,
+    notify: (type, message) => write({ method: 'window/showMessage', params: { type, message } }),
+  })
+
   const scheduleFor = (abs, delay) => { for (const f of folderList()) if (within(abs, f)) schedule(f, delay) }
 
   function isIdle() {
@@ -455,6 +467,7 @@ export function createLspServer({
           definitionProvider: true,
           referencesProvider: true,
           codeLensProvider: { resolveProvider: false },
+          renameProvider: clientCaps.textDocument?.rename?.prepareSupport ? { prepareProvider: true } : true,
           executeCommandProvider: { commands: [GO_TO] },
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
         },
@@ -587,6 +600,9 @@ export function createLspServer({
   requests['textDocument/references'] = (params) => nav.references(params)
   // PLAN-7 P4-4: code lens (codelens.js)
   requests['textDocument/codeLens'] = (params) => lens.codeLens(params)
+  // PLAN-7 P4-5: rename (rename.js)
+  requests['textDocument/prepareRename'] = (params) => renamer.prepareRename(params)
+  requests['textDocument/rename'] = (params) => renamer.rename(params)
   requests['workspace/executeCommand'] = (params) => {
     if (params.command !== GO_TO) throw new ResponseError(ErrorCodes.InvalidParams, `unknown command: ${params.command}`)
     return lens.executeCommand(params)
