@@ -119,8 +119,7 @@ HMR wiring is only added for a top-level `run()` call in a recognized shape. If 
 
 If you prefer not to use the plugin, configure JSX manually:
 
-```javascript
-// vite.config.js (Vite 8)
+```javascript title="vite.config.js (Vite 8)"
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -132,8 +131,7 @@ export default defineConfig({
 
 Under Vite 7 and older, use the `esbuild` options instead:
 
-```javascript
-// vite.config.js (Vite 7)
+```javascript title="vite.config.js (Vite 7)"
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -146,7 +144,7 @@ export default defineConfig({
 
 For TypeScript projects, also add to `tsconfig.json`:
 
-```json
+```json title="tsconfig.json"
 {
   "compilerOptions": {
     "jsx": "react-jsx",

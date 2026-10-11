@@ -382,7 +382,8 @@ run(App, {}, {
 })
 ` },
 
-  vikeOnError: { page: 'advanced/error-boundaries.md', code: `// pages/+sygnalOnError.js: used by renderToString on the server and by run() in the browser
+  vikeOnError: { page: 'advanced/error-boundaries.md', code: `// pages/+sygnalOnError.js
+// used by renderToString on the server and by run() in the browser
 export default function sygnalOnError(error, { componentName, action, phase }) {
   console.error('[' + phase + ']', componentName, action, error)
 }

@@ -128,7 +128,7 @@ export default defineConfig({
 
 Start the dev server, open the app in a browser, and point the agent at the endpoint. Claude Code reads `.mcp.json` in the project root:
 
-```json
+```json title=".mcp.json"
 {
   "mcpServers": {
     "sygnal-dev": { "type": "http", "url": "http://localhost:5173/__sygnal/mcp" }

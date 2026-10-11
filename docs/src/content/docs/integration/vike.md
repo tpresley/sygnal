@@ -36,6 +36,7 @@ HMR is disabled because Vike manages its own module reloading. The Sygnal plugin
 Create `pages/+config.js` to extend the Sygnal config:
 
 ```javascript
+// pages/+config.js
 import vikeSygnal from 'sygnal/config'
 
 export default {
@@ -254,7 +255,8 @@ export default {
 Components use them just like in a standalone Sygnal app ([HTTP](/guide/http/), [Sockets](/guide/sockets/)):
 
 ```jsx
-function Dashboard({ state }) {
+// pages/dashboard/+Page.jsx
+export default function Dashboard({ state }) {
   return (
     <div>
       {state.messages.length} messages

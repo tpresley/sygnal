@@ -321,7 +321,8 @@ getDevTools().configureCopyAsTest({
   environment: 'jsdom',
 })
 ` },
-  dtFromCode: { page: 'integration/debugging.md', lang: 'javascript', code: `// main.dev.js: the development entry
+  dtFromCode: { page: 'integration/debugging.md', lang: 'javascript', code: `// main.dev.js
+// the development entry
 import { copyAsTest, getActions } from 'sygnal/devtools'
 import { run } from 'sygnal'
 import App from './App.jsx'
@@ -340,7 +341,8 @@ export default defineConfig({
   plugins: [sygnal({ devtools: { redux: true } })],
 })
 ` },
-  dtRedux: { page: 'integration/debugging.md', lang: 'javascript', code: `// main.dev.js: the development entry
+  dtRedux: { page: 'integration/debugging.md', lang: 'javascript', code: `// main.dev.js
+// the development entry
 import { connectReduxDevtools } from 'sygnal/devtools'
 import { run } from 'sygnal'
 import App from './App.jsx'

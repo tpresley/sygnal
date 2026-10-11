@@ -10,7 +10,8 @@ In Sygnal that bridge is a driver. The view is an ordinary component.
 ## The view
 
 ```jsx
-// App.jsx: the view of the get_forecast tool
+// App.jsx
+// the view of the get_forecast tool
 function App({ state }) {
   return (
     <main>
@@ -170,7 +171,8 @@ run(App, { MCP: makeMcpAppDriver({ tools: agentTools }) })
 ```
 
 ```jsx
-// App.jsx: what the model may do in the view
+// App.jsx
+// what the model may do in the view
 import { z } from 'zod'
 
 App.model = {

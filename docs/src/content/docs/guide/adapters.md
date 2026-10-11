@@ -26,7 +26,8 @@ npm install react react-dom
 The React component here is a small one of our own, written with React's `createElement` (the JSX on these pages is Sygnal's); a component from npm is wrapped the same way:
 
 ```js live-file=./Rating.js
-// Rating.js: a React component
+// Rating.js
+// a React component
 import { createElement as h } from 'react'
 
 export function Rating({ value, max, onChange }) {
