@@ -305,6 +305,7 @@ Now when you edit your component, the page updates without losing state.
 If you prefer not to use JSX, import `h` from Sygnal and use hyperscript-style calls:
 
 ```javascript
+// src/main.js
 import { h, run } from 'sygnal'
 
 function RootComponent({ state }) {
@@ -343,7 +344,7 @@ export default defineConfig({
 
 Then use Sygnal components in `.astro` files with client directives:
 
-```astro
+```astro title="src/pages/index.astro"
 ---
 import Counter from '../components/Counter.jsx'
 ---

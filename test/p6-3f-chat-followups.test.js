@@ -221,6 +221,8 @@ describe('G-626: STOP during a tool batch', () => {
     const [a, b] = t.state.assistant.messages.at(-1).parts.filter((p) => p.type.startsWith('tool-'))
     expect(t.state.todos.map((x) => x.text)).toEqual([EVIL, 'one'])
     expect(a).toMatchObject({ state: 'output-available', output: { ok: true } })
+    // the late result replaces the "not run" error: no stale errorText on an output-available part
+    expect(a).not.toHaveProperty('errorText')
     expect(b).toMatchObject({ state: 'output-error', errorText: 'not run: stopped by the user' })
     expect(t.state.assistant.status).toBe('ready')
     expect(t.requests('LLM').length).toBe(1)

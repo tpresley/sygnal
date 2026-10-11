@@ -71,6 +71,7 @@ TodoApp.agent = {
 | `label(state)` | A [Collection item](#collection-items)'s label for the model |
 | `untrusted` | `read` returns text users typed (see [Security](#security)). Unset, Sygnal infers it from the strings in the projection |
 | `actions` | The only actions agents may run, by action name |
+| `queries` | Read-only tools that take an input: data too large for `read`, or answers computed from the state ([Queries](#queries)) |
 
 Each entry of `actions`:
 
@@ -81,6 +82,8 @@ Each entry of `actions`:
 | `consequential` | Ask the user before running it |
 | `when(state)` | The tool is offered only while this is true |
 | `idempotent` | A call that changes nothing is a success (`{ ok: true, unchanged: true }`), not an error |
+| `until` | The call answers once the action's result is in state: a resource name, or a function of the state ([Waiting for a result](#waiting-for-a-result-until)) |
+| `timeout` | With `until`: how long to wait, in ms (default 10,000) |
 
 ### Input schemas
 
@@ -111,7 +114,7 @@ In TypeScript, on a component typed with its actions ([TypeScript](/integration/
 
 ## What agents see
 
-**Tools.** One per listed action, plus `<name>_read` when the declaration has a `read`. The todo app above offers:
+**Tools.** One per listed action and [query](#queries), plus `<name>_read` when the declaration has a `read`. The todo app above offers:
 
 | Tool | Input | Hints |
 |---|---|---|
@@ -133,7 +136,7 @@ Every call, from any kind of agent, goes through the same steps:
 2. **Availability.** A tool whose `when` is false now gets `{ ok: false, error: 'todos_clear_done is not available now' }`.
 3. **Confirmation.** A `consequential` action waits for the user (each consumer asks in its own way). A declined call is `{ ok: false, error: 'the user declined' }`. The target and `when` are checked again after the answer.
 4. **Dispatch.** The action runs with `cause: 'agent'`, through the same queue, reducers and render as a click. It shows in `t.actions`, the DevTools action log and the dev MCP endpoint's `recent_actions` with that cause.
-5. **The result**, after the render: `{ ok: true, state }`, where `state` is the nearest `read` projection (the component's, or for an item, its own or its list's).
+5. **The result**, after the render: `{ ok: true, state }`, where `state` is the nearest `read` projection (the component's, or for an item, its own or its list's). An action with [`until`](#waiting-for-a-result-until) answers later, once its result is in state.
 
 **No-op detection.** A call succeeds when one of the action's handlers had an effect: a reducer changed the state, a driver sink got a value, or an `EFFECT` ran. A call that changed nothing is reported as a failure, not a false success. Here, `SET_FILTER` to the filter already set, on an action without `idempotent`:
 
@@ -159,6 +162,107 @@ TodoApp.model = {
 A refusal is reported even on an `idempotent` action.
 
 **One at a time.** Calls run serially, in the order the model made them, so each one sees the previous one's result. A model that sends three calls at once gets three results computed in sequence.
+
+## Waiting for a result: `until`
+
+Some actions only start something: a search sets the query, and a [`resources`](/guide/resources/) entry fetches the results. Right after the action, the results aren't there yet, so the call would answer with `status: 'loading'`, and the model would have to guess or ask again. With `until`, the call answers once the result is in state:
+
+```jsx
+// Shop.jsx
+import { z } from 'zod'
+
+export default function Shop({ state }) {
+  const { status, data } = state.search
+  return (
+    <section>
+      {status === 'loading' && <p>Searching…</p>}
+      <ul className="results">{(data ?? []).map((p) => <li key={p.id}>{p.name}</li>)}</ul>
+    </section>
+  )
+}
+
+Shop.initialState = { query: '' }
+
+Shop.resources = { search: (state) => state.query && { url: '/api/search', query: { q: state.query } } }
+
+Shop.model = { SEARCH: (state, query) => ({ ...state, query }) }
+
+Shop.agent = {
+  name: 'shop',
+  description: 'The product search the user sees',
+  read: (state) => ({ query: state.query, status: state.search.status, results: (state.search.data ?? []).map(({ id, name }) => ({ id, name })) }),
+  actions: {
+    SEARCH: { description: 'Search the catalog; the results show on the page', input: z.string().min(1), until: 'search' },
+  },
+}
+```
+
+`shop_search({ value: 'red shoes' })` now answers with the results the user sees, `{ ok: true, state: { query: 'red shoes', status: 'success', results: [...] } }`, or with `status: 'error'` when the request failed.
+
+- **`until: 'search'`** names one of the component's resources. The call answers once that resource is neither loading nor refreshing, so a [`keepPrevious`](/guide/resources/) request or a refetch, which keep the status and set `refreshing`, are waited for too. A name the component's `resources` doesn't have is [SYG248](/reference/errors/#syg248): the call answers at once.
+- **`until: (state) => boolean`** is for a result a reply action writes (a driver request with an `ok` action). The action's own reducer must mark it pending, `status: 'loading'`, so the test is false right after the action: `until: (state) => state.status !== 'loading'`. A throwing `until` ends the wait ([SYG241](/reference/errors/#syg241)).
+- **The test runs after the action's render and after every render that changed something.** A result already in state answers at once.
+- **No result within `timeout`** (default 10 s): `{ ok: true, pending: true, note, state }`. The note tells the model the result will be in the app state later, where the `chat` behavior's next request shows it.
+- **Calls run one at a time**, so a waiting call delays the model's next one. The [`chat` behavior](#an-in-app-assistant-chat) ends the wait when the user presses Stop or sends a new message (the call answers `pending`), and `agentTools()` has `cancel()` for other consumers.
+- An item that removes itself while its call waits answers `{ ok: true, removed: true, state }`.
+
+The side effect stays where it was: the request goes through `resources` or a driver, and a test answers it with the fetch fake, `await t.respond('HTTP', [...])`. `t.callTool()` waits for it like any agent.
+
+## Queries
+
+`read` goes to the model whole, with every request. That suits a summary, not a table of 5,000 invoices: sending them all costs tokens on every turn, and a model reads a long list badly anyway. A query is a read-only tool that takes an input and answers from the state: the model asks for the overdue invoices of one customer and gets those.
+
+```jsx
+// Invoices.jsx
+import { z } from 'zod'
+
+export default function Invoices({ state }) {
+  return <p className="count">{state.invoices.length} invoices</p>
+}
+
+Invoices.initialState = { invoices: [] }
+
+const Filter = z.object({
+  customer: z.string().optional().describe('The customer name'),
+  overdue: z.boolean().optional(),
+})
+
+Invoices.agent = {
+  name: 'invoices',
+  description: 'The invoices',
+  untrusted: true,
+  read: (state) => ({ count: state.invoices.length }),   // the summary, on every request
+  queries: {
+    // invoices_find({ customer?, overdue? })
+    find: {
+      description: 'The invoices matching a filter, at most 50',
+      input: Filter,
+      run: (state, { customer, overdue }) => state.invoices
+        .filter((i) => (customer === undefined || i.customer === customer) && (overdue === undefined || i.overdue === overdue))
+        .slice(0, 50),
+    },
+    // invoices_total()
+    total: { description: 'The sum of all invoices', run: (state) => state.invoices.reduce((sum, i) => sum + i.total, 0) },
+  },
+}
+```
+
+| Key | What it does |
+|---|---|
+| `description` | What the query returns, for the model |
+| `input` | The schema of its input, as for an action ([Input schemas](#input-schemas)). Without one the query takes no arguments |
+| `when(state)` | The tool is offered only while this is true |
+| `run(state, input)` | The result: a pure, synchronous function of the component's state now and the validated input |
+
+- **A query is a tool named `<name>_<query>`**, marked read-only. It is offered next to the actions, to every kind of agent (the command bar, which picks one action, leaves read-only tools out).
+- **A call validates the input and checks `when`**, as for an action, then returns `{ ok: true, result }` with what `run` returned. Nothing is dispatched, nothing is confirmed, and nothing renders: a query can't change the app.
+- **It must be synchronous.** A `run` that returns a promise (an `async` function, a `fetch`) fails the call and is [SYG246](/reference/errors/#syg246), as is a query without `run`. Data that has to be loaded belongs to an action: its model entry asks for it (a [`resources`](/guide/resources/) entry or a driver request), and [`until`](#waiting-for-a-result-until) makes the call answer with the result.
+- **A throw** fails the call with its message and is [SYG241](/reference/errors/#syg241).
+- **Actions and queries share the tool names.** A query whose snake-case name is an action's (`find` next to `FIND`) is [SYG247](/reference/errors/#syg247), and only the action is offered.
+- **On a Collection item component**, a query gets the same key parameter as the item's actions (`contact_notes({ id, word })`), and answers from that item's state.
+- **Results are data.** When they hold text users typed, set `untrusted: true` on the declaration: WebMCP then marks the queries with `untrustedContentHint` too ([Security](#security)). Keep results small (filter, then cut): WebMCP cuts a result over 1,500 characters of JSON ([SYG242](/reference/errors/#syg242)).
+
+In TypeScript, `run`'s `state` is typed from the component; type the input yourself, `run: (state, input: z.infer<typeof Filter>) => …`, since it isn't inferred from `input`.
 
 ## Collection items
 
@@ -261,7 +365,7 @@ export default {
 }
 ```
 
-```jsx live live-height=380
+```jsx live live-height=380 title="TodoApp.jsx"
 import { z } from 'zod'
 import { Collection } from 'sygnal'
 import { chat, messageText } from 'sygnal/ai'
@@ -379,7 +483,7 @@ The slice, `state.assistant` for `uses = { assistant: chat(...) }`:
 | `pending` | A consequential call waiting for `APPROVE` / `DENY`: `{ tool, component, action, description, input, key?, label? }`, else `null` |
 | `error` | The last failure's message, else `null` |
 
-Actions, as `'assistant.X'`: `SEND` (the form's submit; or dispatch it with the text as data), `STOP` (aborts the reply, keeps the text so far, declines a waiting call), `REGENERATE` (sends the last user message again), `APPROVE`, `DENY`, and `DONE` (the turn is over: `{ message, text, finishReason, usage, steps }`; a host entry `'assistant.DONE'` runs after the behavior's).
+Actions, as `'assistant.X'`: `SEND` (the form's submit; or dispatch it with the text as data), `STOP` (aborts the reply, keeps the text so far, declines a waiting call, and answers a call waiting on [`until`](#waiting-for-a-result-until) as pending), `REGENERATE` (sends the last user message again), `APPROVE`, `DENY`, and `DONE` (the turn is over: `{ message, text, finishReason, usage, steps }`; a host entry `'assistant.DONE'` runs after the behavior's).
 
 **The markup belongs to the host's view.** A behavior listens to selectors in its host's own view, like every intent ([SYG104](/reference/errors/#syg104)): elements rendered inside a child component are out of its reach. So the panel is a plain function the host's view calls, `{assistantPanel(state.assistant)}`, not a `<AssistantPanel />` component. A function can still live in its own file and be shared.
 
@@ -416,7 +520,7 @@ export default {
 }
 ```
 
-```jsx live live-height=300
+```jsx live live-height=300 title="Commands.jsx"
 import { z } from 'zod'
 import { Collection } from 'sygnal'
 import { commandBar } from 'sygnal/ai'
@@ -583,6 +687,8 @@ it('is operable by agents', async () => {
 ```
 
 - `t.tools()` lists the offered tools, plus any declared tool that can't be offered (SYG240) with its `error`.
+- A [query](#queries) is called the same way: `await t.callTool('invoices_find', { customer: 'Acme' })` resolves with `{ ok: true, result }`.
+- A call to an action with [`until`](#waiting-for-a-result-until) resolves once its result is in state: start it, answer the request (`await t.respond('HTTP', data)`), then await it. Under `vi.useFakeTimers()`, advancing past `timeout` gives `{ ok: true, pending: true }`.
 - `t.callTool(name, args, { confirm })` resolves with the [call result](#the-call-rules) after the render. A consequential tool without `confirm` throws, so a test can't approve one by accident.
 - `t.agentContext()` returns what the model sees: one entry per declaration with a `read`, keyed by the declaration's `name`, holding what its `read` returned. That is why the example above reads `todos.todos`: the declaration is named `todos`, and its `read` returns `{ todos, filter }`. An item declaration's entry is an array with one projection per live item, each with its `id` (`{ todo: [{ id: 1, done: false }] }` for `read: (s) => ({ done: s.done })`).
 

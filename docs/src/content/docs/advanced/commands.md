@@ -41,7 +41,8 @@ App.model = {
 The child receives commands through the `commands$` source, which is automatically available when a `Command` object is passed as a prop:
 
 ```jsx live-file=./VideoPlayer.jsx
-// VideoPlayer.jsx: a stand-in that shows its state instead of a video
+// VideoPlayer.jsx
+// a stand-in that shows its state instead of a video
 export function VideoPlayer({ state }) {
   return <p className="player">{state.playing ? 'Playing' : 'Paused'} at {state.currentTime} s</p>
 }

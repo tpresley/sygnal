@@ -153,6 +153,7 @@ export default defineConfig({
 ### At runtime, from `run()`
 
 ```javascript
+// main.js
 import 'sygnal/diagnostics'   // dev only; the strict checks live in this entry
 import { run } from 'sygnal'
 import App from './App.jsx'

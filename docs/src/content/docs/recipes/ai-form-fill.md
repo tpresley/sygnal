@@ -36,7 +36,7 @@ export default {
 }
 ```
 
-```jsx live live-height=420
+```jsx live live-height=420 title="NewContact.jsx"
 import { z } from 'zod'
 import { ABORT, form } from 'sygnal'
 

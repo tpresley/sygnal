@@ -154,6 +154,7 @@ defineElement('score-card', ScoreCard, {
 ```
 
 ```html
+<!-- index.html -->
 <score-card title="Pasta" score="3"></score-card>
 <script>
   document.querySelector('score-card').addEventListener('score-change', (e) => console.log(e.detail.score))

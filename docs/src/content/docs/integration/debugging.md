@@ -85,7 +85,8 @@ The bridge is a development tool and is not part of production builds. With the 
 Import `sygnal/devtools` in development builds only, before `run()`. Components created before the import are not in the extension's tree, and their actions are not in the log.
 
 ```javascript
-// main.dev.js: the development entry
+// main.dev.js
+// the development entry
 import 'sygnal/devtools'
 import './main.js'
 ```
@@ -178,7 +179,8 @@ getDevTools().configureCopyAsTest({
 The same log and the same tests are available from `sygnal/devtools`, for a console helper or a dev-only script:
 
 ```javascript
-// main.dev.js: the development entry
+// main.dev.js
+// the development entry
 import { copyAsTest, getActions } from 'sygnal/devtools'
 import { run } from 'sygnal'
 import App from './App.jsx'
@@ -220,7 +222,8 @@ export default defineConfig({
 Without Vite, call `connectReduxDevtools()` from `sygnal/devtools` in the development entry:
 
 ```javascript
-// main.dev.js: the development entry
+// main.dev.js
+// the development entry
 import { connectReduxDevtools } from 'sygnal/devtools'
 import { run } from 'sygnal'
 import App from './App.jsx'

@@ -48,8 +48,11 @@ export const CODES = {
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
   SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
   // PLAN-6 K-1 (rules/syg150-agent.js): static counterparts of the agent layer's codes (G-611, G-591)
-  SYG240: { severity: 'error', title: 'Agent action input has no JSON Schema form' },
-  SYG243: { severity: 'warn', title: 'Agent action input schema converted with losses' },
+  SYG240: { severity: 'error', title: 'Agent action or query input has no JSON Schema form' },
+  SYG243: { severity: 'warn', title: 'Agent action or query input schema converted with losses' },
+  SYG246: { severity: 'error', title: 'Agent query is not a synchronous function' },
+  SYG247: { severity: 'warn', title: 'Agent query has the tool name of an action' },
+  SYG248: { severity: 'warn', title: 'Agent action until names no resource' },
   SYG401: { severity: 'warn', title: "Collection 'from' field is missing or not an array" },
   SYG440: { severity: 'warn', title: 'Two agent declarations with the same name' },
   SYG441: { severity: 'warn', title: 'Agent Collection items without unique ids' },

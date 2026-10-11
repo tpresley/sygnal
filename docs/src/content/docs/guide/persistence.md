@@ -216,7 +216,7 @@ The object you pass is used as the storage, not copied: writes land in it, and t
 
 With `format: 'plain'` the entries are the stored keys themselves, both in the `storage` option and from `t.storage(key)`:
 
-```jsx
+```jsx title="Note.test.jsx"
 it('saves the draft as { title, body }', async () => {
   const t = renderComponent(Note, { storage: { 'note-draft': { title: 'Groceries', body: '' } } })
   await t.ready()
