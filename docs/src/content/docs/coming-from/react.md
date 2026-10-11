@@ -3,7 +3,38 @@ title: Sygnal for React Developers
 description: What carries over from React, what's different, and the Sygnal version of the React patterns you already know, with every Sygnal sample live
 ---
 
-You already know most of what a Sygnal component is made of: JSX, function components, props, keys, and a virtual DOM that patches the page. This page maps the React habits you have onto Sygnal and explains the few places where Sygnal thinks differently. Every Sygnal sample on the page runs: edit it and the result updates.
+You already know most of what a Sygnal component is made of: JSX, function components, props, keys, and a virtual DOM that patches the page. Here is a whole component. Type your name and wave:
+
+```jsx live
+function Hello({ state }) {
+  return (
+    <div>
+      <label>Your name <input className="name" value={state.name} /></label>
+      <p>Hello, {state.name || 'stranger'}!</p>
+      <button className="wave">Wave</button> {state.waves > 0 && <span>× {state.waves}</span>}
+    </div>
+  )
+}
+
+// Your useState defaults
+Hello.initialState = { name: '', waves: 0 }
+
+// Your onChange and onClick, in one place
+Hello.intent = ({ DOM }) => ({
+  NAME: DOM.input('.name').value(),
+  WAVE: DOM.click('.wave'),
+})
+
+// Your setters, as pure functions
+Hello.model = {
+  NAME: (state, name) => ({ ...state, name }),
+  WAVE: (state) => ({ ...state, waves: state.waves + 1 }),
+}
+```
+
+The view is a plain function of state with no handlers in it. The `intent` says which events become which actions, and the `model` says what each action does to the state. That split is most of what's new; the rest of this page maps the React habits you have onto it and explains the few places where Sygnal thinks differently. Every Sygnal sample on the page runs: edit it and the result updates.
+
+**Try it:** press **Edit** and add a reset button. Put `<button className="reset">Reset</button>` in the view, `RESET: DOM.click('.reset')` in the intent, and `RESET: (state) => ({ ...state, name: '', waves: 0 })` in the model. Three lines, one in each part, and nothing else to wire.
 
 **The short version:** if you've used `useReducer` or Redux, you already know Sygnal's core idea. A component's state changes only through named actions handled by pure reducers. What's new is that the rest follows the same rule: clicks, timers, fetches and messages to the parent are all actions too, so a component has no hooks and no effects.
 

@@ -3,7 +3,38 @@ title: Sygnal for Vue Developers
 description: What carries over from Vue, what's different, and the Sygnal version of the Vue patterns you already know, with every Sygnal sample live
 ---
 
-Much of Vue has a direct counterpart in Sygnal: components with props, computed values, watchers, provide/inject, emits, slots, `<Transition>`, `<Teleport>`, `<KeepAlive>`. This page maps them onto Sygnal and explains the few places where Sygnal thinks differently. Every Sygnal sample on the page runs: edit it and the result updates.
+Much of Vue has a direct counterpart in Sygnal: components with props, computed values, watchers, provide/inject, emits, slots, `<Transition>`, `<Teleport>`, `<KeepAlive>`. Here is a whole component. Type your name and wave:
+
+```jsx live
+function Hello({ state }) {
+  return (
+    <div>
+      <label>Your name <input className="name" value={state.name} /></label>
+      <p>Hello, {state.name || 'stranger'}!</p>
+      <button className="wave">Wave</button> {state.waves > 0 && <span>× {state.waves}</span>}
+    </div>
+  )
+}
+
+// Your ref() start values
+Hello.initialState = { name: '', waves: 0 }
+
+// Your @input and @click, in one place
+Hello.intent = ({ DOM }) => ({
+  NAME: DOM.input('.name').value(),
+  WAVE: DOM.click('.wave'),
+})
+
+// Your functions, returning the next state
+Hello.model = {
+  NAME: (state, name) => ({ ...state, name }),
+  WAVE: (state) => ({ ...state, waves: state.waves + 1 }),
+}
+```
+
+The view is a plain function of state, written in JSX, with no `@` handlers in it. The `intent` says which events become which actions, and the `model` says what each action does to the state. That split is most of what's new; the rest of this page maps the Vue features you know onto it and explains the few places where Sygnal thinks differently. Every Sygnal sample on the page runs: edit it and the result updates.
+
+**Try it:** press **Edit** and add a reset button. Put `<button className="reset">Reset</button>` in the view, `RESET: DOM.click('.reset')` in the intent, and `RESET: (state) => ({ ...state, name: '', waves: 0 })` in the model. Three lines, one in each part, and nothing else to wire.
 
 **The short version:** Sygnal views are JSX rather than templates, and state is never mutated in place. A component's state changes only through named actions handled by pure functions, like Pinia actions that return the next state instead of assigning to it. Clicks, timers, fetches and messages to the parent are all actions, so a component has no lifecycle hooks and no watchers with side effects.
 
