@@ -145,7 +145,10 @@ export function createCodeLens({ nav, caps, initOptions, enabled, folderOf, uriF
         case 'agent': add('agent tool'); break
         case 'connection': add(t.key ? `connection (${t.key})` : 'connection'); break
         case 'uses': add(`behavior ${t.behavior}`); break
-        default: add(t.kind) // timer, resource, route, browser
+        default:
+          // a user behavior's own intent / next / reply / timer / option naming the action (P4-3)
+          if (t.kind.startsWith('behavior-')) add(`behavior ${t.behavior}`)
+          else add(t.kind) // timer, resource, route, browser
       }
     }
     for (const l of f?.extra?.[o.name] || []) add(l)

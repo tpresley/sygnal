@@ -388,15 +388,20 @@ describe('fixtures and examples', () => {
     const p = await open(copyFixture(path.join(repo, 'dev-plans/research/p7-spikes/0-S3/fixture')), { init: { initializationOptions: { paths: ['.'] } } })
     expect(await p.lenses('Edge.jsx')).toEqual([
       "SAVE → handled by model.SAVE · STATE, HTTP → LOADED/FAILED, LLM → TRIAGED, EVENTS 'SAVED'",
+      // a computed intent key ([ACTIONS.TICK]) resolved through its constant (P4-3)
+      'ACTIONS.TICK → handled by model.TICK · STATE',
       'EXTERNAL → no model entry',
-      // a computed intent key ([ACTIONS.TICK]): the intent can't be listed, so no SYG102 and no guess
+      // EVENTS.select(SAVED) with SAVED an imported constant, resolved (P4-3)
+      'SAVED → 2 emitters',
+      // the intent still has a computed key, so the rules don't list it: UNDO/REDO stay unknown
       'undoable → UNDO: trigger not known statically',
       'undoable → REDO: trigger not known statically',
       'SAVE → triggered by intent, agent tool',
-      "'SAVED' → no listeners", // the intent selects it through a constant (not followed)
+      "'SAVED' → 1 listener", // the constant-built select above
       'LOADED → triggered by reply (HTTP ok from SAVE), agent tool',
       'FAILED → triggered by reply (HTTP error from SAVE)',
-      'TICK → trigger not known statically',
+      'TICK → triggered by intent',
+      // the behavior definition's own intent key and the uses key: one label (P4-3)
       "'c.BUMP' → triggered by behavior c",
     ])
   })
