@@ -23,7 +23,8 @@ exports.run = async function run() {
   const out = { scenario: process.env.SCENARIO, steps: {} }
   const step = (k, v) => { out.steps[k] = v; fs.writeFileSync(process.env.RESULTS, JSON.stringify(out, null, 2)) }
   try {
-    await (process.env.SCENARIO === 'workspace' ? workspaceScenario : bundledScenario)(step)
+    const scenarios = { bundled: bundledScenario, workspace: workspaceScenario, features: require('./features.cjs').featuresScenario }
+    await scenarios[process.env.SCENARIO](step)
     out.ok = true
   } catch (err) {
     out.ok = false

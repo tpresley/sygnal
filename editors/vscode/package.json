@@ -1,8 +1,8 @@
 {
   "name": "sygnal",
   "displayName": "Sygnal",
-  "description": "Sygnal's static checker in the editor: wiring bugs that fail silently (intent/model/view, EVENTS, child components, Collections) as you type, with explanations and quick fixes.",
-  "version": "0.1.0",
+  "description": "Sygnal's static checker in the editor: wiring bugs that fail silently (intent/model/view, EVENTS, child components, Collections) as you type, with explanations, quick fixes, completions, go to definition, code lenses and a safe rename.",
+  "version": "0.2.0",
   "private": true,
   "publisher": "sygnal",
   "license": "MIT",
@@ -136,6 +136,15 @@
           "default": null,
           "scope": "resource",
           "markdownDescription": "Also show info findings (hints that need a judgment call), like `sygnal-check --verbose`. Unset (`null`): off."
+        },
+        "sygnal.codeLens": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Show code lenses above intent keys, model keys and EVENTS selects / emits: what handles an action, what triggers it, how many emitters or listeners an EVENTS type has. Click one to see the targets in a peek view. Unset (`null`): on. An editor setting only: the config file has no such key."
         },
         "sygnal.trace.server": {
           "type": [
