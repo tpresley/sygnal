@@ -5,7 +5,7 @@ description: 'Get up and running with Sygnal in minutes'
 
 Sygnal is an intuitive framework for building fast, small, and composable web components and applications. It uses functional reactive programming under the hood but keeps the developer experience simple and familiar.
 
-If you've used React, you'll feel right at home. If you haven't, don't worry — Sygnal is easy to learn.
+If you've used React or Vue, [Sygnal for React developers](/coming-from/react/) and [Sygnal for Vue developers](/coming-from/vue/) map what you know onto Sygnal. If you haven't, start here: no framework background is needed.
 
 ## What You'll Build
 

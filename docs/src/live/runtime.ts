@@ -38,6 +38,7 @@ interface Panel {
   editBtn: HTMLButtonElement
   runBtn: HTMLButtonElement
   resetBtn: HTMLButtonElement
+  restartBtn: HTMLButtonElement
   editor?: any
   editorLoading?: Promise<void>
   timer?: ReturnType<typeof setTimeout>
@@ -415,13 +416,17 @@ function setup(el: HTMLElement, server?: string): Panel {
   title.textContent = 'Result'
   const actions = document.createElement('div')
   actions.className = 'live-actions'
+  // Restart: run the example again from its initial state, without opening the code (while the
+  // editor is open, Run does the same with the edited code)
+  const restartBtn = button('live-restart', 'Restart', `Restart ${guess} from its initial state`)
+  restartBtn.title = 'Run the example again from the start'
   const editBtn = button('live-edit', 'Edit', `Edit the code of ${guess}`)
   const runBtn = button('live-run', 'Run', `Run the edited code of ${guess}`)
   runBtn.title = 'Run (Ctrl+Enter / ⌘+Enter)'
   const resetBtn = button('live-reset', 'Reset', `Reset the code of ${guess}`)
   runBtn.hidden = true
   resetBtn.hidden = true
-  actions.append(editBtn, runBtn, resetBtn)
+  actions.append(restartBtn, editBtn, runBtn, resetBtn)
   bar.append(title, actions)
 
   const editorBox = document.createElement('div')
@@ -455,7 +460,7 @@ function setup(el: HTMLElement, server?: string): Panel {
   el.dataset.livePending = '0'
   const p: Panel = {
     el, id, lang: el.dataset.lang || 'jsx', original: code, compiled: decodeJSON(el.dataset.compiled), code, component, server,
-    name: guess, gen: 0, pending: 0, result, errorEl, noteEl, editorBox, editBtn, runBtn, resetBtn,
+    name: guess, gen: 0, pending: 0, result, errorEl, noteEl, editorBox, editBtn, runBtn, resetBtn, restartBtn,
   }
   setState(p, 'idle')
 
@@ -472,6 +477,7 @@ function setup(el: HTMLElement, server?: string): Panel {
     editorBox.hidden = !open
     runBtn.hidden = !open
     resetBtn.hidden = !open
+    restartBtn.hidden = open
     editBtn.textContent = open ? 'Hide code' : 'Edit'
     editBtn.setAttribute('aria-expanded', String(open))
     // the editor takes the place of the static code block above the panel (still in the DOM
@@ -490,6 +496,7 @@ function setup(el: HTMLElement, server?: string): Panel {
     }
   })
   runBtn.addEventListener('click', () => runPanel(p))
+  restartBtn.addEventListener('click', () => runPanel(p))
   resetBtn.addEventListener('click', () => {
     p.code = p.original
     if (p.editor) p.editor.dispatch({ changes: { from: 0, to: p.editor.state.doc.length, insert: p.original } })

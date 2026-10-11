@@ -59,6 +59,14 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Coming from…',
+          items: [
+            { label: 'From React', slug: 'coming-from/react' },
+            { label: 'From Vue', slug: 'coming-from/vue' },
+            { label: 'Port an App', slug: 'coming-from/port-an-app' },
+          ],
+        },
+        {
           label: 'Guide',
           items: [
             { label: 'Architecture', slug: 'guide/architecture' },
