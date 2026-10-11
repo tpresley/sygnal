@@ -1,10 +1,10 @@
 ---
 title: Editor Setup
-description: sygnal-check's findings, explanations and quick fixes in VS Code, Claude Code, Neovim, Helix, JetBrains IDEs and any LSP editor, and how they share one config with the CLI, the Vite plugin and CI
+description: sygnal-check's findings, explanations, quick fixes, completions, go to definition, code lenses and rename in VS Code, Claude Code, Neovim, Helix, JetBrains IDEs and any LSP editor, and how they share one config with the CLI, the Vite plugin and CI
 ---
 
 :::note
-Everything on this page needs **sygnal-check 0.4.0** or later, the first version with the language server (`npm install -D sygnal-check@latest`). Projects created with `create-sygnal-app` 2.2.0 or later have it.
+The language server needs **sygnal-check 0.4.0** or later, the first version with it (`npm install -D sygnal-check@latest`). Projects created with `create-sygnal-app` 2.2.0 or later have it. Completions, go to definition and references, code lenses and rename need **sygnal-check 0.5.0** or later; with 0.4.0 you get the findings, hovers and quick fixes.
 :::
 
 `sygnal-check` runs as a language server, `sygnal-check lsp`. Your editor then shows its findings while you type, with the same rules and the same settings as the CLI, the Vite dev server and CI.
@@ -52,6 +52,50 @@ SYG110 Counter: selector '.incc' targets .incc, but Counter's view never renders
 
 The server runs next to your TypeScript server, not instead of it.
 
+The rest works on the names Sygnal wires by string, which TypeScript can't follow. The examples use the `Counter` above with the typo fixed (`'.inc'`); `|` marks the cursor.
+
+### Completions
+
+In a selector, the view's classes and ids:
+
+```text
+INCREMENT: DOM.click('.|')      →  .inc      class in Counter's view
+```
+
+After a `.` only classes are offered, after a `#` only ids. In a model key, the actions the intent triggers that have no model entry yet, with a snippet for the entry. With a `RESET` action added to the intent:
+
+```text
+Counter.model = {
+  |                             →  RESET     intent action · Counter (no model entry)
+}                                  inserts   RESET: (state, data) => ({ ...state })
+```
+
+`EVENTS.select('|')` offers the EVENTS types emitted anywhere in the project, `event('|')` the ones selected, `next('|')` the model's actions, and `<Collection from="|">` the state keys. Anywhere else (a plain string, a `title` attribute) the server adds nothing, so TypeScript's completions stand alone.
+
+### Go to definition and references
+
+Go to definition on `'.inc'` in `DOM.click('.inc')` jumps to `<button className="inc">` in the view. On the intent key `INCREMENT` it jumps to the model entry, and on the model key back to the intent. On `EVENTS.select('SAVED')` it lists every component that emits `SAVED`, in any file.
+
+Find references on an action lists every place it is wired in the component (intent, model, `next()`, reply names); on an EVENTS type, every emitter and select in the project; on a class, the elements that render it and the selectors that use it. State keys, context entries and child components work the same way.
+
+### Code lens
+
+A line of text above each intent key, model key and EVENTS select or emit says what it connects to:
+
+```text
+handled by model.INCREMENT · STATE        above the intent key INCREMENT
+triggered by intent                       above the model key INCREMENT
+2 emitters                                above EVENTS.select('SAVED')
+```
+
+A missing link shows as `no model entry` or `not triggered`, exactly where SYG101 and SYG102 report one. Clicking a lens shows its targets.
+
+### Rename
+
+Rename on `INCREMENT` (in the intent, the model or a `next('INCREMENT')`) renames every place it is wired: here the intent key and the model key. An EVENTS type is renamed in every emitter and select of the project, a class in the view and in the selectors.
+
+Rename only edits when it can find every use, because a missed one is an action that silently never runs. It refuses, and says why, for a built-in such as `BOOTSTRAP`, a model built with a spread, a name built at run time, or the same string somewhere else in the code. Your editor's TypeScript rename can still take over for an identifier. Mentions of the name in test files (`simulateAction('INCREMENT')`, a test title) are a separate group that needs your confirmation; an editor that can't ask for one gets the code edits only, with a warning naming the test files it left out.
+
 ## VS Code
 
 Install **Sygnal** (`sygnal.sygnal`) from the Visual Studio Marketplace or Open VSX, or from a terminal:
@@ -66,7 +110,7 @@ The extension starts the server only in a workspace folder that uses Sygnal: one
 
 ### Which sygnal-check it runs
 
-1. **The project's own** `node_modules/sygnal-check`, when it is 0.4.0 or later. The editor then reports exactly what your CLI and CI report.
+1. **The project's own** `node_modules/sygnal-check`, when it is 0.4.0 or later. The editor then reports exactly what your CLI and CI report. Completions, go to definition, code lenses and rename need 0.5.0 or later.
 2. Otherwise, **the copy bundled with the extension**. If the project has an older `sygnal-check`, the extension says so once and suggests `npm i -D sygnal-check@latest`.
 
 Hover over **Sygnal** in the status bar to see the version in use and where it comes from. The server runs on VS Code's own Node.js, so the bundled copy needs no Node install.
@@ -84,11 +128,12 @@ Every setting is unset (`null`) by default, so the [config file](#the-config-fil
 | `sygnal.ignore` | string[] | Codes to drop, e.g. `["SYG105"]`. Replaces the config file's list |
 | `sygnal.paths` | string[] | Files, directories or globs to check, relative to the folder (e.g. `["pages"]` for Vike). Replaces the config file's list |
 | `sygnal.verbose` | boolean | Also show info findings |
+| `sygnal.codeLens` | boolean | Show the [code lenses](#navigation-code-lenses-and-rename) (unset: on). An editor setting only; the config file has no such key |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | What the server logs to the Sygnal output |
 
 To fix everything auto-fixable when you save:
 
-```json
+```json title=".vscode/settings.json"
 {
   "editor.codeActionsOnSave": { "source.fixAll.sygnal": "explicit" }
 }
@@ -104,6 +149,15 @@ To fix everything auto-fixable when you save:
 | `Sygnal: Fix All in File` | Applies every auto-fixable Sygnal fix in the active file |
 
 Quick fixes are on `Ctrl+.` (`Cmd+.` on macOS), as usual.
+
+### Navigation, code lenses and rename
+
+With the extension 0.2.0 or later, and sygnal-check 0.5.0 or later (the bundled copy has it):
+
+- **Completions** appear as you type in a selector, a model key, `EVENTS.select('`, `next('` and the other Sygnal strings, next to TypeScript's.
+- **Go to Definition** (`F12`), **Peek Definition** (`Alt+F12`) and **Find All References** (`Shift+F12`) work on actions, EVENTS types, selectors, state keys and context entries.
+- **Code lenses** show above intent keys, model keys and EVENTS selects / emits. Clicking one opens its targets in a peek view, so you can read each one without leaving the file. Turn them off with `"sygnal.codeLens": false`, or every extension's lenses with VS Code's `editor.codeLens`.
+- **Rename Symbol** (`F2`) renames a Sygnal name everywhere it is wired. When Sygnal refuses, VS Code shows the reason and falls back to TypeScript's rename where TypeScript has one. When the rename also edits test files, VS Code opens the refactor preview so you can check those edits before applying them.
 
 ### Snippets
 
@@ -170,7 +224,7 @@ It writes the server to the project's `.mcp.json`. Use `--scope user` for every 
 
 Neovim 0.11 and later configure language servers natively. Add this to your `init.lua`:
 
-```lua
+```lua title="init.lua"
 vim.lsp.config('sygnal', {
   cmd = { 'npx', '--no-install', 'sygnal-check', 'lsp' },
   filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact' },
@@ -181,7 +235,7 @@ vim.lsp.enable('sygnal')
 
 It runs alongside your TypeScript server (`ts_ls`, `vtsls`, …), and Neovim merges the diagnostics. To override the [config file](#the-config-file) in the editor, add `settings`:
 
-```lua
+```lua title="init.lua"
 vim.lsp.config('sygnal', {
   -- …as above
   settings = { sygnal = { strict = true } },
@@ -193,13 +247,13 @@ vim.lsp.config('sygnal', {
 - **Quick fixes:** `gra` (or `:lua vim.lsp.buf.code_action()`) on a finding offers the fix and "Suppress SYGnnn on this line".
 - **Fix all** in the buffer:
 
-  ```lua
+  ```lua title="init.lua"
   vim.lsp.buf.code_action({ context = { only = { 'source.fixAll.sygnal' } }, apply = true })
   ```
 
   Map it to a key, or run it on save:
 
-  ```lua
+  ```lua title="init.lua"
   vim.api.nvim_create_autocmd('BufWritePre', {
     pattern = { '*.js', '*.jsx', '*.ts', '*.tsx' },
     callback = function()
@@ -208,12 +262,36 @@ vim.lsp.config('sygnal', {
   })
   ```
 - **More than one project:** `:lua vim.lsp.buf.add_workspace_folder('/path/to/other')` adds a folder to the running server.
+- **Go to definition and references** (sygnal-check 0.5.0): `CTRL-]` (or `:lua vim.lsp.buf.definition()`) and `grr`. With your TypeScript server attached too, Neovim lists both servers' answers.
+- **Rename:** `grn`. A refusal shows as an error message with the reason. Test files are left out, with a warning naming them.
+- **Completions:** turn on Neovim's built-in LSP completion for the server when it attaches (a completion plugin such as nvim-cmp or blink.cmp picks up every attached server instead):
+
+  ```lua title="init.lua"
+  vim.api.nvim_create_autocmd('LspAttach', {
+    callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      if client and client.name == 'sygnal' then
+        vim.lsp.completion.enable(true, client.id, args.buf, { autotrigger = true })
+      end
+    end,
+  })
+  ```
+- **Code lenses** show only after `vim.lsp.codelens.refresh()`, so refresh them on a few events:
+
+  ```lua title="init.lua"
+  vim.api.nvim_create_autocmd({ 'BufEnter', 'CursorHold', 'InsertLeave' }, {
+    pattern = { '*.js', '*.jsx', '*.ts', '*.tsx' },
+    callback = function() vim.lsp.codelens.refresh({ bufnr = 0 }) end,
+  })
+  ```
+
+  `:lua vim.lsp.codelens.run()` runs the lens on the current line, which opens its first target.
 
 On Linux, Neovim doesn't tell the server about files changed outside the editor (a `git checkout`, for example); on macOS and Windows it does. The server re-reads files at every check, so findings catch up at your next edit or save.
 
 **Neovim 0.10 with nvim-lspconfig** (untested): register a custom server.
 
-```lua
+```lua title="init.lua"
 local configs = require('lspconfig.configs')
 if not configs.sygnal then
   configs.sygnal = {
@@ -231,7 +309,7 @@ require('lspconfig').sygnal.setup({})
 
 Add Sygnal to the JavaScript and TypeScript languages in `languages.toml`: the project's `.helix/languages.toml` (commit it to share it) or `~/.config/helix/languages.toml`.
 
-```toml
+```toml title="languages.toml"
 [language-server.sygnal]
 command = "npx"
 args = ["--no-install", "sygnal-check", "lsp"]
@@ -257,7 +335,7 @@ language-servers = ["typescript-language-server", "sygnal"]
 
 To override the [config file](#the-config-file) in the editor, add `config`:
 
-```toml
+```toml title="languages.toml"
 [language-server.sygnal]
 command = "npx"
 args = ["--no-install", "sygnal-check", "lsp"]
@@ -267,6 +345,10 @@ config = { sygnal = { strict = true } }
 - **Diagnostics:** a gutter marker and a count in the statusline; the finding under the cursor shows inline. `space d` lists the file's findings, `space D` the whole project's, including files you haven't opened.
 - **Hover:** `space k` shows the explanation and the docs link.
 - **Quick fixes and fix all:** `space a` on a finding offers its fix, "Suppress SYGnnn on this line" and, when the file has auto-fixable findings, "Fix all auto-fixable Sygnal problems".
+- **Completions** (sygnal-check 0.5.0) appear in the menu next to TypeScript's.
+- **Go to definition and references:** `gd` and `gr`.
+- **Rename:** `space r`. A refusal shows its reason in the statusline. Test files are left out, with a warning naming them.
+- **Code lenses:** Helix doesn't show code lenses, so there are none in Helix.
 - **Monorepos:** to give each package its own project, add `roots = ["package.json"]` to the four `[[language]]` entries. Helix then adds each package as a workspace folder when you open one of its files.
 
 Helix doesn't display related locations. Helix also tells the server only about files it saves itself, so after changes made outside the editor (a branch switch, a formatter), findings update at your next edit or save.
@@ -295,6 +377,8 @@ Use the free **LSP4IJ** plugin by Red Hat. It works in every JetBrains IDE (Inte
 
 Findings appear as warnings in the editor and the Problems view. Alt+Enter on one should offer the quick fix and "Suppress SYGnnn on this line".
 
+LSP4IJ also supports completion, go to declaration, find usages, code lenses and rename, which the server offers from sygnal-check 0.5.0. These haven't been tested in a JetBrains IDE yet.
+
 **Sharing the setup.** Save this directory in your repository and import it with New Language Server → Template → "Import from custom template…":
 
 ```text
@@ -306,7 +390,7 @@ sygnal-lsp4ij/
 
 `template.json`:
 
-```json
+```json title="sygnal-lsp4ij/template.json"
 {
   "id": "sygnal-check",
   "name": "Sygnal",
@@ -334,6 +418,8 @@ npx --no-install sygnal-check lsp
 - **Languages:** `javascript`, `javascriptreact`, `typescript`, `typescriptreact`. Add the server next to your TypeScript server.
 - **Root:** the project folder, the one with `package.json` or `sygnal-check.config.json`. The server checks one project per workspace folder.
 - **Fix all** is the code action kind `source.fixAll.sygnal`. It is also offered in the code-action menu when the cursor is on a finding and the file has auto-fixable ones, for editors that can't ask for an action kind.
+- **Completions, definition, references and rename** (sygnal-check 0.5.0) are the standard requests. The completion trigger characters are `'` `"` `` ` `` `.` `#`. Rename supports `prepareRename` and refuses with error code `-32803`, the reason as its message. Test-file edits come as a separate annotated group with `needsConfirmation` for a client that supports change annotations; a client that doesn't gets the code edits only and a `window/showMessage` warning.
+- **Code lens clicks:** the LSP has no standard "show these locations" command, so the server picks one. A client that lists `editor.action.showReferences` (or a `sygnal.showReferences` of its own) in `capabilities.experimental.commands.commands` gets that command with `[uri, position, locations]`. Otherwise a client with `window/showDocument` support gets the server command `sygnal.goTo`, which opens the first target. Otherwise the lenses are text only.
 - **Settings**, under the `sygnal` section, answered on `workspace/configuration` or passed as `initializationOptions` (`workspace/configuration` wins):
 
   | Setting | Type | |
@@ -343,6 +429,7 @@ npx --no-install sygnal-check lsp
   | `ignore` | string[] | codes to drop |
   | `paths` | string[] | what to check, relative to the folder |
   | `verbose` | boolean | also show info findings |
+  | `codeLens` | boolean | show code lenses (default on) |
   | `trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs |
 
   A setting you leave out falls back to the [config file](#the-config-file).
@@ -355,7 +442,7 @@ The [sygnal-check README](https://github.com/tpresley/sygnal/tree/main/sygnal-ch
 
 Put the project's settings in `sygnal-check.config.json` at the project root:
 
-```json
+```json title="sygnal-check.config.json"
 {
   "strict": true,
   "a11y": "error",
@@ -367,7 +454,7 @@ Put the project's settings in `sygnal-check.config.json` at the project root:
 
 Or under the `"sygnal-check"` key of `package.json`:
 
-```json
+```json title="package.json"
 {
   "name": "my-app",
   "sygnal-check": { "strict": true }
@@ -423,6 +510,8 @@ Suppression comments (`// sygnal-ignore SYG110`) work the same everywhere too.
 - JetBrains: View → Tool Windows → Language Servers, then the server's LSP console.
 
 **sygnal-check is too old.** The language server needs sygnal-check 0.4.0 or later. Check with `npm ls sygnal-check`, and upgrade with `npm i -D sygnal-check@latest`. VS Code falls back to its bundled copy and says so once; the Claude Code plugin stays idle; other editors fail to start the server.
+
+**No completions, code lenses or rename.** These need sygnal-check 0.5.0 or later; with 0.4.0 the server gives findings, hovers and quick fixes only. In VS Code, hover over **Sygnal** in the status bar to see the version in use.
 
 **`npx` isn't found.** GUI editors often start with a minimal `PATH`. Use `./node_modules/.bin/sygnal-check lsp` as the command instead.
 
