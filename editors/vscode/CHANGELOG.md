@@ -2,8 +2,6 @@
 
 ## 0.2.0
 
-- A one-time notice when the workspace's own sygnal-check is older than 0.5.0: it still runs for its findings, and the notice says completions, go to definition, code lenses and rename need 0.5.0.
-
 The language server's new features (sygnal-check 0.5.0, also bundled):
 
 - **Completions** for the names Sygnal wires by string: view classes and ids in a `DOM` selector, unhandled actions in a model key (as a snippet), EVENTS types in `EVENTS.select()` / `event()`, the model's actions in `next()` and reply names, state keys in `<Collection from>`.
@@ -11,6 +9,7 @@ The language server's new features (sygnal-check 0.5.0, also bundled):
 - **Code lenses** on intent keys (what handles the action), model keys (what triggers it) and EVENTS selects / emits (how many emitters / listeners). Clicking one opens the targets in a peek view (the client command `sygnal.showReferences`, advertised to the server in `experimental.commands.commands`). New setting `sygnal.codeLens` (unset: on).
 - **Rename** of actions, EVENTS types, class / id names, state keys and context entries, which refuses with the reason when it can't find every use (VS Code then offers TypeScript's rename). Edits in test files need confirmation in the refactor preview.
 - A workspace `sygnal-check` 0.4.0 still runs (findings, hover, quick fixes); the new features need 0.5.0 or later.
+- A one-time notice when the workspace's own sygnal-check is older than 0.5.0: it still runs for its findings, and the notice says completions, go to definition, code lenses and rename need 0.5.0.
 
 ## 0.1.0
 
