@@ -280,7 +280,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, and go to definition / find references for actions and EVENTS types. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, and go to definition / find references for actions and EVENTS types. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -302,9 +302,10 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
 | Definition | `textDocument/definition` on an action name or an EVENTS type ([below](#go-to-definition-and-references)) |
 | References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
+| Completion | `textDocument/completion`, trigger characters `'` `"` `` ` `` `.` `#`; items only in Sygnal contexts ([below](#completions)) |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
-**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
+**When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover, code actions and completions are answered while a check runs.
 
 The server checks at once on `didOpen`, `didSave`, `didClose`, a watched-file event or a settings change. After a `didChange` without a save, it waits about 150 ms for typing to pause. A newer change replaces a check that is still waiting; it doesn't queue another one.
 
@@ -340,6 +341,24 @@ Each file's list is sorted errors first. Info findings are left out unless `sygn
 | Convert '.x' to the control X | `refactor.rewrite` | The `--controls` conversion of one selector. Offered only when `context.only` asks for refactors |
 
 Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
+
+### Completions
+
+Completions fill in the names Sygnal connects by string, which TypeScript can't complete (in JavaScript `DOM` is `any`, so nothing completes them there today). The server returns items only at these positions. Everywhere else it answers `null` at once, so TypeScript's own completions stand alone.
+
+| Where the cursor is | What it offers |
+|---|---|
+| a key of the object the intent returns | model actions nothing triggers yet |
+| a key of the model object | actions that are triggered but have no model entry: intent actions, `next()` targets, reply names, `timers`/`browser`/`resources`/`connections`/`route` actions, `agent.actions`; then `BOOTSTRAP`, `INITIALIZE`, `DISPOSE` |
+| the selector of `DOM.select('…')` or a shorthand such as `DOM.click('…')` | the component's own view classes (`.x`) and ids (`#x`); after a `.` only classes, after a `#` only ids |
+| `EVENTS.select('…')` | EVENTS types emitted anywhere in the project |
+| `event('…')` / `emit('…')` | EVENTS types selected anywhere in the project, so an emitter matches its listeners |
+| `next('…')`; `ok` / `error` / `delta` / `tool` / `block: '…'` in a request a model entry returns; `action` / `frame` in `timers`, `action` / `error` in `browser`, `ok` / `error` in `resources`, `message` / `open` / `close` / `error` in `connections` | the model's actions |
+| `<Collection from="…">` or `from={'…'}` | the `initialState` and `calculated` keys of the component that renders it |
+
+Each item's `detail` says where the name comes from ("intent action · App (no model entry)", "class in App's view", "EVENTS type emitted in TodoItem.jsx"). Its `textEdit` replaces the key or the string contents being typed; for a selector, only the class or id token at the cursor. For a fresh model key (no `:` after it yet), a client that supports snippets gets `NAME: (state, data) => ({ ...state })`.
+
+The names come from the last check, and the position from the document's current text, so a completion needs no check of its own. It also works while you type, when the file doesn't parse: an unterminated string (`DOM.click('.`), a new key without a colon, an open call, or a file cut off after the cursor. The server tries the text as it is, then with a closing suffix at the cursor (a quote, `)`, `: 0,` ...), then reads the text before the cursor on its line against the last check. Names added since the last check (about 150 ms after typing pauses) appear at the next check.
 
 ### Go to definition and references
 

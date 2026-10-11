@@ -135,6 +135,20 @@ describe('protocol conformance (vscode-languageserver-protocol)', () => {
     await until(() => !diagnostics.get(uri).some(d => d.code === 'SYG110'))
     expect(diagnostics.get(uri).map(d => d.code)).toEqual(['SYG101', 'SYG102'])
 
+    // completion (N-2) inside the selector string: the view's class, as a CompletionList
+    expect(init.capabilities.completionProvider.triggerCharacters).toContain('.')
+    const line = fixed.split('\n').findIndex(l => l.includes("DOM.click('.inc')"))
+    const character = fixed.split('\n')[line].indexOf("'.inc'") + 2
+    const list = await conn.sendRequest(lsp.CompletionRequest.type, { textDocument: { uri }, position: { line, character }, context: { triggerKind: lsp.CompletionTriggerKind.TriggerCharacter, triggerCharacter: '.' } })
+    expect(list.isIncomplete).toBe(false)
+    for (const item of list.items) {
+      expect(typeof item.label).toBe('string')
+      expect(lsp.TextEdit.is(item.textEdit)).toBe(true)
+      expect(Object.values(lsp.CompletionItemKind)).toContain(item.kind)
+    }
+    expect(list.items.map(i => i.label)).toEqual(['.inc'])
+    expect(list.items[0].textEdit).toEqual({ range: { start: { line, character: character - 1 }, end: { line, character: character + 3 } }, newText: '.inc' })
+
     // a cancelled request is answered with RequestCancelled (-32800)
     const source = new lsp.CancellationTokenSource()
     const pending = conn.sendRequest(lsp.CodeActionRequest.type, { textDocument: { uri }, range: sel.range, context: { diagnostics: [], only: [lsp.CodeActionKind.SourceFixAll] } }, source.token)

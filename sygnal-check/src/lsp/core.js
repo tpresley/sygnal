@@ -6,7 +6,7 @@
  *
  *   createCore() → {
  *     check({ folder, settings, sources })  → { files: [[absPath, LspDiagnostic[]]], texts, logs,
- *                                              substituted, components, index, ms }
+ *                                              substituted, components, index, completion, ms }
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
@@ -34,6 +34,8 @@
  * definition / references, without the substituted files' occurrences. `index()` builds it alone
  * (the same files, last good substitution and cache, no rules) for a request on a document
  * changed since the last check (navigation.js).
+ * `completion` is the completion index of the checked project (completionIndex.js; null without
+ * components): the main thread answers textDocument/completion from it (completion.js, N-2).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -47,6 +49,7 @@ import { createParseCache } from '../cache.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
+import { completionIndex } from './completionIndex.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
@@ -117,12 +120,13 @@ export function createCore() {
     const t0 = performance.now()
     const logs = []
     const prep = prepare({ folder, settings, sources }, true)
-    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, ms: performance.now() - t0 }
+    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0 }
     const { project, options, config, srcs, substituted } = prep
     let { diags } = prep
     const index = indexOf(project, substituted)
 
-    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, index, ms: performance.now() - t0 }
+    if (!project.components.length) return { files: [], texts: [], logs, substituted: [...substituted.keys()], components: 0, index, completion: null, ms: performance.now() - t0 }
+    const completion = completionIndex(project, { substituted: new Set(substituted.keys()) })
     // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
     const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
     if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
@@ -151,7 +155,7 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, index, ms: performance.now() - t0 }
+    return { files: out, texts: [...texts], logs, substituted: [...substituted.keys()], components: project.components.length, index, completion, ms: performance.now() - t0 }
   }
 
   /** The occurrence index of the folder as `sources` has it, without running the rules (navigation on a changed document). */

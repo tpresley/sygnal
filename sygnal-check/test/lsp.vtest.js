@@ -66,6 +66,7 @@ describe('lifecycle', () => {
     expect(result.capabilities).toEqual({
       textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
       hoverProvider: true,
+      completionProvider: { triggerCharacters: ["'", '"', '`', '.', '#'], resolveProvider: false },
       codeActionProvider: { codeActionKinds: ['quickfix', 'refactor', 'refactor.rewrite', 'source.fixAll.sygnal'], resolveProvider: false },
       definitionProvider: true,
       referencesProvider: true,

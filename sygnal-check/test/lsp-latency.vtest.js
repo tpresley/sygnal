@@ -25,6 +25,10 @@
 //   Measured 2026-10-10 (same machine, alone under vitest): 0.0 ms (max 0.5); 45-52 ms (43-56);
 //   122 ms (113-140); 168 ms (157-202). On the examples (kanban, ai-panel-spa, plan5-showcase,
 //   worker on): 0.02-0.05 ms from the index, 3.6-6.6 ms after a change.
+//   - completions (PLAN-7 N-2, P4-1) are answered on the main thread from the last check's index:
+//     mid-edit (an unterminated selector string, so a repair parse) <= 150 ms (max of 10), also
+//     right after a didSave while the worker checks; the index itself (built in the worker with
+//     each check) is reported, not gated.
 //   Measured 2026-10-10 (same machine): didChange → publish median 454 ms under vitest (446-464;
 //   a standalone script: 412-433 ms, the worker's check 261-280 ms + the 150 ms debounce); hover
 //   during a check 0.3 ms. The headroom was ~10 %, the same as the check gate's (G-660).
@@ -47,6 +51,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkFiles, createParseCache } from '../src/index.js'
 import { expandInputs } from '../src/files.js'
+import { buildProject } from '../src/model/project.js'
+import { completionIndex } from '../src/lsp/completionIndex.js'
 import { startServer, uriOf } from './lsp-helpers.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -219,6 +225,51 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
       expect(median(changed)).toBeLessThanOrEqual(150)
       expect(median(saved)).toBeLessThanOrEqual(150)
       expect(median(behind)).toBeLessThanOrEqual(300)
+    } finally {
+      client.server.dispose()
+    }
+  }, 120_000)
+
+  it('language server: a mid-edit completion <= 150 ms, also during a check (main thread, last index)', async () => {
+    fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "latency", "private": true }')
+    const project = buildProject(files, { cwd: dir })
+    const indexMs = median(Array.from({ length: 5 }, () => time(() => completionIndex(project))))
+    const client = startServer({ server: { worker: true, debounce: 150 } })
+    try {
+      await client.initialize({ workspaceFolders: [{ uri: uriOf(dir), name: 'latency' }], initializationOptions: { strict: true } })
+      const file = files.find(f => f.endsWith('.jsx') && /DOM\.click\('\./.test(fs.readFileSync(f, 'utf8')))
+      const uri = uriOf(file)
+      const original = fs.readFileSync(file, 'utf8')
+      const at = original.indexOf("DOM.click('.") + "DOM.click('.".length
+      // the selector string cut at the cursor: unterminated, the rest of the file intact
+      const lineEnd = original.indexOf('\n', at)
+      const broken = original.slice(0, at) + original.slice(lineEnd)
+      const before = original.slice(0, at).split('\n')
+      const position = { line: before.length - 1, character: before[before.length - 1].length }
+      client.open(file, original)
+      await client.settle()
+      let version = 2
+      const ask = async () => {
+        const t = performance.now()
+        const list = await client.request('textDocument/completion', { textDocument: { uri }, position })
+        const ms = performance.now() - t
+        expect(list.items.length).toBeGreaterThan(0)
+        expect(list.items.every(i => i.label.startsWith('.'))).toBe(true)
+        return ms
+      }
+      const idle = []
+      for (let i = 0; i < 10; i++) { client.change(file, broken + `\n// ${i}\n`, version++); idle.push(await ask()) }
+      await client.settle()
+      const during = []
+      for (let i = 0; i < 10; i++) {
+        client.change(file, broken + `\n// during ${i}\n`, version++)
+        client.save(file) // the check starts at once in the worker
+        during.push(await ask())
+        await client.settle()
+      }
+      console.log(`completion latency: ${files.length} files, ${lines} lines: index ${indexMs.toFixed(1)} ms (median of 5, in the worker with each check); mid-edit completion median ${median(idle).toFixed(1)} ms, max ${Math.max(...idle).toFixed(1)} ms; during a check median ${median(during).toFixed(1)} ms, max ${Math.max(...during).toFixed(1)} ms`)
+      expect(Math.max(...idle)).toBeLessThanOrEqual(150)
+      expect(Math.max(...during)).toBeLessThanOrEqual(150)
     } finally {
       client.server.dispose()
     }
