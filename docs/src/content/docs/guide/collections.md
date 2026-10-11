@@ -35,7 +35,7 @@ export default TodoItem
 
 The list renders one `TodoItem` for each entry of `state.items`:
 
-```jsx live
+```jsx live title="TodoList.jsx"
 import { Collection } from 'sygnal'
 import TodoItem from './TodoItem.jsx'
 

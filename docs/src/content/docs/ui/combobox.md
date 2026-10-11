@@ -51,7 +51,7 @@ export default {
 }
 ```
 
-```jsx live live-height=240
+```jsx live live-height=240 title="Search.jsx"
 import { Combobox } from 'sygnal/ui/combobox'
 
 function Search({ state }) {

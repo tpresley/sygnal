@@ -19,7 +19,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Quote.jsx"
 function Quote({ state }) {
   const { status, data, refreshing } = state.quote
   return (
@@ -296,7 +296,7 @@ export default {
 .rows.stale { opacity: 0.5; }
 ```
 
-```jsx live
+```jsx live title="Pages.jsx"
 function Pages({ state }) {
   const { data, refreshing } = state.list
   return (
@@ -375,7 +375,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="App.jsx"
 const statusOf = (r) => (r?.status === 'loading' ? 'Loading…' : r?.refreshing ? 'Updating…' : '')
 
 function App({ state }) {

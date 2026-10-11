@@ -37,7 +37,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="TaskList.jsx"
 import { pager } from 'sygnal'
 
 export function TaskList({ state }) {

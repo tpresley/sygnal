@@ -26,7 +26,7 @@ export default {
 }
 ```
 
-```jsx live=App
+```jsx live=App title="App.jsx"
 import { Suspense } from 'sygnal'
 
 function DataLoader({ state }) {

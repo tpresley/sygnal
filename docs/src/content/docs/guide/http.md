@@ -26,7 +26,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Quote.jsx"
 import { ABORT } from 'sygnal'
 
 function Quote({ state }) {
@@ -86,7 +86,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Search.jsx"
 import { ABORT, debounce } from 'sygnal'
 
 function Search({ state }) {
@@ -221,7 +221,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Todos.jsx"
 function Todos({ state }) {
   return (
     <div>
@@ -263,7 +263,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Profile.jsx"
 import { ABORT } from 'sygnal'
 
 function Profile({ state }) {

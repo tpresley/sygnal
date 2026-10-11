@@ -365,7 +365,7 @@ export default {
 }
 ```
 
-```jsx live live-height=380
+```jsx live live-height=380 title="TodoApp.jsx"
 import { z } from 'zod'
 import { Collection } from 'sygnal'
 import { chat, messageText } from 'sygnal/ai'
@@ -520,7 +520,7 @@ export default {
 }
 ```
 
-```jsx live live-height=300
+```jsx live live-height=300 title="Commands.jsx"
 import { z } from 'zod'
 import { Collection } from 'sygnal'
 import { commandBar } from 'sygnal/ai'

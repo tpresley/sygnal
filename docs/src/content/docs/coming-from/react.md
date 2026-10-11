@@ -99,7 +99,7 @@ function Counter() {
 
 In Sygnal the view only describes the page. The component's `intent` names each action and the event that triggers it, and its `model` says what each action does to the state:
 
-```jsx live
+```jsx live title="Sygnal"
 function Counter({ state }) {
   return (
     <div>
@@ -169,7 +169,7 @@ function Todos() {
 }
 ```
 
-```jsx live
+```jsx live title="Sygnal"
 import { ABORT } from 'sygnal'
 
 function Todos({ state }) {
@@ -264,7 +264,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Sygnal"
 function Quote({ state }) {
   const { status, data } = state.quote
   return (
@@ -319,7 +319,7 @@ function Timer() {
 }
 ```
 
-```jsx live
+```jsx live title="Sygnal"
 import { toggle } from 'sygnal'
 
 function Timer({ state }) {
@@ -392,7 +392,7 @@ function TaskList() {
 
 A Sygnal child sends a value up through its `PARENT` sink, and the parent reads it with `CHILD.select(Child)` in its intent. A list of components is a `<Collection>`: each item gets one element of the array as its state, and an item removes itself by returning `undefined`:
 
-```jsx live
+```jsx live title="Sygnal"
 import { Collection } from 'sygnal'
 
 function TaskItem({ state }) {
@@ -482,7 +482,7 @@ function Booking() {
 }
 ```
 
-```jsx live
+```jsx live title="Sygnal"
 function Stepper({ state, context, label }) {
   return (
     <p>
