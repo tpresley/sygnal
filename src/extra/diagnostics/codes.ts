@@ -239,9 +239,12 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 2-R (G-393; checks/state.ts; dev entry)
   SYG238: 'Root component with a model but no initial state',
   // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent; runtime, while an agent layer runs)
-  SYG240: 'Agent action input has no JSON Schema form',
-  SYG241: 'Agent read, when or label threw',
-  SYG243: 'Agent action input schema converted with losses',
+  SYG240: 'Agent action or query input has no JSON Schema form',
+  SYG241: 'Agent read, query, when or label threw',
+  SYG243: 'Agent action or query input schema converted with losses',
+  // agent queries (src/extra/ai/agent; runtime and sygnal-check)
+  SYG246: 'Agent query is not a synchronous function',
+  SYG247: 'Agent query has the tool name of an action',
   // PLAN-6 A-2 (src/extra/ai/webmcp.ts; reported with the severity passed, dev)
   SYG242: 'WebMCP tool over a size budget',
   SYG244: 'Agent read returns strings, untrusted not declared',
@@ -414,6 +417,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG240: 'error',
   SYG241: 'error',
   SYG243: 'warn',
+  SYG246: 'error',
+  SYG247: 'warn',
   // PLAN-6 A-2 (WebMCP, reported with the severity passed)
   SYG242: 'warn',
   SYG244: 'warn',

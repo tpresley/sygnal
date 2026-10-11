@@ -2,6 +2,12 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+### Added
+
+- **`agent.queries`: read-only tools that take an input** (`sygnal/ai`). `queries: { find: { description, input, when?, run: (state, input) => result } }` on an `agent` declaration offers the tool `<name>_find`, marked read-only, to every agent surface (the `chat` behavior, WebMCP, MCP Apps, the dev MCP endpoint, `t.callTool()`; the command bar skips read-only tools). A call validates the input and checks `when` as for an action, then returns `{ ok: true, result }`: nothing is dispatched and nothing renders. Use it for data too large to send in `read` on every request, or an answer computed from the state. On a Collection item component a query gets the item key parameter, like the item's actions. `run` must be pure and synchronous: a missing or `async` `run` is the new **SYG246** (runtime and `sygnal-check`), and a query whose tool name is an action's is the new **SYG247** (only the action is offered). SYG240, SYG241 and SYG243 cover queries too. Types: `AgentQuery`, `AgentQueryResult`; `AgentDeclaration.actions` is optional (a declaration may have queries only); `AgentResult` gains `result`. `sygnal-check --graph` lists a declaration's `queries`. WebMCP's result budget cuts a long `result` as it cuts `state` (SYG242).
+
 ## 6.1.1 — 2026-10-10
 
 Editor tooling (PLAN-7). A language server, `sygnal-check lsp`, shows the checker's findings in the editor while you type: an intent selector that matches nothing, an action with no model entry, an EVENTS type nobody listens to, and the other wiring bugs that fail silently at runtime and that TypeScript can't see. It runs in VS Code (a new extension), Claude Code (a new plugin), Neovim, Helix, JetBrains IDEs (LSP4IJ) and any other LSP editor, all from the one server in `sygnal-check`, so the editor, the CLI, the Vite overlay and CI report the same findings from the same config file.

@@ -159,3 +159,33 @@ export async function testing() {
   const ctx: Record<string, unknown> = t.agentContext()
   return [list, ctx]
 }
+
+// --- queries: read-only tools, run(state, input) => result ------------------------------------
+const Find = z.object({ text: z.string() })
+export const q1: AgentDeclaration<State, Actions> = {
+  name: 'todos',
+  queries: {
+    open: { description: 'The open todos', run: (s) => s.todos.filter((t) => !t.done) },
+    find: { description: 'Todos containing a text', input: Find, run: (s, { text }: z.infer<typeof Find>) => s.todos.filter((t) => t.text.includes(text)) },
+    count: { description: 'How many', when: (s) => s.todos.length > 0, run: (s) => s.todos.length },
+  },
+}
+// a declaration with queries only (no actions)
+export const q2: AgentDeclaration<State> = { name: 'stats', queries: { total: { description: 'Total', run: (s) => s.todos.length } } }
+export const q3: AgentDeclaration<State, Actions> = {
+  name: 'todos',
+  // @ts-expect-error a query is synchronous: run can't return a promise
+  queries: { slow: { description: 'Slow', run: async (s) => s.todos } },
+}
+export const q4: AgentDeclaration<State, Actions> = {
+  name: 'todos',
+  // @ts-expect-error run gets the component's state
+  queries: { bad: { description: 'Bad', run: (s: { other: 1 }) => s.other } },
+}
+// @ts-expect-error run is required
+export const q5: AgentDeclaration<State, Actions> = { name: 'todos', queries: { none: { description: 'None' } } }
+export async function queryResult() {
+  const r = await set.call('todos_find', { text: 'milk' })
+  if (r.ok) return r.result
+}
+TodoApp.agent = { name: 'todos', queries: { n: { description: 'Count', run: (s) => s.todos.length } } }

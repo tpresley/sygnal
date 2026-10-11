@@ -6,7 +6,8 @@
  * `t.tools()` / `t.callTool()` / `t.agentContext()` (A-4) all use it.
  *
  *   Comp.agent = { name, description?, read?, label?, untrusted?,
- *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent? } } }
+ *                  actions: { ACTION: { description, input?, consequential?, when?, idempotent? } },
+ *                  queries: { find: { description, input?, when?, run: (state, input) => result } } }
  *
  * It reaches the app only through the runtime API (`root`, `get`, `dispatch`, `flushed`,
  * `addHooks`) and one hook layer, so the core pays 0 bytes:
@@ -25,12 +26,17 @@
  *   outcome measured by `wrapHandler` on that action only: success when a STATE handler changed
  *   the state structurally, a sink got a value or an EFFECT ran; `abort(reason)` refuses with the
  *   reason; otherwise "changed nothing" (`idempotent: true`: `{ ok: true, unchanged: true }`, D256);
+ * - queries: read-only tools (`readOnlyHint`) that take an input, for data too large for `read`
+ *   or answers computed from the state: `run(state, input)` is a pure, synchronous function of the
+ *   instance's state; a call validates the input as for actions, checks `when`, and returns
+ *   `{ ok: true, result }` without dispatching anything (no confirm, no flush);
  * - `when` and `read`: cached by state identity per instance (reducers are immutable);
  * - HMR: given the `run()` result, it re-binds to `app.__runtime` after the root's dispose.
  * Diagnostics (dev, once each): SYG240 an input with no JSON Schema form (the tool is left out;
- * `list({ all: true })` shows it with `error`), SYG241 `read` / `when` / `label` threw, SYG243 a
- * lossy input schema, SYG440 two declarations with one name, SYG441 Collection items with no or
- * duplicate keys.
+ * `list({ all: true })` shows it with `error`), SYG241 `read` / `when` / `label` / a query threw,
+ * SYG243 a lossy input schema, SYG246 a query whose `run` is not a function or returned a promise,
+ * SYG247 a query with the tool name of an action (not offered), SYG440 two declarations with one
+ * name, SYG441 Collection items with no or duplicate keys.
  */
 import {abortReason, isAbort, ORIGINAL} from '../../../shared'
 import {objIsEqual} from '../../../cycle/state/objIsEqual'
@@ -73,8 +79,8 @@ const dev = (code: string, decl: any, what: string, component: string, message: 
   if (!s) done.set(decl, s = new Set())
   if (s.has(code + what)) return
   s.add(code + what)
-  // severities are passed (DEV_CODE_SEVERITY, kept out of the main bundle's table): 240 / 241 error, 243 / 440 / 441 warn
-  try { report(code, {component, message, severity: code < 'SYG242' ? 'error' : 'warn'}) } catch (e) { queueMicrotask(() => { throw e }) }
+  // severities are passed (DEV_CODE_SEVERITY, kept out of the main bundle's table): 240 / 241 / 246 error, 243 / 247 / 440 / 441 warn
+  try { report(code, {component, message, severity: code < 'SYG242' || code == 'SYG246' ? 'error' : 'warn'}) } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
 /** the string `enum` / `const` values anywhere in a JSON Schema (the app's own words: filter names, statuses) */
@@ -144,7 +150,7 @@ export const lookUp = (d: string, g: AgentGroup, read: string) => {
 }
 
 interface Entry {name: string; decl: any; ivs: any[]; item: boolean; view: any; enums: Set<string>}
-interface Rec {tool: AgentTool; e: Entry; action?: string; a?: any; key?: string; off?: 1}
+interface Rec {tool: AgentTool; e: Entry; action?: string; query?: string; a?: any; key?: string; off?: 1}
 interface Call {id: number; type: string; data: any; ran: boolean; out: Array<{kind: string; reason?: string; error?: any}>}
 
 /**
@@ -301,21 +307,28 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     for (const e of entries) {
       const d = e.decl
       if (d.read) recs.set(e.name + '_read', {e, tool: {name: e.name + '_read', description: `Read ${e.name}` + (d.description ? `: ${d.description}` : ''), inputSchema: {type: 'object', properties: {}}, annotations: {readOnlyHint: true, ...(d.untrusted && {untrustedContentHint: true})}}})
-      for (const action in d.actions) {
-        const a = d.actions[action], name = e.name + '_' + snake(action), comp = e.ivs[0].name
+      // the actions, then the queries (read-only, `run(state, input)`): one tool each
+      const defs: Array<[string, any, boolean]> = []
+      for (const k in d.actions) defs.push([k, d.actions[k], false])
+      for (const k in d.queries) defs.push([k, d.queries[k], true])
+      for (const [action, a, isQuery] of defs) {
+        const name = e.name + '_' + snake(action), comp = e.ivs[0].name, where = `agent.${isQuery ? 'queries' : 'actions'}.${action}`
+        if (isQuery && recs.has(name)) { dev('SYG247', d, action, comp, `${where} has the tool name ${name} of an action; the query is not offered (rename it)`); continue }
+        if (isQuery && typeof a?.run != 'function') { dev('SYG246', d, action, comp, `${where}.run is not a function; the query is not offered`); continue }
         const c = a.input ? toJsonSchema(a.input) : undefined
         if (c?.schema) enumsOf(c.schema, e.enums)
-        const tool: AgentTool = {name, description: a.description, inputSchema: c?.schema || {type: 'object', properties: {}}, annotations: a.consequential ? {consequentialHint: true} : {}}
-        const rec: Rec = {e, action, a, tool}
+        const tool: AgentTool = {name, description: a.description, inputSchema: c?.schema || {type: 'object', properties: {}},
+          annotations: isQuery ? {readOnlyHint: true, ...(d.untrusted && {untrustedContentHint: true})} : a.consequential ? {consequentialHint: true} : {}}
+        const rec: Rec = isQuery ? {e, query: action, a, tool} : {e, action, a, tool}
         recs.set(name, rec)
-        if (e.item) seen.set(name, {e: {...e, ivs: []}, action, a, tool})
+        if (e.item) seen.set(name, {...rec, e: {...e, ivs: []}})
         if (c?.error) {
           tool.error = `SYG240 ${c.error}`
           rec.off = 1
-          dev('SYG240', d, action, comp, `agent.actions.${action}.input: ${c.error}; the tool is not offered`)
+          dev('SYG240', d, action, comp, `${where}.input: ${c.error}; the tool is not offered`)
           continue
         }
-        if (c?.lossy) dev('SYG243', d, action, comp, `agent.actions.${action}.input: the model doesn't see ${c.lossy}`)
+        if (c?.lossy) dev('SYG243', d, action, comp, `${where}.input: the model doesn't see ${c.lossy}`)
         const live = e.ivs.filter(iv => whenOk(iv, action, a.when))
         if (!live.length) { rec.off = 1; continue }
         if (e.item) {
@@ -396,8 +409,8 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
       return r ? {ok: false, error: `${name} is not available now`, state: resultState(r.e.ivs[0])} : {ok: false, error: `no tool ${name}; tools: ${list().map(t => t.name).join(', ')}`}
     }
     if (r.tool.error) return {ok: false, error: r.tool.error}
-    const {e, a, action} = r
-    if (!action) return {ok: true, state: context()[e.name]}
+    const {e, a, action, query} = r
+    if (!action && !query) return {ok: true, state: context()[e.name]}
     const key = r.key || 'id', view = e.view
     let raw = args ?? {}, k: any
     if (e.item) {
@@ -418,18 +431,20 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     }
     let iv = resolve()
     if (!iv) return e.item ? missing(e, view, k) : {ok: false, error: `${e.name} is not on the page`}
-    if (!whenOk(iv, action, a.when)) return {ok: false, error: `${name} is not available now`, state: resultState(iv)}
+    if (query) return ask(name, iv, query, a, data)
+    const type = action as string
+    if (!whenOk(iv, type, a.when)) return {ok: false, error: `${name} is not available now`, state: resultState(iv)}
     if (a.consequential) {
       const c = 'confirm' in o ? o.confirm : options.confirm
-      const info: ConfirmInfo = {tool: name, component: iv.name, action, description: a.description, input: data, ...(e.item && {key: k, label: labelOf(iv)})}
+      const info: ConfirmInfo = {tool: name, component: iv.name, action: type, description: a.description, input: data, ...(e.item && {key: k, label: labelOf(iv)})}
       if (!(typeof c == 'function' ? await c(info) : c === true)) return {ok: false, error: 'the user declined'}
       // the app may have changed while the user decided: resolve and check again
       iv = resolve()
       if (!iv) return e.item ? {...missing(e, view, k), error: `the ${e.name} with id ${JSON.stringify(k)} is gone`} : {ok: false, error: `${e.name} is not on the page any more`}
-      if (!whenOk(iv, action, a.when)) return {ok: false, error: `${name} is not available any more`, state: resultState(iv)}
+      if (!whenOk(iv, type, a.when)) return {ok: false, error: `${name} is not available any more`, state: resultState(iv)}
     }
-    const rec: Call = pending = {id: iv.id, type: action, data, ran: false, out: []}
-    api.dispatch(iv.id, action, data, 'agent')
+    const rec: Call = pending = {id: iv.id, type, data, ran: false, out: []}
+    api.dispatch(iv.id, type, data, 'agent')
     await api.flushed()
     if (pending === rec) pending = null
     if (current === rec) current = null
@@ -443,6 +458,22 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
     if (out.some(x => x.kind == 'changed' || x.kind == 'sent' || x.kind == 'effect')) return gone ? {ok: true, removed: true, state} : {ok: true, state}
     if (refused) return {ok: false, error: `${action} was refused: ${refused.reason}`, state}
     return a.idempotent ? {ok: true, unchanged: true, state} : {ok: false, error: `${action} changed nothing (already so, or the input matched nothing)`, state}
+  }
+
+  /** a query call: `run(state, input)` on the instance's state now; nothing is dispatched */
+  function ask(name: string, iv: any, query: string, q: any, data: any): AgentResult {
+    if (!whenOk(iv, query, q.when)) return {ok: false, error: `${name} is not available now`}
+    let result: any
+    try { result = q.run(iv.state, data) } catch (err: any) {
+      const m = err?.message ?? err
+      dev('SYG241', declOf(iv), 'query' + query, iv.name, `agent.queries.${query}.run threw: ${m}`)
+      return {ok: false, error: `${name} failed: ${m}`}
+    }
+    if (result && typeof result.then == 'function') {
+      dev('SYG246', declOf(iv), 'promise' + query, iv.name, `agent.queries.${query}.run returned a promise: a query is a pure, synchronous function of the state`)
+      return {ok: false, error: `${name} is not available: it returned a promise`}
+    }
+    return {ok: true, result}
   }
 
   return {

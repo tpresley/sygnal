@@ -303,11 +303,31 @@ export type AgentAction<STATE, D> = {
   idempotent?: boolean
 } & (AgentNoData<D> extends true ? { input?: never } : AgentIsAny<D> extends true ? { input?: AgentSchema<any> } : { input: AgentSchema<D> })
 
+/** What a query may return: any JSON-like value, but not a promise (a query is synchronous) */
+export type AgentQueryResult = string | number | boolean | null | undefined | (object & { then?: never })
+
+/**
+ * One entry of `agent.queries`: a read-only tool that takes an input. `run(state, input)` is a
+ * pure, synchronous function of the component's current state and the validated input; the call
+ * returns `{ ok: true, result }`, dispatches nothing and changes nothing. Use it for data too large
+ * to send in `read` on every request (a filtered list, one record) or an answer computed from the
+ * state. The input's type isn't inferred from `input` (annotate it: `run: (state, input: In) => …`).
+ */
+export type AgentQuery<STATE> = {
+  /** What the query returns, for the model */
+  description: string
+  /** Offered only while this is true (cached by state identity) */
+  when?: (state: STATE) => boolean
+} & (
+  | { input?: undefined; run: (state: STATE) => AgentQueryResult }
+  | { input: AgentSchema<any>; run: (state: STATE, input: any) => AgentQueryResult }
+)
+
 /**
  * The `agent` static: what agents may do with a component and see of it. Only the listed actions
  * are exposed, as tools `<name>_<action>` (snake case) plus `<name>_read`; a Collection item
  * component's actions are one tool per action with an `id` parameter (`item` when the input has
- * its own `id`).
+ * its own `id`). `queries` add read-only tools `<name>_<query>` (the same key parameter on items).
  */
 export type AgentDeclaration<STATE = any, ACTIONS = any> = {
   /** Tool name prefix: `todos` -> todos_add, todos_read (letters, digits, _) */
@@ -328,9 +348,11 @@ export type AgentDeclaration<STATE = any, ACTIONS = any> = {
    * `status`, `type` or `kind`, and values that are one of this declaration's input enum values (G-623)
    */
   untrusted?: boolean
-  actions: keyof ACTIONS extends never
+  actions?: keyof ACTIONS extends never
     ? { [action: string]: AgentAction<STATE, any> }
     : { [K in keyof ACTIONS]?: AgentAction<STATE, ACTIONS[K]> }
+  /** Read-only tools that take an input: `{ find: { description, input, run: (state, input) => result } }` */
+  queries?: { [query: string]: AgentQuery<STATE> }
 }
 
 /** One tool, as an agent sees it */
@@ -364,12 +386,13 @@ export type AgentConfirm = boolean | ((info: AgentConfirmInfo) => boolean | Prom
  * A tool call's result, for the model:
  * - `{ ok: true, state }`: done; `state` is the nearest `read` projection (the item's, or its
  *   list's); `removed: true` when an item removed itself; `unchanged: true` for an idempotent no-op
+ * - `{ ok: true, result }`: a query's result
  * - `{ ok: false, error, state?, issues?, keys? }`: invalid input (`issues`), an unknown or hidden
  *   key (`keys`), not available (`when`), declined, refused (`abort(reason)`), threw, or changed
  *   nothing ("already so, or the input matched nothing")
  */
 export type AgentResult =
-  | { ok: true; state?: unknown; removed?: true; unchanged?: true }
+  | { ok: true; state?: unknown; removed?: true; unchanged?: true; result?: unknown }
   | { ok: false; error: string; state?: unknown; issues?: AgentIssue[]; keys?: unknown[] }
 
 export interface AgentToolsOptions {

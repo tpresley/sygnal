@@ -17,6 +17,12 @@
  *         (needs `jsonSchema()`). The runtime leaves the tool out.
  * SYG243  (G-611) a `Date` in an `input` (`z.date()`, `v.date()`, ArkType 'Date'): JSON can't carry
  *         a Date, so the model sees no schema for it and its string fails validation.
+ *         SYG240 and SYG243 judge `agent.queries` inputs too.
+ * SYG246  an `agent.queries` entry without `run`, or with an `async` one: a query is a pure,
+ *         synchronous function of the state (the runtime leaves a missing one out and fails a
+ *         promise).
+ * SYG247  an `agent.queries` key with the tool name of an `agent.actions` key (snake case, as the
+ *         runtime names tools): the action keeps the name, the query is not offered.
  *
  * Only literal declarations are judged; spreads, computed keys and values the checker can't
  * follow are skipped.
@@ -25,7 +31,7 @@ import { walk, unwrap, propName, memberName, isFunction } from '../ast.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr } from '../model/resolve.js'
 import { behaviorActions, openPrefixes } from '../model/behaviors.js'
-import { agentName } from '../model/agent.js'
+import { agentName, snake } from '../model/agent.js'
 import { BUILTIN_ACTIONS } from '../model/modelEntries.js'
 import { renameFix, keyEdit, stringEdit } from '../edits.js'
 
@@ -238,8 +244,8 @@ function idlessItem(project, parent, from) {
 
 export default {
   id: 'agent',
-  codes: ['SYG150', 'SYG151', 'SYG440', 'SYG441', 'SYG240', 'SYG243'],
-  description: 'agent static (sygnal/ai): actions without model entries, misspellings, name collisions, Collection items without ids, input schemas',
+  codes: ['SYG150', 'SYG151', 'SYG440', 'SYG441', 'SYG240', 'SYG243', 'SYG246', 'SYG247'],
+  description: 'agent static (sygnal/ai): actions without model entries, misspellings, name collisions, Collection items without ids, input schemas, queries',
   run(project, report) {
     // SYG151: X.agents = { ... } on a component
     for (const p of project.scanned) {
@@ -255,7 +261,7 @@ export default {
         if (!b || b.kind === 'import' || b.kind === 'param') return true
         const comp = file.components.find(c => c.node === b.node)
         const value = unwrap(n.right)
-        const looksLikeAgent = value?.type === 'ObjectExpression' && (hasKey(value, 'actions') || hasKey(value, 'read'))
+        const looksLikeAgent = value?.type === 'ObjectExpression' && (hasKey(value, 'actions') || hasKey(value, 'read') || hasKey(value, 'queries'))
         if (!comp && !looksLikeAgent) return true
         report({
           code: 'SYG151',
@@ -299,12 +305,42 @@ export default {
         }
       }
 
-      // SYG240 / SYG243: the input schemas (G-611)
-      for (const act of a.actions) {
+      // SYG246 / SYG247: queries
+      const actionTools = new Map(a.actions.map(x => [snake(x.name), x.name]))
+      for (const q of a.queries) {
+        const taken = actionTools.get(snake(q.name))
+        if (taken !== undefined) {
+          report({
+            code: 'SYG247',
+            component: comp.name,
+            file: q.file, node: q.node,
+            message: `${comp.name}.agent.queries.${q.name} has the tool name of the action ${taken} (both are '<name>_${snake(q.name)}'): the action keeps the name and the query is not offered`,
+            fix: `rename the query after what it returns, e.g. queries: { ${q.name}_list: … }, or remove one of them`,
+            data: { query: q.name, action: taken },
+          })
+        }
+        if (q.run === 'missing' || q.run === 'async') {
+          report({
+            code: 'SYG246',
+            component: comp.name,
+            file: q.file, node: q.run === 'async' ? q.runNode : q.node,
+            message: q.run === 'async'
+              ? `${comp.name}.agent.queries.${q.name}.run is async: a query is a pure, synchronous function of the state, and a call that gets a promise fails`
+              : `${comp.name}.agent.queries.${q.name} has no run: the query is not offered`,
+            fix: q.run === 'async'
+              ? 'compute the result from state and input (run: (state, input) => …); for data that has to be fetched, use an action whose model entry loads it, and let the model read it from agent.read'
+              : `add run: (state, input) => result, a pure function of the component's state`,
+            data: { query: q.name, run: q.run },
+          })
+        }
+      }
+
+      // SYG240 / SYG243: the input schemas (G-611), of actions and queries
+      for (const act of [...a.actions.map(x => ({ ...x, kind: 'actions' })), ...a.queries.map(x => ({ ...x, kind: 'queries' }))]) {
         if (!act.input) continue
         const { node, file } = act.input
         const kind = inputKind(project, file, node)
-        const where = `${comp.name}.agent.actions.${act.name}.input`
+        const where = `${comp.name}.agent.${act.kind}.${act.name}.input`
         if (kind === 'valibot' || kind === 'zod-mini' || kind === 'json') {
           const fix = kind === 'valibot'
             ? "wrap it: input: toStandardJsonSchema(v.…) (import { toStandardJsonSchema } from '@valibot/to-json-schema')"
@@ -317,7 +353,7 @@ export default {
             file, node,
             message: `${where} ${kind === 'valibot' ? 'is a Valibot schema without toStandardJsonSchema()' : kind === 'zod-mini' ? 'is a Zod Mini schema' : 'is a plain JSON Schema object'}: it has no Standard JSON Schema form, so the agent layer can't describe it to the model and leaves the '${act.name}' tool out`,
             fix,
-            data: { action: act.name, kind },
+            data: { [act.kind === 'queries' ? 'query' : 'action']: act.name, kind },
           })
           continue
         }
@@ -329,7 +365,7 @@ export default {
             file: date.file, node: date.node,
             message: `${where} contains a Date (${date.text.length > 60 ? date.text.slice(0, 57) + '...' : date.text}): JSON can't carry a Date, so the model gets no schema for it and the string it sends fails validation`,
             fix: "take an ISO string and convert it in the reducer: z.iso.datetime() (Zod), v.pipe(v.string(), v.isoDateTime()) (Valibot), 'string.date.iso' (ArkType)",
-            data: { action: act.name },
+            data: { [act.kind === 'queries' ? 'query' : 'action']: act.name },
           })
         }
       }
