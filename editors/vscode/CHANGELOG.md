@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Bundles sygnal-check 0.5.1: **nested projects are found**. Opening a repository or monorepo root, each file is checked as part of its nearest Sygnal project (the closest folder with a `sygnal-check.config.json` or a `package.json` that depends on sygnal), with that project's config, instead of the whole workspace folder being one project. And when an open Sygnal file isn't checked (outside its project's `paths`, or `paths` match no files), a one-time message says why and how to fix it.
+- The extension starts in larger monorepos: it now looks through up to 500 `package.json` files (was 50) for one that uses Sygnal.
+
 ## 0.2.0
 
 The language server's new features (sygnal-check 0.5.0, also bundled):

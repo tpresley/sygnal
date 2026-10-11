@@ -2,6 +2,20 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## sygnal-check 0.5.1, VS Code extension 0.2.1 — 2026-10-11
+
+A patch for the editor tooling; `sygnal` itself is unchanged (6.2.0). Reported against extension 0.2.0: opening `examples/todomvc` (code at the top level, no `src/`), or the repository root, underlined nothing and said nothing.
+
+### Fixed
+
+- **`sygnal-check lsp` finds nested projects.** Each file is checked as part of its project root: the nearest folder, up to its workspace folder, with a `sygnal-check.config.json` or a `package.json` that depends on `sygnal` / `sygnal-check` (else the workspace folder, as before). Each root has its own config, `paths` (relative to the root), cache and settings (`workspace/configuration` per root). Opening a repository or monorepo root checks each app as its own project, from the first file you open in it; a workspace folder that only holds projects below it isn't checked as one.
+- **`sygnal-check lsp` says when a file isn't checked.** A one-time message when an open Sygnal file is outside its project's `paths`, or when `paths` match no source files (`window/showMessage`, and the log).
+- **VS Code extension:** it starts in larger monorepos (it looks through up to 500 `package.json` files for one that uses Sygnal, was 50).
+
+### Changed
+
+- **Every app in `examples/` has a `sygnal-check.config.json`** (`strict: true`, as the templates; `todomvc` adds `paths: ["."]`, `vike` `paths: ["pages"]`), so the CLI, the dev overlay and the editor check them by default.
+
 ## 6.2.0 — 2026-10-10
 
 Two things since 6.1.1. Agents get read-only tools that take an input (`agent.queries`) and actions that answer once their result is in state (`until`). And the editor tooling (PLAN-7 Phase 4) grows from findings to navigation: the language server in `sygnal-check` 0.5.0 adds completions, go to definition / references, code lenses and rename for the names Sygnal wires by string, in VS Code (extension 0.2.0), Neovim, Helix, JetBrains IDEs and any other LSP editor.
