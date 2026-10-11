@@ -71,6 +71,7 @@ TodoApp.agent = {
 | `label(state)` | A [Collection item](#collection-items)'s label for the model |
 | `untrusted` | `read` returns text users typed (see [Security](#security)). Unset, Sygnal infers it from the strings in the projection |
 | `actions` | The only actions agents may run, by action name |
+| `queries` | Read-only tools that take an input: data too large for `read`, or answers computed from the state ([Queries](#queries)) |
 
 Each entry of `actions`:
 
@@ -111,7 +112,7 @@ In TypeScript, on a component typed with its actions ([TypeScript](/integration/
 
 ## What agents see
 
-**Tools.** One per listed action, plus `<name>_read` when the declaration has a `read`. The todo app above offers:
+**Tools.** One per listed action and [query](#queries), plus `<name>_read` when the declaration has a `read`. The todo app above offers:
 
 | Tool | Input | Hints |
 |---|---|---|
@@ -159,6 +160,62 @@ TodoApp.model = {
 A refusal is reported even on an `idempotent` action.
 
 **One at a time.** Calls run serially, in the order the model made them, so each one sees the previous one's result. A model that sends three calls at once gets three results computed in sequence.
+
+## Queries
+
+`read` goes to the model whole, with every request. That suits a summary, not a table of 5,000 invoices: sending them all costs tokens on every turn, and a model reads a long list badly anyway. A query is a read-only tool that takes an input and answers from the state: the model asks for the overdue invoices of one customer and gets those.
+
+```jsx
+// Invoices.jsx
+import { z } from 'zod'
+
+export default function Invoices({ state }) {
+  return <p className="count">{state.invoices.length} invoices</p>
+}
+
+Invoices.initialState = { invoices: [] }
+
+const Filter = z.object({
+  customer: z.string().optional().describe('The customer name'),
+  overdue: z.boolean().optional(),
+})
+
+Invoices.agent = {
+  name: 'invoices',
+  description: 'The invoices',
+  untrusted: true,
+  read: (state) => ({ count: state.invoices.length }),   // the summary, on every request
+  queries: {
+    // invoices_find({ customer?, overdue? })
+    find: {
+      description: 'The invoices matching a filter, at most 50',
+      input: Filter,
+      run: (state, { customer, overdue }) => state.invoices
+        .filter((i) => (customer === undefined || i.customer === customer) && (overdue === undefined || i.overdue === overdue))
+        .slice(0, 50),
+    },
+    // invoices_total()
+    total: { description: 'The sum of all invoices', run: (state) => state.invoices.reduce((sum, i) => sum + i.total, 0) },
+  },
+}
+```
+
+| Key | What it does |
+|---|---|
+| `description` | What the query returns, for the model |
+| `input` | The schema of its input, as for an action ([Input schemas](#input-schemas)). Without one the query takes no arguments |
+| `when(state)` | The tool is offered only while this is true |
+| `run(state, input)` | The result: a pure, synchronous function of the component's state now and the validated input |
+
+- **A query is a tool named `<name>_<query>`**, marked read-only. It is offered next to the actions, to every kind of agent (the command bar, which picks one action, leaves read-only tools out).
+- **A call validates the input and checks `when`**, as for an action, then returns `{ ok: true, result }` with what `run` returned. Nothing is dispatched, nothing is confirmed, and nothing renders: a query can't change the app.
+- **It must be synchronous.** A `run` that returns a promise (an `async` function, a `fetch`) fails the call and is [SYG246](/reference/errors/#syg246), as is a query without `run`. Data that has to be loaded belongs to an action: its model entry asks for it (a [`resources`](/guide/resources/) entry or a driver request), and the model reads the result in `read` once it has arrived.
+- **A throw** fails the call with its message and is [SYG241](/reference/errors/#syg241).
+- **Actions and queries share the tool names.** A query whose snake-case name is an action's (`find` next to `FIND`) is [SYG247](/reference/errors/#syg247), and only the action is offered.
+- **On a Collection item component**, a query gets the same key parameter as the item's actions (`contact_notes({ id, word })`), and answers from that item's state.
+- **Results are data.** When they hold text users typed, set `untrusted: true` on the declaration: WebMCP then marks the queries with `untrustedContentHint` too ([Security](#security)). Keep results small (filter, then cut): WebMCP cuts a result over 1,500 characters of JSON ([SYG242](/reference/errors/#syg242)).
+
+In TypeScript, `run`'s `state` is typed from the component; type the input yourself, `run: (state, input: z.infer<typeof Filter>) => …`, since it isn't inferred from `input`.
 
 ## Collection items
 
@@ -583,6 +640,7 @@ it('is operable by agents', async () => {
 ```
 
 - `t.tools()` lists the offered tools, plus any declared tool that can't be offered (SYG240) with its `error`.
+- A [query](#queries) is called the same way: `await t.callTool('invoices_find', { customer: 'Acme' })` resolves with `{ ok: true, result }`.
 - `t.callTool(name, args, { confirm })` resolves with the [call result](#the-call-rules) after the render. A consequential tool without `confirm` throws, so a test can't approve one by accident.
 - `t.agentContext()` returns what the model sees: one entry per declaration with a `read`, keyed by the declaration's `name`, holding what its `read` returned. That is why the example above reads `todos.todos`: the declaration is named `todos`, and its `read` returns `{ todos, filter }`. An item declaration's entry is an array with one projection per live item, each with its `id` (`{ todo: [{ id: 1, done: false }] }` for `read: (s) => ({ done: s.done })`).
 

@@ -491,17 +491,17 @@ export const EXPLANATIONS = {
     fix: "Give the root its start state: `App.initialState = { count: 0 }`. If the state really arrives later (from a request), start from a placeholder such as `{ status: 'loading' }` and render that.",
   },
   SYG240: {
-    title: "Agent action input has no JSON Schema form",
+    title: "Agent action or query input has no JSON Schema form",
     severity: "error",
     reportedBy: ["runtime", "static"],
-    explanation: "An `agent.actions` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`. sygnal-check reports the cases it can see in the source before the app runs: a Valibot schema without `toStandardJsonSchema()`, a Zod Mini schema (`zod/mini`), and a JSON Schema object literal not wrapped with `jsonSchema()`.",
+    explanation: "An `agent.actions` or `agent.queries` entry's `input` must be a Standard Schema that also implements Standard JSON Schema (Zod 4.2+, ArkType 2.1.28+, Valibot wrapped with `toStandardJsonSchema()` from `@valibot/to-json-schema`), or a plain JSON Schema wrapped with `jsonSchema()` from `sygnal/ai`. The agent layer sends the model the input-side JSON Schema and validates every call with the schema before the action or query runs. This `input` is something else: not a Standard Schema (a raw JSON Schema object, a function, an older library's schema), a Standard Schema without a JSON Schema form (Valibot without the wrapper, Zod Mini), or one whose conversion throws even in the library's lossy mode. The tool is not offered, because a tool the model can't call correctly only produces failed calls and a schemaless one corrupts state. Reported once per action or query while an agent layer runs (the chat behavior, WebMCP, `t.tools()`); in production the tool is left out silently, and `t.tools()` lists it with this `error`. sygnal-check reports the cases it can see in the source before the app runs: a Valibot schema without `toStandardJsonSchema()`, a Zod Mini schema (`zod/mini`), and a JSON Schema object literal not wrapped with `jsonSchema()`.",
     fix: "Use a supported schema: `input: z.string().min(1)`, `input: toStandardJsonSchema(v.picklist(['all', 'done']))`, or `input: jsonSchema({ type: 'integer' })`. For Zod Mini keep its validation with `jsonSchema(z.toJSONSchema(s), { validate: s })`. A `Date` can't come from JSON, and Zod's JSON Schema conversion throws for `z.date()` and `z.coerce.date()` alike (the field reaches the model with no schema, SYG243): take an ISO string, `z.iso.datetime()` (convert it in the reducer) or `z.iso.datetime().transform((s) => new Date(s))` (the model sees the string, the action gets a `Date`).",
   },
   SYG241: {
-    title: "Agent read, when or label threw",
+    title: "Agent read, query, when or label threw",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, and a throwing `label` leaves the key unlabelled. The app keeps running. Reported once per declaration and function.",
+    explanation: "The agent layer calls a component's `agent.read(state)` (the projection an agent sees), each action's and query's `when(state)` (whether the tool is offered) and `agent.label(state)` (a Collection item's label) with the instance's current state, once per state change, and a query's `run(state, input)` when an agent calls it. One of them threw. A throwing `read` gives no projection (`undefined` in the context and in tool results), a throwing `when` hides the tool, a throwing `label` leaves the key unlabelled, and a throwing query's call fails with `{ ok: false, error }` carrying the message. The app keeps running. Reported once per declaration and function.",
     fix: "Make the function total over every state the component can have: guard optional fields (`state.todos?.length ?? 0`), and keep it a pure function of the state it gets.",
   },
   SYG242: {
@@ -512,10 +512,10 @@ export const EXPLANATIONS = {
     fix: "Shorten the `agent` declaration's `name`, the action names or the `description` texts, or make `read` return a smaller projection (counts and the fields an agent needs, not the whole state). A Collection item tool's key description lists every item's label: a shorter `label` keeps more of them.",
   },
   SYG243: {
-    title: "Agent action input schema converted with losses",
+    title: "Agent action or query input schema converted with losses",
     severity: "warn",
     reportedBy: ["runtime", "static"],
-    explanation: "Part of an `agent.actions` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action. sygnal-check reports a `Date` in an `input` before the app runs (`z.date()`, `z.coerce.date()`, Valibot `v.date()`, ArkType `'Date'`): JSON can't carry a Date, so the model gets no schema for that field and the string it sends fails validation.",
+    explanation: "Part of an `agent.actions` or `agent.queries` entry's `input` has no JSON Schema form, for example a refinement (Valibot `check`, ArkType `narrow`) or a `Date`, so the library's lossy conversion left it out of the schema the model gets. The model doesn't see that rule, so it may send values that break it; the layer still validates every call with the full schema and returns the issues to the model. Zod drops refinements without saying so, so no warning is possible there. Reported once per action or query. sygnal-check reports a `Date` in an `input` before the app runs (`z.date()`, `z.coerce.date()`, Valibot `v.date()`, ArkType `'Date'`): JSON can't carry a Date, so the model gets no schema for that field and the string it sends fails validation.",
     fix: "Put the rule in the description the model reads (`.describe('at least 2 characters, must contain @')`), or express it with a JSON Schema keyword (`minLength`, `pattern`, `enum`) instead of a refinement. For a date, take an ISO string and convert it in the reducer: `z.iso.datetime()` (Zod), `v.pipe(v.string(), v.isoDateTime())` (Valibot), `'string.date.iso'` (ArkType).",
   },
   SYG244: {
@@ -524,6 +524,20 @@ export const EXPLANATIONS = {
     reportedBy: ["runtime"],
     explanation: "WebMCP marks a tool whose results may carry text from users (or other untrusted sources) with `untrustedContentHint`, so the agent treats that text as data, not instructions. `experimentalExposeWebMcp()` takes the hint from the declaration's `untrusted` field. This declaration doesn't set it and its `read` projection contains string values that aren't clearly the app's own (the rule: a string is user text unless it is under a key named `id`, `status`, `type` or `kind`, or is one of the string enum values of the same declaration's action inputs, such as a filter name), so the layer assumes they may be user-entered and adds the hint to the declaration's tools (and to the tools of declarations without a `read`, whose results carry this projection). The state summary in their descriptions is labelled as data. Reported once per declaration, in development.",
     fix: "Declare it: `untrusted: true` when `read` returns user-entered text (todo texts, names, messages), `untrusted: false` when its strings are only the app's own (enum values, labels the app wrote).",
+  },
+  SYG246: {
+    title: "Agent query is not a synchronous function",
+    severity: "error",
+    reportedBy: ["runtime", "static"],
+    explanation: "An `agent.queries` entry is a read-only tool: its `run(state, input)` gets the component's current state and the validated input and returns the result the model sees, as `{ ok: true, result }`. It runs outside the action queue, so it must be a pure, synchronous function of what it gets: it can't wait for a request, and nothing it does reaches the app's state. This one is not: `run` is missing or not a function (the query is not offered), or it returned a promise (an `async` function, or one that calls `fetch`), so the call fails with `{ ok: false, error }`. Reported once per query while an agent layer runs. sygnal-check reports a missing `run` and an `async` one before the app runs.",
+    fix: "Compute the result from `state` and `input` and return it: `run: (state, { customer }) => state.invoices.filter((i) => i.customer === customer)`. For data that has to be fetched, use an action instead: its model entry sets what to load (a `resources` entry or a driver request), and the model reads the result from the component's `read` once it has loaded.",
+  },
+  SYG247: {
+    title: "Agent query has the tool name of an action",
+    severity: "warn",
+    reportedBy: ["runtime", "static"],
+    explanation: "Actions and queries of one `agent` declaration share its tool-name space: each becomes the tool `<name>_<key>`, with the key in snake case (`FIND` and `find` both give `orders_find`). This query's tool name is already taken by one of the declaration's actions, so the action keeps it and the query is not offered. Reported once per query while an agent layer runs; sygnal-check reports it before the app runs.",
+    fix: "Rename the query so its key names what it returns (`queries: { search: … }` next to an action `FIND`), or remove the duplicate.",
   },
   SYG245: {
     title: "form tool option is not made by formTool()",

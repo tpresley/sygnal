@@ -55,7 +55,8 @@ export function formatGraph(g, { verbose = false } = {}) {
     row('timers', list((c.timers || []).map(timerText)))
     if (c.agent) {
       const acts = list(c.agent.actions.map(a => `${a.name}${a.input || a.consequential ? ` (${[a.input && 'input', a.consequential && 'consequential'].filter(Boolean).join(', ')})` : ''}`))
-      row('agent', `${c.agent.tools ?? '?'}${c.agent.read ? ' (read)' : ''}${acts ? ': ' + acts : ''}${c.agent.partial ? ' …' : ''}`)
+      const qs = list((c.agent.queries || []).map(q => `${q.name} (query${q.input ? ', input' : ''})`))
+      row('agent', `${c.agent.tools ?? '?'}${c.agent.read ? ' (read)' : ''}${acts || qs ? ': ' + [acts, qs].filter(Boolean).join(', ') : ''}${c.agent.partial ? ' …' : ''}`)
     }
     for (const d of c.diagnostics.filter(shown)) out.push(`  ! ${d.code}${d.severity === 'warn' ? '' : ` [${d.severity}]`} ${d.message}`)
   }

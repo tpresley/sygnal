@@ -1604,6 +1604,8 @@ import { makeChatDriver, openResponses, chat, decide, choice } from 'sygnal/ai'
 | `formTool(options)` | Makes a `form` a declarative WebMCP tool: `form(schema, { tool: formTool({...}) })` (experimental) | [WebMCP](/guide/webmcp/) |
 | `makeMcpAppDriver(options?)` | Runs a component as an MCP App view inside an MCP host | [MCP Apps](/guide/mcp-apps/) |
 
+The `agent` static's `queries` (read-only tools that take an input: `run(state, input) => result`) are documented in [Agents](/guide/agent/#queries).
+
 Also new in 6.1.0, from `sygnal`: the `agent` static on components, `abort(reason)` for reducers, the `form.SET` action, and the testing helpers `t.stream`, `t.respond('LLM', …)`, `t.tools()`, `t.callTool()` and `t.agentContext()`.
 
 ## Diagnostics
