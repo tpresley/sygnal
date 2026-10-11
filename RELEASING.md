@@ -16,11 +16,11 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 | Placeholder | Package | Last published |
 |---|---|---|
-| `<SYGNAL>` | `sygnal` | 6.1.0 |
-| `<CHECK>` | `sygnal-check` | 0.3.0 |
-| `<CSA>` | `create-sygnal-app` | 2.1.0 |
+| `<SYGNAL>` | `sygnal` | 6.1.1 |
+| `<CHECK>` | `sygnal-check` | 0.4.0 |
+| `<CSA>` | `create-sygnal-app` | 2.2.0 |
 
-`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.1.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
+`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.1.1.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
 ## 1. Prepare
 
@@ -195,9 +195,12 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-**One-time setup (the maintainer's accounts):**
-- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or pass `-p $VSCE_PAT` when publishing.
-- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal -p $OVSX_PAT`.
+Last published: the extension 0.1.0 (2026-10-10, both registries; tag `vscode-v0.1.0`) and the Claude Code plugin 0.1.0 (tag `sygnal--v0.1.0`).
+
+**One-time setup (the maintainer's accounts):** done for 0.1.0 (publisher `sygnal` on both registries).
+- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or pass `-p $VSCE_PAT` when publishing. The Azure DevOps organization's name doesn't matter (the token is scoped to all organizations).
+  **From December 1, 2026, Azure DevOps retires these global tokens**, and Marketplace publishing has to use Microsoft Entra ID: `vsce publish --azure-credential` (vsce ≥ 2.26.1; this repo has `@vscode/vsce` 4) with an identity that is a member of the publisher. The [VS Code publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents the setup (a managed identity with workload identity federation, added to the publisher as Contributor). Set it up before the first extension release after that date.
+- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal -p $OVSX_PAT`. Pass the token through the `OVSX_PAT` environment variable rather than on the command line, so it stays out of shell history. A new version appears on open-vsx.org a few minutes after `ovsx publish` (it is scanned first).
 
 **Each release:**
 1. Bump `version` in `editors/vscode/package.json` and add a section to `editors/vscode/CHANGELOG.md`. The extension has its own version line (0.1.0 first). If the minimum server version changes, update `MIN_LSP_VERSION` in `editors/vscode/src/resolve.ts`, the extension README and the smoke test text. The Marketplace doesn't take pre-release semver: use `vsce publish --pre-release` with an odd minor for pre-releases.
