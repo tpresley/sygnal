@@ -1,27 +1,36 @@
 /**
  * The language server's checking core (PLAN-7 L-1, G-657): what runs in the check worker
- * (worker.js), or in-thread when workers are off. It owns one project per workspace folder
- * (its ParseCache and the last good parse of each file) and is the only code that builds on
- * those caches, one call at a time, so builds never interleave on a cache.
+ * (worker.js), or in-thread when workers are off. It owns one project per project root (its
+ * ParseCache and the last good parse of each file) and is the only code that builds on those
+ * caches, one call at a time, so builds never interleave on a cache. A payload's `folder` is
+ * that project root (roots.js, G-666): the workspace folder itself only for its fallback root.
  *
  *   createCore() → {
  *     check({ folder, settings, sources }, { part?, wanted?, defer? })
  *                                           → { files: [[absPath, LspDiagnostic[]]], texts, logs,
- *                                              substituted, components, index, completion, ms }
+ *                                              substituted, components, index, completion, ms,
+ *                                              paths, noFiles, outside }
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
  *     rename({ folder, settings, sources, file, line, column, newName? }) → Plan | null
  *                                           (model/rename.js, on the folder as `sources` has it)
- *     drop({ folder })                      forget a removed folder's caches
+ *     drop({ folder })                      forget a removed root's caches
  *   }
  *
- * check: the config file is resolved from the folder (resolveOptions, cwd = the folder) under
- * the editor settings (only the defined ones are passed: `null` leaves the file in charge), the
- * files expanded from the resulting `paths`, then built and checked like checkFiles() (the same
- * rules, `ignore`, sort) with the folder's cache and `sources` (the open documents). The config
- * file's own findings (SYG900) are added as check() adds them. A folder whose files define no
- * component gives nothing. Info findings are dropped unless `settings.verbose`.
+ * check: the config file is resolved from the root (resolveOptions, cwd = the root) under the
+ * editor settings (only the defined ones are passed: `null` leaves the file in charge), the
+ * files expanded from the resulting `paths` (relative to the root), less the files of nested
+ * project roots (roots.js ownedBy: each file is checked by its nearest root only), then built and
+ * checked like checkFiles() (the same rules, `ignore`, sort) with the root's cache and `sources`
+ * (the open documents). The config file's own findings (SYG900) are added as check() adds them.
+ * A root whose files define no component gives nothing. Info findings are dropped unless
+ * `settings.verbose`.
+ *
+ * What the server tells the user about (G-665): `paths` (the resolved paths, relative to the
+ * root), `noFiles` (they match no source file), `outside` (the open documents that look like
+ * Sygnal source but aren't checked: outside `paths`, not a test file left out by `includeTests`,
+ * a config file or under an ignored directory).
  *
  * Last good findings (PLAN-7 §6, D307): a file whose text doesn't parse (a parse failure, or
  * Babel's recovered syntax errors) is checked with its last text that parsed, so its findings
@@ -65,7 +74,8 @@ import { buildProject } from '../model/project.js'
 import { selectRules } from '../rules/index.js'
 import { runRules, sortDiagnostics } from '../run.js'
 import { resolveOptions } from '../config.js'
-import { expandInputs, toSourceMap } from '../files.js'
+import { expandInputs, toSourceMap, isSourceFile } from '../files.js'
+import { ownedBy, inIgnoredDir, looksLikeSygnal } from './roots.js'
 import { createParseCache } from '../cache.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
@@ -77,6 +87,21 @@ import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
 const isParseError = (d) => d.code === 'SYG900' && /^could not parse file/.test(d.message)
+
+/** Open documents of `root` that look like Sygnal source and aren't among `files` (G-665). */
+function outsideOf(root, srcs, files, owned, includeTests) {
+  const out = []
+  if (!srcs.size) return out
+  const set = new Set(files)
+  for (const [abs, text] of srcs) {
+    if (set.has(abs)) continue
+    const rel = path.relative(root, abs)
+    if (!rel || rel.startsWith('..') || path.isAbsolute(rel) || inIgnoredDir(path.dirname(rel))) continue
+    if (!isSourceFile(abs, { includeTests }) || !owned(abs) || !looksLikeSygnal(text)) continue
+    out.push(abs)
+  }
+  return out
+}
 
 export function createCore() {
   const projects = new Map() // folder → { cache, lastGood: Map<absPath, cache entry> }
@@ -90,15 +115,23 @@ export function createCore() {
   /**
    * The folder's files built with `sources` (the model: no rules), a file that doesn't parse now
    * replaced by its last good text (`substituted`, with `parseErrors`: the new texts' parse SYG900s,
-   * as runRules() makes them, without the ignored codes). null when the folder has no source files.
+   * as runRules() makes them, without the ignored codes). null when the root has no source files.
+   * `info` (an object, optional) gets `paths` (relative to the root), `noFiles` and `outside`.
    */
-  function prepare({ folder, settings = {}, sources }) {
+  function prepare({ folder, settings = {}, sources }, info) {
     const p = projectFor(folder)
     const { options, config } = resolveOptions({
       cwd: folder, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
     })
     const srcs = toSourceMap(sources, folder)
-    const { files } = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs })
+    // G-666: a nested project root's files are its own, never this root's
+    const owned = ownedBy(folder)
+    const files = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs }).files.filter(owned)
+    if (info) {
+      info.paths = options.paths.map(x => path.relative(folder, path.resolve(folder, x)) || '.')
+      info.noFiles = !files.length
+      info.outside = outsideOf(folder, srcs, files, owned, options.includeTests)
+    }
     if (!files.length) return null
 
     const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache: p.cache })
@@ -141,8 +174,10 @@ export function createCore() {
   function check({ folder, settings = {}, sources }, { part, wanted, defer } = {}) {
     const t0 = performance.now()
     const logs = []
-    const prep = prepare({ folder, settings, sources })
-    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0 }
+    const info = {}
+    const prep = prepare({ folder, settings, sources }, info)
+    const seen = { paths: info.paths, noFiles: info.noFiles, outside: info.outside }
+    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0, ...seen }
     const { project, options, config, srcs, substituted } = prep
     const substitutedList = [...substituted.keys()]
     const hasComponents = project.components.length > 0
@@ -176,7 +211,7 @@ export function createCore() {
       })
     }
     // the result: with the index unless it went as a part, with the completion index unless late
-    const result = (res) => late ? { ...res, late: true } : { ...res, ...(part ? {} : { index }), completion: completionNow() }
+    const result = (res) => late ? { ...res, ...seen, late: true } : { ...res, ...seen, ...(part ? {} : { index }), completion: completionNow() }
 
     if (!hasComponents) return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0 })
     diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
@@ -242,7 +277,7 @@ export function createCore() {
 
   /** prepareRename / rename (PLAN-7 P4-5): the plan of model/rename.js, built on `sources` as they are. */
   function rename({ folder, settings = {}, sources, file, line, column, newName = null }) {
-    const prep = prepare({ folder, settings, sources }, false)
+    const prep = prepare({ folder, settings, sources })
     return prep ? planRename(prep, { folder, file, line, column, newName }) : null
   }
 

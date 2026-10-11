@@ -106,7 +106,7 @@ code --install-extension sygnal.sygnal
 
 Projects made with `create-sygnal-app` recommend it in `.vscode/extensions.json`, so VS Code offers to install it when you open one. It needs VS Code 1.91 or later.
 
-The extension starts the server only in a workspace folder that uses Sygnal: one with a `sygnal-check.config.json`, or a `package.json` that depends on `sygnal` or `sygnal-check`. In any other workspace it stays idle. Each workspace folder is checked as its own project.
+The extension starts the server only in a workspace folder that uses Sygnal: one with a `sygnal-check.config.json`, or a `package.json` that depends on `sygnal` or `sygnal-check`. In any other workspace it stays idle. Each Sygnal project in the workspace is checked on its own, including the apps of a monorepo ([how projects are found](#nothing-is-underlined)).
 
 ### Which sygnal-check it runs
 
@@ -126,7 +126,7 @@ Every setting is unset (`null`) by default, so the [config file](#the-config-fil
 | `sygnal.strict` | boolean | Also run the [strict-mode](/guide/strict-mode/) rules, like `--strict` |
 | `sygnal.a11y` | `"warn"` \| `"error"` | Severity of the [accessibility](/guide/accessibility/) findings (SYG7xx) |
 | `sygnal.ignore` | string[] | Codes to drop, e.g. `["SYG105"]`. Replaces the config file's list |
-| `sygnal.paths` | string[] | Files, directories or globs to check, relative to the folder (e.g. `["pages"]` for Vike). Replaces the config file's list |
+| `sygnal.paths` | string[] | Files, directories or globs to check, relative to each project (e.g. `["pages"]` for Vike). Replaces the config file's list |
 | `sygnal.verbose` | boolean | Also show info findings |
 | `sygnal.codeLens` | boolean | Show the [code lenses](#navigation-code-lenses-and-rename) (unset: on). An editor setting only; the config file has no such key |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | What the server logs to the Sygnal output |
@@ -349,7 +349,7 @@ config = { sygnal = { strict = true } }
 - **Go to definition and references:** `gd` and `gr`.
 - **Rename:** `space r`. A refusal shows its reason in the statusline. Test files are left out, with a warning naming them.
 - **Code lenses:** Helix doesn't show code lenses, so there are none in Helix.
-- **Monorepos:** to give each package its own project, add `roots = ["package.json"]` to the four `[[language]]` entries. Helix then adds each package as a workspace folder when you open one of its files.
+- **Monorepos:** the server checks each Sygnal package as its own project by itself. To also give each package its own workspace folder, add `roots = ["package.json"]` to the four `[[language]]` entries. Helix then adds the package as a workspace folder when you open one of its files.
 
 Helix doesn't display related locations. Helix also tells the server only about files it saves itself, so after changes made outside the editor (a branch switch, a formatter), findings update at your next edit or save.
 
@@ -416,7 +416,7 @@ npx --no-install sygnal-check lsp
 ```
 
 - **Languages:** `javascript`, `javascriptreact`, `typescript`, `typescriptreact`. Add the server next to your TypeScript server.
-- **Root:** the project folder, the one with `package.json` or `sygnal-check.config.json`. The server checks one project per workspace folder.
+- **Root:** the project folder, the one with `package.json` or `sygnal-check.config.json`. Inside a workspace folder, the server checks each Sygnal project on its own ([how projects are found](#nothing-is-underlined)), so a monorepo's root works too.
 - **Fix all** is the code action kind `source.fixAll.sygnal`. It is also offered in the code-action menu when the cursor is on a finding and the file has auto-fixable ones, for editors that can't ask for an action kind.
 - **Completions, definition, references and rename** (sygnal-check 0.5.0) are the standard requests. The completion trigger characters are `'` `"` `` ` `` `.` `#`. Rename supports `prepareRename` and refuses with error code `-32803`, the reason as its message. Test-file edits come as a separate annotated group with `needsConfirmation` for a client that supports change annotations; a client that doesn't gets the code edits only and a `window/showMessage` warning.
 - **Code lens clicks:** the LSP has no standard "show these locations" command, so the server picks one. A client that lists `editor.action.showReferences` (or a `sygnal.showReferences` of its own) in `capabilities.experimental.commands.commands` gets that command with `[uri, position, locations]`. Otherwise a client with `window/showDocument` support gets the server command `sygnal.goTo`, which opens the first target. Otherwise the lenses are text only.
@@ -427,7 +427,7 @@ npx --no-install sygnal-check lsp
   | `strict` | boolean | also run the strict-mode rules |
   | `a11y` | `"warn"` \| `"error"` | severity of the accessibility findings |
   | `ignore` | string[] | codes to drop |
-  | `paths` | string[] | what to check, relative to the folder |
+  | `paths` | string[] | what to check, relative to each project |
   | `verbose` | boolean | also show info findings |
   | `codeLens` | boolean | show code lenses (default on) |
   | `trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs |
@@ -496,7 +496,7 @@ Settings are taken from, highest first:
 3. the `"sygnal-check"` key in `package.json`;
 4. the defaults.
 
-An explicit option replaces the config's value (an `ignore` list is not merged). The project root is the first directory, from the working directory (the workspace folder, for an editor) upwards, with a `sygnal-check.config.json` or a `package.json`. If it has both, the file wins. A mistake in the config file is a SYG900 finding on that file, never a crash. The [sygnal-check README](https://github.com/tpresley/sygnal/tree/main/sygnal-check#configuration) has the details.
+An explicit option replaces the config's value (an `ignore` list is not merged). The project root is the first directory, from the working directory (for an editor, the file's project) upwards, with a `sygnal-check.config.json` or a `package.json`. If it has both, the file wins. A mistake in the config file is a SYG900 finding on that file, never a crash. The [sygnal-check README](https://github.com/tpresley/sygnal/tree/main/sygnal-check#configuration) has the details.
 
 Suppression comments (`// sygnal-ignore SYG110`) work the same everywhere too.
 
@@ -515,6 +515,29 @@ Suppression comments (`// sygnal-ignore SYG110`) work the same everywhere too.
 
 **`npx` isn't found.** GUI editors often start with a minimal `PATH`. Use `./node_modules/.bin/sygnal-check lsp` as the command instead.
 
-**No findings in a file.** The server only checks the files in `paths` (default `src`). A Vike app keeps its components in `pages/`, so set `"paths": ["pages"]` (or `["src", "pages"]`) in the config file. Test files are skipped unless `includeTests` is `true`. A file outside every workspace folder gets no findings, and neither does a folder with no Sygnal components.
+**Different findings than the CLI.** Check for editor settings that override the config file. Run the CLI from the file's project folder (the one with its `sygnal-check.config.json` or `package.json`), since that is where the config is looked up.
 
-**Different findings than the CLI.** Check for editor settings that override the config file, and run the CLI from the same folder the editor opened, since that is where the config is looked up.
+### Nothing is underlined
+
+**The file is outside `paths`.** The server only checks the files in `paths`, which is `src` by default. When you open a Sygnal file outside them, the server says so once, for example:
+
+> examples/foo/app.tsx isn't checked: it's outside sygnal-check's paths (src) for examples/foo. Add its folder to "paths" in sygnal-check.config.json.
+
+When a project's `paths` match no file at all, it says *sygnal-check found no source files in src for …* instead. Claude Code doesn't show these messages; they are in the server's log.
+
+Fix it in the project's `sygnal-check.config.json`. An app with its files at the top level needs `"paths": ["."]`. A Vike app keeps its components in `pages/`, so it needs `"paths": ["pages"]` (or `["src", "pages"]`):
+
+```json title="sygnal-check.config.json"
+{
+  "paths": ["src", "pages"]
+}
+```
+
+**Nested projects.** A workspace can hold several apps: a monorepo, or a repository with example apps. The server checks each file with its own project, the nearest folder above it, up to the workspace folder, that has either:
+
+- a `sygnal-check.config.json`; or
+- a `package.json` that depends on `sygnal` or `sygnal-check`, or has a `"sygnal-check"` key.
+
+That project's config and `paths` apply, and `paths` are relative to it. A project is checked from the first time you open one of its files. If no folder qualifies, the workspace folder is the project. If an app isn't picked up, give it a `sygnal-check.config.json`; `{}` is enough.
+
+**Other causes.** Test files are skipped unless `includeTests` is `true`. A file outside every workspace folder gets no findings, and neither does a project with no Sygnal components.
