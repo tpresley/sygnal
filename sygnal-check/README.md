@@ -280,7 +280,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, and quick fixes. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, and go to definition / find references for actions and EVENTS types. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -300,6 +300,8 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Diagnostics | pushed with `textDocument/publishDiagnostics` (no pull diagnostics) |
 | Hover | on a finding: its code, title, explanation, fix and docs URL (Markdown, with the URL itself as the link text so editors that hide link targets still show it; plain text for clients without Markdown) |
 | Code actions | `quickfix`, `refactor` / `refactor.rewrite`, `source.fixAll.sygnal` (below) |
+| Definition | `textDocument/definition` on an action name or an EVENTS type ([below](#go-to-definition-and-references)) |
+| References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
 **When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover and code actions are answered while a check runs.
@@ -338,6 +340,26 @@ Each file's list is sorted errors first. Info findings are left out unless `sygn
 | Convert '.x' to the control X | `refactor.rewrite` | The `--controls` conversion of one selector. Offered only when `context.only` asks for refactors |
 
 Fixes are offered only while the document's text is still the one the findings were computed from. An automatic request with nothing to offer (the editor asks on every cursor move) is answered with `[]` straight from the last results.
+
+### Go to definition and references
+
+Actions and EVENTS types are strings wired by name, so TypeScript can't follow them. The server can, on these names:
+
+- **action names:** an intent key, a model key (for a `'A | SINK'` key, its action part), a `next('X')` argument, a reply name in a request (`ok`, `error`, `delta`, `tool`, `block`, also inside `decide()`), an action named by `connections`, `resources`, `route`, `timers` or `browser`, an `agent.actions` key, a host's `'pager.NEXT'` model key, and a `uses` entry key (it stands for the behavior's own actions);
+- **EVENTS types:** an `event('X')` / `emit('X')` argument, a `{ type: 'X' }` an EVENTS sink returns, an `EVENTS.select('X')` argument, and an imported `Toaster` (it selects `TOAST` and `TOAST_DISMISS`).
+
+| From | Definition goes to |
+|---|---|
+| an intent key, `next('X')`, a reply name, a static's action name, an `agent.actions` key, a `uses` key | the model entry (or entries) handling the action in that component |
+| a model key | the intent key(s) triggering it; when no intent key does, its other triggers (`next()`, replies, statics, `agent.actions`, the `uses` key) |
+| `EVENTS.select('X')` | every emitter of `X` in the project |
+| an emitter of `X` | every select of `X` in the project |
+
+Several targets come back as a list: a model or intent shared by components gives every component's, and `undoable()`'s `UNDO` and `REDO` point at the `undoable` call. **References** lists every occurrence of the action in that component, or of the EVENTS type in the project, across files. With `includeDeclaration: false` it leaves out the declarations: the model keys for an action, the emitters for an EVENTS type.
+
+**Limits.** A name the checker can't read gives nothing, never a guess: a computed key (`[ACTIONS.TICK]`), a name built from constants (`next(PREFIX + '_DONE')`, `EVENTS.select(SAVED)` with `SAVED` imported), an intent or model with spreads. A built-in (`BOOTSTRAP`, `INITIALIZE`, ...) has no trigger to go to. A first-party behavior's actions (`pager`, `form`, ...) have no source, so they go to the `uses` key; a user behavior's own intent and model aren't followed yet either. Class names, context entries and Collection `from` don't navigate yet. In a file that doesn't parse, nothing navigates until it parses again.
+
+**Freshness.** Each check also indexes these names, so a request is answered at once from the last check when the open documents are still what it checked. After an unsaved change the server builds the model again with the current text (no rules, the parse cache warm) and answers from that: about 5 ms on the examples, 50 ms on a 20,000-line project. Right after a save it waits for the check that the save started.
 
 ### Settings
 

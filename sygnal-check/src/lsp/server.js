@@ -40,6 +40,9 @@
  * Hover: the `explain` entry of the finding under the cursor. Code actions: the findings' C-4
  * fixes, "Suppress SYGnnn on this line", `source.fixAll.sygnal` (fixFiles, strict, like --fix)
  * and the --controls conversions as refactors (only when `context.only` asks for refactors).
+ *
+ * Definition / references (PLAN-7 N-2): actions and EVENTS types, from the occurrence index each
+ * check returns, or from the worker when a document changed since (navigation.js).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -49,6 +52,7 @@ import { createChecker } from './checker.js'
 import { getExplanation } from '../explain.js'
 import { lineStarts } from '../edits.js'
 import { textHash } from './convert.js'
+import { createNavigation } from './navigation.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
@@ -264,6 +268,7 @@ export function createLspServer({
     clearTimeout(p.timer)
     projects.delete(folder)
     folderSettings.delete(folder)
+    nav.drop(folder)
     for (const uri of p.uris) publish(uri, [])
     checker.call('drop', { folder }).catch(() => {})
   }
@@ -296,6 +301,8 @@ export function createLspServer({
     }
   }
 
+  const nav = createNavigation({ checker, overlaysUnder, settingsFor, folderOf, uriFor, log })
+
   const scheduleFor = (abs, delay) => { for (const f of folderList()) if (within(abs, f)) schedule(f, delay) }
 
   function isIdle() {
@@ -313,10 +320,12 @@ export function createLspServer({
         const p = projects.get(folder)
         p.dirty = false
         const sources = overlaysUnder(folder)
+        const snap = nav.snapshot(sources)
         inFlight = folder
-        checker.call('check', { folder, settings: settingsFor(folder), sources })
-          .then(res => apply(folder, res), err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
-          .finally(() => { inFlight = null; pump() })
+        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources })
+          .then(res => { if (projects.has(folder) && !exited) nav.accept(folder, snap, res); apply(folder, res) }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+        nav.track(folder, snap, checked)
+        checked.finally(() => { inFlight = null; pump() })
         return
       }
     }
@@ -424,6 +433,8 @@ export function createLspServer({
           textDocumentSync: { openClose: true, change: 1, save: { includeText: false } },
           hoverProvider: true,
           codeActionProvider: { codeActionKinds: CODE_ACTION_KINDS, resolveProvider: false },
+          definitionProvider: true,
+          referencesProvider: true,
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
         },
         serverInfo: { name: 'sygnal-check', version: pkg.version },
@@ -534,6 +545,10 @@ export function createLspServer({
       })()
     },
   }
+
+  // PLAN-7 N-2: actions and EVENTS (navigation.js)
+  requests['textDocument/definition'] = (params) => nav.definition(params)
+  requests['textDocument/references'] = (params) => nav.references(params)
 
   /** `[{ uri, range, newText }]` → a WorkspaceEdit with the edits grouped by file. */
   function workspaceEdit(edits) {
