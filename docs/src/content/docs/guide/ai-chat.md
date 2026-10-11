@@ -51,7 +51,7 @@ export default {
 }
 ```
 
-```jsx live live-height=260
+```jsx live live-height=260 title="Chat.jsx"
 import { ABORT } from 'sygnal'
 import { messageText } from 'sygnal/ai'
 
@@ -243,7 +243,7 @@ export default {
 }
 ```
 
-```jsx live live-height=200
+```jsx live live-height=200 title="QuickAdd.jsx"
 import { z } from 'zod'
 import { ABORT } from 'sygnal'
 
@@ -342,7 +342,7 @@ export default {
 }
 ```
 
-```jsx live live-height=260
+```jsx live live-height=260 title="Shopping.jsx"
 import { ABORT } from 'sygnal'
 import { messageText, withToolResults } from 'sygnal/ai'
 

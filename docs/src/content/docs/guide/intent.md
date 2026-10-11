@@ -173,7 +173,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Notes.jsx"
 import { debounce } from 'sygnal'
 
 function Notes({ state }) {

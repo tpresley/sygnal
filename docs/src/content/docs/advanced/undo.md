@@ -114,7 +114,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Editor.jsx"
 import { undoable } from 'sygnal'
 
 export function Editor({ state }) {

@@ -70,7 +70,7 @@ export default {
 }
 ```
 
-```jsx live live-height=260
+```jsx live live-height=260 title="Article.jsx"
 import { ABORT } from 'sygnal'
 
 const TEXT = 'The octopus has three hearts: two pump blood through the gills, and one through the rest of the body. Its blood is blue, because it carries oxygen with copper instead of iron. Two thirds of its neurons are in its arms, so each arm can taste, touch and react without waiting for the brain. Most octopuses live only a year or two.'

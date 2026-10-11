@@ -19,7 +19,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="Quote.jsx"
 function Quote({ state }) {
   const { status, data, refreshing } = state.quote
   return (
@@ -154,8 +154,7 @@ A seeded entry keeps its `updatedAt`, so it stays fresh for `staleTime` after th
 
 A `+data` hook seeds a cache and puts its snapshot on `pageContext.queryCache`. The Sygnal Vike extension renders the page's resources from it, passes it to the client, and hydrates the cache of every fetch driver in the `drivers` config before the page runs. On client-side navigation it does the same with the next page's snapshot.
 
-```javascript
-// pages/quote/@id/+data.js
+```javascript title="pages/quote/@id/+data.js"
 import { queryCache } from 'sygnal'
 
 export async function data(pageContext) {
@@ -176,8 +175,7 @@ import { makeFetchDriver, queryCache } from 'sygnal'
 export default { HTTP: makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) }) }
 ```
 
-```jsx
-// pages/quote/@id/+Page.jsx
+```jsx title="pages/quote/@id/+Page.jsx"
 function Page({ state }) {
   const { status, data } = state.quote
   return <p className="quote">{status === 'success' ? data.text : 'Loading…'}</p>
@@ -298,7 +296,7 @@ export default {
 .rows.stale { opacity: 0.5; }
 ```
 
-```jsx live
+```jsx live title="Pages.jsx"
 function Pages({ state }) {
   const { data, refreshing } = state.list
   return (
@@ -377,7 +375,7 @@ export default {
 }
 ```
 
-```jsx live
+```jsx live title="App.jsx"
 const statusOf = (r) => (r?.status === 'loading' ? 'Loading…' : r?.refreshing ? 'Updating…' : '')
 
 function App({ state }) {

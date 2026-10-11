@@ -23,7 +23,7 @@ export default {
 
 Validation, a list of rows the user adds and removes, the submit to the server, the pending button, and the server's errors:
 
-```jsx live
+```jsx live title="Signup.jsx"
 import { form } from 'sygnal'
 import { z } from 'zod'
 
