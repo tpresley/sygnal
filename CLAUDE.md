@@ -28,7 +28,7 @@ node scripts/perf-report.mjs         # timing ratios to React vs the timing targ
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
 npm --prefix sygnal-check test       # static checker package (1,003 tests, *.vtest.js; SYGNAL_CHECK_LATENCY=1 adds the latency gates)
 npm --prefix editors/vscode test     # the VS Code extension: typecheck, unit, build, smoke test in the installed VS Code (not in npm test)
-npm --prefix docs run build          # docs site + internal link check
+npm --prefix docs run build          # docs site + internal link check + file-name tab check (check-code-titles.mjs)
 npm --prefix docs run check-live     # every live example of the built docs/dist in Playwright; must pass on BROWSER=chromium, firefox and webkit
 node scripts/gen-error-docs.mjs      # regenerate docs reference/errors.md from sygnal-check/explanations.json
 node scripts/check-doc-samples.mjs   # sygnal-check --strict on every docs code sample (680 checked, 15 skipped by marker)
