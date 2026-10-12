@@ -121,7 +121,7 @@ export interface Decision<Q extends Questions = Questions, R = never> {
 type FetchRequestObject = Extract<FetchRequest, { url: string }>
 
 /** What `decide()` / `decide.openai()` take: the decision, plus any `makeFetchDriver` request keys */
-export type DecideOptions<Q extends Questions> = Omit<FetchRequestObject, 'url' | 'json' | 'body'> & {
+export type DecideOptions<Q extends Questions> = Omit<FetchRequestObject, 'url' | 'json' | 'body' | 'batch' | 'combine' | 'split'> & {
   /** Default '/api/decide' (the app's own route, which holds the API key) */
   url?: string
   /** The decision model, e.g. 'jev-latest' (TypeSafe), 'nimble' (Ollama), 'gpt-6-luna' (OpenAI) */
@@ -131,6 +131,23 @@ export type DecideOptions<Q extends Questions> = Omit<FetchRequestObject, 'url' 
   questions: Q
   /** Base64 PNG / JPEG / WebP files shared by every question (models that read images only) */
   images?: readonly string[]
+  /**
+   * D472: more questions than this go as parallel sub-requests (a fetch-driver `batch`), their
+   * replies merged into one (`answers` by name, `usage` summed). Default 64 (Ollama's limit)
+   */
+  maxQuestions?: number
+  /**
+   * D472: split the same way when the estimated prompt of one question (the state plus every
+   * question of the request, as Ollama counts it; the estimate runs high) passes this. Default:
+   * none; a request a server rejects as too large is halved anyway (`split`)
+   */
+  maxPromptTokens?: number
+  /**
+   * false: one request whatever its size, and no halving on a "too large" rejection. Default: on
+   * (a request under the limits is sent as is; a 400 / 413 that names tokens, fields, context, a
+   * limit or "too long / many / large" sends it again in halves, at most 3 deep)
+   */
+  split?: boolean
   /** As a resource: keep the previous `data` on a new request */
   keepPrevious?: boolean
   /** As a resource: refetch every this many ms */
@@ -140,10 +157,15 @@ export type DecideOptions<Q extends Questions> = Omit<FetchRequestObject, 'url' 
 }
 
 /** A decision as a `makeFetchDriver` request (POST JSON); its reply is a `Decision<Q, R>` */
-export type DecideRequest<Q extends Questions = Questions, R = never> = Omit<DecideOptions<Q>, 'model' | 'state' | 'questions' | 'images' | 'url'> & {
+export type DecideRequest<Q extends Questions = Questions, R = never> = Omit<DecideOptions<Q>, 'model' | 'state' | 'questions' | 'images' | 'url' | 'maxQuestions' | 'maxPromptTokens' | 'split'> & {
   url: string
   method: 'POST'
+  /** the whole decision (what a test fake answers); over the limits, the parts go in `batch` */
   json: Record<string, unknown>
+  /** D472: the parts of a decision over the limits (sent in parallel, merged by `combine`) */
+  batch?: ReadonlyArray<{ url: string; method: 'POST'; json: Record<string, unknown>; parse?: (response: Response) => any }>
+  combine?: (bodies: any[], requests: any[]) => any
+  split?: (request: any, error: Error & { status?: number; body?: any }) => any[] | null
   /** Type only: the reply's shape (`Decision<Q, R>`); never set */
   readonly __decision?: Decision<Q, R>
 }
@@ -1653,19 +1675,12 @@ export interface ComposeDecisionsOptions {
    * catalog's limit still caps the page
    */
   maxParts?: number
-  /**
-   * the most questions one decide() request may hold: a step with more goes as several requests of
-   * about even size, their answers merged before reading. Default: 64 when `url` looks like Ollama
-   * (its /v1/systemone limit), else no limit (one request per step)
-   */
+  /** passed to every `decide()` request (D472): see `DecideOptions`. Default 64 */
   maxQuestions?: number
-  /**
-   * the most prompt tokens one question may take (estimated, conservatively): on Ollama each
-   * question's prompt holds the state and every question of its request, within the model's
-   * num_ctx (nimble: 8192). A step over it is split as for `maxQuestions`. Default: 7500 when
-   * `url` looks like Ollama, else no limit
-   */
+  /** passed to every `decide()` request (D472): see `DecideOptions`. Default: none */
   maxPromptTokens?: number
+  /** passed to every `decide()` request (D472): false sends each step as one request, never halved */
+  split?: boolean
 }
 /**
  * the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`; for an

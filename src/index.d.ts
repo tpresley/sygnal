@@ -2358,6 +2358,21 @@ export type FetchRequest = string | {
    * schema's (possibly transformed) value. A failure is an error with `issues`
    */
   validate?: StandardSchemaLike;
+  /**
+   * D472: send these sub-requests instead, in parallel (each inherits this request's fields:
+   * `url`, `headers`, `init`, ...; its own `json` / `body` / `parse` win), and deliver ONE reply:
+   * `combine(bodies, requests)`. One failure fails the request (once). The test fake
+   * (renderComponent) answers the request as one, by its own `url` / `json`. `decide()` makes these
+   */
+  batch?: ReadonlyArray<{ url?: string; method?: string; headers?: Record<string, string>; query?: Record<string, unknown>; json?: unknown; body?: BodyInit; parse?: 'auto' | 'json' | 'text' | ((response: Response) => any) }>;
+  /** D472: merges the parsed bodies of `batch` / `split` parts into the reply (default: the array) */
+  combine?: (bodies: any[], requests: any[]) => any;
+  /**
+   * D472: a request (or a `batch` part) that fails with an HTTP error is sent again as the
+   * requests this returns (≥ 2, in parallel, merged by `combine`), at most 3 times deep; null keeps
+   * the error. `decide()` halves its questions on a 400 / 413 that names a size limit
+   */
+  split?: (request: any, error: Error & { status?: number; body?: any }) => any[] | null | undefined;
   /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
   [appData: string]: any;
 } | {

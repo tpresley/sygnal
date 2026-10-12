@@ -52,8 +52,10 @@ describe('decide() (dictionary form)', () => {
     expect(r).toEqual({
       url: '/api/decide', method: 'POST', json: { model: 'nimble', state: 'charged twice', questions },
       ok: 'TRIAGED', error: 'FAILED', key: 'triage', latest: true, headers: { 'x-a': '1' },
+      // D472: how the fetch driver splits a request a server rejects as too large, and merges the parts
+      combine: expect.any(Function), split: expect.any(Function),
     })
-    expect(decide({ url: 'http://localhost:11434/v1/systemone', model: 'nimble', state: { a: 1 }, questions, images: ['iVBOR'] }))
+    expect(decide({ url: 'http://localhost:11434/v1/systemone', model: 'nimble', state: { a: 1 }, questions, images: ['iVBOR'], split: false }))
       .toEqual({ url: 'http://localhost:11434/v1/systemone', method: 'POST', json: { model: 'nimble', state: { a: 1 }, questions, images: ['iVBOR'] } })
   })
 

@@ -16,8 +16,6 @@ const names = { ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA', key
 const json = (x) => JSON.parse(JSON.stringify(x))
 const Stub = () => null
 const OLLAMA = 'http://localhost:11434/v1/systemone'
-// these synthetic pages are far over Ollama's per-request limits: one request per step here (splitting: p9-decisions-split.test.js)
-const WHOLE = { maxQuestions: Infinity, maxPromptTokens: Infinity }
 
 /** start → (fake → reply)*, checking every request's choices against `max` */
 function trip(backend, catalog, prompt, target, previous = null, max = 25) {
@@ -57,7 +55,7 @@ const BIG = defineCatalog({
 
 describe('compose.decisions(): every question within Ollama\'s 25 options', () => {
   it('pick_ over 30 group members, count_ up to 30 copies, param over 30 options: chunked, read back as one answer', () => {
-    const b = decisions({ model: 'nimble', url: OLLAMA, ...WHOLE })
+    const b = decisions({ model: 'nimble', url: OLLAMA })
     const { request } = b.start({ catalog: BIG, state: {}, prompt: 'x', previous: null, names })
     const q = request.json.questions
     expect(Object.keys(q).filter((k) => k.startsWith('pick_kpi'))).toEqual(['pick_kpi__c0', 'pick_kpi__c1'])
@@ -75,7 +73,7 @@ describe('compose.decisions(): every question within Ollama\'s 25 options', () =
   })
 
   it('parent_ over 31 places and beside_ over 29 others: chunked; rows of up to the row max (here 30)', () => {
-    const b = decisions({ model: 'nimble', url: OLLAMA, ...WHOLE })
+    const b = decisions({ model: 'nimble', url: OLLAMA })
     const pinOnBoard = [{ part: 'board', children: { s29: [{ part: 'pin' }] } }, { part: 'card1' }, { part: 'card2' }]
     const r = trip(b, BIG, 'x', pinOnBoard)
     expect(Object.keys(r.requests[1].json.questions).filter((k) => k.startsWith('parent_pin'))).toEqual(['parent_pin__c0', 'parent_pin__c1'])
@@ -87,7 +85,7 @@ describe('compose.decisions(): every question within Ollama\'s 25 options', () =
   })
 
   it('edits: set_, add_g_, moved_ and where_ chunked on a 28-node page', () => {
-    const b = decisions({ model: 'nimble', url: OLLAMA, ...WHOLE })
+    const b = decisions({ model: 'nimble', url: OLLAMA })
     const previous = layoutOf(BIG, [{ part: 'kpi1' }, ...ids.slice(0, 27).map((i) => ({ part: `card${i}` }))])
     expect(editLeaves(BIG, previous, {})).toHaveLength(28)
     const target = [{ part: 'card27', params: { size: 'z30' } }, { part: 'kpi1' }, ...ids.slice(0, 25).map((i) => ({ part: `card${i}` })), { part: 'note' }]
@@ -99,7 +97,7 @@ describe('compose.decisions(): every question within Ollama\'s 25 options', () =
   })
 
   it('a chunked answer reads as the most probable option across its chunks (head options only when every chunk says so)', () => {
-    const b = decisions({ model: 'nimble', url: OLLAMA, ...WHOLE })
+    const b = decisions({ model: 'nimble', url: OLLAMA })
     const { request, pending } = b.start({ catalog: BIG, state: {}, prompt: 'x', previous: null, names })
     const q = request.json.questions
     const pick = (c0, c1) => b.reply({ catalog: BIG, state: {}, pending, names, reply: answers(q, { pick_kpi__c0: c0, pick_kpi__c1: c1 }) })

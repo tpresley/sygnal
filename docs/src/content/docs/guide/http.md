@@ -139,6 +139,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `updates` | — | After a 2xx reply, write it into this component's resources (and their cache entries): `updates: 'item'`, or `{ items: (list, reply) => newList }` ([Writing a reply into the cache](/guide/resources/#writing-a-reply-into-the-cache)) |
 | `retry` | driver's `retry` for GET/HEAD (0) | Retry network errors, 408, 429 and 5xx: a count or `{ count, delayMs, maxDelayMs, jitter }` ([Retries](/guide/resources/#retries)) |
 | `validate` | — | A Standard Schema the body must pass ([Validation](/guide/resources/#validation)) |
+| `batch`, `combine`, `split` | — | One reply from several fetches: `batch` sends these requests in parallel instead (each inherits this request's fields; its own `json`, `body`, `parse` win), `combine(bodies, requests)` merges their parsed bodies into the reply, and `split(request, error)` returns the requests to try instead when one fails (at most 3 deep). `decide()` sets them for [large question sets](/guide/ai-decisions/#large-question-sets); the test fake answers such a request as one |
 
 Any other field is yours (an id, the query text): it isn't sent, and it comes back on the failure's `request`. A sink that returns `ABORT`, `null` or `undefined` sends nothing.
 

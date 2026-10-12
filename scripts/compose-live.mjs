@@ -18,7 +18,8 @@
 //           http://localhost:11434)
 //   qwen    compose.llm() on Ollama's qwen3:8b through chatCompletions, { temperature: 0,
 //           reasoning_effort: 'none' }
-// Every request is sequential (a local GPU may be shared).
+// Every step is sequential (a local GPU may be shared); a decide() step over the limits sends its
+// parts in parallel, as makeFetchDriver does (D472).
 //
 // Options:
 //   --only=jev,nimble,qwen   backends (default: all three)
@@ -84,15 +85,30 @@ async function send(b, request, m) {
     }
     return { text }
   }
-  const res = await fetch(request.url, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...(b.auth && { authorization: `Bearer ${b.auth}` }) },
-    body: JSON.stringify(request.json),
-    signal: AbortSignal.timeout(180000),
-  })
-  // the status and the start of the body only (a server never echoes the key)
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`)
-  const body = await res.json()
+  // D472: as makeFetchDriver sends a decide() request: its `batch` parts in parallel, a part
+  // rejected as too large `split` again (at most 3 deep), the bodies merged by `combine`
+  const one = async (q, depth) => {
+    m.requests++
+    const res = await fetch(q.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(b.auth && { authorization: `Bearer ${b.auth}` }) },
+      body: JSON.stringify(q.json),
+      signal: AbortSignal.timeout(180000),
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      let body = text
+      try { body = JSON.parse(text) } catch (_) {}
+      // the status and the start of the body only (a server never echoes the key)
+      const e = Object.assign(new Error(`HTTP ${res.status} ${text.slice(0, 200)}`), { status: res.status, body })
+      const parts = depth < 3 && request.split?.(q, e)
+      if (parts?.length > 1) return all(parts, depth + 1)
+      throw e
+    }
+    return res.json()
+  }
+  const all = async (qs, depth) => (request.combine ?? ((x) => x))(await Promise.all(qs.map((q) => one(q, depth))), qs)
+  const body = await (request.batch ? all(request.batch, 0) : one(request, 0))
   m.tokens += body?.usage?.input_tokens ?? 0
   return body
 }
@@ -105,7 +121,7 @@ function fakeReply(b, k, pending) {
 
 /** one case: start → (send → reply)* */
 async function run(b, k) {
-  const m = { calls: 0, tokens: 0, ms: 0 }
+  const m = { calls: 0, requests: 0, tokens: 0, ms: 0 }
   const previous = k.previous ? layoutOf(k.catalog, k.previous) : null
   const started = performance.now()
   let r
@@ -174,7 +190,7 @@ for (const id of order.filter((x) => ids.includes(x))) {
     if (wantSets && !wantSets.includes(set.name)) continue
     const cases = set.cases.filter((k) => (!casePrefixes || casePrefixes.some((p) => k.id.startsWith(p))) && !(fake && k.accept))
     if (!cases.length) continue
-    const t = { set: set.name, n: 0, exact: 0, partErrors: 0, keysKept: 0, edits: 0, invalid: 0, calls: 0, tokens: 0, ms: [] }
+    const t = { set: set.name, n: 0, exact: 0, partErrors: 0, keysKept: 0, edits: 0, invalid: 0, calls: 0, requests: 0, tokens: 0, ms: [] }
     console.log(`-- ${set.name}: ${set.note}`)
     for (let rep = 0; rep < repeat; rep++) {
       for (const k of cases) {
@@ -186,10 +202,11 @@ for (const id of order.filter((x) => ids.includes(x))) {
         t.partErrors += s.partErrors || 0
         if (set.edit && !s.invalid) { t.edits++; if (!s.keys) t.keysKept++ }
         t.calls += res.m.calls
+        t.requests += res.m.requests
         t.tokens += res.m.tokens
         t.ms.push(res.m.ms)
         if (!s.ok || verbose || (set.edit && s.keys)) {
-          console.log(`   ${s.ok ? 'ok  ' : 'MISS'} ${k.id}: ${k.prompt}\n        got  ${s.got || '(nothing fits)'}${s.want !== undefined && !s.ok ? `\n        want ${s.want || '(nothing fits)'}` : ''}${s.keys ? `\n        KEYS ${s.keys} kept node(s) got a new key` : ''}   [${res.m.calls} call${res.m.calls === 1 ? '' : 's'}, ${res.m.ms} ms]`)
+          console.log(`   ${s.ok ? 'ok  ' : 'MISS'} ${k.id}: ${k.prompt}\n        got  ${s.got || '(nothing fits)'}${s.want !== undefined && !s.ok ? `\n        want ${s.want || '(nothing fits)'}` : ''}${s.keys ? `\n        KEYS ${s.keys} kept node(s) got a new key` : ''}   [${res.m.calls} call${res.m.calls === 1 ? '' : 's'}${res.m.requests > res.m.calls ? ` (${res.m.requests} requests)` : ''}, ${res.m.ms} ms]`)
         }
       }
     }
@@ -205,9 +222,9 @@ for (const id of order.filter((x) => ids.includes(x))) {
   }
   // the table
   console.log(`\n${b.label}`)
-  console.log(`${pad('set', 14)}${lpad('exact', 10)}${lpad('%', 6)}${lpad('part err', 10)}${lpad('keys kept', 11)}${lpad('invalid', 9)}${lpad('calls', 7)}${lpad('tokens', 8)}${lpad('median', 9)}  gate`)
+  console.log(`${pad('set', 14)}${lpad('exact', 10)}${lpad('%', 6)}${lpad('part err', 10)}${lpad('keys kept', 11)}${lpad('invalid', 9)}${lpad('calls', 7)}${lpad('reqs', 7)}${lpad('tokens', 8)}${lpad('median', 9)}  gate`)
   for (const t of rows) {
-    console.log(`${pad(t.set, 14)}${lpad(`${t.exact}/${t.n}`, 10)}${lpad(pct(t.exact, t.n), 6)}${lpad(t.partErrors, 10)}${lpad(t.edits ? `${t.keysKept}/${t.edits}` : '-', 11)}${lpad(t.invalid, 9)}${lpad((t.calls / t.n).toFixed(2), 7)}${lpad(t.tokens ? Math.round(t.tokens / t.n) : '-', 8)}${lpad(`${median(t.ms)} ms`, 9)}  ${t.gate}`)
+    console.log(`${pad(t.set, 14)}${lpad(`${t.exact}/${t.n}`, 10)}${lpad(pct(t.exact, t.n), 6)}${lpad(t.partErrors, 10)}${lpad(t.edits ? `${t.keysKept}/${t.edits}` : '-', 11)}${lpad(t.invalid, 9)}${lpad((t.calls / t.n).toFixed(2), 7)}${lpad((t.requests / t.n).toFixed(2), 7)}${lpad(t.tokens ? Math.round(t.tokens / t.n) : '-', 8)}${lpad(`${median(t.ms)} ms`, 9)}  ${t.gate}`)
   }
   summary.push({ id, rows })
 }
