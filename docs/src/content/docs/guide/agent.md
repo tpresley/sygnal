@@ -470,7 +470,7 @@ In production the provider key belongs on your server: `makeChatDriver({ transpo
 | `agent` | the host's and its shown descendants' | Whose declarations become tools: `false` for none (a plain chat, [AI Chat](/guide/ai-chat/#the-same-chat-with-the-chat-behavior)), `[Comp, ...]` for only these (inside the host) |
 | `maxSteps` | `8` | The most requests per turn; tool calls in a reply past it are not run |
 | `sink` | `'LLM'` | The chat driver's name |
-| `model`, `transportOptions` | | A model id, and extra request keys for the transport |
+| `model`, `transportOptions` | | A model id, or a function of the host's state that returns one, read per request (`(state) => state.chatModel`, for a model picker); extra request keys for the transport |
 | `clientTools` | | Tools the app answers itself with `TOOL_OUTPUT` ([client tools](/guide/ai-cards/#client-tools)) |
 | `ask` | | `{ catalog, backend?, instructions?, direct? }`: the `ask_user` tool, which asks the user with a composed card ([Cards in a Chat](/guide/ai-cards/)) |
 

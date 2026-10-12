@@ -32,8 +32,8 @@ import {fromTree, finish, identityOf, toTree} from './layout'
 import {report} from '../../diagnostics/index'
 
 export interface LlmOptions {
-  /** the model id (the transport's default otherwise) */
-  model?: string
+  /** the model id (the transport's default otherwise), or a function of the host's state that returns it (per request) */
+  model?: string | ((state: any) => string | undefined)
   /** the chat driver's sink (default 'LLM') */
   sink?: string
   /** the request key (default: the behavior's key) */
@@ -112,6 +112,13 @@ const placesOf = (it: any): string[] => [].concat(it.def.in ?? [ROOT])
 /** may `it` sit at `place` ('container:slot')? */
 const placeOk = (it: any, place: string) => placesOf(it).some((e: string) => e == place || e == place.split(':')[0])
 
+/**
+ * an `asked_for` item's length: 60 (the research's), or the longest text param's. A model copies its
+ * plan into the text it writes, so a shorter cap cut a 120-character question at 60 under a
+ * grammar that enforces maxLength (Ollama)
+ */
+const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text').map((p: any) => p.d.maxLength ?? 40)))
+
 // ---------------------------------------------------------------- prompt (research wording, exact)
 function paramText(p: any) {
   const {name, d, kind} = p
@@ -127,8 +134,8 @@ function paramText(p: any) {
     const bins = d.bins ? `; ${Object.entries(d.bins).map(([v, m]) => `${v} = ${m}`).join('; ')}` : ''
     return `${name}: ${label ? label + '. ' : ''}a number${range}${bins}${def}`
   }
-  if (kind == 'list') return `${name}: ${label}; a list of ${d.min ? `${d.min} to ` : 'at most '}${d.max ?? 6} short texts`
-  return `${name}: ${label}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
+  if (kind == 'list') return `${name}${label ? `: ${label}` : ''}; a list of ${d.min ? `${d.min} to ` : 'at most '}${d.max ?? 6} short texts`
+  return `${name}${label ? `: ${label}` : ''}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
 }
 
 /** ' (only inside tabs or panel slot side)': a container whose every slot is allowed is named alone */
@@ -268,7 +275,7 @@ export function layoutSchema(catalog: any, state: any, {plan = true, relaxIn = f
   const children = items ? {type: 'array', items} : {type: 'array', maxItems: 0}
   const schema = {
     type: 'object',
-    properties: {...(plan && {asked_for: {type: 'array', items: {type: 'string', maxLength: 60}, maxItems: 8}}), children},
+    properties: {...(plan && {asked_for: {type: 'array', items: {type: 'string', maxLength: askedMax(ctx)}, maxItems: 8}}), children},
     required: [...(plan ? ['asked_for'] : []), 'children'],
     additionalProperties: false,
     $defs: defs,
@@ -329,7 +336,7 @@ export function readReply(ctx: Ctx, value: any, issues: Issue[] = []) {
     }
   }
   const raw = Array.isArray(list) ? list : []
-  const asked = value && Array.isArray(value.asked_for) ? value.asked_for.filter((x: any) => typeof x == 'string').map((x: string) => x.slice(0, 60)).slice(0, 8) : undefined
+  const asked = value && Array.isArray(value.asked_for) ? value.asked_for.filter((x: any) => typeof x == 'string').map((x: string) => x.slice(0, askedMax(ctx))).slice(0, 8) : undefined
   return {kids: raw.map((n: any) => readNode(ctx, n, issues)), raw: raw.length, asked, issues}
 }
 
@@ -652,18 +659,22 @@ function valueOf(reply: any): {value?: any; error?: string} {
 export function llm(options: LlmOptions = {}) {
   const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, ...rest} = options
   const planFor = (catalog: any) => plan ?? !(examples ?? catalog.examples ?? []).length
-  const base = (names: any) => ({
-    ...rest,
-    ...(model && {model}),
-    key: key ?? names?.key ?? 'compose',
-    latest: true,
-    // the driver sends the schema but leaves the text to reply(): a reply that isn't strict JSON
-    // (prose around it, a code fence) still reaches parseText and the repair, or fails as SYG683
-    parse: false,
-    ...(names?.ok && {ok: names.ok}),
-    ...(names?.error && {error: names.error}),
-    ...(stream && names?.delta && {delta: names.delta}),
-  })
+  const base = (names: any, state: any) => {
+    // a function of the host's state: resolved per request (an app's model picker)
+    const m = typeof model == 'function' ? model(state) : model
+    return {
+      ...rest,
+      ...(m && {model: m}),
+      key: key ?? names?.key ?? 'compose',
+      latest: true,
+      // the driver sends the schema but leaves the text to reply(): a reply that isn't strict JSON
+      // (prose around it, a code fence) still reaches parseText and the repair, or fails as SYG683
+      parse: false,
+      ...(names?.ok && {ok: names.ok}),
+      ...(names?.error && {error: names.error}),
+      ...(stream && names?.delta && {delta: names.delta}),
+    }
+  }
   return {
     sink,
     kind: 'llm',
@@ -674,7 +685,7 @@ export function llm(options: LlmOptions = {}) {
         // B-4: an edit of the current layout (ops2: no plan field, no examples)
         const order = preorder(previous)
         const request: any = {
-          ...base(names),
+          ...base(names, state),
           instructions: editPrompt(catalog, state, {instructions}, ctx),
           messages: [{role: 'user', content: `Current page:\n${currentPage(previous, {ctx, order})}\n\nChange: ${text}`}],
           output: jsonSchema(opsSchema(catalog, state, previous, ctx, order), {validate: ANY}),
@@ -683,7 +694,7 @@ export function llm(options: LlmOptions = {}) {
       }
       const p = planFor(catalog)
       const request: any = {
-        ...base(names),
+        ...base(names, state),
         instructions: systemPrompt(catalog, state, {plan: p, instructions}, ctx),
         messages: [...shots(ctx, examples ?? catalog.examples ?? [], p), {role: 'user', content: text}],
         output: jsonSchema(layoutSchema(catalog, state, {plan: p}, ctx), {validate: ANY}),

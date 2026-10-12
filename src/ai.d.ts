@@ -774,8 +774,13 @@ export interface ChatOptions {
    * user-entered text named; G-631)
    */
   instructions?: string
-  /** A model id for the requests (overrides the transport's) */
-  model?: string
+  /**
+   * A model id for the requests (overrides the transport's), or a function of the host's state
+   * that returns one, resolved per request: `model: (state) => state.chatModel` lets an app's model
+   * picker switch models with one chat behavior. The default card backend (`ask` without
+   * `backend`) uses it too
+   */
+  model?: string | ((state: any) => string | undefined)
   /**
    * Whose `agent` declarations become tools: by default the host's and its shown descendants'
    * (D249); `false`: none; `[Comp, …]`: only these components' (in the host's subtree)
@@ -1649,7 +1654,17 @@ export interface ComposeDecisionsBackend {
     layout?: any; unavailable?: true; preview?: any; request?: DecideRequest<any>; pending?: any
     /** a reply that can't be read (no `answers`, or every answer outside its options: SYG682); the behavior's status 'error' */
     error?: string
-    /** the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`; an edit: `{ edit, where }`), for an explain panel */
+    /**
+     * the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`; an edit:
+     * `{ edit, where }`), for an explain panel: question name → `{ choice, probabilities }`. Names
+     * an explain panel can rely on (`<p>` a part id, `<k>` an element of the layout step):
+     * select: `use_<p>` (omit / use), `count_<p>`, `pick_<group>`, `rec_<p>__<n>` (the n-th record
+     * slot, n = 1..4: none or a record), `param_<p>__<param>` (not_stated = the default), `row`;
+     * layout: `parent_<k>`, `beside_<k>`, `first_<a>_vs_<b>`, `left_<a>_vs_<b>`, `same_<a>_vs_<b>`,
+     * `gap_<x>_in_<p>`; categories: `cat_<category>`; edit: `remove_<node>`, `set_<node>__<param>`,
+     * `add_<p>`, `moved_<n>`; where: `where_<node>`. A choice split by `maxOptions` shows as its
+     * chunks, `<name>__c<k>` (each repeats the head options: not_stated, keep, none, omit)
+     */
     decisions?: Record<string, Record<string, any>>
     /** an edit's layout and preview keep the previous layout's keys (the behavior uses them as they are) */
     keyed?: boolean
@@ -1679,8 +1694,8 @@ export interface ComposeDecisionsBackend {
  *   compose(catalog, { backend: compose.llm({ model: 'gpt-5-mini' }) })
  */
 export interface ComposeLlmOptions {
-  /** The model id (default: the transport's) */
-  model?: string
+  /** The model id (default: the transport's), or a function of the host's state that returns one, resolved per request */
+  model?: string | ((state: any) => string | undefined)
   /** The chat driver's sink (default 'LLM') */
   sink?: string
   /** The request key (default: the behavior's key) */
@@ -1747,6 +1762,12 @@ export interface ChatCard {
   answer: { node: string; part: string | null; value: unknown } | null
   /** The backend's step while its request is out */
   pending?: unknown
+  /**
+   * What the backend explains, as a compose slice's `decisions`: its last reply's (`compose.llm()`:
+   * ComposeLlmDecisions; `compose.decisions()`: the answers per step, see ComposeDecisionsBackend).
+   * Absent until a reply carries some; kept (and persisted) with the card, for an explain panel
+   */
+  decisions?: unknown
 }
 
 /** A tool part of a chat message */
