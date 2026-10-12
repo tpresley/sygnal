@@ -70,6 +70,8 @@ export { makeMcpAppDriver } from './extra/ai/index'
 export { formTool } from './extra/ai/index'
 // PLAN-9 (A): catalogs, the compose behavior, composeWith, the layout utilities
 export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } from './extra/ai/index'
+// PLAN-9 H: chat client tools and cards
+export { openToolCalls, askCard } from './extra/ai/index'
 // PLAN-9 (D463): a lens to an array element by id
 export { byId } from './extra/lens'
 

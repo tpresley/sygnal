@@ -112,6 +112,8 @@ export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderO
       return e.render({key, node: n, params: paramsOf(e, n), slots, children, ui: slice.ui?.[key] || {}, control, scope, frozen: !!frozen})
     }
     const part = e as Part
+    // H-2: a result part answers a card (chat's askCard gives the call id as scope); elsewhere its answer reaches no one
+    if (part.result && scope === undefined) dev('SYG160', 'catalog.render', `the result part '${part.id}' is rendered outside a card (no scope), so its answer reaches no tool call`, 'warn', cat, 'result:' + part.id)
     const params = paramsOf(part, n)
     const props = typeof part.props == 'function' ? part.props(params, state) : {...part.props, ...params}
     const lens = lensOf(cat, part, n, key, at, scope)

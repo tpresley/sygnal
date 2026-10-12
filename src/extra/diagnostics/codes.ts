@@ -358,6 +358,11 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-9 X-2: static only (sygnal-check rules/syg253-catalog.js)
   SYG253: 'Misspelled catalog declaration key',
   SYG254: 'Catalog descriptions or options overlap',
+  // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
+  SYG160: 'Result part rendered outside a card',
+  SYG684: 'Client tool shadows an agent tool',
+  SYG685: 'Answer for a tool call that is not open',
+  SYG686: 'Ask catalog without a result part',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -523,6 +528,11 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG682: 'warn',
   // PLAN-9 B-3 (compose.llm)
   SYG683: 'error',
+  // PLAN-9 H (chat client tools and ask; reported with the severity passed)
+  SYG160: 'warn',
+  SYG684: 'warn',
+  SYG685: 'warn',
+  SYG686: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

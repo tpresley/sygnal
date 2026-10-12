@@ -23,3 +23,5 @@ export {makeMcpAppDriver} from './index'
 export {formTool} from './index'
 // PLAN-9 (A)
 export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode} from './index'
+// PLAN-9 H: chat client tools and cards
+export {openToolCalls, askCard} from './index'

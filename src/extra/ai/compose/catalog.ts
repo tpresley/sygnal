@@ -23,6 +23,7 @@ import {createElement as h} from '../../../pragma/index'
 import {dev} from './diag'
 import {finish} from './layout'
 import {renderLayout} from './render'
+import {askKit} from './ask'
 import type {Catalog, Container, Entry, Option, Param, Part} from './types'
 
 const BAD_ID = /^$|[:~/]/
@@ -204,5 +205,7 @@ export function defineCatalog(decl: any = {}): any {
       return false
     })
   }
+  // H-2: what chat({ ask: { catalog } }) runs on (so an app with chat and no catalog carries none of it)
+  Object.defineProperty(cat, '_ask', {value: askKit})
   return cat as Catalog
 }
