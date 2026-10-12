@@ -26,7 +26,8 @@
  * with `latest`, so a new prompt aborts the old one's step in flight. The reply names are the
  * use's key: `page.REPLY`, `page.DELTA`, `page.FAILED`. Finished layouts and previews are re-keyed
  * against the current layout (fromTree's previous-key reuse), so a part a follow-up doesn't change
- * keeps its node key, and so its instance and state, whatever keys the backend gave it.
+ * keeps its node key, and so its instance and state, whatever keys the backend gave it; a reply
+ * or delta marked `keyed` (an edit applied to the previous layout's own keys) is taken as is.
  *
  * The handlers that need the host's whole state (record params read it) are HOST entries; a sink
  * reads it as `props.state` (the pre-action state), and one memo per behavior value makes STATE,
@@ -110,7 +111,8 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
       return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending), decisions}, request: r.request}
     }
     if (r.layout) {
-      const layout = rekey(r.layout, s.layout)
+      // `keyed` (B-4 edits): the backend kept the previous keys itself (moves, new rows): not re-keyed
+      const layout = r.keyed ? r.layout : rekey(r.layout, s.layout)
       return {slice: {...s, status: 'done', layout, preview: null, pending: null, decisions, error: null}, done: layout}
     }
     if (r.unavailable || r.layout === null) return {slice: {...s, status: 'unavailable', preview: null, pending: null, decisions}}
@@ -155,7 +157,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
           if (!s?.pending || typeof backend.delta != 'function') return ABORT
           let r: any
           try { r = backend.delta({catalog, state: st, pending: s.pending, delta: d}) } catch (_) { return ABORT }
-          return r?.preview ? {...st, [k]: {...s, status: 'preview', preview: rekey(r.preview, s.layout)}} : ABORT
+          return r?.preview ? {...st, [k]: {...s, status: 'preview', preview: r.keyed ? r.preview : rekey(r.preview, s.layout)}} : ABORT
         },
       },
       FAILED: (s: any, d: any) => s.pending ? {...s, status: 'error', preview: null, pending: null, error: message(d?.error ?? d)} : ABORT,

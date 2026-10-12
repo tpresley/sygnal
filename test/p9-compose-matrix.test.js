@@ -45,7 +45,7 @@ const MATRIX = {
       return () => t.stream('LLM', [text.slice(cut)], 'page.REPLY')
     },
     /** JSON the backend can't repair into a layout: only unknown parts (SYG683; text that isn't JSON
-     * at all fails earlier, in the chat driver's structured output: FAILED) */
+     * at all too: the request's parse: false leaves the text to the backend) */
     bad: '{"children":[{"part":"stockTicker"}]}',
     error: /not a layout \(stockTicker\)/,
   },

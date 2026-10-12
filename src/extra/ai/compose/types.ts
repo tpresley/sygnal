@@ -138,8 +138,8 @@ export interface Backend {
   sink: string
   start(a: {catalog: Catalog; state: any; prompt: string; previous: Layout | null; names: Names}): {request: any; pending: any}
   reply(a: {catalog: Catalog; state: any; pending: any; reply: any; names: Names}):
-    {layout?: Layout | null; unavailable?: true; preview?: Layout; request?: any; pending?: any; decisions?: unknown; error?: string}
-  delta?(a: {catalog: Catalog; state: any; pending: any; delta: any}): {preview?: Layout}
+    {layout?: Layout | null; unavailable?: true; preview?: Layout; request?: any; pending?: any; decisions?: unknown; error?: string; keyed?: boolean}
+  delta?(a: {catalog: Catalog; state: any; pending: any; delta: any}): {preview?: Layout; keyed?: boolean}
   fake(a: {catalog: Catalog; state: any; pending: any; target: Tree}): unknown
 }
 

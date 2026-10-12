@@ -490,6 +490,11 @@ export type ChatRequest<OUT = unknown> = {
    * `ok` gets the validated `value`, a failure is the `error` reply with `issues`
    */
   output?: ChatOutputSchema<OUT>;
+  /**
+   * `false`: the transport still sends `output`'s JSON Schema, but the driver doesn't read the reply:
+   * `ok` has the `text` and no `value` (the caller parses it, e.g. leniently; compose.llm() does)
+   */
+  parse?: false;
   /** The request's key for `latest` and `abort` (default: `ok`, else `error`) */
   key?: string;
   /** A new request aborts the sender's request under the same key (default true) */
@@ -1495,8 +1500,9 @@ export interface ComposeBackend {
   start(a: { catalog: Catalog<any>; state: any; prompt: string; previous: Layout | null; names: ComposeNames }): { request: unknown; pending: unknown }
   /** a layout (done), `layout: null, unavailable: true` (nothing fits), `request` + `pending` (another step), or `error` */
   reply(a: { catalog: Catalog<any>; state: any; pending: any; reply: any; names: ComposeNames }):
-    { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string }
-  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout }
+    { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string; keyed?: boolean }
+  /** `keyed` (on reply too): the layout already has the previous layout's keys (an edit applied to it): the behavior doesn't re-key it */
+  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout; keyed?: boolean }
   /** the reply body that leads to `target` (composeWith) */
   fake(a: { catalog: Catalog<any>; state: any; pending: any; target: ComposeTree }): unknown
 }
@@ -1565,6 +1571,15 @@ export const compose: {
   llm(options?: ComposeLlmOptions): ComposeBackend
   /** a result part's PARENT value: `{ scope, node, value }` */
   answer<V>(props: { scope?: string; node?: string }, value: V): ComposeAnswer<V>
+  /**
+   * PLAN-9 C-2: the `agent.actions` entry that lets an agent (a chat assistant) compose the page:
+   * `actions: { ...compose.action('page') }` offers `<agent name>_page_compose({ prompt, fresh? })`;
+   * its result waits (`until`) for the composition to finish, so its `state` (the `read`) shows the
+   * new page (`read: (s) => ({ page: compose.summary(s.page) })`). `timeout` default 60 s
+   */
+  action<K extends string = 'page'>(key?: K, options?: { description?: string; timeout?: number }): Record<`${K}.COMPOSE`, AgentAction<any, { prompt: string; fresh?: boolean }>>
+  /** PLAN-9 C-2: a composition as an agent's `read` shows it: its status, the layout as a tree, the error */
+  summary(slice: ComposeState | null | undefined): { status: ComposeStatus; page: ComposeTree; error?: string } | undefined
 }
 
 /**
@@ -1615,7 +1630,16 @@ export interface ComposeDecisionsBackend {
  * a makeChatDriver() sink; a streamed preview). The request carries the catalog's JSON Schema
  * (`asked_for`, then the layout tree), the system prompt (the catalog as text, its `guidance`,
  * `examples` as few-shot turns) and `delta` when streaming. Other keys go on the request as is
- * (transport options such as `body: { temperature: 0 }`).
+ * (transport options such as `body: { temperature: 0 }`). Requests carry `parse: false`: the reply
+ * text is read leniently here (prose or a code fence around the JSON), and text with no layout in
+ * it is the behavior's status 'error' (SYG683), not the driver's FAILED.
+ *
+ * B-4: with a current layout, COMPOSE is an edit. The request sends the page (`n1: part params`,
+ * one node per line) and the change; the model returns operations positioned by named places
+ * (`add` / `remove` / `move` / `replace` / `setParams`; `top`, `bottom`, `above n2`, `left of n3`,
+ * …), applied to the current layout itself: every node they don't replace or remove keeps its key
+ * (a param change too; another record is another node), a replacement takes the old node's place,
+ * and the node a place names never moves. No operation: `unavailable`, the layout stays.
  *
  *   compose(catalog, { backend: compose.llm({ model: 'gpt-5-mini' }) })
  */
@@ -1645,6 +1669,8 @@ export type ComposeLlmTreeNode = { part: string; params?: Record<string, unknown
 export interface ComposeLlmDecisions {
   /** Each thing the request asks for, in the model's words (with `plan`) */
   asked_for?: string[]
-  /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid` */
+  /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid`; `op` for an edit's operations */
   repairs?: Array<{ kind: string; detail: string }>
+  /** An edit: the operations as applied, with layout keys (an add's `node` is the new key) */
+  ops?: Array<{ op: 'add' | 'remove' | 'move' | 'replace' | 'setParams'; node: string; part?: string; params?: Record<string, unknown>; where?: string; moved?: string }>
 }

@@ -20,12 +20,15 @@
  *   of the repaired tree, fromTree, finish. An empty tree is `unavailable`; a reply that still
  *   violates the schema is `{ error }` (the behavior's status 'error') and SYG683, never a layout.
  * - fake(): the JSON text of a target tree in this schema (composeWith).
- *
- * Phase 1: `previous` keeps node keys (fromTree) and the request composes fresh; B-4 (ops2 edits)
- * adds `currentPage(previous)` to the user message. Pure apart from SYG683's report.
+ * - Requests carry `parse: false` (the chat driver sends the schema, reply() reads the text), so
+ *   prose or a code fence around the JSON is repaired and a reply with no JSON at all is
+ *   `{ error }` + SYG683 rather than the driver's FAILED.
+ * - B-4: with a `previous` layout that has nodes, start() sends an edit instead (ops2, the section
+ *   "B-4: edits" below); fake() then returns the operations that make the target.
+ * Pure apart from SYG683's report.
  */
 import {jsonSchema, check} from '../schema/jsonSchema'
-import {fromTree, finish} from './layout'
+import {fromTree, finish, identityOf, toTree} from './layout'
 import {report} from '../../diagnostics/index'
 
 export interface LlmOptions {
@@ -608,35 +611,97 @@ function shots(ctx: Ctx, examples: any[], plan: boolean) {
   })
 }
 
-/** compose.llm(options): the chat-LLM backend (one structured-output request, streamed preview) */
+/** a reply value → `{ layout, decisions }`, `unavailable`, or `{ error }`: read, repair, check, fromTree (keys from `previous`), finish */
+function readTree(catalog: any, state: any, previous: any, value: any): any {
+  const ctx = context(catalog, state)
+  const {kids, raw, asked, issues} = readReply(ctx, value)
+  const fixed = repairTree(ctx, kids, issues)
+  const decisions = {...(asked && {asked_for: asked}), ...(issues.length && {repairs: issues})}
+  if (!fixed.length) {
+    // nothing fits (an empty list) is `unavailable`; a reply that isn't a list of parts, or
+    // whose every part is unknown or malformed, is an error
+    const bad = issues.filter(i => i.kind == 'invalid' || i.kind == 'unknownPart')
+    const notAList = issues.some(i => i.kind == 'invalid' && i.detail != 'node without part')
+    const allBogus = raw > 0 && bad.length > 0 && !issues.some(i => i.kind == 'required' || i.kind == 'duplicate' || i.kind == 'param')
+    if (notAList || allBogus) {
+      const message = `the reply has no usable part: ${bad.map(i => i.detail).join(', ')}`
+      say(message, {issues, value})
+      return {error: `The model's reply is not a layout (${bad.map(i => i.detail).join(', ')})`, decisions}
+    }
+    return {layout: null, unavailable: true, decisions}
+  }
+  // the repaired tree must fit the schema (`in` left to finish): otherwise it is an error, never a layout
+  const wrong = check(layoutSchema(catalog, state, {plan: false, relaxIn: true}, ctx), {children: toReply(ctx, toContractTree(ctx, fixed))})
+  if (wrong.length) {
+    const message = `the layout is still invalid after repair: ${wrong.slice(0, 3).map(i => `${(i.path || []).join('.')}: ${i.message}`).join('; ')}`
+    say(message, {issues: wrong, value})
+    return {error: `The model's layout is invalid (${message})`, decisions}
+  }
+  return {layout: finish(catalog, fromTree(catalog, toContractTree(ctx, fixed), previous), state), decisions}
+}
+
+/** the reply's value: `reply.value` when a driver parsed it, else its text, read leniently (SYG683 when it isn't JSON) */
+function valueOf(reply: any): {value?: any; error?: string} {
+  if (reply?.value !== undefined) return {value: reply.value}
+  const r = parseText(reply?.text)
+  if (r.error) say(`the reply is not a layout: ${r.error}`, {text: reply?.text})
+  return r
+}
+
+/** compose.llm(options): the chat-LLM backend (one structured-output request, streamed preview; ops2 edits) */
 export function llm(options: LlmOptions = {}) {
   const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, ...rest} = options
   const planFor = (catalog: any) => plan ?? !(examples ?? catalog.examples ?? []).length
+  const base = (names: any) => ({
+    ...rest,
+    ...(model && {model}),
+    key: key ?? names?.key ?? 'compose',
+    latest: true,
+    // the driver sends the schema but leaves the text to reply(): a reply that isn't strict JSON
+    // (prose around it, a code fence) still reaches parseText and the repair, or fails as SYG683
+    parse: false,
+    ...(names?.ok && {ok: names.ok}),
+    ...(names?.error && {error: names.error}),
+    ...(stream && names?.delta && {delta: names.delta}),
+  })
   return {
     sink,
     kind: 'llm',
     start({catalog, state, prompt, previous, names}: any) {
       const ctx = context(catalog, state)
+      const text = String(prompt ?? '')
+      if (hasNodes(previous)) {
+        // B-4: an edit of the current layout (ops2: no plan field, no examples)
+        const order = preorder(previous)
+        const request: any = {
+          ...base(names),
+          instructions: editPrompt(catalog, state, {instructions}, ctx),
+          messages: [{role: 'user', content: `Current page:\n${currentPage(previous, {ctx, order})}\n\nChange: ${text}`}],
+          output: jsonSchema(opsSchema(catalog, state, previous, ctx, order), {validate: ANY}),
+        }
+        return {request, pending: {step: 'edit', prompt: text, previous, order}}
+      }
       const p = planFor(catalog)
       const request: any = {
-        ...rest,
-        ...(model && {model}),
+        ...base(names),
         instructions: systemPrompt(catalog, state, {plan: p, instructions}, ctx),
-        messages: [...shots(ctx, examples ?? catalog.examples ?? [], p), {role: 'user', content: String(prompt ?? '')}],
+        messages: [...shots(ctx, examples ?? catalog.examples ?? [], p), {role: 'user', content: text}],
         output: jsonSchema(layoutSchema(catalog, state, {plan: p}, ctx), {validate: ANY}),
-        key: key ?? names?.key ?? 'compose',
-        latest: true,
-        ...(names?.ok && {ok: names.ok}),
-        ...(names?.error && {error: names.error}),
-        ...(stream && names?.delta && {delta: names.delta}),
       }
-      return {request, pending: {step: 'llm', prompt: String(prompt ?? ''), plan: p, ...(previous && {previous})}}
+      return {request, pending: {step: 'llm', prompt: text, plan: p, ...(previous && {previous})}}
     },
     delta({catalog, state, pending, delta}: any) {
       const text = typeof delta == 'string' ? delta : delta?.text
       if (typeof text != 'string') return {}
       const v = parsePartialJSON(text.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/^\s*```(?:json)?\s*/, ''))
       if (!v || typeof v != 'object') return {}
+      if (pending?.step == 'edit') {
+        // the operations complete so far, applied to the previous layout (its keys kept)
+        const done = (opsOf(v) || []).filter((o: any) => !(o && typeof o == 'object' && o[PARTIAL]))
+        if (!done.length) return {}
+        const r = applyOps(catalog, state, pending.previous, pending.order, done)
+        return r.applied ? {preview: finish(catalog, r.layout, state), keyed: true} : {}
+      }
       const ctx = context(catalog, state)
       const {kids} = readReply(ctx, prune(v))
       const fixed = cap(repairTree(ctx, kids, [], {relaxMin: true}), ctx.maxParts)
@@ -644,41 +709,33 @@ export function llm(options: LlmOptions = {}) {
       return {preview: fromTree(catalog, toContractTree(ctx, fixed), pending?.previous)}
     },
     reply({catalog, state, pending, reply}: any) {
-      let value = reply?.value
-      if (value === undefined) {
-        const r = parseText(reply?.text)
-        if (r.error) { say(`the reply is not a layout: ${r.error}`, {text: reply?.text}); return {error: `The model's reply is not a layout (${r.error})`} }
-        value = r.value
+      const r = valueOf(reply)
+      if (r.error) return {error: `The model's reply is not a layout (${r.error})`}
+      if (pending?.step != 'edit') return readTree(catalog, state, pending?.previous, r.value)
+      const ops = opsOf(r.value)
+      // a whole page instead of operations: read as a composition, keys reused from the previous layout
+      if (!ops) return readTree(catalog, state, pending.previous, r.value)
+      // no operation: nothing in the catalog fits the change (or it changes nothing); the layout stays
+      if (!ops.length) return {layout: null, unavailable: true, decisions: {ops: []}}
+      const a = applyOps(catalog, state, pending.previous, pending.order, ops)
+      const decisions = {ops: a.ops, ...(a.issues.length && {repairs: a.issues})}
+      if (!a.applied) {
+        const what = a.issues.map(i => i.detail).join(', ')
+        say(`no operation of the reply applies: ${what}`, {issues: a.issues, value: r.value})
+        return {error: `The model's edit does not apply (${what})`, decisions}
       }
-      const ctx = context(catalog, state)
-      const {kids, raw, asked, issues} = readReply(ctx, value)
-      const fixed = repairTree(ctx, kids, issues)
-      const decisions = {...(asked && {asked_for: asked}), ...(issues.length && {repairs: issues})}
-      if (!fixed.length) {
-        // nothing fits (an empty list) is `unavailable`; a reply that isn't a list of parts, or
-        // whose every part is unknown or malformed, is an error
-        const bad = issues.filter(i => i.kind == 'invalid' || i.kind == 'unknownPart')
-        const notAList = issues.some(i => i.kind == 'invalid' && i.detail != 'node without part')
-        const allBogus = raw > 0 && bad.length > 0 && !issues.some(i => i.kind == 'required' || i.kind == 'duplicate' || i.kind == 'param')
-        if (notAList || allBogus) {
-          const message = `the reply has no usable part: ${bad.map(i => i.detail).join(', ')}`
-          say(message, {issues, value})
-          return {error: `The model's reply is not a layout (${bad.map(i => i.detail).join(', ')})`, decisions}
-        }
-        return {layout: null, unavailable: true, decisions}
-      }
-      // the repaired tree must fit the schema (`in` left to finish): otherwise it is an error, never a layout
-      const wrong = check(layoutSchema(catalog, state, {plan: false, relaxIn: true}, ctx), {children: toReply(ctx, toContractTree(ctx, fixed))})
-      if (wrong.length) {
-        const message = `the layout is still invalid after repair: ${wrong.slice(0, 3).map(i => `${(i.path || []).join('.')}: ${i.message}`).join('; ')}`
-        say(message, {issues: wrong, value})
-        return {error: `The model's layout is invalid (${message})`, decisions}
-      }
-      const layout = finish(catalog, fromTree(catalog, toContractTree(ctx, fixed), pending?.previous), state)
-      return {layout, decisions}
+      return {layout: finish(catalog, a.layout, state), keyed: true, decisions}
     },
     fake({catalog, state, pending, target}: any) {
       const ctx = context(catalog, state)
+      if (pending?.step == 'edit') {
+        // `[]` is "nothing fits" (no operation); otherwise the operations that turn the previous
+        // layout into `target`, or the whole page when operations can't reach it (a new container
+        // other than a row, a row of new parts only)
+        if (!target?.length) return JSON.stringify({ops: []})
+        const ops = editOps(catalog, state, pending.previous, pending.order, target)
+        return JSON.stringify(ops ? {ops} : {children: toReply(ctx, target)})
+      }
       const children = toReply(ctx, target || [])
       const p = pending?.plan ?? planFor(catalog)
       const leaves = (ks: any[]): string[] => ks.flatMap(k => ctx.byId[k.part]?.container ? Object.keys(k).filter(s => Array.isArray(k[s])).flatMap(s => leaves(k[s])) : [k.part])
@@ -687,14 +744,56 @@ export function llm(options: LlmOptions = {}) {
   }
 }
 
-/** a layout as an edit prompt shows it (B-4, ops2: one node per line, its key, params; slots indented) */
-export function currentPage(layout: any): string {
+// ---------------------------------------------------------------- B-4: edits (ops2)
+/*
+ * An edit sends the current page and the change, and the model returns operations positioned by
+ * named places (research REPORT.md §1 "The edit prompt (ops2)", llm-composer.mjs opsSchemaV2 /
+ * opsSystemPromptV2 / applyOpsV2). The model sees the nodes as `n0` (the page), `n1`, … in
+ * preorder (the research's keys; `pending.order` maps them back), never the layout's identity
+ * keys. The operations are applied to the previous layout itself, so keys are kept by
+ * construction:
+ * - a node no operation touches keeps its key (and its place);
+ * - move and setParams keep the node's key (a setParams that changes a record param is a
+ *   different record: a new key, in the same place);
+ * - replace puts a new node (a new key) in the old one's place; a replace with the same part is a
+ *   setParams (key kept); an add or a replace with a part already on the page as often as it may
+ *   be (`maxUses`) moves that node there instead (key kept);
+ * - places: 'top' / 'bottom' of the page, 'above k' / 'below k' (around k's block on the page),
+ *   'left of k' / 'right of k' (in k's row, or a new row made of k and the part in k's place).
+ *   The reference node never moves (a move relative to itself or its own subtree is skipped).
+ * Then finish(). A reply with a whole page (`children`) instead is read as a composition with the
+ * previous keys reused; no operation is `unavailable` (the layout stays); operations of which none
+ * applies are an error (SYG683).
+ */
+const own = (o: any, k: string) => !!o && Object.prototype.hasOwnProperty.call(o, k)
+
+/** a layout's node keys in preorder, the root first (the edit prompt's n0, n1, …) */
+export function preorder(layout: any): string[] {
+  const out: string[] = []
+  const nodes = layout?.nodes || {}
+  const go = (k: string) => {
+    if (out.includes(k) || !nodes[k]) return
+    out.push(k)
+    for (const ks of Object.values<any>(nodes[k].slots || {})) if (Array.isArray(ks)) ks.forEach(go)
+  }
+  go(layout?.root || 'page')
+  return out
+}
+const hasNodes = (l: any) => !!l?.nodes && preorder(l).length > 1
+
+/**
+ * a layout as the edit prompt shows it: one node per line (`n1: part param="value"`, params with
+ * their defaults filled, as the app holds them), a container's children indented under it
+ */
+export function currentPage(layout: any, {ctx, order = preorder(layout)}: {ctx?: Ctx; order?: string[]} = {}): string {
   const lines: string[] = []
   const go = (key: string, depth: number) => {
     const n = layout.nodes[key]
     if (!n) return
-    const ps = n.params ? ' ' + Object.entries(n.params).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(' ') : ''
-    lines.push(`${'  '.repeat(depth)}${key}: ${n.part}${ps}`)
+    const it = ctx?.byId[n.part]
+    const params = it ? fixParams(it, n.params, []).params : n.params
+    const ps = params ? ' ' + Object.entries(params).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(' ') : ''
+    lines.push(`${'  '.repeat(depth)}n${order.indexOf(key)}: ${n.part}${ps}`)
     for (const [s, ks] of Object.entries<any>(n.slots || {})) {
       if (s != 'default') lines.push(`${'  '.repeat(depth + 1)}[${s}]`)
       ks.forEach((k: string) => go(k, depth + 1))
@@ -702,4 +801,309 @@ export function currentPage(layout: any): string {
   }
   go(layout.root, 0)
   return lines.join('\n')
+}
+
+const EDIT = `The user message gives the current page (one node per line: key: part params; a row's parts are indented under it) and a change. Return only the operations that make the change, in order:
+- {"op":"add","part":"<id>","params":{...},"where":"<place>"}
+- {"op":"remove","node":"<key>"}
+- {"op":"move","node":"<key>","where":"<place>"}
+- {"op":"replace","node":"<key>","part":"<id>","params":{...}}   (the new part takes the old one's place)
+- {"op":"setParams","node":"<key>","params":{"<param>":"<value>"}}
+A place is "top" or "bottom" of the page, "above <key>" or "below <key>" (on the page), or "left of <key>" / "right of <key>" (side by side with that part, in a row).
+Change only what the request asks; everything else stays as it is. A request that changes nothing gets no operations.
+
+Reply with JSON only: {"ops": [ ... ]}`
+
+/** the edit's system prompt: the catalog and the rules (no plan line), then the operations (research ops2, exact) */
+export function editPrompt(catalog: any, state: any, {instructions}: {instructions?: LlmOptions['instructions']} = {}, ctx: Ctx = context(catalog, state)) {
+  const head = systemPrompt(catalog, state, {plan: false, instructions: typeof instructions == 'string' ? instructions : undefined}, ctx).split('\n\nReply with JSON only')[0]
+  const prompt = `${head}\n\n${EDIT}`
+  return typeof instructions == 'function' ? instructions(prompt) : prompt
+}
+
+/** the edit's JSON Schema: `node` an enum of the current nodes, `where` an enum of every place, `part` + `params` per part */
+export function opsSchema(catalog: any, state: any, previous: any, ctx: Ctx = context(catalog, state), order: string[] = preorder(previous)) {
+  const nodeKeys = order.slice(1).map((_, i) => `n${i + 1}`)
+  const places = ['top', 'bottom']
+  order.forEach((k, i) => {
+    if (i == 0) return
+    places.push(`above n${i}`, `below n${i}`)
+    if (catalog.get?.(previous.nodes[k].part)?.kind != 'container') places.push(`left of n${i}`, `right of n${i}`)
+  })
+  const where = {enum: places}
+  const leaves = ctx.items.filter(i => !i.container)
+  const withParams = (b: any, it: any) => {
+    const ps = paramsSchema(it)
+    // a record part needs its record (the research catalogs have none)
+    const rec = it.rec && ps.required.includes(it.rec) ? {required: [it.rec]} : {}
+    return Object.keys(ps.props).length ? {...b, params: {type: 'object', properties: ps.props, ...rec, additionalProperties: false}} : b
+  }
+  const needs = (it: any, r: string[]) => it.rec && paramsSchema(it).required.includes(it.rec) ? [...r, 'params'] : r
+  const ops: any[] = leaves.map(it => ({type: 'object', properties: {...withParams({op: {const: 'add'}, part: {const: it.id}}, it), where}, required: needs(it, ['op', 'part', 'where']), additionalProperties: false}))
+  if (nodeKeys.length) {
+    ops.push(
+      {type: 'object', properties: {op: {const: 'remove'}, node: {enum: nodeKeys}}, required: ['op', 'node'], additionalProperties: false},
+      {type: 'object', properties: {op: {const: 'move'}, node: {enum: nodeKeys}, where}, required: ['op', 'node', 'where'], additionalProperties: false},
+      ...leaves.map(it => ({type: 'object', properties: withParams({op: {const: 'replace'}, node: {enum: nodeKeys}, part: {const: it.id}}, it), required: needs(it, ['op', 'node', 'part']), additionalProperties: false})),
+      {type: 'object', properties: {op: {const: 'setParams'}, node: {enum: nodeKeys}, params: {type: 'object'}}, required: ['op', 'node', 'params'], additionalProperties: false},
+    )
+  }
+  return {type: 'object', properties: {ops: {type: 'array', items: {anyOf: ops}}}, required: ['ops'], additionalProperties: false}
+}
+
+/** the operations in a reply (lenient: a bare list, `operations`, a single operation); undefined when it has none (a whole page, say) */
+function opsOf(v: any): any[] | undefined {
+  const isOp = (o: any) => !!o && typeof o == 'object' && typeof o.op == 'string'
+  if (Array.isArray(v)) return v.every(isOp) ? v : undefined
+  if (!v || typeof v != 'object') return
+  for (const k of ['ops', 'operations', 'changes', 'edits']) if (Array.isArray(v[k])) return v[k]
+  if (isOp(v)) return [v]
+}
+
+/** apply operations to `previous` (see the section's header): the layout (not finished), how many applied, the operations as applied (layout keys), issues */
+export function applyOps(catalog: any, state: any, previous: any, order: string[], ops: any[]) {
+  const ctx = context(catalog, state)
+  const issues: Issue[] = [], done: any[] = []
+  const root = previous.root || 'page'
+  const L: any = {root, nodes: JSON.parse(JSON.stringify(previous.nodes))}
+  L.nodes[root].slots ||= {}
+  L.nodes[root].slots.default ||= []
+  const used = new Set<string>(Object.keys(L.nodes))
+  const page = (): string[] => L.nodes[root].slots.default
+  const keyOf = (ref: any): string | undefined => {
+    if (typeof ref != 'string' && typeof ref != 'number') return
+    const s = String(ref).trim()
+    const m = /^n(\d+)$/.exec(s)
+    const k = m && order[+m[1]] !== undefined ? order[+m[1]] : s
+    return own(L.nodes, k) && k != root ? k : undefined
+  }
+  const parentOf = (k: string) => {
+    for (const pk in L.nodes) {
+      const sl = L.nodes[pk].slots
+      for (const s in sl) { const i = sl[s].indexOf(k); if (i >= 0) return {pk, s, i, arr: sl[s] as string[]} }
+    }
+  }
+  const isRow = (k: string) => { const e = catalog.get(L.nodes[k]?.part); return e?.kind == 'container' && (e.direction == 'row' || e.id == 'row') }
+  const rowPart: string | undefined = catalog.get('row')?.kind == 'container' ? 'row' : (Object.values<any>(catalog.containers || {}).find(c => c.direction == 'row')?.id)
+  const topOf = (k: string) => { let p = parentOf(k); while (p && p.pk != root) { k = p.pk; p = parentOf(k) } return k }
+  const within = (k: string, anc: string) => { for (let x: string | undefined = k; x && x != root; x = parentOf(x)?.pk) if (x == anc) return true; return false }
+  const detach = (k: string) => { const p = parentOf(k); if (p) p.arr.splice(p.i, 1) }
+  const drop = (k: string) => { const n = L.nodes[k]; if (!n) return; delete L.nodes[k]; for (const s in n.slots) for (const c of n.slots[s]) drop(c) }
+  const fresh = (part: string, params?: any) => { let k = identityOf(catalog, part, params); for (let i = 2; used.has(k); i++) k = `${identityOf(catalog, part, params)}~${i}`; used.add(k); return k }
+  const idOf = (k: string) => identityOf(catalog, L.nodes[k].part, L.nodes[k].params)
+  const existing = (id: string) => preorder(L).find(k => k != root && idOf(k) == id)
+  const count = (id: string) => preorder(L).filter(k => k != root && idOf(k) == id).length
+  /** a place → the function that inserts a key there (null: no such place; `self`: the node that moves) */
+  const placement = (where: any, self?: string): ((k: string) => void) | null => {
+    const w = typeof where == 'string' ? where.trim() : ''
+    if (w == 'top') return k => { page().unshift(k) }
+    if (w == 'bottom') return k => { page().push(k) }
+    const m = /^(above|below|left of|right of)\s+(\S+)$/.exec(w)
+    const ref = m ? keyOf(m[2]) : undefined
+    if (!m || !ref || (self && within(ref, self))) return null
+    const rel = m[1]
+    if (rel == 'above' || rel == 'below') return k => { const pg = page(); pg.splice(pg.indexOf(topOf(ref)) + (rel == 'below' ? 1 : 0), 0, k) }
+    const right = rel == 'right of'
+    return k => {
+      if (isRow(ref)) { const s = L.nodes[ref].slots.default ||= []; right ? s.push(k) : s.unshift(k); return }
+      const p = parentOf(ref)!
+      if (isRow(p.pk) || !rowPart) {
+        if (!rowPart) issues.push({kind: 'op', detail: `no row container: ${w} is next to it instead`})
+        p.arr.splice(p.i + (right ? 1 : 0), 0, k)
+        return
+      }
+      const r = fresh(rowPart)
+      L.nodes[r] = {part: rowPart, slots: {default: right ? [ref, k] : [k, ref]}}
+      p.arr.splice(p.i, 1, r)
+    }
+  }
+  const setParams = (k: string, given: any): string | null => {
+    const n = L.nodes[k], it = ctx.byId[n.part]
+    const merged = {...n.params, ...given}
+    if (!it) { if (!catalog.get(n.part)) return 'unknown part'; n.params = merged; return null }
+    const f = fixParams(it, merged, issues)
+    if (f.drop) return 'params'
+    const before = idOf(k)
+    if (identityOf(catalog, it.id, f.params) != before) {
+      // another record: another node, in the same place
+      const id = identityOf(catalog, it.id, f.params)
+      if (count(id) >= it.uses) return `${id} is on the page`
+      const nk = fresh(it.id, f.params), p = parentOf(k)!
+      L.nodes[nk] = {part: it.id, ...(f.params && {params: f.params})}
+      p.arr.splice(p.i, 1, nk)
+      drop(k)
+      return null
+    }
+    if (f.params) n.params = f.params
+    else delete n.params
+    return null
+  }
+  for (const op of Array.isArray(ops) ? ops : []) {
+    const fail = (why: string) => { issues.push({kind: 'op', detail: `${why}: ${JSON.stringify(op)}`}) }
+    if (!op || typeof op != 'object') { fail('not an operation'); continue }
+    const k = keyOf(op.node)
+    if (op.op == 'add') {
+      const it = ctx.byId[op.part]
+      if (!it || it.container) { fail('unknown part'); continue }
+      const f = fixParams(it, op.params, issues)
+      if (f.drop) { fail('params'); continue }
+      const id = identityOf(catalog, it.id, f.params)
+      if (count(id) >= it.uses) {
+        // on the page as often as it may be: moved there instead (its key kept)
+        const e = existing(id)!
+        const at = placement(op.where, e)
+        if (!at) { fail('place'); continue }
+        detach(e); at(e)
+        issues.push({kind: 'op', detail: `add of ${id}, which is on the page: moved`})
+        done.push({op: 'move', node: e, where: op.where})
+      } else {
+        const nk = fresh(it.id, f.params)
+        L.nodes[nk] = {part: it.id, ...(f.params && {params: f.params})}
+        const at = placement(op.where)
+        if (at) at(nk)
+        else { issues.push({kind: 'op', detail: `place ${op.where}: at the bottom`}); page().push(nk) }
+        done.push({op: 'add', node: nk, part: it.id, ...(f.params && {params: f.params}), where: op.where})
+      }
+    } else if (op.op == 'remove') {
+      if (!k) { fail('no such node'); continue }
+      detach(k); drop(k)
+      done.push({op: 'remove', node: k})
+    } else if (op.op == 'move') {
+      const at = k && placement(op.where, k)
+      if (!k || !at) { fail(k ? 'place' : 'no such node'); continue }
+      detach(k); at(k)
+      done.push({op: 'move', node: k, where: op.where})
+    } else if (op.op == 'replace') {
+      const it = ctx.byId[op.part]
+      if (!k || !it || it.container) { fail(k ? 'unknown part' : 'no such node'); continue }
+      if (L.nodes[k].part == it.id) {
+        // the same part: a param change (its key kept)
+        const why = setParams(k, op.params || {})
+        if (why) { fail(why); continue }
+        issues.push({kind: 'op', detail: `replace ${k} with the same part = setParams (key kept)`})
+        done.push({op: 'setParams', node: k, params: op.params || {}})
+        continue
+      }
+      const f = fixParams(it, op.params, issues)
+      if (f.drop) { fail('params'); continue }
+      const id = identityOf(catalog, it.id, f.params)
+      const e = count(id) >= it.uses ? existing(id) : undefined
+      if (e && within(k, e)) { fail('place'); continue }
+      if (e) detach(e)
+      const nk = e || fresh(it.id, f.params)
+      if (!e) L.nodes[nk] = {part: it.id, ...(f.params && {params: f.params})}
+      const p = parentOf(k)!
+      p.arr.splice(p.i, 1, nk)
+      drop(k)
+      done.push({op: 'replace', node: k, part: it.id, ...(f.params && {params: f.params}), ...(e && {moved: e})})
+    } else if (op.op == 'setParams' || op.op == 'setParam') {
+      const given = op.params && typeof op.params == 'object' && !Array.isArray(op.params) ? op.params : typeof op.param == 'string' ? {[op.param]: op.value} : null
+      if (!k || !given) { fail(k ? 'no params' : 'no such node'); continue }
+      const why = setParams(k, given)
+      if (why) { fail(why); continue }
+      done.push({op: 'setParams', node: k, params: given})
+    } else fail('unknown operation')
+  }
+  return {layout: L, applied: done.length, ops: done, issues}
+}
+
+/** a value with its object keys sorted (tree comparison) */
+const canon = (v: any): string => JSON.stringify(v, (_k, x) => x && typeof x == 'object' && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map(k => [k, x[k]])) : x)
+
+/**
+ * fake(): the operations that turn `previous` into `target` (keys of the parts both have kept),
+ * found greedily and then minimized; null when operations can't reach it (the caller sends the
+ * whole page). Every result is checked by applying it.
+ */
+function editOps(catalog: any, state: any, previous: any, order: string[], target: any[]): any[] | null {
+  const want = finish(catalog, fromTree(catalog, target, previous), state)
+  const goal = canon(toTree(want))
+  const root = previous.root || 'page'
+  const alias = (k: string) => `n${order.indexOf(k)}`
+  const P = previous.nodes, W = want.nodes
+  const isLeaf = (k: string, nodes: any) => catalog.get(nodes[k]?.part)?.kind == 'part'
+  const isRow = (k: string, nodes: any) => { const e = catalog.get(nodes[k]?.part); return e?.kind == 'container' && (e.direction == 'row' || e.id == 'row') }
+  const kept = new Set(order.filter(k => k != root && own(W, k) && W[k].part == P[k].part))
+  const keptLeaves = [...kept].filter(k => isLeaf(k, P))
+  const ok = (ops: any[]) => {
+    const a = applyOps(catalog, state, previous, order, ops)
+    if (a.issues.some(i => i.kind == 'op')) return false
+    const got = finish(catalog, a.layout, state)
+    return canon(toTree(got)) == goal && keptLeaves.every(k => got.nodes[k]?.part == P[k].part)
+  }
+  const ops: any[] = []
+  // params of the kept nodes (a param back to its default is set to the default)
+  for (const k of kept) {
+    const a = P[k].params || {}, b = W[k].params || {}
+    if (canon(a) == canon(b)) continue
+    if (!isLeaf(k, P)) return null
+    const e: any = catalog.get(P[k].part), params: any = {}
+    for (const n of new Set([...Object.keys(a), ...Object.keys(b)])) if (canon(a[n]) != canon(b[n])) params[n] = n in b ? b[n] : e.params[n]?.default
+    ops.push({op: 'setParams', node: alias(k), params})
+  }
+  // the page's blocks in order: each block's anchor is a kept node it holds
+  const pageOf = (n: any) => n[want.root || 'page']?.slots?.default || []
+  const blocks = pageOf(W).map((b: string) => {
+    if (isLeaf(b, W)) return {b, anchor: kept.has(b) ? b : null, kids: null}
+    if (isRow(b, W)) {
+      const kids: string[] = W[b].slots?.default || []
+      const k = kids.filter(x => kept.has(x))
+      if (!k.length) return null
+      return {b, anchor: k[0], kids}
+    }
+    // another container: only moved as a whole, when it holds the same nodes as before
+    const same = kept.has(b) && canon(toTree({root: 'page', nodes: {...W, page: {part: 'page', slots: {default: [b]}}}} as any)) == canon(toTree({root: 'page', nodes: {...P, page: {part: 'page', slots: {default: [b]}}}} as any))
+    return same ? {b, anchor: b, kids: null} : null
+  })
+  if (blocks.some((x: any) => !x)) return null
+  const parentIn = (nodes: any, k: string) => Object.keys(nodes).find(pk => Object.values<any>(nodes[pk].slots || {}).some((s: string[]) => s.includes(k)))
+  const anchored = blocks.filter((x: any) => x.anchor)
+  const moves: any[] = [], adds: any[] = []
+  const addOp = (k: string, where: string) => ({op: 'add', part: W[k].part, ...(W[k].params && {params: W[k].params}), where})
+  anchored.forEach((x: any, j: number) => {
+    // the block: its row as a whole when the anchor's row is the same row; else the anchor alone
+    const pr = parentIn(P, x.anchor)
+    const mover = x.kids && pr && pr == x.b ? x.b : x.anchor
+    moves.push({op: 'move', node: alias(mover), where: j == 0 ? 'top' : `below ${alias(anchored[j - 1].anchor)}`})
+    if (!x.kids) return
+    // a row's parts: the kept ones in order after the anchor, then the new ones around them
+    const K = x.kids.filter((c: string) => kept.has(c))
+    for (let i = 1; i < K.length; i++) moves.push({op: 'move', node: alias(K[i]), where: `right of ${alias(K[i - 1])}`})
+    const first = x.kids.indexOf(K[0])
+    for (const c of x.kids.slice(0, first)) adds.push(addOp(c, `left of ${alias(K[0])}`))
+    K.forEach((kk: string, i: number) => {
+      const from = x.kids.indexOf(kk) + 1, to = i + 1 < K.length ? x.kids.indexOf(K[i + 1]) : x.kids.length
+      for (const c of x.kids.slice(from, to).reverse()) adds.push(addOp(c, `right of ${alias(kk)}`))
+    })
+  })
+  // new parts on the page: before the first kept block, between, after
+  const firstA = blocks.findIndex((x: any) => x.anchor)
+  if (firstA < 0) for (const x of blocks) adds.push(addOp(x.b, 'bottom'))
+  else {
+    for (const x of blocks.slice(0, firstA)) adds.push(addOp(x.b, `above ${alias(blocks[firstA].anchor)}`))
+    blocks.forEach((x: any, i: number) => {
+      if (!x.anchor) return
+      let to = i + 1
+      while (to < blocks.length && !blocks[to].anchor) to++
+      for (const y of blocks.slice(i + 1, to).reverse()) adds.push(addOp(y.b, `below ${alias(x.anchor)}`))
+    })
+  }
+  // removes last (a removed row's kept parts have moved out by then), outermost first
+  const removes: any[] = []
+  const gone = new Set<string>()
+  for (const k of order) {
+    if (k == root || kept.has(k)) continue
+    const p = parentIn(P, k)
+    if (p && gone.has(p)) { gone.add(k); continue }
+    gone.add(k)
+    removes.push({op: 'remove', node: alias(k)})
+  }
+  let all = [...ops, ...moves, ...adds, ...removes]
+  if (!ok(all)) return null
+  // minimize: drop each operation the result doesn't need
+  for (let i = all.length - 1; i >= 0; i--) {
+    const fewer = all.slice(0, i).concat(all.slice(i + 1))
+    if (ok(fewer)) all = fewer
+  }
+  return all
 }

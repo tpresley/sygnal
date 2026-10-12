@@ -60,11 +60,13 @@ describe('the request', () => {
     expect(llm({ sink: 'AI' }).sink).toBe('AI')
   })
 
-  it('previous: composes fresh (phase 1), kept in pending for the keys', () => {
+  it('previous: an edit (B-4, ops2: test/p9-llm-edits), kept in pending; an empty page composes fresh', () => {
     const previous = { root: 'page', nodes: { page: { part: 'page', slots: { default: ['revenue'] } }, revenue: { part: 'revenue' } } }
     const { request, pending } = llm().start({ catalog: SHOP, state: STATE, prompt: 'p', previous, names })
-    expect(request.messages).toEqual([{ role: 'user', content: 'p' }])
-    expect(pending.previous).toEqual(previous)
+    expect(request.messages).toEqual([{ role: 'user', content: 'Current page:\nn0: page\n  n1: revenue\n\nChange: p' }])
+    expect(pending).toMatchObject({ step: 'edit', previous, order: ['page', 'revenue'] })
+    const empty = { root: 'page', nodes: { page: { part: 'page', slots: { default: [] } } } }
+    expect(llm().start({ catalog: SHOP, state: STATE, prompt: 'p', previous: empty, names }).request.messages).toEqual([{ role: 'user', content: 'p' }])
   })
 
   it('the prompt: params, records, bins, `in`, named slots, guidance, instructions; plan on by default', () => {
