@@ -1,15 +1,20 @@
-// A working part: ticks survive recomposing, because the tasks live in the root state (state="tasks").
+// A working part: ticks survive recomposing, because the tasks live in the app state (the
+// catalog gives it the lens `state: 'tasks'`).
+import { card } from './card.jsx'
+
 function Checklist({ state }) {
   return (
-    <ul className="checklist">
-      {state.map((task) => (
-        <li className={task.done ? 'done' : ''}>
-          <label>
-            <input type="checkbox" className="task-toggle" checked={task.done} data={{ id: task.id }} /> {task.text}
-          </label>
-        </li>
-      ))}
-    </ul>
+    card('tasks', 'Today',
+      <ul className="checklist">
+        {state.map((task) => (
+          <li className={task.done ? 'done' : ''}>
+            <label>
+              <input type="checkbox" className="task-toggle" checked={task.done} data={{ id: task.id }} /> {task.text}
+            </label>
+          </li>
+        ))}
+      </ul>
+    )
   )
 }
 
