@@ -328,5 +328,6 @@ It reads the actions from the components' [`agent` declarations](/guide/agent/#t
 
 - [Agents](/guide/agent/): the `agent` static, the command bar and the in-app assistant
 - [AI Chat](/guide/ai-chat/): the chat driver, transports, and shipping an AI SDK route
+- [Composing UI with a Model](/guide/ai-compose/): a decision model builds a page from your catalog of parts with `compose.decisions()`
 - [Resources and Caching](/guide/resources/): the rules a decision resource follows
 - [Support inbox](/recipes/ai-support-inbox/): triage, sorting and escalation in a whole inbox
