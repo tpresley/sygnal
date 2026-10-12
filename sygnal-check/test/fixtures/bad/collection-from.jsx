@@ -11,7 +11,7 @@ function List({ state }) {
   return (
     <ul className="list">
       <Collection of={Item} from="item" /> {/* expect: SYG401 */}
-      <collection of={Item} from="config" /> {/* expect: SYG401 */}
+      <collection of={Item} from="config" /> {/* expect: SYG401, SYG426 */}
       <Collection of={Item} from="items" />
       <Collection of={Item} from="visible" />
     </ul>

@@ -17,7 +17,8 @@
  *   a Collection's viewTransitionName that isn't an identifier, the same name twice on the
  *   page after a patch, G-460: on rendered elements), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
- *   guide), SYG453 (PLAN-9, D470: two children with one identity share one instance).
+ *   guide), SYG453 (PLAN-9, D470: two children with one identity share one instance), SYG426
+ *   (PLAN-9, D471: a lowercase <collection> / <switchable> tag, deprecated in 6.3.0).
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
@@ -143,6 +144,34 @@ function sharedIdentity(iv: any, v: any): void {
       data: {child: child ? name : undefined, key},
     })
   }
+}
+
+/**
+ * PLAN-9 SYG426 (D471): the lowercase host tags, `<collection>` / `<switchable>` (JSX string tags,
+ * or `h('collection')`), deprecated in 6.3.0; the next major removes them (and registers the hosts
+ * on first use, as Portal). The core doesn't look (0 production bytes): the instance's template
+ * keeps a host marker after reconcile (only `pres` markers are rewritten), and the imported
+ * components' markers carry their function in `data.m`, a string tag's don't. The template is
+ * the raw instance's (`iv.i`: the InstanceView's own field, a dev entry of the same build reads it;
+ * the vnode onRender gets has the hosts' output injected in their place). Once per tag.
+ */
+const HOST_TAGS: Record<string, string> = {collection: 'Collection', switchable: 'Switchable'}
+function lowercaseTags(iv: any): void {
+  const raw = iv.i
+  if (!raw?.kids?.size || !raw.tmpl) return
+  const walk = (n: any, d: number): void => {
+    if (!n || typeof n != 'object' || n.$p || d > 300) return
+    const name = typeof n.sel == 'string' && !n.data?.m && HOST_TAGS[n.sel]
+    if (name && once(`SYG426:${n.sel}`)) devReport('SYG426', {
+      component: iv.name,
+      message: `${iv.name} renders the lowercase <${n.sel}> tag, which is deprecated since Sygnal 6.3.0 and will be removed in the next major (it will then render an unknown <${n.sel}> element)`,
+      fix: `import { ${name} } from 'sygnal' and write <${name} …> (sygnal-check --fix does it)`,
+      data: {tag: n.sel, component: name},
+    })
+    const kids = n.children
+    if (Array.isArray(kids)) for (const k of kids) walk(k, d + 1)
+  }
+  walk(raw.tmpl, 0)
 }
 
 /** the instance fields the checks read from today's Component instances */
@@ -364,6 +393,7 @@ export function nextHooks(_api: any): any {
       H.onRender(f, vnode)
       if (!on()) return
       removedTags(f, vnode)
+      try { lowercaseTags(iv) } catch (_) { /* a check never breaks the app */ }
       // SYG453: only a view with children can render one twice
       if (iv.children().length) try { sharedIdentity(iv, vnode) } catch (_) { /* a check never breaks the app */ }
     },

@@ -2,6 +2,12 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Deprecated
+
+- **The lowercase marker tags** (PLAN-9 D471): `<collection>` and `<switchable>`, which worked without an import, and the undocumented `<clientonly>`, `<portal>`, `<transition>` and `<suspense>`. They keep working in 6.x and will be removed in the next major, where they render unknown elements; the Collection and Switchable handlers will then load only in apps that import them (about 3.2 KB gzipped less for an app that uses neither). To migrate, `import { Collection } from 'sygnal'` and write `<Collection …>` (`Switchable`, `Portal`, `Transition`, `Suspense` from `'sygnal'`, `ClientOnly` from `'sygnal/vike'`); `sygnal-check --fix` renames the tags and adds the import. New code SYG426: the dev diagnostics warn once per tag for `<collection>` / `<switchable>` (0 production bytes), `sygnal-check` reports every lowercase marker tag, and the JSX types mark the two intrinsic elements `@deprecated`. A plain `<slot>` is an HTML element, as before (G-480). `examples/todomvc` uses `<Collection>`.
+
 ## sygnal-check 0.5.1, VS Code extension 0.2.1 — 2026-10-11
 
 A patch for the editor tooling; `sygnal` itself is unchanged (6.2.0). Reported against extension 0.2.0: opening `examples/todomvc` (code at the top level, no `src/`), or the repository root, underlined nothing and said nothing.

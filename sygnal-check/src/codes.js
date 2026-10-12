@@ -70,6 +70,8 @@ export const CODES = {
   SYG405: { severity: 'error', title: 'Sub-component has initialState without isolatedState' },
   // PLAN-4 GS-7 timers (rules/syg422-timers.js)
   SYG422: { severity: 'error', title: 'Invalid timer spec' },
+  // PLAN-9 D471 (rules/syg426-lowercase-markers.js): deprecated in 6.3.0
+  SYG426: { severity: 'warn', title: 'Deprecated lowercase marker tag' },
   // PLAN-4 4-G2 (rules/syg609-sink-driver.js): the run() call registers no driver for a model sink
   SYG609: { severity: 'warn', title: 'Sink or source has no driver' },
   // PLAN-4.6 R5 (rules/syg612-removed-forms.js): a form 6.0 removed

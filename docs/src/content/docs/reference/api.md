@@ -150,7 +150,7 @@ import { Collection } from 'sygnal'
 </ul>
 ```
 
-The lowercase `<collection>` tag works too, without an import.
+The lowercase `<collection>` tag (no import) is deprecated since 6.3.0 and will be removed in the next major, where it renders an unknown `<collection>` element. Import `Collection` and write `<Collection …>` instead; `sygnal-check --fix` does it, and the dev diagnostics report the lowercase tag as [SYG426](/reference/errors/#syg426).
 
 A Collection has no element of its own: its items render directly into the parent element. Any prop not listed below goes to every item; `className`, `style`, `class`, `data-*` and the other attributes of the wrapper `<div>` that 6.0 removed are [SYG612](/reference/errors/#syg612) ([Migrating to 6.0](/guide/migrating-to-6/#collection-wrapper)).
 

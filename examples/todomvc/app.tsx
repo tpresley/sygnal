@@ -1,4 +1,4 @@
-import { processForm, classes, createRef, set } from 'sygnal'
+import { processForm, classes, createRef, set, Collection } from 'sygnal'
 import type { RootComponent, DriverSpec } from 'sygnal'
 import type { Stream } from 'xstream'
 import type { StoreSource, StoreEntry } from './lib/localStorageDriver'
@@ -107,7 +107,7 @@ const APP: App = function ({ state }) {
           <input id="toggle-all" className="toggle-all" type="checkbox" checked={allDone} />
           <label for="toggle-all">Mark all as complete</label>
           <ul className="todo-list">
-            <collection of={TODO} from="todos" filter={FILTER_LIST[visibility]} showDelete={true} />
+            <Collection of={TODO} from="todos" filter={FILTER_LIST[visibility]} showDelete={true} />
           </ul>
         </section>
       )}
