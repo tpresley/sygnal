@@ -1,5 +1,5 @@
 // Types for 'sygnal/ai' (PLAN-6). The implementation lives in src/extra/ai/ (D253).
-import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors } from 'sygnal'
+import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors, RenderResult } from 'sygnal'
 import type { Stream } from 'xstream'
 
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
@@ -1220,3 +1220,359 @@ export interface McpAppDriverOptions {
  *   run(WeatherCard, { MCP: makeMcpAppDriver() })
  */
 export function makeMcpAppDriver(options?: McpAppDriverOptions): (sink$: Stream<McpAppRequest>) => McpAppSource
+
+// ---- PLAN-9 compose ------------------------------------------------------------------------------
+// (worker A: catalogs, layouts, render, the compose behavior, composeWith; B and C add their
+// sub-sections below)
+
+/** A record for a record param: `from: (state) => records` (the value becomes the node key `part:value`) */
+export interface CatalogRecord<V extends string | number = string | number> {
+  value: V
+  name?: string
+  aliases?: string[]
+  description?: string
+}
+
+/** A part's (or container's) param declaration */
+export type CatalogParam =
+  /** an enum: the model picks one option (decisions: a choice, `not_stated` = the default; LLM: an enum) */
+  | { options: Record<string, string>; default?: string; label?: string; ask?: string }
+  /** a number (LLM: a number; decisions: a bin, which names the vague words it covers) */
+  | { type: 'number'; min?: number; max?: number; default?: number; bins?: Record<string | number, string>; label?: string }
+  /** free text: LLM only (a decision model keeps the default; `required` with no default makes the part LLM-only) */
+  | { type: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string }
+  /** a list of short texts: LLM only */
+  | { type: 'list'; items?: { maxLength?: number }; min?: number; max?: number; required?: boolean; default?: readonly string[]; label?: string }
+  /** a record: one node per record (at most one per part) */
+  | { from: (state: any) => ReadonlyArray<CatalogRecord>; label?: string }
+
+/** A param's value type */
+export type CatalogParamValue<P> =
+  P extends { from: (state: any) => ReadonlyArray<{ value: infer V }> } ? V
+  : P extends { options: infer O } ? keyof O & string
+  : P extends { type: 'number' } ? number
+  : P extends { type: 'text' } ? string
+  : P extends { type: 'list' } ? string[]
+  : unknown
+
+/** The params of a part or container declaration, as a layout or tree holds them (all optional: defaults are left out) */
+export type CatalogParamsOf<E> = E extends { params: infer PS } ? { [K in keyof PS]?: CatalogParamValue<PS[K]> } : Record<string, never>
+
+/** A node of a layout */
+export interface LayoutNode {
+  part: string
+  /** only the non-default values */
+  params?: Record<string, unknown>
+  /** a container's slots: node keys in order */
+  slots?: Record<string, string[]>
+}
+
+/**
+ * A composition's layout: a node map whose keys are identities (the part id; `part:recordValue`;
+ * repeats `~2`, `~3`; containers by id: `row`, `row~2`). Plain JSON state.
+ */
+export interface Layout {
+  root: 'page'
+  nodes: Record<string, LayoutNode>
+}
+
+/** A nested tree (what a model writes, what tests use), not tied to a catalog */
+export type ComposeTree = Array<{ part: string; params?: Record<string, unknown>; children?: ComposeTree | Record<string, ComposeTree> }>
+
+type CatalogLens = { get(state: any): any; set?(state: any, value: any): any }
+
+/** A part declaration */
+export interface CatalogPartDecl<STATE = any> {
+  /** a Sygnal component (a child of the host: CHILD.select, lenses, EVENTS and context work) */
+  component?: any
+  /** or a view function, called inline with the props (and `state` read through the lens) */
+  render?: (props: any) => any
+  /** fixed props (params go over them), or `(params, state) => props` */
+  props?: Record<string, any> | ((params: Record<string, any>, state: STATE) => Record<string, any>)
+  /** all a model sees of it: "Noun (what it shows)" */
+  description: string
+  /** its state: a key of the host's state, a lens, or `(node, key) => lens` (a record part: `byId(…)`) */
+  state?: string | CatalogLens | ((node: LayoutNode & { params: Record<string, any> }, key: string) => string | CatalogLens)
+  /** state kept in the composition (`slice.local[nodeKey]`), starting as this */
+  local?: unknown
+  params?: Record<string, CatalogParam>
+  /** where it may go: `'page'`, `'container'` (any slot) or `'container:slot'` (default `['page']`) */
+  in?: string | readonly string[]
+  /** alternatives: the first part of a group in a layout wins */
+  group?: string
+  /** how often one identity may appear (default 1) */
+  maxUses?: number
+  /** always on the page (added by the finishing step; not offered to a model) */
+  required?: boolean
+  pin?: 'start' | 'end'
+  /** parts added right after it */
+  companions?: readonly string[]
+  category?: string
+  /** a part that answers a card (`compose.answer(props, value)`) */
+  result?: boolean
+}
+
+/** What a container's view gets */
+export interface ContainerView {
+  key: string
+  node: LayoutNode
+  /** its params, defaults filled */
+  params: Record<string, any>
+  /** each slot's vnodes */
+  slots: Record<string, any[]>
+  /** every child in order */
+  children: Array<{ key: string; node: LayoutNode; part: CatalogPart | CatalogContainer; slot: string; vnode: any }>
+  /** `slice.ui[key]` */
+  ui: Record<string, any>
+  /** data attributes to spread on an element: a click on it sets `ui[key][name] = value` (the behavior's CONTROL) */
+  control(name: string, value?: unknown): Record<string, string>
+  scope?: string
+  frozen: boolean
+}
+
+/** A container declaration: a view function with named slots (the model never chooses one) */
+export interface CatalogContainerDecl {
+  /** slot name → description (default `{ default: null }`) */
+  slots?: Record<string, string | null>
+  /** fewer filled slots: unwrapped */
+  minSlots?: number
+  /** children per slot: fewer than `min` unwraps it, more than `max` overflow after it (a row splits) */
+  min?: number
+  max?: number
+  /** only parts in its slots */
+  accepts?: 'leaves'
+  /** its order is fixed (no rows inside) */
+  arranged?: boolean
+  direction?: 'row' | 'column'
+  description?: string
+  /** where it may go (default `['page']`) */
+  in?: string | readonly string[]
+  params?: Record<string, CatalogParam>
+  /** a view function, never a component (SYG161) */
+  render?: (view: ContainerView) => any
+}
+
+/** defineCatalog's declaration */
+export interface CatalogDecl {
+  parts: Record<string, CatalogPartDecl>
+  /** `page` and `row` are built in (override their render; `row: false` opts out, as `rows: false` does) */
+  containers?: Record<string, CatalogContainerDecl | false>
+  /** the page's label */
+  description?: string
+  /** `{ id: description }`, named by parts' `category` (a prefilter for large catalogs) */
+  categories?: Record<string, string>
+  /** false: no built-in row (canonical; `containers: { row: false }` too) */
+  rows?: boolean
+  /** quoted in order questions and the LLM prompt */
+  guidance?: string
+  limits?: { maxParts?: number; maxDepth?: number }
+  /** app-written few-shot cases (LLM) */
+  examples?: readonly unknown[]
+}
+
+/** A normalized part */
+export interface CatalogPart {
+  id: string
+  kind: 'part'
+  description: string
+  params: Record<string, CatalogParam & { kind: 'options' | 'number' | 'text' | 'list' | 'record' }>
+  /** the record param's name */
+  record?: string
+  /** 'container:slot' entries */
+  in: string[]
+  group?: string
+  maxUses: number
+  required: boolean
+  pin?: 'start' | 'end'
+  companions: string[]
+  category?: string
+  result: boolean
+  decl: CatalogPartDecl
+  [key: string]: any
+}
+
+/** A normalized container */
+export interface CatalogContainer {
+  id: string
+  kind: 'container'
+  slots: Record<string, string | null>
+  slotNames: string[]
+  minSlots?: number
+  min?: number
+  max?: number
+  accepts?: 'leaves'
+  arranged: boolean
+  direction?: 'row' | 'column'
+  description?: string
+  in: string[]
+  params: Record<string, CatalogParam>
+  render: (view: ContainerView) => any
+  decl: CatalogContainerDecl
+}
+
+/** One selectable option: a part, or a record part once per record (`part:value`) */
+export interface CatalogOption { option: string; part: string; params?: Record<string, unknown>; description: string }
+
+type CatalogPartIds<D> = D extends { parts: infer P } ? keyof P & string : string
+type CatalogContainerIds<D> = (D extends { containers: infer C } ? { [K in keyof C & string]: C[K] extends false ? never : K }[keyof C & string] : never) | 'row'
+type CatalogContainerOf<D, C> = D extends { containers: infer CS } ? C extends keyof CS ? CS[C] : {} : {}
+type CatalogSlotsOf<D, C> = CatalogContainerOf<D, C> extends { slots: infer S } ? keyof S & string : 'default'
+type CatalogPartOf<D, P> = D extends { parts: infer PS } ? P extends keyof PS ? PS[P] : never : never
+
+/** A tree node for a catalog: a part with its params, or a container with its children */
+export type CatalogTreeNode<D> =
+  | { [P in CatalogPartIds<D>]: { part: P; params?: CatalogParamsOf<CatalogPartOf<D, P>> } }[CatalogPartIds<D>]
+  | { [C in CatalogContainerIds<D>]: { part: C; params?: CatalogParamsOf<CatalogContainerOf<D, C>>; children?: CatalogTreeNode<D>[] | { [S in CatalogSlotsOf<D, C>]?: CatalogTreeNode<D>[] } } }[CatalogContainerIds<D>]
+
+/** A nested tree for a catalog (part ids, params and slots checked); `ComposeTree` for an untyped one */
+export type CatalogTree<D> = 0 extends (1 & D) ? ComposeTree : CatalogTreeNode<D>[]
+
+/** catalog.render's options */
+export interface ComposeRenderOptions {
+  /** several compositions in one host (one per chat card): instance keys become `scope/nodeKey`; parts get `scope` */
+  scope?: string
+  /** an answered card: wrapped in `<fieldset disabled>`; parts get `frozen` */
+  frozen?: boolean
+  /** a result part's answer: `answer.value` goes to the part whose key is `answer.node` */
+  answer?: { node: string; value: unknown } | null
+  /** the slice's path in the host state (for `local` parts; default: the host key whose value is the slice) */
+  at?: string | ReadonlyArray<string | number>
+}
+
+/** What catalog.render renders: a compose slice, or anything with a layout */
+export type ComposeRenderable = { layout: Layout | null; preview?: Layout | null; ui?: Record<string, Record<string, any>>; local?: Record<string, any> }
+
+/** A catalog (defineCatalog's result); D is the declaration, for typed trees */
+export interface Catalog<D = CatalogDecl> {
+  /** (type only) the declaration */
+  readonly __decl?: D
+  parts: Record<string, CatalogPart>
+  containers: Record<string, CatalogContainer>
+  get(id: string): CatalogPart | CatalogContainer | undefined
+  /** every selectable option for this state */
+  options(state: any): CatalogOption[]
+  /** a record part's records (validated: SYG252) */
+  records(part: string | CatalogPart, state: any): CatalogRecord[]
+  /** the deterministic finishing step (idempotent) */
+  finish(layout: Layout | null | undefined, state?: any): Layout
+  /**
+   * The composition as vnodes for the host's own view: `slice.preview ?? slice.layout`, each part a
+   * child of the host (keyed by its node key), containers through their view functions.
+   */
+  render(slice: ComposeRenderable | null | undefined, state: any, options?: ComposeRenderOptions): any
+  description?: string
+  categories: Record<string, string>
+  rows: boolean
+  guidance?: string
+  limits: { maxParts: number; maxDepth: number }
+  examples: unknown[]
+}
+
+/**
+ * PLAN-9 K-1: a catalog of prepared parts a model composes from, one declaration for both
+ * backends. `catalog.render(state.page, state)` renders a composition.
+ */
+export function defineCatalog<const D extends CatalogDecl>(decl: D): Catalog<D>
+
+/** fromTree(catalog, tree, previous?): a tree → a layout, reusing `previous`'s keys (same params, then same identity) */
+export function fromTree<D>(catalog: Catalog<D>, tree: CatalogTree<D>, previous?: Layout | null): Layout
+/** toTree(layout): the nested tree (keys dropped) */
+export function toTree(layout: Layout | null | undefined): ComposeTree
+/** removeNode(layout, key): the layout without that node and its subtree (not finished) */
+export function removeNode(layout: Layout, key: string): Layout
+
+/** The reply action names a backend's requests carry */
+export interface ComposeNames { ok: string; error: string; delta: string; key: string }
+
+/** A composition backend (`compose.decisions()`, `compose.llm()`, or your own) */
+export interface ComposeBackend {
+  /** the sink its requests go to: 'HTTP' (decisions) or the LLM sink */
+  sink: string
+  start(a: { catalog: Catalog<any>; state: any; prompt: string; previous: Layout | null; names: ComposeNames }): { request: unknown; pending: unknown }
+  /** a layout (done), `layout: null, unavailable: true` (nothing fits), `request` + `pending` (another step), or `error` */
+  reply(a: { catalog: Catalog<any>; state: any; pending: any; reply: any; names: ComposeNames }):
+    { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string }
+  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout }
+  /** the reply body that leads to `target` (composeWith) */
+  fake(a: { catalog: Catalog<any>; state: any; pending: any; target: ComposeTree }): unknown
+}
+
+export type ComposeStatus = 'idle' | 'composing' | 'preview' | 'done' | 'unavailable' | 'error'
+
+/** The compose behavior's slice: `state.page` for `uses = { page: compose(...) }` */
+export interface ComposeState {
+  prompt: string
+  status: ComposeStatus
+  /** the last finished layout (kept on an error and when nothing fits) */
+  layout: Layout | null
+  /** the layout being built (rendered instead while set) */
+  preview: Layout | null
+  /** the backend's step (plain JSON) */
+  pending: unknown
+  /** what the backend explains (decisions: its answers; LLM: its plan) */
+  decisions: unknown
+  error: string | null
+  /** container state per node key (CONTROL) */
+  ui: Record<string, Record<string, any>>
+  /** `local` parts' state per node key */
+  local: Record<string, any>
+}
+
+/** The compose behavior's actions, as `'<key>.<ACTION>'` on the host */
+export interface ComposeActions {
+  /** compose (an edit of the current layout unless `fresh`): a prompt, `{ prompt, fresh }`, or the form's submit (the slice's prompt) */
+  COMPOSE: string | { prompt: string; fresh?: boolean } | Event | undefined
+  /** set the layout (finished first): restore, undo, the app's own edits; null clears */
+  SET_LAYOUT: Layout | null
+  /** remove a node (by key) and its subtree */
+  REMOVE: string
+  /** a container control: `ui[key][name] = value` */
+  CONTROL: { key: string; name: string; value: unknown }
+  /** a composition finished (a host entry `'page.DONE'` runs after the behavior's) */
+  DONE: Layout
+  /** Internal: the prompt field's input */
+  PROMPT: string
+}
+
+export interface ComposeOptions {
+  /** `compose.decisions({ … })`, `compose.llm({ … })`, or your own ComposeBackend */
+  backend: ComposeBackend
+  /** the form whose submit composes */
+  form?: BehaviorTarget
+  /** the prompt field (its input sets `prompt`) */
+  prompt?: BehaviorTarget
+  /** the request lane (default 'compose'): a new prompt aborts the step in flight */
+  key?: string
+}
+
+/** A result part's PARENT value (`compose.answer(props, value)`) */
+export interface ComposeAnswer<V = unknown> { scope: string | undefined; node: string | undefined; value: V }
+
+/**
+ * PLAN-9 C-1: compose a page from a catalog. `uses = { page: compose(catalog, { backend:
+ * compose.decisions({ model }), form: '.ask', prompt: '.prompt' }) }`, rendered with
+ * `catalog.render(state.page, state)`.
+ */
+export const compose: {
+  (catalog: Catalog<any>, options: ComposeOptions): Behavior<ComposeState, ComposeActions, {}, ComposeOptions>
+  /** a decision-model backend (decide() on HTTP) */
+  decisions(options?: ComposeDecisionsOptions): ComposeBackend
+  /** a chat-LLM backend (structured output on the LLM sink) */
+  llm(options?: ComposeLlmOptions): ComposeBackend
+  /** a result part's PARENT value: `{ scope, node, value }` */
+  answer<V>(props: { scope?: string; node?: string }, value: V): ComposeAnswer<V>
+}
+
+/**
+ * PLAN-9 T-1: answer the pending composition of `catalog` so that it becomes `tree`, whatever the
+ * backend (each step through the backend's fake reply). `stream: n` streams an LLM reply in n chunks.
+ */
+export function composeWith<D>(t: RenderResult<any>, catalog: Catalog<D>, tree: CatalogTree<D>, options?: { stream?: number | boolean }): Promise<void>
+
+// PLAN-9 B: compose.decisions
+// (a placeholder by worker A so the section compiles; worker B's types replace it)
+export interface ComposeDecisionsOptions { url?: string; model?: string; sink?: string; [option: string]: unknown }
+
+// PLAN-9 C: compose.llm
+// (a placeholder by worker A so the section compiles; worker C's types replace it)
+export interface ComposeLlmOptions { model?: string; sink?: string; instructions?: string; [option: string]: unknown }
