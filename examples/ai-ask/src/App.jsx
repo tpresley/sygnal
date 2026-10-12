@@ -11,7 +11,7 @@ const busy = (state) => state.assistant?.status === 'submitted' || state.assista
 function App({ state, context }) {
   const plan = state.plans.find((p) => p.id === state.plan)
   const ready = state.chatModel && state.cards
-  const Assistant = ready ? assistantFor(state.chatModel, state.cards) : null
+  const Assistant = ready ? assistantFor(state.cards) : null
   return (
     <div className="app">
       <header>
@@ -43,7 +43,7 @@ function App({ state, context }) {
         <button type="button" className="new-chat" disabled={busy(state) || !state.assistant?.messages.length}>New conversation</button>
       </form>
 
-      {Assistant ? <Assistant key={`${state.chatModel} ${state.cards.id}`} /> : <p className="status muted">{context.offline ?? 'Looking for models…'}</p>}
+      {Assistant ? <Assistant key={state.cards.id} /> : <p className="status muted">{context.offline ?? 'Looking for models…'}</p>}
     </div>
   )
 }
@@ -56,6 +56,7 @@ App.initialState = {
   rating: null,      // a rating sent from a card
   chatModel: null,   // the picked chat model (qwen3:8b when installed)
   cards: null,       // the picked card backend: a choice from cardBackends()
+  cardsBy: {},       // who composed each card, by tool call id (the "what happened" panel)
 }
 
 App.resources = {
@@ -89,10 +90,10 @@ App.model = {
     const cards = context.cardBackends.find((c) => c.id === id)
     return cards && !busy(state) ? { ...state, cards } : ABORT
   },
-  NEW_CHAT: (state) => (busy(state) || !state.assistant ? ABORT : { ...state, assistant: NEW_CHAT }),
+  NEW_CHAT: (state) => (busy(state) || !state.assistant ? ABORT : { ...state, assistant: NEW_CHAT, cardsBy: {} }),
 }
 
 // the conversation (cards and all), the user's plan and the pickers survive a reload
-App.persist = persist({ key: 'ai-ask', pick: ['assistant', 'plan', 'leads', 'rating', 'chatModel', 'cards'] })
+App.persist = persist({ key: 'ai-ask', pick: ['assistant', 'plan', 'leads', 'rating', 'chatModel', 'cards', 'cardsBy'] })
 
 export default App

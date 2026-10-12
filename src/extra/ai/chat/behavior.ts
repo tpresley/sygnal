@@ -431,11 +431,14 @@ function request(e: Engine | undefined, o: any, k: string, messages: any[], fres
     messages: !state ? messages : i < 0 ? [state, ...messages] : [...messages.slice(0, i), state, ...messages.slice(i)],
     ...(o.instructions && {instructions: o.instructions}),
     ...(Object.keys(tools).length && {tools}),
-    ...(o.model && {model: o.model}),
+    ...modelOf(o.model, host),
     ...(lastOf(messages)?.role == 'assistant' && {continue: true}),
     key: k, delta: k + '.DELTA', ok: k + '.REPLY', error: k + '.FAILED',
   }
 }
+
+/** `model`: a model id, or a function of the host's state returning one (resolved per request) */
+const modelOf = (m: any, host: any) => { const v = typeof m == 'function' ? m(host) : m; return v ? {model: v} : {} }
 
 /**
  * run a reply's tool calls one at a time; RESULTS when all are done (dropped if the turn moved on).

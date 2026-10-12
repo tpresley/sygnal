@@ -7,13 +7,15 @@
  * The chat behavior reaches this module through the catalog (`catalog._ask`, set by defineCatalog),
  * so an app with `chat` and no catalog carries none of it (nor compose.llm).
  *
- * The card lives on the tool part: `part.ui = { status, layout, local, ui, answer, pending }`:
+ * The card lives on the tool part: `part.ui = { status, layout, local, ui, answer, pending, decisions? }`:
  * - status: 'composing' (queued, or its backend step is out: `pending` set) | 'open' (answerable) |
  *   'answered' | 'failed' (the part is output-error "could not show a card: …") | 'cancelled'
  *   (STOP, SEND);
  * - layout: the card (a decision backend's preview while it composes); ui / local: container state
  *   and `local` parts' state per node key, as in a compose slice; answer: `{ node, part, value }`;
- * - pending: the backend's step while its request is out (plain JSON).
+ * - pending: the backend's step while its request is out (plain JSON);
+ * - decisions: what the backend explains, its last reply's `decisions` (as a compose slice keeps
+ *   them; absent until a reply carries some).
  * Cards compose one at a time, on the backend's sink, under the key `<use>.ask:<toolCallId>`, with
  * the reply actions `<use>.CARD` / `<use>.CARD_FAILED`.
  *
@@ -91,6 +93,8 @@ export function openCard(c: AskConfig, p: any, state: any): any {
 /** a backend result → the card part, and the next request when there is one */
 function read(c: AskConfig, p: any, r: any): any {
   if (!r) return failed(p, 'the backend gave no layout')
+  // what the backend explains (its last `decisions`), kept on the card like a compose slice's
+  if (r.decisions !== undefined) p = ui(p, {decisions: r.decisions})
   if (r.error != null) return failed(p, message(r.error))
   if (r.request !== undefined) return {part: ui(p, {pending: own(c, r.pending ?? p.ui.pending), ...(r.preview && {layout: r.preview})}), request: r.request}
   if (r.layout) return ui(p, {status: 'open', layout: r.layout, pending: null})

@@ -213,6 +213,12 @@ chat({ ask: { catalog, backend: compose.decisions({ model: 'jev-latest' }) } })
 
 **`direct: true`** is that one-step form, for providers that do enforce tool schemas: the `ask_user` input schema is the catalog's layout schema, and the card opens as soon as the call arrives, with no compose round trip. An input that is not a card closes the call with the error, so the model can try again. It is LLM-only.
 
+**What the backend explains** stays with the card as `part.ui.decisions`, as a [composed page](/guide/ai-compose/) keeps it in its slice: `compose.llm()`'s plan (`asked_for`) and repairs, or `compose.decisions()`'s answers per step by question name (`use_<part>`, `rec_<part>__<n>`, `first_<a>_vs_<b>`, ...). It is persisted with the card, for an explain panel.
+
+**Switching models.** `model` may be a function of the host's state, read per request: `chat({ model: (state) => state.chatModel, ask: { catalog } })` follows the app's model picker with one chat behavior, and the default card backend follows it too (`compose.llm({ model: (state) => state.chatModel })` for an explicit one). The card backend itself is fixed when `chat()` is called, since it decides the sink the cards go to: an app that lets the user pick it makes one host component per backend.
+
+**Call `chat()` before `run()`.** The first `chat()` call links the sygnal/ai behaviors to the apps started after it (and to the page's first running app). A host component defined in a module the entry imports is in time; one created only later, in a second app, runs without tools ([SYG442](/reference/errors/#syg442)). An app that makes host components on demand calls `chat()` once at load.
+
 ## Client tools
 
 `ask_user` is one case of a **client tool**: a tool the app answers itself, often with the user's help, instead of an `agent` action that runs on its own. `clientTools` declares your own:

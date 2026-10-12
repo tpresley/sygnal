@@ -50,3 +50,9 @@ export const noDesc: ChatOptions = { clientTools: { x: { inputSchema: { type: 'o
 export const noCatalog: ChatOptions = { ask: { direct: true } }
 expectTypeOf(coreOpen).toEqualTypeOf(openToolCalls)
 expectTypeOf(coreCard).toEqualTypeOf(askCard)
+
+// PLAN-9 polish: `model` as a function of the host's state (chat and compose.llm); a card's decisions
+export const picked: ChatOptions = { model: (state: { chatModel: string }) => state.chatModel, ask: { catalog, backend: compose.llm({ model: (state) => state.chatModel }) } }
+expectTypeOf<ChatCard['decisions']>().toEqualTypeOf<unknown>()
+// @ts-expect-error a model id is a string
+export const badModel: ChatOptions = { model: 42 }
