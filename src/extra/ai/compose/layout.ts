@@ -24,11 +24,16 @@
  *      in a row is where the row is; a row in an `arranged` slot or in a row is unwrapped),
  *      `maxDepth` (a container deeper than it moves to the page), `maxParts` (the last
  *      non-required parts go), empty containers removed, `minSlots` (a container with fewer
- *      filled slots is replaced by its children when they may go where it is), a single-part
- *      row unwrapped, then `pin` (start / end of their slot).
+ *      filled slots, or a slot with fewer than its `min` children, is replaced by its children
+ *      when they may go where it is; a single-part row unwrapped), a container's `max` per slot
+ *      (the extra children go after it; an over-full row is split into even rows), `accepts:
+ *      'leaves'` (nested containers go after it), then `pin` (start / end of their slot).
+ *      `maxUses` counts per identity (`part`, `part:record`); in a `group` the first part (depth
+ *      first) wins, the group's other parts go.
+ *   Container params are checked like a part's.
  */
 import {dev} from './diag'
-import type {Catalog, Layout, Node, Part, Tree} from './types'
+import type {Catalog, Container, Layout, Node, Part, Tree} from './types'
 
 /** a node of the working tree */
 interface T {key: string; part: string; params?: Record<string, any>; slots?: Record<string, T[]>}
@@ -178,7 +183,7 @@ export function removeNode(layout: Layout, key: string): Layout {
  * a part's params checked against its declaration (SYG251): the non-default values, or null when
  * the node can't exist (no valid record; a required text or list missing)
  */
-function checkParams(cat: Catalog, part: Part, raw: any, state: any, key: string): Record<string, any> | null {
+function checkParams(cat: Catalog, part: Part | Container, raw: any, state: any, key: string): Record<string, any> | null {
   const bad = (msg: string) => dev('SYG251', 'compose', `node '${key}' (${part.id}): ${msg}`)
   const p = raw && typeof raw == 'object' ? raw : {}
   const out: Record<string, any> = {}
@@ -192,7 +197,7 @@ function checkParams(cat: Catalog, part: Part, raw: any, state: any, key: string
       continue
     }
     if (d.kind == 'record') {
-      const r = cat.records(part, state).find((x: any) => String(x.value) === String(v))
+      const r = cat.records(part as Part, state).find((x: any) => String(x.value) === String(v))
       if (!r) { bad(`'${v}' is not one of the records of '${name}'; the node is dropped`); return null }
       v = r.value
     } else if (d.kind == 'options') {
@@ -247,7 +252,8 @@ function validate(cat: Catalog, layout: any, state: any): T {
       }
       return
     }
-    const t: T = {key: k, part: e.id, slots: {}}
+    const cp = Object.keys(e.params).length ? checkParams(cat, e, n.params, state, k) : null
+    const t: T = {key: k, part: e.id, ...(cp && Object.keys(cp).length && {params: cp}), slots: {}}
     for (const s of e.slotNames) t.slots![s] = []
     into.push(t)
     for (const s in kids) {
@@ -314,13 +320,14 @@ function round(cat: Catalog, root: T) {
       present.add(c)
     }
   }
-  // maxUses
-  const uses = new Map<string, number>(), over: Array<[T, T[]]> = []
+  // maxUses (per identity: `part`, or `part:record`), then groups (the first part of a group wins)
+  const uses = new Map<string, number>(), over: Array<[T, T[]]> = [], groups = new Map<string, string>()
   each(root, (t, arr) => {
     const p = cat.parts[t.part]
     if (!p) return
-    const n = (uses.get(t.part) || 0) + 1
-    uses.set(t.part, n)
+    const id = identityOf(cat, t.part, t.params), n = (uses.get(id) || 0) + 1
+    uses.set(id, n)
+    if (p.group) { if (!groups.has(p.group)) groups.set(p.group, p.id); if (groups.get(p.group) != p.id) { over.push([t, arr]); return } }
     if (n > p.maxUses) over.push([t, arr])
   })
   for (const [t, arr] of over) without(arr, t)
@@ -377,14 +384,32 @@ function round(cat: Catalog, root: T) {
       for (const c of t.slots[s]) {
         if (!c.slots) { out.push(c); continue }
         clean(c, c.part == 'row' ? () => eff : (x: string) => c.part + ':' + x)
+        const ct: any = cat.get(c.part), after: T[] = []
+        // accepts: 'leaves': nested containers go after it; max: a slot's extra children too (a row
+        // is split into even rows instead)
+        for (const x in c.slots) {
+          if (ct?.accepts == 'leaves' && c.slots[x].some(k => k.slots)) {
+            after.push(...c.slots[x].filter(k => k.slots))
+            c.slots[x] = c.slots[x].filter(k => !k.slots)
+          }
+          const a = c.slots[x]
+          if (ct?.max != null && a.length > ct.max && c.part != 'row') after.push(...a.splice(ct.max))
+        }
         const filled = Object.keys(c.slots).filter(x => c.slots![x].length)
-        if (!filled.length) continue
         const kids = filled.flatMap(x => c.slots![x])
-        if (c.part == 'row' && kids.length == 1) { out.push(...kids); continue }
-        const ct: any = cat.get(c.part)
         const fits = kids.every(k => k.part == 'row' || (cat.get(k.part) as any)?.in.includes(eff))
-        if (ct?.minSlots && filled.length < ct.minSlots && fits) { out.push(...kids); continue }
-        out.push(c)
+        if (!filled.length) { /* an empty container goes */ }
+        else if (c.part == 'row' && kids.length == 1) out.push(...kids)
+        else if (fits && ((ct?.minSlots && filled.length < ct.minSlots) || (ct?.min != null && filled.some(x => c.slots![x].length < ct.min)))) out.push(...kids)
+        else if (c.part == 'row' && ct?.max != null && kids.length > ct.max) {
+          const n = Math.ceil(kids.length / ct.max), size = Math.ceil(kids.length / n)
+          for (let i = 0; i < n; i++) {
+            const r = i ? make('row') : c
+            r.slots = {default: kids.slice(i * size, (i + 1) * size)}
+            out.push(r)
+          }
+        } else out.push(c)
+        out.push(...after)
       }
       t.slots[s] = out
     }

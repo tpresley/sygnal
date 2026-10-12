@@ -15,7 +15,7 @@
  *     result part's answer: `answer.value` when `answer.node` is its key).
  *   A part declared with `render` (a view function) is called inline with the same props and
  *   `state` read through its lens.
- * - A container calls its view with `{ key, node, params, slots, children, ui, control, scope, frozen }`:
+ * - A container calls its view with `{ key, node, params (defaults filled), slots, children, ui, control, scope, frozen }`:
  *   `slots` maps each slot to its vnodes, `children` lists `{ key, node, part, slot, vnode }` in
  *   order, `ui` is `slice.ui[key]`, and `control(name, value)` returns data attributes to spread on an
  *   element; a click on it is the behavior's CONTROL `{ key, name, value }` (ui[key][name] = value).
@@ -60,7 +60,7 @@ function lensOf(cat: Catalog, part: Part, node: any, key: string, at: any[] | nu
 }
 
 /** a part's params with the defaults filled in */
-function paramsOf(part: Part, node: any): Record<string, any> {
+function paramsOf(part: {params: Record<string, any>}, node: any): Record<string, any> {
   const out: any = {}
   for (const k in part.params) {
     const v = node.params?.[k] ?? (part.params[k] as any).default
@@ -110,7 +110,7 @@ export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderO
         'data-compose-control': name, 'data-compose-key': key, 'data-compose-value': JSON.stringify(value ?? null),
         ...(atStr !== undefined && {'data-compose-at': atStr}), ...(scope !== undefined && {'data-compose-scope': scope}),
       })
-      return e.render({key, node: n, params: n.params || {}, slots, children, ui: slice.ui?.[key] || {}, control, scope, frozen: !!frozen})
+      return e.render({key, node: n, params: paramsOf(e, n), slots, children, ui: slice.ui?.[key] || {}, control, scope, frozen: !!frozen})
     }
     const part = e as Part
     const params = paramsOf(part, n)

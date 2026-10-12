@@ -20,8 +20,16 @@ export async function composeWith(t: any, catalog: any, tree: Tree, options: {st
   const entries = usesOf(catalog)
   if (!entries.length) throw err('no compose behavior uses this catalog (compose(catalog, { backend }) in a component\'s uses)')
   type Cur = {e: (typeof entries)[number]; k: string; s: any} | undefined
+  // the use that made the pending step (several hosts may share the catalog and the key)
   const find = (): Cur => {
-    for (const e of entries) for (const k of e.keys) { const s = t.state?.[k]; if (s && s.pending != null) return {e, k, s} }
+    let any: Cur
+    for (const e of entries) for (const k of e.keys) {
+      const s = t.state?.[k]
+      if (s?.pending == null) continue
+      if (typeof s.pending == 'object' && e.mine.has(s.pending)) return {e, k, s}
+      any ||= {e, k, s}
+    }
+    return any
   }
   let cur: Cur = find()
   if (!cur) { await t.settle(); cur = find() }

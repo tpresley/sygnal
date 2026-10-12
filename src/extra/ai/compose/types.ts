@@ -47,6 +47,12 @@ export interface Container {
   slots: Record<string, string | null>
   slotNames: string[]
   minSlots?: number
+  /** children per slot: fewer than `min` unwraps it, more than `max` overflow (a row splits) */
+  min?: number
+  max?: number
+  /** 'leaves': only parts in its slots (nested containers go after it) */
+  accepts?: 'leaves'
+  params: Record<string, Param>
   arranged: boolean
   direction?: 'row' | 'column'
   description?: string
@@ -107,7 +113,7 @@ export interface Backend {
   sink: string
   start(a: {catalog: Catalog; state: any; prompt: string; previous: Layout | null; names: Names}): {request: any; pending: any}
   reply(a: {catalog: Catalog; state: any; pending: any; reply: any; names: Names}):
-    {layout?: Layout | null; unavailable?: true; preview?: Layout; request?: any; pending?: any; decisions?: unknown}
+    {layout?: Layout | null; unavailable?: true; preview?: Layout; request?: any; pending?: any; decisions?: unknown; error?: string}
   delta?(a: {catalog: Catalog; state: any; pending: any; delta: any}): {preview?: Layout}
   fake(a: {catalog: Catalog; state: any; pending: any; target: Tree}): unknown
 }

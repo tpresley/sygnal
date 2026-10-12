@@ -17,7 +17,9 @@
  * the slice's prompt; an edit of the current layout unless `fresh`), SET_LAYOUT (a layout, finished
  * first: restore, undo, the app's own edits; null clears), REMOVE (a node key), CONTROL, DONE (a
  * composition finished: data is the layout; a host entry 'page.DONE' runs after it). Internal:
- * PROMPT (typing), REPLY / DELTA / FAILED (the backend sink's reply actions).
+ * PROMPT (typing), REPLY / DELTA / FAILED (the backend sink's reply actions). A backend reply
+ * `{ error }` (not a valid layout even after repair), or a start / reply that throws, is handled as
+ * FAILED: status 'error', the layout kept; a delta that throws is ignored.
  *
  * The only sink it declares is `backend.sink`. Requests go in the lane `key` (default 'compose')
  * with `latest`, so a new prompt aborts the old one's step in flight. The reply names are the
@@ -36,7 +38,7 @@ import {finish, fromTree, removeNode, toTree} from './layout'
 import type {Backend, Catalog, Layout} from './types'
 
 /** the compositions per catalog (composeWith finds the pending one): backend, lane and use keys */
-const uses = /*#__PURE__*/ new WeakMap<object, Array<{backend: Backend; lane: string; keys: Set<string>}>>()
+const uses = /*#__PURE__*/ new WeakMap<object, Array<{backend: Backend; lane: string; keys: Set<string>; mine: WeakSet<object>}>>()
 export const usesOf = (catalog: object) => uses.get(catalog) || []
 
 const message = (e: any) => String(e?.message ?? e ?? 'error')
@@ -68,7 +70,9 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
   }
   if (!catalog || typeof catalog.render != 'function') fail('SYG681', 'compose', 'compose(catalog, …) needs a catalog made by defineCatalog()', 'Pass defineCatalog({ parts })')
   const S: string = backend.sink
-  const entry = {backend, lane, keys: new Set<string>()}
+  // mine: the pending steps this use made, so composeWith picks its backend among the catalog's uses
+  const entry = {backend, lane, keys: new Set<string>(), mine: new WeakSet<object>()}
+  const own = (p: any) => { if (p && typeof p == 'object') entry.mine.add(p); return p }
   if (!uses.has(catalog)) uses.set(catalog, [])
   uses.get(catalog)!.push(entry)
   const names = (k: string) => ({ok: k + '.REPLY', error: k + '.FAILED', delta: k + '.DELTA', key: lane})
@@ -84,7 +88,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     const base = {...s, prompt, preview: null, decisions: null, error: null}
     try {
       const r = backend.start({catalog, state: st, prompt, previous: d?.fresh ? null : s.layout, names: names(k)})
-      return {slice: {...base, status: 'composing', pending: r.pending ?? {}}, request: r.request}
+      return {slice: {...base, status: 'composing', pending: own(r.pending ?? {})}, request: r.request}
     } catch (e) {
       return {slice: {...base, status: 'error', pending: null, error: message(e)}}
     }
@@ -98,9 +102,11 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
       return {slice: {...s, status: 'error', preview: null, pending: null, error: message(e)}}
     }
     const decisions = r.decisions !== undefined ? r.decisions : s.decisions
+    // a reply that isn't a valid layout (even after the backend's repair): as FAILED
+    if (r.error != null) return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: message(r.error)}}
     if (r.request !== undefined) {
       const preview = r.preview ? rekey(r.preview, s.layout) : s.preview
-      return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: r.pending ?? s.pending, decisions}, request: r.request}
+      return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending), decisions}, request: r.request}
     }
     if (r.layout) {
       const layout = rekey(r.layout, s.layout)

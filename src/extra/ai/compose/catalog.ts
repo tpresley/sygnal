@@ -56,8 +56,31 @@ function container(id: string, d: any): Container {
     dev('SYG161', 'defineCatalog', `container '${id}': its render is a component with a model or intent; containers are view functions (a component would own the parts, so the host's CHILD.select and lenses stop reaching them). It is called as a view; its model doesn't run`, 'error')
   }
   if (typeof render != 'function') render = id == 'page' ? pageView : id == 'row' ? rowView : slotsView
-  return {id, kind: 'container', slots, slotNames: Object.keys(slots), minSlots: d.minSlots, arranged: !!d.arranged,
-    direction: d.direction ?? (id == 'row' ? 'row' : undefined), description: d.description, render, in: d.in ?? ['page'], decl: d}
+  // min / max: children per slot (non-negative integers, min <= max); accepts: 'leaves' (no nested
+  // containers). An invalid value is ignored (SYG450, like an invalid `in`)
+  const count = (k: string) => {
+    const v = d[k]
+    if (v == null) return undefined
+    if (Number.isInteger(v) && v >= 0) return v
+    dev('SYG450', 'defineCatalog', `container '${id}': \`${k}\` must be a non-negative integer (children per slot); it is ignored`)
+  }
+  let min = count('min'), max = count('max')
+  if (min != null && max != null && min > max) {
+    dev('SYG450', 'defineCatalog', `container '${id}': \`min\` ${min} is above \`max\` ${max}; both are ignored`)
+    min = max = undefined
+  }
+  let accepts = d.accepts
+  if (accepts != null && accepts != 'leaves') {
+    dev('SYG450', 'defineCatalog', `container '${id}': \`accepts\` takes only 'leaves'; it is ignored`)
+    accepts = undefined
+  }
+  const params: Record<string, Param> = {}
+  for (const k in d.params || {}) {
+    const p = params[k] = param(id, k, d.params[k])
+    if (p.kind == 'record') fail(`container '${id}', param '${k}': containers take no record params`)
+  }
+  return {id, kind: 'container', slots, slotNames: Object.keys(slots), minSlots: d.minSlots, min, max, accepts, params,
+    arranged: !!d.arranged, direction: d.direction ?? (id == 'row' ? 'row' : undefined), description: d.description, render, in: d.in ?? ['page'], decl: d}
 }
 
 function part(id: string, d: any): Part {
@@ -125,7 +148,7 @@ export function defineCatalog(decl: any = {}): any {
   const parts: Record<string, Part> = {}
   const dc = decl.containers || {}
   containers.page = container('page', {...dc.page, in: [], slots: {default: null}})
-  containers.row = container('row', {direction: 'row', ...dc.row, slots: {default: null}})
+  containers.row = container('row', {direction: 'row', min: 2, max: 4, accepts: 'leaves', ...dc.row, slots: {default: null}})
   for (const id in dc) {
     if (id == 'page' || id == 'row') continue
     if (BAD_ID.test(id)) fail(`the container id '${id}' can't be a node key (no ':', '~' or '/')`)
