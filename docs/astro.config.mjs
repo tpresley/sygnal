@@ -88,6 +88,7 @@ export default defineConfig({
             { label: 'AI Chat', slug: 'guide/ai-chat' },
             { label: 'AI Decisions', slug: 'guide/ai-decisions' },
             { label: 'AI Compose', slug: 'guide/ai-compose' },
+            { label: 'AI Cards', slug: 'guide/ai-cards' },
             { label: 'Collections', slug: 'guide/collections' },
             { label: 'Virtual Collections', slug: 'guide/virtual-collections' },
             { label: 'Behaviors', slug: 'guide/behaviors' },
