@@ -490,6 +490,11 @@ export type ChatRequest<OUT = unknown> = {
    * `ok` gets the validated `value`, a failure is the `error` reply with `issues`
    */
   output?: ChatOutputSchema<OUT>;
+  /**
+   * `false`: the transport still sends `output`'s JSON Schema, but the driver doesn't read the reply:
+   * `ok` has the `text` and no `value` (the caller parses it, e.g. leniently; compose.llm() does)
+   */
+  parse?: false;
   /** The request's key for `latest` and `abort` (default: `ok`, else `error`) */
   key?: string;
   /** A new request aborts the sender's request under the same key (default true) */
@@ -1495,8 +1500,9 @@ export interface ComposeBackend {
   start(a: { catalog: Catalog<any>; state: any; prompt: string; previous: Layout | null; names: ComposeNames }): { request: unknown; pending: unknown }
   /** a layout (done), `layout: null, unavailable: true` (nothing fits), `request` + `pending` (another step), or `error` */
   reply(a: { catalog: Catalog<any>; state: any; pending: any; reply: any; names: ComposeNames }):
-    { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string }
-  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout }
+    { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string; keyed?: boolean }
+  /** `keyed` (on reply too): the layout already has the previous layout's keys (an edit applied to it): the behavior doesn't re-key it */
+  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout; keyed?: boolean }
   /** the reply body that leads to `target` (composeWith) */
   fake(a: { catalog: Catalog<any>; state: any; pending: any; target: ComposeTree }): unknown
 }
@@ -1565,6 +1571,15 @@ export const compose: {
   llm(options?: ComposeLlmOptions): ComposeBackend
   /** a result part's PARENT value: `{ scope, node, value }` */
   answer<V>(props: { scope?: string; node?: string }, value: V): ComposeAnswer<V>
+  /**
+   * PLAN-9 C-2: the `agent.actions` entry that lets an agent (a chat assistant) compose the page:
+   * `actions: { ...compose.action('page') }` offers `<agent name>_page_compose({ prompt, fresh? })`;
+   * its result waits (`until`) for the composition to finish, so its `state` (the `read`) shows the
+   * new page (`read: (s) => ({ page: compose.summary(s.page) })`). `timeout` default 60 s
+   */
+  action<K extends string = 'page'>(key?: K, options?: { description?: string; timeout?: number }): Record<`${K}.COMPOSE`, AgentAction<any, { prompt: string; fresh?: boolean }>>
+  /** PLAN-9 C-2: a composition as an agent's `read` shows it: its status, the layout as a tree, the error */
+  summary(slice: ComposeState | null | undefined): { status: ComposeStatus; page: ComposeTree; error?: string } | undefined
 }
 
 /**
