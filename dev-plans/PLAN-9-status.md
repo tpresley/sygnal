@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0–3 complete (2026-10-11). Phase 4 next: E-4 agent eval (spend asked first, D465) and release prep for 6.3.0 (D460).
+**State:** Phases 0–3 complete (2026-10-11). Phase 4: release prep done and merged (not published); E-4 eval tasks being written (dry run only; the user runs trials).
 
 ## Decisions
 
@@ -68,7 +68,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | E-1 `examples/ai-compose` on the API | done (merged `8eb493c1`; its real-DOM test passes since G-753) | catalog of the 9 parts with enum/number params; two hosts (decisions on HTTP, llm on LLM) behind a Switchable sharing app state; backend picker from /api/tags + Jev; dev-only Jev proxy (`server/decide-proxy.js`: key from `TYPESAFE_ENV_FILE`, never logged or returned, POST JSON ≤ 512 kB, model allowlist, cross-site refused); 22 tests (1 `it.fails`: G-753); strict clean; vite build OK. Live `npm run try`: nimble 7/11 flat + 3/4 params (~4.5 s), qwen3:8b 9/11 + 4/4 (~1.4 s) |
 | E-2 `examples/ai-ask` | done (`fd8d41e5`, merged) | assistant on local Ollama (qwen3:8b), 6-part card catalog (choice LLM-only, plan picker, plan details record, contact form local state, yes/no, rating), card-backend picker (llm / nimble / Jev proxy), grounded `billing` agent (`read` with real prices, `CHOOSE_PLAN`), persist, Stop/Skip/New, a "what happened" panel; 19 tests; vite build OK. Live in the browser: qwen3:8b composed cards (~20 s) and nimble (~40–60 s, picks at 98–99%); answers led to `billing_choose_plan`; grounded price ($150) from `read`. Strict check: 1 false SYG127 (checker's chat table lacks `ask`) → `p9-polish` |
 | E-3 live accuracy check | done (`4f217904`, merged) | `npm run test:compose-live [-- --only=jev,nimble,qwen --set=… --cases=… --repeat=n --prefilter=on\|off --fake]` (not in `npm test`; Jev key via `--env-file-if-exists`, never printed; exits 1 on a gated miss; `--fake` self-test: all sets 100%). Full run, all §3 gates pass: Jev structure 63/70 (90%), edits tuned 22/22 and held-out 15/16 (94%), keys 100%; qwen3:8b flat 11/11, dashboard 15/15, 0 invalid; nimble (reported) structure 29/70 with 5 invalid (G-757), edits 18/22 and 8/16, keys 100% |
-| E-4 agent eval | todo | spend asked first |
+| E-4 agent eval | in progress (`p9-eval`) | tasks + literal dry run only; the user runs trials from their Terminal |
 
 ## Research baseline (2026-10-11, for E-3 and the §3 thresholds)
 
@@ -82,6 +82,8 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Time per composition | ~0.35 s | ~3 s | ~3.4 s | — |
 
 ## Verification log
+
+- 2026-10-11, **release prep** (`c3d7ea1c`, merged; not published): sygnal 6.3.0, sygnal-check 0.6.0, create-sygnal-app 2.4.0 (templates `sygnal ^6.3.0`, `sygnal-check ^0.6.0`), VS Code extension 0.3.0, Claude Code plugin 0.1.2; CHANGELOG 6.3.0 (date set at publish); release notes draft `dev-plans/release-notes-6.3.0.md`. Checks: full gate green (vitest 4,907; browser 377/377; perf), size 42,504 B, sygnal-check 1,312, doc samples 837, error docs current, check-live chromium 116/116, extension tests 11/11 + smoke (bundles sygnal-check 0.6.0), `claude plugin validate` OK, all 10 templates install/test/strict/tsc/build from local tarballs, `npm pack` lists reviewed (dist/guide has ai-compose.md and ai-cards.md), secret scan of packed files clean. main had no new commits (no merge needed).
 
 - 2026-10-11, **Phase 3 complete** (`542ca51a` + tracker): full gate: vitest 4,907 passed / 33 skipped; examples 11/11 suites (ai-ask, ai-compose); test:types; browser chromium 377/377; perf gate within limits; size gate (a) **42,504 B** (budget 42,700, not raised); sygnal-check 1,312 passed; docs build (103 pages, links, code titles); check-doc-samples 837 clean, 0 strict; check-live **116/116 on chromium, firefox and webkit**.
 
