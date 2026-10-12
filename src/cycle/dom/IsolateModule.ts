@@ -89,13 +89,22 @@ export class IsolateModule {
     // (M: a child with one is mounted, or was), before they are created; a destroyed vnode gives
     // its noted children their old elements back for their destroy hooks (and theirs, down the
     // subtree), and they get the new ones again when the removal starts (S), before the insert
-    // hooks. (A vnode that moves to another parent still gives its own destroy hook the new one)
+    // hooks. (A vnode that moves to another parent: G-750 below)
     const M = new Map<any, any>(), S: any[] = [];
     // G-573: a vnode in the new tree twice: its first note (its element before the patch) wins.
     // A destroy hook that throws ends the patch before remove / post: the next patch first gives
     // the vnodes their new elements back and forgets the notes (pre)
     const back = (c: any) => M.has(c) && (S.push(c, c.elm), c.elm = M.get(c));
     const ret = () => { for (let e; S.length; ) e = S.pop(), S.pop().elm = e; };
+    // G-750: a mounted vnode that moves to another parent element, one patched earlier in the
+    // walk (a keyed component's cached vnode moved to an earlier column): snabbdom creates it
+    // there (its elm is now the new element) before its old parent removes it, so the removal
+    // took the new element and left the old one. A patched element notes its new children's
+    // elements too (only a reused vnode has one), and an old child created again since (its elm
+    // changed) gets its old element back for its destroy hooks and its removal, then the new one
+    // again (S); its own destroy hook backs it up when its old parent is not patched itself (then
+    // its `hook.destroy`, which runs before the modules', still sees the new element)
+    const note = (c: any) => c?.elm && M.set(c, M.get(c) || c.elm);
     return {
       pre() {
         ret();
@@ -109,7 +118,7 @@ export class IsolateModule {
         if (Array.isArray(namespace)) {
           self.insertElement(namespace, elm as Element);
         }
-        children?.forEach((c: any) => c?.elm && M.set(c, M.get(c) || c.elm));
+        children?.forEach(note);
       },
 
       update(oldVNode: VNode, vNode: VNode) {
@@ -126,10 +135,14 @@ export class IsolateModule {
         if (Array.isArray(namespace)) {
           self.insertElement(namespace, elm as Element);
         }
+        // G-750 (oldVNode !== vNode here: snabbdom returns early for the same vnode)
+        oldVNode.children?.forEach((c: any) => c?.elm !== M.get(c) && back(c));
+        vNode.children?.forEach(note);
       },
 
       // (the elements as they are now: post runs after the vnodes got their new ones back)
       destroy(vNode: VNode) {
+        back(vNode);
         vNode.children?.forEach(back);
         self.vnodesBeingRemoved.push(vNode.elm as Element);
       },
@@ -141,6 +154,9 @@ export class IsolateModule {
       },
 
       post() {
+        // (G-750: an old child backed up but not removed, matched in place by a new one, has its
+        // new element again)
+        ret();
         // G-144: a removed root element is no longer one of its scope's roots (an element no
         // scope has as a root isn't in any set: removing it does nothing)
         for (const elm of self.vnodesBeingRemoved) {
