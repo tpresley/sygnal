@@ -44,23 +44,23 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | 0-S2 identity from vnode `key` | done: go (meets D456's bar) | `exp/p9-key-identity` `8d8ae48c`: `idOf` = `key ?? props.id ?? path` (`!= null`, so `key={0}` counts); SSR `childUid` same rule; Vike shell drops its component keys; `JSX.IntrinsicAttributes.key` typed. **+6 B gzip** (42,690 → 42,696; **4 B headroom left**); full `npm test` gate green (vitest 4,417, examples, types, browser 375/375, perf); 17 new tests + a type test. Coordinator re-ran the tests (23 pass) and the size gate. Follow-ups: optional dev warning for duplicate sibling identities; docs line that a key on `<Collection>` re-creates its items; react.md, llms.txt and the skill describe keyed identity |
 | 0-S3 chat client tools design | done | [`research/ai-compose/chat-client-tools.md`](research/ai-compose/chat-client-tools.md): `clientTools` option, `TOOL_OUTPUT` (AI SDK 7's `addToolOutput`; replaces the plan's TOOL_RESULT), `TOOL_CALL` host entry, `ANSWER`; 12 edge-case rules; card on `part.ui`; SYG684–686; 5 open questions with recommendations. Possible existing bug to check in H-1: a persisted busy status may lock SEND after reload |
 | P9-Q1…Q6 | done | accepted as recommended (D460–D465) |
-| K-1 `defineCatalog` | todo | |
-| K-2 `catalog.render` | todo | |
-| K-3 layout utilities | todo | |
-| B-1 decisions: select + layout | todo | |
-| B-2 decisions: params + records | todo | |
-| B-3 `compose.llm()` | todo | |
+| K-1 `defineCatalog` | done | worker A (`p9-compose`); canonical param shapes by `kind` (integration `7a604856`) |
+| K-2 `catalog.render` | done | key + id (until CORE's key identity merges), memoized lenses (G-752: 0 re-renders on unrelated host changes), container views + `control`, error containment (SYG406, no core change) |
+| K-3 layout utilities | done | `fromTree`/`toTree`/`removeNode`/`finish` (idempotent); one maxDepth rule (page = 0; a container at depth d > maxDepth moves to the page) |
+| B-1 decisions: select + layout | done | worker B; live on Jev: structure 191/210 (research 189/210) |
+| B-2 decisions: params + records | done | live on Jev: params 57/60 (research 54/60), records 57/60; open: rows ≥ 5 unreachable, non-param choices not split for Ollama's 26-option limit |
+| B-3 `compose.llm()` | done | worker C; live on qwen3:8b via chatCompletions: 11/11, 15/15, 20/20, 0 invalid (research equal); open: a non-JSON reply fails in the driver before repair |
 | B-4 edits | todo | |
 | B-5 large catalogs | todo | |
-| C-1 `compose` behavior | todo | |
+| C-1 `compose` behavior | done | worker A |
 | C-2 agents | todo | |
 | H-1 client tools | todo | after 0-S3 |
 | H-2 `chat({ ask })` | todo | |
 | H-3 `direct: true` | todo | |
-| T-1 `composeWith` | todo | |
-| T-2 per-backend matrix | todo | |
+| T-1 `composeWith` | done | uses each backend's `fake()`; B's fake round-trips ~2,450 random targets |
+| T-2 per-backend matrix | done | `test/p9-compose-matrix.test.js`: 8 scenarios × 2 backends |
 | M-1 `<Composed>` | todo (D466) | from `exp/p9-composed` `fce942d6` |
-| X-1 runtime diagnostics | todo | codes SYG160–169, 250–259, 450–459, 680–689 |
+| X-1 runtime diagnostics | done | SYG161, 162, 250, 251, 252, 450, 452, 680, 681, 682, 683; explanations + errors doc regenerated (189 codes) |
 | X-2 sygnal-check rules + description lint | todo | |
 | D-1…D-4 docs | todo | |
 | E-1 `examples/ai-compose` on the API | todo | |
@@ -81,7 +81,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 
 ## Verification log
 
-(empty)
+- 2026-10-11, Phase 1 A/B/C merged + integration (`7a604856`, `a595ff3c`): `npx vitest run test/p9-` 146 passed (coordinator re-ran); root vitest 4,546 passed, 0 failed; `test:types` green; `sygnal-check` 1,242 passed; size gate (a) 42,690 B (unchanged: compose is tree-shaken), (b) 38,679 B, (c) core 18,244 B gzip.
 
 ## Gaps
 
