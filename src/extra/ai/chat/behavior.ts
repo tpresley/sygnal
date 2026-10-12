@@ -337,8 +337,9 @@ function steps(c: Cfg, o: any) {
   const cardStep = (ok: boolean) => memo((s, d, _e, x) => {
     const st = x?.state, k = x?.k
     const card = openToolCalls(s).find((y: any) => composing(y) && y.ui.pending)
-    const key = d?.key ?? d?.request?.key
-    // a late reply (the card was cancelled, or the turn replaced) is dropped
+    // the reply's request key: the chat driver's `key`, an HTTP reply's `askKey` tag (G-756, ask.ts), a failure's request
+    const key = d?.askKey ?? d?.key ?? d?.request?.key
+    // a late reply (the card was cancelled or answered, or the turn replaced) is dropped
     if (!card || (typeof key == 'string' && key != `${k}.ask:${card.toolCallId}`)) return
     const r = ok ? c.kit.cardReply(c.ask, card, d, st, k) : c.kit.failed(card, String(d?.error?.message ?? d?.error ?? 'the request failed'))
     const msgs = mapLast(s.messages, (y: any) => y === card ? r.part ?? r : y)
