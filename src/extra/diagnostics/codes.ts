@@ -355,6 +355,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG682: 'Decision model answered outside the criteria',
   // PLAN-9 B-3: compose.llm() (src/extra/ai/compose/llm.ts; the compose status becomes 'error')
   SYG683: 'LLM layout invalid after repair',
+  // PLAN-9 X-2: static only (sygnal-check rules/syg253-catalog.js)
+  SYG253: 'Misspelled catalog declaration key',
+  SYG254: 'Catalog descriptions or options overlap',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -560,6 +563,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG450: 'warn',
   SYG452: 'warn',
   SYG681: 'error',
+  // PLAN-9 X-2: static only (sygnal-check); listed so the entry knows their titles
+  SYG253: 'warn',
+  SYG254: 'info',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

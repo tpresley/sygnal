@@ -71,7 +71,14 @@ const RANGES = [
   ['SYG151', 'Counter.jsx', 10, 'tools'],
   ['SYG152', 'Chat.jsx', 8, 'messages'],          // the `messages` key, not the request object
   ['SYG153', 'Signup.jsx', 2, 'toolname="sign_up"'],
+  ['SYG161', 'c.jsx', 5, 'Box'],                  // the render value
+  ['SYG162', 'c.jsx', 3, 'a'],                    // the part's key
   ['SYG223', 'TodoApp.jsx', 10, "'filtr'"],
+  ['SYG250', 'c.jsx', 3, "'b'"],
+  ['SYG253', 'c.jsx', 3, 'descrption'],
+  ['SYG254', 'c.jsx', 4, "'KPI card: monthly revenue total'"],
+  ['SYG450', 'c.jsx', 3, "'drawer'"],
+  ['SYG680', 'c.jsx', 3, 'heading'],
   ['SYG224', 'TodoApp.jsx', 10, 'TodoApp.persist'],
   ['SYG226', 'C.jsx', 6, "'SETT'"],
   ['SYG240', 'Counter.jsx', 10, "{ type: 'integer' }"],
