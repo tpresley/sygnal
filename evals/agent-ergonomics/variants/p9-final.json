@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-9 E-4 eval (6.3: composed UI and chat cards): this checkout's packed build and its skills/sygnal-dev, isolated per trial, on the current starter (sygnal-check + AGENTS.md). Same content as branch.json / p6-final.json, under its own name so the PLAN-9 runs are labeled. The p9 tier (48-49), Sygnal arm only; the skill side of the skill vs llms.txt-only comparison (p9-no-skill)",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}
