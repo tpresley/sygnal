@@ -1515,7 +1515,11 @@ export interface ComposeBackend {
   /** the sink its requests go to: 'HTTP' (decisions) or the LLM sink */
   sink: string
   start(a: { catalog: Catalog<any>; state: any; prompt: string; previous: Layout | null; names: ComposeNames }): { request: unknown; pending: unknown }
-  /** a layout (done), `layout: null, unavailable: true` (nothing fits), `request` + `pending` (another step), or `error` */
+  /**
+   * a layout (done), `layout: null, unavailable: true` (nothing fits), `request` + `pending` (another
+   * step), or `error`. `keyed: true`: the layout and preview already carry the previous layout's
+   * keys (an edit), so the behavior doesn't re-key them by identity
+   */
   reply(a: { catalog: Catalog<any>; state: any; pending: any; reply: any; names: ComposeNames }):
     { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string; keyed?: boolean }
   /** `keyed` (on reply too): the layout already has the previous layout's keys (an edit applied to it): the behavior doesn't re-key it */
@@ -1621,10 +1625,22 @@ export interface ComposeDecisionsOptions {
   rowMean?: number
   /** ask which part categories the request is about first (one more call; for catalogs above ~60 parts) */
   prefilter?: boolean
-  /** the most options one choice question may have (default 255; 25 when `url` looks like Ollama) */
+  /**
+   * the most options one choice question may have (default 255; 25 when `url` looks like Ollama;
+   * at least 4): every larger choice is split into chunks that repeat its head options
+   */
   maxOptions?: number
+  /**
+   * 'small': for a local ~9B decision model such as Ollama's nimble, which favours the first of two
+   * options: pairwise order questions are asked in both orders, and near-ties follow the order in
+   * which the request names the parts (G-755)
+   */
+  profile?: 'small'
 }
-/** the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`) */
+/**
+ * the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`; for an
+ * edit of a previous layout, B-4: `'edit'`, then `'where'` when something moves or is added)
+ */
 export interface ComposeDecisionsBackend {
   sink: 'HTTP'
   kind: 'decisions'
@@ -1633,8 +1649,10 @@ export interface ComposeDecisionsBackend {
     layout?: any; unavailable?: true; preview?: any; request?: DecideRequest<any>; pending?: any
     /** a reply that can't be read (no `answers`, or every answer outside its options: SYG682); the behavior's status 'error' */
     error?: string
-    /** the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`), for an explain panel */
+    /** the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`; an edit: `{ edit, where }`), for an explain panel */
     decisions?: Record<string, Record<string, any>>
+    /** an edit's layout and preview keep the previous layout's keys (the behavior uses them as they are) */
+    keyed?: boolean
   }
   /** the decision reply that makes the pending step read as `target` (composeWith); throws when the encoding can't reach it */
   fake(a: { catalog: any; state: any; pending: any; target: any[] }): Decision<any>

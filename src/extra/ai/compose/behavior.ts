@@ -26,8 +26,9 @@
  * with `latest`, so a new prompt aborts the old one's step in flight. The reply names are the
  * use's key: `page.REPLY`, `page.DELTA`, `page.FAILED`. Finished layouts and previews are re-keyed
  * against the current layout (fromTree's previous-key reuse), so a part a follow-up doesn't change
- * keeps its node key, and so its instance and state, whatever keys the backend gave it; a reply
- * or delta marked `keyed` (an edit applied to the previous layout's own keys) is taken as is.
+ * keeps its node key, and so its instance and state, whatever keys the backend gave it. A reply
+ * or delta with `keyed: true` (both backends' edits, B-4) already carries the previous layout's keys
+ * and is used as is (re-keying by identity could swap the keys of two copies of one part).
  *
  * The handlers that need the host's whole state (record params read it) are HOST entries; a sink
  * reads it as `props.state` (the pre-action state), and one memo per behavior value makes STATE,
@@ -107,7 +108,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     // a reply that isn't a valid layout (even after the backend's repair): as FAILED
     if (r.error != null) return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: message(r.error)}}
     if (r.request !== undefined) {
-      const preview = r.preview ? rekey(r.preview, s.layout) : s.preview
+      const preview = r.preview ? (r.keyed ? r.preview : rekey(r.preview, s.layout)) : s.preview
       return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending), decisions}, request: r.request}
     }
     if (r.layout) {

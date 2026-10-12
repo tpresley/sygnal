@@ -59,7 +59,9 @@ function forChoice(sink, make) {
 }
 
 /** a decision model (nimble on Ollama, Jev through the proxy): decide() requests on HTTP */
-export const decisionsBackend = forChoice('HTTP', ({ url, model }) => compose.decisions({ url, model }))
+// a local decision model (Ollama's nimble, ~9B) favours the first of two options: profile 'small'
+// asks pairwise order questions both ways (G-755); Jev keeps the measured default
+export const decisionsBackend = forChoice('HTTP', ({ url, model }) => compose.decisions({ url, model, ...(url !== JEV.url && { profile: 'small' }) }))
 
 /** a chat model (qwen3:8b on Ollama): one structured-output request on the LLM driver (main.js) */
 export const llmBackend = forChoice('LLM', ({ model }) => compose.llm({ model }))
