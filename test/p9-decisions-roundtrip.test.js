@@ -86,7 +86,7 @@ function randomTarget(catalog, r, { maxLeaves = 6 } = {}) {
     }
     const rp = recordParam(part)
     if (rp) {
-      const records = shuffle(r, part.params[rp].from({})).slice(0, 1 + Math.floor(r() * Math.min(3, part.maxUses)))
+      const records = shuffle(r, part.params[rp].from({})).slice(0, 1 + Math.floor(r() * 3))
       for (const rec of records) { chosen.push({ part: id, params: { ...params, [rp]: rec.value } }); recordNames.push(rec.name) }
     } else {
       const n = part.maxUses > 1 ? 1 + Math.floor(r() * part.maxUses) : 1

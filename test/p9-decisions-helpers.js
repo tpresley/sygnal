@@ -21,7 +21,7 @@ export function defineCatalog(decl) {
   const containers = {}
   for (const [id, p] of Object.entries(decl.parts || {})) parts[id] = { in: ['page'], maxUses: 1, ...p, id }
   containers.page = { id: 'page', slots: { default: null }, description: decl.description, ...(decl.containers?.page || {}) }
-  if (decl.containers?.row !== false && decl.rows !== false) containers.row = { id: 'row', slots: { default: null }, direction: 'row' }
+  if (decl.containers?.row !== false && decl.rows !== false) containers.row = { id: 'row', slots: { default: null }, direction: 'row', min: 2, max: 4, accepts: 'leaves' }
   for (const [id, k] of Object.entries(decl.containers || {})) {
     if (id === 'page' || id === 'row' || !k) continue
     containers[id] = { in: ['page'], ...k, id }

@@ -9,9 +9,9 @@
  * Steps (one `decide()` request each, through the HTTP sink):
  *   0. categories (only with `prefilter: true` and parts with a `category`): `cat_<id>` per category.
  *   1. select (state: the request alone):
- *        use_<part> (omit / use); count_<part> (0..maxUses) for a repeatable part;
+ *        use_<part> (omit / use; structure wording, params-edits wording for a part with params); count_<part> (0..maxUses) for a repeatable part;
  *        pick_<group> (omit + each member) for a `group` of alternatives;
- *        rec_<part>__<n> (none + records) for a record part: "which <label> does user_request name
+ *        rec_<part>__<n> (n = 1..4; none + records) for a record part: "which <label> does user_request name
  *          first / second / …", over the records a lexical prefilter on name / aliases kept;
  *        param_<part>__<name> for an enum param or the bins of a number param, with not_stated
  *          (= the default); `type: 'text'` / `'list'` params keep their default (LLM-only; a part
@@ -81,6 +81,8 @@ const askable = (p: any) => !p.from && p.type != 'text' && p.type != 'list' && O
 /** a required param a decision model can't fill (free text with no default): the part is LLM-only */
 export const llmOnly = (part: any) => Object.values(paramsOf(part)).some((p: any) => !p.from && !askable(p) && p.required && p.default === undefined)
 const maxUses = (part: any) => Math.max(1, part?.maxUses ?? 1)
+/** record slots per record part: "the first … fourth <label> the request names" (params-edits maxRecords) */
+const RECORD_SLOTS = 4
 const slotNames = (k: any) => Object.keys(k?.slots || {default: null})
 
 /** the allowed places of a part or container as 'container:slot' strings */
@@ -200,13 +202,18 @@ export function selectStep(c: any, prompt: string, {categories = null, records =
       questions[`count_${id}`] = choice(TEXT.count(part.description), criteria)
       meta[`count_${id}`] = {kind: 'count', part: id}
     } else if (!rp) {
-      questions[`use_${id}`] = choice(TEXT.select, {omit: TEXT.omit, use: part.description})
+      // a part with choice params takes params-edits' select wording: the strict structure wording
+      // drops a part the request names by a param value ("refunded orders", "complaints"), which
+      // the description leaves out on purpose (Jev, params set x3: 57/60 mixed, 46/60 strict only,
+      // 54/60 params wording only; the structure set keeps 64/70: its parts have no params)
+      const withParams = Object.values<any>(paramsOf(part)).some(askable)
+      questions[`use_${id}`] = choice(withParams ? W.select : TEXT.select, {omit: TEXT.omit, use: part.description})
       meta[`use_${id}`] = {kind: 'use', part: id}
     }
     if (rp) {
       const label = labelOf(rp, part.params[rp])
       const options = Object.fromEntries(records[id].map((r: any) => [String(r.value), r.description]))
-      for (let n = 1; n <= maxUses(part); n++) {
+      for (let n = 1; n <= RECORD_SLOTS; n++) {
         questions[`rec_${id}${sep}${n}`] = choice(W.slot(part.description, label, n), {none: W.slotNone(label, n), ...options})
         meta[`rec_${id}${sep}${n}`] = {kind: 'rec', part: id, n}
       }
@@ -282,7 +289,7 @@ export function readSelect(c: any, a: any, {categories = null, records = {}}: an
   const prob = (x: any) => x?.probabilities?.[x.choice] ?? 1
   const recordsFor = (id: string, atLeastOne: boolean) => {
     const out: any[] = []
-    for (let n = 1; n <= maxUses(partOf(c, id)); n++) {
+    for (let n = 1; n <= RECORD_SLOTS; n++) {
       const x = a[`rec_${id}${sep}${n}`]
       if (!x) break
       // the group choice already said "these records": slot 1 is the best record even when none wins
@@ -363,7 +370,9 @@ export function plan(c: any, sel: any) {
   }
   const dests: any = {}
   for (const k of nodes) {
-    dests[k] = allowed(c, entry(k)).filter(d => { const x = d.split(':')[0]; return x !== k && (x === ROOT || nodes.includes(x)) })
+    // a container never goes into a container that accepts only parts (`accepts: 'leaves'`)
+    const box = !items.some((i: any) => i.key === k)
+    dests[k] = allowed(c, entry(k)).filter(d => { const x = d.split(':')[0]; return x !== k && (x === ROOT || nodes.includes(x)) && !(box && containerOf(c, x)?.accepts === 'leaves') })
     if (!dests[k].length) dests[k] = [`${ROOT}:${ROOT_SLOT}`]
   }
   const leaves: string[] = items.map((i: any) => i.key)
@@ -528,6 +537,7 @@ export function readLayout(c: any, sel: any, a: any, {rowMean = 0.25}: any = {})
     const up: any = {}
     const find = (x: string): string => (up[x] === undefined || up[x] === x ? x : (up[x] = find(up[x])))
     const pt = (x: string, y: string) => Math.max(a[`beside_${x}`]?.probabilities?.[y] ?? 0, a[`beside_${y}`]?.probabilities?.[x] ?? 0)
+    const rowMax = containerOf(c, ROW)?.max ?? Infinity
     const bySlot = new Map<string, string[]>()
     for (const k of p.rowable) if (tree[k]) { if (!bySlot.has(parent[k])) bySlot.set(parent[k], []); bySlot.get(parent[k])!.push(k) }
     for (const members of bySlot.values()) {
@@ -538,7 +548,8 @@ export function readLayout(c: any, sel: any, a: any, {rowMean = 0.25}: any = {})
           const all = g.flatMap(x => h.map(y => pt(x, y)))
           const m = all.reduce((u, v) => u + v, 0) / all.length
           // one confident link and enough support overall (beside answers are sparse)
-          if (Math.max(...all) >= ROW_MIN && m >= rowMean && (!best || m > best.m)) best = {m, i, j: i + 1 + j}
+          // and a row never grows past the row container's `max` (the built-in row: 4)
+          if (g.length + h.length <= rowMax && Math.max(...all) >= ROW_MIN && m >= rowMean && (!best || m > best.m)) best = {m, i, j: i + 1 + j}
         }))
         if (!best) break
         groups[best.i] = groups[best.i].concat(groups[best.j])
@@ -607,16 +618,18 @@ function toContractTree(c: any, tree: any, maxDepth: number): any[] {
 // ---------- replies: validation (SYG682) ----------
 function validate(questions: any, a: any) {
   const out: any = {}
+  let bad = 0
   for (const [name, x] of Object.entries<any>(a || {})) {
     const q = questions[name]
     if (!q || !x) continue
     if (q.type === 'choice' && !(String(x.choice) in q.criteria)) {
       dev('SYG682', `the answer to '${name}' is ${JSON.stringify(x.choice)}, not one of its options (${Object.keys(q.criteria).join(', ')}): ignored`, 'warn')
+      bad++
       continue
     }
     out[name] = q.type === 'choice' ? {...x, choice: String(x.choice)} : x
   }
-  return out
+  return {answers: out, bad}
 }
 
 // ---------- the backend ----------
@@ -637,7 +650,7 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
     url, model, state: step.state, questions: step.questions,
     key: key ?? names?.key, latest: true, ok: names?.ok, error: names?.error,
   } as any)
-  const answersOf = (reply: any) => reply?.answers ?? reply ?? {}
+  const answersOf = (reply: any) => (reply && typeof reply == 'object' ? reply.answers : undefined)
 
   /** the questions of a pending step (rebuilt from it, as sent) */
   function stepOf(catalog: any, pending: any) {
@@ -654,7 +667,11 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
   /** a reply → the backend's result (pure; fake() reads with it too) */
   function read({catalog, state, pending, reply, names}: any) {
     const step = stepOf(catalog, pending)
-    const a = validate(step.questions, answersOf(reply))
+    const body = answersOf(reply)
+    // a reply that can't be read: the behavior's status 'error' (contract), not a throw
+    if (!body || typeof body != 'object' || Array.isArray(body)) return {error: 'compose.decisions(): the decision reply has no answers'}
+    const {answers: a, bad} = validate(step.questions, body)
+    if (bad && !Object.keys(a).length) return {error: `compose.decisions(): every answer of the ${pending.step} step is outside its question's options (SYG682)`}
     const decisions = {...(pending.decisions || {}), [pending.step]: a}
     const base = {previous: pending.previous ?? null, decisions}
     if (pending.step === 'categories') {

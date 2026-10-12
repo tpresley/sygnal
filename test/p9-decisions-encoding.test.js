@@ -218,6 +218,39 @@ describe('compose.decisions(): replies', () => {
     warn.mockRestore()
   })
 
+  it('a reply that cannot be read returns { error } (no answers; every answer outside its options)', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const backend = decisions({ model: 'm' })
+    const s = start(backend, dashboard, 'How are sales doing?')
+    const read = (body) => backend.reply({ catalog: dashboard, state: {}, pending: s.pending, reply: body, names })
+    expect(read({ error: 'bad gateway' })).toEqual({ error: expect.stringContaining('no answers') })
+    expect(read(null).error).toBeDefined()
+    expect(read({ answers: { use_tasks: { type: 'choice', choice: 'maybe' } } }).error).toContain('SYG682')
+    // an empty answer set is a valid "nothing fits"
+    expect(read({ answers: {} })).toMatchObject({ layout: null, unavailable: true })
+    warn.mockRestore()
+  })
+
+  it("rows never grow past the row container's max (4); containers never go into an `accepts: 'leaves'` container", () => {
+    const parts = Object.fromEntries('abcdef'.split('').map((k) => [k, { description: k }]))
+    const catalog = defineCatalog({ parts })
+    const sel = { items: Object.keys(parts).map((k) => ({ key: k, part: k, d: k })), row: true }
+    const all = (k) => ({ type: 'choice', choice: 'x', probabilities: Object.fromEntries(Object.keys(parts).filter((o) => o !== k).map((o) => [o, 0.5])) })
+    const a = Object.fromEntries(Object.keys(parts).map((k) => [`beside_${k}`, all(k)]))
+    const rows = readLayout(catalog, sel, a).filter((n) => n.part === 'row')
+    expect(rows.every((r) => r.children.length <= 4)).toBe(true)
+    const boxed = defineCatalog({
+      parts: { x: { description: 'x', in: ['card'] } },
+      containers: { card: { slots: { default: null }, in: ['page', 'panel'] }, panel: { slots: { default: null }, accepts: 'leaves' } },
+    })
+    const backend = decisions({ model: 'm' })
+    const s = start(backend, boxed, 'x')
+    lastQuestions = s.request.json.questions
+    const r = reply(backend, boxed, s.pending, { use_x: 'use' })
+    expect(r.request).toBeUndefined() // no parent_card question: panel is never offered to card
+    expect(formatTree(toTree(r.layout))).toBe('page(card(x))') // panel is never offered to card
+  })
+
   it('the category prefilter (prefilter: true): call 0 asks cat_<id>, the select call only the chosen categories', () => {
     const { catalog } = STRUCTURE.ops
     const backend = decisions({ model: 'm', prefilter: true })

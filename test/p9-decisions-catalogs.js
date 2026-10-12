@@ -24,7 +24,7 @@ export function declareStructure(c) {
 // and wording the research measured as an enum), so the number path is covered
 const asNumber = (p) => (p.label === 'number of rows' ? { type: 'number', label: p.label, ask: p.ask, default: Number(p.default), bins: p.options } : p)
 
-/** a params / records catalog (research format) → a declaration; `records` → a `from` param, maxUses 4 (the research's maxRecords) */
+/** a params / records catalog (research format) → a declaration; `records` → a `from` param (4 record slots: the research's maxRecords) */
 export function declareParams(c) {
   const parts = {}
   for (const p of c.parts) {
@@ -36,7 +36,6 @@ export function declareParams(c) {
         ...(decl.params || {}),
         [records.param]: { label: records.label, from: () => records.items.map((i) => ({ value: i.key, name: i.name, aliases: i.aliases, description: i.description })) },
       }
-      decl.maxUses = 4
     }
     parts[id] = decl
   }

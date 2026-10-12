@@ -1250,6 +1250,8 @@ export interface ComposeDecisionsBackend {
   start(a: { catalog: any; state: any; prompt: string; previous: any; names: { ok: string; error: string; delta?: string; key?: string } }): { request: DecideRequest<any>; pending: any }
   reply(a: { catalog: any; state: any; pending: any; reply: any; names: { ok: string; error: string; delta?: string; key?: string } }): {
     layout?: any; unavailable?: true; preview?: any; request?: DecideRequest<any>; pending?: any
+    /** a reply that can't be read (no `answers`, or every answer outside its options: SYG682); the behavior's status 'error' */
+    error?: string
     /** the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`), for an explain panel */
     decisions?: Record<string, Record<string, any>>
   }
