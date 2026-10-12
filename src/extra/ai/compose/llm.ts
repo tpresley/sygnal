@@ -252,7 +252,7 @@ export function layoutSchema(catalog: any, state: any, {plan = true, relaxIn = f
   let i = 0
   const json = JSON.stringify(schema).replace(/"#\/\$defs\/(d\d+)"/g, (_, d) => `"#/$defs/${order[d] ??= `d${++i}`}"`)
   const out = JSON.parse(json)
-  out.$defs = Object.fromEntries(Object.entries(out.$defs).map(([d, v]) => [order[d], v]).sort(([a], [b]) => +a.slice(1) - +b.slice(1)))
+  out.$defs = Object.fromEntries(Object.entries<any>(out.$defs).map(([d, v]): [string, any] => [order[d], v]).sort(([a], [b]) => +a.slice(1) - +b.slice(1)))
   return out
 }
 
