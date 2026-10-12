@@ -5,7 +5,8 @@
 // created it in an earlier parent first (its elm became the new element), and its old parent's
 // removal then took the new element and left the old one (before the fix: the moved instance
 // vanished, its old element stayed, and its scope lost the new element). The fix is in the DOM
-// driver's isolate module (cycle/dom/IsolateModule.ts, with G-564's notes).
+// driver's isolate module (cycle/dom/IsolateModule.ts; since G-753 the moved vnode is copied for
+// the patch, test/p9-g753-move-into-new.test.js).
 import { describe, it, expect, afterEach } from 'vitest'
 import { run, makeDOMDriver } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
