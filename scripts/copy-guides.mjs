@@ -31,6 +31,8 @@ export const GUIDES = [
   'agent', 'webmcp', 'mcp-apps',
   // PLAN-6
   'ai-chat', 'ai-decisions',
+  // PLAN-9 D-3: composing UI from a catalog, chat cards
+  'ai-compose', 'ai-cards',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).

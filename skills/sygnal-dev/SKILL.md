@@ -19,7 +19,7 @@ Canonical forms, API facts, wiring rules and testing for everyday work. Full spe
 
 **The task text is the spec**: copy labels, messages and punctuation verbatim (`Search failed.` keeps its period) and implement it; don't stop to explain or ask. Re-read the task itself, not a summary of it (such as the arguments you passed to this skill).
 
-**Read the shipped guide before coding these, and use its API** (`node_modules/sygnal/dist/guide/`; never hand-roll them): a form with validation → `form` behavior, `forms.md`; chart, date picker, editor → `defineWidget`, `widgets.md`; long list → `<VirtualCollection>`, `virtual-collections.md`; drag to reorder → `sortable`, `drag-and-drop.md`; dialog, popover, tabs, menu, select, toast → `sygnal/ui`, `ui/overview.md`; LLM chat (the `chat` behavior), AI decisions, agent tools → `sygnal/ai`, `ai-chat.md`, `ai-decisions.md`, `agent.md`.
+**Read the shipped guide before coding these, and use its API** (`node_modules/sygnal/dist/guide/`; never hand-roll them): a form with validation → `form` behavior, `forms.md`; chart, date picker, editor → `defineWidget`, `widgets.md`; long list → `<VirtualCollection>`, `virtual-collections.md`; drag to reorder → `sortable`, `drag-and-drop.md`; dialog, popover, tabs, menu, select, toast → `sygnal/ui`, `ui/overview.md`; LLM chat (the `chat` behavior), AI decisions, agent tools → `sygnal/ai`, `ai-chat.md`, `ai-decisions.md`, `agent.md`; a page or chat card a model composes from your parts → `defineCatalog` + `compose` / `chat({ ask })`, `ai-compose.md`, `ai-cards.md`.
 
 **Add a feature** (in this order):
 1. **State**: add the fields to the root `initialState` (children get state from their parent).
@@ -172,6 +172,55 @@ StarRating.model = { PICK: { PARENT: (state, value, next, props) => ({ name: pro
 - Drag to reorder → `uses = { sort: sortable({ from, item, handle }) }` + a live region for `state.sort.message` (English; a spec's wording: `messages: { drop, cancel, … }`, `(label, position, count) => text`). Long list → `<VirtualCollection className="rows">` is the scroll container: height, `aria-label`, `role` on it, never in your own scrolling `<ul>` (SYG430: fix the height); jump with `ELEMENT { scrollToIndex | scrollToId }`. Visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()` (`browser-sources.md`); `lazy(…, { when: 'visible' })`.
 - Table → TanStack in the view; i18n → `.context.t` + `persist` (`recipes/overview.md`).
 - **AI** (`sygnal/ai`): a chat conversation is the `chat` behavior, never hand-rolled: `uses = { chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }) }` → `state.chat` (`messages`, `prompt`, `draft`, `status`, `error`; Stop keeps the partial reply, Retry doesn't repeat the question); a one-off request (summary, structured `output`) is an `LLM` sink request `{ messages: [{ role: 'user', content: text }], delta: 'DELTA', ok: 'DONE', error: 'FAILED' }`; both need `makeChatDriver({ transport })` (tests: `t.stream('LLM', ['Hi'])`); what agents may run is the `agent` static `{ name, description, read, actions, queries }` (only declared actions; `read` is all they see; `queries: { find: { description, input, run: (state, input) => result } }` are read-only lookups, pure and synchronous; an action that starts a fetch answers once it lands with `until: 'resourceName'`; tests: `t.callTool(name, args)`); typed answers: `decide()` + `choice` / `noul` / `score` as a resource. No provider API key in the browser: `uiMessageStream('/api/chat')` to your server.
+### Composed UI and chat cards (`sygnal/ai`)
+A model builds a page (or a card in a chat) from parts the app prepared: it only picks parts, params and places, never markup. Guides: `ai-compose.md`, `ai-cards.md`.
+```jsx
+import { defineCatalog, compose, Composed } from 'sygnal/ai'
+import { OrdersTable, Checklist } from './parts.jsx'
+
+export const catalog = defineCatalog({
+  parts: {
+    orders: {
+      component: OrdersTable,
+      description: 'Orders (table of recent orders)',   // all a model sees: "Noun (what it shows)"
+      params: { status: { default: 'any', options: { any: 'orders of every status', pending: 'pending orders (not paid yet)' } } },
+    },
+    tasks: { component: Checklist, state: 'tasks', description: "Tasks (the user's checklist)" },   // a lens into app state
+  },
+})
+
+export function Dashboard({ state }) {
+  return (
+    <main>
+      <form className="ask">
+        <input className="prompt" aria-label="The page you want" value={state.page.prompt} />
+        <button type="submit">Compose</button>
+      </form>
+      <Composed catalog={catalog} from="page" />
+    </main>
+  )
+}
+Dashboard.initialState = { tasks: [] }
+Dashboard.uses = { page: compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }), form: '.ask', prompt: '.prompt' }) }
+```
+```js
+import { it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import { composeWith } from 'sygnal/ai'
+import { catalog, Dashboard } from './Dashboard.jsx'
+
+it('composes the pending orders', async () => {
+  const t = renderComponent(Dashboard)
+  t.simulateAction('page.COMPOSE', 'Pending orders')
+  await composeWith(t, catalog, [{ part: 'orders', params: { status: 'pending' } }])   // answers either backend
+  await t.waitForState((s) => s.page.status === 'done')
+  expect(t.state.page.layout.nodes.orders.params).toEqual({ status: 'pending' })
+  t.dispose()
+})
+```
+- `backend: compose.llm()` (the `LLM` sink, a streamed preview) takes the same catalog, view and tests. `compose.decisions()` posts to your `/api/decide` route, which holds the API key. `state.page`: `status` (`'composing' | 'preview' | 'done' | 'unavailable' | 'error'`), `layout` (plain JSON), `decisions`, `error`.
+- Parts are the host's children, keyed by their node key: params arrive as props, `CHILD.select(Part)` hears their `PARENT`, a `state` lens edits app state. A follow-up `next('page.COMPOSE', 'Move the orders to the top')` edits the page and keeps the untouched parts' instances; `{ prompt, fresh: true }` starts over. One part per record: a param `{ from: (state) => records }` + `state: (node) => byId('customers', node.params.id)` (`byId` from `'sygnal'`). Containers (`containers: { tabs: { slots, render: (view) => … } }`) are view functions, never components (SYG161). `{catalog.render(state.page, state)}` is the view-call form of `<Composed>`. An agent composes with `actions: { ...compose.action('page') }` and reads `compose.summary(state.page)`.
+- **Chat cards**: `chat({ form: '.ask', prompt: '.prompt', ask: { catalog } })` under `assistant` gives the model `ask_user({ need })`; render each `tool-ask_user` message part with `askCard(catalog, state, part)` (null while composing; the card is `part.ui`, `status` `'composing' | 'open' | 'answered' | 'failed' | 'cancelled'`). A part with `result: true` answers it: `PICK: { PARENT: (state, id, next, props) => compose.answer(props, id) }` → the call's output `{ part, answer }` (no result part: SYG686). Tools the app answers itself: `clientTools: { confirm: { description, inputSchema } }`, `openToolCalls(state.assistant)`, `next('assistant.TOOL_OUTPUT', { toolCallId, output })`. Tests: `await t.stream('LLM', [{ toolCall: { id: 'c1', name: 'ask_user', input: { need: 'Pick a plan' } } }])`, then `await composeWith(t, catalog, [{ part: 'plans' }])`.
 ### Element commands, timers, persistence
 - **ELEMENT** (built in) calls a method on an element of the sending instance's view, after the render the action causes: `ELEMENT: (s) => (validate(s).email ? { focus: '.email' } : ABORT)`. First key = method (`focus`, `scrollIntoView`, `showModal`, `close`…), its value the target; other keys are options (`{ close: '.help', returnValue: 'done' }`); an array sends several. Tests: `t.commands('ELEMENT')`. `node_modules/sygnal/dist/guide/element-commands.md`
 - **Timers**: `Clock.timers = (state) => ({ tick: state.running && { every: 1000, action: 'TICK' } })` (or `{ after: ms, action }`, `{ frame: 'FRAME' }`), diffed by name: falsy stops. Needs `run(App, { TIMER: makeTimerDriver() })` (SYG643); `TICK` gets `{ n, t }`. Tests need no driver: fake timers + `t.timers()`. `node_modules/sygnal/dist/guide/timers.md`
@@ -293,7 +342,7 @@ TaskPage.model = {
 - Links are plain `<a href={href(...)}>`: the driver intercepts same-origin clicks. `params` are strings. `instance={state.route.path}` gives `/tasks/1` and `/tasks/2` separate page state. SSR: `router.current(req.url)`. Vike: `makeRouter({ routes, navigate })` (from `'vike/client/router'`). Guides: https://sygnal.js.org/guide/router/, https://sygnal.js.org/guide/head/
 
 ## 4. API facts
-- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `uid` (SYG106). Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
+- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `uid` (SYG106). `key={…}` is a child's identity (not a prop; else its `id` prop, else its place): a new key re-creates it. Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.
 - **run(App, drivers = {}, { mountPoint = '#root', diagnostics, onError })** returns `{ sources, sinks, dispose, hmr }`. `onError: (error, { componentName, action, phase }) => …` reports every error (reporting only). DOM, EVENTS, LOG and STATE are built in. `app.sources.STATE.stream` is the state stream; `app.dispose()` fires DISPOSE.
 - **ABORT**: from a STATE reducer, the state is unchanged (so is returning the same `state` object); from any other sink, nothing is sent.
@@ -303,7 +352,7 @@ TaskPage.model = {
 - **Enriched streams** (chainable, optional mapper): `.value(fn?)` e.target.value; `.checked(fn?)` boolean; `.key(fn?)` e.key; `.target(fn?)`; `.data('id', Number)` reads `data-id` on the target or nearest ancestor (`data={{ id: 7 }}`); `.data('taskId')` reads `data-task-id`. A `data-task-id="1"` attribute works too, but a kebab key in the prop (`data={{ 'task-id': 1 }}`) throws (SYG421).
 - **xstream**: `xs.merge/combine/of/periodic/never/fromPromise`. From `'sygnal'`, used with `.compose(...)`: `debounce(ms) throttle(ms) delay(ms) dropRepeats() sampleCombine(other$) flattenConcurrently flattenSequentially`; plus `concat(a$, b$)`. RxJS → xstream: `switchMap(f)` → `.map(f).flatten()`, `mergeMap` → `.map(f).compose(flattenConcurrently)`, `debounceTime` → `.compose(debounce(ms))`, `distinctUntilChanged` → `dropRepeats()`, `withLatestFrom` → `sampleCombine`, `combineLatest` → `xs.combine`, `scan` → `.fold`, `takeUntil` → `.endWhen`, `tap` → `.debug`, `catchError` → `.replaceError`, `shareReplay(1)` → `.remember()`.
 - **TypeScript**: `const intent = ({ DOM }: IntentSources<State>) => ({ ... })`, then `const C: Component<State, Props, {}, ActionsOf<typeof intent>, Calculated, Context, { PARENT: Payload }> = ({ state, context }) => ...` (root: `RootComponent<State, {}, Actions>`; unused parameters `{}`). Without `{ PARENT: Payload }` the parent's `CHILD.select(C)` is a `Stream<unknown>`. Register EVENTS names in `declare module 'sygnal' { interface SygnalEvents { DOC_SAVED: { id: string } } }` in a file that keeps `export {}` (without it: "has no exported member"). Guide: https://sygnal.js.org/integration/typescript/
-- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver queryCache makeSocketDriver makeRouter makeHeadDriver makeTimerDriver makeViewTransitionDOMDriver persist defineBehavior pager selection isSelected undo undoable form defineWidget sortable focusWithin makeBrowserDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection VirtualCollection Switchable Portal Transition Slot Suspense lazy createRef createRef$ renderComponent renderToString`; types `Component RootComponent Lens Resource RenderResult`. Never import the JSX runtime by hand; the Vite plugin configures it.
+- **Imports** (all from `'sygnal'`): `run ABORT set toggle event createCommand makeFetchDriver queryCache makeSocketDriver makeRouter makeHeadDriver makeTimerDriver makeViewTransitionDOMDriver persist defineBehavior pager selection isSelected undo undoable form defineWidget sortable focusWithin makeBrowserDriver driverFromAsync xs debounce throttle delay dropRepeats sampleCombine classes processForm processDrag makeDragDriver Collection VirtualCollection Switchable Portal Transition Slot Suspense lazy createRef createRef$ byId renderComponent renderToString`; types `Component RootComponent Lens Resource RenderResult`. Never import the JSX runtime by hand; the Vite plugin configures it.
 
 ## 5. Wiring rules (silent failures, and what catches them)
 - **Selectors are scoped to the component's own JSX (the isolation trap).** A parent's `DOM.click('.remove')` never fires for `.remove` rendered by a child or a Collection item: handle it in the child and send it up with `PARENT` (`CHILD.select(Child)`) or `EVENTS` (SYG104; a selector the view never renders is SYG110). Events still bubble: a listener on an element the parent rendered (`DOM.click('.slot')` around `<Child />`) hears clicks inside the child, after the child's own.

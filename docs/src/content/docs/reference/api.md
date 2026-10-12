@@ -795,6 +795,34 @@ Widget.isolatedState = true
 
 ---
 
+## key (Tag Prop)
+
+A component tag's instance (its state cell, its intent, an `isolatedState` value) belongs to its identity among its parent view's children: the component plus its `key`, else its `id` prop, else its position in the view (6.3.0; before, `key` was ignored on component tags).
+
+```jsx
+<Editor key={state.docId} state="draft" />   // a new docId: a new Editor instance
+```
+
+A new `key` disposes the old instance (`DISPOSE`) and starts a new one (`BOOTSTRAP`). `key` is not passed to the component as a prop. Two tags of one component with the same key in one view are one instance ([SYG453](/reference/errors/#syg453) warns in development). A `key` on `<Collection>` re-creates its items. See [Identity: `key`](/guide/components/#identity-key).
+
+---
+
+## byId()
+
+`byId(field, id, idKey = 'id')` returns a `{ get, set }` lens to the element of the array `state[field]` whose `idKey` is `id` (6.3.0, from `sygnal`). `get` returns `undefined` once the element is gone, and `set` then leaves the state unchanged.
+
+```jsx
+import { byId } from 'sygnal'
+
+const item = <TodoItem state={byId('todos', 3)} />
+// a catalog's record part: one card per customer, each editing its own record
+const customer = { component: CustomerCard, description: "Customer (card: one customer's plan)", state: (node) => byId('customers', node.params.id) }
+```
+
+See [Params](/guide/ai-compose/#params).
+
+---
+
 ## controls()
 
 `controls({ Name: 'input', Save: 'button' })` returns element tokens that the view renders (`<Save>Save</Save>`, a `<button data-control="Save">`) and the intent, element commands, behaviors and tests select (`DOM.click(Save)`). An [alternative form](/advanced/alternative-forms/#controls-instead-of-class-selectors) to class selectors; see [Controls](/guide/controls/).
@@ -1607,6 +1635,41 @@ import { makeChatDriver, openResponses, chat, decide, choice } from 'sygnal/ai'
 The `agent` static's `queries` (read-only tools that take an input: `run(state, input) => result`) are documented in [Agents](/guide/agent/#queries).
 
 Also new in 6.1.0, from `sygnal`: the `agent` static on components, `abort(reason)` for reducers, the `form.SET` action, and the testing helpers `t.stream`, `t.respond('LLM', …)`, `t.tools()`, `t.callTool()` and `t.agentContext()`.
+
+### Composed UI and chat cards (6.3.0)
+
+A model builds a page, or a card in a chat, from parts the app prepared: it picks parts, params and places, never markup. [Composing UI with a Model](/guide/ai-compose/) and [Cards in a Chat](/guide/ai-cards/) explain each part with live examples.
+
+```js
+import { defineCatalog, compose, Composed, composeWith, askCard, openToolCalls } from 'sygnal/ai'
+```
+
+| Export | What it is | Guide |
+|---|---|---|
+| `defineCatalog({ parts, containers?, guidance?, limits?, examples?, categories?, rows? })` | The catalog: each part a component (or a `render` view function) with its `description`, `params`, `state` / `local`, `in`, `group`, `maxUses`, `required`, `pin`, `companions`, `result`; containers are view functions with named slots (never components, [SYG161](/reference/errors/#syg161)). Validated in development and by `sygnal-check` | [The catalog](/guide/ai-compose/#the-catalog) |
+| `catalog.render(slice, state, { scope?, frozen?, answer?, at? })` | The composition as vnodes for the host's view: `slice.preview ?? slice.layout`, each part a child of the host keyed by its node key, containers through their views | [`catalog.render`](/guide/ai-compose/#catalogrender) |
+| `catalog.options(state)`, `catalog.records(part, state)`, `catalog.finish(layout, state?)`, `catalog.get(id)` | The selectable options for a state (a record part once per record), a record part's records, the deterministic finishing step (required parts, pins, companions, limits; idempotent), a part or container by id | [The catalog](/guide/ai-compose/#the-catalog) |
+| `compose(catalog, { backend, form?, prompt?, key? })` | The behavior (`uses`): `state.<key>` holds `prompt`, `status`, `layout`, `preview`, `decisions`, `error`, `ui`, `local`; actions `COMPOSE` (a new page or an edit; `{ prompt, fresh: true }` starts over), `SET_LAYOUT`, `REMOVE`, `CONTROL`, `DONE` | [Composing a page](/guide/ai-compose/#composing-a-page) |
+| `compose.decisions({ model, url?, rowMean?, prefilter?, maxOptions?, profile? })` | The decision-model backend: `decide()` requests on `HTTP`, to `/api/decide` by default (your route holds the key) | [`compose.decisions()`](/guide/ai-compose/#composedecisions) |
+| `compose.llm({ model?, sink?, stream?, plan?, instructions?, examples? })` | The chat-LLM backend: one structured-output request on the `LLM` sink, streamed as a preview; `model` may be a function of the host's state | [`compose.llm()`](/guide/ai-compose/#composellm) |
+| `compose.answer(props, value)` | A result part's `PARENT` value, `{ scope, node, value }`: it answers the card the part is on | [Result parts](/guide/ai-cards/#result-parts) |
+| `compose.action(key?, { description?, timeout? })`, `compose.summary(slice)` | The `agent.actions` entry that lets an assistant compose the page (`<agent>_<key>_compose({ prompt, fresh? })`, answered once the composition is done), and the composition as an agent's `read` shows it | [Compose from an agent](/guide/ai-compose/#compose-from-an-agent) |
+| `<Composed catalog from? card? scope? frozen? answer? />` | `catalog.render()` as a tag: the composition at `from` (a key, default `'page'`, or a path) in the host's state, or a chat card (`card={part}`); a throwing container view renders the host's `onError` ([SYG408](/reference/errors/#syg408)); misuse is [SYG451](/reference/errors/#syg451). Also exported from `sygnal` | [Rendering with `<Composed>`](/guide/ai-compose/#rendering-with-composed) |
+| `composeWith(t, catalog, tree, { stream? })` | Testing: answers the pending composition (a page or a card) so that it becomes `tree`, through the pending backend's own fake reply; throws when the backend can't reach it | [Testing](/guide/ai-compose/#testing) |
+| `fromTree(catalog, tree, previous?)`, `toTree(layout)`, `removeNode(layout, key)` | Layout utilities: a nested tree to a layout (reusing `previous`'s keys), a layout to a tree, a layout without a node and its subtree | [The slice](/guide/ai-compose/#the-slice) |
+| `askCard(catalog, state, part, { key? })` | The card of an `ask_user` tool part, for the host's view (null while it composes); frozen unless open | [How a card works](/guide/ai-cards/#how-a-card-works) |
+| `openToolCalls(chatState)` | The tool parts of the last assistant message that wait for the app's answer | [Client tools](/guide/ai-cards/#client-tools) |
+
+New `chat()` options and actions:
+
+| | What it does | Guide |
+|---|---|---|
+| `ask: { catalog, backend?, instructions?, direct? }` | Gives the model the tool `ask_user({ need })`; the app composes a card from the catalog (`compose.llm()` on the chat's sink by default), kept on the tool part as `part.ui`. A catalog for `ask` needs a part with `result: true` ([SYG686](/reference/errors/#syg686)) | [Cards in a Chat](/guide/ai-cards/) |
+| `clientTools: { name: { description, inputSchema } }` | Tools the app answers itself: their calls stay open (`input-available`) until `TOOL_OUTPUT`. A name an `agent` tool also has is the client tool ([SYG684](/reference/errors/#syg684)) | [Client tools](/guide/ai-cards/#client-tools) |
+| `model: (state) => id` | The model as a function of the host's state, resolved per request (a model picker); the default card backend follows it | [Two backends](/guide/ai-cards/#two-backends) |
+| `'<key>.TOOL_OUTPUT'` | `{ toolCallId, output }` or `{ toolCallId, errorText }`: answers an open client call; one that isn't open does nothing ([SYG685](/reference/errors/#syg685)) | [Client tools](/guide/ai-cards/#client-tools) |
+| `'<key>.TOOL_CALL'` | A host entry that runs once per client call as it opens, with `{ id, name, input }` | [Client tools](/guide/ai-cards/#client-tools) |
+| `'<key>.ANSWER'` | A result part answered a card (`compose.answer`): the call closes with the output `{ part, answer }` | [Result parts](/guide/ai-cards/#result-parts) |
 
 ## Diagnostics
 
