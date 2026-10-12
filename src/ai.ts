@@ -21,3 +21,5 @@ export {anthropicMessages, agui, fromAISDK, strictSchemas} from './index'
 export {makeMcpAppDriver} from './index'
 // A-3 (3-A3, experimental, D291)
 export {formTool} from './index'
+// PLAN-9 (A)
+export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode} from './index'

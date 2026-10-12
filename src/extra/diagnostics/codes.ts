@@ -339,6 +339,15 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 A-2: experimentalExposeWebMcp (src/extra/ai/webmcp.ts; dev)
   SYG674: 'WebMCP not available',
   SYG676: 'WebMCP registerTool rejected',
+  // ---- PLAN-9 compose (A: src/extra/ai/compose/; dev, reported with the severity passed) ----
+  SYG161: 'Catalog container render is a component with a model',
+  SYG162: 'Catalog part with neither component nor render',
+  SYG250: 'Layout names an unknown part or slot',
+  SYG251: 'Invalid param value in a layout',
+  SYG252: 'Record param from() does not return an array of { value }',
+  SYG450: 'Catalog in names an unknown container or slot',
+  SYG452: 'Layout lists a node key twice',
+  SYG681: 'Compose backend option problem',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -528,6 +537,15 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG153: 'warn',
   SYG730: 'warn',
   SYG731: 'warn',
+  // ---- PLAN-9 compose (A: src/extra/ai/compose/, reported with the severity passed, dev) ----
+  SYG161: 'error',
+  SYG162: 'error',
+  SYG250: 'warn',
+  SYG251: 'warn',
+  SYG252: 'warn',
+  SYG450: 'warn',
+  SYG452: 'warn',
+  SYG681: 'error',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {
