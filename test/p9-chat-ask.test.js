@@ -265,6 +265,39 @@ describe('cards: composing, failing, cancelling', () => {
     expect(toolPart(chatReqs()[1]).map((p) => p.output)).toEqual([{ part: 'plans', answer: 'free' }, { part: 'looksRight', answer: false }])
   })
 
+  it('G-756: a decision reply for a card closed while composing is dropped, not read as the next card\'s', async () => {
+    const backend = compose.decisions({ url: '/api/decide', model: 'nimble' })
+    t = renderComponent(makeChatApp({ backend }), { strict: true })
+    await say('Two things')
+    await t.stream('LLM', [askCall('a', 'Let the user pick a pricing plan'), askCall('b', 'Ask whether the revenue chart looks right')])
+    await t.settle()
+    const [a] = openToolCalls(S())
+    expect(a.ui.status).toBe('composing')
+    const reqA = t.requests('HTTP').at(-1)
+    expect(reqA.key).toBe('assistant.ask:a')
+    // card a's reply ("plans"), made for its own step
+    const late = backend.fake({ catalog, state: t.state, pending: a.ui.pending, target: [{ part: 'plans' }] })
+    // the app answers a's call itself while a still composes: b starts composing
+    t.simulateAction('assistant.TOOL_OUTPUT', { toolCallId: 'a', output: { plan: 'team' } })
+    await t.settle()
+    expect(t.requests('HTTP').at(-1).key).toBe('assistant.ask:b')
+    const pendingB = openToolCalls(S()).find((p) => p.toolCallId === 'b').ui.pending
+    // a's reply arrives late: tagged with a's key, it is dropped (b keeps composing)
+    await t.respond('HTTP', late, { request: reqA })
+    await t.settle()
+    const b = () => S().messages.at(-1).parts.find((p) => p.toolCallId === 'b')
+    expect(b().ui.status).toBe('composing')
+    expect(b().ui.pending).toEqual(pendingB)
+    expect(b().ui.layout).toBeNull()
+    // b's own reply opens it
+    await t.respond('HTTP', backend.fake({ catalog, state: t.state, pending: pendingB, target: [{ part: 'looksRight' }] }), { request: t.requests('HTTP').at(-1) })
+    await t.settle()
+    expect(b().ui.status).toBe('open')
+    expect(Object.values(b().ui.layout.nodes).map((n) => n.part)).toContain('looksRight')
+    expect(t.requests('HTTP').map((r) => r.key)).toEqual(['assistant.ask:a', 'assistant.ask:b'])
+    expect(S().messages.at(-1).parts.find((p) => p.toolCallId === 'a')).toMatchObject({ state: 'output-available', output: { plan: 'team' } })
+  })
+
   it('failure: a compose request that fails closes the call ("could not show a card"), and the turn goes on', async () => {
     t = renderComponent(makeChatApp())
     await say('Ask me')

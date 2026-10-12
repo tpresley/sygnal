@@ -265,3 +265,45 @@ describe('compose.decisions(): replies', () => {
     expect(none).toMatchObject({ layout: null, unavailable: true })
   })
 })
+
+describe('B-5 large catalogs: the prefilter default and maxParts', () => {
+  // a catalog of n parts in categories of 10 (description = id)
+  const big = (n, { categories = true } = {}) => defineCatalog({
+    ...(categories && { categories: Object.fromEntries(Array.from({ length: Math.ceil(n / 10) }, (_, i) => [`c${i}`, `Area ${i}`])) }),
+    parts: Object.fromEntries(Array.from({ length: n }, (_, i) => [`p${i}`, { component: () => null, description: `Part ${i}`, ...(categories && { category: `c${Math.floor(i / 10)}` }) }])),
+  })
+  const step = (backend, catalog) => start(backend, catalog, 'x').pending.step
+
+  it("prefilter 'auto' (the default): the category step above PREFILTER_AT parts (60), above 30 with profile 'small'; never without categories", async () => {
+    const { PREFILTER_AT, PREFILTER_AT_SMALL } = await import('../src/extra/ai/compose/decisions.js')
+    expect([PREFILTER_AT, PREFILTER_AT_SMALL]).toEqual([60, 30])
+    const d = decisions({ model: 'm' }), small = decisions({ model: 'm', profile: 'small' })
+    expect(step(d, big(60))).toBe('select')
+    expect(step(d, big(61))).toBe('categories')
+    expect(step(d, big(61, { categories: false }))).toBe('select')
+    expect(step(d, STRUCTURE.ops.catalog)).toBe('select') // 50 parts
+    expect(step(small, STRUCTURE.ops.catalog)).toBe('categories')
+    expect(step(small, big(30))).toBe('select')
+    expect(step(small, big(31))).toBe('categories')
+    // explicit: on for any catalog with categories, off for any size
+    expect(step(decisions({ model: 'm', prefilter: true }), big(12))).toBe('categories')
+    expect(step(decisions({ model: 'm', prefilter: false }), big(200))).toBe('select')
+    expect(step(decisions({ model: 'm', prefilter: false, profile: 'small' }), STRUCTURE.ops.catalog)).toBe('select')
+  })
+
+  it("maxParts: profile 'small' selects at most 8 parts (the most probable), others the catalog's 12; the option wins", () => {
+    const catalog = big(20, { categories: false })
+    const use = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`use_p${i}`, 'use']))
+    const count = (backend) => {
+      const s = sent(start(backend, catalog, 'everything'))
+      const r = reply(backend, catalog, s.pending, use)
+      return (r.preview ?? r.layout).nodes.page.slots.default.length
+    }
+    expect(count(decisions({ model: 'm' }))).toBe(12)
+    expect(count(decisions({ model: 'm', profile: 'small' }))).toBe(8)
+    expect(count(decisions({ model: 'm', profile: 'small', maxParts: 10 }))).toBe(10)
+    expect(count(decisions({ model: 'm', maxParts: 5 }))).toBe(5)
+    // the catalog's limit still caps (finish)
+    expect(count(decisions({ model: 'm', maxParts: 15 }))).toBe(12)
+  })
+})

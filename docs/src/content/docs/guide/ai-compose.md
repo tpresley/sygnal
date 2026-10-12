@@ -570,7 +570,7 @@ The demos above and below edit: in the first, compose a page, then try the secon
 
 #### `profile: 'small'`
 
-A small local decision model such as Ollama's `nimble` tends to pick the first of two options, whatever they say. `compose.decisions({ profile: 'small' })` corrects for it: it asks each "which comes first" question in both orders, and when the answers come out about even, it follows the order in which the request names the parts. On the demo app's catalog it took `nimble` from 7/11 to 8/11 flat dashboards, and its side-by-side prompts from 1/4 to 3/4. It costs more questions in the same calls, so leave it off for Jev.
+A small local decision model such as Ollama's `nimble` tends to pick the first of two options, whatever they say. `compose.decisions({ profile: 'small' })` corrects for it: it asks each "which comes first" question in both orders, and when the answers come out about even, it follows the order in which the request names the parts. On the demo app's catalog it took `nimble` from 7/11 to 8/11 flat dashboards, and its side-by-side prompts from 1/4 to 3/4. It costs more questions in the same calls, so leave it off for Jev. It also picks at most 8 parts per composition (`maxParts`), and narrows a catalog of more than 30 parts by category first (`prefilter`).
 
 ```js
 compose.decisions({ url: 'http://localhost:11434/v1/systemone', model: 'nimble', rowMean: 0.5, profile: 'small' })
@@ -674,7 +674,8 @@ It sends [`decide()`](/guide/ai-decisions/) requests on the `HTTP` sink (the [fe
 - `url`: the decision endpoint, `'/api/decide'` by default;
 - `model`: required ([SYG681](/reference/errors/#syg681) without one);
 - `rowMean`: how sure "side by side" answers must be to make a row (0.25, measured on Jev; 0.5 suits `nimble`);
-- `prefilter: true`: one more call first, to narrow a large catalog (above about 60 parts) by the parts' `category`;
+- `prefilter`: one more call first, to narrow a large catalog by the parts' `category` (about half the tokens, the same accuracy on Jev). `'auto'` by default: on when the catalog has categories and more than 60 parts (30 with `profile: 'small'`); `true` or `false` to choose;
+- `maxParts`: the most parts one composition picks (the catalog's `limits.maxParts`, 12; 8 with `profile: 'small'`);
 - `maxOptions`: the most options one question may have (255; 25 when `url` looks like Ollama): a larger choice is split into several questions;
 - `profile: 'small'`: for a small local model such as `nimble` ([`profile: 'small'`](#profile-small)).
 

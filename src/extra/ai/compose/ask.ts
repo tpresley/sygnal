@@ -103,18 +103,35 @@ function read(c: AskConfig, p: any, r: any): any {
 const own = (c: AskConfig, pending: any) => { if (pending && typeof pending == 'object') c.entry.mine.add(pending); return pending }
 const names = (k: string, id: string) => ({ok: k + '.CARD', error: k + '.CARD_FAILED', key: `${k}.ask:${id}`}) as any
 
+/**
+ * G-756: an HTTP reply (compose.decisions()) is the parsed body, with no request key, so a card's
+ * request tags its JSON body with the card's key (`askKey`); the chat's CARD step drops a reply
+ * tagged for another card (one closed by TOOL_OUTPUT while it composed). A request with its own
+ * `parse`, or one for the chat driver (its replies carry the key), is sent as it is.
+ */
+const tag = (req: any, key: string) => req && typeof req == 'object' && typeof req.url == 'string' && req.parse === undefined
+  ? {...req, parse: async (res: any) => {
+    const text = await res.text(), v = text ? JSON.parse(text) : null
+    return v && typeof v == 'object' && !Array.isArray(v) ? {...v, askKey: key} : v
+  }}
+  : req
+
 /** start composing a queued card: `{ part, request }`, or the failed part */
 export function startCard(c: AskConfig, p: any, state: any, k: string): any {
   c.entry.keys.add(k)
   try {
-    const r = c.backend!.start({catalog: c.catalog, state, prompt: String(p.input.need).trim(), previous: null, names: names(k, p.toolCallId)})
-    return {part: ui(p, {pending: own(c, r.pending ?? {})}), request: r.request}
+    const n = names(k, p.toolCallId)
+    const r = c.backend!.start({catalog: c.catalog, state, prompt: String(p.input.need).trim(), previous: null, names: n})
+    return {part: ui(p, {pending: own(c, r.pending ?? {})}), request: tag(r.request, n.key)}
   } catch (e) { return failed(p, message(e)) }
 }
 
 /** a backend reply for the card in flight: `{ part, request }` (another step), or the card part */
 export function cardReply(c: AskConfig, p: any, reply: any, state: any, k: string): any {
-  try { return read(c, p, c.backend!.reply({catalog: c.catalog, state, pending: p.ui.pending, reply, names: names(k, p.toolCallId)})) } catch (e) { return failed(p, message(e)) }
+  try {
+    const n = names(k, p.toolCallId), r = read(c, p, c.backend!.reply({catalog: c.catalog, state, pending: p.ui.pending, reply, names: n}))
+    return r?.request !== undefined ? {...r, request: tag(r.request, n.key)} : r
+  } catch (e) { return failed(p, message(e)) }
 }
 
 /**

@@ -1628,8 +1628,13 @@ export interface ComposeDecisionsOptions {
    * (average-linkage clustering of the `beside_` answers; default 0.25, measured on Jev; 0.5 suits nimble)
    */
   rowMean?: number
-  /** ask which part categories the request is about first (one more call; for catalogs above ~60 parts) */
-  prefilter?: boolean
+  /**
+   * ask which part `categories` the request is about first, then only about their parts (one more
+   * call, about half the input tokens; measured on Jev's 50-part ops console: the same accuracy).
+   * 'auto' (default): on when the catalog has categories and more than 60 parts to choose from
+   * (30 with `profile: 'small'`); `true`: always (with categories); `false`: never
+   */
+  prefilter?: boolean | 'auto'
   /**
    * the most options one choice question may have (default 255; 25 when `url` looks like Ollama;
    * at least 4): every larger choice is split into chunks that repeat its head options
@@ -1638,9 +1643,16 @@ export interface ComposeDecisionsOptions {
   /**
    * 'small': for a local ~9B decision model such as Ollama's nimble, which favours the first of two
    * options: pairwise order questions are asked in both orders, and near-ties follow the order in
-   * which the request names the parts (G-755)
+   * which the request names the parts (G-755); at most 8 parts per composition (`maxParts`); the
+   * category prefilter from 30 parts
    */
   profile?: 'small'
+  /**
+   * the most parts one composition selects (the most probable kept; required parts and companions
+   * come on top). Default: the catalog's `limits.maxParts` (12); 8 with `profile: 'small'`. The
+   * catalog's limit still caps the page
+   */
+  maxParts?: number
 }
 /**
  * the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`; for an

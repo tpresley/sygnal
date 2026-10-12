@@ -138,6 +138,7 @@
     "test:examples": "node scripts/test-examples.mjs",
     "test:recipes": "node scripts/test-recipes.mjs",
     "test:ai-local": "vitest run --testTimeout=600000 ollama.test",
+    "test:compose-live": "node --env-file-if-exists=\"${TYPESAFE_ENV_FILE:-$HOME/.config/typesafe/env}\" scripts/compose-live.mjs",
     "test:types": "npx tsc --project tsconfig.json --noEmit && npx tsc --project type-tests/tsconfig.json",
     "test:browser": "npm test --prefix browser-tests",
     "test:watch": "vitest",

@@ -7,7 +7,9 @@
  *   - params, records and edits: dev-plans/research/ai-compose/params-edits/params-edits.mjs (W).
  *
  * Steps (one `decide()` request each, through the HTTP sink):
- *   0. categories (only with `prefilter: true` and parts with a `category`): `cat_<id>` per category.
+ *   0. categories (parts with a `category`; `prefilter: true`, or the default 'auto' when the select
+ *      step would ask about more than PREFILTER_AT parts, PREFILTER_AT_SMALL with profile 'small'):
+ *      `cat_<id>` per category (B-5: same accuracy at about half the tokens, one more call).
  *   1. select (state: the request alone):
  *        use_<part> (omit / use; structure wording, params-edits wording for a part with params); count_<part> (0..maxUses) for a repeatable part;
  *        pick_<group> (omit + each member) for a `group` of alternatives;
@@ -324,7 +326,7 @@ function describe(c: any, id: string, params: any, record?: any) {
  * for further copies, `<part>__<record>` for records. Adds required parts and companions; caps at
  * limits.maxParts (keeping the most probable).
  */
-export function readSelect(c: any, a: any, {categories = null, records = {}}: any = {}) {
+export function readSelect(c: any, a: any, {categories = null, records = {}, maxParts}: any = {}) {
   const scored: any[] = [] // [{ part, params, record?, p }] in catalog order
   const ids = selectable(c, categories).filter(id => !recordParam(partOf(c, id)) || records[id]?.length)
   const seen = new Set<string>()
@@ -366,7 +368,7 @@ export function readSelect(c: any, a: any, {categories = null, records = {}}: an
     }
   }
   if (!scored.length) return {items: [], row: false, unavailable: true}
-  const max = c.limits?.maxParts ?? 12
+  const max = Math.min(c.limits?.maxParts ?? 12, maxParts ?? Infinity)
   let list = scored
   if (list.length > max) {
     const keep = new Set([...list].sort((x, y) => y.p - x.p).slice(0, max))
@@ -1362,19 +1364,36 @@ export interface DecisionsOptions {
   model?: string
   key?: string
   rowMean?: number
-  prefilter?: boolean
+  prefilter?: boolean | 'auto'
   maxOptions?: number
   profile?: 'small'
+  maxParts?: number
 }
+
+/**
+ * B-5: `prefilter: 'auto'` (the default) asks the category step first when the catalog has
+ * categories and the select step would ask about more parts than this (Jev: the ops console's 50
+ * parts compose as well with it, at about half the tokens and one more call, ~+0.2 s)
+ */
+export const PREFILTER_AT = 60
+/** the same for profile 'small' (a local model: input tokens are most of its time) */
+export const PREFILTER_AT_SMALL = 30
+/** profile 'small': the most parts one composition selects (Jev and others: the catalog's limits.maxParts, 12) */
+const SMALL_MAX_PARTS = 8
 
 const isOllama = (url: string) => /:11434\b|ollama/i.test(url)
 
-export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = false, maxOptions, profile}: DecisionsOptions = {}) {
+export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts}: DecisionsOptions = {}) {
   // profile 'small' (a local 9B decision model such as Ollama's nimble, G-755): pairwise order
   // questions asked in both option orders (it prefers the first option), and near-ties ordered by
   // where the request names the elements
   const small = profile === 'small'
   const debias = small
+  // B-5: profile 'small' selects at most 8 parts (fewer, surer picks); an explicit maxParts wins
+  const partsCap = maxParts ?? (small ? SMALL_MAX_PARTS : undefined)
+  /** whether a fresh composition asks the category step first */
+  const usePrefilter = (catalog: any) => !!categoriesOf(catalog).length && (prefilter === true ||
+    (prefilter === 'auto' && selectable(catalog).length > (small ? PREFILTER_AT_SMALL : PREFILTER_AT)))
   // a decide() server picks no default model: every request needs one (SYG681, the contract's
   // backend option problem; compose.llm() doesn't report it: a chat transport has its own default)
   if (typeof model != 'string' || !model) dev('SYG681', "compose.decisions() needs a `model` (the decision model's id, e.g. compose.decisions({ model: 'jev-latest' })); its requests go without one", 'error')
@@ -1430,7 +1449,7 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
       return {request: request(names, stepOf(catalog, next)), pending: next, decisions}
     }
     if (pending.step === 'select') {
-      const sel = readSelect(catalog, a, {categories: pending.categories, records: pending.records})
+      const sel = readSelect(catalog, a, {categories: pending.categories, records: pending.records, maxParts: partsCap})
       if (sel.unavailable) return {layout: null, unavailable: true as const, decisions}
       const p = plan(catalog, sel)
       if (!needsLayout(p)) return {layout: done(catalog, state, readLayout(catalog, sel, {}, {rowMean, prompt: small ? pending.prompt : null}), pending.previous), decisions}
@@ -1453,7 +1472,7 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
         const pending = {...base, step: 'edit', prompt, leaves, records: addRecords(catalog, state, prompt, leaves, max)}
         return {request: request(names, stepOf(catalog, pending)), pending}
       }
-      const pending = prefilter && categoriesOf(catalog).length
+      const pending = usePrefilter(catalog)
         ? {...base, step: 'categories', prompt}
         : selectPending(catalog, state, prompt, null, base)
       return {request: request(names, stepOf(catalog, pending)), pending}
