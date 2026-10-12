@@ -140,6 +140,8 @@ An item component instance belongs to its key, not its position:
 
 Keys are scoped to their Collection: two Collections in the same parent can contain items with the same ids without their DOM events or state crossing over.
 
+A `key` on the `<Collection>` tag itself is the Collection's identity, as a [component's `key`](/guide/components/#identity-key) is: a new key re-creates the Collection, so every item is a new instance: `DISPOSE` and `BOOTSTRAP` run again, and the `isolatedState` children inside the items start over, while the items' data in the array stays as it is (`<Collection key={state.listId} of={Row} from="rows" />`). The items' own keys are still their `id`s.
+
 ## Self-Removal
 
 An item can remove itself from the collection by returning `undefined` from a STATE reducer:

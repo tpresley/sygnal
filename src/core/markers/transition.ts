@@ -1,6 +1,6 @@
 /**
- * PLAN-4.6 core: the Transition marker (R2), registered on import by the public `Transition`
- * module. A template rewrite (registry `pres`): the `transition` marker is replaced by its first
+ * PLAN-4.6 core: the Transition marker (R2), registered by the public `Transition`
+ * when used (G-751). A template rewrite (registry `pres`): the `transition` marker is replaced by its first
  * child (walked on, at the marker's path), with snabbdom hooks that add the classes as today
  * (the 5.x core's applyTransitionHooks):
  * `${name}-enter|leave-from` + `-active`, two frames later `-from` becomes `-to`, and at the end
@@ -57,7 +57,7 @@ export function transitionHooks(vnode: any, p: {name?: string, duration?: number
 // (no global symbol registry entry per name)
 const T = Symbol()
 
-pres.transition = (n) => {
+const pre = (n: any) => {
   const child = n.children?.[0], p = n.data?.props || {}, k = p.name + ' ' + p.duration
   // no element child: the text child (or the marker itself, left as it is: today's behaviour)
   if (!child?.sel) return child || n
@@ -68,3 +68,6 @@ pres.transition = (n) => {
   // fragment or text has no element to animate: nothing happens
   return child.sel == 'collection' ? {...child, data: {...child.data, tr: (v: any) => (v[T] ||= {})[k] ||= transitionHooks(v, p)}} : transitionHooks(child, p)
 }
+
+/** G-751: registers the rewrite; the public `Transition` calls it when used (its `$reg`) */
+export const enableTransition = () => { pres.transition = pre }

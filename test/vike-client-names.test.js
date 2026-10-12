@@ -33,7 +33,7 @@ const { onRenderClient } = await import('../dist/vike/onRenderClient.mjs')
 // Depth-first search for the vnode carrying the Page (its component function in data.c)
 function findPage(vnode) {
   if (!vnode || typeof vnode !== 'object') return null
-  if (vnode.key === '__vike_page__') return vnode
+  if (vnode.data?.c && vnode.data.props?.id === 'p') return vnode
   for (const child of vnode.children || []) {
     const hit = findPage(child)
     if (hit) return hit

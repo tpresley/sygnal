@@ -1,5 +1,5 @@
-// the core's resolver for lazy components, registered on import (D157)
-import './core/markers/lazy';
+// the core's resolver for lazy components (D157), registered by the first lazy() call (G-751)
+import {enableLazy} from './core/markers/lazy';
 
 /**
  * PLAN-5 B-4 (D103): `when` defers the import: 'visible' starts it when a placeholder enters the
@@ -24,6 +24,7 @@ export interface LazyOptions {
 const WHEN = 'data-sygnal-when';
 
 export function lazy(loadFn: () => Promise<any>, options?: LazyOptions): any {
+  enableLazy();
   let cachedComponent: any = null;
   let loadError: any = null;
   const g: any = globalThis, when = options?.when, ph = options?.placeholderHeight;

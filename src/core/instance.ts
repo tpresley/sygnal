@@ -52,12 +52,15 @@ function extractSlots(children: any[]): [any[], Record<string, any[]>] {
   return [slots.default || [], slots]
 }
 
-/** an instance's id among its parent's children: its `id` prop, else its path in the view */
+/**
+ * an instance's id among its parent's children (D456): its vnode `key`, else its `id` prop, else
+ * its path in the view
+ */
 const idOf = (n: any, path: string) => {
-  const id = n.data?.props?.id
+  const id = n.key ?? n.data?.props?.id
   let s: any
   // (G-298: an id JSON can't encode, a BigInt, is used as its string)
-  if (id) try { s = JSON.stringify(id) } catch (_) { s = String(id) }
+  if (id != null) try { s = JSON.stringify(id) } catch (_) { s = String(id) }
   return `${n.sel}::${(s && s.replace(/"/g, '')) || path}`
 }
 

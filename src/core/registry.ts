@@ -1,9 +1,13 @@
 /**
- * PLAN-4.6 core: the module registries (04-hooks-contract §2.1). A feature module fills them
- * when it is imported; the core only looks them up, so an app that never imports the module pays
- * nothing (D157). R2 fills hosts (core/hosts: Collection, Switchable) and the markers
- * (core/markers: Portal, Transition, ClientOnly, Suspense, lazy), each imported by its public
- * module; R3 adds the definition hooks (behaviors, undo, selection, pager, persist, resources).
+ * PLAN-4.6 core: the module registries (04-hooks-contract §2.1). A feature fills them when it is
+ * used; the core only looks them up, so an app that never uses the feature pays nothing (D157).
+ * R2 fills hosts (core/hosts: Collection, Switchable) and the markers (core/markers: Portal,
+ * Transition, ClientOnly, Suspense, lazy). G-751: Portal, Transition and Suspense register their
+ * handler when a tag uses them (the pragma calls the marker's `$reg`) and `lazy()` its resolver,
+ * not on import: a module-level registration is kept by every bundle of the single-file build.
+ * Collection and Switchable register on import (the lowercase `<collection>` / `<switchable>`
+ * work without one); ClientOnly's is in runtime.ts (sygnal/vike can't reach the registry). R3
+ * adds the definition hooks (behaviors, undo, selection, pager, persist, resources).
  *
  * The entries are core modules: they get the owner's raw instance (hooks get InstanceViews).
  */

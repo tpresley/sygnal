@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 core: Suspense (R2), registered on import by the public `Suspense` module. A
+ * PLAN-4.6 core: Suspense (R2), registered by the public `Suspense` when used (G-751). A
  * post-processor (registry `posts`) of the injected vnode of an instance whose template has a
  * `suspense` marker (the 5.x core's processSuspensePost):
  * - the core injects a child whose READY is false with data-sygnal-ready="false", and a lazy
@@ -38,4 +38,5 @@ export function suspensePost(v: any): any {
   return out ? {...v, children: out} : v
 }
 
-posts.suspense = suspensePost
+/** G-751: registers the post-processor; the public `Suspense` calls it when used (its `$reg`) */
+export const enableSuspense = () => { posts.suspense = suspensePost }

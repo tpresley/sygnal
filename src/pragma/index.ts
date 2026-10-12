@@ -322,7 +322,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
     if (typeof text === 'undefined') plain = !!(flatten(children, kids = []) & +plain)
     // G-492: a custom element (bit 8) routes list as a prop, in its own cache
     const d = data ? sanitizeData(data, modules, isComponent ? croutes : t & 8 ? xroutes : routes, isComponent || t & 8 && 2) : {}
-    if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn
+    // G-751: a marker's core handler registers on first use (`$reg`), not when its module loads
+    if (fn) d[fn.preventInstantiation ? 'm' : 'c'] = fn, fn.$reg?.()
     const key = k !== undefined ? k : data ? data.key : undefined
     const vnode = plain ? new (Plain as any)(sel, d, kids, text, key) : { sel, data: d, children: kids, text, elm: undefined, key }
     if (t & 2) applySvg(vnode)

@@ -855,6 +855,13 @@ export const EXPLANATIONS = {
     explanation: "The `compose` behavior (sygnal/ai) needs a backend, `compose.decisions({ model, … })` or `compose.llm({ model, … })`, and a catalog made by `defineCatalog()`: without them `compose()` throws with this code. `compose.decisions()` made without a `model` is reported in development: its `decide()` requests name no model, which a decision service rejects unless your server route fills it in. `compose.llm()` without a `model` is not reported: the chat transport sends its own default (`openResponses({ model })`, …).",
     fix: "Pass both: `compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }) })`. For `compose.decisions()`, pass the model even when your server picks one, so the request documents it.",
   },
+  SYG453: {
+    title: "Two children with the same identity share one instance",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.",
+    fix: "Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.",
+  },
   SYG501: {
     title: "Removed in 6.0: view with positional arguments",
     severity: "error",

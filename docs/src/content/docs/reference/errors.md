@@ -1718,6 +1718,16 @@ A layout's node keys are identities: each node appears in exactly one slot, once
 
 **Fix:** Give each node its own key (a repeat of a part is `part~2`), and move a node by removing its key from the old slot. `fromTree(catalog, tree, previous)` builds keys for you.
 
+### SYG453
+
+**Two children with the same identity share one instance**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.
+
+**Fix:** Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501
