@@ -391,7 +391,7 @@ Show `sygnal-check`'s findings in the editor while the code is being written, fr
 
 ### 21. Composing UI from Prepared Parts (PLAN-9)
 
-**Status:** `DONE`: ships in **6.3.0** with `sygnal-check` 0.6.0, `create-sygnal-app` 2.4.0 (templates: `sygnal` ^6.3.0, `sygnal-check` ^0.6.0), the VS Code extension 0.3.0 and the Claude Code plugin 0.1.2 ([PLAN-9](dev-plans/PLAN-9.md), tracker [PLAN-9-status](dev-plans/PLAN-9-status.md); research in [`ai-compose/PROPOSAL.md`](dev-plans/research/ai-compose/PROPOSAL.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). Additive (D460); the size gate went down to 42,504 B (lazy marker handlers, G-751), and `sygnal/ai` stays tree-shaken from apps that don't import it.
+**Status:** `DONE`: shipped in **6.3.0** (2026-10-11) with `sygnal-check` 0.6.0, `create-sygnal-app` 2.4.0 (templates: `sygnal` ^6.3.0, `sygnal-check` ^0.6.0), the VS Code extension 0.3.0 and the Claude Code plugin 0.1.2 ([PLAN-9](dev-plans/PLAN-9.md), tracker [PLAN-9-status](dev-plans/PLAN-9-status.md); research in [`ai-compose/PROPOSAL.md`](dev-plans/research/ai-compose/PROPOSAL.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). Additive (D460); the size gate went down to 42,504 B (lazy marker handlers, G-751), and `sygnal/ai` stays tree-shaken from apps that don't import it.
 
 Let a model build an app's UI from parts the app prepared (real Sygnal components with their own state and wording) and edit it on follow-ups, without writing markup, state paths or action names. One catalog serves decision models (`decide()`) and LLMs with structured output, and lets a chat assistant ask the user with a card.
 

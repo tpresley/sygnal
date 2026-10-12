@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0–3 complete (2026-10-11). Phase 4: release prep done and merged (not published); E-4 done (24/24). **Release 6.3.0 in progress** (user, 2026-10-11): CHANGELOG dated, merged to main; publishing by the user (no npm login on the coordinator's machine).
+**State:** Phases 0–3 complete (2026-10-11). Phase 4: release prep done and merged (not published); E-4 done (24/24). **Released 2026-10-11:** sygnal 6.3.0, sygnal-check 0.6.0, create-sygnal-app 2.4.0 (npm, published by the user), VS Code extension 0.3.0 (Marketplace + Open VSX, by the user), Claude Code plugin 0.1.2. **PLAN-9 complete.**
 
 ## Decisions
 
@@ -82,6 +82,8 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Time per composition | ~0.35 s | ~3 s | ~3.4 s | — |
 
 ## Verification log
+
+- 2026-10-11, **released**: main `9511e616` (merge of plan9-integration); tags `v6.3.0`, `vscode-v0.3.0`, `sygnal--v0.1.2`; GitHub release 6.3.0 (Latest, notes from CHANGELOG, `sygnal-0.3.0.vsix` attached). Registry smoke check (§7): all 10 templates from create-sygnal-app 2.4.0 install sygnal 6.3.0 + sygnal-check 0.6.0, tests pass, `sygnal-check --strict` 0 warnings, `tsc` OK (5 TS templates), build OK, `llms.txt` present; Vike client navigation (vike-js, vike-ts, Chromium/Playwright): hydration, no document request on navigation, one nav bar, no console errors or warnings. Plugin smoke test (scratch CLAUDE_CONFIG_DIR): installs from the marketplace with 1 skill (sygnal-dev) and 1 LSP server.
 
 - 2026-10-11, **release prep** (`c3d7ea1c`, merged; not published): sygnal 6.3.0, sygnal-check 0.6.0, create-sygnal-app 2.4.0 (templates `sygnal ^6.3.0`, `sygnal-check ^0.6.0`), VS Code extension 0.3.0, Claude Code plugin 0.1.2; CHANGELOG 6.3.0 (date set at publish); release notes draft `dev-plans/release-notes-6.3.0.md`. Checks: full gate green (vitest 4,907; browser 377/377; perf), size 42,504 B, sygnal-check 1,312, doc samples 837, error docs current, check-live chromium 116/116, extension tests 11/11 + smoke (bundles sygnal-check 0.6.0), `claude plugin validate` OK, all 10 templates install/test/strict/tsc/build from local tarballs, `npm pack` lists reviewed (dist/guide has ai-compose.md and ai-cards.md), secret scan of packed files clean. main had no new commits (no merge needed).
 
