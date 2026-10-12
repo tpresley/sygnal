@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0–3 complete (2026-10-11). Phase 4: release prep done and merged (not published); E-4 done (24/24); then release on the user's go-ahead.
+**State:** Phases 0–3 complete (2026-10-11). Phase 4: release prep done and merged (not published); E-4 done (24/24). **Release 6.3.0 in progress** (user, 2026-10-11): CHANGELOG dated, merged to main; publishing by the user (no npm login on the coordinator's machine).
 
 ## Decisions
 

@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## 6.3.0 — <release date: set at publish (RELEASING §1)>
+## 6.3.0 — 2026-10-11
 
 Composing UI with a model (PLAN-9). An app declares its parts once in a catalog, the user describes a page or an edit in words, and a model builds it from those parts: a decision model answering multiple-choice questions (TypeSafe Jev, Ollama's `nimble`) or an LLM with structured output, with the same catalog, app code and tests for both. The composition is plain JSON in state, each part is an ordinary child component, and follow-up requests edit the page while keeping the state of the parts they don't touch. The same catalog lets a chat assistant ask the user with a card instead of in text (`chat({ ask })`), on top of client tools for the `chat` behavior. Around it: `decide()` splits large question sets, `byId()` lenses, and a component's `key` is now its identity.
 
