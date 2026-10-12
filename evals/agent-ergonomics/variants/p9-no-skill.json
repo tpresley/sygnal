@@ -1,0 +1,5 @@
+{
+  "description": "PLAN-9 E-4 eval, llms.txt-only side: the same build and starter as p9-final but no sygnal-dev skill (the content of e5-no-skill). The agent has only the package (node_modules/sygnal/llms.txt, dist/guide/ai-compose.md and ai-cards.md, README) and the starter's AGENTS.md, which points at llms.txt. Answers whether llms.txt alone teaches defineCatalog/compose and chat({ ask })",
+  "sygnal": "branch",
+  "skill": "none"
+}

@@ -7,7 +7,8 @@
 // PLAN-3 0-C, 5-6), ergo = 26-29 (autosave, undo/redo, stopwatch, accessible signup; PLAN-4 0-C),
 // p5 = 30-34 (checkout form, command menu, chart widget, virtual list, sortable list; PLAN-5 4-E),
 // mod = 35-43 (modify existing code: add / change / remove at three app sizes; PLAN-5 p5-mod),
-// p6 = 44-47 (streaming chat, in-app assistant with tools, decision triage, WebMCP tools; PLAN-6 4-E).
+// p6 = 44-47 (streaming chat, in-app assistant with tools, decision triage, WebMCP tools; PLAN-6 4-E),
+// p9 = 48-49 (a part added to a composed dashboard, an ask-the-user card in a chat; PLAN-9 E-4).
 // A new task in an existing tier needs its range widened here.
 
 export const TIERS = {
@@ -20,13 +21,14 @@ export const TIERS = {
   p5: (n) => n >= 30 && n <= 34,
   mod: (n) => n >= 35 && n <= 43,
   p6: (n) => n >= 44 && n <= 47,
+  p9: (n) => n >= 48 && n <= 49,
 }
 
 const taskNum = (t) => Number(String(t).slice(0, 2))
 const pad = (n) => String(n).padStart(2, '0')
 
 /**
- * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "ts", "net", "ergo", "p5", "mod", "p6", "03",
+ * Which task numbers a --tasks spec selects: "all", "tier1".."tier3", "ts", "net", "ergo", "p5", "mod", "p6", "p9", "03",
  * "01-05", or a comma list of these. Returns a predicate over task numbers.
  */
 export function taskSelector(spec = 'all') {
@@ -42,7 +44,7 @@ export function taskSelector(spec = 'all') {
     }
     m = p.match(/^(\d{1,2})(?:-[a-z][\w-]*)?$/)
     if (m) return (n) => n === Number(m[1])
-    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3|ts|net|ergo|p5|mod|p6, 03, 01-05, or a comma list)`)
+    throw new Error(`Bad --tasks entry "${p}" (use all, tier1|tier2|tier3|ts|net|ergo|p5|mod|p6|p9, 03, 01-05, or a comma list)`)
   })
   return (n) => preds.some((f) => f(n))
 }
