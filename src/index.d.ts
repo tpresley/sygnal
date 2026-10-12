@@ -3754,6 +3754,17 @@ export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from '
 // PLAN-6 M-2 / M-3 (3-M)
 export { answers, commandBar } from './ai.d'
 export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, CommandBarActions, CommandBarOptions, CommandBarResult, CommandBarUnsure } from './ai.d'
+// PLAN-9 (A): catalogs, the compose behavior, composeWith, the layout utilities
+export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } from './ai.d'
+export type { Catalog, CatalogDecl, CatalogPartDecl, CatalogContainerDecl, CatalogParam, CatalogParamValue, CatalogParamsOf, CatalogRecord, CatalogPart, CatalogContainer, CatalogOption, CatalogTree, CatalogTreeNode, ComposeTree, ContainerView, Layout, LayoutNode, ComposeRenderOptions, ComposeRenderable, ComposeBackend, ComposeNames, ComposeState, ComposeStatus, ComposeActions, ComposeOptions, ComposeAnswer } from './ai.d'
+
+/**
+ * PLAN-9 (D463): a `{ get, set }` lens to the element of the array `state[field]` whose `idKey`
+ * (default 'id') is `id`: a record part's state (`state: (node) => byId('projects',
+ * node.params.id)`) or any child's `state={byId('todos', 3)}`. `get` is undefined once the element
+ * is gone; `set` then leaves the state unchanged.
+ */
+export function byId<T = any, S = any>(field: string, id: unknown, idKey?: string): { get(state: S): T | undefined; set(state: S, value: T): S }
 // PLAN-6 X-1 (3-X)
 export { makeMcpAppDriver } from './ai.d'
 export type { McpAppDriverOptions, McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext, McpContentBlock, McpAppDisplayMode } from './ai.d'

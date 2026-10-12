@@ -40,3 +40,6 @@ export {fromAISDK} from './transports/fromAISDK'
 export {strictSchemas} from './schema/strict'
 // X-1 (3-X): MCP Apps, the view side
 export {makeMcpAppDriver} from './mcpApp'
+// PLAN-9 (A): catalogs (K-1), render (K-2), layout utilities (K-3), the compose behavior (C-1),
+// composeWith (T-1)
+export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode} from './compose/index'
