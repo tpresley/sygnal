@@ -10,7 +10,8 @@
  *   the layout is kept) | 'error' (the layout is kept; `error` says why);
  * - layout: the last finished layout; preview: the one being built (rendered instead while set);
  * - pending: the backend's step (plain JSON); decisions: what the backend explains (its last);
- * - ui: container state per node key (CONTROL: `{ key, name, value }` → ui[key][name] = value);
+ * - ui: container state per node key (CONTROL: `{ key, name, value }` → ui[key][name] = value; the
+ *   clicks are read only when a container has its own render);
  *   local: the state of `local` parts per node key.
  *
  * Actions ('page.X'): COMPOSE (data: a prompt string, `{ prompt, fresh? }`, or the form's submit:
@@ -124,6 +125,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
   // `prompt` (a selector) must not set the slice's prompt (defineBehavior merges options naming
   // initialState keys): the factory gets the other options
   const {prompt: _selector, ...rest} = options
+  const controls = Object.values(catalog.containers || {}).some((c: any) => typeof c.decl?.render == 'function')
   return defineBehavior({
     initialState: {prompt: '', status: 'idle', layout: null, preview: null, pending: null, decisions: null, error: null, ui: {}, local: {}},
     intent: (so: any, _o: any, k: string) => {
@@ -132,9 +134,11 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
       return {
         ...(promptSel && {PROMPT: DOM.select(promptSel).events('input').map((e: any) => e.target.value)}),
         ...(form && {COMPOSE: DOM.select(form).events('submit', {preventDefault: true}).mapTo(undefined)}),
-        CONTROL: DOM.select('[data-compose-control]').events('click').map(controlOf)
+        // only when a container has its own render (the built-in views render no controls): else
+        // the selector never matches (SYG103 in dev)
+        ...(controls && {CONTROL: DOM.select('[data-compose-control]').events('click').map(controlOf)
           .filter((c: any) => c && c.scope === undefined && (c.at === undefined || c.at === k))
-          .map(({key, name, value}: any) => ({key, name, value})),
+          .map(({key, name, value}: any) => ({key, name, value}))}),
       }
     },
     model: {
