@@ -12,6 +12,7 @@
  *                 node is dropped)
  *   SYG252 warn   a record param's `from` doesn't return an array of `{ value }` (or threw)
  *   SYG450 warn   `in` names an unknown container or slot
+ *   SYG451 warn   `<Composed>` without a catalog, `from` not a composition, `card` not a tool part
  *   SYG452 warn   a node key listed twice in a layout (only the first place is kept)
  *   SYG681 error  a backend option problem (compose.decisions() with no `model`; no backend or catalog: thrown)
  */

@@ -348,6 +348,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG251: 'Invalid param value in a layout',
   SYG252: 'Record param from() does not return an array of { value }',
   SYG450: 'Catalog in names an unknown container or slot',
+  SYG451: 'Composed has no catalog or from is not a composition',
   SYG452: 'Layout lists a node key twice',
   SYG681: 'Compose backend option problem',
   // PLAN-9 B-1/B-2: compose.decisions() (src/extra/ai/compose/decisions.ts; explicit severities)
@@ -571,6 +572,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG251: 'warn',
   SYG252: 'warn',
   SYG450: 'warn',
+  SYG451: 'warn',
   SYG452: 'warn',
   SYG681: 'error',
   // PLAN-9 X-2: static only (sygnal-check); listed so the entry knows their titles

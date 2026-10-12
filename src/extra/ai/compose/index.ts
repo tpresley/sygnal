@@ -19,3 +19,5 @@ export {defineCatalog} from './catalog'
 export {fromTree, toTree, removeNode} from './layout'
 export {composeWith} from './testing'
 export {askCard} from './ask'
+// M-1 (D466): <Composed catalog from />, registered when a tag uses it (G-751)
+export {Composed} from './composed'

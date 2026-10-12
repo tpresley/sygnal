@@ -43,3 +43,5 @@ export {makeMcpAppDriver} from './mcpApp'
 // PLAN-9 (A): catalogs (K-1), render (K-2), layout utilities (K-3), the compose behavior (C-1),
 // composeWith (T-1)
 export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode, askCard} from './compose/index'
+// PLAN-9 M-1: the <Composed> marker
+export {Composed} from './compose/index'

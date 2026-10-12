@@ -1765,3 +1765,32 @@ export function openToolCalls(state: ChatState): ChatToolPart[]
  * while the card has no layout.
  */
 export function askCard(catalog: Catalog<any>, state: any, part: ChatToolPart, options?: { key?: string }): any
+
+/** PLAN-9 M-1: `<Composed>`'s props */
+export interface ComposedProps {
+  /** the catalog (defineCatalog's result); missing: SYG451, nothing rendered */
+  catalog: Catalog<any>
+  /**
+   * Where the composition is in the host's state: a key (default 'page') or a path
+   * (['boards', 0, 'page']); with `card`, the chat's key (default 'assistant'). Not a composition
+   * (an object with `layout`): SYG451, nothing rendered
+   */
+  from?: string | ReadonlyArray<string | number>
+  /** an `ask_user` tool part: its card, as askCard() renders it (scope, frozen and answer from the part) */
+  card?: ChatToolPart
+  /** as catalog.render's options (they override the card's) */
+  scope?: string
+  frozen?: boolean
+  answer?: { node: string; value: unknown } | null
+  key?: string | number
+}
+
+/**
+ * PLAN-9 M-1 (D466): `<Composed catalog={catalog} from="page" />` renders the composition at `from`
+ * in the host's state, as `{catalog.render(state.page, state)}` in the view does: the parts are the
+ * host's children (same keys, CHILD.select, lenses). Differences: it reads the host's own state (a
+ * composition computed in the view needs render()), and a container view or part `props()` that
+ * throws replaces only the composition with the host's `onError` (SYG408), where render() shows an
+ * empty `.compose-error` element (SYG406).
+ */
+export function Composed(props: ComposedProps): JSX.Element
