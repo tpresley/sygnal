@@ -332,7 +332,7 @@ Both backends implement `{ sink, start, reply, delta? }` with pending steps as p
 - Concepts, the catalog, both backends, the behavior, edits, testing, and the authoring rules for
   descriptions.
 - Live demos (remark-live):
-  - a decision demo whose demo server answers `POST /v1/systemone` with `answers()` fixtures;
+  - a decision demo whose demo server answers `POST /api/decide` (the backend's default url) by question name;
   - an LLM demo through the existing DX-1 `LLM` route (`encodeOpenResponses`);
   - an edit demo.
 - After the docs change: `check-live` on all three browsers.
