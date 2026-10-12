@@ -4,7 +4,11 @@
 // Covers the labelled edit cases of the research (tuned + held-out) as round trips through fake(),
 // the key rules, random edits of random layouts over every research catalog, nested containers
 // (`into:`), and the wording. No network.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach, beforeEach } from 'vitest'
+import { setupChecks } from './diagnostics/helpers.js'
+import { renderComponent } from '../src/extra/testing.ts'
+import { composeWith, compose } from '../src/extra/ai/index.ts'
+import { makeApp, catalog as appCatalog } from './p9-compose-app.js'
 import { decisions, editLeaves, EDIT } from '../src/extra/ai/compose/decisions.js'
 import { defineCatalog } from '../src/extra/ai/compose/catalog'
 import { fromTree, toTree, finish } from '../src/extra/ai/compose/layout'
@@ -308,5 +312,46 @@ describe('compose.decisions() edits: random edits of random layouts round-trip t
     }
     expect(tried).toBeGreaterThan(2000)
     expect(missed / tried).toBeLessThan(0.01)
+  })
+})
+
+// ---------- through the compose behavior ----------
+describe('compose.decisions() edits in the compose behavior', () => {
+  let t
+  beforeEach(() => setupChecks())
+  afterEach(() => { t?.dispose(); t = null })
+
+  it('a follow-up is an edit: a preview after call 1, keys and instances kept, a setting changed in place, a part moved into a tab', async () => {
+    const backend = compose.decisions({ model: 'jev-latest' })
+    t = renderComponent(makeApp(backend), { strict: true })
+    t.simulateAction('page.COMPOSE', 'The revenue chart, my tasks and the orders')
+    await t.next((s) => s.page.status === 'composing')
+    await composeWith(t, appCatalog, [{ part: 'revenueChart' }, { part: 'tasks' }, { part: 'orders' }])
+    await t.waitForState((s) => s.page.status === 'done')
+    t.simulateEvent('.task-toggle[data-id="2"]', 'change')
+    await t.next((s) => s.tasks[1].done)
+    const before = t.state.page.layout
+    const ids = () => t.inspect().components.filter((c) => c.name === 'Checklist').map((c) => c.id)
+    const checklist = ids()
+
+    t.simulateAction('page.COMPOSE', 'Quarterly chart, and put the tasks and the orders in tabs')
+    await t.next((s) => s.page.status === 'composing')
+    expect(t.state.page.pending.step).toBe('edit')
+    const target = [{ part: 'revenueChart', params: { range: 'quarter' } }, { part: 'tabs', children: { overview: [{ part: 'tasks' }], billing: [{ part: 'orders' }] } }]
+    // call 1 only: the preview shows the settings change while call 2 places the movers
+    await t.respond('HTTP', backend.fake({ catalog: appCatalog, state: t.state, pending: t.state.page.pending, target }), 'page.REPLY')
+    await t.waitForState((s) => s.page.status === 'preview')
+    expect(t.state.page.preview.nodes.revenueChart.params).toEqual({ range: 'quarter' })
+    expect(t.state.page.pending.step).toBe('where')
+    await composeWith(t, appCatalog, target)
+    await t.waitForState((s) => s.page.status === 'done' && s.page.layout.nodes.tabs)
+    const after = t.state.page.layout
+    expect(toTree(after)).toEqual(target)
+    for (const k of ['revenueChart', 'tasks', 'orders']) expect(after.nodes[k].part).toBe(before.nodes[k].part)
+    expect(Object.keys(t.state.page.decisions)).toEqual(['edit', 'where'])
+    expect(t.state.tasks[1].done).toBe(true)
+    expect(ids()).toEqual(checklist)
+    expect(t.query('[data-range]')?.getAttribute('data-range') ?? t.query('.chart').getAttribute('data-range')).toBe('quarter')
+    t.expectNoDiagnostics()
   })
 })
