@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2: all items merged (B-4, C-2, X-2, H-1–H-3, D-1); the guide's edit/cards/agent sections in progress (`p9-docs2`); full gate running. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3 next: H-3 polish/G-756, E-2 `examples/ai-ask`, E-3 live accuracy check, B-5 large catalogs, D-2…D-4 (llms.txt +2 lines, skill, reference), M-1 `<Composed>`. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -62,7 +62,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | M-1 `<Composed>` | todo (D466) | from `exp/p9-composed` `fce942d6` |
 | X-1 runtime diagnostics | done | SYG161, 162, 250, 251, 252, 450, 452, 680, 681, 682, 683; explanations + errors doc regenerated (189 codes) |
 | X-2 sygnal-check rules + description lint | done (`a87d7778`, merged) | static on literal `defineCatalog({...})`: SYG162, SYG161 (follows imports), SYG450, SYG250 (companions), SYG680 (only with an inline/const `compose.decisions` backend); new **SYG253** (warn, static: misspelled declaration key + rename quick fix) and **SYG254** (info, static: description lint — shared 2-content-word phrase between parts outside one group, a description naming its own param value, overlapping option words between params of a part). Calibration on 158 parts / 11 research catalogs + the example: the known bad pair and the params-OPS held-out miss flagged; 4 findings on structure ops (3 plausible, 1 likely FP); the rest clean. sygnal-check: 19 new tests; coordinator re-ran them + the 3 LSP tests that timed out under load: 105 pass |
-| D-1…D-4 docs | D-1 done (`8de40f7e`, merged): `guide/ai-compose.md` ("Composing UI with a Model"; catalog, writing descriptions, behavior, parts as real components, backends + measured table, keys on the server, testing on both backends); 3 live demos (decisions dashboard composing on load with the answers shown; a checklist part writing app state + CHILD.select; an LLM streaming the layout) on one demo server (a word-matching stand-in for `/api/decide` and `/v1/responses`); sidebar + links; check-live ok on chromium/firefox/webkit (coordinator re-ran chromium: 3/3). Placeholders to expand after the Phase 2 merges: edits (end of "Actions"), "Cards in a chat". D-2…D-4 Phase 3 | |
+| D-1…D-4 docs | D-1 done (`8de40f7e` + `a111ec40`, merged; the second adds "Follow-up edits" with `profile: 'small'`, "Compose from an agent", and the new page `guide/ai-cards.md` "Cards in a Chat" with a live chat demo that asks with two cards; check-live 116/116 on chromium, firefox and webkit; check-doc-samples 830 clean): `guide/ai-compose.md` ("Composing UI with a Model"; catalog, writing descriptions, behavior, parts as real components, backends + measured table, keys on the server, testing on both backends); 3 live demos (decisions dashboard composing on load with the answers shown; a checklist part writing app state + CHILD.select; an LLM streaming the layout) on one demo server (a word-matching stand-in for `/api/decide` and `/v1/responses`); sidebar + links; check-live ok on chromium/firefox/webkit (coordinator re-ran chromium: 3/3). Placeholders to expand after the Phase 2 merges: edits (end of "Actions"), "Cards in a chat". D-2…D-4 Phase 3 | |
 | E-1 `examples/ai-compose` on the API | done (merged `8eb493c1`; its real-DOM test passes since G-753) | catalog of the 9 parts with enum/number params; two hosts (decisions on HTTP, llm on LLM) behind a Switchable sharing app state; backend picker from /api/tags + Jev; dev-only Jev proxy (`server/decide-proxy.js`: key from `TYPESAFE_ENV_FILE`, never logged or returned, POST JSON ≤ 512 kB, model allowlist, cross-site refused); 22 tests (1 `it.fails`: G-753); strict clean; vite build OK. Live `npm run try`: nimble 7/11 flat + 3/4 params (~4.5 s), qwen3:8b 9/11 + 4/4 (~1.4 s) |
 | E-2 `examples/ai-ask` | todo | |
 | E-3 live accuracy check | todo | |
@@ -80,6 +80,8 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Time per composition | ~0.35 s | ~3 s | ~3.4 s | — |
 
 ## Verification log
+
+- 2026-10-11, **Phase 2 complete** (`p9-docs2` merged): docs build 103 pages, links and code titles OK; check-doc-samples 830, 0 strict; check-live 116 demos on chromium, firefox and webkit (worker); coordinator re-ran chromium for ai-compose (3), ai-chat (4) and ai-cards (1): all ok.
 
 - 2026-10-11, **Phase 2 code merged** (`d6b5cb1f`: B-4 both backends, C-2, X-2, H-1–H-3, D-1), full gate on that commit: vitest 4,711 passed / 33 skipped; examples 10/10 suites (ai-compose 22); test:types; browser chromium all passed, WebMCP 45/45; perf gate within limits; size gate (a) **42,504 B** (unchanged: all Phase 2 code is in sygnal/ai, tree-shaken), (b) 38,485 B, (c) core 18,346 B; sygnal-check 1,283 passed.
 

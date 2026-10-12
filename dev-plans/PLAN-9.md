@@ -19,6 +19,7 @@
 
 **Status:**
 - Phase 0 complete (2026-10-11): spikes in the tracker, decisions D466–D470 (marker ships; budget may rise after G-751; G-750 in 6.3.0).
+- Phase 2 complete (2026-10-11): edits on both backends, compose as an agent action, chat client tools and `ask` cards (+ a chat reload bug fixed), sygnal-check catalog rules and description lint, the guide pages `ai-compose` and `ai-cards`. Size unchanged at 42,504 B.
 - Phase 1 complete (2026-10-11): catalog, render, layout, both backends, the `compose` behavior, `composeWith`, the per-backend matrix, runtime diagnostics, `examples/ai-compose`; core: key identity, lazy markers (G-751), move fixes (G-750, G-753), SYG453. Size 42,504 B, budget not raised. Details in the tracker.
 - Before Phase 0: The proposal this plan builds on is
   [`research/ai-compose/PROPOSAL.md`](research/ai-compose/PROPOSAL.md).
