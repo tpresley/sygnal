@@ -10,7 +10,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.js'
 import { resetChecks } from '../src/extra/diagnostics/checks/index.js'
 import { CODE_TITLES, DEV_CODE_SEVERITY } from '../src/extra/diagnostics/codes.ts'
-import fs from 'node:fs'
+import { rollup } from 'rollup'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -29,12 +29,23 @@ function Item({ state }) { return h('li', { className: 'item' }, state.text) }
 function PageA() { return h('p', { className: 'page' }, 'A') }
 
 describe('SYG426: a lowercase marker tag', () => {
-  it('is a dev-entry warning with a title; the core build has none of it (0 production bytes)', () => {
+  it('is a dev-entry warning with a title; an app bundle has none of it (0 production bytes)', async () => {
     expect(DEV_CODE_SEVERITY.SYG426).toBe('warn')
     expect(CODE_TITLES.SYG426).toBe('Deprecated lowercase marker tag')
+    // the build, bundled into an app as its bundler would (Rollup; dependencies external)
     const dist = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), 'dist', 'index.esm.js')
-    expect(fs.readFileSync(dist, 'utf8')).not.toContain('SYG426')
-  })
+    const APP = ["import { run, createElement as h } from 'sygnal'", "function A() { return h('ul', null, h('collection', { of: A, from: 'x' })) }", 'run(A)'].join('\n')
+    const b = await rollup({
+      input: 'app',
+      external: (id) => id !== 'app' && id !== 'sygnal' && id !== dist,
+      plugins: [{ name: 'app', resolveId: (id) => (id === 'app' ? id : id === 'sygnal' ? dist : null), load: (id) => (id === 'app' ? APP : null) }],
+      onwarn: () => {},
+    })
+    const { output } = await b.generate({ format: 'esm' })
+    await b.close()
+    expect(output[0].code.length).toBeGreaterThan(10000)
+    expect(output[0].code).not.toContain('SYG426')
+  }, 30000)
 
   it('<collection> and <switchable>: warned once per tag, and they still render', async () => {
     function App({ state }) {
