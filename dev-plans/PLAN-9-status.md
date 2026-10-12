@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3: E-2, M-1 and the D471 deprecation merged; `p9-polish` merged (sygnal-check `chat`/`compose` behavior tables: examples strict-clean; `part.ui.decisions` on cards + the explain-panel question names documented; `chat({ model: (state) => … })` and `compose.llm({ model })` resolved per request; `asked_for` items as long as the longest text param (min 60) and a 'question: undefined' prompt bug fixed; the random-edit test 100/catalog by default, 300 under `P9_HEAVY=1`, 20 s timeout). D-2…D-4, E-3, B-5 and G-756 merged. Running `p9-g757`; then the full gate and Phase 3 close. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phases 0–3 complete (2026-10-11). Phase 4 next: E-4 agent eval (spend asked first, D465) and release prep for 6.3.0 (D460).
 
 ## Decisions
 
@@ -82,6 +82,8 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Time per composition | ~0.35 s | ~3 s | ~3.4 s | — |
 
 ## Verification log
+
+- 2026-10-11, **Phase 3 complete** (`542ca51a` + tracker): full gate: vitest 4,907 passed / 33 skipped; examples 11/11 suites (ai-ask, ai-compose); test:types; browser chromium 377/377; perf gate within limits; size gate (a) **42,504 B** (budget 42,700, not raised); sygnal-check 1,312 passed; docs build (103 pages, links, code titles); check-doc-samples 837 clean, 0 strict; check-live **116/116 on chromium, firefox and webkit**.
 
 - 2026-10-11, **Phase 2 complete** (`p9-docs2` merged): docs build 103 pages, links and code titles OK; check-doc-samples 830, 0 strict; check-live 116 demos on chromium, firefox and webkit (worker); coordinator re-ran chromium for ai-compose (3), ai-chat (4) and ai-cards (1): all ok.
 
