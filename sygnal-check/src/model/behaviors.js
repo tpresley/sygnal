@@ -115,14 +115,32 @@ export const FIRST_PARTY = {
   // PLAN-6 L-3: chat(options) from 'sygnal/ai' (src/extra/ai/chat/behavior.ts). Its selectors are
   // the host's (the panel markup is part of the host's view, often a helper function it calls).
   // The chat driver's replies (DELTA, REPLY, FAILED), the tool loop (RESULTS, ASK) and DONE come
-  // from outside its intent; a host entry 'assistant.DONE' extends DONE
+  // from outside its intent; a host entry 'assistant.DONE' extends DONE. PLAN-9 H-1..H-3: client
+  // tools (`clientTools`: TOOL_CALL fires per opened call, the app answers with TOOL_OUTPUT) and
+  // cards (`ask`: ANSWER from the result parts, CONTROL from card containers; CARD / CARD_FAILED are
+  // the card backend's replies); RESUME runs once for a slice restored busy
   chat: {
-    stateKeys: ['messages', 'prompt', 'draft', 'status', 'pending', 'error'],
+    stateKeys: ['messages', 'prompt', 'draft', 'draftReasoning', 'status', 'pending', 'error'],
     calculated: [],
-    model: ['PROMPT', 'SEND', 'STOP', 'REGENERATE', 'APPROVE', 'DENY', 'DONE', 'DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK'],
-    options: ['sink', 'form', 'prompt', 'stop', 'approve', 'deny', 'regenerate', 'instructions', 'model', 'agent', 'maxSteps', 'transportOptions'],
+    model: ['PROMPT', 'SEND', 'STOP', 'REGENERATE', 'APPROVE', 'DENY', 'DONE', 'DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK',
+      'TOOL_OUTPUT', 'TOOL_CALL', 'ANSWER', 'CONTROL', 'CARD', 'CARD_FAILED', 'RESUME'],
+    options: ['sink', 'form', 'prompt', 'stop', 'approve', 'deny', 'regenerate', 'instructions', 'model', 'agent', 'maxSteps', 'transportOptions', 'clientTools', 'ask'],
     listens: [['form', 'SEND', 'select'], ['prompt', 'PROMPT', 'select'], ['stop', 'STOP'], ['approve', 'APPROVE'], ['deny', 'DENY'], ['regenerate', 'REGENERATE']],
-    intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE'],
+    intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE', 'TOOL_OUTPUT', 'TOOL_CALL', 'ANSWER', 'CONTROL', 'CARD', 'CARD_FAILED', 'RESUME'],
+  },
+  // PLAN-9 C-1: compose(catalog, { backend, form, prompt, key }) from 'sygnal/ai'
+  // (src/extra/ai/compose/behavior.ts); options are the 2nd argument. COMPOSE comes from the form's
+  // submit (or next() / the host), SET_LAYOUT, REMOVE from the host; the backend's replies (REPLY,
+  // DELTA, FAILED), CONTROL (container controls) and DONE come from outside its intent; a host
+  // entry 'page.DONE' extends DONE
+  compose: {
+    stateKeys: ['prompt', 'status', 'layout', 'preview', 'pending', 'decisions', 'error', 'ui', 'local'],
+    calculated: [],
+    model: ['PROMPT', 'COMPOSE', 'SET_LAYOUT', 'REMOVE', 'CONTROL', 'DONE', 'REPLY', 'DELTA', 'FAILED'],
+    options: ['backend', 'form', 'prompt', 'key'],
+    listens: [['form', 'COMPOSE', 'select'], ['prompt', 'PROMPT', 'select']],
+    intent: ['REPLY', 'DELTA', 'FAILED', 'CONTROL', 'DONE'],
+    optionsArg: 1,
   },
   // PLAN-6 M-3: commandBar(options) from 'sygnal/ai' (src/extra/ai/commandBar.ts). Its selectors are
   // the host's. RUN comes from the input's Enter (or the form's submit); the fetch driver's replies
