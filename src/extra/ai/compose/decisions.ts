@@ -1368,6 +1368,10 @@ export interface DecisionsOptions {
   maxOptions?: number
   profile?: 'small'
   maxParts?: number
+  /** passed to every decide() request (D472: a large step goes as parallel sub-requests, one merged reply) */
+  maxQuestions?: number
+  maxPromptTokens?: number
+  split?: boolean
 }
 
 /**
@@ -1383,7 +1387,7 @@ const SMALL_MAX_PARTS = 8
 
 const isOllama = (url: string) => /:11434\b|ollama/i.test(url)
 
-export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts}: DecisionsOptions = {}) {
+export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts, maxQuestions, maxPromptTokens, split}: DecisionsOptions = {}) {
   // profile 'small' (a local 9B decision model such as Ollama's nimble, G-755): pairwise order
   // questions asked in both option orders (it prefers the first option), and near-ties ordered by
   // where the request names the elements
@@ -1402,6 +1406,7 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
   const request = (names: any, step: any) => decide({
     url, model, state: step.state, questions: step.questions,
     key: key ?? names?.key, latest: true, ok: names?.ok, error: names?.error,
+    ...(maxQuestions !== undefined && {maxQuestions}), ...(maxPromptTokens !== undefined && {maxPromptTokens}), ...(split !== undefined && {split}),
   } as any)
   const answersOf = (reply: any) => (reply && typeof reply == 'object' ? reply.answers : undefined)
 

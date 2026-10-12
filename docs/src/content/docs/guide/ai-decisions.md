@@ -250,6 +250,21 @@ Ticket.resources = {
 
 A `noul` question becomes a `predicate` whose instructions include the criteria. OpenAI may refuse a question: its answer is then `{ type: 'refusal', … }`, so check `answer.type` before reading `choice`. The type `Decision<Q, RefusalAnswer>` includes it.
 
+## Large question sets
+
+Servers limit what one request may ask: Ollama's `/v1/systemone` takes at most 64 questions, and each question's prompt (the `state` plus every question of the request) must fit the model's context, 8,192 tokens for `nimble`. `decide()` handles it, and your component still gets one reply:
+
+- More than `maxQuestions` questions (default 64): the request goes as several requests of about even size, sent in parallel. Their replies arrive as one: `answers` merged by name, `usage` summed, `model` from the first.
+- `maxPromptTokens`: the same split when the estimated prompt of one question passes it. The estimate runs high (on `nimble`, 1.13 to 1.30 times the count Ollama reports), and there is no default.
+- A request the server rejects as too large is halved and sent again, at most 3 times deep. "Too large" means HTTP 400 or 413 whose body mentions tokens, fields, context, a limit, or "too long", "too many" or "too large". Other errors arrive as before. A rejection costs one fast round trip (Ollama answers it in about 10 ms), so Jev's requests, which fit, go out exactly as before.
+- `split: false` sends every request whole and never halves it.
+
+```js
+decide({ model: 'nimble', url: 'http://localhost:11434/v1/systemone', state, questions, maxQuestions: 32 })
+```
+
+The request keeps the whole decision in `json`, and its parts in `batch`, with `combine` and `split`. The [fetch driver](/guide/http/) reads those three keys, and any request can use them. Under `renderComponent` the fake answers a split request as one: `t.requests('HTTP')` lists it once, and `t.respond('HTTP', answers(questions, picks))` answers all its questions together.
+
 ## Keys stay on the server
 
 The browser never holds a provider key ([SYG670](/reference/errors/#syg670) refuses to send one to another origin). `decide()` posts to `/api/decide` on your own server by default, and that route adds the key. Keep it narrow, as for [chat](/guide/ai-chat/#shipping-it): fix the model, require a session, and limit the size of `state`, so the route can't be used as a free decision API.

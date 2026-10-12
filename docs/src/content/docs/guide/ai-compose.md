@@ -677,6 +677,7 @@ It sends [`decide()`](/guide/ai-decisions/) requests on the `HTTP` sink (the [fe
 - `prefilter`: one more call first, to narrow a large catalog by the parts' `category` (about half the tokens, the same accuracy on Jev). `'auto'` by default: on when the catalog has categories and more than 60 parts (30 with `profile: 'small'`); `true` or `false` to choose;
 - `maxParts`: the most parts one composition picks (the catalog's `limits.maxParts`, 12; 8 with `profile: 'small'`);
 - `maxOptions`: the most options one question may have (255; 25 when `url` looks like Ollama): a larger choice is split into several questions;
+- `maxQuestions`, `maxPromptTokens`, `split`: passed to every `decide()` request ([Large question sets](/guide/ai-decisions/#large-question-sets)). A step with more than 64 questions, such as `profile: 'small'`'s layout step for 6 or more elements, goes as parallel requests read as one;
 - `profile: 'small'`: for a small local model such as `nimble` ([`profile: 'small'`](#profile-small)).
 
 ### `compose.llm()`

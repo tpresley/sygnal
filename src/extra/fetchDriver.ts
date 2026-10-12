@@ -81,6 +81,12 @@ import {validateWith} from './standardSchema';
  *   the socket driver's backoff; the failure (with `attempts`) is delivered once, at the end.
  * - `validate: schema` (a Standard Schema): the parsed body is validated (and transformed); a
  *   failure is an error with `issues`.
+ * - D472 (G-757): `batch: [request, …]` sends those requests in parallel instead of this one (each
+ *   inherits its fields; its own `json` / `body` / `parse` win) and `combine(bodies, requests)`
+ *   merges their parsed bodies into the one reply; `split(request, error)` turns a failed one (or
+ *   the request itself) into requests sent again in parallel and combined, at most 3 deep. One
+ *   failure fails the request once (`error.status` / `error.body`). No cache entry sharing, no
+ *   per-part retry. The test fake (`_whole`) sends and answers it as one request. decide() uses it.
  * - dispose / sink completion aborts everything in flight.
  * - `fetch` is read at request time (options.fetch, else globalThis.fetch), so test stubs work.
  * - PLAN-3 5-1 (H-9): renderComponent's HTTP fake runs this driver over an in-memory fetch;
@@ -137,12 +143,23 @@ const autoParse = async (res: any) => {
   return text ? JSON.parse(text) : null;
 };
 
+/** a non-2xx response */
+const bad = (res: any) => res.ok === false || res.status < 200 || res.status > 299;
+/** the failure of a non-2xx response: `status`, `body` (parsed with 'auto') */
+const httpError = async (res: any, href: string) => {
+  let body: any;
+  try { body = await autoParse(res); } catch (_) {}
+  return Object.assign(new Error(`HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${href}`), {status: res.status, body});
+};
+
 const PARSERS: Record<string, (res: any) => any> = {
   auto: autoParse,
   json: res => res.json(),
   text: res => res.text(),
   response: res => res,
 };
+
+const parserOf = (pz: any) => typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
 
 const pickInit = (init: any) => {
   const out: any = {};
@@ -379,15 +396,23 @@ export function makeFetchDriver(options: any = {}) {
       if (abort) return cancel(r => r.scope === scope && (!('category' in req) || r.category === category));
       if (rn !== undefined || (!pf && (latest ?? options.latest))) cancel(rk === undefined ? r => r.rk === undefined && r.scope === scope && r.category === category : r => r.sender === sender && r.rk === rk);
 
-      const href = withQuery((options.baseUrl || '') + (url ?? ''), query);
-      const base = options.init, own = init;
-      const h = mergeHeaders(options.headers, base?.headers, own?.headers, headers);
-      let b = body ?? own?.body;
-      if (json !== undefined) {
-        b = JSON.stringify(json);
-        if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
-      }
-      const m = method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET');
+      const base = options.init;
+      // a request's URL and fetch() init (the batch's sub-requests inherit the request's fields)
+      const prep = ({url, method, headers, query, json, body, init: own}: any) => {
+        const h = mergeHeaders(options.headers, base?.headers, own?.headers, headers);
+        let b = body ?? own?.body;
+        if (json !== undefined) {
+          b = JSON.stringify(json);
+          if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
+        }
+        return [withQuery((options.baseUrl || '') + (url ?? ''), query), {...pickInit(base), ...pickInit(own), method: method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET'), headers: h, body: b}];
+      };
+      const [href, fetchInit] = prep(req);
+      const m = fetchInit.method;
+      // D472: `batch` (sub-requests sent in parallel) and `split` (a failed request sent again in
+      // parts, at most 3 deep), their parsed bodies merged by `combine` into one reply. The test
+      // fake (_whole) answers such a request as one
+      const {batch, split, combine = (x: any) => x} = options._whole ? {} as any : req;
       const k = C?.key(req, rn !== undefined || pf);
       const id = ++seq;
       const r: any = {category, scope, sender, rk};
@@ -421,18 +446,10 @@ export function makeFetchDriver(options: any = {}) {
         const tries = pol.count ?? 3;
         F = {id, k, q: req, s: new Set(), n: 0};
         if (k !== undefined) C.f.set(k, F);
-        const pz = parse || options.parse || 'auto';
-        const parser = typeof pz == 'function' ? pz : PARSERS[pz] || autoParse;
+        const parser = parserOf(parse || options.parse);
         // the global fetch is called as a method: a detached window.fetch throws "Illegal invocation"
         const g: any = globalThis;
         const doFetch = options.fetch || (typeof g.fetch == 'function' && ((u: string, i: any) => g.fetch(u, i)));
-        const fetchInit = {
-          ...pickInit(base),
-          ...pickInit(own),
-          method: m,
-          headers: h,
-          body: b,
-        };
         // the outcome, to every request waiting on this fetch (the failure once, after the last attempt)
         const end = (e: any, x?: any, status?: number) => {
           done(F);
@@ -454,23 +471,37 @@ export function makeFetchDriver(options: any = {}) {
             // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
             options._tap?.(req, rn, pf);
             // called synchronously, so a test sees the call right after the sink emitted
-            p = Promise.resolve(doFetch(href, {...fetchInit, signal: ctl.signal}));
+            p = batch ? Promise.resolve() : Promise.resolve(doFetch(href, {...fetchInit, signal: ctl.signal}));
+            if (batch || split) {
+              // D472: parts in parallel; a failed one split again when `split` says how
+              const one = (q: any, d: number, first?: any): Promise<any> => {
+                const [u, i] = prep({...req, ...q});
+                return (first || Promise.resolve(doFetch(u, {...i, signal: ctl.signal}))).then(async (res: any) => {
+                  if (bad(res)) {
+                    const e = await httpError(res, u);
+                    const qs = d < 3 && live() && split?.(q, e);
+                    if (qs?.length > 1) return all(qs, d + 1);
+                    throw e;
+                  }
+                  return parserOf(q.parse || parse || options.parse)(res);
+                });
+              };
+              const all = (qs: any[], d: number) => Promise.all(qs.map(q => one(q, d))).then(bodies => combine(bodies, qs));
+              p = (batch ? all(batch, 0) : one(req, 0, p)).then(v => ({b: v}));
+            }
           } catch (e) {
             p = Promise.reject(e);
           }
           p.then(async (res: any) => {
+            if (batch || split) return live() && (k !== undefined && !F.z && C.put(k, req, res.b), end(0, res.b, 200));
             if (!live()) return;
             // R4-3: anything that throws here (a non-Response, a parser) fails the request
             try {
               const st = res.status;
-              if (res.ok === false || st < 200 || st > 299) {
-                let errBody: any;
-                try { errBody = await autoParse(res); } catch (_) {}
+              if (bad(res)) {
+                const e = await httpError(res, href);
                 if (!live() || ((st == 408 || st == 429 || st > 499) && again(res))) return;
-                const e: any = new Error(`HTTP ${st}${res.statusText ? ' ' + res.statusText : ''}: ${href}`);
-                e.status = st;
-                e.body = errBody;
-                return end(e, {status: st, body: errBody});
+                return end(e, {status: st, body: e.body});
               }
               let v: any;
               try { v = await parser(res); } catch (e) { return live() && end(e, {status: st}); }
@@ -480,7 +511,7 @@ export function makeFetchDriver(options: any = {}) {
             } catch (e) {
               live() && end(e);
             }
-          }, (e: any) => { live() && !again() && end(e); });
+          }, (e: any) => { live() && (e?.status ? end(e, {status: e.status, body: e.body}) : !again() && end(e)); });
         };
         go();
       }
