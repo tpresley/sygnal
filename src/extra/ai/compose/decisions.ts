@@ -73,13 +73,18 @@ const containerOf = (c: any, id: string) => c.containers?.[id]
 const hasRows = (c: any) => !!containerOf(c, ROW)
 const paramsOf = (part: any) => part?.params || {}
 const labelOf = (name: string, p: any) => p.label ?? name
-/** the record param of a part (at most one: `from`) */
-const recordParam = (part: any) => Object.keys(paramsOf(part)).find(k => typeof part.params[k].from == 'function')
+/**
+ * a param's kind: the normalized catalog's `kind` (types.ts: 'options' | 'number' | 'text' | 'list' |
+ * 'record'); a raw declaration (`options` / `from` / `type`) reads the same
+ */
+const kindOf = (p: any): string => p?.kind ?? (typeof p?.from == 'function' ? 'record' : p?.options ? 'options' : p?.type ?? '')
+/** the record param of a part (at most one) */
+const recordParam = (part: any) => Object.keys(paramsOf(part)).find(k => kindOf(part.params[k]) == 'record')
 /** the options a decision model picks from: an enum's options, a number param's bins */
-const optionsOf = (p: any) => (p.type == 'number' ? p.bins : p.options) || {}
-const askable = (p: any) => !p.from && p.type != 'text' && p.type != 'list' && Object.keys(optionsOf(p)).length > 1
+const optionsOf = (p: any) => (kindOf(p) == 'number' ? p.bins : kindOf(p) == 'options' ? p.options : null) || {}
+const askable = (p: any) => (kindOf(p) == 'options' || kindOf(p) == 'number') && Object.keys(optionsOf(p)).length > 1
 /** a required param a decision model can't fill (free text with no default): the part is LLM-only */
-export const llmOnly = (part: any) => Object.values(paramsOf(part)).some((p: any) => !p.from && !askable(p) && p.required && p.default === undefined)
+export const llmOnly = (part: any) => Object.values(paramsOf(part)).some((p: any) => kindOf(p) != 'record' && !askable(p) && p.required && p.default === undefined)
 const maxUses = (part: any) => Math.max(1, part?.maxUses ?? 1)
 /** record slots per record part: "the first … fourth <label> the request names" (params-edits maxRecords) */
 const RECORD_SLOTS = 4
@@ -157,7 +162,7 @@ function excluded(id: string) {
   said.add(id)
   dev('SYG680', `part '${id}' has a required text param with no default: a decision model can't fill it, so compose.decisions() never places it (it is LLM-only)`, 'info')
 }
-function dev(code: string, message: string, severity: 'warn' | 'info') {
+function dev(code: string, message: string, severity: 'error' | 'warn' | 'info') {
   try { report(code, {component: 'compose.decisions', message, severity}) } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
@@ -257,7 +262,7 @@ function readParams(c: any, id: string, a: any) {
     const x = readChunked(a, `param_${id}${sep}${name}`, ['not_stated'])
     const v = x?.choice
     if (!v || v === 'not_stated' || !(v in optionsOf(p))) continue
-    const value = p.type == 'number' ? Number(v) : v
+    const value = kindOf(p) == 'number' ? Number(v) : v
     if (String(value) !== String(p.default)) out[name] = value
   }
   return out
@@ -645,6 +650,9 @@ export interface DecisionsOptions {
 const isOllama = (url: string) => /:11434\b|ollama/i.test(url)
 
 export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = false, maxOptions}: DecisionsOptions = {}) {
+  // a decide() server picks no default model: every request needs one (SYG681, the contract's
+  // backend option problem; compose.llm() doesn't report it: a chat transport has its own default)
+  if (typeof model != 'string' || !model) dev('SYG681', "compose.decisions() needs a `model` (the decision model's id, e.g. compose.decisions({ model: 'jev-latest' })); its requests go without one", 'error')
   const max = maxOptions ?? (isOllama(url) ? 25 : 255)
   const request = (names: any, step: any) => decide({
     url, model, state: step.state, questions: step.questions,

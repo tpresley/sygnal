@@ -3,12 +3,11 @@
 // exactly. Covers every labelled case of the five structure catalogs and the params / records
 // sets, plus seeded random targets over each catalog. No network.
 //
-// layout.ts is worker A's: until A's branch is merged it is mocked with the stand-in in
-// p9-decisions-helpers.js (drop the vi.mock at merge to run on A's finish / fromTree / toTree).
-import { describe, it, expect, vi } from 'vitest'
-vi.mock('../src/extra/ai/compose/layout', async () => await import('./p9-decisions-helpers.js'))
+// It runs on the real defineCatalog and layout.ts (finish / fromTree / toTree).
+import { describe, it, expect } from 'vitest'
 import { decisions, llmOnly } from '../src/extra/ai/compose/decisions.js'
-import { fromTree, toTree, finish, formatTree } from './p9-decisions-helpers.js'
+import { fromTree, toTree, finish } from '../src/extra/ai/compose/layout'
+import { formatTree } from './p9-decisions-helpers.js'
 import { STRUCTURE, OPS, SHOP, PM40, PM200, PARAM_CASES, RECORD_CASES } from './p9-decisions-catalogs.js'
 
 const names = { ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA', key: 'compose' }

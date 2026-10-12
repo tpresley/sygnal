@@ -1,6 +1,6 @@
 // PLAN-9 B-3 compose.llm(): the request, the schema per catalog, the repair, the streamed
-// preview, fake() and errors (SYG683). No network. The catalog is the contract's normalized shape
-// (test/p9-llm-helpers.js `catalog()`, a stand-in for worker A's defineCatalog).
+// preview, fake() and errors (SYG683). No network. Catalogs come from the real defineCatalog
+// (test/p9-llm-helpers.js `catalog()`).
 import { describe, it, expect, afterEach } from 'vitest'
 import { llm, layoutSchema, systemPrompt, parsePartialJSON } from '../src/extra/ai/compose/llm.ts'
 import { check } from '../src/extra/ai/schema/jsonSchema.ts'
@@ -82,7 +82,7 @@ describe('the request', () => {
     expect(p).toContain('- Prefer charts over tables.\n- Never use tabs for one part.\n- First write asked_for')
     expect(p).toContain('Answer in English.\n\nReply with JSON only')
     expect(p).toContain('instead of "children"')
-    expect(p).not.toContain('header')   // required parts are added by finish, not asked
+    expect(p).not.toContain('header')   // required parts are added by finish, not asked (so every finished layout below starts with header: pin 'start')
     expect(systemPrompt(cat, STATE, { instructions: (s) => s.toUpperCase() })).toBe(systemPrompt(cat, STATE).toUpperCase())
   })
 
@@ -154,21 +154,21 @@ describe('the schema, per catalog', () => {
     expect(billing).toEqual(['tab'])
   })
 
-  it('depth: no container at maxDepth; places that allow the same parts share one definition', () => {
-    const c = catalog({ parts: { a: { description: 'A', in: ['page', 'box'] }, b: { description: 'B', in: ['page', 'box'] } }, containers: { box: { description: 'Box', slots: { default: null }, in: ['page', 'box'] } }, limits: { maxDepth: 2 } })
+  it('depth: no container below maxDepth (page = 0, its children at 1: finish()\'s rule); places that allow the same parts share one definition', () => {
+    const c = catalog({ parts: { a: { description: 'A', in: ['page', 'box'] }, b: { description: 'B', in: ['page', 'box'] } }, containers: { box: { description: 'Box', slots: { default: null }, in: ['page', 'box'] } }, limits: { maxDepth: 1 } })
     const sc = layoutSchema(c, {})
     expect(Object.keys(sc.$defs)).toEqual(['d1', 'd2'])
     expect(def(sc, 'd1').anyOf.map((a) => a.properties.part.const)).toEqual(['a', 'b', 'row', 'box'])
     expect(def(sc, 'd2').anyOf.map((a) => a.properties.part.const)).toEqual(['a', 'b'])
-    const deep = layoutSchema({ ...c, limits: { maxDepth: 3 } }, {})
-    expect(Object.keys(deep.$defs).length).toBe(3)   // page (a, b, row, box); parts only (a row anywhere, a box at 3); a box at 2 (a, b, row, box: deeper)
+    const deep = layoutSchema({ ...c, limits: { maxDepth: 2 } }, {})
+    expect(Object.keys(deep.$defs).length).toBe(3)   // page (a, b, row, box); parts only (a row anywhere, a box at 2); a box at 1 (a, b, row, box: deeper)
   })
 })
 
 describe('reply: read, repair, validate', () => {
   it('a clean reply → the layout through fromTree and finish; decisions = the plan', () => {
     const r = run(SHOP, { asked_for: ['revenue', 'monthly chart'], children: [{ part: 'revenue' }, { part: 'chart', params: { range: 'month' } }] })
-    expect(str(SHOP, r.layout)).toBe('revenue chart{range=month}')
+    expect(str(SHOP, r.layout)).toBe('header revenue chart{range=month}')
     expect(r.layout.nodes.chart).toEqual({ part: 'chart', params: { range: 'month' } })
     expect(r.decisions).toEqual({ asked_for: ['revenue', 'monthly chart'] })
   })
@@ -187,30 +187,30 @@ describe('reply: read, repair, validate', () => {
     const r = run(SHOP, { children: [{ part: 'revenue' }, { part: 'chart', params: { range: 'year' } }, { part: 'revenue' },
       { part: 'project', params: { id: 'apollo' } }, { part: 'project', params: { id: 'zephyr' } }, { part: 'project', params: { id: 'apollo' } },
       { part: 'priceTable' }, { part: 'priceCards' }] })
-    expect(str(SHOP, r.layout)).toBe('revenue chart project project priceTable')
+    expect(str(SHOP, r.layout)).toBe('header revenue chart project project priceTable')
     expect(Object.keys(r.layout.nodes)).toContain('project:zephyr')
     expect(r.decisions.repairs.filter((i) => i.kind === 'duplicate').map((i) => i.detail)).toEqual(['revenue', 'project:apollo', 'group pricing: priceCards'])
   })
 
   it('a row of one part is unwrapped; an empty row dropped; a row over 4 split', () => {
-    expect(str(SHOP, run(SHOP, { children: [{ part: 'row', children: [{ part: 'revenue' }] }, { part: 'row', children: [] }] }).layout)).toBe('revenue')
+    expect(str(SHOP, run(SHOP, { children: [{ part: 'row', children: [{ part: 'revenue' }] }, { part: 'row', children: [] }] }).layout)).toBe('header revenue')
     const six = ['revenue', 'chart', 'tickets', 'project', 'priceTable', 'poll'].map((part) => ({ part, ...(part === 'project' && { params: { id: 'apollo' } }), ...(part === 'poll' && { params: { options: ['a', 'b'], question: 'q' } }) }))
-    expect(str(SHOP, run(SHOP, { children: [{ part: 'row', children: six }] }).layout)).toBe('row(revenue,chart,tickets,project) row(priceTable,poll)')
+    expect(str(SHOP, run(SHOP, { children: [{ part: 'row', children: six }] }).layout)).toBe('header row(revenue,chart,tickets,project) row(priceTable,poll)')
   })
 
   it('aliases (unconstrained output): type/name for part, parts for children, flat params, a bare list, a single node', () => {
     const r = run(SHOP, { parts: [{ type: 'row', parts: [{ name: 'revenue' }, { component: 'chart', range: 'month' }] }] })
-    expect(str(SHOP, r.layout)).toBe('row(revenue,chart{range=month})')
+    expect(str(SHOP, r.layout)).toBe('header row(revenue,chart{range=month})')
     expect(r.decisions.repairs.filter((i) => i.kind === 'alias').map((i) => i.detail)).toEqual(['parts for children', 'type: row', 'name: revenue', 'component: chart', 'flat params on chart'])
-    expect(str(SHOP, run(SHOP, [{ part: 'revenue' }]).layout)).toBe('revenue')
-    expect(str(SHOP, run(SHOP, { part: 'revenue' }).layout)).toBe('revenue')
+    expect(str(SHOP, run(SHOP, [{ part: 'revenue' }]).layout)).toBe('header revenue')
+    expect(str(SHOP, run(SHOP, { part: 'revenue' }).layout)).toBe('header revenue')
   })
 
   it('unknown parts dropped (their children lifted), children on a leaf lifted, unknown slot → default', () => {
     const r = run(SHOP, { children: [{ part: 'stockTicker', children: [{ part: 'revenue' }] }, { part: 'chart', params: { range: 'month' }, children: [{ part: 'tickets' }] }] })
-    expect(str(SHOP, r.layout)).toBe('revenue chart{range=month} tickets')
+    expect(str(SHOP, r.layout)).toBe('header revenue chart{range=month} tickets')
     const t = run(SHOP, { children: [{ part: 'tabs', general: [{ part: 'field' }], extra: [{ part: 'tab' }], billing: [] }] })
-    expect(t.layout.nodes.tabs.slots).toEqual({ general: ['field', 'tab'], billing: [] })
+    expect(t.layout.nodes.tabs.slots).toEqual({ general: ['field', 'tab'] })   // a layout omits empty slots
   })
 
   it('bad params → defaults; text cut to maxLength; numbers clamped / parsed; lists trimmed and deduped', () => {
@@ -227,7 +227,7 @@ describe('reply: read, repair, validate', () => {
 
   it('a record outside the state, a missing required text or list: the node is dropped', () => {
     const r = run(SHOP, { children: [{ part: 'project', params: { id: 'mars' } }, { part: 'poll', params: { options: ['a'] } }, { part: 'revenue' }] })
-    expect(str(SHOP, r.layout)).toBe('revenue')
+    expect(str(SHOP, r.layout)).toBe('header revenue')
   })
 
   it('a container in a row, or past maxDepth, is lifted; a part outside its `in` is left to finish', () => {
@@ -240,7 +240,7 @@ describe('reply: read, repair, validate', () => {
   it('the research repair cases (llm/REPORT.md §3): every recorded constrained reply was valid; repairs only for blocks/flat/tools', () => {
     // a part used twice, a row of one, children on a leaf, key-as-part (flat) → all repaired, none an error
     const r = run(SHOP, { children: [{ part: 'row', children: [{ part: 'revenue' }] }, { part: 'revenue' }, { part: 'chart', params: { range: 'month' } }] })
-    expect(str(SHOP, r.layout)).toBe('revenue chart{range=month}')
+    expect(str(SHOP, r.layout)).toBe('header revenue chart{range=month}')
   })
 })
 
@@ -258,8 +258,8 @@ describe('reply errors: SYG683, never a layout', () => {
   })
 
   it('JSON inside prose or a code fence is read', () => {
-    expect(str(SHOP, run(SHOP, 'Here you go:\n```json\n{"children":[{"part":"revenue"}]}\n```').layout)).toBe('revenue')
-    expect(str(SHOP, run(SHOP, '<think>hmm</think>{"children":[{"part":"revenue"}]}').layout)).toBe('revenue')
+    expect(str(SHOP, run(SHOP, 'Here you go:\n```json\n{"children":[{"part":"revenue"}]}\n```').layout)).toBe('header revenue')
+    expect(str(SHOP, run(SHOP, '<think>hmm</think>{"children":[{"part":"revenue"}]}').layout)).toBe('header revenue')
   })
 
   it('a required part the model wrote is not an error (finish adds it)', () => {
@@ -282,7 +282,7 @@ describe('fake(): the JSON text of a target tree, read back to that target', () 
     expect(check(layoutSchema(SHOP, STATE), value)).toEqual([])
     expect(value.asked_for).toEqual(['revenue', 'chart', 'project', 'field', 'tab', 'tickets'])
     const r = b.reply({ catalog: SHOP, state: STATE, pending, reply: { text } })
-    expect(str(SHOP, r.layout, { enumOnly: false })).toBe('row(revenue,chart{range=month}) project{id=zephyr} tabs(field,tab) tickets{search=safari}')
+    expect(str(SHOP, r.layout, { enumOnly: false })).toBe('header row(revenue,chart{range=month}) project{id=zephyr} tabs(field,tab) tickets{search=safari}')
     expect(r.layout.nodes.tabs.slots).toEqual({ general: ['field'], billing: ['tab'] })
     expect(r.layout.nodes['project:zephyr']).toEqual({ part: 'project', params: { id: 'zephyr' } })
   })

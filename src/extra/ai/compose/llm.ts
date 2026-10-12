@@ -6,7 +6,8 @@
  *
  * - start(): ONE chat request with structured output: the `tree+plan` schema (an `asked_for`
  *   list, then a nested tree: per place and depth an `anyOf` of one closed object per part, enum
- *   params, record enums from state, `in`, rows (leaves only, at most 4) and `maxDepth` in the
+ *   params, record enums from state, `in`, rows (leaves only, at most 4) and `maxDepth` (types.ts:
+ *   a container at depth d, the page's children at 1, only when d <= maxDepth) in the
  *   grammar) and the system prompt (the catalog as text, the rules, the catalog's `guidance`,
  *   its `examples` as few-shot turns). `delta` when streaming.
  * - delta(): a preview of the complete nodes so far (a leaf shows once its object closes, so its
@@ -52,8 +53,12 @@ type TNode = {part: string; params?: Record<string, any>; slots?: Record<string,
 // ---------------------------------------------------------------- the catalog, as the model sees it
 const ROOT = 'page'
 const PLACE = ROOT + ':default'
-const kindOf = (d: any) => !d || typeof d != 'object' ? '' : typeof d.from == 'function' ? 'record' : d.options ? 'enum'
-  : d.type == 'number' ? 'number' : d.type == 'list' ? 'list' : d.type == 'text' ? 'text' : ''
+/** a param's kind (types.ts' normalized `kind`, 'options' read as 'enum'; a raw declaration reads the same) */
+const kindOf = (d: any) => {
+  if (!d || typeof d != 'object') return ''
+  const k = d.kind ?? (typeof d.from == 'function' ? 'record' : d.options ? 'options' : d.type)
+  return k == 'options' ? 'enum' : k == 'record' || k == 'number' || k == 'list' || k == 'text' ? k : ''
+}
 const labelOf = (d: any) => d.label ?? d.description
 
 function records(d: any, state: any): any[] {
@@ -95,8 +100,14 @@ function context(catalog: any, state: any) {
 }
 type Ctx = ReturnType<typeof context>
 
-/** may `it` sit at `place` ('container:slot')? `in` entries are 'container' or 'container:slot' (default ['page']) */
-const placeOk = (it: any, place: string) => [].concat(it.def.in ?? [ROOT]).some((e: string) => e == place || e == place.split(':')[0])
+/**
+ * the places `it` may go. The normalized catalog lists 'container:slot' entries (types.ts; the root
+ * is 'page:default'); a raw `in` may name a container alone. A row's `in` is empty: it goes where its
+ * parts may go (never checked here).
+ */
+const placesOf = (it: any): string[] => [].concat(it.def.in ?? [ROOT])
+/** may `it` sit at `place` ('container:slot')? */
+const placeOk = (it: any, place: string) => placesOf(it).some((e: string) => e == place || e == place.split(':')[0])
 
 // ---------------------------------------------------------------- prompt (research wording, exact)
 function paramText(p: any) {
@@ -117,16 +128,28 @@ function paramText(p: any) {
   return `${name}: ${label}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
 }
 
-const onlyIn = (it: any) => {
-  const ins = [].concat(it.def.in ?? [ROOT]) as string[]
-  return ins.some(e => e == ROOT || e == PLACE) ? '' : ` (only inside ${ins.map(e => e.replace(':', ' slot ')).join(' or ')})`
+/** ' (only inside tabs or panel slot side)': a container whose every slot is allowed is named alone */
+const onlyIn = (it: any, ctx: Ctx) => {
+  const ins = placesOf(it)
+  if (!ins.length || ins.some(e => e == ROOT || e == PLACE)) return ''
+  const by = new Map<string, string[]>()
+  for (const e of ins) {
+    const [c, s] = e.split(':')
+    if (!by.has(c)) by.set(c, [])
+    if (s !== undefined) by.get(c)!.push(s)
+  }
+  const names = [...by].flatMap(([c, ss]) => {
+    const all = ctx.byId[c]?.slots ?? []
+    return !ss.length || all.every((x: string) => ss.includes(x)) ? [c] : ss.map(x => `${c} slot ${x}`)
+  })
+  return ` (only inside ${names.join(' or ')})`
 }
 
 /** the catalog as the prompt shows it */
 export function catalogText(ctx: Ctx) {
   const lines = ['Parts (id: what it shows):']
   for (const it of ctx.items.filter(i => !i.container)) {
-    lines.push(`- ${it.id}: ${it.def.description ?? it.id}${onlyIn(it)}`)
+    lines.push(`- ${it.id}: ${it.def.description ?? it.id}${onlyIn(it, ctx)}`)
     for (const p of it.params) lines.push(`    param ${paramText(p)}`)
   }
   const cs = ctx.items.filter(i => i.container)
@@ -140,7 +163,7 @@ export function catalogText(ctx: Ctx) {
         return s == 'default' ? [lim, acc].filter(Boolean).join('; ') : `slot ${s}${desc ? `: ${desc}` : ''}`
       }).filter(Boolean).join('; ')
       const desc = it.def.description ?? (it.row ? 'Row: shows its parts side by side, left to right' : it.id)
-      lines.push(`- ${it.id}: ${desc}${slots ? ` (${slots})` : ''}${onlyIn(it)}`)
+      lines.push(`- ${it.id}: ${desc}${slots ? ` (${slots})` : ''}${onlyIn(it, ctx)}`)
       for (const p of it.params) lines.push(`    param ${paramText(p)}`)
     }
   }
@@ -207,7 +230,7 @@ export function layoutSchema(catalog: any, state: any, {plan = true, relaxIn = f
     defs[name] = true
     const alts: any[] = []
     for (const it of ctx.items) {
-      if (it.container && (inRow || depth >= ctx.maxDepth || (it.row && arranged))) continue
+      if (it.container && (inRow || depth > ctx.maxDepth || (it.row && arranged))) continue
       if (!relaxIn && !it.row && !placeOk(it, place)) continue
       const props: any = {part: {const: it.id}}
       const required = ['part']
@@ -379,7 +402,7 @@ export function repairTree(ctx: Ctx, kids: Array<TNode | null>, issues: Issue[] 
       return [{part: it.id, ...(fixed.params && {params: fixed.params}) }, ...lifted]
     }
     // a container
-    if (depth >= ctx.maxDepth || inRow || (it.row && arranged)) {
+    if (depth > ctx.maxDepth || inRow || (it.row && arranged)) {
       issues.push({kind: 'structure', detail: `${it.id} too deep or not accepted`})
       return lift(depth)
     }

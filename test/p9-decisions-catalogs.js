@@ -1,8 +1,8 @@
 // PLAN-9 worker B: the research catalogs (test/p9-decisions-fixtures.js) in the PLAN-9 declaration
-// format, normalized by the stand-in defineCatalog (test/p9-decisions-helpers.js; A's real one at
-// merge), plus their labelled cases as Trees.
+// format, normalized by the real defineCatalog (src/extra/ai/compose/catalog.ts), plus their labelled cases as Trees.
 import * as F from './p9-decisions-fixtures.js'
-import { defineCatalog, parseTree } from './p9-decisions-helpers.js'
+import { defineCatalog } from '../src/extra/ai/compose/catalog'
+import { parseTree } from './p9-decisions-helpers.js'
 
 const Stub = () => null
 

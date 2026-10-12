@@ -63,6 +63,13 @@ Params:
 - `{ from: (state) => [{ value, name?, aliases?, description }], label? }` (a record param; at most
   one per part)
 
+Normalized (integration; `types.ts` `Param` is canonical, and every module reads it): each param
+gets `kind: 'options' | 'number' | 'text' | 'list' | 'record'` in place of its discriminator (`type`
+is not kept), and only the fields above (an options param always has a `default`: its first option
+when none is given; `required` is a boolean). Backends read `kind`, never `type` / `from` / `options`
+presence. Places (`in`) are normalized to `'container:slot'` entries (`'page'` → `'page:default'`;
+a container alone → each of its slots); the built-in row has `in: []` (it goes where its parts may).
+
 Containers: `{ slots: { name: description | null }, minSlots?, arranged?, direction?, render }`,
 where `render` is a VIEW FUNCTION `({ key, node, slots, children, ui, control }) => vnode`.
 
@@ -83,7 +90,11 @@ type Tree   = Array<{ part: string, params?: object, children?: Tree | Record<st
   - required parts, `companions` and `pin`;
   - `in` enforcement (a part outside its allowed places goes to its first allowed place);
   - `minSlots` unwrap; a single-part row is unwrapped; empty `auto` containers removed;
-  - `maxParts` / `maxDepth`; cycle guard.
+  - `maxParts` / `maxDepth`; cycle guard. **maxDepth** (integration): the page is depth 0 and its
+    children depth 1; a container at depth d moves to the page when d > maxDepth (structure's
+    `composer.mjs` rule). `decisions()` reads with it, `llm()`'s schema and repair offer a container
+    at depth d only when d <= maxDepth (the research `llm-composer.mjs` counted leaves: its m is m - 1
+    here).
 
   It is idempotent.
 

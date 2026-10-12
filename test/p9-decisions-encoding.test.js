@@ -3,11 +3,12 @@
 // (prefilter, slots, groups, candidate limits), rowMean, SYG680 / SYG682. No network: replies
 // are built with answers().
 import { describe, it, expect, vi, afterEach } from 'vitest'
-vi.mock('../src/extra/ai/compose/layout', async () => await import('./p9-decisions-helpers.js'))
 import { decisions, TEXT, W, readLayout } from '../src/extra/ai/compose/decisions.js'
 import { answers } from '../src/extra/ai/answers.js'
 import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/extra/diagnostics/index.js'
-import { defineCatalog, toTree, formatTree } from './p9-decisions-helpers.js'
+import { defineCatalog } from '../src/extra/ai/compose/catalog'
+import { toTree } from '../src/extra/ai/compose/layout'
+import { formatTree } from './p9-decisions-helpers.js'
 import { STRUCTURE, OPS, PM40 } from './p9-decisions-catalogs.js'
 
 const names = { ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA', key: 'compose' }

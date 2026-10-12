@@ -1,24 +1,10 @@
-// PLAN-9 C (compose.llm) test helpers. `catalog()` is a STAND-IN for worker A's defineCatalog
-// (src/extra/ai/compose/catalog.ts): just the normalized shape of the phase-1 contract that llm.ts
-// reads (parts, containers with the built-in page and row, limits, guidance, examples, get). The
-// coordinator swaps it for the real defineCatalog after merging.
-//
-// Also: the research catalogs (dev-plans/research/ai-compose/llm, structure, params-edits) in that
-// shape, a compact layout notation for expectations, and a scorer.
+// PLAN-9 C (compose.llm) test helpers: `catalog()` (the real defineCatalog), the research
+// catalogs (dev-plans/research/ai-compose/llm, structure, params-edits) in its declaration form, a
+// compact layout notation for expectations, and a scorer.
+import { defineCatalog } from '../src/extra/ai/compose/catalog'
 
-const ROW = { description: 'Row: shows its parts side by side, left to right', slots: { default: null }, direction: 'row' }
-
-/** the contract's normalized catalog (stand-in) */
 export function catalog({ parts = {}, containers = {}, limits = {}, guidance, examples } = {}) {
-  const c = {
-    parts: Object.fromEntries(Object.entries(parts).map(([id, p]) => [id, { maxUses: 1, in: ['page'], params: {}, ...p }])),
-    containers: { page: { slots: { default: null } }, row: ROW, ...containers },
-    limits: { maxParts: 12, maxDepth: 4, ...limits },
-    guidance,
-    examples,
-  }
-  c.get = (id) => c.parts[id] || c.containers[id]
-  return c
+  return defineCatalog({ parts, containers, limits, guidance, examples })
 }
 
 /** a research catalog (llm-composer.mjs declaration) → the contract shape */
@@ -47,8 +33,10 @@ export function fromResearch(rc) {
     }
     parts[p.id] = { description: p.description, params: paramsOf(p), in: ['page', ...boxes] }
   }
-  // the research catalogs declare `row` themselves; keep their wording
-  return catalog({ parts, containers, limits: { maxDepth: rc.maxDepth ?? 2 } })
+  // the research catalogs declare `row` themselves; keep their wording. Their maxDepth counts the
+  // leaves (llm-composer.mjs: a container at depth maxDepth - 1 at most); the catalog's counts the
+  // containers (finish(): a container at depth d, the page's children at 1, moves when d > maxDepth)
+  return catalog({ parts, containers, limits: { maxDepth: (rc.maxDepth ?? 2) - 1 } })
 }
 
 /** 'row(a,b) c{range=quarter}' → contract Tree */

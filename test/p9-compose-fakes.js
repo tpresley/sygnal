@@ -1,6 +1,6 @@
 // PLAN-9 (A): minimal fake backends on the contract's Backend interface, for the compose behavior's
-// suite until workers B and C land the real `compose.decisions()` / `compose.llm()` (the
-// coordinator then adds a matrix over those). Not a test file (no .test.js): imported by the suites.
+// contract suite (p9-compose-behavior); the real `compose.decisions()` / `compose.llm()` run in
+// p9-compose-matrix. Not a test file (no .test.js): imported by the suites.
 //
 // - fakeDecisions(): decide() requests on HTTP, two steps: select (use_<option>), then, when 2+
 //   parts or an enum param, layout (place_<option>, pairwise above_<a>__<b>, param_<option>__<name>);

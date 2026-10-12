@@ -13,7 +13,7 @@
  *   SYG252 warn   a record param's `from` doesn't return an array of `{ value }` (or threw)
  *   SYG450 warn   `in` names an unknown container or slot
  *   SYG452 warn   a node key listed twice in a layout (only the first place is kept)
- *   SYG681 error  a backend option problem (B / C: no `model`; A: no backend)
+ *   SYG681 error  a backend option problem (compose.decisions() with no `model`; no backend or catalog: thrown)
  */
 import {report} from '../../diagnostics/index'
 

@@ -852,8 +852,8 @@ export const EXPLANATIONS = {
     title: "Compose backend option problem",
     severity: "error",
     reportedBy: ["runtime"],
-    explanation: "The `compose` behavior (sygnal/ai) needs a backend, `compose.decisions({ model, … })` or `compose.llm({ model, … })`, and a catalog made by `defineCatalog()`: without them `compose()` throws with this code. A backend made without a `model` is reported in development: the requests it sends name no model, which a decision service or chat provider rejects, unless your server route fills it in.",
-    fix: "Pass both: `compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }) })`. If your server picks the model, pass the name it expects anyway, so the request documents it.",
+    explanation: "The `compose` behavior (sygnal/ai) needs a backend, `compose.decisions({ model, … })` or `compose.llm({ model, … })`, and a catalog made by `defineCatalog()`: without them `compose()` throws with this code. `compose.decisions()` made without a `model` is reported in development: its `decide()` requests name no model, which a decision service rejects unless your server route fills it in. `compose.llm()` without a `model` is not reported: the chat transport sends its own default (`openResponses({ model })`, …).",
+    fix: "Pass both: `compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }) })`. For `compose.decisions()`, pass the model even when your server picks one, so the request documents it.",
   },
   SYG501: {
     title: "Removed in 6.0: view with positional arguments",

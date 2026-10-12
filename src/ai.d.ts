@@ -1365,6 +1365,10 @@ export interface CatalogDecl {
   rows?: boolean
   /** quoted in order questions and the LLM prompt */
   guidance?: string
+  /**
+   * maxParts (default 12): parts on the page. maxDepth (default 4): how deep a container may sit,
+   * the page's children at depth 1; a deeper one moves to the page
+   */
   limits?: { maxParts?: number; maxDepth?: number }
   /** app-written few-shot cases (LLM) */
   examples?: readonly unknown[]
@@ -1574,7 +1578,7 @@ export function composeWith<D>(t: RenderResult<any>, catalog: Catalog<D>, tree: 
 export interface ComposeDecisionsOptions {
   /** the decision endpoint (default '/api/decide': the app's own route, which holds the API key) */
   url?: string
-  /** the decision model ('jev-latest', 'nimble', …) */
+  /** the decision model ('jev-latest', 'nimble', …); without one: SYG681 (dev) */
   model?: string
   /** the request lane (`key` of every `decide()` request; default: the behavior's, 'compose') */
   key?: string

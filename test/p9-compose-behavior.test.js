@@ -1,7 +1,7 @@
-// PLAN-9 C-1 / T-1 / T-2 (worker A): the compose behavior, run once per backend (the contract's
-// fake decision-like backend: 2 steps + a preview; the fake LLM-like one: streamed deltas), with
-// composeWith answering each backend through its own fake(). The coordinator adds the real
-// compose.decisions() / compose.llm() to BACKENDS after B and C merge.
+// PLAN-9 C-1 / T-1 (worker A): the compose behavior against the Backend contract, run once per
+// minimal fake backend (test/p9-compose-fakes.js: a decision-like one, 2 steps + a preview; an
+// LLM-like one, streamed deltas), with composeWith answering each through its own fake(). The same
+// scenarios on the real compose.decisions() / compose.llm(): test/p9-compose-matrix.test.js (T-2).
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { setupChecks } from './diagnostics/helpers.js'
 import { getDiagnostics } from '../src/extra/diagnostics/index.ts'
@@ -234,21 +234,25 @@ describe('compose behavior: backend contract edges', () => {
     expect(t.requests('LLM')).toEqual([])
   })
 
-  it('the stub backends (compose.decisions / compose.llm) work end to end through composeWith', async () => {
+  it('the real backends (compose.decisions / compose.llm) work end to end through composeWith (the matrix: p9-compose-matrix)', async () => {
     for (const backend of [compose.decisions({ model: 'jev' }), compose.llm({ model: 'qwen' })]) {
       t = renderComponent(makeApp(backend), { strict: true })
-      await ask('weather and tickets')
+      // the decision backend asks about the records the prompt names (a lexical prefilter)
+      await ask('the weather and Globex')
       await composeWith(t, catalog, [{ part: 'weather' }, { part: 'customer', params: { id: 9 } }])
       await t.waitForState((s) => s.page.status === 'done')
       expect(Object.keys(t.state.page.layout.nodes).sort()).toEqual(['customer:9', 'page', 'weather'])
+      expect(shape(t.state.page.layout)).toEqual(['weather', 'customer:9'])
       t.dispose()
     }
     t = null
   })
 
-  it('compose.answer(props, value) is { scope, node, value }; a backend without a model is SYG681', () => {
+  it('compose.answer(props, value) is { scope, node, value }; compose.decisions() without a model is SYG681 (compose.llm(): the transport has a default)', () => {
     expect(compose.answer({ scope: 'c1', node: 'choice', other: 1 }, 'yes')).toEqual({ scope: 'c1', node: 'choice', value: 'yes' })
     compose.llm({})
+    expect(getDiagnostics().map((d) => d.code)).not.toContain('SYG681')
+    compose.decisions({})
     expect(getDiagnostics().map((d) => d.code)).toContain('SYG681')
   })
 })

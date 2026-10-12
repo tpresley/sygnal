@@ -4,7 +4,19 @@
  * compose`). Type-only: this module emits nothing.
  */
 
-/** a param declaration, normalized (`kind` added) */
+/**
+ * a param declaration, normalized: the canonical form every module reads (layout's checks, render,
+ * both backends). `kind` replaces the declaration's discriminator (`options` → 'options',
+ * `type: 'number' | 'text' | 'list'` → that kind (`type` itself is not kept), `from` → 'record');
+ * only the fields listed here are kept. An options param always has a `default` (its first option when none is
+ * given); `required` is a boolean on text and list params.
+ *
+ *   options: { kind: 'options', options: { value: description }, default, label?, ask? }
+ *   number:  { kind: 'number', min?, max?, default?, bins?: { number: description }, label? }
+ *   text:    { kind: 'text', maxLength?, default?, required, label? }
+ *   list:    { kind: 'list', items?: { maxLength? }, min?, max?, required, default?, label? }
+ *   record:  { kind: 'record', from: (state) => [{ value, name?, aliases?, description? }], label? }
+ */
 export type Param =
   | {kind: 'options'; options: Record<string, string>; default?: any; label?: string; ask?: string}
   | {kind: 'number'; min?: number; max?: number; default?: number; bins?: Record<string, string>; label?: string}
@@ -97,6 +109,14 @@ export interface Catalog {
   /** false: the catalog opted out of the built-in row */
   rows: boolean
   guidance?: string
+  /**
+   * maxParts: leaves on the page (finish drops the last non-required ones). maxDepth: how deep a
+   * CONTAINER may sit, counting the page as 0 and its children as 1: a container at depth d > maxDepth
+   * moves to the page (finish; structure/composer.mjs's rule). Both backends follow it: decisions'
+   * reading, and llm's schema and repair (a container is offered at depth d only when d <= maxDepth).
+   * Leaves may sit one level below the deepest container. (The research llm-composer.mjs counted
+   * leaves instead: its maxDepth m is this one's m - 1.)
+   */
   limits: {maxParts: number; maxDepth: number}
   examples: any[]
   render(slice: any, state: any, opts?: RenderOptions): any
