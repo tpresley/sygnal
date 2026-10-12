@@ -735,5 +735,6 @@ await page.route('**/v1/responses', (route) => route.fulfill({
 
 - [Agents](/guide/agent/): the `chat` behavior, an assistant that operates your components through their `agent` declarations
 - [AI Decisions](/guide/ai-decisions/): typed answers from decision models, and escalating unsure ones to chat
+- [Composing UI with a Model](/guide/ai-compose/): an LLM builds a page from your catalog of parts with `compose.llm()`, a structured-output request
 - [Recipes](/recipes/overview/#ai): a support inbox, structured output into a form, on-device summaries
 - [HTTP](/guide/http/): the fetch driver, whose reply actions the chat driver shares

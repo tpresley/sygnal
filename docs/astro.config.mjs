@@ -87,6 +87,7 @@ export default defineConfig({
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
             { label: 'AI Chat', slug: 'guide/ai-chat' },
             { label: 'AI Decisions', slug: 'guide/ai-decisions' },
+            { label: 'AI Compose', slug: 'guide/ai-compose' },
             { label: 'Collections', slug: 'guide/collections' },
             { label: 'Virtual Collections', slug: 'guide/virtual-collections' },
             { label: 'Behaviors', slug: 'guide/behaviors' },
