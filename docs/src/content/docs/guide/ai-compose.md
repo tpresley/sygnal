@@ -1,6 +1,6 @@
 ---
 title: Composing UI with a Model
-description: Let a decision model or an LLM build a page from parts your app prepared — defineCatalog, the compose behavior and catalog.render, compose.decisions() and compose.llm(), parts wired into app state, and testing with composeWith
+description: Let a decision model or an LLM build a page from parts your app prepared — defineCatalog, the compose behavior and catalog.render, compose.decisions() and compose.llm(), parts wired into app state, follow-up edits, composing from an agent, and testing with composeWith
 ---
 
 Some pages are better arranged by the user than by you: a dashboard, a workspace, a "show me what matters this morning" screen. With `sygnal/ai` the user describes the page in words ("urgent tickets first, then the pending orders"), and a model builds it from **parts your app prepared**: real Sygnal components with their own data, wording and actions.
@@ -272,7 +272,7 @@ Dashboard.uses = {
 
 `form` and `prompt` are selectors: typing in the prompt field sets `state.page.prompt`, and submitting the form composes.
 
-In this demo, the demo server below stands in for both kinds of model. They only match words, which is enough to show the wiring: the decision route answers each question `decide()` sends, by name, and the chat route writes the layout JSON a chat model would. A real model reads the descriptions instead.
+In this demo, the demo server below stands in for both kinds of model. They only match words, which is enough to show the wiring: the decision route answers each question `decide()` sends, by name, and the chat route writes the layout JSON a chat model would. For a [follow-up edit](#follow-up-edits) both read the change into the same list of removes, moves, adds and setting changes, then answer it in their backend's encoding (the edit questions, or the operations). A real model reads the descriptions instead.
 
 ```js live-server
 import { encodeOpenResponses } from 'sygnal/ai'
@@ -313,37 +313,110 @@ function answer(name, question, text) {
     return sure((SIDE.test(c) && keys.find((k) => k !== 'none' && k !== m[1] && PARTS[k]?.test(c))) || 'none', keys)
   }
   if ((m = name.match(/^(?:first|left)_(\w+)_vs_(\w+)$/))) return sure(at(text, m[1]) <= at(text, m[2]) ? m[1] : m[2], keys)
+  if (question.type === 'noul') return { type: 'noul', noul: 0.05 }
   return sure(keys[0], keys)
+}
+
+// a follow-up, read into what it changes (each node key here is its part id)
+const named = (text) => Object.keys(PARTS).filter((id) => at(text, id) >= 0).sort((a, b) => at(text, a) - at(text, b))
+const paramsIn = (text, id) => Object.fromEntries(Object.keys(PARAMS[id] ?? {}).map((n) => [n, valueOf(text, id, n)]).filter(([, v]) => v))
+function changes(text, onPage) {
+  const out = { remove: [], move: [], add: [], set: [], replace: null }
+  if (/\bonly\b/i.test(text)) out.remove = onPage.filter((id) => !named(text).includes(id))
+  for (const c of text.split(/,|\bthen\b|\band (?=remove|move|add|show|put)/i)) {
+    let m
+    if ((m = c.match(/^(.*)\binstead of\b(.*)$/i))) { out.replace = { to: named(m[1])[0], from: named(m[2])[0] }; continue }
+    if (/\b(remove|drop|hide|without)\b/i.test(c)) { out.remove.push(...named(c).filter((id) => onPage.includes(id))); continue }
+    const ref = c.match(/\b(above|below|under|beside|next to)\s/i)
+    const anchor = ref ? named(c.slice(ref.index))[0] : null
+    const where = /\b(top|first)\b/i.test(c) ? 'top' : /\b(bottom|last)\b/i.test(c) ? 'bottom'
+      : anchor ? `${/above/i.test(ref[1]) ? 'above' : /below|under/i.test(ref[1]) ? 'below' : 'beside'}:${anchor}` : null
+    for (const id of named(c).filter((x) => x !== anchor)) {
+      const params = paramsIn(c, id)
+      if (!onPage.includes(id)) out.add.push({ id, params, where })
+      else {
+        if (where) out.move.push({ id, where })
+        if (Object.keys(params).length) out.set.push({ id, params })
+      }
+    }
+  }
+  return out
+}
+
+// a decision model, editing: the edit questions (remove_, set_, add_, moved_, where_ and the gates)
+function editAnswer(name, question, ch) {
+  const keys = Object.keys(question.criteria ?? {})
+  const yes = (b) => ({ type: 'noul', noul: b ? 0.93 : 0.04 })
+  const part = (k) => k.replace(/_\d+$/, '')
+  let m
+  if ((m = name.match(/^remove_(\w+)$/))) return yes(ch.remove.includes(part(m[1])) || ch.replace?.from === part(m[1]))
+  if (name === 'swap') return yes(!!ch.replace)
+  if (name === 'placed') return yes(ch.move.length > 0)
+  if (name === 'change') return yes(ch.set.length > 0)
+  if ((m = name.match(/^set_(\w+?)__(\w+)$/))) {
+    const v = ch.set.find((s) => s.id === part(m[1]))?.params[m[2]]
+    return sure(keys.includes(v) ? v : 'keep', keys)
+  }
+  if ((m = name.match(/^add_(\w+)$/))) return sure(ch.add.some((a) => a.id === m[1]) || ch.replace?.to === m[1] ? 'use' : 'omit', keys)
+  if ((m = name.match(/^moved_(\d)$/))) return sure(ch.move[m[1] - 1]?.id ?? 'none', keys)
+  if ((m = name.match(/^where_(\w+)$/))) {
+    const w = [...ch.move, ...ch.add].find((x) => x.id === part(m[1]))?.where
+    return sure(keys.includes(w) ? w : 'not_stated', keys)
+  }
+  return null // the params of an added part: as for a new page
+}
+
+// a chat model, editing: the operations, on the page's n1, n2, … keys
+function ops(text) {
+  const nodes = Object.fromEntries([...text.matchAll(/^\s*n(\d+): (\w+)(.*)$/gm)].map(([, n, part, rest]) => [part, { key: `n${n}`, rest }]))
+  const ch = changes(text.split('\nChange: ')[1], Object.keys(nodes))
+  const place = (w) => {
+    const [dir, id] = (w ?? 'bottom').split(':')
+    return id ? `${dir === 'beside' ? 'right of' : dir} ${nodes[id].key}` : dir
+  }
+  const changed = (s) => Object.entries(s.params).some(([k, v]) => !nodes[s.id].rest.includes(`${k}="${v}"`))
+  return [
+    ...ch.remove.map((id) => ({ op: 'remove', node: nodes[id].key })),
+    ...(nodes[ch.replace?.from] && ch.replace.to ? [{ op: 'replace', node: nodes[ch.replace.from].key, part: ch.replace.to }] : []),
+    ...ch.set.filter(changed).map((s) => ({ op: 'setParams', node: nodes[s.id].key, params: s.params })),
+    ...ch.move.map((mv) => ({ op: 'move', node: nodes[mv.id].key, where: place(mv.where) })),
+    ...ch.add.map((a) => ({ op: 'add', part: a.id, params: a.params, where: place(a.where) })),
+  ]
 }
 
 // a chat model: the layout JSON, in the order the request names the parts
 function layout(text) {
-  const named = Object.keys(PARTS).filter((id) => at(text, id) >= 0).sort((a, b) => at(text, a) - at(text, b))
   const node = (id) => {
-    const params = Object.fromEntries(Object.keys(PARAMS[id] ?? {}).map((n) => [n, valueOf(text, id, n)]).filter(([, v]) => v))
+    const params = paramsIn(text, id)
     return Object.keys(params).length ? { part: id, params } : { part: id }
   }
-  const row = named.filter((id) => SIDE.test(clause(text, id)))
-  const children = named.flatMap((id) => !row.includes(id) || row.length < 2 ? [node(id)] : id === row[0] ? [{ part: 'row', children: row.map(node) }] : [])
-  return JSON.stringify({ asked_for: named.map((id) => text.match(PARTS[id])[0]), children })
+  const parts = named(text)
+  const row = parts.filter((id) => SIDE.test(clause(text, id)))
+  const children = parts.flatMap((id) => !row.includes(id) || row.length < 2 ? [node(id)] : id === row[0] ? [{ part: 'row', children: row.map(node) }] : [])
+  return JSON.stringify({ asked_for: parts.map((id) => text.match(PARTS[id])[0]), children })
 }
 
 export default {
-  'POST /api/decide': ({ json }) => ({
-    delayMs: 350,
-    json: { model: json.model, answers: Object.fromEntries(Object.entries(json.questions).map(([name, q]) => [name, answer(name, q, json.state.user_request)])) },
-  }),
-  'POST /v1/responses': ({ json }) => ({
-    delayMs: 300,
-    chunkMs: 90,
-    sse: encodeOpenResponses(layout(String(json.input.at(-1).content)).match(/[\s\S]{1,16}/g)),
-  }),
+  'POST /api/decide': ({ json }) => {
+    const text = json.state.user_request
+    // an edit's questions come with the current page
+    const onPage = Object.keys(json.questions).filter((n) => n.startsWith('remove_')).map((n) => n.slice(7).replace(/_\d+$/, ''))
+    const ch = json.state.current_page && changes(text, onPage)
+    const reply = (name, q) => (ch && editAnswer(name, q, ch)) ?? answer(name, q, text)
+    return { delayMs: 350, json: { model: json.model, answers: Object.fromEntries(Object.entries(json.questions).map(([name, q]) => [name, reply(name, q)])) } }
+  },
+  'POST /v1/responses': ({ json }) => {
+    const text = String(json.input.at(-1).content)
+    // an edit sends the current page and the change
+    const reply = text.startsWith('Current page:') ? JSON.stringify({ ops: ops(text) }) : layout(text)
+    return { delayMs: 300, chunkMs: 90, sse: encodeOpenResponses(reply.match(/[\s\S]{1,16}/g)) }
+  },
 }
 ```
 
-The demo composes its first prompt on load. Try the other prompts, or your own with the words the stand-in knows (revenue, signups, chart, orders, tickets, tasks, weather; "side by side"; quarter, month, pending, urgent). Under the page, the model's answers: every question of each step, with the probability of the answer it chose.
+The demo composes its first prompt on load. The first row of chips starts a new page (`fresh: true`); the second row changes the page that is there ([follow-up edits](#follow-up-edits)), and so does the field. Try your own with the words the stand-in knows (revenue, signups, chart, orders, tickets, tasks, weather; "side by side"; quarter, month, pending, urgent; top, bottom, above, below, beside, remove, instead of). Under the page, the model's answers: every question of each step, with the probability of the answer it chose.
 
-```jsx live live-height=520 title="Dashboard.jsx"
+```jsx live live-height=560 title="Dashboard.jsx"
 import { compose } from 'sygnal/ai'
 import { catalog, TASKS } from './catalog.jsx'
 
@@ -352,6 +425,13 @@ const EXAMPLES = [
   'Urgent tickets first, then the pending orders',
   'The weather and my tasks',
   'The stock price of Apple',
+]
+const FOLLOW_UPS = [
+  'Move the chart to the top',
+  'Show the chart for the month',
+  'Add my tasks beside the chart',
+  'The orders instead of the chart',
+  'Remove the signups',
 ]
 
 const STATUS = {
@@ -380,6 +460,9 @@ function Dashboard({ state }) {
       <div className="chips">
         {EXAMPLES.map((p) => <button type="button" className="chip" data={{ prompt: p }} disabled={busy}>{p}</button>)}
       </div>
+      <div className="chips">
+        {FOLLOW_UPS.map((p) => <button type="button" className="chip follow-up" data={{ prompt: p }} disabled={busy || !page.layout}>{p}</button>)}
+      </div>
       <p className="status" aria-live="polite">{STATUS[page.status](page)}</p>
       <div className={page.preview ? 'canvas preview' : 'canvas'}>{catalog.render(page, state)}</div>
       {page.decisions && (
@@ -403,12 +486,18 @@ Dashboard.uses = {
   page: compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }), form: '.ask', prompt: '.prompt' }),
 }
 
-Dashboard.intent = ({ DOM }) => ({ EXAMPLE: DOM.click('.chip').data('prompt') })
+Dashboard.intent = ({ DOM }) => ({
+  EXAMPLE: DOM.click('.chip:not(.follow-up)').data('prompt'),
+  FOLLOW_UP: DOM.click('.follow-up').data('prompt'),
+})
 
 Dashboard.model = {
   // the demo composes on load only to have something to show
   BOOTSTRAP: { EFFECT: (state, data, next) => next('page.COMPOSE', EXAMPLES[0]) },
-  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
+  // a new page: start over
+  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', { prompt, fresh: true }) },
+  // a change to the page that is there
+  FOLLOW_UP: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
 }
 
 export default Dashboard
@@ -448,7 +537,44 @@ The behavior's actions are the host's, under the slice's key:
 | `page.CONTROL` | `{ key, name, value }`: a container control (what `control()` clicks send) |
 | `page.DONE` | Sent when a composition finishes, with the layout. A host entry `'page.DONE'` runs after the behavior's |
 
-When a layout exists, a new prompt composes from scratch and reuses the keys of the parts that stay. Editing the current page on a follow-up ("move the orders to the top") is planned for a later release.
+### Follow-up edits
+
+When the page already has parts, `page.COMPOSE` is an **edit** of it, with either backend: "move the orders to the top", "show the chart for the month", "the orders instead of the chart". `{ prompt, fresh: true }` starts over instead (a new page, keys still reused by identity), as the demo's first row of chips does.
+
+An edit can do any of these, several at once:
+
+- **remove** a part ("drop the weather"; "only my tasks" removes the rest);
+- **change a setting**: a param option ("for the month", "only the pending orders");
+- **add** a part, with its params;
+- **move** a part to the top or the bottom, above, below or beside another part, or into a container's slot;
+- **swap** one part for another ("the orders instead of the chart").
+
+What stays the same:
+
+- **Parts the edit doesn't touch keep their key, so their instance and their state**, in their place and row.
+- **A setting change keeps the key**: the part re-renders with the new props instead of being replaced. (A record param is the exception: another record is another node.)
+- **A replacement takes the old part's place**, unless the request says where.
+- The part a place is relative to ("below the chart") never moves.
+- An edit that changes nothing, or asks for nothing in the catalog, is `status: 'unavailable'`, and the page stays.
+
+The backends edit in their own way:
+
+| | `compose.decisions()` | `compose.llm()` |
+|---|---|---|
+| Request | Call 1 asks, per part on the page, "remove it?" and "change its setting?", per part not on it "add it?", and which parts move. Call 2, only when something moves or is added, asks where each one goes | One request with the page (one node per line) and the change; the model writes operations: `add`, `remove`, `move`, `replace`, `setParams`, placed by `top`, `bottom`, `above n2`, `left of n3` |
+| Calls | 1 or 2 | 1 (streamed: the preview applies each finished operation) |
+| Exact edits, measured | Jev: 66/66 on the tuning set, 43/48 held out, every key kept; `nimble`: weaker, 18/22 and 8/16 | `qwen3:8b`: 9/10 and 18/21, every key kept, no invalid reply, about 1.4 s |
+| `decisions` | The answers of `edit` and `where` | `ops`: the operations as applied, with layout keys |
+
+The demos above and below edit: in the first, compose a page, then try the second row of chips.
+
+#### `profile: 'small'`
+
+A small local decision model such as Ollama's `nimble` tends to pick the first of two options, whatever they say. `compose.decisions({ profile: 'small' })` corrects for it: it asks each "which comes first" question in both orders, and when the answers come out about even, it follows the order in which the request names the parts. On the demo app's catalog it took `nimble` from 7/11 to 8/11 flat dashboards, and its side-by-side prompts from 1/4 to 3/4. It costs more questions in the same calls, so leave it off for Jev.
+
+```js
+compose.decisions({ url: 'http://localhost:11434/v1/systemone', model: 'nimble', rowMean: 0.5, profile: 'small' })
+```
 
 ### `catalog.render`
 
@@ -460,14 +586,14 @@ It renders anything with a `layout`, so a layout you keep elsewhere renders the 
 
 Composed parts are the host's children. A part with a lens edits app state, a part's `PARENT` value reaches the host through `CHILD.select`, and context and drivers work as for any child.
 
-In this demo the checklist edits `state.tasks` (the summary line outside the composition reads it), and the ticket list's "Add to my tasks" goes to the host, which adds a task the checklist then shows. Recompose with "Only my tasks": the ticks stay, because they are app state, and the checklist keeps its instance, because its node key (`tasks`) is the same.
+In this demo the checklist edits `state.tasks` (the summary line outside the composition reads it), and the ticket list's "Add to my tasks" goes to the host, which adds a task the checklist then shows. Tick a task, then "Move my tasks to the top": the edit moves the checklist out of the row and keeps its node key (`tasks`), so it is the same instance, with the same ticks. "Only my tasks" removes the tickets and leaves the checklist as it is.
 
 ```jsx live live-height=300 title="Planner.jsx"
 import { ABORT } from 'sygnal'
 import { compose } from 'sygnal/ai'
 import { catalog, TASKS, TicketList } from './catalog.jsx'
 
-const PROMPTS = ['My tasks beside the urgent tickets', 'Only my tasks']
+const PROMPTS = ['My tasks beside the urgent tickets', 'Move my tasks to the top', 'Only my tasks']
 
 function Planner({ state }) {
   const done = state.tasks.filter((t) => t.done).length
@@ -491,7 +617,8 @@ Planner.intent = ({ DOM, CHILD }) => ({
 
 Planner.model = {
   BOOTSTRAP: { EFFECT: (state, data, next) => next('page.COMPOSE', PROMPTS[0]) },
-  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
+  // the first prompt starts over; the others edit the page
+  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt === PROMPTS[0] ? { prompt, fresh: true } : prompt) },
   TAKE: (state, ticket) => (state.tasks.some((t) => t.text === ticket.title)
     ? ABORT
     : { ...state, tasks: [...state.tasks, { id: state.tasks.length + 1, text: ticket.title, done: false }] }),
@@ -523,7 +650,8 @@ It sends [`decide()`](/guide/ai-decisions/) requests on the `HTTP` sink (the [fe
 - `model`: required ([SYG681](/reference/errors/#syg681) without one);
 - `rowMean`: how sure "side by side" answers must be to make a row (0.25, measured on Jev; 0.5 suits `nimble`);
 - `prefilter: true`: one more call first, to narrow a large catalog (above about 60 parts) by the parts' `category`;
-- `maxOptions`: the most options one question may have (255; 25 when `url` looks like Ollama).
+- `maxOptions`: the most options one question may have (255; 25 when `url` looks like Ollama): a larger choice is split into several questions;
+- `profile: 'small'`: for a small local model such as `nimble` ([`profile: 'small'`](#profile-small)).
 
 ### `compose.llm()`
 
@@ -535,22 +663,28 @@ It sends one chat request on the `LLM` sink ([`makeChatDriver()`](/guide/ai-chat
 
 Options: `model`, `sink` (`'LLM'`), `stream` (true), `plan` (true; false when the catalog has `examples`), `instructions` (more rules, or a function of the system prompt), `examples`, and transport options such as `body: { temperature: 0 }`, sent on the request as is.
 
-This demo is the first one with `compose.llm()`: its stand-in model streams the layout JSON from the demo server's `'POST /v1/responses'` route, so the page fills in part by part. Under it, the model's plan.
+This demo is the first one with `compose.llm()`: its stand-in model streams the layout JSON from the demo server's `'POST /v1/responses'` route, so the page fills in part by part. The second row of chips edits the page: the stand-in streams operations, and the preview applies each one as it completes. Under the page, the model's plan, or the operations of an edit as applied (with the layout's keys).
 
-```jsx live live-height=360 title="LlmDashboard.jsx"
+```jsx live live-height=400 title="LlmDashboard.jsx"
 import { compose } from 'sygnal/ai'
 import { catalog, TASKS } from './catalog.jsx'
 
 const PROMPTS = ['Signups and revenue side by side, then the monthly revenue chart and the paid orders', 'The weather, then urgent tickets']
+const FOLLOW_UPS = ['Move the paid orders to the top', 'Show the chart for the quarter', 'Add the weather beside the signups', 'Remove the revenue']
+
+const opText = (o) => [o.op, o.node, o.part !== o.node && o.part, o.params && JSON.stringify(o.params), o.where].filter(Boolean).join(' ')
 
 function LlmDashboard({ state }) {
   const page = state.page
+  const busy = page.status === 'composing' || page.status === 'preview'
   return (
     <div className="composer">
-      <div className="chips">{PROMPTS.map((p) => <button type="button" className="chip" data={{ prompt: p }}>{p}</button>)}</div>
+      <div className="chips">{PROMPTS.map((p) => <button type="button" className="chip" data={{ prompt: p }} disabled={busy}>{p}</button>)}</div>
+      <div className="chips">{FOLLOW_UPS.map((p) => <button type="button" className="chip follow-up" data={{ prompt: p }} disabled={busy || !page.layout}>{p}</button>)}</div>
       <p className="status" aria-live="polite">{page.status === 'preview' ? 'Writing the layout…' : page.status}</p>
       <div className={page.preview ? 'canvas preview' : 'canvas'}>{catalog.render(page, state)}</div>
       {page.decisions?.asked_for && <p className="explain">Plan: {page.decisions.asked_for.join(' · ')}</p>}
+      {page.decisions?.ops && <p className="explain">Operations: {page.decisions.ops.map(opText).join(' · ')}</p>}
     </div>
   )
 }
@@ -559,11 +693,15 @@ LlmDashboard.initialState = { tasks: TASKS }
 
 LlmDashboard.uses = { page: compose(catalog, { backend: compose.llm() }) }
 
-LlmDashboard.intent = ({ DOM }) => ({ EXAMPLE: DOM.click('.chip').data('prompt') })
+LlmDashboard.intent = ({ DOM }) => ({
+  EXAMPLE: DOM.click('.chip:not(.follow-up)').data('prompt'),
+  FOLLOW_UP: DOM.click('.follow-up').data('prompt'),
+})
 
 LlmDashboard.model = {
   BOOTSTRAP: { EFFECT: (state, data, next) => next('page.COMPOSE', PROMPTS[0]) },
-  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
+  EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', { prompt, fresh: true }) },
+  FOLLOW_UP: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
 }
 
 export default LlmDashboard
@@ -616,6 +754,47 @@ export async function POST(req) {
 
 A composition's requests are larger than a single decision (every part's description is in its questions), so allow more than a triage route would. `compose.llm()` goes through your chat driver's transport, which [ships behind your own route](/guide/ai-chat/#shipping-it) the same way.
 
+## Compose from an agent
+
+A chat assistant can arrange the page too. `compose.action('page')` is the [`agent`](/guide/agent/#the-agent-static) action for the behavior's `page.COMPOSE`, and `compose.summary(slice)` is what the assistant reads of the page:
+
+```jsx
+import { chat, compose } from 'sygnal/ai'
+import { catalog } from './catalog.jsx'
+
+function Workspace({ state }) {
+  const a = state.assistant
+  return (
+    <main>
+      <div className="canvas">{catalog.render(state.page, state)}</div>
+      <form className="ask">
+        <input className="prompt" aria-label="Ask the assistant" value={a.prompt} />
+        <button type="submit">Send</button>
+      </form>
+    </main>
+  )
+}
+
+Workspace.uses = {
+  page: compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }) }),
+  assistant: chat({ form: '.ask', prompt: '.prompt', instructions: 'You arrange the workspace with the tools.' }),
+}
+
+Workspace.agent = {
+  name: 'app',
+  description: 'The workspace page',
+  read: (state) => ({ page: compose.summary(state.page) }),
+  actions: { ...compose.action('page') },
+}
+```
+
+- The model gets the tool `app_page_compose({ prompt, fresh? })`: `prompt` is what the page should show, or how to change it, in the user's words. Like any `page.COMPOSE`, it [edits](#follow-up-edits) the current page unless `fresh` is true.
+- The tool's result waits for the composition ([`until`](/guide/agent/#waiting-for-a-result-until)), so its `state` already shows the new page. `compose.summary(slice)` is `{ status, page, error? }`, with `page` the layout as a tree: the assistant can tell the user what it placed, or that nothing fit.
+- `compose.action(key, { description, timeout })` takes another slice key, its own tool description, and a timeout (60 s by default; past it the result says the composition is still pending).
+- With `compose.llm()`, the composition's request goes on the same `LLM` sink as the chat's, in its own lane with its own reply actions, so neither aborts the other.
+
+The [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) and the call rules are in Agents.
+
 ## Testing
 
 Tests never call a model. `composeWith(t, catalog, tree)` answers the pending composition so that it becomes `tree`, whichever backend is pending: it builds each step's reply with the backend's own `fake()` (the `decide()` answers, or the LLM's JSON) and sends it as the model would. So one test runs against both backends:
@@ -665,12 +844,13 @@ Here `makeDashboard(backend)` returns the first demo's component with that backe
 
 ## Cards in a chat
 
-An agent in a chat will be able to ask the user with a composed card (options, a small form, a confirmation) and get the answer back as its tool result; this section is written when that ships.
+The same catalogs build the cards an assistant asks the user with: `chat({ ask: { catalog } })` gives the model an `ask_user` tool, the app composes a card from prepared parts, and the user's click is the tool's result. [Cards in a Chat](/guide/ai-cards/) documents it, with a demo.
 
 ## Related
 
 - [AI Decisions](/guide/ai-decisions/): `decide()`, the questions, and the server route that keeps the key
 - [AI Chat](/guide/ai-chat/): the chat driver, transports and structured output
 - [Agents](/guide/agent/): the `chat` behavior and the `agent` static
+- [Cards in a Chat](/guide/ai-cards/): `chat({ ask })`, client tools and composed cards
 - [Parent-Child Communication](/guide/parent-child/): `PARENT` and `CHILD.select`
 - [Persistence](/guide/persistence/): `persist()`
