@@ -133,11 +133,15 @@ This catalog, 2026-10-11, Ollama 0.40.2 on a laptop (GPU shared):
 
 | Backend | Flat dashboard (11) | Enum params (4) | Calls | Median per composition |
 |---|---|---|---|---|
-| `compose.decisions()` on `nimble` | 7/11 | 3/4 | 1–2 | ~4.5 s |
+| `compose.decisions({ profile: 'small' })` on `nimble` | 8/11 | 3/4 | 1–2 | ~5 s |
 | `compose.llm()` on `qwen3:8b` | 9/11 | 4/4 | 1 | ~1.4 s |
 
-nimble's misses are row and order answers (the left/right order inside a row twice, a row nobody
-asked for once, "How are sales doing?" without the chart). qwen3:8b's: a month range nobody asked
+nimble answers a two-option question mostly by position (`left_a_vs_b` → a at ~0.9 and
+`left_b_vs_a` → b at ~0.9), so the example uses `profile: 'small'`: order questions asked both ways,
+near-ties by the order the request names the parts (7/11 without it; the previous example's own
+encoding also scores 7/11 on today's nimble, G-755). Its misses: the chart above the orders (a real
+0.77 preference), "How are sales doing?" without the chart, churn/signups left to right, and a row
+nobody asked for. qwen3:8b's: a month range nobody asked
 for, and "How are sales doing?" as the three KPIs. The descriptions here ("Noun (what it shows)")
 did better than the previous example's ("KPI card: …"): 5/11 on nimble with the same backend.
 

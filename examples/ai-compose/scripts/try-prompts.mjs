@@ -68,7 +68,7 @@ if (!jev) {
 }
 const backend = kind === 'llm'
   ? compose.llm({ model })
-  : compose.decisions({ url: jev ? 'https://api.typesafe.ai/v1/systemone' : `${OLLAMA}/v1/systemone`, model })
+  : compose.decisions({ url: jev ? 'https://api.typesafe.ai/v1/systemone' : `${OLLAMA}/v1/systemone`, model, ...(!jev && { profile: 'small' }) })
 const transport = chatCompletions({ baseURL: `${OLLAMA}/v1`, body: { temperature: 0, reasoning_effort: 'none' } })
 const names = { ok: 'REPLY', error: 'FAILED', delta: 'DELTA', key: 'compose' }
 
