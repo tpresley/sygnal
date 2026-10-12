@@ -3722,6 +3722,15 @@ declare global {
     }
 
     /**
+     * `key` on any tag (D456): on a component, its identity among its parent's children (before
+     * its `id` prop, then its position): a keyed instance survives a move or a reorder, and a new
+     * key makes a new instance. Never a prop of the component.
+     */
+    interface IntrinsicAttributes {
+      key?: string | number | null;
+    }
+
+    /**
      * A component's view receives `state: STATE` and `context`, but in JSX the parent passes
      * an optional `state` slice name or lens (`<Editor state="editor" />`, `<Panel />`).
      */

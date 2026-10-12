@@ -105,7 +105,8 @@ function componentVNode(comp: any, key: string, stateField: any, children: any[]
     children,
     text: undefined,
     elm: undefined,
-    key: '__vike_' + key + '__',
+    // no vnode key: it would be the instance identity (D456); `id` is (G-207)
+    key: undefined,
   }
 }
 
@@ -132,7 +133,7 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
     children: [],
     text: undefined,
     elm: undefined,
-    key: '__vike_page__',
+    key: undefined,
   }
 }
 

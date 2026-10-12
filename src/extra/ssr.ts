@@ -163,14 +163,14 @@ function withResources(def: any, state: any): any {
 }
 
 // PLAN-4 GS-9: uid(name?) as on the client: the root is 'u'; a child component adds its path in
-// the parent's view (or its `id` prop), as getComponentIdFromElement and instantiateSubComponents
+// the parent's view (or its vnode `key`, else its `id` prop, D456), as getComponentIdFromElement and instantiateSubComponents
 // in the core do; a Collection item adds its key, a Switchable page its name; anything but
 // each part encoded by uidPart (G-214); in the root option anything but [A-Za-z0-9_-] becomes '_'
 // (as run() does). SSR ids = hydration ids
 const makeUid = (base: string) => (n?: string) => n ? base + '-' + n : base
 function childUid(uid: string, vnode: any, path: string): string {
-  const id = vnode.data?.props?.id
-  return uid + '-' + uidPart(('::' + ((id && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, ''))
+  const id = vnode.key ?? vnode.data?.props?.id
+  return uid + '-' + uidPart(('::' + ((id != null && JSON.stringify(id).replaceAll('"', '')) || path)).replace(/.*::(r\.)?/, ''))
 }
 
 // G-567: a view that returns a string or a number renders it as text (core/instance.ts view());
