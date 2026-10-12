@@ -276,6 +276,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG423: 'Context change skipped a view whose output it changes',
   SYG424: 'Duplicate Collection item id',
   SYG425: 'isolatedState slice lacks initialState keys',
+  // PLAN-9 (D470): checks/next.ts; dev entry
+  SYG453: 'Two children with the same identity share one instance',
   SYG601: "Retired in 6.0: Missing or invalid sources",
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -457,6 +459,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG423: 'warn',
   SYG424: 'warn',
   SYG425: 'warn',
+  // PLAN-9 (checks/next.ts): D470 key identity, two children with one identity
+  SYG453: 'warn',
   SYG612: 'error',
   // PLAN-4 D131 (element.ts, through the core bridge; a console warning in dev with diagnostics off)
   SYG644: 'warn',

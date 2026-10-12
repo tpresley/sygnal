@@ -17,7 +17,7 @@
  *   a Collection's viewTransitionName that isn't an identifier, the same name twice on the
  *   page after a patch, G-460: on rendered elements), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
- *   guide).
+ *   guide), SYG453 (PLAN-9, D470: two children with one identity share one instance).
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
@@ -92,6 +92,57 @@ function removedTags(f: any, v: any, depth = 0): void {
   if (/^[A-Z]/.test(tag) && /[a-z]/.test(tag) && !(v.data && v.data.c)) removed(f, f.name, 'string-tags', `<${tag}>`)
   const kids = v.children
   if (Array.isArray(kids)) for (const k of kids) removedTags(f, k, depth + 1)
+}
+
+/**
+ * PLAN-9 SYG453 (D470): two children of one view with the same identity (the same component and
+ * `key`, else `id`; `sel::key` in the core) are one instance, rendered in both places. The core
+ * doesn't look (0 production bytes): in the owner's injected vnode that instance's output, a
+ * scoped root (`data.isolate` in the real DOM driver, a `___<scope>` class in the mock DOM), is
+ * the same object twice. Its name and key come from the child whose DOM source has that scope.
+ */
+const scopeOfVnode = (n: any): string | undefined => {
+  const iso = n.data?.isolate
+  if (Array.isArray(iso)) return iso.length ? iso[iso.length - 1]?.scope : undefined
+  const m = typeof n.sel == 'string' && /\.___([^.]+)/.exec(n.sel)
+  return m ? m[1] : undefined
+}
+const scopeOfSource = (dom: any): string | undefined => {
+  const ns = dom?.namespace
+  if (Array.isArray(ns)) return ns[ns.length - 1]?.scope
+  const p = dom?._path
+  const m = Array.isArray(p) && /^\.___(.+)$/.exec(String(p[p.length - 1]))
+  return m ? m[1] : undefined
+}
+function sharedIdentity(iv: any, v: any): void {
+  const seen = new Set<any>(), dup = new Set<string>()
+  const walk = (n: any, d: number): void => {
+    if (!n || typeof n != 'object' || d > 300) return
+    const sc = scopeOfVnode(n)
+    if (sc !== undefined) {
+      if (seen.has(n)) { dup.add(sc); return }
+      seen.add(n)
+    }
+    const kids = n.children
+    if (Array.isArray(kids)) for (const k of kids) walk(k, d + 1)
+  }
+  walk(v, 0)
+  if (!dup.size) return
+  const owner = iv.name
+  for (const sc of dup) {
+    let child: any
+    try { child = iv.children().find((c: any) => scopeOfSource(c.sources?.DOM) === sc) } catch (_) { /* ignore */ }
+    const name = child ? child.name : 'a child component'
+    // the identity's own part of the child's uid (the owner's uid + '-' + its key, id or path)
+    const key = child && typeof child.uid == 'string' && child.uid.startsWith(iv.uid + '-') ? child.uid.slice(iv.uid.length + 1) : undefined
+    if (!once(`SYG453:${owner}:${name}:${key ?? sc}`)) continue
+    devReport('SYG453', {
+      component: owner,
+      message: `${owner} renders ${child ? `<${name}>` : name} in two places with the same identity${key !== undefined ? ` (key or id ${JSON.stringify(key)})` : ''}, so both places show one instance: it has one state, and the second tag's props replace the first's`,
+      fix: `Give each <${child ? name : 'Child'}> a different key (or id) among its parent's children, e.g. key={item.id}; a key on a component is its identity`,
+      data: {child: child ? name : undefined, key},
+    })
+  }
 }
 
 /** the instance fields the checks read from today's Component instances */
@@ -311,7 +362,10 @@ export function nextHooks(_api: any): any {
     onRender(iv: any, vnode: any) {
       const f = fac(iv)
       H.onRender(f, vnode)
-      if (on()) removedTags(f, vnode)
+      if (!on()) return
+      removedTags(f, vnode)
+      // SYG453: only a view with children can render one twice
+      if (iv.children().length) try { sharedIdentity(iv, vnode) } catch (_) { /* a check never breaks the app */ }
     },
     onReducer(iv: any, type: string, prev: any, next: any) {
       H.onReducer(fac(iv), type, prev, next, 'STATE')

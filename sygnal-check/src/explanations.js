@@ -798,6 +798,13 @@ export const EXPLANATIONS = {
     explanation: "The `chat` and `commandBar` behaviors (sygnal/ai) run agent actions through the app's runtime, which they reach through a hook layer every app picks up when it starts. The first `chat()` or `commandBar()` call installs that layer, and also adds it to the app already running that `run()` registered (the page's first live app), so a component using one of them loaded lazily into that app works. Another app started before the first call (a second `run()` on the page, a `sygnal/element` custom element) can't be found and has none: its assistant still streams replies, but sends no tools, no `read` context, and runs no tool calls; its command bar runs no commands (its `error` says so). Reported once per behavior, also when diagnostics are off.",
     fix: "Make the first `chat()` / `commandBar()` call happen before `run()`: define the host component (or call the factory once) in a module the entry imports, not only in a component loaded later.",
   },
+  SYG453: {
+    title: "Two children with the same identity share one instance",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.",
+    fix: "Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.",
+  },
   SYG501: {
     title: "Removed in 6.0: view with positional arguments",
     severity: "error",
