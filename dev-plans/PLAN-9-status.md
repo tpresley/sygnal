@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3: E-2 and M-1 merged; running `p9-live` (E-3, B-5, G-756), `p9-lowercase` (D471), `p9-polish` (E-2/M-1 follow-ups: checker chat table, card decisions, `chat({ model: fn })`, a 60-char truncation, a load-flaky test); then D-2…D-4 once the API is final. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3: E-2, M-1 and the D471 deprecation merged; running `p9-live` (E-3, B-5, G-756), `p9-polish` (E-2/M-1 follow-ups: checker chat table, card decisions, `chat({ model: fn })`, a 60-char truncation, a load-flaky test); then D-2…D-4 once the API is final. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -33,7 +33,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | D467 | 2026-10-11 | **Size budget:** do the tree-shaking fix (G-751) first; if it doesn't free enough, raise the budget to fit everything, and report the numbers (user) |
 | D468 | 2026-10-11 | **G-750 is fixed in 6.3.0** with PLAN-9; no 6.2.x patch (user) |
 | D469 | 2026-10-11 | 0-S3's recommendations adopted: `clientTools` option, `TOOL_OUTPUT` (not TOOL_RESULT), `TOOL_CALL` host entry, compose requests see only `need` + app state, a driver `abort: string[]`, uiMessageStream keeps `ui` (docs: store raw), `ask_user` fires TOOL_CALL (coordinator; user did not object) |
-| D471 | 2026-10-11 | **Drop the lowercase marker tags** (`<collection>`, `<switchable>`, …) (user). They are documented as supported (reference/api.md, guide/switchable.md) and used in examples, so removal is breaking: Phase 3 **deprecates** them in 6.3.0 (dev-only warning, docs, examples converted); removal (and making Collection/Switchable lazy, ~3.2 KB for marker-free apps) waits for the next major unless the user chooses to ship 7.0.0 — asked |
+| D471 | 2026-10-11 | **Drop the lowercase marker tags** (deprecated in 6.3.0 by `p9-lowercase`, merged: SYG426 dev warning + sygnal-check rule with `--fix`; removal patch and note in [`research/lowercase-marker-removal/`](research/lowercase-marker-removal/); measured removal win: kanban −732 B, a marker-free app −2,933 B) (`<collection>`, `<switchable>`, …) (user). They are documented as supported (reference/api.md, guide/switchable.md) and used in examples, so removal is breaking: Phase 3 **deprecates** them in 6.3.0 (dev-only warning, docs, examples converted); removal (and making Collection/Switchable lazy, ~3.2 KB for marker-free apps) waits for the next major unless the user chooses to ship 7.0.0 — asked |
 | D470 | 2026-10-11 | 0-S2's key identity goes in (`key ?? props.id ?? path`, +6 B), in Phase 1 with the G-751 / G-750 work |
 
 ## Items

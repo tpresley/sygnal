@@ -1,0 +1,120 @@
+diff --git a/src/collection.ts b/src/collection.ts
+index e1a52d9a..cfdc0912 100644
+--- a/src/collection.ts
++++ b/src/collection.ts
+@@ -1,15 +1,16 @@
+ import {h} from './cycle/dom/snabbdom';
+-// the core's host for this marker, registered on import (D157): unlike Portal, Transition and
+-// Suspense (G-751), not on first use, because the lowercase tag works without an import (docs)
+-import './core/hosts/collection';
++// the core's host for this marker (D157), registered when a tag uses it (the pragma calls `$reg`)
++import {enableCollection as reg} from './core/hosts/collection';
+ 
+ /** `<Collection of={Item} from="items" />`: a marker vnode the core's Collection host renders */
+ const Collection = (props: any) => {
++  reg();
+   const {children, ...sanitizedProps} = props;
+   return h('collection', {props: sanitizedProps}, children);
+ };
+ (Collection as any).componentName = 'collection';
+ (Collection as any).preventInstantiation = true;
++(Collection as any).$reg = reg;
+ 
+ export {Collection};
+ export default Collection;
+diff --git a/src/core/hosts/collection.ts b/src/core/hosts/collection.ts
+index c126bcf1..1a4f3c7f 100644
+--- a/src/core/hosts/collection.ts
++++ b/src/core/hosts/collection.ts
+@@ -322,4 +322,5 @@ export function named(inst: any, v: any, p: string): any {
+   return inst.vo
+ }
+ 
+-hosts.collection = (owner, props, children, id, marker) => new CollectionHost(owner, props, children, id, marker)
++/** registers the host; the public `Collection` calls it when used (its `$reg`, as Portal: G-751) */
++export const enableCollection = () => { hosts.collection = (owner, props, children, id, marker) => new CollectionHost(owner, props, children, id, marker) }
+diff --git a/src/core/hosts/switchable.ts b/src/core/hosts/switchable.ts
+index 82b8344f..44c4b9b2 100644
+--- a/src/core/hosts/switchable.ts
++++ b/src/core/hosts/switchable.ts
+@@ -143,4 +143,5 @@ export class SwitchableHost {
+   }
+ }
+ 
+-hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)
++/** registers the host; the public `Switchable` calls it when used (its `$reg`, as Portal: G-751) */
++export const enableSwitchable = () => { hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id) }
+diff --git a/src/core/instance.ts b/src/core/instance.ts
+index 2ceb62ef..dac8b9d9 100644
+--- a/src/core/instance.ts
++++ b/src/core/instance.ts
+@@ -487,7 +487,7 @@ export class Inst {
+         else this.tmpl = r
+         return walk(r, path, parent, idx)
+       }
+-      const data = n.data, host = sel && hosts[sel]
++      const data = n.data, host = data?.m && hosts[sel]
+       if (data?.c || host) {
+         const id = idOf(n, path)
+         seen.add(id)
+@@ -549,7 +549,7 @@ export class Inst {
+ 
+   inject(n: any, path: string): any {
+     if (!n || n.$p) return n
+-    if (n.data?.c || (n.sel && hosts[n.sel])) {
++    if (n.data?.c || (n.data?.m && hosts[n.sel])) {
+       const k = this.kids.get(idOf(n, path))
+       return k && (k.ready ? k.outv : notReady(k.outv))
+     }
+diff --git a/src/index.d.ts b/src/index.d.ts
+index 4d301ebe..409a1a42 100644
+--- a/src/index.d.ts
++++ b/src/index.d.ts
+@@ -3708,10 +3708,6 @@ declare global {
+   namespace JSX {
+     interface IntrinsicElements {
+       [elemName: string]: any;
+-      /** @deprecated since 6.3.0, removed in the next major: `import { Collection } from 'sygnal'` and write `<Collection …>` (SYG426) */
+-      collection: CollectionProps<any>;
+-      /** @deprecated since 6.3.0, removed in the next major: `import { Switchable } from 'sygnal'` and write `<Switchable …>` (SYG426) */
+-      switchable: SwitchableProps<any>;
+       slot: SlotProps;
+     }
+ 
+diff --git a/src/pragma/index.ts b/src/pragma/index.ts
+index deb752d3..8e280cd7 100644
+--- a/src/pragma/index.ts
++++ b/src/pragma/index.ts
+@@ -27,7 +27,7 @@ const FIELD = /^(input|textarea|select)|-/i
+ // selectors (`li#row-${id}`) don't grow it. A selector with an id or class keeps only bit 1, as
+ // P46-P's full-selector tests did (the host and SVG tags match the whole selector)
+ const tags: Record<string, number> = Object.create(null)
+-const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (/^(collection|switchable)$/i.test(tag) ? 4 : 0) | (tag in svgTags ? 2 : 0) | (/-/.test(tag) ? 8 : 0)
++const bits = (tag: string): number => tags[tag] = +FIELD.test(tag) | (tag in svgTags ? 2 : 0) | (/-/.test(tag) ? 8 : 0)
+ const tagBits = (sel: string): number => {
+   const t = tags[sel]
+   if (t !== undefined) return t
+diff --git a/src/switchable.ts b/src/switchable.ts
+index 4bdf2c47..5992a020 100644
+--- a/src/switchable.ts
++++ b/src/switchable.ts
+@@ -1,15 +1,16 @@
+ import {h} from './cycle/dom/snabbdom';
+-// the core's host for this marker, registered on import (D157): unlike Portal, Transition and
+-// Suspense (G-751), not on first use, because the lowercase tag works without an import (docs)
+-import './core/hosts/switchable';
++// the core's host for this marker (D157), registered when a tag uses it (the pragma calls `$reg`)
++import {enableSwitchable as reg} from './core/hosts/switchable';
+ 
+ /** `<Switchable of={{ a: A, b: B }} current={state.tab} />`: a marker vnode the core's Switchable host renders */
+ const Switchable = (props: any) => {
++  reg();
+   const {children, ...sanitizedProps} = props;
+   return h('switchable', {props: sanitizedProps}, children);
+ };
+ (Switchable as any).componentName = 'switchable';
+ (Switchable as any).preventInstantiation = true;
++(Switchable as any).$reg = reg;
+ 
+ export {Switchable};
+ export default Switchable;
