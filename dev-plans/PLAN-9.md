@@ -18,7 +18,8 @@
 - Core bytes: 0 unless the user approves 0-S1 / 0-S2 with numbers.
 
 **Status:**
-- Phase 0. The proposal this plan builds on is
+- Phase 0 complete (2026-10-11): spikes in the tracker, decisions D466–D470 (marker ships; budget may rise after G-751; G-750 in 6.3.0). Phase 1 in progress.
+- Before Phase 0: The proposal this plan builds on is
   [`research/ai-compose/PROPOSAL.md`](research/ai-compose/PROPOSAL.md).
 - The user accepted its recommendations on 2026-10-11 with two changes:
   - the `<Composed>` marker gets a spike, and shipping it depends on its impact on the core (D452);

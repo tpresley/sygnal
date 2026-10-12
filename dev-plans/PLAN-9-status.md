@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 spikes done (2026-10-11). Waiting on the user: M-1 ship decision (0-S1), and the size budget (4 B headroom after 0-S2; G-750's fix needs bytes, G-751 may free some). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phase 0 complete (2026-10-11). Phase 1 in progress. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -29,13 +29,18 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | D463 | 2026-10-11 | `byId` in `sygnal` (user, P9-Q4) |
 | D464 | 2026-10-11 | Docs demos on fixtures; optional Jev dev proxy in the example, key from an env file outside the repo (user, P9-Q5) |
 | D465 | 2026-10-11 | E-4 eval spend asked for at Phase 4 (user, P9-Q6) |
+| D466 | 2026-10-11 | **Ship `<Composed>`** (M-1), as 0-S1 built it: a `pres` rewrite registered by `enableComposed()` (user) |
+| D467 | 2026-10-11 | **Size budget:** do the tree-shaking fix (G-751) first; if it doesn't free enough, raise the budget to fit everything, and report the numbers (user) |
+| D468 | 2026-10-11 | **G-750 is fixed in 6.3.0** with PLAN-9; no 6.2.x patch (user) |
+| D469 | 2026-10-11 | 0-S3's recommendations adopted: `clientTools` option, `TOOL_OUTPUT` (not TOOL_RESULT), `TOOL_CALL` host entry, compose requests see only `need` + app state, a driver `abort: string[]`, uiMessageStream keeps `ui` (docs: store raw), `ask_user` fires TOOL_CALL (coordinator; user did not object) |
+| D470 | 2026-10-11 | 0-S2's key identity goes in (`key ?? props.id ?? path`, +6 B), in Phase 1 with the G-751 / G-750 work |
 
 ## Items
 
 | Item | State | Notes |
 |---|---|---|
 | Phase 0: merge research, cut branch | done | `06560b4a` on `main` (pushed); `plan9-integration` cut there; §4 code reservations confirmed free in `codes.ts` (SYG160–169, 250–259, 450–459, 680–689) |
-| 0-S1 `<Composed>` marker spike | done, awaiting user | [`research/ai-compose/marker-spike.md`](research/ai-compose/marker-spike.md): a `pres` rewrite (no host), 0 lines changed in existing core files, 0 B for non-users, +217 B gzip when imported, perf counts unchanged, parity holds; recommendation: ship as low-priority sugar (M-1). Found G-750 (core bug), G-751, G-752 |
+| 0-S1 `<Composed>` marker spike | done; ship (D466) | [`research/ai-compose/marker-spike.md`](research/ai-compose/marker-spike.md): a `pres` rewrite (no host), 0 lines changed in existing core files, 0 B for non-users, +217 B gzip when imported, perf counts unchanged, parity holds; recommendation: ship as low-priority sugar (M-1). Found G-750 (core bug), G-751, G-752 |
 | 0-S2 identity from vnode `key` | done: go (meets D456's bar) | `exp/p9-key-identity` `8d8ae48c`: `idOf` = `key ?? props.id ?? path` (`!= null`, so `key={0}` counts); SSR `childUid` same rule; Vike shell drops its component keys; `JSX.IntrinsicAttributes.key` typed. **+6 B gzip** (42,690 → 42,696; **4 B headroom left**); full `npm test` gate green (vitest 4,417, examples, types, browser 375/375, perf); 17 new tests + a type test. Coordinator re-ran the tests (23 pass) and the size gate. Follow-ups: optional dev warning for duplicate sibling identities; docs line that a key on `<Collection>` re-creates its items; react.md, llms.txt and the skill describe keyed identity |
 | 0-S3 chat client tools design | done | [`research/ai-compose/chat-client-tools.md`](research/ai-compose/chat-client-tools.md): `clientTools` option, `TOOL_OUTPUT` (AI SDK 7's `addToolOutput`; replaces the plan's TOOL_RESULT), `TOOL_CALL` host entry, `ANSWER`; 12 edge-case rules; card on `part.ui`; SYG684–686; 5 open questions with recommendations. Possible existing bug to check in H-1: a persisted busy status may lock SEND after reload |
 | P9-Q1…Q6 | done | accepted as recommended (D460–D465) |
@@ -54,7 +59,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | H-3 `direct: true` | todo | |
 | T-1 `composeWith` | todo | |
 | T-2 per-backend matrix | todo | |
-| M-1 `<Composed>` | gated | on 0-S1 + user |
+| M-1 `<Composed>` | todo (D466) | from `exp/p9-composed` `fce942d6` |
 | X-1 runtime diagnostics | todo | codes SYG160–169, 250–259, 450–459, 680–689 |
 | X-2 sygnal-check rules + description lint | todo | |
 | D-1…D-4 docs | todo | |
