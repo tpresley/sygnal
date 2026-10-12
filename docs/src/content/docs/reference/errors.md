@@ -1638,6 +1638,16 @@ An `isolatedState` component is bound to a slice of its parent's state (`state="
 
 **Fix:** Add `resetState` to the tag (`<Panel state="panel" resetState />`) to start the component from its `initialState`, replacing the slice. To keep the parent's data, initialize the missing keys in the parent's state.
 
+### SYG426
+
+**Deprecated lowercase marker tag**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A view writes a Sygnal marker as a lowercase string tag: `<collection>` or `<switchable>` (which work without an import), or `<clientonly>`, `<portal>`, `<transition>` or `<suspense>`. The lowercase tags are deprecated since 6.3.0 and will be removed in the next major: the tag will then render an unknown HTML element (`<collection>`) instead of the component, and the Collection and Switchable handlers will load only when their imported components are used. Since 6.3.0 `<portal>`, `<transition>` and `<suspense>` already work only when the capitalized component is used somewhere else in the app. With `sygnal/diagnostics` loaded, `<collection>` and `<switchable>` are reported at run time, once per tag; sygnal-check reports every lowercase marker tag. A plain `<slot>` is an HTML element, not the `<Slot>` marker, and is not reported.
+
+**Fix:** Import the component and write it capitalized: `import { Collection } from 'sygnal'` and `<Collection of={Item} from="items" />` (`Switchable`, `Portal`, `Transition` and `Suspense` from 'sygnal', `ClientOnly` from 'sygnal/vike'). `sygnal-check --fix` renames the tags and adds the import.
+
 ### SYG430
 
 **VirtualCollection has no bounded height**

@@ -276,6 +276,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG423: 'Context change skipped a view whose output it changes',
   SYG424: 'Duplicate Collection item id',
   SYG425: 'isolatedState slice lacks initialState keys',
+  // PLAN-9 (D471): checks/next.ts; dev entry and sygnal-check
+  SYG426: 'Deprecated lowercase marker tag',
   // PLAN-9 (D470): checks/next.ts; dev entry
   SYG453: 'Two children with the same identity share one instance',
   SYG601: "Retired in 6.0: Missing or invalid sources",
@@ -482,6 +484,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG423: 'warn',
   SYG424: 'warn',
   SYG425: 'warn',
+  // PLAN-9 (checks/next.ts): D471 a lowercase <collection> / <switchable> tag (deprecated in 6.3.0)
+  SYG426: 'warn',
   // PLAN-9 (checks/next.ts): D470 key identity, two children with one identity
   SYG453: 'warn',
   SYG612: 'error',

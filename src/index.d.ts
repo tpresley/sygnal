@@ -3708,7 +3708,9 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
+      /** @deprecated since 6.3.0, removed in the next major: `import { Collection } from 'sygnal'` and write `<Collection …>` (SYG426) */
       collection: CollectionProps<any>;
+      /** @deprecated since 6.3.0, removed in the next major: `import { Switchable } from 'sygnal'` and write `<Switchable …>` (SYG426) */
       switchable: SwitchableProps<any>;
       slot: SlotProps;
     }
