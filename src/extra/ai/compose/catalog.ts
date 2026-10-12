@@ -1,10 +1,15 @@
 /*
  * PLAN-9 K-1: defineCatalog(decl), the declaration both backends compose from (phase1-contract.md,
  * PROPOSAL.md §1). Normalizes and validates the parts and containers (one id namespace; the
- * built-ins `page`, the root, and `row`, side by side), and returns the Catalog: `parts`,
+ * built-ins `page`, the root, and `row`, side by side: `{ min: 2, max: 4, accepts: 'leaves' }`;
+ * `rows: false` (or `containers: { row: false }`) opts out of it), and returns the Catalog: `parts`,
  * `containers`, `get(id)`, `options(state)` (every selectable option, a record part once per
  * record), `records(part, state)`, `finish(layout, state)` (K-3), `render(slice, state, opts)`
- * (K-2), `guidance`, `limits` (`{ maxParts: 12, maxDepth: 4 }`) and `examples`.
+ * (K-2), `description` (the page's label, with `containers.page.description`), `categories`
+ * (`{ id: description }`, for a category prefilter; parts name one in `category`), `rows`,
+ * `guidance`, `limits` (`{ maxParts: 12, maxDepth: 4 }`) and `examples`. Containers carry
+ * `description`, `in`, `slots`, `minSlots`, `min` / `max` (children per slot), `accepts: 'leaves'`,
+ * `arranged`, `direction` and `params`.
  *
  * Errors: an id that can't be a node key (empty, or with ':', '~', '/'), a part id that is also a
  * container's, a part named `page` / `row`, a malformed param and two record params on a part throw
@@ -148,7 +153,9 @@ export function defineCatalog(decl: any = {}): any {
   const parts: Record<string, Part> = {}
   const dc = decl.containers || {}
   containers.page = container('page', {...dc.page, in: [], slots: {default: null}})
-  containers.row = container('row', {direction: 'row', min: 2, max: 4, accepts: 'leaves', ...dc.row, slots: {default: null}})
+  // the built-in row, unless the catalog opts out: `rows: false` (canonical; `containers: { row: false }` too)
+  const rows = decl.rows !== false && dc.row !== false
+  if (rows) containers.row = container('row', {direction: 'row', min: 2, max: 4, accepts: 'leaves', ...dc.row, slots: {default: null}})
   for (const id in dc) {
     if (id == 'page' || id == 'row') continue
     if (BAD_ID.test(id)) fail(`the container id '${id}' can't be a node key (no ':', '~' or '/')`)
@@ -156,12 +163,15 @@ export function defineCatalog(decl: any = {}): any {
   }
   for (const id in decl.parts || {}) {
     if (BAD_ID.test(id)) fail(`the part id '${id}' can't be a node key (no ':', '~' or '/')`)
-    if (containers[id]) fail(`'${id}' is both a part and a container (they share one id namespace${id == 'page' || id == 'row' ? `; '${id}' is built in` : ''})`)
+    if (containers[id] || id == 'row') fail(`'${id}' is both a part and a container (they share one id namespace${id == 'page' || id == 'row' ? `; '${id}' is built in` : ''})`)
     parts[id] = part(id, decl.parts[id])
   }
   const cat: any = {
     parts,
     containers,
+    description: decl.description,
+    categories: decl.categories && typeof decl.categories == 'object' ? decl.categories : {},
+    rows,
     guidance: decl.guidance,
     limits: {maxParts: 12, maxDepth: 4, ...decl.limits},
     examples: Array.isArray(decl.examples) ? decl.examples : [],
@@ -184,7 +194,7 @@ export function defineCatalog(decl: any = {}): any {
     render: (slice: any, state: any, opts?: any) => renderLayout(cat, slice, state, opts),
   }
   for (const id in containers) if (id != 'page') containers[id].in = places(containers[id], containers)
-  containers.row.in = []
+  if (rows) containers.row.in = []
   for (const id in parts) {
     const p = parts[id]
     p.in = places(p, containers)

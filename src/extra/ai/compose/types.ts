@@ -91,6 +91,11 @@ export interface Catalog {
   /** a record part's records (validated `from`: SYG252) */
   records(part: Part | string, state: any): Array<{value: any; name?: string; aliases?: string[]; description?: string}>
   finish(layout: Layout, state?: any): Layout
+  /** the page's label (B: `containers.page.description ?? catalog.description`) */
+  description?: string
+  categories: Record<string, string>
+  /** false: the catalog opted out of the built-in row */
+  rows: boolean
   guidance?: string
   limits: {maxParts: number; maxDepth: number}
   examples: any[]
