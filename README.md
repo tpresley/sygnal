@@ -516,6 +516,7 @@ h('div', [h('h1', 'Hello'), h('button.btn', 'Click')])
 | [Advanced Features](./examples/advanced-feature-tests) | Portals, slots, disposal, suspense, lazy loading |
 | [TypeScript 2048](./examples/ts-example-2048) | Full game in TypeScript |
 | [AI Discussion Panel](./examples/ai-panel-spa) | `sygnal/ai` on a local Ollama: streaming chat, structured output, a decision model picking speakers |
+| [Compose a Workspace](./examples/ai-compose) | A decision model (`decide()`, local Ollama) picks and arranges prepared components from a prompt: the json-render + Jev idea |
 | [Sygnal ToDoMVC](https://github.com/tpresley/sygnal-todomvc) | [Live Demo](https://tpresley.github.io/sygnal-todomvc/) |
 | [Sygnal 2048](https://github.com/tpresley/sygnal-2048) | [Live Demo](https://tpresley.github.io/sygnal-2048/) |
 | [Sygnal Mahjong](https://github.com/tpresley/mahjong-trainer) | [Live Demo](https://tpresley.github.io/mahjong-trainer/) |

@@ -1,0 +1,18 @@
+{
+  "name": "sygnal-json-render-proto",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:core": "esbuild ../repo/packages/core/src/index.ts --bundle --format=esm --platform=neutral --external:zod --outfile=vendor/json-render-core.mjs",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "sygnal": "file:/Users/troy/Documents/Displera/sygnal/.claude/worktrees/sygnal-ide-plugins-research-4d5a79",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
+  }
+}

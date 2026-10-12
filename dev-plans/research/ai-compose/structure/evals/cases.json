@@ -1,0 +1,3313 @@
+{
+ "format": "layout: { root, nodes: { key: { part, slots? } } }; part \"row\" = side-by-side container; null = nothing fits",
+ "catalogs": {
+  "dashboard": {
+   "catalog": {
+    "id": "dashboard",
+    "root": {
+     "id": "page",
+     "description": "A dashboard page"
+    },
+    "rows": true,
+    "parts": [
+     {
+      "id": "revenue",
+      "description": "KPI card: this month's revenue total as one number ($48.2k, +12% on last month)"
+     },
+     {
+      "id": "signups",
+      "description": "KPI card: new signups this week (312)"
+     },
+     {
+      "id": "churn",
+      "description": "KPI card: customer churn rate this month (2.1%)"
+     },
+     {
+      "id": "revenueChart",
+      "description": "Line chart: the revenue trend over the last 12 months"
+     },
+     {
+      "id": "orders",
+      "description": "Table of the most recent orders (customer, amount, status)"
+     },
+     {
+      "id": "tickets",
+      "description": "List of open support tickets, by priority"
+     },
+     {
+      "id": "tasks",
+      "description": "Checklist of the user's tasks for today"
+     },
+     {
+      "id": "weather",
+      "description": "Today's weather forecast for the office city"
+     },
+     {
+      "id": "feedback",
+      "description": "Form to send product feedback (a message and a send button)"
+     }
+    ]
+   },
+   "cases": [
+    {
+     "prompt": "KPIs in a row (revenue, signups and churn), then the revenue chart and the orders table side by side",
+     "expected": "page(row(revenue signups churn) row(revenueChart orders))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "revenue"
+       },
+       "n3": {
+        "part": "signups"
+       },
+       "n4": {
+        "part": "churn"
+       },
+       "n5": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "revenueChart"
+       },
+       "n7": {
+        "part": "orders"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Sales overview: revenue, signups and churn side by side, then the revenue chart",
+     "expected": "page(row(revenue signups churn) revenueChart)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "revenue"
+       },
+       "n3": {
+        "part": "signups"
+       },
+       "n4": {
+        "part": "churn"
+       },
+       "n5": {
+        "part": "revenueChart"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Open tickets and recent orders next to each other, and below them my tasks beside the weather",
+     "expected": "page(row(tickets orders) row(tasks weather))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "tickets"
+       },
+       "n3": {
+        "part": "orders"
+       },
+       "n4": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n5",
+          "n6"
+         ]
+        }
+       },
+       "n5": {
+        "part": "tasks"
+       },
+       "n6": {
+        "part": "weather"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "How are sales doing?",
+     "expected": "page(revenue revenueChart)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "revenue"
+       },
+       "n2": {
+        "part": "revenueChart"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Show me the stock price of Apple",
+     "expected": "",
+     "layout": null
+    },
+    {
+     "prompt": "The revenue chart on top, then churn and signups side by side, then a feedback form",
+     "expected": "page(revenueChart row(churn signups) feedback)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "revenueChart"
+       },
+       "n2": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "churn"
+       },
+       "n4": {
+        "part": "signups"
+       },
+       "n5": {
+        "part": "feedback"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Support desk: open tickets first, then recent orders",
+     "expected": "page(tickets orders)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "tickets"
+       },
+       "n2": {
+        "part": "orders"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Weather and tasks in a row at the top; the revenue chart under them",
+     "expected": "page(row(weather tasks) revenueChart)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "weather"
+       },
+       "n3": {
+        "part": "tasks"
+       },
+       "n4": {
+        "part": "revenueChart"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Open tickets on the left and the feedback form on the right, with the three KPIs in a row above them",
+     "expected": "page(row(revenue signups churn) row(tickets feedback))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "revenue"
+       },
+       "n3": {
+        "part": "signups"
+       },
+       "n4": {
+        "part": "churn"
+       },
+       "n5": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "tickets"
+       },
+       "n7": {
+        "part": "feedback"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "What is on my plate today?",
+     "expected": "page(tasks)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "tasks"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Revenue: the number and the chart side by side, then the recent orders",
+     "expected": "page(row(revenue revenueChart) orders)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "revenue"
+       },
+       "n3": {
+        "part": "revenueChart"
+       },
+       "n4": {
+        "part": "orders"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Churn and signups next to each other",
+     "expected": "page(row(churn signups))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "churn"
+       },
+       "n3": {
+        "part": "signups"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Three rows: revenue and signups; then churn and the revenue chart; then the recent orders and the open tickets",
+     "expected": "page(row(revenue signups) row(churn revenueChart) row(orders tickets))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4",
+          "n7"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "revenue"
+       },
+       "n3": {
+        "part": "signups"
+       },
+       "n4": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n5",
+          "n6"
+         ]
+        }
+       },
+       "n5": {
+        "part": "churn"
+       },
+       "n6": {
+        "part": "revenueChart"
+       },
+       "n7": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n8",
+          "n9"
+         ]
+        }
+       },
+       "n8": {
+        "part": "orders"
+       },
+       "n9": {
+        "part": "tickets"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "The weather on its own at the top, then my tasks and the feedback form side by side",
+     "expected": "page(weather row(tasks feedback))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "weather"
+       },
+       "n2": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "tasks"
+       },
+       "n4": {
+        "part": "feedback"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Revenue chart full width, recent orders and open tickets side by side under it, then the three KPI cards (revenue, signups, churn) in a row at the bottom",
+     "expected": "page(revenueChart row(orders tickets) row(revenue signups churn))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "revenueChart"
+       },
+       "n2": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "orders"
+       },
+       "n4": {
+        "part": "tickets"
+       },
+       "n5": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n6",
+          "n7",
+          "n8"
+         ]
+        }
+       },
+       "n6": {
+        "part": "revenue"
+       },
+       "n7": {
+        "part": "signups"
+       },
+       "n8": {
+        "part": "churn"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "settings": {
+   "catalog": {
+    "id": "settings",
+    "root": {
+     "id": "page",
+     "description": "An account settings page"
+    },
+    "rows": false,
+    "parts": [
+     {
+      "id": "profile",
+      "description": "Section titled \"Profile\": who the user is (name, photo, bio)",
+      "slots": {
+       "default": null
+      },
+      "auto": true
+     },
+     {
+      "id": "security",
+      "description": "Section titled \"Security\": signing in and protecting the account",
+      "slots": {
+       "default": null
+      },
+      "auto": true
+     },
+     {
+      "id": "notifications",
+      "description": "Section titled \"Notifications\": which emails and alerts the user gets",
+      "slots": {
+       "default": null
+      },
+      "auto": true
+     },
+     {
+      "id": "preferences",
+      "description": "Section titled \"Preferences\": language, time zone and appearance",
+      "slots": {
+       "default": null
+      },
+      "auto": true
+     },
+     {
+      "id": "billing",
+      "description": "Section titled \"Billing\": plan, payment card and invoices",
+      "slots": {
+       "default": null
+      },
+      "auto": true
+     },
+     {
+      "id": "actions",
+      "description": "Bar of form buttons at the end of the form",
+      "slots": {
+       "default": null
+      },
+      "auto": true,
+      "arranged": true
+     },
+     {
+      "id": "displayName",
+      "description": "Text field: the user's name, as other people see it",
+      "in": [
+       "profile"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "avatar",
+      "description": "Photo upload: profile picture",
+      "in": [
+       "profile"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "bio",
+      "description": "Text area: short bio",
+      "in": [
+       "profile"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "email",
+      "description": "Text field: the email address used to sign in",
+      "in": [
+       "profile",
+       "security"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "password",
+      "description": "Password (change it: current and new password fields)",
+      "in": [
+       "security"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "twoFactor",
+      "description": "Toggle: two-factor authentication",
+      "in": [
+       "security"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "sessions",
+      "description": "List of signed-in devices, each with a sign-out button",
+      "in": [
+       "security"
+      ]
+     },
+     {
+      "id": "emailNotifs",
+      "description": "Toggles: which notification emails to receive (mentions, replies, product news)",
+      "in": [
+       "notifications"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "pushNotifs",
+      "description": "Toggle: push notifications on this device",
+      "in": [
+       "notifications"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "digest",
+      "description": "Select: how often to get the summary email (daily, weekly, never)",
+      "in": [
+       "notifications"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "language",
+      "description": "Select: interface language",
+      "in": [
+       "preferences",
+       "profile"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "timezone",
+      "description": "Select: time zone",
+      "in": [
+       "preferences",
+       "profile"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "theme",
+      "description": "Choice: light, dark or system color theme",
+      "in": [
+       "preferences"
+      ],
+      "companions": [
+       "save",
+       "cancel"
+      ]
+     },
+     {
+      "id": "plan",
+      "description": "Current plan (Pro, $20/month) with a change-plan button",
+      "in": [
+       "billing"
+      ]
+     },
+     {
+      "id": "card",
+      "description": "Payment card on file (Visa ending 4242) with an update button",
+      "in": [
+       "billing"
+      ]
+     },
+     {
+      "id": "invoices",
+      "description": "Table of past invoices with download links",
+      "in": [
+       "billing"
+      ]
+     },
+     {
+      "id": "save",
+      "description": "Button: Save changes",
+      "in": [
+       "actions"
+      ]
+     },
+     {
+      "id": "cancel",
+      "description": "Button: Cancel (discard changes)",
+      "in": [
+       "actions"
+      ]
+     },
+     {
+      "id": "deleteAccount",
+      "description": "Button: Delete account (permanent, danger)",
+      "in": [
+       "security",
+       "page"
+      ]
+     }
+    ],
+    "guidance": "Conventional order: form fields before the form buttons; Save before Cancel."
+   },
+   "cases": [
+    {
+     "prompt": "Let me change my password and turn on two-factor",
+     "expected": "page(security(password twoFactor) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "security",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "password"
+       },
+       "n3": {
+        "part": "twoFactor"
+       },
+       "n4": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n5",
+          "n6"
+         ]
+        }
+       },
+       "n5": {
+        "part": "save"
+       },
+       "n6": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Profile settings: name, photo and bio",
+     "expected": "page(profile(displayName avatar bio) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "profile",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "displayName"
+       },
+       "n3": {
+        "part": "avatar"
+       },
+       "n4": {
+        "part": "bio"
+       },
+       "n5": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "save"
+       },
+       "n7": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Notification settings",
+     "expected": "page(notifications(emailNotifs pushNotifs digest) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "notifications",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "emailNotifs"
+       },
+       "n3": {
+        "part": "pushNotifs"
+       },
+       "n4": {
+        "part": "digest"
+       },
+       "n5": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "save"
+       },
+       "n7": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Billing: show my plan and past invoices",
+     "expected": "page(billing(plan invoices))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "billing",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "plan"
+       },
+       "n3": {
+        "part": "invoices"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "My name, then language and time zone, all in the Profile section",
+     "expected": "page(profile(displayName language timezone) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "profile",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "displayName"
+       },
+       "n3": {
+        "part": "language"
+       },
+       "n4": {
+        "part": "timezone"
+       },
+       "n5": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "save"
+       },
+       "n7": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Language, time zone and theme",
+     "expected": "page(preferences(language timezone theme) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "preferences",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "language"
+       },
+       "n3": {
+        "part": "timezone"
+       },
+       "n4": {
+        "part": "theme"
+       },
+       "n5": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "save"
+       },
+       "n7": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Signed-in devices, and a delete account button at the very bottom of the page, outside any section",
+     "expected": "page(security(sessions) deleteAccount)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "security",
+        "slots": {
+         "default": [
+          "n2"
+         ]
+        }
+       },
+       "n2": {
+        "part": "sessions"
+       },
+       "n3": {
+        "part": "deleteAccount"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Sign-in security: my email address and password",
+     "expected": "page(security(email password) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "security",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "email"
+       },
+       "n3": {
+        "part": "password"
+       },
+       "n4": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n5",
+          "n6"
+         ]
+        }
+       },
+       "n5": {
+        "part": "save"
+       },
+       "n6": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Update my credit card",
+     "expected": "page(billing(card))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "billing",
+        "slots": {
+         "default": [
+          "n2"
+         ]
+        }
+       },
+       "n2": {
+        "part": "card"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Order a pizza",
+     "expected": "",
+     "layout": null
+    },
+    {
+     "prompt": "Push notifications first, then my display name and photo",
+     "expected": "page(notifications(pushNotifs) profile(displayName avatar) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n3",
+          "n6"
+         ]
+        }
+       },
+       "n1": {
+        "part": "notifications",
+        "slots": {
+         "default": [
+          "n2"
+         ]
+        }
+       },
+       "n2": {
+        "part": "pushNotifs"
+       },
+       "n3": {
+        "part": "profile",
+        "slots": {
+         "default": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "displayName"
+       },
+       "n5": {
+        "part": "avatar"
+       },
+       "n6": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n7",
+          "n8"
+         ]
+        }
+       },
+       "n7": {
+        "part": "save"
+       },
+       "n8": {
+        "part": "cancel"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Dark mode setting",
+     "expected": "page(preferences(theme) actions(save cancel))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "preferences",
+        "slots": {
+         "default": [
+          "n2"
+         ]
+        }
+       },
+       "n2": {
+        "part": "theme"
+       },
+       "n3": {
+        "part": "actions",
+        "slots": {
+         "default": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "save"
+       },
+       "n5": {
+        "part": "cancel"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "crm": {
+   "catalog": {
+    "id": "crm",
+    "root": {
+     "id": "page",
+     "description": "A customer record page in a CRM"
+    },
+    "rows": true,
+    "parts": [
+     {
+      "id": "header",
+      "description": "Record header: customer name, company, status badge and owner",
+      "required": true,
+      "pin": "start"
+     },
+     {
+      "id": "tabs",
+      "description": "Tabs",
+      "auto": true,
+      "minSlots": 2,
+      "slots": {
+       "overview": "Overview tab: who the customer is (contact, company, deals, notes)",
+       "activity": "Activity tab: what happened and what is next (timeline, emails, meetings, tasks)",
+       "billing": "Billing tab: money (subscription, invoices, payments)"
+      }
+     },
+     {
+      "id": "keyFacts",
+      "description": "Card titled \"Key facts\": a boxed summary",
+      "slots": {
+       "default": null
+      },
+      "auto": true,
+      "in": [
+       "tabs:overview",
+       "page"
+      ]
+     },
+     {
+      "id": "contact",
+      "description": "Contact details: email, phone, address",
+      "in": [
+       "page",
+       "tabs",
+       "keyFacts"
+      ]
+     },
+     {
+      "id": "company",
+      "description": "Company profile: industry, size, website",
+      "in": [
+       "page",
+       "tabs",
+       "keyFacts"
+      ]
+     },
+     {
+      "id": "deals",
+      "description": "Deals (open, with stage and amount)",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "notes",
+      "description": "Notes the team wrote about this customer",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "timeline",
+      "description": "Activity timeline: one chronological feed of everything logged on the record, newest first",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "emails",
+      "description": "Email threads with this customer",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "meetings",
+      "description": "Upcoming and past meetings",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "tasks",
+      "description": "Follow-up tasks for this customer",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "subscription",
+      "description": "Current subscription: plan, seats, renewal date",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "invoices",
+      "description": "Invoices: each bill sent to the customer, with its amount and due date",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     },
+     {
+      "id": "payments",
+      "description": "Payment history and the card on file",
+      "in": [
+       "page",
+       "tabs"
+      ]
+     }
+    ]
+   },
+   "cases": [
+    {
+     "prompt": "Contact details and deals on the overview, the activity timeline on the activity tab, and invoices under billing",
+     "expected": "page(header tabs[overview: contact deals | activity: timeline | billing: invoices])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3",
+          "n4"
+         ],
+         "activity": [
+          "n5"
+         ],
+         "billing": [
+          "n6"
+         ]
+        }
+       },
+       "n3": {
+        "part": "contact"
+       },
+       "n4": {
+        "part": "deals"
+       },
+       "n5": {
+        "part": "timeline"
+       },
+       "n6": {
+        "part": "invoices"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Show me the customer's contact info and their invoices",
+     "expected": "page(header tabs[overview: contact | billing: invoices])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "billing": [
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "contact"
+       },
+       "n4": {
+        "part": "invoices"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Just the contact details",
+     "expected": "page(header contact)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "contact"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Contact details on the overview; subscription and invoices in the billing tab, and put the notes in the billing tab too",
+     "expected": "page(header tabs[overview: contact | billing: subscription invoices notes])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "billing": [
+          "n4",
+          "n5",
+          "n6"
+         ]
+        }
+       },
+       "n3": {
+        "part": "contact"
+       },
+       "n4": {
+        "part": "subscription"
+       },
+       "n5": {
+        "part": "invoices"
+       },
+       "n6": {
+        "part": "notes"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Everything about billing for this customer",
+     "expected": "page(header subscription invoices payments)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "subscription"
+       },
+       "n3": {
+        "part": "invoices"
+       },
+       "n4": {
+        "part": "payments"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Recent emails and meetings, plus the open deals",
+     "expected": "page(header tabs[overview: deals | activity: emails meetings])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "activity": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n3": {
+        "part": "deals"
+       },
+       "n4": {
+        "part": "emails"
+       },
+       "n5": {
+        "part": "meetings"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Notes above the tabs, and tabs with the timeline and the subscription",
+     "expected": "page(header notes tabs[activity: timeline | billing: subscription])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "notes"
+       },
+       "n3": {
+        "part": "tabs",
+        "slots": {
+         "activity": [
+          "n4"
+         ],
+         "billing": [
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "timeline"
+       },
+       "n5": {
+        "part": "subscription"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Show this customer's Twitter followers",
+     "expected": "",
+     "layout": null
+    },
+    {
+     "prompt": "Follow-up tasks and the company profile",
+     "expected": "page(header tabs[overview: company | activity: tasks])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "activity": [
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "company"
+       },
+       "n4": {
+        "part": "tasks"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Deals and meetings side by side on the overview tab, invoices on the billing tab",
+     "expected": "page(header tabs[overview: row(deals meetings) | billing: invoices])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "billing": [
+          "n6"
+         ]
+        }
+       },
+       "n3": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "deals"
+       },
+       "n5": {
+        "part": "meetings"
+       },
+       "n6": {
+        "part": "invoices"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Company profile, contact details, payment history",
+     "expected": "page(header tabs[overview: company contact | billing: payments])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3",
+          "n4"
+         ],
+         "billing": [
+          "n5"
+         ]
+        }
+       },
+       "n3": {
+        "part": "company"
+       },
+       "n4": {
+        "part": "contact"
+       },
+       "n5": {
+        "part": "payments"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Contact details and the company profile in the Key facts card on the overview tab, and the invoices on the billing tab",
+     "expected": "page(header tabs[overview: keyFacts(contact company) | billing: invoices])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3"
+         ],
+         "billing": [
+          "n6"
+         ]
+        }
+       },
+       "n3": {
+        "part": "keyFacts",
+        "slots": {
+         "default": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "contact"
+       },
+       "n5": {
+        "part": "company"
+       },
+       "n6": {
+        "part": "invoices"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "A Key facts card with the contact details, then the open deals and the notes",
+     "expected": "page(header keyFacts(contact) deals notes)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "keyFacts",
+        "slots": {
+         "default": [
+          "n3"
+         ]
+        }
+       },
+       "n3": {
+        "part": "contact"
+       },
+       "n4": {
+        "part": "deals"
+       },
+       "n5": {
+        "part": "notes"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "An overview tab with the contact details beside the company profile and the notes under them, and a billing tab with the subscription",
+     "expected": "page(header tabs[overview: row(contact company) notes | billing: subscription])",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "header"
+       },
+       "n2": {
+        "part": "tabs",
+        "slots": {
+         "overview": [
+          "n3",
+          "n6"
+         ],
+         "billing": [
+          "n7"
+         ]
+        }
+       },
+       "n3": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n4": {
+        "part": "contact"
+       },
+       "n5": {
+        "part": "company"
+       },
+       "n6": {
+        "part": "notes"
+       },
+       "n7": {
+        "part": "subscription"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "landing": {
+   "catalog": {
+    "id": "landing",
+    "root": {
+     "id": "page",
+     "description": "A marketing landing page"
+    },
+    "rows": true,
+    "guidance": "Conventional order: navigation bar first, then the hero, the content sections, and the footer last.",
+    "parts": [
+     {
+      "id": "nav",
+      "description": "Top navigation bar with the logo and links"
+     },
+     {
+      "id": "heroImage",
+      "resource": "hero",
+      "description": "Hero banner: headline, subheading and a large product screenshot"
+     },
+     {
+      "id": "heroPlain",
+      "resource": "hero",
+      "description": "Hero banner: headline and subheading only, text without any image"
+     },
+     {
+      "id": "logos",
+      "description": "Strip of customer logos"
+     },
+     {
+      "id": "features",
+      "description": "Grid of feature cards",
+      "slots": {
+       "default": null
+      },
+      "auto": true,
+      "arranged": true
+     },
+     {
+      "id": "featSpeed",
+      "description": "Feature card: speed (pages load in under 100 ms)",
+      "in": [
+       "features"
+      ]
+     },
+     {
+      "id": "featSecurity",
+      "description": "Feature card: security (SOC 2, encryption at rest)",
+      "in": [
+       "features"
+      ]
+     },
+     {
+      "id": "featIntegrations",
+      "description": "Feature card: integrations (Slack, GitHub, Jira)",
+      "in": [
+       "features"
+      ]
+     },
+     {
+      "id": "featAnalytics",
+      "description": "Feature card: analytics (live usage dashboards)",
+      "in": [
+       "features"
+      ]
+     },
+     {
+      "id": "testimonials",
+      "description": "Customer quotes (testimonials)"
+     },
+     {
+      "id": "pricingTable",
+      "resource": "pricing",
+      "description": "Pricing as a comparison table of plans and their features"
+     },
+     {
+      "id": "pricingCards",
+      "resource": "pricing",
+      "description": "Pricing as three plan cards"
+     },
+     {
+      "id": "faq",
+      "description": "Frequently asked questions"
+     },
+     {
+      "id": "cta",
+      "maxUses": 2,
+      "description": "Call-to-action banner with a \"Start your free trial\" button"
+     },
+     {
+      "id": "newsletter",
+      "description": "Newsletter signup form"
+     },
+     {
+      "id": "footer",
+      "description": "Footer with links and copyright"
+     }
+    ]
+   },
+   "cases": [
+    {
+     "prompt": "A landing page: hero with a product screenshot, three features (speed, security, integrations), pricing cards, and a free-trial call to action at the end",
+     "expected": "page(heroImage features(featSpeed featSecurity featIntegrations) pricingCards cta)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n1": {
+        "part": "heroImage"
+       },
+       "n2": {
+        "part": "features",
+        "slots": {
+         "default": [
+          "n3",
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n3": {
+        "part": "featSpeed"
+       },
+       "n4": {
+        "part": "featSecurity"
+       },
+       "n5": {
+        "part": "featIntegrations"
+       },
+       "n6": {
+        "part": "pricingCards"
+       },
+       "n7": {
+        "part": "cta"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Simple text hero, FAQ, footer",
+     "expected": "page(heroPlain faq footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "heroPlain"
+       },
+       "n2": {
+        "part": "faq"
+       },
+       "n3": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Pricing comparison table and FAQ",
+     "expected": "page(pricingTable faq)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "pricingTable"
+       },
+       "n2": {
+        "part": "faq"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "A free-trial call to action at the top and again at the bottom, with testimonials in between",
+     "expected": "page(cta testimonials cta)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "cta"
+       },
+       "n2": {
+        "part": "testimonials"
+       },
+       "n3": {
+        "part": "cta"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Navigation, a hero with a screenshot, customer logos, testimonials, footer",
+     "expected": "page(nav heroImage logos testimonials footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "nav"
+       },
+       "n2": {
+        "part": "heroImage"
+       },
+       "n3": {
+        "part": "logos"
+       },
+       "n4": {
+        "part": "testimonials"
+       },
+       "n5": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Tell visitors why we are fast and secure",
+     "expected": "page(features(featSpeed featSecurity))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "features",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "featSpeed"
+       },
+       "n3": {
+        "part": "featSecurity"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "The security and analytics features, then pricing as plan cards",
+     "expected": "page(features(featSecurity featAnalytics) pricingCards)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "features",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "featSecurity"
+       },
+       "n3": {
+        "part": "featAnalytics"
+       },
+       "n4": {
+        "part": "pricingCards"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "A video of our CEO",
+     "expected": "",
+     "layout": null
+    },
+    {
+     "prompt": "Hero without an image, then pricing as cards, then a newsletter signup, then the footer",
+     "expected": "page(heroPlain pricingCards newsletter footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "heroPlain"
+       },
+       "n2": {
+        "part": "pricingCards"
+       },
+       "n3": {
+        "part": "newsletter"
+       },
+       "n4": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "FAQ first, then testimonials, and a trial call to action",
+     "expected": "page(faq testimonials cta)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "faq"
+       },
+       "n2": {
+        "part": "testimonials"
+       },
+       "n3": {
+        "part": "cta"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "A screenshot hero, then testimonials beside the customer logos, and a footer",
+     "expected": "page(heroImage row(testimonials logos) footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "heroImage"
+       },
+       "n2": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "testimonials"
+       },
+       "n4": {
+        "part": "logos"
+       },
+       "n5": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Footer, FAQ and navigation",
+     "expected": "page(nav faq footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "nav"
+       },
+       "n2": {
+        "part": "faq"
+       },
+       "n3": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Text hero, a trial call to action right under it, the FAQ, and another call to action before the footer",
+     "expected": "page(heroPlain cta faq cta footer)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "heroPlain"
+       },
+       "n2": {
+        "part": "cta"
+       },
+       "n3": {
+        "part": "faq"
+       },
+       "n4": {
+        "part": "cta"
+       },
+       "n5": {
+        "part": "footer"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Testimonials and a free-trial call to action",
+     "expected": "page(testimonials cta)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "testimonials"
+       },
+       "n2": {
+        "part": "cta"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "ops": {
+   "catalog": {
+    "id": "ops",
+    "root": {
+     "id": "page",
+     "description": "An operations console page"
+    },
+    "rows": true,
+    "categories": {
+     "incidents": "Incidents and on-call",
+     "deploys": "Deployments and CI",
+     "compute": "Servers, hosts and Kubernetes",
+     "database": "Databases",
+     "queues": "Message queues and background jobs",
+     "logs": "Logs, errors and traces",
+     "access": "Users, access and security",
+     "cost": "Cloud cost and budgets",
+     "alerts": "Alerts and uptime",
+     "flags": "Feature flags and experiments"
+    },
+    "parts": [
+     {
+      "id": "incidentList",
+      "description": "Table of open incidents with severity and owner",
+      "category": "incidents"
+     },
+     {
+      "id": "incidentTimeline",
+      "description": "Timeline of the current major incident",
+      "category": "incidents"
+     },
+     {
+      "id": "oncall",
+      "description": "Who is on call now, per team",
+      "category": "incidents"
+     },
+     {
+      "id": "postmortems",
+      "description": "List of recent postmortems",
+      "category": "incidents"
+     },
+     {
+      "id": "mttr",
+      "description": "KPI card: mean time to resolve incidents this month",
+      "category": "incidents"
+     },
+     {
+      "id": "deployList",
+      "description": "Table of recent deployments with status",
+      "category": "deploys"
+     },
+     {
+      "id": "deployFreq",
+      "description": "KPI card: deployments per day",
+      "category": "deploys"
+     },
+     {
+      "id": "pipeline",
+      "description": "CI pipeline status for the main branch",
+      "category": "deploys"
+     },
+     {
+      "id": "rollback",
+      "description": "Button: roll back the last deployment",
+      "category": "deploys"
+     },
+     {
+      "id": "releaseNotes",
+      "description": "Release notes of the latest version",
+      "category": "deploys"
+     },
+     {
+      "id": "cpuChart",
+      "description": "Line chart: CPU usage of the server fleet",
+      "category": "compute"
+     },
+     {
+      "id": "memChart",
+      "description": "Line chart: memory usage of the server fleet",
+      "category": "compute"
+     },
+     {
+      "id": "hostMap",
+      "description": "Heat map of hosts by load",
+      "category": "compute"
+     },
+     {
+      "id": "autoscale",
+      "description": "Autoscaling events in the last 24 hours",
+      "category": "compute"
+     },
+     {
+      "id": "podStatus",
+      "description": "Kubernetes pods by status (running, pending, crashing)",
+      "category": "compute"
+     },
+     {
+      "id": "dbLatency",
+      "description": "Line chart: database query latency (p50, p95)",
+      "category": "database"
+     },
+     {
+      "id": "slowQueries",
+      "description": "Table of the slowest database queries",
+      "category": "database"
+     },
+     {
+      "id": "dbConnections",
+      "description": "KPI card: open database connections",
+      "category": "database"
+     },
+     {
+      "id": "replicationLag",
+      "description": "KPI card: database replication lag",
+      "category": "database"
+     },
+     {
+      "id": "backups",
+      "description": "List of database backups and their status",
+      "category": "database"
+     },
+     {
+      "id": "queueDepth",
+      "description": "Line chart: message queue depth",
+      "category": "queues"
+     },
+     {
+      "id": "deadLetters",
+      "description": "Table of dead-lettered messages",
+      "category": "queues"
+     },
+     {
+      "id": "consumers",
+      "description": "Queue consumers and their throughput",
+      "category": "queues"
+     },
+     {
+      "id": "jobFailures",
+      "description": "KPI card: background job failures today",
+      "category": "queues"
+     },
+     {
+      "id": "cronJobs",
+      "description": "Scheduled cron jobs and their last run",
+      "category": "queues"
+     },
+     {
+      "id": "logSearch",
+      "description": "Log search box with results",
+      "category": "logs"
+     },
+     {
+      "id": "errorRate",
+      "description": "Line chart: application error rate",
+      "category": "logs"
+     },
+     {
+      "id": "topErrors",
+      "description": "Table of the most frequent error messages",
+      "category": "logs"
+     },
+     {
+      "id": "traces",
+      "description": "Slowest request traces",
+      "category": "logs"
+     },
+     {
+      "id": "logVolume",
+      "description": "Bar chart: log volume per service",
+      "category": "logs"
+     },
+     {
+      "id": "users",
+      "description": "Table of admin users and their roles",
+      "category": "access"
+     },
+     {
+      "id": "auditLog",
+      "description": "Audit log of admin actions",
+      "category": "access"
+     },
+     {
+      "id": "apiKeys",
+      "description": "List of API keys with last use",
+      "category": "access"
+     },
+     {
+      "id": "ssoStatus",
+      "description": "Single sign-on configuration status",
+      "category": "access"
+     },
+     {
+      "id": "failedLogins",
+      "description": "KPI card: failed login attempts today",
+      "category": "access"
+     },
+     {
+      "id": "monthlySpend",
+      "description": "KPI card: cloud spend this month",
+      "category": "cost"
+     },
+     {
+      "id": "spendChart",
+      "description": "Bar chart: cloud spend per service over 6 months",
+      "category": "cost"
+     },
+     {
+      "id": "budgetAlerts",
+      "description": "Budget alerts and thresholds",
+      "category": "cost"
+     },
+     {
+      "id": "idleResources",
+      "description": "List of idle resources that could be shut down",
+      "category": "cost"
+     },
+     {
+      "id": "spendForecast",
+      "description": "Forecast of cloud spend to the end of the month",
+      "category": "cost"
+     },
+     {
+      "id": "alertList",
+      "description": "Table of firing alerts",
+      "category": "alerts"
+     },
+     {
+      "id": "alertRules",
+      "description": "List of alert rules",
+      "category": "alerts"
+     },
+     {
+      "id": "silences",
+      "description": "Active alert silences",
+      "category": "alerts"
+     },
+     {
+      "id": "alertHistory",
+      "description": "Bar chart: alerts fired per day",
+      "category": "alerts"
+     },
+     {
+      "id": "uptime",
+      "description": "Uptime of public endpoints (last 30 days)",
+      "category": "alerts"
+     },
+     {
+      "id": "flagList",
+      "description": "Table of feature flags and their rollout percentage",
+      "category": "flags"
+     },
+     {
+      "id": "flagChanges",
+      "description": "Recent feature flag changes",
+      "category": "flags"
+     },
+     {
+      "id": "experiments",
+      "description": "Running A/B experiments and their results",
+      "category": "flags"
+     },
+     {
+      "id": "staleFlags",
+      "description": "Feature flags not changed in 90 days",
+      "category": "flags"
+     },
+     {
+      "id": "flagToggle",
+      "description": "Kill switch: turn a feature flag off for everyone",
+      "category": "flags"
+     }
+    ]
+   },
+   "cases": [
+    {
+     "prompt": "Incident overview: open incidents, who is on call, and the error rate",
+     "expected": "page(incidentList oncall errorRate)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "incidentList"
+       },
+       "n2": {
+        "part": "oncall"
+       },
+       "n3": {
+        "part": "errorRate"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Database health: query latency chart, slow queries, replication lag",
+     "expected": "page(dbLatency slowQueries replicationLag)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "dbLatency"
+       },
+       "n2": {
+        "part": "slowQueries"
+       },
+       "n3": {
+        "part": "replicationLag"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "CPU and memory charts side by side, then the pods by status",
+     "expected": "page(row(cpuChart memChart) podStatus)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "cpuChart"
+       },
+       "n3": {
+        "part": "memChart"
+       },
+       "n4": {
+        "part": "podStatus"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "How much are we spending on cloud?",
+     "expected": "page(monthlySpend spendChart)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "monthlySpend"
+       },
+       "n2": {
+        "part": "spendChart"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Show the firing alerts first, then uptime, then the active silences",
+     "expected": "page(alertList uptime silences)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n1": {
+        "part": "alertList"
+       },
+       "n2": {
+        "part": "uptime"
+       },
+       "n3": {
+        "part": "silences"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Recent deploys and the CI pipeline next to each other, with the rollback button below them",
+     "expected": "page(row(deployList pipeline) rollback)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "deployList"
+       },
+       "n3": {
+        "part": "pipeline"
+       },
+       "n4": {
+        "part": "rollback"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Who has admin access, and the audit log",
+     "expected": "page(users auditLog)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "users"
+       },
+       "n2": {
+        "part": "auditLog"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Feature flags and running experiments",
+     "expected": "page(flagList experiments)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "flagList"
+       },
+       "n2": {
+        "part": "experiments"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Book a meeting room",
+     "expected": "",
+     "layout": null
+    },
+    {
+     "prompt": "Queue depth chart, then dead letters and failed jobs side by side",
+     "expected": "page(queueDepth row(deadLetters jobFailures))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "queueDepth"
+       },
+       "n2": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n3": {
+        "part": "deadLetters"
+       },
+       "n4": {
+        "part": "jobFailures"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Search the logs",
+     "expected": "page(logSearch)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1"
+         ]
+        }
+       },
+       "n1": {
+        "part": "logSearch"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Spend this month and the forecast in a row, then idle resources we could shut down",
+     "expected": "page(row(monthlySpend spendForecast) idleResources)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "monthlySpend"
+       },
+       "n3": {
+        "part": "spendForecast"
+       },
+       "n4": {
+        "part": "idleResources"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Top errors and the slowest traces",
+     "expected": "page(topErrors traces)",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n2"
+         ]
+        }
+       },
+       "n1": {
+        "part": "topErrors"
+       },
+       "n2": {
+        "part": "traces"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "Firing alerts and uptime side by side, the alerts-per-day chart full width below, then active silences next to the alert rules",
+     "expected": "page(row(alertList uptime) alertHistory row(silences alertRules))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n4",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3"
+         ]
+        }
+       },
+       "n2": {
+        "part": "alertList"
+       },
+       "n3": {
+        "part": "uptime"
+       },
+       "n4": {
+        "part": "alertHistory"
+       },
+       "n5": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "silences"
+       },
+       "n7": {
+        "part": "alertRules"
+       }
+      }
+     }
+    },
+    {
+     "prompt": "CPU chart, memory chart and host heat map in one row, and the autoscaling events and pod status in a second row",
+     "expected": "page(row(cpuChart memChart hostMap) row(autoscale podStatus))",
+     "layout": {
+      "root": "n0",
+      "nodes": {
+       "n0": {
+        "part": "page",
+        "slots": {
+         "default": [
+          "n1",
+          "n5"
+         ]
+        }
+       },
+       "n1": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n2",
+          "n3",
+          "n4"
+         ]
+        }
+       },
+       "n2": {
+        "part": "cpuChart"
+       },
+       "n3": {
+        "part": "memChart"
+       },
+       "n4": {
+        "part": "hostMap"
+       },
+       "n5": {
+        "part": "row",
+        "slots": {
+         "default": [
+          "n6",
+          "n7"
+         ]
+        }
+       },
+       "n6": {
+        "part": "autoscale"
+       },
+       "n7": {
+        "part": "podStatus"
+       }
+      }
+     }
+    }
+   ]
+  }
+ }
+}

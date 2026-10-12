@@ -1,0 +1,6454 @@
+{
+ "note": "Catalogs: parts with description, optional params { name: { label, default, ask?, options: { value: description } } }, optional records { param, label, items: [{ key, name, description }] }, optional group (alternatives for the same content: at most one per group is chosen per request). Layouts: { root, nodes: { key: { part, params?, slots? } } }; part \"page\" is the root container, part \"row\" a side-by-side container. A record node is { part, params: { [records.param]: key } }. Params equal to their default are omitted. Edits: nodes kept from previousLayout must keep their keys (a param change keeps the key; an add or a replacement gets a new key). Rows compare order-insensitively.",
+ "catalogs": {
+  "ops": {
+   "id": "ops",
+   "parts": [
+    {
+     "id": "revenue",
+     "description": "KPI card: revenue total as one number"
+    },
+    {
+     "id": "signups",
+     "description": "KPI card: number of new signups"
+    },
+    {
+     "id": "churn",
+     "description": "KPI card: customer churn rate"
+    },
+    {
+     "id": "revenueChart",
+     "description": "Line chart: the revenue trend over time",
+     "params": {
+      "range": {
+       "label": "time range",
+       "default": "month",
+       "options": {
+        "week": "the last 7 days (this week)",
+        "month": "the last 30 days (this month)",
+        "quarter": "the last 3 months (this quarter)",
+        "year": "the last 12 months (this year)"
+       }
+      }
+     }
+    },
+    {
+     "id": "orders",
+     "description": "Table of recent orders (customer, amount, status)",
+     "params": {
+      "status": {
+       "label": "order status",
+       "default": "all",
+       "options": {
+        "all": "every order, any status",
+        "paid": "paid orders only",
+        "pending": "pending (unpaid) orders only",
+        "refunded": "refunded orders only"
+       }
+      },
+      "limit": {
+       "label": "number of rows",
+       "default": "10",
+       "ask": "How long a list does user_request ask for, by a number or by words like few, short, long, full or all?",
+       "options": {
+        "5": "short: up to 5 rows (a few, a handful, top 3, top 5)",
+        "10": "medium: about 10 rows",
+        "25": "long: 25 rows (a long list, a full list, all of them, 20+)"
+       }
+      }
+     }
+    },
+    {
+     "id": "tickets",
+     "description": "List of support tickets",
+     "params": {
+      "status": {
+       "label": "ticket status",
+       "default": "open",
+       "options": {
+        "open": "open tickets",
+        "closed": "closed (resolved) tickets",
+        "all": "all tickets, open and closed"
+       }
+      },
+      "priority": {
+       "label": "priority",
+       "default": "any",
+       "options": {
+        "any": "tickets of any priority",
+        "high": "high-priority (urgent) tickets only"
+       }
+      }
+     }
+    },
+    {
+     "id": "tasks",
+     "description": "Checklist of the user's tasks for today"
+    },
+    {
+     "id": "weather",
+     "description": "Today's weather forecast for the office city"
+    },
+    {
+     "id": "feedback",
+     "description": "Form to send product feedback (a message and a send button)"
+    }
+   ]
+  },
+  "shop": {
+   "id": "shop",
+   "parts": [
+    {
+     "id": "salesChart",
+     "description": "Bar chart of sales over time",
+     "params": {
+      "range": {
+       "label": "time range",
+       "default": "month",
+       "options": {
+        "week": "the last 7 days (this week)",
+        "month": "the last 30 days (this month)",
+        "quarter": "the last 3 months (this quarter)",
+        "year": "the last 12 months (this year)"
+       }
+      },
+      "metric": {
+       "label": "measure",
+       "default": "revenue",
+       "options": {
+        "revenue": "sales in money (revenue)",
+        "units": "number of items sold (units)"
+       }
+      }
+     }
+    },
+    {
+     "id": "products",
+     "description": "Grid of products from the store catalog",
+     "params": {
+      "category": {
+       "label": "product category",
+       "default": "all",
+       "options": {
+        "all": "every category",
+        "shoes": "shoes, sneakers and boots",
+        "jackets": "jackets and coats",
+        "bags": "bags and backpacks",
+        "hats": "hats and caps",
+        "socks": "socks"
+       }
+      },
+      "sort": {
+       "label": "sort order",
+       "default": "bestselling",
+       "options": {
+        "bestselling": "best sellers first (most popular)",
+        "newest": "newest arrivals first",
+        "priceLow": "cheapest first (price low to high)",
+        "priceHigh": "most expensive first (price high to low)"
+       }
+      }
+     }
+    },
+    {
+     "id": "lowStock",
+     "description": "Alerts for products that are low on stock"
+    },
+    {
+     "id": "reviews",
+     "description": "List of customer product reviews",
+     "params": {
+      "rating": {
+       "label": "rating",
+       "default": "all",
+       "options": {
+        "all": "all reviews",
+        "positive": "positive reviews (4-5 stars)",
+        "negative": "negative reviews (1-2 stars, complaints)"
+       }
+      }
+     }
+    },
+    {
+     "id": "cartAbandon",
+     "description": "KPI card: abandoned cart rate"
+    },
+    {
+     "id": "topCustomers",
+     "description": "Table of top customers by spend",
+     "params": {
+      "limit": {
+       "label": "number of rows",
+       "default": "10",
+       "ask": "How long a list does user_request ask for, by a number or by words like few, short, long, full or all?",
+       "options": {
+        "5": "short: up to 5 rows (a few, a handful, top 3, top 5)",
+        "10": "medium: about 10 rows",
+        "25": "long: 25 rows (a long list, a full list, all of them, 20+)"
+       }
+      }
+     }
+    },
+    {
+     "id": "promo",
+     "description": "Banner announcing the current promotion"
+    },
+    {
+     "id": "returns",
+     "description": "Table of recent returns and refund requests"
+    }
+   ]
+  },
+  "pm": {
+   "id": "pm",
+   "parts": [
+    {
+     "id": "project",
+     "group": "projects",
+     "description": "Project card: one project's status, owner and next milestone",
+     "records": {
+      "param": "project",
+      "label": "project",
+      "items": [
+       {
+        "key": "atlas",
+        "name": "Atlas",
+        "description": "Atlas: mobile app rewrite, owner Maya Chen, on track"
+       },
+       {
+        "key": "borealis",
+        "name": "Borealis",
+        "description": "Borealis: data warehouse, owner Amira Haddad, on track"
+       },
+       {
+        "key": "cedar",
+        "name": "Cedar",
+        "description": "Cedar: security audit, owner Ben Adler, at risk"
+       },
+       {
+        "key": "dune",
+        "name": "Dune",
+        "description": "Dune: internal tools, owner Nora Berg, on track"
+       },
+       {
+        "key": "ember",
+        "name": "Ember",
+        "description": "Ember: search revamp, owner Lena Okafor, blocked"
+       },
+       {
+        "key": "fjord",
+        "name": "Fjord",
+        "description": "Fjord: API v3, owner Noah Kim, done"
+       },
+       {
+        "key": "granite",
+        "name": "Granite",
+        "description": "Granite: checkout optimization, owner Ines Costa, on track"
+       },
+       {
+        "key": "harbor",
+        "name": "Harbor",
+        "description": "Harbor: billing migration, owner Eli Cohen, on track"
+       },
+       {
+        "key": "iris",
+        "name": "Iris",
+        "description": "Iris: onboarding redesign, owner Diego Ruiz, at risk"
+       },
+       {
+        "key": "juniper",
+        "name": "Juniper",
+        "description": "Juniper: marketing site, owner Hana Sato, on track"
+       },
+       {
+        "key": "kestrel",
+        "name": "Kestrel",
+        "description": "Kestrel: mobile app rewrite, owner Sam Taylor, blocked"
+       },
+       {
+        "key": "lumen",
+        "name": "Lumen",
+        "description": "Lumen: data warehouse, owner Ravi Patel, done"
+       },
+       {
+        "key": "meridian",
+        "name": "Meridian",
+        "description": "Meridian: security audit, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "nimbus",
+        "name": "Nimbus",
+        "description": "Nimbus: internal tools, owner Omar Farouk, on track"
+       },
+       {
+        "key": "orchid",
+        "name": "Orchid",
+        "description": "Orchid: search revamp, owner Clara Diaz, at risk"
+       },
+       {
+        "key": "polaris",
+        "name": "Polaris",
+        "description": "Polaris: API v3, owner Sara Lind, on track"
+       },
+       {
+        "key": "quartz",
+        "name": "Quartz",
+        "description": "Quartz: checkout optimization, owner Lucas Moreau, blocked"
+       },
+       {
+        "key": "raven",
+        "name": "Raven",
+        "description": "Raven: billing migration, owner Aiko Mori, done"
+       },
+       {
+        "key": "sequoia",
+        "name": "Sequoia",
+        "description": "Sequoia: onboarding redesign, owner Jun Park, on track"
+       },
+       {
+        "key": "tundra",
+        "name": "Tundra",
+        "description": "Tundra: marketing site, owner Ken Ito, on track"
+       },
+       {
+        "key": "umbra",
+        "name": "Umbra",
+        "description": "Umbra: mobile app rewrite, owner Zoe Martin, at risk"
+       },
+       {
+        "key": "vortex",
+        "name": "Vortex",
+        "description": "Vortex: data warehouse, owner Ivan Petrov, on track"
+       },
+       {
+        "key": "willow",
+        "name": "Willow",
+        "description": "Willow: security audit, owner Tom Becker, blocked"
+       },
+       {
+        "key": "xenon",
+        "name": "Xenon",
+        "description": "Xenon: internal tools, owner Priya Nair, done"
+       },
+       {
+        "key": "yarrow",
+        "name": "Yarrow",
+        "description": "Yarrow: search revamp, owner Felix Wagner, on track"
+       },
+       {
+        "key": "zephyr",
+        "name": "Zephyr",
+        "description": "Zephyr: API v3, owner Maya Chen, on track"
+       },
+       {
+        "key": "aurora",
+        "name": "Aurora",
+        "description": "Aurora: checkout optimization, owner Amira Haddad, at risk"
+       },
+       {
+        "key": "basalt",
+        "name": "Basalt",
+        "description": "Basalt: billing migration, owner Ben Adler, on track"
+       },
+       {
+        "key": "comet",
+        "name": "Comet",
+        "description": "Comet: onboarding redesign, owner Nora Berg, blocked"
+       },
+       {
+        "key": "delta",
+        "name": "Delta",
+        "description": "Delta: marketing site, owner Lena Okafor, done"
+       },
+       {
+        "key": "echo",
+        "name": "Echo",
+        "description": "Echo: mobile app rewrite, owner Noah Kim, on track"
+       },
+       {
+        "key": "falcon",
+        "name": "Falcon",
+        "description": "Falcon: data warehouse, owner Ines Costa, on track"
+       },
+       {
+        "key": "glacier",
+        "name": "Glacier",
+        "description": "Glacier: security audit, owner Eli Cohen, at risk"
+       },
+       {
+        "key": "helix",
+        "name": "Helix",
+        "description": "Helix: internal tools, owner Diego Ruiz, on track"
+       },
+       {
+        "key": "indigo",
+        "name": "Indigo",
+        "description": "Indigo: search revamp, owner Hana Sato, blocked"
+       },
+       {
+        "key": "jade",
+        "name": "Jade",
+        "description": "Jade: API v3, owner Sam Taylor, done"
+       },
+       {
+        "key": "krypton",
+        "name": "Krypton",
+        "description": "Krypton: checkout optimization, owner Ravi Patel, on track"
+       },
+       {
+        "key": "lotus",
+        "name": "Lotus",
+        "description": "Lotus: billing migration, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "mosaic",
+        "name": "Mosaic",
+        "description": "Mosaic: onboarding redesign, owner Omar Farouk, at risk"
+       },
+       {
+        "key": "nova",
+        "name": "Nova",
+        "description": "Nova: marketing site, owner Clara Diaz, on track"
+       }
+      ]
+     }
+    },
+    {
+     "id": "projectList",
+     "group": "projects",
+     "description": "List of projects filtered by status, owner or kind",
+     "params": {
+      "status": {
+       "label": "project status",
+       "default": "any",
+       "options": {
+        "any": "any status",
+        "onTrack": "on track",
+        "atRisk": "at risk",
+        "blocked": "blocked",
+        "done": "done (finished)"
+       }
+      },
+      "owner": {
+       "label": "project owner",
+       "default": "anyone",
+       "options": {
+        "anyone": "owned by anyone",
+        "maya": "owned by Maya Chen",
+        "jun": "owned by Jun Park",
+        "ravi": "owned by Ravi Patel",
+        "lena": "owned by Lena Okafor",
+        "tom": "owned by Tom Becker",
+        "sara": "owned by Sara Lind",
+        "diego": "owned by Diego Ruiz",
+        "amira": "owned by Amira Haddad",
+        "ken": "owned by Ken Ito",
+        "olga": "owned by Olga Ivanova",
+        "noah": "owned by Noah Kim",
+        "priya": "owned by Priya Nair",
+        "lucas": "owned by Lucas Moreau",
+        "hana": "owned by Hana Sato",
+        "ben": "owned by Ben Adler",
+        "zoe": "owned by Zoe Martin",
+        "omar": "owned by Omar Farouk",
+        "ines": "owned by Ines Costa",
+        "felix": "owned by Felix Wagner",
+        "aiko": "owned by Aiko Mori",
+        "sam": "owned by Sam Taylor",
+        "nora": "owned by Nora Berg",
+        "ivan": "owned by Ivan Petrov",
+        "clara": "owned by Clara Diaz",
+        "eli": "owned by Eli Cohen"
+       }
+      },
+      "kind": {
+       "label": "kind of project",
+       "default": "any",
+       "options": {
+        "any": "any kind of project",
+        "mobileAppRewrite": "mobile app rewrite",
+        "billingMigration": "billing migration",
+        "searchRevamp": "search revamp",
+        "dataWarehouse": "data warehouse",
+        "onboardingRedesign": "onboarding redesign",
+        "APIV3": "API v3",
+        "securityAudit": "security audit",
+        "marketingSite": "marketing site",
+        "checkoutOptimization": "checkout optimization",
+        "internalTools": "internal tools"
+       }
+      }
+     }
+    },
+    {
+     "id": "team",
+     "group": "people",
+     "description": "Team roster: people and their roles",
+     "params": {
+      "role": {
+       "label": "role",
+       "default": "any",
+       "options": {
+        "any": "everyone on the team",
+        "designer": "designers",
+        "backend": "backend engineers",
+        "frontend": "frontend engineers",
+        "product": "product managers",
+        "QA": "QA engineers",
+        "data": "data analysts",
+        "mobile": "mobile engineers",
+        "engineering": "engineering managers"
+       }
+      }
+     }
+    },
+    {
+     "id": "report",
+     "group": "reports",
+     "description": "One saved report, opened",
+     "records": {
+      "param": "report",
+      "label": "saved report",
+      "items": [
+       {
+        "key": "r1",
+        "name": "Revenue review",
+        "description": "Saved report \"Revenue review\", saved 2026-10-10"
+       },
+       {
+        "key": "r2",
+        "name": "Churn deep-dive",
+        "description": "Saved report \"Churn deep-dive\", saved 2026-10-07"
+       },
+       {
+        "key": "r3",
+        "name": "Hiring plan",
+        "description": "Saved report \"Hiring plan\", saved 2026-10-04"
+       },
+       {
+        "key": "r4",
+        "name": "Infra costs",
+        "description": "Saved report \"Infra costs\", saved 2026-10-01"
+       },
+       {
+        "key": "r5",
+        "name": "Customer NPS",
+        "description": "Saved report \"Customer NPS\", saved 2026-09-28"
+       },
+       {
+        "key": "r6",
+        "name": "Sprint retro",
+        "description": "Saved report \"Sprint retro\", saved 2026-09-25"
+       },
+       {
+        "key": "r7",
+        "name": "Security incidents",
+        "description": "Saved report \"Security incidents\", saved 2026-09-22"
+       },
+       {
+        "key": "r8",
+        "name": "Marketing funnel",
+        "description": "Saved report \"Marketing funnel\", saved 2026-09-19"
+       },
+       {
+        "key": "r9",
+        "name": "Support SLA",
+        "description": "Saved report \"Support SLA\", saved 2026-09-16"
+       },
+       {
+        "key": "r10",
+        "name": "Roadmap status",
+        "description": "Saved report \"Roadmap status\", saved 2026-09-13"
+       },
+       {
+        "key": "r11",
+        "name": "Revenue review #2",
+        "description": "Saved report \"Revenue review #2\", saved 2026-09-10"
+       },
+       {
+        "key": "r12",
+        "name": "Churn deep-dive #2",
+        "description": "Saved report \"Churn deep-dive #2\", saved 2026-09-07"
+       },
+       {
+        "key": "r13",
+        "name": "Hiring plan #2",
+        "description": "Saved report \"Hiring plan #2\", saved 2026-09-04"
+       },
+       {
+        "key": "r14",
+        "name": "Infra costs #2",
+        "description": "Saved report \"Infra costs #2\", saved 2026-09-01"
+       },
+       {
+        "key": "r15",
+        "name": "Customer NPS #2",
+        "description": "Saved report \"Customer NPS #2\", saved 2026-08-29"
+       },
+       {
+        "key": "r16",
+        "name": "Sprint retro #2",
+        "description": "Saved report \"Sprint retro #2\", saved 2026-08-26"
+       },
+       {
+        "key": "r17",
+        "name": "Security incidents #2",
+        "description": "Saved report \"Security incidents #2\", saved 2026-08-23"
+       },
+       {
+        "key": "r18",
+        "name": "Marketing funnel #2",
+        "description": "Saved report \"Marketing funnel #2\", saved 2026-08-20"
+       },
+       {
+        "key": "r19",
+        "name": "Support SLA #2",
+        "description": "Saved report \"Support SLA #2\", saved 2026-08-17"
+       },
+       {
+        "key": "r20",
+        "name": "Roadmap status #2",
+        "description": "Saved report \"Roadmap status #2\", saved 2026-08-14"
+       },
+       {
+        "key": "r21",
+        "name": "Revenue review #3",
+        "description": "Saved report \"Revenue review #3\", saved 2026-08-11"
+       },
+       {
+        "key": "r22",
+        "name": "Churn deep-dive #3",
+        "description": "Saved report \"Churn deep-dive #3\", saved 2026-08-08"
+       },
+       {
+        "key": "r23",
+        "name": "Hiring plan #3",
+        "description": "Saved report \"Hiring plan #3\", saved 2026-08-05"
+       },
+       {
+        "key": "r24",
+        "name": "Infra costs #3",
+        "description": "Saved report \"Infra costs #3\", saved 2026-08-02"
+       },
+       {
+        "key": "r25",
+        "name": "Customer NPS #3",
+        "description": "Saved report \"Customer NPS #3\", saved 2026-07-30"
+       },
+       {
+        "key": "r26",
+        "name": "Sprint retro #3",
+        "description": "Saved report \"Sprint retro #3\", saved 2026-07-27"
+       },
+       {
+        "key": "r27",
+        "name": "Security incidents #3",
+        "description": "Saved report \"Security incidents #3\", saved 2026-07-24"
+       },
+       {
+        "key": "r28",
+        "name": "Marketing funnel #3",
+        "description": "Saved report \"Marketing funnel #3\", saved 2026-07-21"
+       },
+       {
+        "key": "r29",
+        "name": "Support SLA #3",
+        "description": "Saved report \"Support SLA #3\", saved 2026-07-18"
+       },
+       {
+        "key": "r30",
+        "name": "Roadmap status #3",
+        "description": "Saved report \"Roadmap status #3\", saved 2026-07-15"
+       }
+      ]
+     }
+    },
+    {
+     "id": "reportList",
+     "group": "reports",
+     "description": "List of the user's saved reports",
+     "params": {
+      "sort": {
+       "label": "order",
+       "default": "recent",
+       "options": {
+        "recent": "most recently saved first",
+        "name": "alphabetical by name"
+       }
+      },
+      "limit": {
+       "label": "number of reports",
+       "default": "10",
+       "ask": "How many reports does user_request ask for, by a number or by words like few, all or every?",
+       "options": {
+        "3": "short: about 3 reports (a few, top 3)",
+        "10": "medium: about 10 reports",
+        "30": "all: every saved report (a full list)"
+       }
+      }
+     }
+    },
+    {
+     "id": "member",
+     "group": "people",
+     "description": "Team member card: one person's assigned tasks and workload",
+     "records": {
+      "param": "member",
+      "label": "team member",
+      "items": [
+       {
+        "key": "maya",
+        "name": "Maya Chen",
+        "aliases": [
+         "Maya"
+        ],
+        "description": "Maya Chen, designer"
+       },
+       {
+        "key": "jun",
+        "name": "Jun Park",
+        "aliases": [
+         "Jun"
+        ],
+        "description": "Jun Park, backend engineer"
+       },
+       {
+        "key": "ravi",
+        "name": "Ravi Patel",
+        "aliases": [
+         "Ravi"
+        ],
+        "description": "Ravi Patel, frontend engineer"
+       },
+       {
+        "key": "lena",
+        "name": "Lena Okafor",
+        "aliases": [
+         "Lena"
+        ],
+        "description": "Lena Okafor, product manager"
+       },
+       {
+        "key": "tom",
+        "name": "Tom Becker",
+        "aliases": [
+         "Tom"
+        ],
+        "description": "Tom Becker, QA engineer"
+       },
+       {
+        "key": "sara",
+        "name": "Sara Lind",
+        "aliases": [
+         "Sara"
+        ],
+        "description": "Sara Lind, data analyst"
+       },
+       {
+        "key": "diego",
+        "name": "Diego Ruiz",
+        "aliases": [
+         "Diego"
+        ],
+        "description": "Diego Ruiz, mobile engineer"
+       },
+       {
+        "key": "amira",
+        "name": "Amira Haddad",
+        "aliases": [
+         "Amira"
+        ],
+        "description": "Amira Haddad, engineering manager"
+       },
+       {
+        "key": "ken",
+        "name": "Ken Ito",
+        "aliases": [
+         "Ken"
+        ],
+        "description": "Ken Ito, designer"
+       },
+       {
+        "key": "olga",
+        "name": "Olga Ivanova",
+        "aliases": [
+         "Olga"
+        ],
+        "description": "Olga Ivanova, backend engineer"
+       },
+       {
+        "key": "noah",
+        "name": "Noah Kim",
+        "aliases": [
+         "Noah"
+        ],
+        "description": "Noah Kim, frontend engineer"
+       },
+       {
+        "key": "priya",
+        "name": "Priya Nair",
+        "aliases": [
+         "Priya"
+        ],
+        "description": "Priya Nair, product manager"
+       },
+       {
+        "key": "lucas",
+        "name": "Lucas Moreau",
+        "aliases": [
+         "Lucas"
+        ],
+        "description": "Lucas Moreau, QA engineer"
+       },
+       {
+        "key": "hana",
+        "name": "Hana Sato",
+        "aliases": [
+         "Hana"
+        ],
+        "description": "Hana Sato, data analyst"
+       },
+       {
+        "key": "ben",
+        "name": "Ben Adler",
+        "aliases": [
+         "Ben"
+        ],
+        "description": "Ben Adler, mobile engineer"
+       },
+       {
+        "key": "zoe",
+        "name": "Zoe Martin",
+        "aliases": [
+         "Zoe"
+        ],
+        "description": "Zoe Martin, engineering manager"
+       },
+       {
+        "key": "omar",
+        "name": "Omar Farouk",
+        "aliases": [
+         "Omar"
+        ],
+        "description": "Omar Farouk, designer"
+       },
+       {
+        "key": "ines",
+        "name": "Ines Costa",
+        "aliases": [
+         "Ines"
+        ],
+        "description": "Ines Costa, backend engineer"
+       },
+       {
+        "key": "felix",
+        "name": "Felix Wagner",
+        "aliases": [
+         "Felix"
+        ],
+        "description": "Felix Wagner, frontend engineer"
+       },
+       {
+        "key": "aiko",
+        "name": "Aiko Mori",
+        "aliases": [
+         "Aiko"
+        ],
+        "description": "Aiko Mori, product manager"
+       },
+       {
+        "key": "sam",
+        "name": "Sam Taylor",
+        "aliases": [
+         "Sam"
+        ],
+        "description": "Sam Taylor, QA engineer"
+       },
+       {
+        "key": "nora",
+        "name": "Nora Berg",
+        "aliases": [
+         "Nora"
+        ],
+        "description": "Nora Berg, data analyst"
+       },
+       {
+        "key": "ivan",
+        "name": "Ivan Petrov",
+        "aliases": [
+         "Ivan"
+        ],
+        "description": "Ivan Petrov, mobile engineer"
+       },
+       {
+        "key": "clara",
+        "name": "Clara Diaz",
+        "aliases": [
+         "Clara"
+        ],
+        "description": "Clara Diaz, engineering manager"
+       },
+       {
+        "key": "eli",
+        "name": "Eli Cohen",
+        "aliases": [
+         "Eli"
+        ],
+        "description": "Eli Cohen, designer"
+       }
+      ]
+     }
+    },
+    {
+     "id": "burndown",
+     "description": "Burndown chart of sprint progress",
+     "params": {
+      "sprint": {
+       "label": "sprint",
+       "default": "current",
+       "options": {
+        "current": "the current sprint",
+        "previous": "the previous (last) sprint"
+       }
+      }
+     }
+    },
+    {
+     "id": "activity",
+     "description": "Feed of recent activity across all projects"
+    },
+    {
+     "id": "calendar",
+     "description": "Calendar of upcoming deadlines and meetings"
+    }
+   ]
+  },
+  "pm200": {
+   "id": "pm",
+   "parts": [
+    {
+     "id": "project",
+     "group": "projects",
+     "description": "Project card: one project's status, owner and next milestone",
+     "records": {
+      "param": "project",
+      "label": "project",
+      "items": [
+       {
+        "key": "atlas",
+        "name": "Atlas",
+        "description": "Atlas: mobile app rewrite, owner Maya Chen, on track"
+       },
+       {
+        "key": "borealis",
+        "name": "Borealis",
+        "description": "Borealis: data warehouse, owner Amira Haddad, on track"
+       },
+       {
+        "key": "cedar",
+        "name": "Cedar",
+        "description": "Cedar: security audit, owner Ben Adler, at risk"
+       },
+       {
+        "key": "dune",
+        "name": "Dune",
+        "description": "Dune: internal tools, owner Nora Berg, on track"
+       },
+       {
+        "key": "ember",
+        "name": "Ember",
+        "description": "Ember: search revamp, owner Lena Okafor, blocked"
+       },
+       {
+        "key": "fjord",
+        "name": "Fjord",
+        "description": "Fjord: API v3, owner Noah Kim, done"
+       },
+       {
+        "key": "granite",
+        "name": "Granite",
+        "description": "Granite: checkout optimization, owner Ines Costa, on track"
+       },
+       {
+        "key": "harbor",
+        "name": "Harbor",
+        "description": "Harbor: billing migration, owner Eli Cohen, on track"
+       },
+       {
+        "key": "iris",
+        "name": "Iris",
+        "description": "Iris: onboarding redesign, owner Diego Ruiz, at risk"
+       },
+       {
+        "key": "juniper",
+        "name": "Juniper",
+        "description": "Juniper: marketing site, owner Hana Sato, on track"
+       },
+       {
+        "key": "kestrel",
+        "name": "Kestrel",
+        "description": "Kestrel: mobile app rewrite, owner Sam Taylor, blocked"
+       },
+       {
+        "key": "lumen",
+        "name": "Lumen",
+        "description": "Lumen: data warehouse, owner Ravi Patel, done"
+       },
+       {
+        "key": "meridian",
+        "name": "Meridian",
+        "description": "Meridian: security audit, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "nimbus",
+        "name": "Nimbus",
+        "description": "Nimbus: internal tools, owner Omar Farouk, on track"
+       },
+       {
+        "key": "orchid",
+        "name": "Orchid",
+        "description": "Orchid: search revamp, owner Clara Diaz, at risk"
+       },
+       {
+        "key": "polaris",
+        "name": "Polaris",
+        "description": "Polaris: API v3, owner Sara Lind, on track"
+       },
+       {
+        "key": "quartz",
+        "name": "Quartz",
+        "description": "Quartz: checkout optimization, owner Lucas Moreau, blocked"
+       },
+       {
+        "key": "raven",
+        "name": "Raven",
+        "description": "Raven: billing migration, owner Aiko Mori, done"
+       },
+       {
+        "key": "sequoia",
+        "name": "Sequoia",
+        "description": "Sequoia: onboarding redesign, owner Jun Park, on track"
+       },
+       {
+        "key": "tundra",
+        "name": "Tundra",
+        "description": "Tundra: marketing site, owner Ken Ito, on track"
+       },
+       {
+        "key": "umbra",
+        "name": "Umbra",
+        "description": "Umbra: mobile app rewrite, owner Zoe Martin, at risk"
+       },
+       {
+        "key": "vortex",
+        "name": "Vortex",
+        "description": "Vortex: data warehouse, owner Ivan Petrov, on track"
+       },
+       {
+        "key": "willow",
+        "name": "Willow",
+        "description": "Willow: security audit, owner Tom Becker, blocked"
+       },
+       {
+        "key": "xenon",
+        "name": "Xenon",
+        "description": "Xenon: internal tools, owner Priya Nair, done"
+       },
+       {
+        "key": "yarrow",
+        "name": "Yarrow",
+        "description": "Yarrow: search revamp, owner Felix Wagner, on track"
+       },
+       {
+        "key": "zephyr",
+        "name": "Zephyr",
+        "description": "Zephyr: API v3, owner Maya Chen, on track"
+       },
+       {
+        "key": "aurora",
+        "name": "Aurora",
+        "description": "Aurora: checkout optimization, owner Amira Haddad, at risk"
+       },
+       {
+        "key": "basalt",
+        "name": "Basalt",
+        "description": "Basalt: billing migration, owner Ben Adler, on track"
+       },
+       {
+        "key": "comet",
+        "name": "Comet",
+        "description": "Comet: onboarding redesign, owner Nora Berg, blocked"
+       },
+       {
+        "key": "delta",
+        "name": "Delta",
+        "description": "Delta: marketing site, owner Lena Okafor, done"
+       },
+       {
+        "key": "echo",
+        "name": "Echo",
+        "description": "Echo: mobile app rewrite, owner Noah Kim, on track"
+       },
+       {
+        "key": "falcon",
+        "name": "Falcon",
+        "description": "Falcon: data warehouse, owner Ines Costa, on track"
+       },
+       {
+        "key": "glacier",
+        "name": "Glacier",
+        "description": "Glacier: security audit, owner Eli Cohen, at risk"
+       },
+       {
+        "key": "helix",
+        "name": "Helix",
+        "description": "Helix: internal tools, owner Diego Ruiz, on track"
+       },
+       {
+        "key": "indigo",
+        "name": "Indigo",
+        "description": "Indigo: search revamp, owner Hana Sato, blocked"
+       },
+       {
+        "key": "jade",
+        "name": "Jade",
+        "description": "Jade: API v3, owner Sam Taylor, done"
+       },
+       {
+        "key": "krypton",
+        "name": "Krypton",
+        "description": "Krypton: checkout optimization, owner Ravi Patel, on track"
+       },
+       {
+        "key": "lotus",
+        "name": "Lotus",
+        "description": "Lotus: billing migration, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "mosaic",
+        "name": "Mosaic",
+        "description": "Mosaic: onboarding redesign, owner Omar Farouk, at risk"
+       },
+       {
+        "key": "nova",
+        "name": "Nova",
+        "description": "Nova: marketing site, owner Clara Diaz, on track"
+       },
+       {
+        "key": "atlas2",
+        "name": "Atlas 2",
+        "description": "Atlas 2: mobile app rewrite, owner Sara Lind, blocked"
+       },
+       {
+        "key": "borealis2",
+        "name": "Borealis 2",
+        "description": "Borealis 2: data warehouse, owner Lucas Moreau, done"
+       },
+       {
+        "key": "cedar2",
+        "name": "Cedar 2",
+        "description": "Cedar 2: security audit, owner Aiko Mori, on track"
+       },
+       {
+        "key": "dune2",
+        "name": "Dune 2",
+        "description": "Dune 2: internal tools, owner Jun Park, on track"
+       },
+       {
+        "key": "ember2",
+        "name": "Ember 2",
+        "description": "Ember 2: search revamp, owner Ken Ito, at risk"
+       },
+       {
+        "key": "fjord2",
+        "name": "Fjord 2",
+        "description": "Fjord 2: API v3, owner Zoe Martin, on track"
+       },
+       {
+        "key": "granite2",
+        "name": "Granite 2",
+        "description": "Granite 2: checkout optimization, owner Ivan Petrov, blocked"
+       },
+       {
+        "key": "harbor2",
+        "name": "Harbor 2",
+        "description": "Harbor 2: billing migration, owner Tom Becker, done"
+       },
+       {
+        "key": "iris2",
+        "name": "Iris 2",
+        "description": "Iris 2: onboarding redesign, owner Priya Nair, on track"
+       },
+       {
+        "key": "juniper2",
+        "name": "Juniper 2",
+        "description": "Juniper 2: marketing site, owner Felix Wagner, on track"
+       },
+       {
+        "key": "kestrel2",
+        "name": "Kestrel 2",
+        "description": "Kestrel 2: mobile app rewrite, owner Maya Chen, at risk"
+       },
+       {
+        "key": "lumen2",
+        "name": "Lumen 2",
+        "description": "Lumen 2: data warehouse, owner Amira Haddad, on track"
+       },
+       {
+        "key": "meridian2",
+        "name": "Meridian 2",
+        "description": "Meridian 2: security audit, owner Ben Adler, blocked"
+       },
+       {
+        "key": "nimbus2",
+        "name": "Nimbus 2",
+        "description": "Nimbus 2: internal tools, owner Nora Berg, done"
+       },
+       {
+        "key": "orchid2",
+        "name": "Orchid 2",
+        "description": "Orchid 2: search revamp, owner Lena Okafor, on track"
+       },
+       {
+        "key": "polaris2",
+        "name": "Polaris 2",
+        "description": "Polaris 2: API v3, owner Noah Kim, on track"
+       },
+       {
+        "key": "quartz2",
+        "name": "Quartz 2",
+        "description": "Quartz 2: checkout optimization, owner Ines Costa, at risk"
+       },
+       {
+        "key": "raven2",
+        "name": "Raven 2",
+        "description": "Raven 2: billing migration, owner Eli Cohen, on track"
+       },
+       {
+        "key": "sequoia2",
+        "name": "Sequoia 2",
+        "description": "Sequoia 2: onboarding redesign, owner Diego Ruiz, blocked"
+       },
+       {
+        "key": "tundra2",
+        "name": "Tundra 2",
+        "description": "Tundra 2: marketing site, owner Hana Sato, done"
+       },
+       {
+        "key": "umbra2",
+        "name": "Umbra 2",
+        "description": "Umbra 2: mobile app rewrite, owner Sam Taylor, on track"
+       },
+       {
+        "key": "vortex2",
+        "name": "Vortex 2",
+        "description": "Vortex 2: data warehouse, owner Ravi Patel, on track"
+       },
+       {
+        "key": "willow2",
+        "name": "Willow 2",
+        "description": "Willow 2: security audit, owner Olga Ivanova, at risk"
+       },
+       {
+        "key": "xenon2",
+        "name": "Xenon 2",
+        "description": "Xenon 2: internal tools, owner Omar Farouk, on track"
+       },
+       {
+        "key": "yarrow2",
+        "name": "Yarrow 2",
+        "description": "Yarrow 2: search revamp, owner Clara Diaz, blocked"
+       },
+       {
+        "key": "zephyr2",
+        "name": "Zephyr 2",
+        "description": "Zephyr 2: API v3, owner Sara Lind, done"
+       },
+       {
+        "key": "aurora2",
+        "name": "Aurora 2",
+        "description": "Aurora 2: checkout optimization, owner Lucas Moreau, on track"
+       },
+       {
+        "key": "basalt2",
+        "name": "Basalt 2",
+        "description": "Basalt 2: billing migration, owner Aiko Mori, on track"
+       },
+       {
+        "key": "comet2",
+        "name": "Comet 2",
+        "description": "Comet 2: onboarding redesign, owner Jun Park, at risk"
+       },
+       {
+        "key": "delta2",
+        "name": "Delta 2",
+        "description": "Delta 2: marketing site, owner Ken Ito, on track"
+       },
+       {
+        "key": "echo2",
+        "name": "Echo 2",
+        "description": "Echo 2: mobile app rewrite, owner Zoe Martin, blocked"
+       },
+       {
+        "key": "falcon2",
+        "name": "Falcon 2",
+        "description": "Falcon 2: data warehouse, owner Ivan Petrov, done"
+       },
+       {
+        "key": "glacier2",
+        "name": "Glacier 2",
+        "description": "Glacier 2: security audit, owner Tom Becker, on track"
+       },
+       {
+        "key": "helix2",
+        "name": "Helix 2",
+        "description": "Helix 2: internal tools, owner Priya Nair, on track"
+       },
+       {
+        "key": "indigo2",
+        "name": "Indigo 2",
+        "description": "Indigo 2: search revamp, owner Felix Wagner, at risk"
+       },
+       {
+        "key": "jade2",
+        "name": "Jade 2",
+        "description": "Jade 2: API v3, owner Maya Chen, on track"
+       },
+       {
+        "key": "krypton2",
+        "name": "Krypton 2",
+        "description": "Krypton 2: checkout optimization, owner Amira Haddad, blocked"
+       },
+       {
+        "key": "lotus2",
+        "name": "Lotus 2",
+        "description": "Lotus 2: billing migration, owner Ben Adler, done"
+       },
+       {
+        "key": "mosaic2",
+        "name": "Mosaic 2",
+        "description": "Mosaic 2: onboarding redesign, owner Nora Berg, on track"
+       },
+       {
+        "key": "nova2",
+        "name": "Nova 2",
+        "description": "Nova 2: marketing site, owner Lena Okafor, on track"
+       },
+       {
+        "key": "atlas3",
+        "name": "Atlas 3",
+        "description": "Atlas 3: mobile app rewrite, owner Noah Kim, at risk"
+       },
+       {
+        "key": "borealis3",
+        "name": "Borealis 3",
+        "description": "Borealis 3: data warehouse, owner Ines Costa, on track"
+       },
+       {
+        "key": "cedar3",
+        "name": "Cedar 3",
+        "description": "Cedar 3: security audit, owner Eli Cohen, blocked"
+       },
+       {
+        "key": "dune3",
+        "name": "Dune 3",
+        "description": "Dune 3: internal tools, owner Diego Ruiz, done"
+       },
+       {
+        "key": "ember3",
+        "name": "Ember 3",
+        "description": "Ember 3: search revamp, owner Hana Sato, on track"
+       },
+       {
+        "key": "fjord3",
+        "name": "Fjord 3",
+        "description": "Fjord 3: API v3, owner Sam Taylor, on track"
+       },
+       {
+        "key": "granite3",
+        "name": "Granite 3",
+        "description": "Granite 3: checkout optimization, owner Ravi Patel, at risk"
+       },
+       {
+        "key": "harbor3",
+        "name": "Harbor 3",
+        "description": "Harbor 3: billing migration, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "iris3",
+        "name": "Iris 3",
+        "description": "Iris 3: onboarding redesign, owner Omar Farouk, blocked"
+       },
+       {
+        "key": "juniper3",
+        "name": "Juniper 3",
+        "description": "Juniper 3: marketing site, owner Clara Diaz, done"
+       },
+       {
+        "key": "kestrel3",
+        "name": "Kestrel 3",
+        "description": "Kestrel 3: mobile app rewrite, owner Sara Lind, on track"
+       },
+       {
+        "key": "lumen3",
+        "name": "Lumen 3",
+        "description": "Lumen 3: data warehouse, owner Lucas Moreau, on track"
+       },
+       {
+        "key": "meridian3",
+        "name": "Meridian 3",
+        "description": "Meridian 3: security audit, owner Aiko Mori, at risk"
+       },
+       {
+        "key": "nimbus3",
+        "name": "Nimbus 3",
+        "description": "Nimbus 3: internal tools, owner Jun Park, on track"
+       },
+       {
+        "key": "orchid3",
+        "name": "Orchid 3",
+        "description": "Orchid 3: search revamp, owner Ken Ito, blocked"
+       },
+       {
+        "key": "polaris3",
+        "name": "Polaris 3",
+        "description": "Polaris 3: API v3, owner Zoe Martin, done"
+       },
+       {
+        "key": "quartz3",
+        "name": "Quartz 3",
+        "description": "Quartz 3: checkout optimization, owner Ivan Petrov, on track"
+       },
+       {
+        "key": "raven3",
+        "name": "Raven 3",
+        "description": "Raven 3: billing migration, owner Tom Becker, on track"
+       },
+       {
+        "key": "sequoia3",
+        "name": "Sequoia 3",
+        "description": "Sequoia 3: onboarding redesign, owner Priya Nair, at risk"
+       },
+       {
+        "key": "tundra3",
+        "name": "Tundra 3",
+        "description": "Tundra 3: marketing site, owner Felix Wagner, on track"
+       },
+       {
+        "key": "umbra3",
+        "name": "Umbra 3",
+        "description": "Umbra 3: mobile app rewrite, owner Maya Chen, blocked"
+       },
+       {
+        "key": "vortex3",
+        "name": "Vortex 3",
+        "description": "Vortex 3: data warehouse, owner Amira Haddad, done"
+       },
+       {
+        "key": "willow3",
+        "name": "Willow 3",
+        "description": "Willow 3: security audit, owner Ben Adler, on track"
+       },
+       {
+        "key": "xenon3",
+        "name": "Xenon 3",
+        "description": "Xenon 3: internal tools, owner Nora Berg, on track"
+       },
+       {
+        "key": "yarrow3",
+        "name": "Yarrow 3",
+        "description": "Yarrow 3: search revamp, owner Lena Okafor, at risk"
+       },
+       {
+        "key": "zephyr3",
+        "name": "Zephyr 3",
+        "description": "Zephyr 3: API v3, owner Noah Kim, on track"
+       },
+       {
+        "key": "aurora3",
+        "name": "Aurora 3",
+        "description": "Aurora 3: checkout optimization, owner Ines Costa, blocked"
+       },
+       {
+        "key": "basalt3",
+        "name": "Basalt 3",
+        "description": "Basalt 3: billing migration, owner Eli Cohen, done"
+       },
+       {
+        "key": "comet3",
+        "name": "Comet 3",
+        "description": "Comet 3: onboarding redesign, owner Diego Ruiz, on track"
+       },
+       {
+        "key": "delta3",
+        "name": "Delta 3",
+        "description": "Delta 3: marketing site, owner Hana Sato, on track"
+       },
+       {
+        "key": "echo3",
+        "name": "Echo 3",
+        "description": "Echo 3: mobile app rewrite, owner Sam Taylor, at risk"
+       },
+       {
+        "key": "falcon3",
+        "name": "Falcon 3",
+        "description": "Falcon 3: data warehouse, owner Ravi Patel, on track"
+       },
+       {
+        "key": "glacier3",
+        "name": "Glacier 3",
+        "description": "Glacier 3: security audit, owner Olga Ivanova, blocked"
+       },
+       {
+        "key": "helix3",
+        "name": "Helix 3",
+        "description": "Helix 3: internal tools, owner Omar Farouk, done"
+       },
+       {
+        "key": "indigo3",
+        "name": "Indigo 3",
+        "description": "Indigo 3: search revamp, owner Clara Diaz, on track"
+       },
+       {
+        "key": "jade3",
+        "name": "Jade 3",
+        "description": "Jade 3: API v3, owner Sara Lind, on track"
+       },
+       {
+        "key": "krypton3",
+        "name": "Krypton 3",
+        "description": "Krypton 3: checkout optimization, owner Lucas Moreau, at risk"
+       },
+       {
+        "key": "lotus3",
+        "name": "Lotus 3",
+        "description": "Lotus 3: billing migration, owner Aiko Mori, on track"
+       },
+       {
+        "key": "mosaic3",
+        "name": "Mosaic 3",
+        "description": "Mosaic 3: onboarding redesign, owner Jun Park, blocked"
+       },
+       {
+        "key": "nova3",
+        "name": "Nova 3",
+        "description": "Nova 3: marketing site, owner Ken Ito, done"
+       },
+       {
+        "key": "atlas4",
+        "name": "Atlas 4",
+        "description": "Atlas 4: mobile app rewrite, owner Zoe Martin, on track"
+       },
+       {
+        "key": "borealis4",
+        "name": "Borealis 4",
+        "description": "Borealis 4: data warehouse, owner Ivan Petrov, on track"
+       },
+       {
+        "key": "cedar4",
+        "name": "Cedar 4",
+        "description": "Cedar 4: security audit, owner Tom Becker, at risk"
+       },
+       {
+        "key": "dune4",
+        "name": "Dune 4",
+        "description": "Dune 4: internal tools, owner Priya Nair, on track"
+       },
+       {
+        "key": "ember4",
+        "name": "Ember 4",
+        "description": "Ember 4: search revamp, owner Felix Wagner, blocked"
+       },
+       {
+        "key": "fjord4",
+        "name": "Fjord 4",
+        "description": "Fjord 4: API v3, owner Maya Chen, done"
+       },
+       {
+        "key": "granite4",
+        "name": "Granite 4",
+        "description": "Granite 4: checkout optimization, owner Amira Haddad, on track"
+       },
+       {
+        "key": "harbor4",
+        "name": "Harbor 4",
+        "description": "Harbor 4: billing migration, owner Ben Adler, on track"
+       },
+       {
+        "key": "iris4",
+        "name": "Iris 4",
+        "description": "Iris 4: onboarding redesign, owner Nora Berg, at risk"
+       },
+       {
+        "key": "juniper4",
+        "name": "Juniper 4",
+        "description": "Juniper 4: marketing site, owner Lena Okafor, on track"
+       },
+       {
+        "key": "kestrel4",
+        "name": "Kestrel 4",
+        "description": "Kestrel 4: mobile app rewrite, owner Noah Kim, blocked"
+       },
+       {
+        "key": "lumen4",
+        "name": "Lumen 4",
+        "description": "Lumen 4: data warehouse, owner Ines Costa, done"
+       },
+       {
+        "key": "meridian4",
+        "name": "Meridian 4",
+        "description": "Meridian 4: security audit, owner Eli Cohen, on track"
+       },
+       {
+        "key": "nimbus4",
+        "name": "Nimbus 4",
+        "description": "Nimbus 4: internal tools, owner Diego Ruiz, on track"
+       },
+       {
+        "key": "orchid4",
+        "name": "Orchid 4",
+        "description": "Orchid 4: search revamp, owner Hana Sato, at risk"
+       },
+       {
+        "key": "polaris4",
+        "name": "Polaris 4",
+        "description": "Polaris 4: API v3, owner Sam Taylor, on track"
+       },
+       {
+        "key": "quartz4",
+        "name": "Quartz 4",
+        "description": "Quartz 4: checkout optimization, owner Ravi Patel, blocked"
+       },
+       {
+        "key": "raven4",
+        "name": "Raven 4",
+        "description": "Raven 4: billing migration, owner Olga Ivanova, done"
+       },
+       {
+        "key": "sequoia4",
+        "name": "Sequoia 4",
+        "description": "Sequoia 4: onboarding redesign, owner Omar Farouk, on track"
+       },
+       {
+        "key": "tundra4",
+        "name": "Tundra 4",
+        "description": "Tundra 4: marketing site, owner Clara Diaz, on track"
+       },
+       {
+        "key": "umbra4",
+        "name": "Umbra 4",
+        "description": "Umbra 4: mobile app rewrite, owner Sara Lind, at risk"
+       },
+       {
+        "key": "vortex4",
+        "name": "Vortex 4",
+        "description": "Vortex 4: data warehouse, owner Lucas Moreau, on track"
+       },
+       {
+        "key": "willow4",
+        "name": "Willow 4",
+        "description": "Willow 4: security audit, owner Aiko Mori, blocked"
+       },
+       {
+        "key": "xenon4",
+        "name": "Xenon 4",
+        "description": "Xenon 4: internal tools, owner Jun Park, done"
+       },
+       {
+        "key": "yarrow4",
+        "name": "Yarrow 4",
+        "description": "Yarrow 4: search revamp, owner Ken Ito, on track"
+       },
+       {
+        "key": "zephyr4",
+        "name": "Zephyr 4",
+        "description": "Zephyr 4: API v3, owner Zoe Martin, on track"
+       },
+       {
+        "key": "aurora4",
+        "name": "Aurora 4",
+        "description": "Aurora 4: checkout optimization, owner Ivan Petrov, at risk"
+       },
+       {
+        "key": "basalt4",
+        "name": "Basalt 4",
+        "description": "Basalt 4: billing migration, owner Tom Becker, on track"
+       },
+       {
+        "key": "comet4",
+        "name": "Comet 4",
+        "description": "Comet 4: onboarding redesign, owner Priya Nair, blocked"
+       },
+       {
+        "key": "delta4",
+        "name": "Delta 4",
+        "description": "Delta 4: marketing site, owner Felix Wagner, done"
+       },
+       {
+        "key": "echo4",
+        "name": "Echo 4",
+        "description": "Echo 4: mobile app rewrite, owner Maya Chen, on track"
+       },
+       {
+        "key": "falcon4",
+        "name": "Falcon 4",
+        "description": "Falcon 4: data warehouse, owner Amira Haddad, on track"
+       },
+       {
+        "key": "glacier4",
+        "name": "Glacier 4",
+        "description": "Glacier 4: security audit, owner Ben Adler, at risk"
+       },
+       {
+        "key": "helix4",
+        "name": "Helix 4",
+        "description": "Helix 4: internal tools, owner Nora Berg, on track"
+       },
+       {
+        "key": "indigo4",
+        "name": "Indigo 4",
+        "description": "Indigo 4: search revamp, owner Lena Okafor, blocked"
+       },
+       {
+        "key": "jade4",
+        "name": "Jade 4",
+        "description": "Jade 4: API v3, owner Noah Kim, done"
+       },
+       {
+        "key": "krypton4",
+        "name": "Krypton 4",
+        "description": "Krypton 4: checkout optimization, owner Ines Costa, on track"
+       },
+       {
+        "key": "lotus4",
+        "name": "Lotus 4",
+        "description": "Lotus 4: billing migration, owner Eli Cohen, on track"
+       },
+       {
+        "key": "mosaic4",
+        "name": "Mosaic 4",
+        "description": "Mosaic 4: onboarding redesign, owner Diego Ruiz, at risk"
+       },
+       {
+        "key": "nova4",
+        "name": "Nova 4",
+        "description": "Nova 4: marketing site, owner Hana Sato, on track"
+       },
+       {
+        "key": "atlas5",
+        "name": "Atlas 5",
+        "description": "Atlas 5: mobile app rewrite, owner Sam Taylor, blocked"
+       },
+       {
+        "key": "borealis5",
+        "name": "Borealis 5",
+        "description": "Borealis 5: data warehouse, owner Ravi Patel, done"
+       },
+       {
+        "key": "cedar5",
+        "name": "Cedar 5",
+        "description": "Cedar 5: security audit, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "dune5",
+        "name": "Dune 5",
+        "description": "Dune 5: internal tools, owner Omar Farouk, on track"
+       },
+       {
+        "key": "ember5",
+        "name": "Ember 5",
+        "description": "Ember 5: search revamp, owner Clara Diaz, at risk"
+       },
+       {
+        "key": "fjord5",
+        "name": "Fjord 5",
+        "description": "Fjord 5: API v3, owner Sara Lind, on track"
+       },
+       {
+        "key": "granite5",
+        "name": "Granite 5",
+        "description": "Granite 5: checkout optimization, owner Lucas Moreau, blocked"
+       },
+       {
+        "key": "harbor5",
+        "name": "Harbor 5",
+        "description": "Harbor 5: billing migration, owner Aiko Mori, done"
+       },
+       {
+        "key": "iris5",
+        "name": "Iris 5",
+        "description": "Iris 5: onboarding redesign, owner Jun Park, on track"
+       },
+       {
+        "key": "juniper5",
+        "name": "Juniper 5",
+        "description": "Juniper 5: marketing site, owner Ken Ito, on track"
+       },
+       {
+        "key": "kestrel5",
+        "name": "Kestrel 5",
+        "description": "Kestrel 5: mobile app rewrite, owner Zoe Martin, at risk"
+       },
+       {
+        "key": "lumen5",
+        "name": "Lumen 5",
+        "description": "Lumen 5: data warehouse, owner Ivan Petrov, on track"
+       },
+       {
+        "key": "meridian5",
+        "name": "Meridian 5",
+        "description": "Meridian 5: security audit, owner Tom Becker, blocked"
+       },
+       {
+        "key": "nimbus5",
+        "name": "Nimbus 5",
+        "description": "Nimbus 5: internal tools, owner Priya Nair, done"
+       },
+       {
+        "key": "orchid5",
+        "name": "Orchid 5",
+        "description": "Orchid 5: search revamp, owner Felix Wagner, on track"
+       },
+       {
+        "key": "polaris5",
+        "name": "Polaris 5",
+        "description": "Polaris 5: API v3, owner Maya Chen, on track"
+       },
+       {
+        "key": "quartz5",
+        "name": "Quartz 5",
+        "description": "Quartz 5: checkout optimization, owner Amira Haddad, at risk"
+       },
+       {
+        "key": "raven5",
+        "name": "Raven 5",
+        "description": "Raven 5: billing migration, owner Ben Adler, on track"
+       },
+       {
+        "key": "sequoia5",
+        "name": "Sequoia 5",
+        "description": "Sequoia 5: onboarding redesign, owner Nora Berg, blocked"
+       },
+       {
+        "key": "tundra5",
+        "name": "Tundra 5",
+        "description": "Tundra 5: marketing site, owner Lena Okafor, done"
+       },
+       {
+        "key": "umbra5",
+        "name": "Umbra 5",
+        "description": "Umbra 5: mobile app rewrite, owner Noah Kim, on track"
+       },
+       {
+        "key": "vortex5",
+        "name": "Vortex 5",
+        "description": "Vortex 5: data warehouse, owner Ines Costa, on track"
+       },
+       {
+        "key": "willow5",
+        "name": "Willow 5",
+        "description": "Willow 5: security audit, owner Eli Cohen, at risk"
+       },
+       {
+        "key": "xenon5",
+        "name": "Xenon 5",
+        "description": "Xenon 5: internal tools, owner Diego Ruiz, on track"
+       },
+       {
+        "key": "yarrow5",
+        "name": "Yarrow 5",
+        "description": "Yarrow 5: search revamp, owner Hana Sato, blocked"
+       },
+       {
+        "key": "zephyr5",
+        "name": "Zephyr 5",
+        "description": "Zephyr 5: API v3, owner Sam Taylor, done"
+       },
+       {
+        "key": "aurora5",
+        "name": "Aurora 5",
+        "description": "Aurora 5: checkout optimization, owner Ravi Patel, on track"
+       },
+       {
+        "key": "basalt5",
+        "name": "Basalt 5",
+        "description": "Basalt 5: billing migration, owner Olga Ivanova, on track"
+       },
+       {
+        "key": "comet5",
+        "name": "Comet 5",
+        "description": "Comet 5: onboarding redesign, owner Omar Farouk, at risk"
+       },
+       {
+        "key": "delta5",
+        "name": "Delta 5",
+        "description": "Delta 5: marketing site, owner Clara Diaz, on track"
+       },
+       {
+        "key": "echo5",
+        "name": "Echo 5",
+        "description": "Echo 5: mobile app rewrite, owner Sara Lind, blocked"
+       },
+       {
+        "key": "falcon5",
+        "name": "Falcon 5",
+        "description": "Falcon 5: data warehouse, owner Lucas Moreau, done"
+       },
+       {
+        "key": "glacier5",
+        "name": "Glacier 5",
+        "description": "Glacier 5: security audit, owner Aiko Mori, on track"
+       },
+       {
+        "key": "helix5",
+        "name": "Helix 5",
+        "description": "Helix 5: internal tools, owner Jun Park, on track"
+       },
+       {
+        "key": "indigo5",
+        "name": "Indigo 5",
+        "description": "Indigo 5: search revamp, owner Ken Ito, at risk"
+       },
+       {
+        "key": "jade5",
+        "name": "Jade 5",
+        "description": "Jade 5: API v3, owner Zoe Martin, on track"
+       },
+       {
+        "key": "krypton5",
+        "name": "Krypton 5",
+        "description": "Krypton 5: checkout optimization, owner Ivan Petrov, blocked"
+       },
+       {
+        "key": "lotus5",
+        "name": "Lotus 5",
+        "description": "Lotus 5: billing migration, owner Tom Becker, done"
+       },
+       {
+        "key": "mosaic5",
+        "name": "Mosaic 5",
+        "description": "Mosaic 5: onboarding redesign, owner Priya Nair, on track"
+       },
+       {
+        "key": "nova5",
+        "name": "Nova 5",
+        "description": "Nova 5: marketing site, owner Felix Wagner, on track"
+       }
+      ]
+     }
+    },
+    {
+     "id": "projectList",
+     "group": "projects",
+     "description": "List of projects filtered by status, owner or kind",
+     "params": {
+      "status": {
+       "label": "project status",
+       "default": "any",
+       "options": {
+        "any": "any status",
+        "onTrack": "on track",
+        "atRisk": "at risk",
+        "blocked": "blocked",
+        "done": "done (finished)"
+       }
+      },
+      "owner": {
+       "label": "project owner",
+       "default": "anyone",
+       "options": {
+        "anyone": "owned by anyone",
+        "maya": "owned by Maya Chen",
+        "jun": "owned by Jun Park",
+        "ravi": "owned by Ravi Patel",
+        "lena": "owned by Lena Okafor",
+        "tom": "owned by Tom Becker",
+        "sara": "owned by Sara Lind",
+        "diego": "owned by Diego Ruiz",
+        "amira": "owned by Amira Haddad",
+        "ken": "owned by Ken Ito",
+        "olga": "owned by Olga Ivanova",
+        "noah": "owned by Noah Kim",
+        "priya": "owned by Priya Nair",
+        "lucas": "owned by Lucas Moreau",
+        "hana": "owned by Hana Sato",
+        "ben": "owned by Ben Adler",
+        "zoe": "owned by Zoe Martin",
+        "omar": "owned by Omar Farouk",
+        "ines": "owned by Ines Costa",
+        "felix": "owned by Felix Wagner",
+        "aiko": "owned by Aiko Mori",
+        "sam": "owned by Sam Taylor",
+        "nora": "owned by Nora Berg",
+        "ivan": "owned by Ivan Petrov",
+        "clara": "owned by Clara Diaz",
+        "eli": "owned by Eli Cohen"
+       }
+      },
+      "kind": {
+       "label": "kind of project",
+       "default": "any",
+       "options": {
+        "any": "any kind of project",
+        "mobileAppRewrite": "mobile app rewrite",
+        "billingMigration": "billing migration",
+        "searchRevamp": "search revamp",
+        "dataWarehouse": "data warehouse",
+        "onboardingRedesign": "onboarding redesign",
+        "APIV3": "API v3",
+        "securityAudit": "security audit",
+        "marketingSite": "marketing site",
+        "checkoutOptimization": "checkout optimization",
+        "internalTools": "internal tools"
+       }
+      }
+     }
+    },
+    {
+     "id": "team",
+     "group": "people",
+     "description": "Team roster: people and their roles",
+     "params": {
+      "role": {
+       "label": "role",
+       "default": "any",
+       "options": {
+        "any": "everyone on the team",
+        "designer": "designers",
+        "backend": "backend engineers",
+        "frontend": "frontend engineers",
+        "product": "product managers",
+        "QA": "QA engineers",
+        "data": "data analysts",
+        "mobile": "mobile engineers",
+        "engineering": "engineering managers"
+       }
+      }
+     }
+    },
+    {
+     "id": "report",
+     "group": "reports",
+     "description": "One saved report, opened",
+     "records": {
+      "param": "report",
+      "label": "saved report",
+      "items": [
+       {
+        "key": "r1",
+        "name": "Revenue review",
+        "description": "Saved report \"Revenue review\", saved 2026-10-10"
+       },
+       {
+        "key": "r2",
+        "name": "Churn deep-dive",
+        "description": "Saved report \"Churn deep-dive\", saved 2026-10-07"
+       },
+       {
+        "key": "r3",
+        "name": "Hiring plan",
+        "description": "Saved report \"Hiring plan\", saved 2026-10-04"
+       },
+       {
+        "key": "r4",
+        "name": "Infra costs",
+        "description": "Saved report \"Infra costs\", saved 2026-10-01"
+       },
+       {
+        "key": "r5",
+        "name": "Customer NPS",
+        "description": "Saved report \"Customer NPS\", saved 2026-09-28"
+       },
+       {
+        "key": "r6",
+        "name": "Sprint retro",
+        "description": "Saved report \"Sprint retro\", saved 2026-09-25"
+       },
+       {
+        "key": "r7",
+        "name": "Security incidents",
+        "description": "Saved report \"Security incidents\", saved 2026-09-22"
+       },
+       {
+        "key": "r8",
+        "name": "Marketing funnel",
+        "description": "Saved report \"Marketing funnel\", saved 2026-09-19"
+       },
+       {
+        "key": "r9",
+        "name": "Support SLA",
+        "description": "Saved report \"Support SLA\", saved 2026-09-16"
+       },
+       {
+        "key": "r10",
+        "name": "Roadmap status",
+        "description": "Saved report \"Roadmap status\", saved 2026-09-13"
+       },
+       {
+        "key": "r11",
+        "name": "Revenue review #2",
+        "description": "Saved report \"Revenue review #2\", saved 2026-09-10"
+       },
+       {
+        "key": "r12",
+        "name": "Churn deep-dive #2",
+        "description": "Saved report \"Churn deep-dive #2\", saved 2026-09-07"
+       },
+       {
+        "key": "r13",
+        "name": "Hiring plan #2",
+        "description": "Saved report \"Hiring plan #2\", saved 2026-09-04"
+       },
+       {
+        "key": "r14",
+        "name": "Infra costs #2",
+        "description": "Saved report \"Infra costs #2\", saved 2026-09-01"
+       },
+       {
+        "key": "r15",
+        "name": "Customer NPS #2",
+        "description": "Saved report \"Customer NPS #2\", saved 2026-08-29"
+       },
+       {
+        "key": "r16",
+        "name": "Sprint retro #2",
+        "description": "Saved report \"Sprint retro #2\", saved 2026-08-26"
+       },
+       {
+        "key": "r17",
+        "name": "Security incidents #2",
+        "description": "Saved report \"Security incidents #2\", saved 2026-08-23"
+       },
+       {
+        "key": "r18",
+        "name": "Marketing funnel #2",
+        "description": "Saved report \"Marketing funnel #2\", saved 2026-08-20"
+       },
+       {
+        "key": "r19",
+        "name": "Support SLA #2",
+        "description": "Saved report \"Support SLA #2\", saved 2026-08-17"
+       },
+       {
+        "key": "r20",
+        "name": "Roadmap status #2",
+        "description": "Saved report \"Roadmap status #2\", saved 2026-08-14"
+       },
+       {
+        "key": "r21",
+        "name": "Revenue review #3",
+        "description": "Saved report \"Revenue review #3\", saved 2026-08-11"
+       },
+       {
+        "key": "r22",
+        "name": "Churn deep-dive #3",
+        "description": "Saved report \"Churn deep-dive #3\", saved 2026-08-08"
+       },
+       {
+        "key": "r23",
+        "name": "Hiring plan #3",
+        "description": "Saved report \"Hiring plan #3\", saved 2026-08-05"
+       },
+       {
+        "key": "r24",
+        "name": "Infra costs #3",
+        "description": "Saved report \"Infra costs #3\", saved 2026-08-02"
+       },
+       {
+        "key": "r25",
+        "name": "Customer NPS #3",
+        "description": "Saved report \"Customer NPS #3\", saved 2026-07-30"
+       },
+       {
+        "key": "r26",
+        "name": "Sprint retro #3",
+        "description": "Saved report \"Sprint retro #3\", saved 2026-07-27"
+       },
+       {
+        "key": "r27",
+        "name": "Security incidents #3",
+        "description": "Saved report \"Security incidents #3\", saved 2026-07-24"
+       },
+       {
+        "key": "r28",
+        "name": "Marketing funnel #3",
+        "description": "Saved report \"Marketing funnel #3\", saved 2026-07-21"
+       },
+       {
+        "key": "r29",
+        "name": "Support SLA #3",
+        "description": "Saved report \"Support SLA #3\", saved 2026-07-18"
+       },
+       {
+        "key": "r30",
+        "name": "Roadmap status #3",
+        "description": "Saved report \"Roadmap status #3\", saved 2026-07-15"
+       }
+      ]
+     }
+    },
+    {
+     "id": "reportList",
+     "group": "reports",
+     "description": "List of the user's saved reports",
+     "params": {
+      "sort": {
+       "label": "order",
+       "default": "recent",
+       "options": {
+        "recent": "most recently saved first",
+        "name": "alphabetical by name"
+       }
+      },
+      "limit": {
+       "label": "number of reports",
+       "default": "10",
+       "ask": "How many reports does user_request ask for, by a number or by words like few, all or every?",
+       "options": {
+        "3": "short: about 3 reports (a few, top 3)",
+        "10": "medium: about 10 reports",
+        "30": "all: every saved report (a full list)"
+       }
+      }
+     }
+    },
+    {
+     "id": "member",
+     "group": "people",
+     "description": "Team member card: one person's assigned tasks and workload",
+     "records": {
+      "param": "member",
+      "label": "team member",
+      "items": [
+       {
+        "key": "maya",
+        "name": "Maya Chen",
+        "aliases": [
+         "Maya"
+        ],
+        "description": "Maya Chen, designer"
+       },
+       {
+        "key": "jun",
+        "name": "Jun Park",
+        "aliases": [
+         "Jun"
+        ],
+        "description": "Jun Park, backend engineer"
+       },
+       {
+        "key": "ravi",
+        "name": "Ravi Patel",
+        "aliases": [
+         "Ravi"
+        ],
+        "description": "Ravi Patel, frontend engineer"
+       },
+       {
+        "key": "lena",
+        "name": "Lena Okafor",
+        "aliases": [
+         "Lena"
+        ],
+        "description": "Lena Okafor, product manager"
+       },
+       {
+        "key": "tom",
+        "name": "Tom Becker",
+        "aliases": [
+         "Tom"
+        ],
+        "description": "Tom Becker, QA engineer"
+       },
+       {
+        "key": "sara",
+        "name": "Sara Lind",
+        "aliases": [
+         "Sara"
+        ],
+        "description": "Sara Lind, data analyst"
+       },
+       {
+        "key": "diego",
+        "name": "Diego Ruiz",
+        "aliases": [
+         "Diego"
+        ],
+        "description": "Diego Ruiz, mobile engineer"
+       },
+       {
+        "key": "amira",
+        "name": "Amira Haddad",
+        "aliases": [
+         "Amira"
+        ],
+        "description": "Amira Haddad, engineering manager"
+       },
+       {
+        "key": "ken",
+        "name": "Ken Ito",
+        "aliases": [
+         "Ken"
+        ],
+        "description": "Ken Ito, designer"
+       },
+       {
+        "key": "olga",
+        "name": "Olga Ivanova",
+        "aliases": [
+         "Olga"
+        ],
+        "description": "Olga Ivanova, backend engineer"
+       },
+       {
+        "key": "noah",
+        "name": "Noah Kim",
+        "aliases": [
+         "Noah"
+        ],
+        "description": "Noah Kim, frontend engineer"
+       },
+       {
+        "key": "priya",
+        "name": "Priya Nair",
+        "aliases": [
+         "Priya"
+        ],
+        "description": "Priya Nair, product manager"
+       },
+       {
+        "key": "lucas",
+        "name": "Lucas Moreau",
+        "aliases": [
+         "Lucas"
+        ],
+        "description": "Lucas Moreau, QA engineer"
+       },
+       {
+        "key": "hana",
+        "name": "Hana Sato",
+        "aliases": [
+         "Hana"
+        ],
+        "description": "Hana Sato, data analyst"
+       },
+       {
+        "key": "ben",
+        "name": "Ben Adler",
+        "aliases": [
+         "Ben"
+        ],
+        "description": "Ben Adler, mobile engineer"
+       },
+       {
+        "key": "zoe",
+        "name": "Zoe Martin",
+        "aliases": [
+         "Zoe"
+        ],
+        "description": "Zoe Martin, engineering manager"
+       },
+       {
+        "key": "omar",
+        "name": "Omar Farouk",
+        "aliases": [
+         "Omar"
+        ],
+        "description": "Omar Farouk, designer"
+       },
+       {
+        "key": "ines",
+        "name": "Ines Costa",
+        "aliases": [
+         "Ines"
+        ],
+        "description": "Ines Costa, backend engineer"
+       },
+       {
+        "key": "felix",
+        "name": "Felix Wagner",
+        "aliases": [
+         "Felix"
+        ],
+        "description": "Felix Wagner, frontend engineer"
+       },
+       {
+        "key": "aiko",
+        "name": "Aiko Mori",
+        "aliases": [
+         "Aiko"
+        ],
+        "description": "Aiko Mori, product manager"
+       },
+       {
+        "key": "sam",
+        "name": "Sam Taylor",
+        "aliases": [
+         "Sam"
+        ],
+        "description": "Sam Taylor, QA engineer"
+       },
+       {
+        "key": "nora",
+        "name": "Nora Berg",
+        "aliases": [
+         "Nora"
+        ],
+        "description": "Nora Berg, data analyst"
+       },
+       {
+        "key": "ivan",
+        "name": "Ivan Petrov",
+        "aliases": [
+         "Ivan"
+        ],
+        "description": "Ivan Petrov, mobile engineer"
+       },
+       {
+        "key": "clara",
+        "name": "Clara Diaz",
+        "aliases": [
+         "Clara"
+        ],
+        "description": "Clara Diaz, engineering manager"
+       },
+       {
+        "key": "eli",
+        "name": "Eli Cohen",
+        "aliases": [
+         "Eli"
+        ],
+        "description": "Eli Cohen, designer"
+       }
+      ]
+     }
+    },
+    {
+     "id": "burndown",
+     "description": "Burndown chart of sprint progress",
+     "params": {
+      "sprint": {
+       "label": "sprint",
+       "default": "current",
+       "options": {
+        "current": "the current sprint",
+        "previous": "the previous (last) sprint"
+       }
+      }
+     }
+    },
+    {
+     "id": "activity",
+     "description": "Feed of recent activity across all projects"
+    },
+    {
+     "id": "calendar",
+     "description": "Calendar of upcoming deadlines and meetings"
+    }
+   ]
+  }
+ },
+ "params": [
+  {
+   "catalog": "ops",
+   "prompt": "Show the revenue chart for last quarter",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenueChart",
+      "params": {
+       "range": "quarter"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Revenue trend this year",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "The revenue chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenueChart"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Pending orders",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Top 5 refunded orders",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "orders",
+      "params": {
+       "status": "refunded",
+       "limit": "5"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "A long list of all recent orders",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "orders",
+      "params": {
+       "limit": "25"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Urgent tickets and the weather",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Closed support tickets, then the weekly revenue chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "status": "closed"
+      }
+     },
+     "n2": {
+      "part": "revenueChart",
+      "params": {
+       "range": "week"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Revenue, signups and the revenue chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "signups"
+     },
+     "n3": {
+      "part": "revenueChart"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "prompt": "Show every support ticket, resolved or not",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "status": "all"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Show our newest jackets",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "products",
+      "params": {
+       "category": "jackets",
+       "sort": "newest"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Cheapest shoes",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "products",
+      "params": {
+       "category": "shoes",
+       "sort": "priceLow"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Units sold over the last 12 months",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "year",
+       "metric": "units"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Negative reviews and the returns table",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reviews",
+      "params": {
+       "rating": "negative"
+      }
+     },
+     "n2": {
+      "part": "returns"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Best-selling bags, and our top 3 customers",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "products",
+      "params": {
+       "category": "bags"
+      }
+     },
+     "n2": {
+      "part": "topCustomers",
+      "params": {
+       "limit": "5"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Sales this week",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Product grid and customer reviews",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "products"
+     },
+     "n2": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "What are people complaining about?",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reviews",
+      "params": {
+       "rating": "negative"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "Our most expensive products",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "products",
+      "params": {
+       "sort": "priceHigh"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "prompt": "The promo banner above the full list of top customers",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "topCustomers",
+      "params": {
+       "limit": "25"
+      }
+     }
+    }
+   }
+  }
+ ],
+ "records": [
+  {
+   "catalog": "pm",
+   "prompt": "Show the Atlas and Borealis projects",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "How is Cedar doing?",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "cedar"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "The Meridian project and the burndown chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "meridian"
+      }
+     },
+     "n2": {
+      "part": "burndown"
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Show Maya's workload",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "maya"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Jun and Ravi's tasks",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "jun"
+      }
+     },
+     "n2": {
+      "part": "member",
+      "params": {
+       "member": "ravi"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Open the Infra costs #2 report",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "report",
+      "params": {
+       "report": "r14"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "My three most recent reports",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reportList",
+      "params": {
+       "limit": "3"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "All my saved reports, alphabetical",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reportList",
+      "params": {
+       "sort": "name",
+       "limit": "30"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Projects that are blocked",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "status": "blocked"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Every project Maya Chen owns",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "owner": "maya"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "The Polaris and Nova projects side by side",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "polaris"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "nova"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "The activity feed and the Harbor project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "activity"
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "harbor"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Lena's card and the calendar",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "lena"
+      }
+     },
+     "n2": {
+      "part": "calendar"
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "What's the status of Iris, Jade and Lotus?",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "iris"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "jade"
+      }
+     },
+     "n3": {
+      "part": "project",
+      "params": {
+       "project": "lotus"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Show me the Phoenix project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": []
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Burndown for the last sprint",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "burndown",
+      "params": {
+       "sprint": "previous"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "The designers on the team",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "team",
+      "params": {
+       "role": "designer"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Security audit projects",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "kind": "securityAudit"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Jun's card and the Sequoia project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "jun"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "sequoia"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm",
+   "prompt": "Atlas, Borealis, Cedar and Dune, side by side",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "project",
+      "params": {
+       "project": "cedar"
+      }
+     },
+     "n4": {
+      "part": "project",
+      "params": {
+       "project": "dune"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Show the Atlas and Borealis projects",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "How is Cedar doing?",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "cedar"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "The Meridian project and the burndown chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "meridian"
+      }
+     },
+     "n2": {
+      "part": "burndown"
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Show Maya's workload",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "maya"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Jun and Ravi's tasks",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "jun"
+      }
+     },
+     "n2": {
+      "part": "member",
+      "params": {
+       "member": "ravi"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Open the Infra costs #2 report",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "report",
+      "params": {
+       "report": "r14"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "My three most recent reports",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reportList",
+      "params": {
+       "limit": "3"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "All my saved reports, alphabetical",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "reportList",
+      "params": {
+       "sort": "name",
+       "limit": "30"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Projects that are blocked",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "status": "blocked"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Every project Maya Chen owns",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "owner": "maya"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "The Polaris and Nova projects side by side",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "polaris"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "nova"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "The activity feed and the Harbor project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "activity"
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "harbor"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Lena's card and the calendar",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "lena"
+      }
+     },
+     "n2": {
+      "part": "calendar"
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "What's the status of Iris, Jade and Lotus?",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "iris"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "jade"
+      }
+     },
+     "n3": {
+      "part": "project",
+      "params": {
+       "project": "lotus"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Show me the Phoenix project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": []
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Burndown for the last sprint",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "burndown",
+      "params": {
+       "sprint": "previous"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "The designers on the team",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "team",
+      "params": {
+       "role": "designer"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Security audit projects",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "projectList",
+      "params": {
+       "kind": "securityAudit"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Jun's card and the Sequoia project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "member",
+      "params": {
+       "member": "jun"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "sequoia"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  },
+  {
+   "catalog": "pm200",
+   "prompt": "Atlas, Borealis, Cedar and Dune, side by side",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "project",
+      "params": {
+       "project": "cedar"
+      }
+     },
+     "n4": {
+      "part": "project",
+      "params": {
+       "project": "dune"
+      }
+     }
+    }
+   },
+   "orderScored": false
+  }
+ ],
+ "edits": [
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Add the weather",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     },
+     "n5": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Remove the chart",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Move the tickets to the top",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n4",
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n4": {
+      "part": "tickets"
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Put the orders next to the revenue",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n5",
+        "n2",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n5": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n1",
+        "n3"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Swap the line chart for my task checklist",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n5": {
+      "part": "tasks"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Show last quarter instead",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart",
+      "params": {
+       "range": "quarter"
+      }
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Make it simpler",
+   "expected": null,
+   "accept": "simpler"
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Drop the tickets and add a feedback form at the top",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n5",
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n5": {
+      "part": "feedback"
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Only pending orders, and remove the revenue card",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Add signups and churn",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4",
+        "n5",
+        "n6"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     },
+     "n5": {
+      "part": "signups"
+     },
+     "n6": {
+      "part": "churn"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Put the weather at the top",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n5",
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n5": {
+      "part": "weather"
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   },
+   "prompt": "Move the revenue chart below the orders",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n3",
+        "n2",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "orders"
+     },
+     "n2": {
+      "part": "revenueChart"
+     },
+     "n4": {
+      "part": "tickets"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n6"
+       ]
+      }
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n4": {
+      "part": "churn"
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n6": {
+      "part": "tasks"
+     }
+    }
+   },
+   "prompt": "Remove churn",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n6"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n6": {
+      "part": "tasks"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n6"
+       ]
+      }
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n4": {
+      "part": "churn"
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n6": {
+      "part": "tasks"
+     }
+    }
+   },
+   "prompt": "Show the chart for this week and move my tasks to the top",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n6",
+        "n1",
+        "n5"
+       ]
+      }
+     },
+     "n6": {
+      "part": "tasks"
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n4": {
+      "part": "churn"
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "week"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n6"
+       ]
+      }
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n4": {
+      "part": "churn"
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n6": {
+      "part": "tasks"
+     }
+    }
+   },
+   "prompt": "Replace the tasks with the weather",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n5",
+        "n7"
+       ]
+      }
+     },
+     "n2": {
+      "part": "revenue"
+     },
+     "n3": {
+      "part": "signups"
+     },
+     "n4": {
+      "part": "churn"
+     },
+     "n1": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n5": {
+      "part": "revenueChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n7": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Show jackets instead",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "jackets"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Only the negative reviews",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews",
+      "params": {
+       "rating": "negative"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Get rid of the banner",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Add the sales chart between the banner and the products",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n4",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n4": {
+      "part": "salesChart"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Sort the products by price, cheapest first, and add low stock alerts below them",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n4",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes",
+       "sort": "priceLow"
+      }
+     },
+     "n4": {
+      "part": "lowStock"
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Swap the reviews for the returns table",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n4": {
+      "part": "returns"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "tuned",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   },
+   "prompt": "Thanks, looks good",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "promo"
+     },
+     "n2": {
+      "part": "products",
+      "params": {
+       "category": "shoes"
+      }
+     },
+     "n3": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "Show all tickets, not just the urgent ones",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets"
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "Get rid of the weather and put the revenue chart first",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n4",
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n4": {
+      "part": "revenueChart"
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "Put the weather beside the tickets",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n4",
+        "n2"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     },
+     "n4": {
+      "part": "row",
+      "slots": {
+       "default": [
+        "n1",
+        "n3"
+       ]
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "I also need the churn rate",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     },
+     "n4": {
+      "part": "churn"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "Replace the orders with the signups card",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n4",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n4": {
+      "part": "signups"
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "ops",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   },
+   "prompt": "Show 25 orders",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "tickets",
+      "params": {
+       "priority": "high"
+      }
+     },
+     "n2": {
+      "part": "orders",
+      "params": {
+       "status": "pending",
+       "limit": "25"
+      }
+     },
+     "n3": {
+      "part": "weather"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Switch the chart to units",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week",
+       "metric": "units"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Low stock alerts first please",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n3",
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n3": {
+      "part": "lowStock"
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Remove the customers table and the stock alerts",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Add the promo banner on top and the reviews at the bottom",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n4",
+        "n1",
+        "n2",
+        "n3",
+        "n5"
+       ]
+      }
+     },
+     "n4": {
+      "part": "promo"
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     },
+     "n5": {
+      "part": "reviews"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Show the whole year",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "year"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "shop",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "salesChart",
+      "params": {
+       "range": "week"
+      }
+     },
+     "n2": {
+      "part": "topCustomers"
+     },
+     "n3": {
+      "part": "lowStock"
+     }
+    }
+   },
+   "prompt": "Clean this up, too much going on",
+   "expected": null,
+   "accept": "simpler"
+  },
+  {
+   "catalog": "pm",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   },
+   "prompt": "Add the Cedar project",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3",
+        "n4"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     },
+     "n4": {
+      "part": "project",
+      "params": {
+       "project": "cedar"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "pm",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   },
+   "prompt": "Remove Atlas",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   }
+  },
+  {
+   "catalog": "pm",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   },
+   "prompt": "Show the previous sprint's burndown at the top",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n3",
+        "n1",
+        "n2"
+       ]
+      }
+     },
+     "n3": {
+      "part": "burndown",
+      "params": {
+       "sprint": "previous"
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     }
+    }
+   }
+  },
+  {
+   "catalog": "pm",
+   "set": "heldout",
+   "previousLayout": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n2",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n2": {
+      "part": "project",
+      "params": {
+       "project": "borealis"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   },
+   "prompt": "Swap Borealis for Juniper",
+   "expected": {
+    "root": "n0",
+    "nodes": {
+     "n0": {
+      "part": "page",
+      "slots": {
+       "default": [
+        "n1",
+        "n4",
+        "n3"
+       ]
+      }
+     },
+     "n1": {
+      "part": "project",
+      "params": {
+       "project": "atlas"
+      }
+     },
+     "n4": {
+      "part": "project",
+      "params": {
+       "project": "juniper"
+      }
+     },
+     "n3": {
+      "part": "burndown"
+     }
+    }
+   }
+  }
+ ]
+}
