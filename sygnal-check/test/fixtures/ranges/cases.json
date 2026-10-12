@@ -212,5 +212,8 @@
   },
   "SYG680": {
     "c.jsx": "import { defineCatalog, compose } from 'sygnal/ai'\nexport const c = defineCatalog({\n  parts: { note: { render: () => <div />, description: 'Note (a scratch note)', params: { heading: { type: 'text', required: true } } } },\n})\nexport const behavior = compose(c, { backend: compose.decisions({ model: 'jev' }) })\n"
+  },
+  "SYG426": {
+    "App.jsx": "function Item() { return <li /> }\nexport function App() {\n  return <ul><collection of={Item} from=\"items\" /></ul>\n}\nApp.initialState = { items: [] }\n"
   }
 }

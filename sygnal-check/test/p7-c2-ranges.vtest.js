@@ -87,6 +87,7 @@ const RANGES = [
   ['SYG247', 'Pay.jsx', 6, 'pay'],
   ['SYG248', 'Shop.jsx', 6, "'search'"],
   ['SYG401', 'collection-from.jsx', 13, 'from="item"'],
+  ['SYG426', 'App.jsx', 3, 'collection'],         // the tag name (what --fix renames)
   ['SYG405', 'Search.jsx', 4, 'Search.initialState'],
   ['SYG422', 'T.jsx', 2, '100'],                  // a spec that isn't an object: the value
   ['SYG440', 'Right.jsx', 3, "'panel'"],
