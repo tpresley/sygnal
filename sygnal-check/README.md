@@ -126,6 +126,13 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG243 | warn | A `Date` in an `input` (`z.date()`, `z.coerce.date()`, `v.date()`, ArkType `'Date'`): JSON can't carry it. Use an ISO string schema. |
 | SYG440 | warn | Two `agent` declarations with the same tool-name prefix (`agent.name`, else the component name) where one component renders both. |
 | SYG441 | warn | A Collection item component with an `agent` whose items have no `id`: an object literal without `id` in the parent's `initialState` array, or appended by its model (`[...state.todos, { text }]`). |
+| SYG162 | error | A `defineCatalog({...})` part (`sygnal/ai`) with neither `component` nor `render`: it renders nothing. The catalog checks run on literal declarations (an object literal, or a `const` bound to one in the same module) with `defineCatalog` imported from `sygnal` / `sygnal/ai`. |
+| SYG161 | error | A catalog container whose `render` is a component with `.model`, `.intent`, `.initialState` or `.uses` (followed through imports, or `defineComponent({ model })`): it is called as a view, its model never runs. |
+| SYG450 | warn | A part's or container's `in` naming an unknown container, an unknown slot (`'tabs:setings'`) or the built-in `row`; a container `min` / `max` that isn't a non-negative integer, `min` above `max`, `accepts` other than `'leaves'`. Quiet when the containers can't all be listed (a spread). |
+| SYG250 | warn | A part's `companions` entry that is not a part of the catalog (or the part itself). |
+| SYG253 | warn | A misspelled key in a catalog, part, container or param declaration (`descrption`, `compnent`, `deafult`, `maxuses`), with a rename quick fix. Other unknown keys (an app's own data) are left alone. |
+| SYG254 | info | The catalog description lint: two parts whose descriptions share a phrase (two adjacent content words: "monthly revenue" on the KPI and on the chart), a part description naming one of its own param values ("over the last 12 months" on a part with a `range` param), options of two params of one part sharing a word ("all tickets" / "any priority"). Kind words (card, chart, table, ...), filler and the part's own name don't count; parts in one `group` may overlap. Printed with `--verbose`. |
+| SYG680 | info | A part with a `required` text or list param and no `default`, in a catalog passed to `compose(catalog, { backend: compose.decisions(...) })` in the scanned files: the decision backend never places it (LLM-only). |
 | SYG900 | warn | A file couldn't be parsed, or a rule crashed. |
 
 ### Accessibility (SYG7xx)
@@ -571,7 +578,7 @@ Which findings have fixes:
 
 | Fix | Codes |
 |---|---|
-| the "did you mean" name, as a preferred quick fix | SYG110 (the class or id in a literal selector), SYG112 (a reply action), SYG127 (a behavior option key), SYG226 (an undo `track`/`resetOn`/`coalesce` name), SYG140 (a widget's dispatched event), SYG141 (the event listened for), SYG142 and SYG641 (a command key), SYG150 (the `agent.actions` key), SYG151 (`agents` → `agent`), SYG223 (a persist `pick`/`omit` key), SYG707 (an `aria-*` name, a role) |
+| the "did you mean" name, as a preferred quick fix | SYG110 (the class or id in a literal selector), SYG112 (a reply action), SYG127 (a behavior option key), SYG226 (an undo `track`/`resetOn`/`coalesce` name), SYG140 (a widget's dispatched event), SYG141 (the event listened for), SYG142 and SYG641 (a command key), SYG150 (the `agent.actions` key), SYG151 (`agents` → `agent`), SYG223 (a persist `pick`/`omit` key), SYG253 (a catalog declaration key), SYG707 (an `aria-*` name, a role) |
 | the near-miss event type on the other side, not preferred (either side may be the typo) | SYG105 |
 | the `--fix` rewrites (`fixAll`), with the `event` / `emit` import edits | SYG504, SYG505, SYG506, SYG612 (removed statics) |
 | "Add a model entry for `X`", a stub `X: (state, data) => state, // TODO` (only when the model is an object literal in the component's file) | SYG101 |

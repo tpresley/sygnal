@@ -537,9 +537,9 @@ A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has
 
 **Catalog container render is a component with a model**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-A container in `defineCatalog({ containers })` (sygnal/ai) is a view function: `catalog.render()` calls its `render` inline with `{ key, node, slots, children, ui, control }`, so the composed parts stay children of the component that renders the composition. Its `render` here is a component (it has a `model`, `intent`, `initialState` or `uses`). A component would own the parts placed in its slots: the host's `CHILD.select(Part)` would stop hearing them, their lenses would start from the container's state, and a part moved out of it would be re-created. The function is still called as a view, so its model, intent and state never run. Reported in development, when the catalog is defined.
+A container in `defineCatalog({ containers })` (sygnal/ai) is a view function: `catalog.render()` calls its `render` inline with `{ key, node, slots, children, ui, control }`, so the composed parts stay children of the component that renders the composition. Its `render` here is a component (it has a `model`, `intent`, `initialState` or `uses`). A component would own the parts placed in its slots: the host's `CHILD.select(Part)` would stop hearing them, their lenses would start from the container's state, and a part moved out of it would be re-created. The function is still called as a view, so its model, intent and state never run. Reported in development, when the catalog is defined; `sygnal-check` reports it for a literal declaration whose `render` it can follow to a component with those statics (also through an import, or `defineComponent({ model, ... })`).
 
 **Fix:** Make `render` a plain function of its argument (`render: ({ children, ui, control }) => <Tabs ...>`), and keep container state in `ui` with `control(name, value)` (a click on the element sets `ui[key][name]`). Put stateful UI inside a part instead.
 
@@ -547,9 +547,9 @@ A container in `defineCatalog({ containers })` (sygnal/ai) is a view function: `
 
 **Catalog part with neither component nor render**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-Every part in `defineCatalog({ parts })` (sygnal/ai) needs something to render: a `component` (a Sygnal component, rendered as a child of the host with its lens, params and props) or a `render` view function (called inline with the same props). This part has neither, usually a misspelled key or an import that resolved to undefined. It stays in the catalog, so layouts that name it are valid, but it renders nothing. Reported in development, when the catalog is defined.
+Every part in `defineCatalog({ parts })` (sygnal/ai) needs something to render: a `component` (a Sygnal component, rendered as a child of the host with its lens, params and props) or a `render` view function (called inline with the same props). This part has neither, usually a misspelled key or an import that resolved to undefined. It stays in the catalog, so layouts that name it are valid, but it renders nothing. Reported in development, when the catalog is defined; `sygnal-check` reports a literal part declaration (without a spread) that has neither key.
 
 **Fix:** Add `component: MyPart` (check the import) or `render: (props) => <div>…</div>`.
 
@@ -1127,9 +1127,9 @@ An `agent.actions` entry's `until` makes the call wait for the action's result: 
 
 **Layout names an unknown part or slot**
 
-Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-A composition's layout (sygnal/ai `compose`, `catalog.finish()`, `catalog.render()`) names a part or container the catalog doesn't have, a slot its container doesn't declare, or a node key that isn't one of its nodes. It usually comes from `SET_LAYOUT` with a hand-made layout, a layout restored by `persist` after the catalog changed, or a model's typo. The node is dropped (the children of an unknown container or slot take its place, so the parts it held survive) and the rest of the layout is used. The same code reports a part's `companions` entry that names no part (ignored). Reported in development.
+A composition's layout (sygnal/ai `compose`, `catalog.finish()`, `catalog.render()`) names a part or container the catalog doesn't have, a slot its container doesn't declare, or a node key that isn't one of its nodes. It usually comes from `SET_LAYOUT` with a hand-made layout, a layout restored by `persist` after the catalog changed, or a model's typo. The node is dropped (the children of an unknown container or slot take its place, so the parts it held survive) and the rest of the layout is used. The same code reports a part's `companions` entry that names no part (ignored). Reported in development; `sygnal-check` reports the `companions` case in a literal `defineCatalog({...})`.
 
 **Fix:** Use the catalog's part and container ids and the slot names the container declares. For a persisted layout, bump the `persist` version (or `migrate` the old layout) when you rename or remove parts.
 
@@ -1152,6 +1152,26 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 A record param (`params: { id: { from: (state) => records } }`) turns app state into one option per record: a decision backend offers each record as a choice, an LLM backend lists them as an enum, and the record's `value` becomes the node key (`project:7`). `from` must return an array of `{ value, name?, aliases?, description? }` with a string or number `value`. It returned something else (or threw), so the part has no records (entries without a valid `value` are skipped). Reported in development, once per part and catalog.
 
 **Fix:** Return `state.projects.map((p) => ({ value: p.id, name: p.name, description: `${p.name}: ${p.status}` }))`, and guard against missing state (`(state.projects || []).map(…)`).
+
+### SYG253
+
+**Misspelled catalog declaration key**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A key of a `defineCatalog({...})` declaration (sygnal/ai), of a part, a container or a param is one letter or a swap away from a key `defineCatalog` reads (`descrption`, `compnent`, `deafult`, `maxuses`). `defineCatalog` ignores keys it doesn't know, so the setting has no effect: a misspelled `description` leaves the model with only the part's id, a misspelled `default` makes the first option the default, a misspelled `component` renders nothing (SYG162). Other unknown keys are not reported: an app may keep its own data on a declaration. Static only (`sygnal-check`, for literal declarations); the editor offers the rename as a quick fix.
+
+**Fix:** Rename the key to the one suggested. The keys: a catalog `parts`, `containers`, `description`, `categories`, `rows`, `guidance`, `limits`, `examples`; a part `component`, `render`, `props`, `description`, `state`, `local`, `params`, `in`, `group`, `maxUses`, `required`, `pin`, `companions`, `category`, `result`; a container `slots`, `minSlots`, `min`, `max`, `accepts`, `arranged`, `direction`, `description`, `in`, `params`, `render`; a param `options`, `default`, `label`, `ask`, `type`, `min`, `max`, `bins`, `maxLength`, `required`, `items`, `from`.
+
+### SYG254
+
+**Catalog descriptions or options overlap**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+A model composing from a catalog (sygnal/ai `compose.decisions()` or `compose.llm()`) sees a part only as its `description`, and a param only as its options' descriptions. In the PLAN-9 evals most selection errors came from three wordings, which this lint flags: two part descriptions that share a phrase (two adjacent content words: "monthly revenue" on both the revenue KPI and the revenue chart pulled in the wrong part); a part description that names one of its own param values ("revenue over the last 12 months" on a part with a `range` param: the description is read for every value); and options of two different params of one part that share a word ("all tickets, open and closed" on `status` and "tickets of any priority" on `priority`: "show all tickets, not just the urgent ones" set the wrong param; all / any / every count as one word). Words for the kind of thing (card, chart, table, list, ...), filler words and the part's own name don't count; parts in one `group` may overlap (they are alternatives), and two default options never collide. A hint, not an error (info): `sygnal-check` prints it with `--verbose`, editors show it at information level, and it never fails a run (`--fail-on` stops at warn). Static only, for literal declarations.
+
+**Fix:** Write each description as "Noun (what it shows)", leading with the word a user says for that part and not repeating another part's content ("Revenue (KPI card: this month's total)", "Revenue chart (line chart of the revenue trend)"); put alternatives in a `group`; leave param values out of the description (the param supplies them); word each param's options so they name only what that param changes.
 
 ## SYG3xx: Streams
 
@@ -1702,9 +1722,9 @@ The `chat` and `commandBar` behaviors (sygnal/ai) run agent actions through the 
 
 **Catalog in names an unknown container or slot**
 
-Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-A part's (or container's) `in` lists the places it may go, as `'container'` (any of its slots) or `'container:slot'`; the root is `'page'`. An entry names a container the catalog doesn't declare, a slot that container doesn't have, or the built-in `row` (rows are transparent: a part in a row is where the row is). That entry is ignored; with none left the part goes on the page. Reported in development, when the catalog is defined.
+A part's (or container's) `in` lists the places it may go, as `'container'` (any of its slots) or `'container:slot'`; the root is `'page'`. An entry names a container the catalog doesn't declare, a slot that container doesn't have, or the built-in `row` (rows are transparent: a part in a row is where the row is). That entry is ignored; with none left the part goes on the page. The same code reports a container's `min` / `max` that isn't a non-negative integer, `min` above `max`, or `accepts` other than `'leaves'` (ignored). Reported in development, when the catalog is defined; `sygnal-check` reports the same for a literal `defineCatalog({...})` (the unknown-container check only when every container id is a literal key).
 
 **Fix:** Name declared containers and slots (`in: ['page', 'tabs:billing']`), and declare the container in `containers` before using it in `in`.
 
@@ -2458,9 +2478,9 @@ A value sent to a `makeChatDriver()` sink is not a request the driver can send: 
 
 **Part is LLM-only under a decision backend**
 
-Severity: `info` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `info` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
 
-A catalog part has a free-text param (`type: 'text'` or `type: 'list'`) that is `required` and has no `default`. A decision model (`compose.decisions()`: TypeSafe Jev, Ollama `nimble`) only chooses among options the app declared; it never writes text, so it can't fill that param. `compose.decisions()` leaves the part out of its questions and never places it: the part is LLM-only. `compose.llm()` still uses it. Free-text params that have a `default` are fine: a decision model keeps the default. Collected once per part (info).
+A catalog part has a free-text param (`type: 'text'` or `type: 'list'`) that is `required` and has no `default`. A decision model (`compose.decisions()`: TypeSafe Jev, Ollama `nimble`) only chooses among options the app declared; it never writes text, so it can't fill that param. `compose.decisions()` leaves the part out of its questions and never places it: the part is LLM-only. `compose.llm()` still uses it. Free-text params that have a `default` are fine: a decision model keeps the default. Collected once per part (info). `sygnal-check` reports it when a literal `defineCatalog({...})` is passed to `compose(catalog, { backend: compose.decisions(...) })` in a checked file (the backend written there or in a `const`); a backend chosen at run time is not judged.
 
 **Fix:** Nothing to fix if the part is meant for LLM backends only. To let a decision model place it, give the param a `default` (`{ type: 'text', default: 'Notes' }`), or turn it into choices: `options: { value: description }` (an enum) or a number with `bins`.
 

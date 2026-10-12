@@ -38,6 +38,15 @@ export const CODES = {
   SYG151: { severity: 'warn', title: 'Misspelled agent static' },
   SYG152: { severity: 'warn', title: 'LLM request without an ok action' },
   SYG153: { severity: 'warn', title: 'WebMCP form attribute set as a DOM property' },
+  // PLAN-9 X-2: defineCatalog declarations (rules/syg253-catalog.js); the runtime's X-1 codes where
+  // the checker sees the same thing, and SYG253 / SYG254 (static only)
+  SYG161: { severity: 'error', title: 'Catalog container render is a component with a model' },
+  SYG162: { severity: 'error', title: 'Catalog part with neither component nor render' },
+  SYG250: { severity: 'warn', title: 'Layout names an unknown part or slot' },
+  SYG253: { severity: 'warn', title: 'Misspelled catalog declaration key' },
+  SYG254: { severity: 'info', title: 'Catalog descriptions or options overlap' },
+  SYG450: { severity: 'warn', title: 'Catalog in names an unknown container or slot' },
+  SYG680: { severity: 'info', title: 'Part is LLM-only under a decision backend' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
