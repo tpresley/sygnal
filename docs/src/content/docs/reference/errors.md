@@ -533,6 +533,16 @@ A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has
 
 **Fix:** For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })` with `formTool` from `sygnal/ai` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname="sign_up" attrs-tooldescription="Create an account">` and `<input name="email" attrs-toolparamdescription="The email to sign up with" />` (or `attrs={{ toolname: 'sign_up' }}`).
 
+### SYG160
+
+**Result part rendered outside a card**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A part declared with `result: true` in `defineCatalog({ parts })` (sygnal/ai) answers a card: the `chat` behavior's `ask_user` tool shows a card built from the catalog, and the result part sends `compose.answer(props, value)` to PARENT, which the chat hears with `CHILD.select` and turns into the tool call's output. The answer names the card by `props.scope`, the tool call id that `askCard(catalog, state, part)` passes to `catalog.render`. Here a result part was rendered with no scope (by a `compose` page, or by `catalog.render` called without `scope`), so its answer has nowhere to go: no tool call waits for it. Reported once per catalog and part, in development.
+
+**Fix:** Render cards with `askCard(catalog, state, part)` for each `tool-ask_user` part of the chat's messages. On a composed page, use a part without `result: true`, or a separate catalog for the page and for the cards.
+
 ### SYG161
 
 **Catalog container render is a component with a model**
@@ -2493,6 +2503,36 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 `compose.llm()` asks the model for a layout tree with structured output: a JSON Schema built from the catalog (one closed object per part, enum params, record values from state, rows holding parts only, `maxDepth`). Most providers enforce the schema while decoding, but some don't (no strict mode, an unconstrained local model), and a schema can't say everything, so every reply is read leniently (`type` or `name` for `part`, flat params, the list under another key) and repaired: unknown parts dropped, a part used more than its `maxUses`, a bad param value replaced by its default, text cut to its `maxLength`, a row of one unwrapped. This diagnostic means the reply was still not a layout after that: it wasn't JSON, it had no list of parts, every part it named was unknown, or the repaired tree failed the schema check. The behavior shows `status: 'error'` with the message in `error`; no layout is rendered from it. An empty list is not an error: it means nothing in the catalog fits (`status: 'unavailable'`).
 
 **Fix:** Send the request through a transport that enforces structured output (`openResponses` or `chatCompletions` with `strict: strictSchemas`, Ollama's `format`), lower the temperature, or use a model that follows JSON Schemas. Check that the part ids in the catalog's `examples` exist. The diagnostic's `data` holds the reply and the issues found.
+
+### SYG684
+
+**Client tool shadows an agent tool**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`chat({ clientTools })` (sygnal/ai) declares tools the app answers itself: their calls stay open (`input-available`) until `'assistant.TOOL_OUTPUT'` answers them, or, for the `ask_user` tool of `chat({ ask })`, until a card's result part answers. Here a client tool has the same name as a tool the agent layer made from an `agent` declaration (`<name>_<action>`), so a request can't send both. The client tool is sent and its calls are the app's to answer; the agent action is not offered to the model. Reported once per name, in development.
+
+**Fix:** Rename the client tool (`clientTools: { pick_date: … }`), or the agent declaration's `name` or the action, so each tool name is unique. `ask_user` is taken when `chat({ ask })` is used.
+
+### SYG685
+
+**Answer for a tool call that is not open**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`'assistant.TOOL_OUTPUT'` (`{ toolCallId, output }` or `{ toolCallId, errorText }`) or a card's answer (`ANSWER`, from a result part's `compose.answer(props, value)`) arrived for a call that is not waiting for one. Only a client tool call that is still `input-available` in the last assistant message can be answered (an `ask_user` card only while it is open). The call may have been answered already, closed by STOP or by a new message ("not answered: …"), dropped with its message by REGENERATE, or it may be an agent tool call, which the agent layer runs. The answer is ignored, on purpose: a late answer must not change a conversation that moved on. Reported in development.
+
+**Fix:** Answer only the calls in `openToolCalls(state.assistant)`, with the part's `toolCallId`. Disable the answer controls when the call is no longer open (an answered card renders frozen with `askCard`).
+
+### SYG686
+
+**Ask catalog without a result part**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`chat({ ask: { catalog } })` (sygnal/ai) gives the model the `ask_user` tool: a card is composed from the catalog's parts, and the call waits until a result part (`result: true`) answers it with `compose.answer(props, value)`. This catalog has no part with `result: true`, so no card it can build is answerable: every `ask_user` call stays open until the user presses Stop or sends a new message. Reported once per `chat()` call, also in production.
+
+**Fix:** Mark the parts the user answers with `result: true` (a choice, a picker, a form, a yes/no) and send `compose.answer(props, value)` to PARENT from their model, for example `PICK: { PARENT: (_s, value, _n, props) => compose.answer(props, value) }`.
 
 ## SYG9xx: Internal
 

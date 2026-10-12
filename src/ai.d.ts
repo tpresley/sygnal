@@ -6,7 +6,7 @@ import type { Stream } from 'xstream'
 export type MessagePart =
   | { type: 'text'; text: string }
   | { type: 'reasoning'; text: string; /** provider data to send back with it (an Anthropic thinking signature) */ providerMetadata?: Record<string, Record<string, unknown>> }
-  | { type: `tool-${string}`; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string; [key: string]: unknown }; providerExecuted?: boolean }
+  | { type: `tool-${string}`; toolCallId: string; state: string; input?: unknown; output?: unknown; errorText?: string; approval?: { id: string; approved?: boolean; reason?: string; [key: string]: unknown }; providerExecuted?: boolean; /** PLAN-9 H-2: an `ask_user` call's card */ ui?: ChatCard }
   | { type: 'file'; mediaType: string; url: string; filename?: string }
   | { type: `source-${string}`; [key: string]: unknown }
   | { type: `data-${string}`; id?: string; data: unknown }
@@ -522,7 +522,7 @@ export type ChatRequest<OUT = unknown> = {
 }
 
 /** Stops the sender's requests under a key (`{ abort: 'reply' }`, `{ abort: true, key: 'reply' }`), or all of them (`{ abort: true }`) */
-export type ChatAbort = { abort: string | true; key?: string }
+export type ChatAbort = { abort: string | readonly string[] | true; key?: string }
 
 /** `delta` action data: the reply so far */
 export type ChatDelta = {
@@ -733,6 +733,16 @@ export interface ChatActions {
   DENY: any
   /** The turn is over (a host entry `'assistant.DONE'` runs after the behavior's) */
   DONE: ChatDone
+  /**
+   * PLAN-9 H-1: answer an open client tool call (`clientTools`, or `ask_user`): an
+   * `input-available` client part of the last message (else nothing happens, SYG685). The next
+   * request goes once no call is open. The AI SDK's `addToolOutput`
+   */
+  TOOL_OUTPUT: { toolCallId: string; output: unknown } | { toolCallId: string; errorText: string }
+  /** PLAN-9 H-1: a client tool call opened (a host entry `'assistant.TOOL_CALL'` runs after it, once per call; the AI SDK's `onToolCall`) */
+  TOOL_CALL: ChatCall
+  /** PLAN-9 H-2: a result part answered a card (`compose.answer(props, value)`, heard through CHILD.select): the call's output is `{ part, answer }` */
+  ANSWER: ComposeAnswer
   /** Internal: the prompt field's input */
   PROMPT: string
 }
@@ -770,6 +780,13 @@ export interface ChatOptions {
   maxSteps?: number
   /** Extra request keys for the transport */
   transportOptions?: Record<string, unknown>
+  /**
+   * PLAN-9 H-1: tools the app answers itself: sent with the agent tools (a name in both: the
+   * client tool, SYG684); their calls stay `input-available` until `TOOL_OUTPUT` answers them
+   */
+  clientTools?: Record<string, ChatClientTool>
+  /** PLAN-9 H-2: the `ask_user` tool: the model says what it needs, and the app shows a card built from the catalog */
+  ask?: ChatAskOptions
 }
 
 /**
@@ -1648,3 +1665,59 @@ export interface ComposeLlmDecisions {
   /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid` */
   repairs?: Array<{ kind: string; detail: string }>
 }
+
+// ---- PLAN-9 H: chat client tools and ask ---------------------------------------------------------
+
+/** PLAN-9 H-1: a tool the app answers (`chat({ clientTools: { name: tool } })`) */
+export interface ChatClientTool {
+  description: string
+  /** The input's JSON Schema, or a Standard Schema with a JSON Schema form (its input is validated: a failure closes the call with the issues, so the model can repair it) */
+  inputSchema: JsonSchemaObject | AgentSchema<any>
+}
+
+/** PLAN-9 H-2: `chat({ ask })` */
+export interface ChatAskOptions {
+  /** The parts a card is built from; parts with `result: true` answer it (none: SYG686) */
+  catalog: Catalog<any>
+  /** What composes the card from the call's `need` and the app state: `compose.llm()` (default, on the chat's sink) or `compose.decisions()` */
+  backend?: ComposeBackend
+  /** More guidance on when and how to ask, added to the `ask_user` tool's description */
+  instructions?: string
+  /** PLAN-9 H-3: the tool's input is the card (the layout schema; LLM only, for providers that enforce tool schemas): no compose round trip */
+  direct?: boolean
+}
+
+/** 'composing' (queued, or its backend step is out) | 'open' (answerable) | 'answered' | 'failed' (the call closed with "could not show a card: …") | 'cancelled' (STOP, a new message) */
+export type ChatCardStatus = 'composing' | 'open' | 'answered' | 'failed' | 'cancelled'
+
+/** PLAN-9 H-2: an `ask_user` call's card, on its tool part (`part.ui`); render it with `askCard()` */
+export interface ChatCard {
+  status: ChatCardStatus
+  /** The card (a decision backend's preview while it composes) */
+  layout: Layout | null
+  /** State of the card's `local` parts, per node key */
+  local: Record<string, any>
+  /** Container state per node key (CONTROL) */
+  ui: Record<string, Record<string, any>>
+  /** The answer: the result part's node, its part id, the value */
+  answer: { node: string; part: string | null; value: unknown } | null
+  /** The backend's step while its request is out */
+  pending?: unknown
+}
+
+/** A tool part of a chat message */
+export type ChatToolPart = Extract<MessagePart, { toolCallId: string }>
+
+/**
+ * PLAN-9 H-1: the `input-available` tool parts of the last assistant message: the calls waiting for
+ * the app's answer (and agent calls while they run: status 'streaming')
+ */
+export function openToolCalls(state: ChatState): ChatToolPart[]
+
+/**
+ * PLAN-9 H-2: the card of an `ask_user` tool part, for the host's view: `catalog.render(part.ui,
+ * state, { scope: part.toolCallId, frozen, answer })`, frozen unless the card is open, `local`
+ * written through a lens to the part. `key`: the chat's key in `uses` (default 'assistant'). Null
+ * while the card has no layout.
+ */
+export function askCard(catalog: Catalog<any>, state: any, part: ChatToolPart, options?: { key?: string }): any
