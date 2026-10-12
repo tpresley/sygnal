@@ -109,6 +109,33 @@ describe.each(MODES)('0-S2 key identity (%s DOM)', (_, opts) => {
     t.simulateAction('TICK'); await t.settle()
     expect(t.html()).toContain('<i>b:2</i><i>a:1</i><em>1</em>')
   })
+
+  it('a new key on the Collection re-creates its items (docs: guide/collections, Item Keys and Identity)', async () => {
+    // each item holds an isolatedState Part (a serial stamped at BOOTSTRAP)
+    function Item({ state }) { return h('li', null, h(Part, { name: state.id })) }
+    function List({ state }) { return h('ul', null, h(Collection, { of: Item, from: 'items', key: state.listKey })) }
+    List.model = { SET: (s, d) => ({ ...s, ...d }) }
+    t = renderComponent(List, { ...opts, initialState: { listKey: 'one', items: [{ id: 'a' }, { id: 'b' }] } })
+    await t.ready(); await t.settle()
+    const parts = () => (t.html().match(/<b>[^<]*<\/b>/g) || []).map((s) => s.slice(3, -4))
+    const before = parts()
+    expect(before.map((p) => p.split(':')[0])).toEqual(['a', 'b'])
+    t.simulateAction('SET', { items: [{ id: 'b' }, { id: 'a' }] }); await t.settle()
+    expect(parts()).toEqual([before[1], before[0]])
+    t.simulateAction('SET', { listKey: 'two' }); await t.settle()
+    const after = parts()
+    expect(after.map((p) => p.split(':')[0])).toEqual(['b', 'a'])
+    for (const p of after) expect(before).not.toContain(p)
+  })
+
+  it('key is not a prop of a Collection item either', async () => {
+    const got = []
+    function Item({ state, ...rest }) { got.push(Object.keys(rest).filter((k) => k !== 'children' && k !== 'slots' && k !== 'context' && k !== 'uid')); return h('li', null, state.id) }
+    function List() { return h('ul', null, h(Collection, { of: Item, from: 'items', key: 'k', tone: 'x' })) }
+    t = renderComponent(List, { ...opts, initialState: { items: [{ id: 'a' }] } })
+    await t.ready(); await t.settle()
+    expect(got.at(-1)).toEqual(['tone'])
+  })
 })
 
 describe('0-S2 key identity and uid() (SSR = client)', () => {

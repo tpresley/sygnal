@@ -86,3 +86,12 @@ Always read everything from the first argument: it is the only one (6.0 removed 
 ### Reserved Prop Names
 
 Because the view's argument also carries `state`, `children`, `slots`, `context` and `uid`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.
+
+### Identity: `key`
+
+A component tag's instance (its state cell, its intent, an `isolatedState` value) belongs to its identity among its parent view's children: the component plus its `key`, else its `id` prop, else its position in the view.
+
+- A keyed child keeps its instance when the view moves it: to another place among its siblings, or into another element of the same view.
+- A new `key` makes a new instance: the old one is disposed (`DISPOSE`) and a new one starts (`BOOTSTRAP`; an `isolatedState` child starts again from its `initialState`). Changing the key is how to reset a child.
+- Two tags of one component with the same key in one view are one instance, shown in both places. [SYG453](/reference/errors/#syg453) warns about it in development.
+- `key` is not passed to the component as a prop. The same holds for a `key` on a [`<Collection>`](/guide/collections/#item-keys-and-identity).
