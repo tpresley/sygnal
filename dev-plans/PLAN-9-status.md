@@ -4,10 +4,10 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 
 **Numbering:** a reserved block, decisions **D450–D499**, gaps **G-750–G-799**.
 
-**Integration branch:** `plan9-integration`, to be cut from `main` once the research branch
-(`claude/ai-ui-decision-models-1d866d`) is merged.
+**Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
+fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 not started. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phase 0 in progress (spikes 0-S1, 0-S2, 0-S3 running). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -34,7 +34,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 
 | Item | State | Notes |
 |---|---|---|
-| Phase 0: merge research, cut branch | todo | |
+| Phase 0: merge research, cut branch | done | `06560b4a` on `main` (pushed); `plan9-integration` cut there; §4 code reservations confirmed free in `codes.ts` (SYG160–169, 250–259, 450–459, 680–689) |
 | 0-S1 `<Composed>` marker spike | todo | bytes, core diff, parity, perf, inspect/HMR → user decision |
 | 0-S2 identity from vnode `key` | todo | ≤ ~30 B and parity, else a gap |
 | 0-S3 chat client tools design | todo | |
