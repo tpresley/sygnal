@@ -1,6 +1,6 @@
 /**
- * PLAN-4.6 core: the Switchable host (R2). Registered when a tag uses the public `Switchable`
- * (G-751: its `$reg`, called by the pragma), not on import.
+ * PLAN-4.6 core: the Switchable host (R2). Registered on import (the public `Switchable`
+ * module imports this file).
  *
  * - `of={{ name: Fn }}` (D163: functions only; SYG415), `current` (SYG416), `state` (a key, a
  *   lens or none: the pages' state; SYG409 / SYG410 as for a tag child), `instance` (D83).
@@ -143,6 +143,4 @@ export class SwitchableHost {
   }
 }
 
-const make = (owner: any, props: Record<string, any>, children: any[], id: string) => new SwitchableHost(owner, props, children, id)
-/** G-751: registers the host; the public `Switchable` calls it when used (its `$reg`), not on import */
-export const enableSwitchable = () => { hosts.switchable = make }
+hosts.switchable = (owner, props, children, id) => new SwitchableHost(owner, props, children, id)

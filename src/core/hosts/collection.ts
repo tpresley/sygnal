@@ -1,7 +1,6 @@
 /**
- * PLAN-4.6 core: the Collection host (03-proposal §2 hosts/, R2). Registered when a tag uses the
- * public `Collection` (G-751: its `$reg`, called by the pragma); the core only looks
- * `hosts.collection` up.
+ * PLAN-4.6 core: the Collection host (03-proposal §2 hosts/, R2). Registered on import (the
+ * public `Collection` module imports this file); the core only looks `hosts.collection` up.
  *
  * It stands where the `<Collection>` marker was in its owner's template and renders the items
  * inside the owner's render: no stream of its own, no pickCombine.
@@ -323,6 +322,4 @@ export function named(inst: any, v: any, p: string): any {
   return inst.vo
 }
 
-const make = (owner: any, props: Record<string, any>, children: any[], id: string, marker: any) => new CollectionHost(owner, props, children, id, marker)
-/** G-751: registers the host; the public `Collection` calls it when used (its `$reg`), not on import */
-export const enableCollection = () => { hosts.collection = make }
+hosts.collection = (owner, props, children, id, marker) => new CollectionHost(owner, props, children, id, marker)
