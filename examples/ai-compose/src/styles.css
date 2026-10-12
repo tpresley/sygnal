@@ -43,7 +43,7 @@ header p { margin: 0.2rem 0 1rem; }
 
 .prompt-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .prompt { flex: 1 1 22rem; }
-.prompt, .model, button, textarea {
+.prompt, .backend, button, textarea {
   font: inherit;
   color: var(--ink);
   background: var(--surface);
@@ -60,14 +60,16 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .status { margin: 0.8rem 0; color: var(--muted); }
 .status.error, .status.unavailable { color: var(--bad); }
-.status.selecting, .status.arranging { color: var(--accent); }
+.status.composing, .status.preview { color: var(--accent); }
 
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 1rem; align-items: start; }
 @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
 
-.canvas { display: flex; flex-direction: column; gap: 0.8rem; transition: opacity 0.2s; }
+.canvas { transition: opacity 0.2s; }
 .canvas.preview { opacity: 0.55; }
-.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.8rem; }
+/* catalog.render's built-in containers: the page and a row */
+.compose-page { display: flex; flex-direction: column; gap: 0.8rem; }
+.compose-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.8rem; }
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem 1rem; animation: in 0.25s ease-out; }
 .card h3 { margin: 0 0 0.5rem; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
@@ -89,7 +91,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .order-status.pending { color: var(--warn); }
 .order-status.refunded { color: var(--muted); }
 
-.tickets, .checklist, .picks, .pairs { list-style: none; margin: 0; padding: 0; }
+.tickets, .checklist, .picks, .pairs, .repairs { list-style: none; margin: 0; padding: 0; }
 .tickets li { padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
 .priority { display: inline-block; min-width: 4.2rem; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
 .priority.high { color: var(--bad); }
@@ -115,5 +117,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .bar { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; flex: none; }
 .bar > span { display: block; height: 100%; background: var(--muted); }
 .bar.on > span { background: var(--accent); }
-.pairs li { padding: 0.12rem 0; }
-.tokens { margin: 0.6rem 0 0; }
+.pick.param { color: var(--ink); }
+.pairs li, .repairs li { padding: 0.12rem 0; }
+.plan { margin: 0 0 0.9rem; padding-left: 1.3rem; }
+.decisions .by { margin: 0 0 0.6rem; font-weight: 600; }

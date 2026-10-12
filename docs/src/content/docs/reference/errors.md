@@ -533,6 +533,36 @@ A `<form>` has `toolname`, `tooldescription` or `toolautosubmit` (or a field has
 
 **Fix:** For a form with the `form` behavior, give it a tool and let it write every attribute: `form(schema, { values, submit: 'SIGN_UP', tool: formTool({ name: 'sign_up', description: 'Create an account' }) })` with `formTool` from `sygnal/ai` (experimental; each field's `<label>`, then its `aria-label`, becomes its `toolparamdescription`). Otherwise write them as attributes: `<form attrs-toolname="sign_up" attrs-tooldescription="Create an account">` and `<input name="email" attrs-toolparamdescription="The email to sign up with" />` (or `attrs={{ toolname: 'sign_up' }}`).
 
+### SYG160
+
+**Result part rendered outside a card**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A part declared with `result: true` in `defineCatalog({ parts })` (sygnal/ai) answers a card: the `chat` behavior's `ask_user` tool shows a card built from the catalog, and the result part sends `compose.answer(props, value)` to PARENT, which the chat hears with `CHILD.select` and turns into the tool call's output. The answer names the card by `props.scope`, the tool call id that `askCard(catalog, state, part)` passes to `catalog.render`. Here a result part was rendered with no scope (by a `compose` page, or by `catalog.render` called without `scope`), so its answer has nowhere to go: no tool call waits for it. Reported once per catalog and part, in development.
+
+**Fix:** Render cards with `askCard(catalog, state, part)` for each `tool-ask_user` part of the chat's messages. On a composed page, use a part without `result: true`, or a separate catalog for the page and for the cards.
+
+### SYG161
+
+**Catalog container render is a component with a model**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+A container in `defineCatalog({ containers })` (sygnal/ai) is a view function: `catalog.render()` calls its `render` inline with `{ key, node, slots, children, ui, control }`, so the composed parts stay children of the component that renders the composition. Its `render` here is a component (it has a `model`, `intent`, `initialState` or `uses`). A component would own the parts placed in its slots: the host's `CHILD.select(Part)` would stop hearing them, their lenses would start from the container's state, and a part moved out of it would be re-created. The function is still called as a view, so its model, intent and state never run. Reported in development, when the catalog is defined; `sygnal-check` reports it for a literal declaration whose `render` it can follow to a component with those statics (also through an import, or `defineComponent({ model, ... })`).
+
+**Fix:** Make `render` a plain function of its argument (`render: ({ children, ui, control }) => <Tabs ...>`), and keep container state in `ui` with `control(name, value)` (a click on the element sets `ui[key][name]`). Put stateful UI inside a part instead.
+
+### SYG162
+
+**Catalog part with neither component nor render**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+Every part in `defineCatalog({ parts })` (sygnal/ai) needs something to render: a `component` (a Sygnal component, rendered as a child of the host with its lens, params and props) or a `render` view function (called inline with the same props). This part has neither, usually a misspelled key or an import that resolved to undefined. It stays in the catalog, so layouts that name it are valid, but it renders nothing. Reported in development, when the catalog is defined; `sygnal-check` reports a literal part declaration (without a spread) that has neither key.
+
+**Fix:** Add `component: MyPart` (check the import) or `render: (props) => <div>…</div>`.
+
 ## SYG2xx: State and reducers
 
 ### SYG201
@@ -1103,6 +1133,56 @@ An `agent.actions` entry's `until` makes the call wait for the action's result: 
 
 **Fix:** Name a key of the component's own `resources` (`until: 'search'` for `resources = { search: (state) => … }`), or pass a function for a result that arrives through a reply action: `until: (state) => state.status !== 'loading'`, with the action's own reducer setting `status: 'loading'`.
 
+### SYG250
+
+**Layout names an unknown part or slot**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+A composition's layout (sygnal/ai `compose`, `catalog.finish()`, `catalog.render()`) names a part or container the catalog doesn't have, a slot its container doesn't declare, or a node key that isn't one of its nodes. It usually comes from `SET_LAYOUT` with a hand-made layout, a layout restored by `persist` after the catalog changed, or a model's typo. The node is dropped (the children of an unknown container or slot take its place, so the parts it held survive) and the rest of the layout is used. The same code reports a part's `companions` entry that names no part (ignored). Reported in development; `sygnal-check` reports the `companions` case in a literal `defineCatalog({...})`.
+
+**Fix:** Use the catalog's part and container ids and the slot names the container declares. For a persisted layout, bump the `persist` version (or `migrate` the old layout) when you rename or remove parts.
+
+### SYG251
+
+**Invalid param value in a layout**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A node's `params` don't fit the part's declaration: a value that isn't one of the param's `options`, a number that isn't a number (or is outside `min` … `max`: clamped), text or a list of the wrong type, a list shorter than its `min`, or a param the part doesn't declare. The default is used instead. A node whose record param names no current record (`from(state)` doesn't list it), or whose required `type: 'text'` / `'list'` param (with no default) is missing, can't be shown and is dropped. Over-long text and list items are cut to `maxLength` silently. Reported in development, by the finishing step (`SET_LAYOUT`, `REMOVE`, and both backends).
+
+**Fix:** Send values the declaration allows (`params: { range: 'quarter' }` for `options: { week, month, quarter }`), and record ids `from(state)` returns. When records can disappear, expect their nodes to go.
+
+### SYG252
+
+**Record param from() does not return an array of { value }**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A record param (`params: { id: { from: (state) => records } }`) turns app state into one option per record: a decision backend offers each record as a choice, an LLM backend lists them as an enum, and the record's `value` becomes the node key (`project:7`). `from` must return an array of `{ value, name?, aliases?, description? }` with a string or number `value`. It returned something else (or threw), so the part has no records (entries without a valid `value` are skipped). Reported in development, once per part and catalog.
+
+**Fix:** Return `state.projects.map((p) => ({ value: p.id, name: p.name, description: `${p.name}: ${p.status}` }))`, and guard against missing state (`(state.projects || []).map(…)`).
+
+### SYG253
+
+**Misspelled catalog declaration key**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A key of a `defineCatalog({...})` declaration (sygnal/ai), of a part, a container or a param is one letter or a swap away from a key `defineCatalog` reads (`descrption`, `compnent`, `deafult`, `maxuses`). `defineCatalog` ignores keys it doesn't know, so the setting has no effect: a misspelled `description` leaves the model with only the part's id, a misspelled `default` makes the first option the default, a misspelled `component` renders nothing (SYG162). Other unknown keys are not reported: an app may keep its own data on a declaration. Static only (`sygnal-check`, for literal declarations); the editor offers the rename as a quick fix.
+
+**Fix:** Rename the key to the one suggested. The keys: a catalog `parts`, `containers`, `description`, `categories`, `rows`, `guidance`, `limits`, `examples`; a part `component`, `render`, `props`, `description`, `state`, `local`, `params`, `in`, `group`, `maxUses`, `required`, `pin`, `companions`, `category`, `result`; a container `slots`, `minSlots`, `min`, `max`, `accepts`, `arranged`, `direction`, `description`, `in`, `params`, `render`; a param `options`, `default`, `label`, `ask`, `type`, `min`, `max`, `bins`, `maxLength`, `required`, `items`, `from`.
+
+### SYG254
+
+**Catalog descriptions or options overlap**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+A model composing from a catalog (sygnal/ai `compose.decisions()` or `compose.llm()`) sees a part only as its `description`, and a param only as its options' descriptions. In the PLAN-9 evals most selection errors came from three wordings, which this lint flags: two part descriptions that share a phrase (two adjacent content words: "monthly revenue" on both the revenue KPI and the revenue chart pulled in the wrong part); a part description that names one of its own param values ("revenue over the last 12 months" on a part with a `range` param: the description is read for every value); and options of two different params of one part that share a word ("all tickets, open and closed" on `status` and "tickets of any priority" on `priority`: "show all tickets, not just the urgent ones" set the wrong param; all / any / every count as one word). Words for the kind of thing (card, chart, table, list, ...), filler words and the part's own name don't count; parts in one `group` may overlap (they are alternatives), and two default options never collide. A hint, not an error (info): `sygnal-check` prints it with `--verbose`, editors show it at information level, and it never fails a run (`--fail-on` stops at warn). Static only, for literal declarations.
+
+**Fix:** Write each description as "Noun (what it shows)", leading with the word a user says for that part and not repeating another part's content ("Revenue (KPI card: this month's total)", "Revenue chart (line chart of the revenue trend)"); put alternatives in a `group`; leave param values out of the description (the param supplies them); word each param's options so they name only what that param changes.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1558,6 +1638,16 @@ An `isolatedState` component is bound to a slice of its parent's state (`state="
 
 **Fix:** Add `resetState` to the tag (`<Panel state="panel" resetState />`) to start the component from its `initialState`, replacing the slice. To keep the parent's data, initialize the missing keys in the parent's state.
 
+### SYG426
+
+**Deprecated lowercase marker tag**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A view writes a Sygnal marker as a lowercase string tag: `<collection>` or `<switchable>` (which work without an import), or `<clientonly>`, `<portal>`, `<transition>` or `<suspense>`. The lowercase tags are deprecated since 6.3.0 and will be removed in the next major: the tag will then render an unknown HTML element (`<collection>`) instead of the component, and the Collection and Switchable handlers will load only when their imported components are used. Since 6.3.0 `<portal>`, `<transition>` and `<suspense>` already work only when the capitalized component is used somewhere else in the app. With `sygnal/diagnostics` loaded, `<collection>` and `<switchable>` are reported at run time, once per tag; sygnal-check reports every lowercase marker tag. A plain `<slot>` is an HTML element, not the `<Slot>` marker, and is not reported.
+
+**Fix:** Import the component and write it capitalized: `import { Collection } from 'sygnal'` and `<Collection of={Item} from="items" />` (`Switchable`, `Portal`, `Transition` and `Suspense` from 'sygnal', `ClientOnly` from 'sygnal/vike'). `sygnal-check --fix` renames the tags and adds the import.
+
 ### SYG430
 
 **VirtualCollection has no bounded height**
@@ -1647,6 +1737,46 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 The `chat` and `commandBar` behaviors (sygnal/ai) run agent actions through the app's runtime, which they reach through a hook layer every app picks up when it starts. The first `chat()` or `commandBar()` call installs that layer, and also adds it to the app already running that `run()` registered (the page's first live app), so a component using one of them loaded lazily into that app works. Another app started before the first call (a second `run()` on the page, a `sygnal/element` custom element) can't be found and has none: its assistant still streams replies, but sends no tools, no `read` context, and runs no tool calls; its command bar runs no commands (its `error` says so). Reported once per behavior, also when diagnostics are off.
 
 **Fix:** Make the first `chat()` / `commandBar()` call happen before `run()`: define the host component (or call the factory once) in a module the entry imports, not only in a component loaded later.
+
+### SYG450
+
+**Catalog in names an unknown container or slot**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+A part's (or container's) `in` lists the places it may go, as `'container'` (any of its slots) or `'container:slot'`; the root is `'page'`. An entry names a container the catalog doesn't declare, a slot that container doesn't have, or the built-in `row` (rows are transparent: a part in a row is where the row is). That entry is ignored; with none left the part goes on the page. The same code reports a container's `min` / `max` that isn't a non-negative integer, `min` above `max`, or `accepts` other than `'leaves'` (ignored). Reported in development, when the catalog is defined; `sygnal-check` reports the same for a literal `defineCatalog({...})` (the unknown-container check only when every container id is a literal key).
+
+**Fix:** Name declared containers and slots (`in: ['page', 'tabs:billing']`), and declare the container in `containers` before using it in `in`.
+
+### SYG451
+
+**Composed has no catalog or from is not a composition**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`<Composed catalog={catalog} from="page" />` (sygnal/ai) renders the composition kept at `from` in the host component's state, with the catalog's parts. Here it can't: the `catalog` prop is missing (or isn't made by `defineCatalog()`), the value at `from` (a key, default `'page'`, or a path such as `['boards', 0, 'page']`) is not a composition (an object with a `layout`, as the `compose` behavior keeps under its key in `uses`), or `card` is not an `ask_user` tool part. The marker renders nothing and the rest of the view goes on. `<Composed>` reads the host's own state: a composition computed in the view (not in state) can't be named by `from`. Reported in development, once per component and problem.
+
+**Fix:** Pass the catalog and the key of the compose behavior in `uses`: `App.uses = { page: compose(catalog, { backend }) }` with `<Composed catalog={catalog} from="page" />`. For a composition the view computes, call `catalog.render(slice, state)` in the view instead. For a chat card, pass the tool part: `<Composed catalog={catalog} card={part} />`.
+
+### SYG452
+
+**Layout lists a node key twice**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A layout's node keys are identities: each node appears in exactly one slot, once. This layout lists a key in two places (or inside itself, a cycle). A key is the identity of a part's instance, so two places can't share it. The first place (in depth-first order) is kept and the others are dropped. It comes from a hand-made layout passed to `SET_LAYOUT` or from editing `nodes` directly. Reported in development, by the finishing step.
+
+**Fix:** Give each node its own key (a repeat of a part is `part~2`), and move a node by removing its key from the old slot. `fromTree(catalog, tree, previous)` builds keys for you.
+
+### SYG453
+
+**Two children with the same identity share one instance**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.
+
+**Fix:** Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.
 
 ## SYG5xx: Strict mode (canonical forms)
 
@@ -2373,6 +2503,76 @@ Severity: `error` · Reported by: the Sygnal runtime (every app, production incl
 A value sent to a `makeChatDriver()` sink is not a request the driver can send: it isn't an object, it has no `messages` array, its `coalesce` is not `'frame'`, `'none'` or a number of milliseconds, or its `output` is not a Standard Schema (an object with `~standard.validate`). The request is not sent, so no reply action follows. Stopping a stream is `{ abort: key }` or `{ abort: true }`, not a request.
 
 **Fix:** Send `{ messages: [...], ok: 'DONE', error: 'FAILED' }` (add `delta: 'DELTA'` to stream, `key` to name the request, `output: schema` for structured output with a Zod, Valibot or ArkType schema), or `{ abort: 'reply' }` to stop one. Return `ABORT` (or nothing) from the model entry when there is nothing to send.
+
+### SYG680
+
+**Part is LLM-only under a decision backend**
+
+Severity: `info` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+A catalog part has a free-text param (`type: 'text'` or `type: 'list'`) that is `required` and has no `default`. A decision model (`compose.decisions()`: TypeSafe Jev, Ollama `nimble`) only chooses among options the app declared; it never writes text, so it can't fill that param. `compose.decisions()` leaves the part out of its questions and never places it: the part is LLM-only. `compose.llm()` still uses it. Free-text params that have a `default` are fine: a decision model keeps the default. Collected once per part (info). `sygnal-check` reports it when a literal `defineCatalog({...})` is passed to `compose(catalog, { backend: compose.decisions(...) })` in a checked file (the backend written there or in a `const`); a backend chosen at run time is not judged.
+
+**Fix:** Nothing to fix if the part is meant for LLM backends only. To let a decision model place it, give the param a `default` (`{ type: 'text', default: 'Notes' }`), or turn it into choices: `options: { value: description }` (an enum) or a number with `bins`.
+
+### SYG681
+
+**Compose backend option problem**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+The `compose` behavior (sygnal/ai) needs a backend, `compose.decisions({ model, … })` or `compose.llm({ model, … })`, and a catalog made by `defineCatalog()`: without them `compose()` throws with this code. `compose.decisions()` made without a `model` is reported in development: its `decide()` requests name no model, which a decision service rejects unless your server route fills it in. `compose.llm()` without a `model` is not reported: the chat transport sends its own default (`openResponses({ model })`, …).
+
+**Fix:** Pass both: `compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }) })`. For `compose.decisions()`, pass the model even when your server picks one, so the request documents it.
+
+### SYG682
+
+**Decision model answered outside the criteria**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A reply to a `compose.decisions()` step answered a choice question with a value that is not one of the question's options (its `criteria`), for example a part id the request never offered or a mistyped option in a proxy or fixture. `compose.decisions()` rebuilds each step's questions from the pending state and checks every answer against them; the bad answer is ignored, as if the question had no answer (a part isn't used, a param keeps its default, a place falls back to the part's first allowed place), and the composition continues.
+
+**Fix:** Check what answers the decision endpoint: a server route that rewrites replies, a model that ignores the criteria, or a test reply written by hand. In tests, build replies with `answers(questions, picks)` (it rejects unknown options) or `composeWith`. If a model keeps answering outside the criteria, report it with the request's questions.
+
+### SYG683
+
+**LLM layout invalid after repair**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+`compose.llm()` asks the model for a layout tree with structured output: a JSON Schema built from the catalog (one closed object per part, enum params, record values from state, rows holding parts only, `maxDepth`). Most providers enforce the schema while decoding, but some don't (no strict mode, an unconstrained local model), and a schema can't say everything, so every reply is read leniently (`type` or `name` for `part`, flat params, the list under another key) and repaired: unknown parts dropped, a part used more than its `maxUses`, a bad param value replaced by its default, text cut to its `maxLength`, a row of one unwrapped. This diagnostic means the reply was still not a layout after that: it wasn't JSON, it had no list of parts, every part it named was unknown, or the repaired tree failed the schema check. The behavior shows `status: 'error'` with the message in `error`; no layout is rendered from it. An empty list is not an error: it means nothing in the catalog fits (`status: 'unavailable'`).
+
+**Fix:** Send the request through a transport that enforces structured output (`openResponses` or `chatCompletions` with `strict: strictSchemas`, Ollama's `format`), lower the temperature, or use a model that follows JSON Schemas. Check that the part ids in the catalog's `examples` exist. The diagnostic's `data` holds the reply and the issues found.
+
+### SYG684
+
+**Client tool shadows an agent tool**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`chat({ clientTools })` (sygnal/ai) declares tools the app answers itself: their calls stay open (`input-available`) until `'assistant.TOOL_OUTPUT'` answers them, or, for the `ask_user` tool of `chat({ ask })`, until a card's result part answers. Here a client tool has the same name as a tool the agent layer made from an `agent` declaration (`<name>_<action>`), so a request can't send both. The client tool is sent and its calls are the app's to answer; the agent action is not offered to the model. Reported once per name, in development.
+
+**Fix:** Rename the client tool (`clientTools: { pick_date: … }`), or the agent declaration's `name` or the action, so each tool name is unique. `ask_user` is taken when `chat({ ask })` is used.
+
+### SYG685
+
+**Answer for a tool call that is not open**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`'assistant.TOOL_OUTPUT'` (`{ toolCallId, output }` or `{ toolCallId, errorText }`) or a card's answer (`ANSWER`, from a result part's `compose.answer(props, value)`) arrived for a call that is not waiting for one. Only a client tool call that is still `input-available` in the last assistant message can be answered (an `ask_user` card only while it is open). The call may have been answered already, closed by STOP or by a new message ("not answered: …"), dropped with its message by REGENERATE, or it may be an agent tool call, which the agent layer runs. The answer is ignored, on purpose: a late answer must not change a conversation that moved on. Reported in development.
+
+**Fix:** Answer only the calls in `openToolCalls(state.assistant)`, with the part's `toolCallId`. Disable the answer controls when the call is no longer open (an answered card renders frozen with `askCard`).
+
+### SYG686
+
+**Ask catalog without a result part**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`chat({ ask: { catalog } })` (sygnal/ai) gives the model the `ask_user` tool: a card is composed from the catalog's parts, and the call waits until a result part (`result: true`) answers it with `compose.answer(props, value)`. This catalog has no part with `result: true`, so no card it can build is answerable: every `ask_user` call stays open until the user presses Stop or sends a new message. Reported once per `chat()` call, also in production.
+
+**Fix:** Mark the parts the user answers with `result: true` (a choice, a picker, a form, a yes/no) and send `compose.answer(props, value)` to PARENT from their model, for example `PICK: { PARENT: (_s, value, _n, props) => compose.answer(props, value) }`.
 
 ## SYG9xx: Internal
 

@@ -18,7 +18,11 @@
 - Core bytes: 0 unless the user approves 0-S1 / 0-S2 with numbers.
 
 **Status:**
-- Phase 0. The proposal this plan builds on is
+- Phase 0 complete (2026-10-11): spikes in the tracker, decisions D466–D470 (marker ships; budget may rise after G-751; G-750 in 6.3.0).
+- Phase 3 complete (2026-10-11): `<Composed>` (M-1), `examples/ai-ask` (E-2), `npm run test:compose-live` (E-3, all §3 gates pass), large-catalog defaults (B-5), the lowercase marker tags deprecated (D471, removal patch ready for the next major), generic `decide()` auto-split (D472), llms.txt / skill / reference / changelog (D-2…D-4), G-756/G-757 fixed. Size 42,504 B.
+- Phase 2 complete (2026-10-11): edits on both backends, compose as an agent action, chat client tools and `ask` cards (+ a chat reload bug fixed), sygnal-check catalog rules and description lint, the guide pages `ai-compose` and `ai-cards`. Size unchanged at 42,504 B.
+- Phase 1 complete (2026-10-11): catalog, render, layout, both backends, the `compose` behavior, `composeWith`, the per-backend matrix, runtime diagnostics, `examples/ai-compose`; core: key identity, lazy markers (G-751), move fixes (G-750, G-753), SYG453. Size 42,504 B, budget not raised. Details in the tracker.
+- Before Phase 0: The proposal this plan builds on is
   [`research/ai-compose/PROPOSAL.md`](research/ai-compose/PROPOSAL.md).
 - The user accepted its recommendations on 2026-10-11 with two changes:
   - the `<Composed>` marker gets a spike, and shipping it depends on its impact on the core (D452);
@@ -330,7 +334,7 @@ Both backends implement `{ sink, start, reply, delta? }` with pending steps as p
 - Concepts, the catalog, both backends, the behavior, edits, testing, and the authoring rules for
   descriptions.
 - Live demos (remark-live):
-  - a decision demo whose demo server answers `POST /v1/systemone` with `answers()` fixtures;
+  - a decision demo whose demo server answers `POST /api/decide` (the backend's default url) by question name;
   - an LLM demo through the existing DX-1 `LLM` route (`encodeOpenResponses`);
   - an edit demo.
 - After the docs change: `check-live` on all three browsers.

@@ -71,7 +71,14 @@ const RANGES = [
   ['SYG151', 'Counter.jsx', 10, 'tools'],
   ['SYG152', 'Chat.jsx', 8, 'messages'],          // the `messages` key, not the request object
   ['SYG153', 'Signup.jsx', 2, 'toolname="sign_up"'],
+  ['SYG161', 'c.jsx', 5, 'Box'],                  // the render value
+  ['SYG162', 'c.jsx', 3, 'a'],                    // the part's key
   ['SYG223', 'TodoApp.jsx', 10, "'filtr'"],
+  ['SYG250', 'c.jsx', 3, "'b'"],
+  ['SYG253', 'c.jsx', 3, 'descrption'],
+  ['SYG254', 'c.jsx', 4, "'KPI card: monthly revenue total'"],
+  ['SYG450', 'c.jsx', 3, "'drawer'"],
+  ['SYG680', 'c.jsx', 3, 'heading'],
   ['SYG224', 'TodoApp.jsx', 10, 'TodoApp.persist'],
   ['SYG226', 'C.jsx', 6, "'SETT'"],
   ['SYG240', 'Counter.jsx', 10, "{ type: 'integer' }"],
@@ -80,6 +87,7 @@ const RANGES = [
   ['SYG247', 'Pay.jsx', 6, 'pay'],
   ['SYG248', 'Shop.jsx', 6, "'search'"],
   ['SYG401', 'collection-from.jsx', 13, 'from="item"'],
+  ['SYG426', 'App.jsx', 3, 'collection'],         // the tag name (what --fix renames)
   ['SYG405', 'Search.jsx', 4, 'Search.initialState'],
   ['SYG422', 'T.jsx', 2, '100'],                  // a spec that isn't an object: the value
   ['SYG440', 'Right.jsx', 3, "'panel'"],

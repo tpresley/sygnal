@@ -5,7 +5,7 @@
  *                      endLine, endColumn, text }] }]: applying the edits gives the expected text,
  *                      and re-checking it no longer reports the finding
  *   "did you mean"     SYG110, SYG112, SYG105, SYG127, SYG226, SYG140, SYG141, SYG142, SYG150,
- *                      SYG151, SYG223, SYG641, SYG707
+ *                      SYG151, SYG223, SYG253, SYG641, SYG707
  *   strict rewrites    SYG504, SYG505, SYG506 (+ SYG612 removals): `fixAll`, the same text --fix
  *                      produced before C-4 (goldens in fixtures/p7-c4/golden, captured from the
  *                      pre-C-4 fixFiles)
@@ -194,6 +194,16 @@ Todo.${stat} = { name: 'todo', actions: { ${key}: { description: 'add one' } } }
     expect(a.out['Todo.jsx']).toContain('Todo.agent = {')
     const b = fixOne({ 'Todo.jsx': comp('agent', 'ADDD') }, 'SYG150', { title: "Rename 'ADDD' to 'ADD'" })
     expect(b.out['Todo.jsx']).toContain('actions: { ADD: {')
+  })
+
+  it('SYG253 (PLAN-9 X-2): a misspelled catalog key', () => {
+    const files = { 'c.js': `import { defineCatalog } from 'sygnal/ai'
+export const c = defineCatalog({ parts: { a: { render: () => null, descripton: 'A (one)', params: { n: { options: { x: 'X' }, defualt: 'x' } } } } })
+` }
+    const a = fixOne(files, 'SYG253', { title: "Rename 'descripton' to 'description'" })
+    expect(a.out['c.js']).toContain("description: 'A (one)'")
+    const b = fixOne(files, 'SYG253', { title: "Rename 'defualt' to 'default'", pick: (ds) => ds.find(d => d.data.key === 'defualt') })
+    expect(b.out['c.js']).toContain("default: 'x'")
   })
 
   it('SYG140, SYG141 and SYG142: widget events and commands', () => {

@@ -1,16 +1,18 @@
-// The parts the decision model may use. Each one is a working component with the app's own data;
-// `description` is all the model sees of it, so it names what the part shows, with its numbers.
-export const PARTS = [
-  { id: 'revenue', title: 'Revenue', description: "KPI card: this month's revenue total as one number ($48.2k, +12% on last month)" },
-  { id: 'signups', title: 'Signups', description: 'KPI card: new signups this week (312)' },
-  { id: 'churn', title: 'Churn', description: 'KPI card: customer churn rate this month (2.1%)' },
-  { id: 'revenueChart', title: 'Revenue, last 12 months', description: 'Line chart: the revenue trend over the last 12 months' },
-  { id: 'orders', title: 'Recent orders', description: 'Table of the most recent orders (customer, amount, status)' },
-  { id: 'tickets', title: 'Open tickets', description: 'List of open support tickets, by priority' },
-  { id: 'tasks', title: 'Today', description: "Checklist of the user's tasks for today" },
-  { id: 'weather', title: 'Weather', description: "Today's weather forecast for the office city" },
-  { id: 'feedback', title: 'Send feedback', description: 'Form to send product feedback (a message and a send button)' },
-]
+// The app's own data: every number, label and row the composed page shows comes from here, never
+// from a model.
+
+/** a part's card title (its params can narrow it: "Revenue, last 3 months") */
+export const TITLES = {
+  revenue: 'Revenue',
+  signups: 'Signups',
+  churn: 'Churn',
+  revenueChart: 'Revenue',
+  orders: 'Recent orders',
+  tickets: 'Open tickets',
+  tasks: 'Today',
+  weather: 'Weather',
+  feedback: 'Send feedback',
+}
 
 export const KPIS = {
   revenue: { value: '$48.2k', delta: '+12%', trend: 'up' },
@@ -18,8 +20,11 @@ export const KPIS = {
   churn: { value: '2.1%', delta: '-0.3 pt', trend: 'down' },
 }
 
+/** monthly revenue ($k), the last 12 months */
 export const REVENUE = [31.0, 33.4, 32.1, 35.8, 37.2, 36.5, 39.9, 41.3, 40.2, 43.7, 43.0, 48.2]
 export const MONTHS = ['Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
+/** daily revenue ($k), the last 30 days */
+export const DAILY = [1.4, 1.6, 1.5, 1.2, 1.1, 1.7, 1.8, 1.6, 1.5, 1.9, 1.4, 1.3, 1.6, 1.7, 1.8, 1.5, 1.4, 1.9, 2.0, 1.6, 1.5, 1.4, 1.8, 1.9, 1.7, 1.6, 1.5, 1.8, 1.9, 2.1]
 
 export const ORDERS = [
   { id: 'A-1042', customer: 'Northwind', amount: '$1,240', status: 'paid' },
@@ -27,6 +32,9 @@ export const ORDERS = [
   { id: 'A-1040', customer: 'Initech', amount: '$2,315', status: 'paid' },
   { id: 'A-1039', customer: 'Umbrella', amount: '$410', status: 'refunded' },
   { id: 'A-1038', customer: 'Hooli', amount: '$1,975', status: 'paid' },
+  { id: 'A-1037', customer: 'Stark', amount: '$3,100', status: 'pending' },
+  { id: 'A-1036', customer: 'Wayne', amount: '$720', status: 'paid' },
+  { id: 'A-1035', customer: 'Acme', amount: '$95', status: 'refunded' },
 ]
 
 export const TICKETS = [
@@ -46,9 +54,9 @@ export const TASKS = [
 
 /** prompts to try (the chips under the prompt box) */
 export const EXAMPLES = [
-  'Sales overview: revenue, signups and churn side by side, then the revenue chart',
+  'Sales overview: revenue, signups and churn side by side, then the revenue chart for the quarter',
   'My morning: the weather and my tasks for today',
-  'Support desk: open tickets first, then recent orders',
+  'Support desk: urgent tickets first, then the pending orders',
   'A feedback form at the top, and the open tickets below it',
   'Show me the stock price of Apple',
 ]

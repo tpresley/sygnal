@@ -68,6 +68,14 @@ export { anthropicMessages, agui, fromAISDK, strictSchemas } from './extra/ai/in
 export { makeMcpAppDriver } from './extra/ai/index'
 // A-3 (3-A3, experimental, D291)
 export { formTool } from './extra/ai/index'
+// PLAN-9 (A): catalogs, the compose behavior, composeWith, the layout utilities
+export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } from './extra/ai/index'
+// PLAN-9 H: chat client tools and cards
+export { openToolCalls, askCard } from './extra/ai/index'
+// PLAN-9 M-1: <Composed catalog from /> (documented import: 'sygnal/ai')
+export { Composed } from './extra/ai/index'
+// PLAN-9 (D463): a lens to an array element by id
+export { byId } from './extra/lens'
 
 // export dom helper functions (h, makeDOMDriver, etc.)
 export * from './cycle/dom/index'

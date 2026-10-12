@@ -40,7 +40,7 @@ The view is a plain function of state with no handlers in it. The `intent` says 
 
 ## What carries over
 
-- **JSX and function components.** A view is a function of its props that returns JSX. `className`, `style`, `key` and fragments work as you expect.
+- **JSX and function components.** A view is a function of its props that returns JSX. `className`, `style`, `key` and fragments work as you expect. A `key` on a component is its identity, as in React: the instance follows its key when the view moves it, and a new key gives a new instance with fresh state ([Components](/guide/components/#identity-key)).
 - **Props.** A parent passes props; the child reads them from its first argument: `function Rating({ value, max })`.
 - **Familiar names**: `<Suspense>` and `lazy()`, `<Portal>`, error boundaries (an `onError` on any component), refs (`createRef()`).
 - **Vite and TypeScript.** `npm create sygnal-app` scaffolds a Vite project; Vike and Astro cover server rendering.
@@ -441,7 +441,7 @@ export default TaskList
 ```
 
 - **A parent can't listen to a child's elements.** `DOM.click('.remove')` in `TaskList` would never fire: a component's `DOM` sees only the elements its own view renders. Handle the click in the child and send the result up. In development, Sygnal reports this mistake as [SYG104](/reference/errors/#syg104).
-- **Items are keyed by `id`**, so you don't write `key` props for a Collection. `filter` and `sort` props change what's shown without touching the array.
+- **Items are keyed by `id`**, so you don't write `key` props for a Collection's items. `filter` and `sort` props change what's shown without touching the array. A `key` on the `<Collection>` tag itself works like React's reset-by-key: a new key makes every item a new instance.
 - **Siblings far apart** (a toolbar and a status bar) talk through the `EVENTS` bus instead of a shared store: one sends `event('SAVED', data)`, the other listens with `EVENTS.select('SAVED')`. See [Drivers](/guide/drivers/#the-event-bus-events-driver).
 - Props still flow down as usual: `<TaskItem>` inside a Collection gets its item as `state`, and any other component gets the props you pass.
 

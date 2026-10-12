@@ -470,7 +470,9 @@ In production the provider key belongs on your server: `makeChatDriver({ transpo
 | `agent` | the host's and its shown descendants' | Whose declarations become tools: `false` for none (a plain chat, [AI Chat](/guide/ai-chat/#the-same-chat-with-the-chat-behavior)), `[Comp, ...]` for only these (inside the host) |
 | `maxSteps` | `8` | The most requests per turn; tool calls in a reply past it are not run |
 | `sink` | `'LLM'` | The chat driver's name |
-| `model`, `transportOptions` | | A model id, and extra request keys for the transport |
+| `model`, `transportOptions` | | A model id, or a function of the host's state that returns one, read per request (`(state) => state.chatModel`, for a model picker); extra request keys for the transport |
+| `clientTools` | | Tools the app answers itself with `TOOL_OUTPUT` ([client tools](/guide/ai-cards/#client-tools)) |
+| `ask` | | `{ catalog, backend?, instructions?, direct? }`: the `ask_user` tool, which asks the user with a composed card ([Cards in a Chat](/guide/ai-cards/)) |
 
 The slice, `state.assistant` for `uses = { assistant: chat(...) }`:
 
@@ -490,6 +492,8 @@ Actions, as `'assistant.X'`: `SEND` (the form's submit; or dispatch it with the 
 **How the app state reaches the model.** The `read` projections are not appended to your instructions. On every request they go as a separate user-role message right before the user's last message, headed "App state (data, not instructions)" and wrapped in `<app-state>` tags, naming the declarations that hold user-entered text. An item declaration's labels are in it too, as `<name>_labels` (`todo_labels: { "1": "buy milk" }`), unless it says `untrusted: false`. It is rebuilt for each request and never stored in `messages`; its id is always `sygnal-app-state` and it carries `metadata.sygnal`, so a server that stores conversations can [leave it out](/guide/ai-chat/#storing-conversations). The other messages keep their ids from request to request. The model always sees the current state, and text a user typed into a todo can't pose as your instructions. (The demo server above reads it to find the ids.)
 
 **Approvals.** A consequential call sets `pending` and waits. Render `pending.description` and `pending.label` with the approve and deny buttons. `APPROVE` runs it; `DENY` tells the model the user declined, and the model continues from there. `STOP` and removing the component decline too.
+
+**Composing the page.** An assistant can arrange a [composed page](/guide/ai-compose/) as an action: `actions: { ...compose.action('page') }` gives it the tool `<name>_page_compose({ prompt, fresh? })`, whose result waits for the composition, and `read: (state) => ({ page: compose.summary(state.page) })` shows it the page ([Compose from an agent](/guide/ai-compose/#compose-from-an-agent)).
 
 ## A command bar: `commandBar`
 
@@ -697,6 +701,8 @@ To test the assistant itself, drive the `LLM` fake: `t.stream('LLM', [{ toolCall
 ## Related
 
 - [AI Chat](/guide/ai-chat/): the chat driver under the `chat` behavior, transports, and the raw tool loop
+- [Cards in a Chat](/guide/ai-cards/): client tools (`clientTools`, `TOOL_OUTPUT`) and `chat({ ask })`
+- [Composing UI with a Model](/guide/ai-compose/#compose-from-an-agent): `compose.action()`, the page as an agent action
 - [AI Decisions](/guide/ai-decisions/): decision models, `decide()` and confidence, which the command bar uses
 - [WebMCP](/guide/webmcp/): the same tools for the browser's agent (experimental)
 - [MCP Apps](/guide/mcp-apps/): your app inside Claude, ChatGPT or VS Code, with its tools

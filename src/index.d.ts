@@ -2358,6 +2358,21 @@ export type FetchRequest = string | {
    * schema's (possibly transformed) value. A failure is an error with `issues`
    */
   validate?: StandardSchemaLike;
+  /**
+   * D472: send these sub-requests instead, in parallel (each inherits this request's fields:
+   * `url`, `headers`, `init`, ...; its own `json` / `body` / `parse` win), and deliver ONE reply:
+   * `combine(bodies, requests)`. One failure fails the request (once). The test fake
+   * (renderComponent) answers the request as one, by its own `url` / `json`. `decide()` makes these
+   */
+  batch?: ReadonlyArray<{ url?: string; method?: string; headers?: Record<string, string>; query?: Record<string, unknown>; json?: unknown; body?: BodyInit; parse?: 'auto' | 'json' | 'text' | ((response: Response) => any) }>;
+  /** D472: merges the parsed bodies of `batch` / `split` parts into the reply (default: the array) */
+  combine?: (bodies: any[], requests: any[]) => any;
+  /**
+   * D472: a request (or a `batch` part) that fails with an HTTP error is sent again as the
+   * requests this returns (≥ 2, in parallel, merged by `combine`), at most 3 times deep; null keeps
+   * the error. `decide()` halves its questions on a 400 / 413 that names a size limit
+   */
+  split?: (request: any, error: Error & { status?: number; body?: any }) => any[] | null | undefined;
   /** Your own fields (an id, ...): not sent, returned on the reply's `request` */
   [appData: string]: any;
 } | {
@@ -3708,7 +3723,9 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       [elemName: string]: any;
+      /** @deprecated since 6.3.0, removed in the next major: `import { Collection } from 'sygnal'` and write `<Collection …>` (SYG426) */
       collection: CollectionProps<any>;
+      /** @deprecated since 6.3.0, removed in the next major: `import { Switchable } from 'sygnal'` and write `<Switchable …>` (SYG426) */
       switchable: SwitchableProps<any>;
       slot: SlotProps;
     }
@@ -3719,6 +3736,15 @@ declare global {
 
     interface ElementChildrenAttribute {
       children: {};
+    }
+
+    /**
+     * `key` on any tag (D456): on a component, its identity among its parent's children (before
+     * its `id` prop, then its position): a keyed instance survives a move or a reorder, and a new
+     * key makes a new instance. Never a prop of the component.
+     */
+    interface IntrinsicAttributes {
+      key?: string | number | null;
     }
 
     /**
@@ -3754,6 +3780,21 @@ export type { ChatState, ChatStatus, ChatActions, ChatDone, ChatOptions } from '
 // PLAN-6 M-2 / M-3 (3-M)
 export { answers, commandBar } from './ai.d'
 export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, CommandBarActions, CommandBarOptions, CommandBarResult, CommandBarUnsure } from './ai.d'
+// PLAN-9 (A): catalogs, the compose behavior, composeWith, the layout utilities
+export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } from './ai.d'
+// PLAN-9 H: chat client tools and cards
+export { openToolCalls, askCard } from './ai.d'
+export { Composed } from './ai.d'
+export type { ChatClientTool, ChatAskOptions, ChatCard, ChatCardStatus, ChatToolPart, ComposedProps } from './ai.d'
+export type { Catalog, CatalogDecl, CatalogPartDecl, CatalogContainerDecl, CatalogParam, CatalogParamValue, CatalogParamsOf, CatalogRecord, CatalogPart, CatalogContainer, CatalogOption, CatalogTree, CatalogTreeNode, ComposeTree, ContainerView, Layout, LayoutNode, ComposeRenderOptions, ComposeRenderable, ComposeBackend, ComposeNames, ComposeState, ComposeStatus, ComposeActions, ComposeOptions, ComposeAnswer } from './ai.d'
+
+/**
+ * PLAN-9 (D463): a `{ get, set }` lens to the element of the array `state[field]` whose `idKey`
+ * (default 'id') is `id`: a record part's state (`state: (node) => byId('projects',
+ * node.params.id)`) or any child's `state={byId('todos', 3)}`. `get` is undefined once the element
+ * is gone; `set` then leaves the state unchanged.
+ */
+export function byId<T = any, S = any>(field: string, id: unknown, idKey?: string): { get(state: S): T | undefined; set(state: S, value: T): S }
 // PLAN-6 X-1 (3-X)
 export { makeMcpAppDriver } from './ai.d'
 export type { McpAppDriverOptions, McpAppSource, McpAppRequest, McpAppError, McpToolResult, McpHostContext, McpContentBlock, McpAppDisplayMode } from './ai.d'

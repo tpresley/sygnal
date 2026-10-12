@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 core: the Portal marker (R2), registered on import by the public `Portal` module.
+ * PLAN-4.6 core: the Portal marker (R2), registered by the public `Portal` when used (G-751).
  * A template rewrite (registry `pres`): the `portal` marker becomes a hidden placeholder whose
  * hooks patch its children into the target with a separate snabbdom patch function. As today
  * (the 5.x core's createPortalPlaceholder):
@@ -93,4 +93,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
   }
 }
 
-pres.portal = (n) => portalPlaceholder(n.data?.props?.target, n.children || [])
+// (widgets among its children: `pres.widget.$k` rewrites them, extra/widget.ts; the core doesn't walk them)
+const pre = (n: any, o: any, x: string) => portalPlaceholder(n.data?.props?.target, (pres.widget as any)?.$k(n.children || [], o, x) || n.children || [])
+/** G-751: registers the rewrite; the public `Portal` calls it when used (its `$reg`), not on import */
+export const enablePortal = () => { pres.portal = pre }

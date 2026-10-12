@@ -1754,6 +1754,8 @@ export function renderComponent(
         // 5-3: focus / online come from t.focus() / t.online() only
         _on: (f: any) => { signals.add(f); return () => signals.delete(f); },
         _tap: (req: any, res?: string, pf?: any) => { tapped = [req, res, pf]; },
+        // D472: a batch / split request (a large decide()) is one fetch here, answered as one
+        _whole: true,
         fetch: (url: string, init: any) => new Promise((resolve, reject) => {
           const [req, res, pf] = tapped || [{url}];
           tapped = undefined;

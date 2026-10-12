@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+Bundles sygnal-check 0.6.0 (Sygnal 6.3.0). The extension's own code doesn't change.
+
+- **Catalog findings** for `defineCatalog({...})` (composing UI with a model, `sygnal/ai`): a misspelled declaration key (SYG253, with a rename quick fix), a description lint (SYG254: two parts sharing a phrase, a description naming its own param's value, overlapping options), and the static cases of SYG161, SYG162, SYG250, SYG450 and SYG680.
+- **SYG426** for the deprecated lowercase marker tags (`<collection>`, `<switchable>`, ...), with a quick fix that renames the tag and adds the import.
+- The `chat` and `compose` behaviors' keys and actions are known, so `ask` and `clientTools` give no false SYG127.
+
 ## 0.2.1
 
 - Bundles sygnal-check 0.5.1: **nested projects are found**. Opening a repository or monorepo root, each file is checked as part of its nearest Sygnal project (the closest folder with a `sygnal-check.config.json` or a `package.json` that depends on sygnal), with that project's config, instead of the whole workspace folder being one project. And when an open Sygnal file isn't checked (outside its project's `paths`, or `paths` match no files), a one-time message says why and how to fix it.

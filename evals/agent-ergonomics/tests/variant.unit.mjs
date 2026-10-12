@@ -389,6 +389,17 @@ test('PLAN-6 4-E variant: p6-final is branch under its own name', async () => {
   assert.notEqual(res(fin).hash, res(br).hash, 'the name is hashed, so the runs are labeled')
 })
 
+test('PLAN-9 E-4 variants: p9-final is branch, p9-no-skill is e5-no-skill, each under its own name', async () => {
+  const load = (n) => loadVariant(n, { evalRoot: EVAL_ROOT })
+  const [br, fin, e5, ns] = await Promise.all([load('branch'), load('p9-final'), load('e5-no-skill'), load('p9-no-skill')])
+  const res = (x) => resolveVariant(x, { repoRoot: REPO_ROOT, model: 'claude-opus-5-5' })
+  const strip = ({ name, hash, file, paths, ...rest }) => rest
+  assert.deepEqual(strip(res(fin)), strip(res(br)), 'p9-final has exactly the content of branch')
+  assert.deepEqual(strip(res(ns)), strip(res(e5)), 'p9-no-skill has exactly the content of e5-no-skill')
+  assert.notEqual(res(fin).hash, res(br).hash, 'the name is hashed, so the runs are labeled')
+  assert.notEqual(res(ns).hash, res(e5).hash)
+})
+
 test('claudeIsolation + buildClaudeArgs: isolated skills per arm, MCP only where asked', () => {
   const v = { skill: { name: 'sygnal-dev' }, mcp: { arms: ['sygnal'] } }
   const mat = { skillRoot: '/run/_variant/skillroot', mcpConfig: '/run/_variant/mcp.json', mcpAllow: ['mcp__sygnal-check'] }

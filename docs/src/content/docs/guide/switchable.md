@@ -117,4 +117,4 @@ Chat.model = {
 - Messages a paused socket would have received are not replayed: mark a connection `background: true` when the page must not miss them while hidden.
 - A declaration that isn't a set of entries (the router's `route`) stays live while hidden.
 
-The lowercase `<switchable>` (and `<collection>`) tags also work without an import; the docs use the capitalized, imported components.
+The lowercase `<switchable>` and `<collection>` tags, which work without an import, are deprecated since 6.3.0 and will be removed in the next major (they will then render unknown elements). To migrate, add `import { Switchable } from 'sygnal'` (or `Collection`) and write `<Switchable …>`; `sygnal-check --fix` makes both changes, and the dev diagnostics report the lowercase tags as [SYG426](/reference/errors/#syg426).

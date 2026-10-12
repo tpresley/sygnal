@@ -20,7 +20,7 @@ export {outputJsonSchema} from './chat/output'
 // A-2 (2-W): WebMCP (experimental, D241)
 export {experimentalExposeWebMcp} from './webmcp'
 // L-3 (2-C): the chat behavior
-export {chat} from './chat/behavior'
+export {chat, openToolCalls} from './chat/behavior'
 // L-2 (2-T): transports, wave 1 (D248), each its own module (tree-shaken), and the Open Responses
 // event encoder (D273)
 export {openResponses} from './transports/openResponses'
@@ -40,3 +40,8 @@ export {fromAISDK} from './transports/fromAISDK'
 export {strictSchemas} from './schema/strict'
 // X-1 (3-X): MCP Apps, the view side
 export {makeMcpAppDriver} from './mcpApp'
+// PLAN-9 (A): catalogs (K-1), render (K-2), layout utilities (K-3), the compose behavior (C-1),
+// composeWith (T-1)
+export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode, askCard} from './compose/index'
+// PLAN-9 M-1: the <Composed> marker
+export {Composed} from './compose/index'

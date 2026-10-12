@@ -1,5 +1,5 @@
 /**
- * PLAN-4.6 core: lazy() components (R2), registered on import by the public `lazy` module.
+ * PLAN-4.6 core: lazy() components (R2), registered by the first `lazy()` call (G-751).
  * A view resolver (registry `resolvers`): until the import resolves, the LazyWrapper itself is
  * the component (it renders the data-sygnal-lazy="loading" placeholder Suspense waits for, or
  * the error placeholder); once it has, the loaded component replaces it under the same id (a
@@ -15,7 +15,7 @@ import {resolvers} from '../registry'
 /** wrapper -> the owners waiting for it (`done`: settled, nobody waits any more) */
 export const waiting = new WeakMap<any, Set<any> & {done?: boolean}>()
 
-resolvers.push((view, owner) => {
+const resolve = (view: any, owner: any) => {
   if (!view.__sygnalLazy) return
   if (view.__sygnalLazyLoaded()) return view.__sygnalLazyLoadedComponent || undefined
   let w = waiting.get(view)
@@ -37,4 +37,8 @@ resolvers.push((view, owner) => {
     set.add(owner)
     owner.dispose$?.().addListener({next: () => set.delete(owner)})
   }
-})
+}
+
+let on: any
+/** G-751: registers the resolver once; `lazy()` calls it, not the module's import */
+export const enableLazy = () => { on ||= resolvers.push(resolve) }

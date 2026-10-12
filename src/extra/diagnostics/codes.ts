@@ -276,6 +276,10 @@ export const CODE_TITLES: Record<string, string> = {
   SYG423: 'Context change skipped a view whose output it changes',
   SYG424: 'Duplicate Collection item id',
   SYG425: 'isolatedState slice lacks initialState keys',
+  // PLAN-9 (D471): checks/next.ts; dev entry and sygnal-check
+  SYG426: 'Deprecated lowercase marker tag',
+  // PLAN-9 (D470): checks/next.ts; dev entry
+  SYG453: 'Two children with the same identity share one instance',
   SYG601: "Retired in 6.0: Missing or invalid sources",
   SYG602: 'Intent is not a function',
   SYG603: 'Intent returned an invalid value',
@@ -339,6 +343,29 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 A-2: experimentalExposeWebMcp (src/extra/ai/webmcp.ts; dev)
   SYG674: 'WebMCP not available',
   SYG676: 'WebMCP registerTool rejected',
+  // ---- PLAN-9 compose (A: src/extra/ai/compose/; dev, reported with the severity passed) ----
+  SYG161: 'Catalog container render is a component with a model',
+  SYG162: 'Catalog part with neither component nor render',
+  SYG250: 'Layout names an unknown part or slot',
+  SYG251: 'Invalid param value in a layout',
+  SYG252: 'Record param from() does not return an array of { value }',
+  SYG450: 'Catalog in names an unknown container or slot',
+  SYG451: 'Composed has no catalog or from is not a composition',
+  SYG452: 'Layout lists a node key twice',
+  SYG681: 'Compose backend option problem',
+  // PLAN-9 B-1/B-2: compose.decisions() (src/extra/ai/compose/decisions.ts; explicit severities)
+  SYG680: 'Part is LLM-only under a decision backend',
+  SYG682: 'Decision model answered outside the criteria',
+  // PLAN-9 B-3: compose.llm() (src/extra/ai/compose/llm.ts; the compose status becomes 'error')
+  SYG683: 'LLM layout invalid after repair',
+  // PLAN-9 X-2: static only (sygnal-check rules/syg253-catalog.js)
+  SYG253: 'Misspelled catalog declaration key',
+  SYG254: 'Catalog descriptions or options overlap',
+  // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
+  SYG160: 'Result part rendered outside a card',
+  SYG684: 'Client tool shadows an agent tool',
+  SYG685: 'Answer for a tool call that is not open',
+  SYG686: 'Ask catalog without a result part',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -457,6 +484,10 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG423: 'warn',
   SYG424: 'warn',
   SYG425: 'warn',
+  // PLAN-9 (checks/next.ts): D471 a lowercase <collection> / <switchable> tag (deprecated in 6.3.0)
+  SYG426: 'warn',
+  // PLAN-9 (checks/next.ts): D470 key identity, two children with one identity
+  SYG453: 'warn',
   SYG612: 'error',
   // PLAN-4 D131 (element.ts, through the core bridge; a console warning in dev with diagnostics off)
   SYG644: 'warn',
@@ -497,6 +528,16 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-6 A-2 (experimentalExposeWebMcp reports them with an explicit severity)
   SYG674: 'info',
   SYG676: 'warn',
+  // PLAN-9 B-1/B-2 (compose.decisions() reports them with an explicit severity)
+  SYG680: 'info',
+  SYG682: 'warn',
+  // PLAN-9 B-3 (compose.llm)
+  SYG683: 'error',
+  // PLAN-9 H (chat client tools and ask; reported with the severity passed)
+  SYG160: 'warn',
+  SYG684: 'warn',
+  SYG685: 'warn',
+  SYG686: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
@@ -528,6 +569,19 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG153: 'warn',
   SYG730: 'warn',
   SYG731: 'warn',
+  // ---- PLAN-9 compose (A: src/extra/ai/compose/, reported with the severity passed, dev) ----
+  SYG161: 'error',
+  SYG162: 'error',
+  SYG250: 'warn',
+  SYG251: 'warn',
+  SYG252: 'warn',
+  SYG450: 'warn',
+  SYG451: 'warn',
+  SYG452: 'warn',
+  SYG681: 'error',
+  // PLAN-9 X-2: static only (sygnal-check); listed so the entry knows their titles
+  SYG253: 'warn',
+  SYG254: 'info',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

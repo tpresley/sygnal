@@ -12,7 +12,7 @@ import {messageId} from '../messages';
  *
  * - Request (sink value): `{ messages, instructions?, tools?, model?, output?, key?, latest?,
  *   delta?, ok?, error?, tool?, coalesce?, ...transportOptions }`, passed to the transport as is
- *   (sender-stamped, scope-tagged). `{ abort: key | true }` / `{ abort: true, key }` stop the
+ *   (sender-stamped, scope-tagged). `{ abort: key | [keys] | true }` / `{ abort: true, key }` stop the
  *   sender's runs under that key (all of them for a bare `abort: true`).
  *   - A `then` / `catch` key is SYG610 (allowed()); a value that isn't a request (no `messages`
  *     array, an unknown `coalesce`, an `output` that isn't a Standard Schema) is SYG679: not sent.
@@ -24,7 +24,8 @@ import {messageId} from '../messages';
  *     `delta` is the text that is new since the last one (D251);
  *   - `tool` `{ key, call: { id, name, input } }` once per completed call;
  *   - `ok` `{ key, message, text, value?, toolCalls, finishReason, usage }` (`value`: the
- *     validated structured output when the request has `output`, G-604);
+ *     validated structured output when the request has `output`, G-604; not with `parse: false`,
+ *     which sends the schema but leaves reading `text` to the caller: PLAN-9 compose.llm());
  *   - `error` `{ key, error, request, issues? }`. A failure with no `error` action is SYG678
  *     (logged, also in production; G-584).
  * - An aborted run (abort, latest, sender dispose, app dispose, sink complete) delivers nothing:
@@ -221,7 +222,8 @@ export function makeChatDriver(options: any = {}) {
         if (!live()) return;
         flush();
         let value: any;
-        const structured = req.output !== undefined && (!toolCalls.length || !!text.trim());
+        // `parse: false` (PLAN-9 B-4): the transport still sends the schema, the caller reads `text` (compose.llm()'s lenient reader)
+        const structured = req.output !== undefined && req.parse !== false && (!toolCalls.length || !!text.trim());
         if (structured) {
           value = await readOutput(req.output, text);
           if (!live()) return;
@@ -244,8 +246,9 @@ export function makeChatDriver(options: any = {}) {
         if (sender === undefined) return void dev('SYG677', req);
         const {abort} = req;
         if (abort !== undefined && abort !== false) {
+          // D469 (PLAN-9 H-2): a list of keys stops each (STOP: the reply and a card being composed)
           const k = abort === true ? req.key : abort;
-          return abortWhere(r => r.sender === sender && (k === undefined || r.key === k));
+          return abortWhere(r => r.sender === sender && (k === undefined || (Array.isArray(k) ? k.includes(r.key) : r.key === k)));
         }
         const why = problem(req);
         if (why) return void logError('SYG679', req.__emitterName, `makeChatDriver: request not sent: ${why}`, FIX, req);

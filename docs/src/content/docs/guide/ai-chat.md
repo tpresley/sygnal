@@ -418,6 +418,8 @@ Shopping.model = {
 
 This is the low-level form. For an in-app assistant that operates your components, the [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) (`uses = { assistant: chat({ … }) }`, from `sygnal/ai`) runs this loop for you: it builds the tools from the components' [`agent` declarations](/guide/agent/#the-agent-static), validates every call against its schema, asks the user before consequential ones, and stops after `maxSteps`. [Agents](/guide/agent/) documents it.
 
+Some calls the app answers itself, often with the user: a confirmation, a date picker, or a **card** composed from prepared parts that the assistant asks the user with (`chat({ ask })`). Those are client tools of the `chat` behavior, answered with `TOOL_OUTPUT`: [Cards in a Chat](/guide/ai-cards/).
+
 ## Testing
 
 `renderComponent` serves the `LLM` sink with a fake: the real chat driver over an in-memory stream that the test writes to. No transport, no network, no timers. Each request stays pending until the test answers it:
@@ -735,5 +737,7 @@ await page.route('**/v1/responses', (route) => route.fulfill({
 
 - [Agents](/guide/agent/): the `chat` behavior, an assistant that operates your components through their `agent` declarations
 - [AI Decisions](/guide/ai-decisions/): typed answers from decision models, and escalating unsure ones to chat
+- [Composing UI with a Model](/guide/ai-compose/): an LLM builds a page from your catalog of parts with `compose.llm()`, a structured-output request
+- [Cards in a Chat](/guide/ai-cards/): client tools, and an assistant that asks the user with a composed card
 - [Recipes](/recipes/overview/#ai): a support inbox, structured output into a form, on-device summaries
 - [HTTP](/guide/http/): the fetch driver, whose reply actions the chat driver shares

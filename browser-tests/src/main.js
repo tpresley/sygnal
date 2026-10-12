@@ -57,6 +57,7 @@ import { fixesTestsP5_4G } from './tests/fixes-p5-4g.jsx'
 import { collectionTestsP5_4H } from './tests/collection-4h.jsx'
 import { aiChatTestsP6_1L } from './tests/ai-chat-p6-1l.jsx'
 import { mcpAppTestsP6_3X } from './tests/mcp-app-p6-3x.jsx'
+import { moveParentTestsP9G750 } from './tests/move-parent-p9-g750.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -124,6 +125,7 @@ async function runAll() {
     collectionTestsP5_4H,
     aiChatTestsP6_1L,
     mcpAppTestsP6_3X,
+    moveParentTestsP9G750,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue

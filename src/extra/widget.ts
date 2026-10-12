@@ -171,14 +171,14 @@ function rewrite(n: any, o: any, path: string): any {
   return r
 }
 
-/** widget markers among a Portal's children (the core doesn't walk them) */
+/** widget markers among a Portal's children (the core doesn't walk them): `pres.widget.$k`, which the
+ * Portal's rewrite calls (core/markers/portal.ts; G-751: either may be registered first) */
 const inPortal = (c: any[], o: any, x: string): any[] =>
   c.map((n, i) => n?.sel == 'widget' ? rewrite(n, o, x + '.' + i) : n?.children ? {...n, children: inPortal(n.children, o, x + '.' + i)} : n)
+;(rewrite as any).$k = inPortal
 
 export function defineWidget(def: any): any {
   pres.widget ||= rewrite
-  const p: any = pres.portal
-  if (p && !p.$w) ((pres.portal = (n: any, o: any, x: string) => p({...n, children: inPortal(n.children || [], o, x)}, o, x)) as any).$w = 1
   const w: any = () => {}, commands: any = {}
   // D200: any name, `close` and `togglePopover` too (the core passes a widget command the options)
   for (const m in def.commands) commands[m] = (el: any, o: any) => el[W] && def.commands[m](el[W].i, o || {}, el)

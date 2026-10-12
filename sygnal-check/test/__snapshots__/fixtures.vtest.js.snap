@@ -3,6 +3,7 @@
 exports[`bad fixtures > collection-from.jsx 1`] = `
 [
   "test/fixtures/bad/collection-from.jsx:13:29 SYG401 List: <Collection from="item"> but 'item' is not a key of List.initialState (keys: items, config, title) (add item: [] to List.initialState, or point 'from' at an existing array field)",
+  "test/fixtures/bad/collection-from.jsx:14:8 SYG426 List: the lowercase <collection> tag is deprecated since Sygnal 6.3.0 and will be removed in the next major (it will then render an unknown <collection> element) (import { Collection } from 'sygnal' and write <Collection …>)",
   "test/fixtures/bad/collection-from.jsx:14:29 SYG401 List: <collection from="config"> but List.initialState.config is not an array (make config an array in initialState)",
 ]
 `;
