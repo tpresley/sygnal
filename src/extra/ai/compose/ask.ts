@@ -40,7 +40,7 @@ const NEED = {
 }
 
 /** the card compositions per catalog (composeWith answers their pending step) */
-const cards = /*#__PURE__*/ new WeakMap<object, Array<{backend: any; keys: Set<string>}>>()
+const cards = /*#__PURE__*/ new WeakMap<object, Array<{backend: any; keys: Set<string>; mine: WeakSet<object>}>>()
 export const cardsOf = (catalog: object) => cards.get(catalog) || []
 
 /** the chat's `ask` option, resolved once per chat() call */
@@ -52,7 +52,8 @@ export function askConfig(ask: any, o: any, sink: string) {
     warn('SYG686', 'chat', 'the ask catalog has no result part (`result: true`), so no card can be answered: every ask_user call waits until STOP or a new message', 'Mark the parts the user answers with `result: true` and send compose.answer(props, value) to PARENT')
   }
   const be = direct ? null : backend ?? llm({sink, ...(o.model && {model: o.model}), ...o.transportOptions})
-  const entry = {backend: be, keys: new Set<string>()}
+  // mine: the pending steps this chat() made, so composeWith picks its backend among the catalog's
+  const entry = {backend: be, keys: new Set<string>(), mine: new WeakSet<object>()}
   if (be) {
     if (!cards.has(catalog)) cards.set(catalog, [])
     cards.get(catalog)!.push(entry)
@@ -90,10 +91,11 @@ export function openCard(c: AskConfig, p: any, state: any): any {
 function read(c: AskConfig, p: any, r: any): any {
   if (!r) return failed(p, 'the backend gave no layout')
   if (r.error != null) return failed(p, message(r.error))
-  if (r.request !== undefined) return {part: ui(p, {pending: r.pending ?? p.ui.pending, ...(r.preview && {layout: r.preview})}), request: r.request}
+  if (r.request !== undefined) return {part: ui(p, {pending: own(c, r.pending ?? p.ui.pending), ...(r.preview && {layout: r.preview})}), request: r.request}
   if (r.layout) return ui(p, {status: 'open', layout: r.layout, pending: null})
   return failed(p, 'nothing in the catalog fits it')
 }
+const own = (c: AskConfig, pending: any) => { if (pending && typeof pending == 'object') c.entry.mine.add(pending); return pending }
 const names = (k: string, id: string) => ({ok: k + '.CARD', error: k + '.CARD_FAILED', key: `${k}.ask:${id}`}) as any
 
 /** start composing a queued card: `{ part, request }`, or the failed part */
@@ -101,7 +103,7 @@ export function startCard(c: AskConfig, p: any, state: any, k: string): any {
   c.entry.keys.add(k)
   try {
     const r = c.backend!.start({catalog: c.catalog, state, prompt: String(p.input.need).trim(), previous: null, names: names(k, p.toolCallId)})
-    return {part: ui(p, {pending: r.pending ?? {}}), request: r.request}
+    return {part: ui(p, {pending: own(c, r.pending ?? {})}), request: r.request}
   } catch (e) { return failed(p, message(e)) }
 }
 

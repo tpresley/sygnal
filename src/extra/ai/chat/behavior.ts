@@ -507,8 +507,10 @@ export const chat = (options: any = {}): any => {
       const {DOM, CHILD} = so
       // SYG442: an app made before the first chat() call has no layer: no tools, no loop
       checkLinked(so, 'chat', 'it sends no tools and runs no tool calls')
-      // rule 12: a slice restored busy (persist) or with a card composing
+      // rule 12: a slice restored busy (persist) or with a card composing; a microtask later, so
+      // the requests it sends reach drivers that are wired after the instance is made
       const restored = so.STATE?.stream?.take?.(1).filter((s: any) => s && (busy(s) || openToolCalls(s).some(composing)))
+        .map((s: any) => xs.fromPromise(Promise.resolve(s))).flatten()
       const results = c.ask?.results || []
       return {
         ...(prompt && {PROMPT: on(DOM, prompt, 'input').map((ev: any) => ev.target.value)}),

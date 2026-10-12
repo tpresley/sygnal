@@ -48,7 +48,12 @@ export async function composeWith(t: any, catalog: any, tree: Tree, options: {st
       any ||= use(e, k, s)
     }
     if (any) return any
-    for (const c of cards) for (const k of c.keys) { const x = cardOf(c.backend, k); if (x) return x }
+    for (const c of cards) for (const k of c.keys) {
+      const x = cardOf(c.backend, k)
+      if (x && c.mine.has(x.pending)) return x
+      any ||= x
+    }
+    return any
   }
   let cur: Cur = find()
   if (!cur) { await t.settle(); cur = find() }
