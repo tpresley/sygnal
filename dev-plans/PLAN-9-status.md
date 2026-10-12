@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3: E-2, M-1 and the D471 deprecation merged; running `p9-live` (E-3, B-5, G-756), `p9-polish` (E-2/M-1 follow-ups: checker chat table, card decisions, `chat({ model: fn })`, a 60-char truncation, a load-flaky test); then D-2…D-4 once the API is final. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phases 0, 1 and 2 complete (2026-10-11). Phase 3: E-2, M-1 and the D471 deprecation merged; `p9-polish` merged (sygnal-check `chat`/`compose` behavior tables: examples strict-clean; `part.ui.decisions` on cards + the explain-panel question names documented; `chat({ model: (state) => … })` and `compose.llm({ model })` resolved per request; `asked_for` items as long as the longest text param (min 60) and a 'question: undefined' prompt bug fixed; the random-edit test 100/catalog by default, 300 under `P9_HEAVY=1`, 20 s timeout). Running `p9-live` (E-3, B-5, G-756); then D-2…D-4. The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
