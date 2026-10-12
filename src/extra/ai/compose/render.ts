@@ -4,9 +4,8 @@
  *
  * - A part is a component vnode, so every composed part is a child instance of the host (CHILD.select,
  *   lenses, EVENTS, context and drivers work as for any child). It gets:
- *   - its identity: `key` = `scope/nodeKey` (or `nodeKey`), and the same `id` until the core's vnode-key
- *     identity (0-S2, `key ?? props.id ?? path`) is merged: then `id` can go (a param named `id` is
- *     shadowed by it meanwhile, so read records through the lens);
+ *   - its identity: `key` = `scope/nodeKey` (or `nodeKey`); the core keys instances by the vnode key
+ *     (D470: `key ?? props.id ?? path`), so params, including one named `id`, reach the part as props;
  *   - its state: `state: 'key'` as is, a lens as is, `(node, key) => lens` called, `local: init` a lens
  *     into `slice.local[nodeKey]` (at the slice's path `at`); each lens is memoized per node (G-752),
  *     so a part re-renders only when its own state, props or params change;
@@ -120,8 +119,8 @@ export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderO
     if (part.render) return part.render({...own, state: lens === undefined ? state : typeof lens == 'string' ? state?.[lens] : lens.get(state)})
     if (!part.component) return null
     const id = scope !== undefined ? `${scope}/${key}` : key
-    // `id` too until the core's key identity (0-S2) is merged; after the params, so it wins
-    return h(part.component, {...own, ...(lens !== undefined && {state: lens}), key: id, id})
+    // identity from the vnode key (D470: key ?? props.id ?? path), so a param named `id` reaches the part
+    return h(part.component, {...own, ...(lens !== undefined && {state: lens}), key: id})
   }
 
   let out: any

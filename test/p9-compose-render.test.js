@@ -39,7 +39,8 @@ describe('catalog.render (vnodes)', () => {
     const slice = { layout: L(['card:1', 'keyed'], { 'card:1': { part: 'card', params: { id: 1 } }, keyed: { part: 'keyed' } }) }
     const [card, keyed] = comps(cat.render(slice, { ...STATE, page: slice }))
     expect(card.key).toBe('card:1')
-    expect(card.data.props).toMatchObject({ id: 'card:1', node: 'card:1', title: 'T' })
+    expect(card.key).toBe('card:1')
+    expect(card.data.props).toMatchObject({ id: 1, node: 'card:1', title: 'T' })   // the record param `id` reaches the part
     expect(card.data.props.state.get(STATE)).toBe(STATE.items[0])
     expect(keyed.data.props.state).toBe('one')
     expect(keyed.data.props.title).toBe('K')
@@ -61,7 +62,8 @@ describe('catalog.render (vnodes)', () => {
     expect(out.data.props.disabled).toBe(true)
     const [k] = comps(out)
     expect(k.key).toBe('call_1/keyed')
-    expect(k.data.props).toMatchObject({ scope: 'call_1', frozen: true, answer: 'yes', id: 'call_1/keyed' })
+    expect(k.key).toBe('call_1/keyed')
+    expect(k.data.props).toMatchObject({ scope: 'call_1', frozen: true, answer: 'yes' })
   })
 
   it('renders the preview while there is one; nothing without a layout', () => {
