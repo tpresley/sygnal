@@ -40,7 +40,20 @@ describe('App (the get_forecast view)', () => {
 
     t.simulateEvent('.day', 'click', { data: { date: 'Tue' } })
     await t.waitForState((s) => s.selected === 'Tue')
-    expect(t.requests('MCP').at(-1)).toEqual({ updateModelContext: { city: 'Oslo', selectedDay: days[1] } })
+    // the selection goes to the server (select_day), then to the host as model context
+    expect(t.requests('MCP').at(-1)).toEqual({
+      callTool: 'select_day',
+      args: { city: 'Oslo', day: days[1] },
+      ok: 'PICKED',
+      error: 'FAILED',
+    })
+    await t.respond('MCP', { content: [], structuredContent: { city: 'Oslo', day: days[1] } }, 'PICKED')
+    expect(t.requests('MCP').at(-1)).toEqual({
+      updateModelContext: {
+        content: 'The user selected Tue in the Oslo forecast card.',
+        structuredContent: { city: 'Oslo', selectedDay: days[1] },
+      },
+    })
     t.expectNoDiagnostics()
   })
 

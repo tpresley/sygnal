@@ -86,10 +86,25 @@ App.model = {
     STATE: (state) => ({ ...state, status: 'loading' }),
     MCP: (state) => ({ callTool: 'get_forecast', args: { city: state.city }, ok: 'RESULT', error: 'FAILED' }),
   },
-  // tell the model what the user picked (it reads it on the next turn)
+  // tell the model what the user picked: store it on the server (select_day, a tool only the view
+  // can call), where the model reads it with get_selected_day, then send it as model context too,
+  // for hosts that add that to the model's next turn (Claude Desktop doesn't, as of October 2026)
   PICK: {
     STATE: (state, date) => ({ ...state, selected: date }),
-    MCP: (state, date) => ({ updateModelContext: { city: state.city, selectedDay: state.days.find((d) => d.date === date) } }),
+    MCP: (state, date) => ({
+      callTool: 'select_day',
+      args: { city: state.city, day: state.days.find((d) => d.date === date) },
+      ok: 'PICKED',
+      error: 'FAILED',
+    }),
+  },
+  PICKED: {
+    MCP: (state) => ({
+      updateModelContext: {
+        content: `The user selected ${state.selected} in the ${state.city} forecast card.`,
+        structuredContent: { city: state.city, selectedDay: state.days.find((d) => d.date === state.selected) },
+      },
+    }),
   },
   // send a message to the conversation as the user
   ASK: { MCP: (state) => ({ message: `What should I pack for ${state.city} on ${state.selected}?` }) },

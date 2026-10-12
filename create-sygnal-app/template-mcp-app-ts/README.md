@@ -5,7 +5,8 @@ An [MCP App](https://modelcontextprotocol.io/seps/1865-mcp-apps-interactive-user
 ```
 src/App.tsx          the view (a Sygnal component)
 src/main.ts          run(App, { MCP: makeMcpAppDriver() })
-server/server.js     the MCP server: the tool and the ui:// resource that serves the view
+server/server.js     the MCP server: get_forecast, the ui:// resource that serves the view, and the
+                     selection tools (select_day for the view, get_selected_day for the model)
 server/forecast.js   made-up weather (replace it with a real API)
 ```
 
@@ -61,11 +62,13 @@ Ask the model for a forecast ("What's the weather in Lisbon this week?") once th
 | In the model (view → host) | |
 |---|---|
 | `{ callTool: 'get_forecast', args, ok: 'RESULT', error: 'FAILED' }` | call a tool on this server; the result comes back as the `ok` action |
-| `{ updateModelContext: { ... } }` | tell the model what the user did (read on its next turn) |
+| `{ updateModelContext: { content, structuredContent } }` | tell the model what the user did, for its next turn, if the host passes it on (Claude Desktop doesn't, as of October 2026) |
 | `{ message: 'text' }` | send a message to the conversation as the user |
 | `{ openLink: 'https://...' }` | ask the host to open a link |
 | `{ displayMode: 'fullscreen' }` | ask for another display mode (the `ok` action gets the mode the host chose) |
 
-The host loads the view into a sandboxed iframe with no other files and no network access, so `vite.config.js` builds it as one HTML file (`vite-plugin-singlefile`) and the view gets its data through the tool's result and `callTool`. Rebuild after changing it.
+**How the model learns what the user picked.** Hosts differ in what they do with `updateModelContext`: some add it to the model's next turn, Claude Desktop doesn't (as of October 2026). So the view also stores the selection on the server with `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads it with `get_selected_day`, an ordinary tool every host offers. For a click that is a question, the view posts a `{ message }` instead (**Ask about this day**).
+
+The host loads the view into a sandboxed iframe with no other files and no network access, so `vite.config.js` builds it as one HTML file (`vite-plugin-singlefile`) and the view gets its data through the tool's result and `callTool`. Rebuild after changing it, then reconnect the server in the host: a host may keep the view for as long as the server is connected (Claude Desktop does).
 
 `AGENTS.md` has the commands and rules for coding agents.

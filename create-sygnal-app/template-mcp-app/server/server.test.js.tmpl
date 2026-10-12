@@ -33,4 +33,20 @@ describe('MCP server', () => {
     expect(result.structuredContent.days).toHaveLength(5)
     expect(result.content[0].text).toMatch(/^Lisbon: Mon /)
   })
+
+  it('the view records a selection with select_day (app-only), and the model reads it with get_selected_day', async () => {
+    const c = await connect()
+    const { tools } = await c.listTools()
+    expect(tools.find((t) => t.name === 'select_day')._meta.ui.visibility).toEqual(['app'])
+    expect(tools.find((t) => t.name === 'get_selected_day')._meta?.ui?.visibility).toBeUndefined()
+
+    await c.callTool({ name: 'get_forecast', arguments: { city: 'Lisbon' } })
+    expect((await c.callTool({ name: 'get_selected_day', arguments: {} })).content[0].text).toMatch(/has not selected/)
+
+    const day = { date: 'Fri', sky: 'Cloudy', high: 29, low: 25 }
+    await c.callTool({ name: 'select_day', arguments: { city: 'Lisbon', day } })
+    const result = await c.callTool({ name: 'get_selected_day', arguments: {} })
+    expect(result.structuredContent).toEqual({ city: 'Lisbon', day })
+    expect(result.content[0].text).toBe('The user selected Fri in the Lisbon forecast: Cloudy, 29°/25°.')
+  })
 })

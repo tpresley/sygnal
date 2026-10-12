@@ -50,10 +50,19 @@ App.model = {
     STATE: (state) => ({ ...state, status: 'loading' }),
     MCP: (state) => ({ callTool: 'get_forecast', args: { city: state.city }, ok: 'RESULT' }),
   },
-  // tell the model what the user picked: it reads it on its next turn
+  // tell the model what the user picked: store it on the server, where the model reads it with a
+  // tool, then send it as model context too (see Model context below)
   PICK: {
     STATE: (state, date) => ({ ...state, selected: date }),
-    MCP: (state, date) => ({ updateModelContext: { city: state.city, selectedDay: state.days.find((d) => d.date === date) } }),
+    MCP: (state, date) => ({ callTool: 'select_day', args: { city: state.city, day: state.days.find((d) => d.date === date) }, ok: 'PICKED' }),
+  },
+  PICKED: {
+    MCP: (state) => ({
+      updateModelContext: {
+        content: `The user selected ${state.selected} in the ${state.city} forecast card.`,
+        structuredContent: { city: state.city, selectedDay: state.days.find((d) => d.date === state.selected) },
+      },
+    }),
   },
   // post a message to the conversation, as the user
   ASK: { MCP: (state) => ({ message: `What should I pack for ${state.city} on ${state.selected}?` }) },
@@ -94,7 +103,7 @@ The latest tool input, tool result, host context and `host` are replayed to a co
 | Value | Does |
 |---|---|
 | `{ callTool: 'name', args, ok, error }` | Calls a tool on the MCP server through the host. `ok` gets the `CallToolResult`; `error` gets `{ error, code?, result?, request }` (a JSON-RPC error, or a result with `isError: true`) |
-| `{ updateModelContext: value }` | Tells the model something, for its next turn: a string (one text block), content blocks, or an object (`structuredContent`) |
+| `{ updateModelContext: value }` | Tells the model something, for its next turn: a string (one text block), content blocks, an object (`structuredContent`), or `{ content, structuredContent }`. The host decides whether the model sees it: see [Model context](#model-context) |
 | `{ message: 'text' }` | Posts a message to the conversation as the user (a string or content blocks) |
 | `{ openLink: 'https://…' }` | Asks the host to open a link |
 | `{ displayMode: 'fullscreen' }` | Asks for `'inline'`, `'fullscreen'` or `'pip'`; `ok` gets `{ mode }`, the mode the host chose |
@@ -156,6 +165,45 @@ Export.model = {
 ```
 
 **Theme and size.** Follow `host-context-changed` for the host's `theme` (and its `styles.variables`, CSS custom properties the host suggests), so the view matches the conversation around it. Keep the view compact for `inline` mode; offer full screen with `{ displayMode: 'fullscreen' }` when `availableDisplayModes` includes it.
+
+### Model context
+
+A view has three ways to tell the model something, and hosts handle them differently:
+
+- `{ message }` posts a message to the conversation as the user. The model sees it and answers it, in every host that supports `message`. Use it when the user's click is a question (the starter's **Ask about this day**).
+- `{ updateModelContext }` gives the host context for the model's **next** turn, and the host decides what to do with it. The spec says a host *should* pass it on, not how. Cursor adds it to the next user message; claude.ai keeps it and lets the model fetch it with a built-in tool ("Reading widget context"); Claude Desktop (tested October 2026) accepts it, but its model has no way to read it.
+- **A tool on your server.** The view saves what the user did with a tool only the view may call, and the model reads it with an ordinary tool. This reaches the model in every host, because every host offers the server's tools.
+
+The starter does the last two. When the user picks a day, the view calls `select_day`, then sends the same selection as model context:
+
+```js
+// server/server.js
+let selection = null   // one per process: the stdio server runs one per host connection
+
+// only the view can call it: visibility ['app'] keeps it out of the model's tool list
+server.registerTool('select_day', {
+  description: 'Records the day the user selected in the forecast card.',
+  inputSchema: { city: z.string(), day: z.object({ date: z.string(), sky: z.string(), high: z.number(), low: z.number() }) },
+  _meta: { ui: { resourceUri: VIEW_URI, visibility: ['app'] } },
+}, async ({ city, day }) => {
+  selection = { city, day }
+  return { content: [{ type: 'text', text: `Selected ${day.date} in ${city}` }], structuredContent: selection }
+})
+
+// the model's way to read it; get_forecast's description says to call it
+server.registerTool('get_selected_day', {
+  description: 'The day the user selected in the forecast card shown by get_forecast, if any.',
+  inputSchema: {},
+}, async () => ({
+  content: [{ type: 'text', text: selection ? `The user selected ${selection.day.date} in ${selection.city}.` : 'The user has not selected a day.' }],
+}))
+```
+
+The stdio server runs once per host connection, so one variable holds one user's selection. A server many users share (Streamable HTTP behind a public URL) has to keep it per user or session.
+
+Send `updateModelContext` with a text `content`: hosts list the content types they take (`MCP.select('host')` gives `hostCapabilities.updateModelContext`, Claude's is `{ text: {}, image: {} }`), and one that doesn't list `structuredContent` may drop an update that only has it.
+
+A host may also keep a tool's view (the `ui://` resource) and the tool list for as long as the server stays connected: Claude Desktop fetches them once per connection. After rebuilding the view or changing a tool, reconnect the server (restart the host, or turn the server off and on) before trying it again.
 
 ## The view's own tools
 
@@ -265,7 +313,14 @@ it('shows the result, refreshes, and tells the model what the user picked', asyn
 
   t.simulateEvent('.day', 'click', { data: { date: 'Tue' } })
   await t.waitForState((s) => s.selected === 'Tue')
-  expect(t.requests('MCP').at(-1)).toEqual({ updateModelContext: { city: 'Oslo', selectedDay: days[1] } })
+  expect(t.requests('MCP').at(-1)).toEqual({ callTool: 'select_day', args: { city: 'Oslo', day: days[1] }, ok: 'PICKED' })
+  await t.respond('MCP', { content: [], structuredContent: { city: 'Oslo', day: days[1] } }, 'PICKED')
+  expect(t.requests('MCP').at(-1)).toEqual({
+    updateModelContext: {
+      content: 'The user selected Tue in the Oslo forecast card.',
+      structuredContent: { city: 'Oslo', selectedDay: days[1] },
+    },
+  })
 })
 ```
 
