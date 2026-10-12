@@ -1,13 +1,15 @@
 // The assistant: a chat on a local model that asks the user with cards (chat({ ask })).
 //
-// `chat({ model, ask: { backend } })` fixes the chat model and the card backend when the behavior
-// is defined, so assistantFor() makes one component per pair (once) with the same view, intent,
-// model and agent declaration, and App.jsx shows the picked one. It has no state of its own: it
-// shares the app's, so the conversation (`state.assistant`) stays when you switch, and persists.
+// `chat({ model: (state) => state.chatModel })` reads the picked chat model per request, so one
+// behavior serves every chat model. The card backend is fixed when the behavior is defined (its
+// sink: the chat's for compose.llm(), HTTP for a decision model), so assistantFor() makes one
+// component per card backend (once) with the same view, intent, model and agent declaration, and
+// App.jsx shows the picked one. It has no state of its own: it shares the app's, so the
+// conversation (`state.assistant`) stays when you switch, and persists.
 import { ABORT, classes } from 'sygnal'
 import { chat, askCard, openToolCalls, jsonSchema } from 'sygnal/ai'
 import { catalog, ContactForm, Rating } from './cards.jsx'
-import { cardBackend, DEFAULT_CHAT, LLM_CARDS } from './backends.js'
+import { cardBackend, composedBy, LLM_CARDS } from './backends.js'
 import { PLANS, EXAMPLES } from './data.js'
 import { whatHappened } from './WhatHappened.jsx'
 
@@ -72,7 +74,7 @@ function view({ state }) {
           <button type="button" className="stop" hidden={!busy && !waiting}>{busy ? 'Stop' : 'Skip the card'}</button>
         </form>
       </div>
-      {whatHappened(a)}
+      {whatHappened(a, state.cardsBy)}
     </div>
   )
 }
@@ -85,6 +87,8 @@ const intent = ({ DOM, CHILD }) => ({
 })
 
 const model = {
+  // who composes this card (the panel's "by"): the picked chat model or decision model, as it opens
+  'assistant.TOOL_CALL': (state, call) => (call.name === 'ask_user' ? { ...state, cardsBy: { ...state.cardsBy, [call.id]: composedBy(state.cards, state.chatModel) } } : ABORT),
   EXAMPLE: { EFFECT: (state, prompt, next) => next('assistant.SEND', prompt) },
   CONTACTED: (state, { value }) => ({ ...state, leads: [...state.leads, value] }),
   RATED: (state, { value }) => ({ ...state, rating: value }),
@@ -109,17 +113,17 @@ const agent = {
   },
 }
 
-/** one assistant: this chat model, cards composed by this card backend (a choice from backends.js) */
-export function makeAssistant(chatModel, choice) {
+/** one assistant: the picked chat model (app state), cards composed by this card backend (a choice from backends.js) */
+export function makeAssistant(choice) {
   function Assistant(props) {
     return view(props)
   }
   Assistant.uses = {
     assistant: chat({
-      model: chatModel,
+      model: (state) => state.chatModel,
       form: '.ask', prompt: '.prompt', stop: '.stop',
       instructions: INSTRUCTIONS,
-      ask: { catalog, backend: cardBackend(choice, chatModel) },
+      ask: { catalog, backend: cardBackend(choice) },
     }),
   }
   Assistant.agent = agent
@@ -129,16 +133,16 @@ export function makeAssistant(chatModel, choice) {
 }
 
 const made = new Map()
-/** the assistant for a chat model and a card backend, made once per pair */
-export function assistantFor(chatModel, choice) {
-  const id = `${chatModel} ${choice.id}`
-  if (!made.has(id)) made.set(id, makeAssistant(chatModel, choice))
-  return made.get(id)
+/** the assistant for a card backend, made once per backend */
+export function assistantFor(choice) {
+  if (!made.has(choice.id)) made.set(choice.id, makeAssistant(choice))
+  return made.get(choice.id)
 }
 
 // Made at load, before run(): chat()'s first call links the sygnal/ai behaviors to the apps started
-// after it (an assistant made later still gets its tools; SYG442 otherwise)
-const first = assistantFor(DEFAULT_CHAT, LLM_CARDS)
+// after it, so an assistant made later still gets its tools (SYG442 otherwise:
+// https://sygnal.js.org/reference/errors#syg442)
+const first = assistantFor(LLM_CARDS)
 
 /** the chat slice before the first message: the app keeps the conversation in its own state (App.initialState) */
 export const NEW_CHAT = first.uses.assistant.state

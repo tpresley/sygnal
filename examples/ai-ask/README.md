@@ -43,10 +43,10 @@ point: the conversation comes back with its cards.
 ```jsx
 Assistant.uses = {
   assistant: chat({
-    model: chatModel,
+    model: (state) => state.chatModel,       // the picked chat model, read per request
     form: '.ask', prompt: '.prompt', stop: '.stop',
     instructions: INSTRUCTIONS,
-    ask: { catalog, backend: cardBackend(choice, chatModel) },
+    ask: { catalog, backend: cardBackend(choice) },
   }),
 }
 // in the view, for each tool-ask_user part of a message
@@ -70,11 +70,16 @@ user's current plan with every request (as app state, data rather than instructi
 action `billing_choose_plan` switches the plan once you picked and confirmed one. Without the
 `read`, a small model invents prices.
 
-**The pickers** ([`src/backends.js`](src/backends.js), [`src/App.jsx`](src/App.jsx)): `chat()`
-fixes its model and card backend when it is defined, and the models are only known at run time.
-So `assistantFor(chatModel, choice)` makes one assistant component per pair, once, and the app
-shows the picked one. The assistant has no state of its own: the conversation (`state.assistant`)
-is in the app's state, so it stays when you switch, and `persist()` keeps it.
+**The pickers** ([`src/backends.js`](src/backends.js), [`src/App.jsx`](src/App.jsx)): the chat
+model is app state, and `chat({ model: (state) => state.chatModel })` reads it per request (so do
+the cards of `compose.llm({ model: (state) => state.chatModel })`): switching models needs no new
+component. The card backend decides where card requests go (the chat's sink, or HTTP for a decision
+model) and is fixed when `chat()` is defined, so `assistantFor(choice)` makes one assistant
+component per card backend, once, and the app shows the picked one. The assistant has no state of
+its own: the conversation (`state.assistant`) is in the app's state, so it stays when you switch,
+and `persist()` keeps it. The first assistant is made when `Assistant.jsx` loads, before `run()`:
+the first `chat()` call links the sygnal/ai behaviors to the apps started after it
+([SYG442](https://sygnal.js.org/reference/errors#syg442)).
 
 **Persistence**: `App.persist = persist({ key: 'ai-ask', pick: ['assistant', 'plan', …] })`. The
 cards live on the messages (`part.ui`): an answered card comes back frozen with its pick, an open
@@ -82,12 +87,12 @@ one stays answerable, and one that was composing composes again.
 
 **What happened** ([`src/WhatHappened.jsx`](src/WhatHappened.jsx)): for each card, what the
 model asked for, the card's parts, who composed it and why (the chat model's `asked_for` plan, or
-the decision model's answers with their probabilities), and the tool output that went back. A
-card keeps only its layout, so `explained()` in `backends.js` wraps the backend to keep the
-backend's `decisions` on it.
+the decision model's answers with their probabilities: the card's `part.ui.decisions`), and the
+tool output that went back. Who composed it is recorded by a host entry `'assistant.TOOL_CALL'`
+when the card opens.
 
 **Tests** ([`src/App.test.js`](src/App.test.js)), on fakes: ask → card → answer → the model
 continues and switches the plan; a generated choice and a contact form; a failed composition and a
 reply that is no card (the model is told and can ask in text); the same flow on nimble and on Jev
-(`decide()` requests); Stop while a card composes, Skip while one is open, a new message; reload
+(`decide()` requests); switching the chat model mid-conversation; Stop while a card composes, Skip while one is open, a new message; reload
 with an answered card and with an open one; the agent's `read` and action.

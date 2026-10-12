@@ -65,6 +65,23 @@ describe('the pickers', () => {
     expect(html).not.toContain('Jev')
     t.expectNoDiagnostics()
   })
+
+  it('switching the chat model keeps the conversation: the next requests and cards name the new model', async () => {
+    await start()
+    await say('Hi')
+    await t.stream('LLM', ['Hello.'])
+    await t.settle()
+    t.simulateEvent('.chat-model', 'change', { value: 'llama3.2:latest' })
+    await t.waitForState((s) => s.chatModel === 'llama3.2:latest')
+    await say('Which plan?')
+    expect(chatReqs().map((r) => r.model)).toEqual(['qwen3:8b', 'llama3.2:latest'])
+    expect(A().messages.length).toBe(3)                  // the same conversation
+    await t.stream('LLM', [askCall('m', 'Pick a plan')])
+    await t.settle()
+    expect(cardReqs().at(-1).model).toBe('llama3.2:latest')
+    await composeWith(t, catalog, [{ part: 'plans' }])
+    expect(t.query('.what-happened .happened').textContent).toContain('by llama3.2:latest')
+  })
 })
 
 describe('cards composed by the chat model (compose.llm)', () => {

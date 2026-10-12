@@ -1,9 +1,9 @@
 // The pickers' choices: the chat model (the conversation) and the card backend (what composes a
 // card from the model's `need`).
 //
-// `chat({ model, ask: { backend } })` fixes both when the behavior is defined, and the models are
-// only known at run time (Ollama's GET /api/tags). So Assistant.jsx makes one assistant component
-// per (chat model, card backend) pair, once, and the app shows the picked one.
+// The chat model is app state (`state.chatModel`): `chat({ model })` and `compose.llm({ model })`
+// read it per request. The card backend is fixed when the behavior is defined (it decides the sink
+// the cards go to), so Assistant.jsx makes one assistant component per card backend, once.
 import { compose } from 'sygnal/ai'
 
 // Ollama serves the chat models (/v1/chat/completions), the decision models (/v1/systemone) and the
@@ -36,26 +36,12 @@ export function cardBackends(tags, jevAvailable) {
   ]
 }
 
-/**
- * Keeps the backend's explanation with the card. A backend's last reply carries `decisions` (the
- * LLM's plan, or a decision model's answers with their probabilities), but a card (`part.ui`)
- * keeps only its layout, so this puts them on the layout as `explain` for the "what happened"
- * panel. Persisted with the conversation like the rest of the card.
- */
-export function explained(backend, by) {
-  const note = (r) => (r?.layout ? { ...r, layout: { ...r.layout, explain: { by, decisions: r.decisions ?? null } } } : r)
-  return {
-    sink: backend.sink,
-    start: (a) => backend.start(a),
-    reply: (a) => note(backend.reply(a)),
-    ...(backend.delta && { delta: (a) => backend.delta(a) }),
-    fake: (a) => backend.fake(a),
-  }
+/** the card backend for a choice: compose.llm() with the picked chat model, or compose.decisions() */
+export function cardBackend(choice) {
+  if (choice.kind === 'llm') return compose.llm({ model: (state) => state.chatModel })
+  // a local decision model (Ollama's nimble, ~9B) favours the first of two options: profile 'small'
+  return compose.decisions({ url: choice.url, model: choice.model, ...(choice.url !== JEV.url && { profile: 'small' }) })
 }
 
-/** the card backend for a choice: compose.llm() with the chat model, or compose.decisions() */
-export function cardBackend(choice, chatModel) {
-  if (choice.kind === 'llm') return explained(compose.llm({ model: chatModel }), chatModel)
-  // a local decision model (Ollama's nimble, ~9B) favours the first of two options: profile 'small'
-  return explained(compose.decisions({ url: choice.url, model: choice.model, ...(choice.url !== JEV.url && { profile: 'small' }) }), choice.label)
-}
+/** who composes the cards: the chat model's name, or the decision model's label */
+export const composedBy = (choice, chatModel) => (choice.kind === 'llm' ? chatModel : choice.label)
