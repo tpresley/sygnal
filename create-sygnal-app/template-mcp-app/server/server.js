@@ -17,8 +17,9 @@ const MCP_APP_MIME = 'text/html;profile=mcp-app'
 const html = new URL('../dist/index.html', import.meta.url)
 
 // The day the user selected in the card. Hosts differ in what they do with the view's model
-// context (ui/update-model-context): Cursor adds it to the next turn, Claude Desktop accepts it but
-// the model never sees it (October 2026). So the view also stores the selection here, with the
+// context (ui/update-model-context): Cursor adds it to the next turn, claude.ai and Claude Desktop's
+// Code tab let the model read it with a tool, Claude Desktop's chat accepts it but its model never
+// sees it (October 2026). So the view also stores the selection here, with the
 // app-only select_day tool, and the model reads it with get_selected_day, an ordinary tool every
 // host offers. Kept in the process: the stdio server runs one per host connection; a shared HTTP
 // server would key it by user or session.

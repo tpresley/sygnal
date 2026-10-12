@@ -171,7 +171,7 @@ Export.model = {
 A view has three ways to tell the model something, and hosts handle them differently:
 
 - `{ message }` posts a message to the conversation as the user. The model sees it and answers it, in every host that supports `message`. Use it when the user's click is a question (the starter's **Ask about this day**).
-- `{ updateModelContext }` gives the host context for the model's **next** turn, and the host decides what to do with it. The spec says a host *should* pass it on, not how. Cursor adds it to the next user message; claude.ai keeps it and lets the model fetch it with a built-in tool ("Reading widget context"); Claude Desktop (tested October 2026) accepts it, but its model has no way to read it.
+- `{ updateModelContext }` gives the host context for the model's **next** turn, and the host decides what to do with it. The spec says a host *should* pass it on, not how. Cursor adds it to the next user message; claude.ai keeps it and lets the model fetch it with a built-in tool ("Reading widget context"), and so does Claude Desktop's Code tab (`read_widget_context`, which the host points the model to); Claude Desktop's chat (tested October 2026) accepts it, but its model has no way to read it.
 - **A tool on your server.** The view saves what the user did with a tool only the view may call, and the model reads it with an ordinary tool. This reaches the model in every host, because every host offers the server's tools.
 
 The starter does the last two. When the user picks a day, the view calls `select_day`, then sends the same selection as model context:

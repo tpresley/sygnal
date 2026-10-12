@@ -4,11 +4,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
-Docs, an example and the `mcp-app` starter; `sygnal` itself is unchanged (6.3.0). Testing the starter in Claude Desktop showed that a view's `updateModelContext` never reaches the model there, so the starter now tells the model what the user picked through a server tool.
+Docs, an example and the `mcp-app` starter; `sygnal` itself is unchanged (6.3.0). Testing the starter in Claude Desktop showed that a view's `updateModelContext` never reaches the model in its chat, so the starter now tells the model what the user picked through a server tool.
 
 ### Changed
 
-- **`create-sygnal-app`: the `mcp-app` template (JS and TS) tells the model what the user picked through the server.** Hosts differ in what they do with `ui/update-model-context`: Cursor adds it to the next turn, claude.ai lets the model fetch it with a built-in tool, and Claude Desktop accepts it (it lists `{ text, image }`) but its model never sees it (tested 2026-10-12). When the user picks a day, the view now calls `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads the selection with `get_selected_day`, which `get_forecast`'s description names; the view still sends the selection as model context, now as text plus `structuredContent` (a host that doesn't list `structuredContent` may drop an update with only that). The README and `AGENTS.md` explain the pattern, and the README says to reconnect the server after a rebuild (Claude Desktop keeps the view and the tool list per connection). Ships in the next `create-sygnal-app` release.
+- **`create-sygnal-app`: the `mcp-app` template (JS and TS) tells the model what the user picked through the server.** Hosts differ in what they do with `ui/update-model-context`: Cursor adds it to the next turn, claude.ai and Claude Desktop's Code tab let the model fetch it with a built-in tool, and Claude Desktop's chat accepts it (it lists `{ text, image }`) but its model never sees it (tested 2026-10-12). When the user picks a day, the view now calls `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads the selection with `get_selected_day`, which `get_forecast`'s description names; the view still sends the selection as model context, now as text plus `structuredContent` (a host that doesn't list `structuredContent` may drop an update with only that). The README and `AGENTS.md` explain the pattern, and the README says to reconnect the server after a rebuild (Claude Desktop keeps the view and the tool list per connection). Ships in the next `create-sygnal-app` release.
 
 ### Added
 

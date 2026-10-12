@@ -88,7 +88,7 @@ App.model = {
   },
   // tell the model what the user picked: store it on the server (select_day, a tool only the view
   // can call), where the model reads it with get_selected_day, then send it as model context too,
-  // for hosts that add that to the model's next turn (Claude Desktop doesn't, as of October 2026)
+  // for hosts that add that to the model's next turn (Claude Desktop's chat doesn't, as of October 2026)
   PICK: {
     STATE: (state, date) => ({ ...state, selected: date }),
     MCP: (state, date) => ({

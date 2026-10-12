@@ -55,12 +55,12 @@ Ask the model for a forecast once the server is connected. Name the tool ("Use g
 | In the model (view → host) | |
 |---|---|
 | `{ callTool: 'get_forecast', args, ok: 'RESULT', error: 'FAILED' }` | call a tool on this server; the result comes back as the `ok` action |
-| `{ updateModelContext: { content, structuredContent } }` | tell the model what the user did, for its next turn, if the host passes it on (Claude Desktop doesn't, as of October 2026) |
+| `{ updateModelContext: { content, structuredContent } }` | tell the model what the user did, for its next turn, if the host passes it on (Claude Desktop's chat doesn't, as of October 2026) |
 | `{ message: 'text' }` | send a message to the conversation as the user |
 | `{ openLink: 'https://...' }` | ask the host to open a link |
 | `{ displayMode: 'fullscreen' }` | ask for another display mode (the `ok` action gets the mode the host chose) |
 
-**How the model learns what the user picked.** Hosts differ in what they do with `updateModelContext`: some add it to the model's next turn, Claude Desktop doesn't (as of October 2026). So the view also stores the selection on the server with `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads it with `get_selected_day`, an ordinary tool every host offers. For a click that is a question, the view posts a `{ message }` instead (**Ask about this day**).
+**How the model learns what the user picked.** Hosts differ in what they do with `updateModelContext`: some add it to the model's next turn or let the model read it with a tool, Claude Desktop's chat does neither (as of October 2026). So the view also stores the selection on the server with `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads it with `get_selected_day`, an ordinary tool every host offers. For a click that is a question, the view posts a `{ message }` instead (**Ask about this day**).
 
 The host loads the view into a sandboxed iframe with no other files and no network access, so `vite.config.js` builds it as one HTML file (`vite-plugin-singlefile`) and the view gets its data through the tool's result and `callTool`. Rebuild after changing it, then reconnect the server in the host: a host may keep the view for as long as the server is connected (Claude Desktop does).
 
