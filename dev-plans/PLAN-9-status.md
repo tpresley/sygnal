@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 in progress: workers `p9-edit-decisions` (B-4 decisions + G-755 + option limits + rows ≥ 5), `p9-edit-llm` (B-4 llm ops2 + non-JSON repair + C-2), `p9-chat` (H-1, H-2, H-3), `p9-check` (X-2 + description lint), `p9-docs` (D-1). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 in progress: merged X-2, D-1, B-4 (llm), C-2; running `p9-edit-decisions` (B-4 decisions + G-755 + option limits + rows ≥ 5) and `p9-chat` (H-1, H-2, H-3). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -50,10 +50,10 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | B-1 decisions: select + layout | done | worker B; live on Jev: structure 191/210 (research 189/210) |
 | B-2 decisions: params + records | done | live on Jev: params 57/60 (research 54/60), records 57/60; open: rows ≥ 5 unreachable, non-param choices not split for Ollama's 26-option limit |
 | B-3 `compose.llm()` | done | worker C; live on qwen3:8b via chatCompletions: 11/11, 15/15, 20/20, 0 invalid (research equal); open: a non-JSON reply fails in the driver before repair |
-| B-4 edits | in progress | `p9-edit-decisions`, `p9-edit-llm` |
+| B-4 edits | llm done (`98dd3cf8`, merged); decisions in progress (`p9-edit-decisions`) | llm: research-exact `ops2` (prompt, user message, schema identical for all 31 cases); ops applied to the previous layout (untouched nodes keep key and place; move/setParams keep the key; replace takes the old place; a reference node never moves); keyed replies aren't re-keyed by the behavior; streaming preview applies complete ops; fake() inverts (300 random-edit round trips). Live qwen3:8b: 9/10 and 18/21 exact (= research), keys kept 10/10 and 21/21, 0 invalid, ~1.4 s. Non-JSON replies: chat request option `parse: false` (ok carries `text`; compose.llm() sets it) so the lenient reader/repair run; other callers unchanged |
 | B-5 large catalogs | todo | |
 | C-1 `compose` behavior | done | worker A |
-| C-2 agents | in progress | `p9-edit-llm` |
+| C-2 agents | done (`3694ec27`, merged) | `compose.action('page')` → tool `<agent>_page_compose({ prompt, fresh? })`, waits (`until`) for the composition; `compose.summary(slice)` for `read`; tested end to end with `chat` on both backends (the llm backend shares the LLM sink in its own lane, no collision) |
 | H-1 client tools | in progress | `p9-chat` |
 | H-2 `chat({ ask })` | in progress | `p9-chat` |
 | H-3 `direct: true` | in progress | `p9-chat` |
