@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 next (B-4 edits, C-2, X-2, H-1, H-2, D-1). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 in progress: workers `p9-edit-decisions` (B-4 decisions + G-755 + option limits + rows ≥ 5), `p9-edit-llm` (B-4 llm ops2 + non-JSON repair + C-2), `p9-chat` (H-1, H-2, H-3), `p9-check` (X-2 + description lint), `p9-docs` (D-1). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -50,19 +50,19 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | B-1 decisions: select + layout | done | worker B; live on Jev: structure 191/210 (research 189/210) |
 | B-2 decisions: params + records | done | live on Jev: params 57/60 (research 54/60), records 57/60; open: rows ≥ 5 unreachable, non-param choices not split for Ollama's 26-option limit |
 | B-3 `compose.llm()` | done | worker C; live on qwen3:8b via chatCompletions: 11/11, 15/15, 20/20, 0 invalid (research equal); open: a non-JSON reply fails in the driver before repair |
-| B-4 edits | todo | |
+| B-4 edits | in progress | `p9-edit-decisions`, `p9-edit-llm` |
 | B-5 large catalogs | todo | |
 | C-1 `compose` behavior | done | worker A |
-| C-2 agents | todo | |
-| H-1 client tools | todo | after 0-S3 |
-| H-2 `chat({ ask })` | todo | |
-| H-3 `direct: true` | todo | |
+| C-2 agents | in progress | `p9-edit-llm` |
+| H-1 client tools | in progress | `p9-chat` |
+| H-2 `chat({ ask })` | in progress | `p9-chat` |
+| H-3 `direct: true` | in progress | `p9-chat` |
 | T-1 `composeWith` | done | uses each backend's `fake()`; B's fake round-trips ~2,450 random targets |
 | T-2 per-backend matrix | done | `test/p9-compose-matrix.test.js`: 8 scenarios × 2 backends |
 | M-1 `<Composed>` | todo (D466) | from `exp/p9-composed` `fce942d6` |
 | X-1 runtime diagnostics | done | SYG161, 162, 250, 251, 252, 450, 452, 680, 681, 682, 683; explanations + errors doc regenerated (189 codes) |
-| X-2 sygnal-check rules + description lint | todo | |
-| D-1…D-4 docs | todo | |
+| X-2 sygnal-check rules + description lint | in progress | `p9-check` |
+| D-1…D-4 docs | D-1 in progress (`p9-docs`); D-2…D-4 Phase 3 | |
 | E-1 `examples/ai-compose` on the API | done (merged `8eb493c1`; its real-DOM test passes since G-753) | catalog of the 9 parts with enum/number params; two hosts (decisions on HTTP, llm on LLM) behind a Switchable sharing app state; backend picker from /api/tags + Jev; dev-only Jev proxy (`server/decide-proxy.js`: key from `TYPESAFE_ENV_FILE`, never logged or returned, POST JSON ≤ 512 kB, model allowlist, cross-site refused); 22 tests (1 `it.fails`: G-753); strict clean; vite build OK. Live `npm run try`: nimble 7/11 flat + 3/4 params (~4.5 s), qwen3:8b 9/11 + 4/4 (~1.4 s) |
 | E-2 `examples/ai-ask` | todo | |
 | E-3 live accuracy check | todo | |
