@@ -37,7 +37,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Phase 0: merge research, cut branch | done | `06560b4a` on `main` (pushed); `plan9-integration` cut there; §4 code reservations confirmed free in `codes.ts` (SYG160–169, 250–259, 450–459, 680–689) |
 | 0-S1 `<Composed>` marker spike | todo | bytes, core diff, parity, perf, inspect/HMR → user decision |
 | 0-S2 identity from vnode `key` | todo | ≤ ~30 B and parity, else a gap |
-| 0-S3 chat client tools design | todo | |
+| 0-S3 chat client tools design | done | [`research/ai-compose/chat-client-tools.md`](research/ai-compose/chat-client-tools.md): `clientTools` option, `TOOL_OUTPUT` (AI SDK 7's `addToolOutput`; replaces the plan's TOOL_RESULT), `TOOL_CALL` host entry, `ANSWER`; 12 edge-case rules; card on `part.ui`; SYG684–686; 5 open questions with recommendations. Possible existing bug to check in H-1: a persisted busy status may lock SEND after reload |
 | P9-Q1…Q6 | done | accepted as recommended (D460–D465) |
 | K-1 `defineCatalog` | todo | |
 | K-2 `catalog.render` | todo | |
