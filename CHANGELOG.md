@@ -2,6 +2,20 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+Docs, an example and the `mcp-app` starter; `sygnal` itself is unchanged (6.3.0). Testing the starter in Claude Desktop showed that a view's `updateModelContext` never reaches the model there, so the starter now tells the model what the user picked through a server tool.
+
+### Changed
+
+- **`create-sygnal-app`: the `mcp-app` template (JS and TS) tells the model what the user picked through the server.** Hosts differ in what they do with `ui/update-model-context`: Cursor adds it to the next turn, claude.ai lets the model fetch it with a built-in tool, and Claude Desktop accepts it (it lists `{ text, image }`) but its model never sees it (tested 2026-10-12). When the user picks a day, the view now calls `select_day`, a tool only the view can call (`_meta.ui.visibility: ['app']`), and the model reads the selection with `get_selected_day`, which `get_forecast`'s description names; the view still sends the selection as model context, now as text plus `structuredContent` (a host that doesn't list `structuredContent` may drop an update with only that). The README and `AGENTS.md` explain the pattern, and the README says to reconnect the server after a rebuild (Claude Desktop keeps the view and the tool list per connection). Ships in the next `create-sygnal-app` release.
+
+### Added
+
+- **Docs: Native AI Support**, a section above the Guide with seven narrative pages (overview, streaming chat, decision models, UI composed by a model, agents in your app, the agentic web, built for coding agents) that link to the guides, recipes and API reference. The home page lists the AI card right after Pure Components.
+- **Docs: Model context** in [MCP Apps](https://sygnal.js.org/guide/mcp-apps/#model-context): `message` vs `updateModelContext` vs a server tool, how hosts handle each, and the selection tools' server code.
+- **`examples/mcp-app`**: the `mcp-app` starter linked to this checkout (part of `npm run test:examples`), with `scripts/add-to-claude-desktop.sh`, which adds the server to Claude Desktop while it is quit (Claude Desktop rewrites `claude_desktop_config.json` while it runs, dropping edits made then).
+
 ## 6.3.0 — 2026-10-11
 
 Composing UI with a model (PLAN-9). An app declares its parts once in a catalog, the user describes a page or an edit in words, and a model builds it from those parts: a decision model answering multiple-choice questions (TypeSafe Jev, Ollama's `nimble`) or an LLM with structured output, with the same catalog, app code and tests for both. The composition is plain JSON in state, each part is an ordinary child component, and follow-up requests edit the page while keeping the state of the parts they don't touch. The same catalog lets a chat assistant ask the user with a card instead of in text (`chat({ ask })`), on top of client tools for the `chat` behavior. Around it: `decide()` splits large question sets, `byId()` lenses, and a component's `key` is now its identity.
