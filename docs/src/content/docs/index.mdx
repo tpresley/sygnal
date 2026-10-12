@@ -39,16 +39,16 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
     View functions are pure — they receive state, return JSX. No side effects, no lifecycle methods, no `this`. Simple to test and simple to compose.
   </Card>
 
+  <Card title="AI Built In" icon="star">
+    `sygnal/ai` streams LLM chat through a driver like HTTP (local models with Ollama, any provider through an AI SDK server), asks decision models typed questions, composes pages and chat cards from your own components, and runs an in-app assistant. Declare what agents may do with the `agent` static, and they can operate your app, in the page or through WebMCP. See [Native AI Support](/ai/overview/).
+  </Card>
+
   <Card title="Full TypeScript Support" icon="seti:typescript">
     Written in TypeScript with comprehensive type declarations. Get autocompletion, type checking, and inline documentation for components, state, intent, model, and all framework APIs.
   </Card>
 
   <Card title="Diagnostics Built In" icon="warning">
     Silent wiring mistakes (a selector typo, an action with no handler, an event nobody hears) become coded messages with a fix, in the dev server, in tests, and from the `sygnal-check` static checker.
-  </Card>
-
-  <Card title="AI Built In" icon="star">
-    `sygnal/ai` streams LLM chat through a driver like HTTP (local models with Ollama, any provider through an AI SDK server), asks decision models typed questions, and runs an in-app assistant. Declare what agents may do with the `agent` static, and they can operate your app, in the page or through WebMCP. See [AI Chat](/guide/ai-chat/), [Decisions](/guide/ai-decisions/) and [Agents](/guide/agent/).
   </Card>
 
   <Card title="Built for Agents" icon="puzzle">

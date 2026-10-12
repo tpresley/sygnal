@@ -1,0 +1,37 @@
+---
+title: Native AI Support
+description: What sygnal/ai brings to a web app — streaming chat, decision models, UI composed by a model, agents that operate your app, WebMCP and MCP Apps, and tooling for the coding agents that build it
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+The web has always had one kind of user: a person with a mouse, a keyboard and a screen. That is changing. Language models now read pages, fill in forms and call tools, and people increasingly expect an app to understand a sentence, not just a click. Building for both at once is one of the more interesting things happening to front-end development right now.
+
+Sygnal turns out to be well suited to it. A Sygnal component already describes its behavior as data: the actions it has, the state it holds, the requests it sends through drivers. That is exactly what a model needs to work with an app safely. So instead of bolting an AI SDK onto the side, `sygnal/ai` plugs models into the same places everything else already goes: a driver for requests, actions for replies, statics for declarations, and the same testing helpers you use for the rest of the app.
+
+## What's in the box
+
+<CardGrid>
+  <LinkCard title="Streaming chat" href="/ai/chat/" description="An LLM is a driver like HTTP. Replies stream in as actions, from Ollama on your laptop, a hosted provider behind your server, or Chrome's on-device model." />
+  <LinkCard title="Decision models" href="/ai/decisions/" description="Typed, calibrated answers about your app's state in a few hundred milliseconds: which category, how urgent, how sure." />
+  <LinkCard title="UI composed by a model" href="/ai/composed-ui/" description="The user describes the page they want, and a model arranges it from components you prepared. In a page, or as a card inside a chat." />
+  <LinkCard title="Agents in your app" href="/ai/agents/" description="Declare what a model may do with the agent static, and an in-app assistant or a one-line command bar can operate your app." />
+  <LinkCard title="The agentic web" href="/ai/agentic-web/" description="The same declaration offers your app's tools to the browser's own agent through WebMCP, and puts your app inside Claude or ChatGPT as an MCP App." />
+  <LinkCard title="Built for coding agents" href="/ai/coding-agents/" description="llms.txt, a Claude Code plugin, a static checker and MCP servers, so the agents that write your app don't have to guess." />
+</CardGrid>
+
+## A few principles
+
+Some ideas run through every part of `sygnal/ai`:
+
+- **Pay per use.** An app that never imports `sygnal/ai` carries none of it, and each transport and behavior is left out unless you import it.
+- **The model chooses; the app does.** A model picks an action, a part, an answer. It never writes your markup, your state paths or your action names, so every label and button stays the app's own.
+- **Nothing is privileged.** A tool call runs the same reducer as a click, with the same validation. Actions you don't declare simply don't exist as far as a model is concerned.
+- **Keys stay on the server.** Production requests go through your own server route; in development, a local model needs no key at all.
+- **Testable like everything else.** Fake replies, scripted streams and tool calls run in `renderComponent()` with no network.
+
+## Where to start
+
+If you want to see a model stream into a component in five minutes, start with [AI Chat](/guide/ai-chat/): it runs against a local model with no account and no key. If you're more curious about the agent side, the [Agents](/guide/agent/) guide shows how one small declaration makes an app operable by a model. And if you just want something to copy, the [AI recipes](/recipes/overview/#ai) build complete features: a triaged support inbox, a form filled from pasted text, on-device summaries.
+
+The API is collected in the [`sygnal/ai` reference](/reference/api/#sygnalai).

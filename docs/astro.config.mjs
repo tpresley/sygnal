@@ -67,6 +67,18 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Native AI Support',
+          items: [
+            { label: 'Overview', slug: 'ai/overview' },
+            { label: 'Streaming Chat', slug: 'ai/chat' },
+            { label: 'Decision Models', slug: 'ai/decisions' },
+            { label: 'UI Composed by a Model', slug: 'ai/composed-ui' },
+            { label: 'Agents in Your App', slug: 'ai/agents' },
+            { label: 'The Agentic Web', slug: 'ai/agentic-web' },
+            { label: 'Built for Coding Agents', slug: 'ai/coding-agents' },
+          ],
+        },
+        {
           label: 'Guide',
           items: [
             { label: 'Architecture', slug: 'guide/architecture' },
