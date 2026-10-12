@@ -1127,6 +1127,13 @@ export const EXPLANATIONS = {
     explanation: "`experimentalExposeWebMcp()` registers each agent tool with `document.modelContext.registerTool()`, which returns a Promise. The browser refused one: most often `InvalidStateError: Duplicate tool name` (another script, a second `experimentalExposeWebMcp()` call on the same page, or a declarative form registered the same name first), or an invalid name or empty description. The rejection is reported, never thrown, and that tool stays unavailable to the agent until its name, description or schema changes. Reported once per tool and registration, in development.",
     fix: "Give each exposure its own `prefix` (`experimentalExposeWebMcp(app, { prefix: 'shop_' })`), rename the clashing `agent` declaration or form `toolname`, and call `stop()` before exposing the same app again.",
   },
+  SYG683: {
+    title: "LLM layout invalid after repair",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "`compose.llm()` asks the model for a layout tree with structured output: a JSON Schema built from the catalog (one closed object per part, enum params, record values from state, rows holding parts only, `maxDepth`). Most providers enforce the schema while decoding, but some don't (no strict mode, an unconstrained local model), and a schema can't say everything, so every reply is read leniently (`type` or `name` for `part`, flat params, the list under another key) and repaired: unknown parts dropped, a part used more than its `maxUses`, a bad param value replaced by its default, text cut to its `maxLength`, a row of one unwrapped. This diagnostic means the reply was still not a layout after that: it wasn't JSON, it had no list of parts, every part it named was unknown, or the repaired tree failed the schema check. The behavior shows `status: 'error'` with the message in `error`; no layout is rendered from it. An empty list is not an error: it means nothing in the catalog fits (`status: 'unavailable'`).",
+    fix: "Send the request through a transport that enforces structured output (`openResponses` or `chatCompletions` with `strict: strictSchemas`, Ollama's `format`), lower the temperature, or use a model that follows JSON Schemas. Check that the part ids in the catalog's `examples` exist. The diagnostic's `data` holds the reply and the issues found.",
+  },
   SYG674: {
     title: "WebMCP not available",
     severity: "info",

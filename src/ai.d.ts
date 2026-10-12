@@ -1220,3 +1220,45 @@ export interface McpAppDriverOptions {
  *   run(WeatherCard, { MCP: makeMcpAppDriver() })
  */
 export function makeMcpAppDriver(options?: McpAppDriverOptions): (sink$: Stream<McpAppRequest>) => McpAppSource
+
+// ---- PLAN-9 compose
+// PLAN-9 C: compose.llm ------------------------------------------------------------------------
+
+/**
+ * `compose.llm(options?)`: the GenAI LLM backend of `compose` (one structured-output request on
+ * a makeChatDriver() sink; a streamed preview). The request carries the catalog's JSON Schema
+ * (`asked_for`, then the layout tree), the system prompt (the catalog as text, its `guidance`,
+ * `examples` as few-shot turns) and `delta` when streaming. Other keys go on the request as is
+ * (transport options such as `body: { temperature: 0 }`).
+ *
+ *   compose(catalog, { backend: compose.llm({ model: 'gpt-5-mini' }) })
+ */
+export interface ComposeLlmOptions {
+  /** The model id (default: the transport's) */
+  model?: string
+  /** The chat driver's sink (default 'LLM') */
+  sink?: string
+  /** The request key (default: the behavior's key) */
+  key?: string
+  /** Stream a preview of the complete parts so far (default true) */
+  stream?: boolean
+  /** Ask for the `asked_for` plan before the tree (default true; false when there are examples) */
+  plan?: boolean
+  /** More instructions after the rules, or a function of the system prompt returning the one to send */
+  instructions?: string | ((prompt: string) => string)
+  /** Few-shot examples (default: the catalog's): `[prompt, tree, asked_for?]` or `{ prompt, tree, asked_for? }` */
+  examples?: ReadonlyArray<readonly [string, ReadonlyArray<ComposeLlmTreeNode>, ReadonlyArray<string>?] | { prompt: string; tree: ReadonlyArray<ComposeLlmTreeNode>; asked_for?: ReadonlyArray<string> }>
+  /** Transport options, sent on the request as is */
+  [option: string]: unknown
+}
+
+/** A node of a layout tree as `examples` take it (the contract's Tree) */
+export type ComposeLlmTreeNode = { part: string; params?: Record<string, unknown>; children?: ReadonlyArray<ComposeLlmTreeNode> | Record<string, ReadonlyArray<ComposeLlmTreeNode>> }
+
+/** What `compose.llm()` puts in the slice's `decisions`: the model's plan and what the repair fixed */
+export interface ComposeLlmDecisions {
+  /** Each thing the request asks for, in the model's words (with `plan`) */
+  asked_for?: string[]
+  /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid` */
+  repairs?: Array<{ kind: string; detail: string }>
+}

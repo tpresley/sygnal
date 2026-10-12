@@ -339,6 +339,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-6 A-2: experimentalExposeWebMcp (src/extra/ai/webmcp.ts; dev)
   SYG674: 'WebMCP not available',
   SYG676: 'WebMCP registerTool rejected',
+  // PLAN-9 B-3: compose.llm() (src/extra/ai/compose/llm.ts; the compose status becomes 'error')
+  SYG683: 'LLM layout invalid after repair',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -497,6 +499,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-6 A-2 (experimentalExposeWebMcp reports them with an explicit severity)
   SYG674: 'info',
   SYG676: 'warn',
+  // PLAN-9 B-3 (compose.llm)
+  SYG683: 'error',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
