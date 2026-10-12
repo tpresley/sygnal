@@ -1653,6 +1653,19 @@ export interface ComposeDecisionsOptions {
    * catalog's limit still caps the page
    */
   maxParts?: number
+  /**
+   * the most questions one decide() request may hold: a step with more goes as several requests of
+   * about even size, their answers merged before reading. Default: 64 when `url` looks like Ollama
+   * (its /v1/systemone limit), else no limit (one request per step)
+   */
+  maxQuestions?: number
+  /**
+   * the most prompt tokens one question may take (estimated, conservatively): on Ollama each
+   * question's prompt holds the state and every question of its request, within the model's
+   * num_ctx (nimble: 8192). A step over it is split as for `maxQuestions`. Default: 7500 when
+   * `url` looks like Ollama, else no limit
+   */
+  maxPromptTokens?: number
 }
 /**
  * the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`; for an

@@ -48,6 +48,9 @@
  * Every choice respects `maxOptions` (Ollama: 25): a larger one is split into chunks that repeat its
  * head options, merged back before reading. `profile: 'small'` (G-755): pairwise order questions in
  * both option orders, near-ties ordered by where the request names the parts.
+ * A step over the backend's per-request limits (`maxQuestions`, `maxPromptTokens`; for an Ollama url
+ * 64 questions and 7,500 estimated tokens a prompt, else none: G-757) goes as several requests of
+ * about even size (`pending.part`, the answers so far in `pending.got`), merged before reading.
  *
  * `pending` is plain JSON (the behavior keeps it in state): the step, the prompt, the record
  * values the prefilter kept, the selected items. The questions are rebuilt from it to read a reply,
@@ -1358,6 +1361,63 @@ function fakeEditReply(c: any, state: any, pending: any, wantLayout: any, stepOf
   return null
 }
 
+// ---------- steps over a backend's per-request limits (G-757) ----------
+/**
+ * A conservative estimate of the prompt one question of a request makes on Ollama's /v1/systemone:
+ * every question's prompt holds the state and ALL the request's questions (instructions and options),
+ * so this is the size each prompt must fit in (num_ctx; nimble: 8192). Measured on nimble's
+ * tokenizer over the structure set's select and layout requests: 1.13–1.30 × the reported count
+ * (ASCII ~2.6 characters a token; any other character counted as a token of its own).
+ */
+const tokensOf = (s: any) => {
+  const t = String(s ?? '')
+  let other = 0
+  for (let i = 0; i < t.length; i++) if (t.charCodeAt(i) > 127) other++
+  return (t.length - other) / 2.5 + other
+}
+const PROMPT_BASE = 60
+export const questionTokens = (name: string, q: any) => {
+  const opts = Object.entries<any>(q.criteria && typeof q.criteria == 'object' ? q.criteria : {})
+  return 12 + 4 * opts.length + tokensOf(name) + tokensOf(typeof q.instructions == 'string' ? q.instructions : JSON.stringify(q.instructions))
+    + opts.reduce((s, [k, v]) => s + tokensOf(k) + (v == null ? 0 : tokensOf(v)), 0)
+}
+export const promptTokens = (state: any, questions: any) => Math.ceil(PROMPT_BASE + tokensOf(JSON.stringify(state ?? {}))
+  + Object.entries<any>(questions).reduce((s, [n, q]) => s + questionTokens(n, q), 0))
+
+/**
+ * A step's questions in requests that respect `maxQuestions` and `maxTokens` (the estimate above):
+ * one part (every question, the request unchanged) when they fit; else the fewest parts of about
+ * even size (by the estimate), in question order. A question too large on its own goes alone.
+ */
+export function splitStep(step: any, maxQuestions = Infinity, maxTokens = Infinity): string[][] {
+  const all = Object.keys(step.questions)
+  if (all.length <= maxQuestions && (maxTokens === Infinity || promptTokens(step.state, step.questions) <= maxTokens)) return [all]
+  const room = maxTokens - (promptTokens(step.state, {}))
+  const cost = all.map(n => questionTokens(n, step.questions[n]))
+  const total = cost.reduce((s, x) => s + x, 0)
+  const fits = (from: number, to: number) => to - from <= maxQuestions && cost.slice(from, to).reduce((s, x) => s + x, 0) <= room
+  for (let k = Math.max(2, Math.ceil(all.length / maxQuestions), Math.ceil(total / Math.max(1, room))); k <= all.length; k++) {
+    // k parts: cut where the running cost passes each i/k of the total (and at most maxQuestions apart)
+    const cuts = [0]
+    let acc = 0
+    for (let i = 0; i < all.length; i++) {
+      acc += cost[i]
+      const from = cuts[cuts.length - 1]
+      if (cuts.length < k && i + 1 < all.length && (acc >= total * cuts.length / k || i + 1 - from >= Math.ceil(all.length / k))) cuts.push(i + 1)
+    }
+    cuts.push(all.length)
+    const parts = cuts.slice(1).map((to, j) => [cuts[j], to] as [number, number]).filter(([a, b]) => b > a)
+    if (parts.every(([a, b]) => fits(a, b) || b - a === 1)) return parts.map(([a, b]) => all.slice(a, b))
+  }
+  return all.map(n => [n])
+}
+/** a pending step without the split bookkeeping (`part`: the request out, `got`: the parts' answers so far) */
+const unsplit = (pending: any) => {
+  if (pending?.part === undefined && pending?.got === undefined) return pending
+  const {part, got, ...rest} = pending
+  return rest
+}
+
 // ---------- the backend ----------
 export interface DecisionsOptions {
   url?: string
@@ -1368,6 +1428,8 @@ export interface DecisionsOptions {
   maxOptions?: number
   profile?: 'small'
   maxParts?: number
+  maxQuestions?: number
+  maxPromptTokens?: number
 }
 
 /**
@@ -1383,7 +1445,11 @@ const SMALL_MAX_PARTS = 8
 
 const isOllama = (url: string) => /:11434\b|ollama/i.test(url)
 
-export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts}: DecisionsOptions = {}) {
+/** Ollama's /v1/systemone: at most 64 questions a request, and each question's prompt within num_ctx (nimble: 8192) */
+export const OLLAMA_MAX_QUESTIONS = 64
+export const OLLAMA_MAX_PROMPT_TOKENS = 7500
+
+export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts, maxQuestions, maxPromptTokens}: DecisionsOptions = {}) {
   // profile 'small' (a local 9B decision model such as Ollama's nimble, G-755): pairwise order
   // questions asked in both option orders (it prefers the first option), and near-ties ordered by
   // where the request names the elements
@@ -1399,10 +1465,20 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
   if (typeof model != 'string' || !model) dev('SYG681', "compose.decisions() needs a `model` (the decision model's id, e.g. compose.decisions({ model: 'jev-latest' })); its requests go without one", 'error')
   // Ollama's /v1/systemone takes 2–26 candidates per choice, TypeSafe 255; at least 4 (a where's head is 3)
   const max = Math.max(4, maxOptions ?? (isOllama(url) ? 25 : 255))
-  const request = (names: any, step: any) => decide({
-    url, model, state: step.state, questions: step.questions,
-    key: key ?? names?.key, latest: true, ok: names?.ok, error: names?.error,
-  } as any)
+  // G-757: a step over the backend's per-request limits goes as several requests (the answers merged
+  // before reading); none by default but for an Ollama url, so other servers get the same requests
+  const maxQ = Math.max(1, maxQuestions ?? (isOllama(url) ? OLLAMA_MAX_QUESTIONS : Infinity))
+  const maxT = maxPromptTokens ?? (isOllama(url) ? OLLAMA_MAX_PROMPT_TOKENS : Infinity)
+  const partsOf = (step: any) => splitStep(step, maxQ, maxT)
+  /** the request for a pending step (its part `pending.part` when the step is split) */
+  const request = (names: any, step: any, part = 0) => {
+    const ps = partsOf(step)
+    const questions = ps.length > 1 ? Object.fromEntries(ps[part].map(n => [n, step.questions[n]])) : step.questions
+    return decide({
+      url, model, state: step.state, questions,
+      key: key ?? names?.key, latest: true, ok: names?.ok, error: names?.error,
+    } as any)
+  }
   const answersOf = (reply: any) => (reply && typeof reply == 'object' ? reply.answers : undefined)
 
   /** the questions of a pending step (rebuilt from it, as sent) */
@@ -1419,8 +1495,25 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
   }
   const done = (catalog: any, state: any, tree: any[], previous: any) => finish(catalog, fromTree(catalog, tree, previous), state)
 
-  /** a reply → the backend's result (pure; fake() reads with it too) */
+  /**
+   * a reply → the backend's result. A split step: a part's reply is kept in `pending.got` and the
+   * next part requested; the last one reads the merged answers as one reply (`readStep`)
+   */
   function read({catalog, state, pending, reply, names}: any) {
+    const step = stepOf(catalog, pending)
+    const ps = partsOf(step)
+    if (ps.length < 2) return readStep({catalog, state, pending: unsplit(pending), reply, names})
+    const body = answersOf(reply)
+    if (!body || typeof body != 'object' || Array.isArray(body)) return {error: 'compose.decisions(): the decision reply has no answers'}
+    const i = Math.min(ps.length - 1, Math.max(0, Number(pending.part) || 0))
+    const mine = Object.fromEntries(Object.entries<any>(body).filter(([n]) => ps[i].includes(n)))
+    const got = {...(pending.got || {}), ...mine}
+    if (i + 1 < ps.length) return {request: request(names, step, i + 1), pending: {...pending, part: i + 1, got}}
+    return readStep({catalog, state, pending: unsplit(pending), reply: {...reply, answers: got}, names})
+  }
+
+  /** a step's whole reply → the backend's result (pure; fake() reads with it too) */
+  function readStep({catalog, state, pending, reply, names}: any) {
     const step = stepOf(catalog, pending)
     const body = answersOf(reply)
     // a reply that can't be read: the behavior's status 'error' (contract), not a throw
@@ -1481,17 +1574,25 @@ export function decisions({url = '/api/decide', model, key, rowMean = 0.25, pref
     /** the reply body that makes the pending step read as `target` (for composeWith); throws when it can't */
     fake({catalog, state, pending, target}: any) {
       const step = stepOf(catalog, pending)
+      // a split step: the whole step's answers (deterministic), the ones of the part out
+      const whole = unsplit(pending)
+      const ps = partsOf(step)
+      const part = (reply: any) => {
+        if (ps.length < 2) return reply
+        const names = ps[Math.min(ps.length - 1, Math.max(0, Number(pending.part) || 0))]
+        return {...reply, answers: Object.fromEntries(Object.entries<any>(reply.answers).filter(([n]) => names.includes(n)))}
+      }
       if (pending.step === 'edit' || pending.step === 'where') {
         const want = finish(catalog, fromTree(catalog, target || [], pending.previous), state)
-        const reply = fakeEditReply(catalog, state, pending, want, (p: any) => stepOf(catalog, p), (p: any, reply: any) => read({catalog, state, pending: p, reply, names: {}}))
+        const reply = fakeEditReply(catalog, state, whole, want, (p: any) => stepOf(catalog, p), (p: any, reply: any) => readStep({catalog, state, pending: p, reply, names: {}}))
         if (!reply) throw new Error(`[Sygnal] compose.decisions() fake: can't reach the target ${show(toTree(want))} as an edit of ${show(toTree(pending.previous))} (an edit removes, changes, moves up to any number of parts and adds parts beside, above, below or into others; compose it with { fresh: true } instead)`)
-        return reply
+        return part(reply)
       }
       const want = toTree(finish(catalog, fromTree(catalog, target || [], pending.previous ?? undefined), state))
-      const picks = fakePicks(catalog, pending, step, want)
+      const picks = fakePicks(catalog, whole, step, want)
       const reply = answersFor(step.questions, picks)
-      check(catalog, state, pending, want, read({catalog, state, pending, reply, names: {}}))
-      return reply
+      check(catalog, state, whole, want, readStep({catalog, state, pending: whole, reply, names: {}}))
+      return part(reply)
     },
   }
 }
