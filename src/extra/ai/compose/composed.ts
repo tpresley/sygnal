@@ -21,17 +21,17 @@ import {renderLayout, cardArgs} from './render'
 import {dev} from './diag'
 
 const EMPTY = () => ({sel: undefined, data: {}, children: [], text: undefined, elm: undefined, key: undefined})
-const misuse = (owner: any, msg: string) => (dev('SYG451', owner.def.name, msg, 'warn', owner, msg), EMPTY())
+const misuse = (owner: any, msg: string) => (dev('SYG451', owner.def.name, '<Composed> ' + msg + ': nothing rendered', 'warn', owner, msg), EMPTY())
 
 function rewrite(n: any, owner: any): any {
   // a lowercase <composed> element (no marker function) is left as it is
   if (!n.data?.m) return n
   const {catalog, from, card, scope, frozen, answer} = n.data.props || {}
-  if (typeof catalog?.render != 'function') return misuse(owner, '<Composed> has no catalog: pass catalog={defineCatalog(...)}')
+  if (typeof catalog?.render != 'function') return misuse(owner, 'has no catalog')
   const state = owner.cell.get()
   let slice: any, opts: any
   if (card !== undefined) {
-    if (!card || typeof card != 'object' || !card.toolCallId) return misuse(owner, '<Composed card> must be an ask_user tool part (with a toolCallId)')
+    if (!card || typeof card != 'object' || !card.toolCallId) return misuse(owner, 'card is not a tool part')
     const c = cardArgs(state, card, from)
     if (!c) return EMPTY()
     ;[slice, opts] = c
@@ -39,7 +39,7 @@ function rewrite(n: any, owner: any): any {
     const at = Array.isArray(from) ? from : [from ?? 'page']
     slice = at.reduce((x: any, k: any) => x?.[k], state)
     if (!slice || typeof slice != 'object' || !('layout' in slice || 'preview' in slice)) {
-      return misuse(owner, `<Composed from=${JSON.stringify(from ?? 'page')}>: the state there is not a composition (an object with a layout, as compose() keeps)`)
+      return misuse(owner, `from=${JSON.stringify(from ?? 'page')} is not a composition`)
     }
     opts = {at}
   }

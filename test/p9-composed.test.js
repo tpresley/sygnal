@@ -197,7 +197,7 @@ describe('<Composed>: misuse (SYG451)', () => {
   it('no catalog', async () => {
     const d = await misuse({ from: 'page' })
     expect(d).toHaveLength(1)
-    expect(d[0].message).toContain('no catalog')
+    expect(d[0].message).toContain('has no catalog')
   })
 
   it('a catalog that is not one (no render)', async () => {
