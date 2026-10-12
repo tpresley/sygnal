@@ -7,7 +7,7 @@ Tracks progress for [PLAN-9.md](PLAN-9.md) (composing UI from prepared parts in 
 **Integration branch:** `plan9-integration`, cut from `main` `06560b4a` on 2026-10-11 (the research branch
 fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide-plugins-research-4d5a79`.
 
-**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 in progress: merged X-2, D-1, B-4 (llm), C-2; running `p9-edit-decisions` (B-4 decisions + G-755 + option limits + rows ≥ 5) and `p9-chat` (H-1, H-2, H-3). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
+**State:** Phase 0 and Phase 1 complete (2026-10-11). Phase 2 in progress: merged X-2, D-1, B-4 (llm), C-2, H-1–H-3; running `p9-edit-decisions` (B-4 decisions + G-755 + option limits + rows ≥ 5). The plan and the research are written, and §5's questions are answered (D460–D465, 2026-10-11).
 
 ## Decisions
 
@@ -54,9 +54,9 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | B-5 large catalogs | todo | |
 | C-1 `compose` behavior | done | worker A |
 | C-2 agents | done (`3694ec27`, merged) | `compose.action('page')` → tool `<agent>_page_compose({ prompt, fresh? })`, waits (`until`) for the composition; `compose.summary(slice)` for `read`; tested end to end with `chat` on both backends (the llm backend shares the LLM sink in its own lane, no collision) |
-| H-1 client tools | in progress | `p9-chat` |
-| H-2 `chat({ ask })` | in progress | `p9-chat` |
-| H-3 `direct: true` | in progress | `p9-chat` |
+| H-1 client tools | done (`8aa4516d`, merged) | `clientTools`, `TOOL_OUTPUT`, `TOOL_CALL`, `openToolCalls()`, all 12 rules; driver `abort` takes a list (D469). **Existing bug fixed (design rule 12):** a chat slice persisted mid-reply came back `'streaming'` and SEND sent nothing, in every chat app; an internal `RESUME` (only when restored busy) makes it `ready` and closes calls left open |
+| H-2 `chat({ ask })` | done | `ask_user({ need })`; cards on `part.ui`, composed one at a time under `<use>.ask:<id>` (default `compose.llm()` on the chat sink, or `compose.decisions()`); result parts answer via `CHILD.select` → `{ part, answer }`; failure → output-error; STOP/SEND cancel; `askCard(catalog, state, part)`; `composeWith` answers card steps; chat reaches the card code through `catalog._ask`, so chat-only apps carry no compose code (bundle checked); SYG160, SYG684–686. Live smoke (qwen3:8b): the model called ask_user, a card composed (llm: [plans], 19 s; nimble: [plans, teamSize], 14 s), the answer returned and the chat continued. Known edge: with the decisions backend, a TOOL_OUTPUT on a still-composing card can misattribute its late reply to the next queued card |
+| H-3 `direct: true` | done | the layout schema (no plan) as the tool input, read by the llm backend's `reply()` |
 | T-1 `composeWith` | done | uses each backend's `fake()`; B's fake round-trips ~2,450 random targets |
 | T-2 per-backend matrix | done | `test/p9-compose-matrix.test.js`: 8 scenarios × 2 backends |
 | M-1 `<Composed>` | todo (D466) | from `exp/p9-composed` `fce942d6` |
@@ -96,4 +96,5 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | G-753 | E-1 | Real DOM: keyed instances moving into a parent element **created in the same patch** (the preview's cards moving into a new row) leave the DOM at the old arrangement, silently (after G-750's fix; before it, NotFoundError). Repro: `examples/ai-compose/src/realdom.test.js` (`it.fails`) | Fix in the same layer as G-750, plain-core tests, browser case | **fixed** (`62a696ef`, `src/cycle/dom/IsolateModule.ts`): root cause: a cached component vnode is in both the old and new tree, so a new row created with it took the element its old sibling was inserted before (NotFoundError, patch stopped). The fix copies such children before snabbdom creates them and restores the originals in `post`; replaces G-564/G-750's note/restore code and removes G-750's limit. +9 B. 14 jsdom cases (11 failed before), a second browser case (chromium, firefox, webkit); the example's real-DOM test now passes. Remaining limit: a vnode hoisted and used twice in one view still shares one element (as before) |
 | G-754 | E-1 | The compose behavior's CONTROL intent selects `[data-compose-control]` even when the catalog has no containers that emit controls: SYG103 in dev | Wire the selector only when needed, or mark it optional | **fixed** (`8b749a34`): CONTROL selects `[data-compose-control]` only when a container has its own render. Limit: with such a container, a SYG103 info can appear before it renders |
 | G-755 | E-1 | `compose.decisions()` on nimble scores 7/11 on the flat prompts vs the research example's 9/11 (Jev and qwen unaffected); most misses are left/right order inside a row | Phase 2: compare the `left_`/`beside_` wording and `rowMean` on nimble; maybe a per-model profile | Phase 2 |
+| G-756 | H-2 | With the decisions backend (HTTP replies carry no key), a TOOL_OUTPUT on a card that is still composing can attribute that card's late reply to the next queued card | Tag card decide() requests with the card id (e.g. in the request key or a reply echo) and check it in CARD | Phase 3 |
 | G-752 | 0-S1 | `local` composed parts re-render on every host state change (a new lens object per render) | K-2: memoize lenses per node key | **fixed** in K-2 (worker A): 0 re-renders on unrelated host changes; a context change still re-renders a `local` part |
