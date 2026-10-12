@@ -35,7 +35,7 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 | Item | State | Notes |
 |---|---|---|
 | Phase 0: merge research, cut branch | done | `06560b4a` on `main` (pushed); `plan9-integration` cut there; §4 code reservations confirmed free in `codes.ts` (SYG160–169, 250–259, 450–459, 680–689) |
-| 0-S1 `<Composed>` marker spike | todo | bytes, core diff, parity, perf, inspect/HMR → user decision |
+| 0-S1 `<Composed>` marker spike | done, awaiting user | [`research/ai-compose/marker-spike.md`](research/ai-compose/marker-spike.md): a `pres` rewrite (no host), 0 lines changed in existing core files, 0 B for non-users, +217 B gzip when imported, perf counts unchanged, parity holds; recommendation: ship as low-priority sugar (M-1). Found G-750 (core bug), G-751, G-752 |
 | 0-S2 identity from vnode `key` | todo | ≤ ~30 B and parity, else a gap |
 | 0-S3 chat client tools design | done | [`research/ai-compose/chat-client-tools.md`](research/ai-compose/chat-client-tools.md): `clientTools` option, `TOOL_OUTPUT` (AI SDK 7's `addToolOutput`; replaces the plan's TOOL_RESULT), `TOOL_CALL` host entry, `ANSWER`; 12 edge-case rules; card on `part.ui`; SYG684–686; 5 open questions with recommendations. Possible existing bug to check in H-1: a persisted busy status may lock SEND after reload |
 | P9-Q1…Q6 | done | accepted as recommended (D460–D465) |
@@ -80,4 +80,8 @@ fast-forwarded into `main` first), in the worktree `.claude/worktrees/sygnal-ide
 
 ## Gaps
 
-(none yet)
+| # | Found in | Gap | Proposed | Priority |
+|---|---|---|---|---|
+| G-750 | 0-S1 | **Core bug, independent of PLAN-9:** in a real DOM, a component instance with an `id` that moves to an *earlier* parent element in one patch crashes the DOM driver (`Inst.inject` reuses the cached vnode; snabbdom's `createElm` overwrites the shared `elm`, then removing it from the old parent throws NotFoundError). Plain-core repro in `exp/p9-composed` `examples/ai-compose-api/src/realdom-move.test.jsx`; the mock DOM hides it | Fix in the core before K-2 promises that parts survive moves (clone the cached vnode when it moves parents, or don't reuse `elm` across parents); add a browser test; candidate for a 6.2.x patch | high |
+| G-751 | 0-S1 | Markers registered at module level are not tree-shaken: `package.json` has no `sideEffects` field, so Portal is in kanban's bundle and D157's "pays nothing" doesn't hold for markers exported from the main index | Measure adding `sideEffects` (listing the registering modules) or lazy registration like `enableComposed()`; a size win for every app | medium |
+| G-752 | 0-S1 | `local` composed parts re-render on every host state change (a new lens object per render) | K-2: memoize lenses per node key | K-2 |
