@@ -7,7 +7,13 @@ import { createElement as h } from '../src/pragma/index.ts'
 import { Collection } from '../src/collection.ts'
 import { byId } from '../src/extra/lens.ts'
 import { ABORT } from '../src/shared.ts'
-import { defineCatalog, compose } from '../src/extra/ai/index.ts'
+import { defineCatalog, compose, Composed } from '../src/extra/ai/index.ts'
+
+// PLAN-9 M-1: the suites that use this host run twice: as written (catalog.render in the view) and
+// through the <Composed> marker (test/p9-composed-parity.test.js sets globalThis.__COMPOSE_VIA)
+export const VIA = () => globalThis.__COMPOSE_VIA || 'render'
+/** the composition at `key` in the host's view, the way the run asks for */
+export const show = (cat, state, key) => VIA() === 'marker' ? h(Composed, { catalog: cat, from: key }) : cat.render(state[key], state)
 
 export const KPIS = { revenue: '$48.2k', churn: '2.1%' }
 export function Kpi({ metric }) { return h('div', { className: 'kpi', 'data-metric': metric }, KPIS[metric]) }
@@ -103,7 +109,7 @@ export function makeApp(backend, extra = {}) {
       h('form', { className: 'ask' }, h('input', { className: 'prompt', value: page.prompt, 'aria-label': 'What to show' }), h('button', { type: 'submit' }, 'Compose')),
       h('p', { className: 'status' }, page.status),
       h('p', { className: 'opened' }, String(state.opened ?? '')),
-      h('main', { className: page.preview ? 'canvas preview' : 'canvas' }, catalog.render(page, state)))
+      h('main', { className: page.preview ? 'canvas preview' : 'canvas' }, show(catalog, state, 'page')))
   }
   App.initialState = { ...STATE }
   App.uses = { page: compose(catalog, { backend, form: '.ask', prompt: '.prompt' }) }

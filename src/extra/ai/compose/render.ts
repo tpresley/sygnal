@@ -20,7 +20,8 @@
  *   element; a click on it is the behavior's CONTROL `{ key, name, value }` (ui[key][name] = value).
  * - A frozen render is wrapped in `<fieldset disabled class="compose-frozen">`.
  * - A container view or `props()` that throws: only the composition is replaced (a `.compose-error`
- *   element), SYG406. An unknown part or slot is skipped (SYG250, once per catalog and name).
+ *   element), SYG406. Under `<Composed>` (composed.ts) the throw goes on to the host's `onError`
+ *   instead, rendered in place of the composition (SYG408). An unknown part or slot is skipped (SYG250, once per catalog and name).
  */
 import {createElement as h} from '../../../pragma/index'
 import {error as logError} from '../../diagnostics/legacy'
@@ -77,7 +78,8 @@ function pathOf(slice: any, state: any, at: RenderOptions['at']): any[] | null {
   return null
 }
 
-export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderOptions = {}): any {
+/** `contain` false (the `<Composed>` marker): a throw reaches the caller, which renders the host's onError (SYG408) */
+export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderOptions = {}, contain = true): any {
   const layout = slice?.preview ?? slice?.layout
   if (!layout || typeof layout != 'object' || !layout.nodes) return null
   const {scope, frozen, answer} = opts
@@ -127,8 +129,31 @@ export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderO
 
   let out: any
   try { out = nodeOf(layout.root || 'page') } catch (err) {
+    if (!contain) throw err
     logError('SYG406', 'catalog.render', 'a container view or a part\'s props() threw; the composition is replaced by an empty .compose-error element', 'Check the container\'s render and the part\'s props for missing data', err)
     return h('div', {className: 'compose-error'})
   }
   return frozen ? h('fieldset', {disabled: true, className: 'compose-frozen'}, out) : out
+}
+
+/**
+ * H-2: an `ask_user` tool part's card as `[slice, options]` for catalog.render (askCard and
+ * `<Composed card={part} />`): the call id as scope, frozen unless the card is open, the answer
+ * marked, `at` the part's `ui` in the chat `k` (so `local` parts write to it). Null without a layout.
+ */
+export function cardArgs(state: any, part: any, k = 'assistant'): [any, RenderOptions] | null {
+  const u = part?.ui
+  if (!u?.layout) return null
+  const msgs = state?.[k]?.messages || []
+  let at: any[] | undefined
+  for (let i = msgs.length - 1; i >= 0 && !at; i--) {
+    const j = (msgs[i].parts || []).findIndex((x: any) => x.toolCallId === part.toolCallId && x.ui)
+    if (j >= 0) at = [k, 'messages', i, 'parts', j, 'ui']
+  }
+  return [u, {
+    scope: part.toolCallId,
+    frozen: part.state !== 'input-available' || u.status !== 'open',
+    answer: u.answer ? {node: u.answer.node, value: u.answer.value} : null,
+    ...(at && {at}),
+  }]
 }

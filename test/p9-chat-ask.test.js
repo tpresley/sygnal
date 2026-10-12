@@ -10,7 +10,7 @@ import { renderComponent } from '../src/extra/testing.ts'
 import { persist } from '../src/extra/persist.ts'
 import { createElement as h } from '../src/pragma/index.ts'
 import { chat, openToolCalls } from '../src/extra/ai/chat/behavior.ts'
-import { defineCatalog, compose, composeWith, askCard } from '../src/extra/ai/compose/index.ts'
+import { defineCatalog, compose, composeWith, askCard, Composed } from '../src/extra/ai/compose/index.ts'
 import { configureDiagnostics, getDiagnostics, _resetDiagnostics } from '../src/extra/diagnostics/index.ts'
 import * as sygnal from '../src/index.ts'
 import { setupChecks } from './diagnostics/helpers.js'
@@ -79,13 +79,16 @@ export const catalog = defineCatalog({
 
 export const PLANS = [{ id: 'free', name: 'Free', price: '$0' }, { id: 'team', name: 'Team', price: '$12' }, { id: 'biz', name: 'Business', price: '$30' }]
 
+// PLAN-9 M-1: askCard() in the view, or <Composed card={part} /> (test/p9-composed-parity.test.js)
+const card = (cat, state, p) => globalThis.__COMPOSE_VIA === 'marker' ? (p.ui?.layout ? h(Composed, { catalog: cat, card: p }) : null) : askCard(cat, state, p)
+
 export function makeChatApp(ask = {}, cat = catalog) {
   function App({ state }) {
     const a = state.assistant
     return h('div', { className: 'chat' },
       h('ol', { className: 'messages' }, ...a.messages.map((m) => h('li', { className: `msg ${m.role}` },
         ...m.parts.map((p) => p.type === 'text' ? h('p', { className: 'text' }, p.text)
-          : p.type === 'tool-ask_user' ? h('section', { className: `ask-card ${p.ui?.status}`, 'data-card': p.toolCallId }, askCard(cat, state, p) ?? h('p', { className: 'composing' }, '…'))
+          : p.type === 'tool-ask_user' ? h('section', { className: `ask-card ${p.ui?.status}`, 'data-card': p.toolCallId }, card(cat, state, p) ?? h('p', { className: 'composing' }, '…'))
           : null)))),
       a.draft ? h('p', { className: 'draft' }, a.draft) : null,
       h('form', { className: 'ask' }, h('input', { className: 'prompt', 'aria-label': 'Message', value: a.prompt }), h('button', { type: 'submit', disabled: a.status !== 'ready' }, 'Send')),

@@ -25,3 +25,5 @@ export {formTool} from './index'
 export {defineCatalog, compose, composeWith, fromTree, toTree, removeNode} from './index'
 // PLAN-9 H: chat client tools and cards
 export {openToolCalls, askCard} from './index'
+// PLAN-9 M-1
+export {Composed} from './index'

@@ -582,6 +582,31 @@ compose.decisions({ url: 'http://localhost:11434/v1/systemone', model: 'nimble',
 
 It renders anything with a `layout`, so a layout you keep elsewhere renders the same way: `catalog.render({ layout: state.saved }, state)`.
 
+### Rendering with `<Composed>`
+
+`<Composed>` is the same render as a tag. It names where the composition is in the host's state instead of taking the slice:
+
+```jsx
+import { Composed } from 'sygnal/ai'
+
+// the same parts, keys and instances as {catalog.render(state.page, state)}
+<div className="canvas"><Composed catalog={catalog} from="page" /></div>
+```
+
+- `from` is a key (default `'page'`) or a path, such as `['boards', 0, 'page']`. `local` parts write their state there.
+- `scope`, `frozen` and `answer` are props, as they are options of `catalog.render`.
+- `card={part}` renders an `ask_user` tool part's card, as [`askCard()`](/guide/ai-cards/) does. With `card`, `from` is the chat's key (default `'assistant'`).
+
+The parts are still the host's children, so `CHILD.select`, lenses and keys work the same. The forms differ in three ways:
+
+| | `catalog.render(slice, state)` | `<Composed catalog from />` |
+|---|---|---|
+| Reads | Whatever slice you pass, including one the view computes | The host's own state at `from` |
+| A container view or part `props()` throws | The composition becomes an empty `.compose-error` element (SYG406) | The host's `onError` renders in place of the composition (SYG408) |
+| Misuse | A missing slice renders nothing | No catalog, or nothing composed at `from`: [SYG451](/reference/errors/#syg451) in development, renders nothing |
+
+Use `<Composed>` when the composition is a slice of the host's state, as the `compose` behavior keeps it, and you want the host's `onError` to show a failure. Use `catalog.render()` for a layout the view computes or keeps outside state. The [Planner](#parts-are-real-components) demo below uses `<Composed>`. An app that never renders the tag ships none of it.
+
 ## Parts are real components
 
 Composed parts are the host's children. A part with a lens edits app state, a part's `PARENT` value reaches the host through `CHILD.select`, and context and drivers work as for any child.
@@ -590,7 +615,7 @@ In this demo the checklist edits `state.tasks` (the summary line outside the com
 
 ```jsx live live-height=300 title="Planner.jsx"
 import { ABORT } from 'sygnal'
-import { compose } from 'sygnal/ai'
+import { compose, Composed } from 'sygnal/ai'
 import { catalog, TASKS, TicketList } from './catalog.jsx'
 
 const PROMPTS = ['My tasks beside the urgent tickets', 'Move my tasks to the top', 'Only my tasks']
@@ -601,7 +626,7 @@ function Planner({ state }) {
     <div className="composer">
       <p className="summary">{done} of {state.tasks.length} tasks done</p>
       <div className="chips">{PROMPTS.map((p) => <button type="button" className="chip" data={{ prompt: p }}>{p}</button>)}</div>
-      <div className="canvas">{catalog.render(state.page, state)}</div>
+      <div className="canvas"><Composed catalog={catalog} from="page" /></div>
     </div>
   )
 }

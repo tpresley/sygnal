@@ -27,6 +27,7 @@
  */
 import {warn} from '../../diagnostics/legacy'
 import {llm, layoutSchema} from './llm'
+import {cardArgs} from './render'
 
 export const ASK = 'ask_user'
 
@@ -117,20 +118,8 @@ export function cardReply(c: AskConfig, p: any, reply: any, state: any, k: strin
  * the host's view (null while it has no layout)
  */
 export function askCard(catalog: any, state: any, part: any, options: {key?: string} = {}): any {
-  const u = part?.ui
-  if (!u?.layout) return null
-  const k = options.key ?? 'assistant', msgs = state?.[k]?.messages || []
-  let at: any[] | undefined
-  for (let i = msgs.length - 1; i >= 0 && !at; i--) {
-    const j = (msgs[i].parts || []).findIndex((x: any) => x.toolCallId === part.toolCallId && x.ui)
-    if (j >= 0) at = [k, 'messages', i, 'parts', j, 'ui']
-  }
-  return catalog.render(u, state, {
-    scope: part.toolCallId,
-    frozen: part.state !== 'input-available' || u.status !== 'open',
-    answer: u.answer ? {node: u.answer.node, value: u.answer.value} : null,
-    ...(at && {at}),
-  })
+  const c = cardArgs(state, part, options.key)
+  return c && catalog.render(c[0], state, c[1])
 }
 
 /** what chat() reads through `catalog._ask` */

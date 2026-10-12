@@ -3767,7 +3767,8 @@ export type { AnswerPick, AnswerPicks, CommandBarState, CommandBarStatus, Comman
 export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } from './ai.d'
 // PLAN-9 H: chat client tools and cards
 export { openToolCalls, askCard } from './ai.d'
-export type { ChatClientTool, ChatAskOptions, ChatCard, ChatCardStatus, ChatToolPart } from './ai.d'
+export { Composed } from './ai.d'
+export type { ChatClientTool, ChatAskOptions, ChatCard, ChatCardStatus, ChatToolPart, ComposedProps } from './ai.d'
 export type { Catalog, CatalogDecl, CatalogPartDecl, CatalogContainerDecl, CatalogParam, CatalogParamValue, CatalogParamsOf, CatalogRecord, CatalogPart, CatalogContainer, CatalogOption, CatalogTree, CatalogTreeNode, ComposeTree, ContainerView, Layout, LayoutNode, ComposeRenderOptions, ComposeRenderable, ComposeBackend, ComposeNames, ComposeState, ComposeStatus, ComposeActions, ComposeOptions, ComposeAnswer } from './ai.d'
 
 /**

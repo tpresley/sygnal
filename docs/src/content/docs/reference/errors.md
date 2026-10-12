@@ -1738,6 +1738,16 @@ A part's (or container's) `in` lists the places it may go, as `'container'` (any
 
 **Fix:** Name declared containers and slots (`in: ['page', 'tabs:billing']`), and declare the container in `containers` before using it in `in`.
 
+### SYG451
+
+**Composed has no catalog or from is not a composition**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`<Composed catalog={catalog} from="page" />` (sygnal/ai) renders the composition kept at `from` in the host component's state, with the catalog's parts. Here it can't: the `catalog` prop is missing (or isn't made by `defineCatalog()`), the value at `from` (a key, default `'page'`, or a path such as `['boards', 0, 'page']`) is not a composition (an object with a `layout`, as the `compose` behavior keeps under its key in `uses`), or `card` is not an `ask_user` tool part. The marker renders nothing and the rest of the view goes on. `<Composed>` reads the host's own state: a composition computed in the view (not in state) can't be named by `from`. Reported in development, once per component and problem.
+
+**Fix:** Pass the catalog and the key of the compose behavior in `uses`: `App.uses = { page: compose(catalog, { backend }) }` with `<Composed catalog={catalog} from="page" />`. For a composition the view computes, call `catalog.render(slice, state)` in the view instead. For a chat card, pass the tool part: `<Composed catalog={catalog} card={part} />`.
+
 ### SYG452
 
 **Layout lists a node key twice**
