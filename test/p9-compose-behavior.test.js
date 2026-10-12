@@ -4,6 +4,7 @@
 // compose.decisions() / compose.llm() to BACKENDS after B and C merge.
 import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { setupChecks } from './diagnostics/helpers.js'
+import { getDiagnostics } from '../src/extra/diagnostics/index.ts'
 import { renderComponent } from '../src/extra/testing.ts'
 import { createElement as h } from '../src/pragma/index.ts'
 import { persist } from '../src/extra/persist.ts'
@@ -200,6 +201,58 @@ describe('compose behavior: backend-specific', () => {
   })
 })
 
+describe('compose behavior: backend contract edges', () => {
+  const custom = (over) => ({ ...fakeLlm(), ...over })
+
+  it('a reply { error } and a throwing reply are errors; the layout is kept', async () => {
+    let mode = 'error'
+    t = renderComponent(makeApp(custom({
+      reply: (a) => mode === 'ok' ? fakeLlm().reply(a) : mode === 'error' ? { error: 'invalid after repair' } : (() => { throw new Error('bad reply') })(),
+    })), { strict: true })
+    mode = 'ok'
+    await ask('weather')
+    await composeWith(t, catalog, [{ part: 'weather' }])
+    await t.waitForState((s) => s.page.status === 'done')
+    mode = 'error'
+    await ask('tickets')
+    await t.respond('LLM', '{}', 'page.REPLY')
+    await t.waitForState((s) => s.page.status === 'error')
+    expect(t.state.page).toMatchObject({ error: 'invalid after repair', pending: null, preview: null })
+    mode = 'throw'
+    await ask('orders')
+    await t.respond('LLM', '{}', 'page.REPLY')
+    await t.waitForState((s) => s.page.status === 'error' && s.page.error === 'bad reply')
+    expect(shape(t.state.page.layout)).toEqual(['weather'])
+  })
+
+  it('a throwing start is an error with no request; an empty prompt does nothing', async () => {
+    t = renderComponent(makeApp(custom({ start: () => { throw new Error('no records') } })), { strict: true })
+    t.simulateAction('page.COMPOSE', '   ')
+    t.simulateAction('page.COMPOSE', 'weather')
+    await t.next((s) => s.page.status === 'error')
+    expect(t.state.page.error).toBe('no records')
+    expect(t.requests('LLM')).toEqual([])
+  })
+
+  it('the stub backends (compose.decisions / compose.llm) work end to end through composeWith', async () => {
+    for (const backend of [compose.decisions({ model: 'jev' }), compose.llm({ model: 'qwen' })]) {
+      t = renderComponent(makeApp(backend), { strict: true })
+      await ask('weather and tickets')
+      await composeWith(t, catalog, [{ part: 'weather' }, { part: 'customer', params: { id: 9 } }])
+      await t.waitForState((s) => s.page.status === 'done')
+      expect(Object.keys(t.state.page.layout.nodes).sort()).toEqual(['customer:9', 'page', 'weather'])
+      t.dispose()
+    }
+    t = null
+  })
+
+  it('compose.answer(props, value) is { scope, node, value }; a backend without a model is SYG681', () => {
+    expect(compose.answer({ scope: 'c1', node: 'choice', other: 1 }, 'yes')).toEqual({ scope: 'c1', node: 'choice', value: 'yes' })
+    compose.llm({})
+    expect(getDiagnostics().map((d) => d.code)).toContain('SYG681')
+  })
+})
+
 describe('compose behavior: the host side', () => {
   it('context reaches parts; a Collection inside a part works', async () => {
     t = renderComponent(makeApp(fakeLlm()), { strict: true })
@@ -227,7 +280,7 @@ describe('compose behavior: the host side', () => {
     expect(t.requests('HTTP')).toEqual([])
   })
 
-  it('a host intent action of the same name and a host STATE entry run with the behavior', async () => {
+  it('SET_LAYOUT null clears the composition', async () => {
     const App = makeApp(fakeLlm())
     t = renderComponent(App, { strict: true })
     t.simulateAction('page.SET_LAYOUT', null)
