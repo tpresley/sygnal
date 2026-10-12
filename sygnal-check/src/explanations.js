@@ -1219,6 +1219,20 @@ export const EXPLANATIONS = {
     explanation: "A value sent to a `makeChatDriver()` sink is not a request the driver can send: it isn't an object, it has no `messages` array, its `coalesce` is not `'frame'`, `'none'` or a number of milliseconds, or its `output` is not a Standard Schema (an object with `~standard.validate`). The request is not sent, so no reply action follows. Stopping a stream is `{ abort: key }` or `{ abort: true }`, not a request.",
     fix: "Send `{ messages: [...], ok: 'DONE', error: 'FAILED' }` (add `delta: 'DELTA'` to stream, `key` to name the request, `output: schema` for structured output with a Zod, Valibot or ArkType schema), or `{ abort: 'reply' }` to stop one. Return `ABORT` (or nothing) from the model entry when there is nothing to send.",
   },
+  SYG680: {
+    title: "Part is LLM-only under a decision backend",
+    severity: "info",
+    reportedBy: ["runtime"],
+    explanation: "A catalog part has a free-text param (`type: 'text'` or `type: 'list'`) that is `required` and has no `default`. A decision model (`compose.decisions()`: TypeSafe Jev, Ollama `nimble`) only chooses among options the app declared; it never writes text, so it can't fill that param. `compose.decisions()` leaves the part out of its questions and never places it: the part is LLM-only. `compose.llm()` still uses it. Free-text params that have a `default` are fine: a decision model keeps the default. Collected once per part (info).",
+    fix: "Nothing to fix if the part is meant for LLM backends only. To let a decision model place it, give the param a `default` (`{ type: 'text', default: 'Notes' }`), or turn it into choices: `options: { value: description }` (an enum) or a number with `bins`.",
+  },
+  SYG682: {
+    title: "Decision model answered outside the criteria",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "A reply to a `compose.decisions()` step answered a choice question with a value that is not one of the question's options (its `criteria`), for example a part id the request never offered or a mistyped option in a proxy or fixture. `compose.decisions()` rebuilds each step's questions from the pending state and checks every answer against them; the bad answer is ignored, as if the question had no answer (a part isn't used, a param keeps its default, a place falls back to the part's first allowed place), and the composition continues.",
+    fix: "Check what answers the decision endpoint: a server route that rewrites replies, a model that ignores the criteria, or a test reply written by hand. In tests, build replies with `answers(questions, picks)` (it rejects unknown options) or `composeWith`. If a model keeps answering outside the criteria, report it with the request's questions.",
+  },
   SYG701: {
     title: "Click listener on a non-interactive element",
     severity: "warn",

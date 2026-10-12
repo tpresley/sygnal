@@ -1570,8 +1570,39 @@ export const compose: {
 export function composeWith<D>(t: RenderResult<any>, catalog: Catalog<D>, tree: CatalogTree<D>, options?: { stream?: number | boolean }): Promise<void>
 
 // PLAN-9 B: compose.decisions
-// (a placeholder by worker A so the section compiles; worker B's types replace it)
-export interface ComposeDecisionsOptions { url?: string; model?: string; sink?: string; [option: string]: unknown }
+/** `compose.decisions(options)`: the decision-model backend (`decide()` on the HTTP sink) */
+export interface ComposeDecisionsOptions {
+  /** the decision endpoint (default '/api/decide': the app's own route, which holds the API key) */
+  url?: string
+  /** the decision model ('jev-latest', 'nimble', …) */
+  model?: string
+  /** the request lane (`key` of every `decide()` request; default: the behavior's, 'compose') */
+  key?: string
+  /**
+   * rows: the mean side-by-side probability two groups of parts need to join one row
+   * (average-linkage clustering of the `beside_` answers; default 0.25, measured on Jev; 0.5 suits nimble)
+   */
+  rowMean?: number
+  /** ask which part categories the request is about first (one more call; for catalogs above ~60 parts) */
+  prefilter?: boolean
+  /** the most options one choice question may have (default 255; 25 when `url` looks like Ollama) */
+  maxOptions?: number
+}
+/** the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`) */
+export interface ComposeDecisionsBackend {
+  sink: 'HTTP'
+  kind: 'decisions'
+  start(a: { catalog: any; state: any; prompt: string; previous: any; names: { ok: string; error: string; delta?: string; key?: string } }): { request: DecideRequest<any>; pending: any }
+  reply(a: { catalog: any; state: any; pending: any; reply: any; names: { ok: string; error: string; delta?: string; key?: string } }): {
+    layout?: any; unavailable?: true; preview?: any; request?: DecideRequest<any>; pending?: any
+    /** a reply that can't be read (no `answers`, or every answer outside its options: SYG682); the behavior's status 'error' */
+    error?: string
+    /** the raw answers per step (`{ select, layout }`, plus `categories` with `prefilter`), for an explain panel */
+    decisions?: Record<string, Record<string, any>>
+  }
+  /** the decision reply that makes the pending step read as `target` (composeWith); throws when the encoding can't reach it */
+  fake(a: { catalog: any; state: any; pending: any; target: any[] }): Decision<any>
+}
 
 // PLAN-9 C: compose.llm
 // (a placeholder by worker A so the section compiles; worker C's types replace it)

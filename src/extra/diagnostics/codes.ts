@@ -348,6 +348,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG450: 'Catalog in names an unknown container or slot',
   SYG452: 'Layout lists a node key twice',
   SYG681: 'Compose backend option problem',
+  // PLAN-9 B-1/B-2: compose.decisions() (src/extra/ai/compose/decisions.ts; explicit severities)
+  SYG680: 'Part is LLM-only under a decision backend',
+  SYG682: 'Decision model answered outside the criteria',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -506,6 +509,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-6 A-2 (experimentalExposeWebMcp reports them with an explicit severity)
   SYG674: 'info',
   SYG676: 'warn',
+  // PLAN-9 B-1/B-2 (compose.decisions() reports them with an explicit severity)
+  SYG680: 'info',
+  SYG682: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
