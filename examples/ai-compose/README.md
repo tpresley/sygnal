@@ -66,7 +66,7 @@ feedback form keep their state in the app state through a lens (`state: 'tasks'`
 **The page** ([`src/Workspace.jsx`](src/Workspace.jsx)):
 
 ```jsx
-Workspace.uses = { page: compose(catalog, { backend, form: '.prompt-form', prompt: '.prompt' }) }
+DecisionsWorkspace.uses = { page: compose(catalog, { backend: decisionsBackend, form: '.prompt-form', prompt: '.prompt' }) }
 // in the view
 <div className={classes('canvas', { preview: !!state.page.preview })}>{catalog.render(state.page, state)}</div>
 ```
@@ -108,6 +108,10 @@ Thinking off: on qwen3 it took 5–15x longer and made no better layouts.
   param, the preview while composing, nothing fits, an error that keeps the page, ticks and drafts
   surviving recompositions (and a kept part keeping its instance), a chip composing, and switching
   kind with the page kept.
+- [`src/realdom.test.js`](src/realdom.test.js): the same app in a real DOM (jsdom): a decision
+  model's preview, then two of its parts moving into a row. Marked `it.fails` until the core's
+  G-750 fix is merged (without it the DOM stays at the preview, and the browser logs a
+  `NotFoundError` from snabbdom).
 - [`server/decide-proxy.test.js`](server/decide-proxy.test.js): the proxy with a mocked `fetch`: the
   key from a temp env file, the `Authorization` header, the body forwarded, a model outside the
   allowlist, a GET, a cross-site request, non-JSON or a large body refused, and the key never in a
@@ -125,7 +129,17 @@ node --env-file=$HOME/.config/typesafe/env scripts/try-prompts.mjs --jev   # jev
 npm run try -- "Only the urgent tickets"     # your own prompts
 ```
 
-TRY_RESULTS
+This catalog, 2026-10-11, Ollama 0.40.2 on a laptop (GPU shared):
+
+| Backend | Flat dashboard (11) | Enum params (4) | Calls | Median per composition |
+|---|---|---|---|---|
+| `compose.decisions()` on `nimble` | 7/11 | 3/4 | 1–2 | ~4.5 s |
+| `compose.llm()` on `qwen3:8b` | 9/11 | 4/4 | 1 | ~1.4 s |
+
+nimble's misses are row and order answers (the left/right order inside a row twice, a row nobody
+asked for once, "How are sales doing?" without the chart). qwen3:8b's: a month range nobody asked
+for, and "How are sales doing?" as the three KPIs. The descriptions here ("Noun (what it shows)")
+did better than the previous example's ("KPI card: …"): 5/11 on nimble with the same backend.
 
 The research baseline the backends were ported from (PLAN-9, 2026-10-11), and the Phase 1 checks
 of the shipped backends:

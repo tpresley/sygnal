@@ -2,6 +2,10 @@
 // The same app in a real DOM (renderComponent's dom: 'real'): a decision model's preview shows the
 // selected parts on the page, then its layout moves two of them into a row. Each part keeps its
 // instance, so its DOM moves to an earlier parent element (the core's G-750 case).
+//
+// `it.fails` until the core's G-750 fix (p9-core f10207cb) is merged: without it the DOM stays at
+// the preview (the browser throws NotFoundError from snabbdom's insertBefore). Once it is merged
+// this test passes, so `it.fails` fails: make it `it`.
 import { it, expect, afterEach } from 'vitest'
 import { renderComponent } from 'sygnal'
 import { composeWith } from 'sygnal/ai'
@@ -12,7 +16,7 @@ import { decisionsBackend } from './backends.js'
 let t
 afterEach(() => { t?.dispose(); t = null })
 
-it('previewed parts move into a row', async () => {
+it.fails('previewed parts move into a row', async () => {
   t = renderComponent(App, { strict: true, dom: 'real' })
   await t.respond('HTTP', { models: [{ name: 'nimble:latest', capabilities: ['decision'] }] }, 'models')
   await t.fail('HTTP', 404, 'jev')
