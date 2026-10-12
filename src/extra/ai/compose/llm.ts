@@ -20,9 +20,12 @@
  *   of the repaired tree, fromTree, finish. An empty tree is `unavailable`; a reply that still
  *   violates the schema is `{ error }` (the behavior's status 'error') and SYG683, never a layout.
  * - fake(): the JSON text of a target tree in this schema (composeWith).
- *
- * Phase 1: `previous` keeps node keys (fromTree) and the request composes fresh; B-4 (ops2 edits)
- * adds `currentPage(previous)` to the user message. Pure apart from SYG683's report.
+ * - Requests carry `parse: false` (the chat driver sends the schema, reply() reads the text), so
+ *   prose or a code fence around the JSON is repaired and a reply with no JSON at all is
+ *   `{ error }` + SYG683 rather than the driver's FAILED.
+ * - B-4: with a `previous` layout that has nodes, start() sends an edit instead (ops2, the section
+ *   "B-4: edits" below); fake() then returns the operations that make the target.
+ * Pure apart from SYG683's report.
  */
 import {jsonSchema, check} from '../schema/jsonSchema'
 import {fromTree, finish, identityOf, toTree} from './layout'

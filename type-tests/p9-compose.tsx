@@ -85,3 +85,12 @@ expectTypeOf(lens.get({})).toEqualTypeOf<{ id: number; name: string } | undefine
 // an untyped catalog takes any tree
 declare const loose: Catalog<any>
 fromTree(loose, [{ part: 'anything', children: { x: [] } }])
+
+// ---- C-2: the composition as an agent action
+expectTypeOf(compose.action('page')).toHaveProperty('page.COMPOSE')
+expectTypeOf(compose.action('board', { timeout: 5 })).toHaveProperty('board.COMPOSE')
+const agentDecl = { name: 'app', read: (s: { page: ComposeState }) => ({ page: compose.summary(s.page) }), actions: { ...compose.action() } }
+expectTypeOf(agentDecl.actions['page.COMPOSE'].description).toEqualTypeOf<string>()
+expectTypeOf(compose.summary(null)).toEqualTypeOf<{ status: ComposeState['status']; page: ComposeTree; error?: string } | undefined>()
+// @ts-expect-error a key, not a number
+compose.action(3)

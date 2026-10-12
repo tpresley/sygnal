@@ -89,7 +89,7 @@ describe('compose.llm() over the LLM fake (makeChatDriver)', () => {
     expect(t.state.layout).toBeNull()
   })
 
-  it('a reply that is not JSON fails in the driver (FAILED)', async () => {
+  it('a reply that is not JSON: the request has parse: false, so it reaches reply(): error, not FAILED', async () => {
     t = renderComponent(makeHost(llm()))
     t.simulateAction('COMPOSE', 'x')
     await t.settle()

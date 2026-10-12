@@ -1630,7 +1630,16 @@ export interface ComposeDecisionsBackend {
  * a makeChatDriver() sink; a streamed preview). The request carries the catalog's JSON Schema
  * (`asked_for`, then the layout tree), the system prompt (the catalog as text, its `guidance`,
  * `examples` as few-shot turns) and `delta` when streaming. Other keys go on the request as is
- * (transport options such as `body: { temperature: 0 }`).
+ * (transport options such as `body: { temperature: 0 }`). Requests carry `parse: false`: the reply
+ * text is read leniently here (prose or a code fence around the JSON), and text with no layout in
+ * it is the behavior's status 'error' (SYG683), not the driver's FAILED.
+ *
+ * B-4: with a current layout, COMPOSE is an edit. The request sends the page (`n1: part params`,
+ * one node per line) and the change; the model returns operations positioned by named places
+ * (`add` / `remove` / `move` / `replace` / `setParams`; `top`, `bottom`, `above n2`, `left of n3`,
+ * …), applied to the current layout itself: every node they don't replace or remove keeps its key
+ * (a param change too; another record is another node), a replacement takes the old node's place,
+ * and the node a place names never moves. No operation: `unavailable`, the layout stays.
  *
  *   compose(catalog, { backend: compose.llm({ model: 'gpt-5-mini' }) })
  */
@@ -1660,6 +1669,8 @@ export type ComposeLlmTreeNode = { part: string; params?: Record<string, unknown
 export interface ComposeLlmDecisions {
   /** Each thing the request asks for, in the model's words (with `plan`) */
   asked_for?: string[]
-  /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid` */
+  /** What the repair changed: `alias`, `duplicate`, `param`, `structure`, `unknownPart`, `required`, `invalid`; `op` for an edit's operations */
   repairs?: Array<{ kind: string; detail: string }>
+  /** An edit: the operations as applied, with layout keys (an add's `node` is the new key) */
+  ops?: Array<{ op: 'add' | 'remove' | 'move' | 'replace' | 'setParams'; node: string; part?: string; params?: Record<string, unknown>; where?: string; moved?: string }>
 }
