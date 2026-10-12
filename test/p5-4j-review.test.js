@@ -12,6 +12,9 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
 import { run, renderToString, Collection, Transition, defineWidget } from '../src/index.js'
 import { Fragment } from '../src/cycle/dom/fragment.ts'
 import { pres } from '../src/core/registry.ts'
+// G-751: the Transition rewrite registers when used (a tag); these tests call it directly
+import { enableTransition } from '../src/core/markers/transition.ts'
+enableTransition()
 import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { ABORT } from '../src/shared.js'

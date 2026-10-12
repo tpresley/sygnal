@@ -10,7 +10,9 @@ import { createElement as h } from '../src/pragma/index.js'
 import { makeRouter } from '../src/extra/router.js'
 import { ABORT } from '../src/shared.js'
 import { pres } from '../src/core/registry.ts'
-import '../src/transition.ts'
+// G-751: the Transition rewrite registers when used (a tag); these tests call it directly
+import { enableTransition } from '../src/core/markers/transition.ts'
+enableTransition()
 import { IsolateModule } from '../src/cycle/dom/IsolateModule.ts'
 import { init, h as sh } from '../src/cycle/dom/snabbdom.ts'
 import modules from '../src/cycle/dom/modules.ts'
