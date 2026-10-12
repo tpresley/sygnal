@@ -1,0 +1,6 @@
+const t = renderComponent(TodoList, { dom: 'real' })
+await t.ready()
+t.simulateEvent(Done, 'click', { within: '[data-id="2"]' })
+await t.next(s => s.todos[1].done)
+t.simulateEvent(Remove, 'click', { within: '[data-id="3"]' })
+await t.next(s => s.todos.length === 2)
