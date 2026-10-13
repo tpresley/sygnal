@@ -1,0 +1,35 @@
+/* Tools: the chat with its inline tool cards, and the tools offered beside it. */
+
+.tools-demo .layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 16px; }
+@media (max-width: 760px) { .tools-demo .layout { grid-template-columns: 1fr; } }
+
+.tools-demo .chat { display: grid; gap: 12px; align-content: start; }
+.tools-demo .transcript { min-height: 60px; }
+.tools-demo .msg.assistant { max-width: 96%; }
+.tools-demo .msg .text { white-space: pre-wrap; }
+
+/* one tool call: icon, name, input → output */
+.tools-demo .tool-card {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 6px 0; padding: 6px 10px;
+  border-radius: 9px; border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  background: var(--surface); font-size: 12px; white-space: normal;
+}
+.tools-demo .tool-card:first-child { margin-top: 0; }
+.tools-demo .tool-card code { background: none; padding: 0; font-size: 12px; overflow-wrap: anywhere; }
+.tools-demo .tool-card .icon { font-size: 13px; }
+.tools-demo .tool-card .name { color: var(--accent); font-weight: 600; }
+.tools-demo .tool-card .input { color: var(--muted); }
+.tools-demo .tool-card .arrow { color: var(--faint); }
+.tools-demo .tool-card .output { color: var(--ok); }
+.tools-demo .tool-card.failed { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--surface)); }
+.tools-demo .tool-card.failed .output { color: var(--bad); }
+.tools-demo .tool-card.running .output { color: var(--faint); font-style: italic; }
+.tools-demo .msg .via .limit { color: var(--warn); font-weight: 600; }
+
+/* the tools the model was offered */
+.tools-demo .offered ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.tools-demo .offered li { display: grid; gap: 3px; }
+.tools-demo .offered li code { justify-self: start; font-size: 12.5px; font-weight: 600; }
+.tools-demo .offered li p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.tools-demo .offered li small { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.tools-demo .offered .note { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--faint); }

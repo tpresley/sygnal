@@ -1,0 +1,66 @@
+/* Structured output: the email on the left, the JSON / event card on the right. */
+
+.structured .source { display: grid; gap: 10px; align-content: start; }
+.structured .source .panel-title { margin: 0; }
+.structured textarea.email {
+  width: 100%; resize: vertical; min-height: 220px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+}
+.structured textarea.email:focus { outline: none; border-color: var(--blue); }
+.structured .example.picked { border-style: solid; border-color: var(--blue); color: var(--text); }
+.structured .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.structured .actions small { flex: 1; min-width: 180px; font-size: 12px; color: var(--faint); }
+
+.structured .result { display: grid; gap: 12px; align-content: start; }
+.structured .result .panel-title { margin: 0; justify-content: flex-start; }
+.structured .result .panel-title .badge { margin-left: auto; letter-spacing: 0; text-transform: none; }
+.structured .json.raw { padding: 10px 12px; border-radius: 10px; background: var(--code-bg); color: #b9cbe6; max-height: 320px; }
+.structured .json.raw.streaming::after { content: '▍'; color: var(--accent); animation: blink 1s steps(2) infinite; }
+.structured .empty { margin: 0; font-size: 13.5px; color: var(--muted); }
+.structured .via { margin: 0; font-size: 11.5px; color: var(--faint); }
+.structured .via code { background: none; padding: 0; color: var(--faint); }
+
+/* the event card */
+.structured .event-card {
+  display: grid; gap: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--blue) 10%, var(--surface-2)), var(--surface-2));
+}
+.structured .event-card header { display: flex; align-items: flex-start; gap: 10px; }
+.structured .event-card h3 { margin: 0; flex: 1; font-size: 17px; line-height: 1.3; }
+.structured .event-card header .badge { flex: none; text-transform: capitalize; }
+.structured .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.structured .chip {
+  font-size: 12.5px; padding: 3px 10px; border-radius: 999px; background: var(--surface-3); color: var(--text);
+  border: 1px solid var(--line); overflow-wrap: anywhere;
+}
+.structured .chip.when { font-weight: 600; border-color: var(--line-strong); }
+.structured .chip.online { color: var(--ok); }
+
+.structured .attendees { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.structured .attendees li { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.structured .avatar {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 700;
+  color: white; background: linear-gradient(135deg, var(--blue-deep), var(--blue-light));
+}
+.structured .attendees li.organizer .avatar { box-shadow: 0 0 0 2px var(--surface-2), 0 0 0 3.5px var(--accent); }
+.structured .attendees li.optional .avatar { background: var(--surface-3); color: var(--muted); }
+.structured .who { display: grid; min-width: 0; line-height: 1.3; }
+.structured .who b { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.structured .who small { font-size: 11.5px; color: var(--faint); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.structured .role { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
+.structured li.organizer .role { color: var(--accent); }
+
+.structured .agenda { margin: 0; padding-left: 20px; display: grid; gap: 3px; font-size: 13.5px; color: var(--muted); }
+.structured .agenda li::marker { color: var(--accent); font-weight: 600; }
+
+.structured details.value summary { cursor: pointer; font-size: 12.5px; font-weight: 600; color: var(--faint); }
+.structured details.value[open] summary { margin-bottom: 8px; }
+
+/* a schema failure */
+.structured .issues { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.structured .issues li {
+  font-size: 13px; padding: 7px 10px; border-radius: 8px; border-left: 3px solid var(--bad);
+  background: color-mix(in srgb, var(--bad) 9%, transparent); overflow-wrap: anywhere;
+}
+.structured .issues code { margin-right: 6px; color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.structured .raw-label { margin: 0; font-size: 12px; font-weight: 600; color: var(--faint); }

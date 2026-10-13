@@ -1,0 +1,15 @@
+.mcp-shot { margin: 0; display: grid; gap: 12px; }
+.mcp-shot img { width: 100%; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 20px 50px -25px rgba(0, 0, 0, 0.6); display: block; }
+.mcp-shot-missing {
+  display: grid; place-items: center; gap: 6px; text-align: center; min-height: 240px; padding: 24px;
+  border-radius: 12px; border: 1px dashed var(--line-strong); color: var(--muted);
+  background: repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--blue) 5%, transparent) 14px 28px);
+}
+.mcp-shot-missing b { color: var(--text); font-size: 16px; }
+.mcp-shot figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+.mcp-shot figcaption b { color: var(--text); }
+.mcp-run code { font-size: 12px; }
+.mcp-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; align-items: start; }
+.mcp-step { display: grid; gap: 10px; min-width: 0; }
+.mcp-step p { margin: 0; font-size: 13.5px; color: var(--muted); min-height: 2.9em; }
+.mcp-step p .badge { margin-right: 4px; }

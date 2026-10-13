@@ -1,0 +1,107 @@
+/* The smart home and its assistant. Every rule is scoped under .smart-home. */
+
+.smart-home { --warm: #ffb25e; --neutral: #fff0c8; --cool: #a9d4ff; }
+.smart-home .home-col { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.smart-home .panel-title .watts { font-family: var(--mono); letter-spacing: 0; text-transform: none; font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* scenes */
+.smart-home .scenes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.smart-home .scene {
+  cursor: pointer; font-size: 12.5px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--muted); transition: border-color 0.15s, color 0.15s;
+}
+.smart-home .scene:hover { color: var(--text); border-color: var(--line-strong); }
+.smart-home .scene.active { color: var(--text); border-color: var(--blue); background: color-mix(in srgb, var(--blue) 14%, var(--surface-2)); }
+
+/* rooms */
+.smart-home .rooms { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 520px) { .smart-home .rooms { grid-template-columns: 1fr; } }
+.smart-home .room {
+  --light: var(--neutral);
+  display: grid; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 22px 22px, color-mix(in srgb, var(--light) calc(var(--level, 0) * 30%), transparent), transparent 75%),
+    var(--surface-2);
+  transition: background 0.3s;
+}
+.smart-home .room.warm { --light: var(--warm); }
+.smart-home .room.cool { --light: var(--cool); }
+.smart-home .room-head { display: flex; align-items: center; gap: 10px; }
+.smart-home .bulb {
+  width: 18px; height: 18px; border-radius: 50%; flex: none; background: var(--surface-3); border: 1px solid var(--line-strong);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.smart-home .room.on .bulb {
+  background: var(--light); border-color: color-mix(in srgb, var(--light) 55%, var(--line-strong));
+  box-shadow: 0 0 calc(4px + var(--level) * 18px) color-mix(in srgb, var(--light) calc(30% + var(--level) * 60%), transparent);
+}
+.smart-home .room-name { flex: 1; font-weight: 600; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.smart-home .power {
+  cursor: pointer; min-width: 44px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--line-strong); background: transparent; color: var(--muted);
+}
+.smart-home .power[aria-pressed='true'] { background: var(--blue-deep); border-color: var(--blue-deep); color: white; }
+.smart-home .dim { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.smart-home .dim b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.smart-home .dim input { width: 100%; accent-color: var(--blue); margin: 0; padding: 0; }
+.smart-home .warmth-pick, .smart-home .modes { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.smart-home .warmth, .smart-home .mode {
+  flex: 1; cursor: pointer; font-size: 11.5px; padding: 4px 0; border: 0; border-radius: 0; background: transparent; color: var(--faint);
+  text-transform: capitalize;
+}
+.smart-home .warmth + .warmth, .smart-home .mode + .mode { border-left: 1px solid var(--line); }
+.smart-home .warmth[aria-pressed='true'], .smart-home .mode[aria-pressed='true'] { background: var(--surface-3); color: var(--text); font-weight: 600; }
+.smart-home .warmth.warm[aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--warm); }
+.smart-home .warmth.neutral[aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--neutral); }
+.smart-home .warmth.cool[aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--cool); }
+
+/* thermostat and door */
+.smart-home .fixtures { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+@media (max-width: 520px) { .smart-home .fixtures { grid-template-columns: 1fr; } }
+.smart-home .thermostat, .smart-home .door { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); align-content: start; }
+.smart-home .fixture-label { font-size: 12px; color: var(--muted); }
+.smart-home .temp-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.smart-home .target { font-family: var(--mono); font-size: 28px; font-weight: 600; color: var(--text); }
+.smart-home .thermostat.heat .target { color: color-mix(in srgb, var(--warm) 70%, var(--text)); }
+.smart-home .thermostat.cool .target { color: color-mix(in srgb, var(--cool) 70%, var(--text)); }
+.smart-home .thermostat.off .target { color: var(--faint); }
+.smart-home .temp {
+  cursor: pointer; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--text); font-size: 17px; line-height: 1; padding: 0;
+}
+.smart-home .temp:disabled { opacity: 0.4; cursor: default; }
+.smart-home .door { justify-items: start; }
+.smart-home .lock-icon { font-size: 26px; line-height: 1.1; }
+.smart-home .door:not(.locked) { border-color: color-mix(in srgb, var(--warn) 50%, transparent); }
+.smart-home .door:not(.locked) .fixture-label::after { content: ' · unlocked'; color: var(--warn); }
+
+/* the chat */
+.smart-home .chat { display: grid; gap: 10px; }
+.smart-home .chat .panel-title { margin: 0; }
+.smart-home .chat .transcript { max-height: 340px; }
+.smart-home .tool-line code { font-size: 12px; }
+.smart-home .tool-line .args { font-family: var(--mono); font-size: 11.5px; color: var(--faint); overflow-wrap: anywhere; }
+.smart-home .tool-line.failed { color: var(--bad); }
+
+/* what the model sees */
+.smart-home .model-sees { display: grid; gap: 10px; align-content: start; }
+.smart-home .model-sees .panel-title { margin: 0; }
+.smart-home .instructions { font-size: 12.5px; color: var(--muted); }
+.smart-home .instructions summary, .smart-home .schema summary { cursor: pointer; color: var(--faint); font-size: 12px; font-weight: 600; }
+.smart-home .instructions p { margin: 6px 0 0; line-height: 1.5; }
+.smart-home .tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.smart-home .tool { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); display: grid; gap: 5px; min-width: 0; }
+.smart-home .tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.smart-home .tool-name { font-family: var(--mono); font-size: 12.5px; color: var(--accent); background: none; padding: 0; font-weight: 600; }
+.smart-home .tool-desc { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.smart-home .params { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 12px; }
+.smart-home .params code { font-size: 11.5px; color: var(--text); background: none; padding: 0; }
+.smart-home .params .type { font-family: var(--mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.smart-home .param-desc { display: block; color: var(--faint); font-size: 11.5px; padding-left: 12px; }
+.smart-home .no-params { margin: 0; font-size: 12px; color: var(--faint); }
+.smart-home .schema .json { margin-top: 6px; max-height: 220px; }
+.smart-home .sub-title { margin: 6px 0 0; font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.smart-home .sub-title small { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 6px; }
+.smart-home .json.state { max-height: 300px; padding: 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.smart-home .msg .step-text { display: block; }
+.smart-home .msg .step-text + .step-text, .smart-home .msg .tool-line + .step-text { margin-top: 6px; }

@@ -1,0 +1,116 @@
+/* The reading list and its agent console, scoped under .reading-list; plus Sygnal's WebMCP
+   confirmation dialog, which is appended to <body> (outside the widget), so it has a global rule. */
+
+.reading-list .w-grid { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+@media (max-width: 860px) { .reading-list .w-grid { grid-template-columns: 1fr; } }
+.reading-list .side { display: grid; gap: 16px; align-content: start; min-width: 0; }
+
+/* the books */
+.reading-list .books { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.reading-list .book {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong); background: var(--surface-2);
+}
+.reading-list .book.reading { border-left-color: var(--blue); }
+.reading-list .book.finished { border-left-color: var(--ok); }
+.reading-list .book-text { flex: 1 1 180px; min-width: 0; display: grid; }
+.reading-list .book .title { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.reading-list .book .author { font-size: 12.5px; color: var(--muted); }
+.reading-list .book.finished .title { color: var(--muted); }
+.reading-list .shelf-pick { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.reading-list .shelf { cursor: pointer; font-size: 11.5px; padding: 4px 9px; border: 0; background: transparent; color: var(--faint); white-space: nowrap; }
+.reading-list .shelf + .shelf { border-left: 1px solid var(--line); }
+.reading-list .shelf[aria-pressed='true'] { background: var(--surface-3); color: var(--text); font-weight: 600; }
+.reading-list .remove {
+  cursor: pointer; width: 26px; height: 26px; border-radius: 50%; border: 1px solid transparent; background: transparent;
+  color: var(--faint); font-size: 17px; line-height: 1; padding: 0;
+}
+.reading-list .remove:hover { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+.reading-list .empty { margin: 4px 0 0; font-size: 13px; color: var(--faint); }
+
+/* the form tool */
+.reading-list .add-book { display: grid; gap: 8px; }
+.reading-list .add-book .panel-title { margin-bottom: 2px; }
+.reading-list .tool-tag { font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--accent); font-weight: 500; }
+.reading-list .add-book label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.reading-list .add-book input, .reading-list .add-book select { width: 100%; font-weight: 400; color: var(--text); }
+.reading-list .add-book .error-text { margin-top: -4px; font-size: 12px; }
+.reading-list .add-book .btn { justify-self: start; }
+
+/* the goal */
+.reading-list .goal { display: grid; gap: 8px; font-size: 13px; color: var(--muted); }
+.reading-list .goal-row { display: flex; align-items: center; gap: 8px; }
+.reading-list .goal-row > span { flex: 1; font-weight: 600; }
+.reading-list .goal-count { font-family: var(--mono); font-size: 18px; color: var(--text); min-width: 2ch; text-align: center; }
+.reading-list .goal-step {
+  cursor: pointer; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--surface);
+  color: var(--text); font-size: 16px; line-height: 1; padding: 0;
+}
+.reading-list .goal-step:disabled { opacity: 0.4; cursor: default; }
+.reading-list .track { height: 8px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.reading-list .fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue-deep), var(--ok)); transition: width 0.35s ease; }
+.reading-list .goal small { color: var(--faint); }
+
+/* the agent console */
+.reading-list .agent-console { display: grid; gap: 12px; }
+.reading-list .agent-console > .panel-title { margin: 0; flex-wrap: wrap; }
+.reading-list .agent-console > .panel-title .badge { letter-spacing: 0; text-transform: none; }
+.reading-list .console-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; }
+@media (max-width: 760px) { .reading-list .console-grid { grid-template-columns: 1fr; } }
+.reading-list .sub-title { margin: 0 0 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+.reading-list .sub-title small { text-transform: none; letter-spacing: 0; font-weight: 500; margin-left: 6px; }
+.reading-list .tool-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 6px; }
+.reading-list .tool-item {
+  width: 100%; text-align: left; cursor: pointer; display: grid; gap: 4px; padding: 9px 11px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text); transition: border-color 0.15s;
+}
+.reading-list .tool-item:hover { border-color: var(--line-strong); }
+.reading-list .tool-item.picked { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 10%, var(--surface-2)); }
+.reading-list .tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.reading-list .tool-name { font-family: var(--mono); font-size: 12.5px; color: var(--accent); background: none; padding: 0; font-weight: 600; }
+.reading-list .tool-desc { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; white-space: pre-line; overflow-wrap: anywhere; }
+.reading-list .tool-item .tool-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.reading-list .reg-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; color: var(--faint); }
+.reading-list .reg-log code { font-size: 11.5px; color: var(--muted); background: none; padding: 0; }
+.reading-list .reg-log .op { display: inline-block; width: 1.2em; font-family: var(--mono); font-weight: 700; }
+.reading-list .reg-log .registered .op { color: var(--ok); }
+.reading-list .reg-log .unregistered .op { color: var(--bad); }
+.reading-list .reg-log .updated .op { color: var(--accent); }
+
+.reading-list .call-panel { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.reading-list .pick-hint { margin: 0; font-size: 13px; color: var(--faint); align-self: center; text-align: center; padding: 24px 0; }
+.reading-list .params { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; font-size: 12px; }
+.reading-list .params code { font-size: 11.5px; color: var(--text); background: none; padding: 0; }
+.reading-list .params .type { font-family: var(--mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.reading-list .param-desc { display: block; color: var(--faint); font-size: 11.5px; padding-left: 12px; }
+.reading-list .no-params { margin: 0; font-size: 12px; color: var(--faint); }
+.reading-list .schema summary { cursor: pointer; color: var(--faint); font-size: 12px; font-weight: 600; }
+.reading-list .schema .json { margin-top: 6px; max-height: 200px; }
+.reading-list .call-form { display: grid; gap: 8px; }
+.reading-list .args-label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.reading-list .args { width: 100%; font-family: var(--mono); font-size: 12.5px; font-weight: 400; color: var(--text); }
+.reading-list .call-form .btn { justify-self: start; }
+.reading-list .result { display: grid; gap: 6px; justify-items: start; }
+.reading-list .result .json { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); max-height: 260px; }
+
+/* Sygnal's WebMCP confirmation (experimentalExposeWebMcp's default), appended to <body> */
+dialog[data-sygnal-webmcp] {
+  max-width: min(420px, calc(100vw - 32px)); padding: 20px 22px; border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line-strong)); background: var(--surface); color: var(--text);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
+}
+dialog[data-sygnal-webmcp]::backdrop { background: rgba(4, 10, 20, 0.55); backdrop-filter: blur(2px); }
+dialog[data-sygnal-webmcp] h2 { margin: 0 0 8px; font-size: 16px; }
+dialog[data-sygnal-webmcp] h2::before { content: '🤖 '; }
+dialog[data-sygnal-webmcp] p { margin: 0 0 10px; font-size: 14px; color: var(--muted); }
+dialog[data-sygnal-webmcp] pre {
+  margin: 0 0 12px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line);
+  font-size: 12px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+dialog[data-sygnal-webmcp] div { display: flex; justify-content: flex-end; gap: 8px; }
+dialog[data-sygnal-webmcp] button {
+  cursor: pointer; border-radius: var(--radius-sm); padding: 7px 14px; font-weight: 600; font-size: 13.5px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--text);
+}
+dialog[data-sygnal-webmcp] button:last-child { border-color: transparent; background: color-mix(in srgb, var(--bad) 85%, black); color: white; }
+dialog[data-sygnal-webmcp] button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }

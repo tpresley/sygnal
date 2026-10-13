@@ -1,0 +1,71 @@
+/* The command bar widget: the command line, the board, the decision log. */
+
+.command-bar .board-app { display: grid; gap: 12px; }
+
+.command-bar .command-form {
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border-radius: 12px;
+  border: 1px solid var(--line-strong); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--blue) 7%, transparent);
+}
+.command-bar .command-form:focus-within { border-color: var(--blue); }
+.command-bar .prompt-icon { color: var(--accent); font-size: 16px; }
+.command-bar .command-form input { flex: 1; min-width: 0; border: none; background: transparent; box-shadow: none; padding: 8px 4px; font-size: 15px; }
+.command-bar .command-form input:focus { box-shadow: none; }
+.command-bar .outcome code { background: none; padding: 0; color: var(--accent); }
+
+/* the board */
+.command-bar .board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.command-bar .column { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); padding: 10px; min-width: 0; }
+.command-bar .column h4 {
+  margin: 0 0 8px; display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.command-bar .column h4::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.command-bar .column.doing h4::before { background: var(--blue-light); }
+.command-bar .column.done h4::before { background: var(--ok); }
+.command-bar .count { margin-left: auto; font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-3); color: var(--muted); letter-spacing: 0; }
+.command-bar .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; min-height: 40px; }
+
+.command-bar .card {
+  display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 6px; border-radius: 9px; font-size: 13.5px;
+  background: var(--surface); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  animation: card-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+.command-bar .column.done .card .title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--faint); }
+.command-bar .card .title { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.command-bar .card button { border: none; background: none; padding: 0 3px; cursor: pointer; color: var(--faint); font-size: 15px; line-height: 1; }
+.command-bar .card .star:hover, .command-bar .card.starred .star { color: var(--warn); }
+.command-bar .card .remove { opacity: 0; transition: opacity 0.15s; }
+.command-bar .card:hover .remove, .command-bar .card .remove:focus-visible { opacity: 1; }
+.command-bar .card .remove:hover { color: var(--bad); }
+@keyframes card-in { from { opacity: 0; transform: translateY(-6px) scale(0.97); } }
+
+/* the decision log */
+.command-bar .log ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.command-bar .log .panel-title span { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.command-bar .entry {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.2fr) minmax(0, 1fr) 70px; align-items: center; gap: 10px;
+  padding: 7px 10px; border-radius: 8px; font-size: 12.5px; border-left: 3px solid var(--faint); background: var(--surface-2);
+  animation: card-in 0.3s ease;
+}
+.command-bar .entry.ran { border-left-color: var(--ok); }
+.command-bar .entry.asking, .command-bar .entry.declined { border-left-color: var(--warn); }
+.command-bar .entry.unsure, .command-bar .entry.failed { border-left-color: var(--bad); }
+.command-bar .entry .said { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-bar .entry .picked { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--muted); white-space: nowrap; }
+.command-bar .entry .picked code { background: none; padding: 0; overflow: hidden; text-overflow: ellipsis; }
+.command-bar .entry .none { color: var(--faint); }
+.command-bar .entry .p { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.command-bar .mini { flex: none; width: 36px; height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.command-bar .mini span { display: block; height: 100%; background: var(--blue-light); border-radius: inherit; }
+.command-bar .entry.unsure .mini span { background: var(--bad); }
+.command-bar .entry .verdict { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; text-align: right; color: var(--faint); }
+.command-bar .entry.ran .verdict { color: var(--ok); }
+.command-bar .entry.asking .verdict, .command-bar .entry.declined .verdict { color: var(--warn); }
+.command-bar .entry.unsure .verdict, .command-bar .entry.failed .verdict { color: var(--bad); }
+
+@media (max-width: 600px) {
+  .command-bar .board { grid-template-columns: 1fr; }
+  .command-bar .entry { grid-template-columns: minmax(0, 1fr) 64px; }
+  .command-bar .entry .picked { grid-column: 1 / -1; }
+  .command-bar .entry .said { grid-row: 1; }
+  .command-bar .entry .verdict { grid-row: 1; grid-column: 2; }
+}

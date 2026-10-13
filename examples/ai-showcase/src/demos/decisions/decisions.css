@@ -1,0 +1,68 @@
+/* The triage widget: the ticket, the routing card and one visual per answer type. */
+
+.triage .threshold-pick { display: grid; gap: 4px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.02em; margin-left: auto; }
+.triage .threshold-pick b { color: var(--text); font-family: var(--mono); font-weight: 600; }
+.triage .threshold-pick input { width: 180px; accent-color: var(--blue); margin: 6px 0 4px; }
+
+.triage .ticket { display: grid; gap: 8px; align-content: start; }
+.triage .ticket textarea { width: 100%; box-sizing: border-box; min-height: 140px; font-size: 14.5px; }
+.triage .examples-label { margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
+
+.triage .verdict { display: grid; gap: 16px; align-content: start; transition: opacity 0.2s; }
+.triage .verdict.stale .q { opacity: 0.55; }
+.triage .verdict .panel-title { margin-bottom: 0; }
+.triage .timing { display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 12px; color: var(--muted); }
+.triage .timing code { background: none; padding: 0; color: var(--accent); }
+
+/* routing */
+.triage .route {
+  display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 9%, var(--surface));
+  animation: triage-in 0.25s ease;
+}
+.triage .route.person { border-color: color-mix(in srgb, var(--warn) 45%, transparent); background: color-mix(in srgb, var(--warn) 9%, var(--surface)); }
+.triage .route-icon {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800;
+  background: var(--ok); color: var(--accent-ink);
+}
+.triage .route.person .route-icon { background: var(--warn); }
+.triage .route-body { display: grid; gap: 4px; min-width: 0; }
+.triage .route-body b { font-size: 15px; }
+.triage .route-why { font-size: 13px; color: var(--muted); }
+.triage .route-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+@keyframes triage-in { from { opacity: 0; transform: translateY(-3px); } }
+
+/* one answer */
+.triage .q { display: grid; gap: 8px; transition: opacity 0.2s; }
+.triage .q h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; }
+.triage .q h4 code { font-size: 11px; color: var(--faint); background: none; padding: 0; font-weight: 500; }
+.triage .q h4 .badge { margin-left: auto; }
+
+/* noul: a meter from no to yes, the unsure band shaded */
+.triage .gauge { position: relative; height: 10px; border-radius: 999px; background: var(--surface-3); }
+.triage .gauge-band { position: absolute; top: 0; bottom: 0; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--warn) 30%, transparent) 0 4px, transparent 4px 8px); transition: left 0.2s, width 0.2s; }
+.triage .gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: linear-gradient(90deg, var(--blue-deep), var(--blue-light)); opacity: 0.85; transition: width 0.35s ease; }
+.triage .gauge-mark {
+  position: absolute; top: 50%; width: 16px; height: 16px; border-radius: 50%; transform: translate(-50%, -50%);
+  background: var(--text); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-strong), 0 0 12px var(--glow); transition: left 0.35s ease;
+}
+.triage .gauge-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--faint); }
+.triage .gauge-ends b { color: var(--text); font-family: var(--mono); font-weight: 600; font-size: 12px; }
+
+/* score: five levels shaded by probability, a marker at the weighted level */
+.triage .scale { position: relative; display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; padding-top: 10px; }
+.triage .scale .step {
+  font-size: 11.5px; text-align: center; padding: 7px 2px; border-radius: 6px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  background: color-mix(in srgb, var(--blue) calc(var(--p, 0) * 70%), var(--surface-3)); transition: background 0.35s;
+}
+.triage .scale .step:first-child { border-radius: 999px 6px 6px 999px; }
+.triage .scale .step:last-child { border-radius: 6px 999px 999px 6px; }
+.triage .scale-mark {
+  position: absolute; top: 0; width: 0; height: 0; transform: translateX(-50%); transition: left 0.35s ease;
+  border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 9px solid var(--text);
+}
+
+@media (max-width: 520px) {
+  .triage .threshold-pick { margin-left: 0; }
+  .triage .scale .step { font-size: 10px; }
+}

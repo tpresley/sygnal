@@ -1,0 +1,116 @@
+/* Cards in a chat: the transcript, the cards and their parts, the trip panel. */
+
+.cards-demo .tc-chat { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.cards-demo .transcript { max-height: 520px; }
+.cards-demo .msg { white-space: normal; }
+.cards-demo .msg.assistant:has(.tc-card) { max-width: 100%; width: 100%; background: transparent; border: 0; padding: 0; display: grid; gap: 8px; }
+.cards-demo .msg.assistant:has(.tc-card) .tc-text { justify-self: start; max-width: 88%; padding: 10px 14px; border-radius: 14px; border-bottom-left-radius: 5px; background: var(--surface-2); border: 1px solid var(--line); }
+.cards-demo .tc-text { margin: 0; white-space: pre-wrap; }
+.cards-demo .tc-text + .tc-text { margin-top: 6px; }
+.cards-demo .tool-line b { color: var(--text); }
+.cards-demo .tc-note { margin: 0; font-size: 12px; color: var(--faint); }
+.cards-demo .tc-muted { color: var(--muted); font-size: 12.5px; }
+
+/* a card: the model's need as the heading, the app's parts below */
+.cards-demo .tc-card {
+  display: grid; gap: 10px; padding: 12px 14px; border-radius: 14px; border-bottom-left-radius: 5px;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 30px -18px var(--glow); animation: tc-in 0.25s ease;
+}
+@keyframes tc-in { from { opacity: 0; transform: translateY(4px); } }
+.cards-demo .tc-card.open { border-color: var(--blue); }
+.cards-demo .tc-card.answered, .cards-demo .tc-card.cancelled, .cards-demo .tc-card.failed { box-shadow: none; border-color: var(--line); }
+.cards-demo .tc-card > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cards-demo .tc-need { font-weight: 600; font-size: 14px; }
+.cards-demo .tc-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+.cards-demo .tc-card.open .tc-status { color: var(--accent); }
+.cards-demo .tc-card.answered .tc-status { color: var(--ok); }
+.cards-demo .tc-card.failed .tc-status { color: var(--bad); }
+.cards-demo .tc-status .spinner { width: 11px; height: 11px; }
+.cards-demo .tc-building { margin: 0; font-size: 13px; color: var(--faint); }
+/* askCard wraps a card that isn't open in a disabled fieldset */
+.cards-demo .tc-card fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.cards-demo .tc-card .compose-page { display: grid; gap: 10px; }
+.cards-demo .tc-card .compose-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.cards-demo .tc-card button:disabled { cursor: default; }
+
+/* destination swatches: a subtle gradient per place */
+.cards-demo .tc-swatch {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; font-size: 19px;
+  background: linear-gradient(135deg, var(--blue-deep), var(--blue-light));
+}
+.cards-demo .tc-swatch.big { width: 48px; height: 48px; font-size: 25px; border-radius: 13px; }
+.cards-demo .lisbon .tc-swatch { background: linear-gradient(135deg, #f6b042, #e8644a); }
+.cards-demo .marrakech .tc-swatch { background: linear-gradient(135deg, #e07a3f, #a8432d); }
+.cards-demo .bali .tc-swatch { background: linear-gradient(135deg, #36c98e, #138a72); }
+.cards-demo .kyoto .tc-swatch { background: linear-gradient(135deg, #f07c9a, #a63d6b); }
+.cards-demo .reykjavik .tc-swatch { background: linear-gradient(135deg, #7fc8f8, #3d5fb8); }
+
+/* the destination picker */
+.cards-demo .tc-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.cards-demo .tc-dest {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto auto; gap: 0 10px; align-items: center; text-align: left;
+  padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.cards-demo .tc-dest .tc-swatch { grid-row: span 2; }
+.cards-demo .tc-dest .tc-muted { font-size: 12px; }
+.cards-demo .tc-dest .tc-price { grid-column: 1 / -1; margin-top: 8px; font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+.cards-demo .tc-dest .tc-price small { color: var(--faint); font-family: var(--font); }
+.cards-demo .tc-dest:hover:not(:disabled) { border-color: var(--blue); transform: translateY(-1px); }
+.cards-demo .tc-dest.picked { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
+.cards-demo .tc-dest:disabled:not(.picked) { opacity: 0.45; }
+
+/* destination details */
+.cards-demo .tc-details { display: grid; grid-template-columns: auto 1fr; gap: 12px; font-size: 13.5px; }
+.cards-demo .tc-details p { margin: 4px 0; color: var(--muted); }
+.cards-demo .tc-details ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+
+/* choice, confirm */
+.cards-demo .tc-choice p { margin: 0 0 8px; }
+.cards-demo .tc-options, .cards-demo .tc-confirm { display: flex; flex-wrap: wrap; gap: 8px; }
+.cards-demo .tc-option {
+  cursor: pointer; padding: 7px 13px; border-radius: 999px; font-size: 13px;
+  border: 1px solid var(--line-strong); background: var(--surface-2);
+}
+.cards-demo .tc-option:hover:not(:disabled) { border-color: var(--blue); }
+.cards-demo .tc-option.picked, .cards-demo .tc-confirm .picked { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.cards-demo .tc-option:disabled:not(.picked), .cards-demo .tc-confirm button:disabled:not(.picked) { opacity: 0.45; }
+
+/* trip size: two steppers and Done */
+.cards-demo .tc-size { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.cards-demo .tc-step { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.cards-demo .tc-step b { min-width: 22px; text-align: center; font-size: 17px; color: var(--text); font-family: var(--mono); }
+.cards-demo .tc-step button {
+  width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--surface-2);
+  cursor: pointer; font-size: 16px; line-height: 1;
+}
+.cards-demo .tc-step button:hover:not(:disabled) { border-color: var(--blue); }
+.cards-demo .tc-step button:disabled { opacity: 0.35; }
+
+/* trip summary (in a card) and the trip panel's facts */
+.cards-demo .tc-summary, .cards-demo .tc-facts { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; margin: 0; font-size: 13.5px; }
+.cards-demo .tc-summary { padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.cards-demo .tc-summary dt, .cards-demo .tc-facts dt { color: var(--faint); font-size: 12.5px; }
+.cards-demo .tc-summary dd, .cards-demo .tc-facts dd { margin: 0; font-weight: 600; }
+
+/* rating */
+.cards-demo .tc-rating { display: flex; gap: 2px; }
+.cards-demo .tc-star { cursor: pointer; font-size: 26px; line-height: 1; padding: 2px; border: 0; background: none; color: var(--surface-3); transition: color 0.1s, transform 0.1s; }
+.cards-demo .tc-rating:not(:disabled) .tc-star:hover:not(:disabled) { transform: scale(1.12); }
+.cards-demo .tc-rating:hover .tc-star:not(:disabled) { color: var(--warn); }
+.cards-demo .tc-rating .tc-star:hover:not(:disabled) ~ .tc-star { color: var(--surface-3); }
+.cards-demo .tc-star.on { color: var(--warn); }
+
+/* your trip */
+.cards-demo .tc-trip { display: grid; gap: 14px; align-content: start; }
+.cards-demo .tc-trip .panel-title { margin: 0; }
+.cards-demo .tc-trip.booked { border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.cards-demo .tc-hero { display: flex; align-items: center; gap: 12px; }
+.cards-demo .tc-hero > div { display: grid; }
+.cards-demo .tc-hero b { font-size: 18px; letter-spacing: -0.01em; }
+.cards-demo .tc-hero:not(.lisbon):not(.marrakech):not(.bali):not(.kyoto):not(.reykjavik) .tc-swatch { background: var(--surface-3); }
+.cards-demo .tc-facts { padding-top: 12px; border-top: 1px solid var(--line); }
+.cards-demo .tc-total { color: var(--accent); font-family: var(--mono); }
+.cards-demo .tc-rated { margin: 0; font-size: 13px; color: var(--muted); }
+.cards-demo .tc-stars { color: var(--warn); letter-spacing: 1px; }
