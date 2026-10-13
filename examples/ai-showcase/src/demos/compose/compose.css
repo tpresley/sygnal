@@ -1,0 +1,119 @@
+/* UI composed by a model: the workspace, the composed page, the parts, the decision panel. */
+
+.compose-demo .compose-work { display: grid; gap: 12px; }
+.compose-demo .follow-ups { align-items: center; }
+.compose-demo .follow-ups .then { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-right: 2px; }
+.compose-demo .follow-up { border-style: solid; border-color: var(--line); color: var(--accent); }
+.compose-demo .compose-note { margin: 0; font-size: 12px; color: var(--faint); }
+
+.compose-demo .compose-stage { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; align-items: start; }
+@media (max-width: 820px) { .compose-demo .compose-stage { grid-template-columns: 1fr; } }
+
+/* the canvas: the composed page; dimmed with a sweep while a model works on it */
+.compose-demo .canvas { position: relative; min-height: 220px; border-radius: 12px; transition: opacity 0.25s; }
+.compose-demo .canvas.busy { opacity: 0.55; }
+.compose-demo .canvas.preview { opacity: 0.8; }
+.compose-demo .canvas.busy::after, .compose-demo .canvas.preview::after {
+  content: ''; position: absolute; inset: 0; border-radius: 12px; pointer-events: none;
+  background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--blue-light) 14%, transparent) 50%, transparent 70%);
+  background-size: 250% 100%; animation: compose-sweep 1.4s linear infinite;
+}
+@keyframes compose-sweep { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.compose-demo .canvas-empty {
+  display: grid; place-items: center; min-height: 220px; border: 1px dashed var(--line-strong); border-radius: 12px;
+  color: var(--faint); font-size: 13.5px;
+}
+.compose-demo .compose-page { display: grid; gap: 12px; }
+.compose-demo .compose-row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+@media (max-width: 600px) { .compose-demo .compose-row { grid-auto-flow: row; } }
+
+/* a part */
+.compose-demo .ca-card {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 12px 14px; min-width: 0;
+}
+.compose-demo .ca-card > header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.compose-demo .ca-card h4 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); }
+.compose-demo .ca-sub { font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+.compose-demo .ca-meta { font-size: 11.5px; color: var(--faint); }
+
+/* KPI */
+.compose-demo .ca-kpi { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 2px 10px; }
+.compose-demo .ca-value { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.compose-demo .ca-delta { justify-self: start; font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; margin-bottom: 4px; }
+.compose-demo .ca-delta.good { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.compose-demo .ca-delta.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
+.compose-demo .ca-spark { grid-column: 1 / -1; width: 100%; height: 28px; margin-top: 6px; }
+.compose-demo .ca-spark path { fill: none; stroke: var(--blue-light); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+
+/* area chart */
+.compose-demo .ca-area { width: 100%; height: auto; display: block; }
+.compose-demo .ca-area stop { stop-color: var(--blue); }
+.compose-demo .ca-area stop[offset='0'] { stop-opacity: 0.45; }
+.compose-demo .ca-area stop[offset='1'] { stop-opacity: 0; }
+.compose-demo .ca-area .ca-fill { fill: url(#ca-area-fill); }
+.compose-demo .ca-area .ca-line { fill: none; stroke: var(--blue-light); stroke-width: 2.2; stroke-linejoin: round; }
+.compose-demo .ca-area .ca-dot { fill: var(--blue-light); stroke: var(--surface); stroke-width: 2; }
+.compose-demo .ca-area .ca-grid line { stroke: var(--line); stroke-dasharray: 3 4; }
+.compose-demo .ca-area text { fill: var(--faint); font-size: 10.5px; font-family: var(--mono); }
+
+/* bars: funnel and countries */
+.compose-demo .ca-funnel, .compose-demo .ca-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.compose-demo .ca-funnel li { display: grid; grid-template-columns: 104px 1fr 52px 34px; align-items: center; gap: 8px; font-size: 12.5px; }
+.compose-demo .ca-bars li { display: grid; grid-template-columns: 20px 112px 1fr 34px; align-items: center; gap: 8px; font-size: 12.5px; }
+.compose-demo .ca-track { height: 9px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.compose-demo .ca-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue-deep), var(--blue-light)); }
+.compose-demo .ca-n { font-family: var(--mono); font-size: 11.5px; text-align: right; }
+.compose-demo .ca-rate { font-family: var(--mono); font-size: 11px; color: var(--faint); text-align: right; }
+.compose-demo .ca-step, .compose-demo .ca-name { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* table */
+.compose-demo .ca-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.compose-demo .ca-table th { text-align: left; font-size: 11px; font-weight: 600; color: var(--faint); padding: 0 0 6px; }
+.compose-demo .ca-table td { padding: 6px 0; border-top: 1px solid var(--line); }
+.compose-demo .ca-table th:not(:first-child), .compose-demo .ca-table td:not(:first-child) { text-align: right; font-family: var(--mono); font-size: 11.5px; }
+.compose-demo .ca-table code { background: none; padding: 0; color: var(--text); font-size: 12px; }
+
+/* incidents */
+.compose-demo .ca-incidents { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.compose-demo .ca-incidents li {
+  display: grid; grid-template-columns: auto 1fr; gap: 0 10px; padding: 7px 10px; border-radius: 9px;
+  background: var(--surface-2); border-left: 3px solid var(--faint); font-size: 13px;
+}
+.compose-demo .ca-incidents li.critical { border-left-color: var(--bad); }
+.compose-demo .ca-incidents li.warning { border-left-color: var(--warn); }
+.compose-demo .ca-incidents li.info { border-left-color: var(--blue); }
+.compose-demo .ca-sev { grid-row: span 2; align-self: center; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); min-width: 54px; }
+.compose-demo .critical .ca-sev { color: var(--bad); }
+.compose-demo .warning .ca-sev { color: var(--warn); }
+.compose-demo .info .ca-sev { color: var(--accent); }
+
+/* releases */
+.compose-demo .ca-releases { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; font-size: 13px; }
+.compose-demo .ca-releases > li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; }
+.compose-demo .ca-version { align-self: start; text-align: center; font-family: var(--mono); font-size: 11px; font-weight: 600; padding: 2px 0; border-radius: 6px; color: var(--accent); background: color-mix(in srgb, var(--blue) 15%, transparent); }
+.compose-demo .ca-releases ul { margin: 3px 0 0; padding-left: 16px; color: var(--muted); font-size: 12.5px; }
+
+/* checklist */
+.compose-demo .ca-progress { display: block; height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin-bottom: 8px; }
+.compose-demo .ca-progress > span { display: block; height: 100%; background: var(--ok); transition: width 0.3s; }
+.compose-demo .ca-checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.compose-demo .ca-checklist label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.compose-demo .ca-checklist input { accent-color: var(--blue); margin: 0; }
+.compose-demo .ca-checklist .done label { color: var(--faint); text-decoration: line-through; }
+
+/* how the model decided */
+.compose-demo .how-decided { padding: 12px 14px; font-size: 12.5px; max-height: 520px; overflow-y: auto; }
+.compose-demo .how-decided h5 { margin: 12px 0 6px; font-size: 12px; font-weight: 600; color: var(--text); }
+.compose-demo .how-decided h5:first-of-type { margin-top: 0; }
+.compose-demo .how-decided h5 small { display: block; font-weight: 400; color: var(--faint); font-size: 11px; }
+.compose-demo .hd-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.compose-demo .hd-lines li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 7px; }
+.compose-demo .hd-lines li.off { opacity: 0.45; }
+.compose-demo .hd-bar { height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.compose-demo .hd-bar > span { display: block; height: 100%; background: var(--blue-light); }
+.compose-demo .hd-text { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.compose-demo .hd-text b { color: var(--text); font-weight: 600; }
+.compose-demo .hd-pct { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+.compose-demo .hd-plan { margin: 0; padding-left: 18px; display: grid; gap: 3px; color: var(--muted); }
+.compose-demo .hd-ops code { font-size: 11px; color: var(--accent); background: none; padding: 0; overflow-wrap: anywhere; }
+.compose-demo .hd-none { margin: 0; color: var(--faint); }
