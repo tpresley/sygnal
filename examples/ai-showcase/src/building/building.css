@@ -1,0 +1,61 @@
+/* Building Chat: the steps' chat log, side panels and the controls they add */
+
+/* a log that stays scrolled to the newest message as it grows: column-reverse anchors the end */
+.bc-log { display: flex; flex-direction: column-reverse; max-height: 440px; overflow-y: auto; }
+.bc-log .transcript { max-height: none; overflow: visible; }
+
+.bc-chat { display: grid; gap: 12px; min-width: 0; align-content: start; }
+.bc-side-col { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.bc .w-grid { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+@media (max-width: 860px) { .bc .w-grid { grid-template-columns: 1fr; } }
+.bc-actions { display: flex; }
+.bc .msg .tool-line.failed { color: var(--bad); }
+
+/* chips: suggested follow-ups above the examples */
+.bc-chips { display: grid; gap: 6px; }
+.bc-label {
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 2px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+}
+.example.suggested { border-style: solid; border-color: var(--line-strong); color: var(--text); background: var(--surface-2); }
+
+/* the token tally */
+.bc-meter { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 0; font-size: 13.5px; }
+.bc-meter dt { color: var(--muted); }
+.bc-meter dd { margin: 0; font-family: var(--mono); font-size: 13px; text-align: right; }
+
+/* the answer style */
+.bc-field { margin: 10px 0 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.bc-field:first-of-type { margin-top: 0; }
+.bc-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.bc-seg button {
+  cursor: pointer; font-size: 12.5px; padding: 5px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-2); color: var(--muted);
+}
+.bc-seg button:hover { color: var(--text); border-color: var(--line-strong); }
+.bc-seg button[aria-pressed='true'] { color: var(--accent-ink); border-color: transparent; background: linear-gradient(135deg, var(--blue-deep), var(--blue)); }
+
+/* the shopping list */
+.bc-empty { margin: 0; font-size: 13.5px; color: var(--faint); }
+.bc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.bc-list .item {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; cursor: pointer;
+  padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); font-size: 14px;
+}
+.bc-list .item::before {
+  content: ''; flex: none; width: 15px; height: 15px; border-radius: 5px; border: 1.5px solid var(--line-strong);
+}
+.bc-list .item.done { color: var(--faint); text-decoration: line-through; }
+.bc-list .item.done::before { background: var(--ok); border-color: var(--ok); }
+
+/* the `choose` client tool, inside a reply */
+.bc-choice { display: grid; gap: 8px; margin: 6px 0 2px; white-space: normal; }
+.bc-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.bc-options .pick {
+  cursor: pointer; font-size: 13.5px; padding: 6px 13px; border-radius: 999px;
+  border: 1px solid var(--blue); background: var(--surface); color: var(--text);
+}
+.bc-options .pick:hover:not(:disabled) { background: var(--surface-3); }
+.bc-options .pick.picked { color: var(--accent-ink); border-color: transparent; background: linear-gradient(135deg, var(--blue-deep), var(--blue)); }
+.bc-options .pick:disabled { cursor: default; }
+.bc-options .pick:disabled:not(.picked) { opacity: 0.45; }

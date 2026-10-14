@@ -6,7 +6,8 @@
  *          or restored. Under Vike's Layout/Wrapper shell (the `__vike` source) the message says
  *          persist isn't supported on Vike pages, layouts or wrappers yet.
  * SYG223 (warn)  — a `pick` / `omit` key of persist() that isn't a key of the component's
- *          `initialState` static (a typo: that key is never saved, or never left out).
+ *          `initialState` static or of its `uses` (a behavior's slice, such as a chat's), so it is
+ *          a typo: that key is never saved, or never left out.
  * Once per component name. Mechanism: onModel reads the static `view.persist` (the persist()
  * value carries its options) and `view.initialState`.
  */
@@ -38,7 +39,8 @@ export const persistCheck: DiagnosticCheck = {
     }
     const o = p.options, init = view.initialState
     if (!o || !init || typeof init != 'object') return
-    const keys = Object.keys(init)
+    // a behavior's slice (`uses = { chat: chat() }`) is a state key too
+    const keys = [...Object.keys(init), ...Object.keys(view.uses || {})]
     for (const opt of ['pick', 'omit']) {
       for (const k of Array.isArray(o[opt]) ? o[opt] : []) {
         if (keys.includes(k) || !once(`SYG223:${name}:${opt}:${k}`)) continue

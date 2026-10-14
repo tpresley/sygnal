@@ -11,6 +11,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
 import { persist } from '../src/extra/persist.js'
 import { undoable } from '../src/extra/undo.js'
+import { defineBehavior } from '../src/extra/behaviors.js'
 import run from '../src/extra/run.js'
 import { renderToString } from '../src/extra/ssr.js'
 import { getCodeInfo, DEV_CODE_SEVERITY, CODE_TITLES } from '../src/extra/diagnostics/codes.js'
@@ -413,6 +414,22 @@ describe('root only: SYG224; SYG223 (dev entry)', () => {
     expect(d?.severity).toBe('warn')
     expect(d.message).toMatch(/filtr/)
     expect(d.message).toMatch(/did you mean 'filter'/)
+  })
+})
+
+describe("SYG223: a behavior's slice is a state key", () => {
+  beforeEach(() => setupChecks())
+
+  it('a pick key naming a `uses` slice is no SYG223, and the slice is saved', async () => {
+    const pager = defineBehavior({ initialState: { page: 1 }, model: { NEXT: (slice) => ({ ...slice, page: slice.page + 1 }) } })
+    const Todo = makeTodo({ pick: ['todos', 'pager'] })
+    Todo.uses = { pager: pager() }
+    t = renderComponent(Todo)
+    await t.ready()
+    t.simulateAction('pager.NEXT')
+    await t.settle()
+    expect(t.storage('todo-app').state).toEqual({ todos: [], pager: { page: 2 } })
+    expect(t.diagnostics.filter(d => d.code == 'SYG223')).toEqual([])
   })
 })
 
