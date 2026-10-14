@@ -9,8 +9,8 @@
 //   node scripts/release-plan.mjs             a table, then JSON on the last line
 //   node scripts/release-plan.mjs --all       every target counts as new (the workflow's dry run)
 //
-// In GitHub Actions it also writes the outputs `any`, `<target>` (true / false) and
-// `<target>_version`, and a summary table.
+// In GitHub Actions it also writes the outputs `any`, `<target>` (true / false: publish it),
+// `<target>_version` and `<target>_published` (already on its registry), and a summary table.
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -76,7 +76,7 @@ for (const t of TARGETS) {
 const any = Object.values(plan).some((p) => p.publish)
 
 if (process.env.GITHUB_OUTPUT) {
-  const lines = [`any=${any}`, ...Object.entries(plan).flatMap(([id, p]) => [`${id}=${p.publish}`, `${id}_version=${p.version}`])]
+  const lines = [`any=${any}`, ...Object.entries(plan).flatMap(([id, p]) => [`${id}=${p.publish}`, `${id}_version=${p.version}`, `${id}_published=${p.published}`])]
   fs.appendFileSync(process.env.GITHUB_OUTPUT, lines.join('\n') + '\n')
 }
 if (process.env.GITHUB_STEP_SUMMARY) {
