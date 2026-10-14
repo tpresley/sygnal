@@ -5,6 +5,8 @@
  * shorthand factories for the most frequent reducer shapes.
  */
 
+import {ABORT, isAbort} from '../shared'
+
 // ── set() ──────────────────────────────────────────────────────────
 /**
  * Create a reducer that merges a partial update into state.
@@ -40,13 +42,17 @@ export function toggle<S = any>(field: keyof S & string): (state: S) => S {
 }
 
 // event(type, payload?) → EVENTS sink fn for the object form:
-// `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }` (static payloads allowed)
+// `ACTION: { EVENTS: event('TYPE', (state, data) => payload) }` (static payloads allowed).
+// A payload function that returns ABORT sends nothing, as ABORT does from any other sink.
 export function event(
   type: string,
   payload?: any | ((state: any, data: any, next: Function, props: any) => any)
-): (state: any, data: any, next: Function, props: any) => { type: string; data: any } {
+): (state: any, data: any, next: Function, props: any) => { type: string; data: any } | typeof ABORT {
   return typeof payload === 'function'
-    ? (state, data, next, props) => ({ type, data: payload(state, data, next, props) })
+    ? (state, data, next, props) => {
+      const d = payload(state, data, next, props)
+      return isAbort(d) ? ABORT : { type, data: d }
+    }
     : () => ({ type, data: payload })
 }
 
@@ -66,6 +72,6 @@ export function event(
 export function emit(
   type: string,
   data?: any | ((state: any, actionData: any, next: Function, props: any) => any)
-): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } } {
+): { EVENTS: (state: any, actionData: any, next: Function, props: any) => { type: string; data: any } | typeof ABORT } {
   return { EVENTS: event(type, data) }
 }

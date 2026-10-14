@@ -2,7 +2,7 @@
  * Type tests for the SygnalEvents registry (see ./events-registry.ts for the augmentation).
  * Compiled against both src/index.d.ts and the bundled dist/index.d.ts.
  */
-import { event, emit } from 'sygnal'
+import { event, emit, ABORT } from 'sygnal'
 import type {
   Component,
   IntentSources,
@@ -71,6 +71,11 @@ Lane.model = {
 
 const deleteSink = event('DELETE_LANE', { laneId: 'x' })
 expectType<Equal<ReturnType<typeof deleteSink>, { type: 'DELETE_LANE'; data: { laneId: string } }>>()
+
+// ABORT from the payload function sends nothing
+Lane.model = {
+  DELETE: { EVENTS: event('DELETE_LANE', (state) => (state.id ? { laneId: state.id } : ABORT)) },
+}
 
 Lane.model = {
   DELETE: {

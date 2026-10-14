@@ -156,7 +156,7 @@ type EventNextFunction = (action: string, data?: any, delay?: number) => void
 
 /** Payload function for `event()` / `emit()`: receives the reducer arguments, returns the event data. */
 export type EventPayloadFunction<TYPE extends string = string, STATE = any, DATA = any> =
-  (state: STATE, data: DATA, next: EventNextFunction, props: any) => EventPayload<TYPE>
+  (state: STATE, data: DATA, next: EventNextFunction, props: any) => EventPayload<TYPE> | ABORT
 
 /**
  * Remaining arguments of `event()` / `emit()` when the payload is a static value.
@@ -1977,7 +1977,8 @@ export function emit<TYPE extends EventName>(
  *   }
  *
  * The payload is either a function `(state, data, next, props) => payload` or a static value:
- *   `event('RESET')`, `event('SET_MODE', 'dark')`.
+ *   `event('RESET')`, `event('SET_MODE', 'dark')`. A payload function that returns `ABORT` sends
+ *   nothing: `event('SAVED', (state) => state.dirty ? { id: state.id } : ABORT)`.
  *
  * With a `SygnalEvents` registry, `type` must be a registered name and the payload must match
  * its type. When used inside a model, the payload function's `state` and `data` parameters are
@@ -3005,6 +3006,12 @@ export interface ServiceWorkerCommand {
 
 export interface ServiceWorkerOptions {
   scope?: string;
+  /**
+   * `false`: the driver registers no service worker, ignores commands and emits nothing, so the
+   * app keeps its `SW` wiring where a worker must not run: `enabled: import.meta.env.PROD`.
+   * Default `true`.
+   */
+  enabled?: boolean;
 }
 
 export function makeServiceWorkerDriver(

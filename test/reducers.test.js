@@ -8,6 +8,8 @@ import eventBusDriver from '../src/extra/eventDriver.js'
 import logDriver from '../src/extra/logDriver.js'
 import { createElement } from '../src/pragma/index.js'
 import { until } from './support/wait.js'
+import { ABORT } from '../src/shared.js'
+import { renderComponent } from '../src/extra/testing.js'
 
 describe('set()', () => {
   it('merges a static partial object into state', () => {
@@ -148,6 +150,32 @@ describe('event()', () => {
     expect(captured[1]).toBe('left')
     expect(captured[2]).toBe(nextFn)
     expect(captured[3]).toBe(props)
+  })
+
+  it('a payload function that returns ABORT sends nothing', () => {
+    const sink = event('SAVED', (state) => (state.dirty ? { id: state.id } : ABORT))
+    expect(sink({ dirty: false, id: 1 })).toBe(ABORT)
+    expect(sink({ dirty: true, id: 1 })).toEqual({ type: 'SAVED', data: { id: 1 } })
+    expect(emit('SAVED', () => ABORT).EVENTS({})).toBe(ABORT)
+  })
+
+  it('ABORT from the payload function: no event on the bus (renderComponent)', async () => {
+    function Editor({ state }) { return createElement('button', { className: 'save' }, String(state.dirty)) }
+    Editor.initialState = { dirty: false, id: 7 }
+    Editor.intent = ({ DOM }) => ({ SAVE: DOM.click('.save'), EDIT: DOM.input('.save') })
+    Editor.model = {
+      EDIT: (state) => ({ ...state, dirty: true }),
+      SAVE: { EVENTS: event('SAVED', (state) => (state.dirty ? { id: state.id } : ABORT)) },
+    }
+    const t = renderComponent(Editor)
+    t.simulateEvent('.save', 'click')
+    await t.settle()
+    expect(t.emitted).toEqual([])
+    t.simulateEvent('.save', 'input', { value: 'x' })
+    t.simulateEvent('.save', 'click')
+    await t.settle()
+    expect(t.emitted.map((e) => [e.type, e.data])).toEqual([['SAVED', { id: 7 }]])
+    t.dispose()
   })
 
   it('emit() is equivalent to { EVENTS: event() }', () => {

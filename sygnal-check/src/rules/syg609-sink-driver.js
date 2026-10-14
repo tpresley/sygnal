@@ -18,7 +18,7 @@ import { findApps } from '../model/apps.js'
 const NO_DRIVER_NEEDED = new Set(['STATE', 'EFFECT', 'EVENTS', 'PARENT', 'READY', 'DOM', 'CHILD', 'ELEMENT', 'PERSIST', 'LOG'])
 const DRIVER_NAME = /^[A-Z][A-Z0-9_]*$/
 // G-620: an LLM sink gets the chat driver (sygnal/ai)
-const EXAMPLE = { HTTP: 'makeFetchDriver()', WS: 'makeSocketDriver(url)', LLM: "makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) })" }
+const EXAMPLE = { HTTP: 'makeFetchDriver()', WS: 'makeSocketDriver()', SW: "makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })", LLM: "makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) })" }
 
 export default {
   id: 'sink-driver',

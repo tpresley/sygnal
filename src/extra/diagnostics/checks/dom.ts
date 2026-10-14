@@ -25,8 +25,10 @@
  *      that matches in one Collection item is fine for all of them.
  *
  * SYG103 noise control (conditional rendering is normal): a selector whose
- * class/id/tag tokens all appear in the component's view source is assumed
- * to be conditionally rendered and is not reported. A selector that does not
+ * class/id/tag tokens all appear in the component's view source (or in the
+ * words sygnal/vite registered for it: markup drawn by view helpers in its
+ * module and its relative imports) is assumed to be conditionally rendered
+ * and is not reported. A selector that does not
  * appear in the view (typo, or an element rendered elsewhere) is reported as
  * info on the first sweep, and escalated per the rule above.
  *
@@ -71,12 +73,18 @@ onReset(() => {
 
 const unref = (t: any) => { if (t && typeof t.unref === 'function') t.unref(); return t }
 
+/**
+ * The view's source, plus the words sygnal/vite registered for the component (its module's and
+ * its relative imports' string literals: markup a view helper draws), when it did
+ */
 function viewSource(component: any): string {
   const view = component && component.view
   if (typeof view !== 'function') return ''
   let src = viewTokens.get(view)
   if (src === undefined) {
     try { src = Function.prototype.toString.call(view) } catch (_) { src = '' }
+    const registered = (globalThis as any).__SYGNAL_VIEW_TOKENS__?.get?.(view)
+    if (typeof registered == 'string') src += '\n' + registered
     viewTokens.set(view, src as string)
   }
   return src as string

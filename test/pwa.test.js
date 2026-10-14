@@ -232,6 +232,24 @@ describe('makeServiceWorkerDriver', () => {
     expect(mockWaiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' })
   })
 
+  it('enabled: false registers nothing, ignores commands and emits nothing', async () => {
+    const mockWaiting = { postMessage: vi.fn() }
+    const register = vi.fn().mockResolvedValue({ installing: null, waiting: null, active: { state: 'activated' }, addEventListener: vi.fn() })
+    Object.defineProperty(navigator, 'serviceWorker', {
+      value: { register, addEventListener: vi.fn(), ready: Promise.resolve({ active: null, waiting: mockWaiting }) },
+      configurable: true,
+    })
+
+    const source = makeServiceWorkerDriver('/sw.js', { enabled: false })(xs.of({ action: 'skipWaiting' }))
+    const values = []
+    source.select().addListener({ next: v => values.push(v) })
+
+    await new Promise(r => setTimeout(r, 10))
+    expect(register).not.toHaveBeenCalled()
+    expect(mockWaiting.postMessage).not.toHaveBeenCalled()
+    expect(values).toEqual([])
+  })
+
   it('select with no type receives all events', async () => {
     Object.defineProperty(navigator, 'serviceWorker', {
       value: {
