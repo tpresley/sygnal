@@ -14,6 +14,13 @@ async function until(what, fn, ms = 15000) {
     await sleep(100)
   }
 }
+// a provider request VS Code cancels (a newer request superseded it while the server was busy,
+// as on a slow CI runner) is retried, as an editor would ask again
+async function request(what, fn, ms = 15000) {
+  return until(what, async () => {
+    try { return await fn() } catch (err) { if (/Canceled/.test(String(err?.message ?? err))) return null; throw err }
+  }, ms)
+}
 const codeOf = (d) => String(d.code?.value ?? d.code)
 const sygnal = (uri) => vscode.languages.getDiagnostics(uri).filter(d => d.source === 'sygnal')
 const shape = (d) => ({ code: codeOf(d), range: [d.range.start.line, d.range.start.character, d.range.end.line, d.range.end.character], message: d.message.slice(0, 70) })
@@ -84,14 +91,14 @@ async function bundledScenario(step) {
 
   // 3. hover on SYG110 shows its explanation
   const syg110 = sygnal(uriC).find(d => codeOf(d) === 'SYG110')
-  const hovers = await vscode.commands.executeCommand('vscode.executeHoverProvider', uriC, syg110.range.start.translate(0, 2))
+  const hovers = await request('the hover on SYG110', () => vscode.commands.executeCommand('vscode.executeHoverProvider', uriC, syg110.range.start.translate(0, 2)))
   const hoverText = hovers.flatMap(h => h.contents.map(c => c.value ?? String(c))).join('\n')
   step('hover', hoverText.slice(0, 300))
   assert.match(hoverText, /SYG110/)
   assert.match(hoverText, /Fix/)
 
   // 4. the preferred quick fix for SYG110 clears it (unsaved buffer)
-  const actions = await vscode.commands.executeCommand('vscode.executeCodeActionProvider', uriC, syg110.range, vscode.CodeActionKind.QuickFix.value)
+  const actions = await request('the quick fixes for SYG110', () => vscode.commands.executeCommand('vscode.executeCodeActionProvider', uriC, syg110.range, vscode.CodeActionKind.QuickFix.value))
   step('quickFixes', actions.map(a => ({ title: a.title, kind: a.kind?.value, preferred: !!a.isPreferred })))
   const preferred = actions.filter(a => a.isPreferred && a.kind?.value === 'quickfix')
   assert.equal(preferred.length, 1, 'one preferred fix for SYG110')

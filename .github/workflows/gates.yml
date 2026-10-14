@@ -34,6 +34,7 @@ jobs:
           npm ci --prefix browser-tests
           npm ci --prefix sygnal-check
           npm ci --prefix benchmarks
+          npm ci --prefix docs   # test/docs-live-server.test.js loads the docs' tsconfig (astro)
           for d in examples/*/; do [ -f "$d/package.json" ] && npm install --prefix "$d"; done
       - name: Install Chromium (Playwright, pinned by browser-tests)
         run: npx --prefix browser-tests playwright install --with-deps chromium
