@@ -1,0 +1,139 @@
+# The release gates of RELEASING.md §2–§4, as four parallel jobs. Called by ci.yml (pull requests
+# and pushes to main) and release.yml (before anything is published). Read-only: no secrets, no
+# publishing. The editors job uploads the extension's .vsix as the artifact `vsix`, which the
+# release publishes as built here.
+name: Gates
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 24
+  # the examples, docs and templates install their own dependencies; CI may download browsers
+  # and VS Code (a local run never does)
+  CI: true
+
+jobs:
+  library:
+    name: Library (npm test, sygnal-check, samples, size)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix browser-tests
+          npm ci --prefix sygnal-check
+          npm ci --prefix benchmarks
+          for d in examples/*/; do [ -f "$d/package.json" ] && npm install --prefix "$d"; done
+      - name: Install Chromium (Playwright, pinned by browser-tests)
+        run: npx --prefix browser-tests playwright install --with-deps chromium
+      - name: Build
+        run: npm run build:all
+      - name: npm test (vitest, examples, types, browser, perf gate)
+        run: npm test
+      - name: sygnal-check
+        run: npm test --prefix sygnal-check
+      - name: Docs samples are strict-clean
+        run: node scripts/check-doc-samples.mjs
+      - name: Error reference matches explanations.json
+        run: node scripts/gen-error-docs.mjs --check
+      - name: Size gate
+        run: node scripts/size-gate.mjs
+
+  docs:
+    name: Docs (build, links, live demos in 3 browsers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix browser-tests
+          npm ci --prefix docs
+      - name: Install browsers (Playwright, pinned by browser-tests)
+        run: npx --prefix browser-tests playwright install --with-deps chromium firefox webkit
+      - name: Build the library (the live demos import dist/)
+        run: npm run build
+      - name: Build the docs
+        run: npm run build --prefix docs
+      - name: Live demos
+        run: |
+          for b in chromium firefox webkit; do BROWSER=$b node docs/scripts/check-live.mjs; done
+
+  editors:
+    name: Editors (VS Code extension, Claude Code plugin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix sygnal-check
+          npm ci --prefix editors/vscode
+          npm install --prefix examples/kanban
+      - name: Download VS Code for the smoke test
+        working-directory: editors/vscode
+        run: |
+          exe=$(node -e "import('@vscode/test-electron').then(m => m.downloadAndUnzipVSCode('stable')).then(p => console.log(p))")
+          echo "VSCODE_PATH=$exe" >> "$GITHUB_ENV"
+      - name: Extension gate (type check, unit tests, build, smoke test in VS Code)
+        run: xvfb-run -a npm --prefix editors/vscode test
+      - name: Claude Code plugin manifest agrees with the marketplace entry
+        run: npx vitest run test/p7-i1-claude-plugin.test.js
+      - name: Package the extension
+        run: npm --prefix editors/vscode run package
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vsix
+          path: editors/vscode/sygnal-*.vsix
+          if-no-files-found: error
+
+  templates:
+    name: Templates (all ten, from this checkout's tarballs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: '**/package-lock.json'
+      - name: Install
+        run: |
+          npm ci
+          npm ci --prefix browser-tests
+      - name: Install Chromium (the Vike browser check)
+        run: npx --prefix browser-tests playwright install --with-deps chromium
+      - name: Build
+        run: npm run build:all
+      - name: Smoke every template from local tarballs
+        run: node scripts/release-smoke.mjs --local --dir "$RUNNER_TEMP/smoke"
+      - name: Keep the logs of a failed smoke
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: template-smoke-logs
+          path: ${{ runner.temp }}/smoke/*.log

@@ -1,0 +1,44 @@
+# One-time setup for publishing to the VS Code Marketplace without a token (RELEASING.md §8).
+# Run it by hand (Actions → Marketplace identity → Run workflow) once the `release` environment has
+# the variables AZURE_CLIENT_ID and AZURE_TENANT_ID of the Entra app registration. It signs in as
+# that app the way release.yml does and prints the app's Azure DevOps profile id, which you add to
+# the Marketplace publisher `sygnal` as a Contributor. Run it again afterwards: the last step then
+# confirms the app may publish (`vsce verify-pat --azure-credential`). It publishes nothing.
+name: Marketplace identity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    environment: release   # the federated credential trusts this environment only
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Sign in to Microsoft Entra ID (OIDC, no secret)
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: The app's Azure DevOps profile id (add it to the publisher as Contributor)
+        run: |
+          # 499b84ac-…: the Azure DevOps resource; the profile exists once the app has signed in to it
+          id=$(az rest --method get --resource 499b84ac-1321-427f-aa17-267ca6975798 \
+            --url 'https://app.vssps.visualstudio.com/_apis/profile/profiles/me?api-version=7.1-preview.3' --query id -o tsv)
+          echo "Azure DevOps profile id: $id"
+          { echo '### Marketplace identity'; echo; echo "Add this id to https://marketplace.visualstudio.com/manage/publishers/sygnal → Members → Add, role **Contributor**:"; echo; echo "\`$id\`"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: May it publish? (fails until the id above is a member of the publisher)
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          npx vsce verify-pat --azure-credential sygnal

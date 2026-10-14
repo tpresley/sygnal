@@ -37,6 +37,8 @@ node scripts/size-gate.mjs           # size gate: kanban gzip with nativeGlobalT
                                      #   size and src/core/** alone. `--budget <bytes>` overrides
 ```
 
+**Releases** are published by GitHub Actions with no stored credentials (`.github/workflows/release.yml`: a version change on main → the gates in `gates.yml` → the maintainer approves the `release` environment → npm / Open VSX trusted publishing, Marketplace via Entra ID → registry smoke). `node scripts/release-plan.mjs` shows what would be published; `node scripts/release-smoke.mjs --local|--registry` runs the template smoke checks. RELEASING.md has the steps and the manual fallback.
+
 This is a **library package** — no dev server. Verify changes via `npm run build` + `npm test`. Build before testing: tests and examples import `dist/`.
 
 **Fresh checkout / worktree setup** (G-002): the gate needs more than the root install, or the kanban-based library tests fail with "Cannot find package 'sygnal'":

@@ -8,7 +8,7 @@ This repository publishes three npm packages:
 | `sygnal-check` | `sygnal-check/` | — (reads source; doesn't import `sygnal`) |
 | `create-sygnal-app` | `create-sygnal-app/` | its templates depend on `sygnal` and `sygnal-check` |
 
-Publish them in the order below, so that each package's dependencies are on the registry before anything that installs them.
+They are published in the order below, so that each package's dependencies are on the registry before anything that installs them.
 
 Two editor integrations ship from this repository too, outside npm (PLAN-7). Release them after `sygnal-check` (they run its language server): the VS Code extension (`editors/vscode/`, [§8](#8-the-vs-code-extension-editorsvscode)) and the Claude Code plugin (`editors/claude-code/`, [§9](#9-the-claude-code-plugin-editorsclaude-code)).
 
@@ -22,14 +22,39 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 `sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.4.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
+## How a release runs
+
+Publishing is done by GitHub Actions, with no stored credentials (`.github/workflows/release.yml`):
+
+1. **You prepare the release** (§1): version bumps, template ranges, changelog entries, committed to `main` (pushed directly or merged from a pull request).
+2. **The Release workflow starts** when one of the five version files changes on `main`: `package.json`, `sygnal-check/package.json`, `create-sygnal-app/package.json`, `editors/vscode/package.json`, `editors/claude-code/.claude-plugin/plugin.json`. Its `plan` job (`scripts/release-plan.mjs`) lists which versions aren't published yet; when none is new, the run ends there.
+3. **The gates run** (`.github/workflows/gates.yml`, the same as CI on every pull request): `npm test`, `sygnal-check`, the docs samples and error reference, the docs build and live demos in Chromium, Firefox and WebKit, the size gate, the extension gate in a downloaded VS Code, and every template from this commit's tarballs (§2–§4).
+4. **You approve.** The `publish` job uses the environment `release` (deployments from `main` only, required reviewer: the maintainer): GitHub asks you to review the deployment (a notification, or Actions → the run → Review deployments).
+5. **It publishes what is new**, in order: `sygnal-check`, `sygnal`, `create-sygnal-app` (npm trusted publishing: OIDC, provenance attached), the tag `v<SYGNAL>` and its GitHub release (notes from `CHANGELOG.md`), the extension to the Marketplace (Microsoft Entra ID) and Open VSX (trusted publishing) from the `.vsix` the gates built, the tag `vscode-v<version>` with the `.vsix` attached, and the plugin's tag `sygnal--v<version>`.
+6. **The registry smoke check runs** (§7): every template from the published packages. A failure fails the run, and GitHub notifies you.
+
+A release of one package (a `sygnal-check` patch, an extension-only release) is just that package's version change. Re-running a failed run publishes only what is still missing (`--skip-duplicate` for the extension registries).
+
+**Dry run.** Actions → Release → Run workflow (from `main`; "Dry run" is checked by default) runs the plan with every target counted as new, the gates, and after your approval `npm publish --dry-run` and `vsce verify-pat --azure-credential` (the Marketplace sign-in); it uploads and tags nothing. Use it after changing the workflow or the trust setup.
+
+**Run locally.** `node scripts/release-plan.mjs` prints what a release of this checkout would publish; `node scripts/release-smoke.mjs --local | --registry` runs the template smoke checks (§4, §7).
+
+### One-time setup (the maintainer's accounts)
+
+The trust is pinned to the workflow file `release.yml` and the environment `release` on every registry; nothing else can publish.
+
+- **GitHub:** the environment `release` (Settings → Environments): required reviewer `tpresley`, deployment branches `main`. Its variables `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` (identifiers, not secrets) name the Marketplace identity below.
+- **npm, for each of `sygnal`, `sygnal-check`, `create-sygnal-app`:** the package's Settings → Trusted publishing → GitHub Actions: owner `tpresley`, repository `sygnal`, workflow `release.yml`, environment `release`, and allow `npm publish`. A new trusted publisher that hasn't published within 2 days expires, so add it shortly before a release (and recreate it if it expired; it can't be edited). After the first release through it, set Settings → Publishing access → "Require two-factor authentication and disallow tokens", and delete any old automation tokens. Needs npm ≥ 11.5.1 on the runner (Node 24; the workflow checks it).
+- **Open VSX:** open-vsx.org → Settings → Trusted Publishers → the extension `sygnal.sygnal` → GitHub Actions: `tpresley` / `sygnal` / `release.yml` / environment `release`. Delete the old access tokens (a token set as `OVSX_PAT` would take precedence).
+- **VS Code Marketplace** (§8): a Microsoft Entra app registration trusted by GitHub for this environment, added to the publisher `sygnal` as Contributor. Until `AZURE_CLIENT_ID` is set, releases skip the Marketplace with a warning. Global Azure DevOps tokens stop working on December 1, 2026.
+
 ## 1. Prepare
 
-Start from the merged release commit on `main`, with a clean working tree:
+Start from `main`, with a clean working tree:
 
 ```bash
 git checkout main && git pull
 git status                                  # must be clean
-npm whoami                                  # must be the account that owns the packages
 ```
 
 Set the versions (no `npm version`: it also commits and tags):
@@ -58,9 +83,11 @@ Set the versions (no `npm version`: it also commits and tags):
 - `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph.
 - `ROADMAP.md`: the release line names the template range (`sygnal` ^6.0.0); update it if it still describes the current release.
 
-Commit these changes before running the gates.
+Bump the extension (§8) and the plugin (§9) in the same commit when they ship. Commit, and push to `main` (or merge a pull request): the Release workflow starts. Running the gates locally first (§2–§4) is optional; the workflow runs them before anything is published.
 
 ## 2. Install, build and run the gates
+
+The Release workflow runs these (`gates.yml`, also CI on every pull request). To run them locally:
 
 ```bash
 npm ci
@@ -117,21 +144,20 @@ Expect:
 
 ## 4. Smoke check the templates before publishing
 
-Run the smoke loop of step 7 against local tarballs, so a template problem is found before anything is on the registry. Pack the three packages into a scratch directory and install the scaffolder from its tarball (running `create-sygnal-app/index.js` from the repository fails: its own dependencies aren't installed there):
+The checks of §7 against this checkout's tarballs, so a template problem is found before anything is on the registry (the gates' `templates` job):
 
 ```bash
-mkdir -p /tmp/sygnal-release/packs
-npm pack --pack-destination /tmp/sygnal-release/packs
-npm pack --prefix sygnal-check ./sygnal-check --pack-destination /tmp/sygnal-release/packs
-npm pack --prefix create-sygnal-app ./create-sygnal-app --pack-destination /tmp/sygnal-release/packs
-npm install --prefix /tmp/sygnal-release/csa /tmp/sygnal-release/packs/create-sygnal-app-<CSA>.tgz
+npm run build:all
+node scripts/release-smoke.mjs --local      # --only vike-ts for one project; logs in the printed folder
 ```
 
-Then, for each template, scaffold with `node /tmp/sygnal-release/csa/node_modules/create-sygnal-app/index.js <name> --template <t> --<lang> --no-install`, point its `sygnal` and `sygnal-check` dependencies at `file:/tmp/sygnal-release/packs/sygnal-<SYGNAL>.tgz` and `file:…/sygnal-check-<CHECK>.tgz`, `npm install`, and run the checks of step 7 (tests, `sygnal-check --strict`, `tsc` for TypeScript templates, build, Vike navigation).
+It packs the three packages, installs the scaffolder from its tarball (running `create-sygnal-app/index.js` from the repository fails: its own dependencies aren't installed there), scaffolds each template with `--no-install`, points its `sygnal` and `sygnal-check` at the tarballs, installs, and runs the checks of §7.
 
 ## 5. Publish
 
-Publish in this order:
+The Release workflow publishes, after your approval (see [How a release runs](#how-a-release-runs)). Order: `sygnal-check` first (the templates list it as a dev dependency), then `sygnal` (its `prepublishOnly` runs `build:all` again), then `create-sygnal-app` (its templates need both).
+
+**By hand** (the fallback when the workflow can't run; with "disallow tokens" set, `npm publish` asks for your 2FA code):
 
 ```bash
 # 1. sygnal-check first: the templates list it as a dev dependency.
@@ -150,6 +176,8 @@ If a publish fails partway through, fix the problem and publish only the package
 
 ## 6. Tag
 
+The workflow tags `v<SYGNAL>` and creates its GitHub release from the `CHANGELOG.md` entry. By hand:
+
 ```bash
 git tag v<SYGNAL>
 git push origin v<SYGNAL>
@@ -159,36 +187,15 @@ Create the GitHub release from the tag, and use the `CHANGELOG.md` entry as its 
 
 ## 7. Smoke check from the registry
 
-Scaffold every template from the published packages in a scratch directory outside the repository. Then run its tests, the static check in strict mode, a type check for the TypeScript templates and a production build:
+The workflow's `smoke` job waits until npm serves the new versions (§5), then scaffolds every template from the published packages. By hand:
 
 ```bash
-# a new folder per release: create-sygnal-app refuses a folder that exists and isn't empty
-mkdir /tmp/sygnal-smoke-<SYGNAL> && cd /tmp/sygnal-smoke-<SYGNAL>
-for t in vite vite-pwa vike astro mcp-app; do
-  for lang in js ts; do
-    npx --yes create-sygnal-app@latest "$t-$lang" --template "$t" --"$lang" --install < /dev/null
-    (
-      cd "$t-$lang" &&
-      npm ls sygnal sygnal-check &&                  # <SYGNAL> and <CHECK>, from the registry
-      npm test &&
-      if [ "$t" = vike ]; then npx --no-install sygnal-check pages --strict; else npx --no-install sygnal-check --strict; fi &&
-      if [ "$lang" = ts ]; then npx --no-install tsc --noEmit -p .; fi &&
-      npm run build
-    ) || echo "SMOKE FAILED: $t-$lang"
-  done
-done
+node scripts/release-smoke.mjs --registry   # create-sygnal-app@<CSA> from npm; requires sygnal <SYGNAL> and sygnal-check <CHECK>
 ```
 
-Every project must install `sygnal` <SYGNAL> and `sygnal-check` <CHECK>. Each one's tests must pass, `sygnal-check --strict` must report nothing, `tsc --noEmit` must report nothing for the five TypeScript templates (the `vite build` of a TS template doesn't type-check, and the declarations are where type-level changes show up), and the build must succeed. `--no-install` makes sure that the check runs the copy the template installed, not a fresh download. Also check that `node_modules/sygnal/llms.txt` exists in one of the projects. The `mcp-app` tests cover the view and its MCP server; `npm start` in one of them serves MCP on `http://localhost:3001/mcp` (`node server/server.js --stdio` for stdio), where `tools/list` shows `get_forecast` and `resources/read` returns the built view.
+Each project is scaffolded into a new folder (create-sygnal-app refuses a folder that exists and isn't empty) and must install `sygnal` <SYGNAL> and `sygnal-check` <CHECK>; its tests must pass, `sygnal-check --strict` (`pages` for Vike) must report nothing, `tsc --noEmit` must report nothing for the five TypeScript templates (the `vite build` of a TS template doesn't type-check, and the declarations are where type-level changes show up), and the build must succeed. The checks run with `--no-install`, so they use the copy the template installed, not a fresh download. `node_modules/sygnal/llms.txt` must exist. The `mcp-app` tests cover the view and its MCP server; `npm start` in one of them serves MCP on `http://localhost:3001/mcp` (`node server/server.js --stdio` for stdio), where `tools/list` shows `get_forecast` and `resources/read` returns the built view.
 
-**Vike client navigation.** The unit tests don't cover hydration or client routing, so check both Vike templates in a browser. In `vike-js` and `vike-ts`, run `npm run preview` and open the printed URL:
-
-1. On `/`, click **+** twice: the counter shows 2 (the page hydrated).
-2. Click **About** in the nav: the About page renders, the URL is `/about`, and the page doesn't reload (the network panel shows no document request).
-3. Click **Home**: the counter renders and **+** works again.
-4. There is one nav bar (no duplicated Layout), and the browser console shows no errors or warnings (in particular none about `passToClient`).
-
-This can be scripted with Playwright (`browser-tests/` has it installed): load the page, click, and assert on `.counter-display`, `h1` and a `window` flag set before navigating that would be lost by a full reload.
+**Vike client navigation**, which the unit tests don't cover: for `vike-js` and `vike-ts` the script runs `npm run preview` and checks in Chromium (Playwright from `browser-tests/`) that two clicks on **+** show 2 (the page hydrated), that **About** renders at `/about` without a page reload, that **Home** renders the counter again, that there is one nav bar (no duplicated Layout), and that the console shows no errors or warnings (in particular none about `passToClient`).
 
 If a smoke check fails, fix the problem on `main` and publish a patch release of the affected package.
 
@@ -198,12 +205,18 @@ The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and t
 
 Last published: the extension 0.5.0 (2026-10-14; tag `vscode-v0.5.0`) and the Claude Code plugin 0.1.3 (tag `sygnal--v0.1.3`).
 
-**One-time setup (the maintainer's accounts):** done for 0.1.0 (publisher `sygnal` on both registries).
-- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or set `VSCE_PAT` when publishing (step 4). The Azure DevOps organization's name doesn't matter (the token is scoped to all organizations).
-  **From December 1, 2026, Azure DevOps retires these global tokens**, and Marketplace publishing has to use Microsoft Entra ID: `vsce publish --azure-credential` (vsce ≥ 2.26.1; this repo has `@vscode/vsce` 4) with an identity that is a member of the publisher. The [VS Code publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents the setup (a managed identity with workload identity federation, added to the publisher as Contributor). Set it up before the first extension release after that date.
-- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal` with `OVSX_PAT` set (step 4). Pass the token through the `OVSX_PAT` environment variable, never on the command line, so it stays out of shell history. A new version appears on open-vsx.org a few minutes after `ovsx publish` (it is scanned first).
+**One-time setup (the maintainer's accounts).** The publisher `sygnal` exists on both registries (0.1.0).
+- **VS Code Marketplace, Microsoft Entra ID** (global Azure DevOps tokens stop working on December 1, 2026). The workflow signs in to Entra as an app registration that trusts GitHub's OIDC token for this repository's environment `release`, then runs `vsce publish --azure-credential` (`@vscode/vsce` 4.0.0, pinned in `editors/vscode`). No secret and no Azure subscription are involved. Microsoft documents this route for Azure Pipelines; the GitHub Actions form follows the same steps:
+  1. In the Azure portal (Microsoft Entra ID → App registrations → New registration): name it, e.g. `sygnal-marketplace-publisher`, single tenant, no redirect URI. Note its **Application (client) ID** and **Directory (tenant) ID**.
+  2. On the app, Certificates & secrets → Federated credentials → Add credential → "GitHub Actions deploying Azure resources": organization `tpresley`, repository `sygnal`, entity type **Environment**, environment `release`. (Subject `repo:tpresley/sygnal:environment:release`.)
+  3. In GitHub, add the variables `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` to the environment `release`.
+  4. Run Actions → **Marketplace identity** → Run workflow. Its summary shows the app's Azure DevOps profile id. Add that id at https://marketplace.visualstudio.com/manage/publishers/sygnal → Members, role **Contributor**.
+  5. Run **Marketplace identity** again: its last step (`vsce verify-pat --azure-credential sygnal`) must pass. Then revoke the old Azure DevOps personal access tokens.
 
-**Each release:**
+  `vsce publish --oidc` (Marketplace trusted publishing) exists in vsce 4 but the Marketplace doesn't accept it yet (October 2026); it would replace the app registration when it does.
+- **Open VSX, trusted publishing:** registered for `sygnal.sygnal` (see [the setup above](#one-time-setup-the-maintainers-accounts)); the workflow runs `ovsx publish --trusted-publishing` (`ovsx` 1.2.0, pinned in the workflow). A new version appears on open-vsx.org a few minutes after publishing (it is scanned first).
+
+**Each release:** bump the version and add the changelog section (step 1) in the release commit; the workflow runs steps 2–5. By hand:
 1. Bump `version` in `editors/vscode/package.json` and add a section to `editors/vscode/CHANGELOG.md`. The extension has its own version line (0.1.0 first). If the minimum server version changes, update `MIN_LSP_VERSION` in `editors/vscode/src/resolve.ts`, the extension README and the smoke test text. The Marketplace doesn't take pre-release semver: use `vsce publish --pre-release` with an odd minor for pre-releases.
 2. Gate:
    ```bash
@@ -211,14 +224,14 @@ Last published: the extension 0.5.0 (2026-10-14; tag `vscode-v0.5.0`) and the Cl
    npm ci --prefix editors/vscode
    npm --prefix editors/vscode test      # type check, unit tests, build, smoke test in the installed VS Code
    ```
-   The smoke test opens VS Code from `/Applications/Visual Studio Code.app` (`VSCODE_PATH` overrides it) and downloads nothing. The root `npm test` includes the snippets gate (`test/p7-v1-snippets.test.js`).
+   The smoke test opens VS Code from `/Applications/Visual Studio Code.app` (`VSCODE_PATH` overrides it) and downloads nothing; the gates download VS Code and run it under `xvfb-run`. The root `npm test` includes the snippets gate (`test/p7-v1-snippets.test.js`).
 3. Package and inspect:
    ```bash
    npm --prefix editors/vscode run package     # writes editors/vscode/sygnal-<version>.vsix
    (cd editors/vscode && npx vsce ls --tree)   # the bundle, server/sygnal-check with @babel/parser, snippets, icon; no sources or tests
    ```
    vsce reads `package.json` in the current directory (`npx --prefix` only says where vsce is installed), hence the `cd`. Expect about 645 KB (0.5.0). Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
-4. Publish the same file to both registries. Both tools read their token from the environment (`VSCE_PAT`, `OVSX_PAT`), so never type a token into a command: it stays in the shell history (and in any transcript of the terminal). `read -s` sets it without echoing or recording it:
+4. Publish the same file to both registries (the workflow does this with OIDC, no tokens). By hand, with tokens: both tools read their token from the environment (`VSCE_PAT`, `OVSX_PAT`), so never type a token into a command: it stays in the shell history (and in any transcript of the terminal). `read -s` sets it without echoing or recording it:
    ```bash
    read -s 'VSCE_PAT?Marketplace token: ' && export VSCE_PAT; echo   # bash: read -s -p 'Marketplace token: ' VSCE_PAT
    read -s 'OVSX_PAT?Open VSX token: ' && export OVSX_PAT; echo
@@ -242,6 +255,6 @@ The marketplace file (`.claude-plugin/marketplace.json`, name `sygnal`) is read 
    claude plugin validate --strict .
    npx vitest run test/p7-i1-claude-plugin.test.js
    ```
-4. **Merge to `main` and push.** Then `claude plugin tag editors/claude-code --push` (try `--dry-run` first) creates and pushes `sygnal--v<version>`, after checking that `plugin.json` and the marketplace entry agree. Installs follow `main`; the tag is for history and for plugins that depend on this one.
+4. **Merge to `main` and push.** The Release workflow tags `sygnal--v<version>` (its gates check that `plugin.json` and the marketplace entry agree). By hand: `claude plugin tag editors/claude-code --push` (try `--dry-run` first). Installs follow `main`; the tag is for history and for plugins that depend on this one.
 5. **Smoke test** in a scratch `CLAUDE_CONFIG_DIR`: `claude plugin marketplace add tpresley/sygnal`, `claude plugin install sygnal@sygnal`, then `claude plugin details sygnal@sygnal` must list one skill and one LSP server.
 6. Add a line about it to the `CHANGELOG.md` entry of the release that ships it.
