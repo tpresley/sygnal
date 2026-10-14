@@ -2,6 +2,31 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 6.4.0 — 2026-10-14
+
+Fixes for issues an agent hit while building a real app on 6.3.0, and a step-by-step chat tutorial in the AI showcase. Additive: an `event()` payload function may now return `ABORT`, `makeServiceWorkerDriver` takes `enabled`, and a new diagnostic code (SYG427) reports a `CHILD.select()` of something that isn't a component. Dev-time checks get fewer false positives (SYG103, SYG223).
+
+**Measured impact.** Size: the kanban gate is (a) 42,516 B with `nativeGlobalThis: false` (was 42,504 B; budget 42,700 B) and (b) 38,497 B by default (was 38,485 B): `event()`'s `ABORT` check adds 12 B. The SYG103 view words are dev-server only (never in `vite build`); SYG427's runtime check is in the dev diagnostics entry (0 production bytes).
+
+**Companion packages.**
+- **`sygnal-check` 0.8.0:** new SYG427 (error: a component imported from a module that doesn't export it), no false SYG223 for a `uses` slice in `persist({ pick })`, and SYG609's fix names `makeServiceWorkerDriver` for an `SW` sink. Its caret range doesn't reach 0.8.0 from `^0.7.0`, so update the dev dependency.
+- **`create-sygnal-app` 2.6.0:** every template depends on `sygnal` ^6.4.0 and `sygnal-check` ^0.8.0.
+- **VS Code extension 0.5.0:** bundles `sygnal-check` 0.8.0. The extension itself doesn't change.
+- **Claude Code plugin 0.1.3:** the `sygnal-dev` skill says that an `event()` payload function returns `ABORT` to send nothing.
+
+### Added
+
+- **`event()` can send nothing.** A payload function that returns `ABORT` sends no event, as `ABORT` does from any other sink: `EVENTS: event('SAVED', (state) => (state.dirty ? { id: state.id } : ABORT))`. Before, the event went out with `ABORT` as its data, and strict mode (which rules out the raw `EVENTS: (state) => …` form) left no way to skip one; apps split actions or sent placeholder events instead. Typed: the payload function may return `ABORT`. `emit()` gets it too.
+- **`makeServiceWorkerDriver(url, { enabled })`.** `enabled: false` registers no service worker, ignores commands and emits nothing, so an app keeps its `SW` wiring on a dev server, where a worker must not run: `makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })`. Before, leaving the driver out in development logged SYG609 on every load, and the fix was a hand-written no-op driver.
+- **SYG427 (error): `CHILD.select()` of something that is not a component.** A component imported by a name its module doesn't export is `undefined` under Vitest (the browser refuses to load the module), so `CHILD.select(Child)` never emitted and a test that never rendered `<Child />` passed with no diagnostic. The dev diagnostics now report it when the parent is created, so `expectNoDiagnostics()` fails in every test of the parent; `sygnal-check` reports a component imported from a relative module that doesn't export it, used as a JSX tag, in `CHILD.select()` or as a Collection's `of`.
+- **`examples/ai-showcase`: a Building Chat tab.** The page is now two tabs: Features (the ten sections) and Building Chat, one chat built up in eight steps on one model (Kimi K3 on Kindo): streaming; stop, retry and clear; the model's reasoning and a token tally; follow-up suggestions from a structured-output request; `persist()`; an `agent` declaration the model reads (an answer style) and acts on (a shopping list, with approval before clearing it); and a client tool answered with a click. Each step is a complete component, and Show code marks the lines new since the step before. Example chips fill in the prompt without sending it.
+
+### Fixed
+
+- **SYG103 no longer warns about markup drawn by a view helper.** The dev check that takes a not-yet-rendered selector as conditionally rendered read only the view function's source, so a button drawn by `panel()` (called from the view, in the same file or imported) counted as missing and warned after a few renders; the only way out was a component per branch. In dev, `sygnal/vite` now registers the words of a component module's string literals and of its relative imports, and the check reads them too. Strings that are selectors or paths are left out, so a typo in the intent's own selector is still reported. Without the plugin the check works as before.
+- **SYG223 no longer flags a behavior's slice.** `persist({ pick: ['chat'] })` on a component with `uses = { chat: chat() }` warned that `chat` isn't a key of `initialState` (dev diagnostics and `sygnal-check`), but a `uses` slice is state and is saved; both checkers now count `uses` keys.
+- **SYG609's fix names the right driver.** An `SW` sink now gets `makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })` instead of `makeFetchDriver()`, and a `WS` sink `makeSocketDriver()`, without the URL argument the fix text gave it (the socket driver takes none; connections come from the `connections` static). Runtime and `sygnal-check`.
+
 ## create-sygnal-app 2.5.0 — 2026-10-13
 
 The `mcp-app` starter, new projects on sygnal-check 0.7.0, docs and examples; `sygnal` itself is unchanged (6.3.0). Testing the starter in Claude Desktop showed that a view's `updateModelContext` never reaches the model in its chat, so the starter now tells the model what the user picked through a server tool.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+Bundles sygnal-check 0.8.0 (Sygnal 6.4.0). The extension's own code doesn't change.
+
+- **SYG427**: a component imported from a module that doesn't export it, used as a JSX tag, in `CHILD.select()` or as a Collection's `of` (the import is `undefined`; Vitest runs on, the browser fails to load the module).
+- No false **SYG223** for a `uses` slice in `persist({ pick })`; **SYG609**'s fix names `makeServiceWorkerDriver` for an `SW` sink and `makeSocketDriver()` for a `WS` one.
+
 ## 0.4.0
 
 Bundles sygnal-check 0.7.0. A project with its own sygnal-check runs that copy, as before; the highlights need 0.7.0 or later there (`npm i -D sygnal-check@latest`), and an older one keeps working without them.
