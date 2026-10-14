@@ -14,7 +14,7 @@
     "sygnal": "^6.3.0"
   },
   "devDependencies": {
-    "sygnal-check": "^0.6.0",
+    "sygnal-check": "^0.7.0",
     "vitest": "^4.1.2"
   }
 }
