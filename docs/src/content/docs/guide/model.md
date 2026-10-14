@@ -174,7 +174,7 @@ Lane.model = {
 }
 ```
 
-The payload function receives the reducer arguments `(state, data, next, props)`. Any component receives the event with `EVENTS.select('DELETE_LANE')` in its intent. With TypeScript, the [`SygnalEvents` registry](/integration/typescript/#typed-events) checks event names and payloads.
+The payload function receives the reducer arguments `(state, data, next, props)`, and returns `ABORT` to send no event this time: `event('SAVED', (state) => (state.dirty ? { id: state.id } : ABORT))`. Any component receives the event with `EVENTS.select('DELETE_LANE')` in its intent. With TypeScript, the [`SygnalEvents` registry](/integration/typescript/#typed-events) checks event names and payloads.
 
 ## Side Effects with `EFFECT`
 

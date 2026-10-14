@@ -36,12 +36,20 @@ const underTest = (c: any) => {
   const dom = c?.sources?.[c.DOMSourceName || 'DOM']
   return !!dom && typeof dom == 'object' && '_hub' in dom
 }
-// G-620: an LLM / chat sink gets the chat driver's fix, not makeFetchDriver's
-const driverFix = (sink: string) =>
-  `Pass a driver named ${sink} to run(): ` + (/^(LLM|CHAT|AI|ASSISTANT)$/.test(sink)
-    ? `run(App, { ${sink}: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) }) (from 'sygnal/ai'; uiMessageStream('/api/chat') for an AI SDK server)`
-    : `run(App, { ${sink}: makeFetchDriver() }) for HTTP, or driverFromAsync(fn) / your own driver`) +
-  `. Check the spelling against the drivers you pass`
+// G-620: the usual driver for a known sink name (an LLM / chat sink gets the chat driver's fix,
+// SW the service worker's), the generic text for any other name
+const DRIVER_FOR: Array<[RegExp, (sink: string) => string]> = [
+  [/^(LLM|CHAT|AI|ASSISTANT)$/, (s) => `run(App, { ${s}: makeChatDriver({ transport: openResponses({ baseURL: 'http://localhost:11434/v1', model: 'llama3.2' }) }) }) (from 'sygnal/ai'; uiMessageStream('/api/chat') for an AI SDK server)`],
+  [/^(SW|SERVICE_WORKER)$/, (s) => `run(App, { ${s}: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }) }) (enabled: false keeps the driver, with no service worker, on a dev server)`],
+  [/^(HTTP|API|FETCH)$/, (s) => `run(App, { ${s}: makeFetchDriver() })`],
+  [/^(WS|SOCKET)$/, (s) => `run(App, { ${s}: makeSocketDriver() })`],
+]
+const driverFix = (sink: string) => {
+  const known = DRIVER_FOR.find(([re]) => re.test(sink))
+  return `Pass a driver named ${sink} to run(): ` +
+    (known ? known[1](sink) : `run(App, { ${sink}: makeFetchDriver() }) for HTTP, or driverFromAsync(fn) / your own driver`) +
+    `. Check the spelling against the drivers you pass`
+}
 
 export const wiringCheck: DiagnosticCheck = {
   id: 'wiring',

@@ -117,3 +117,42 @@ d('SYG612: a form 6.0 removed, met at runtime (D173), once each, with the migrat
     expect(forms()).toEqual([])
   })
 })
+
+d('SYG427: CHILD.select() of something that is not a component', () => {
+  it('CHILD.select(undefined) (an import of a name the module does not export) is an error, once', async () => {
+    const Missing = undefined
+    function App() { return h('div', null, 'x') }
+    App.initialState = {}
+    App.intent = ({ CHILD }) => ({ GOT: CHILD.select(Missing), ALSO: CHILD.select(Missing) })
+    App.model = { GOT: (s) => s, ALSO: (s) => s }
+    start(App)
+    await sleep(20)
+    const found = codes('SYG427')
+    expect(found).toHaveLength(1)
+    expect(found[0].severity).toBe('error')
+    expect(found[0].message).toMatch(/CHILD\.select\(undefined\)/)
+    expect(found[0].fix).toMatch(/export/)
+  })
+  it('a component is fine', async () => {
+    function Item() { return h('i', null, 'i') }
+    function App() { return h('div', null, h(Item)) }
+    App.initialState = {}
+    App.intent = ({ CHILD }) => ({ GOT: CHILD.select(Item) })
+    App.model = { GOT: (s) => s }
+    start(App)
+    await sleep(20)
+    expect(codes('SYG427')).toEqual([])
+  })
+  it('renderComponent: expectNoDiagnostics fails for a parent whose child branch never renders', async () => {
+    const { renderComponent } = await import('../src/extra/testing.js')
+    const Child = undefined
+    function Parent({ state }) { return h('div', null, state.show ? h(Child) : null) }
+    Parent.initialState = { show: false }
+    Parent.intent = ({ CHILD }) => ({ GOT: CHILD.select(Child) })
+    Parent.model = { GOT: (s) => s }
+    const t = renderComponent(Parent)
+    await t.ready()
+    expect(() => t.expectNoDiagnostics()).toThrow(/SYG427/)
+    t.dispose()
+  })
+})

@@ -18,6 +18,8 @@ export interface ServiceWorkerCommand {
 
 export interface ServiceWorkerOptions {
   scope?: string;
+  /** false: register nothing, ignore commands, emit nothing (a dev server: `enabled: import.meta.env.PROD`) */
+  enabled?: boolean;
 }
 
 export interface InstallPrompt {
@@ -47,7 +49,7 @@ export function makeServiceWorkerDriver(
   return function serviceWorkerDriver(sink$: Stream<ServiceWorkerCommand>): ServiceWorkerSource {
     const events = new EventTarget();
 
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    if (options.enabled !== false && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker
         .register(scriptUrl, {scope: options.scope})
         .then((reg) => {

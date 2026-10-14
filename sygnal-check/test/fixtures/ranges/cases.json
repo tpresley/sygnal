@@ -215,5 +215,9 @@
   },
   "SYG426": {
     "App.jsx": "function Item() { return <li /> }\nexport function App() {\n  return <ul><collection of={Item} from=\"items\" /></ul>\n}\nApp.initialState = { items: [] }\n"
+  },
+  "SYG427": {
+    "child.jsx": "function Child() { return <button className=\"go\">Go</button> }\nChild.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nChild.model = { GO: { PARENT: () => 'go' } }\n",
+    "parent.jsx": "import { Child } from './child.jsx'\nexport function Parent({ state }) { return <div>{state.show ? <Child /> : null}</div> }\nParent.initialState = { show: false }\nParent.intent = ({ CHILD }) => ({ GOT: CHILD.select(Child) })\nParent.model = { GOT: (state) => state }\n"
   }
 }

@@ -108,7 +108,7 @@ SaveButton.intent = ({ DOM }) => ({ SAVE: DOM.click('.save') })
 SaveButton.model = {
   SAVE: {
     STATE:  (state) => ({ ...state, saving: true }),
-    EVENTS: event('DOC_SAVED', (state) => ({ id: state.id })),  // or event('RESET'), event('MODE', 'dark')
+    EVENTS: event('DOC_SAVED', (state) => ({ id: state.id })),  // or event('RESET'), event('MODE', 'dark'); return ABORT to send nothing
   },
 }
 function Toast({ state }) {   // anywhere in the tree: EVENTS is a global bus

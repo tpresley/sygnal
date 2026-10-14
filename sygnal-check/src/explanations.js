@@ -735,6 +735,13 @@ export const EXPLANATIONS = {
     explanation: "An `isolatedState` component is bound to a slice of its parent's state (`state=\"key\"` or a lens) that already exists, so it keeps that slice and its `initialState` is not applied (since 6.0 the parent's data wins). The slice lacks keys that `initialState` defines, so the component's view and reducers see them as undefined.",
     fix: "Add `resetState` to the tag (`<Panel state=\"panel\" resetState />`) to start the component from its `initialState`, replacing the slice. To keep the parent's data, initialize the missing keys in the parent's state.",
   },
+  SYG427: {
+    title: "CHILD.select() of something that is not a component",
+    severity: "error",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "A component is imported from a module that doesn't export it, so the binding is `undefined`. The browser refuses to load the module (\"does not provide an export named …\"), but Vitest runs on with `undefined`: `CHILD.select(Child)` never emits, and `<Child />` renders nothing (SYG420, only when that branch renders). A test that never shows the branch passes, with no diagnostic. With `sygnal/diagnostics` loaded, `CHILD.select()` of anything but a function is reported when the component is created, so every test of the parent catches it. sygnal-check reports an imported name used as a JSX tag, in `CHILD.select()` or as a Collection's `of` when its module (a relative import it can read) has no such export; it says nothing for a module with `export * from` or a CommonJS one.",
+    fix: "Export the component from its module (`export function Child() { … }`), or fix the imported name. Pass `CHILD.select()` the component function itself.",
+  },
   SYG426: {
     title: "Deprecated lowercase marker tag",
     severity: "warn",

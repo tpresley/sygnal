@@ -103,6 +103,19 @@ describe('SYG609: sink or source with no driver', () => {
     expect(d.fix).not.toContain('makeFetchDriver')
   })
 
+  it('an SW sink gets makeServiceWorkerDriver as the fix, a WS sink makeSocketDriver()', async () => {
+    function Updater() { return h('button', { className: 'go' }, 'go') }
+    Updater.initialState = {}
+    Updater.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+    Updater.model = { GO: { SW: () => ({ action: 'skipWaiting' }), WS: () => ({ to: 'chat', json: {} }) } }
+    app = run(Updater, {}, { mountPoint: '#root', diagnostics: 'collect' })
+    await vi.waitFor(() => expect(diagnostics('SYG609')).toHaveLength(2), { timeout: 5000, interval: 5 })
+    const fixes = Object.fromEntries(diagnostics('SYG609').map(d => [d.data.name, d.fix]))
+    expect(fixes.SW).toContain("makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD })")
+    expect(fixes.SW).not.toContain('makeFetchDriver')
+    expect(fixes.WS).toContain('makeSocketDriver()')
+  })
+
   it('is not reported when the driver is passed, for built-in sinks, or under renderComponent', async () => {
     function App() { return h('div', null, 'x') }
     App.initialState = {}

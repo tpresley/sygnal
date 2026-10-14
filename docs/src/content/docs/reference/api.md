@@ -1494,6 +1494,7 @@ function makeServiceWorkerDriver(
 | Option | Type | Description |
 |--------|------|-------------|
 | `scope` | `string` | Registration scope for the service worker |
+| `enabled` | `boolean` | `false` registers nothing, ignores commands and emits nothing (default `true`): `enabled: import.meta.env.PROD` keeps the driver on a dev server, where a service worker must not run |
 
 ### Source API (requests without reply actions)
 

@@ -33,6 +33,7 @@ import unknownReplyAction from './syg112-unknown-reply-action.js'
 import selectorInView from './syg110-selector-in-view.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
+import missingExport from './syg427-missing-export.js'
 import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
 import controls from './syg124-controls.js'
@@ -69,6 +70,7 @@ export const coreRules = [
   persist, // SYG223, SYG224 (PLAN-4 GS-5)
   initialStateSub, // SYG405 statically (PLAN-4 4-G2)
   childSelectGrandchild, // SYG129 (PLAN-4 4-G2, PLAN-3 G-187)
+  missingExport, // SYG427: a component imported from a module that doesn't export it
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
   widgets, // SYG140-SYG144 (PLAN-5 W-1)
   removedForms, // SYG612 statically (PLAN-4.6 R5): forms 6.0 removed

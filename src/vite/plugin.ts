@@ -117,6 +117,12 @@
  *      /__sygnal/mcp (./mcp.ts: streamable HTTP, loopback / local Host / local Origin only)
  *      and the dev entries also import 'virtual:sygnal/mcp', which connects the page over the
  *      HMR channel (installMcpBridge from 'sygnal/devtools'). Never in `vite build` or Vitest.
+ *  11. SYG103 view words (dev server with diagnostics on; never `vite build`, SSR or Vitest): a
+ *      module that sets `X.intent` or `X.uses` gets a tail registering, for each such X, the
+ *      words of its string literals and of the relative modules it imports, in
+ *      `globalThis.__SYGNAL_VIEW_TOKENS__`. The runtime SYG103 check then takes a selector drawn
+ *      by a view helper (`{state.open && panel()}`) as conditionally rendered, as it does for
+ *      markup in the view function itself (see viewTokensTail).
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -483,8 +489,17 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       // SYG666 (PLAN-5 W-2): an adapter entry imported without its optional peers; every mode
       const adapters = adapterImports(this, code, id)
-      if (adapters) return checkPeers(this, adapters, id).then(() => devTransform.call(this, code, id, opts))
-      return devTransform.call(this, code, id, opts)
+      const result = adapters
+        ? checkPeers(this, adapters, id).then(() => devTransform.call(this, code, id, opts))
+        : devTransform.call(this, code, id, opts)
+      // 11. the words SYG103 may take as conditionally rendered markup (dev server, diagnostics on)
+      const tokens = isServe && !isVitest && devOn && !opts?.ssr ? viewTokensTail(this, code, id) : null
+      if (!tokens) return result
+      return Promise.all([result, tokens]).then(([r, tail]: [any, string]) => {
+        if (!tail) return r
+        if (r == null) return withSourcemap(code, [], tail, id)
+        return typeof r == 'string' ? r + tail : { ...r, code: r.code + tail }
+      })
     },
   }
 
@@ -570,6 +585,52 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       }
       return done()
   }
+}
+
+// 11. SYG103 (the dev runtime check of an intent selector that never matched) lets a selector
+// through as conditionally rendered when its words appear in the component's view; the runtime
+// can read only the view function's own source. A component module (one that sets `X.intent` or
+// `X.uses`) gets, in dev, a tail registering for each such component the words of its string
+// literals and those of the relative modules it imports, where view helpers live
+// (globalThis.__SYGNAL_VIEW_TOKENS__, a WeakMap read by checks/dom.ts).
+const COMPONENT_WITH_SELECTORS_RE = /(?:^|[^\w$.])([A-Z][\w$]*)\.(?:intent|uses)\s*=(?!=)/g
+const STRING_RE = /(['"])((?:\\.|(?!\1)[^\\\n])*)\1|`((?:\\[\s\S]|[^\\`])*)`/g
+const RELATIVE_IMPORT_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"])(\.{1,2}\/[^'"]+)\1/g
+
+// A string that is itself a selector ('.save', '#id', 'form.ask', '[data-x]') or a path / URL: its
+// words aren't markup (the intent's own DOM.click('.svae') would otherwise vouch for its typo)
+const NOT_MARKUP_RE = /(?:^|[\s>+~,(])[\w-]*[.#[][\w-]|^\s*(?:\/|[\w+-]+:\/\/)/
+
+/** the class / id / tag-like words in a module's string and template literals (comments skipped) */
+function stringWords(code: string, into: Set<string>): void {
+  for (const m of blankOut(code, false).matchAll(STRING_RE)) {
+    const text = m[2] ?? m[3] ?? ''
+    if (NOT_MARKUP_RE.test(text)) continue
+    for (const w of text.match(/[A-Za-z_][\w-]*/g) || []) into.add(w)
+  }
+}
+
+function viewTokensTail(ctx: any, code: string, id: string): Promise<string> | null {
+  const file = cleanId(id)
+  if (!/\.[jt]sx?$/.test(file) || id.includes('node_modules') || id.startsWith('\0')) return null
+  const names = new Set<string>()
+  for (const m of blankOut(code, true).matchAll(COMPONENT_WITH_SELECTORS_RE)) names.add(m[1])
+  if (!names.size) return null
+  const words = new Set<string>()
+  stringWords(code, words)
+  const specs = new Set(Array.from(blankOut(code, false).matchAll(RELATIVE_IMPORT_RE), m => m[2]))
+  return Promise.all([...specs].map(async (spec) => {
+    try {
+      const r = await ctx.resolve(spec, id)
+      const dep = r && !r.external && cleanId(r.id)
+      if (!dep || !/\.[cm]?[jt]sx?$/.test(dep) || dep.includes('node_modules')) return
+      ctx.addWatchFile?.(dep)
+      stringWords(await fs.promises.readFile(dep, 'utf8'), words)
+    } catch (_) { /* unreadable: its words are just not added */ }
+  })).then(() => {
+    const comps = [...names].map(n => `typeof ${n} == 'function' && ${n}`).join(', ')
+    return `\n;(() => { try { const m = globalThis.__SYGNAL_VIEW_TOKENS__ ||= new WeakMap(), t = ${JSON.stringify([...words].join(' '))}; for (const c of [${comps}]) if (c) m.set(c, t) } catch (_) {} })();\n`
+  })
 }
 
 // PLAN-5 W-2 (D209): the adapter entries and the optional peer dependencies each one imports

@@ -277,6 +277,13 @@ describe('SYG609 (static): a model sink no run() driver takes', () => {
     expect(d[0].fix).toContain('run(App, { LLM: makeChatDriver({ transport: openResponses(')
   })
 
+  it('an SW sink: the fix names makeServiceWorkerDriver with enabled; a WS sink makeSocketDriver()', () => {
+    const sw = COURSES().replace("LOAD: { HTTP: () => ({ url: '/api/courses', ok: 'LOADED' }) },", "LOAD: { SW: () => ({ action: 'skipWaiting' }), WS: () => ({ to: 'chat', json: {} }) },")
+    const fixes = Object.fromEntries(only(check({ 'src/App.jsx': sw, 'src/main.js': MAIN() }), 'SYG609').map(x => [x.data.name, x.fix]))
+    expect(fixes.SW).toContain("run(App, { SW: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }) })")
+    expect(fixes.WS).toContain('run(App, { WS: makeSocketDriver() })')
+  })
+
   it("a literal drivers object without that key: warn; with it (quoted too): nothing", () => {
     expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { WS: makeSocketDriver() }') }), 'SYG609')).toHaveLength(1)
     expect(only(check({ 'src/App.jsx': COURSES(), 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')).toEqual([])

@@ -18,6 +18,14 @@ run(App, {
 })
 ```
 
+A service worker caches the app, so it shouldn't run on a dev server. `enabled: import.meta.env.PROD` keeps the driver (the intent can still read `SW` and the model send to it) but registers nothing in development: its streams never emit and its commands are ignored.
+
+```jsx
+run(App, {
+  SW: makeServiceWorkerDriver('/sw.js', { enabled: import.meta.env.PROD }),
+})
+```
+
 ### Receiving Lifecycle Events
 
 The driver source uses the standard `.select()` pattern:

@@ -1648,6 +1648,16 @@ A view writes a Sygnal marker as a lowercase string tag: `<collection>` or `<swi
 
 **Fix:** Import the component and write it capitalized: `import { Collection } from 'sygnal'` and `<Collection of={Item} from="items" />` (`Switchable`, `Portal`, `Transition` and `Suspense` from 'sygnal', `ClientOnly` from 'sygnal/vike'). `sygnal-check --fix` renames the tags and adds the import.
 
+### SYG427
+
+**CHILD.select() of something that is not a component**
+
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A component is imported from a module that doesn't export it, so the binding is `undefined`. The browser refuses to load the module ("does not provide an export named …"), but Vitest runs on with `undefined`: `CHILD.select(Child)` never emits, and `<Child />` renders nothing (SYG420, only when that branch renders). A test that never shows the branch passes, with no diagnostic. With `sygnal/diagnostics` loaded, `CHILD.select()` of anything but a function is reported when the component is created, so every test of the parent catches it. sygnal-check reports an imported name used as a JSX tag, in `CHILD.select()` or as a Collection's `of` when its module (a relative import it can read) has no such export; it says nothing for a module with `export * from` or a CommonJS one.
+
+**Fix:** Export the component from its module (`export function Child() { … }`), or fix the imported name. Pass `CHILD.select()` the component function itself.
+
 ### SYG430
 
 **VirtualCollection has no bounded height**

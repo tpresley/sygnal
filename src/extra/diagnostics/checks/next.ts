@@ -66,6 +66,18 @@ function removed(component: any, name: string, anchor: string, detail?: string):
   })
 }
 
+/** SYG427: CHILD.select(x) with no component (an import of a name the module doesn't export) */
+function notComponent(f: any, x: any): void {
+  if (!once(`SYG427:${f.name}`)) return
+  const got = x === null ? 'null' : typeof x == 'object' ? 'an object' : String(x)
+  devReport('SYG427', {
+    component: f.name,
+    message: `${f.name}'s intent calls CHILD.select(${got}): that is not a component, so it never emits`,
+    fix: "Pass the child component itself, and check its import: a name its module doesn't export is undefined (Vitest runs on; the browser fails to link the module). Export it: export function Child() { … }",
+    data: {got},
+  })
+}
+
 /** the removed forms a definition shows (statics, view arity, model keys), once per function */
 let seenDefs = new WeakSet<object>()
 // G-332: resetChecks() forgets them (as the once() dedupe)
@@ -381,7 +393,11 @@ export function nextHooks(_api: any): any {
         get(t: any, k: any) {
           const v = t[k]
           if (k !== 'CHILD' || !v || typeof v.select != 'function') return v
-          return {...v, select: (x: any, ...r: any[]) => { if (typeof x == 'string') removed(f, f.name, 'child-select-name', `CHILD.select('${x}')`); return v.select(x, ...r) }}
+          return {...v, select: (x: any, ...r: any[]) => {
+            if (typeof x == 'string') removed(f, f.name, 'child-select-name', `CHILD.select('${x}')`)
+            else if (typeof x != 'function') notComponent(f, x)
+            return v.select(x, ...r)
+          }}
         },
       })
     },
