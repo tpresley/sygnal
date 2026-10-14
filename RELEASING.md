@@ -162,7 +162,8 @@ Create the GitHub release from the tag, and use the `CHANGELOG.md` entry as its 
 Scaffold every template from the published packages in a scratch directory outside the repository. Then run its tests, the static check in strict mode, a type check for the TypeScript templates and a production build:
 
 ```bash
-mkdir -p /tmp/sygnal-smoke && cd /tmp/sygnal-smoke
+# a new folder per release: create-sygnal-app refuses a folder that exists and isn't empty
+mkdir /tmp/sygnal-smoke-<SYGNAL> && cd /tmp/sygnal-smoke-<SYGNAL>
 for t in vite vite-pwa vike astro mcp-app; do
   for lang in js ts; do
     npx --yes create-sygnal-app@latest "$t-$lang" --template "$t" --"$lang" --install < /dev/null
