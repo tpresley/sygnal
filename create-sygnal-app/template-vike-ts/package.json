@@ -14,7 +14,7 @@
     "vike": "^0.4.255"
   },
   "devDependencies": {
-    "sygnal-check": "^0.6.0",
+    "sygnal-check": "^0.7.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vitest": "^4.1.2"
