@@ -16,11 +16,11 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 | Placeholder | Package | Last published |
 |---|---|---|
-| `<SYGNAL>` | `sygnal` | 6.3.0 |
-| `<CHECK>` | `sygnal-check` | 0.7.0 |
-| `<CSA>` | `create-sygnal-app` | 2.5.0 |
+| `<SYGNAL>` | `sygnal` | 6.4.0 |
+| `<CHECK>` | `sygnal-check` | 0.8.0 |
+| `<CSA>` | `create-sygnal-app` | 2.6.0 |
 
-`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.3.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
+`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.4.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
 ## 1. Prepare
 
@@ -196,12 +196,12 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-Last published: the extension 0.4.0 (2026-10-13; tag `vscode-v0.4.0`) and the Claude Code plugin 0.1.2 (tag `sygnal--v0.1.2`).
+Last published: the extension 0.5.0 (2026-10-14; tag `vscode-v0.5.0`) and the Claude Code plugin 0.1.3 (tag `sygnal--v0.1.3`).
 
 **One-time setup (the maintainer's accounts):** done for 0.1.0 (publisher `sygnal` on both registries).
-- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or pass `-p $VSCE_PAT` when publishing. The Azure DevOps organization's name doesn't matter (the token is scoped to all organizations).
+- VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or set `VSCE_PAT` when publishing (step 4). The Azure DevOps organization's name doesn't matter (the token is scoped to all organizations).
   **From December 1, 2026, Azure DevOps retires these global tokens**, and Marketplace publishing has to use Microsoft Entra ID: `vsce publish --azure-credential` (vsce ≥ 2.26.1; this repo has `@vscode/vsce` 4) with an identity that is a member of the publisher. The [VS Code publishing guide](https://code.visualstudio.com/api/working-with-extensions/publishing-extension) documents the setup (a managed identity with workload identity federation, added to the publisher as Contributor). Set it up before the first extension release after that date.
-- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal -p $OVSX_PAT`. Pass the token through the `OVSX_PAT` environment variable rather than on the command line, so it stays out of shell history. A new version appears on open-vsx.org a few minutes after `ovsx publish` (it is scanned first).
+- Open VSX: sign in at https://open-vsx.org with GitHub, sign the Eclipse Publisher Agreement, create an access token, and create the namespace once: `npx ovsx create-namespace sygnal` with `OVSX_PAT` set (step 4). Pass the token through the `OVSX_PAT` environment variable, never on the command line, so it stays out of shell history. A new version appears on open-vsx.org a few minutes after `ovsx publish` (it is scanned first).
 
 **Each release:**
 1. Bump `version` in `editors/vscode/package.json` and add a section to `editors/vscode/CHANGELOG.md`. The extension has its own version line (0.1.0 first). If the minimum server version changes, update `MIN_LSP_VERSION` in `editors/vscode/src/resolve.ts`, the extension README and the smoke test text. The Marketplace doesn't take pre-release semver: use `vsce publish --pre-release` with an odd minor for pre-releases.
@@ -217,12 +217,16 @@ Last published: the extension 0.4.0 (2026-10-13; tag `vscode-v0.4.0`) and the Cl
    npm --prefix editors/vscode run package     # writes editors/vscode/sygnal-<version>.vsix
    (cd editors/vscode && npx vsce ls --tree)   # the bundle, server/sygnal-check with @babel/parser, snippets, icon; no sources or tests
    ```
-   vsce reads `package.json` in the current directory (`npx --prefix` only says where vsce is installed), hence the `cd`. Expect about 640 KB (0.4.0). Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
-4. Publish the same file to both registries:
+   vsce reads `package.json` in the current directory (`npx --prefix` only says where vsce is installed), hence the `cd`. Expect about 645 KB (0.5.0). Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
+4. Publish the same file to both registries. Both tools read their token from the environment (`VSCE_PAT`, `OVSX_PAT`), so never type a token into a command: it stays in the shell history (and in any transcript of the terminal). `read -s` sets it without echoing or recording it:
    ```bash
-   (cd editors/vscode && npx vsce publish --packagePath sygnal-<version>.vsix -p $VSCE_PAT)
-   npx ovsx publish editors/vscode/sygnal-<version>.vsix -p $OVSX_PAT
+   read -s 'VSCE_PAT?Marketplace token: ' && export VSCE_PAT; echo   # bash: read -s -p 'Marketplace token: ' VSCE_PAT
+   read -s 'OVSX_PAT?Open VSX token: ' && export OVSX_PAT; echo
+   (cd editors/vscode && npx vsce publish --packagePath sygnal-<version>.vsix)
+   npx ovsx publish editors/vscode/sygnal-<version>.vsix
+   unset VSCE_PAT OVSX_PAT
    ```
+   A token that ended up in a command line or a log has to be revoked and replaced (Azure DevOps personal access tokens; open-vsx.org → Settings → Access Tokens).
 5. Tag `vscode-v<version>` and attach the `.vsix` to the GitHub release.
 
 ## 9. The Claude Code plugin (`editors/claude-code/`)
