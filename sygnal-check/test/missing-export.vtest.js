@@ -7,6 +7,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { checkFiles } from '../src/index.js'
+import { formatDiagnostic } from '../src/format.js'
 
 let tmp
 afterEach(() => { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }); tmp = null })
@@ -48,6 +49,31 @@ describe('SYG427 (static)', () => {
     expect(check({ 'child.jsx': child(), 'parent.jsx': selectOnly })[0].message).toMatch(/CHILD\.select\(Child\) never emits/)
     const d = check({ 'child.jsx': child('export '), 'parent.jsx': parent(`import Child from './child.jsx'`) })
     expect(d[0].message).toMatch(/which has no default export/)
+  })
+
+  it('files the finding under the component that holds the use (view or intent), else the file', () => {
+    const tag = check({ 'child.jsx': child(), 'parent.jsx': parent() }, ['parent.jsx'])
+    expect(tag.map(x => [x.component, x.data.usedAs])).toEqual([['Parent', 'tag']])
+    const selectOnly = parent().replace('{state.show ? <Child /> : null}', 'nothing')
+    expect(check({ 'child.jsx': child(), 'parent.jsx': selectOnly }).map(x => [x.component, x.data.usedAs])).toEqual([['Parent', 'select']])
+    const loose = `import { Child } from './child.jsx'\nexport const el = <Child />\n`
+    expect(check({ 'child.jsx': child(), 'loose.jsx': loose }, ['loose.jsx']).map(x => x.component)).toEqual(['loose.jsx'])
+  })
+
+  it("the fix names the module's other export: a named import of a default, or the reverse", () => {
+    const named = check({ 'child.jsx': child() + 'export default Child\n', 'parent.jsx': parent() }, ['parent.jsx'])
+    expect(named[0].fix).toBe("'./child.jsx' exports a default: `import Child from './child.jsx'`")
+    const dflt = check({ 'child.jsx': child('export '), 'parent.jsx': parent(`import Child from './child.jsx'`) }, ['parent.jsx'])
+    expect(dflt[0].fix).toBe("'./child.jsx' exports it by name: `import { Child } from './child.jsx'`")
+    const neither = check({ 'child.jsx': child(), 'parent.jsx': parent() }, ['parent.jsx'])
+    expect(neither[0].fix).toBe("export it from './child.jsx' with `export function Child`, or fix the name")
+  })
+
+  it('the formatted line reads as one parenthetical fix (no nested parentheses)', () => {
+    const [d] = check({ 'child.jsx': child() + 'export default Child\n', 'parent.jsx': parent() }, ['parent.jsx'])
+    const line = formatDiagnostic(d)
+    expect(line).toMatch(/ SYG427 \[error\] Parent: Child is imported from/)
+    expect(line.slice(line.lastIndexOf(' (') + 2, -1)).not.toMatch(/[()]/)
   })
 
   it('reports a Collection of= component', () => {
