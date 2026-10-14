@@ -89,6 +89,7 @@ export const PROVIDER_LABELS = {
   ollama: 'Ollama',
   'ollama-decision': 'Ollama · nimble',
   kindo: 'Kindo',
+  'kindo-kimi': 'Kindo · Kimi K3',
   typesafe: 'TypeSafe · Jev',
   chrome: 'Chrome AI',
   none: 'No model needed',

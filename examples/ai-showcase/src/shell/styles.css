@@ -285,3 +285,28 @@ textarea { resize: vertical; line-height: 1.5; }
 dialog.keys .keys-error { margin: 0; padding: 0 24px; color: var(--bad); font-size: 13px; }
 .code-tabs { display: flex; gap: 4px; }
 dialog.keys .key-problem { margin: -2px 0 8px; font-size: 12.5px; color: var(--bad); }
+
+/* ---- tabs: Features | Building Chat ----------------------------------------------------- */
+.tab-bar { display: flex; gap: 4px; padding: 4px; margin-top: 8px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); width: fit-content; scroll-margin-top: 84px; }
+.tab-bar [role='tab'] {
+  cursor: pointer; padding: 8px 18px; border-radius: 9px; border: 0; background: none;
+  font-weight: 600; font-size: 14px; color: var(--muted);
+}
+.tab-bar [role='tab']:hover { color: var(--text); }
+.tab-bar [role='tab'][aria-selected='true'] { color: var(--accent-ink); background: linear-gradient(135deg, var(--blue-deep), var(--blue)); box-shadow: 0 6px 18px -6px var(--glow); }
+.pane[hidden], .toc[hidden] { display: none; }
+.pane-intro { margin-top: 26px; max-width: 780px; color: var(--muted); }
+.pane-intro p { margin: 0 0 10px; }
+.kimi-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.kimi-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+.kimi-status.ok { color: var(--text); }
+.kimi-status.ok::before { background: var(--ok); }
+.kimi-status.warn { color: var(--warn); }
+.kimi-status.warn::before { background: var(--warn); }
+
+/* new lines since the step before, marked behind the code */
+.code-panel pre { position: relative; }
+.code-panel pre code { position: relative; }
+.line-marks i { position: absolute; left: 0; right: 0; height: 1.6em; background: rgba(61, 220, 151, 0.11); border-left: 3px solid #3ddc97; pointer-events: none; }
+.code-legend { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; font-size: 12px; color: #8ea3c4; white-space: nowrap; }
+.code-legend .swatch { width: 10px; height: 10px; border-radius: 2px; background: rgba(61, 220, 151, 0.35); border-left: 3px solid #3ddc97; }

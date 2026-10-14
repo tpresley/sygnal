@@ -3,9 +3,9 @@
  * (src/extra/diagnostics/checks/persist.ts); these catch them before the app runs.
  *
  *   SYG223 (warn)   a literal `pick` / `omit` key of `C.persist = persist({ ... })` that isn't a
- *                   key of C's literal initialState (a typo: that key is never saved, or never
- *                   left out). Silent when the options, the array or the initialState aren't
- *                   literal (a spread, a call).
+ *                   key of C's literal initialState or of its `uses` (a behavior's slice), so a
+ *                   typo: that key is never saved, or never left out. Silent when the options,
+ *                   the array, the initialState or the uses aren't literal (a spread, a call).
  *   SYG224 (error)  `persist` on a component that isn't the root: the core sets it up on the root
  *                   only. Reported when a run() call in the scanned files renders the component
  *                   and none has it as its root; silent when no run() root renders it (a library
@@ -14,7 +14,7 @@
 import { unwrap, propName, stringValue } from '../ast.js'
 import { closestName } from '../names.js'
 import { renameFix, stringEdit } from '../edits.js'
-import { sygnalImport } from '../model/behaviors.js'
+import { sygnalImport, analyzeUses } from '../model/behaviors.js'
 import { resolveExpr } from '../model/resolve.js'
 import { findApps } from '../model/apps.js'
 
@@ -30,9 +30,13 @@ function persistOptions(project, comp) {
 
 function reportKeys(project, report, comp) {
   if (!comp.initialState?.known) return
+  const uses = analyzeUses(project, comp)
+  if (uses && !uses.known) return
   const opts = persistOptions(project, comp)
   if (!opts) return
-  const keys = [...comp.initialState.keys.keys()]
+  // a behavior's slice (`uses = { chat: chat() }`) is a state key too
+  const slices = (uses?.entries || []).map(e => e.key)
+  const keys = [...comp.initialState.keys.keys(), ...slices]
   for (const p of opts.node.properties) {
     if (p.type !== 'ObjectProperty') continue
     const opt = propName(p)
@@ -42,7 +46,7 @@ function reportKeys(project, report, comp) {
     if (arr?.type !== 'ArrayExpression') continue
     for (const el of arr.elements) {
       const k = el && stringValue(el)
-      if (k == null || comp.initialState.keys.has(k)) continue
+      if (k == null || keys.includes(k)) continue
       const near = closestName(k, keys)
       report({
         code: 'SYG223',

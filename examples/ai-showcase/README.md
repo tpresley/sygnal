@@ -1,9 +1,10 @@
 # Sygnal AI showcase
 
-One page, ten sections, each a small and complete Sygnal app showing one part of `sygnal/ai`
-against real models: local ones on [Ollama](https://ollama.com), hosted ones on
-[Kindo](https://kindo.ai) and [TypeSafe](https://typesafe.ai) (Jev), and Chrome's built-in model.
-Every section has a short description and its source behind **Show code**.
+One page, two tabs. **Features** has ten sections, each a small and complete Sygnal app showing
+one part of `sygnal/ai` against real models: local ones on [Ollama](https://ollama.com), hosted
+ones on [Kindo](https://kindo.ai) and [TypeSafe](https://typesafe.ai) (Jev), and Chrome's built-in
+model. **Building Chat** builds one chat up in eight steps (below). Every section has a short
+description and its source behind **Show code**.
 
 | # | Section | What it shows |
 |---|---|---|
@@ -17,6 +18,23 @@ Every section has a short description and its source behind **Show code**.
 | 8 | Cards in a chat | `chat({ ask })`: the assistant asks with cards built from the app's parts |
 | 9 | WebMCP | `experimentalExposeWebMcp` and `formTool`, with an in-page agent console |
 | 10 | MCP App | [`examples/mcp-kindo-agents`](../mcp-kindo-agents): Kindo agent runs inside Claude |
+
+### Building Chat
+
+A second tab builds one chat up a feature at a time, all on one model (Kimi K3 on Kindo, so it
+needs a Kindo key). Each step is a complete component, the step before's code plus one feature;
+**Show code** marks the lines that are new since the step before.
+
+| # | Step | What it adds |
+|---|---|---|
+| 1 | A streaming chat | `chat({ agent: false })`, `draft`, example chips that fill in the prompt |
+| 2 | Stop, retry, start over | `stop`, `regenerate`, `status: 'error'`, a Clear reducer |
+| 3 | Show the thinking, count the tokens | `draftReasoning`, reasoning parts, `'chat.DONE'` usage in a tally |
+| 4 | Suggested follow-ups | a one-off request with an `output` schema after each reply |
+| 5 | Remember the conversation | `persist()` of the chat slice |
+| 6 | It sees the page | the `agent` static's `read`: an answer style set beside the chat |
+| 7 | It changes the page | agent `actions` (a shopping list, the style), `consequential` with Allow / Deny |
+| 8 | Answers with a click | `clientTools`: a question with a button per option, answered with `TOOL_OUTPUT` |
 
 ## Run it
 
@@ -71,6 +89,8 @@ another site are refused, so a page open in another tab can't spend a key throug
   `route::model` (`ollama::qwen3:8b`, `kindo::kimi-k3`), and `routed()`, a ten-line custom transport,
   hands each request to the route's transport. `src/shared/picker.jsx`: the model picker every
   widget shares.
+- `src/building/`: the Building Chat tab: `steps.js` (the list), `kimi.js` (the one chat driver),
+  `01-…jsx` to `08-…jsx` (one component per step) and their tests in `steps.test.js`.
 - `src/demos/<section>/`: one widget per section. Each `index.js` exports `start(mountPoint, uid)`
   and the `files` shown under **Show code**; each widget has its own tests.
 - `server/providers.js`: the dev server's routes (provider status, keys, the Kindo and TypeSafe

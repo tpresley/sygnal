@@ -1,10 +1,12 @@
-// The showcase shell (plain DOM, not a Sygnal app): the top bar, the table of contents and one
-// card per section. Each widget is its own Sygnal app, started when its card comes near the
-// screen; its source is in the card's code panel, hidden until "Show code".
+// The showcase shell (plain DOM, not a Sygnal app): the top bar, two tabs (Features, and Building
+// Chat: one chat built up step by step), a table of contents per tab and one card per section.
+// Each widget is its own Sygnal app, started when its card comes near the screen (a hidden tab's
+// cards wait until it is shown); its source is in the card's code panel, hidden until "Show code".
 import './shell/styles.css'
 import './shell/widgets.css'
 import wordmark from './shell/wordmark.svg?raw'
 import { sections, PROVIDER_LABELS } from './sections.js'
+import { steps } from './building/steps.js'
 import { highlight } from './shell/highlight.js'
 import { startHeader } from './shell/Header.jsx'
 
@@ -51,22 +53,44 @@ function hero() {
       el('span', {}, el('b', {}, 'Keys stay on the server'), ' · this page never holds one')))
 }
 
-function codePanel(files) {
+/** the indexes of the lines of `after` that are not in `before` (a longest-common-subsequence diff) */
+function newLines(before, after) {
+  const a = before.split('\n'), b = after.split('\n')
+  const common = Array.from({ length: a.length + 1 }, () => new Uint16Array(b.length + 1))
+  for (let i = a.length - 1; i >= 0; i--) {
+    for (let j = b.length - 1; j >= 0; j--) common[i][j] = a[i] === b[j] ? common[i + 1][j + 1] + 1 : Math.max(common[i + 1][j], common[i][j + 1])
+  }
+  const added = []
+  for (let i = 0, j = 0; j < b.length;) {
+    if (i < a.length && a[i] === b[j]) { i++; j++ } else if (i < a.length && common[i + 1][j] >= common[i][j + 1]) i++
+    else { if (b[j].trim()) added.push(j); j++ }
+  }
+  return added
+}
+
+/** `changedSince`: per file, `{ source, label }` to compare with: its new lines are marked */
+function codePanel(files, changedSince = {}) {
   const names = Object.keys(files)
   const code = el('code', { className: 'language-jsx' })
+  const marks = el('div', { className: 'line-marks', 'aria-hidden': 'true' })
+  const legend = el('span', { className: 'code-legend' })
   let shown = names[0]
   const tabs = names.map((name) => el('button', { type: 'button', role: 'tab', 'data-file': name, onClick: () => show(name) }, name))
   const show = (name) => {
     shown = name
     code.innerHTML = highlight(files[name], name)
     for (const b of tabs) b.setAttribute('aria-selected', String(b.dataset.file === name))
+    const base = changedSince[name]
+    const added = base ? newLines(base.source, files[name]) : []
+    marks.replaceChildren(...added.map((n) => el('i', { style: `top: calc(16px + ${n} * 1.6em)` })))
+    legend.replaceChildren(...(base ? [el('i', { className: 'swatch' }), `${added.length} lines new since ${base.label}`] : []))
   }
   const copy = el('button', { type: 'button', className: 'copy', onClick: async () => {
     try { await navigator.clipboard.writeText(files[shown]); copy.textContent = 'Copied' } catch { copy.textContent = 'Copy failed' }
     setTimeout(() => { copy.textContent = 'Copy' }, 1200)
   } }, 'Copy')
   show(shown)
-  return { bar: el('div', { className: 'code-bar' }, el('div', { role: 'tablist', className: 'code-tabs' }, tabs), copy), pre: el('pre', {}, code) }
+  return { bar: el('div', { className: 'code-bar' }, el('div', { role: 'tablist', className: 'code-tabs' }, tabs), legend, copy), pre: el('pre', {}, marks, code) }
 }
 
 const running = new Map()
@@ -94,7 +118,7 @@ function feature(section, i) {
     const open = panel.hidden
     if (open && !panel.firstChild) {
       const demo = running.get(section.id)?.demo ?? await section.load()
-      const { bar, pre } = codePanel(demo.files)
+      const { bar, pre } = codePanel(demo.files, demo.changedSince)
       panel.append(bar, pre)
     }
     panel.hidden = !open
@@ -118,16 +142,76 @@ function feature(section, i) {
     panel)
 }
 
-function toc() {
-  return el('nav', { className: 'toc', 'aria-label': 'Sections' },
-    el('h4', {}, 'Features'),
-    el('ol', {}, sections.map((s, i) => el('li', {}, el('a', { href: `#${s.id}`, 'data-id': s.id }, el('span', { className: 'n' }, String(i + 1).padStart(2, '0')), s.title)))))
+const TABS = [
+  { id: 'features', label: 'Features', list: sections },
+  { id: 'building', label: 'Building Chat', list: steps },
+]
+const all = [...sections, ...steps]
+
+function toc(tab) {
+  return el('nav', { className: 'toc', 'aria-label': `${tab.label}: sections`, 'data-tab': tab.id },
+    el('h4', {}, tab.id === 'building' ? 'Steps' : tab.label),
+    el('ol', {}, tab.list.map((s, i) => el('li', {}, el('a', { href: `#${s.id}`, 'data-id': s.id }, el('span', { className: 'n' }, String(i + 1).padStart(2, '0')), s.title)))))
 }
+
+/** the Building Chat tab's intro, with whether its one model is reachable */
+function buildingIntro() {
+  const status = el('p', { className: 'kimi-status', role: 'status' }, 'Looking for Kimi K3…')
+  const check = async () => {
+    try {
+      const kindo = (await (await fetch('/api/providers')).json()).kindo
+      const ready = kindo?.reachable && kindo.models.some((m) => /kimi[-_. ]?k3/i.test(m))
+      status.className = `kimi-status ${ready ? 'ok' : 'warn'}`
+      status.textContent = ready ? 'Kimi K3 on Kindo is ready.' : kindo?.configured ? `Kindo isn't answering: ${kindo.error ?? 'no Kimi K3'}.` : 'These steps need a Kindo key: add one with Keys, top right.'
+    } catch { status.textContent = 'Could not reach the dev server.' }
+  }
+  check()
+  document.addEventListener('showcase:keys', check)
+  return el('div', { className: 'pane-intro' },
+    el('p', {}, 'One chat, built up a feature at a time. Each step is a complete Sygnal app: the step before\'s code plus one feature, with the new lines marked under Show code. Every step talks to one model, Kimi K3 on Kindo, so none of them has a model picker. The chips fill in the prompt; you press Send.'),
+    status)
+}
+
+function tabBar() {
+  return el('div', { className: 'tab-bar', role: 'tablist', 'aria-label': 'Showcase' },
+    TABS.map((t) => el('button', { type: 'button', role: 'tab', id: `tab-${t.id}`, 'aria-controls': `pane-${t.id}`, 'data-tab': t.id, onClick: () => selectTab(t.id, true) }, t.label)))
+}
+
+function selectTab(id, fromClick = false) {
+  for (const b of document.querySelectorAll('.tab-bar [role="tab"]')) b.setAttribute('aria-selected', String(b.dataset.tab === id))
+  for (const t of TABS) {
+    document.getElementById(`pane-${t.id}`).hidden = t.id !== id
+    document.querySelector(`.toc[data-tab="${t.id}"]`).hidden = t.id !== id
+  }
+  if (fromClick) {
+    history.replaceState(null, '', `#${id}`)
+    const bar = document.querySelector('.tab-bar')
+    if (bar.getBoundingClientRect().top < 0) bar.scrollIntoView()
+  }
+}
+
+/** the tab a link opens: #building, or one of its steps; else Features */
+const tabOf = (hash) => (hash === '#building' || steps.some((s) => `#${s.id}` === hash) ? 'building' : 'features')
 
 document.getElementById('shell').append(
   topbar(),
-  el('div', { className: 'layout' }, toc(), el('main', {}, hero(), sections.map(feature))))
+  el('div', { className: 'layout' },
+    el('div', { className: 'tocs' }, TABS.map(toc)),
+    el('main', {}, hero(), tabBar(),
+      el('div', { className: 'pane', id: 'pane-features', role: 'tabpanel', 'aria-labelledby': 'tab-features' }, sections.map(feature)),
+      el('div', { className: 'pane', id: 'pane-building', role: 'tabpanel', 'aria-labelledby': 'tab-building' }, buildingIntro(), steps.map(feature)))))
 
+selectTab(tabOf(location.hash))
+// a link to a tab or a section opens its tab (not other anchors, such as #top)
+const known = (hash) => [...TABS, ...all].some((x) => `#${x.id}` === hash)
+window.addEventListener('hashchange', () => {
+  if (!known(location.hash)) return
+  const tab = tabOf(location.hash)
+  const hidden = document.getElementById(`pane-${tab}`).hidden
+  selectTab(tab)
+  // the browser scrolled while the target was hidden: scroll again now that it is shown
+  if (hidden) document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'instant' })
+})
 startHeader(document.getElementById('header-mount'))
 
 // start each widget when its card comes near the screen
@@ -135,14 +219,14 @@ const starter = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (!e.isIntersecting) continue
     starter.unobserve(e.target)
-    start(sections.find((s) => s.id === e.target.id))
+    start(all.find((s) => s.id === e.target.id))
   }
 }, { rootMargin: '300px 0px' })
-for (const s of sections) starter.observe(document.getElementById(s.id))
+for (const s of all) starter.observe(document.getElementById(s.id))
 
 // highlight the section in view
 const links = new Map([...document.querySelectorAll('.toc a')].map((a) => [a.dataset.id, a]))
 const spy = new IntersectionObserver((entries) => {
   for (const e of entries) if (e.isIntersecting) for (const [id, a] of links) a.classList.toggle('active', id === e.target.id)
 }, { rootMargin: '-40% 0px -55% 0px' })
-for (const s of sections) spy.observe(document.getElementById(s.id))
+for (const s of all) spy.observe(document.getElementById(s.id))

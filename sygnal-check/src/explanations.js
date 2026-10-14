@@ -410,8 +410,8 @@ export const EXPLANATIONS = {
     title: "persist pick or omit names a key that is not in initialState",
     severity: "warn",
     reportedBy: ["dev-entry", "static"],
-    explanation: "`App.persist = persist({ key, pick, omit })` saves the top-level state keys listed in `pick` (or every key except those in `omit`). A name in either list that is not a key of the component's `initialState` is usually a typo or a renamed key: with `pick` that key is never saved (and never restored), with `omit` the key you meant to leave out is saved after all. The dev entry reports it when the root component is created; sygnal-check reports it statically when the options and `initialState` are literals, with the closest key as a suggestion.",
-    fix: "Use top-level keys of `initialState`: `persist({ key: 'todo-app', pick: ['todos', 'filter'] })`, or add the key to `initialState`.",
+    explanation: "`App.persist = persist({ key, pick, omit })` saves the top-level state keys listed in `pick` (or every key except those in `omit`). A name in either list that is not a key of the component's `initialState` (or of its `uses`: a behavior's slice, such as `chat`, is a state key too) is usually a typo or a renamed key: with `pick` that key is never saved (and never restored), with `omit` the key you meant to leave out is saved after all. The dev entry reports it when the root component is created; sygnal-check reports it statically when the options and `initialState` are literals, with the closest key as a suggestion.",
+    fix: "Use top-level keys of `initialState` or `uses`: `persist({ key: 'todo-app', pick: ['todos', 'filter'] })`, or add the key to `initialState`.",
   },
   SYG224: {
     title: "persist on a component that is not the root",

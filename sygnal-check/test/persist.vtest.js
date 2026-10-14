@@ -73,6 +73,12 @@ describe('SYG223 (static): pick / omit key not in initialState', () => {
     expect(only(check({ 'TodoApp.jsx': todo(`{ key: 'todo-app', pick: KEYS }`, 'const KEYS = window.keys') }), 'SYG223')).toEqual([])
   })
 
+  it("nothing for a behavior's slice (a `uses` key); a typo next to one is still reported", () => {
+    const withUses = (opts) => todo(opts).replace("import { persist } from 'sygnal'", "import { persist } from 'sygnal'\nimport { chat } from 'sygnal/ai'") + "\nTodoApp.uses = { chat: chat({ agent: false }) }\n"
+    expect(only(check({ 'TodoApp.jsx': withUses(`{ key: 'todo-app', pick: ['todos', 'chat'] }`) }), 'SYG223')).toEqual([])
+    expect(only(check({ 'TodoApp.jsx': withUses(`{ key: 'todo-app', pick: ['todos', 'chats'] }`) }), 'SYG223').map(x => x.data.key)).toEqual(['chats'])
+  })
+
   it('PERSIST is no reply sink and RESTORE is triggered: no SYG102 / SYG112', () => {
     const d = check({ 'TodoApp.jsx': todo(`{ key: 'todo-app', pick: ['todos'] }`) })
     expect(d.filter(x => /SYG10[12]|SYG112/.test(x.code)).map(x => x.message)).toEqual([expect.stringMatching(/CLEAR/)])
