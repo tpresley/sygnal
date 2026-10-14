@@ -2,6 +2,15 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## sygnal-check 0.8.1 — 2026-10-14
+
+A patch for SYG427 (new in 0.8.0), reported from a real project; `sygnal` itself is unchanged (6.4.0). Projects on `sygnal-check` ^0.8.0 get it on their next install. The first release published by the keyless release workflow (npm trusted publishing, with provenance).
+
+### Fixed
+
+- **SYG427 is filed under the component that has the mistake.** It was labelled with the imported component (`RuleForm: RuleForm is imported from …`), which may not exist at all (the import is `undefined`), while every other finding in the file, and the runtime SYG427 for the same mistake, names the component whose view or intent uses it. It now names that component (`RulesPanel: …`), or the file outside any component; the imported name stays in the message and `data.name`.
+- **SYG427's fix says how the module does export the component.** A named import of a module that only has a default export (`import { RuleForm } from './RuleForm.jsx'` for `export default RuleForm`) now gets `'./RuleForm.jsx' exports a default: import RuleForm from './RuleForm.jsx'`, and a default import of a named export the reverse, instead of "export it from …". The remaining case reads `export it from '…' with export function X, or fix the name`, without the parenthetical that nested inside the formatter's parentheses.
+
 ## 6.4.0 — 2026-10-14
 
 Fixes for issues an agent hit while building a real app on 6.3.0, and a step-by-step chat tutorial in the AI showcase. Additive: an `event()` payload function may now return `ABORT`, `makeServiceWorkerDriver` takes `enabled`, and a new diagnostic code (SYG427) reports a `CHILD.select()` of something that isn't a component. Dev-time checks get fewer false positives (SYG103, SYG223).

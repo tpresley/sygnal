@@ -7,8 +7,11 @@
  * Reported for an imported name used as a component: a JSX tag, the argument of
  * `CHILD.select(...)`, or a Collection / VirtualCollection `of={...}`. Only relative imports of
  * modules sygnal-check can parse. Silent when the module has an `export * from` (its names can't
- * be listed) or is CommonJS (`module.exports`, `exports.x`).
+ * be listed) or is CommonJS (`module.exports`, `exports.x`). The finding is filed under the
+ * component that holds the use (the file's name outside one); the fix names the module's other
+ * export when it has one (a named import of a default export, or the reverse).
  */
+import path from 'node:path'
 import { walk, unwrap, memberName, jsxAttr, jsxAttrExpr } from '../ast.js'
 
 /** the names a module exports ('default' included), or null when they can't be listed */
@@ -57,6 +60,27 @@ function relativeImports(file) {
   return out
 }
 
+const within = (outer, n) => !!outer && n.start >= outer.start && n.end <= outer.end
+
+/**
+ * The name the finding is filed under: the component whose view or statics (intent, ...) hold
+ * the use, as every other finding in the file is; else the file's name
+ */
+function ownerOf(file, node) {
+  const comp = (file.components || []).find(c => c.file === file &&
+    (within(c.view, node) || Object.values(c.staticProps || {}).some(v => within(v, node))))
+  return comp?.name ?? path.basename(file.path)
+}
+
+/** what fixes the import: the module may export the component another way */
+function fixFor(imp, local, names) {
+  const src = imp.source
+  if (imp.imported !== 'default' && names.has('default') && !names.has(local)) return `'${src}' exports a default: \`import ${local} from '${src}'\``
+  if (imp.imported === 'default' && names.has(local)) return `'${src}' exports it by name: \`import { ${local} } from '${src}'\``
+  if (imp.imported === 'default') return `add \`export default\` to the component in '${src}', or import it by name`
+  return `export it from '${src}' with \`export function ${imp.imported}\`, or fix the name`
+}
+
 const isChildSource = (n) => {
   n = unwrap(n)
   return (n.type === 'Identifier' && n.name === 'CHILD') || (n.type === 'MemberExpression' && memberName(n) === 'CHILD')
@@ -95,12 +119,12 @@ export default {
         const effect = how === 'select' ? `CHILD.select(${local}) never emits` : how === 'of' ? `the Collection renders no items` : `<${local} /> renders nothing`
         report({
           code: 'SYG427',
-          component: local,
+          component: ownerOf(file, node),
           file,
           node,
           related: [{ node: imp.node, message: `imported here from '${imp.source}'` }],
           message: `${local} is imported from '${imp.source}', which has no ${what}: under Vitest the import is undefined and ${effect}; the browser fails to load the module`,
-          fix: imp.imported === 'default' ? `add \`export default\` to the component in '${imp.source}', or import it by name` : `export it from '${imp.source}' (\`export function ${imp.imported}\`), or fix the name`,
+          fix: fixFor(imp, local, names),
           data: { name: local, imported: imp.imported, source: imp.source, usedAs: how },
         })
       }
