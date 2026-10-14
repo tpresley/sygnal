@@ -17,8 +17,8 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 | Placeholder | Package | Last published |
 |---|---|---|
 | `<SYGNAL>` | `sygnal` | 6.3.0 |
-| `<CHECK>` | `sygnal-check` | 0.6.0 |
-| `<CSA>` | `create-sygnal-app` | 2.4.0 |
+| `<CHECK>` | `sygnal-check` | 0.7.0 |
+| `<CSA>` | `create-sygnal-app` | 2.5.0 |
 
 `sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.3.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
@@ -195,7 +195,7 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-Last published: the extension 0.3.0 (2026-10-11; tag `vscode-v0.3.0`) and the Claude Code plugin 0.1.2 (tag `sygnal--v0.1.2`).
+Last published: the extension 0.4.0 (2026-10-13; tag `vscode-v0.4.0`) and the Claude Code plugin 0.1.2 (tag `sygnal--v0.1.2`).
 
 **One-time setup (the maintainer's accounts):** done for 0.1.0 (publisher `sygnal` on both registries).
 - VS Code Marketplace: create the publisher `sygnal` at https://marketplace.visualstudio.com/manage, and an Azure DevOps personal access token with organization "All accessible organizations" and scope **Marketplace → Manage**. Then `npx --prefix editors/vscode vsce login sygnal`, or pass `-p $VSCE_PAT` when publishing. The Azure DevOps organization's name doesn't matter (the token is scoped to all organizations).
@@ -214,12 +214,12 @@ Last published: the extension 0.3.0 (2026-10-11; tag `vscode-v0.3.0`) and the Cl
 3. Package and inspect:
    ```bash
    npm --prefix editors/vscode run package     # writes editors/vscode/sygnal-<version>.vsix
-   npx --prefix editors/vscode vsce ls --tree  # the bundle, server/sygnal-check with @babel/parser, snippets, icon; no sources or tests
+   (cd editors/vscode && npx vsce ls --tree)   # the bundle, server/sygnal-check with @babel/parser, snippets, icon; no sources or tests
    ```
-   Expect about 540 KB. Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
+   vsce reads `package.json` in the current directory (`npx --prefix` only says where vsce is installed), hence the `cd`. Expect about 640 KB (0.4.0). Optionally install it locally first: `code --install-extension editors/vscode/sygnal-<version>.vsix`.
 4. Publish the same file to both registries:
    ```bash
-   npx --prefix editors/vscode vsce publish --packagePath editors/vscode/sygnal-<version>.vsix -p $VSCE_PAT
+   (cd editors/vscode && npx vsce publish --packagePath sygnal-<version>.vsix -p $VSCE_PAT)
    npx ovsx publish editors/vscode/sygnal-<version>.vsix -p $OVSX_PAT
    ```
 5. Tag `vscode-v<version>` and attach the `.vsix` to the GitHub release.
