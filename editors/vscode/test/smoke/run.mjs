@@ -149,30 +149,38 @@ function setupFeatures() {
 
 const scenarios = { bundled: setupBundled, workspace: setupWorkspace, features: setupFeatures }
 const only = process.argv[2]
+// On CI (a cold runner) VS Code sometimes hangs while starting ("CodeWindow: detected
+// unresponsive") before a test runs: each scenario gets one more try there, from a fresh setup
+const attempts = process.env.CI ? 2 : 1
 let failed = 0
 for (const [name, setup] of Object.entries(scenarios)) {
   if (only && only !== name) continue
-  const target = setup()
   const results = path.join(work, `${name}.results.json`)
-  fs.rmSync(results, { force: true })
-  // macOS: a long --user-data-dir makes VS Code's IPC socket path too long (0-S2), so use os.tmpdir()
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'sygvsc-'))
-  console.log(`\n== scenario ${name}`)
-  try {
-    await runTests({
-      vscodeExecutablePath,
-      extensionDevelopmentPath: ext,
-      extensionTestsPath: path.join(here, 'suite.cjs'),
-      extensionTestsEnv: { SCENARIO: name, RESULTS: results, EXPECTED_C: JSON.stringify(expectedC()) },
-      launchArgs: [target, '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',
-        '--user-data-dir', userData, '--extensions-dir', path.join(ext, '.vscode-test/extensions')],
-    })
-  } catch (err) {
-    failed++
-    console.error(`scenario ${name} failed: ${err?.message ?? err}`)
-  } finally {
-    fs.rmSync(userData, { recursive: true, force: true })
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const target = setup()
+    fs.rmSync(results, { force: true })
+    // macOS: a long --user-data-dir makes VS Code's IPC socket path too long (0-S2), so use os.tmpdir()
+    const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'sygvsc-'))
+    console.log(`\n== scenario ${name}${attempt > 1 ? ` (attempt ${attempt} of ${attempts})` : ''}`)
+    let ok = false
+    try {
+      await runTests({
+        vscodeExecutablePath,
+        extensionDevelopmentPath: ext,
+        extensionTestsPath: path.join(here, 'suite.cjs'),
+        extensionTestsEnv: { SCENARIO: name, RESULTS: results, EXPECTED_C: JSON.stringify(expectedC()) },
+        launchArgs: [target, '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',
+          '--user-data-dir', userData, '--extensions-dir', path.join(ext, '.vscode-test/extensions')],
+      })
+      ok = true
+    } catch (err) {
+      console.error(`scenario ${name} failed: ${err?.message ?? err}`)
+    } finally {
+      fs.rmSync(userData, { recursive: true, force: true })
+    }
+    if (fs.existsSync(results)) console.log(fs.readFileSync(results, 'utf8'))
+    if (ok) break
+    if (attempt === attempts) failed++
   }
-  if (fs.existsSync(results)) console.log(fs.readFileSync(results, 'utf8'))
 }
 process.exit(failed ? 1 : 0)
