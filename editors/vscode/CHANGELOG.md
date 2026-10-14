@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
-Needs the sygnal-check that ships with it (bundled); a workspace sygnal-check without the highlights still runs, without them.
+Bundles sygnal-check 0.7.0. A project with its own sygnal-check runs that copy, as before; the highlights need 0.7.0 or later there (`npm i -D sygnal-check@latest`), and an older one keeps working without them.
 
 - **Highlights** of Sygnal's wiring, drawn over your theme's colors: action names wherever they're wired, EVENTS types, intent selectors (marked when nothing renders them, or when only a dynamic class name might), the view classes / ids / controls an intent selects, and child components selected with `CHILD.select`. They're editor decorations rather than semantic tokens, so TypeScript's semantic highlighting stays. New setting `sygnal.highlights` (unset: on) and theme colors `sygnal.highlight.*`.
 
