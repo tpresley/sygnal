@@ -47,7 +47,7 @@
  * Diagnostics are pushed, never pulled (D305): only the files whose list changed, and an empty
  * list for a file that cleared; each list sorted errors first. See convert.js for the shape.
  *
- * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, codeLens, from
+ * Settings (`sygnal.*`): strict, a11y, ignore, paths, verbose, trace.server, codeLens, highlights, from
  * `initializationOptions` (flat, or under `sygnal`) and, when the client supports it,
  * `workspace/configuration` per project root (section `sygnal`, `scopeUri` the root's URI, so
  * the client answers with the containing workspace folder's settings), which wins. Defined values
@@ -73,6 +73,11 @@
  * from the same index; `sygnal.codeLens: false` turns it off. `workspace/codeLens/refresh` after
  * a check that changed the lenses (when the client supports it); the jump command per client.
  *
+ * Highlights (highlights.js): action names, EVENTS types, intent selectors, the view tokens they
+ * target and selected child components as semantic tokens (`textDocument/semanticTokens/full`),
+ * or decoded (`sygnal/highlights`) for a client that draws them itself (the VS Code extension,
+ * `initializationOptions.semanticTokens: false`); `sygnal.highlights: false` turns them off.
+ *
  * Rename (PLAN-7 P4-5, rename.js): prepareRename / rename of actions, EVENTS types, class / id
  * tokens, state keys and context entries, always on the documents as they are (the worker's
  * `rename` call); refusals are errors with the reason; test files' mentions are offered as a
@@ -90,12 +95,13 @@ import { createNavigation } from './navigation.js'
 import { createRename } from './rename.js'
 import { complete, completionList, indexState, TRIGGER_CHARACTERS } from './completion.js'
 import { createCodeLens, GO_TO } from './codelens.js'
+import { createHighlights } from './highlights.js'
 import { createRoots, looksLikeSygnal } from './roots.js'
 import { CONFIG_FILE } from '../config.js'
 
 const pkg = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../package.json'), 'utf8'))
 
-export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server', 'codeLens']
+export const SETTINGS = ['strict', 'a11y', 'ignore', 'paths', 'verbose', 'trace.server', 'codeLens', 'highlights']
 export const WATCHERS = ['**/*.{js,jsx,ts,tsx,mjs,cjs}', '**/sygnal-check.config.json', '**/package.json']
 export const CODE_ACTION_KINDS = ['quickfix', 'refactor', 'refactor.rewrite', 'source.fixAll.sygnal']
 const TRACE = ['off', 'messages', 'verbose']
@@ -136,6 +142,7 @@ export function readSettings(raw) {
   if (typeof s.verbose === 'boolean') out.verbose = s.verbose; else bad('verbose', s.verbose, 'a boolean')
   if (TRACE.includes(trace)) out.trace = trace; else bad('trace.server', trace, "'off', 'messages' or 'verbose'")
   if (typeof s.codeLens === 'boolean') out.codeLens = s.codeLens; else bad('codeLens', s.codeLens, 'a boolean')
+  if (typeof s.highlights === 'boolean') out.highlights = s.highlights; else bad('highlights', s.highlights, 'a boolean')
   return { settings: out, problems }
 }
 
@@ -339,6 +346,7 @@ export function createLspServer({
     rootSettings.delete(root)
     nav.drop(root)
     lens.drop(root)
+    highlights.drop(root)
     for (const uri of p.uris) publish(uri, [], root)
     checker.call('drop', { folder: root }).catch(() => {})
   }
@@ -412,6 +420,12 @@ export function createLspServer({
     nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf: rootOf, uriFor, requestClient, log,
     enabled: (root) => ({ ...initSettings, ...(rootSettings.get(root) || {}) }).codeLens !== false,
   })
+  const highlights = createHighlights({
+    nav, caps: () => clientCaps, initOptions: () => initOptions, folderOf: rootOf, requestClient, log,
+    enabled: (root) => ({ ...initSettings, ...(rootSettings.get(root) || {}) }).highlights !== false,
+    notify: (method, params) => write({ method, params }),
+  })
+  const checkedIndex = (folder, entry) => { lens.checked(folder, entry); highlights.checked(folder, entry) }
 
   // PLAN-7 P4-5: rename (rename.js), always on the documents as they are now
   const renamer = createRename({
@@ -449,12 +463,12 @@ export function createLspServer({
             if (part.completion !== undefined) projects.get(folder).completion = indexState(part.completion, sources)
             if (part.error) log('error', `check of ${folder}: ${part.error}`)
             const entry = nav.indexPart(folder, snap, part)
-            if (entry) setImmediate(() => { if (projects.has(folder) && !exited) lens.checked(folder, entry) })
+            if (entry) setImmediate(() => { if (projects.has(folder) && !exited) checkedIndex(folder, entry) })
           }
           if (part.completion !== undefined) lateIn()
         }
         const checked = checker.call('check', { folder, settings: settingsFor(folder), sources }, { onPart })
-          .then(res => { if (projects.has(folder) && !exited) lens.checked(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+          .then(res => { if (projects.has(folder) && !exited) checkedIndex(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
         nav.track(folder, snap, checked)
         checked.finally(() => { inFlight = null; pump() })
         return
@@ -607,6 +621,8 @@ export function createLspServer({
           definitionProvider: true,
           referencesProvider: true,
           codeLensProvider: { resolveProvider: false },
+          // not for a client that draws the highlights itself (highlights.js "Clients")
+          ...(highlights.provider() ? { semanticTokensProvider: highlights.provider() } : {}),
           renameProvider: clientCaps.textDocument?.rename?.prepareSupport ? { prepareProvider: true } : true,
           executeCommandProvider: { commands: [GO_TO] },
           workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
@@ -740,6 +756,8 @@ export function createLspServer({
   requests['textDocument/references'] = (params) => nav.references(params)
   // PLAN-7 P4-4: code lens (codelens.js)
   requests['textDocument/codeLens'] = (params) => lens.codeLens(params)
+  requests['textDocument/semanticTokens/full'] = (params) => highlights.full(params)
+  requests['sygnal/highlights'] = (params) => highlights.decoded(params)
   // PLAN-7 P4-5: rename (rename.js)
   requests['textDocument/prepareRename'] = (params) => renamer.prepareRename(params)
   requests['textDocument/rename'] = (params) => renamer.rename(params)

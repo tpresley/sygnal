@@ -1,6 +1,6 @@
 # Sygnal for VS Code
 
-Diagnostics, explanations, quick fixes, completions, go to definition, code lenses and a safe rename for [Sygnal](https://sygnal.js.org/) apps, as you type.
+Diagnostics, explanations, quick fixes, completions, go to definition, code lenses, wiring highlights and a safe rename for [Sygnal](https://sygnal.js.org/) apps, as you type.
 
 Sygnal's wiring mistakes fail silently at run time: an intent selector the view never renders, an action with no model entry, an EVENTS type nobody listens to, a child component's class used in the parent. This extension runs [`sygnal-check`](https://www.npmjs.com/package/sygnal-check), Sygnal's static checker, as a language server, so these show up in the editor as soon as you write them, with the same rules and settings as the CLI and your CI.
 
@@ -20,6 +20,19 @@ Sygnal's wiring mistakes fail silently at run time: an intent selector the view 
 - **Completions** for the names Sygnal wires by string, which TypeScript can't complete: in `DOM.click('.` the view's classes (after `#`, its ids), in a model key the actions nothing handles yet (as a `NAME: (state, data) => ...` snippet), in `EVENTS.select('` the EVENTS types emitted in the project, in `next('` the model's actions, in `<Collection from="` the state keys. Elsewhere TypeScript's completions stand alone.
 - **Go to definition and Find All References** (`F12`, `Shift+F12`) on actions, EVENTS types, selectors, state keys and context entries: from an intent key to its model entry and back, from `EVENTS.select('SAVED')` to every emitter in the project, from `'.save'` to the element that renders it.
 - **Code lenses** above intent keys, model keys and EVENTS selects / emits: `handled by model.SAVE · STATE, EVENTS 'SAVED'`, `triggered by intent, next from RESET`, `2 emitters`, or `no model entry` / `not triggered`. Click one to see its targets in a peek view. Turn them off with `"sygnal.codeLens": false`.
+- **Highlights** of Sygnal's wiring, over your theme's colors:
+
+  ![Action names, intent selectors and the selected child component highlighted in an intent](images/highlights.png)
+
+  | What | Look |
+  |---|---|
+  | Action names, wherever they're wired (intent keys, model keys, `next()`, reply names, ...) | bold, with a tint behind them; a wavy underline when no model entry handles the action |
+  | EVENTS types (`EVENTS.select('SAVED')`, `event('SAVED', ...)`) | italic |
+  | Intent selectors (`DOM.click('.save')`) | dotted underline; **dashed amber** when no static class renders it but a dynamic class name in the view might, **struck through in red** when nothing renders it |
+  | The view classes, ids and control tags an intent selects | tinted; classes no intent selects stay plain |
+  | Child components selected with `CHILD.select(Child)`: the call, `<Child>` / `<Collection of={Child}>` in the view, and Child's name | underlined |
+
+  Only names the checker resolved are highlighted, never a guess. The colors are theme colors you can change in `workbench.colorCustomizations`: `sygnal.highlight.action`, `.actionBackground`, `.event`, `.target`, `.targetBackground`, `.unverified`, `.missing` and `.child`. Turn the highlights off with `"sygnal.highlights": false`.
 - **Rename** (`F2`) of an action, an EVENTS type, a class or id, a state key or a context entry, everywhere it is wired: intent, model, `next()`, reply names, emitters and selects in other files. It refuses, with the reason, when it can't find every use (a built-in, a spread in the model, a name built at run time, the same string elsewhere in the code); VS Code then offers TypeScript's rename where it has one. Mentions in test files are a separate group that opens the refactor preview, so you confirm them.
 - **Snippets** for `.jsx` and `.tsx` files, in Sygnal's canonical forms:
 
@@ -65,6 +78,7 @@ By default every setting is unset (`null`), so the config file decides, and the 
 | `sygnal.paths` | string[] | Files, directories or globs to check, relative to the folder (e.g. `["src"]`, `["pages"]` for Vike) |
 | `sygnal.verbose` | boolean | Also show info findings |
 | `sygnal.codeLens` | boolean | Show the code lenses (default: on). An editor setting only, not in the config file |
+| `sygnal.highlights` | boolean | Highlight the wiring (default: on). An editor setting only, not in the config file |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | What the server logs to the Sygnal output |
 
 ## The config file
