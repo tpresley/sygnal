@@ -17,7 +17,7 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 | Placeholder | Package | Last published |
 |---|---|---|
 | `<SYGNAL>` | `sygnal` | 6.4.0 |
-| `<CHECK>` | `sygnal-check` | 0.8.0 |
+| `<CHECK>` | `sygnal-check` | 0.8.1 |
 | `<CSA>` | `create-sygnal-app` | 2.6.0 |
 
 `sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.4.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
