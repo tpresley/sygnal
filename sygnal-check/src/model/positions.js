@@ -56,7 +56,9 @@
  *     role 'selector': a token of an intent (or behavior option) selector string ('.a .b' is two);
  *       `scopes`: the sinks of the component's own DOM scope (its view, JSX passed into it);
  *       `childScope`, `child`, `path`: when only a child renders it (SYG104), the child's sink;
- *       `dynamic`: the own view has dynamic class names (ids) that might produce it
+ *       `dynamic`: the own view has dynamic class names (ids) that might produce it;
+ *       `missing`: no static class / id of the own scope or a child renders it (with `dynamic`, or
+ *       the component's dynamicClasses / dynamicIds flag: a dynamic value might)
  *   ns 'control': `target`: the control's id; role 'declare' (the controls() key), 'render' (an
  *     `<Add>` tag, with `scope`), 'selector' (`DOM.click(Add)`, with `scopes` / `childScope`)
  *   ns 'state': role 'declare' (kind 'state': an initialState key; kind 'calculated'), 'use'
@@ -265,6 +267,7 @@ const patternHit = (sink, kind, name) => (kind === 'class' ? sink.classes : sink
 export function buildIndex(project, { exclude } = {}) {
   const components = []
   const occurrences = []
+  const tags = [] // child component tags (`<Child>` opening names) rendered by a component's view
   const seen = new Map() // abs → Set of dedupe keys
   const lines = new Map() // abs → line starts
   // the long ids (component, target: 'absPath:…') as small numbers in the dedupe keys
@@ -499,6 +502,7 @@ export function buildIndex(project, { exclude } = {}) {
             if (!own.some(s => s.controls.has(ctrl))) {
               const inChild = findInChildren(project, c.viewInfo, 'control', ctrl, (s, k, n) => s.controls.has(n))
               if (inChild) Object.assign(props, { childScope: sinkId(inChild.sink, null), child: inChild.child, path: inChild.via })
+              else props.missing = true
             }
             add(file, part, props)
           }
@@ -513,6 +517,7 @@ export function buildIndex(project, { exclude } = {}) {
             const inChild = findInChildren(project, c.viewInfo, t.kind, t.name)
             if (inChild) Object.assign(props, { childScope: sinkId(inChild.sink, null), child: inChild.child, path: inChild.via })
             if (own.some(s => patternHit(s, t.kind, t.name))) props.dynamic = true
+            if (!inChild) props.missing = true // no static token renders it (highlights; `dynamic`: one might)
           }
           addSpan(file, lit.base + t.index, lit.base + t.index + t.length, props)
         }
@@ -541,6 +546,27 @@ export function buildIndex(project, { exclude } = {}) {
       add(c.intent.file, cs.arg, { name: project.componentForFunction(cs.ref.node)?.name || cs.arg.name || '?', ns: 'child', kind: 'child-select', role: 'use', component: id, target })
     }
     declareComponent({ file: c.file, node: c.view || c.node }, c.name)
+
+    // --- child component tags in the view (semantic highlighting spike; not occurrences) ---
+    const walkTags = (sink) => {
+      for (const u of sink.children || []) {
+        if (u.kind === 'tag' && u.ref && u.node?.name?.loc) {
+          const abs = pathOf(u.file)
+          if (abs && !exclude?.has(abs)) tags.push({ file: abs, ...range(u.node.name), name: u.name, component: id, target: fnId(u.ref) })
+        }
+        if (u.injected) walkTags(u.injected)
+      }
+    }
+    for (const sink of own) {
+      walkTags(sink)
+      // <Collection of={Child}> / <Switchable of={{ a: Child }}>: the target expressions
+      for (const col of sink.collections || []) {
+        for (const t of col.targets || []) {
+          const abs = pathOf(col.file || sink.children.find(u => u.node === col.node)?.file)
+          if (t.ref && t.node?.loc && abs && !exclude?.has(abs)) tags.push({ file: abs, ...range(t.node), name: t.name, component: id, target: fnId(t.ref) })
+        }
+      }
+    }
   }
 
   // --- context consumed: views (components and plain functions rendered as tags), reducers ---
@@ -607,7 +633,7 @@ export function buildIndex(project, { exclude } = {}) {
   // by file (each path's rank in code-unit order, not a string comparison per pair), then position
   const rank = new Map([...new Set(occurrences.map(o => o.file))].sort().map((f, i) => [f, i]))
   occurrences.sort((a, b) => rank.get(a.file) - rank.get(b.file) || a.hit.start - b.hit.start || a.start - b.start)
-  return { components, occurrences, flags: { dynamicSelected, dynamicEmitted } }
+  return { components, occurrences, tags, flags: { dynamicSelected, dynamicEmitted } }
 }
 
 const EVENT_ROLES = new Set(['emit', 'select'])

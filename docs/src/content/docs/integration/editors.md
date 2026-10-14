@@ -1,10 +1,10 @@
 ---
 title: Editor Setup
-description: sygnal-check's findings, explanations, quick fixes, completions, go to definition, code lenses and rename in VS Code, Claude Code, Neovim, Helix, JetBrains IDEs and any LSP editor, and how they share one config with the CLI, the Vite plugin and CI
+description: sygnal-check's findings, explanations, quick fixes, completions, go to definition, code lenses, wiring highlights and rename in VS Code, Claude Code, Neovim, Helix, JetBrains IDEs and any LSP editor, and how they share one config with the CLI, the Vite plugin and CI
 ---
 
 :::note
-The language server needs **sygnal-check 0.4.0** or later, the first version with it (`npm install -D sygnal-check@latest`). Projects created with `create-sygnal-app` 2.2.0 or later have it. Completions, go to definition and references, code lenses and rename need **sygnal-check 0.5.0** or later; with 0.4.0 you get the findings, hovers and quick fixes.
+The language server needs **sygnal-check 0.4.0** or later, the first version with it (`npm install -D sygnal-check@latest`). Projects created with `create-sygnal-app` 2.2.0 or later have it. Completions, go to definition and references, code lenses and rename need **sygnal-check 0.5.0** or later; with 0.4.0 you get the findings, hovers and quick fixes. Highlights need **sygnal-check 0.7.0** or later.
 :::
 
 `sygnal-check` runs as a language server, `sygnal-check lsp`. Your editor then shows its findings while you type, with the same rules and the same settings as the CLI, the Vite dev server and CI.
@@ -90,6 +90,12 @@ triggered by intent                       above the model key INCREMENT
 
 A missing link shows as `no model entry` or `not triggered`, exactly where SYG101 and SYG102 report one. Clicking a lens shows its targets.
 
+### Highlights
+
+The server marks Sygnal's wiring so you can see it at a glance: action names wherever they are wired, EVENTS types, intent selectors, the view classes, ids and controls an intent selects, and the child components a parent selects with `CHILD.select`. Classes no intent selects stay plain, so the elements that do something stand out.
+
+A selector gets its own look when nothing renders it (the typo above: `'.incc'`), or when no static class does but a dynamic class name in the view might. Only names the checker resolved are marked, never a guess.
+
 ### Rename
 
 Rename on `INCREMENT` (in the intent, the model or a `next('INCREMENT')`) renames every place it is wired: here the intent key and the model key. An EVENTS type is renamed in every emitter and select of the project, a class in the view and in the selectors.
@@ -129,6 +135,7 @@ Every setting is unset (`null`) by default, so the [config file](#the-config-fil
 | `sygnal.paths` | string[] | Files, directories or globs to check, relative to each project (e.g. `["pages"]` for Vike). Replaces the config file's list |
 | `sygnal.verbose` | boolean | Also show info findings |
 | `sygnal.codeLens` | boolean | Show the [code lenses](#navigation-code-lenses-and-rename) (unset: on). An editor setting only; the config file has no such key |
+| `sygnal.highlights` | boolean | Show the [highlights](#highlights-in-vs-code) (unset: on). An editor setting only; the config file has no such key |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | What the server logs to the Sygnal output |
 
 To fix everything auto-fixable when you save:
@@ -158,6 +165,31 @@ With the extension 0.2.0 or later, and sygnal-check 0.5.0 or later (the bundled 
 - **Go to Definition** (`F12`), **Peek Definition** (`Alt+F12`) and **Find All References** (`Shift+F12`) work on actions, EVENTS types, selectors, state keys and context entries.
 - **Code lenses** show above intent keys, model keys and EVENTS selects / emits. Clicking one opens its targets in a peek view, so you can read each one without leaving the file. Turn them off with `"sygnal.codeLens": false`, or every extension's lenses with VS Code's `editor.codeLens`.
 - **Rename Symbol** (`F2`) renames a Sygnal name everywhere it is wired. When Sygnal refuses, VS Code shows the reason and falls back to TypeScript's rename where TypeScript has one. When the rename also edits test files, VS Code opens the refactor preview so you can check those edits before applying them.
+
+### Highlights in VS Code
+
+With the extension 0.4.0 or later, drawn over your theme's colors:
+
+| What | Look |
+|---|---|
+| Action names (intent keys, model keys, `next()`, reply names, ...) | bold, with a tint behind them; a wavy underline when no model entry handles the action |
+| EVENTS types | italic |
+| Intent selectors | dotted underline; dashed amber when only a dynamic class name might render it; struck through in red when nothing renders it |
+| The view classes, ids and controls an intent selects | tinted |
+| Child components selected with `CHILD.select` | underlined |
+
+The colors are theme colors. Change them in your settings:
+
+```json title=".vscode/settings.json"
+{
+  "workbench.colorCustomizations": {
+    "sygnal.highlight.action": "#4FC1FF",
+    "sygnal.highlight.actionBackground": "#4FC1FF26"
+  }
+}
+```
+
+The others are `sygnal.highlight.event`, `.target`, `.targetBackground`, `.unverified`, `.missing` and `.child`. VS Code uses only one semantic-token provider per file, so the extension draws these as decorations, and TypeScript's semantic highlighting stays as it is.
 
 ### Snippets
 
@@ -287,6 +319,21 @@ vim.lsp.config('sygnal', {
 
   `:lua vim.lsp.codelens.run()` runs the lens on the current line, which opens its first target.
 
+- **Highlights** arrive as semantic tokens, and Neovim layers them over your TypeScript server's. Their highlight groups are `@lsp.type.<type>` and `@lsp.typemod.<type>.<modifier>`, which most color schemes leave unset, so give them colors:
+
+  ```lua title="init.lua"
+  vim.api.nvim_set_hl(0, '@lsp.type.sygnalAction', { fg = '#4FC1FF', bold = true })
+  vim.api.nvim_set_hl(0, '@lsp.type.sygnalEvent', { fg = '#C586C0', italic = true })
+  vim.api.nvim_set_hl(0, '@lsp.type.sygnalSelector', { fg = '#4EC9B0', underdotted = true })
+  vim.api.nvim_set_hl(0, '@lsp.type.sygnalTarget', { fg = '#4EC9B0', bg = '#1F3A36' })
+  vim.api.nvim_set_hl(0, '@lsp.type.sygnalChild', { fg = '#DCDCAA', underline = true })
+  vim.api.nvim_set_hl(0, '@lsp.typemod.sygnalSelector.unverified', { fg = '#CCA700', underdashed = true })
+  vim.api.nvim_set_hl(0, '@lsp.typemod.sygnalSelector.untargeted', { fg = '#F48771', strikethrough = true })
+  vim.api.nvim_set_hl(0, '@lsp.typemod.sygnalAction.unhandled', { fg = '#4FC1FF', undercurl = true })
+  ```
+
+  `:Inspect` on a name shows its tokens.
+
 On Linux, Neovim doesn't tell the server about files changed outside the editor (a `git checkout`, for example); on macOS and Windows it does. The server re-reads files at every check, so findings catch up at your next edit or save.
 
 **Neovim 0.10 with nvim-lspconfig** (untested): register a custom server.
@@ -349,6 +396,7 @@ config = { sygnal = { strict = true } }
 - **Go to definition and references:** `gd` and `gr`.
 - **Rename:** `space r`. A refusal shows its reason in the statusline. Test files are left out, with a warning naming them.
 - **Code lenses:** Helix doesn't show code lenses, so there are none in Helix.
+- **Highlights:** Helix doesn't support semantic tokens, so there are none in Helix.
 - **Monorepos:** the server checks each Sygnal package as its own project by itself. To also give each package its own workspace folder, add `roots = ["package.json"]` to the four `[[language]]` entries. Helix then adds the package as a workspace folder when you open one of its files.
 
 Helix doesn't display related locations. Helix also tells the server only about files it saves itself, so after changes made outside the editor (a branch switch, a formatter), findings update at your next edit or save.
@@ -377,7 +425,7 @@ Use the free **LSP4IJ** plugin by Red Hat. It works in every JetBrains IDE (Inte
 
 Findings appear as warnings in the editor and the Problems view. Alt+Enter on one should offer the quick fix and "Suppress SYGnnn on this line".
 
-LSP4IJ also supports completion, go to declaration, find usages, code lenses and rename, which the server offers from sygnal-check 0.5.0. These haven't been tested in a JetBrains IDE yet.
+LSP4IJ also supports completion, go to declaration, find usages, code lenses and rename, which the server offers from sygnal-check 0.5.0, and semantic tokens, which carry the [highlights](#highlights) from sygnal-check 0.7.0. These haven't been tested in a JetBrains IDE yet.
 
 **Sharing the setup.** Save this directory in your repository and import it with New Language Server → Template → "Import from custom template…":
 
@@ -420,6 +468,7 @@ npx --no-install sygnal-check lsp
 - **Fix all** is the code action kind `source.fixAll.sygnal`. It is also offered in the code-action menu when the cursor is on a finding and the file has auto-fixable ones, for editors that can't ask for an action kind.
 - **Completions, definition, references and rename** (sygnal-check 0.5.0) are the standard requests. The completion trigger characters are `'` `"` `` ` `` `.` `#`. Rename supports `prepareRename` and refuses with error code `-32803`, the reason as its message. Test-file edits come as a separate annotated group with `needsConfirmation` for a client that supports change annotations; a client that doesn't gets the code edits only and a `window/showMessage` warning.
 - **Code lens clicks:** the LSP has no standard "show these locations" command, so the server picks one. A client that lists `editor.action.showReferences` (or a `sygnal.showReferences` of its own) in `capabilities.experimental.commands.commands` gets that command with `[uri, position, locations]`. Otherwise a client with `window/showDocument` support gets the server command `sygnal.goTo`, which opens the first target. Otherwise the lenses are text only.
+- **Highlights** are semantic tokens (`textDocument/semanticTokens/full`) with custom types: `sygnalAction`, `sygnalEvent`, `sygnalSelector`, `sygnalTarget` and `sygnalChild`, and the modifiers `declaration`, `handler`, `trigger`, `unhandled`, `untargeted` and `unverified`. Map them to colors in your editor. An editor that keeps only one semantic-token provider per file, as VS Code does, would lose TypeScript's: pass `initializationOptions: { semanticTokens: false }` and draw the decoded tokens of the `sygnal/highlights` request yourself ([protocol details](https://github.com/tpresley/sygnal/tree/main/sygnal-check#highlights)).
 - **Settings**, under the `sygnal` section, answered on `workspace/configuration` or passed as `initializationOptions` (`workspace/configuration` wins):
 
   | Setting | Type | |
@@ -430,6 +479,7 @@ npx --no-install sygnal-check lsp
   | `paths` | string[] | what to check, relative to each project |
   | `verbose` | boolean | also show info findings |
   | `codeLens` | boolean | show code lenses (default on) |
+  | `highlights` | boolean | send highlights (default on) |
   | `trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs |
 
   A setting you leave out falls back to the [config file](#the-config-file).

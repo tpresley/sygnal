@@ -230,8 +230,20 @@ exports.featuresScenario = async function featuresScenario(step) {
   assert.match(doc.getText(), /event\('FLOW_STORED'/)
   await vscode.workspace.saveAll(false)
 
-  // ---- 9. a rename touching test files: annotated edits that need confirmation (the refactor preview)
+  // ---- 8b. highlights: the server's tokens over the client, TypeScript keeps semantic tokens
   const lane = await open(src('LaneComponent.jsx'))
+  const hl = await until('highlights of LaneComponent', async () => {
+    const t = await client.sendRequest('sygnal/highlights', { textDocument: { uri: lane.doc.uri.toString() } })
+    return t?.length ? t : null
+  }, 30000)
+  const textOf = (t) => lane.doc.lineAt(t.line).text.slice(t.character, t.character + t.length)
+  const legend = await vscode.commands.executeCommand('vscode.provideDocumentSemanticTokensLegend', lane.doc.uri)
+  step('highlights', { count: hl.length, sample: hl.slice(0, 4).map(t => `${textOf(t)}:${t.type}`), legend: legend?.tokenTypes?.slice(0, 4) })
+  assert.ok(hl.some(t => t.type === 'sygnalTarget' && textOf(t) === 'lane-title'), 'a targeted view class')
+  assert.ok(hl.some(t => t.type === 'sygnalChild' && textOf(t) === 'TaskCard'), 'a selected child')
+  assert.ok(!legend?.tokenTypes?.includes('sygnalAction'), "VS Code's semantic tokens are still TypeScript's")
+
+  // ---- 9. a rename touching test files: annotated edits that need confirmation (the refactor preview)
   const startEdit = posOf(lane.doc, '  START_EDIT:  DOM.dblclick', 3)
   const annotated = await lspRename(lane.doc.uri, startEdit, 'BEGIN_EDIT')
   const groups = {}

@@ -287,7 +287,7 @@ A protocol version it doesn't know gets the spec's "unsupported protocol version
 
 ## Language server
 
-`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, go to definition / find references for actions and EVENTS types, code lenses that say what each action does and what triggers it, and a rename that refuses when it can't find every use. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
+`sygnal-check lsp` runs a [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) server on stdio. An editor gets the checker's findings as you type, a hover with the `explain` entry for each code, quick fixes, completions for the names Sygnal wires by string, go to definition / find references for actions and EVENTS types, code lenses that say what each action does and what triggers it, highlights of the wiring (semantic tokens), and a rename that refuses when it can't find every use. It is part of the package, hand-written like the MCP server, so it adds no dependency, and it runs the same rules as the CLI: with no unsaved buffers, it reports what `sygnal-check` reports for the same settings.
 
 **Wiring it into an editor.** Any LSP client that starts a server over stdio can run it. Use this command, from the project or with the workspace as its working directory:
 
@@ -311,6 +311,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | References | `textDocument/references` on the same names; honours `context.includeDeclaration` |
 | Completion | `textDocument/completion`, trigger characters `'` `"` `` ` `` `.` `#`; items only in Sygnal contexts ([below](#completions)) |
 | Code lens | `textDocument/codeLens` on intent keys, model keys and EVENTS selects / emits ([below](#code-lens)); `workspace/executeCommand` for its jump command `sygnal.goTo`; `workspace/codeLens/refresh` when the client supports it |
+| Highlights | `textDocument/semanticTokens/full` (custom token types) for action names, EVENTS types, intent selectors, the view tokens they target and selected child components; `sygnal/highlights` for the decoded tokens ([below](#highlights)); `workspace/semanticTokens/refresh` when the client supports it |
 | Rename | `textDocument/prepareRename` and `textDocument/rename` for actions, EVENTS types, class / id names, state keys and context entries; refuses when it can't find every use ([below](#rename)) |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
@@ -459,6 +460,22 @@ Where the checker can't tell, the lens says so rather than guess: `handler not k
 
 **Freshness.** As for definition: the last check's index when the open documents are still what it checked, else one built for the request. After a check that changed any lens of the folder (a title or a target), the server sends `workspace/codeLens/refresh` when the client advertises `workspace.codeLens.refreshSupport`, so lenses in other files follow an edit. In a file that doesn't parse there are no lenses until it parses again. `sygnal.codeLens: false` turns them off.
 
+### Highlights
+
+Semantic tokens for Sygnal's wiring, from the same index as [go to definition](#go-to-definition-and-references), so only names the checker resolved get one. The legend has custom types and modifiers, so an editor colors them only when its theme or config maps them:
+
+| Type | On | Modifiers |
+|---|---|---|
+| `sygnalAction` | an action name: intent key, model key, `next('A')`, reply names, the `connections` / `resources` / `route` / `timers` / `browser` names, behavior options, `agent.actions` keys | `trigger` or `handler` + `declaration` (a model key); `unhandled` on an intent key no model entry handles |
+| `sygnalEvent` | an EVENTS type in `EVENTS.select()` or an emitter | `declaration` on an emitter |
+| `sygnalSelector` | a class, id or control token of an intent selector (`'.save'` in `DOM.click('.save')`) | `untargeted`: nothing the component (or a child) renders can match it; `unverified`: no static class / id renders it, but a dynamic class name (id) in the view might |
+| `sygnalTarget` | a view token (a `className` / `id` token, a control tag) that an intent selector of its scope selects; tokens nothing selects get none | `declaration` |
+| `sygnalChild` | a child component: the argument of `CHILD.select(Child)`, `<Child>` and `<Collection of={Child}>` in that component's view, and Child's name (when a parent selects it) | `declaration` on the name |
+
+**VS Code** asks only one semantic token provider per document (the first of the highest-scored group that answers), so the server's would replace TypeScript's semantic highlighting. A client like that passes `initializationOptions.semanticTokens: false` (the server then advertises no provider) and asks `sygnal/highlights` (params: `{ textDocument }`) for the decoded tokens, `[{ line, character, length, type, modifiers }]` (0-based), to draw them itself; with `initializationOptions.highlightsChanged: true` the server sends the notification `sygnal/highlightsChanged` after the first check and after each check that changed the highlights. The VS Code extension does this and draws them as decorations.
+
+**Freshness.** As for code lens: the last check's index when the open documents are still what it checked, else one built for the request (null while a document doesn't parse). After a check that changed the folder's highlights, the server sends `workspace/semanticTokens/refresh` when the client advertises `workspace.semanticTokens.refreshSupport`. `sygnal.highlights: false` turns them off (empty tokens).
+
 ### Rename
 
 `textDocument/rename` renames a Sygnal name everywhere it is wired, and `textDocument/prepareRename` says up front whether it can (advertised as `renameProvider: { prepareProvider: true }` to clients that support `prepareRename`). These names are strings, so an occurrence a rename misses is an action that silently never runs, with no type error. The server therefore renames only when it can account for every use, and otherwise refuses with the reason (VS Code shows it, then offers TypeScript's rename if TypeScript has one).
@@ -515,6 +532,7 @@ The last guard is what keeps state keys mostly unrenamable: a key is read as cod
 | `sygnal.verbose` | boolean | also show info findings (default false) |
 | `sygnal.trace.server` | `"off"` \| `"messages"` \| `"verbose"` | what the server logs with `window/logMessage`: errors and warnings; also each check; also each message received |
 | `sygnal.codeLens` | boolean | show [code lenses](#code-lens) (default true); an editor setting only, the config file has no such key |
+| `sygnal.highlights` | boolean | send [highlights](#highlights) (default true); an editor setting only, the config file has no such key |
 
 The server reads settings from two places:
 

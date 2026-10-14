@@ -18,6 +18,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { LanguageClient, State, TransportKind, type ClientCapabilities, type FeatureState, type LanguageClientOptions, type Location as LspLocation, type Position as LspPosition, type ServerOptions, type StaticFeature } from 'vscode-languageclient/node'
+import { startHighlights, type Highlights } from './highlights'
 import { chooseServer, describeChoice, FEATURES_VERSION, lacksEditorFeatures, packageFileUsesSygnal, type ServerChoice } from './resolve'
 
 const LANGUAGES = ['javascript', 'javascriptreact', 'typescript', 'typescriptreact']
@@ -45,6 +46,7 @@ let ctx: vscode.ExtensionContext
 let starting: Promise<void> | undefined
 let detectWatchers: vscode.Disposable[] = []
 let upgradeNotices = 0
+let highlights: Highlights | undefined
 
 /** What the tests read (returned from activate). */
 export interface SygnalApi {
@@ -72,6 +74,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Sygnal
     vscode.workspace.onDidChangeWorkspaceFolders(() => restart(show)),
     vscode.workspace.onDidGrantWorkspaceTrust(() => restart(show)),
     { dispose: () => disposeDetectWatchers() },
+    highlights = startHighlights(() => client),
   )
   starting = startIfSygnal(show)
   await starting
@@ -159,11 +162,14 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
     documentSelector: LANGUAGES.map(language => ({ scheme: 'file', language })),
     outputChannel: output,
     traceOutputChannel: output,
+    // highlights are decorations (highlights.ts), not LSP semantic tokens: those would replace TypeScript's
+    initializationOptions: { semanticTokens: false, highlightsChanged: true },
     // No synchronize: the server registers file watchers and didChangeConfiguration dynamically,
     // and asks for the `sygnal` section per project root (scopeUri) with workspace/configuration.
   }
   client = new LanguageClient('sygnal', 'Sygnal', serverOptions, clientOptions)
   client.registerFeature(new ClientCommandsFeature())
+  highlights?.attach(client)
   client.onDidChangeState(e => {
     if (e.newState === State.Stopped && status) status.text = '$(warning) Sygnal'
     else if (e.newState === State.Running && choice) status.text = choice.source === 'workspace' ? '$(check) Sygnal' : '$(package) Sygnal'

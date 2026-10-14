@@ -137,6 +137,15 @@
           "scope": "resource",
           "markdownDescription": "Also show info findings (hints that need a judgment call), like `sygnal-check --verbose`. Unset (`null`): off."
         },
+        "sygnal.highlights": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "scope": "resource",
+          "markdownDescription": "Highlight Sygnal's wiring: action names (intent keys, model keys, `next()`, ...), EVENTS types, intent selectors (marked when nothing renders them, or only a dynamic class name might) and the view classes / ids / controls they target, and child components selected with `CHILD.select`. Colors: the `sygnal.highlight.*` theme colors in `workbench.colorCustomizations`. Unset (`null`): on. An editor setting only: the config file has no such key."
+        },
         "sygnal.codeLens": {
           "type": [
             "boolean",
@@ -168,6 +177,16 @@
         }
       }
     },
+    "colors": [
+      { "id": "sygnal.highlight.action", "description": "Sygnal action names (intent / model keys, next(), ...).", "defaults": { "dark": "#4FC1FF", "light": "#0070C1", "highContrast": "#4FC1FF", "highContrastLight": "#0070C1" } },
+      { "id": "sygnal.highlight.actionBackground", "description": "Background of Sygnal action names.", "defaults": { "dark": "#4FC1FF26", "light": "#0070C11C", "highContrast": null, "highContrastLight": null } },
+      { "id": "sygnal.highlight.event", "description": "Sygnal EVENTS types.", "defaults": { "dark": "#C586C0", "light": "#AF00DB", "highContrast": "#C586C0", "highContrastLight": "#AF00DB" } },
+      { "id": "sygnal.highlight.target", "description": "Intent selectors and the view classes / ids / controls they target.", "defaults": { "dark": "#4EC9B0", "light": "#267F99", "highContrast": "#4EC9B0", "highContrastLight": "#267F99" } },
+      { "id": "sygnal.highlight.targetBackground", "description": "Background of view classes / ids / controls an intent targets.", "defaults": { "dark": "#4EC9B022", "light": "#267F9918", "highContrast": null, "highContrastLight": null } },
+      { "id": "sygnal.highlight.missing", "description": "Intent selectors that match nothing the view (or a child) renders.", "defaults": { "dark": "#F48771", "light": "#C72E0F", "highContrast": "#F48771", "highContrastLight": "#C72E0F" } },
+      { "id": "sygnal.highlight.unverified", "description": "Intent selectors no static class / id renders, that a dynamic class name in the view might.", "defaults": { "dark": "#CCA700", "light": "#9A6700", "highContrast": "#CCA700", "highContrastLight": "#9A6700" } },
+      { "id": "sygnal.highlight.child", "description": "Child components selected with CHILD.select.", "defaults": { "dark": "#DCDCAA", "light": "#795E26", "highContrast": "#DCDCAA", "highContrastLight": "#795E26" } }
+    ],
     "snippets": [
       {
         "language": "javascriptreact",

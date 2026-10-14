@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { coreRules } from '../src/rules/index.js'
 import { startServer, copyFixture, tempDir, pocFixture, uriOf, applyTextEdits, where, tick } from './lsp-helpers.js'
+import { LEGEND } from '../src/lsp/highlights.js'
 
 const cleanup = []
 afterEach(() => {
@@ -71,6 +72,7 @@ describe('lifecycle', () => {
       definitionProvider: true,
       referencesProvider: true,
       codeLensProvider: { resolveProvider: false },
+      semanticTokensProvider: { legend: LEGEND, full: true },
       renameProvider: true,
       executeCommandProvider: { commands: ['sygnal.goTo'] },
       workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
