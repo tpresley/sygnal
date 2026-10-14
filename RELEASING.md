@@ -35,7 +35,7 @@ Publishing is done by GitHub Actions, with no stored credentials (`.github/workf
 
 A release of one package (a `sygnal-check` patch, an extension-only release) is just that package's version change. Re-running a failed run publishes only what is still missing (`--skip-duplicate` for the extension registries).
 
-**Dry run.** Actions → Release → Run workflow (from `main`; "Dry run" is checked by default) runs the plan with every target counted as new, the gates, and after your approval `npm publish --dry-run` and `vsce verify-pat --azure-credential` (the Marketplace sign-in); it uploads and tags nothing. Use it after changing the workflow or the trust setup.
+**Dry run.** Actions → Release → Run workflow (from `main`; "Dry run" is checked by default) runs the plan with every target counted as new, the gates, and after your approval `npm publish --dry-run` (`npm pack --dry-run` for a version npm already has: the registry refuses even a dry run over a published version) and `vsce verify-pat --azure-credential` (the Marketplace sign-in); it uploads and tags nothing. A dry run doesn't sign in to npm, so the first real release is the first test of npm's trusted publishing. Use it after changing the workflow or the trust setup.
 
 **Run locally.** `node scripts/release-plan.mjs` prints what a release of this checkout would publish; `node scripts/release-smoke.mjs --local | --registry` runs the template smoke checks (§4, §7).
 

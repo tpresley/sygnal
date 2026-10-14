@@ -14,8 +14,9 @@
 #   smoke     every template from the registry (scripts/release-smoke.mjs --registry)
 #
 # It starts when a version file changes on main, or by hand (Actions → Release → Run workflow).
-# A manual run is a dry run by default: every target counts as new, `npm publish --dry-run`,
-# `vsce verify-pat --azure-credential`, nothing uploaded or tagged. Re-running after a failure
+# A manual run is a dry run by default: every target counts as new, `npm publish --dry-run` (`npm
+# pack --dry-run` for a version npm already has), `vsce verify-pat --azure-credential`, nothing
+# uploaded or tagged. Re-running after a failure
 # publishes only what is still missing. The trust on npm, Open VSX and Azure is pinned to this
 # file (release.yml) and the environment `release` (main only, required reviewer).
 name: Release
@@ -54,10 +55,13 @@ jobs:
       any: ${{ steps.plan.outputs.any }}
       sygnal: ${{ steps.plan.outputs.sygnal }}
       sygnal_version: ${{ steps.plan.outputs.sygnal_version }}
+      sygnal_published: ${{ steps.plan.outputs.sygnal_published }}
       check: ${{ steps.plan.outputs.check }}
       check_version: ${{ steps.plan.outputs.check_version }}
+      check_published: ${{ steps.plan.outputs.check_published }}
       csa: ${{ steps.plan.outputs.csa }}
       csa_version: ${{ steps.plan.outputs.csa_version }}
+      csa_published: ${{ steps.plan.outputs.csa_published }}
       vscode: ${{ steps.plan.outputs.vscode }}
       vscode_version: ${{ steps.plan.outputs.vscode_version }}
       plugin: ${{ steps.plan.outputs.plugin }}
@@ -111,15 +115,32 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       # ---- npm: sygnal-check, then sygnal, then create-sygnal-app (its templates need both) ----
+      # A dry run of a version npm already has packs it instead (`npm publish --dry-run` asks the
+      # registry, and refuses a published version); sygnal is built first, as prepublishOnly would.
       - name: Publish sygnal-check ${{ env.CHECK }}
         if: needs.plan.outputs.check == 'true'
-        run: npm publish --prefix sygnal-check ./sygnal-check ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+        run: |
+          if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.check_published }}" = true ]; then
+            npm pack --dry-run --prefix sygnal-check ./sygnal-check
+          else
+            npm publish --prefix sygnal-check ./sygnal-check ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+          fi
       - name: Publish sygnal ${{ env.SYGNAL }}
         if: needs.plan.outputs.sygnal == 'true'
-        run: npm publish ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+        run: |
+          if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.sygnal_published }}" = true ]; then
+            npm run build:all && npm pack --dry-run
+          else
+            npm publish ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+          fi
       - name: Publish create-sygnal-app ${{ env.CSA }}
         if: needs.plan.outputs.csa == 'true'
-        run: npm publish --prefix create-sygnal-app ./create-sygnal-app ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+        run: |
+          if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.csa_published }}" = true ]; then
+            npm pack --dry-run --prefix create-sygnal-app ./create-sygnal-app
+          else
+            npm publish --prefix create-sygnal-app ./create-sygnal-app ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+          fi
       - name: Tag v${{ env.SYGNAL }} and create its GitHub release
         if: needs.plan.outputs.sygnal == 'true' && env.DRY_RUN != 'true'
         run: |
