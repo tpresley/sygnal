@@ -4,8 +4,9 @@
  *
  * It stands where the `<Collection>` marker was in its owner's template and renders the items
  * inside the owner's render: no stream of its own, no pickCombine.
- * - `of`: a component function (D163: no names). `from`: a state key (SYG409 on a calculated
- *   one), a `{ get, set }` lens (SYG412 without get(); SYG401 for a non-array) or none (the
+ * - `of`: a component function (D163: no names). `from`: a state key or path ('board.cards';
+ *   SYG409 on a calculated first segment; SYG401 when it isn't an array: the dev entry's), a
+ *   `{ get, set }` lens (SYG412 without get(); SYG401 for a non-array) or none (the
  *   owner's state is the array).
  * - Items are keyed by `id`, an id-less item by its raw index (D169); one key -> index map per
  *   array identity serves every item (cell.ts indexer). A duplicate key renders its first element
@@ -30,7 +31,7 @@
  */
 import {hosts, resolvers} from '../registry'
 import {Inst, shallowEq} from '../instance'
-import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName} from '../cell'
+import {Cell, Index, indexer, itemCell, keyCell, keyOf, keyName, pathOf} from '../cell'
 import {CoreDef, isObj} from '../define'
 import {uidPart, vtStyle} from '../../shared'
 import {viewOf} from '../view'
@@ -89,14 +90,8 @@ function arrayCell(owner: Inst, from: any): Cell | null {
       set: (v) => oc.set(v),
     }
   }
-  if (typeof from == 'string') {
-    const cs = oc.get(), calc = owner.def.calcNames?.has(from)
-    if (isObj(cs) && !(from in cs) && !calc) {
-      const arrays = Object.keys(cs).filter(k => Array.isArray(cs[k]))
-      warn('SYG401', name, `Collection from="${from}" is not in state${arrays.length ? ` (array fields: '${arrays.join("', '")}')` : ''}; it renders nothing until it exists`, 'Set it to an array in initialState')
-    } else if (isObj(cs) && !Array.isArray(cs[from])) warn('SYG401', name, `Collection 'from' field '${from}' is not an array; it renders nothing`, 'Set it to an array in initialState')
-    return keyCell(oc, from, calc && name, undefined, 'Collection')
-  }
+  // a key or a path ('board.cards'); SYG401 for one that isn't an array is the dev entry's (checks/collections.ts)
+  if (typeof from == 'string') return keyCell(oc, from, owner.def.calcNames?.has(pathOf(from)[0]) && name, undefined, 'Collection')
   if (isObj(from) && typeof from.get == 'function') {
     let lp: any = {}, lv: any
     return {

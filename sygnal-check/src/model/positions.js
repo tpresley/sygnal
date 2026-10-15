@@ -62,7 +62,8 @@
  *   ns 'control': `target`: the control's id; role 'declare' (the controls() key), 'render' (an
  *     `<Add>` tag, with `scope`), 'selector' (`DOM.click(Add)`, with `scopes` / `childScope`)
  *   ns 'state': role 'declare' (kind 'state': an initialState key; kind 'calculated'), 'use'
- *     (kind 'from': a Collection / Switchable `from="x"` / `from={'x'}` in the component's view)
+ *     (kind 'from': a Collection / Switchable `from="x"` / `from={'x'}` in the component's view;
+ *     for a path, `from="x.y"`, its first segment)
  *   ns 'context': kind 'context'; role 'provide' (a `.context` static key, `component`: the
  *     provider), 'consume' (`context.x` / `{ context: { x } }` in a view, a reducer's
  *     `props.context.x`, or a plain function rendered as a tag); `providers`: the ids of the nearest
@@ -533,7 +534,9 @@ export function buildIndex(project, { exclude } = {}) {
       if (v?.type === 'JSXExpressionContainer') v = unwrap(v.expression)
       if (!isLiteral(v)) continue
       const file = col.file || (c.viewInfo.children.find(u => u.node === col.node)?.file)
-      if (file) add(file, v, { name: col.from, ns: 'state', kind: 'from', role: 'use', component: id })
+      // a path ('board.cards', 6.5.0): its first segment is the use of the state key `board`
+      const first = col.from.split(/[.[]/)[0]
+      if (file && first) add(file, v, { name: first, ns: 'state', kind: 'from', role: 'use', component: id }, first === col.from ? {} : { part: [0, first.length] })
     }
 
     // --- context provided ---

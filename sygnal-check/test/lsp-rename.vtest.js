@@ -281,6 +281,21 @@ export default L
     expect(p.edited(r.result)).toEqual(['src/L.jsx:3 entries → rows', 'src/L.jsx:4 entries → rows'])
   })
 
+  it('state: a Collection from path (6.5.0) renames only its first segment', async () => {
+    const p = await project({
+      'src/Item.jsx': 'export default function Item() { return <li>i</li> }\n',
+      'src/L.jsx': `import { Collection } from 'sygnal'
+import Item from './Item.jsx'
+function L() { return <ul><Collection of={Item} from="board.cards" /></ul> }
+L.initialState = { board: { cards: [] } }
+export default L
+`,
+    })
+    const r = await p.rename('src/L.jsx', 'board: {', 'deck')
+    expect(p.edited(r.result)).toEqual(['src/L.jsx:3 board → deck', 'src/L.jsx:4 board → deck'])
+    expect(p.apply(r.result)['src/L.jsx']).toContain('from="deck.cards"')
+  })
+
   it('context: the provider\'s entry and the reads resolving to it', async () => {
     const p = await project({
       'src/Child.jsx': 'export default function Child({ context }) { return <i className={context.tone}>c</i> }\n',

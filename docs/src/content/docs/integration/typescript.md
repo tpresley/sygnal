@@ -317,7 +317,7 @@ function Lane({ state }: { state: LaneState }) {
 }
 ```
 
-`from` then only accepts keys of `LaneState` whose value is an array (`ArrayKeysOf<LaneState>`), or a `Lens<LaneState, …>`. The plain `<Collection>` (no state type) accepts any string or lens.
+`from` then only accepts keys of `LaneState` whose value is an array, dotted paths to arrays in its nested objects up to three levels (`'board.cards'`; `ArrayPathsOf<LaneState>`, since 6.5.0), or a `Lens<LaneState, …>`. The plain `<Collection>` (no state type) accepts any string or lens.
 
 ## exactState() Helper
 

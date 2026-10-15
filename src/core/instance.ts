@@ -20,7 +20,7 @@ import {warn, error as logError, fail} from '../extra/diagnostics/legacy'
 import type {App} from './runtime'
 import {tearDown, INST, SEED} from './teardown'
 import {CoreDef, defOf, isObj} from './define'
-import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell} from './cell'
+import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell, pathOf} from './cell'
 import {hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
@@ -536,7 +536,7 @@ export class Inst {
         fail('SYG405', def.name, 'Sub-component initialState replaces the state its parent passes in', 'Remove initialState, or set isolatedState = true')
       }
       const dflt = def.isolated ? def.initialState : undefined
-      const cell = typeof st == 'string' ? keyCell(this.cell, st, calcOf?.has(st) && this.def.name, dflt)
+      const cell = typeof st == 'string' ? keyCell(this.cell, st, calcOf?.has(pathOf(st)[0]) && this.def.name, dflt)
         : st !== undefined ? lensCell(this.cell, st, this.def.name, (e) => app.appError(this, e, 'view'), dflt)
         : def.isolated ? localCell(app, this.cell) : this.cell
       const scope = app.scope()

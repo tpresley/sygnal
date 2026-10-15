@@ -1365,6 +1365,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg427"
   },
   {
+    "code": "SYG428",
+    "title": "A state path that names a key containing a dot",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "Since 6.5.0, a child's `state=\"a.b\"`, a Switchable's `state` and a Collection's `from=\"a.b\"` are paths: `state.a.b` (`a[0].b` for an array position). Before, the string was one key, so a state with a key that itself contains a dot (`{ 'a.b': [...] }`) was read directly. Such a key is now missed: the designator reads `state.a.b`, which is undefined, so the child or the Collection renders nothing, and the first write creates `{ a: { b: ... } }` beside the old key. The dev diagnostics report it when the owner's state has a key equal to the designator.",
+    "fix": "Rename the key so it has no dot (`{ ab: [...] }` with `state=\"ab\"`), or keep it and pass a lens: `state={{ get: (s) => s['a.b'], set: (s, v) => ({ ...s, 'a.b': v }) }}`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg428"
+  },
+  {
     "code": "SYG430",
     "title": "VirtualCollection has no bounded height",
     "severity": "warn",

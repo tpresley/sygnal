@@ -18,7 +18,7 @@
 import {hosts} from '../registry'
 import {resolve} from './collection'
 import {Inst, shallowEq} from '../instance'
-import {Cell, keyCell, lensCell, localCell} from '../cell'
+import {Cell, keyCell, lensCell, localCell, pathOf} from '../cell'
 import {isObj} from '../define'
 import {uidPart} from '../../shared'
 import {error as logError, fail} from '../../extra/diagnostics/legacy'
@@ -61,7 +61,7 @@ export class SwitchableHost {
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string) {
     check(owner, props)
-    const st = props.state, calc = typeof st == 'string' && owner.def.calcNames?.has(st)
+    const st = props.state, calc = typeof st == 'string' && owner.def.calcNames?.has(pathOf(st)[0])
     this.cell = typeof st == 'string' ? keyCell(owner.cell, st, calc && owner.def.name, undefined, 'Switchable sub-component')
       : st !== undefined ? lensCell(owner.cell, st, owner.def.name, (e) => owner.app.appError(owner, e, 'view'))
       : owner.cell

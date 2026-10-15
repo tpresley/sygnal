@@ -38,24 +38,42 @@ export function localCell(app: {commit(): void}, parent: Cell): Cell {
 }
 
 /**
- * state="key". `owner`: the parent's name when `k` is one of its calculated fields (SYG409:
- * writes ignored; `what` names the writer in the message). `dflt`: an isolated child's
- * initialState, read while the slice is undefined. `has()`: the slice itself is defined (D174).
+ * SPIKE (state paths): a state designator as segments. A plain key is one segment; 'a.b.0' and
+ * 'a[0].b' are paths into nested objects and arrays. No array form: an array `from` / `state` is
+ * the data passed by mistake (SYG410 / SYG412), and ['x', 'y'] would be ambiguous.
+ */
+export const pathOf = (p: string): string[] => p.replace(/\[(\d+)\]/g, '.$1').split('.')
+const getIn = (o: any, ks: any[]) => { for (const k of ks) { if (o == null) return undefined; o = o[k] } return o }
+/** `o` with the value at `ks` replaced; only the levels on the path are copied (a missing level becomes {}) */
+function setIn(o: any, ks: any[], i: number, v: any): any {
+  if (i == ks.length) return v
+  const k = ks[i], cur = o?.[k], n = setIn(cur, ks, i + 1, v)
+  if (n === cur && o != null) return o
+  if (Array.isArray(o)) { const c = o.slice(); c[k] = n; return c }
+  return {...o, [k]: n}
+}
+
+/**
+ * state="key" (SPIKE: or a path, 'a.b' / 'a[0].b'). `owner`: the parent's name when the first
+ * segment is one of its calculated fields (SYG409: writes ignored; `what` names the writer in
+ * the message). `dflt`: an isolated child's initialState, read while the slice is undefined.
+ * `has()`: the slice itself is defined (D174).
  */
 export function keyCell(parent: Cell, k: string, owner?: string | false, dflt?: any, what = 'Sub-component'): Cell & {has(): boolean} {
+  const ks = pathOf(k)
   let lp: any = {}, lv: any
   return {
     get() {
       const p = parent.get()
-      if (p !== lp) { lp = p; lv = p == null ? undefined : p[k]; if (lv === undefined) lv = dflt }
+      if (p !== lp) { lp = p; lv = getIn(p, ks); if (lv === undefined) lv = dflt }
       return lv
     },
     set(v) {
-      if (owner) return warn('SYG409', owner, `${what} tried to update calculated field '${k}'; ignored`, 'Bind it to a non-calculated field')
+      if (owner) return warn('SYG409', owner, `${what} tried to update calculated field '${ks[0]}'; ignored`, 'Bind it to a non-calculated field')
       const p = parent.get()
-      if (p?.[k] !== v) parent.set({...p, [k]: v})
+      if (getIn(p, ks) !== v) parent.set(setIn(p, ks, 0, v))
     },
-    has: () => parent.get()?.[k] !== undefined,
+    has: () => getIn(parent.get(), ks) !== undefined,
   }
 }
 

@@ -1658,6 +1658,16 @@ A component is imported from a module that doesn't export it, so the binding is 
 
 **Fix:** Export the component from its module (`export function Child() { … }`), or fix the imported name. Pass `CHILD.select()` the component function itself.
 
+### SYG428
+
+**A state path that names a key containing a dot**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+Since 6.5.0, a child's `state="a.b"`, a Switchable's `state` and a Collection's `from="a.b"` are paths: `state.a.b` (`a[0].b` for an array position). Before, the string was one key, so a state with a key that itself contains a dot (`{ 'a.b': [...] }`) was read directly. Such a key is now missed: the designator reads `state.a.b`, which is undefined, so the child or the Collection renders nothing, and the first write creates `{ a: { b: ... } }` beside the old key. The dev diagnostics report it when the owner's state has a key equal to the designator.
+
+**Fix:** Rename the key so it has no dot (`{ ab: [...] }` with `state="ab"`), or keep it and pass a lens: `state={{ get: (s) => s['a.b'], set: (s, v) => ({ ...s, 'a.b': v }) }}`.
+
 ### SYG430
 
 **VirtualCollection has no bounded height**

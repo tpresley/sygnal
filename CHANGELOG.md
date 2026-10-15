@@ -2,6 +2,23 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Added
+
+- **State paths.** A child's `state`, a Switchable's `state` and a Collection's (and VirtualCollection's) `from` take a path into nested state: `<RulesPanel state="settings.rules" />`, `<BoardTitle state="boards[0].title" />`, `<Collection of={Card} from="board.cards" />`. Reads follow the path; a write copies only the objects and arrays on it, so untouched branches keep their identity, as a hand-written lens would (a missing level is created as an object when an `isolatedState` child first writes). A calculated first segment is read-only (SYG409), as a calculated key is. For list items, `byId('boards', id)` stays the way to follow an item rather than a position. Typed Collections accept dotted paths to nested arrays (`ArrayPathsOf<STATE>`, three levels). There is no array form (`state={['a', 'b']}`): an array `state` / `from` is still the data passed by mistake (SYG410 / SYG412).
+- **New SYG428** (warn, dev diagnostics): a `state="a.b"` or `from="a.b"` whose owner's state has a key named `"a.b"` (see Changed).
+
+### Changed
+
+- **A `state` / `from` string with a `.` or `[` is now a path.** Before, `state="a.b"` meant the key named `"a.b"`; now it means `state.a.b`. A state that still has a key with a dot in its name is reported as SYG428 in development; keep it with a lens (`state={{ get: (s) => s['a.b'], set: (s, v) => ({ ...s, 'a.b': v }) }}`) or rename the key.
+- **SYG401 for a string `from` is reported by the development diagnostics only** (`sygnal/diagnostics`, which `sygnal/vite` loads in dev and `renderComponent` in tests): a `from` key or path that isn't in state, or isn't an array. Production builds no longer carry or print it (D22 had the core report it in every mode); the core still reports a lens getter that returns a non-array (SYG401) and an invalid `from` (SYG412). The kanban gate goes down 31 B (42,527 → 42,496 B) with state paths included.
+- **`sygnal-check`: SYG401 follows a `from` path** through the literal `initialState` (a missing key along the way names the keys of that level; it stops where a value isn't a literal), and the editor features (rename, go to definition, references) treat a path's first segment as a use of that state key, so renaming `board` edits `from="board.cards"` to `from="deck.cards"`.
+
+### Fixed
+
+- **State guide:** a child bound to a property that is `undefined` renders nothing until the property exists (only an `isolatedState` child renders and creates it); the guide said the property "gets added when the child first updates".
+
 ## VS Code extension 0.5.1 — 2026-10-14
 
 Bundles `sygnal-check` 0.8.1 (the SYG427 fixes above); the extension's own code doesn't change. The first extension release published by the keyless release workflow: the VS Code Marketplace through Microsoft Entra ID, Open VSX through trusted publishing.
