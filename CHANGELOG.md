@@ -2,6 +2,10 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## VS Code extension 0.5.1 — 2026-10-14
+
+Bundles `sygnal-check` 0.8.1 (the SYG427 fixes above); the extension's own code doesn't change. The first extension release published by the keyless release workflow: the VS Code Marketplace through Microsoft Entra ID, Open VSX through trusted publishing.
+
 ## sygnal-check 0.8.1 — 2026-10-14
 
 A patch for SYG427 (new in 0.8.0), reported from a real project; `sygnal` itself is unchanged (6.4.0). Projects on `sygnal-check` ^0.8.0 get it on their next install. The first release published by the keyless release workflow (npm trusted publishing, with provenance).
