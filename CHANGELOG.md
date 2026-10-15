@@ -2,7 +2,17 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## 6.5.0 — 2026-10-14
+
+State paths: a child's `state`, a Switchable's `state` and a Collection's `from` reach nested state (`state="settings.rules"`, `from="board.cards"`) without a hand-written lens. Additive, except that a `state` / `from` string with a `.` or `[` now means a path (SYG428 reports a state that still has a key with a dot in its name). The first full release published by the keyless release workflow.
+
+**Measured impact.** Size: the kanban gate goes down, (a) 42,496 B with `nativeGlobalThis: false` (was 42,527 B; budget 42,700 B): the path cell adds about 107 B, and moving the string-`from` SYG401 checks out of the core saves more than that.
+
+**Companion packages.**
+- **`sygnal-check` 0.9.0:** SYG401 follows a `from` path through the literal `initialState`; rename, definition and references treat a path's first segment as a use of that state key. Its caret range doesn't reach 0.9.0 from `^0.8.0`, so update the dev dependency.
+- **`create-sygnal-app` 2.7.0:** every template depends on `sygnal` ^6.5.0 and `sygnal-check` ^0.9.0.
+- **VS Code extension 0.6.0:** bundles `sygnal-check` 0.9.0. The extension itself doesn't change.
+- **Claude Code plugin 0.1.4:** the `sygnal-dev` skill describes state paths.
 
 ### Added
 

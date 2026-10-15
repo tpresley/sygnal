@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+Bundles sygnal-check 0.9.0 (Sygnal 6.5.0). The extension's own code doesn't change.
+
+- **State paths** (`<Collection from="board.cards">`, `state="settings.rules"`): SYG401 follows a `from` path through the literal `initialState` and names the keys where it breaks, and rename / go to definition / references treat a path's first segment as a use of that state key (renaming `board` edits `from="board.cards"`).
+
 ## 0.5.1
 
 Bundles sygnal-check 0.8.1. The extension's own code doesn't change.
