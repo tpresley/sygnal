@@ -88,9 +88,11 @@ export function makeInsert(
 }
 
 // G-261: a DOM change Sygnal makes outside a patch (a Transition's leave, a Portal mounted late)
-// re-emits the DOM source of the app whose root contains `el` (makeDOMDriver listens on its root)
+// re-emits the DOM source of the app whose root contains `el` (makeDOMDriver listens on its root).
+// The event comes from the element's own window: jsdom refuses an `Event` from another realm (a
+// Transition's leave timer that fires after a jsdom test environment was torn down)
 export const POKE = 'sygnal-dom';
-export const pokeDOM = (el: any): any => el?.dispatchEvent(new Event(POKE, {bubbles: true}));
+export const pokeDOM = (el: any): any => el?.dispatchEvent(new (el.ownerDocument?.defaultView?.Event || Event)(POKE, {bubbles: true}));
 
 const obj = (o: any) => o !== null && typeof o == 'object' && !Array.isArray(o);
 /**

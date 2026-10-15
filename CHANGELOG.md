@@ -2,6 +2,12 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Fixed
+
+- **A Transition's leave, or a Portal mounted late, under jsdom.** The DOM "poke" that re-emits the app's DOM source after such a change created its event with the global `Event`. jsdom refuses an event from another realm, so a jsdom test whose environment was torn down while a leave transition's timer was pending failed with "parameter 1 is not of type 'Event'" (the 6.5.0 release's CI run did once). It now creates the event from the element's own window. Browsers were not affected.
+
 ## 6.5.0 — 2026-10-14
 
 State paths: a child's `state`, a Switchable's `state` and a Collection's `from` reach nested state (`state="settings.rules"`, `from="board.cards"`) without a hand-written lens. Additive, except that a `state` / `from` string with a `.` or `[` now means a path (SYG428 reports a state that still has a key with a dot in its name). The first full release published by the keyless release workflow.

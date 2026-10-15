@@ -1,5 +1,11 @@
 # The release gates on every pull request and every push to main (gates.yml). Publishing is
-# release.yml's, which runs the same gates first.
+# release.yml's, which runs the same gates first. CI skips its own gates on a push to main that a
+# Release run gates, instead of running them twice: both must hold
+#   - the push changes one of release.yml's version files (so a Release run starts), and
+#   - the release plan has versions to publish (so that run gates the commit).
+# A version file can change without a new version (a dependency bump in package.json), and an
+# unpublished version can be left from a failed release while a push changes no version file:
+# in both cases no Release run gates the commit, so CI does.
 name: CI
 
 on:
@@ -16,5 +22,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # the push's range, for the changed files
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - id: plan
+        name: Does a Release run gate this commit?
+        run: |
+          any=false
+          # release.yml's `paths`: a push touching one of them starts a Release run
+          VERSION_FILES='^(package\.json|sygnal-check/package\.json|create-sygnal-app/package\.json|editors/vscode/package\.json|editors/claude-code/\.claude-plugin/plugin\.json)$'
+          if [ "${{ github.event_name }}" = push ] && git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -qE "$VERSION_FILES"; then
+            node scripts/release-plan.mjs > "$RUNNER_TEMP/plan.txt"
+            any=$(tail -1 "$RUNNER_TEMP/plan.txt" | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).any")
+          fi
+          echo "release=$any" >> "$GITHUB_OUTPUT"
+          if [ "$any" = true ]; then echo "::notice::This push has versions to publish, so its Release run gates it: CI skips the gates."; fi
+
   gates:
+    needs: plan
+    if: needs.plan.outputs.release != 'true'
     uses: ./.github/workflows/gates.yml
