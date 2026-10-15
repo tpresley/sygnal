@@ -66,6 +66,21 @@ function removed(component: any, name: string, anchor: string, detail?: string):
   })
 }
 
+/**
+ * SYG428 (6.5.0): `state="a.b"` / `from="a.b"` is a path, read as `state.a.b`. Before 6.5.0 it was
+ * one key named "a.b"; when the owner's state still has such a key, the designator now misses it.
+ */
+function dottedKey(f: any, what: string, designator: any, ownerState: any): void {
+  if (typeof designator != 'string' || !/[.[]/.test(designator) || !isPlainObject(ownerState)) return
+  if (!Object.prototype.hasOwnProperty.call(ownerState, designator) || !once(`SYG428:${f.name}:${designator}`)) return
+  devReport('SYG428', {
+    component: f.name,
+    message: `${what}="${designator}" is a path (since 6.5.0), read as ${designator.replace(/\[(\d+)\]/g, '.$1').split('.').map((k: string) => `[${JSON.stringify(k)}]`).join('')}, but the state has a key named "${designator}"`,
+    fix: `Rename the key so it has no dot (and point ${what} at it), or use a lens: ${what}={{ get: (s) => s['${designator}'], set: (s, v) => ({ ...s, '${designator}': v }) }}`,
+    data: {designator, what},
+  })
+}
+
 /** SYG427: CHILD.select(x) with no component (an import of a name the module doesn't export) */
 function notComponent(f: any, x: any): void {
   if (!once(`SYG427:${f.name}`)) return
@@ -373,11 +388,16 @@ export function nextHooks(_api: any): any {
   // G-527: one chain of SYG149 checks over the latest patches (G-501: it stops once every instance
   // that renders a named Collection is disposed, the app's dispose included)
   const vtCheck = vtChecker(() => vtp.size && on())
+  // SYG428: the live instances by id, to read a child's parent state
+  const live = new Map<any, any>()
   return {
     onCreate(iv: any) {
+      live.set(iv.id, iv)
       if (!on()) return
       log.onCreate(iv)
       const f = fac(iv)
+      const parent = live.get(iv.parentId)
+      if (parent) dottedKey(f, `<${f.name} state`, iv.props?.state, parent.state)
       removedStatics(f)
       if (!iv.def.intent) wire(iv, [])
     },
@@ -418,6 +438,7 @@ export function nextHooks(_api: any): any {
     },
     onDispose(iv: any) {
       vtp.delete(iv)
+      live.delete(iv.id)
       H.onDispose(fac(iv))
     },
     onAction(iv: any, a: any) { log.onAction(iv, a) },
@@ -451,6 +472,7 @@ export function nextHooks(_api: any): any {
         if (w.length) removed(f, f.name, 'collection-wrapper', w.map(k => k == 'dataset' ? 'data-*' : k == 'hook' ? 'ref / hook' : k).join(', '))
       }
       try { checkCollection(f, {data: {props}}) } catch (_) { /* ignore */ }
+      dottedKey(f, `<${sel == 'collection' ? 'Collection' : 'VirtualCollection'} from`, props.from, owner.state)
       // G-419: SYG148 for a prefix that isn't an identifier; a valid one is checked for
       // duplicate names after each patch (SYG149). G-460: a falsy one names nothing (as the host)
       const p = props.viewTransitionName

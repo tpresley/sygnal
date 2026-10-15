@@ -281,6 +281,8 @@ export const CODE_TITLES: Record<string, string> = {
   // checks/next.ts and sygnal-check: a component reference that is not a function (an import of
   // a name the module doesn't export is undefined under Vitest)
   SYG427: 'CHILD.select() of something that is not a component',
+  // 6.5.0 (checks/next.ts): state="a.b" / from="a.b" is a path; the parent state has a literal "a.b" key
+  SYG428: 'A state path that names a key containing a dot',
   // PLAN-9 (D470): checks/next.ts; dev entry
   SYG453: 'Two children with the same identity share one instance',
   SYG601: "Retired in 6.0: Missing or invalid sources",
@@ -491,6 +493,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG426: 'warn',
   // checks/next.ts: CHILD.select(undefined), usually a missing export
   SYG427: 'error',
+  // checks/next.ts: a path designator that 6.4 read as one key with a dot
+  SYG428: 'warn',
   // PLAN-9 (checks/next.ts): D470 key identity, two children with one identity
   SYG453: 'warn',
   SYG612: 'error',

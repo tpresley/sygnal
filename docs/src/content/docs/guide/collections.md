@@ -64,7 +64,7 @@ Each item in the `items` array becomes the state for one `TodoItem` instance. If
 | Prop | Type | Description |
 |------|------|-------------|
 | `of` | Component | The component to render for each item |
-| `from` | String or Lens | The state property (or lens) containing the array |
+| `from` | String or Lens | The state property containing the array, a path to one (`"board.cards"`, since 6.5.0), or a lens |
 | `filter` | Function | Filter function — only items returning `true` are shown |
 | `sort` | String, Object, Array, or Function | Sort items — see [Sorting](#sorting) below |
 | `viewTransitionName` | String | A prefix such as `"card"`: each item with an `id` gets `view-transition-name: card-<id>`, so a reorder or a move animates in a [View Transition](/guide/view-transitions/#collection-items) |

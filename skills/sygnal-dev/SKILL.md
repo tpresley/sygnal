@@ -32,7 +32,7 @@ Canonical forms, API facts, wiring rules and testing for everyday work. Full spe
 
 ## 2. Mental model and component anatomy
 - A component is a pure view function plus static properties: `.intent` (WHEN: sources → named action streams), `.model` (WHAT: action → one reducer per sink), `.initialState`.
-- There is one state tree. A child sees its parent's whole state, or a slice with `state="key"`. A Collection item sees one array element.
+- There is one state tree. A child sees its parent's whole state, or a slice with `state="key"` (or a path: `state="settings.rules"`, `"boards[0].title"`). A Collection item sees one array element.
 - Every side effect is a sink of a model entry (STATE, EVENTS, PARENT, EFFECT, custom drivers). JSX never has event handlers (`onClick`).
 - Streams are xstream, not RxJS. An intent's DOM selectors only see the component's own JSX, never a child component's.
 
@@ -147,7 +147,7 @@ TaskList.intent = ({ CHILD }) => ({ PICKED: CHILD.select(TaskItem) })  // the fu
 TaskList.model = { PICKED: (state, { taskId }) => ({ ...state, picked: taskId }) }
 ```
 - Removal in the object form keeps the STATE entry: `REMOVE: { STATE: () => undefined, EVENTS: event('REMOVED', (state) => state.id) }`. Without `STATE: () => undefined` the item stays.
-- `from` names an array field; items are keyed by `.id` (else index). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function: they only change what renders, and an item's edit is written back to its element by key. Items render directly into the parent, no wrapper (`className` on it is SYG612: put it on your own `<ul>`).
+- `from` names an array field (or a path to one: `from="board.cards"`); items are keyed by `.id` (else index). `filter={t => !t.done}`; `sort="title"`, `sort={{ title: 'desc' }}`, an array of those, or a compare function: they only change what renders, and an item's edit is written back to its element by key. Items render directly into the parent, no wrapper (`className` on it is SYG612: put it on your own `<ul>`).
 - Switchable: `<Switchable of={{ home: Home, settings: Settings }} current={state.tab} />` (optional `state="slice"`). Hidden pages stay alive; `instance={key}` re-creates the current page with fresh state when the key changes.
 ### Extract a component without changing the markup
 **First**, on the unchanged code, pin the HTML: `expect(t.html()).toMatchSnapshot()` initially and after one interaction (run once with `npx vitest run -u`). Move the elements into the child verbatim (a component adds no wrapper or attributes); props in, `PARENT` out with an id, no `initialState`. The parent renders `<Child name="food" value={state.food} />`, drops the old selectors (SYG104) and listens with `CHILD.select(Child)`. The snapshot must still match.
@@ -342,7 +342,7 @@ TaskPage.model = {
 - Links are plain `<a href={href(...)}>`: the driver intercepts same-origin clicks. `params` are strings. `instance={state.route.path}` gives `/tasks/1` and `/tasks/2` separate page state. SSR: `router.current(req.url)`. Vike: `makeRouter({ routes, navigate })` (from `'vike/client/router'`). Guides: https://sygnal.js.org/guide/router/, https://sygnal.js.org/guide/head/
 
 ## 4. API facts
-- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (lens: `"key"` or `{ get, set }`), `children`, `slots`, `context`, `uid` (SYG106). `key={…}` is a child's identity (not a prop; else its `id` prop, else its place): a new key re-creates it. Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
+- **Child props**: `<Rating name="food" value={state.food} />` → `function Rating({ state, name, value })`; reducers read `props.name` (4th arg); intent gets `props$`. Reserved: `state` (`"key"`, a path `"a.b"` / `"a[0].b"` (for list items use `byId`), or a `{ get, set }` lens), `children`, `slots`, `context`, `uid` (SYG106). `key={…}` is a child's identity (not a prop; else its `id` prop, else its place): a new key re-creates it. Without `state=` a child shares its parent's whole state. A child rendered by tag (`<Stopwatch state="stopwatch" />`) has no `initialState`: its start values go in the parent's (`stopwatch: { ms: 0 }`); its own is SYG405. `uid('email')` (view prop) is a stable per-instance id for `id`/`for`/`aria-*` pairs.
 - **CHILD.select(Comp)** emits exactly what the child's `PARENT` function returned, for every instance (Collection items too). Put an id in the payload.
 - **run(App, drivers = {}, { mountPoint = '#root', diagnostics, onError })** returns `{ sources, sinks, dispose, hmr }`. `onError: (error, { componentName, action, phase }) => …` reports every error (reporting only). DOM, EVENTS, LOG and STATE are built in. `app.sources.STATE.stream` is the state stream; `app.dispose()` fires DISPOSE.
 - **ABORT**: from a STATE reducer, the state is unchanged (so is returning the same `state` object); from any other sink, nothing is sent.

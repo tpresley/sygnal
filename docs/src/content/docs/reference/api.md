@@ -159,7 +159,7 @@ A Collection has no element of its own: its items render directly into the paren
 | Prop | Type | Required | Description |
 |------|------|----------|-------------|
 | `of` | `Component` | Yes | The component to instantiate for each item |
-| `from` | `string \| Lens` | Yes | State property name or lens for the source array. Must be an array ([SYG401](/reference/errors/#syg401)); type-checkable with [`Collection<PROPS, STATE>`](/integration/typescript/#collection-from) |
+| `from` | `string \| Lens` | Yes | State property name, a path to the array (`"board.cards"`, `"boards[0].cards"`; since 6.5.0), or a lens. Must be an array ([SYG401](/reference/errors/#syg401)); type-checkable with [`Collection<PROPS, STATE>`](/integration/typescript/#collection-from) (property names and dotted paths: `ArrayPathsOf<STATE>`) |
 | `filter` | `(item) => boolean` | No | Filter function — only items returning `true` are rendered |
 | `sort` | `string \| object \| array \| function` | No | Sort items — string (field name, `"asc"`, or `"desc"`), object (`{ field: "asc" \| "desc" \| 1 \| -1 }`), array (multi-field), or comparator function |
 | `viewTransitionName` | `string` | No | A CSS identifier prefix (`"card"`): each item with an `id` gets `view-transition-name: card-<id>` and `view-transition-class: card` on its root element (its own style values win; undefined ones do not), for [View Transitions](/guide/view-transitions/#collection-items) |
@@ -786,7 +786,7 @@ Widget.initialState = { count: 0 }
 Widget.isolatedState = true
 ```
 
-- Bound to a slice (`<Widget state="counter" />` or a lens): `initialState` seeds the slice only while it is `undefined`; an existing slice is kept ([SYG425](/reference/errors/#syg425) warns in development when it lacks `initialState`'s keys).
+- Bound to a slice (`<Widget state="counter" />`, a path such as `state="settings.counter"`, or a lens): `initialState` seeds the slice only while it is `undefined`; an existing slice is kept ([SYG425](/reference/errors/#syg425) warns in development when it lacks `initialState`'s keys).
 - No `state` prop: the state is local to the instance and never written to the parent.
 
 ### resetState (Tag Prop)

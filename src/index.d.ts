@@ -59,7 +59,9 @@ export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
- * parent's state (`state="editor"`) or a lens. Without it the child shares the parent's state.
+ * parent's state (`state="editor"`), a path to nested state (`state="settings.rules"`,
+ * `state="boards[0].title"`; since 6.5.0: a write copies only the levels on the path), or a
+ * lens. Without it the child shares the parent's state.
  */
 export type StateProp = string | Lense<any, any>
 
@@ -1575,12 +1577,24 @@ export type ArrayKeysOf<STATE> = {
 }[keyof STATE] & string
 
 /**
+ * Array-valued keys of STATE and dotted paths to arrays in its nested objects, up to three levels
+ * (`'tasks' | 'board.cards'`; since 6.5.0). Paths through array positions (`'boards.0.cards'`)
+ * aren't listed: for a list item, use `byId`.
+ */
+export type ArrayPathsOf<STATE, DEPTH extends unknown[] = []> = DEPTH['length'] extends 3 ? never : {
+  [KEY in keyof STATE & string]-?: NonNullable<STATE[KEY]> extends ReadonlyArray<any> ? KEY
+    : NonNullable<STATE[KEY]> extends Record<string, any> ? `${KEY}.${ArrayPathsOf<NonNullable<STATE[KEY]>, [...DEPTH, 1]>}`
+    : never
+}[keyof STATE & string]
+
+/**
  * Valid `from` values for a Collection: any string or Lense while the parent STATE is unknown
- * (`any`); otherwise an array-valued key of STATE or a Lense over STATE.
+ * (`any`); otherwise an array-valued key of STATE, a dotted path to one (`'board.cards'`), or a
+ * Lense over STATE.
  */
 export type CollectionFrom<STATE = any> = 0 extends (1 & STATE)
   ? string | Lense
-  : ArrayKeysOf<STATE> | Lense<STATE, any>
+  : ArrayPathsOf<STATE> | Lense<STATE, any>
 
 /**
  * Collection props. Pass the parent component's state type as STATE to type-check `from`:

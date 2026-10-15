@@ -67,7 +67,36 @@ RootComponent.initialState = {
 
 If the child updates its state, the change flows back up to the correct property on the parent state.
 
-If you specify a name that doesn't exist on the current state, it gets added when the child first updates.
+While the property is `undefined`, the child renders nothing; it appears once the parent sets the property. An [`isolatedState`](#isolated-state) child is the exception: it renders from its own `initialState`, and its first update adds the property.
+
+### Path-Based (Nested State)
+
+To bind a child to state deeper down, give the path, with a `.` between the property names (since 6.5.0):
+
+```jsx
+function SettingsPage({ state }) {
+  return (
+    <div>
+      {/* RulesPanel sees state.settings.rules */}
+      <RulesPanel state="settings.rules" />
+
+      {/* an array position: boards.0.title, or boards[0].title */}
+      <BoardTitle state="boards[0].title" />
+    </div>
+  )
+}
+
+SettingsPage.initialState = {
+  settings: { rules: [], theme: 'dark' },
+  boards: [{ title: 'Inbox' }],
+}
+```
+
+When the child updates its state, Sygnal copies only the objects and arrays on the path, so `settings.theme` and the other boards keep their identity, the same as a hand-written lens would. A missing level on the way is created as an object when an [`isolatedState`](#isolated-state) child first writes.
+
+For an item of a list, prefer [`byId`](/reference/api/#byid): `boards.0` follows a position, which moves when the list is reordered, while `byId('boards', id)` follows the item. A `<Collection from>` takes a path too (`from="board.cards"`).
+
+A key that itself contains a `.` can't be named this way: before 6.5.0, `state="a.b"` meant the key `"a.b"`, and the development build reports [SYG428](/reference/errors/#syg428) when the state still has such a key. Use a lens for it.
 
 ### Lens-Based (Advanced)
 
@@ -93,7 +122,7 @@ function RootComponent() {
 
 The `get` function extracts child state from parent state. The `set` function merges child state updates back into parent state.
 
-> Use lenses sparingly. In most cases, property-based state passing is sufficient and much easier to debug.
+> Use lenses sparingly. In most cases, a property name or a path is sufficient and much easier to debug.
 
 <a id="isolated-state"></a>
 

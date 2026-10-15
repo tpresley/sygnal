@@ -742,6 +742,13 @@ export const EXPLANATIONS = {
     explanation: "A component is imported from a module that doesn't export it, so the binding is `undefined`. The browser refuses to load the module (\"does not provide an export named …\"), but Vitest runs on with `undefined`: `CHILD.select(Child)` never emits, and `<Child />` renders nothing (SYG420, only when that branch renders). A test that never shows the branch passes, with no diagnostic. With `sygnal/diagnostics` loaded, `CHILD.select()` of anything but a function is reported when the component is created, so every test of the parent catches it. sygnal-check reports an imported name used as a JSX tag, in `CHILD.select()` or as a Collection's `of` when its module (a relative import it can read) has no such export; it says nothing for a module with `export * from` or a CommonJS one.",
     fix: "Export the component from its module (`export function Child() { … }`), or fix the imported name. Pass `CHILD.select()` the component function itself.",
   },
+  SYG428: {
+    title: "A state path that names a key containing a dot",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "Since 6.5.0, a child's `state=\"a.b\"`, a Switchable's `state` and a Collection's `from=\"a.b\"` are paths: `state.a.b` (`a[0].b` for an array position). Before, the string was one key, so a state with a key that itself contains a dot (`{ 'a.b': [...] }`) was read directly. Such a key is now missed: the designator reads `state.a.b`, which is undefined, so the child or the Collection renders nothing, and the first write creates `{ a: { b: ... } }` beside the old key. The dev diagnostics report it when the owner's state has a key equal to the designator.",
+    fix: "Rename the key so it has no dot (`{ ab: [...] }` with `state=\"ab\"`), or keep it and pass a lens: `state={{ get: (s) => s['a.b'], set: (s, v) => ({ ...s, 'a.b': v }) }}`.",
+  },
   SYG426: {
     title: "Deprecated lowercase marker tag",
     severity: "warn",

@@ -59,7 +59,9 @@ describe('PLAN-4.6 R3: R2 review fixes (next core)', () => {
     const m = mount(App)
     await m.settle()
     expect(m.$$('li').length).toBe(0)
-    expect(warn.mock.calls.map((c) => c.join(' ')).join('\n')).toMatch(/renders nothing until it exists/)
+    // 6.5.0: SYG401 for a string `from` is the dev entry's (checks/collections.ts), not the core's:
+    // without sygnal/diagnostics nothing is printed (test/state-paths.test.js covers the message)
+    expect(warn.mock.calls.map((c) => c.join(' ')).join('\n')).not.toMatch(/SYG401/)
     click(m.$('button')); await m.settle()
     expect(m.texts('li')).toEqual(['a'])
   })

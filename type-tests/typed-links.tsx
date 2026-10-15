@@ -17,6 +17,7 @@ import type {
   ParentPayloadOf,
   CollectionProps,
   ArrayKeysOf,
+  ArrayPathsOf,
   EventName,
   EventPayload,
   RegisteredEvent,
@@ -181,6 +182,14 @@ void badLaneIntent
 // ═══ 3. Collection `from` ════════════════════════════════════════════════════
 
 expectType<Equal<ArrayKeysOf<LaneState>, 'tasks' | 'tags'>>()
+
+// 6.5.0: dotted paths to nested arrays (three levels), not through array positions
+type BoardState = { board: { name: string; cards: { id: number }[]; meta?: { tags: string[] } }; boards: { cards: number[] }[]; count: number }
+expectType<Equal<ArrayPathsOf<BoardState>, 'board.cards' | 'board.meta.tags' | 'boards'>>()
+const BoardCollection = Collection<{}, BoardState>
+void (<BoardCollection of={() => null} from="board.cards" />)
+// @ts-expect-error: 'board.name' is not an array
+void (<BoardCollection of={() => null} from="board.name" />)
 
 // Unknown parent state (default): any string or Lense, as before
 const untypedFrom: CollectionProps = { of: TaskCard, from: 'anything' }
