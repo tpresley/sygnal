@@ -203,7 +203,7 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-Last published: the extension 0.5.0 (2026-10-14; tag `vscode-v0.5.0`) and the Claude Code plugin 0.1.3 (tag `sygnal--v0.1.3`).
+Last published: the extension 0.5.1 (2026-10-14; tag `vscode-v0.5.1`, the first through the release workflow) and the Claude Code plugin 0.1.3 (tag `sygnal--v0.1.3`).
 
 **One-time setup (the maintainer's accounts).** The publisher `sygnal` exists on both registries (0.1.0).
 - **VS Code Marketplace, Microsoft Entra ID** (global Azure DevOps tokens stop working on December 1, 2026). The workflow signs in to Entra as an app registration that trusts GitHub's OIDC token for this repository's environment `release`, then runs `vsce publish --azure-credential` (`@vscode/vsce` 4.0.0, pinned in `editors/vscode`). No secret and no Azure subscription are involved. Microsoft documents this route for Azure Pipelines; the GitHub Actions form follows the same steps:
