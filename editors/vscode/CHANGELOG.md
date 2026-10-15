@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+Bundles sygnal-check 0.8.1. The extension's own code doesn't change.
+
+- **SYG427** is filed under the component that has the mistake (the one whose view or intent uses the import), not the imported name, and its fix says how the module does export the component: `import X from '…'` for a default export, `import { X } from '…'` for a named one.
+
 ## 0.5.0
 
 Bundles sygnal-check 0.8.0 (Sygnal 6.4.0). The extension's own code doesn't change.
