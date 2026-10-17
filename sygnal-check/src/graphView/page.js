@@ -28,6 +28,9 @@ export function mountPage(V, G, META) {
   const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches } catch (_) { return false } }
 
   const KIND = { root: 'root', child: 'child', 'collection-item': 'collection item', switchable: 'switchable', ghost: 'not scanned' }
+  /** What a card is, in words: the kind, or for a ghost what kind of ghost. */
+  const kindLabel = (c) => !c.ghost ? KIND[c.kind] ?? c.kind : c.external ? 'package' : c.widget ? 'widget' : 'not scanned'
+  const ghostWhat = (c) => c.external ? `from ${c.external}${c.widget ? ' (widget)' : ''}` : c.widget ? 'widget' : 'not in scanned files'
   const SINKS = ['STATE', 'EVENTS', 'EFFECT', 'PARENT', 'HTTP', 'ELEMENT', 'LLM', 'DOM']
   const TRIG = { intent: 'intent', builtin: 'builtin', reply: 'reply', next: 'next', agent: 'agent', behavior: 'behavior', unknown: 'never' }
   const EDITORS = ['vscode', 'cursor', 'windsurf', 'idea', 'none']
@@ -55,11 +58,13 @@ export function mountPage(V, G, META) {
   const svg = $('svg'), vp = $('vp')
   const el = (tag, attrs = {}, parent) => { const e = doc.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e }
   const nodeEls = new Map(), edgeEls = []
+  const nd0 = (c) => c.diagnostics.some(d => d.severity !== 'info')
+  let restoring = false
   const diagCount = (c) => c.diagnostics.filter(d => d.severity !== 'info').length
   const fileLine = (c) => `${c.file}${c.line != null ? ':' + c.line : ''}`
   const describe = (c) => c.ghost
-    ? `${c.name}, ${c.external ? `from ${c.external}` : 'not scanned'}`
-    : `${c.name}, ${KIND[c.kind] ?? c.kind}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
+    ? `${c.name}, ${ghostWhat(c)}`
+    : `${c.name}, ${KIND[c.kind] ?? c.kind}${c.entry === true ? ', entry' : ''}${c.viewOnly ? ', view only' : ''}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
   function drawGraph() {
     for (const g of ['clusters', 'edges', 'labels', 'nodes']) $(g).textContent = ''
     nodeEls.clear()
@@ -78,17 +83,20 @@ export function mountPage(V, G, META) {
     for (const c of comps) {
       const p = pos.get(c.id)
       const w = V.worst(c)
-      const g = el('g', { class: 'node' + (c.ghost ? ' ghost' : '') + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
+      const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry'].filter(Boolean).join(' ')
+      const g = el('g', { class: cls + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
       el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
       if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
       el('text', { class: 'name', x: 16, y: 24 }, g).textContent = c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name
-      const file = c.ghost ? (c.external ? `from ${c.external}` : 'not in scanned files') : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
+      const file = c.ghost ? ghostWhat(c) : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
       el('text', { class: 'sub', x: 16, y: 41 }, g).textContent = file.length > 30 ? '…' + file.slice(-29) : file
       if (!c.ghost) {
         const meta = el('text', { class: 'meta', x: 16, y: 60 }, g)
         const own = c.actions.filter(a => !a.behavior).length, beh = c.actions.length - own
         const parts = [[own, 'act' + (beh ? `+${beh}` : '')], [c.stateKeys.length, 'state'], [c.eventsEmitted.length + c.eventsSelected.length, 'events']].filter(([n]) => n)
         parts.forEach(([n, l], i) => { el('tspan', { class: 'n', dx: i ? 10 : 0 }, meta).textContent = n; el('tspan', {}, meta).textContent = ' ' + l })
+        if (!parts.length && c.viewOnly) meta.textContent = 'view only'
+        if (c.entry === true) el('text', { class: 'entry-tag', x: nd0(c) ? p.w - 44 : p.w - 14, y: 24, 'text-anchor': 'end' }, g).textContent = 'entry'
         if (c.agent) el('text', { class: 'ai', x: p.w - 14, y: 60, 'text-anchor': 'end' }, g).textContent = 'AI'
       }
       const nd = diagCount(c)
@@ -97,10 +105,10 @@ export function mountPage(V, G, META) {
         el('rect', { class: w === 'error' ? 'err' : 'warn', x: -22, y: -1, width: 26, height: 17, rx: 8.5 }, pg)
         el('text', { x: -9, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = nd
       }
-      el('title', {}, g).textContent = c.ghost ? `${c.name}: rendered, but not found in the scanned files` : `${c.name}\n${fileLine(c)}`
+      el('title', {}, g).textContent = c.ghost ? `${c.name}: ${c.external || c.widget ? ghostWhat(c) : 'rendered, but not found in the scanned files'}` : `${c.name}\n${fileLine(c)}`
       g.addEventListener('click', (ev) => { ev.stopPropagation(); select(c.id) })
       g.addEventListener('keydown', (ev) => onNodeKey(ev, c.id))
-      g.addEventListener('focus', () => { setTabStop(c.id); if (!selected && !tracing) hover(c.id); ensureVisible(c.id) })
+      g.addEventListener('focus', () => { setTabStop(c.id); if (!selected && !tracing) hover(c.id); if (!restoring) ensureVisible(c.id) })
       g.addEventListener('blur', () => { if (!selected && !tracing) clearHl() })
       g.addEventListener('mouseenter', () => { if (!selected && !tracing) hover(c.id) })
       g.addEventListener('mouseleave', () => { if (!selected && !tracing) clearHl() })
@@ -160,34 +168,42 @@ export function mountPage(V, G, META) {
   // ───────────── pan / zoom ─────────────
   let view = { x: 0, y: 0, k: 1 }
   const apply = () => vp.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`)
+  // `moved`: the view changed since the automatic fit (setGraph keeps a moved view exactly and
+  // re-fits one the user never moved); `anim`: the running animation, cancelled by any other move
+  let moved = false, anim = 0, animating = false
   function animateTo(target, ms = 280) {
-    if (reduceMotion()) { view = target; apply(); return }
+    moved = true
+    const token = ++anim
+    if (reduceMotion()) { view = target; apply(); animating = false; return }
     const from = { ...view }, t0 = performance.now()
+    animating = true
     const step = (t) => {
+      if (token !== anim) return
       const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3)
       view = { x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e, k: from.k + (target.k - from.k) * e }
       apply()
-      if (k < 1) requestAnimationFrame(step)
+      if (k < 1) requestAnimationFrame(step); else animating = false
     }
     requestAnimationFrame(step)
   }
-  function fit(ids = comps.map(c => c.id), anim = true, maxK = 1.15) {
+  const stopAnim = () => { anim++; animating = false; moved = true }
+  function fit(ids = comps.map(c => c.id), animate = true, maxK = 1.15) {
     const r = visibleRect(), b = V.bbox(pos, ids)
     if (!r.width || !r.height) return
     const k = Math.min(r.width / (b.x1 - b.x0), r.height / (b.y1 - b.y0), maxK)
     const t = { k, x: (r.width - (b.x1 - b.x0) * k) / 2 - b.x0 * k, y: (r.height - (b.y1 - b.y0) * k) / 2 - b.y0 * k }
-    if (anim) animateTo(t); else { view = t; apply() }
+    if (animate) animateTo(t); else { anim++; animating = false; view = t; apply() }
   }
-  function zoomAt(f, x, y) { const k = Math.max(0.12, Math.min(3, view.k * f)); const r = k / view.k; view = { k, x: x - (x - view.x) * r, y: y - (y - view.y) * r }; apply() }
+  function zoomAt(f, x, y) { stopAnim(); const k = Math.max(0.12, Math.min(3, view.k * f)); const r = k / view.k; view = { k, x: x - (x - view.x) * r, y: y - (y - view.y) * r }; apply() }
   svg.addEventListener('wheel', (e) => {
     e.preventDefault()
     const r = svg.getBoundingClientRect()
     if (e.ctrlKey || e.metaKey || e.deltaMode === 1) zoomAt(Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.01)), e.clientX - r.left, e.clientY - r.top)
-    else { view.x -= e.deltaX; view.y -= e.deltaY; apply() }
+    else { stopAnim(); view.x -= e.deltaX; view.y -= e.deltaY; apply() }
   }, { passive: false })
   let drag = null
   svg.addEventListener('pointerdown', (e) => { if (e.target.closest('.node')) return; drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; svg.setPointerCapture(e.pointerId); svg.classList.add('panning') })
-  svg.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; view.x = drag.vx + dx; view.y = drag.vy + dy; apply() })
+  svg.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; stopAnim(); view.x = drag.vx + dx; view.y = drag.vy + dy; apply() })
   svg.addEventListener('pointerup', () => { if (drag && !drag.moved) { select(null); endTrace() } drag = null; svg.classList.remove('panning') })
   const centre = () => { const r = svg.getBoundingClientRect(); return [r.width / 2, r.height / 2] }
   $('zin').onclick = () => zoomAt(1.25, ...centre())
@@ -207,7 +223,7 @@ export function mountPage(V, G, META) {
     const ids = new Set([id])
     for (const e of edgeEls) {
       if (e.from !== id && e.to !== id) continue
-      if ((e.cls === 'event' && !pressed('t-events')) || (e.cls === 'context' && !pressed('t-context'))) continue
+      if ((e.cls === 'event' && !pressed('t-events')) || (e.cls === 'context' && !pressed('t-context')) || (e.cls === 'parent' && !pressed('t-parent'))) continue
       ids.add(e.from); ids.add(e.to)
     }
     return ids
@@ -228,7 +244,7 @@ export function mountPage(V, G, META) {
     $('detail').removeAttribute('aria-hidden')
     announce(`Selected ${describe(c)}. Details are in the panel on the right.`)
     // the panel narrows the canvas: wait for it, then pan if the card is (partly) hidden
-    setTimeout(() => ensureVisible(id, opts.pan), reduceMotion() ? 0 : 200)
+    if (!opts.keepView) setTimeout(() => ensureVisible(id, opts.pan), reduceMotion() ? 0 : 200)
   }
   function trace(kind, key, opts = {}) {
     tracing = { kind, key }
@@ -294,8 +310,8 @@ export function mountPage(V, G, META) {
 
   function renderDetail(c) {
     const out = []
-    out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)} <span class="kind ${kindClass(c.kind)}">${esc(KIND[c.kind] ?? c.kind)}</span><button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
-      <div class="loc">${c.ghost ? 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a package import, or a file outside the paths).' : fileLink(c.file, c.line, fileLine(c)) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
+    out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)} <span class="kind ${kindClass(c.kind)}">${esc(kindLabel(c))}</span>${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="tag">view only</span>' : ''}<button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
+      <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : fileLink(c.file, c.line, fileLine(c)) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
 
     if (c.diagnostics.length) {
       out.push(`<section class="dsec"><h3>Diagnostics <span class="n">${c.diagnostics.length}</span></h3>${c.diagnostics.map(d => {
@@ -310,6 +326,17 @@ export function mountPage(V, G, META) {
     const kids = renderEdges.filter(e => e.from === c.id)
     if (kids.length) rel.push(`<div class="r"><span class="lbl">renders</span><span class="chips">${kids.map(e => `<button type="button" class="chip" data-goto="${esc(e.to)}">${esc(byId.get(e.to).name)}${e.label ? ` <small>${esc(e.label)}</small>` : ''}</button>`).join('')}</span></div>`)
     if (rel.length) out.push(`<section class="dsec"><h3>Tree</h3><div class="rel">${rel.join('')}</div></section>`)
+    const up = M.parentEdges.filter(e => e.from === c.id), down = M.parentEdges.filter(e => e.to === c.id)
+    const sends = c.actions.filter(a => a.sinks.includes('PARENT'))
+    if (up.length || down.length || sends.length) {
+      const pr = []
+      if (sends.length) pr.push(`<div class="r"><span class="lbl">sends</span><span class="chips">${sends.map(a => chip(a.name)).join('')}${up.length ? ` → ${up.map(e => btnChip(byId.get(e.to).name, `data-goto="${esc(e.to)}"`)).join('')}` : ' <span class="unk">no parent CHILD.selects it</span>'}</span></div>`)
+      for (const e of down) {
+        const at = e.line != null && editorHref(c.file, e.line)
+        pr.push(`<div class="r"><span class="lbl">receives</span><span class="chips">${btnChip(byId.get(e.from).name, `data-goto="${esc(e.from)}"`)} → ${e.actions.map(a => chip(a)).join('') || '<span class="unk">?</span>'}${at ? ` <a href="${esc(at)}" class="unk" title="CHILD.select at line ${e.line}">:${e.line}</a>` : ''}</span></div>`)
+      }
+      out.push(`<section class="dsec"><h3>PARENT</h3><div class="rel">${pr.join('')}</div></section>`)
+    }
 
     if (c.actions.length) {
       const own = c.actions.filter(a => !a.behavior)
@@ -385,9 +412,9 @@ export function mountPage(V, G, META) {
       let gi = 0
       $('tree').innerHTML = [...groups].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(([d, list]) => {
         const hid = 'tree-dir-' + gi++
-        return `<h3 class="tree-dir" id="${hid}">${esc(d)}/</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0).map(c => {
+        return `<h3 class="tree-dir" id="${hid}">${esc(d)}/</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => Number(b.entry === true) - Number(a.entry === true) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map(c => {
           const n = diagCount(c), w = V.worst(c)
-          return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(c.name)}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
+          return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(c.name)}${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="unk">·</span>' : ''}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
         }).join('') + '</ul>'
       }).join('')
       $('tree').querySelectorAll('.tree-item').forEach(n => { n.onclick = () => { select(n.dataset.id, { pan: true }); if (innerWidth <= 700) $('side').classList.remove('open') } })
@@ -422,6 +449,7 @@ export function mountPage(V, G, META) {
   }
   toggle('t-events', 'hide-events', true, 'true')
   toggle('t-context', 'hide-context', true, 'true')
+  toggle('t-parent', 'hide-parent', true, 'true')
   toggle('t-labels', 'show-labels', false, 'false')
   const menu = $('menu'), menuBtn = $('menu-btn')
   const closeMenu = () => { menu.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false') }
@@ -473,7 +501,7 @@ export function mountPage(V, G, META) {
     else if ((e.key === 'f' || e.key === 'F') && !e.target.closest('.menu-pop')) fit()
     else if (e.key === 'Escape') { const id = selected; select(null); endTrace(); if (id && e.target.closest('#detail')) nodeEls.get(id)?.focus() }
   })
-  addEventListener('resize', () => fit(undefined, false))
+  addEventListener('resize', () => { if (!moved) fit(undefined, false) })
 
   /**
    * Replaces the graph in place (live mode, the VS Code panel): redraws, and keeps the view, the
@@ -482,6 +510,7 @@ export function mountPage(V, G, META) {
    */
   function setGraph(graph) {
     const keyOf = (id) => id == null ? null : byId.get(id)?.key ?? null
+    const wasMoved = moved, wasView = { ...view }
     const was = { sel: keyOf(selected), stop: keyOf(tabStop), focus: doc.activeElement?.closest?.('.node') ? keyOf(doc.activeElement.dataset.id) : null, trace: tracing, detailScroll: $('dinner').scrollTop }
     load(graph)
     selected = null; tabStop = null; tracing = null
@@ -489,11 +518,15 @@ export function mountPage(V, G, META) {
     drawSidebar()
     const idOf = (key) => key == null ? null : M.byKey.get(key) ?? null
     if (idOf(was.stop)) setTabStop(idOf(was.stop)); else initTabStop()
-    if (idOf(was.sel)) { select(idOf(was.sel)); $('dinner').scrollTop = was.detailScroll } else select(null)
-    if (was.trace) trace(was.trace.kind, was.trace.key, { fit: false })
-    if (q.value) q.dispatchEvent(new Event('input'))
-    if (idOf(was.focus)) nodeEls.get(idOf(was.focus)).focus({ preventScroll: true })
-    apply()
+    restoring = true
+    try {
+      if (idOf(was.sel)) { select(idOf(was.sel), { keepView: true }); $('dinner').scrollTop = was.detailScroll } else select(null)
+      if (was.trace) trace(was.trace.kind, was.trace.key, { fit: false })
+      if (q.value) q.dispatchEvent(new Event('input'))
+      if (idOf(was.focus)) nodeEls.get(idOf(was.focus)).focus({ preventScroll: true })
+    } finally { restoring = false }
+    // a view the user moved stays exactly where it was (a running animation finishes); an untouched one fits the new graph
+    if (wasMoved) { moved = true; if (!animating) { view = wasView; apply() } } else fit(undefined, false)
   }
 
   fit(undefined, false)
@@ -503,6 +536,7 @@ export function mountPage(V, G, META) {
   const api = {
     get model() { return M }, get layout() { return L }, get health() { return health },
     get selectedKey() { return selected ? byId.get(selected)?.key ?? null : null },
+    get view() { return { ...view } }, get animating() { return animating },
     select, trace, fit, setGraph,
   }
   window.__sygnalGraph = api

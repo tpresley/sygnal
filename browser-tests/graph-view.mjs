@@ -62,6 +62,21 @@ export async function runGraphView(browser, engine) {
       ok((await page.locator('#health .health-item').count()) > 0, 'health items')
     })
 
+    await check('the graph data: view-only cards, package / widget ghosts, PARENT edges, entries first', async () => {
+      const n = (pred) => model.comps.filter(pred).length
+      eq(await page.locator('#nodes .node.view-only').count(), n(c => c.viewOnly), 'view-only cards')
+      eq(await page.locator('#nodes .node.ghost.external').count(), n(c => c.external), 'package ghosts')
+      eq(await page.locator('#nodes .node.ghost.widget').count(), n(c => c.ghost && c.widget), 'widget ghosts')
+      eq(await page.locator('#edges .edge.parent').count(), model.parentEdges.length, 'PARENT edges')
+      ok(model.parentEdges.length > 0 && n(c => c.viewOnly) > 0 && n(c => c.external) > 0, 'the fixture has each kind')
+      const entry = model.comps.find(c => c.entry === true)
+      if (entry) eq(await page.locator('#nodes .node[tabindex="0"]').getAttribute('data-id'), entry.id, 'the entry is the first tab stop')
+      // health: "rendered but not scanned" lists only names that really don't resolve
+      const notScanned = model.ghosts.filter(gh => !gh.external && !gh.widget).map(gh => gh.name)
+      const shown = await page.locator('#health details', { hasText: 'Rendered but not scanned' }).locator('.health-item .t').allTextContents()
+      eq(shown.length, notScanned.length, 'not-scanned health items')
+    })
+
     await check('click a card selects it and opens the details', async () => {
       await page.locator(`#nodes .node[data-id="${id('App')}"]`).click()
       eq(await selectedName(), 'App', 'detail title')
@@ -143,29 +158,52 @@ export async function runGraphView(browser, engine) {
       await page.keyboard.press('Escape')
     })
 
-    await check('setGraph replaces the graph in place, keeping the view, selection and trace by key', async () => {
-      await page.locator(`#nodes .node[data-id="${id('App')}"]`).click()
-      await page.locator('#dinner [data-trace-event="NAVIGATE"]').first().click()
-      await page.waitForTimeout(400) // the trace's fit animation
-      const view = await page.locator('#vp').getAttribute('transform')
-      // lines added above every component: new ids, the same keys
-      const shifted = JSON.parse(JSON.stringify(g))
-      for (const c of shifted.components) c.id = c.id.replace(/:(\d+)$/, (_, n) => ':' + (Number(n) + 3))
-      shifted.components.find(c => c.name === 'Header').actions.push({ name: 'NEW_ONE', trigger: 'intent', sinks: ['STATE'] })
+    // lines added above every component: every 'file.jsx:N' id (components, children, events,
+    // childSelects, diagnostics) moves; the keys stay
+    const shiftIds = (gr) => JSON.parse(JSON.stringify(gr).replace(/(\.[jt]sx?):(\d+)"/g, (_, ext, n) => `${ext}:${Number(n) + 3}"`))
+    // the view settles: the select's pan (after 200 ms) and any animation are done
+    const settle = async () => { await page.waitForTimeout(250); await page.waitForFunction(() => !window.__sygnalGraph.animating) }
+
+    await check('setGraph replaces the graph in place, keeping a moved view, the selection and the trace by key', async () => {
+      try {
+        // from the list: the card may be off screen after the earlier steps' pans
+        await settle()
+        await page.locator(`#tree .tree-item[data-id="${id('App')}"]`).click()
+        await page.locator('#dinner [data-trace-event="NAVIGATE"]').first().click()
+        await settle()
+        const view = await page.locator('#vp').getAttribute('transform')
+        const shifted = shiftIds(g)
+        shifted.components.find(c => c.name === 'Header').actions.push({ name: 'NEW_ONE', trigger: 'intent', sinks: ['STATE'] })
+        await page.evaluate((gr) => window.__sygnalGraph.setGraph(gr), shifted)
+        await settle()
+        const newApp = shifted.components.find(c => c.name === 'App').id
+        ok(newApp !== id('App'), 'the ids moved')
+        eq(await page.locator('#nodes .node.sel').getAttribute('data-id'), newApp, 'selection follows the key')
+        eq(await selectedName(), 'App', 'details still open')
+        ok(await page.locator('#trace.on').isVisible(), 'trace kept')
+        eq(await page.locator('#edges .edge.event.hl').count(), model.eventEdges.filter(e => e.type === 'NAVIGATE').length, 'trace highlight redrawn')
+        eq(await page.locator('#vp').getAttribute('transform'), view, 'the moved view is kept exactly')
+        eq(await page.locator('#nodes .node').count(), model.comps.length, 'cards')
+        eq(await page.locator('#nodes .node[tabindex="0"]').count(), 1, 'one tab stop')
+        eq(await page.evaluate(() => window.__sygnalGraph.model.comps.find(c => c.name === 'Header').actions.length), g.components.find(c => c.name === 'Header').actions.length + 1, 'new data')
+      } finally {
+        if (await page.locator('#trace.on').count()) await page.locator('#trace-x').click()
+        await page.keyboard.press('Escape')
+        await page.evaluate((gr) => window.__sygnalGraph.setGraph(gr), g)
+      }
+      eq(await page.locator(`#nodes .node[data-id="${id('App')}"]`).count(), 1, 'back to the original graph')
+    })
+
+    await check('setGraph on a view nobody moved fits the new graph', async () => {
+      await page.reload()
+      await page.waitForFunction(() => window.__sygnalGraph, undefined, { timeout: 10000 })
+      const shifted = shiftIds(g)
+      shifted.components = shifted.components.filter(c => c.name !== 'ProductCard')
       await page.evaluate((gr) => window.__sygnalGraph.setGraph(gr), shifted)
-      const newApp = shifted.components.find(c => c.name === 'App').id
-      eq(await page.locator('#nodes .node.sel').getAttribute('data-id'), newApp, 'selection follows the key')
-      eq(await selectedName(), 'App', 'details still open')
-      ok(await page.locator('#trace.on').isVisible(), 'trace kept')
-      eq(await page.locator('#edges .edge.event.hl').count(), model.eventEdges.filter(e => e.type === 'NAVIGATE').length, 'trace highlight redrawn')
-      eq(await page.locator('#vp').getAttribute('transform'), view, 'view kept')
-      eq(await page.locator('#nodes .node').count(), model.comps.length, 'cards')
-      eq(await page.locator('#nodes .node[tabindex="0"]').count(), 1, 'one tab stop')
-      eq(await page.evaluate(() => window.__sygnalGraph.model.comps.find(c => c.name === 'Header').actions.length), g.components.find(c => c.name === 'Header').actions.length + 1, 'new data')
-      await page.locator('#trace-x').click()
-      await page.keyboard.press('Escape')
+      const after = await page.locator('#vp').getAttribute('transform')
+      await page.evaluate(() => window.__sygnalGraph.fit(undefined, false))
+      eq(after, await page.locator('#vp').getAttribute('transform'), 'the view is the new graph\'s fit')
       await page.evaluate((gr) => window.__sygnalGraph.setGraph(gr), g)
-      eq(await page.locator('#nodes .node').count(), model.comps.length, 'back to the original graph')
     })
 
     await check('900 px wide: no horizontal overflow, the list and details still work', async () => {

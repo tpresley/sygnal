@@ -97,6 +97,7 @@ ${css}</style>
   <div class="toggles" role="group" aria-label="Overlays">
     <button type="button" class="toggle" id="t-events" aria-pressed="true" title="EVENTS edges"><span class="sw" style="background:var(--ev)"></span><span class="lbl">EVENTS</span><span class="sr-only">edges</span></button>
     <button type="button" class="toggle" id="t-context" aria-pressed="true" title="Context edges"><span class="sw" style="background:var(--ctx)"></span><span class="lbl">Context</span><span class="sr-only">edges</span></button>
+    <button type="button" class="toggle" id="t-parent" aria-pressed="true" title="PARENT edges (child → parent's CHILD.select)"><span class="sw" style="background:var(--par)"></span><span class="lbl">PARENT</span><span class="sr-only">edges</span></button>
     <button type="button" class="toggle" id="t-labels" aria-pressed="false" title="All edge labels"><span class="lbl">All labels</span><span class="sr-only">edge labels</span><span class="sw" style="background:var(--muted)"></span></button>
   </div>
   <div class="menu">
@@ -128,6 +129,7 @@ ${css}</style>
       <marker id="ah-switch" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--k-switch)"/></marker>
       <marker id="ah-ev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--ev)"/></marker>
       <marker id="ah-ctx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><circle cx="5" cy="5" r="4" fill="var(--ctx)"/></marker>
+      <marker id="ah-parent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--par)"/></marker>
       <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--grid)"/></pattern>
     </defs>
     <rect id="bgrect" width="100%" height="100%" fill="url(#dots)"/>
@@ -140,6 +142,7 @@ ${css}</style>
     <span><i style="border-top:2px dotted var(--k-switch)"></i>Switchable</span>
     <span><i style="border-color:var(--ev)"></i>EVENTS emit → select</span>
     <span><i style="border-top:2px dashed var(--ctx)"></i>context provides → reads</span>
+    <span><i style="border-top:2px dashed var(--par)"></i>PARENT child → parent</span>
   </div>
   <div class="zoombar" role="group" aria-label="Zoom"><button type="button" id="zin" aria-label="Zoom in">+</button><button type="button" id="zout" aria-label="Zoom out">−</button><button type="button" id="zfit" aria-label="Fit (F)">⤢</button></div>
 </main>

@@ -12,7 +12,7 @@
  *     clusters   islands grouped by the directory of their first root; islands holding an `entry`
  *                first, then the bigger ones; drawn as boxes only when there are several
  *   edgePaths(model, layout) → [{ cls, from, to, d, label, mid: [x, y], marker, type?, fields? }]
- *     cls: 'render' | 'collection' | 'switchable' | 'slot' | 'event' | 'context'
+ *     cls: 'render' | 'collection' | 'switchable' | 'slot' | 'event' | 'context' | 'parent'
  *   bbox(pos, ids) → { x0, y0, x1, y1 } with the margin the page fits to
  *
  * Pure: no DOM, no imports (html.js inlines it; see model.js).
@@ -216,6 +216,19 @@ export function edgePaths(model, layout) {
       cls: 'event', from: e.from, to: e.to, type: e.type, label: e.type, marker: 'ah-ev',
       d: `M${r1(x1)},${r1(y1)} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(x2)},${r1(y2)}`,
       mid: [r1(bez(x1, c1[0], c2[0], x2, 0.5)), r1(bez(y1, c1[1], c2[1], y2, 0.5))],
+    })
+  }
+  for (const e of model.parentEdges || []) {
+    // up the left side: from the child's top into the parent's bottom (render edges use the centre)
+    const a = pos.get(e.from), b = pos.get(e.to)
+    const n = Math.max(bump('p' + e.from), bump('p' + e.to))
+    const x1 = a.x + a.w * 0.2, y1 = a.y, x2 = b.x + b.w * (0.2 + Math.min(n, 3) * 0.06), y2 = b.y + b.h + 3
+    const k = Math.max(30, Math.abs(y2 - y1) * 0.4)
+    const c1 = [x1, y1 - k], c2 = [x2, y2 + k]
+    out.push({
+      cls: 'parent', from: e.from, to: e.to, actions: e.actions, label: e.actions.join(', '), marker: 'ah-parent',
+      d: `M${r1(x1)},${r1(y1)} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(x2)},${r1(y2)}`,
+      mid: [r1(bez(x1, c1[0], c2[0], x2, 0.5) - 6), r1(bez(y1, c1[1], c2[1], y2, 0.5))],
     })
   }
   for (const e of model.contextEdges) {
