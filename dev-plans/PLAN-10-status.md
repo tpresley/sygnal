@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** Every item merged (Phases 0–3, docs); release prep done (sygnal 6.6.0, sygnal-check 0.10.0, create-sygnal-app 2.8.0, VS Code extension 0.7.0, Claude Code plugin 0.1.5); PR to `main` open, not merged. Previously remaining: release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** **PLAN-10 complete. Released 2026-10-17** (PR #47, merge `fdd4a5e5`, release workflow green): sygnal 6.6.0, sygnal-check 0.10.0, create-sygnal-app 2.8.0 (npm), VS Code extension 0.7.0 (Marketplace and Open VSX), Claude Code plugin 0.1.5. Open gaps for later: G-800, G-804–G-809.
 
 ## Decisions
 
@@ -130,6 +130,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-17 released: PR #47 merged (`fdd4a5e5`); the release workflow's gates, publish and smoke jobs passed; `release-plan` shows sygnal-check 0.10.0, sygnal 6.6.0, create-sygnal-app 2.8.0 and the plugin 0.1.5 published, the extension on Open VSX (the Marketplace listing lags a few minutes after "Published sygnal.sygnal v0.7.0"). One CI fix on the PR before merge (`e6b4c32f`: group names measured to fit, for Linux's wider font).
 
 - 2026-10-16 release prep (user approved the versions): versions, lockfile roots, templates on `sygnal` ^6.6.0 / `sygnal-check` ^0.10.0, CHANGELOG 6.6.0 with the measured impact, extension CHANGELOG 0.7.0, plugin 0.1.5, ROADMAP #22 DONE. Checks: build; root vitest 4,986; sygnal-check 1,545; `release-smoke --local` 10/10 templates; `npm --prefix editors/vscode test` OK; `release-plan` lists all five as new. Pushed `plan10-integration` and opened a PR to `main` (not merged, per the user).
 
