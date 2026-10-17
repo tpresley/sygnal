@@ -37,6 +37,9 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D522 | 2026-10-16 | The runtime `inspect()` adds, in the dev entry only: ids on children and EVENTS lists, `entry`, `viewOnly`, `app`, `shown`; no core change; a sygnal minor (D513) (coordinator, on S-2) |
 | D523 | 2026-10-16 | No runtime `contextConsumes` for now: it needs an `InstanceView` getter (core bytes), against the plan's 0-core-bytes invariant; revisit only if P-1 needs it (coordinator, on S-2) |
 | D524 | 2026-10-16 | W-1 design (S-3) adopted: a shared `live.js` factored out of the LSP's `prepare()` (parse cache, last good text) for `--watch`, E-1 and W-2; recursive `fs.watch` with a per-directory fallback (Node 18 on Linux), `--poll`, 50 ms debounce; `node:http` + SSE sending the whole graph, on 127.0.0.1 with a random port and token, a Host check, CSP and `Referrer-Policy: no-referrer`. sygnal-check `engines` stays Node ≥ 18 (coordinator, on S-3) |
+| D525 | 2026-10-16 | V-1: the page's modules are inlined as function bodies onto one namespace; inlined files must be import-free with top-level exports only, checked at generation time; comments are not stripped (29.5 KB gzip for the fixture is fine; a regex stripper is a risk) (coordinator, on the worker's proposal) |
+| D526 | 2026-10-16 | The page carries its own CSP (`default-src 'none'`, inline style and script only): it loads nothing and connects nowhere (coordinator) |
+| D527 | 2026-10-16 | `--graph=html` never opens a browser under `CI` or without a TTY, even with `--open` (it says why); `--out` works with every `--graph` format; `--json` with `--graph=html|mermaid` exits 2 (coordinator) |
 
 ## Items
 
@@ -53,14 +56,14 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ⏳ | |
 | A-8 Schema, text, MCP, runtime parity | 1 | 🟡 static parts merged `dcbb7e33` | still to do: the `key` field (D521); runtime fields (D522) |
-| V-1 Renderer module | 1 | 🔄 `p10-viewer-cli` | from the spike's `template.html` |
-| V-2 Use the new data | 1 | ⏳ | |
+| V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
+| V-2 Use the new data | 1 | 🔄 `p10-viewer-cli` | |
 | V-3 Runtime graphs | 2 | ⏳ | |
 | V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
-| V-5 Accessibility and polish | 1 | 🔄 `p10-viewer-cli` | |
+| V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
 | V-6 Diff rendering | 3 | ⏳ | |
-| C-1 `--graph=html` | 1 | 🔄 `p10-viewer-cli` | |
-| C-2 `--graph=mermaid` | 1 | 🔄 `p10-viewer-cli` | |
+| C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
+| C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
 | C-3 `--base <ref>` | 3 | ⏳ | |
 | W-1 `--watch` | 2 | ⏳ | |
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
@@ -69,8 +72,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P-1 Devtools app graph tab | 2 | ⏳ | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ⏳ | if P10-Q5 says yes |
-| T-1 Unit tests | 1 | 🔄 `p10-viewer-cli` | |
-| T-2 Browser smoke | 1 | 🔄 `p10-viewer-cli` | |
+| T-1 Unit tests | 1 | ✅ merged `464fb567` | |
+| T-2 Browser smoke | 1 | 🟡 merged `464fb567`; 2/11 fail on the merged data, fix in progress | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
 | T-4 Size and speed | 2 | ⏳ | warn-only |
 | D-1 Docs page | 1 | ⏳ | |
@@ -97,6 +100,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 
 ## Log
+
+- 2026-10-16 `p10-viewer-cli` merged (`464fb567`): `sygnal-check/src/graphView/` (model, layout incl. edge routing, mermaid, page), `--graph=html|mermaid|json|text`, `--out`, `--open`/`--no-open`, `--editor`; WCAG AA colours checked by a test; cycles no longer crash the layout. On its own branch: sygnal-check 1,388, browser 377/377 + graph page 11/11 on Chromium, Firefox and WebKit. Page: 100 KB raw / 29.5 KB gzip for the fixture. After the merge with the graph data: sygnal-check 1,400 passed; graph page 9/11 on Chromium (setGraph view drift; a hard-coded fixture id) — sent back to the worker with V-2.
 
 - 2026-10-16 `p10-s2-s3-design` merged (`9ebadfa6`): S-2 (runtime samples for kanban and two plan5-showcase sections; the spike page threw on runtime graphs and split instances into roots) and S-3 (rebuild after a one-file edit with a warm cache: kanban 3.3 ms, plan5-showcase 14.5 ms, ai-showcase 41 ms, all examples 77 ms; save → SSE ≈ 78 ms; a fresh CLI run 142–188 ms). Runtime diagnostics are reported once per process, so P-1 shows each with its time.
 
