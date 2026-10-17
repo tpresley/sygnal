@@ -146,6 +146,24 @@ export class SygnalDevTools {
       case 'GET_STATE':
         this._sendComponentState(msg.payload.componentId);
         break;
+      case 'GET_GRAPH':
+        this._post('GRAPH', this._graph(msg.payload));
+        break;
+    }
+  }
+
+  /**
+   * PLAN-10 P-1: the runtime app graph for the panel's App graph view: inspect() with the recent
+   * actions, JSON-safe. inspect() is on this object only when 'sygnal/diagnostics' is loaded
+   * (sygnal/vite loads it in dev); without it the panel shows why.
+   */
+  _graph(opts?: {actions?: number}): {graph: any; reason?: string; message?: string} {
+    const inspect = (this as any).inspect;
+    if (typeof inspect !== 'function') return {graph: null, reason: 'no-diagnostics'};
+    try {
+      return {graph: JSON.parse(JSON.stringify(inspect({actions: opts?.actions ?? 200})))};
+    } catch (e: any) {
+      return {graph: null, reason: 'error', message: String(e?.message ?? e)};
     }
   }
 

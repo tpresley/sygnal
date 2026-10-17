@@ -8,6 +8,7 @@
  * the keyboard), tracing an EVENTS type, the overlay toggles, the theme, 900 px wide, reduced motion.
  * Fails on any console error, any uncaught error, and **any network request** (the page must be
  * self-contained: PLAN-10 invariant, gate "the page works offline").
+ * Then the runtime page (V-3) and the devtools panel's App graph view (P-1): graph-view-runtime.mjs.
  */
 import fs from 'node:fs'
 import os from 'node:os'
@@ -19,7 +20,7 @@ const repo = path.resolve(here, '..')
 // T-3 moves the shop fixture into sygnal-check's tests; until then it is the spike's
 const FIXTURES = ['sygnal-check/test/fixtures/graph-shop', 'dev-plans/research/graph-viz/fixture/src']
 
-export async function runGraphView(browser, engine) {
+export async function runGraphView(browser, engine, appUrl) {
   const t0 = Date.now()
   const { graph } = await import(pathToFileURL(path.join(repo, 'sygnal-check/src/graph.js')))
   const { graphHtml } = await import(pathToFileURL(path.join(repo, 'sygnal-check/src/graphView/html.js')))
@@ -234,5 +235,6 @@ export async function runGraphView(browser, engine) {
   for (const e of errors) lines.push(`  FAIL: ${e}`)
   if (requests.length) lines.push(`  FAIL: ${requests.length} network request(s): ${requests.slice(0, 5).join(', ')}`)
   console.log(lines.join('\n') + `\nGraph view page: ${Date.now() - t0} ms\n`)
-  return failed.length + errors.length + requests.length
+  const { runRuntimeView } = await import('./graph-view-runtime.mjs')
+  return failed.length + errors.length + requests.length + await runRuntimeView(browser, engine, appUrl)
 }

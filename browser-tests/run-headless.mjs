@@ -232,7 +232,7 @@ async function run() {
     if (onlyWebMcp) process.exit(await runWebMcp(browser, url) ? 1 : 0);
     const onlyGraphView = only?.toLowerCase() === 'graphview';
     const withGraphView = process.env.BROWSER_TESTS_GRAPHVIEW !== '0' && (!only || onlyGraphView);
-    if (onlyGraphView) process.exit(await runGraphView(browser, ENGINE) ? 1 : 0);
+    if (onlyGraphView) process.exit(await runGraphView(browser, ENGINE, url) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -305,7 +305,7 @@ async function run() {
     }
 
     const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
-    const graphViewFailed = withGraphView ? await runGraphView(browser, ENGINE) : 0;
+    const graphViewFailed = withGraphView ? await runGraphView(browser, ENGINE, url) : 0;
     process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
