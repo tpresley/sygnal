@@ -232,3 +232,14 @@ kbd { font-family: ui-monospace, Menlo, monospace; font-size: 11px; border: 1px 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* runtime graphs (V-3, runtime.js): hidden Switchable pages faded, a flash when an action runs, the instances' state */
+.node.hidden-page { opacity: .5; }
+.node.hidden-page .box { stroke-dasharray: 4 3; }
+svg.dim .node.hidden-page.hl { opacity: .5; }
+.node.flash .box { animation: syg-flash .9s ease-out; animation-delay: var(--flash-delay, 0ms); }
+@keyframes syg-flash { 0% { stroke: var(--ev); stroke-width: 4; } 100% { stroke-width: 1; } }
+@media (prefers-reduced-motion: reduce) { .node.flash .box { animation: none; stroke: var(--ev); stroke-width: 3; } }
+.rt-inst { margin: 4px 0; }
+.rt-inst summary { cursor: pointer; }
+.rt-state { font: 11px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; margin: 4px 0 6px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }

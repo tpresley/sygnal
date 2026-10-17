@@ -20,7 +20,9 @@
  *     ghosts        the ghost nodes
  *     diagnostics   every diagnostic, with `compId` (null for app-wide ones nobody owns)
  *     resolve(name, from?)  a name used in `from` → comp | null
- *   healthList(model, codeTitles?) → [{ group, tone, code?, items: [{ id, event?, title, sub }] }]
+ *     runtime       true for a runtime graph (`source: 'runtime'`, mapped by runtime.js's fromRuntime)
+ *   healthList(model, codeTitles?) → [{ group, tone, code?, items: [{ id, event?, title, sub, at? }] }]
+ *     at: a runtime diagnostic's report time (ms since the epoch)
  *     tone: 'err' | 'warn' | 'muted' | 'ai'; diagnostics grouped by code (errors first), then the
  *     checks only the whole graph shows, each left out when a diagnostic code already reports it
  *   searchText(comp) → lowercased text the page's search matches against
@@ -51,7 +53,7 @@ export function buildModel(graph) {
     contextProvides: c.contextProvides || [], contextConsumes: c.contextConsumes || [],
     eventsEmitted: c.eventsEmitted || [], eventsSelected: c.eventsSelected || [],
     children: c.children || [], selectors: c.selectors || [], diagnostics: c.diagnostics || [],
-    ghost: false, dir: dirOf(c.file), line: lineOf(c), key: c.key ?? `${c.file}#${c.name}`,
+    ghost: false, dir: c.dir ?? dirOf(c.file), line: lineOf(c), key: c.key ?? `${c.file}#${c.name}`,
   }))
   const byId = new Map(comps.map(c => [c.id, c]))
   const byName = new Map()
@@ -168,7 +170,7 @@ export function buildModel(graph) {
 
   const byKey = new Map()
   for (const c of comps) if (!byKey.has(c.key)) byKey.set(c.key, c.id)
-  return { graph, comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, parentEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
+  return { graph, runtime: graph.source === 'runtime', comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, parentEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
 }
 
 export function worst(c) {
@@ -195,21 +197,24 @@ export function healthList(model, codeTitles = {}) {
   for (const [code, list] of byCode) {
     const title = codeTitles[code]
     add(title ? `${code} ${title}` : code, list[0].severity === 'error' ? 'err' : 'warn',
-      list.map(d => ({ id: d.compId, title: d.compId ? byId.get(d.compId).name : (d.file ?? 'app'), sub: d.message })), code)
+      list.map(d => ({ id: d.compId, title: d.compId ? byId.get(d.compId).name : (d.file ?? 'app'), sub: d.message, ...(d.timestamp != null ? { at: d.timestamp } : {}) })), code)
   }
   const real = comps.filter(c => !c.ghost)
   const resolveFirst = (x) => x == null ? null : resolve(nameOf(x))?.id ?? null
-  // the derived checks, each only where no diagnostic already says it
-  if (!codes.has('SYG102')) {
+  // the derived checks, each only where no diagnostic already says it. A runtime graph (V-3) has
+  // what happened so far, not what can happen: these four would be false alarms there (runtime.js's
+  // runtimeHealth() adds "not seen yet" groups instead)
+  const rt = model.runtime === true
+  if (!rt && !codes.has('SYG102')) {
     add('Actions nothing triggers', 'err', real.flatMap(c => c.actions.filter(a => a.trigger === 'unknown' && !a.behavior)
       .map(a => ({ id: c.id, title: a.name, sub: `${c.name} · model entry with no intent, reply, next() or agent trigger` }))))
   }
-  if (!codes.has('SYG110') && !codes.has('SYG104')) {
+  if (!rt && !codes.has('SYG110') && !codes.has('SYG104')) {
     add('Selectors not in the view', 'err', real.flatMap(c => c.selectors.filter(s => s.matched === false)
       .map(s => ({ id: c.id, title: s.control ?? s.selector, sub: `${c.name} · ${s.isolationHit ? `matches inside child <${s.isolationHit}>` : 'the view never renders it'}` }))))
   }
   const evs = Object.entries(events)
-  if (!codes.has('SYG105')) {
+  if (!rt && !codes.has('SYG105')) {
     add('Events nobody selects', 'warn', evs.filter(([, e]) => !(e.selectors || []).length && (e.emitters || []).length)
       .map(([t, e]) => ({ id: (e.emitterIds || []).find(x => byId.has(x)) ?? resolveFirst(e.emitters[0]), event: t, title: t, sub: `emitted by ${e.emitters.map(nameOf).join(', ')}` })))
     add('Events nobody emits', 'warn', evs.filter(([, e]) => !(e.emitters || []).length && (e.selectors || []).length)
