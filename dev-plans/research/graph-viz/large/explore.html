@@ -204,7 +204,7 @@ aside.detail.open { width: 380px; }
     <div class="ctl">
       <label for="o-preset">Preset</label><select id="o-preset"><option value="auto">auto by size</option><option value="custom">custom</option><option value="spike">spike (flat)</option></select>
       <label for="o-layout">Layout</label><select id="o-layout"><option value="layered">layered (spike)</option><option value="layered-wrap">layered, wrapped rows</option><option value="tidy">tidy tree (d3)</option><option value="dagre">dagre</option><option value="elk">ELK (compound)</option></select>
-      <label for="o-render">Render</label><select id="o-render"><option value="svg">SVG</option><option value="canvas">canvas</option></select>
+      <label for="o-render">Render</label><select id="o-render"><option value="auto">auto (canvas above 400 nodes)</option><option value="svg">SVG</option><option value="canvas">canvas</option></select>
       <label for="o-group">Group by</label><select id="o-group"><option value="none">nothing (islands)</option><option value="dir">directory</option><option value="entry">entry (run root)</option><option value="community">communities</option></select>
       <label for="o-fold">Groups</label><select id="o-fold"><option value="open">open</option><option value="all">folded</option></select>
       <label for="o-depth">Fold subtrees</label><select id="o-depth"><option value="">no</option><option value="2">below depth 2</option><option value="3">below depth 3</option><option value="4">below depth 4</option><option value="5">below depth 5</option></select>
@@ -281,7 +281,7 @@ const groupsFor = (mode) => groupCache[mode] ??= groupOf(M, mode)
 // ───────────────────────── state (URL params set it, for the measurements) ─────────────────────────
 const P = new URLSearchParams(location.search)
 const S = {
-  view: P.get('view') ?? 'graph', layout: P.get('layout') ?? 'layered', render: P.get('render') ?? 'svg',
+  view: P.get('view') ?? 'graph', layout: P.get('layout') ?? 'layered', renderPick: P.get('render') ?? 'auto', render: 'svg',
   grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'pairs', context: true, focusDepth: 0, semantic: true, minimap: true,
   filter: {}, hideBehavior: false,
   expandedGroups: new Set(), foldedGroups: new Set(), foldedSubtrees: new Set(), unfolded: new Set(),
@@ -291,10 +291,10 @@ function applyPreset(name) {
   if (name === 'spike') Object.assign(S, { grouping: 'none', fold: 'open', autoFoldDepth: null, events: 'pairs', focusDepth: 0, semantic: false, minimap: false, layout: 'layered' })
   else if (name === 'auto') {
     // the recommended defaults by size (large-apps.md)
-    if (N <= 80) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'pairs', focusDepth: 0, semantic: false, minimap: false })
-    else if (N <= 300) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'bus', focusDepth: 2, semantic: true, minimap: true })
+    if (N <= 60) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'pairs', focusDepth: 0, semantic: true, minimap: false })
+    else if (N <= 150) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'bus', focusDepth: 2, semantic: true, minimap: true })
     else Object.assign(S, { grouping: 'dir', fold: 'all', autoFoldDepth: null, events: 'bus', focusDepth: 2, semantic: true, minimap: true })
-    S.layout = N > 300 ? 'layered-wrap' : 'layered'
+    S.layout = N > 150 ? 'layered-wrap' : 'layered'
   }
 }
 applyPreset(P.get('preset') ?? 'auto')
@@ -310,7 +310,7 @@ const bindSel = (id, get, set) => { const e = $(id); e.value = get(); e.onchange
 const bindChk = (id, get, set, rb = true) => { const e = $(id); e.checked = get(); e.onchange = () => { set(e.checked); $('o-preset').value = 'custom'; rb ? rebuild({ fit: true }) : redraw() } }
 function syncControls() {
   bindSel('o-layout', () => S.layout, v => S.layout = v)
-  bindSel('o-render', () => S.render, v => S.render = v)
+  bindSel('o-render', () => S.renderPick, v => S.renderPick = v)
   bindSel('o-group', () => S.grouping, v => { S.grouping = v; S.expandedGroups.clear(); S.foldedGroups.clear() })
   bindSel('o-fold', () => S.fold, v => { S.fold = v; S.expandedGroups.clear(); S.foldedGroups.clear() })
   bindSel('o-depth', () => S.autoFoldDepth ?? '', v => { S.autoFoldDepth = v ? +v : null; S.unfolded.clear() })
@@ -343,6 +343,7 @@ async function rebuild({ fit: doFit = false, keep } = {}) {
   const engine = S.layout === 'elk' && !LIBS.ELK ? 'layered' : S.layout
   const L2 = await layout(V, engine, LIBS); if (my !== building) return
   L = L2; perf.layoutMs = L.ms
+  S.render = S.renderPick === 'auto' ? (V.nodes.length > 400 ? 'canvas' : 'svg') : S.renderPick
   const b = performance.now(); draw(); perf.drawMs = performance.now() - b
   perf.nodes = V.nodes.length; perf.edges = V.edges.length
   if (doFit) fit(undefined, false)
@@ -810,8 +811,10 @@ document.addEventListener('keydown', (e) => {
 $('m-theme').onclick = () => { const dark = getComputedStyle(document.documentElement).colorScheme === 'dark'; document.documentElement.dataset.theme = dark ? 'light' : 'dark'; draw(); apply() }
 addEventListener('resize', () => { if (S.render === 'canvas') redraw() })
 /** Measurement hook (measure-browser.mjs): pan and zoom for `frames` frames, return the frame intervals. */
-window.__bench = (frames = 120) => new Promise(res => {
+window.__bench = (frames = 120, k0 = null) => new Promise(res => {
   const r = canvasRect(), out = []; let i = 0, last = performance.now()
+  // k0: start zoomed in at that scale on the drawing's centre (cards and text drawn)
+  if (k0) { const b = bounds(L); view = { k: k0, x: r.width / 2 - (b.x0 + b.w / 2) * k0, y: r.height / 2 - (b.y0 + b.h / 2) * k0 }; apply() }
   const step = (t) => { out.push(t - last); last = t; const f = i % 60 < 30 ? 1.02 : 1 / 1.02; zoomAt(f, r.width / 2, r.height / 2); view.x += (i % 40 < 20 ? 6 : -6); apply(); if (++i < frames) requestAnimationFrame(step); else res(out.slice(2)) }
   requestAnimationFrame(step)
 })

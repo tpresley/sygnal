@@ -21,6 +21,9 @@ const get = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] :
 const sizes = get('--sizes', '50,200,500,2000').split(',')
 const only = get('--only')
 const shots = get('--shots')
+// --zoom 1: pan/zoom zoomed in at that scale (cards and text drawn) instead of at the fit zoom
+const zoomK = get('--zoom') ? +get('--zoom') : null
+const stratFilter = get('--strategies')
 
 // --extra label=/path/graph.json: a corpus kept outside the repo (a private app); its page is written next to it
 const extra = (() => { const i = process.argv.indexOf('--extra'); if (i < 0) return null; const [label, file] = process.argv[i + 1].split('='); return { label, file } })()
@@ -47,6 +50,7 @@ for (const name of corpora) {
   const file = pageFile(name); fs.writeFileSync(file, html)
   const bytes = Buffer.byteLength(html), gz = (await import('node:zlib')).gzipSync(html).length
   for (const [sname, q] of Object.entries(STRATS)) {
+    if (stratFilter && !stratFilter.split(',').includes(sname)) continue
     for (const render of RENDERERS) {
       const label = `${name} · ${sname} · ${render}`
       if (only && !label.includes(only)) continue
@@ -56,14 +60,14 @@ for (const name of corpora) {
       page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
       await page.goto(pathToFileURL(file).href + `?${q}&render=${render}`)
       await page.waitForFunction(() => window.__ready === true, null, { timeout: 120000 })
-      const r = await page.evaluate(async () => {
+      const r = await page.evaluate(async (zoomK) => {
         const nav = performance.getEntriesByType('navigation')[0]
         const p = window.__perf
-        const fr = await window.__bench(150)
+        const fr = await window.__bench(150, zoomK)
         const s = fr.slice().sort((a, b) => a - b)
         const q = (x) => s[Math.min(s.length - 1, Math.floor(s.length * x))]
         return { firstPaintMs: Math.round(p.paintedAt), domContentLoaded: Math.round(nav.domContentLoadedEventEnd), layoutMs: +p.layoutMs.toFixed(1), drawMs: +p.drawMs.toFixed(1), modelMs: +p.modelMs.toFixed(1), nodes: p.nodes, edges: p.edges, svgEls: document.querySelectorAll('#vp *').length, frameP50: +q(0.5).toFixed(1), frameP95: +q(0.95).toFixed(1), frameMax: +s[s.length - 1].toFixed(1), slowFrames: s.filter(x => x > 33.4).length }
-      })
+      }, zoomK)
       if (shots && render === 'svg') {
         fs.mkdirSync(shots, { recursive: true })
         await page.evaluate(() => document.getElementById('zfit').click()); await page.waitForTimeout(400)

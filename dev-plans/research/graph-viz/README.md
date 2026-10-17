@@ -3,6 +3,8 @@
 Question: can `sygnal-check` turn the app graph (`--graph`) into a good-looking, interactive web page
 that opens in the default browser? What should it show to be useful?
 
+**Large apps (S-1):** [large-apps.md](large-apps.md), with the experimental page and measurements in [large/](large/).
+
 **Plan:** the user accepted the recommendations on 2026-10-16; the work is [PLAN-10](../../PLAN-10.md).
 
 Answer: yes. The prototype here works on every example app with **no change to graph.js and no new

@@ -497,7 +497,7 @@ export function displacement(L1, L2) {
 
 /** The defaults S-1 recommends, by graph size (filled in from the measurements; see large-apps.md). */
 export function defaultsFor(n) {
-  if (n <= 80) return { grouping: 'dir', foldedGroups: new Set(), events: 'pairs', autoFoldDepth: null, semantic: false, minimap: false }
-  if (n <= 300) return { grouping: 'dir', foldedGroups: new Set(), events: 'bus', autoFoldDepth: null, semantic: true, minimap: true }
-  return { grouping: 'dir', foldedGroups: 'all', events: 'bus', autoFoldDepth: null, semantic: true, minimap: true }
+  if (n <= 60) return { grouping: 'dir', foldedGroups: new Set(), events: 'pairs', focusDepth: 0, semantic: true, minimap: false, layout: 'layered' }
+  if (n <= 150) return { grouping: 'dir', foldedGroups: new Set(), events: 'bus', focusDepth: 2, semantic: true, minimap: true, layout: 'layered' }
+  return { grouping: 'dir', foldedGroups: 'all', events: 'bus', focusDepth: 2, semantic: true, minimap: true, layout: 'layered-wrap' }
 }
