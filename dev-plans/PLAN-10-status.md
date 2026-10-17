@@ -31,6 +31,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D516 | 2026-10-16 | A-4: locations are flat `line` / `column`, plus `file` only when it differs from the component's; `modelAt` for an action's model entry; `contextEntries`, `eventSites` per component (coordinator) |
 | D517 | 2026-10-16 | A-3: `events[type].emitterIds` / `selectorIds` parallel to the names, one entry per component, so a name can repeat when two same-named components emit (coordinator) |
 | D518 | 2026-10-16 | A-6: when any entry call's component can't be resolved (a parameter, e.g. ai-showcase's `run(Chat)` in `kimi.js`), the other roots get `entry: 'unknown'` (coordinator) |
+| D519 | 2026-10-16 | Amends D514: the user supplied a private Vike app for S-1 (33 components, 29 page entries). Read-only; nothing derived from it (graphs, screenshots, names) is committed; reported as numbers only (user) |
 
 ## Items
 
@@ -80,7 +81,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P10-Q4 Schema version | answered | accepted (D511) |
 | P10-Q5 Graph-wide rules | answered | accepted (D512) |
 | P10-Q6 Release grouping | answered | accepted (D513) |
-| P10-Q7 A large real app for S-1 | answered | accepted (D514) |
+| P10-Q7 A large real app for S-1 | answered | accepted (D514); a private Vike app supplied (D519) |
 
 ## Gaps
 
