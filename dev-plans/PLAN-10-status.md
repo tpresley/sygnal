@@ -55,6 +55,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D540 | 2026-10-16 | A-9 details: `+Wrapper` counts as an entry and part of the shell chain (Wrapper > Layout > Page, Vike's inheritance; `(group)` layouts apply only inside their group, labelled `/`); `routes` lists every route when several `+Page` files export one component (`route` = the first); a Route Function gives `route: null, routeDynamic: true`; layout edges are `children[].via: 'layout'` and don't feed the SYG170/171 parent links (coordinator) |
 | D541 | 2026-10-16 | E-1/E-2: `sygnal/graph` `{ root | uri | textDocument }` → `{ root, version, graph }`, answered from a check that saw the current documents; `sygnal/graphChanged { root, version }` only for roots a client asked about. The panel: nonce CSP, `localResourceRoots: []`, links as messages opened only inside the panel's root, state restored from webview state (no `retainContextWhenHidden`), a serializer across restarts; theme toggle, editor picker and downloads hidden; "under the cursor" = from a component's line to the next component in the file until the graph has end lines (G-804) (coordinator) |
 | D542 | 2026-10-16 | V-4 details on D536: in the small tier (≤ 60) zoom below 0.4 hides card text but keeps overlays (they hide only in the grouped tiers) and a trace always stays visible; a group is the directory two levels below the components' common directory, and a one-component group never folds; tracing opens the folded groups holding its ends (up to 6); the page's graph/EVENTS view switch is `api.showView` (E-2 owns `api.setView`); the synthetic generator lives in `sygnal-check/test/fixtures/graph-synth.js` (the research CLI imports it) (coordinator, on the worker's proposals) |
+| D543 | 2026-10-16 | P10-Q8: `sygnal/vite` serves the live graph page at `/__sygnal/graph` in dev **by default**; `graph: false` turns it off (user) |
+| D544 | 2026-10-16 | P10-Q9: `sygnal/vite` stamps each component with its static key in dev only, so the page can overlay runtime data on the static graph (P-2); nothing in production builds (user) |
 
 ## Items
 
@@ -77,16 +79,16 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | V-3 Runtime graphs | 2 | ✅ merged `ae0ddda5` | `graphView/runtime.js` | |
 | V-4 Large-app strategies | 1–2 | ✅ merged | D536, D542 | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
-| V-6 Diff rendering | 3 | ⏳ | |
+| V-6 Diff rendering | 3 | 🔄 `p10-base-diff` | |
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
 | C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
-| C-3 `--base <ref>` | 3 | ⏳ | |
+| C-3 `--base <ref>` | 3 | 🔄 `p10-base-diff` | |
 | W-1 `--watch` | 2 | ✅ merged | `live.js`, `watch.js`, `liveServer.js`, `graphView/liveHost.js` (D535) | |
-| W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
+| W-2 `sygnal/vite` dev route | 3 | 🔄 `p10-vite-graph` | D543 |
 | E-1 LSP `sygnal/graph` | 2 | ✅ merged | |
 | E-2 VS Code panel | 2 | ✅ merged | not yet: marking changed cards as the live page does | |
 | P-1 Devtools app graph tab | 2 | ✅ merged `ae0ddda5` | verified in a harness and in Chromium with `--load-extension`, not in real DevTools | |
-| P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
+| P-2 Static + runtime together | 3 | 🔄 `p10-vite-graph` | D544 |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ✅ merged `d1d174ba` | SYG170, SYG171 shipped; SYG172 page-only (D534) |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
@@ -106,8 +108,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P10-Q5 Graph-wide rules | answered | accepted (D512) |
 | P10-Q6 Release grouping | answered | accepted (D513) |
 | P10-Q7 A large real app for S-1 | answered | accepted (D514); a private Vike app supplied (D519) |
-| P10-Q8 W-2: serve `/__sygnal/graph` from `sygnal/vite` by default in dev (opt out with `graph: false`)? | open, ask at Phase 3 | S-3 recommends yes |
-| P10-Q9 W-2/P-2: have `sygnal/vite` stamp components with their static key in dev only, so runtime instances match static cards? | open, ask at Phase 3 | S-3 recommends yes |
+| P10-Q8 W-2: serve `/__sygnal/graph` from `sygnal/vite` by default in dev (opt out with `graph: false`)? | answered | yes (D543 / D544) |
+| P10-Q9 W-2/P-2: have `sygnal/vite` stamp components with their static key in dev only, so runtime instances match static cards? | answered | yes (D543 / D544) |
 
 ## Gaps
 
