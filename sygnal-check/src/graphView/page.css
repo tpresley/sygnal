@@ -86,6 +86,8 @@ aside.side { grid-area: side; background: var(--panel); border-right: 1px solid 
 .health-group summary .n { margin-left: auto; color: var(--muted); font-weight: 500; font-variant-numeric: tabular-nums; }
 .health-group summary::before { content: "▸"; color: var(--muted); font-size: 10px; transition: transform .15s; }
 .health-group[open] summary::before { transform: rotate(90deg); }
+/* items sit under their group's title: past the arrow and the group's dot */
+.health-group .health-item { padding-left: 30px; }
 .tree-dir { color: var(--muted); font-size: 11px; padding: 8px 4px 2px; font-family: ui-monospace, Menlo, monospace; margin: 0; font-weight: 400; }
 .tree-item { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 6px; cursor: pointer; width: 100%; border: 0; background: none; text-align: left; }
 .tree-item:hover { background: var(--chip); }
