@@ -20,6 +20,7 @@ function Layout({ state, children, innerHTML }) {
         <div className="nav-links">
           <a href="/">Home</a>
           <a href="/about">About</a>
+          <a href="/admin">Admin</a>
           <a href="/spa">SPA Mode</a>
         </div>
       </nav>
@@ -27,6 +28,7 @@ function Layout({ state, children, innerHTML }) {
         <div className="mobile-menu">
           <a href="/">Home</a>
           <a href="/about">About</a>
+          <a href="/admin">Admin</a>
           <a href="/spa">SPA Mode</a>
         </div>
       )}
