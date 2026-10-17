@@ -44,6 +44,8 @@ import persist from './syg223-persist.js'
 import initialStateSub from './syg405-initial-state.js'
 import childSelectGrandchild from './syg129-child-select-grandchild.js'
 import sinkDriver from './syg609-sink-driver.js'
+import contextProvider from './syg170-context-provider.js'
+import parentUnread from './syg171-parent-unread.js'
 import removedForms from './syg612-removed-forms.js'
 import widgets from './syg140-widgets.js'
 import agent from './syg150-agent.js'
@@ -70,6 +72,8 @@ export const coreRules = [
   persist, // SYG223, SYG224 (PLAN-4 GS-5)
   initialStateSub, // SYG405 statically (PLAN-4 4-G2)
   childSelectGrandchild, // SYG129 (PLAN-4 4-G2, PLAN-3 G-187)
+  contextProvider, // SYG170 (PLAN-10 X-1, D512): a context read no ancestor provides, entries known
+  parentUnread, // SYG171 (PLAN-10 X-1, D512): a PARENT sink no parent reads with CHILD.select
   missingExport, // SYG427: a component imported from a module that doesn't export it
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
   widgets, // SYG140-SYG144 (PLAN-5 W-1)

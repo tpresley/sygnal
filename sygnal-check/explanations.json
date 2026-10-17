@@ -474,6 +474,30 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg162"
   },
   {
+    "code": "SYG170",
+    "title": "Context field read with no provider",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "A component reads `context.theme` (in its view, or in a reducer through `props.context`), but neither it nor any component above it has `theme` in its `.context`, so the value is `undefined`. Context flows down the render tree: a component sees what it and its ancestors declare. sygnal-check follows every way up from the reader and reports only when each ends at a component that `run()` or `defineElement()` starts, so it knows the whole chain. It says nothing when the chain leaves what it can see: a component no scanned file renders (a page a router or a test renders), a plain function that renders the reader without being rendered itself, a Vike `+Page` or `+Layout` (Vike adds `pageData`, `routeParams`, `urlPathname` and the layouts' context), JSX passed into another component, an entry call whose component it can't resolve, or a `.context` that isn't an object literal it can read.",
+    "fix": "Add the field to the `.context` of the reader or a component above it: `App.context = { theme: (state) => state.theme }`. If the name is misspelled (the message suggests the closest one on the chain), fix the read.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg170"
+  },
+  {
+    "code": "SYG171",
+    "title": "PARENT sink no parent reads",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "A component's model sends to `PARENT`, but none of the components that render it reads `CHILD.select(It)` in its intent. A `PARENT` value reaches only the component that renders it, through `CHILD.select`, so here every value goes nowhere and the click does nothing. sygnal-check reports it when the parents render it by tag, as a Collection item or as a Switchable target, no scanned intent selects it (a select in the wrong component is SYG129), and it can read every parent's intent: one with `uses` (a behavior may read `CHILD`), a sources rest pattern, `CHILD` passed to a helper, or a `CHILD.select()` it can't resolve keeps it silent. A component nothing scanned renders (a catalog part, a `defineElement()` element, whose `PARENT` values become DOM events) and JSX passed into another component (that component places it, so it is the parent) are never reported.",
+    "fix": "Read it in the parent's intent and handle it in the model: `App.intent = ({ CHILD }) => ({ PICK: CHILD.select(Badge) })` with `App.model = { PICK: (state, data) => ... }`. If nothing needs the value, remove the `PARENT` sink; for components further apart, use `EVENTS`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg171"
+  },
+  {
     "code": "SYG201",
     "title": "STATE reducer dropped keys from the previous state",
     "severity": "warn",
