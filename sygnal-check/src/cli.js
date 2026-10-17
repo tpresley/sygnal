@@ -195,18 +195,28 @@ export function parseArgs(argv) {
 const GRAPH_FORMATS = ['text', 'json', 'html', 'mermaid']
 const EDITORS = ['vscode', 'cursor', 'windsurf', 'idea', 'none']
 
-/** The project's name for the page title and the temp file: package.json `name` from cwd up, else the directory's. */
-export function projectName(cwd) {
-  for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
+/**
+ * The project's name for the page title and the temp file (G-802): the nearest package.json at or
+ * above the scanned folder (the common directory of `paths`, else cwd), but not above cwd (the
+ * project root): its `name`, or its directory's name when it has none. Without one, the scanned
+ * folder's name. A scanned folder outside cwd only looks at itself.
+ */
+export function projectName(cwd, paths = []) {
+  const root = path.resolve(cwd)
+  const dirOf = (p) => { const abs = path.resolve(root, p); try { return fs.statSync(abs).isDirectory() ? abs : path.dirname(abs) } catch (_) { return abs } }
+  let start = root
+  if (paths.length) {
+    const dirs = paths.map(dirOf)
+    start = dirs.reduce((a, b) => { while (a !== path.dirname(a) && !(b === a || b.startsWith(a + path.sep))) a = path.dirname(a); return a })
+  }
+  const inside = start === root || start.startsWith(root + path.sep)
+  for (let dir = start; ; dir = path.dirname(dir)) {
     let pkg = null
     try { pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')) } catch (_) { /* none here */ }
-    if (pkg) {
-      if (typeof pkg.name === 'string' && pkg.name) return pkg.name
-      return path.basename(dir) || 'app'
-    }
-    if (path.dirname(dir) === dir) break
+    if (pkg) return typeof pkg.name === 'string' && pkg.name ? pkg.name : path.basename(dir) || 'app'
+    if (!inside || dir === root || path.dirname(dir) === dir) break
   }
-  return path.basename(path.resolve(cwd)) || 'app'
+  return path.basename(start) || 'app'
 }
 
 /** `@scope/my app` → `scope-my-app`: safe in a file name on every OS. */
@@ -224,7 +234,7 @@ export function openInBrowser(file, { platform = process.platform } = {}) {
 
 /** --graph=html: writes the page, prints where, and opens it when that's wanted and possible. */
 function writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir }) {
-  const name = projectName(cwd)
+  const name = projectName(cwd, opts.paths)
   const html = graphHtml(g, {
     title: name,
     subtitle: `static graph · ${opts.paths.length ? opts.paths.join(' ') : 'configured paths'} · ${new Date().toLocaleString()}`,
@@ -269,7 +279,7 @@ export async function watchGraph(opts, { cwd, stdout, stderr, env = {}, isTTY, o
     stderr.write(`sygnal-check: no source files found in ${first.options.paths.map(shown).join(', ')}\n`)
     return { code: 2 }
   }
-  const name = projectName(cwd)
+  const name = projectName(cwd, opts.paths)
   const subtitle = `live · ${opts.paths.length ? opts.paths.join(' ') : 'configured paths'}`
   let server
   try {

@@ -498,12 +498,24 @@ describe('cli --graph=html|mermaid', () => {
     }
   })
 
-  it('projectName and fileSafe', () => {
+  it('projectName (G-802): the nearest package.json from the scanned folder up to cwd, else the folder name; fileSafe', () => {
     expect(projectName(pkgRoot)).toBe('sygnal-check')
-    expect(projectName(path.join(pkgRoot, 'test/fixtures/good'))).toBe('sygnal-check')
+    // scanned below cwd: walks up to cwd's package.json
+    expect(projectName(pkgRoot, ['test/fixtures/good'])).toBe('sygnal-check')
+    expect(projectName(pkgRoot, ['test/fixtures/good/todo-app.jsx'])).toBe('sygnal-check')
+    // never above cwd: a folder with no package.json is named after itself
+    expect(projectName(path.join(pkgRoot, 'test/fixtures/good'))).toBe('good')
     const dir = tmp()
     fs.writeFileSync(path.join(dir, 'package.json'), '{}')
     expect(projectName(dir)).toBe(path.basename(dir))
+    fs.mkdirSync(path.join(dir, 'apps/shop/src'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'apps/shop/package.json'), '{"name":"@acme/shop"}')
+    expect(projectName(dir, ['apps/shop/src'])).toBe('@acme/shop')
+    fs.mkdirSync(path.join(dir, 'apps/admin/src'), { recursive: true })
+    expect(projectName(dir, ['apps/admin/src'])).toBe(path.basename(dir)) // up to cwd's (no name: its folder)
+    expect(projectName(dir, ['apps/shop/src', 'apps/admin/src'])).toBe(path.basename(dir)) // their common folder: apps → cwd
+    const outside = tmp()
+    expect(projectName(dir, [outside])).toBe(path.basename(outside))
     expect(fileSafe('@scope/my app')).toBe('scope-my-app')
     expect(fileSafe('../..')).toBe('app')
   })

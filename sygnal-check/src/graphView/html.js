@@ -15,7 +15,8 @@
  *
  * No build step: the files in this directory are read and concatenated at run time.
  *   - page.css goes into one <style>.
- *   - The pure modules (model.js, layout.js, mermaid.js) and page.js are ES modules made only of
+ *   - The pure modules (model.js, layout.js, mermaid.js, runtime.js, groups.js, groupLayout.js,
+ *     views.js, canvas.js) and page.js are ES modules made only of
  *     top-level declarations and no imports. Each is inlined as a function body: the `export`
  *     keywords are dropped and its exports are copied onto one namespace object (`V`), so the same
  *     file runs in Node (tests, the CLI's Mermaid) and in the page. inlineModule() refuses a file
@@ -28,7 +29,7 @@
 import fs from 'node:fs'
 
 const read = (name) => fs.readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
-const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'runtime.js', 'page.js']
+const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'runtime.js', 'groups.js', 'groupLayout.js', 'views.js', 'canvas.js', 'page.js']
 
 /** JSON safe inside a <script> element (and in JavaScript source). */
 export function inlineJson(value) {
@@ -114,8 +115,9 @@ ${css}</style>
   <div class="brand"><div class="logo" aria-hidden="true">S</div><h1 id="title" style="font-size:inherit;margin:0"></h1><small id="subtitle"></small></div>
   <div class="search" role="search">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="m11 11 4 4"/></svg>
-    <input id="q" type="search" placeholder="Find a component, action, state key, event…" aria-label="Find a component, action, state key, event, selector or code (/)" autocomplete="off" spellcheck="false">
+    <input id="q" type="search" role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list" placeholder="Find a component, action, state key, event…" aria-label="Find a component, action, state key, event, selector or code (/)" autocomplete="off" spellcheck="false">
     <span class="count" id="qcount" aria-hidden="true"></span>
+    <div class="results" id="results" role="listbox" aria-label="Search results" hidden></div>
   </div>
   <div class="spacer"></div>
   <div class="toggles" role="group" aria-label="Overlays">
@@ -159,11 +161,21 @@ ${css}</style>
     <rect id="bgrect" width="100%" height="100%" fill="url(#dots)"/>
     <g id="vp"><g id="clusters"></g><g id="edges" aria-hidden="true"></g><g id="labels" aria-hidden="true"></g><g id="nodes"></g><g id="hl-layer" aria-hidden="true" pointer-events="none"></g></g>
   </svg>
+  <canvas id="cv" aria-hidden="true" hidden></canvas>
+  <div class="canvasbar">
+    <div class="seg" role="group" aria-label="View"><button type="button" id="v-graph" aria-pressed="true">Graph</button><button type="button" id="v-events" aria-pressed="false">EVENTS table</button></div>
+    <div class="fmenu"><button type="button" class="iconbtn" id="filter-btn" aria-haspopup="true" aria-expanded="false" aria-controls="filters">Filters <span class="fcount" id="filter-n"></span></button><div class="menu-pop" id="filters" role="group" aria-label="Filters"></div></div>
+    <span class="tierinfo" id="tierinfo"></span>
+  </div>
+  <nav class="crumbs" id="crumbs" aria-label="Focus"></nav>
+  <canvas id="minimap" width="400" height="272" role="img" aria-label="Minimap: the whole drawing and the part on screen" hidden></canvas>
+  <section class="view" id="events-view" aria-label="EVENTS table" hidden><div class="viewbar"><b>EVENTS</b><input id="ev-q" type="search" placeholder="Filter by type or component" aria-label="Filter the EVENTS table" autocomplete="off" spellcheck="false"><span id="ev-n" class="unk"></span></div><table class="evtable" id="evtable"></table></section>
   <div class="trace" id="trace" role="status"></div>
   <div class="legend" id="legend" aria-hidden="true">
     <span><i></i>renders</span>
     <span><i style="border-top:2px dashed var(--k-coll)"></i>Collection</span>
     <span><i style="border-top:2px dotted var(--k-switch)"></i>Switchable</span>
+    <span class="lg-layout" hidden><i style="border-top:2px dashed var(--k-root)"></i>Vike layout → page</span>
     <span><i style="border-color:var(--ev)"></i>EVENTS emit → select</span>
     <span><i style="border-top:2px dashed var(--ctx)"></i>context provides → reads</span>
     <span><i style="border-top:2px dashed var(--par)"></i>PARENT child → parent</span>

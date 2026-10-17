@@ -16,7 +16,10 @@
  *     contextEdges  [{ from, to, fields }]        a read served by the nearest providing ancestor
  *     parentEdges   [{ from, to, actions, line? }] child → parent: the parent's CHILD.select(Child)
  *                   (childSelects) and the intent actions it feeds
- *     orphanReads   [{ id, field }]               context reads no scanned ancestor provides
+ *     orphanReads   [{ id, field }]               context reads no scanned ancestor provides (a
+ *                   component's own `.context` counts, and Vike's page fields under a +Page /
+ *                   +Layout, as SYG170 does; V-4)
+ *     ownReads      [{ id, field }]               reads the component's own `.context` serves
  *     ghosts        the ghost nodes
  *     diagnostics   every diagnostic, with `compId` (null for app-wide ones nobody owns)
  *     resolve(name, from?)  a name used in `from` → comp | null
@@ -25,7 +28,11 @@
  *     at: a runtime diagnostic's report time (ms since the epoch)
  *     tone: 'err' | 'warn' | 'muted' | 'ai'; diagnostics grouped by code (errors first), then the
  *     checks only the whole graph shows, each left out when a diagnostic code already reports it
- *   searchText(comp) → lowercased text the page's search matches against
+ *   searchText(comp) → lowercased text the page's search matches against (routes included)
+ *   stateTrace(model, key) → { owners, writers: [{ id, action }], readers, unknown: [{ id, action }] }
+ *     who has, writes (actions[].writes, A-7) and reads (stateReads) a top-level state key
+ *   isVike(comp), routeLabel(comp) → a Vike +Page / +Layout / +Wrapper's route as its card shows it
+ *     ('/orders/@id', 'dynamic route', '/a +1' for several, 'error page'), null otherwise (A-9)
  *   worst(comp) → 'error' | 'warn' | null
  *
  * Ids are preferred wherever the graph has them (children[].id, events[type].emitterIds /
@@ -130,8 +137,23 @@ export function buildModel(graph) {
   // context: a read is served by the nearest ancestor that provides the field
   const contextEdges = []
   const orphanReads = []
+  // V-4, as SYG170 (graph-rules.md): a component's own `.context` serves its own reads (the core
+  // merges it over the parent's), and under a Vike +Page / +Layout the framework provides
+  // pageData, routeParams and urlPathname
+  const ownReads = []
+  const vikeCache = new Map()
+  const underVike = (id) => {
+    if (vikeCache.has(id)) return vikeCache.get(id)
+    vikeCache.set(id, false)
+    const c = byId.get(id)
+    const v = isVike(c) || parentsOf.get(id).some(underVike)
+    vikeCache.set(id, v)
+    return v
+  }
   for (const c of comps) {
     for (const field of c.contextConsumes) {
+      if (c.contextProvides.includes(field)) { ownReads.push({ id: c.id, field }); continue }
+      if (VIKE_FIELDS.includes(field) && underVike(c.id)) continue
       let provider = null
       const seen = new Set()
       let frontier = [...parentsOf.get(c.id)]
@@ -170,7 +192,23 @@ export function buildModel(graph) {
 
   const byKey = new Map()
   for (const c of comps) if (!byKey.has(c.key)) byKey.set(c.key, c.id)
-  return { graph, runtime: graph.source === 'runtime', comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, parentEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
+  return { graph, runtime: graph.source === 'runtime', comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, parentEdges, orphanReads, ownReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
+}
+
+const VIKE_FILE = /(^|\/)\+(Page|Layout|Wrapper)\.[cm]?[jt]sx?$/
+/** Context fields vike-sygnal gives every page (onRenderClient.ts / onRenderHtml.ts). */
+export const VIKE_FIELDS = ['pageData', 'routeParams', 'urlPathname']
+
+/** A Vike +Page / +Layout / +Wrapper component (A-9: it has a `route`, or it is one of those files). */
+export const isVike = (c) => !!c && (Object.prototype.hasOwnProperty.call(c, 'route') || Array.isArray(c.routes) || VIKE_FILE.test(c.file || ''))
+
+/** A Vike component's route as a card shows it (A-9): '/orders/@id', 'dynamic route', '/a +1', 'error page'; null for others. */
+export function routeLabel(c) {
+  if (!c || !isVike(c) || !Object.prototype.hasOwnProperty.call(c, 'route') && !c.routes) return null
+  if (Array.isArray(c.routes) && c.routes.length > 1) return `${c.routes[0]} +${c.routes.length - 1}`
+  if (c.routeDynamic) return 'dynamic route'
+  if (c.route == null) return /(^|\/)_error\//.test(c.file || '') ? 'error page' : null
+  return c.route
 }
 
 export function worst(c) {
@@ -222,7 +260,11 @@ export function healthList(model, codeTitles = {}) {
   }
   add('Controls nothing listens to', 'warn', real.flatMap(c => (c.controls || []).filter(x => x.listened === false)
     .map(x => ({ id: c.id, title: x.name, sub: `${c.name} · <${x.element ?? '?'}>` }))))
-  add('Context read with no provider', 'warn', orphanReads.map(o => ({ id: o.id, title: `context.${o.field}`, sub: `${byId.get(o.id).name} · no scanned ancestor provides it` })))
+  // a read SYG170 reports is in its group already (V-4: no duplicates); the rest are reads SYG170
+  // stays silent on (the chain leaves the scanned files), so they may be provided at run time
+  const syg170 = new Set(diagnostics.filter(d => d.code === 'SYG170' && d.compId).map(d => `${d.compId}\u0000${(/^context\.([\w$]+)/.exec(d.message || '') || [])[1]}`))
+  add('Context read with no provider', 'warn', orphanReads.filter(o => !syg170.has(`${o.id}\u0000${o.field}`))
+    .map(o => ({ id: o.id, title: `context.${o.field}`, sub: `${byId.get(o.id).name} · no scanned ancestor provides it${codes.has('SYG170') ? ' (may be provided outside the scanned files)' : ''}` })))
   add('Rendered but not scanned', 'muted', ghosts.filter(g => !g.external && !g.widget).map(g => ({ id: g.id, title: g.name, sub: `rendered by ${parentsOf.get(g.id).map(id => byId.get(id).name).join(', ')}` })))
   add('AI agent surface', 'ai', real.filter(c => c.agent).map(c => {
     const acts = c.agent.actions || []
@@ -232,9 +274,30 @@ export function healthList(model, codeTitles = {}) {
   return out
 }
 
+/**
+ * Who owns, writes and reads a top-level state key (A-7, D531, D532), by name across components
+ * (children share their parent's state unless lensed): owners list it in stateKeys / calculated,
+ * writers have an action whose `writes` has it, readers have it in `stateReads`; `unknown` are the
+ * STATE actions of its owners whose reducer the checker couldn't read (`writes: null`).
+ */
+export function stateTrace(model, key) {
+  const owners = [], writers = [], readers = [], unknown = []
+  for (const c of model.comps) {
+    if (c.ghost) continue
+    const owns = c.stateKeys.includes(key) || c.calculated.includes(key)
+    if (owns) owners.push(c.id)
+    for (const a of c.actions) {
+      if (Array.isArray(a.writes) && a.writes.includes(key)) writers.push({ id: c.id, action: a.name })
+      else if (a.writes === null && owns) unknown.push({ id: c.id, action: a.name })
+    }
+    if ((c.stateReads || []).includes(key)) readers.push(c.id)
+  }
+  return { owners, writers, readers, unknown }
+}
+
 export function searchText(c) {
   return [
-    c.name, c.file, ...c.actions.map(a => a.name), ...c.stateKeys, ...c.calculated, ...c.contextProvides,
+    c.name, c.file, c.route, ...(c.routes || []), ...c.actions.map(a => a.name), ...c.stateKeys, ...c.calculated, ...c.contextProvides,
     ...c.contextConsumes, ...c.eventsEmitted, ...c.eventsSelected, ...c.selectors.map(s => s.selector),
     ...(c.controls || []).map(x => x.name), ...c.diagnostics.map(d => d.code),
   ].filter(Boolean).join('\n').toLowerCase()

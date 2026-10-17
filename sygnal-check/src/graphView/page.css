@@ -247,3 +247,79 @@ svg.dim .node.hidden-page.hl { opacity: .5; }
 .rt-inst { margin: 4px 0; }
 .rt-inst summary { cursor: pointer; }
 .rt-state { font: 11px/1.4 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; max-height: 240px; overflow: auto; margin: 4px 0 6px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+
+/* large apps (V-4, groups.js): search results, toolbar, filters, focus breadcrumbs, folded groups,
+   bus nodes, semantic zoom, minimap, canvas, the outline tree and the EVENTS table */
+.results { position: absolute; top: 36px; left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: min(60vh, 480px); overflow: auto; z-index: 30; padding: 4px; }
+.results[hidden] { display: none; }
+.results .r { display: flex; gap: 8px; align-items: baseline; width: 100%; border: 0; background: none; text-align: left; padding: 5px 8px; border-radius: 6px; cursor: pointer; min-width: 0; }
+.results .r:hover, .results .r.on { background: var(--chip); }
+.results .r .nm { font-weight: 600; white-space: nowrap; }
+.results .r .why { color: var(--ev); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.results .r small { color: var(--muted); margin-left: auto; font-family: ui-monospace, Menlo, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 50%; }
+.results .more { color: var(--muted); padding: 5px 8px; font-size: 12px; }
+.canvasbar { position: absolute; left: 14px; top: 14px; display: flex; gap: 8px; align-items: center; z-index: 7; }
+.seg { display: flex; gap: 2px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px; box-shadow: var(--shadow); }
+.seg button { border: 0; background: transparent; padding: 3px 9px; border-radius: 6px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.fmenu { position: relative; }
+.fmenu .iconbtn { box-shadow: var(--shadow); white-space: nowrap; }
+.fmenu .menu-pop { left: 0; right: auto; min-width: 260px; }
+.fmenu .menu-pop label.off { color: var(--muted); cursor: default; }
+.fmenu .menu-pop small { color: var(--muted); display: block; padding: 0 10px 4px 34px; font-size: 11.5px; }
+.fcount:not(:empty) { background: var(--accent); color: var(--on-kind); border-radius: 999px; padding: 0 6px; font-size: 11px; font-weight: 700; }
+.tierinfo { color: var(--muted); font-size: 11.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; white-space: nowrap; }
+.tierinfo:empty { display: none; }
+.crumbs { position: absolute; left: 14px; top: 56px; display: none; align-items: center; gap: 4px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 5px 8px; font-size: 12px; z-index: 4; max-width: calc(100% - 90px); }
+.crumbs.on { display: flex; }
+.crumbs button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0 2px; font: inherit; }
+.crumbs .sep, .crumbs .unk { color: var(--muted); }
+.crumbs .crumb-x { margin-left: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 1px 8px; }
+.node.group .box { fill: var(--bg); stroke: var(--faint); stroke-dasharray: 6 3; }
+.node.group .count { font-size: 11px; fill: var(--muted); }
+.node.group .count tspan.n { fill: var(--ink); font-weight: 600; }
+.node.bus .box { fill: var(--card); stroke: var(--ev); }
+.node.bus text { font-size: 11px; fill: var(--ev); font-weight: 650; font-family: ui-monospace, Menlo, monospace; }
+.node.dimf { opacity: .5; }
+.cluster .fold { cursor: pointer; fill: var(--accent); font-family: ui-sans-serif, system-ui, sans-serif; }
+.cluster .big { display: none; font-weight: 700; fill: var(--ink); font-family: ui-sans-serif, system-ui, sans-serif; }
+.edge.layout { stroke: var(--k-root); stroke-dasharray: 10 3 2 3; stroke-width: 1.8; }
+/* semantic zoom: far away, cards lose their text, overlays hide, group names grow */
+svg.far .node text, svg.far .node .pill, svg.far .elabel:not(.hl), svg.far .cluster text:not(.big) { display: none; }
+/* the overlays hide too in the grouped tiers (more than 60 components); a highlighted (traced) edge always shows */
+svg.far.grouped .edge.event:not(.hl), svg.far.grouped .edge.context:not(.hl), svg.far.grouped .edge.parent:not(.hl) { display: none; }
+svg.far .node.group text.name { display: inline; }
+svg.far .cluster .big { display: inline; }
+.legend [hidden] { display: none; }
+svg.far .cluster rect { fill: var(--accent-soft); fill-opacity: .35; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#cv[hidden] { display: none; }
+#minimap { position: absolute; right: 62px; bottom: 14px; width: 200px; height: 136px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); cursor: crosshair; touch-action: none; }
+#minimap[hidden] { display: none; }
+main.has-minimap .legend { max-width: calc(100% - 300px); }
+.view { position: absolute; inset: 0; overflow: auto; background: var(--bg); z-index: 6; padding-top: 52px; }
+.view[hidden] { display: none; }
+.viewbar { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.viewbar input { height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 0 8px; width: min(260px, 100%); font: inherit; }
+.evtable { border-collapse: collapse; width: 100%; }
+.evtable th { position: sticky; top: 45px; background: var(--panel); text-align: left; padding: 0; border-bottom: 1px solid var(--line); }
+.evtable th button { border: 0; background: none; font: inherit; font-weight: 650; padding: 6px 8px; cursor: pointer; width: 100%; text-align: left; }
+.evtable th[aria-sort="descending"] button::after, .evtable th[aria-sort="ascending"] button::after { content: " ▾"; color: var(--muted); }
+.evtable td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.evtable td .chips { gap: 3px; }
+.evtable .none { color: var(--warn); }
+/* the outline: directories as a tree, folded with the drawing's groups */
+.tree-node { margin: 0; padding: 0; list-style: none; }
+.tree-toggle { display: flex; align-items: center; gap: 5px; width: 100%; border: 0; background: none; text-align: left; cursor: pointer; color: var(--muted); font: 11px ui-monospace, Menlo, monospace; padding: 5px 4px 2px; border-radius: 6px; }
+.tree-toggle:hover { background: var(--chip); color: var(--ink); }
+.tree-toggle::before { content: "▸"; font-size: 10px; transition: transform .15s; }
+.tree-toggle[aria-expanded="true"]::before { transform: rotate(90deg); }
+.tree-toggle .n { margin-left: auto; font-variant-numeric: tabular-nums; }
+.tree-toggle .gtag { font: 600 10px ui-sans-serif, system-ui, sans-serif; color: var(--accent); }
+.tree-kids { padding-left: 10px; margin: 0; list-style: none; }
+.tree-item.filtered { opacity: .55; }
+/* the state trace (A-7 writes / stateReads): writers solid, readers dashed */
+.node.state-write .box { stroke: var(--s-STATE); stroke-width: 3; }
+.node.state-read .box { stroke: var(--ok); stroke-width: 3; stroke-dasharray: 5 3; }
+.trace .w { color: var(--s-STATE); font-weight: 650; } .trace .rd { color: var(--ok); font-weight: 650; }
+.flow .writes { grid-column: 2 / -1; font-size: 11px; color: var(--muted); margin-top: -2px; }
