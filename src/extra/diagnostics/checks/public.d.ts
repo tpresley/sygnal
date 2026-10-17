@@ -139,6 +139,8 @@ export interface InspectChild extends Partial<InspectLocation> {
   from?: string | null
   /** runtime: number of live instances behind this entry (e.g. Collection items) */
   count?: number
+  /** runtime, PLAN-10 D522: the ids of those instances */
+  ids?: string[]
   /**
    * static, PLAN-10 A-3: the id of the component it renders (resolved through the import); null when
    * it isn't in the graph (a package, a widget, a file not scanned, a dynamic value)
@@ -258,6 +260,11 @@ export interface InspectComponent {
   name: string
   /** runtime: instance number (as a string); static: 'file:line' of the definition */
   id: string
+  /**
+   * static, PLAN-10 D521: 'file#name', stable when lines move (hosts key selection and positions by it);
+   * a second component of the same name in one file gets 'file#name#2', and so on. Not at runtime
+   */
+  key?: string
   /** runtime: the parent instance's id; static: null (see the parents' `children`) */
   parentId: string | null
   /** static only: source file, relative to the working directory */
@@ -267,13 +274,18 @@ export interface InspectComponent {
    * component renders it, else how it is first rendered
    */
   kind: 'root' | 'child' | 'collection-item' | 'switchable'
-  /** static, PLAN-10 A-1: rendered as a component (or started as an entry) but has no statics */
+  /** PLAN-10 A-1 / D522: rendered as a component (or started as an entry) but has no statics */
   viewOnly?: true
   /**
    * static, PLAN-10 A-6: started by run(), defineElement() or a Vike +Page / +Layout; 'unknown' on the
-   * other roots when an entry call's component can't be resolved (picked at run time)
+   * other roots when an entry call's component can't be resolved (picked at run time).
+   * runtime (D522): true on an app's root instance
    */
   entry?: true | 'unknown'
+  /** runtime, PLAN-10 D522: the app (run()) it belongs to: its root's index among the live roots, oldest first */
+  app?: number
+  /** runtime, PLAN-10 D522: false on a hidden Switchable page and below it; omitted when shown */
+  shown?: false
   actions: InspectAction[]
   /** state keys (runtime: current state; static: initialState) */
   stateKeys: string[]
@@ -375,8 +387,9 @@ export interface InspectGraph {
   source?: 'runtime' | 'static'
   components: InspectComponent[]
   /**
-   * EVENTS bus: type -> names of the components that emit / select it; static (PLAN-10 A-3): their
-   * ids, parallel to the names (one entry per component)
+   * EVENTS bus: type -> names of the components that emit / select it; their ids: static (PLAN-10
+   * A-3) parallel to the names (one entry per component); runtime (D522) every instance's id, while the
+   * names list each name once
    */
   events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   /** diagnostics not tied to a listed component */

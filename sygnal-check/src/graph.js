@@ -16,6 +16,11 @@
  *   id           'file:line' of the component definition; parentId is null
  *                (a component can be rendered by several parents: see the
  *                parents' `children`)
+ *   key          'file#name' (PLAN-10 D521): stable across edits that move the definition's
+ *                line, for hosts to key selection, positions and UI state by. Every node has
+ *                one, view-only ones too (their name: the declared one, else the tag's, else
+ *                the file's base name). When several in one file share a name, the first in
+ *                source order keeps 'file#name' and the others get '#2', '#3', ...
  *   viewOnly     true for a function in the scanned files that is rendered as a
  *                component (or started as an entry) but has no statics (PLAN-10
  *                A-1); listed after the others, with empty actions/state/selectors
@@ -411,6 +416,7 @@ export function buildGraph(project, diagnostics = []) {
     const node = {
       name: c.name,
       id: idOf(c),
+      key: null, // PLAN-10 D521: set below, once every unit is known
       parentId: null,
       file: rel(c.file),
       kind: VIA_KIND[renderedAs.get(c)] || 'root',
@@ -486,6 +492,7 @@ export function buildGraph(project, diagnostics = []) {
     const node = {
       name: u.name,
       id: idOf(u),
+      key: null,
       parentId: null,
       file: rel(u.file),
       kind: VIA_KIND[renderedAs.get(u)] || 'root',
@@ -506,7 +513,30 @@ export function buildGraph(project, diagnostics = []) {
     components.push(node)
   }
 
+  // PLAN-10 D521: the stable key, 'file#name' (no line, so it survives edits above the definition)
+  const keys = keysOf(units, rel)
+  components.forEach((node, i) => { node.key = keys.get(units[i]) })
+
   return { version: 1, source: 'static', components, events, diagnostics: appWide.map(d => slimDiagnostic(d)) }
+}
+
+/**
+ * PLAN-10 D521: 'file#name' per unit (components and view-only ones alike); when several units in one
+ * file share a name, the first in source order keeps 'file#name' and the others get '#2', '#3', ...
+ */
+function keysOf(units, rel) {
+  const groups = new Map()
+  for (const u of units) {
+    const k = `${rel(u.file)}#${u.name}`
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(u)
+  }
+  const out = new Map()
+  for (const [k, list] of groups) {
+    list.sort((a, b) => a.node.start - b.node.start)
+    list.forEach((u, i) => out.set(u, i ? `${k}#${i + 1}` : k))
+  }
+  return out
 }
 
 /** The intent actions whose stream expression contains `node` (a CHILD.select call). */

@@ -36,6 +36,22 @@ describe('kanban: runtime inspect (renderComponent + built dev entry)', () => {
       await t.ready()
       t.simulateEvent('.add-lane-btn', 'click')
       await t.waitForState(s => s.lanes.length === 4)
+      // PLAN-10 D522: the 4 lanes' instance ids on the root's child entry, entry / app / viewOnly
+      const g4 = t.inspect()
+      expect(validate(schema, g4)).toEqual([])
+      const [root4] = byName(g4, 'RootComponent')
+      const lanes4 = byName(g4, 'LaneComponent')
+      expect(lanes4).toHaveLength(4)
+      expect(root4.children).toEqual([{ name: 'LaneComponent', via: 'collection', count: 4, ids: lanes4.map(l => l.id) }])
+      expect(lanes4.every(l => l.parentId === root4.id)).toBe(true)
+      for (const lane of lanes4) {
+        const cards = byName(g4, 'TaskCard').filter(c => c.parentId === lane.id)
+        expect(lane.children).toEqual(cards.length ? [{ name: 'TaskCard', via: 'collection', count: cards.length, ids: cards.map(c => c.id) }] : [])
+      }
+      expect(g4.components.filter(c => c.entry).map(c => c.id)).toEqual([root4.id])
+      expect(new Set(g4.components.map(c => c.app))).toEqual(new Set([root4.app]))
+      expect(g4.components.some(c => c.viewOnly || c.shown === false || c.key)).toBe(false)
+      expect(g4.events.DELETE_LANE).toEqual({ emitters: [], selectors: ['RootComponent'], emitterIds: [], selectorIds: [root4.id] })
       t.simulateEvent('.delete-lane-btn', 'click') // the first lane emits DELETE_LANE
       await t.waitForState(s => s.lanes.length === 3)
       await new Promise(r => setTimeout(r, 50))
@@ -47,7 +63,7 @@ describe('kanban: runtime inspect (renderComponent + built dev entry)', () => {
       expect(root.kind).toBe('root')
       expect(root.contextProvides).toEqual(['draggingTaskId', 'draggingLaneId'])
       expect(root.eventsSelected).toEqual(['DELETE_LANE', 'MOVE_LANE_LEFT', 'MOVE_LANE_RIGHT'])
-      expect(root.children).toEqual([{ name: 'LaneComponent', via: 'collection', count: 3 }])
+      expect(root.children).toEqual([{ name: 'LaneComponent', via: 'collection', count: 3, ids: byName(g, 'LaneComponent').map(l => l.id) }])
       expect(root.selectors).toEqual([{ selector: '.add-lane-btn', events: ['click'], matched: true, isolationHit: null }])
       expect(root.actions.find(a => a.name === 'BOOTSTRAP')).toEqual({ name: 'BOOTSTRAP', trigger: 'builtin', sinks: ['DND'] })
 
@@ -81,6 +97,8 @@ describe('kanban: static graph (sygnal-check --graph)', () => {
     expect(g.components.map(c => [c.name, c.kind])).toEqual([
       ['LaneComponent', 'collection-item'], ['RootComponent', 'root'], ['TaskCard', 'collection-item'],
     ])
+    // PLAN-10 D521: the stable key (no line)
+    expect(g.components.map(c => c.key)).toEqual(['src/LaneComponent.jsx#LaneComponent', 'src/RootComponent.jsx#RootComponent', 'src/TaskCard.jsx#TaskCard'])
     // PLAN-10 A-3: the static side adds ids parallel to the names, and on child entries
     expect(g.events.DELETE_LANE).toEqual({ emitters: ['LaneComponent'], selectors: ['RootComponent'], emitterIds: ['src/LaneComponent.jsx:4'], selectorIds: ['src/RootComponent.jsx:12'] })
     expect(byName(g, 'RootComponent')[0].children).toEqual([{ name: 'LaneComponent', via: 'collection', from: 'lanes', id: 'src/LaneComponent.jsx:4', line: expect.any(Number), column: expect.any(Number) }])
