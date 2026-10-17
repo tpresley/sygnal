@@ -10,6 +10,7 @@
  *   A-5  childSelects: CHILD.select(Child) with the intent actions it feeds
  *   A-6  entry: run(), defineElement(), Vike +Page; 'unknown' when an entry is picked at run time
  *   A-8  the 'behavior' trigger; graphText rows; everything validates against the schema
+ *   D521 key: 'file#name', stable when lines move; '#2', '#3' for same-named ones in a file
  */
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
@@ -50,7 +51,7 @@ describe('the shop fixture', () => {
     const g = shop()
     expect(g.components.map(c => c.name)).toEqual(['App', 'Cart', 'CartLine', 'Checkout', 'Header', 'ProductCard', 'Summary', 'Summary', 'Greeting', 'Shop'])
     expect(one(g, 'Shop')).toEqual({
-      name: 'Shop', id: id('App.jsx', 24), parentId: null, file: `${SHOP}/App.jsx`, kind: 'switchable', viewOnly: true,
+      name: 'Shop', id: id('App.jsx', 24), key: `${SHOP}/App.jsx#Shop`, parentId: null, file: `${SHOP}/App.jsx`, kind: 'switchable', viewOnly: true,
       actions: [], stateKeys: [], calculated: [], contextProvides: [], contextConsumes: [], eventsEmitted: [], eventsSelected: [],
       children: [{ name: 'ProductCard', via: 'collection', from: 'products', id: id('ProductCard.jsx', 3), line: 25, column: 32 }],
       selectors: [], diagnostics: [],
@@ -140,6 +141,37 @@ describe('the shop fixture', () => {
       ['ProductCard', 'collection-item'], // was 'root': Shop, which renders it, wasn't a node
     ])
     expect(old.events.NAVIGATE).toEqual({ emitters: ['Cart', 'Checkout', 'Header'], selectors: ['App'] })
+  })
+})
+
+describe('D521: the stable key', () => {
+  it("every node has 'file#name', view-only ones too; the two Summary components stay apart", () => {
+    const g = shop()
+    expect(one(g, 'App').key).toBe(`${SHOP}/App.jsx#App`)
+    expect(one(g, 'Greeting').key).toMatch(/#Greeting$/)
+    expect(named(g, 'Summary').map(c => c.key)).toEqual([`${SHOP}/cart/Summary.jsx#Summary`, `${SHOP}/checkout/Summary.jsx#Summary`])
+    const keys = g.components.map(c => c.key)
+    expect(keys.every(k => typeof k === 'string')).toBe(true)
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+
+  it('lines added above a component change its id, not its key', () => {
+    const src = `export function App() { return <Row /> }\nApp.initialState = {}\nfunction Row() { return <p /> }`
+    const before = project({ 'App.jsx': src })
+    const after = project({ 'App.jsx': `// one\n// two\n${src}` })
+    const ids = g => g.components.map(c => c.id)
+    const keys = g => g.components.map(c => c.key)
+    expect(ids(before)).toEqual(['App.jsx:1', 'App.jsx:3'])
+    expect(ids(after)).toEqual(['App.jsx:3', 'App.jsx:5'])
+    expect(keys(after)).toEqual(keys(before))
+    expect(keys(after)).toEqual(['App.jsx#App', 'App.jsx#Row'])
+    expect(validateSchema(schema, after)).toEqual([])
+  })
+
+  it("same-named components in one file: the first in source order keeps 'file#name', then '#2'", () => {
+    const row = (tag) => `  function Row() { return <${tag} /> }\n  Row.initialState = {}\n  return Row`
+    const g = project({ 'Rows.jsx': `export function makeA() {\n${row('p')}\n}\nexport function makeB() {\n${row('b')}\n}` })
+    expect(g.components.map(c => [c.id, c.key])).toEqual([['Rows.jsx:2', 'Rows.jsx#Row'], ['Rows.jsx:7', 'Rows.jsx#Row#2']])
   })
 })
 

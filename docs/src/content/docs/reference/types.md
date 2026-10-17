@@ -254,16 +254,22 @@ interface InspectGraph {
   version: 1
   source?: 'runtime' | 'static'
   components: InspectComponent[]
-  events: Record<string, { emitters: string[]; selectors: string[] }>
+  // emitterIds / selectorIds: static, parallel to the names; runtime, every instance's id
+  events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   diagnostics: InspectDiagnostic[]
 }
 
 interface InspectComponent {
   name: string
-  id: string
+  id: string                     // runtime: the instance number; static: 'file:line'
+  key?: string                   // static: 'file#name', stable when lines move
   parentId: string | null
   file?: string
   kind: 'root' | 'child' | 'collection-item' | 'switchable'
+  viewOnly?: true                // rendered as a component, but has no statics
+  entry?: true | 'unknown'       // started by run() (static: also defineElement(), a Vike page)
+  app?: number                   // runtime: which run() the instance belongs to
+  shown?: false                  // runtime: a hidden Switchable page, or below one
   actions: { name: string; trigger: 'intent' | 'next' | 'builtin' | 'unknown'; sinks: string[] }[]
   stateKeys: string[]
   calculated: string[]
@@ -271,7 +277,8 @@ interface InspectComponent {
   contextConsumes?: string[] | null
   eventsEmitted: string[]
   eventsSelected: string[]
-  children: { name: string; via: 'tag' | 'collection' | 'switchable' | 'slot'; from?: string | null; count?: number }[]
+  // id: static, the rendered component's; ids: runtime, the live instances'
+  children: { name: string; via: 'tag' | 'collection' | 'switchable' | 'slot'; from?: string | null; count?: number; id?: string | null; ids?: string[] }[]
   selectors: { selector: string; events: string[] | null; matched: boolean | null; isolationHit: string | null }[]
   diagnostics: InspectDiagnostic[]
 }
