@@ -57,9 +57,9 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ⏳ | |
-| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 merged `dcbb7e33`, `3b311330` | `key` (D521) and runtime fields (D522) merged; D528 follow-up in progress on `p10-graph-key-runtime` |
+| A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
-| V-2 Use the new data | 1 | 🟡 merged `d129d039`; D528 model.js follow-up pending | |
+| V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
 | V-3 Runtime graphs | 2 | ⏳ | |
 | V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
@@ -102,6 +102,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 
 ## Log
+
+- 2026-10-16 D528 merged (`90e2a085` page, `3e23b82b` static graph): event names unique again, id lists independent. On integration: sygnal-check 1,406 passed, inspect tests 13, types OK, graph page 13/13 (Chromium).
 
 - 2026-10-16 `p10-viewer-cli` fix + V-2 merged (`d129d039`): `setGraph` keeps a moved view exactly and refits an untouched one; restoring the selection never pans; a WebKit-only flake fixed. V-2: view-only cards lighter, package/widget ghosts labelled, `childSelects` as a PARENT overlay (pink, own toggle), entries tagged and first. On integration: sygnal-check 1,404 passed, graph page 13/13 (Chromium).
 
