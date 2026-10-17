@@ -154,8 +154,9 @@ describe('the page with runtime.js inlined', () => {
     const src = fs.readFileSync(path.join(here, '../src/graphView/runtime.js'), 'utf8')
     expect(() => inlineModule(src, 'runtime.js')).not.toThrow()
     const html = graphHtml(shop(), { title: 'shop' })
-    const script = html.match(/<script>\n([\s\S]*?)<\/script>/)[1].replace(/V\.mountPage\([^\n]*\n/, '')
-    const V = vm.runInNewContext(script.replace(/^\(\(\) => \{/, '(() => {').replace(/\}\)\(\)\s*$/, 'return V })()'), {})
+    // the modules only: everything after them (reading the data, mounting the page and any host) is cut
+    const script = html.match(/<script>\n([\s\S]*?)<\/script>/)[1].replace(/\nconst read = [\s\S]*$/, '\nreturn V })()')
+    const V = vm.runInNewContext(script, {})
     for (const k of Object.keys(runtimeExports)) expect(typeof V[k]).toBe('function')
   })
 })

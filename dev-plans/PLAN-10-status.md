@@ -51,6 +51,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D536 | 2026-10-16 | **Large-app defaults (S-1)**: N ≤ 60 the current layout; 60 < N ≤ 150 open directory groups each laid out on its own, focus mode on select (depth 2), bus nodes only where they cut edges, minimap; N > 150 directory groups start folded (one card each, bundled ×N edges, wrapped rows). Always: semantic zoom (text and overlays hidden below 0.4), search with a results list, health list, outline, an EVENTS table, filters in a menu; SVG, canvas only past ~400 drawn nodes. Not defaults: depth auto-folding, community grouping, a bus node per event type (user) |
 | D537 | 2026-10-16 | No layout library as an optional dependency; the hand-written layered layout stays (user) |
 | D538 | 2026-10-16 | Vike: `+Page` / `+Layout` cards are labelled by their route, and the graph gets an implicit layout → page edge (user) |
+| D539 | 2026-10-16 | V-3/P-1: runtime cards cluster by app ("app N · RootName", else the root name); the devtools App graph refreshes 150 ms after the last component or action message, with `inspect({ actions: 200 })`, only while the view is open; runtime diagnostics keep a `timestamp`; the devtools frame's CSP allows inline styles but never inline scripts; the page is built from the same modules (`pageAssets()`), no copy (coordinator) |
 
 ## Items
 
@@ -70,7 +71,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
-| V-3 Runtime graphs | 2 | 🔄 `p10-runtime-view` | |
+| V-3 Runtime graphs | 2 | ✅ merged `ae0ddda5` | `graphView/runtime.js` | |
 | V-4 Large-app strategies | 1–2 | 🔄 `p10-large-view` | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
 | V-6 Diff rendering | 3 | ⏳ | |
@@ -81,7 +82,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
 | E-1 LSP `sygnal/graph` | 2 | 🔄 `p10-vscode` | |
 | E-2 VS Code panel | 2 | 🔄 `p10-vscode` | |
-| P-1 Devtools app graph tab | 2 | 🔄 `p10-runtime-view` | |
+| P-1 Devtools app graph tab | 2 | ✅ merged `ae0ddda5` | verified in a harness and in Chromium with `--load-extension`, not in real DevTools | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ✅ merged `d1d174ba` | SYG170, SYG171 shipped; SYG172 page-only (D534) |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
@@ -114,6 +115,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 `p10-runtime-view` merged (`ae0ddda5`; `run-headless.mjs` conflict, both suites kept; a test that cut `V.mountPage` out of the inline script by regex broke on the live-mode line, fixed). D530 core cost: +9 B (kanban 42,496 → 42,505 B on the branch; 42,495 B on integration, 205 B headroom). On integration: build; sygnal-check 1,470; root vitest 4,945 passed / 33 skipped; types; size gate; perf gate all within limits; browser static 14/14, runtime + devtools 9/9, live 5/5 on Chromium, Firefox and WebKit.
 
 - 2026-10-16 `p10-graph-rules` merged (`d1d174ba`; a `graph.js` import conflict with A-7 resolved): sygnal-check 1,442; diagnostics + docs-errors drift 139; errors doc up to date; types OK. Follow-up for the page (V-4 batch): its "context read with no provider" item ignores a component's own `.context` and lists Vike's framework fields; SYG170's silence conditions are the reference.
 - 2026-10-16 `p10-watch` merged: sygnal-check 1,459; LSP suites unchanged (306); browser static page 14/14 and live page 5/5 on Chromium, Firefox and WebKit. Rebuild after one edit: plan5-showcase 15–25 ms (save → client 78–88 ms), ai-showcase 40–50 ms (101–113 ms).
