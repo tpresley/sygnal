@@ -13,7 +13,9 @@
  *              the extension; with it `rootUri` and `version`), nonce? (the inline script runs by
  *              this nonce instead of 'unsafe-inline': a webview's CSP), base? ({ ref, commit?, graph }:
  *              `--base <ref>` (PLAN-10 C-3, V-6): the graph at that ref; the page draws the diff,
- *              diff.js) }
+ *              diff.js), appData? ({ channel }: sygnal/vite's dev route (PLAN-10 P-2) adds
+ *              liveData.js, the "Live data" overlay of the open app tabs, which answer on that
+ *              same-origin BroadcastChannel) }
  *
  * No build step: the files in this directory are read and concatenated at run time.
  *   - page.css and diff.css go into one <style>.
@@ -62,6 +64,7 @@ function assets() {
     css,
     js: MODULES.map(m => inlineModule(read(m), m)).join('\n'),
     live: inlineModule(read('liveHost.js'), 'liveHost.js'),
+    liveData: inlineModule(read('liveData.js'), 'liveData.js'),
     vscode: inlineModule(read('vscodeHost.js'), 'vscodeHost.js'),
   }
   return cached
@@ -89,9 +92,9 @@ const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-i
 const LIVE_CSP = CSP + "; connect-src 'self'"
 
 export function graphHtml(graph, meta = {}) {
-  const { css, js: pageJs, live, vscode } = assets()
+  const { css, js: pageJs, live, liveData, vscode } = assets()
   const vscodeHost = meta.host === 'vscode'
-  const js = pageJs + (meta.live ? '\n' + live : '') + (vscodeHost ? '\n' + vscode : '')
+  const js = pageJs + (meta.live ? '\n' + live : '') + (meta.appData ? '\n' + liveData : '') + (vscodeHost ? '\n' + vscode : '')
   // a host that updates the graph gets every code title (later graphs may add codes)
   const m = { ...meta, title: meta.title || 'app', codes: meta.codes ?? codeTitles(graph, !!meta.live || vscodeHost) }
   if (m.root) m.root = String(m.root).replace(/\\/g, '/')
@@ -198,6 +201,7 @@ const V = {}
 ${js}
 const read = (id) => JSON.parse(document.getElementById(id).textContent), META = read('graph-meta')
 const api = V.mountPage(V, read('graph-data'), META)
+if (META.appData && V.mountLiveData) V.mountLiveData(V, api, read('graph-data'), META)
 if (META.live && V.mountLive) V.mountLive(V, api, read('graph-data'), META)
 if (META.host === 'vscode' && V.mountVscode) V.mountVscode(V, api, read('graph-data'), META)
 })()

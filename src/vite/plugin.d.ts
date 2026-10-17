@@ -136,6 +136,18 @@ export interface SygnalPluginOptions {
    * @default false
    */
   mcp?: boolean | McpPluginOptions
+
+  /**
+   * Serve the live app graph page at `/__sygnal/graph` on the dev server (requests from this
+   * machine with a local Host / Origin only, as `/__sygnal/mcp`), built by sygnal-check and updated
+   * on every save; its URL is printed under Vite's. Skipped silently when sygnal-check isn't
+   * installed. In dev the component functions also get their static key (non-enumerable, read by
+   * inspect() as `key`), and with DevTools on the open app tabs answer the page's "Live data"
+   * (mounted components, instance counts, action flashes, state). Dev server only: production
+   * builds contain none of it.
+   * @default true
+   */
+  graph?: boolean
 }
 
 export interface McpPluginOptions {

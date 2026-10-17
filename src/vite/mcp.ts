@@ -337,10 +337,10 @@ function inAllowed(h: string, allowed: any): boolean {
   })
 }
 
-/** Why the request is refused (403), or null */
-export function refusal(req: any, allowedHosts?: any): string | null {
+/** Why the request is refused (403), or null. PLAN-10 W-2: the graph route (./graph.ts) uses the same guard */
+export function refusal(req: any, allowedHosts?: any, what = 'the Sygnal MCP endpoint'): string | null {
   const remote = String(req?.socket?.remoteAddress || '')
-  if (!LOOPBACK_IP.test(remote)) return `the Sygnal MCP endpoint only answers requests from this machine (not ${remote || 'an unknown address'})`
+  if (!LOOPBACK_IP.test(remote)) return `${what} only answers requests from this machine (not ${remote || 'an unknown address'})`
   const host = req?.headers?.host
   if (typeof host !== 'string' || !host) return 'missing Host header'
   const h = hostname(host)

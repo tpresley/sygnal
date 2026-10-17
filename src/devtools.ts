@@ -35,3 +35,6 @@ export function copyAsTest(target?: any, options?: CopyAsTestOptions): string {
 
 // PLAN-6 E-1: the page side of sygnal/vite's dev MCP endpoint (`sygnal({ mcp: true })`)
 export {installMcpBridge} from './extra/devMcp'
+
+// PLAN-10 P-2 (D544): the app side of the graph page's "Live data" (sygnal/vite's /__sygnal/graph)
+export {installGraphBridge} from './extra/devGraph'

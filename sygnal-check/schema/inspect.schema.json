@@ -61,7 +61,7 @@
       "properties": {
         "name": { "type": "string" },
         "id": { "type": "string", "description": "runtime: instance number; static: 'file:line' of the definition" },
-        "key": { "type": "string", "description": "static (PLAN-10 D521): 'file#name', stable when lines move; a second component of the same name in one file gets 'file#name#2', and so on. Absent at runtime (no source positions)" },
+        "key": { "type": "string", "description": "static (PLAN-10 D521): 'file#name', stable when lines move; a second component of the same name in one file gets 'file#name#2', and so on. Runtime (PLAN-10 P-2): the same key when sygnal/vite's dev server stamped the component function (dev only), else absent" },
         "parentId": { "type": ["string", "null"], "description": "runtime: parent instance id; static: null" },
         "file": { "type": "string", "description": "static only: source file relative to the working directory" },
         "kind": { "enum": ["root", "child", "collection-item", "switchable"] },

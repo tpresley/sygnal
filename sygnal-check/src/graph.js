@@ -522,6 +522,41 @@ function readsInto(node, project, c, usages) {
 }
 
 /**
+ * PLAN-10 P-2 (D544): what sygnal/vite stamps on component functions in dev, so runtime instances
+ * join the static cards. For each scanned file (absolute path), the units defined by a top-level
+ * binding (`function X`, `const X = …`, exported or not, `export default function X`) with their
+ * D521 key: [{ binding, key }]. Units with no top-level binding (an anonymous default export, a
+ * component declared inside a function) are left out; the page falls back to their name.
+ * Call it after buildGraph(project): the keys are those of the graph's components.
+ */
+export function componentStamps(project) {
+  const rel = (file) => project.relPath(file.path)
+  const { units } = renderGraph(project)
+  const keys = keysOf(units, rel)
+  const out = new Map()
+  for (const u of units) {
+    const binding = topLevelBinding(u.file, u.node)
+    if (!binding) continue
+    if (!out.has(u.file.path)) out.set(u.file.path, [])
+    out.get(u.file.path).push({ binding, key: keys.get(u) })
+  }
+  return out
+}
+
+const TOP = new Set(['Program', 'ExportNamedDeclaration', 'ExportDefaultDeclaration'])
+
+/** The identifier a unit's definition binds at the top level of its module, or null. */
+function topLevelBinding(file, node) {
+  const parent = file.parents?.get(node)
+  if (node?.type === 'FunctionDeclaration' && node.id) return parent && TOP.has(parent.type) ? node.id.name : null
+  if (node?.type === 'VariableDeclarator' && node.id?.type === 'Identifier') {
+    const outer = parent?.type === 'VariableDeclaration' ? file.parents.get(parent) : null
+    return outer && outer.type !== 'ExportDefaultDeclaration' && TOP.has(outer.type) ? node.id.name : null
+  }
+  return null
+}
+
+/**
  * PLAN-10 D521: 'file#name' per unit (components and view-only ones alike); when several units in one
  * file share a name, the first in source order keeps 'file#name' and the others get '#2', '#3', ...
  */

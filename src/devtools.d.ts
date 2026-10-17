@@ -168,3 +168,16 @@ export declare function installMcpBridge(
   hot: { on(event: string, cb: (data: any) => void): void; send(event: string, data?: any): void } | undefined,
   options?: McpBridgeOptions
 ): void
+
+// ── PLAN-10 P-2: the app side of sygnal/vite's graph page (/__sygnal/graph) ──
+
+export interface GraphBridgeOptions {
+  /** The BroadcastChannel the graph page listens on (default 'sygnal:graph') */
+  channel?: string
+}
+/**
+ * Answer the dev server's graph page ("Live data": instances, action flashes, state) over a
+ * same-origin BroadcastChannel. sygnal/vite calls it in dev while the graph route is on (the
+ * default; `graph: false` turns it off); you don't call it yourself.
+ */
+export declare function installGraphBridge(options?: GraphBridgeOptions): void
