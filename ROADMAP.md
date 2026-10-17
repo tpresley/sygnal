@@ -403,3 +403,21 @@ Let a model build an app's UI from parts the app prepared (real Sygnal component
 | Core | `key` identity (D470, SYG453), lazy marker handlers (G-751), keyed DOM move fixes (G-750, G-753), `byId()`; lowercase marker tags deprecated (D471, SYG426) | P1 |
 | X-2 | `sygnal-check` catalog rules (SYG253, SYG254) | P2 |
 | E | `examples/ai-compose`, `examples/ai-ask`, `npm run test:compose-live` (E-3) | P2 |
+
+---
+
+## sygnal-check 0.10 and later
+
+### 22. An Interactive View of the App Graph (PLAN-10)
+
+**Status:** `DONE`: ships in **6.6.0** (2026-10-16) with `sygnal-check` 0.10.0, `create-sygnal-app` 2.8.0 (templates: `sygnal` ^6.6.0, `sygnal-check` ^0.10.0), the VS Code extension 0.7.0 and the Claude Code plugin 0.1.5 ([PLAN-10](dev-plans/PLAN-10.md), tracker [PLAN-10-status](dev-plans/PLAN-10-status.md); spike and research in [`research/graph-viz/`](dev-plans/research/graph-viz/README.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). The size gate stays at 42,495 B (+9 B for runtime context reads); also fixes nested Vike Layouts (G-803).
+
+`sygnal-check --graph=html` opens an interactive page of the app: what renders what, EVENTS, context, actions, state, DOM inputs, the AI agent surface and the diagnostics, with click-to-code. The same renderer runs live on save, in a VS Code panel, and in the devtools panel on the runtime `inspect()`. The graph data gets the fixes the spike found first.
+
+| Item | What | Priority |
+|---|---|---|
+| S | Research: large apps (collapsing and grouping, focus mode, other views, layout engines), runtime graphs, the live transport | P1 |
+| A | Graph data: view-only and package components, ids on links, source lines, `PARENT` receivers, entries; state writes (P2) | P1 |
+| V, C | The renderer and `--graph=html` / `--graph=mermaid`; `--base <ref>` diff mode (P3) | P1 |
+| W, E, P | `--watch`, the VS Code panel, the devtools app graph tab | P2 |
+| X | Graph-wide rules (SYG170–179), if measured clean | P2 |

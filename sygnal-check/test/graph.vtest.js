@@ -5,12 +5,15 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { graph, validateSchema } from '../src/index.js'
 import { main } from '../src/cli.js'
+import { legacy } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const pkgRoot = path.resolve(here, '..')
 const schema = JSON.parse(fs.readFileSync(path.join(pkgRoot, 'schema/inspect.schema.json'), 'utf8'))
 const g = (inputs, opts = {}) => graph(inputs, { cwd: pkgRoot, ...opts })
 const comp = (graph, name, file) => graph.components.find(c => c.name === name && (!file || c.file.endsWith(file)))
+// the fields the tests below cover, as they were before PLAN-10 (D511: what they assert is unchanged)
+const lg = (inputs, opts) => legacy(g(inputs, opts))
 
 function run(args, cwd = pkgRoot) {
   let out = ''
@@ -28,7 +31,7 @@ describe('graph()', () => {
   })
 
   it('components: id, kind, actions with triggers, state, events, children, selectors', () => {
-    const graph = g(['test/fixtures/good/todo-app.jsx'])
+    const graph = lg(['test/fixtures/good/todo-app.jsx'])
     expect(graph.version).toBe(1)
     expect(graph.source).toBe('static')
     const app = comp(graph, 'App')
@@ -66,7 +69,7 @@ describe('graph()', () => {
   })
 
   it('selectors: isolation hits and misses come from SYG104 / SYG110, and diagnostics attach to their component', () => {
-    const graph = g(['test/fixtures/bad/parent-selects-child.jsx', 'test/fixtures/bad/selector-typo.jsx'])
+    const graph = lg(['test/fixtures/bad/parent-selects-child.jsx', 'test/fixtures/bad/selector-typo.jsx'])
     const parent = comp(graph, 'App', 'parent-selects-child.jsx')
     expect(parent.selectors.find(s => s.selector === '.remove')).toEqual({ selector: '.remove', events: ['click'], matched: false, isolationHit: 'TodoItem' })
     expect(parent.selectors.find(s => s.selector === '.panel').isolationHit).toBe('Panel')
@@ -99,7 +102,7 @@ describe('graph()', () => {
         `App.context = { theme: () => 'dark', user: s => s.user, locale: () => 'en' }`,
         `App.initialState = { user: null }`,
       ].join('\n'))
-      const graph = g([dir])
+      const graph = lg([dir])
       expect(comp(graph, 'Child').contextConsumes.sort()).toEqual(['theme', 'user'])
       expect(comp(graph, 'Other').contextConsumes).toEqual(['locale'])
       expect(comp(graph, 'App').contextProvides).toEqual(['theme', 'user', 'locale'])

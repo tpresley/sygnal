@@ -247,33 +247,104 @@ interface SygnalDevTools {
 
 ### InspectGraph
 
-The app graph produced by `inspect()`, `t.inspect()` and `sygnal-check --graph --json`. Its parts (`InspectComponent`, `InspectAction`, `InspectChild`, `InspectSelector`, `InspectDiagnostic`) are exported too.
+The app graph produced by `inspect()`, `t.inspect()` and `sygnal-check --graph --json`, and drawn by [the app graph page](/guide/app-graph/). Its parts (`InspectComponent`, `InspectAction`, `InspectActionTrigger`, `InspectChild`, `InspectChildSelect`, `InspectSelector`, `InspectDiagnostic`, `InspectLocation` and the rest) are exported too. "Static" fields come only from `sygnal-check`, "runtime" ones only from `inspect()`. Fields added since the first release are all optional, and `version` stays `1`.
 
 ```typescript
 interface InspectGraph {
   version: 1
   source?: 'runtime' | 'static'
   components: InspectComponent[]
-  events: Record<string, { emitters: string[]; selectors: string[] }>
+  // names once each; emitterIds / selectorIds: every component's (static) or instance's (runtime) id
+  events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   diagnostics: InspectDiagnostic[]
+  recentActions?: InspectRecentAction[]  // runtime, with inspect({ actions })
 }
+
+// static: a place in the source (1-based); file only when it isn't the component's
+interface InspectLocation { line: number; column: number; file?: string }
 
 interface InspectComponent {
   name: string
-  id: string
+  id: string                     // runtime: the instance number; static: 'file:line'
+  key?: string                   // static: 'file#name' ('#2' for a second one of that name in a file),
+                                 // stable when lines move; runtime: the same key when the Vite dev server marked it
   parentId: string | null
   file?: string
   kind: 'root' | 'child' | 'collection-item' | 'switchable'
-  actions: { name: string; trigger: 'intent' | 'next' | 'builtin' | 'unknown'; sinks: string[] }[]
+  viewOnly?: true                // rendered as a component, but has no statics
+  // started by run() (static: also defineElement(), a Vike +Page / +Layout / +Wrapper;
+  // 'unknown' on the other roots when an entry's component is picked at run time)
+  entry?: true | 'unknown'
+  route?: string | null          // static, Vike: a +Page's route ('/orders/@id'), a +Layout's URL prefix
+  routeDynamic?: true            // static, Vike: a Route Function (route: null)
+  routes?: (string | null)[]     // static, Vike: every route of a component several +Page files export
+  app?: number                   // runtime: which run() the instance belongs to
+  shown?: false                  // runtime: a hidden Switchable page, or below one
+  actions: InspectAction[]
   stateKeys: string[]
   calculated: string[]
   contextProvides: string[]
-  contextConsumes?: string[] | null
+  contextConsumes?: string[] | null // static: what the view reads; runtime: what its latest render read
+  stateReads?: string[]          // static: the state keys the view (and calculated / context) reads
+  stateReadsPartial?: true       // static: stateReads may be incomplete (the state used whole)
   eventsEmitted: string[]
   eventsSelected: string[]
-  children: { name: string; via: 'tag' | 'collection' | 'switchable' | 'slot'; from?: string | null; count?: number }[]
-  selectors: { selector: string; events: string[] | null; matched: boolean | null; isolationHit: string | null }[]
+  children: InspectChild[]
+  childSelects?: InspectChildSelect[]                     // static
+  contextEntries?: (InspectLocation & { name: string })[] // static: the `context` static's entries
+  eventSites?: (InspectLocation & { type: string; role: 'emit' | 'select' })[] // static
+  selectors: InspectSelector[]
   diagnostics: InspectDiagnostic[]
+  // when there are any: controls, commands, timers, agent (static), resources (runtime)
+}
+
+type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'agent' | 'behavior' | 'unknown'
+
+interface InspectAction extends Partial<InspectLocation> {
+  name: string
+  trigger: InspectActionTrigger
+  sinks: string[]                // [] without a model entry
+  behavior?: string              // the `uses` key of the behavior that owns it
+  modelAt?: InspectLocation      // static: its model entry
+  writes?: string[] | null       // static, STATE actions: the top-level keys the reducer may write; null when unknown
+  removes?: true                 // static: a reducer may return undefined (removes a Collection item)
+}
+
+interface InspectChild extends Partial<InspectLocation> {
+  name: string
+  // 'layout' (static, Vike): a +Wrapper / +Layout rendering the next +Layout in, or a +Page
+  via: 'tag' | 'collection' | 'switchable' | 'slot' | 'layout'
+  from?: string | null           // Collection: the state field
+  count?: number                 // runtime: the live instances behind this entry
+  ids?: string[]                 // runtime: their ids
+  id?: string | null             // static: the rendered component's id (through the import); null when not in the graph
+  state?: string                 // static: a literal state lens (<Greeting state="host" />)
+  external?: string              // static: the package the tag comes from ('sygnal/ui')
+  widget?: true                  // static: a widget tag
+}
+
+// static: a CHILD.select(Child) in an intent, with the intent actions it feeds (the child's PARENT receivers)
+interface InspectChildSelect extends InspectLocation { child: string | null; id: string | null; actions: string[] }
+
+interface InspectSelector extends Partial<InspectLocation> {
+  selector: string
+  events: string[] | null
+  matched: boolean | null
+  isolationHit: string | null
+  control?: string               // the control it selects
+  behavior?: string              // the behavior that listens to it
+}
+
+interface InspectDiagnostic {
+  code: string
+  severity: 'error' | 'warn' | 'info'
+  component?: string
+  componentId?: string           // static: the id of its component
+  message: string
+  fix?: string
+  docsUrl?: string
+  timestamp?: number             // runtime: when it was reported
+  // static: file, line, column, endLine, endColumn, related, fixes
 }
 ```
 

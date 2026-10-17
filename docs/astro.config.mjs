@@ -123,6 +123,7 @@ export default defineConfig({
             { label: 'Drag and Drop', slug: 'guide/drag-and-drop' },
             { label: 'View Transitions', slug: 'guide/view-transitions' },
             { label: 'Diagnostics', slug: 'guide/diagnostics' },
+            { label: 'App Graph', slug: 'guide/app-graph' },
             { label: 'Strict Mode', slug: 'guide/strict-mode' },
             { label: 'Migrating to 6.0', slug: 'guide/migrating-to-6' },
           ],

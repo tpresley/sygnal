@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { checkFiles, graphFiles, validateSchema, CODES } from '../src/index.js'
 import { formatGraph } from '../src/graphText.js'
 import { createMcpServer } from '../src/mcp.js'
+import { legacyComponent } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../schema/inspect.schema.json'), 'utf8'))
@@ -434,7 +435,7 @@ describe('graph: agent declarations', () => {
     const files = write({ 'TodoApp.jsx': TODO_APP, 'TodoItem.jsx': TODO_ITEM })
     const g = graphFiles(files, { cwd: tmp })
     expect(validateSchema(schema, g)).toEqual([])
-    const app = g.components.find(c => c.name === 'TodoApp')
+    const app = legacyComponent(g.components.find(c => c.name === 'TodoApp'))
     expect(app.agent).toEqual({
       name: 'todos', tools: 'todos', description: 'The todo list', read: true,
       actions: [
@@ -452,7 +453,7 @@ describe('graph: agent declarations', () => {
     const files = write({ 'Counter.jsx': counter("Counter.agent = { actions: { ...more, SET: { description: 'Set' } } }", 'const more = {}') })
     const g = graphFiles(files, { cwd: tmp })
     expect(validateSchema(schema, g)).toEqual([])
-    expect(g.components[0].agent).toEqual({ name: null, tools: 'counter', description: null, read: false, actions: [{ name: 'SET', consequential: false, input: false }], partial: true })
+    expect(legacyComponent(g.components[0]).agent).toEqual({ name: null, tools: 'counter', description: null, read: false, actions: [{ name: 'SET', consequential: false, input: false }], partial: true })
   })
 
   it("the MCP server's graph tool returns them", () => {

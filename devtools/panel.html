@@ -13,7 +13,14 @@
       <input type="checkbox" id="debug-all">
       Debug All
     </label>
+    <button id="app-graph-btn" class="toolbar-btn" aria-pressed="false" title="The whole app as a graph: components ×N, live state, actions flash (needs sygnal/diagnostics)">App graph</button>
     <button id="refresh-btn" title="Refresh tree">&#x21bb;</button>
+  </div>
+
+  <!-- PLAN-10 P-1: the app graph (graph.html: sygnal-check's graph page, built by devtools/build.mjs) -->
+  <div class="app-graph" id="app-graph" hidden>
+    <div class="app-graph-notice" id="app-graph-notice" role="status"></div>
+    <iframe id="app-graph-frame" title="App graph"></iframe>
   </div>
 
   <div class="main">

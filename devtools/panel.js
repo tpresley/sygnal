@@ -126,6 +126,7 @@ class SygnalPanel {
     this.eventsView = new EventsMonitorView(this)
     this.commandsView = new CommandsView(this)
     this.actionsView = new ActionsView(this)
+    this.appGraph = new AppGraphView(this)
 
     this._initPort()
     this._initUI()
@@ -190,7 +191,11 @@ class SygnalPanel {
     // Refresh button
     document.getElementById('refresh-btn').addEventListener('click', () => {
       this._send('CONNECT', {})
+      this.appGraph.refresh()
     })
+
+    // PLAN-10 P-1: the App graph view
+    document.getElementById('app-graph-btn').addEventListener('click', () => this.appGraph.toggle())
 
     // Clear history/events/commands
     document.getElementById('clear-history-btn').addEventListener('click', () => {
@@ -254,6 +259,7 @@ class SygnalPanel {
   }
 
   _handleMessage(msg) {
+    this.appGraph.onMessage(msg)
     switch (msg.type) {
       case 'FULL_TREE':
         this._handleFullTree(msg.payload)
@@ -1847,6 +1853,131 @@ class ActionsView {
     } catch (e) {
       fallback()
     }
+  }
+}
+
+// ─── App Graph View (PLAN-10 P-1) ─────────────────────────────────────────────
+//
+// The whole app as sygnal-check's graph page (graph.html in an iframe, the same modules as
+// `sygnal-check --graph=html`), fed the page's runtime inspect() (GET_GRAPH → GRAPH). It refreshes
+// (debounced) while open when components are created or disposed and when actions run; ACTIONS
+// flash the instance's card without waiting for the refresh; the selected card's instance state is
+// fetched on demand (GET_STATE → COMPONENT_STATE) and STATE_CHANGED updates it.
+
+class AppGraphView {
+  constructor(panel) {
+    this.panel = panel
+    this.open = false
+    this.graph = null
+    this.api = null
+    this.timer = null
+    this.waiting = new Map() // instance id → [resolve]
+    this.flashed = new Set() // action seqs already flashed
+    this.DEBOUNCE_MS = 150
+    this.STATE_TIMEOUT_MS = 2000
+  }
+
+  get el() { return document.getElementById('app-graph') }
+  get frame() { return document.getElementById('app-graph-frame') }
+
+  toggle(on = !this.open) {
+    this.open = on
+    document.getElementById('app-graph-btn').setAttribute('aria-pressed', String(on))
+    this.el.hidden = !on
+    document.querySelector('.main').hidden = on
+    if (!on) return
+    const frame = this.frame
+    if (!frame.getAttribute('src')) {
+      frame.addEventListener('load', () => this.render())
+      frame.setAttribute('src', 'graph.html')
+    }
+    if (!this.graph) this.notice('Loading the app graph…')
+    this.refresh(0)
+  }
+
+  /** ask the page for a new graph (debounced) */
+  refresh(delay = this.DEBOUNCE_MS) {
+    if (!this.open) { this.graph = null; return } // stale: asked again when opened
+    clearTimeout(this.timer)
+    this.timer = setTimeout(() => { this.timer = null; this.panel._send('GET_GRAPH', { actions: 200 }) }, delay)
+  }
+
+  onMessage(msg) {
+    switch (msg.type) {
+      case 'GRAPH': return this.onGraph(msg.payload || {})
+      case 'COMPONENT_CREATED': case 'COMPONENT_DISPOSED': case 'TREE_UPDATED': case 'COLLECTION_MOUNTED': case 'FULL_TREE':
+        return this.refresh()
+      case 'ACTIONS': case 'ACTIONS_RESET':
+        this.onActions((msg.payload && msg.payload.actions) || [])
+        return this.refresh()
+      case 'COMPONENT_STATE': return this.onState(msg.payload || {}, true)
+      case 'STATE_CHANGED': case 'TIME_TRAVEL_APPLIED': return this.onState(msg.payload || {}, false)
+    }
+  }
+
+  onGraph({ graph, reason, message }) {
+    if (!graph) {
+      this.graph = null
+      this.notice(reason === 'no-diagnostics'
+        ? "The app graph needs sygnal/diagnostics on the page (sygnal/vite loads it in dev; diagnostics: 'off' turns it off)."
+        : `The page could not build the app graph${message ? ': ' + message : ''}.`)
+      return
+    }
+    this.graph = graph
+    this.render()
+  }
+
+  notice(text) {
+    document.getElementById('app-graph-notice').textContent = text
+    this.el.classList.add('notice')
+  }
+
+  /** the frame's bridge, once graph.html loaded */
+  bridge() {
+    try { return this.frame.contentWindow && this.frame.contentWindow.sygnalGraphFrame } catch (e) { return null }
+  }
+
+  render() {
+    if (!this.open || !this.graph) return
+    if (!this.graph.components || !this.graph.components.length) { this.notice('No live components on the page.'); return }
+    const bridge = this.bridge()
+    if (!bridge) return // render() runs again on the frame's load
+    this.el.classList.remove('notice')
+    this.api = bridge.show(this.graph, { title: 'App graph', subtitle: 'live · runtime inspect()' })
+    this.api.host = { getState: (id) => this.getState(id) }
+  }
+
+  getState(id) {
+    return new Promise(resolve => {
+      const key = String(id)
+      if (!this.waiting.has(key)) this.waiting.set(key, [])
+      this.waiting.get(key).push(resolve)
+      setTimeout(() => this.settle(key, undefined), this.STATE_TIMEOUT_MS)
+      this.panel._send('GET_STATE', { componentId: Number(id) })
+    })
+  }
+
+  settle(key, value) {
+    const list = this.waiting.get(key)
+    if (!list) return
+    this.waiting.delete(key)
+    for (const resolve of list) resolve(value)
+  }
+
+  onState({ componentId, state }, answer) {
+    if (componentId == null) return
+    const key = String(componentId)
+    if (answer && this.waiting.has(key)) { this.settle(key, state); return }
+    if (this.api) this.api.state(key, state)
+  }
+
+  onActions(actions) {
+    for (const a of actions) {
+      if (this.flashed.has(a.seq)) continue // an update of a known action (its sinks filled in)
+      this.flashed.add(a.seq)
+      if (this.api && this.open) this.api.action({ instance: a.instance, type: a.type })
+    }
+    if (this.flashed.size > 5000) this.flashed = new Set([...this.flashed].slice(-1000))
   }
 }
 

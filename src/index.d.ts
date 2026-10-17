@@ -1811,6 +1811,8 @@ export type {
   InspectRecentAction,
   InspectCommand,
   InspectTimer,
+  InspectLocation,
+  InspectChildSelect,
 } from './extra/diagnostics/checks/public'
 
 /**

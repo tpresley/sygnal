@@ -14,6 +14,8 @@ class View implements InstanceView {
   get state() { return this.i.cell.get() }
   get props() { return this.i.props }
   get context() { return this.i.context() }
+  /** D530: the context keys the last render's view read (null: none rendered, or no context) */
+  get reads() { return this.i.keys }
   get isRoot() { return !this.i.parent }
   get kind() { return this.i.kind }
   /** false on a hidden Switchable page and below it */

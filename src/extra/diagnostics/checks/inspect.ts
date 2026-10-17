@@ -17,6 +17,15 @@
  *   onRender    (PLAN-4 CT-1) the controls the instance renders: its own vtree, up to the
  *               isolated child components, through ./controls' vnode -> control map
  *   onDispose   prunes the instance
+ *   (PLAN-10 D522, read from the instance view at inspect() time, no core change) viewOnly (the
+ *               component function has no statics), entry (an app's root), app (which run() the
+ *               instance belongs to), shown: false (a hidden Switchable page and below), the
+ *               instance ids on children entries and in events[type].emitterIds / selectorIds.
+ *               D530: contextConsumes from InstanceView.reads (the keys the latest render read);
+ *               diagnostics keep their `timestamp`.
+ *               `key` (PLAN-10 P-2, D544): the static 'file#name' (D521) that sygnal/vite stamps on
+ *               the component function in dev (a non-enumerable `__sygnalKey`), when it is there;
+ *               the runtime itself has no source file
  *   (PLAN-4 2-C) the action log (./actionLog: actionHooks, a layer of checks/next.ts) feeds
  *               inspect({ actions }): the recent actions (the last RECENT_MAX, any instance)
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock
@@ -205,6 +214,8 @@ const slim = (d: any): InspectDiagnostic => {
   if (d.component) out.component = d.component
   if (d.fix) out.fix = d.fix
   if (d.docsUrl) out.docsUrl = d.docsUrl
+  // PLAN-10 P-1: when it was reported (runtime diagnostics are reported once per process)
+  if (typeof d.timestamp === 'number') out.timestamp = d.timestamp
   if (d.data !== undefined) {
     // keep it JSON-safe (data can hold errors, vnodes, ...)
     try { out.data = JSON.parse(JSON.stringify(d.data)) } catch (_) { /* drop */ }
@@ -316,10 +327,53 @@ function childrenOf(r: Rec, all: Rec[]): InspectChild[] {
     if (c.parentId !== r.id) continue
     const key = `${c.name}\u0000${via[c.kind]}`
     const entry = out.get(key)
-    if (entry) entry.count = (entry.count || 1) + 1
-    else out.set(key, {name: c.name, via: via[c.kind], count: 1})
+    if (entry) entry.count = entry.ids!.push(c.id)
+    else out.set(key, {name: c.name, via: via[c.kind], count: 1, ids: [c.id]})
   }
   return [...out.values()]
+}
+
+/** the statics sygnal-check reads (its STATIC_PROPS): a component function with none is view-only */
+const STATICS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent']
+
+/** PLAN-10 D522: no statics and nothing the core added (renderComponent's test intent, a behavior's model) */
+function isViewOnly(c: any): boolean {
+  const def = c && c.__next && c.__next.def
+  if (!def || def.intent || (def.handlers && def.handlers.size) || def.initialState !== undefined) return false
+  const fn = def.view
+  return !!fn && STATICS.every(k => fn[k] === undefined)
+}
+
+/** PLAN-10 P-2 (D544): the static key sygnal/vite's dev transform stamped on the component function */
+function stampedKey(c: any): string | undefined {
+  const fn = c && c.__next && c.__next.def && c.__next.def.view
+  const k = fn && fn.__sygnalKey
+  return typeof k === 'string' ? k : undefined
+}
+
+/** PLAN-10 D530: the context keys the instance's latest render read (InstanceView.reads); every key when it read them all */
+function contextReadsOf(c: any): string[] {
+  const v = c && c.__next
+  const reads: ReadonlySet<string> | null | undefined = v && v.reads
+  if (!reads) return []
+  const out = [...reads].filter(k => k !== '\u0000all')
+  if (reads.has('\u0000all')) { try { for (const k of Object.keys(v.context || {})) if (!out.includes(k)) out.push(k) } catch (_) { /* no context */ } }
+  return out
+}
+
+/** PLAN-10 D522: the app (run()) of each instance: the index of its root among the live roots, oldest first */
+function appsOf(all: Rec[]): Map<Rec, number> {
+  const byId = new Map(all.map(r => [r.id, r]))
+  const roots = all.filter(r => r.parentId === null).sort((a, b) => Number(a.id) - Number(b.id))
+  const index = new Map(roots.map((r, i) => [r, i]))
+  const out = new Map<Rec, number>()
+  for (const r of all) {
+    let top: Rec | undefined = r
+    for (let n = 0; top && top.parentId !== null && n < 10000; n++) top = byId.get(top.parentId)
+    const i = top && index.get(top)
+    if (i !== undefined) out.set(r, i)
+  }
+  return out
 }
 
 /** The app graph of the live component instances (see ./public.d.ts). */
@@ -340,22 +394,29 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
   const ids = options.ids && new Set(options.ids.map(String))
   const recs = ids ? all.filter(r => ids.has(r.id)) : all
   const names = new Set(recs.map(r => r.name))
+  const apps = appsOf(all)
 
   const components: InspectComponent[] = recs.map(r => {
     const c = r.instance
     const calculated = c && c.calculated && typeof c.calculated === 'object' ? Object.keys(c.calculated) : []
     const selectors = selectorsOf(r, options, diags)
     const controls = controlsOf(r, selectors)
+    const key = stampedKey(c)
     return {
       name: r.name,
       id: r.id,
+      ...(key ? {key} : {}),
       parentId: r.parentId,
       kind: r.kind,
+      ...(isViewOnly(c) ? {viewOnly: true as const} : {}),
+      ...(r.parentId === null ? {entry: true as const} : {}),
+      ...(apps.has(r) ? {app: apps.get(r)} : {}),
+      ...(c && c.__next && c.__next.shown === false ? {shown: false as const} : {}),
       actions: actionsOf(r),
       stateKeys: stateKeysOf(c, calculated),
       calculated,
       contextProvides: c && isPlainObject(c.context) ? Object.keys(c.context) : [],
-      contextConsumes: null,
+      contextConsumes: contextReadsOf(c),
       eventsEmitted: [...r.eventsEmitted],
       eventsSelected: [...r.eventsSelected],
       children: childrenOf(r, all),
@@ -368,11 +429,12 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
 
   const cache = cacheOf(recs) || {}
   const events: InspectGraph['events'] = {}
-  const ev = (type: string) => events[type] || (events[type] = {emitters: [], selectors: []})
+  // names once each (as before); PLAN-10 D522: every instance's id in emitterIds / selectorIds
+  const ev = (type: string) => events[type] || (events[type] = {emitters: [], selectors: [], emitterIds: [], selectorIds: []})
   const add = (list: string[], name: string) => { if (!list.includes(name)) list.push(name) }
   for (const c of components) {
-    for (const t of c.eventsEmitted) add(ev(t).emitters, c.name)
-    for (const t of c.eventsSelected) add(ev(t).selectors, c.name)
+    for (const t of c.eventsEmitted) { const e = ev(t); add(e.emitters, c.name); e.emitterIds!.push(c.id) }
+    for (const t of c.eventsSelected) { const e = ev(t); add(e.selectors, c.name); e.selectorIds!.push(c.id) }
   }
   // emitted on the bus by something that isn't a listed component (e.g. a driver, a pruned component)
   if (!ids) for (const t of busTypes) ev(t)

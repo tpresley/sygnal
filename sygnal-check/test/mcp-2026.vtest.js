@@ -70,7 +70,7 @@ describe('G-656: the SDK client over stdio', () => {
       expect(check.isError).toBe(false)
       expect(check.structuredContent.diagnostics.map(d => d.code)).toEqual(['SYG110', 'SYG110', 'SYG110'])
       const graph = await client.callTool({ name: 'graph', arguments: { paths: ['test/fixtures/good/todo-app.jsx'] } })
-      expect(graph.structuredContent.components.map(c => c.name)).toEqual(['TodoItem', 'Card', 'App'])
+      expect(graph.structuredContent.components.map(c => c.name)).toEqual(['TodoItem', 'Card', 'App', 'Home', 'About'])
       const explain = await client.callTool({ name: 'explain', arguments: { code: 'SYG104' } })
       expect(explain.structuredContent).toEqual(getExplanation('SYG104'))
       const bad = await client.callTool({ name: 'explain', arguments: { code: 'SYG199' } })

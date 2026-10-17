@@ -45,7 +45,7 @@ describe('G-464: Vike Layout with children on the server', () => {
     Wrapper.initialState = {}
     function Outer({ children }) { return h('div', { className: 'outer' }, h('header', null, 'h'), ...children) }
     Outer.initialState = {}
-    const html = onRenderHtml({ Page, data: { title: 'A' }, config: { Wrapper, Layout: [Outer, Layout] } }).documentHtml._escaped
+    const html = onRenderHtml({ Page, data: { title: 'A' }, config: { Wrapper, Layout: [Layout, Outer] } }).documentHtml._escaped
     expect(shellOf(html).querySelector('.wrapper > .outer > .layout > main > .page')?.textContent).toBe('page:A')
   })
 

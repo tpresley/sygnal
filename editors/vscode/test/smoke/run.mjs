@@ -12,12 +12,14 @@
 // Scenario "features" (0.2.0): the kanban example (its tests included) + the PoC fixture's C.jsx +
 //   Flow.jsx / Listener.jsx (an action triggered by next(), an EVENTS type across files), for
 //   completions, definition / references, code lens and rename (bundled sygnal-check).
+// Scenario "graph" (PLAN-10 E-2): sygnal-check's graph-shop fixture + a package.json depending on
+//   sygnal: "Sygnal: Show App Graph", following the editor, updates, links (bundled sygnal-check).
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { runTests } from '@vscode/test-electron'
-import { check } from '../../../../sygnal-check/src/index.js'
+import { check, graph } from '../../../../sygnal-check/src/index.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const ext = path.resolve(here, '../..')
@@ -147,7 +149,28 @@ function setupFeatures() {
   return ws
 }
 
-const scenarios = { bundled: setupBundled, workspace: setupWorkspace, features: setupFeatures }
+function setupGraph() {
+  const ws = path.join(work, 'graph')
+  fs.rmSync(ws, { recursive: true, force: true })
+  fs.cpSync(path.join(repo, 'sygnal-check/test/fixtures/graph-shop'), ws, { recursive: true })
+  write(path.join(ws, 'package.json'), json({ name: 'graph-shop', private: true, dependencies: { sygnal: '^6.5.0' } }))
+  return ws
+}
+
+/** What the graph scenario expects, from the CLI's graph of the fixture. */
+function expectedGraph() {
+  const ws = path.join(work, 'graph')
+  const g = graph(['.'], { cwd: ws })
+  const idLine = (c) => Number(c.id.split(':').pop())
+  const header = g.components.find(c => c.key === 'src/Header.jsx#Header')
+  return {
+    components: g.components.length,
+    cartLine: idLine(g.components.find(c => c.key === 'src/Cart.jsx#Cart')),
+    headerAction: { line: header.actions[0].line, column: header.actions[0].column },
+  }
+}
+
+const scenarios = { bundled: setupBundled, workspace: setupWorkspace, features: setupFeatures, graph: setupGraph }
 const only = process.argv[2]
 // On CI (a cold runner) VS Code sometimes hangs while starting ("CodeWindow: detected
 // unresponsive") before a test runs: each scenario gets one more try there, from a fresh setup
@@ -168,7 +191,7 @@ for (const [name, setup] of Object.entries(scenarios)) {
         vscodeExecutablePath,
         extensionDevelopmentPath: ext,
         extensionTestsPath: path.join(here, 'suite.cjs'),
-        extensionTestsEnv: { SCENARIO: name, RESULTS: results, EXPECTED_C: JSON.stringify(expectedC()) },
+        extensionTestsEnv: { SCENARIO: name, RESULTS: results, EXPECTED_C: JSON.stringify(expectedC()), ...(name === 'graph' ? { EXPECTED_GRAPH: JSON.stringify(expectedGraph()) } : {}) },
         launchArgs: [target, '--disable-extensions', '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust',
           '--user-data-dir', userData, '--extensions-dir', path.join(ext, '.vscode-test/extensions')],
       })

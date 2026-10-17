@@ -34,6 +34,7 @@ Sygnal's wiring mistakes fail silently at run time: an intent selector the view 
 
   Only names the checker resolved are highlighted, never a guess. The colors are theme colors you can change in `workbench.colorCustomizations`: `sygnal.highlight.action`, `.actionBackground`, `.event`, `.target`, `.targetBackground`, `.unverified`, `.missing` and `.child`. Turn the highlights off with `"sygnal.highlights": false`.
 - **Rename** (`F2`) of an action, an EVENTS type, a class or id, a state key or a context entry, everywhere it is wired: intent, model, `next()`, reply names, emitters and selects in other files. It refuses, with the reason, when it can't find every use (a built-in, a spread in the model, a name built at run time, the same string elsewhere in the code); VS Code then offers TypeScript's rename where it has one. Mentions in test files are a separate group that opens the refactor preview, so you confirm them.
+- **App graph** (`Sygnal: Show App Graph`, also in the editor's context menu and the `…` menu of a JS / TS editor): the page of `sygnal-check --graph=html` in a panel beside your code, one per project. Every component, what renders what, EVENTS, context and `PARENT` edges, and the project's findings grouped as a health list. It updates as you type (unsaved changes included), keeping the view and the selection; moving the cursor into a component selects it (a component counts from its first line to the next component in the file); the file links in the details open the file at that line. It uses your theme's colors and works offline: the page loads nothing and runs no app code. The panel's graph comes from the language server, so a project's own `sygnal-check` needs 0.10.0 or later for it (the bundled copy has it). See [The App Graph](https://sygnal.js.org/guide/app-graph/) for what the page shows.
 - **Snippets** for `.jsx` and `.tsx` files, in Sygnal's canonical forms:
 
   | Prefix | Inserts |
@@ -50,6 +51,7 @@ Sygnal's wiring mistakes fail silently at run time: an intent selector the view 
 | `Sygnal: Show Output` | The server's log. Clicking **Sygnal** in the status bar does the same |
 | `Sygnal: Explain Code…` | Pick any SYG code to read its explanation |
 | `Sygnal: Fix All in File` | Applies every auto-fixable Sygnal fix in the active file |
+| `Sygnal: Show App Graph` | Opens the app graph of the active file's project (or of the workspace folder) in a panel |
 
 ## Which sygnal-check it runs
 

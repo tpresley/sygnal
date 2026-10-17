@@ -16,6 +16,18 @@
  *                             is gone)
  *   uriToPath(uri) / pathToUri(path)   file: URIs ⇄ absolute paths (null for other schemes)
  *   ErrorCodes                          the JSON-RPC and LSP error codes the server answers with
+ *   Methods                             the server's own (non-LSP) methods (below)
+ *
+ * Sygnal's own methods (all under `sygnal/`; clients that don't know them never see them unless
+ * they ask):
+ *   sygnal/highlights        request  { textDocument: { uri } } → Token[] | null   (highlights.js)
+ *   sygnal/highlightsChanged notif.   { uri? }  server → client, when the client passed
+ *                                     `initializationOptions.highlightsChanged: true`
+ *   sygnal/graph             request  { root?: uri | path, uri?: uri, textDocument?: { uri } }
+ *                                     → { root: uri, version, graph: InspectGraph | null }
+ *                                     (PLAN-10 E-1; server.js "App graph")
+ *   sygnal/graphChanged      notif.   { root: uri, version }  server → client, after a check that
+ *                                     changed the graph of a root a sygnal/graph asked about
  */
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -28,6 +40,13 @@ export const ErrorCodes = Object.freeze({
   InternalError: -32603,
   ServerNotInitialized: -32002,
   RequestCancelled: -32800,
+})
+
+export const Methods = Object.freeze({
+  highlights: 'sygnal/highlights',
+  highlightsChanged: 'sygnal/highlightsChanged',
+  graph: 'sygnal/graph',
+  graphChanged: 'sygnal/graphChanged',
 })
 
 const SEP = Buffer.from('\r\n\r\n')

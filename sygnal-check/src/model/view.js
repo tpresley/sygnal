@@ -30,8 +30,12 @@ export function newSink() {
   return {
     classes: { names: new Set(), patterns: [] },
     ids: { names: new Set(), patterns: [] },
-    // child component usages rendered from this scope: { kind, name, ref, node, file, injected }
+    // child component usages rendered from this scope: { kind, name, ref, node, file, injected,
+    // state? (a literal `state` lens), external? (the package specifier of a tag imported from one) }
     children: [],
+    // PLAN-10 A-2: widget tags rendered from this scope (not children: their host renders here):
+    // [{ name, widget, node, file, external? }]
+    widgets: [],
     // <Collection>/<Switchable> usages (also listed in children)
     collections: [],
     // controls rendered in this scope: Map<Control, JSXOpeningElement[]> (PLAN-4 CT-1)
@@ -289,6 +293,7 @@ function handleElement(project, file, el, sink, visited) {
   // PLAN-5 W-1: a widget tag renders its host element here (opaque: no children of its own)
   const widget = !control && isComponentTag(name) && !TRANSPARENT.has(name) ? resolveWidgetJSX(project, file, opening) : null
   if (widget) {
+    sink.widgets.push({ name, widget, node: opening, file, external: packageOf(file, opening.name) })
     handleHtmlAttrs(project, file, opening, sink)
     if (widget.element) sink.elements.push({ node: el, file, tag: widget.element, widget })
     for (const a of opening.attributes) {
@@ -311,7 +316,12 @@ function handleElement(project, file, el, sink, visited) {
       const r = resolveExpr(project, file, jsxToExpr(opening.name))
       if (r && isFunction(r.node)) ref = { file: r.file, node: r.node }
     }
-    sink.children.push({ kind: 'tag', name, ref, node: opening, file, injected })
+    const usage = { kind: 'tag', name, ref, node: opening, file, injected }
+    const lens = stringValue(jsxAttrExpr(jsxAttr(opening, 'state')))
+    if (lens != null) usage.state = lens
+    const pkg = !ref && packageOf(file, opening.name)
+    if (pkg) usage.external = pkg
+    sink.children.push(usage)
     return
   }
 
@@ -327,6 +337,15 @@ function handleElement(project, file, el, sink, visited) {
     }
   }
   for (const c of el.children) visitInto(project, file, c, sink, visited)
+}
+
+/** PLAN-10 A-2: the package a tag's (root) identifier is imported from ('sygnal/ui'), or null. */
+function packageOf(file, nameNode) {
+  let n = nameNode
+  while (n?.type === 'JSXMemberExpression') n = n.object
+  if (n?.type !== 'JSXIdentifier') return null
+  const b = findBinding(file, n.name, n)
+  return b?.kind === 'import' && /^(?![./~]|@\/)/.test(b.source) ? b.source : null
 }
 
 // <NS.Comp> → NS.Comp member expression (namespace imports)

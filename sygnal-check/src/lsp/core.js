@@ -6,10 +6,10 @@
  * that project root (roots.js, G-666): the workspace folder itself only for its fallback root.
  *
  *   createCore() → {
- *     check({ folder, settings, sources }, { part?, wanted?, defer? })
+ *     check({ folder, settings, sources, graph? }, { part?, wanted?, defer? })
  *                                           → { files: [[absPath, LspDiagnostic[]]], texts, logs,
  *                                              substituted, components, index, completion, ms,
- *                                              paths, noFiles, outside }
+ *                                              paths, noFiles, outside, graph? }
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
@@ -42,6 +42,11 @@
  *
  * A crashed rule's SYG900 (no file) goes to `logs`, not into a document.
  *
+ * `graph` (PLAN-10 E-1): with `payload.graph` the result also has the app graph (InspectGraph,
+ * graph.js buildGraph) of the build, with every finding of the check (info included, before the
+ * editor's `verbose` filter): the same JSON `sygnal-check --graph --json` and live.js build() give
+ * for the root's files; null when the root has no source files. Without it, no graph is built.
+ *
  * `index` (PLAN-7 N-1/N-2): the occurrence index of the build (model/positions.js) for
  * definition / references, without the substituted files' occurrences. `index()` builds it alone
  * (the same files, last good substitution and cache, no rules) for a request on a document
@@ -70,23 +75,21 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { buildProject } from '../model/project.js'
 import { selectRules } from '../rules/index.js'
 import { runRules, sortDiagnostics } from '../run.js'
-import { resolveOptions } from '../config.js'
-import { expandInputs, toSourceMap, isSourceFile } from '../files.js'
+import { toSourceMap, isSourceFile } from '../files.js'
 import { ownedBy, inIgnoredDir, looksLikeSygnal } from './roots.js'
-import { createParseCache } from '../cache.js'
+import { createLiveProject } from '../live.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
 import { planRename } from '../model/rename.js'
+import { buildGraph } from '../graph.js'
 import { completionIndex } from './completionIndex.js'
 import { buildFlow, tapVerdicts } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
-const isParseError = (d) => d.code === 'SYG900' && /^could not parse file/.test(d.message)
 
 /** Open documents of `root` that look like Sygnal source and aren't among `files` (G-665). */
 function outsideOf(root, srcs, files, owned, includeTests) {
@@ -104,63 +107,37 @@ function outsideOf(root, srcs, files, owned, includeTests) {
 }
 
 export function createCore() {
-  const projects = new Map() // folder → { cache, lastGood: Map<absPath, cache entry> }
+  const projects = new Map() // folder → its live project (../live.js: the ParseCache and the last good parse of each file)
 
   const projectFor = (folder) => {
     let p = projects.get(folder)
-    if (!p) projects.set(folder, p = { cache: createParseCache(), lastGood: new Map() })
+    if (!p) projects.set(folder, p = createLiveProject({ root: folder }))
     return p
   }
 
   /**
    * The folder's files built with `sources` (the model: no rules), a file that doesn't parse now
    * replaced by its last good text (`substituted`, with `parseErrors`: the new texts' parse SYG900s,
-   * as runRules() makes them, without the ignored codes). null when the root has no source files.
-   * `info` (an object, optional) gets `paths` (relative to the root), `noFiles` and `outside`.
+   * as runRules() makes them, without the ignored codes): live.js prepare(). null when the root has
+   * no source files. `info` (an object, optional) gets `paths` (relative to the root), `noFiles` and
+   * `outside`.
    */
   function prepare({ folder, settings = {}, sources }, info) {
-    const p = projectFor(folder)
-    const { options, config } = resolveOptions({
-      cwd: folder, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
-    })
-    const srcs = toSourceMap(sources, folder)
     // G-666: a nested project root's files are its own, never this root's
     const owned = ownedBy(folder)
-    const files = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs }).files.filter(owned)
+    const prep = projectFor(folder).prepare({
+      settings: { strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths },
+      sources,
+      filter: owned,
+    })
+    const { options, srcs, files } = prep
     if (info) {
       info.paths = options.paths.map(x => path.relative(folder, path.resolve(folder, x)) || '.')
       info.noFiles = !files.length
       info.outside = outsideOf(folder, srcs, files, owned, options.includeTests)
     }
     if (!files.length) return null
-
-    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache: p.cache })
-    let project = buildWith(srcs)
-    // last good findings: files that don't parse now, but did before
-    const broken = new Set(project.parseErrors.map(e => e.file))
-    for (const f of project.files.values()) if (f?.ast?.errors?.length) broken.add(f.path)
-    const substituted = new Map()
-    for (const abs of broken) {
-      const good = p.lastGood.get(abs)
-      if (!good || good.text === (srcs.get(abs) ?? project.files.get(abs)?.source)) continue
-      substituted.set(abs, good.text)
-      p.cache.store(abs, good) // put the good parse back: the second build re-parses nothing
-    }
-    let parseErrors = []
-    if (substituted.size) {
-      // (runRules with no rules: only the parse errors' SYG900)
-      parseErrors = runRules(project, [])
-        .filter(d => !options.ignore?.includes(d.code) && isParseError(d) && substituted.has(path.resolve(folder, d.file)))
-      project = buildWith(new Map([...srcs, ...substituted]))
-    }
-    // remember each file's last text that parsed cleanly
-    const lastGood = new Map()
-    for (const f of project.files.values()) {
-      if (!f || f.ast?.errors?.length) continue
-      const entry = p.cache.get(f.path)
-      if (entry && !entry.error && entry.text === f.source) lastGood.set(f.path, entry)
-    }
-    p.lastGood = lastGood
+    const { project, parseErrors, config, substituted } = prep
     return { project, parseErrors, options, config, srcs, substituted }
   }
 
@@ -171,13 +148,14 @@ export function createCore() {
    */
   const indexOf = (project, substituted, verdicts) => ({ ...buildIndex(project, { exclude: new Set(substituted.keys()) }), flow: buildFlow(project, verdicts) })
 
-  function check({ folder, settings = {}, sources }, { part, wanted, defer } = {}) {
+  function check({ folder, settings = {}, sources, graph: wantGraph = false }, { part, wanted, defer } = {}) {
     const t0 = performance.now()
     const logs = []
     const info = {}
     const prep = prepare({ folder, settings, sources }, info)
     const seen = { paths: info.paths, noFiles: info.noFiles, outside: info.outside }
-    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0, ...seen }
+    const noGraph = wantGraph ? { graph: null } : {}
+    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0, ...seen, ...noGraph }
     const { project, options, config, srcs, substituted } = prep
     const substitutedList = [...substituted.keys()]
     const hasComponents = project.components.length > 0
@@ -213,13 +191,22 @@ export function createCore() {
     // the result: with the index unless it went as a part, with the completion index unless late
     const result = (res) => late ? { ...res, ...seen, late: true } : { ...res, ...seen, ...(part ? {} : { index }), completion: completionNow() }
 
-    if (!hasComponents) return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0 })
-    diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
-    if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
-    diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
-    // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
-    const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
-    if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
+    // every finding: the rules (those after SYG101 / SYG102), the new texts' parse errors, and the
+    // config file's findings, as check() adds them (withConfigDiagnostics in index.js)
+    const allDiags = () => {
+      diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
+      if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
+      diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
+      const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
+      if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
+    }
+    if (!hasComponents) {
+      // (the graph of a root without components: the same findings the CLI's graph has)
+      if (wantGraph) allDiags()
+      return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0, ...(wantGraph ? { graph: buildGraph(project, diags) } : {}) })
+    }
+    allDiags()
+    const graph = wantGraph ? { graph: buildGraph(project, diags) } : {}
 
     const byFile = new Map()
     const textOf = (abs) => {
@@ -245,7 +232,7 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return result({ files: out, texts: [...texts], logs, substituted: substitutedList, components: project.components.length, ms: performance.now() - t0 })
+    return result({ files: out, texts: [...texts], logs, substituted: substitutedList, components: project.components.length, ms: performance.now() - t0, ...graph })
   }
 
   /** The occurrence index of the folder as `sources` has it, without running the rules (navigation on a changed document). */

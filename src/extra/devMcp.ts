@@ -91,7 +91,7 @@ function appLayer(api: any) {
   }
 }
 
-function trackApps() {
+export function trackApps(): void {
   if (tracking) return
   tracking = true
   addLayer(appLayer)

@@ -405,10 +405,11 @@ describe('the plugin: dev only', () => {
     const build = configured({ check: false, mcp: true }, 'build')
     expect(transform(build, ENTRY, '/app/src/main.js')).toBeNull()
     expect(await build.resolveId.handler.call({}, 'virtual:sygnal/mcp', '/app/src/main.js', {})).toBeNull()
+    // (PLAN-10 W-2: the graph page is a middleware of its own, on by default: p10-vite-graph.test.js)
     const used = []
-    off.configureServer({ middlewares: { use: (f) => used.push(f) } })
+    configured({ check: false, graph: false }).configureServer({ middlewares: { use: (f) => used.push(f) } })
     expect(used).toEqual([])
-    const on = configured({ check: false, mcp: true })
+    const on = configured({ check: false, mcp: true, graph: false })
     on.configureServer({ middlewares: { use: (f) => used.push(f) }, ws: { on() {} }, config: { server: {} } })
     expect(used).toHaveLength(1)
   })

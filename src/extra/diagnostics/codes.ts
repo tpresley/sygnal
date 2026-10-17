@@ -152,6 +152,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG127: 'Behavior collision or unresolvable uses entry',
   SYG128: 'Duplicate control key',
   SYG129: "CHILD.select() of a component this one doesn't render",
+  // PLAN-10 X-1 (D512): graph-wide checks, static only (sygnal-check)
+  SYG170: 'Context field read with no provider',
+  SYG171: 'PARENT sink no parent reads',
   SYG112: 'Reply action has no model entry',
   SYG130: 'href() names no route or leaves out a param',
   SYG131: 'Route params the pattern does not use',
@@ -427,6 +430,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG128: 'error',
   // PLAN-4 4-G2: static only (sygnal-check); listed so the entry knows its title
   SYG129: 'warn',
+  // PLAN-10 X-1: static only (sygnal-check)
+  SYG170: 'warn',
+  SYG171: 'warn',
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)
   SYG222: 'warn',

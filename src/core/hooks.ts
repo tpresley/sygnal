@@ -100,6 +100,12 @@ export interface InstanceView {
   readonly state: any
   readonly props: Record<string, any>
   readonly context: Record<string, any>
+  /**
+   * PLAN-10 D530: the context keys the latest render's view read (the D168 read tracking), or null
+   * (no render yet, or no context). Holds '\u0000all' when the view read every key (a spread,
+   * Object.keys). Live: read it, don't keep it
+   */
+  readonly reads: ReadonlySet<string> | null
   readonly isRoot: boolean
   /** 'item' (Collection), 'page' (Switchable), 'child' (tag), 'root' */
   readonly kind: 'root' | 'child' | 'item' | 'page'

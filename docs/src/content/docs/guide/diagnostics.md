@@ -120,6 +120,8 @@ The lines go on an existing line, so line numbers and source maps stay correct. 
 
 When `sygnal-check` is installed (`npm install -D sygnal-check`), the plugin also runs it when the dev server starts and after every source change. Findings go to the terminal and the browser console. Error-severity findings also open Vite's error overlay.
 
+The dev server also serves the [app graph](/guide/app-graph/#in-the-vite-dev-server) at `/__sygnal/graph`, rebuilt from the same check after every change (`graph: false` turns it off).
+
 The plugin's `diagnostics` option sets the mode, strict mode and the ignore list for the dev server:
 
 ```javascript
@@ -172,6 +174,8 @@ It is also available as:
 - `t.inspect()` on a [`renderComponent()`](/integration/testing/#inspect) result;
 - `sygnal-check --graph --json`, which builds the same shape statically from source.
 
+To look at the graph rather than read it, open [the app graph page](/guide/app-graph/): the DevTools extension's **App graph** draws this runtime graph, and the Vite dev server's `/__sygnal/graph` page draws the static graph with the running app's data on it.
+
 `inspect({ actions: true })` adds `recentActions`, the last 200 actions with their component, cause and sinks (`{ actions: 20 }` keeps the last 20), in the shape of renderComponent's [`t.actions`](/integration/testing/#action-log-tactions-and-texplain).
 
 The graph is built from what the dev checks have seen, so `sygnal/diagnostics` must be loaded and diagnostics on. Its type is `InspectGraph`, exported from `sygnal` and `sygnal/diagnostics`. The JSON Schema ships with `sygnal-check` (`sygnal-check/schema/inspect.schema.json`).
@@ -192,15 +196,19 @@ npm install -D sygnal-check
 npx --no-install sygnal-check            # checks ./src (or pass paths: pages, renderer, ...)
 npx --no-install sygnal-check --strict   # plus the canonical-form rules
 npx --no-install sygnal-check --a11y=error   # accessibility findings (SYG7xx) as errors; warnings otherwise, also with --strict
-npx --no-install sygnal-check --graph    # the app graph
+npx --no-install sygnal-check --graph    # the app graph as text (--json: as JSON)
+npx --no-install sygnal-check --graph=html   # the app graph as an interactive page
 npx --no-install sygnal-check explain SYG104
 ```
 
-It exits with code 1 when it finds a warning or error, so it works as a CI step. See [Building with AI Agents](/integration/agents/#sygnal-check) for the full command list and the MCP server.
+It exits with code 1 when it finds a warning or error, so it works as a CI step (`--graph` exits 0: the findings are part of the graph). See [Building with AI Agents](/integration/agents/#sygnal-check) for the full command list and the MCP server.
+
+`--graph` takes a format: `text` (the default), `json` (the same as `--graph --json`), `html` (a page you can explore, also live with `--watch`) and `mermaid` (a flowchart for a README or a pull request). With `--base <ref>` it compares the graph with a git branch or commit. See [The App Graph](/guide/app-graph/).
 
 ## Related
 
 - [Error Reference](/reference/errors/): every code, its cause and its fix
+- [The App Graph](/guide/app-graph/): the graph as an interactive page
 - [Strict Mode](/guide/strict-mode/): canonical-form rules
 - [Accessibility](/guide/accessibility/): the SYG7xx checks
 - [Error Boundaries](/advanced/error-boundaries/#app-level-error-hook): reporting errors to your own tracker with `run(…, { onError })`

@@ -1,0 +1,39 @@
+/* The diff on the page (PLAN-10 V-6, `--base <ref>`; diff.js): added green, removed a faded red dashed
+   ghost card, changed an amber marker. Text stays --ink / --muted; the colours mark borders, edges
+   and the corner sign (with the words in aria-labels and the sidebar's screen-reader text). */
+.node.diff-added .box { stroke: var(--ok); stroke-width: 2; }
+.node.diff-changed .box { stroke: var(--warn); stroke-width: 1.5; }
+.node.diff-removed { opacity: .5; }
+.node.diff-removed .box { fill: transparent; stroke: var(--err); stroke-dasharray: 6 4; stroke-width: 1.5; filter: none; }
+.node.diff-removed .name { text-decoration: line-through; }
+.node.diff-removed.sel, .node.diff-removed:focus-visible, .node.diff-removed.hl { opacity: .85; }
+.node.sel.diff-added .box, .node.sel.diff-changed .box, .node.sel.diff-removed .box { stroke: var(--accent); }
+.node .dmark circle { stroke: var(--card); stroke-width: 2; }
+.node .dmark text { font-size: 11px; font-weight: 800; fill: var(--on-kind); }
+.node .dmark.d-added circle { fill: var(--ok); }
+.node .dmark.d-removed circle { fill: var(--err); }
+.node .dmark.d-changed circle { fill: var(--warn); }
+.node.group .dmark rect { fill: var(--warn); }
+.edge.diff-added { stroke: var(--ok); stroke-width: 2.2; opacity: .9; }
+.edge.diff-removed { stroke: var(--err); stroke-dasharray: 6 4; stroke-width: 1.8; opacity: .55; }
+.elabel.diff-removed { text-decoration: line-through; }
+
+#diffsec .diff-head { color: var(--muted); margin-bottom: 6px; }
+.diff-counts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.diff-counts .dc { background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; color: var(--muted); font-size: 11.5px; border-left-width: 3px; }
+.diff-counts .dc b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.dc.d-added { border-left-color: var(--ok); } .dc.d-removed { border-left-color: var(--err); } .dc.d-changed { border-left-color: var(--warn); }
+.diff-list { max-height: 260px; overflow: auto; }
+.diff-item { display: flex; gap: 8px; padding: 5px 8px; border-radius: 7px; cursor: pointer; align-items: flex-start; width: 100%; border: 0; background: none; text-align: left; }
+.diff-item:hover { background: var(--chip); }
+.diff-item .dsign { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 800; color: var(--on-kind); flex: none; margin-top: 1px; }
+.diff-item.d-added .dsign { background: var(--ok); } .diff-item.d-removed .dsign { background: var(--err); } .diff-item.d-changed .dsign { background: var(--warn); }
+.diff-item .t { flex: 1; min-width: 0; }
+.diff-item .t small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diff-item.d-removed .t { text-decoration: line-through; text-decoration-color: var(--muted); }
+.diff-item.d-removed .t small { text-decoration: none; }
+.chip.d-added { border-left: 3px solid var(--ok); } .chip.d-removed { border-left: 3px solid var(--err); text-decoration: line-through; }
+.diff-sec.d-added { box-shadow: inset 3px 0 var(--ok); } .diff-sec.d-removed { box-shadow: inset 3px 0 var(--err); } .diff-sec.d-changed { box-shadow: inset 3px 0 var(--warn); }
+.tree-item.diff-added::after, .tree-item.diff-removed::after, .tree-item.diff-changed::after { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: none; margin-left: 4px; }
+.tree-item.diff-added::after { background: var(--ok); } .tree-item.diff-removed::after { background: var(--err); } .tree-item.diff-changed::after { background: var(--warn); }
+.tree-item.diff-removed { text-decoration: line-through; color: var(--muted); }

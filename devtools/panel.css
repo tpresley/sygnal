@@ -60,6 +60,60 @@ html, body {
   background: #e8e8e8;
 }
 
+.toolbar-btn {
+  background: none;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 2px 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #555;
+}
+
+.toolbar-btn:hover {
+  background: #e8e8e8;
+}
+
+.toolbar-btn[aria-pressed="true"] {
+  background: #e3ecfa;
+  border-color: #7aa2e3;
+  color: #1a56b8;
+}
+
+/* ─── App graph (PLAN-10 P-1) ──────────────────────────────────────────── */
+
+.app-graph {
+  position: relative;
+  height: calc(100% - 32px);
+}
+
+.app-graph[hidden], .main[hidden] {
+  display: none;
+}
+
+.app-graph iframe {
+  border: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.app-graph-notice {
+  display: none;
+  padding: 16px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.app-graph.notice .app-graph-notice {
+  display: block;
+}
+
+.app-graph.notice iframe {
+  display: none;
+}
+
 /* ─── Main Layout ──────────────────────────────────────────────────────── */
 
 .main {

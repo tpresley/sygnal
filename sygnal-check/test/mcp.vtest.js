@@ -78,7 +78,7 @@ describe('sygnal-check mcp (stdio)', () => {
     const graph = await s.request('tools/call', { name: 'graph', arguments: { paths: ['test/fixtures/good/todo-app.jsx'] } })
     expect(graph.result.isError).toBe(false)
     expect(validateSchema(schema, graph.result.structuredContent)).toEqual([])
-    expect(graph.result.structuredContent.components.map(c => c.name)).toEqual(['TodoItem', 'Card', 'App'])
+    expect(graph.result.structuredContent.components.map(c => c.name)).toEqual(['TodoItem', 'Card', 'App', 'Home', 'About'])
     expect(graph.result.content[0].type).toBe('text')
 
     const explain = await s.request('tools/call', { name: 'explain', arguments: { code: 'syg104' } })

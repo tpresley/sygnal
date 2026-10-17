@@ -2,11 +2,29 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## 6.6.0 — 2026-10-16
+
+The app graph as an interactive page: `sygnal-check --graph=html`, live with `--watch` or at `/__sygnal/graph` in the Vite dev server, in a VS Code panel and in Sygnal DevTools. See [The App Graph](https://sygnal.js.org/guide/app-graph/).
+
+**Measured impact.** Size: the kanban gate stays flat, (a) 42,495 B with `nativeGlobalThis: false` (6.5.0: 42,496 B; budget 42,700 B): the runtime `contextConsumes` getter costs 9 B in the core, and nothing else in this release reaches an app bundle (the graph page, the Vite route, the dev stamps and the DevTools bridge are dev-only; a `vite build` contains none of them). The perf count gate is within its limits.
+
+**Companion packages.**
+- **`sygnal-check` 0.10.0:** `--graph=html` writes the graph as one self-contained page (no network, runs no app code) and opens it: cards for every component, render / Collection / Switchable / Vike layout edges, EVENTS, context and `PARENT` overlays, a health list, a detail panel with line links into the editor (`--editor`), traces of events, context fields, actions and state keys, search, filters, an EVENTS table, SVG / JSON / Mermaid export, and directory groups folded above 150 components. `--graph=html --watch` serves it on 127.0.0.1 behind a token and updates it on every save (`--poll`, `--port`). `--graph=mermaid` prints a flowchart (`--events=false`). `--out`, `--open` / `--no-open`. `--graph[=<format>] --base <ref>` compares the graph with a git ref without a checkout (`--graph --json --base` prints the diff for CI). The graph gains `key`, `entry`, `viewOnly`, Vike `route`s and layout edges, child `id` / `external` / `widget` / `state`, `childSelects`, `emitterIds` / `selectorIds`, `writes` / `removes` on actions, `stateReads`, and source lines on actions, selectors, children, context entries and EVENTS sites, in `--graph --json`, the MCP `graph` tool and the language server's new `sygnal/graph` request. New rules **SYG170** (a context field no provider above gives) and **SYG171** (`PARENT` that no parent selects). Its caret range doesn't reach 0.10.0 from `^0.9.0`, so update the dev dependency; `sygnal/vite`'s graph route needs 0.10.0 or later.
+- **`create-sygnal-app` 2.8.0:** every template depends on `sygnal` ^6.6.0 and `sygnal-check` ^0.10.0.
+- **VS Code extension 0.7.0:** **Sygnal: Show App Graph**, the page in a panel that updates as you type; bundles `sygnal-check` 0.10.0.
+- **Claude Code plugin 0.1.5:** the `sygnal-dev` skill mentions the graph page and `--graph --json`.
+
+### Added
+
+- **The app graph in the Vite dev server.** `sygnal/vite` serves the live graph page at `/__sygnal/graph` (local requests only) when `sygnal-check` 0.10.0 or later is installed, and prints its address. In dev it also stamps each component function with its static key (a non-enumerable `__sygnalKey`, reported by `inspect()` as `key`), so the page's **Live data** shows which components are mounted, their instance counts, a flash when an action runs and each instance's state, from the app tabs of the same origin. New option `graph` (default `true`); `graph: false` turns off the route, the stamps and the bridge. `vite build`, `vite preview` and Vitest get none of it.
+- **`installGraphBridge()`** in `sygnal/devtools`: connects the page's apps to the graph page's live data over a same-origin `BroadcastChannel` (`sygnal:graph`). The Vite plugin calls it in dev.
+- **App graph in the DevTools panel.** An **App graph** button draws the running app's `inspect()` graph with the same page: a card per component under each parent (`×N` for several instances), each app as its own group, action flashes and instance state.
+- **More in the runtime `inspect()`** (the `sygnal/diagnostics` dev entry): `key`, `entry`, `viewOnly`, `app`, `shown`, `children[].ids`, `events[type].emitterIds` / `selectorIds`, the time of each diagnostic (`timestamp`), and `contextConsumes`: the context fields the component's latest render read (a read-only getter in the core, 9 B gzip). The `InspectGraph` type gains these and the static graph's new fields, all optional.
 
 ### Fixed
 
 - **A Transition's leave, or a Portal mounted late, under jsdom.** The DOM "poke" that re-emits the app's DOM source after such a change created its event with the global `Event`. jsdom refuses an event from another realm, so a jsdom test whose environment was torn down while a leave transition's timer was pending failed with "parameter 1 is not of type 'Event'" (the 6.5.0 release's CI run did once). It now creates the event from the element's own window. Browsers were not affected.
+- **Nested Vike Layouts and Wrappers (`sygnal/vike`).** Vike lists a cumulative config's values closest to the page first, so a page under `pages/admin/` gets `[adminLayout, rootLayout]`. `sygnal/vike` treated the first as the outermost, so the admin Layout rendered outside the root Layout, on the server and on hydration. Client-side navigation also kept the first page's Layouts and Wrappers, so going from `/` to `/admin` never added the admin Layout (nor did going back remove it), and navigating from a page with no Layout to one with a Layout swapped the Page into the old app. Now the root's Layout is outermost and every Wrapper is outside every Layout, as in `vike-react`. Navigation keeps mounted, with their state, the Layouts and Wrappers that two pages share (from the outside in), adds the new page's others and removes the ones it lacks. A page with one Layout and one Wrapper renders and hydrates as before. The Vike example has an `/admin` page with a nested Layout.
 
 ## 6.5.0 — 2026-10-14
 

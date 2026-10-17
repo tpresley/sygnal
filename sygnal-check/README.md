@@ -7,6 +7,7 @@ npx sygnal-check                 # checks ./src
 npx sygnal-check src/components  # files, directories or globs
 npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
+npx sygnal-check --graph=html    # the app graph as an interactive page (--watch: live)
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
 npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
 npx sygnal-check lsp             # language server (stdio) for editors
@@ -38,7 +39,15 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
-| `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
+| `--graph[=<format>]` | Print the [app graph](#app-graph---graph) instead of the findings list. Formats: `text` (the default), `json` (the same as `--graph --json`), `html` (an [interactive page](#the-graph-page---graphhtml)) and `mermaid` (a [flowchart](#mermaid---graphmermaid)). Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix`; `--json` with `html` or `mermaid` exits 2 |
+| `--out <file>` | With `--graph` (any format): write the output to this file. For `html`, the page isn't opened unless `--open` is given |
+| `--open`, `--no-open` | With `--graph=html`: open the page in the default browser, or don't. It never opens when `CI` is set or stdout is not a terminal |
+| `--editor <name>` | With `--graph=html`: where the page's file links open by default: `vscode` (the default), `cursor`, `windsurf`, `idea` or `none` |
+| `--watch` | With `--graph=html`: serve the page live and update it on every save (see [Live](#live---watch)). Not with `--out` or `--base` |
+| `--poll[=<ms>]` | With `--watch`: look for changes every `<ms>` milliseconds (20 to 60000, default 200) instead of file-system events |
+| `--port <n>` | With `--watch`: listen on this port (default: a free one) |
+| `--events=false` | With `--graph=mermaid`: leave out the EVENTS edges |
+| `--base <ref>` | With `--graph` (any format): compare the app graph with a git ref (branch, tag or commit), read with git, no checkout. See [Comparing with a git ref](#comparing-with-a-git-ref---base) |
 | `--config <file>` | Read this JSON [config file](#configuration) instead of looking for `sygnal-check.config.json` / the `package.json` key (also `--config=<file>`; a missing file exits 2) |
 | `--no-config` | Ignore config files: flags and defaults only |
 
@@ -116,6 +125,8 @@ The codes are the same as Sygnal's runtime diagnostics (`https://sygnal.js.org/r
 | SYG643 | warn | A component declares `timers`, `connections` or `resources`, and the app's `run(App, drivers)` call renders it but registers no `makeTimerDriver()`, `makeSocketDriver()` or `makeFetchDriver()`. Only when the `run()` call is in the scanned files and its drivers are an object literal the checker can list (a driver from a package, a spread or a local driver that may wrap one makes it say nothing). |
 | SYG609 | warn | A model entry sends to a sink (`HTTP`, `WS`, any name the core doesn't handle) of a component that the app's `run(App, drivers)` call renders, and that call registers no driver under that name, so every value sent there is dropped (`renderComponent()` fakes the sink, so tests pass). Only when the `run()` call is in the scanned files and its drivers are an object literal (or absent); `STATE`, `EFFECT`, `EVENTS`, `PARENT`, `READY`, `DOM`, `CHILD`, `ELEMENT`, `PERSIST` and `LOG` need no driver. |
 | SYG129 | warn | `CHILD.select(TaskRow)` in a component whose view doesn't render `TaskRow`, while a component it renders does (a grandchild, e.g. a Collection item inside a child): `PARENT` reaches only the direct parent, so it never fires. The message names the chain and the fix relays the value through the component in between. Quiet when the view renders it itself, mentions it some other way, or has a Collection/Switchable target the checker can't resolve. |
+| SYG170 | warn | A component reads `context.x` (view or reducer) that neither it nor any component above it has in its `.context`, so it is `undefined`. Reported only when every way up ends at a `run()` / `defineElement()` entry; quiet for a root nothing scanned starts, a Vike page, JSX passed into another component, or a `.context` it can't read. Names the chain and a near-miss field. |
+| SYG171 | warn | A component's model sends to `PARENT`, but none of the components that render it reads `CHILD.select(It)`, so the value goes nowhere. Quiet when no scanned component renders it (catalog parts, `defineElement()` elements), when it is passed into another component, when any intent selects it (SYG129 for the wrong level), or when a parent's intent can't be read fully (`uses`, a sources rest pattern, `CHILD` passed to a helper). |
 | SYG405 | error | A component with an `initialState` (and no `isolatedState = true`) that a view renders, reported at the `initialState`: it would replace the state its parent passes in, and the runtime throws for a tag (`<Stopwatch state="stopwatch" />` or `<Stopwatch />`). A **warning** when it is a Collection item or Switchable target (the runtime warns). |
 | SYG401 | warn | `<Collection from="x">` where `x` isn't a key of the component's `initialState` (or `calculated`), or its initial value is a literal that isn't an array. This is only checked when `initialState` is statically known. |
 | SYG150 | warn | An `agent.actions` key (`sygnal/ai`) with no model entry and no behavior action of that name: every agent call dispatches an action nothing handles. Suggests the closest model entry. Only literal declarations and models (no spreads). |
@@ -203,7 +214,7 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
   "components": [{
     "name": "RootComponent", "id": "src/RootComponent.jsx:12", "parentId": null,
     "file": "src/RootComponent.jsx", "kind": "root",
-    "actions": [{ "name": "ADD_LANE", "trigger": "intent", "sinks": ["STATE"] }],
+    "actions": [{ "name": "ADD_LANE", "trigger": "intent", "sinks": ["STATE"], "writes": ["nextId", "lanes"] }],
     "stateKeys": ["lanes", "dragging", "draggingLane", "nextId"], "calculated": [],
     "contextProvides": ["draggingTaskId", "draggingLaneId"], "contextConsumes": [],
     "eventsEmitted": [], "eventsSelected": ["DELETE_LANE"],
@@ -222,6 +233,8 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `kind` | `root` when no scanned component renders it, else how it's first rendered | how the instance was created (`child` = by tag) |
 | `actions[].trigger` | `intent`, `builtin` (BOOTSTRAP/INITIALIZE/DISPOSE/READY), `reply` (an `ok`/`error` literal in a request, a `connections` name or a timer action), `next` (a `next('X')` literal), `agent` (only an `agent` declaration's action), else `unknown` | the same; `reply` = named by a request the instance was seen sending; `next` = a model-only action whose STATE reducer was seen running. The core adds `INITIALIZE` to every model |
 | `stateKeys` | `initialState` keys | current state keys |
+| `actions[].writes` | on actions with a STATE sink: the top-level state keys the reducer may write (`({ ...state, cart })`, `set({ a })`, `toggle('a')`, a behavior's slice); `[]` when it never changes the state; `null` when unknown (a dynamic key, another spread, a call it can't follow). `removes: true`: it may return `undefined` (removes a Collection item) | not produced |
+| `stateReads` | the top-level state keys the view reads literally (`state.x`, `{ state: { x } }`, through local helpers given the state), the literal lenses it gives children (`state="user"`, `from="items"`), and its calculated / context functions' reads; `stateReadsPartial: true` when the list may be incomplete (omitted when empty / complete) | not produced |
 | `contextConsumes` | context fields the view reads | `null` |
 | `children[].via` | `tag`, `collection` (with `from`), `switchable`, `slot` (passed into a child as children/slots) | `tag`, `collection`, `switchable`, plus `count` |
 | `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors); `control` names a control selector (`selector` is then `[data-control="Add"]`) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |
@@ -233,7 +246,68 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `recentActions` | — | with `inspect({ actions })`: the latest actions, `{ type, data, component, instance, sinks, cause, at }` |
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
 
+| `key` | `file#name` (a second component of the same name in a file: `file#name#2`), stable when lines move | the same key when `sygnal/vite`'s dev server stamped the component function, else absent |
+| `entry` | `true` on the components `run()`, `defineElement()` or a Vike `+Page` / `+Layout` / `+Wrapper` starts; `'unknown'` on the other roots when an entry call's component can't be resolved | `true` on an app's root instance |
+| `viewOnly` | `true` on a component rendered as a tag (or started as an entry) that has no statics | the same |
+| `route` / `routes` / `routeDynamic` | Vike: a `+Page`'s route (a `+Layout`'s / `+Wrapper`'s URL prefix); `routes` when several `+Page` files export one component; `routeDynamic` for a Route Function (`route: null`) | not produced |
+| `children[].id` / `.ids` | `id`: the rendered component's id, resolved through the import (`null` when it isn't in the graph); also `state` (a literal lens), `external` (the package of the tag) and `widget`; `via: 'layout'` for Vike's layout → page edges | `ids`: the live instances' ids |
+| `childSelects` | each `CHILD.select(Child)` in the intent: `{ child, id, actions, line, column }` (`actions`: the intent actions it feeds, the receivers of the child's `PARENT` sink) | not produced |
+| `events[type].emitterIds` / `.selectorIds` | every emitting / selecting component's id (independent of the names, which are listed once each) | every instance's id |
+| locations | `line` / `column` (and `file` when it isn't the component's) on actions (`modelAt`: the model entry), selectors, children, controls, commands, timers, agent actions, `contextEntries` and `eventSites`; diagnostics have `componentId` | not produced; runtime diagnostics have a `timestamp` |
+| `app` / `shown` | not produced | the instance's `run()` (its root's index among the live roots); `shown: false` on a hidden Switchable page and below it |
+
 Without `--json`, `--graph` prints a compact per-component summary.
+
+### The graph page (`--graph=html`)
+
+`--graph=html` writes the graph as one self-contained HTML page, `<os temp dir>/sygnal-graph-<project>.html` (`<project>` from the nearest `package.json` `name`), prints the path and opens it in the default browser. `--out <file>` writes it elsewhere and doesn't open it unless `--open` is given; nothing opens when `CI` is set or stdout isn't a terminal. The page shows the components as cards with what renders what (tag, Collection, Switchable, Vike layout), EVENTS, context and `PARENT` overlays, a health list (the findings grouped by code, plus the checks only the whole graph shows), a detail panel with line links into your editor (`--editor`), a trace of any event, context field, action or state key, search, filters, an EVENTS table, and SVG / JSON / Mermaid export. Large apps are grouped by directory and folded above 150 components.
+
+The page loads nothing and connects nowhere (its CSP is `default-src 'none'` with inline style and script), works offline and from `file://`, and runs none of your code. It contains the graph and the project's absolute path (for editor links). The docs page [The App Graph](https://sygnal.js.org/guide/app-graph/) describes it in full.
+
+### Live (`--watch`)
+
+`--graph=html --watch` serves the page on `127.0.0.1` (a random port unless `--port`; a random token in the URL; the `Host` header checked), prints the URL, opens it once, and sends the page a new graph (server-sent events) after every saved change to a scanned file, a file they import or the config file. The page keeps its view, selection and trace, and marks what changed. `--poll` checks for changes on a timer instead of file-system events. Ctrl-C stops it. `sygnal/vite` serves the same live page in its dev server at `/__sygnal/graph`.
+
+### Mermaid (`--graph=mermaid`)
+
+`--graph=mermaid` prints a `flowchart TD`: render edges solid (Collections labelled `[from]`, Switchables `switch`), EVENTS edges dotted (`--events=false` leaves them out). GitHub renders it in a README or a pull request description inside a `mermaid` code fence. The page's Copy as Mermaid gives the same text.
+
+### Comparing with a git ref (`--base`)
+
+`--graph --base <ref>` compares the app graph of the working tree with the one at `<ref>` (`main`, `HEAD~1`, a tag or a commit). The base graph is built from the commit's files through git (`git ls-tree`, `git cat-file --batch`): nothing is checked out and the working tree is not touched. The same paths are scanned on both sides, test files are left out unless configured, and the base reads the config file as it is at the ref (flags still win). Components are matched by their `key` (`file#name`), so an edit that only moves a component down the file is not a change, and a renamed or moved file shows as a removal plus an addition.
+
+```
+$ sygnal-check --graph --base main
+app graph: main (3f2a9c1e07) → working tree
++ New  src/New.jsx
+- Old  src/Old.jsx
+~ Header: +action CLOSE, +action OPEN, -action TOGGLE  src/Header.jsx
+~ Item: +emits REMOVED, -emits SAVED  src/Item.jsx
+EVENTS: +REMOVED
+1 added, 1 removed, 2 changed
+```
+
+`--graph --json --base <ref>` prints the diff (for a CI comment), not the graph:
+
+```json
+{
+  "base": "main",
+  "head": "working tree",
+  "commit": "3f2a9c1e07…",
+  "added": ["src/New.jsx#New"],
+  "removed": ["src/Old.jsx#Old"],
+  "changed": [
+    { "key": "src/Header.jsx#Header", "fields": { "actions": { "added": ["CLOSE", "OPEN"], "removed": ["TOGGLE"] } } }
+  ],
+  "events": { "added": ["REMOVED"], "removed": [] }
+}
+```
+
+`added` and `removed` are component keys, sorted. A changed component lists only the fields that changed. List fields are `{ added, removed }` of strings: `actions` (names), `sinks` (`ACTION:SINK`, for actions on both sides), `stateKeys`, `calculated`, `stateReads`, `contextProvides`, `contextConsumes`, `eventsEmitted`, `eventsSelected`, `selectors` (the selector, or `control Name`), `children` (the child's key, else its name; `package:Name` for a package component; ` (collection)`, ` (switchable)`, ` (slot)` or ` (layout)` after it when it isn't a plain tag) and `diagnostics` (`CODE message`, without the line). The scalar fields `kind`, `entry` and `route` are `{ base, head }`. `events` compares the EVENTS types.
+
+`--graph=mermaid --base <ref>` draws the working tree's graph plus the removed components, with the classes `added`, `removed` and `changed` and a `linkStyle` for the added and removed edges. `--graph=html --base <ref>` opens the page with the changes drawn on it: added components and edges in green, removed ones as faded red dashed cards in their old place, changed ones with an amber mark (a folded group shows how many of its components changed), a Changes list in the sidebar, what changed in the selected component's panel, and a "Changes only" filter.
+
+`--base` exits 2 when the directory isn't in a git repository, the ref doesn't name a commit, or a scanned path is outside the repository. A path that doesn't exist at the ref is fine: everything in it counts as added. It can't be combined with `--watch`.
 
 ## Explaining a code
 
@@ -313,6 +387,7 @@ Give it the languages `javascript`, `javascriptreact`, `typescript` and `typescr
 | Code lens | `textDocument/codeLens` on intent keys, model keys and EVENTS selects / emits ([below](#code-lens)); `workspace/executeCommand` for its jump command `sygnal.goTo`; `workspace/codeLens/refresh` when the client supports it |
 | Highlights | `textDocument/semanticTokens/full` (custom token types) for action names, EVENTS types, intent selectors, the view tokens they target and selected child components; `sygnal/highlights` for the decoded tokens ([below](#highlights)); `workspace/semanticTokens/refresh` when the client supports it |
 | Rename | `textDocument/prepareRename` and `textDocument/rename` for actions, EVENTS types, class / id names, state keys and context entries; refuses when it can't find every use ([below](#rename)) |
+| App graph | `sygnal/graph` (params: `{ root }` (a URI or absolute path), `{ uri }` or `{ textDocument }`; none for the only root) → `{ root, version, graph }`: the InspectGraph of `--graph --json` for that project root, from the open documents as they are; then the notification `sygnal/graphChanged` `{ root, version }` after each check that changed that root's graph. The VS Code extension's App graph panel uses it |
 | File watching | when the client supports dynamic registration: `**/*.{js,jsx,ts,tsx,mjs,cjs}`, `**/sygnal-check.config.json`, `**/package.json` |
 
 **When it checks.** A check covers the whole project, because a change in one file can create or clear findings in another (EVENTS, child components, Collections). It runs in a worker thread, so hover, code actions and completions are answered while a check runs.
@@ -589,7 +664,7 @@ This is the runtime `Diagnostic` shape plus the source location, without `timest
 | `file` | the path, relative to `cwd` |
 | `line`, `column` | where the finding starts, 1-based |
 | `endLine`, `endColumn` | where it ends: 1-based, `endColumn` **exclusive** (one past the last character). The range is the part an editor underlines: the selector string, the model key, the JSX attribute, `<img` for a missing `alt`. Columns count UTF-16 code units, like Babel's `loc` and LSP's default position encoding, so an LSP range is `line - 1`, `column - 1` .. `endLine - 1`, `endColumn - 1`. A parse error (SYG900) is one character at the parser's position |
-| `related` | optional: the other locations of a pair or cross-file finding, `[{ file, line, column, endLine, endColumn, message }]` (same units). SYG104: the child's tag and the element inside it that renders the class, id or control; SYG105: a near-miss event type on the other side (`'DOC_SAVE'` emitted, `'DOC_SAVED'` selected); SYG128: the first declaration of the key; SYG129: the tag that renders the grandchild; SYG440: the other declaration with the name; SYG609 / SYG643: the `run()` call |
+| `related` | optional: the other locations of a pair or cross-file finding, `[{ file, line, column, endLine, endColumn, message }]` (same units). SYG104: the child's tag and the element inside it that renders the class, id or control; SYG105: a near-miss event type on the other side (`'DOC_SAVE'` emitted, `'DOC_SAVED'` selected); SYG128: the first declaration of the key; SYG129: the tag that renders the grandchild; SYG171: the tags that render the child; SYG440: the other declaration with the name; SYG609 / SYG643: the `run()` call |
 | `fixes` | optional: mechanical fixes as text edits, `[{ title, kind, preferred?, fixAll?, edits: [{ file, start, end, line, column, endLine, endColumn, text }] }]`. `kind` is `'quickfix'` or `'refactor'`; `preferred` marks the one obvious fix (a single "did you mean"); `fixAll` marks a rewrite `--fix` applies. Apply all of a fix's edits together: each replaces `start`..`end` of `file` (UTF-16 offsets; the same range as `line`/`column`..`endLine`/`endColumn`, same units as above) with `text`, and they never overlap. An edit can be in another file than the finding. The `fix` field stays the human-readable text |
 
 Which findings have fixes:
