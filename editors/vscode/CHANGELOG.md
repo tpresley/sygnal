@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Sygnal: Show App Graph**: the app graph page (`sygnal-check --graph=html`) in a webview panel, one per project root, from the editor's context menu, its `…` menu or the command palette. It updates as you type through the language server's new `sygnal/graph` request and `sygnal/graphChanged` notification, keeps its view and selection across updates and when the panel is hidden, selects the component under the cursor, opens file links in the editor, and takes its colors from the VS Code theme. The page runs under a strict CSP (a per-page script nonce, no remote content, no local resources). Needs the bundled sygnal-check or a project's own 0.10.0 or later.
+
 ## 0.6.0
 
 Bundles sygnal-check 0.9.0 (Sygnal 6.5.0). The extension's own code doesn't change.

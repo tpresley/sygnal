@@ -19,7 +19,8 @@
  *                                                  the panel's html is set once, and VS Code
  *                                                  re-creates the page from it after hiding it)
  *   { type: 'open', file, line }                   an editor link was clicked
- *   { type: 'applied', version, components }       a graph message was applied (or was current)
+ *   { type: 'applied', version, components }       a graph message was applied (or was current);
+ *                                                  `components`: the graph's count
  *   { type: 'revealed', key, selected }            after a reveal message
  * Messages (extension → webview, window 'message' events):
  *   { type: 'graph', graph, version }              a newer graph: setGraph() when the version differs
@@ -114,6 +115,7 @@ export function mountVscode(V, api, graph, META) {
   }, true)
 
   let version = META.version ?? null
+  let count = (graph && graph.components || []).length // the graph's components (the model adds ghost cards)
   const q = doc.getElementById('q')
   function save() {
     host.setState({ root: META.rootUri, version, selected: api.selectedKey, view: api.view, query: q ? q.value : '' })
@@ -135,8 +137,8 @@ export function mountVscode(V, api, graph, META) {
     const m = e.data
     if (!m || typeof m !== 'object') return
     if (m.type === 'graph' && m.graph && Array.isArray(m.graph.components)) {
-      if (m.version !== version) { api.setGraph(m.graph); version = m.version; later() }
-      host.postMessage({ type: 'applied', version, components: api.model.comps.length })
+      if (m.version !== version) { api.setGraph(m.graph); version = m.version; count = m.graph.components.length; later() }
+      host.postMessage({ type: 'applied', version, components: count })
     } else if (m.type === 'reveal' && typeof m.key === 'string') {
       const id = api.model.byKey.get(m.key)
       if (id != null && api.selectedKey !== m.key) { api.select(id, { pan: true }); later() }
