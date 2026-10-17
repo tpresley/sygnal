@@ -39,7 +39,8 @@
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
     "onLanguage:typescript",
-    "onLanguage:typescriptreact"
+    "onLanguage:typescriptreact",
+    "onWebviewPanel:sygnal.graph"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -70,8 +71,36 @@
         "title": "Fix All in File",
         "category": "Sygnal",
         "enablement": "editorLangId =~ /^(java|type)script(react)?$/"
+      },
+      {
+        "command": "sygnal.showGraph",
+        "title": "Show App Graph",
+        "category": "Sygnal",
+        "icon": "$(type-hierarchy)"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "sygnal.showGraph",
+          "when": "sygnal.active"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "sygnal.showGraph",
+          "when": "sygnal.active && resourceScheme == file && resourceLangId =~ /^(java|type)script(react)?$/",
+          "group": "sygnal@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "sygnal.showGraph",
+          "when": "sygnal.active && resourceScheme == file && resourceLangId =~ /^(java|type)script(react)?$/",
+          "group": "navigation@100"
+        }
+      ]
+    },
     "configuration": {
       "title": "Sygnal",
       "properties": {

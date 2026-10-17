@@ -614,6 +614,13 @@ export function mountPage(V, G, META) {
     get selectedKey() { return selected ? byId.get(selected)?.key ?? null : null },
     get view() { return { ...view } }, get animating() { return animating },
     select, trace, fit, setGraph,
+    /** Show `v` ({ x, y, k }, as `view` gives it) without animating, as a view the user moved (hosts restoring a saved view). */
+    setView(v) {
+      if (!v || ![v.x, v.y, v.k].every(Number.isFinite) || v.k <= 0) return
+      stopAnim()
+      view = { x: v.x, y: v.y, k: v.k }
+      apply()
+    },
     /** the host (runtime graphs): { getState(instanceId) → value | Promise } */
     get host() { return rtHost }, set host(h) { rtHost = h || null },
     /** an action ran (a devtools ACTIONS record, or one of recentActions): flash its instance's card */

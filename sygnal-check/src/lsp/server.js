@@ -82,11 +82,27 @@
  * tokens, state keys and context entries, always on the documents as they are (the worker's
  * `rename` call); refusals are errors with the reason; test files' mentions are offered as a
  * group that needs confirmation (change annotations), else left out with a warning.
+ *
+ * App graph (PLAN-10 E-1; for the VS Code panel "Sygnal: Show App Graph"):
+ *   request `sygnal/graph` { root?: uri | path, uri?: uri, textDocument?: { uri } }
+ *     → { root: uri, version: number, graph: InspectGraph | null }
+ *   The graph of one project root: `root` names it (a project root or a workspace folder), else
+ *   the root of the document `uri` / `textDocument.uri`, else the only checked root (more than one:
+ *   -32602). A root not checked yet is activated, as a didOpen would. The graph is built by the
+ *   check worker with the check itself (core.js `graph`): the same JSON as `sygnal-check --graph
+ *   --json` on the root, from the server's incremental project (the open documents' text, last
+ *   good text for a file that doesn't parse). From the first request on, every check of that root
+ *   builds it. The answer waits for a check that saw the documents as they are (none pending or in
+ *   its debounce), so it is never older than the request; `graph` is null when the root has no
+ *   source files. `version` counts the root's graphs whose JSON changed (1 for the first).
+ *   notification `sygnal/graphChanged` { root: uri, version }
+ *   After a check that changed the JSON of a root's graph, only for roots a `sygnal/graph`
+ *   request asked about (the client then asks for the new one).
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { createReader, createWriter, uriToPath, pathToUri, ErrorCodes, ResponseError } from './protocol.js'
+import { createReader, createWriter, uriToPath, pathToUri, ErrorCodes, ResponseError, Methods } from './protocol.js'
 import { createChecker } from './checker.js'
 import { getExplanation } from '../explain.js'
 import { lineStarts } from '../edits.js'
@@ -192,6 +208,8 @@ export function createLspServer({
   // root → { folder, dirty, timer, configuring, uris: Set, checked: Map<absPath, textHash>, substituted: Set }
   const projects = new Map()
   const told = new Set() // G-665: what was said once (per root, per root + directory)
+  // PLAN-10 E-1: root → { json, graph, version, waiters: [resolve] } for the roots a sygnal/graph asked about
+  const graphs = new Map()
   const overlays = new Map() // absPath → text of an open document
   const docUris = new Map() // absPath → the URI the client opened it with
   const published = new Map() // uri → { key, list }
@@ -348,6 +366,8 @@ export function createLspServer({
     lens.drop(root)
     highlights.drop(root)
     for (const uri of p.uris) publish(uri, [], root)
+    const g = graphs.get(root)
+    if (g) { graphs.delete(root); for (const w of g.waiters) w.reject(new ResponseError(ErrorCodes.InvalidParams, `${root} is no longer a project root`)) }
     checker.call('drop', { folder: root }).catch(() => {})
   }
 
@@ -467,10 +487,11 @@ export function createLspServer({
           }
           if (part.completion !== undefined) lateIn()
         }
-        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources }, { onPart })
-          .then(res => { if (projects.has(folder) && !exited) checkedIndex(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => log('error', `check of ${folder} failed: ${err?.stack || err}`))
+        let failed = null
+        const checked = checker.call('check', { folder, settings: settingsFor(folder), sources, graph: graphs.has(folder) }, { onPart })
+          .then(res => { if (projects.has(folder) && !exited) checkedIndex(folder, nav.accept(folder, snap, res)); apply(folder, res, sources); return res.late ? late : undefined }, err => { failed = err; log('error', `check of ${folder} failed: ${err?.stack || err}`) })
         nav.track(folder, snap, checked)
-        checked.finally(() => { inFlight = null; pump() })
+        checked.finally(() => { inFlight = null; graphChecked(folder, failed); pump() })
         return
       }
     }
@@ -485,6 +506,7 @@ export function createLspServer({
     const p = projects.get(folder)
     if (!p || exited) return
     notice(folder, p, res, sources)
+    if (res.graph !== undefined) graphResult(folder, res.graph)
     if (res.completion !== undefined) p.completion = indexState(res.completion, sources)
     p.checked = new Map(res.texts)
     p.substituted = new Set(res.substituted)
@@ -538,6 +560,71 @@ export function createLspServer({
   function tell(message) {
     log('warn', message)
     if (isObj(clientCaps.window)) write({ method: 'window/showMessage', params: { type: 3, message } })
+  }
+
+  // ---------------------------------------------------------------- app graph (PLAN-10 E-1)
+
+  /** A check's graph for `root`: kept, and `sygnal/graphChanged` when its JSON changed (not for the first). */
+  function graphResult(root, graph) {
+    const g = graphs.get(root)
+    if (!g) return
+    const json = JSON.stringify(graph)
+    if (json === g.json) return
+    const first = g.json === null
+    Object.assign(g, { json, graph, version: g.version + 1 })
+    if (!first) write({ method: Methods.graphChanged, params: { root: pathToUri(root), version: g.version } })
+  }
+
+  /** Whether `root`'s graph reflects the documents as they are: built, and no check pending, in its debounce or in flight. */
+  const graphFresh = (root) => {
+    const g = graphs.get(root), p = projects.get(root)
+    return !!g && g.json !== null && !!p && !p.dirty && !p.timer && !p.configuring && inFlight !== root
+  }
+  const graphAnswer = (root) => { const g = graphs.get(root); return { root: pathToUri(root), version: g.version, graph: g.graph } }
+
+  /** After a check of `root`: answer the waiting requests once the graph is fresh; a check without the graph (it started before the request) is followed by one with it. */
+  function graphChecked(root, failed) {
+    const g = graphs.get(root)
+    if (!g?.waiters.length || exited) return
+    if (failed && g.json === null) {
+      const ws = g.waiters
+      g.waiters = []
+      for (const w of ws) w.reject(new Error(`the check of ${root} failed: ${failed?.message || failed}`))
+      return
+    }
+    if (graphFresh(root)) {
+      const ws = g.waiters
+      g.waiters = []
+      for (const w of ws) w.resolve(graphAnswer(root))
+      return
+    }
+    const p = projects.get(root)
+    if (g.json === null && p && !p.dirty && !p.timer) schedule(root, 0)
+  }
+
+  /** The project root a sygnal/graph request names (activated when it isn't checked yet). */
+  function graphRoot(params) {
+    const asPath = (v) => typeof v !== 'string' || !v ? null : v.startsWith('file:') ? uriToPath(v) : path.isAbsolute(v) ? path.normalize(v) : null
+    if (params.root !== undefined) {
+      const abs = asPath(params.root)
+      if (!abs) throw new ResponseError(ErrorCodes.InvalidParams, 'root must be a file: URI or an absolute path')
+      if (projects.has(abs)) return abs
+      const folder = folderOf(abs)
+      if (!folder || (abs !== folder && !roots.isRoot(abs))) throw new ResponseError(ErrorCodes.InvalidParams, `${abs} is not a project root in the workspace`)
+      activate(abs, folder)
+      return abs
+    }
+    const doc = params.uri ?? params.textDocument?.uri
+    if (doc !== undefined) {
+      const abs = asPath(doc)
+      const root = abs && detectRoot(abs)
+      if (!root) throw new ResponseError(ErrorCodes.InvalidParams, `${doc} is not in a workspace folder`)
+      activate(root, folderOf(abs))
+      return root
+    }
+    const list = rootList()
+    if (list.length !== 1) throw new ResponseError(ErrorCodes.InvalidParams, list.length ? 'more than one project root: name one with root or uri' : 'no project root is checked')
+    return list[0]
   }
 
   /**
@@ -758,6 +845,20 @@ export function createLspServer({
   requests['textDocument/codeLens'] = (params) => lens.codeLens(params)
   requests['textDocument/semanticTokens/full'] = (params) => highlights.full(params)
   requests['sygnal/highlights'] = (params) => highlights.decoded(params)
+  // PLAN-10 E-1: the app graph of a project root (see the header)
+  requests[Methods.graph] = (params) => {
+    const root = graphRoot(params)
+    let g = graphs.get(root)
+    if (!g) graphs.set(root, g = { json: null, graph: null, version: 0, waiters: [] })
+    if (graphFresh(root)) return graphAnswer(root)
+    return new Promise((resolve, reject) => {
+      g.waiters.push({ resolve, reject })
+      const p = projects.get(root)
+      // the first graph needs a check that builds it; else the pending or running check answers
+      if (g.json === null && !p.dirty && !p.timer && inFlight !== root) schedule(root, 0)
+      else pump()
+    })
+  }
   // PLAN-7 P4-5: rename (rename.js)
   requests['textDocument/prepareRename'] = (params) => renamer.prepareRename(params)
   requests['textDocument/rename'] = (params) => renamer.rename(params)

@@ -6,10 +6,10 @@
  * that project root (roots.js, G-666): the workspace folder itself only for its fallback root.
  *
  *   createCore() → {
- *     check({ folder, settings, sources }, { part?, wanted?, defer? })
+ *     check({ folder, settings, sources, graph? }, { part?, wanted?, defer? })
  *                                           → { files: [[absPath, LspDiagnostic[]]], texts, logs,
  *                                              substituted, components, index, completion, ms,
- *                                              paths, noFiles, outside }
+ *                                              paths, noFiles, outside, graph? }
  *     index({ folder, settings, sources })  → { index, substituted, ms }   the model only (no rules)
  *     fixAll({ folder, file, sources })     → { edits: [{ uri, range, newText }], diagnostics }
  *     controls({ folder, file, sources })   → [{ title, uri, range, edits }]
@@ -41,6 +41,11 @@
  * a fix still applies to the document as it is now.
  *
  * A crashed rule's SYG900 (no file) goes to `logs`, not into a document.
+ *
+ * `graph` (PLAN-10 E-1): with `payload.graph` the result also has the app graph (InspectGraph,
+ * graph.js buildGraph) of the build, with every finding of the check (info included, before the
+ * editor's `verbose` filter): the same JSON `sygnal-check --graph --json` and live.js build() give
+ * for the root's files; null when the root has no source files. Without it, no graph is built.
  *
  * `index` (PLAN-7 N-1/N-2): the occurrence index of the build (model/positions.js) for
  * definition / references, without the substituted files' occurrences. `index()` builds it alone
@@ -79,6 +84,7 @@ import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
 import { planRename } from '../model/rename.js'
+import { buildGraph } from '../graph.js'
 import { completionIndex } from './completionIndex.js'
 import { buildFlow, tapVerdicts } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
@@ -142,13 +148,14 @@ export function createCore() {
    */
   const indexOf = (project, substituted, verdicts) => ({ ...buildIndex(project, { exclude: new Set(substituted.keys()) }), flow: buildFlow(project, verdicts) })
 
-  function check({ folder, settings = {}, sources }, { part, wanted, defer } = {}) {
+  function check({ folder, settings = {}, sources, graph: wantGraph = false }, { part, wanted, defer } = {}) {
     const t0 = performance.now()
     const logs = []
     const info = {}
     const prep = prepare({ folder, settings, sources }, info)
     const seen = { paths: info.paths, noFiles: info.noFiles, outside: info.outside }
-    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0, ...seen }
+    const noGraph = wantGraph ? { graph: null } : {}
+    if (!prep) return { files: [], texts: [], logs, substituted: [], components: 0, index: null, completion: null, ms: performance.now() - t0, ...seen, ...noGraph }
     const { project, options, config, srcs, substituted } = prep
     const substitutedList = [...substituted.keys()]
     const hasComponents = project.components.length > 0
@@ -184,13 +191,22 @@ export function createCore() {
     // the result: with the index unless it went as a part, with the completion index unless late
     const result = (res) => late ? { ...res, ...seen, late: true } : { ...res, ...seen, ...(part ? {} : { index }), completion: completionNow() }
 
-    if (!hasComponents) return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0 })
-    diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
-    if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
-    diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
-    // the config file's findings, as check() adds them (withConfigDiagnostics in index.js)
-    const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
-    if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
+    // every finding: the rules (those after SYG101 / SYG102), the new texts' parse errors, and the
+    // config file's findings, as check() adds them (withConfigDiagnostics in index.js)
+    const allDiags = () => {
+      diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
+      if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
+      diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
+      const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
+      if (configDiags.length) diags = sortDiagnostics([...configDiags, ...diags])
+    }
+    if (!hasComponents) {
+      // (the graph of a root without components: the same findings the CLI's graph has)
+      if (wantGraph) allDiags()
+      return result({ files: [], texts: [], logs, substituted: substitutedList, components: 0, ms: performance.now() - t0, ...(wantGraph ? { graph: buildGraph(project, diags) } : {}) })
+    }
+    allDiags()
+    const graph = wantGraph ? { graph: buildGraph(project, diags) } : {}
 
     const byFile = new Map()
     const textOf = (abs) => {
@@ -216,7 +232,7 @@ export function createCore() {
       note(abs)
       for (const d of list) for (const f of d.data.fixes || []) for (const e of f.edits) note(fileURLToPath(e.uri))
     }
-    return result({ files: out, texts: [...texts], logs, substituted: substitutedList, components: project.components.length, ms: performance.now() - t0 })
+    return result({ files: out, texts: [...texts], logs, substituted: substitutedList, components: project.components.length, ms: performance.now() - t0, ...graph })
   }
 
   /** The occurrence index of the folder as `sources` has it, without running the rules (navigation on a changed document). */

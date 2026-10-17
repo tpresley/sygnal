@@ -14,11 +14,16 @@
 // with `[uri, position, locations]` as JSON. The command converts them to VS Code objects and
 // opens VS Code's peek view (`editor.action.showReferences`, which checks the argument types).
 // The server's own `sygnal.goTo` is registered by vscode-languageclient, not here.
+//
+// App graph (PLAN-10 E-2): `sygnal.showGraph` ("Sygnal: Show App Graph") opens the graph page in a
+// webview panel per project root (graphPanel.ts). The palette and menu entries show while the
+// server runs (the `sygnal.active` context key).
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { LanguageClient, State, TransportKind, type ClientCapabilities, type FeatureState, type LanguageClientOptions, type Location as LspLocation, type Position as LspPosition, type ServerOptions, type StaticFeature } from 'vscode-languageclient/node'
 import { startHighlights, type Highlights } from './highlights'
+import { startGraphPanels, type GraphPanels } from './graphPanel'
 import { chooseServer, describeChoice, FEATURES_VERSION, lacksEditorFeatures, packageFileUsesSygnal, type ServerChoice } from './resolve'
 
 const LANGUAGES = ['javascript', 'javascriptreact', 'typescript', 'typescriptreact']
@@ -47,6 +52,7 @@ let starting: Promise<void> | undefined
 let detectWatchers: vscode.Disposable[] = []
 let upgradeNotices = 0
 let highlights: Highlights | undefined
+let graphs: GraphPanels | undefined
 
 /** What the tests read (returned from activate). */
 export interface SygnalApi {
@@ -55,6 +61,7 @@ export interface SygnalApi {
   status(): { text: string; tooltip: string; visible: boolean }
   upgradeNotices(): number
   ready(): Promise<void>
+  graph(): GraphPanels | undefined
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<SygnalApi> {
@@ -75,6 +82,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<Sygnal
     vscode.workspace.onDidGrantWorkspaceTrust(() => restart(show)),
     { dispose: () => disposeDetectWatchers() },
     highlights = startHighlights(() => client),
+    graphs = startGraphPanels(context, () => client, async () => { await starting; if (client && !client.isRunning()) await client.start() }, output),
+    vscode.commands.registerCommand('sygnal.showGraph', (uri?: vscode.Uri) => graphs?.show(uri instanceof vscode.Uri ? uri : undefined)),
   )
   starting = startIfSygnal(show)
   await starting
@@ -84,6 +93,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<Sygnal
     status: () => ({ text: status.text, tooltip: String(status.tooltip ?? ''), visible: statusVisible }),
     upgradeNotices: () => upgradeNotices,
     ready: async () => { await starting; if (client && !client.isRunning()) await client.start() },
+    graph: () => graphs,
   }
 }
 
@@ -170,9 +180,11 @@ async function startClient(show: (v: boolean) => void): Promise<void> {
   client = new LanguageClient('sygnal', 'Sygnal', serverOptions, clientOptions)
   client.registerFeature(new ClientCommandsFeature())
   highlights?.attach(client)
+  graphs?.attach(client)
   client.onDidChangeState(e => {
     if (e.newState === State.Stopped && status) status.text = '$(warning) Sygnal'
     else if (e.newState === State.Running && choice) status.text = choice.source === 'workspace' ? '$(check) Sygnal' : '$(package) Sygnal'
+    void vscode.commands.executeCommand('setContext', 'sygnal.active', e.newState === State.Running)
   })
   try {
     await client.start()
