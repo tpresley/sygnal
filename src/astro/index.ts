@@ -1,5 +1,6 @@
 import sygnalVite from '../vite/plugin'
 import { globalThisAlias } from '../vite/globalthis'
+import { GRAPH_MISSING_LINE, GRAPH_PATH, graphAvailable } from '../vite/graph'
 import type { DiagnosticsMode, DiagnosticsPluginOptions, CheckPluginOptions } from '../vite/plugin'
 // Node built-ins (the integration runs in Node). The package has no @types/node.
 // @ts-ignore
@@ -71,6 +72,13 @@ export interface SygnalAstroOptions {
    */
   devtools?: boolean;
   /**
+   * Serve the live app graph page at `/__sygnal/graph` in `astro dev` (see the sygnal/vite `graph`
+   * option); its address is printed when the dev server starts. Needs sygnal-check 0.10.0 or later
+   * in the project. Never in `astro build`.
+   * @default true
+   */
+  graph?: boolean;
+  /**
    * PLAN-4 GS-11: the islands' app-level error hook: the path of a module (relative to the Astro
    * project root) whose default export is called as run()'s / renderToString's `onError`
    * (error, { componentName, action, phase }), in the browser and during SSR. Reporting only,
@@ -81,10 +89,12 @@ export interface SygnalAstroOptions {
 }
 
 export default function sygnalAstroIntegration(options: SygnalAstroOptions = {}) {
+  let projectRoot: string | undefined
   return {
     name: SYGNAL_RENDERER_NAME,
     hooks: {
       'astro:config:setup': ({ addRenderer, updateConfig, command, config }: AstroConfigSetupArgs) => {
+        projectRoot = rootDir(config?.root)
         addRenderer({
           name: SYGNAL_RENDERER_NAME,
           clientEntrypoint: 'sygnal/astro/client',
@@ -116,6 +126,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
             check: options.check,
             nativeGlobalThis: options.nativeGlobalThis,
             devtools: options.devtools,
+            graph: options.graph,
           })]
         } else if (options.nativeGlobalThis !== false) {
           // G-099: the same `globalthis` alias the plugin adds in dev (R2-7: unless the
@@ -127,6 +138,13 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
         vite.plugins = [...(vite.plugins || []), onErrorPlugin(hook)]
 
         updateConfig({ vite })
+      },
+      // W-2: Astro prints its own banner (Vite's printUrls never runs), so the graph page's line goes here
+      'astro:server:start': ({ address, logger }: { address?: { port?: number }, logger?: { info(msg: string): void } }) => {
+        if (options.graph === false || !projectRoot) return
+        const print = (msg: string) => (logger ? logger.info(msg.replace(/^\s*➜\s*/, '')) : console.log(msg))
+        if (!graphAvailable(projectRoot)) print(GRAPH_MISSING_LINE)
+        else if (address?.port) print(`  ➜  Sygnal graph: http://localhost:${address.port}${GRAPH_PATH}`)
       },
     },
   }

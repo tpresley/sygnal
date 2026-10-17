@@ -2,6 +2,14 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Changed
+
+- **The app graph's banner line says why it's missing.** When the dev server's graph route is on but the project has no `sygnal-check` 0.10.0 or later, `sygnal/vite` prints `➜  Sygnal graph: needs sygnal-check 0.10.0 or later in this project (npm i -D sygnal-check)` instead of nothing (the URL already answered 404 with the same hint).
+- **`astro dev` prints the graph page's address** under Astro's own banner (Astro never runs Vite's URL printing), and the Astro integration takes the `graph` option (`sygnal({ graph: false })`).
+- **The repository's examples link `sygnal-check`** (`file:../../sygnal-check`, as they link `sygnal`), so `npm run dev` in any of them serves the app graph; `examples/mcp-app` moves off `sygnal-check` ^0.7.0.
+
 ## 6.6.0 — 2026-10-16
 
 The app graph as an interactive page: `sygnal-check --graph=html`, live with `--watch` or at `/__sygnal/graph` in the Vite dev server, in a VS Code panel and in Sygnal DevTools. See [The App Graph](https://sygnal.js.org/guide/app-graph/).

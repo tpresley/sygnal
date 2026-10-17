@@ -4,6 +4,7 @@
   "private": true,
   "devDependencies": {
     "jsdom": "^29.1.1",
+    "sygnal-check": "file:../../sygnal-check",
     "typescript": "^6.0.2",
     "vite": "^8.0.3",
     "vitest": "^4.1.11"

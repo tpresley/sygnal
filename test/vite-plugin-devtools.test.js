@@ -121,3 +121,26 @@ describe('kanban with sygnal/vite (D77)', () => {
     }
   }, 60000)
 })
+
+describe('Astro: the graph page line under Astro\'s banner (sygnal/vite\'s printUrls never runs there)', () => {
+  const start = (root, options = {}) => {
+    const logs = []
+    const integration = sygnalAstro(options)
+    integration.hooks['astro:config:setup']({ addRenderer() {}, updateConfig() {}, command: 'dev', config: { root: pathToFileURL(root + '/') } })
+    integration.hooks['astro:server:start']({ address: { port: 4321 }, logger: { info: (m) => logs.push(m) } })
+    return logs
+  }
+  it('with sygnal-check 0.10.0+ in the project: its URL', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-astro-graph-'))
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"a","type":"module"}')
+    fs.mkdirSync(path.join(root, 'node_modules'))
+    fs.symlinkSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../sygnal-check'), path.join(root, 'node_modules', 'sygnal-check'))
+    expect(start(root)).toEqual(['Sygnal graph: http://localhost:4321/__sygnal/graph'])
+    expect(start(root, { graph: false })).toEqual([])
+  })
+  it('without sygnal-check: what to install', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-astro-graph-'))
+    fs.writeFileSync(path.join(root, 'package.json'), '{"name":"a","type":"module"}')
+    expect(start(root)).toEqual(['Sygnal graph: needs sygnal-check 0.10.0 or later in this project (npm i -D sygnal-check)'])
+  })
+})

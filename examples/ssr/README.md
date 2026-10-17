@@ -26,6 +26,9 @@ node server.js
 npx vite --port 5188
 ```
 
+The [app graph](https://sygnal.js.org/guide/app-graph/) is served by the Vite dev server, not Express:
+`http://localhost:5188/__sygnal/graph`.
+
 ## Tests
 
 ```bash

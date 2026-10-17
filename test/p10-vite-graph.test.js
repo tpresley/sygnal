@@ -203,14 +203,15 @@ describe('the /__sygnal/graph route (W-2, D543)', () => {
     expect(checked.server.stack).toEqual([])
   })
 
-  it('without sygnal-check: the route says what to install, nothing is stamped or printed', async () => {
+  it('without sygnal-check: the route and the banner say what to install, nothing is stamped', async () => {
     const dir = project({ files: { 'App.jsx': APP }, checker: false })
     const { plugin, server } = start(dir, {}, { printUrls() {}, resolvedUrls: { local: ['http://localhost:5173/'] } })
     const { res } = await request(server, '/__sygnal/graph')
     expect(res.statusCode).toBe(404)
     expect(res.body).toMatch(/needs a sygnal-check with the live graph page.*npm i -D sygnal-check/)
     server.printUrls()
-    expect(server.logs.filter(([, m]) => /Sygnal graph/.test(m))).toEqual([])
+    // one line saying what's missing, rather than nothing (an example app without sygnal-check showed no line at all)
+    expect(server.logs.filter(([, m]) => /Sygnal graph/.test(m))).toEqual([['info', '  ➜  Sygnal graph: needs sygnal-check 0.10.0 or later in this project (npm i -D sygnal-check)']])
     expect(stamped(codeOf(await transform(plugin, APP, path.join(dir, 'src', 'App.jsx'))))).toEqual({})
     const entry = await transform(plugin, "import { run } from 'sygnal'\nimport App from './App.jsx'\nrun(App)\n", path.join(dir, 'src', 'main.js'))
     expect(entry.code).not.toContain('virtual:sygnal/graph')

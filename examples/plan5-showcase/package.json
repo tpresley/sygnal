@@ -21,6 +21,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "sygnal-check": "file:../../sygnal-check",
     "vite": "^8.0.3"
   }
 }
