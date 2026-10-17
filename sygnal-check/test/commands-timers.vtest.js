@@ -24,6 +24,7 @@ import { checkFiles, graphFiles, validateSchema } from '../src/index.js'
 import { formatGraph } from '../src/graphText.js'
 import { NATIVE_COMMAND_NAMES, DOM_MUTATORS } from '../src/model/elementCommands.js'
 import { STATIC_DRIVERS } from '../src/model/apps.js'
+import { legacyComponent } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../schema/inspect.schema.json'), 'utf8'))
@@ -482,12 +483,12 @@ describe('--graph', () => {
     const p = project({ 'Help.jsx': DIALOG, 'Stopwatch.jsx': STOPWATCH })
     const g = p.graph()
     expect(validateSchema(schema, g)).toEqual([])
-    const help = g.components.find(c => c.name === 'Help')
+    const help = legacyComponent(g.components.find(c => c.name === 'Help'))
     expect(help.commands).toEqual([
       { action: 'OPEN_HELP', method: 'showModal', target: 'HelpDialog', control: 'HelpDialog', triggers: ['HELP_CLOSED'] },
       { action: 'CLOSE_HELP', method: 'close', target: 'HelpDialog', control: 'HelpDialog', triggers: ['HELP_CLOSED'] },
     ])
-    const sw = g.components.find(c => c.name === 'Stopwatch')
+    const sw = legacyComponent(g.components.find(c => c.name === 'Stopwatch'))
     expect(sw.timers).toEqual([
       { name: 'tick', every: 100, action: 'TICK' },
       { name: 'done', after: 5000, action: 'EXPIRE' },

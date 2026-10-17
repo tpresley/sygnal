@@ -20,6 +20,7 @@ import { checkFiles, graphFiles, validateSchema, fixFiles } from '../src/index.j
 import { formatGraph } from '../src/graphText.js'
 import { main } from '../src/cli.js'
 import { fileURLToPath } from 'node:url'
+import { legacyComponent } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../schema/inspect.schema.json'), 'utf8'))
@@ -340,7 +341,7 @@ describe('--graph lists controls next to selectors', () => {
     const p = project({ 'AddTodo.jsx': ADD_TODO.replace(', ADD: DOM.click(Add)', ", ADD: DOM.click('.missing')") })
     const g = p.graph()
     expect(validateSchema(schema, g)).toEqual([])
-    const c = g.components.find(x => x.name === 'AddTodo')
+    const c = legacyComponent(g.components.find(x => x.name === 'AddTodo'))
     expect(c.selectors[0]).toEqual({ selector: '[data-control="Draft"]', control: 'Draft', events: ['input'], matched: true, isolationHit: null })
     expect(c.controls).toEqual([
       { name: 'Draft', element: 'input', listened: true },

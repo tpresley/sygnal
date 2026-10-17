@@ -17,6 +17,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkFiles, graphFiles, validateSchema } from '../src/index.js'
+import { legacyComponent } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../schema/inspect.schema.json'), 'utf8'))
@@ -318,7 +319,7 @@ describe('--graph', () => {
   it('lists behavior-owned actions, uses entries and behavior selectors; validates against the schema', () => {
     const g = project({ 'List.jsx': LIST(undefined, "List.model = { 'pager.NEXT': { EFFECT: () => {} } }") }).graph()
     expect(validateSchema(schema, g)).toEqual([])
-    const c = g.components.find(x => x.name === 'List')
+    const c = legacyComponent(g.components.find(x => x.name === 'List'))
     expect(c.uses).toEqual([{ key: 'pager', behavior: 'pager', status: 'resolved' }])
     expect(c.stateKeys).toEqual(['items', 'pager'])
     expect(c.actions).toEqual(expect.arrayContaining([

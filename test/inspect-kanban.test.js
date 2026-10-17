@@ -81,8 +81,12 @@ describe('kanban: static graph (sygnal-check --graph)', () => {
     expect(g.components.map(c => [c.name, c.kind])).toEqual([
       ['LaneComponent', 'collection-item'], ['RootComponent', 'root'], ['TaskCard', 'collection-item'],
     ])
-    expect(g.events.DELETE_LANE).toEqual({ emitters: ['LaneComponent'], selectors: ['RootComponent'] })
-    expect(byName(g, 'RootComponent')[0].children).toEqual([{ name: 'LaneComponent', via: 'collection', from: 'lanes' }])
+    // PLAN-10 A-3: the static side adds ids parallel to the names, and on child entries
+    expect(g.events.DELETE_LANE).toEqual({ emitters: ['LaneComponent'], selectors: ['RootComponent'], emitterIds: ['src/LaneComponent.jsx:4'], selectorIds: ['src/RootComponent.jsx:12'] })
+    expect(byName(g, 'RootComponent')[0].children).toEqual([{ name: 'LaneComponent', via: 'collection', from: 'lanes', id: 'src/LaneComponent.jsx:4', line: expect.any(Number), column: expect.any(Number) }])
+    // PLAN-10 A-6 / A-5: run(RootComponent) in main.js; TaskCard's PARENT goes to LaneComponent's DELETE_TASK
+    expect(g.components.filter(c => c.entry).map(c => c.name)).toEqual(['RootComponent'])
+    expect(byName(g, 'LaneComponent')[0].childSelects).toMatchObject([{ child: 'TaskCard', id: 'src/TaskCard.jsx:1', actions: ['DELETE_TASK'] }])
     expect(byName(g, 'TaskCard')[0].contextConsumes).toEqual(['draggingTaskId'])
   })
 })
