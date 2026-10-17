@@ -254,7 +254,10 @@ export function mountPage(V, G, META) {
     if (kind === 'event') {
       const e = evInfo(key)
       for (const x of edgeEls) if (x.cls === 'event' && x.type === key) { ids.add(x.from); ids.add(x.to) }
-      for (const n of [...names(e.emitters), ...names(e.selectors)]) for (const c of M.byName.get(n) || []) ids.add(c.id)
+      for (const [idList, nameList] of [[e.emitterIds, e.emitters], [e.selectorIds, e.selectors]]) {
+        if (Array.isArray(idList)) { for (const x of idList) if (byId.has(x)) ids.add(x) } // D528: full id lists
+        else for (const n of names(nameList)) for (const c of M.byName.get(n) || []) ids.add(c.id)
+      }
       pred = (x) => x.cls === 'event' && x.type === key
       text = `EVENTS <b>${esc(key)}</b> · ${esc(names(e.emitters).join(', ') || 'no emitter')} → ${esc(names(e.selectors).join(', ') || 'no selector')}`
     } else if (kind === 'context') {

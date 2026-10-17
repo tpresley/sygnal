@@ -27,7 +27,7 @@
  *   worst(comp) → 'error' | 'warn' | null
  *
  * Ids are preferred wherever the graph has them (children[].id, events[type].emitterIds /
- * selectorIds or { name, id } entries, diagnostics' componentId); a child with `id: null` or
+ * selectorIds (full lists, D528) or { name, id } entries, diagnostics' componentId); a child with `id: null` or
  * `external` is a ghost (one per package and name for `external`); names are the fallback,
  * resolved like an import would be: the same file, then the same directory, then the
  * longest common path.
@@ -42,7 +42,7 @@ export const dirOf = (file) => file && file.includes('/') ? file.slice(0, file.l
 export const lineOf = (c) => c.line ?? (c.id && /:\d+$/.test(c.id) ? Number(c.id.slice(c.id.lastIndexOf(':') + 1)) : null)
 
 const nameOf = (x) => typeof x === 'string' ? x : x?.name
-const idOf = (x, ids, i) => (x && typeof x === 'object' ? x.id : null) ?? ids?.[i] ?? null
+const idOf = (x) => (x && typeof x === 'object' ? x.id : null) ?? null
 
 export function buildModel(graph) {
   const comps = (graph.components || []).map(c => ({
@@ -107,14 +107,15 @@ export function buildModel(graph) {
   const events = graph.events || {}
   for (const type of Object.keys(events)) {
     const e = events[type] || {}
-    const emitters = (e.emitters || []).flatMap((x, i) => {
-      const id = idOf(x, e.emitterIds, i)
-      if (id != null && byId.has(id)) return [byId.get(id)]
-      return byName.get(nameOf(x)) || []
-    })
+    // D528: emitterIds / selectorIds are independent full lists (not parallel to the names):
+    // when present they alone decide the components; names are the fallback when a list is absent
+    const fromIds = (ids) => ids.map(id => byId.get(id)).filter(Boolean)
+    const emitters = Array.isArray(e.emitterIds) ? fromIds(e.emitterIds)
+      : (e.emitters || []).flatMap(x => { const id = idOf(x); return id != null && byId.has(id) ? [byId.get(id)] : byName.get(nameOf(x)) || [] })
+    const selectorsFor = Array.isArray(e.selectorIds) ? (() => { const l = fromIds(e.selectorIds); return () => l })()
+      : (a) => (e.selectors || []).map(x => lookup(idOf(x), nameOf(x), a))
     for (const a of emitters) {
-      for (const [i, x] of (e.selectors || []).entries()) {
-        const b = lookup(idOf(x, e.selectorIds, i), nameOf(x), a)
+      for (const b of selectorsFor(a)) {
         if (!b) continue
         const key = `${a.id}\u0000${b.id}\u0000${type}`
         if (seenEv.has(key)) continue
@@ -210,9 +211,9 @@ export function healthList(model, codeTitles = {}) {
   const evs = Object.entries(events)
   if (!codes.has('SYG105')) {
     add('Events nobody selects', 'warn', evs.filter(([, e]) => !(e.selectors || []).length && (e.emitters || []).length)
-      .map(([t, e]) => ({ id: resolveFirst(e.emitters[0]), event: t, title: t, sub: `emitted by ${e.emitters.map(nameOf).join(', ')}` })))
+      .map(([t, e]) => ({ id: (e.emitterIds || []).find(x => byId.has(x)) ?? resolveFirst(e.emitters[0]), event: t, title: t, sub: `emitted by ${e.emitters.map(nameOf).join(', ')}` })))
     add('Events nobody emits', 'warn', evs.filter(([, e]) => !(e.emitters || []).length && (e.selectors || []).length)
-      .map(([t, e]) => ({ id: resolveFirst(e.selectors[0]), event: t, title: t, sub: `selected by ${e.selectors.map(nameOf).join(', ')}` })))
+      .map(([t, e]) => ({ id: (e.selectorIds || []).find(x => byId.has(x)) ?? resolveFirst(e.selectors[0]), event: t, title: t, sub: `selected by ${e.selectors.map(nameOf).join(', ')}` })))
   }
   add('Controls nothing listens to', 'warn', real.flatMap(c => (c.controls || []).filter(x => x.listened === false)
     .map(x => ({ id: c.id, title: x.name, sub: `${c.name} · <${x.element ?? '?'}>` }))))
