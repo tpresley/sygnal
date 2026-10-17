@@ -232,15 +232,23 @@ export function graphMiddleware(server: any, root: string, engine: Promise<LiveE
   }
 }
 
-/** Adds the page's URL under Vite's own when the dev server prints them. */
-export function printGraphUrl(server: any) {
+/** The banner line when the project has no sygnal-check with the graph page (it used to print nothing). */
+export const GRAPH_MISSING_LINE = '  ➜  Sygnal graph: needs sygnal-check 0.10.0 or later in this project (npm i -D sygnal-check)'
+
+/**
+ * Adds the page's URL under Vite's own when the dev server prints them, or, when the project's
+ * sygnal-check is missing or too old for the page (`available` false), a line saying what to install.
+ */
+export function printGraphUrl(server: any, available = true) {
   const print = server?.printUrls
   if (typeof print !== 'function') return
   server.printUrls = function (this: any, ...args: any[]) {
     const out = print.apply(this, args)
     try {
+      const logger = server.config?.logger || console
       const local = server.resolvedUrls?.local?.[0]
-      if (local) (server.config?.logger || console).info(`  ➜  Sygnal graph: ${new URL(local).origin}${GRAPH_PATH}`)
+      if (!available) logger.info(GRAPH_MISSING_LINE)
+      else if (local) logger.info(`  ➜  Sygnal graph: ${new URL(local).origin}${GRAPH_PATH}`)
     } catch (_) {}
     return out
   }

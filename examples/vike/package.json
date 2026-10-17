@@ -13,6 +13,7 @@
     "vike": "^0.4.255"
   },
   "devDependencies": {
+    "sygnal-check": "file:../../sygnal-check",
     "vite": "^8.0.3"
   }
 }

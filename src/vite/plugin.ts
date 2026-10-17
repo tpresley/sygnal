@@ -130,7 +130,8 @@
  *      skipped silently when missing; a sygnal-check without the page keeps the checker as in 5)
  *      builds it with createLiveProject on start and after each change: one build gives the page,
  *      the check overlay / console findings of 5, and the component stamps. Its URL is printed
- *      under Vite's ("➜  Sygnal graph: http://localhost:5173/__sygnal/graph"). The modules of the
+ *      under Vite's ("➜  Sygnal graph: http://localhost:5173/__sygnal/graph"; without a sygnal-check
+ *      0.10.0+ in the project, a line saying so instead). The modules of the
  *      scanned files get a tail setting a non-enumerable `__sygnalKey` (the static 'file#name'
  *      key, D521) on each top-level component function, which the runtime inspect() reports as
  *      `key`; with DevTools on, the dev entries also import 'virtual:sygnal/graph'
@@ -535,7 +536,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       // W-2 (D543): the page and its stream, behind the MCP endpoint's guard; its URL in the banner
       if (graphOn && server?.middlewares) {
         server.middlewares.use(graphMiddleware(server, root, engine))
-        if (graphAvailable(root)) printGraphUrl(server)
+        printGraphUrl(server, graphAvailable(root))
       }
     },
 

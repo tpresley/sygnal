@@ -14,6 +14,7 @@ declare type SygnalAstroIntegration = {
       logger?: { warn: (message: string) => void };
       config?: { root?: URL | string; vite?: any };
     }) => void;
+    'astro:server:start': (args: { address?: { port?: number }; logger?: { info: (message: string) => void } }) => void;
   };
 };
 
@@ -43,6 +44,13 @@ export interface SygnalAstroOptions {
    * @default true
    */
   devtools?: boolean;
+  /**
+   * Serve the live app graph page at `/__sygnal/graph` in `astro dev` (see the sygnal/vite `graph`
+   * option); its address is printed when the dev server starts. Needs sygnal-check 0.10.0 or later
+   * in the project. Never in `astro build`.
+   * @default true
+   */
+  graph?: boolean;
   /**
    * The islands' app-level error hook (PLAN-4 GS-11): the path of a module, relative to the
    * Astro project root, whose default export is called as run()'s and renderToString's

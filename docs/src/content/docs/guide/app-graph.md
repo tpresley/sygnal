@@ -62,6 +62,8 @@ With the [Vite plugin](/integration/bundler-config/#plugin-options) and `sygnal-
   ➜  Sygnal graph: http://localhost:5173/__sygnal/graph
 ```
 
+The Vike dev server prints the same line. `astro dev` prints it under Astro's own banner (`[@sygnal/astro] Sygnal graph: …`; the integration takes the same `graph` option). Without `sygnal-check` 0.10.0 or later resolvable from the project, the line says what to install instead (`Sygnal graph: needs sygnal-check 0.10.0 or later in this project`), and the URL answers 404 with the same hint.
+
 It is the `--watch` page without a second process: the dev server rebuilds the graph after each change, and the same build feeds the `sygnal-check` findings in the terminal, the browser console and the error overlay, so they always agree.
 
 Because the page is served from the app's own origin, it can also show **live data** from the app open in another tab. A **Live data** switch in the header turns on once an app tab is connected. It follows the app tab you focused last, and then:

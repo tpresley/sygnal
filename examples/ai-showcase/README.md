@@ -45,7 +45,9 @@ npm test             # every widget and the dev server's routes, no model needed
 ```
 
 The root `dist/` must be built first (`npm run build` at the repository root): the example links
-to this checkout (`"sygnal": "file:../.."`).
+to this checkout (`"sygnal": "file:../.."`, and `"sygnal-check": "file:../../sygnal-check"`).
+`npm run dev` also serves the [app graph](https://sygnal.js.org/guide/app-graph/) at
+`http://localhost:5173/__sygnal/graph`, with live data from the app's tab.
 
 ### Models
 
