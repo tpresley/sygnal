@@ -52,6 +52,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D537 | 2026-10-16 | No layout library as an optional dependency; the hand-written layered layout stays (user) |
 | D538 | 2026-10-16 | Vike: `+Page` / `+Layout` cards are labelled by their route, and the graph gets an implicit layout → page edge (user) |
 | D539 | 2026-10-16 | V-3/P-1: runtime cards cluster by app ("app N · RootName", else the root name); the devtools App graph refreshes 150 ms after the last component or action message, with `inspect({ actions: 200 })`, only while the view is open; runtime diagnostics keep a `timestamp`; the devtools frame's CSP allows inline styles but never inline scripts; the page is built from the same modules (`pageAssets()`), no copy (coordinator) |
+| D540 | 2026-10-16 | A-9 details: `+Wrapper` counts as an entry and part of the shell chain (Wrapper > Layout > Page, Vike's inheritance; `(group)` layouts apply only inside their group, labelled `/`); `routes` lists every route when several `+Page` files export one component (`route` = the first); a Route Function gives `route: null, routeDynamic: true`; layout edges are `children[].via: 'layout'` and don't feed the SYG170/171 parent links (coordinator) |
 
 ## Items
 
@@ -67,7 +68,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ✅ merged `34e9dba6` | the page doesn't use `writes`/`stateReads` yet: with V-4 | |
-| A-9 Vike routes and layout → page edges | 2 | 🔄 `p10-vike-routes` | D538 (added 2026-10-16) |
+| A-9 Vike routes and layout → page edges | 2 | ✅ merged | D538, D540; page display in V-4 |
 | A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
@@ -112,9 +113,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 |---|---|---|---|
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 | G-801 | 2026-10-16 (A-7) | `analyzeModel` treats a call-built model entry (`SEND: sending(fn)`) as a plain STATE entry, so its other sinks (e.g. `LLM`) are missed; pre-existing | open |
+| G-803 | 2026-10-16 (A-9) | Possible runtime bug, unverified: Vike orders cumulative `Layout` values closest-first, while `src/vike/onRenderClient.ts` may treat index 0 as the outermost, which would nest layouts in reverse | open, outside PLAN-10 |
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 `p10-vike-routes` merged: `route`/`routes`/`routeDynamic` and layout edges. On the private app 29 components got routes and 28 layout edges; `examples/vike` unchanged but `+Wrapper` gains `entry: true`. sygnal-check 1,480; types OK; doc samples 840 clean (worker).
 
 - 2026-10-16 `p10-runtime-view` merged (`ae0ddda5`; `run-headless.mjs` conflict, both suites kept; a test that cut `V.mountPage` out of the inline script by regex broke on the live-mode line, fixed). D530 core cost: +9 B (kanban 42,496 → 42,505 B on the branch; 42,495 B on integration, 205 B headroom). On integration: build; sygnal-check 1,470; root vitest 4,945 passed / 33 skipped; types; size gate; perf gate all within limits; browser static 14/14, runtime + devtools 9/9, live 5/5 on Chromium, Firefox and WebKit.
 
