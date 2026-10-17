@@ -74,7 +74,7 @@
         "calculated": { "$ref": "#/$defs/strings" },
         "contextProvides": { "$ref": "#/$defs/strings" },
         "contextConsumes": {
-          "description": "context fields read in the view (static); null at runtime",
+          "description": "context fields read in the view (static: the view source; runtime, D530: the keys its latest render read; null from older sygnal versions)",
           "type": ["array", "null"],
           "items": { "type": "string" }
         },
@@ -343,6 +343,7 @@
         "fix": { "type": "string" },
         "docsUrl": { "type": "string" },
         "data": {},
+        "timestamp": { "type": "number", "description": "runtime: when it was reported (ms since the epoch); each is reported once per process" },
         "file": { "type": "string" },
         "line": { "type": "integer" },
         "column": { "type": "integer" },

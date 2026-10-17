@@ -28,7 +28,7 @@
 import fs from 'node:fs'
 
 const read = (name) => fs.readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
-const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'page.js']
+const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'runtime.js', 'page.js']
 
 /** JSON safe inside a <script> element (and in JavaScript source). */
 export function inlineJson(value) {
@@ -63,6 +63,9 @@ function assets() {
   }
   return cached
 }
+
+/** The page's stylesheet and inlined modules ({ css, js }): the devtools panel's App graph loads them as files (devtools/build.mjs, P-1). */
+export const pageAssets = () => assets()
 
 let titles = null
 function codeTitles(graph, all = false) {
