@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** All code items merged (Phases 0–3). Remaining: docs (D-1, D-2), then release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** Every item merged (Phases 0–3, docs). Remaining: release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
 
 ## Decisions
 
@@ -97,8 +97,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
 | T-4 Size and speed | 2 | ✅ (V-4) | first paint syn-2000: Chromium 104–121 ms, Firefox 182–199 ms, WebKit 337–470 ms; page code +23 KB gzip | | warn-only |
-| D-1 Docs page | 1 | 🔄 `p10-docs` | |
-| D-2 Docs and agent context updates | 2 | 🔄 `p10-docs` | |
+| D-1 Docs page | 1 | ✅ merged | `guide/app-graph.md`, 4 screenshots (light/dark) |
+| D-2 Docs and agent context updates | 2 | ✅ merged | diagnostics, agents, bundler-config, debugging, editors, types; READMEs; skill (one line); CHANGELOG Unreleased |
 
 ## Questions
 
@@ -130,6 +130,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-16 `p10-docs` merged; then `b12adb45` (docs worker's findings): the health list's "Actions nothing triggers" now comes from SYG102 only (10 false alarms on ai-showcase gone), and the trace bar sits below the canvas toolbar (browser check). sygnal-check 1,545; graph suites ×6 green on 3 engines; docs build OK. Note for release: the installed skill copy in `~/.claude/skills/sygnal-dev` is outside the repo and needs syncing.
 
 - 2026-10-16 `p10-vite-graph` merged: build; root vitest 4,986 passed; sygnal-check 1,545; types; size gate unchanged (42,495 B); perf gate within limits; browser graph suites ×6 on Chromium, Firefox and WebKit; `test:examples` (all 14, installed) pass; a `vite build` of kanban has no stamps or graph code (worker).
 
