@@ -59,7 +59,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-7 State writes and reads | 2 | ⏳ | |
 | A-8 Schema, text, MCP, runtime parity | 1 | 🟡 merged `dcbb7e33`, `3b311330` | `key` (D521) and runtime fields (D522) merged; D528 follow-up in progress on `p10-graph-key-runtime` |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
-| V-2 Use the new data | 1 | 🔄 `p10-viewer-cli` | |
+| V-2 Use the new data | 1 | 🟡 merged `d129d039`; D528 model.js follow-up pending | |
 | V-3 Runtime graphs | 2 | ⏳ | |
 | V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
@@ -75,7 +75,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ⏳ | if P10-Q5 says yes |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
-| T-2 Browser smoke | 1 | 🟡 merged `464fb567`; 2/11 fail on the merged data, fix in progress | |
+| T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
 | T-4 Size and speed | 2 | ⏳ | warn-only |
 | D-1 Docs page | 1 | ⏳ | |
@@ -102,6 +102,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 
 ## Log
+
+- 2026-10-16 `p10-viewer-cli` fix + V-2 merged (`d129d039`): `setGraph` keeps a moved view exactly and refits an untouched one; restoring the selection never pans; a WebKit-only flake fixed. V-2: view-only cards lighter, package/widget ghosts labelled, `childSelects` as a PARENT overlay (pink, own toggle), entries tagged and first. On integration: sygnal-check 1,404 passed, graph page 13/13 (Chromium).
 
 - 2026-10-16 `p10-graph-key-runtime` merged (`3b311330`): static `key`; runtime `children[].ids`, `emitterIds`/`selectorIds`, `entry`, `viewOnly`, `app`, `shown` in the dev entry only (`src/core/` untouched). Size gate 42,496 B before and after. Worker's gates: root vitest 4,936 passed, sygnal-check 1,368, types, browser 377/377, docs build. On integration after a rebuild: sygnal-check 1,403, inspect tests 11/11, types OK.
 
