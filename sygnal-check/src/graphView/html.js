@@ -8,7 +8,10 @@
  *              select? (a component name or id to select on load), codes? (code → title; by
  *              default the titles from explanations.json of the codes in the graph; every title
  *              when live), live? ({ events, version }: `--graph=html --watch` (PLAN-10 W-1) adds
- *              liveHost.js, which follows that SSE stream, and `connect-src 'self'` to the CSP) }
+ *              liveHost.js, which follows that SSE stream, and `connect-src 'self'` to the CSP),
+ *              host? ('vscode': the VS Code panel (PLAN-10 E-2) adds vscodeHost.js, which talks to
+ *              the extension; with it `rootUri` and `version`), nonce? (the inline script runs by
+ *              this nonce instead of 'unsafe-inline': a webview's CSP) }
  *
  * No build step: the files in this directory are read and concatenated at run time.
  *   - page.css goes into one <style>.
@@ -52,7 +55,12 @@ function assets() {
   if (cached) return cached
   const css = read('page.css')
   if (/<\/style/i.test(css)) throw new Error("graphView/page.css: contains '</style'")
-  cached = { css, js: MODULES.map(m => inlineModule(read(m), m)).join('\n'), live: inlineModule(read('liveHost.js'), 'liveHost.js') }
+  cached = {
+    css,
+    js: MODULES.map(m => inlineModule(read(m), m)).join('\n'),
+    live: inlineModule(read('liveHost.js'), 'liveHost.js'),
+    vscode: inlineModule(read('vscodeHost.js'), 'vscodeHost.js'),
+  }
   return cached
 }
 
@@ -75,16 +83,23 @@ const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-i
 const LIVE_CSP = CSP + "; connect-src 'self'"
 
 export function graphHtml(graph, meta = {}) {
-  const { css, js: pageJs, live } = assets()
-  const js = meta.live ? pageJs + '\n' + live : pageJs
-  const m = { ...meta, title: meta.title || 'app', codes: meta.codes ?? codeTitles(graph, !!meta.live) }
+  const { css, js: pageJs, live, vscode } = assets()
+  const vscodeHost = meta.host === 'vscode'
+  const js = pageJs + (meta.live ? '\n' + live : '') + (vscodeHost ? '\n' + vscode : '')
+  // a host that updates the graph gets every code title (later graphs may add codes)
+  const m = { ...meta, title: meta.title || 'app', codes: meta.codes ?? codeTitles(graph, !!meta.live || vscodeHost) }
   if (m.root) m.root = String(m.root).replace(/\\/g, '/')
+  const nonce = meta.nonce
+  delete m.nonce
+  if (nonce !== undefined && !/^[A-Za-z0-9+/_=-]{16,}$/.test(String(nonce))) throw new Error('graphHtml: the nonce must be 16 or more base64 characters')
+  let csp = meta.live ? LIVE_CSP : CSP
+  if (nonce) csp = csp.replace("script-src 'unsafe-inline'", `script-src 'nonce-${nonce}'`)
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${meta.live ? LIVE_CSP : CSP}">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="generator" content="sygnal-check --graph=html">${meta.live ? '\n<link rel="icon" href="data:,">' : ''}
 <title>${escHtml(m.title)} · Sygnal app graph</title>
 <style>
@@ -159,7 +174,7 @@ ${css}</style>
 
 <script type="application/json" id="graph-data">${inlineJson(graph)}</script>
 <script type="application/json" id="graph-meta">${inlineJson(m)}</script>
-<script>
+<script${nonce ? ` nonce="${nonce}"` : ''}>
 (() => {
 'use strict'
 const V = {}
@@ -167,6 +182,7 @@ ${js}
 const read = (id) => JSON.parse(document.getElementById(id).textContent), META = read('graph-meta')
 const api = V.mountPage(V, read('graph-data'), META)
 if (META.live && V.mountLive) V.mountLive(V, api, read('graph-data'), META)
+if (META.host === 'vscode' && V.mountVscode) V.mountVscode(V, api, read('graph-data'), META)
 })()
 </script>
 </body>
