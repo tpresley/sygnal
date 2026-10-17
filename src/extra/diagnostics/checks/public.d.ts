@@ -387,9 +387,9 @@ export interface InspectGraph {
   source?: 'runtime' | 'static'
   components: InspectComponent[]
   /**
-   * EVENTS bus: type -> names of the components that emit / select it; their ids: static (PLAN-10
-   * A-3) parallel to the names (one entry per component); runtime (D522) every instance's id, while the
-   * names list each name once
+   * EVENTS bus: type -> names of the components that emit / select it (each name once); emitterIds /
+   * selectorIds (PLAN-10 A-3, D522, D528): the id of every such component (static) or instance
+   * (runtime), not parallel to the names
    */
   events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   /** diagnostics not tied to a listed component */

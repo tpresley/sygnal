@@ -99,7 +99,7 @@ describe('kanban: static graph (sygnal-check --graph)', () => {
     ])
     // PLAN-10 D521: the stable key (no line)
     expect(g.components.map(c => c.key)).toEqual(['src/LaneComponent.jsx#LaneComponent', 'src/RootComponent.jsx#RootComponent', 'src/TaskCard.jsx#TaskCard'])
-    // PLAN-10 A-3: the static side adds ids parallel to the names, and on child entries
+    // PLAN-10 A-3 / D528: the static side adds the ids (every component's, not parallel to the names), and on child entries
     expect(g.events.DELETE_LANE).toEqual({ emitters: ['LaneComponent'], selectors: ['RootComponent'], emitterIds: ['src/LaneComponent.jsx:4'], selectorIds: ['src/RootComponent.jsx:12'] })
     expect(byName(g, 'RootComponent')[0].children).toEqual([{ name: 'LaneComponent', via: 'collection', from: 'lanes', id: 'src/LaneComponent.jsx:4', line: expect.any(Number), column: expect.any(Number) }])
     // PLAN-10 A-6 / A-5: run(RootComponent) in main.js; TaskCard's PARENT goes to LaneComponent's DELETE_TASK

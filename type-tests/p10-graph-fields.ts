@@ -22,7 +22,7 @@ const shop: InspectComponent = {
 }
 const g: InspectGraph = {
   version: 1, source: 'static', components: [shop], diagnostics: [],
-  events: { NAVIGATE: { emitters: ['Summary', 'Summary'], selectors: ['App'], emitterIds: ['a/Summary.jsx:3', 'b/Summary.jsx:3'], selectorIds: ['App.jsx:8'] } },
+  events: { NAVIGATE: { emitters: ['Summary'], selectors: ['App'], emitterIds: ['a/Summary.jsx:3', 'b/Summary.jsx:3'], selectorIds: ['App.jsx:8'] } },
 }
 // PLAN-10 D522: the runtime fields (instance ids on children and events, entry, viewOnly, app, shown)
 const lane: InspectComponent = {

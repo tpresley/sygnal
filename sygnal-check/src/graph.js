@@ -47,8 +47,9 @@
  *   contextConsumes  context fields the view reads (context.x / { context: { x } })
  *   events       EVENTS sinks returning { type: 'X' }, emit()/event() calls,
  *                EVENTS.select('X') in the component's intent / static props.
- *                The graph's `events[type]` also has emitterIds / selectorIds,
- *                parallel to emitters / selectors (one entry per component, A-3);
+ *                The graph's `events[type]` lists each name once in emitters / selectors,
+ *                and every component's id in emitterIds / selectorIds (A-3, D528: not
+ *                parallel; two same-named components are one name and two ids);
  *                eventSites: [{ type, role: 'emit' | 'select', line, column }]
  *                per component (omitted when none)
  *   contextEntries  [{ name, line, column }] of the `context` static (omitted when none)
@@ -276,13 +277,13 @@ export function buildGraph(project, diagnostics = []) {
   const emitted = new Map(comps.map(c => [c, new Set()]))
   const sites = new Map(comps.map(c => [c, []]))
   const events = {}
-  // PLAN-10 A-3: emitterIds / selectorIds parallel to the names (one entry per component)
+  // names once each; PLAN-10 A-3 / D528: emitterIds / selectorIds list every component's id (not
+  // parallel to the names: two same-named components are one name and two ids)
   const ev = (type) => events[type] || (events[type] = { emitters: [], selectors: [], emitterIds: [], selectorIds: [] })
   const add = (e, key, owner) => {
     const id = idOf(owner), ids = e[key === 'emitters' ? 'emitterIds' : 'selectorIds']
-    if (ids.includes(id)) return
-    e[key].push(owner.name)
-    ids.push(id)
+    if (!e[key].includes(owner.name)) e[key].push(owner.name)
+    if (!ids.includes(id)) ids.push(id)
   }
   const site = (owner, type, role, e) => {
     const file = e.file || fileOfNode(project, e.node, owner.file)
