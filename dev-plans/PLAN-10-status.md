@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** Phase 0 complete (S-1 decided: D536–D538); Phases 1–2 in progress. The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** Phase 0 complete (S-1 decided: D536–D538). Phases 1–2 code complete except D-1/D-2 (docs); Phase 3 (C-3/V-6 `--base`, W-2, P-2) not started. The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
 
 ## Decisions
 
@@ -54,6 +54,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D539 | 2026-10-16 | V-3/P-1: runtime cards cluster by app ("app N · RootName", else the root name); the devtools App graph refreshes 150 ms after the last component or action message, with `inspect({ actions: 200 })`, only while the view is open; runtime diagnostics keep a `timestamp`; the devtools frame's CSP allows inline styles but never inline scripts; the page is built from the same modules (`pageAssets()`), no copy (coordinator) |
 | D540 | 2026-10-16 | A-9 details: `+Wrapper` counts as an entry and part of the shell chain (Wrapper > Layout > Page, Vike's inheritance; `(group)` layouts apply only inside their group, labelled `/`); `routes` lists every route when several `+Page` files export one component (`route` = the first); a Route Function gives `route: null, routeDynamic: true`; layout edges are `children[].via: 'layout'` and don't feed the SYG170/171 parent links (coordinator) |
 | D541 | 2026-10-16 | E-1/E-2: `sygnal/graph` `{ root | uri | textDocument }` → `{ root, version, graph }`, answered from a check that saw the current documents; `sygnal/graphChanged { root, version }` only for roots a client asked about. The panel: nonce CSP, `localResourceRoots: []`, links as messages opened only inside the panel's root, state restored from webview state (no `retainContextWhenHidden`), a serializer across restarts; theme toggle, editor picker and downloads hidden; "under the cursor" = from a component's line to the next component in the file until the graph has end lines (G-804) (coordinator) |
+| D542 | 2026-10-16 | V-4 details on D536: in the small tier (≤ 60) zoom below 0.4 hides card text but keeps overlays (they hide only in the grouped tiers) and a trace always stays visible; a group is the directory two levels below the components' common directory, and a one-component group never folds; tracing opens the folded groups holding its ends (up to 6); the page's graph/EVENTS view switch is `api.showView` (E-2 owns `api.setView`); the synthetic generator lives in `sygnal-check/test/fixtures/graph-synth.js` (the research CLI imports it) (coordinator, on the worker's proposals) |
 
 ## Items
 
@@ -74,7 +75,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
 | V-3 Runtime graphs | 2 | ✅ merged `ae0ddda5` | `graphView/runtime.js` | |
-| V-4 Large-app strategies | 1–2 | 🔄 `p10-large-view` | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
+| V-4 Large-app strategies | 1–2 | ✅ merged | D536, D542 | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
 | V-6 Diff rendering | 3 | ⏳ | |
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
@@ -90,7 +91,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
-| T-4 Size and speed | 2 | ⏳ | warn-only |
+| T-4 Size and speed | 2 | ✅ (V-4) | first paint syn-2000: Chromium 104–121 ms, Firefox 182–199 ms, WebKit 337–470 ms; page code +23 KB gzip | | warn-only |
 | D-1 Docs page | 1 | ⏳ | |
 | D-2 Docs and agent context updates | 2 | ⏳ | |
 
@@ -116,9 +117,14 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-801 | 2026-10-16 (A-7) | `analyzeModel` treats a call-built model entry (`SEND: sending(fn)`) as a plain STATE entry, so its other sinks (e.g. `LLM`) are missed; pre-existing | open |
 | G-803 | 2026-10-16 (A-9) | Possible runtime bug, unverified: Vike orders cumulative `Layout` values closest-first, while `src/vike/onRenderClient.ts` may treat index 0 as the outermost, which would nest layouts in reverse | ✅ fixed (`9e3e0d9a`, merged): real bug; ships with PLAN-10's release (user) |
 | G-804 | 2026-10-16 (E-2) | Components have no end line in the graph, so the VS Code panel's "component under the cursor" is approximate (line to the next component); an additive `endLine` would make it exact | open |
-| G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
+| G-805 | 2026-10-16 (V-4) | At 2,000 components the folded overview still has 71 group cards; a second grouping level would help | open |
+| G-806 | 2026-10-16 (V-4) | Canvas mode (> 400 drawn nodes): no keyboard navigation on the drawing (the outline is the accessible path) and SVG export is empty | open |
+| G-807 | 2026-10-16 (V-4) | Bus-node lanes sit far from both ends of their edges | open |
+| G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-16 `p10-large-view` merged (V-4 + the state trace from `writes`/`stateReads`, the context health item per SYG170 and Vike fields, Vike routes on cards and layout edges, G-802). The synthetic generator moved into `sygnal-check/test/fixtures/` so the gate doesn't read `dev-plans/`. On integration: sygnal-check 1,519; browser static 14, runtime + devtools 9, live 5, VS Code 7, large apps 10 on Chromium, Firefox and WebKit. Page: shop fixture 214 KB / 61 KB gzip.
 
 - 2026-10-16 G-803 fixed in its own session (`vike-layout-order`) and merged: Vike lists cumulative `Layout`/`Wrapper` closest-first (vike 0.4.268), `sygnal/vike` nested index 0 outermost, so nested layouts rendered inside-out on SSR and hydration, and client navigation kept the first page's shell. New `src/vike/shell.ts` shared by `onRenderHtml`/`onRenderClient`; navigation now adds/removes nested Layouts keeping shared ones mounted; `examples/vike` gains `/admin`. On integration: build; root vitest 4,952 passed; sygnal-check 1,497; types; size gate unchanged (42,495 B); `examples/vike` builds; docs build and link check pass.
 
