@@ -96,9 +96,23 @@ export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined
 
 /** How an action is dispatched. */
 /** 'agent' (static, PLAN-6 K-1): only the component's `agent` declaration dispatches it */
-export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'agent' | 'unknown'
+/**
+ * 'behavior' (static, PLAN-10 A-8): a `uses` entry's action nothing else triggers that the behavior
+ * may dispatch itself where the checker can't list it (a package behavior, an open model, ...)
+ */
+export type InspectActionTrigger = 'intent' | 'next' | 'reply' | 'builtin' | 'agent' | 'behavior' | 'unknown'
 
-export interface InspectAction {
+/**
+ * PLAN-10 A-4 (static only): a source position, 1-based. `file` (relative to the working
+ * directory) only when it isn't the component's file.
+ */
+export interface InspectLocation {
+  line: number
+  column: number
+  file?: string
+}
+
+export interface InspectAction extends Partial<InspectLocation> {
   name: string
   /**
    * 'intent': returned by the component's intent. 'builtin': BOOTSTRAP,
@@ -112,18 +126,43 @@ export interface InspectAction {
   trigger: InspectActionTrigger
   /** sinks of the model entry (STATE, EVENTS, EFFECT, PARENT, custom drivers); [] without a model entry */
   sinks: string[]
+  /** the `uses` key of the behavior that owns it ('pager' for 'pager.NEXT') */
+  behavior?: string
+  /** static, PLAN-10 A-4: the model entry (line/column on the action: the intent property, else this) */
+  modelAt?: InspectLocation
 }
 
-export interface InspectChild {
+export interface InspectChild extends Partial<InspectLocation> {
   name: string
   via: 'tag' | 'collection' | 'switchable' | 'slot'
   /** Collection: the `from` state field, when known */
   from?: string | null
   /** runtime: number of live instances behind this entry (e.g. Collection items) */
   count?: number
+  /**
+   * static, PLAN-10 A-3: the id of the component it renders (resolved through the import); null when
+   * it isn't in the graph (a package, a widget, a file not scanned, a dynamic value)
+   */
+  id?: string | null
+  /** static, PLAN-10 A-1: a literal `state` lens (`<Greeting state="host" />`) */
+  state?: string
+  /** static, PLAN-10 A-2: the package the tag is imported from ('sygnal/ui') */
+  external?: string
+  /** static, PLAN-10 A-2: a widget tag (defineWidget, fromZag, fromReact, the sygnal/ui Zag parts) */
+  widget?: true
 }
 
-export interface InspectSelector {
+/** PLAN-10 A-5 (static): a CHILD.select(Child) call in an intent */
+export interface InspectChildSelect extends InspectLocation {
+  /** the selected component's name as written */
+  child: string | null
+  /** its id; null when it isn't in the graph */
+  id: string | null
+  /** the intent actions whose stream contains the call (the receivers of the child's PARENT sink) */
+  actions: string[]
+}
+
+export interface InspectSelector extends Partial<InspectLocation> {
   /** CSS selector passed to DOM.select() (chained selects joined with a space) */
   selector: string
   /** event types listened to; null when unknown (runtime, real DOM) */
@@ -139,10 +178,12 @@ export interface InspectSelector {
   isolationHit: string | null
   /** PLAN-4 CT-1: the control this selector is (its key), when it is `[data-control="<Key>"]` */
   control?: string
+  /** the `uses` key of the behavior that listens to it */
+  behavior?: string
 }
 
 /** PLAN-4 CT-1: a control (controls()) a component renders */
-export interface InspectControl {
+export interface InspectControl extends Partial<InspectLocation> {
   /** the control's key (rendered as data-control="<name>") */
   name: string
   /** the intrinsic tag of a tag spec; null for a spec object */
@@ -157,6 +198,8 @@ export interface InspectDiagnostic {
   code: string
   severity: DiagnosticSeverity
   component?: string
+  /** static, PLAN-10 A-3: the id of the component it is attached to */
+  componentId?: string
   message: string
   fix?: string
   docsUrl?: string
@@ -224,6 +267,13 @@ export interface InspectComponent {
    * component renders it, else how it is first rendered
    */
   kind: 'root' | 'child' | 'collection-item' | 'switchable'
+  /** static, PLAN-10 A-1: rendered as a component (or started as an entry) but has no statics */
+  viewOnly?: true
+  /**
+   * static, PLAN-10 A-6: started by run(), defineElement() or a Vike +Page / +Layout; 'unknown' on the
+   * other roots when an entry call's component can't be resolved (picked at run time)
+   */
+  entry?: true | 'unknown'
   actions: InspectAction[]
   /** state keys (runtime: current state; static: initialState) */
   stateKeys: string[]
@@ -239,6 +289,12 @@ export interface InspectComponent {
   eventsSelected: string[]
   children: InspectChild[]
   selectors: InspectSelector[]
+  /** static, PLAN-10 A-4: where the `context` static's entries are */
+  contextEntries?: Array<InspectLocation & { name: string }>
+  /** static, PLAN-10 A-4: the EVENTS emit and select sites of its intent and model */
+  eventSites?: Array<InspectLocation & { type: string; role: 'emit' | 'select' }>
+  /** static, PLAN-10 A-5: CHILD.select(Child) in its intent */
+  childSelects?: InspectChildSelect[]
   /** PLAN-4 CT-1: the controls it renders (runtime: seen in its renders); omitted when none */
   controls?: InspectControl[]
   /** static only, PLAN-4 GS-2 (G-224): the element commands (ELEMENT sink) its model sends; omitted when none */
@@ -253,7 +309,7 @@ export interface InspectComponent {
 }
 
 /** PLAN-4 GS-2: an element command a model entry sends (static inspect, sygnal-check --graph) */
-export interface InspectCommand {
+export interface InspectCommand extends Partial<InspectLocation> {
   /** the model entry that sends it */
   action: string
   /** the command's method (its first key) */
@@ -275,13 +331,15 @@ export interface InspectAgent {
   description: string | null
   /** the declaration has a read projection */
   read: boolean
-  actions: Array<{ name: string; consequential: boolean; input: boolean }>
+  actions: Array<{ name: string; consequential: boolean; input: boolean } & Partial<InspectLocation>>
+  /** the read-only `agent.queries` tools; omitted when none */
+  queries?: Array<{ name: string; input: boolean } & Partial<InspectLocation>>
   /** spreads: what is listed may be incomplete */
   partial?: true
 }
 
 /** PLAN-4 GS-7: a literal timer spec of a `timers` static (static inspect, sygnal-check --graph) */
-export interface InspectTimer {
+export interface InspectTimer extends Partial<InspectLocation> {
   name: string
   every?: number | null
   after?: number | null
@@ -316,8 +374,11 @@ export interface InspectGraph {
   /** which implementation produced the graph */
   source?: 'runtime' | 'static'
   components: InspectComponent[]
-  /** EVENTS bus: type -> names of the components that emit / select it */
-  events: Record<string, { emitters: string[]; selectors: string[] }>
+  /**
+   * EVENTS bus: type -> names of the components that emit / select it; static (PLAN-10 A-3): their
+   * ids, parallel to the names (one entry per component)
+   */
+  events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   /** diagnostics not tied to a listed component */
   diagnostics: InspectDiagnostic[]
   /** runtime, PLAN-3 5-3: makeFetchDriver cache entries, by sink name (empty when no cache) */
