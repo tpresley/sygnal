@@ -10,6 +10,7 @@
  *   A-5  childSelects: CHILD.select(Child) with the intent actions it feeds
  *   A-6  entry: run(), defineElement(), Vike +Page; 'unknown' when an entry is picked at run time
  *   A-8  the 'behavior' trigger; graphText rows; everything validates against the schema
+ *   D528 events: names once each, every component's id in emitterIds / selectorIds
  *   D521 key: 'file#name', stable when lines move; '#2', '#3' for same-named ones in a file
  */
 import { describe, it, expect, afterEach } from 'vitest'
@@ -78,9 +79,9 @@ describe('the shop fixture', () => {
     expect(checkoutSummary.id).toBe(id('checkout/Summary.jsx', 3))
     expect(one(g, 'Cart').children.find(c => c.name === 'Summary').id).toBe(cartSummary.id)
     expect(one(g, 'Checkout').children.find(c => c.name === 'Summary').id).toBe(checkoutSummary.id)
-    // parallel lists: one entry per component, so a name can repeat
+    // D528: each name once; the ids list every component (not parallel: Summary is one name, two ids)
     expect(g.events.NAVIGATE).toEqual({
-      emitters: ['Cart', 'Checkout', 'Header', 'Summary', 'Summary'],
+      emitters: ['Cart', 'Checkout', 'Header', 'Summary'],
       selectors: ['App'],
       emitterIds: [id('Cart.jsx', 4), id('Checkout.jsx', 3), id('Header.jsx', 3), cartSummary.id, checkoutSummary.id],
       selectorIds: [id('App.jsx', 8)],
@@ -185,6 +186,17 @@ describe('inline cases', () => {
     const app = one(g, 'App')
     expect(app.actions).toEqual([{ name: 'ADD', trigger: 'intent', sinks: ['STATE'], line: 2, column: 3, file: 'intent.js', modelAt: { line: 4, column: 15 } }])
     expect(app.selectors[0]).toMatchObject({ selector: '.add', line: 2, column: 18, file: 'intent.js' })
+  })
+
+  it('D528: two same-named emitters are one name and two ids', () => {
+    const chat = (tag) => `import { event } from 'sygnal'\nexport function Chat() { return <${tag} className="send" /> }\nChat.intent = ({ DOM }) => ({ SEND: DOM.click('.send') })\nChat.model = { SEND: { EVENTS: event('SENT') } }`
+    const g = project({
+      'a/Chat.jsx': chat('button'),
+      'b/Chat.jsx': chat('a'),
+      'App.jsx': `import { Chat as A } from './a/Chat.jsx'\nimport { Chat as B } from './b/Chat.jsx'\nexport function App() { return <div><A /><B /></div> }\nApp.intent = ({ EVENTS }) => ({ GOT: EVENTS.select('SENT') })\nApp.model = { GOT: (s) => s }`,
+    })
+    expect(validateSchema(schema, g)).toEqual([])
+    expect(g.events.SENT).toEqual({ emitters: ['Chat'], selectors: ['App'], emitterIds: ['a/Chat.jsx:2', 'b/Chat.jsx:2'], selectorIds: ['App.jsx:3'] })
   })
 
   it('A-6: defineElement(), a Vike +Page, and entry: unknown when run() gets a component picked at run time', () => {

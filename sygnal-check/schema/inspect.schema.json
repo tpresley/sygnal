@@ -20,8 +20,8 @@
         "properties": {
           "emitters": { "$ref": "#/$defs/strings" },
           "selectors": { "$ref": "#/$defs/strings" },
-          "emitterIds": { "$ref": "#/$defs/strings", "description": "the ids of the emitters. static: parallel to emitters (one entry per component); runtime: every emitting instance, while emitters keeps each name once" },
-          "selectorIds": { "$ref": "#/$defs/strings", "description": "the ids of the selectors. static: parallel to selectors; runtime: every selecting instance" }
+          "emitterIds": { "$ref": "#/$defs/strings", "description": "the id of every emitting component (static) or instance (runtime); not parallel to emitters, which lists each name once (D528)" },
+          "selectorIds": { "$ref": "#/$defs/strings", "description": "the id of every selecting component (static) or instance (runtime); not parallel to selectors (D528)" }
         }
       }
     },

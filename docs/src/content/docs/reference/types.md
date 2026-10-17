@@ -254,7 +254,7 @@ interface InspectGraph {
   version: 1
   source?: 'runtime' | 'static'
   components: InspectComponent[]
-  // emitterIds / selectorIds: static, parallel to the names; runtime, every instance's id
+  // names once each; emitterIds / selectorIds: every component's (static) or instance's (runtime) id
   events: Record<string, { emitters: string[]; selectors: string[]; emitterIds?: string[]; selectorIds?: string[] }>
   diagnostics: InspectDiagnostic[]
 }
