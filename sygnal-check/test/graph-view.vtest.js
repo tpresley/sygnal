@@ -169,6 +169,28 @@ describe('graphView model', () => {
     ])
   })
 
+  it('D528: emitterIds / selectorIds are full lists, not parallel to the names (one name, two emitter ids)', () => {
+    const m = buildModel(G([
+      comp('Page', 'src/Page.jsx', 1),
+      comp('Summary', 'src/cart/Summary.jsx', 3),
+      comp('Summary', 'src/checkout/Summary.jsx', 3),
+      comp('Other', 'src/Other.jsx', 1),
+    ], {
+      NAVIGATE: { emitters: ['Summary'], selectors: ['Page'], emitterIds: ['src/cart/Summary.jsx:3', 'src/checkout/Summary.jsx:3'], selectorIds: ['src/Page.jsx:1'] },
+      // an id list wins over the names; a missing list falls back to them
+      ONLY_IDS: { emitters: ['Other'], selectors: ['Page'], emitterIds: ['src/Page.jsx:1'], selectorIds: ['src/Other.jsx:1'] },
+      NAMES: { emitters: ['Other'], selectors: ['Page'] },
+      MIXED: { emitters: ['Summary'], selectors: ['Page'], emitterIds: ['src/checkout/Summary.jsx:3'] },
+    }))
+    expect(m.eventEdges.map(e => `${e.type}: ${e.from} → ${e.to}`)).toEqual([
+      'NAVIGATE: src/cart/Summary.jsx:3 → src/Page.jsx:1',
+      'NAVIGATE: src/checkout/Summary.jsx:3 → src/Page.jsx:1',
+      'ONLY_IDS: src/Page.jsx:1 → src/Other.jsx:1',
+      'NAMES: src/Other.jsx:1 → src/Page.jsx:1',
+      'MIXED: src/checkout/Summary.jsx:3 → src/Page.jsx:1',
+    ])
+  })
+
   it('PARENT edges from childSelects; package and widget ghosts stay out of "not scanned"', () => {
     const m = buildModel(G([
       comp('List', 'src/List.jsx', 1, {
