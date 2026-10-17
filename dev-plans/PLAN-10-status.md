@@ -46,12 +46,14 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D531 | 2026-10-16 | A-7: `actions[].writes` lists top-level state keys only (no dotted paths), `[]` for no change, `null` when unknown, and is present only on actions with a STATE sink; a reducer returning an object without `...state` writes its keys plus every other `initialState` key (coordinator, on the worker's proposal) |
 | D532 | 2026-10-16 | A-7: one `stateReads` list per component (view, literal child lenses and Collection `from`, `calculated` and `context` functions), with `stateReadsPartial: true` when it may be incomplete (coordinator) |
 | D533 | 2026-10-16 | A-7: `actions[].removes: true` flags a reducer that may return undefined (removes a Collection item), separate from `writes` (coordinator) |
+| D534 | 2026-10-16 | X-1 outcome (D512 measured): **SYG170** (context read with no provider) and **SYG171** (`PARENT` that no parent reads) ship as static warnings, 0 findings left on 17 examples, 840 docs samples, the fixtures and the private app after each false positive became a silence condition; **SYG172** (unreachable from any entry) stays page-only (62/62 false positives). Record: `research/graph-viz/graph-rules.md`; the render graph and entries moved to `sygnal-check/src/model/renderGraph.js` (coordinator) |
+| D535 | 2026-10-16 | W-1 details: live pages carry every code title (≈7 KB) since later graphs may add codes; `<link rel="icon" href="data:,">` (Firefox's favicon request vs the CSP); `--poll` defaults to 200 ms (20–60,000); imported files outside the inputs are watched; `--watch` with `--out`, and `--poll`/`--port` without `--watch`, exit 2 (coordinator) |
 
 ## Items
 
 | Item | Phase | Status | Notes |
 |---|---|---|---|
-| S-1 Large apps research | 0 | 🔄 `p10-s1-large-apps` | output `research/graph-viz/large-apps.md` |
+| S-1 Large apps research | 0 | ✅ merged `258b9886` | `research/graph-viz/large-apps.md`; defaults await the user's decision |
 | S-2 Runtime graphs in the renderer | 0 | ✅ merged `9ebadfa6` | `research/graph-viz/runtime-graphs.md`; D520, D522, D523 |
 | S-3 Live transport design | 0 | ✅ merged `9ebadfa6` | `research/graph-viz/live-mode.md`; D521, D524; W-2 recommended for Phase 3 |
 | A-1 View-only components | 1 | ✅ merged `dcbb7e33` | |
@@ -71,13 +73,13 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
 | C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
 | C-3 `--base <ref>` | 3 | ⏳ | |
-| W-1 `--watch` | 2 | 🔄 `p10-watch` | |
+| W-1 `--watch` | 2 | ✅ merged | `live.js`, `watch.js`, `liveServer.js`, `graphView/liveHost.js` (D535) | |
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
-| E-1 LSP `sygnal/graph` | 2 | ⏳ | |
-| E-2 VS Code panel | 2 | ⏳ | |
+| E-1 LSP `sygnal/graph` | 2 | 🔄 `p10-vscode` | |
+| E-2 VS Code panel | 2 | 🔄 `p10-vscode` | |
 | P-1 Devtools app graph tab | 2 | 🔄 `p10-runtime-view` | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
-| X-1 Graph-wide rules (SYG170–179) | 2 | 🔄 `p10-graph-rules` | measure first (D512) |
+| X-1 Graph-wide rules (SYG170–179) | 2 | ✅ merged `d1d174ba` | SYG170, SYG171 shipped; SYG172 page-only (D534) |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
@@ -108,6 +110,11 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 `p10-graph-rules` merged (`d1d174ba`; a `graph.js` import conflict with A-7 resolved): sygnal-check 1,442; diagnostics + docs-errors drift 139; errors doc up to date; types OK. Follow-up for the page (V-4 batch): its "context read with no provider" item ignores a component's own `.context` and lists Vike's framework fields; SYG170's silence conditions are the reference.
+- 2026-10-16 `p10-watch` merged: sygnal-check 1,459; LSP suites unchanged (306); browser static page 14/14 and live page 5/5 on Chromium, Firefox and WebKit. Rebuild after one edit: plan5-showcase 15–25 ms (save → client 78–88 ms), ai-showcase 40–50 ms (101–113 ms).
+- 2026-10-16 `p10-s1-large-apps` merged (`258b9886`): research only, nothing from the private app committed. Folding directory groups above ~150 components is what makes 2,000 readable (fit zoom 0.008 → 0.38); no layout library worth a dependency (ELK 41.7 s at 2,000, own layered 15–25 ms); all 90 task-check answers right in 0–3 steps.
+- 2026-10-16 `186e05b8`: highlighted edges and labels drawn above the cards with a label pill, cards on top otherwise (user report).
 
 - 2026-10-16 `p10-state-paths` merged (`34e9dba6`): known `writes` for kanban 17/17, todomvc 11/11, graph-shop 8/8, plan5-showcase 116/118, ai-showcase 322/334 (the rest genuinely dynamic); partial reads only in ai-showcase (9/31). sygnal-check 1,421 passed; types OK. Also `49a233dd`: Health items indented under their group (user report).
 
