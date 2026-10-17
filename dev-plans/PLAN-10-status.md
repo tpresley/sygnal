@@ -53,6 +53,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D538 | 2026-10-16 | Vike: `+Page` / `+Layout` cards are labelled by their route, and the graph gets an implicit layout → page edge (user) |
 | D539 | 2026-10-16 | V-3/P-1: runtime cards cluster by app ("app N · RootName", else the root name); the devtools App graph refreshes 150 ms after the last component or action message, with `inspect({ actions: 200 })`, only while the view is open; runtime diagnostics keep a `timestamp`; the devtools frame's CSP allows inline styles but never inline scripts; the page is built from the same modules (`pageAssets()`), no copy (coordinator) |
 | D540 | 2026-10-16 | A-9 details: `+Wrapper` counts as an entry and part of the shell chain (Wrapper > Layout > Page, Vike's inheritance; `(group)` layouts apply only inside their group, labelled `/`); `routes` lists every route when several `+Page` files export one component (`route` = the first); a Route Function gives `route: null, routeDynamic: true`; layout edges are `children[].via: 'layout'` and don't feed the SYG170/171 parent links (coordinator) |
+| D541 | 2026-10-16 | E-1/E-2: `sygnal/graph` `{ root | uri | textDocument }` → `{ root, version, graph }`, answered from a check that saw the current documents; `sygnal/graphChanged { root, version }` only for roots a client asked about. The panel: nonce CSP, `localResourceRoots: []`, links as messages opened only inside the panel's root, state restored from webview state (no `retainContextWhenHidden`), a serializer across restarts; theme toggle, editor picker and downloads hidden; "under the cursor" = from a component's line to the next component in the file until the graph has end lines (G-804) (coordinator) |
 
 ## Items
 
@@ -81,8 +82,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | C-3 `--base <ref>` | 3 | ⏳ | |
 | W-1 `--watch` | 2 | ✅ merged | `live.js`, `watch.js`, `liveServer.js`, `graphView/liveHost.js` (D535) | |
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
-| E-1 LSP `sygnal/graph` | 2 | 🔄 `p10-vscode` | |
-| E-2 VS Code panel | 2 | 🔄 `p10-vscode` | |
+| E-1 LSP `sygnal/graph` | 2 | ✅ merged | |
+| E-2 VS Code panel | 2 | ✅ merged | not yet: marking changed cards as the live page does | |
 | P-1 Devtools app graph tab | 2 | ✅ merged `ae0ddda5` | verified in a harness and in Chromium with `--load-extension`, not in real DevTools | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ✅ merged `d1d174ba` | SYG170, SYG171 shipped; SYG172 page-only (D534) |
@@ -114,9 +115,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 | G-801 | 2026-10-16 (A-7) | `analyzeModel` treats a call-built model entry (`SEND: sending(fn)`) as a plain STATE entry, so its other sinks (e.g. `LLM`) are missed; pre-existing | open |
 | G-803 | 2026-10-16 (A-9) | Possible runtime bug, unverified: Vike orders cumulative `Layout` values closest-first, while `src/vike/onRenderClient.ts` may treat index 0 as the outermost, which would nest layouts in reverse | open, outside PLAN-10 |
+| G-804 | 2026-10-16 (E-2) | Components have no end line in the graph, so the VS Code panel's "component under the cursor" is approximate (line to the next component); an additive `endLine` would make it exact | open |
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 `p10-vscode` merged: sygnal-check 1,497; browser static 14, runtime + devtools 9, live 5, VS Code panel 7 on Chromium, Firefox and WebKit; `npm --prefix editors/vscode test` (typecheck, unit 17, build, smoke 4/4 in the installed VS Code) passes on integration.
 
 - 2026-10-16 `p10-vike-routes` merged: `route`/`routes`/`routeDynamic` and layout edges. On the private app 29 components got routes and 28 layout edges; `examples/vike` unchanged but `+Wrapper` gains `entry: true`. sygnal-check 1,480; types OK; doc samples 840 clean (worker).
 
