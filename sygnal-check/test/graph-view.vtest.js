@@ -141,14 +141,18 @@ describe('graphView model', () => {
   })
 
   it('health: diagnostics by code (errors first, titles from the codes), derived checks only where no code covers them', () => {
+    // `trigger: 'unknown'` alone is not "nothing triggers it" (a helper-named reply, an intent spread in
+    // from another file): only SYG102's findings are, info ones included
     const plain = healthList(buildModel(shop()))
     expect(plain.map(h => [h.group, h.tone, h.items.map(i => i.title)])).toEqual([
-      ['Actions nothing triggers', 'err', ['SAVE']],
       ['Events nobody selects', 'warn', ['SEARCH']],
       ['Context read with no provider', 'warn', ['context.locale']],
       ['Rendered but not scanned', 'muted', ['Shop']],
     ])
-    expect(plain[1].items[0]).toMatchObject({ event: 'SEARCH', id: 'src/Header.jsx:2' })
+    expect(plain[0].items[0]).toMatchObject({ event: 'SEARCH', id: 'src/Header.jsx:2' })
+    const info = shop()
+    info.components[0].diagnostics.push({ code: 'SYG102', severity: 'info', message: "model entry 'SAVE' is never triggered" })
+    expect(healthList(buildModel(info))[0]).toMatchObject({ group: 'Actions nothing triggers', tone: 'warn', code: 'SYG102', items: [{ title: info.components[0].name, sub: "model entry 'SAVE' is never triggered" }] })
     const g = shop()
     g.components[0].diagnostics.push({ code: 'SYG102', severity: 'warn', message: "model entry 'SAVE' is never triggered" })
     g.components[1].diagnostics.push({ code: 'SYG105', severity: 'warn', message: 'SEARCH nobody selects' })

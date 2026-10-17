@@ -123,7 +123,7 @@ The EVENTS, Context and PARENT overlays each have a switch in the header; **All 
 
 At the top are the counts: components, event types, actions, errors, warnings and agent surfaces. Below them:
 
-- **Health**: the findings, grouped by code with the code's title, errors first. It also lists what only the whole graph shows: actions nothing triggers, selectors the view never renders, events nobody selects or nobody emits, controls nothing listens to, context read with no provider, components rendered but not scanned, and the AI agent surface (which components expose tools, and which tools ask the person first). A check that a finding already reports isn't listed twice. Click an item to select its component.
+- **Health**: the findings, grouped by code with the code's title, errors first. It also lists model entries nothing triggers (SYG102's findings, including the info ones), and what only the whole graph shows: selectors the view never renders, events nobody selects or nobody emits, controls nothing listens to, context read with no provider, components rendered but not scanned, and the AI agent surface (which components expose tools, and which tools ask the person first). A check that a finding already reports isn't listed twice. Click an item to select its component.
 - **Components**: every component as a list grouped by directory. It is the same graph as the canvas, as buttons, and is the view a screen reader uses.
 
 ### The detail panel
@@ -237,7 +237,7 @@ flowchart TD
 
 The graph is built from the source, so anything decided at run time can be missing or approximate:
 
-- A component tag, an event type or an action name that is computed, or comes from a helper in another module, may not be linked. Unresolved tags stay visible as "not in scanned files" cards, and an action whose trigger the checker can't see may be listed under "Actions nothing triggers". The runtime graph (DevTools, or live data in the Vite page) shows what really happens.
+- A component tag, an event type or an action name that is computed, or comes from a helper in another module, may not be linked. Unresolved tags stay visible as "not in scanned files" cards; an action whose trigger the checker can't see is shown as an unknown trigger in the detail panel, but isn't listed as unreachable unless SYG102 reports it. The runtime graph (DevTools, or live data in the Vite page) shows what really happens.
 - Astro pages (`.astro` files) aren't scanned, so the components they mount aren't marked as entries.
 - In VS Code, "the component under the cursor" is approximate: a component counts from its first line to the next component in the file.
 - At around 2,000 components, the folded overview still has dozens of group cards; there is no second level of grouping yet.

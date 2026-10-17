@@ -116,7 +116,7 @@ describe('the model and health on a runtime graph', () => {
     // the same data as a static graph still gets the static checks
     const s = buildModel({ ...raw, source: 'static', diagnostics: [], components: raw.components.map(c => ({ ...c, file: 'src/x.jsx' })) })
     expect(s.runtime).toBe(false)
-    expect(healthList(s).map(g => g.group)).toEqual(expect.arrayContaining(['Actions nothing triggers', 'Selectors not in the view', 'Events nobody selects', 'Events nobody emits']))
+    expect(healthList(s).map(g => g.group)).toEqual(expect.arrayContaining(['Selectors not in the view', 'Events nobody selects', 'Events nobody emits']))
   })
 
   it('the layout clusters by app', () => {

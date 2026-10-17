@@ -243,9 +243,13 @@ export function healthList(model, codeTitles = {}) {
   // what happened so far, not what can happen: these four would be false alarms there (runtime.js's
   // runtimeHealth() adds "not seen yet" groups instead)
   const rt = model.runtime === true
-  if (!rt && !codes.has('SYG102')) {
-    add('Actions nothing triggers', 'err', real.flatMap(c => c.actions.filter(a => a.trigger === 'unknown' && !a.behavior)
-      .map(a => ({ id: c.id, title: a.name, sub: `${c.name} · model entry with no intent, reply, next() or agent trigger` }))))
+  // unreachable model entries: SYG102's own findings (often info, so not in the groups above), never
+  // `trigger: 'unknown'` itself: a reply named by a helper or an intent spread in from another file is
+  // unknown to the graph but reachable, and SYG102 rightly stays quiet there (it was 10 false alarms
+  // on ai-showcase). A graph built with no diagnostics shows nothing here rather than guessing
+  if (!rt && !byCode.has('SYG102')) {
+    add('Actions nothing triggers', 'warn', diagnostics.filter(d => d.code === 'SYG102')
+      .map(d => ({ id: d.compId, title: d.compId ? byId.get(d.compId).name : (d.file ?? 'app'), sub: d.message })), 'SYG102')
   }
   if (!rt && !codes.has('SYG110') && !codes.has('SYG104')) {
     add('Selectors not in the view', 'err', real.flatMap(c => c.selectors.filter(s => s.matched === false)

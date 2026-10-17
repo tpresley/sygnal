@@ -88,6 +88,8 @@ export async function runGraphView(browser, engine, appUrl) {
     await check('trace an EVENTS type from the details', async () => {
       await page.locator('#dinner [data-trace-event="NAVIGATE"]').first().click()
       ok(await page.locator('#trace.on').isVisible(), 'trace bar visible')
+      // the trace bar sits below the canvas toolbar, never under it (docs worker's report)
+      ok(await page.evaluate(() => { const t = document.getElementById('trace').getBoundingClientRect(); return [...document.querySelectorAll('.canvasbar')].every(e => { const b = e.getBoundingClientRect(); return !b.height || t.top >= b.bottom || t.right <= b.left || t.left >= b.right }) }), 'trace bar clear of the canvas toolbar')
       ok((await page.locator('#trace').textContent()).includes('NAVIGATE'), 'trace names the type')
       const want = model.eventEdges.filter(e => e.type === 'NAVIGATE').length
       ok(want > 0, 'fixture has NAVIGATE edges')
