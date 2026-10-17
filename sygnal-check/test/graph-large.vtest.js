@@ -174,7 +174,7 @@ describe('V-4 projection', () => {
     expect(projectView(m, { filter: { kind: 'root' } }).nodes.map(n => n.comp.name).sort()).toEqual(['App', 'Orphan'])
     expect(projectView(m, { filter: { hideBehavior: true } }).identity).toBe(true) // changes no node
     expect(filterCount({ kind: 'root', problems: true, ai: false })).toBe(2)
-    expect(FILTERS.map(f => f[0])).toEqual(['problems', 'hideViewOnly', 'hideBehavior', 'ai', 'unreachable'])
+    expect(FILTERS.map(f => f[0])).toEqual(['problems', 'hideViewOnly', 'hideBehavior', 'ai', 'unreachable', 'changes'])
   })
 })
 

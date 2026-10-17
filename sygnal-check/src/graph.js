@@ -8,7 +8,8 @@
  *     options  { cwd?, strict?, a11y?, includeTests?, ignore?, rules?, sources?, config?, defaults? }
  *              (as check(): the config file applies; its findings are app-wide diagnostics)
  *   graphFiles(files, options) → InspectGraph   (expanded files; reads no config file;
- *     options.extraDiagnostics: findings to add, e.g. resolveOptions().config.diagnostics)
+ *     options.extraDiagnostics: findings to add, e.g. resolveOptions().config.diagnostics;
+ *     options.tree: a virtual file tree instead of the disk, see model/project.js and gitBase.js)
  *
  *   buildGraph(project, diagnostics) → InspectGraph   (already built project)
  *
@@ -143,7 +144,7 @@ export function graph(inputs, options = {}) {
 /** graph() for an already expanded list of absolute file paths (see expandInputs). */
 export function graphFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache })
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache, tree: options.tree })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.extraDiagnostics?.length) diags = [...options.extraDiagnostics, ...diags]

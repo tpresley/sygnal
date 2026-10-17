@@ -21,12 +21,14 @@
  * parser's position), an unknown key or a wrong type a SYG900 warning on the key ("did you
  * mean"); the bad value is dropped, and a malformed file is used as no config.
  *
- *   loadConfig(cwd, { file? }) → { config, file, diagnostics }
+ *   loadConfig(cwd, { file?, io? }) → { config, file, diagnostics }
+ *     io           { exists(abs), read(abs) → text (throws when unreadable) } instead of the disk
+ *                  (`--base <ref>` reads the config at a git ref, PLAN-10 C-3)
  *     config       the valid keys found (paths made absolute), {} when none
  *     file         absolute path of the file read, or null
  *     diagnostics  SYG900 findings (file relative to cwd)
  *   resolveOptions(options) → { options, config }
- *     options.config: false (skip the file) | a file path | undefined (discover);
+ *     options.config: false (skip the file) | a file path | undefined (discover); options.io as loadConfig's;
  *     options.defaults: fallbacks below the file. Returns the merged options (every key set,
  *     plus the caller's other options and cwd) and loadConfig's result.
  */
@@ -44,16 +46,20 @@ const ALLOWED = ['$schema']
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const isStrings = (v) => Array.isArray(v) && v.every(s => typeof s === 'string')
-const exists = (f) => { try { return fs.statSync(f).isFile() } catch { return false } }
+/** The disk; loadConfig's `io` option replaces it (PLAN-10 C-3: the config file at a git ref). */
+const DISK = {
+  exists: (f) => { try { return fs.statSync(f).isFile() } catch { return false } },
+  read: (f) => fs.readFileSync(f, 'utf8'),
+}
 
 /** The project root and the file to read: the first directory from cwd up with either file. */
-function discover(cwd) {
+function discover(cwd, io = DISK) {
   let dir = cwd
   for (;;) {
     const json = path.join(dir, CONFIG_FILE)
     const pkg = path.join(dir, 'package.json')
-    const hasJson = exists(json)
-    const hasPkg = exists(pkg)
+    const hasJson = io.exists(json)
+    const hasPkg = io.exists(pkg)
     if (hasJson || hasPkg) return { json: hasJson ? json : null, pkg: hasPkg ? pkg : null }
     const up = path.dirname(dir)
     if (up === dir) return { json: null, pkg: null }
@@ -76,10 +82,10 @@ function keyAt(text, key, from = 0) {
   return m ? m.index : from
 }
 
-function readJson(file, rel, diagnostics) {
+function readJson(file, rel, diagnostics, io = DISK) {
   let text
   try {
-    text = fs.readFileSync(file, 'utf8')
+    text = io.read(file)
   } catch (err) {
     diagnostics.push(problem(rel, 1, 1, `config file ${rel} could not be read (${err?.code || err?.message || err})`, 'check the path'))
     return undefined
@@ -139,7 +145,7 @@ function validate(obj, { text, rel, dir, offset, where }, diagnostics) {
 }
 
 /** Read and validate the config for `cwd` (see the header). Never throws. */
-export function loadConfig(cwd = process.cwd(), { file } = {}) {
+export function loadConfig(cwd = process.cwd(), { file, io = DISK } = {}) {
   cwd = path.resolve(cwd)
   const diagnostics = []
   const relOf = (f) => path.relative(cwd, f) || f
@@ -147,24 +153,24 @@ export function loadConfig(cwd = process.cwd(), { file } = {}) {
   let pkg = null
   if (file) {
     const abs = path.resolve(cwd, file)
-    if (!exists(abs)) {
+    if (!io.exists(abs)) {
       diagnostics.push(problem(file, 1, 1, `config file not found: ${file}`, 'check the path, or leave the option out to use the project\'s own config'))
       return { config: {}, file: null, diagnostics }
     }
     if (path.basename(abs) === 'package.json') pkg = abs
     else json = abs
   } else {
-    ({ json, pkg } = discover(cwd))
+    ({ json, pkg } = discover(cwd, io))
   }
 
   if (json) {
     const rel = relOf(json)
-    const read = readJson(json, rel, diagnostics)
+    const read = readJson(json, rel, diagnostics, io)
     let config = {}
     if (read) config = validate(read.value, { text: read.text, rel, dir: path.dirname(json), offset: 0, where: rel }, diagnostics)
     if (pkg && !file) {
       // both: say once that the package.json key is ignored (only when it has one)
-      const pkgRead = readJson(pkg, relOf(pkg), [])
+      const pkgRead = readJson(pkg, relOf(pkg), [], io)
       if (pkgRead && isObj(pkgRead.value) && PACKAGE_KEY in pkgRead.value) {
         const { line, column } = lineCol(pkgRead.text, keyAt(pkgRead.text, PACKAGE_KEY))
         diagnostics.push(problem(relOf(pkg), line, column,
@@ -177,7 +183,7 @@ export function loadConfig(cwd = process.cwd(), { file } = {}) {
 
   if (pkg) {
     const rel = relOf(pkg)
-    const read = readJson(pkg, rel, diagnostics)
+    const read = readJson(pkg, rel, diagnostics, io)
     if (!read) return { config: {}, file: null, diagnostics }
     if (!isObj(read.value) || !(PACKAGE_KEY in read.value)) return { config: {}, file: null, diagnostics }
     const offset = keyAt(read.text, PACKAGE_KEY)
@@ -203,8 +209,8 @@ export function resolveOptions(options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
   const loaded = options.config === false
     ? { config: {}, file: null, diagnostics: [] }
-    : loadConfig(cwd, { file: typeof options.config === 'string' ? options.config : undefined })
+    : loadConfig(cwd, { file: typeof options.config === 'string' ? options.config : undefined, io: options.io })
   const merged = { ...DEFAULTS, ...explicitOf(options.defaults), ...loaded.config, ...explicitOf(options) }
-  const { defaults: _d, config: _c, ...rest } = options
+  const { defaults: _d, config: _c, io: _io, ...rest } = options
   return { options: { ...rest, ...merged, cwd }, config: loaded }
 }

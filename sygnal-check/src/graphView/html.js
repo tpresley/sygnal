@@ -11,10 +11,12 @@
  *              liveHost.js, which follows that SSE stream, and `connect-src 'self'` to the CSP),
  *              host? ('vscode': the VS Code panel (PLAN-10 E-2) adds vscodeHost.js, which talks to
  *              the extension; with it `rootUri` and `version`), nonce? (the inline script runs by
- *              this nonce instead of 'unsafe-inline': a webview's CSP) }
+ *              this nonce instead of 'unsafe-inline': a webview's CSP), base? ({ ref, commit?, graph }:
+ *              `--base <ref>` (PLAN-10 C-3, V-6): the graph at that ref; the page draws the diff,
+ *              diff.js) }
  *
  * No build step: the files in this directory are read and concatenated at run time.
- *   - page.css goes into one <style>.
+ *   - page.css and diff.css go into one <style>.
  *   - The pure modules (model.js, layout.js, mermaid.js, runtime.js, groups.js, groupLayout.js,
  *     views.js, canvas.js) and page.js are ES modules made only of
  *     top-level declarations and no imports. Each is inlined as a function body: the `export`
@@ -29,7 +31,7 @@
 import fs from 'node:fs'
 
 const read = (name) => fs.readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
-const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'runtime.js', 'groups.js', 'groupLayout.js', 'views.js', 'canvas.js', 'page.js']
+const MODULES = ['model.js', 'layout.js', 'mermaid.js', 'runtime.js', 'groups.js', 'groupLayout.js', 'views.js', 'canvas.js', 'diff.js', 'page.js']
 
 /** JSON safe inside a <script> element (and in JavaScript source). */
 export function inlineJson(value) {
@@ -54,7 +56,7 @@ export function inlineModule(source, name = 'module') {
 let cached = null
 function assets() {
   if (cached) return cached
-  const css = read('page.css')
+  const css = read('page.css') + read('diff.css')
   if (/<\/style/i.test(css)) throw new Error("graphView/page.css: contains '</style'")
   cached = {
     css,

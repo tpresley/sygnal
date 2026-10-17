@@ -1,7 +1,7 @@
 /**
  * The per-project model that every rule queries.
  *
- * buildProject(files, { cwd?, sources?, cache? }) parses the files and produces:
+ * buildProject(files, { cwd?, sources?, cache?, tree? }) parses the files and produces:
  *
  *   project.files        Map<absPath, FileInfo>   (scanned + loaded on demand)
  *   project.scanned      Set<absPath>             files diagnostics are reported for
@@ -41,6 +41,10 @@
  * editor's unsaved buffers: loadFile reads a file from it before the disk,
  * and import resolution counts a path in it as an existing file, so a new,
  * unsaved file resolves.
+ *
+ * `tree` ({ read(absPath) → text | null, isFile(absPath) → boolean }; PLAN-10 C-3) replaces the
+ * disk: files are read and imports resolved only through it (`--base <ref>` builds the base graph
+ * from a git commit this way). `sources` still come first.
  *
  * `cache` (a ParseCache, ../cache.js; PLAN-7 C-3) shares a file's parse
  * (ast, parents, suppressions) or its parse failure across builds while the
@@ -90,8 +94,9 @@ function parseSuppressions(ast) {
 }
 
 export class Project {
-  constructor({ cwd = process.cwd(), sources, cache } = {}) {
+  constructor({ cwd = process.cwd(), sources, cache, tree } = {}) {
     this.cwd = cwd
+    this.tree = tree || null // PLAN-10 C-3: a virtual file tree instead of the disk
     this.sources = toSourceMap(sources, cwd) // absPath → text (unsaved buffers)
     this.cache = cache || null // ParseCache (PLAN-7 C-3)
     this.files = new Map()
@@ -108,6 +113,7 @@ export class Project {
     if (this.files.has(absPath)) return this.files.get(absPath)
     let source
     if (this.sources.has(absPath)) source = this.sources.get(absPath)
+    else if (this.tree) { source = this.tree.read(absPath); if (typeof source !== 'string') { this.files.set(absPath, null); return null } }
     else try { source = fs.readFileSync(absPath, 'utf8') } catch { this.files.set(absPath, null); return null }
     const parsed = this.cache?.lookup(absPath, source) || this._parse(absPath, source)
     if (parsed.error) {
@@ -142,8 +148,8 @@ export class Project {
     return target ? this.loadFile(target) : null
   }
 
-  /** Whether a path exists for import resolution: an in-memory source, else a file on disk. */
-  _isFile = (p) => this.sources.has(p) || diskIsFile(p)
+  /** Whether a path exists for import resolution: an in-memory source, else a file on disk (or in `tree`). */
+  _isFile = (p) => this.sources.has(p) || (this.tree ? this.tree.isFile(p) : diskIsFile(p))
 
   isComponentFunction(file, fnNode) {
     return this._componentFns.has(fnNode)

@@ -37,7 +37,7 @@ const INHERIT_IGNORED = new Set(['renderer', 'pages'])
 const EXTS = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.mts', '.cjs', '.cts']
 const ROOT_MARKERS = ['package.json', 'vite.config.js', 'vite.config.ts', 'vite.config.mjs', 'vite.config.mts', 'vite.config.cjs', 'vite.config.cts']
 
-const exists = (project, p) => project.sources?.has(p) || (() => { try { return fs.statSync(p).isFile() } catch { return false } })()
+const exists = (project, p) => project.sources?.has(p) || (project.tree ? project.tree.isFile(p) : (() => { try { return fs.statSync(p).isFile() } catch { return false } })())
 
 /** The app root above a plus file: the nearest directory with a vite.config.* or package.json, else cwd. */
 function rootOf(project, dir, cache) {

@@ -39,6 +39,7 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
 | `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
+| `--base <ref>` | With `--graph` (any format): compare the app graph with a git ref (branch, tag or commit), read with git, no checkout. See [Comparing with a git ref](#comparing-with-a-git-ref---base) |
 | `--config <file>` | Read this JSON [config file](#configuration) instead of looking for `sygnal-check.config.json` / the `package.json` key (also `--config=<file>`; a missing file exits 2) |
 | `--no-config` | Ignore config files: flags and defaults only |
 
@@ -238,6 +239,43 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
 
 Without `--json`, `--graph` prints a compact per-component summary.
+
+### Comparing with a git ref (`--base`)
+
+`--graph --base <ref>` compares the app graph of the working tree with the one at `<ref>` (`main`, `HEAD~1`, a tag or a commit). The base graph is built from the commit's files through git (`git ls-tree`, `git cat-file --batch`): nothing is checked out and the working tree is not touched. The same paths are scanned on both sides, test files are left out unless configured, and the base reads the config file as it is at the ref (flags still win). Components are matched by their `key` (`file#name`), so an edit that only moves a component down the file is not a change, and a renamed or moved file shows as a removal plus an addition.
+
+```
+$ sygnal-check --graph --base main
+app graph: main (3f2a9c1e07) → working tree
++ New  src/New.jsx
+- Old  src/Old.jsx
+~ Header: +action CLOSE, +action OPEN, -action TOGGLE  src/Header.jsx
+~ Item: +emits REMOVED, -emits SAVED  src/Item.jsx
+EVENTS: +REMOVED
+1 added, 1 removed, 2 changed
+```
+
+`--graph --json --base <ref>` prints the diff (for a CI comment), not the graph:
+
+```json
+{
+  "base": "main",
+  "head": "working tree",
+  "commit": "3f2a9c1e07…",
+  "added": ["src/New.jsx#New"],
+  "removed": ["src/Old.jsx#Old"],
+  "changed": [
+    { "key": "src/Header.jsx#Header", "fields": { "actions": { "added": ["CLOSE", "OPEN"], "removed": ["TOGGLE"] } } }
+  ],
+  "events": { "added": ["REMOVED"], "removed": [] }
+}
+```
+
+`added` and `removed` are component keys, sorted. A changed component lists only the fields that changed. List fields are `{ added, removed }` of strings: `actions` (names), `sinks` (`ACTION:SINK`, for actions on both sides), `stateKeys`, `calculated`, `stateReads`, `contextProvides`, `contextConsumes`, `eventsEmitted`, `eventsSelected`, `selectors` (the selector, or `control Name`), `children` (the child's key, else its name; `package:Name` for a package component; ` (collection)`, ` (switchable)`, ` (slot)` or ` (layout)` after it when it isn't a plain tag) and `diagnostics` (`CODE message`, without the line). The scalar fields `kind`, `entry` and `route` are `{ base, head }`. `events` compares the EVENTS types.
+
+`--graph=mermaid --base <ref>` draws the working tree's graph plus the removed components, with the classes `added`, `removed` and `changed` and a `linkStyle` for the added and removed edges. `--graph=html --base <ref>` opens the page with the changes drawn on it: added components and edges in green, removed ones as faded red dashed cards in their old place, changed ones with an amber mark (a folded group shows how many of its components changed), a Changes list in the sidebar, what changed in the selected component's panel, and a "Changes only" filter.
+
+`--base` exits 2 when the directory isn't in a git repository, the ref doesn't name a commit, or a scanned path is outside the repository. A path that doesn't exist at the ref is fine: everything in it counts as added. It can't be combined with `--watch`.
 
 ## Explaining a code
 
