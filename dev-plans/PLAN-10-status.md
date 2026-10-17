@@ -42,6 +42,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D527 | 2026-10-16 | `--graph=html` never opens a browser under `CI` or without a TTY, even with `--open` (it says why); `--out` works with every `--graph` format; `--json` with `--graph=html|mermaid` exits 2 (coordinator) |
 | D528 | 2026-10-16 | Revises D517: `events[type].emitters` / `selectors` stay unique names (as before PLAN-10); `emitterIds` / `selectorIds` are independent full lists (components in static graphs, instances in runtime graphs), not parallel to the names. One meaning across both sources; no repeated names (coordinator, on the D522 worker's question) |
 | D529 | 2026-10-16 | Static `key` collisions: the first same-named component in a file keeps `file#name`, later ones get `#2`, `#3` in source order; no runtime `key` until `sygnal/vite` stamps one (P10-Q9) (coordinator) |
+| D530 | 2026-10-16 | Reverses D523: the user accepts a few core bytes for runtime `contextConsumes` (a read-only `InstanceView` getter for the context keys a render read); done with V-3, byte delta reported, stop if over ~40 B gzip (user) |
 
 ## Items
 
@@ -56,24 +57,24 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-4 Source locations | 1 | ✅ merged `dcbb7e33` | |
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
-| A-7 State writes and reads | 2 | ⏳ | |
+| A-7 State writes and reads | 2 | 🔄 `p10-state-paths` | |
 | A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
-| V-3 Runtime graphs | 2 | ⏳ | |
+| V-3 Runtime graphs | 2 | 🔄 `p10-runtime-view` | |
 | V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
 | V-6 Diff rendering | 3 | ⏳ | |
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
 | C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
 | C-3 `--base <ref>` | 3 | ⏳ | |
-| W-1 `--watch` | 2 | ⏳ | |
+| W-1 `--watch` | 2 | 🔄 `p10-watch` | |
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
 | E-1 LSP `sygnal/graph` | 2 | ⏳ | |
 | E-2 VS Code panel | 2 | ⏳ | |
-| P-1 Devtools app graph tab | 2 | ⏳ | |
+| P-1 Devtools app graph tab | 2 | 🔄 `p10-runtime-view` | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
-| X-1 Graph-wide rules (SYG170–179) | 2 | ⏳ | if P10-Q5 says yes |
+| X-1 Graph-wide rules (SYG170–179) | 2 | 🔄 `p10-graph-rules` | measure first (D512) |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
