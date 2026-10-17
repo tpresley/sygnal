@@ -20,8 +20,8 @@
         "properties": {
           "emitters": { "$ref": "#/$defs/strings" },
           "selectors": { "$ref": "#/$defs/strings" },
-          "emitterIds": { "$ref": "#/$defs/strings", "description": "static: the ids of the emitters, parallel to emitters (one entry per component)" },
-          "selectorIds": { "$ref": "#/$defs/strings", "description": "static: the ids of the selectors, parallel to selectors" }
+          "emitterIds": { "$ref": "#/$defs/strings", "description": "the ids of the emitters. static: parallel to emitters (one entry per component); runtime: every emitting instance, while emitters keeps each name once" },
+          "selectorIds": { "$ref": "#/$defs/strings", "description": "the ids of the selectors. static: parallel to selectors; runtime: every selecting instance" }
         }
       }
     },
@@ -61,11 +61,14 @@
       "properties": {
         "name": { "type": "string" },
         "id": { "type": "string", "description": "runtime: instance number; static: 'file:line' of the definition" },
+        "key": { "type": "string", "description": "static (PLAN-10 D521): 'file#name', stable when lines move; a second component of the same name in one file gets 'file#name#2', and so on. Absent at runtime (no source positions)" },
         "parentId": { "type": ["string", "null"], "description": "runtime: parent instance id; static: null" },
         "file": { "type": "string", "description": "static only: source file relative to the working directory" },
         "kind": { "enum": ["root", "child", "collection-item", "switchable"] },
-        "viewOnly": { "const": true, "description": "static: a function rendered as a component (or started as an entry) that has no statics" },
-        "entry": { "enum": [true, "unknown"], "description": "static: started by run(), defineElement() or a Vike +Page/+Layout; 'unknown' on the other roots when an entry call's component can't be resolved (picked at run time); omitted otherwise" },
+        "viewOnly": { "const": true, "description": "a function rendered as a component (or started as an entry) that has no statics (runtime: the instance's component function has none)" },
+        "entry": { "enum": [true, "unknown"], "description": "static: started by run(), defineElement() or a Vike +Page/+Layout; 'unknown' on the other roots when an entry call's component can't be resolved (picked at run time); runtime: true on an app's root instance (parentId null); omitted otherwise" },
+        "app": { "type": "integer", "minimum": 0, "description": "runtime: the app (run()) the instance belongs to, 0 for the earliest live root; omitted statically" },
+        "shown": { "const": false, "description": "runtime: false on a hidden Switchable page and the instances below it; omitted when shown" },
         "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
         "stateKeys": { "$ref": "#/$defs/strings" },
         "calculated": { "$ref": "#/$defs/strings" },
@@ -241,6 +244,7 @@
         "via": { "enum": ["tag", "collection", "switchable", "slot"] },
         "from": { "type": ["string", "null"], "description": "Collection: the state field it renders, when known" },
         "count": { "type": "integer", "description": "runtime: live instances behind this entry" },
+        "ids": { "$ref": "#/$defs/strings", "description": "runtime: the ids of those instances (count of them)" },
         "id": { "type": ["string", "null"], "description": "static: the id of the component it renders (resolved through the import); null when it isn't in the graph (a package, a widget, a file not scanned, a dynamic value)" },
         "state": { "type": "string", "description": "static: the literal `state` lens of a tag (<Greeting state=\"host\" />)" },
         "external": { "type": "string", "description": "static: the package the tag is imported from ('sygnal/ui')" },

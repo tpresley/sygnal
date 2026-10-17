@@ -95,6 +95,15 @@ describe('t.inspect() (renderComponent)', () => {
 
     const items = byName(g, 'Item')
     expect(items).toHaveLength(3)
+    // PLAN-10 D522: instance ids on the child entries; entry, app, viewOnly as the static graph has them
+    expect(children.Item.ids).toEqual(items.map(i => i.id))
+    expect(children.Badge.ids).toEqual([byName(g, 'Badge')[0].id])
+    expect(app.entry).toBe(true)
+    expect(items.every(i => i.entry === undefined && i.app === app.app)).toBe(true)
+    expect(typeof app.app).toBe('number')
+    expect(byName(g, 'Badge')[0].viewOnly).toBe(true)
+    expect(g.components.filter(c => c.viewOnly).map(c => c.name)).toEqual(['Badge'])
+    expect(g.components.some(c => 'shown' in c)).toBe(false)
     for (const item of items) {
       expect(item.kind).toBe('collection-item')
       expect(item.parentId).toBe(app.id)
@@ -106,7 +115,7 @@ describe('t.inspect() (renderComponent)', () => {
     }
     expect(byName(g, 'Badge')[0].kind).toBe('child')
 
-    expect(g.events.ITEM_REMOVED).toEqual({ emitters: [], selectors: ['App'] })
+    expect(g.events.ITEM_REMOVED).toEqual({ emitters: [], selectors: ['App'], emitterIds: [], selectorIds: [app.id] })
     // SYG104 for App's '.remove' is attached to App
     expect(app.diagnostics.map(d => d.code)).toContain('SYG104')
   })
@@ -121,7 +130,7 @@ describe('t.inspect() (renderComponent)', () => {
     expect(validate(schema, g)).toEqual([])
     expect(byName(g, 'Item')).toHaveLength(1)
     expect(byName(g, 'Item')[0].eventsEmitted).toEqual([])
-    expect(g.events.ITEM_REMOVED).toEqual({ emitters: [], selectors: ['App'] })
+    expect(g.events.ITEM_REMOVED).toEqual({ emitters: [], selectors: ['App'], emitterIds: [], selectorIds: [byName(g, 'App')[0].id] })
   })
 
   it('attributes EVENTS emits to the emitting instance (not the root that forwards them)', async () => {
@@ -138,7 +147,7 @@ describe('t.inspect() (renderComponent)', () => {
     await t.waitForState(s => s.n === 1)
     const g = t.inspect()
     expect(validate(schema, g)).toEqual([])
-    expect(g.events.PING).toEqual({ emitters: ['Pinger'], selectors: ['Host'] })
+    expect(g.events.PING).toEqual({ emitters: ['Pinger'], selectors: ['Host'], emitterIds: [byName(g, 'Pinger')[0].id], selectorIds: [byName(g, 'Host')[0].id] })
     expect(byName(g, 'Pinger')[0].eventsEmitted).toEqual(['PING'])
     expect(byName(g, 'Host')[0].eventsEmitted).toEqual([])
     expect(byName(g, 'Host')[0].eventsSelected).toEqual(['PING'])
@@ -169,6 +178,10 @@ describe('t.inspect() (renderComponent)', () => {
     expect(byName(t.inspect(), 'Item')).toHaveLength(2)
     expect(byName(other.inspect(), 'Item')).toHaveLength(1)
     expect(byName(other.inspect(), 'App')).toHaveLength(0)
+    // PLAN-10 D522: two apps, numbered by their roots' age (other started first); each tree shares one
+    const mine = t.inspect().components, theirs = other.inspect().components
+    expect(new Set(mine.map(c => c.app)).size).toBe(1)
+    expect(theirs[0].app).toBeLessThan(mine[0].app)
     other.dispose()
   })
 
@@ -190,9 +203,9 @@ describe('inspect() / getDevTools().inspect', () => {
   // detection is checked on component-shaped objects.)
   // R5: the kind comes from the core's instance view (checks/next.ts's facade: `__next.kind`)
   it("derives the kind from the core's instance view", () => {
-    const mk = (n, name, kind, parentId) => ({ _componentNumber: n, name, stateSourceName: 'STATE', sources: {}, __next: { kind, parentId } })
+    const mk = (n, name, kind, parentId, shown = true) => ({ _componentNumber: n, name, stateSourceName: 'STATE', sources: {}, __next: { kind, parentId, shown } })
     const parent = mk(90001, 'Host', 'root', undefined)
-    const comps = [parent, mk(90002, 'Tagged', 'child', 90001), mk(90003, 'Row', 'item', 90001), mk(90004, 'Tab', 'page', 90001)]
+    const comps = [parent, mk(90002, 'Tagged', 'child', 90001), mk(90003, 'Row', 'item', 90001), mk(90004, 'Tab', 'page', 90001, false)]
     for (const c of comps) { inspectCheck.onIntent(c, []); inspectCheck.onModel(c, {}) }
     try {
       const g = inspect({ ids: [90001, 90002, 90003, 90004], diagnostics: [] })
@@ -201,8 +214,14 @@ describe('inspect() / getDevTools().inspect', () => {
         ['Host', 'root', null], ['Tagged', 'child', '90001'], ['Row', 'collection-item', '90001'], ['Tab', 'switchable', '90001'],
       ])
       expect(g.components[0].children).toEqual([
-        { name: 'Tagged', via: 'tag', count: 1 }, { name: 'Row', via: 'collection', count: 1 }, { name: 'Tab', via: 'switchable', count: 1 },
+        { name: 'Tagged', via: 'tag', count: 1, ids: ['90002'] }, { name: 'Row', via: 'collection', count: 1, ids: ['90003'] },
+        { name: 'Tab', via: 'switchable', count: 1, ids: ['90004'] },
       ])
+      // PLAN-10 D522: shown: false on the hidden Switchable page (the instance view's `shown`)
+      expect(g.components.map(c => [c.name, c.entry, c.shown])).toEqual([
+        ['Host', true, undefined], ['Tagged', undefined, undefined], ['Row', undefined, undefined], ['Tab', undefined, false],
+      ])
+      expect(new Set(g.components.map(c => c.app)).size).toBe(1)
     } finally {
       for (const c of comps) inspectCheck.onDispose(c)
     }
