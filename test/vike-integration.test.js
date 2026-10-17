@@ -476,7 +476,7 @@ describe('vike-sygnal SSR rendering', () => {
     function InnerLayout() { return { sel: 'div', data: {}, children: [] } }
     InnerLayout.initialState = { sidebarOpen: false }
 
-    const html = onRenderHtml({ Page, config: { Layout: [OuterLayout, InnerLayout] } }).documentHtml._escaped
+    const html = onRenderHtml({ Page, config: { Layout: [InnerLayout, OuterLayout] } }).documentHtml._escaped
     const wrapperState = JSON.parse(html.match(/window\.__VIKE_SYGNAL_STATE__=(.*?)<\/script>/)[1])
 
     // each Layout's slice is a sibling at the root (D50)

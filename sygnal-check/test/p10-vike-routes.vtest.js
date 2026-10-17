@@ -139,15 +139,25 @@ describe('examples/vike (A-9: nothing lost)', () => {
       ['Layout', 'examples/vike/pages/+Layout.jsx', 'root', 0],
       ['Wrapper', 'examples/vike/pages/+Wrapper.jsx', 'root', 0],
       ['Page', 'examples/vike/pages/about/+Page.jsx', 'root', 0],
+      ['AdminLayout', 'examples/vike/pages/admin/+Layout.jsx', 'root', 0],
       ['Page', 'examples/vike/pages/index/+Page.jsx', 'root', 0],
       ['Page', 'examples/vike/pages/spa/+Page.jsx', 'root', 0],
+      ['Page', 'examples/vike/pages/admin/+Page.jsx', 'root', 0],
     ])
     expect(g.components.map(c => [c.name, c.route, c.entry])).toEqual([
-      ['Layout', '/', true], ['Wrapper', '/', true], ['Page', '/about', true], ['Page', '/', true], ['Page', '/spa', true],
+      ['Layout', '/', true], ['Wrapper', '/', true], ['Page', '/about', true], ['AdminLayout', '/admin', true],
+      ['Page', '/', true], ['Page', '/spa', true], ['Page', '/admin', true],
     ])
-    const [layout, wrapper, about, index, spa] = g.components
+    const [layout, wrapper, about, adminLayout, index, spa, admin] = g.components
     expect(wrapper.children).toEqual([{ name: 'Layout', via: 'layout', id: layout.id }])
-    expect(layout.children).toEqual([about, index, spa].map(p => ({ name: 'Page', via: 'layout', id: p.id })))
+    // G-803: the nested Layout inside the root one, as sygnal/vike renders it
+    expect(layout.children).toEqual([
+      { name: 'Page', via: 'layout', id: about.id },
+      { name: 'AdminLayout', via: 'layout', id: adminLayout.id },
+      { name: 'Page', via: 'layout', id: index.id },
+      { name: 'Page', via: 'layout', id: spa.id },
+    ])
+    expect(adminLayout.children).toEqual([{ name: 'Page', via: 'layout', id: admin.id }])
     expect(g.diagnostics).toEqual([])
   })
 })

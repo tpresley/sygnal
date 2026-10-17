@@ -118,13 +118,13 @@ describe('G-106: Vike shell state with a Wrapper and a Layout', () => {
     const { Layout, Home, About } = makeShell()
     function Outer({ children }) { return h('div', { className: 'outer' }, ...children) }
     Outer.initialState = { o: 1 }
-    const html = onRenderHtml({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] } }).documentHtml._escaped
+    const html = onRenderHtml({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Layout, Outer] } }).documentHtml._escaped
     expect(serializedState(html)).toEqual({ layout_0: { o: 1 }, layout_1: { n: 0 }, page: { title: 'Home data' } })
     window.__VIKE_SYGNAL_STATE__ = serializedState(html)
-    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] }, isHydration: true })
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Layout, Outer] }, isHydration: true })
     await settle()
     expect(text('.page')).toBe('home:Home data')
-    onRenderClient({ Page: About, data: { title: 'About data' }, config: { Layout: [Outer, Layout] } })
+    onRenderClient({ Page: About, data: { title: 'About data' }, config: { Layout: [Layout, Outer] } })
     await settle()
     expect(text('.page')).toBe('about:About data')
   })
@@ -156,7 +156,7 @@ describe('G-106: Vike shell state with a Wrapper and a Layout', () => {
     Outer.initialState = { o: 1 }
     Outer.intent = ({ DOM }) => ({ RESET: DOM.click('.o') })
     Outer.model = { RESET: () => ({ o: 0 }) }
-    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Outer, Layout] } })
+    onRenderClient({ Page: Home, data: { title: 'Home data' }, config: { Layout: [Layout, Outer] } })
     await settle()
     document.querySelector('.bump').click()
     await settle()
