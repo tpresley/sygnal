@@ -11,8 +11,10 @@
  *                centres, never closer than one gap (so cards in a layer never overlap)
  *     clusters   islands grouped by the directory of their first root; islands holding an `entry`
  *                first, then the bigger ones; drawn as boxes only when there are several
- *   edgePaths(model, layout) → [{ cls, from, to, d, label, mid: [x, y], marker, type?, fields? }]
- *     cls: 'render' | 'collection' | 'switchable' | 'slot' | 'event' | 'context' | 'parent'
+ *   edgePaths(model, layout) → [{ cls, from, to, d, label, mid: [x, y], marker, type?, fields?, edge }]
+ *     cls: 'render' | 'collection' | 'switchable' | 'slot' | 'layout' (Vike's Wrapper > Layout > Page, A-9) | 'event' | 'context' | 'parent'
+ *     edge: the input edge (a groups.js projection's carries `count`, `types`; its `label` wins);
+ *     a render edge whose target is above its source goes round the right side (grouped layouts)
  *   bbox(pos, ids) → { x0, y0, x1, y1 } with the margin the page fits to
  *
  * Pure: no DOM, no imports (html.js inlines it; see model.js).
@@ -181,11 +183,15 @@ export function edgePaths(model, layout) {
     const a = pos.get(e.from), b = pos.get(e.to)
     const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2
     const dy = Math.max(30, (y2 - y1) / 2)
-    const cls = e.via === 'collection' ? 'collection' : e.via === 'switchable' ? 'switchable' : e.via === 'slot' ? 'slot' : 'render'
+    const cls = e.via === 'collection' ? 'collection' : e.via === 'switchable' ? 'switchable' : e.via === 'slot' ? 'slot' : e.via === 'layout' ? 'layout' : 'render'
+    // a target above the source (grouped layouts, V-4): out of the right side, into the target's right side
+    const up = y2 < y1 - 2 && e.from !== e.to
+    const ux1 = a.x + a.w, uy1 = a.y + a.h / 2, ux2 = b.x + b.w + 3, uy2 = b.y + b.h / 2, uk = 60 + Math.abs(uy2 - uy1) * 0.2
     out.push({
-      cls, from: e.from, to: e.to, label: e.label, mid: [x2, y2 - 14],
-      d: `M${r1(x1)},${r1(y1)} C${r1(x1)},${r1(y1 + dy)} ${r1(x2)},${r1(y2 - dy)} ${r1(x2)},${r1(y2)}`,
-      marker: cls === 'collection' ? 'ah-coll' : cls === 'switchable' ? 'ah-switch' : 'ah',
+      cls, from: e.from, to: e.to, label: e.label, mid: up ? [r1(Math.max(ux1, ux2) + uk * 0.75), r1((uy1 + uy2) / 2)] : [x2, y2 - 14],
+      d: up ? `M${r1(ux1)},${r1(uy1)} C${r1(ux1 + uk)},${r1(uy1)} ${r1(ux2 + uk)},${r1(uy2)} ${r1(ux2)},${r1(uy2)}`
+        : `M${r1(x1)},${r1(y1)} C${r1(x1)},${r1(y1 + dy)} ${r1(x2)},${r1(y2 - dy)} ${r1(x2)},${r1(y2)}`,
+      marker: cls === 'collection' ? 'ah-coll' : cls === 'switchable' ? 'ah-switch' : 'ah', edge: e,
     })
   }
   // EVENTS and context: spread the edges meeting at one card so they don't stack
@@ -213,7 +219,7 @@ export function edgePaths(model, layout) {
       c1 = [x1 + 50, y1 - 10]; c2 = [x2 + 50, y2 + 10]
     }
     out.push({
-      cls: 'event', from: e.from, to: e.to, type: e.type, label: e.type, marker: 'ah-ev',
+      cls: 'event', from: e.from, to: e.to, type: e.type, label: e.label ?? e.type, marker: 'ah-ev', edge: e,
       d: `M${r1(x1)},${r1(y1)} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(x2)},${r1(y2)}`,
       mid: [r1(bez(x1, c1[0], c2[0], x2, 0.5)), r1(bez(y1, c1[1], c2[1], y2, 0.5))],
     })
@@ -226,7 +232,7 @@ export function edgePaths(model, layout) {
     const k = Math.max(30, Math.abs(y2 - y1) * 0.4)
     const c1 = [x1, y1 - k], c2 = [x2, y2 + k]
     out.push({
-      cls: 'parent', from: e.from, to: e.to, actions: e.actions, label: e.actions.join(', '), marker: 'ah-parent',
+      cls: 'parent', from: e.from, to: e.to, actions: e.actions, label: e.label ?? e.actions.join(', '), marker: 'ah-parent', edge: e,
       d: `M${r1(x1)},${r1(y1)} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(x2)},${r1(y2)}`,
       mid: [r1(bez(x1, c1[0], c2[0], x2, 0.5) - 6), r1(bez(y1, c1[1], c2[1], y2, 0.5))],
     })
@@ -238,7 +244,7 @@ export function edgePaths(model, layout) {
     const off = 40 + n * 14 + Math.min(100, Math.abs(y2 - y1) * 0.1)
     const c1 = [x1 - off, y1], c2 = [x2 - off, y2]
     out.push({
-      cls: 'context', from: e.from, to: e.to, fields: e.fields, label: e.fields.join(', '), marker: 'ah-ctx',
+      cls: 'context', from: e.from, to: e.to, fields: e.fields, label: e.label ?? e.fields.join(', '), marker: 'ah-ctx', edge: e,
       d: `M${r1(x1)},${r1(y1)} C${r1(c1[0])},${r1(c1[1])} ${r1(c2[0])},${r1(c2[1])} ${r1(x2)},${r1(y2)}`,
       mid: [r1(bez(x1, c1[0], c2[0], x2, 0.5) - 4), r1(bez(y1, c1[1], c2[1], y2, 0.5))],
     })

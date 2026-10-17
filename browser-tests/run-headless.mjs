@@ -11,8 +11,8 @@
  * @mcp-b/webmcp-polyfill in a second Chromium launch without the switch, in Firefox and in WebKit
  * (plus a no-WebMCP page). BROWSER_TESTS_ONLY=webmcp runs only that; BROWSER_TESTS_WEBMCP=0 skips it.
  * PLAN-10 T-2: then the `sygnal-check --graph=html` page from file:// (graph-view.mjs; fails on any
- * network request), its live mode (graph-live.mjs, PLAN-10 W-1) and the VS Code panel's page
- * (graph-vscode.mjs, PLAN-10 E-2). BROWSER_TESTS_ONLY=graphview runs only
+ * network request), large apps (graph-view-large.mjs, PLAN-10 V-4), its live mode (graph-live.mjs,
+ * PLAN-10 W-1) and the VS Code panel's page (graph-vscode.mjs, PLAN-10 E-2). BROWSER_TESTS_ONLY=graphview runs only
  * those; BROWSER_TESTS_GRAPHVIEW=0 skips them.
  */
 
@@ -22,6 +22,7 @@ import * as playwright from 'playwright';
 import { consoleAllowlist } from './console-allowlist.mjs';
 import { runGraphView } from './graph-view.mjs';
 import { runGraphLive } from './graph-live.mjs';
+import { runGraphLarge } from './graph-view-large.mjs';
 import { runGraphVscode } from './graph-vscode.mjs';
 
 const ENGINE = process.env.BROWSER || 'chromium';
@@ -236,7 +237,7 @@ async function run() {
     if (onlyWebMcp) process.exit(await runWebMcp(browser, url) ? 1 : 0);
     const onlyGraphView = only?.toLowerCase() === 'graphview';
     const withGraphView = process.env.BROWSER_TESTS_GRAPHVIEW !== '0' && (!only || onlyGraphView);
-    if (onlyGraphView) process.exit((await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) ? 1 : 0);
+    if (onlyGraphView) process.exit((await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -309,7 +310,7 @@ async function run() {
     }
 
     const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
-    const graphViewFailed = withGraphView ? (await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) : 0;
+    const graphViewFailed = withGraphView ? (await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) : 0;
     process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
