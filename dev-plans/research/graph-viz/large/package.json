@@ -1,0 +1,18 @@
+{
+  "name": "sygnal-graph-viz-large",
+  "private": true,
+  "type": "module",
+  "description": "S-1 research only (PLAN-10): layout-engine candidates and Playwright for measuring. Never a sygnal-check dependency.",
+  "scripts": {
+    "corpus": "node gen.mjs --all",
+    "render": "node render.mjs",
+    "measure:node": "node measure-node.mjs",
+    "measure:browser": "node measure-browser.mjs"
+  },
+  "devDependencies": {
+    "@dagrejs/dagre": "1.1.4",
+    "d3-hierarchy": "3.1.2",
+    "elkjs": "0.10.0",
+    "playwright": "1.63.0"
+  }
+}

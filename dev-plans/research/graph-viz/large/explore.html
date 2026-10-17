@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ · Sygnal app graph (S-1 explore)</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --card: #ffffff; --ink: #18202b; --muted: #667085; --faint: #98a2b3;
+  --line: #e4e7ec; --edge: #98a2b3; --grid: #e9ecf1; --accent: #4f46e5; --accent-soft: #eef2ff;
+  --k-root: #4f46e5; --k-child: #64748b; --k-coll: #059669; --k-switch: #d97706; --k-ghost: #98a2b3;
+  --ev: #9333ea; --ctx: #0891b2; --err: #dc2626; --warn: #d97706; --info: #2563eb; --ok: #16a34a;
+  --err-soft: #fef2f2; --warn-soft: #fffbeb; --chip: #f2f4f7; --group: #f0f2f7; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1117; --panel: #151b23; --card: #1b222c; --ink: #e6edf3; --muted: #9da7b3; --faint: #6e7781;
+  --line: #2b3440; --edge: #5b6573; --grid: #1a2029; --accent: #8b8cf6; --accent-soft: #23243f;
+  --k-root: #8b8cf6; --k-child: #94a3b8; --k-coll: #34d399; --k-switch: #fbbf24; --k-ghost: #6e7781;
+  --ev: #c084fc; --ctx: #22d3ee; --err: #f87171; --warn: #fbbf24; --info: #60a5fa; --ok: #4ade80;
+  --err-soft: #2a1617; --warn-soft: #2a2312; --chip: #232b36; --group: #18202a; --shadow: 0 1px 2px rgba(0,0,0,.4);
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0d1117; --panel: #151b23; --card: #1b222c; --ink: #e6edf3; --muted: #9da7b3; --faint: #6e7781;
+  --line: #2b3440; --edge: #5b6573; --grid: #1a2029; --accent: #8b8cf6; --accent-soft: #23243f;
+  --k-root: #8b8cf6; --k-child: #94a3b8; --k-coll: #34d399; --k-switch: #fbbf24; --k-ghost: #6e7781;
+  --ev: #c084fc; --ctx: #22d3ee; --err: #f87171; --warn: #fbbf24; --info: #60a5fa; --ok: #4ade80;
+  --err-soft: #2a1617; --warn-soft: #2a2312; --chip: #232b36; --group: #18202a; --shadow: 0 1px 2px rgba(0,0,0,.4);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 300px 1fr auto; grid-template-areas: "top top top" "side canvas detail"; overflow: hidden; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+button, select, input { font: inherit; color: inherit; }
+header { grid-area: top; display: flex; align-items: center; gap: 10px; padding: 0 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 650; white-space: nowrap; }
+.brand .logo { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--ev)); display: grid; place-items: center; color: #fff; font-size: 13px; }
+.brand small { color: var(--muted); font-weight: 450; }
+.search { flex: 0 1 360px; position: relative; margin-left: 8px; }
+.search input { width: 100%; height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); padding: 0 40px 0 10px; }
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.search .count { position: absolute; right: 10px; top: 7px; color: var(--muted); font-size: 12px; }
+.results { position: absolute; top: 36px; left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 60vh; overflow: auto; z-index: 30; display: none; }
+.results.open { display: block; }
+.results .r { padding: 6px 10px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+.results .r:hover, .results .r.on { background: var(--chip); }
+.results .r small { color: var(--muted); margin-left: auto; font-family: ui-monospace, Menlo, monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
+.results .why { color: var(--ev); font-size: 11px; }
+.spacer { flex: 1; }
+.tabs { display: flex; gap: 2px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.tab { border: 0; background: transparent; padding: 3px 10px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+.tab[aria-pressed="true"] { background: var(--panel); color: var(--ink); box-shadow: var(--shadow); }
+.iconbtn { border: 1px solid var(--line); background: var(--panel); height: 32px; min-width: 32px; padding: 0 9px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+aside.side { grid-area: side; background: var(--panel); border-right: 1px solid var(--line); overflow: auto; }
+.sec { padding: 12px 14px 6px; border-bottom: 1px solid var(--line); }
+.sec h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 650; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.sec.closed > :not(h3) { display: none; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+.stat b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: 11px; }
+.stat.err b { color: var(--err); } .stat.warn b { color: var(--warn); }
+.ctl { display: grid; grid-template-columns: 96px 1fr; gap: 4px 8px; align-items: center; font-size: 12px; }
+.ctl label { color: var(--muted); }
+.ctl select, .ctl input[type=number] { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 2px 4px; }
+.checks { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 12px; margin-top: 6px; }
+.checks label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.health-item { display: flex; gap: 8px; padding: 4px 8px; border-radius: 7px; cursor: pointer; align-items: flex-start; }
+.health-item:hover { background: var(--chip); }
+.health-item .dot, .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; display: inline-block; }
+.health-item .t { flex: 1; min-width: 0; }
+.health-item .t small { display: block; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.health-group summary { cursor: pointer; padding: 4px 2px; font-weight: 600; list-style: none; display: flex; gap: 6px; align-items: center; }
+.health-group summary::-webkit-details-marker { display: none; }
+.health-group summary .n { margin-left: auto; color: var(--muted); font-weight: 500; }
+/* outline */
+.ol { font-size: 12.5px; }
+.ol-row { display: flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.ol-row:hover { background: var(--chip); }
+.ol-row.sel { background: var(--accent-soft); color: var(--accent); }
+.ol-row .tw { width: 12px; color: var(--faint); flex: none; text-align: center; font-size: 10px; }
+.ol-row .k { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+.ol-row .hint { color: var(--faint); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.ol-row .b { margin-left: auto; display: flex; gap: 3px; flex: none; }
+.ol-kids { padding-left: 12px; border-left: 1px solid var(--line); margin-left: 11px; }
+.pillx { font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 999px; color: #fff; }
+main { grid-area: canvas; position: relative; overflow: hidden; }
+#svg, #cv { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; user-select: none; position: absolute; inset: 0; }
+#cv { display: none; }
+.zoombar { position: absolute; right: 14px; top: 14px; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: hidden; }
+.zoombar button { border: 0; background: none; width: 34px; height: 30px; cursor: pointer; color: var(--muted); font-size: 15px; }
+.zoombar button + button { border-top: 1px solid var(--line); }
+#minimap { position: absolute; right: 14px; bottom: 14px; width: 220px; height: 150px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); cursor: crosshair; }
+.crumbs { position: absolute; left: 14px; top: 12px; right: 70px; display: none; align-items: center; gap: 4px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 5px 8px; font-size: 12px; }
+.crumbs.on { display: flex; }
+.crumbs a { color: var(--accent); cursor: pointer; } .crumbs .sep { color: var(--faint); }
+.crumbs button { margin-left: auto; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; cursor: pointer; padding: 1px 8px; }
+.trace { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 6px 8px 6px 14px; display: none; align-items: center; gap: 10px; max-width: 70%; }
+.trace.on { display: flex; }
+.trace a { color: var(--accent); cursor: pointer; }
+.trace button { border: 0; background: var(--chip); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+.perf { position: absolute; left: 14px; bottom: 14px; color: var(--muted); font-size: 11px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; font-family: ui-monospace, Menlo, monospace; }
+/* svg graph */
+.node { cursor: pointer; }
+.node .box { fill: var(--card); stroke: var(--line); stroke-width: 1; }
+.node:hover .box { stroke: var(--faint); }
+.node.sel .box { stroke: var(--accent); stroke-width: 2.5; }
+.node.has-err .box { stroke: var(--err); } .node.has-warn .box { stroke: var(--warn); }
+.node.ghost .box { fill: transparent; stroke: var(--k-ghost); stroke-dasharray: 5 4; }
+.node.dimf { opacity: .45; }
+.node .name { font-weight: 650; font-size: 14px; fill: var(--ink); }
+.node .sub { font-size: 11px; fill: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.node .meta { font-size: 11px; fill: var(--muted); }
+.node .meta tspan.n { fill: var(--ink); font-weight: 600; }
+.node .pill text, .node .fold text { font-size: 10.5px; font-weight: 700; fill: #fff; }
+.node.match .box { stroke: var(--accent); stroke-width: 3; }
+.node.group .box { fill: var(--group); stroke: var(--faint); stroke-dasharray: 6 3; }
+.node.bus .box { fill: color-mix(in srgb, var(--ev) 12%, var(--card)); stroke: var(--ev); }
+.node.bus text { font-size: 11px; fill: var(--ev); font-weight: 650; font-family: ui-monospace, Menlo, monospace; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.5; }
+.edge.collection { stroke-dasharray: 7 4; stroke: var(--k-coll); }
+.edge.switchable { stroke-dasharray: 2 4; stroke: var(--k-switch); stroke-linecap: round; stroke-width: 2; }
+.edge.event { stroke: var(--ev); opacity: .4; }
+.edge.context { stroke: var(--ctx); stroke-dasharray: 3 3; opacity: .45; }
+.elabel { font-size: 10.5px; fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.elabel.event { fill: var(--ev); font-weight: 600; display: none; } .elabel.context { fill: var(--ctx); display: none; }
+.elabel.hl { display: inline; }
+.box-g rect { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.box-g.loose rect { stroke-dasharray: 4 4; }
+.box-g text { fill: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 12px; cursor: pointer; }
+.box-g .big { display: none; font-weight: 700; fill: var(--ink); }
+svg.dim .node:not(.hl) { opacity: .2; }
+svg.dim .edge:not(.hl), svg.dim .elabel:not(.hl) { opacity: .06; }
+svg.dim .edge.hl { opacity: 1; stroke-width: 2.4; }
+.hide-events .event, .hide-context .context { display: none !important; }
+/* semantic zoom: far away, cards lose their text and the groups get big labels */
+svg.far .node text, svg.far .elabel, svg.far .node .pill { display: none; }
+svg.far .edge.event, svg.far .edge.context { display: none; }
+svg.far .box-g .small { display: none; } svg.far .box-g .big { display: inline; }
+svg.far .box-g rect { fill: color-mix(in srgb, var(--accent) 5%, transparent); }
+svg.far .node.group text, svg.far .node.bus text { display: inline; }
+/* other views */
+.view { position: absolute; inset: 0; overflow: auto; display: none; background: var(--bg); }
+.view.on { display: block; }
+#icicle svg { display: block; }
+#icicle rect { stroke: var(--bg); stroke-width: 1; cursor: pointer; }
+#icicle text { font-size: 11px; fill: #fff; pointer-events: none; }
+.evtable { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+.evtable th { position: sticky; top: 0; background: var(--panel); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.evtable td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.chip { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); border-radius: 6px; padding: 1px 7px; margin: 1px; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; border: 1px solid transparent; cursor: pointer; }
+.chip:hover { border-color: var(--faint); }
+.chip small { color: var(--muted); font-family: ui-sans-serif, system-ui; }
+.viewbar { position: sticky; top: 0; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); padding: 8px 12px; display: flex; gap: 10px; align-items: center; }
+.viewbar input { height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); padding: 0 8px; width: 260px; }
+/* detail */
+aside.detail { grid-area: detail; width: 0; overflow: hidden; background: var(--panel); border-left: 1px solid var(--line); }
+aside.detail.open { width: 380px; }
+.detail-inner { width: 380px; height: 100%; overflow: auto; }
+.dhead { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--panel); z-index: 2; }
+.dhead h2 { margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.dhead .close { margin-left: auto; border: 0; background: none; cursor: pointer; color: var(--muted); font-size: 18px; }
+.dhead .loc { margin-top: 4px; color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; overflow-wrap: anywhere; }
+.kind { font-size: 10.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; color: #fff; }
+.dsec { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.dsec h4 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.rel .r { display: flex; gap: 6px; align-items: baseline; margin-bottom: 3px; }
+.rel .lbl { color: var(--muted); width: 74px; flex: none; font-size: 12px; }
+.diag { border-radius: 8px; padding: 6px 10px; margin-bottom: 6px; border-left: 3px solid; }
+.diag.error { background: var(--err-soft); border-color: var(--err); } .diag.warn { background: var(--warn-soft); border-color: var(--warn); } .diag.info { background: var(--chip); border-color: var(--info); }
+.diag .code { font-weight: 700; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+.flow { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 8px; align-items: center; font-size: 12px; }
+.trig { font-size: 10.5px; font-weight: 650; padding: 0 5px; border-radius: 5px; border: 1px solid; }
+.sink { font-size: 10px; font-weight: 650; padding: 0 5px; border-radius: 5px; color: #fff; margin-left: 2px; }
+.tag { font-size: 10px; font-weight: 650; padding: 0 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.tag.danger { color: var(--err); border-color: var(--err); }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: .2s; pointer-events: none; z-index: 50; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">S</div><span id="title"></span><small id="subtitle"></small></div>
+  <div class="search">
+    <input id="q" placeholder="Find a component, event, action, state key, code… (/)" autocomplete="off" spellcheck="false">
+    <span class="count" id="qcount"></span>
+    <div class="results" id="results"></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="tabs" role="group" aria-label="View">
+    <button class="tab" data-view="graph" aria-pressed="true">Graph</button>
+    <button class="tab" data-view="outline">Outline</button>
+    <button class="tab" data-view="icicle">Icicle</button>
+    <button class="tab" data-view="events">Events</button>
+  </div>
+  <button class="iconbtn" id="m-theme" title="Light / dark">◐</button>
+</header>
+
+<aside class="side">
+  <div class="sec"><div class="stats" id="stats"></div></div>
+  <div class="sec" id="sec-strat"><h3>Strategies <span style="margin-left:auto;font-weight:500;text-transform:none;letter-spacing:0" id="preset-lbl"></span></h3>
+    <div class="ctl">
+      <label for="o-preset">Preset</label><select id="o-preset"><option value="auto">auto by size</option><option value="custom">custom</option><option value="spike">spike (flat)</option></select>
+      <label for="o-layout">Layout</label><select id="o-layout"><option value="layered">layered (spike)</option><option value="layered-wrap">layered, wrapped rows</option><option value="tidy">tidy tree (d3)</option><option value="dagre">dagre</option><option value="elk">ELK (compound)</option></select>
+      <label for="o-render">Render</label><select id="o-render"><option value="svg">SVG</option><option value="canvas">canvas</option></select>
+      <label for="o-group">Group by</label><select id="o-group"><option value="none">nothing (islands)</option><option value="dir">directory</option><option value="entry">entry (run root)</option><option value="community">communities</option></select>
+      <label for="o-fold">Groups</label><select id="o-fold"><option value="open">open</option><option value="all">folded</option></select>
+      <label for="o-depth">Fold subtrees</label><select id="o-depth"><option value="">no</option><option value="2">below depth 2</option><option value="3">below depth 3</option><option value="4">below depth 4</option><option value="5">below depth 5</option></select>
+      <label for="o-events">EVENTS</label><select id="o-events"><option value="pairs">emitter → selector</option><option value="bus">bus nodes where they save edges</option><option value="bus-all">a bus node per type</option><option value="off">hidden</option></select>
+      <label for="o-focusd">Focus</label><select id="o-focusd"><option value="0">off</option><option value="1">on select, depth 1</option><option value="2">on select, depth 2</option></select>
+    </div>
+    <div class="checks">
+      <label><input type="checkbox" id="o-context" checked> context</label>
+      <label><input type="checkbox" id="o-semantic" checked> semantic zoom</label>
+      <label><input type="checkbox" id="o-minimap" checked> minimap</label>
+    </div>
+    <div class="checks" style="margin-top:8px">
+      <label><input type="checkbox" id="f-problems"> only problems</label>
+      <label><input type="checkbox" id="f-viewonly"> hide view-only leaves</label>
+      <label><input type="checkbox" id="f-behavior"> hide behavior actions</label>
+      <label><input type="checkbox" id="f-ai"> AI surface only</label>
+    </div>
+    <div class="ctl" style="margin-top:6px"><label for="f-dir">Directory</label><select id="f-dir"><option value="">all</option></select>
+      <label for="f-kind">Kind</label><select id="f-kind"><option value="">all</option><option value="root">root</option><option value="child">child</option><option value="collection-item">collection item</option><option value="switchable">switchable</option></select></div>
+  </div>
+  <div class="sec" id="sec-health"><h3>Health</h3><div id="health"></div></div>
+  <div class="sec" id="sec-outline"><h3>Outline</h3><div class="ol" id="outline"></div></div>
+</aside>
+
+<main>
+  <svg id="svg">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--edge)"/></marker>
+      <marker id="ah-ev" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--ev)"/></marker>
+      <marker id="ah-ctx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><circle cx="5" cy="5" r="4" fill="var(--ctx)"/></marker>
+    </defs>
+    <g id="vp"><g id="boxes"></g><g id="edges"></g><g id="labels"></g><g id="nodes"></g></g>
+  </svg>
+  <canvas id="cv"></canvas>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="zoombar"><button id="zin" title="Zoom in">+</button><button id="zout" title="Zoom out">−</button><button id="zfit" title="Fit (F)">⤢</button></div>
+  <canvas id="minimap" width="440" height="300"></canvas>
+  <div class="trace" id="trace"></div>
+  <div class="perf" id="perf"></div>
+  <div class="view" id="v-outline"><div class="viewbar"><b>Outline</b><span style="color:var(--muted)">render tree from each entry; a component with several parents is listed under each</span></div><div class="ol" id="outline-main" style="padding:8px 12px"></div></div>
+  <div class="view" id="v-icicle"><div class="viewbar"><b>Icicle</b><label>size by <select id="ic-size"><option value="count">components</option><option value="actions">actions</option><option value="state">state keys</option></select></label><label>colour <select id="ic-color"><option value="kind">kind</option><option value="health">health</option><option value="dir">directory</option></select></label><button class="iconbtn" id="ic-up" style="height:26px">↑ up</button><span id="ic-path" style="color:var(--muted)"></span></div><div id="icicle"></div></div>
+  <div class="view" id="v-events"><div class="viewbar"><b>EVENTS</b><input id="ev-q" placeholder="filter by type or component"><span id="ev-n" style="color:var(--muted)"></span></div><table class="evtable" id="evtable"></table></div>
+</main>
+
+<aside class="detail" id="detail"><div class="detail-inner" id="dinner"></div></aside>
+<div class="toast" id="toast"></div>
+
+__LIBS__
+<script type="application/json" id="graph-data">__GRAPH__</script>
+<script type="application/json" id="graph-meta">__META__</script>
+<script type="module">
+performance.mark('script-start')
+// ───────────────────────── model (model.mjs, inlined) ─────────────────────────
+__MODEL__
+// ───────────────────────── page ─────────────────────────
+const G = JSON.parse(document.getElementById('graph-data').textContent)
+const META = JSON.parse(document.getElementById('graph-meta').textContent)
+const $ = (id) => document.getElementById(id)
+const SVGNS = 'http://www.w3.org/2000/svg'
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+const KIND = { root: ['root', 'var(--k-root)'], child: ['child', 'var(--k-child)'], 'collection-item': ['collection item', 'var(--k-coll)'], switchable: ['switchable', 'var(--k-switch)'], ghost: ['not scanned', 'var(--k-ghost)'] }
+const SINK = { STATE: '#2563eb', EVENTS: '#9333ea', EFFECT: '#ea580c', PARENT: '#0d9488', HTTP: '#ca8a04', ELEMENT: '#db2777', LLM: '#7c3aed', DOM: '#16a34a' }
+const TRIG = { intent: ['var(--ok)', 'intent'], builtin: ['var(--faint)', 'builtin'], reply: ['var(--ctx)', 'reply'], next: ['var(--info)', 'next'], agent: ['var(--ev)', 'agent'], unknown: ['var(--err)', 'never'] }
+const LIBS = { d3: window.d3, dagre: window.dagre, ELK: window.ELK }
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim()
+
+const t0 = performance.now()
+const M = buildModel(G)
+const N = M.comps.filter(c => !c.ghost).length
+const perf = { modelMs: performance.now() - t0 }
+const groupCache = {}
+const groupsFor = (mode) => groupCache[mode] ??= groupOf(M, mode)
+
+// ───────────────────────── state (URL params set it, for the measurements) ─────────────────────────
+const P = new URLSearchParams(location.search)
+const S = {
+  view: P.get('view') ?? 'graph', layout: P.get('layout') ?? 'layered', render: P.get('render') ?? 'svg',
+  grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'pairs', context: true, focusDepth: 0, semantic: true, minimap: true,
+  filter: {}, hideBehavior: false,
+  expandedGroups: new Set(), foldedGroups: new Set(), foldedSubtrees: new Set(), unfolded: new Set(),
+  selected: null, focus: null,
+}
+function applyPreset(name) {
+  if (name === 'spike') Object.assign(S, { grouping: 'none', fold: 'open', autoFoldDepth: null, events: 'pairs', focusDepth: 0, semantic: false, minimap: false, layout: 'layered' })
+  else if (name === 'auto') {
+    // the recommended defaults by size (large-apps.md)
+    if (N <= 80) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'pairs', focusDepth: 0, semantic: false, minimap: false })
+    else if (N <= 300) Object.assign(S, { grouping: 'dir', fold: 'open', autoFoldDepth: null, events: 'bus', focusDepth: 2, semantic: true, minimap: true })
+    else Object.assign(S, { grouping: 'dir', fold: 'all', autoFoldDepth: null, events: 'bus', focusDepth: 2, semantic: true, minimap: true })
+    S.layout = N > 300 ? 'layered-wrap' : 'layered'
+  }
+}
+applyPreset(P.get('preset') ?? 'auto')
+for (const [k, v] of P) {
+  if (k === 'group') S.grouping = v; else if (k === 'fold') S.fold = v; else if (k === 'depth') S.autoFoldDepth = v ? +v : null
+  else if (k === 'events') S.events = v; else if (k === 'context') S.context = v !== '0'; else if (k === 'focus') S.focusDepth = +v
+  else if (k === 'semantic') S.semantic = v !== '0'; else if (k === 'minimap') S.minimap = v !== '0'
+  else if (k === 'problems') S.filter.problemsOnly = v === '1'; else if (k === 'viewonly') S.filter.hideViewOnly = v === '1'; else if (k === 'ai') S.filter.aiOnly = v === '1'
+}
+
+// ───────────────────────── controls ─────────────────────────
+const bindSel = (id, get, set) => { const e = $(id); e.value = get(); e.onchange = () => { set(e.value); $('o-preset').value = 'custom'; rebuild({ fit: true }) } }
+const bindChk = (id, get, set, rb = true) => { const e = $(id); e.checked = get(); e.onchange = () => { set(e.checked); $('o-preset').value = 'custom'; rb ? rebuild({ fit: true }) : redraw() } }
+function syncControls() {
+  bindSel('o-layout', () => S.layout, v => S.layout = v)
+  bindSel('o-render', () => S.render, v => S.render = v)
+  bindSel('o-group', () => S.grouping, v => { S.grouping = v; S.expandedGroups.clear(); S.foldedGroups.clear() })
+  bindSel('o-fold', () => S.fold, v => { S.fold = v; S.expandedGroups.clear(); S.foldedGroups.clear() })
+  bindSel('o-depth', () => S.autoFoldDepth ?? '', v => { S.autoFoldDepth = v ? +v : null; S.unfolded.clear() })
+  bindSel('o-events', () => S.events, v => S.events = v)
+  bindSel('o-focusd', () => String(S.focusDepth), v => { S.focusDepth = +v; if (!S.focusDepth) S.focus = null; else if (S.selected) S.focus = S.selected })
+  bindChk('o-context', () => S.context, v => S.context = v)
+  bindChk('o-semantic', () => S.semantic, v => S.semantic = v, false)
+  bindChk('o-minimap', () => S.minimap, v => S.minimap = v, false)
+  bindChk('f-problems', () => !!S.filter.problemsOnly, v => S.filter.problemsOnly = v)
+  bindChk('f-viewonly', () => !!S.filter.hideViewOnly, v => S.filter.hideViewOnly = v)
+  bindChk('f-ai', () => !!S.filter.aiOnly, v => S.filter.aiOnly = v)
+  bindChk('f-behavior', () => S.hideBehavior, v => S.hideBehavior = v)
+  bindSel('f-dir', () => S.filter.dirs?.[0] ?? '', v => S.filter.dirs = v ? [v] : [])
+  bindSel('f-kind', () => S.filter.kinds?.[0] ?? '', v => S.filter.kinds = v ? [v] : [])
+  for (const o of ['layered', 'tidy', 'dagre', 'elk']) { const opt = $('o-layout').querySelector(`[value=${o}]`); const need = { tidy: 'd3', dagre: 'dagre', elk: 'ELK' }[o]; if (need && !LIBS[need]) { opt.disabled = true; opt.textContent += ' (not inlined)' } }
+}
+$('o-preset').onchange = () => { applyPreset($('o-preset').value); S.expandedGroups.clear(); S.foldedGroups.clear(); syncControls(); rebuild({ fit: true }) }
+{ const dirs = [...new Set(M.comps.filter(c => !c.ghost).map(c => c.file.split('/').slice(0, 3).join('/')))].sort(); $('f-dir').innerHTML += dirs.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('') }
+document.querySelectorAll('.sec h3').forEach(h => h.onclick = () => h.parentElement.classList.toggle('closed'))
+
+// ───────────────────────── pipeline ─────────────────────────
+let V = null, L = null, building = 0
+function opts() {
+  return { grouping: S.grouping, groups: groupsFor(S.grouping), foldedGroups: S.fold === 'all' ? 'all' : S.foldedGroups, expandedGroups: S.expandedGroups, foldedSubtrees: S.foldedSubtrees, autoFoldDepth: S.autoFoldDepth, unfolded: S.unfolded, events: S.events, context: S.context, focus: S.focus, focusDepth: S.focusDepth || 2, filter: S.filter }
+}
+async function rebuild({ fit: doFit = false, keep } = {}) {
+  const my = ++building
+  performance.mark('rebuild-start')
+  const a = performance.now(); V = project(M, opts()); perf.projectMs = performance.now() - a
+  const engine = S.layout === 'elk' && !LIBS.ELK ? 'layered' : S.layout
+  const L2 = await layout(V, engine, LIBS); if (my !== building) return
+  L = L2; perf.layoutMs = L.ms
+  const b = performance.now(); draw(); perf.drawMs = performance.now() - b
+  perf.nodes = V.nodes.length; perf.edges = V.edges.length
+  if (doFit) fit(undefined, false)
+  else if (keep && L.pos.get(keep)) centerOn(keep, false)
+  apply()
+  renderCrumbs()
+  requestAnimationFrame(() => requestAnimationFrame(() => { perf.paintedAt = performance.now(); perf.rebuildToPaint = perf.paintedAt - a; showPerf(); window.__ready = true }))
+}
+function showPerf() { $('perf').textContent = `${N} comps → ${V.nodes.length} nodes, ${V.edges.length} edges · layout ${perf.layoutMs.toFixed(0)} ms · draw ${perf.drawMs.toFixed(0)} ms · ${S.render}`; window.__perf = { ...perf, firstPaint: perf.firstPaint ?? (perf.firstPaint = perf.paintedAt) } }
+
+// ───────────────────────── drawing ─────────────────────────
+const svg = $('svg'), vp = $('vp'), cv = $('cv')
+const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e }
+let nodeEls = new Map(), edgeEls = []
+const worst = (c) => M.worst(c)
+const ownActs = (c) => c.actions.filter(a => !a.behavior).length
+const membersWorst = (n) => { let e = 0, w = 0, ai = 0; for (const id of n.members) { const c = M.byId.get(id); const x = worst(c); if (x === 'error') e++; else if (x === 'warn') w++; if (c.agent) ai++ } return { e, w, ai } }
+function edgePath(e) {
+  const a = L.pos.get(e.from), b = L.pos.get(e.to)
+  if (!a || !b) return null
+  if (e.cls === 'render') {
+    const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2
+    if (y2 > y1) { const dy = Math.max(30, (y2 - y1) / 2); return { d: `M${x1},${y1} C${x1},${y1 + dy} ${x2},${y2 - dy} ${x2},${y2}`, mid: [x2, y2 - 14] } }
+    const x1s = a.x + a.w, x2s = b.x + b.w, k = 60 + Math.abs(y2 - y1) * 0.2
+    return { d: `M${x1s},${a.y + a.h / 2} C${x1s + k},${a.y + a.h / 2} ${x2s + k},${b.y + b.h / 2} ${x2s},${b.y + b.h / 2}`, mid: [Math.max(x1s, x2s) + k * .75, (a.y + b.y) / 2 + a.h / 2] }
+  }
+  const ax = a.x + a.w / 2, ay = a.y + a.h / 2, bx = b.x + b.w / 2, by = b.y + b.h / 2
+  const x1 = ax + Math.sign(bx - ax || 1) * a.w / 2, x2 = bx - Math.sign(bx - ax || 1) * b.w / 2
+  const k = Math.max(40, Math.abs(x2 - x1) * 0.4) * Math.sign(x2 - x1 || 1)
+  const off = e.cls === 'context' ? -24 : 24
+  return { d: `M${x1},${ay} C${x1 + k},${ay + off} ${x2 - k},${by + off} ${x2},${by}`, mid: [(x1 + x2) / 2, (ay + by) / 2 + off * .75] }
+}
+function draw() {
+  svg.style.display = S.render === 'svg' ? 'block' : 'none'
+  cv.style.display = S.render === 'canvas' ? 'block' : 'none'
+  nodeEls = new Map(); edgeEls = []
+  for (const g of ['boxes', 'edges', 'labels', 'nodes']) $(g).textContent = ''
+  if (S.render === 'canvas') { buildMinimap(); redraw(); return }
+  for (const b of L.boxes) {
+    const g = el('g', { class: 'box-g' + (b.loose ? ' loose' : '') }, $('boxes'))
+    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 14 }, g)
+    const t = el('text', { class: 'small', x: b.x + 14, y: b.y + 22 }, g); t.textContent = b.key + '  ▾ fold'
+    const big = el('text', { class: 'big', x: b.x + b.w / 2, y: b.y + b.h / 2, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, g); big.textContent = b.key.split('/').pop() || b.key; big.dataset.box = '1'
+    t.onclick = big.onclick = (ev) => { ev.stopPropagation(); foldGroup(b.key) }
+  }
+  const frag = { e: document.createDocumentFragment(), l: document.createDocumentFragment(), n: document.createDocumentFragment() }
+  for (const e of V.edges) {
+    const p = edgePath(e); if (!p) continue
+    const cls = e.cls === 'render' ? (e.via === 'collection' ? 'collection' : e.via === 'switchable' ? 'switchable' : 'render') : e.cls
+    const path = el('path', { class: 'edge ' + cls, d: p.d, 'marker-end': `url(#${e.cls === 'event' ? 'ah-ev' : e.cls === 'context' ? 'ah-ctx' : 'ah'})` }, frag.e)
+    if (e.count > 1) path.style.strokeWidth = Math.min(8, 1.5 + Math.log2(e.count) * 1.2)
+    let t = null
+    const label = e.count > 1 && (V.nodes.find || true) && (e.from.startsWith('grp:') || e.to.startsWith('grp:') || e.from.startsWith('fold:') || e.to.startsWith('fold:')) ? `×${e.count}` : e.labels.slice(0, 2).join(', ') + (e.labels.length > 2 ? ` +${e.labels.length - 2}` : '')
+    if (label) { t = el('text', { class: 'elabel ' + e.cls, x: p.mid[0], y: p.mid[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, frag.l); t.textContent = label; if (e.cls === 'render' && label.startsWith('×')) t.style.display = 'inline' }
+    edgeEls.push({ e, p: path, t })
+  }
+  for (const n of V.nodes) {
+    const p = L.pos.get(n.id); if (!p) continue
+    const g = el('g', { class: 'node ' + n.type, transform: `translate(${p.x},${p.y})`, tabindex: 0, role: 'button' }, frag.n)
+    if (n.type === 'bus') {
+      el('rect', { class: 'box', width: p.w, height: p.h, rx: p.h / 2 }, g)
+      const t = el('text', { x: p.w / 2, y: p.h / 2 + 1, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, g); t.textContent = n.event.length > 22 ? n.event.slice(0, 21) + '…' : n.event
+      el('title', {}, g).textContent = `EVENTS ${n.event}: ${n.emitters} emitter(s) → ${n.selectors} selector(s)`
+      g.onclick = (ev) => { ev.stopPropagation(); trace('event', n.event) }
+    } else if (n.type === 'group') {
+      const s = membersWorst(n)
+      el('rect', { class: 'box', width: p.w, height: p.h, rx: 14 }, g)
+      const t = el('text', { class: 'name', x: 16, y: 26 }, g); const nm = n.key.split('/').pop() || n.key; t.textContent = nm.length > 24 ? nm.slice(0, 23) + '…' : nm
+      const sub = el('text', { class: 'sub', x: 16, y: 44 }, g); sub.textContent = n.key.length > 32 ? '…' + n.key.slice(-31) : n.key
+      const meta = el('text', { class: 'meta', x: 16, y: 72 }, g); meta.innerHTML = `<tspan class="n">${n.count}</tspan> components${s.ai ? ` · <tspan fill="var(--ev)" font-weight="700">${s.ai} AI</tspan>` : ''}`
+      if (s.e || s.w) { const pg = el('g', { class: 'pill', transform: `translate(${p.w - 12},12)` }, g); el('rect', { x: -30, y: -1, width: 34, height: 17, rx: 8.5, fill: s.e ? 'var(--err)' : 'var(--warn)' }, pg); el('text', { x: -13, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = s.e + s.w }
+      el('title', {}, g).textContent = `${n.key}: ${n.count} components (click to open)`
+      g.onclick = (ev) => { ev.stopPropagation(); openGroup(n.key) }
+    } else {
+      const c = n.comp, wv = worst(c)
+      g.dataset.cid = c.id
+      g.setAttribute('class', `node ${n.type}${c.ghost ? ' ghost' : ''}${wv === 'error' ? ' has-err' : wv === 'warn' ? ' has-warn' : ''}${n.dim ? ' dimf' : ''}`)
+      el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
+      if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: KIND[c.kind]?.[1] ?? 'var(--k-child)' }, g)
+      const name = el('text', { class: 'name', x: 16, y: 24 }, g); name.textContent = c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name
+      const sub = el('text', { class: 'sub', x: 16, y: 41 }, g); const file = c.ghost ? 'not scanned' : `${c.file.split('/').slice(-2).join('/')}:${c.id.split(':').pop()}`; sub.textContent = file.length > 30 ? '…' + file.slice(-29) : file
+      if (!c.ghost) {
+        const meta = el('text', { class: 'meta', x: 16, y: 60 }, g)
+        const own = ownActs(c), beh = c.actions.length - own
+        const parts = c.viewOnly ? [['', 'view only']] : [[own, 'act' + (beh && !S.hideBehavior ? `+${beh}` : '')], [c.stateKeys.length, 'state'], [c.eventsEmitted.length + c.eventsSelected.length, 'events']].filter(([x]) => x)
+        parts.forEach(([x, l], i) => { const a = el('tspan', { class: 'n', dx: i ? 10 : 0 }, meta); a.textContent = x; el('tspan', {}, meta).textContent = (x === '' ? '' : ' ') + l })
+        if (c.agent) { const t = el('text', { x: p.w - 14, y: 60, 'text-anchor': 'end', 'font-size': 11, fill: 'var(--ev)', 'font-weight': 700 }, g); t.textContent = 'AI' }
+      }
+      const nd = c.diagnostics.filter(d => d.severity !== 'info').length
+      if (nd) { const pg = el('g', { class: 'pill', transform: `translate(${p.w - 12},12)` }, g); el('rect', { x: -22, y: -1, width: 26, height: 17, rx: 8.5, fill: wv === 'error' ? 'var(--err)' : 'var(--warn)' }, pg); el('text', { x: -9, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = nd }
+      if (n.type === 'fold') {
+        const fg = el('g', { class: 'fold', transform: `translate(${p.w / 2},${p.h})` }, g)
+        el('rect', { x: -24, y: -9, width: 48, height: 18, rx: 9, fill: 'var(--accent)' }, fg); el('text', { x: 0, y: 4, 'text-anchor': 'middle' }, fg).textContent = `+${n.hidden}`
+        fg.onclick = (ev) => { ev.stopPropagation(); unfold(n.cid) }
+      } else if (M.childrenOf.get(c.id).length && n.type === 'comp' && !S.focus) {
+        const fg = el('g', { class: 'fold', transform: `translate(${p.w / 2},${p.h})`, opacity: .0 }, g)
+        el('rect', { x: -9, y: -8, width: 18, height: 16, rx: 8, fill: 'var(--faint)' }, fg); el('text', { x: 0, y: 4, 'text-anchor': 'middle' }, fg).textContent = '−'
+        g.addEventListener('mouseenter', () => fg.setAttribute('opacity', 1)); g.addEventListener('mouseleave', () => fg.setAttribute('opacity', 0))
+        fg.onclick = (ev) => { ev.stopPropagation(); foldSubtree(c.id) }
+      }
+      el('title', {}, g).textContent = `${c.name}\n${c.file}`
+      g.onclick = (ev) => { ev.stopPropagation(); select(c.id) }
+    }
+    nodeEls.set(n.id, g)
+  }
+  $('edges').appendChild(frag.e); $('labels').appendChild(frag.l); $('nodes').appendChild(frag.n)
+  svg.classList.toggle('hide-context', !S.context)
+  buildMinimap()
+  if (S.selected) markSelected()
+}
+
+// canvas renderer: everything per frame, culled to the viewport; text only when legible
+let cvDirty = false
+let wasFar = null
+function redraw() {
+  if (S.render === 'canvas') { if (!cvDirty) { cvDirty = true; requestAnimationFrame(paintCanvas) } }
+  drawMinimapView()
+  const far = S.semantic && view.k < 0.4
+  if (far !== wasFar) { svg.classList.toggle('far', far); wasFar = far; if (!far) for (const t of $('nodes').querySelectorAll('.node.group .name')) { t.style.fontSize = ''; t.setAttribute('y', 26) } }
+  // group labels stay ~18px on screen, up to the card's width (≤ a few dozen elements, cheap)
+  if (far && S.render === 'svg') { const fs = (18 / view.k).toFixed(0) + 'px'; for (const t of $('boxes').querySelectorAll('.big')) t.style.fontSize = fs; for (const t of $('nodes').querySelectorAll('.node.group .name')) { t.style.fontSize = Math.min(15 / view.k, (GW - 24) / (0.62 * t.textContent.length)).toFixed(0) + 'px'; t.setAttribute('y', 62) } }
+}
+let hlSet = null
+function paintCanvas() {
+  cvDirty = false
+  const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1
+  if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr) }
+  const ctx = cv.getContext('2d')
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height)
+  ctx.translate(view.x, view.y); ctx.scale(view.k, view.k)
+  const vx0 = -view.x / view.k, vy0 = -view.y / view.k, vx1 = vx0 + r.width / view.k, vy1 = vy0 + r.height / view.k
+  const vis = (p) => p.x + p.w >= vx0 && p.x <= vx1 && p.y + p.h >= vy0 && p.y <= vy1
+  const far = S.semantic && view.k < 0.4
+  const C = { line: css('--line'), edge: css('--edge'), card: css('--card'), ink: css('--ink'), muted: css('--muted'), ev: css('--ev'), ctx: css('--ctx'), err: css('--err'), warn: css('--warn'), accent: css('--accent'), group: css('--group'), coll: css('--k-coll'), sw: css('--k-switch') }
+  ctx.lineWidth = 1.5 / Math.max(view.k, 0.3)
+  for (const b of L.boxes) { ctx.strokeStyle = C.line; ctx.strokeRect(b.x, b.y, b.w, b.h); if (far) { ctx.fillStyle = C.ink; ctx.font = `700 ${Math.round(18 / view.k)}px system-ui`; ctx.textAlign = 'center'; ctx.fillText(b.key.split('/').pop(), b.x + b.w / 2, b.y + b.h / 2) } else if (view.k > 0.3) { ctx.fillStyle = C.muted; ctx.font = '12px ui-monospace, Menlo, monospace'; ctx.textAlign = 'left'; ctx.fillText(b.key, b.x + 14, b.y + 22) } }
+  ctx.textAlign = 'left'
+  for (const e of V.edges) {
+    if (far && e.cls !== 'render') continue
+    if (e.cls === 'context' && !S.context) continue
+    const a = L.pos.get(e.from), b = L.pos.get(e.to); if (!a || !b) continue
+    if (!vis({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x) + a.w, h: Math.abs(a.y - b.y) + a.h })) continue
+    const on = !hlSet || (hlSet.has(e.from) && hlSet.has(e.to))
+    ctx.globalAlpha = on ? (e.cls === 'render' ? 1 : .45) : .06
+    ctx.strokeStyle = e.cls === 'event' ? C.ev : e.cls === 'context' ? C.ctx : e.via === 'collection' ? C.coll : e.via === 'switchable' ? C.sw : C.edge
+    ctx.lineWidth = Math.min(8, 1.5 + (e.count > 1 ? Math.log2(e.count) * 1.2 : 0))
+    const p = edgePath(e); ctx.stroke(new Path2D(p.d))
+  }
+  ctx.globalAlpha = 1
+  for (const n of V.nodes) {
+    const p = L.pos.get(n.id); if (!p || !vis(p)) continue
+    const on = !hlSet || hlSet.has(n.id)
+    ctx.globalAlpha = on ? 1 : .2
+    const c = n.comp, wv = c && worst(c)
+    ctx.fillStyle = n.type === 'group' ? C.group : n.type === 'bus' ? C.card : C.card
+    ctx.strokeStyle = n.id === S.selected ? C.accent : n.type === 'bus' ? C.ev : wv === 'error' ? C.err : wv === 'warn' ? C.warn : C.line
+    ctx.lineWidth = n.id === S.selected ? 2.5 : 1
+    ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, n.type === 'bus' ? p.h / 2 : 11); ctx.fill(); ctx.stroke()
+    if (view.k < 0.35 && n.type !== 'group') continue
+    ctx.fillStyle = n.type === 'bus' ? C.ev : C.ink
+    if (n.type === 'bus') { ctx.font = '600 11px ui-monospace, Menlo, monospace'; ctx.fillText(n.event.slice(0, 22), p.x + 10, p.y + 18); continue }
+    if (n.type === 'group') { ctx.font = `650 ${far ? Math.round(14 / Math.max(view.k, 0.15)) : 14}px system-ui`; ctx.fillText((n.key.split('/').pop() || n.key).slice(0, 24), p.x + 16, p.y + 26); if (!far) { ctx.fillStyle = C.muted; ctx.font = '11px system-ui'; ctx.fillText(`${n.count} components`, p.x + 16, p.y + 72) } continue }
+    ctx.font = '650 14px system-ui'; ctx.fillText(c.name.slice(0, 22), p.x + 16, p.y + 24)
+    ctx.fillStyle = C.muted; ctx.font = '11px ui-monospace, Menlo, monospace'; ctx.fillText((c.file ?? '').split('/').slice(-2).join('/').slice(-30), p.x + 16, p.y + 41)
+    if (n.type === 'fold') { ctx.fillStyle = C.accent; ctx.beginPath(); ctx.roundRect(p.x + p.w / 2 - 24, p.y + p.h - 9, 48, 18, 9); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = '700 10.5px system-ui'; ctx.textAlign = 'center'; ctx.fillText('+' + n.hidden, p.x + p.w / 2, p.y + p.h + 4); ctx.textAlign = 'left' }
+  }
+  ctx.globalAlpha = 1
+}
+function canvasHit(cx, cy) {
+  const x = (cx - view.x) / view.k, y = (cy - view.y) / view.k
+  for (const n of V.nodes) { const p = L.pos.get(n.id); if (p && x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h + (n.type === 'fold' ? 9 : 0)) return { n, fold: n.type === 'fold' && y > p.y + p.h - 9 && Math.abs(x - p.x - p.w / 2) < 24 } }
+  return null
+}
+
+// ───────────────────────── pan / zoom / minimap ─────────────────────────
+let view = { x: 0, y: 0, k: 1 }
+function apply() { if (S.render === 'svg') vp.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`); redraw() }
+const canvasRect = () => (S.render === 'svg' ? svg : cv).getBoundingClientRect()
+function fit(ids, anim = true, maxK = 1.15) {
+  const r = canvasRect(); const b = ids ? boundsOf(ids) : bounds(L)
+  const pad = 60, k = Math.min((r.width - pad * 2) / Math.max(1, b.w), (r.height - pad * 2) / Math.max(1, b.h), maxK)
+  const t = { k, x: (r.width - b.w * k) / 2 - b.x0 * k, y: (r.height - b.h * k) / 2 - b.y0 * k }
+  if (anim) animateTo(t); else { view = t; apply() }
+}
+function boundsOf(ids) { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const id of ids) { const p = L.pos.get(id); if (!p) continue; x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h) } return x0 === Infinity ? bounds(L) : { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 } }
+function centerOn(id, anim = true) { const p = L.pos.get(id); if (!p) return; const r = canvasRect(); const k = Math.max(view.k, 0.8); const t = { k, x: r.width / 2 - (p.x + p.w / 2) * k, y: r.height / 2.4 - (p.y + p.h / 2) * k }; if (anim) animateTo(t); else { view = t; apply() } }
+function animateTo(target, ms = 260) { const from = { ...view }, s = performance.now(); const step = (t) => { const k = Math.min(1, (t - s) / ms), e = 1 - Math.pow(1 - k, 3); view = { x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e, k: from.k + (target.k - from.k) * e }; apply(); if (k < 1) requestAnimationFrame(step) }; requestAnimationFrame(step) }
+function zoomAt(f, cx, cy) { const k = Math.max(0.02, Math.min(3, view.k * f)); const r = k / view.k; view = { k, x: cx - (cx - view.x) * r, y: cy - (cy - view.y) * r }; apply() }
+for (const surf of [svg, cv]) {
+  surf.addEventListener('wheel', (e) => { e.preventDefault(); const r = surf.getBoundingClientRect(); if (e.ctrlKey || e.metaKey) zoomAt(Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top); else { view.x -= e.deltaX; view.y -= e.deltaY; apply() } }, { passive: false })
+  let drag = null
+  surf.addEventListener('pointerdown', (e) => { if (e.target.closest?.('.node, .box-g text')) return; drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; surf.setPointerCapture(e.pointerId) })
+  surf.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) drag.moved = true; view.x = drag.vx + dx; view.y = drag.vy + dy; apply() })
+  surf.addEventListener('pointerup', (e) => {
+    if (drag && !drag.moved) {
+      if (surf === cv) { const r = cv.getBoundingClientRect(); const h = canvasHit(e.clientX - r.left, e.clientY - r.top); if (h) { if (h.fold) unfold(h.n.cid); else if (h.n.type === 'group') openGroup(h.n.key); else if (h.n.type === 'bus') trace('event', h.n.event); else select(h.n.cid) } else { select(null); endTrace() } }
+      else { select(null); endTrace() }
+    }
+    drag = null
+  })
+}
+$('zin').onclick = () => { const r = canvasRect(); zoomAt(1.25, r.width / 2, r.height / 2) }
+$('zout').onclick = () => { const r = canvasRect(); zoomAt(0.8, r.width / 2, r.height / 2) }
+$('zfit').onclick = () => fit()
+// minimap: the drawing as dots (cached) + the viewport
+const mm = $('minimap'); let mmImg = null, mmT = null
+function buildMinimap() {
+  mm.style.display = S.minimap && S.view === 'graph' ? 'block' : 'none'
+  if (!S.minimap) return
+  const b = bounds(L), W = mm.width, H = mm.height, k = Math.min(W / b.w, H / b.h) * 0.92
+  mmT = { k, x: (W - b.w * k) / 2 - b.x0 * k, y: (H - b.h * k) / 2 - b.y0 * k }
+  const off = document.createElement('canvas'); off.width = W; off.height = H
+  const c = off.getContext('2d')
+  c.strokeStyle = css('--line'); for (const bx of L.boxes) c.strokeRect(mmT.x + bx.x * k, mmT.y + bx.y * k, bx.w * k, bx.h * k)
+  for (const n of V.nodes) { const p = L.pos.get(n.id); if (!p) continue; const wv = n.comp && worst(n.comp); c.fillStyle = wv === 'error' ? css('--err') : n.type === 'group' ? css('--accent') : n.type === 'bus' ? css('--ev') : css('--faint'); c.fillRect(mmT.x + p.x * k, mmT.y + p.y * k, Math.max(1.5, p.w * k), Math.max(1.5, p.h * k)) }
+  mmImg = off; drawMinimapView()
+}
+function drawMinimapView() {
+  if (!S.minimap || !mmImg) return
+  const c = mm.getContext('2d'); c.clearRect(0, 0, mm.width, mm.height); c.drawImage(mmImg, 0, 0)
+  const r = canvasRect(); c.strokeStyle = css('--accent'); c.lineWidth = 2
+  c.strokeRect(mmT.x + (-view.x / view.k) * mmT.k, mmT.y + (-view.y / view.k) * mmT.k, r.width / view.k * mmT.k, r.height / view.k * mmT.k)
+}
+const mmPan = (e) => { const r = mm.getBoundingClientRect(); const sx = (e.clientX - r.left) * mm.width / r.width, sy = (e.clientY - r.top) * mm.height / r.height; const wx = (sx - mmT.x) / mmT.k, wy = (sy - mmT.y) / mmT.k; const cr = canvasRect(); view.x = cr.width / 2 - wx * view.k; view.y = cr.height / 2 - wy * view.k; apply() }
+let mmDrag = false
+mm.addEventListener('pointerdown', (e) => { mmDrag = true; mm.setPointerCapture(e.pointerId); mmPan(e) }); mm.addEventListener('pointermove', (e) => { if (mmDrag) mmPan(e) }); mm.addEventListener('pointerup', () => { mmDrag = false })
+
+// ───────────────────────── folding / revealing ─────────────────────────
+function foldGroup(key) { if (S.fold === 'all') S.expandedGroups.delete(key); else S.foldedGroups.add(key); rebuild() }
+function openGroup(key) { if (S.fold === 'all') S.expandedGroups.add(key); else S.foldedGroups.delete(key); rebuild().then(() => { const ids = V.nodes.filter(n => n.members.some(m => S.grouping !== 'none' && groupsFor(S.grouping).get(m) === key)).map(n => n.id); if (ids.length) fit(ids, true, 1) }) }
+function unfold(id) { S.foldedSubtrees.delete(id); S.unfolded.add(id); rebuild({ keep: id }) }
+function foldSubtree(id) { S.foldedSubtrees.add(id); S.unfolded.delete(id); rebuild({ keep: 'fold:' + id }) }
+/** Make a component visible: open its group, unfold its folded ancestors, clear filters that hide it. */
+function reveal(id) {
+  let changed = false
+  const r = V.rep.get(id)
+  if (r == null) { S.filter = {}; S.focus = null; syncControls(); changed = true }
+  const k = S.grouping !== 'none' ? groupsFor(S.grouping).get(id) : null
+  if (k != null && (S.fold === 'all' ? !S.expandedGroups.has(k) : S.foldedGroups.has(k))) { if (S.fold === 'all') S.expandedGroups.add(k); else S.foldedGroups.delete(k); changed = true }
+  let p = M.firstParent.get(id)
+  while (p != null) { if (S.foldedSubtrees.has(p) || (S.autoFoldDepth != null && M.depth.get(p) === S.autoFoldDepth && !S.unfolded.has(p))) { S.foldedSubtrees.delete(p); S.unfolded.add(p); changed = true } p = M.firstParent.get(p) }
+  if (S.focus && !V.focusSet?.has(id)) { S.focus = null; changed = true }
+  return changed
+}
+
+// ───────────────────────── select / highlight / trace ─────────────────────────
+function neighborhood(vid) { const ids = new Set([vid]); for (const e of V.edges) if (e.from === vid || e.to === vid) { if (e.cls === 'event' && S.events === 'off') continue; ids.add(e.from); ids.add(e.to) } return ids }
+function hl(ids) {
+  hlSet = ids
+  if (S.render === 'canvas') { redraw(); return }
+  svg.classList.toggle('dim', !!ids)
+  svg.querySelectorAll('.hl').forEach(e => e.classList.remove('hl'))
+  if (!ids) return
+  for (const id of ids) nodeEls.get(id)?.classList.add('hl')
+  for (const x of edgeEls) if (ids.has(x.e.from) && ids.has(x.e.to)) { x.p.classList.add('hl'); x.t?.classList.add('hl') }
+}
+function markSelected() { nodeEls.forEach((g, k) => g.classList.toggle('sel', k === S.selected || k === 'fold:' + S.selected)); document.querySelectorAll('.ol-row').forEach(r => r.classList.toggle('sel', r.dataset.id === S.selected)) }
+async function select(id, { pan = true } = {}) {
+  S.selected = id
+  if (!id) { hl(null); markSelected(); $('detail').classList.remove('open'); if (S.focus) { S.focus = null; await rebuild({ fit: true }) } return }
+  if (S.view !== 'graph' && S.view !== 'outline') setView('graph')
+  let rb = reveal(id)
+  if (S.focusDepth && S.focus !== id) { S.focus = id; rb = true }
+  if (rb) await rebuild({ fit: !!S.focus })
+  const vid = V.rep.get(id) ?? id
+  hl(neighborhood(vid)); markSelected()
+  renderDetail(M.byId.get(id))
+  $('detail').classList.add('open')
+  if (pan && !S.focus) setTimeout(() => centerOn(vid), 30)
+  revealInOutline(id)
+}
+function trace(kind, key) {
+  endTrace(true)
+  let ids = new Set(), html = ''
+  const name = (id) => `<a data-goto="${esc(id)}">${esc(M.byId.get(id).name)}</a>`
+  if (kind === 'event') {
+    const e = M.events.find(x => x.type === key) ?? { emitters: [], selectors: [] }
+    for (const id of [...e.emitters, ...e.selectors]) ids.add(V.rep.get(id) ?? id)
+    ids.add('bus:' + key)
+    html = `EVENTS <b>${esc(key)}</b> · ${e.emitters.map(name).join(', ') || 'no emitter'} → ${e.selectors.map(name).join(', ') || 'no selector'}`
+  } else if (kind === 'context') {
+    const prov = M.comps.filter(c => c.contextProvides.includes(key)), read = M.comps.filter(c => (c.contextConsumes || []).includes(key))
+    for (const c of [...prov, ...read]) ids.add(V.rep.get(c.id) ?? c.id)
+    html = `context <b>${esc(key)}</b> · provided by ${prov.map(c => name(c.id)).join(', ') || 'nobody'} · read by ${read.length}`
+  }
+  hl(ids)
+  const t = $('trace'); t.innerHTML = `<span>${html}</span><button id="trace-x">Clear</button>`; t.classList.add('on')
+  $('trace-x').onclick = () => endTrace()
+  t.querySelectorAll('[data-goto]').forEach(a => a.onclick = () => select(a.dataset.goto))
+  // fit the components, not the bus lane (it sits far right)
+  const vis = [...ids].filter(id => L.pos.has(id) && !id.startsWith('bus:')); if (vis.length && S.view === 'graph') fit(vis, true, 1)
+}
+function endTrace(keep) { $('trace').classList.remove('on'); if (!keep) hl(S.selected ? neighborhood(V.rep.get(S.selected) ?? S.selected) : null) }
+function renderCrumbs() {
+  const c = $('crumbs')
+  if (!S.focus) { c.classList.remove('on'); return }
+  c.innerHTML = 'Focus: ' + V.crumbs.map(id => `<a data-goto="${esc(id)}">${esc(M.byId.get(id).name)}</a>`).join('<span class="sep">›</span>') + `<span style="color:var(--muted)">· ancestors, children to depth ${S.focusDepth || 2}, EVENTS / context peers (${V.nodes.length} of ${N})</span><button id="crumbs-x">Show all</button>`
+  c.classList.add('on')
+  c.querySelectorAll('[data-goto]').forEach(a => a.onclick = () => select(a.dataset.goto))
+  $('crumbs-x').onclick = () => { S.focus = null; const keep = S.selected; rebuild().then(() => { if (keep) { hl(neighborhood(V.rep.get(keep) ?? keep)); centerOn(V.rep.get(keep) ?? keep) } }) }
+}
+
+// ───────────────────────── detail panel ─────────────────────────
+const chip = (text, attrs = '') => `<span class="chip" ${attrs}>${text}</span>`
+const goto = (id) => chip(esc(M.byId.get(id).name) + (dupName(id) ? ` <small>${esc(where(id))}</small>` : ''), `data-goto="${esc(id)}"`)
+const dupName = (id) => (M.byName.get(M.byId.get(id).name)?.length ?? 0) > 1
+/** The directory that tells same-named components apart (skips a trailing components/). */
+const where = (id) => { const p = M.dirOf(M.byId.get(id).file ?? '').split('/'); if (p.length > 1 && p[p.length - 1] === 'components') p.pop(); return p.slice(-2).join('/') }
+function renderDetail(c) {
+  const kind = KIND[c.kind] ?? KIND.child
+  const out = [`<div class="dhead"><h2>${esc(c.name)} <span class="kind" style="background:${kind[1]}">${esc(kind[0])}</span>${c.viewOnly ? '<span class="tag">view only</span>' : ''}<button class="close" id="dclose">×</button></h2><div class="loc">${esc(c.file)}:${esc(c.id.split(':').pop())}</div></div>`]
+  if (c.diagnostics.length) out.push(`<div class="dsec"><h4>Diagnostics</h4>${c.diagnostics.map(d => `<div class="diag ${esc(d.severity)}"><div class="code">${esc(d.code)} ${esc(META.codes?.[d.code] ?? '')}</div><div>${esc(d.message)}</div></div>`).join('')}</div>`)
+  const parents = M.parentsOf.get(c.id), kids = M.childrenOf.get(c.id)
+  out.push(`<div class="dsec"><h4>Tree</h4><div class="rel">${parents.length ? `<div class="r"><span class="lbl">rendered by</span><span>${parents.map(goto).join('')}</span></div>` : ''}${kids.length ? `<div class="r"><span class="lbl">renders</span><span>${kids.map(goto).join('')}</span></div>` : ''}</div></div>`)
+  const acts = S.hideBehavior ? c.actions.filter(a => !a.behavior) : c.actions
+  if (acts.length) out.push(`<div class="dsec"><h4>Actions</h4><div class="flow">${acts.map(a => { const [col, lbl] = TRIG[a.trigger] ?? TRIG.unknown; return `<span class="trig" style="color:${col};border-color:${col}">${lbl}</span><span class="mono">${esc(a.name)}</span><span>${a.sinks.map(s => `<span class="sink" style="background:${SINK[s] ?? '#6b7280'}">${esc(s)}</span>`).join('')}</span>` }).join('')}</div></div>`)
+  if (c.stateKeys.length) out.push(`<div class="dsec"><h4>State</h4>${c.stateKeys.map(k => chip(esc(k))).join('')}${c.calculated.map(k => chip(esc(k) + ' ƒ')).join('')}</div>`)
+  const ctx = []
+  if (c.contextProvides.length) ctx.push(`<div class="r"><span class="lbl">provides</span><span>${c.contextProvides.map(k => chip(esc(k), `data-trace-context="${esc(k)}"`)).join('')}</span></div>`)
+  if (c.contextConsumes?.length) ctx.push(`<div class="r"><span class="lbl">reads</span><span>${c.contextConsumes.map(k => { const p = M.contextEdges.find(e => e.to === c.id && e.field === k); return chip(`${esc(k)} <small>${p ? '← ' + esc(M.byId.get(p.from).name) : '⚠ no provider'}</small>`, `data-trace-context="${esc(k)}"`) }).join('')}</span></div>`)
+  if (ctx.length) out.push(`<div class="dsec"><h4>Context</h4><div class="rel">${ctx.join('')}</div></div>`)
+  const evs = [], ev = (t) => M.events.find(e => e.type === t)
+  if (c.eventsEmitted.length) evs.push(`<div class="r"><span class="lbl">emits</span><span>${c.eventsEmitted.map(t => chip(`${esc(t)} <small>→ ${ev(t)?.selectors.length ?? 0}</small>`, `data-trace-event="${esc(t)}"`)).join('')}</span></div>`)
+  if (c.eventsSelected.length) evs.push(`<div class="r"><span class="lbl">selects</span><span>${c.eventsSelected.map(t => chip(`${esc(t)} <small>← ${ev(t)?.emitters.length ?? 0}</small>`, `data-trace-event="${esc(t)}"`)).join('')}</span></div>`)
+  if (evs.length) out.push(`<div class="dsec"><h4>EVENTS</h4><div class="rel">${evs.join('')}</div></div>`)
+  if (c.agent) out.push(`<div class="dsec"><h4>AI agent surface</h4><b class="mono">${esc(c.agent.tools ?? '?')}</b>${c.agent.read ? ' <span class="tag">reads page state</span>' : ''}<div>${c.agent.actions.map(x => `<div><code>${esc(x.name)}</code> ${x.consequential ? '<span class="tag danger">asks the user first</span>' : ''}</div>`).join('')}</div></div>`)
+  $('dinner').innerHTML = out.join('')
+  $('dclose').onclick = () => select(null)
+  $('dinner').querySelectorAll('[data-goto]').forEach(n => n.onclick = () => select(n.dataset.goto))
+  $('dinner').querySelectorAll('[data-trace-event]').forEach(n => n.onclick = () => trace('event', n.dataset.traceEvent))
+  $('dinner').querySelectorAll('[data-trace-context]').forEach(n => n.onclick = () => trace('context', n.dataset.traceContext))
+}
+
+// ───────────────────────── sidebar: stats, health, outline ─────────────────────────
+const real = M.comps.filter(c => !c.ghost)
+const allDiags = real.flatMap(c => c.diagnostics.map(d => ({ ...d, _c: c })))
+$('title').textContent = META.title; $('subtitle').textContent = META.subtitle ?? ''
+$('stats').innerHTML = [[real.length, 'components'], [M.events.length, 'event types'], [real.reduce((n, c) => n + c.actions.length, 0), 'actions'], [allDiags.filter(d => d.severity === 'error').length, 'errors', 'err'], [allDiags.filter(d => d.severity === 'warn').length, 'warnings', 'warn'], [real.filter(c => c.agent).length, 'agent surfaces']].map(([n, l, cls]) => `<div class="stat ${n && cls ? cls : ''}"><b>${n}</b><span>${l}</span></div>`).join('')
+{
+  const health = []
+  const byCode = new Map()
+  for (const d of allDiags.filter(d => d.severity !== 'info').sort((x, y) => (x.severity === 'error' ? 0 : 1) - (y.severity === 'error' ? 0 : 1))) { if (!byCode.has(d.code)) byCode.set(d.code, []); byCode.get(d.code).push(d) }
+  for (const [code, list] of byCode) health.push({ group: `${code} ${META.codes?.[code] ?? ''}`, color: list[0].severity === 'error' ? 'var(--err)' : 'var(--warn)', items: list.map(d => ({ id: d._c.id, title: d._c.name, sub: d.message })) })
+  if (M.orphanReads.length) health.push({ group: 'Context read with no provider', color: 'var(--warn)', items: M.orphanReads.map(o => ({ id: o.id, title: `context.${o.field}`, sub: M.byId.get(o.id).name })) })
+  const ag = real.filter(c => c.agent); if (ag.length) health.push({ group: 'AI agent surface', color: 'var(--ev)', items: ag.map(c => ({ id: c.id, title: c.agent.tools ?? c.name, sub: `${c.name} · ${c.agent.actions.map(a => a.name + (a.consequential ? ' (asks first)' : '')).join(', ') || 'read only'}` })) })
+  $('health').innerHTML = health.map((h, gi) => `<details class="health-group" ${h.color === 'var(--err)' ? 'open' : ''}><summary><span class="dot" style="margin:0;background:${h.color}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary>${h.items.map((it, i) => `<div class="health-item" data-id="${esc(it.id)}"><span class="dot" style="background:${h.color}"></span><div class="t">${esc(it.title)}<small>${esc(it.sub)}</small></div></div>`).join('')}</details>`).join('') || '<div style="color:var(--muted)">✓ No problems</div>'
+  $('health').querySelectorAll('.health-item').forEach(n => n.onclick = () => select(n.dataset.id))
+}
+// outline: the render tree from each entry (lazy: a node's children render when opened)
+function olRow(id, depth, parent) {
+  const c = M.byId.get(id), kids = M.childrenOf.get(id), wv = worst(c), nd = c.diagnostics.filter(d => d.severity !== 'info').length
+  const others = M.parentsOf.get(id).filter(p => p !== parent)
+  return `<div class="ol-node" data-id="${esc(id)}" data-depth="${depth}"><div class="ol-row" data-id="${esc(id)}"><span class="tw">${kids.length ? '▸' : ''}</span><span class="k" style="background:${KIND[c.kind]?.[1]}"></span><span>${esc(c.name)}</span><span class="hint">${dupName(id) ? esc(M.dirOf(c.file)) : ''}${others.length && parent ? ` · also in ${others.length}` : ''}</span><span class="b">${c.agent ? '<span class="pillx" style="background:var(--ev)">AI</span>' : ''}${nd ? `<span class="pillx" style="background:${wv === 'error' ? 'var(--err)' : 'var(--warn)'}">${nd}</span>` : ''}${kids.length ? `<span style="color:var(--faint);font-size:11px">${kids.length}</span>` : ''}</span></div></div>`
+}
+function mountOutline(root) {
+  const roots = [...M.roots].sort((a, b) => (M.byId.get(b).entry ? 1 : 0) - (M.byId.get(a).entry ? 1 : 0) || M.byId.get(a).name.localeCompare(M.byId.get(b).name))
+  root.innerHTML = roots.map(id => olRow(id, 0, null)).join('')
+  root.onclick = (e) => {
+    const row = e.target.closest('.ol-row'); if (!row) return
+    if (e.target.classList.contains('tw')) { toggleOl(row.parentElement); return }
+    select(row.dataset.id, { pan: true })
+  }
+}
+function toggleOl(node, open) {
+  const kidsEl = node.querySelector(':scope > .ol-kids')
+  const tw = node.querySelector(':scope > .ol-row .tw')
+  if (kidsEl) { const show = open ?? kidsEl.style.display === 'none'; kidsEl.style.display = show ? '' : 'none'; tw.textContent = show ? '▾' : '▸'; return kidsEl }
+  if (open === false) return null
+  const id = node.dataset.id, d = +node.dataset.depth
+  const k = document.createElement('div'); k.className = 'ol-kids'
+  k.innerHTML = M.childrenOf.get(id).map(ch => olRow(ch, d + 1, id)).join('')
+  node.appendChild(k); tw.textContent = '▾'
+  return k
+}
+function revealInOutline(id) {
+  for (const root of [$('outline'), $('outline-main')]) {
+    if (!root.offsetParent) continue
+    const path = []; let p = id; while (p != null) { path.unshift(p); p = M.firstParent.get(p) }
+    let scope = root, node = null
+    for (const pid of path) { node = scope.querySelector(`:scope > .ol-node[data-id="${CSS.escape(pid)}"]`); if (!node) break; if (pid !== id) scope = toggleOl(node, true) }
+    node?.querySelector('.ol-row')?.scrollIntoView({ block: 'nearest' })
+  }
+  markSelected()
+}
+mountOutline($('outline')); mountOutline($('outline-main'))
+
+// ───────────────────────── search (results list: works whatever is folded) ─────────────────────────
+const hay = new Map(real.map(c => [c.id, [c.name, c.file, ...c.actions.map(a => a.name), ...c.stateKeys, ...c.contextProvides, ...(c.contextConsumes || []), ...c.eventsEmitted, ...c.eventsSelected, ...c.diagnostics.map(d => d.code)].join('\n').toLowerCase()]))
+let results = [], ri = 0
+function search() {
+  const q = $('q').value.trim().toLowerCase()
+  if (!q) { $('results').classList.remove('open'); $('qcount').textContent = ''; return }
+  const evHits = M.events.filter(e => e.type.toLowerCase().includes(q)).slice(0, 8).map(e => ({ ev: e.type, label: e.type, why: `EVENTS · ${e.emitters.length} → ${e.selectors.length}` }))
+  const comps = real.filter(c => hay.get(c.id).includes(q)).map(c => ({ id: c.id, label: c.name, why: c.name.toLowerCase().includes(q) ? '' : whyMatch(c, q), sub: c.file, score: c.name.toLowerCase() === q ? 0 : c.name.toLowerCase().startsWith(q) ? 1 : c.name.toLowerCase().includes(q) ? 2 : 3 })).sort((a, b) => a.score - b.score || a.label.localeCompare(b.label))
+  results = [...evHits, ...comps]
+  $('qcount').textContent = comps.length
+  ri = 0
+  $('results').innerHTML = results.slice(0, 40).map((r, i) => `<div class="r${i === 0 ? ' on' : ''}" data-i="${i}"><span>${esc(r.label)}</span>${r.why ? `<span class="why">${esc(r.why)}</span>` : ''}<small>${esc(r.sub ?? '')}</small></div>`).join('') + (results.length > 40 ? `<div class="r" style="color:var(--muted)">… ${results.length - 40} more</div>` : '')
+  $('results').classList.add('open')
+  $('results').querySelectorAll('.r[data-i]').forEach(n => n.onmousedown = (e) => { e.preventDefault(); pickResult(+n.dataset.i) })
+}
+function whyMatch(c, q) { for (const [l, list] of [['emits', c.eventsEmitted], ['selects', c.eventsSelected], ['action', c.actions.map(a => a.name)], ['state', c.stateKeys], ['reads', c.contextConsumes || []], ['provides', c.contextProvides], ['code', c.diagnostics.map(d => d.code)]]) { const h = list.find(x => x.toLowerCase().includes(q)); if (h) return `${l} ${h}` } return 'path' }
+function pickResult(i) { const r = results[i]; if (!r) return; $('results').classList.remove('open'); $('q').blur(); if (r.ev) { if (S.view === 'events') { $('ev-q').value = r.ev; renderEvents() } else trace('event', r.ev) } else select(r.id) }
+$('q').addEventListener('input', search)
+$('q').addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); ri = Math.max(0, Math.min(results.length - 1, ri + (e.key === 'ArrowDown' ? 1 : -1))); $('results').querySelectorAll('.r').forEach((n, i) => n.classList.toggle('on', i === ri)) }
+  if (e.key === 'Enter') pickResult(ri)
+  if (e.key === 'Escape') { $('q').value = ''; search(); $('q').blur() }
+})
+$('q').addEventListener('blur', () => setTimeout(() => $('results').classList.remove('open'), 150))
+
+// ───────────────────────── other views ─────────────────────────
+function setView(v) {
+  S.view = v
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-pressed', t.dataset.view === v))
+  for (const x of ['outline', 'icicle', 'events']) $('v-' + x).classList.toggle('on', v === x)
+  for (const x of ['zoombar', 'perf']) document.querySelector('.' + x) && (document.querySelector('.' + x).style.display = v === 'graph' ? '' : 'none')
+  mm.style.display = v === 'graph' && S.minimap ? 'block' : 'none'
+  if (v === 'icicle') renderIcicle()
+  if (v === 'events') renderEvents()
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => setView(t.dataset.view))
+// icicle: the first-parent spanning tree, partitioned top-down; click zooms into a subtree
+let icRoot = null
+function renderIcicle() {
+  const size = $('ic-size').value, color = $('ic-color').value
+  const host = $('icicle'), W = host.clientWidth || 1000, RH = 26
+  const weight = (id) => { const c = M.byId.get(id); return size === 'actions' ? Math.max(0.5, c.actions.length) : size === 'state' ? Math.max(0.5, c.stateKeys.length) : 1 }
+  const tot = new Map()
+  const sum = (id) => { let s = weight(id); for (const k of M.treeKids.get(id)) s += sum(k); tot.set(id, s); return s }
+  const tops = icRoot ? [icRoot] : M.roots
+  let all = 0; for (const r of tops) all += sum(r)
+  const rects = []
+  let maxD = 0
+  const part = (id, x, w, d) => { rects.push([id, x, w, d]); maxD = Math.max(maxD, d); let cx = x + w * weight(id) / tot.get(id) * 0; const kids = M.treeKids.get(id); const kw = w * (tot.get(id) - weight(id)) / tot.get(id); let off = x + (w - kw) / 2; for (const k of kids) { const kw2 = kw * tot.get(k) / (tot.get(id) - weight(id)); part(k, off, kw2, d + 1); off += kw2 } void cx }
+  let x = 0; for (const r of tops) { const w = W * tot.get(r) / all; part(r, x, w, 0); x += w }
+  const dirs = [...new Set(real.map(c => c.file.split('/').slice(0, 3).join('/')))]
+  const hue = (c) => color === 'health' ? (worst(c) === 'error' ? css('--err') : worst(c) === 'warn' ? css('--warn') : c.agent ? css('--ev') : '#94a3b8') : color === 'dir' ? `hsl(${(dirs.indexOf((c.file ?? '').split('/').slice(0, 3).join('/')) * 47) % 360} 55% 50%)` : { root: css('--k-root'), child: '#64748b', 'collection-item': css('--k-coll'), switchable: css('--k-switch') }[c.kind] ?? '#94a3b8'
+  host.innerHTML = `<svg width="${W}" height="${(maxD + 1) * RH + 4}">${rects.map(([id, x, w, d]) => { const c = M.byId.get(id); return `<g data-id="${esc(id)}"><rect x="${x}" y="${d * RH}" width="${Math.max(0.5, w)}" height="${RH - 1}" fill="${hue(c)}"${id === S.selected ? ' stroke="var(--ink)" stroke-width="2"' : ''}><title>${esc(c.name)} · ${esc(c.file)}</title></rect>${w > 46 ? `<text x="${x + 4}" y="${d * RH + 17}">${esc(c.name.slice(0, Math.floor(w / 7)))}</text>` : ''}</g>` }).join('')}</svg>`
+  host.querySelectorAll('g[data-id]').forEach(g => { g.onclick = (e) => { if (e.shiftKey || e.altKey) { select(g.dataset.id) } else { icRoot = M.treeKids.get(g.dataset.id).length ? g.dataset.id : icRoot; renderIcicle(); renderDetail(M.byId.get(g.dataset.id)); S.selected = g.dataset.id; $('detail').classList.add('open') } } })
+  $('ic-path').textContent = icRoot ? 'in ' + M.byId.get(icRoot).name + ' (click a block to zoom, shift-click to open it in the graph)' : 'click a block to zoom in, shift-click to open it in the graph'
+}
+$('ic-size').onchange = $('ic-color').onchange = renderIcicle
+$('ic-up').onclick = () => { icRoot = icRoot ? (M.firstParent.get(icRoot) ?? null) : null; renderIcicle() }
+// EVENTS table: emitter × event × selector
+let evSort = 'type'
+function renderEvents() {
+  const q = $('ev-q').value.trim().toLowerCase()
+  const name = (id) => M.byId.get(id).name
+  let rows = M.events.filter(e => !q || e.type.toLowerCase().includes(q) || [...e.emitters, ...e.selectors].some(id => name(id).toLowerCase().includes(q)))
+  rows = rows.sort((a, b) => evSort === 'emitters' ? b.emitters.length - a.emitters.length : evSort === 'selectors' ? b.selectors.length - a.selectors.length : a.type.localeCompare(b.type))
+  $('ev-n').textContent = `${rows.length} of ${M.events.length} types`
+  const list = (ids) => ids.length ? ids.map(id => chip(esc(name(id)) + (dupName(id) ? ` <small>${esc(where(id))}</small>` : ''), `data-goto="${esc(id)}"`)).join('') : '<span style="color:var(--warn)">⚠ none</span>'
+  $('evtable').innerHTML = `<thead><tr><th data-s="type">Event type</th><th data-s="emitters">Emitted by</th><th data-s="selectors">Selected (handled) by</th></tr></thead><tbody>${rows.slice(0, 600).map(e => `<tr><td class="mono"><b>${esc(e.type)}</b></td><td>${list(e.emitters)}</td><td>${list(e.selectors)}</td></tr>`).join('')}</tbody>`
+  $('evtable').querySelectorAll('th').forEach(th => th.onclick = () => { evSort = th.dataset.s; renderEvents() })
+  $('evtable').querySelectorAll('[data-goto]').forEach(n => n.onclick = () => select(n.dataset.goto))
+}
+$('ev-q').oninput = renderEvents
+
+// ───────────────────────── keys, theme, start ─────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, select, textarea')) return
+  if (e.key === '/') { e.preventDefault(); $('q').focus() } else if (e.key === 'f' || e.key === 'F') { fit() } else if (e.key === 'Escape') { select(null); endTrace() }
+})
+$('m-theme').onclick = () => { const dark = getComputedStyle(document.documentElement).colorScheme === 'dark'; document.documentElement.dataset.theme = dark ? 'light' : 'dark'; draw(); apply() }
+addEventListener('resize', () => { if (S.render === 'canvas') redraw() })
+/** Measurement hook (measure-browser.mjs): pan and zoom for `frames` frames, return the frame intervals. */
+window.__bench = (frames = 120) => new Promise(res => {
+  const r = canvasRect(), out = []; let i = 0, last = performance.now()
+  const step = (t) => { out.push(t - last); last = t; const f = i % 60 < 30 ? 1.02 : 1 / 1.02; zoomAt(f, r.width / 2, r.height / 2); view.x += (i % 40 < 20 ? 6 : -6); apply(); if (++i < frames) requestAnimationFrame(step); else res(out.slice(2)) }
+  requestAnimationFrame(step)
+})
+window.__S = S; window.__M = M; window.__select = select; window.__setView = setView
+syncControls()
+setView(S.view)
+await rebuild({ fit: true })
+perf.scriptToPaint = performance.now() - performance.getEntriesByName('script-start')[0].startTime
+const sel0 = P.get('select') ?? META.select; if (sel0) { const c = real.find(x => x.name === sel0); if (c) select(c.id) }
+</script>
+</body>
+</html>
