@@ -121,7 +121,7 @@ export function mountPage(V, G, META) {
         const f = el('text', { class: 'fold', x: b.x + b.w - 14, y: b.y + 22, 'text-anchor': 'end' }, g)
         f.textContent = '− fold'
         f.addEventListener('click', (ev) => { ev.stopPropagation(); foldGroup(b.key) })
-        el('text', { class: 'big', x: b.x + 14, y: b.y + 8, 'dominant-baseline': 'hanging', 'data-w': b.w - 28 }, g).textContent = groupName(b.key)
+        el('text', { class: 'big', x: b.x + 14, y: b.y + 8, 'dominant-baseline': 'hanging', 'data-w': b.w - 28, 'data-h': b.h }, g).textContent = groupName(b.key)
       }
     }
     for (const e of routes) {
@@ -276,7 +276,7 @@ export function mountPage(V, G, META) {
   const apply = () => {
     vp.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`)
     const far = view.k < FAR_K
-    if (far !== isFar) { isFar = far; svg.classList.toggle('far', far); if (!far) for (const t of svg.querySelectorAll('.node.group .name')) t.style.fontSize = '' }
+    if (far !== isFar) { isFar = far; svg.classList.toggle('far', far); if (!far) for (const t of svg.querySelectorAll('.node.group .name')) placeFarName(t, false) }
     if (far && !canvasMode) sizeFarLabels()
     if (canvasMode) paint()
     drawMinimapView()
@@ -301,9 +301,16 @@ export function mountPage(V, G, META) {
   }
   const stopAnim = () => { anim++; animating = false; moved = true }
   /** Far away, directory names stay ~15–18 px on screen, never wider than their box or card. */
+  // A folded group's name is centred in its card and capped by the card's height as well as its
+  // width, so far away it never grows out of the card (it was anchored at the card's top-left)
   function sizeFarLabels() {
-    for (const t of $('clusters').querySelectorAll('.big')) t.style.fontSize = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length)).toFixed(1) + 'px'
-    for (const t of $('nodes').querySelectorAll('.node.group .name')) t.style.fontSize = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length)).toFixed(1) + 'px'
+    for (const t of $('clusters').querySelectorAll('.big')) t.style.fontSize = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length), (Number(t.dataset.h) - 16) * 0.3).toFixed(1) + 'px'
+    for (const t of $('nodes').querySelectorAll('.node.group .name')) placeFarName(t, true)
+  }
+  function placeFarName(t, far) {
+    if (!far) { t.style.fontSize = ''; t.setAttribute('x', 16); t.setAttribute('y', 26); t.removeAttribute('text-anchor'); t.removeAttribute('dominant-baseline'); return }
+    t.setAttribute('x', V.GROUP_W / 2); t.setAttribute('y', V.GROUP_H / 2); t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central')
+    t.style.fontSize = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length), V.GROUP_H * 0.6).toFixed(1) + 'px'
   }
   let fitK = 1
   function fit(ids = [...pos.keys()], animate = true, maxK = 1.15) {
