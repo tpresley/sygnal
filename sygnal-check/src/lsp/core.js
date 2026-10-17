@@ -70,13 +70,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { buildProject } from '../model/project.js'
 import { selectRules } from '../rules/index.js'
 import { runRules, sortDiagnostics } from '../run.js'
-import { resolveOptions } from '../config.js'
-import { expandInputs, toSourceMap, isSourceFile } from '../files.js'
+import { toSourceMap, isSourceFile } from '../files.js'
 import { ownedBy, inIgnoredDir, looksLikeSygnal } from './roots.js'
-import { createParseCache } from '../cache.js'
+import { createLiveProject } from '../live.js'
 import { fixFiles } from '../fix.js'
 import { controlFixes } from '../fixControls.js'
 import { buildIndex } from '../model/positions.js'
@@ -86,7 +84,6 @@ import { buildFlow, tapVerdicts } from './flow.js'
 import { toLspDiagnostic, sortBySeverity, rangeOf, fixToLsp, textHash } from './convert.js'
 
 const uriOf = (folder, file) => pathToFileURL(path.resolve(folder, file)).href
-const isParseError = (d) => d.code === 'SYG900' && /^could not parse file/.test(d.message)
 
 /** Open documents of `root` that look like Sygnal source and aren't among `files` (G-665). */
 function outsideOf(root, srcs, files, owned, includeTests) {
@@ -104,63 +101,37 @@ function outsideOf(root, srcs, files, owned, includeTests) {
 }
 
 export function createCore() {
-  const projects = new Map() // folder → { cache, lastGood: Map<absPath, cache entry> }
+  const projects = new Map() // folder → its live project (../live.js: the ParseCache and the last good parse of each file)
 
   const projectFor = (folder) => {
     let p = projects.get(folder)
-    if (!p) projects.set(folder, p = { cache: createParseCache(), lastGood: new Map() })
+    if (!p) projects.set(folder, p = createLiveProject({ root: folder }))
     return p
   }
 
   /**
    * The folder's files built with `sources` (the model: no rules), a file that doesn't parse now
    * replaced by its last good text (`substituted`, with `parseErrors`: the new texts' parse SYG900s,
-   * as runRules() makes them, without the ignored codes). null when the root has no source files.
-   * `info` (an object, optional) gets `paths` (relative to the root), `noFiles` and `outside`.
+   * as runRules() makes them, without the ignored codes): live.js prepare(). null when the root has
+   * no source files. `info` (an object, optional) gets `paths` (relative to the root), `noFiles` and
+   * `outside`.
    */
   function prepare({ folder, settings = {}, sources }, info) {
-    const p = projectFor(folder)
-    const { options, config } = resolveOptions({
-      cwd: folder, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
-    })
-    const srcs = toSourceMap(sources, folder)
     // G-666: a nested project root's files are its own, never this root's
     const owned = ownedBy(folder)
-    const files = expandInputs(options.paths, { cwd: folder, includeTests: options.includeTests, sources: srcs }).files.filter(owned)
+    const prep = projectFor(folder).prepare({
+      settings: { strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths },
+      sources,
+      filter: owned,
+    })
+    const { options, srcs, files } = prep
     if (info) {
       info.paths = options.paths.map(x => path.relative(folder, path.resolve(folder, x)) || '.')
       info.noFiles = !files.length
       info.outside = outsideOf(folder, srcs, files, owned, options.includeTests)
     }
     if (!files.length) return null
-
-    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache: p.cache })
-    let project = buildWith(srcs)
-    // last good findings: files that don't parse now, but did before
-    const broken = new Set(project.parseErrors.map(e => e.file))
-    for (const f of project.files.values()) if (f?.ast?.errors?.length) broken.add(f.path)
-    const substituted = new Map()
-    for (const abs of broken) {
-      const good = p.lastGood.get(abs)
-      if (!good || good.text === (srcs.get(abs) ?? project.files.get(abs)?.source)) continue
-      substituted.set(abs, good.text)
-      p.cache.store(abs, good) // put the good parse back: the second build re-parses nothing
-    }
-    let parseErrors = []
-    if (substituted.size) {
-      // (runRules with no rules: only the parse errors' SYG900)
-      parseErrors = runRules(project, [])
-        .filter(d => !options.ignore?.includes(d.code) && isParseError(d) && substituted.has(path.resolve(folder, d.file)))
-      project = buildWith(new Map([...srcs, ...substituted]))
-    }
-    // remember each file's last text that parsed cleanly
-    const lastGood = new Map()
-    for (const f of project.files.values()) {
-      if (!f || f.ast?.errors?.length) continue
-      const entry = p.cache.get(f.path)
-      if (entry && !entry.error && entry.text === f.source) lastGood.set(f.path, entry)
-    }
-    p.lastGood = lastGood
+    const { project, parseErrors, config, substituted } = prep
     return { project, parseErrors, options, config, srcs, substituted }
   }
 

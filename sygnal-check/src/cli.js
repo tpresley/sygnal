@@ -4,6 +4,8 @@
  *                    <os.tmpdir()>/sygnal-graph-<project>.html, the path on stderr, opened in the default
  *                    browser unless CI is set, stdout is not a TTY or --no-open; --out <file> writes there
  *                    and opens only with --open; --editor sets the page's default editor links
+ *   --graph=html --watch  a live page (PLAN-10 W-1, D524): live.js rebuilds on save (watch.js), liveServer.js
+ *                    serves it on 127.0.0.1 behind a token; the URL on stdout, opened once (D527 rules)
  *   --graph=mermaid  a Mermaid flowchart on stdout (or --out); --events=false leaves out EVENTS (D504)
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
@@ -25,6 +27,9 @@ import { graphHtml } from './graphView/html.js'
 import { buildModel } from './graphView/model.js'
 import { toMermaid } from './graphView/mermaid.js'
 import { getExplanation, listExplanations, formatExplanation, suggestCodes } from './explain.js'
+import { createLiveProject } from './live.js'
+import { createWatcher } from './watch.js'
+import { createLiveServer } from './liveServer.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
@@ -76,6 +81,14 @@ Options:
                          not a terminal)
   --graph=mermaid        a Mermaid flowchart (flowchart TD) of what renders what,
                          with EVENTS as dotted edges
+  --watch                with --graph=html: serve the page on 127.0.0.1 (a random
+                         port and a token in the URL, printed and opened once)
+                         and update it in place whenever a file is saved;
+                         Ctrl-C stops
+  --poll[=<ms>]          with --watch: check for changes every <ms> (default 200)
+                         instead of file system events (network drives, some
+                         container mounts)
+  --port <n>             with --watch: listen on this port (default: a free one)
   --out <file>           with --graph: write the output to this file; for html,
                          don't open it unless --open is given
   --open, --no-open      with --graph=html: open the page, or don't
@@ -96,7 +109,7 @@ Suppress a finding with a comment on the same line or the line above:
  * config file (or the defaults) decide: see resolveOptions in src/config.js.
  */
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true }
+  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true, watch: false, poll: false, port: undefined }
   let graphFormat = null
   const value = (a, i, name) => {
     if (a.startsWith(name + '=')) {
@@ -128,6 +141,18 @@ export function parseArgs(argv) {
       if (!EDITORS.includes(opts.editor)) throw new Error(`--editor must be ${EDITORS.join(', ')} (got '${opts.editor}')`)
     }
     else if (a === '--events=false' || a === '--events=true') opts.events = a === '--events=true'
+    else if (a === '--watch') opts.watch = true
+    else if (a === '--poll') opts.poll = true
+    else if (a.startsWith('--poll=')) {
+      opts.poll = Number(a.slice('--poll='.length))
+      if (!Number.isInteger(opts.poll) || opts.poll < 20 || opts.poll > 60000) throw new Error(`--poll must be a number of milliseconds from 20 to 60000 (got '${a.slice('--poll='.length)}')`)
+    }
+    else if (a === '--port' || a.startsWith('--port=')) {
+      let v
+      ;[v, i] = value(a, i, '--port')
+      opts.port = Number(v)
+      if (!/^\d+$/.test(v) || opts.port > 65535) throw new Error(`--port must be a port number from 0 to 65535 (got '${v}')`)
+    }
     else if (a === '--verbose' || a === '-v') opts.verbose = true
     else if (a === '--include-tests') opts.includeTests = true
     else if (a === '-h' || a === '--help') opts.help = true
@@ -158,6 +183,11 @@ export function parseArgs(argv) {
   graphOnly(opts.open ? '--open' : '--no-open', ['html'], opts.open !== undefined)
   graphOnly('--editor', ['html'], opts.editor !== undefined)
   graphOnly('--events', ['mermaid'], !opts.events)
+  // W-1: --watch serves the page; a file:// page can't receive updates, so no --out
+  graphOnly('--watch', ['html'], opts.watch)
+  if (opts.watch && opts.out !== undefined) throw new Error('--out cannot be combined with --watch (a saved file can\'t be updated: the page is served instead)')
+  if (opts.poll !== false && !opts.watch) throw new Error('--poll needs --watch')
+  if (opts.port !== undefined && !opts.watch) throw new Error('--port needs --watch')
   if (opts.config !== undefined && opts.noConfig) throw new Error('--config and --no-config cannot be combined')
   return opts
 }
@@ -218,6 +248,86 @@ function writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tm
   return 0
 }
 
+/**
+ * --graph=html --watch (PLAN-10 W-1, D524): builds the project (live.js), serves the page and its
+ * update stream (liveServer.js) and rebuilds on every save (watch.js); only a changed graph is sent.
+ * Prints the URL on stdout and opens it once (the --graph=html rules, D527). Settles with
+ * { url, server, watcher, rebuild(), close(), closed: Promise<exit code> }, or { code } when it
+ * can't start. SIGINT / SIGTERM (on `signals`) close it.
+ */
+export async function watchGraph(opts, { cwd, stdout, stderr, env = {}, isTTY, openFile = openInBrowser, signals = process, debounce = 50 }) {
+  const live = createLiveProject({ root: cwd })
+  // flags > config file > defaults, resolved again on every build (a config file change applies)
+  const settings = {
+    strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests,
+    config: opts.noConfig ? false : opts.config, paths: opts.paths.length ? opts.paths : undefined,
+  }
+  const shown = (p) => path.isAbsolute(p) ? (path.relative(cwd, p) || '.') : p
+  const first = live.build({ settings })
+  for (const m of first.missing) stderr.write(`sygnal-check: no such file or directory: ${shown(m)}\n`)
+  if (!first.graph) {
+    stderr.write(`sygnal-check: no source files found in ${first.options.paths.map(shown).join(', ')}\n`)
+    return { code: 2 }
+  }
+  const name = projectName(cwd)
+  const subtitle = `live · ${opts.paths.length ? opts.paths.join(' ') : 'configured paths'}`
+  let server
+  try {
+    server = await createLiveServer({
+      port: opts.port ?? 0,
+      page: (cur) => graphHtml(JSON.parse(cur.json), { title: name, subtitle, root: path.resolve(cwd), editor: opts.editor, live: { events: '/events', version: cur.version } }),
+    })
+  } catch (err) {
+    stderr.write(`sygnal-check: can't listen on 127.0.0.1${opts.port ? ':' + opts.port : ''}: ${err.message}\n`)
+    return { code: 2 }
+  }
+  server.publish(first)
+  const count = (g) => { const n = g.components.length; return `${n} component${n === 1 ? '' : 's'}` }
+  const lastGood = (r) => r.substituted.length ? ` (${r.substituted.map(shown).join(', ')}: doesn't parse, its last good version is shown)` : ''
+
+  function rebuild(paths = []) {
+    let r
+    try { r = live.build({ settings }) } catch (err) {
+      stderr.write(`sygnal-check: rebuild failed: ${err?.stack || err}\n`)
+      return null
+    }
+    watcher.sync(live.watchSet())
+    if (!r.graph) { stderr.write(`sygnal-check: no source files found now; the page keeps the last graph\n`); return r }
+    if (r.changed) {
+      server.publish(r)
+      stderr.write(`sygnal-check: updated (${count(r.graph)}, ${Math.round(r.ms)} ms${paths.length ? ', ' + paths.map(shown).join(' ') : ''})${lastGood(r)}\n`)
+    }
+    return r
+  }
+  const watcher = createWatcher({ poll: opts.poll, debounce, onChange: rebuild })
+  watcher.sync(live.watchSet())
+
+  stdout.write(server.url + '\n')
+  stderr.write(`sygnal-check: serving the live graph of ${count(first.graph)} on 127.0.0.1:${server.port} (${watcher.mode}${watcher.mode === 'poll' ? ` every ${typeof opts.poll === 'number' ? opts.poll : 200} ms` : ''}); Ctrl-C stops${lastGood(first)}\n`)
+  // D527: open it once; never under CI or without a terminal
+  const why = env.CI ? 'CI is set' : !(isTTY ?? stdout.isTTY) ? 'stdout is not a terminal' : null
+  if (opts.open !== false && !why) openFile(server.url)
+  else if (opts.open && why) stderr.write(`sygnal-check: not opening it: ${why}\n`)
+
+  let done
+  const closed = new Promise((resolve) => { done = resolve })
+  let closing = null
+  function close() {
+    if (closing) return closed
+    signals?.off?.('SIGINT', close)
+    signals?.off?.('SIGTERM', close)
+    watcher.close()
+    // the streams end (the page says "disconnected"); a hung socket can't keep the process up
+    const hard = setTimeout(() => done(0), 500)
+    hard.unref?.()
+    closing = server.close().then(() => { clearTimeout(hard); done(0) })
+    return closed
+  }
+  signals?.on?.('SIGINT', close)
+  signals?.on?.('SIGTERM', close)
+  return { url: server.url, server, watcher, live, rebuild, close, closed }
+}
+
 const EXPLAIN_HELP = `Usage: sygnal-check explain <code> [--json]
        sygnal-check explain --all [--json]
 
@@ -248,7 +358,7 @@ export function explainMain(argv, { stdout, stderr }) {
 }
 
 /**
- * Returns the process exit code. For tests, `env` (CI), `isTTY` (else stdout.isTTY), `openFile` (the
+ * Returns the process exit code (with --watch, a Promise of it, settled when the server stops). For tests, `env` (CI), `isTTY` (else stdout.isTTY), `openFile` (the
  * --graph=html opener) and `tmpdir` stand in for the process's.
  */
 export function main(argv, { stdout = process.stdout, stderr = process.stderr, cwd = process.cwd(), env = process.env, isTTY, openFile = openInBrowser, tmpdir = os.tmpdir() } = {}) {
@@ -266,6 +376,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
     stderr.write(`sygnal-check: config file not found: ${opts.config}\n`)
     return 2
   }
+  if (opts.watch) return watchGraph(opts, { cwd, stdout, stderr, env, isTTY, openFile }).then(h => h.closed ?? h.code)
 
   // flags > config file > defaults; the config's findings (SYG900) are reported with the rest
   const { options: settings, config } = resolveOptions({
