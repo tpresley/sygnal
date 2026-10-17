@@ -14,6 +14,8 @@
  *     renderEdges   [{ from, to, via, label }]   via: 'tag' | 'collection' | 'switchable' | 'slot'
  *     eventEdges    [{ from, to, type }]          every emitter → every selector of the type
  *     contextEdges  [{ from, to, fields }]        a read served by the nearest providing ancestor
+ *     parentEdges   [{ from, to, actions, line? }] child → parent: the parent's CHILD.select(Child)
+ *                   (childSelects) and the intent actions it feeds
  *     orphanReads   [{ id, field }]               context reads no scanned ancestor provides
  *     ghosts        the ghost nodes
  *     diagnostics   every diagnostic, with `compId` (null for app-wide ones nobody owns)
@@ -148,6 +150,16 @@ export function buildModel(graph) {
     }
   }
 
+  // PARENT: a child's PARENT sink reaches the parent's intent through CHILD.select(Child) (childSelects)
+  const parentEdges = []
+  for (const c of comps) {
+    for (const s of c.childSelects || []) {
+      const ch = lookup(s.id, s.child, c)
+      if (!ch || ch.ghost) continue
+      parentEdges.push({ from: ch.id, to: c.id, actions: s.actions || [], ...(s.line != null ? { line: s.line } : {}) })
+    }
+  }
+
   const diagnostics = [
     ...comps.flatMap(c => c.diagnostics.map(d => ({ ...d, compId: c.id }))),
     ...(graph.diagnostics || []).map(d => ({ ...d, compId: lookup(d.componentId, d.component)?.id ?? null })),
@@ -155,7 +167,7 @@ export function buildModel(graph) {
 
   const byKey = new Map()
   for (const c of comps) if (!byKey.has(c.key)) byKey.set(c.key, c.id)
-  return { graph, comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
+  return { graph, comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, parentEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
 }
 
 export function worst(c) {
@@ -205,7 +217,7 @@ export function healthList(model, codeTitles = {}) {
   add('Controls nothing listens to', 'warn', real.flatMap(c => (c.controls || []).filter(x => x.listened === false)
     .map(x => ({ id: c.id, title: x.name, sub: `${c.name} · <${x.element ?? '?'}>` }))))
   add('Context read with no provider', 'warn', orphanReads.map(o => ({ id: o.id, title: `context.${o.field}`, sub: `${byId.get(o.id).name} · no scanned ancestor provides it` })))
-  add('Rendered but not scanned', 'muted', ghosts.map(g => ({ id: g.id, title: g.name, sub: `rendered by ${parentsOf.get(g.id).map(id => byId.get(id).name).join(', ')}` })))
+  add('Rendered but not scanned', 'muted', ghosts.filter(g => !g.external && !g.widget).map(g => ({ id: g.id, title: g.name, sub: `rendered by ${parentsOf.get(g.id).map(id => byId.get(id).name).join(', ')}` })))
   add('AI agent surface', 'ai', real.filter(c => c.agent).map(c => {
     const acts = c.agent.actions || []
     const ask = acts.filter(a => a.consequential).map(a => a.name)

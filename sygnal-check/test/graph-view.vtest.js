@@ -169,6 +169,20 @@ describe('graphView model', () => {
     ])
   })
 
+  it('PARENT edges from childSelects; package and widget ghosts stay out of "not scanned"', () => {
+    const m = buildModel(G([
+      comp('List', 'src/List.jsx', 1, {
+        children: [{ name: 'Row', via: 'collection', id: 'src/Row.jsx:1' }, { name: 'Menu', via: 'tag', id: null, external: 'sygnal/ui/menu', widget: true }, { name: 'Stars', via: 'tag', id: null, widget: true }, { name: 'Lost', via: 'tag' }],
+        childSelects: [{ child: 'Row', id: 'src/Row.jsx:1', actions: ['ROW_DELETE'], line: 9 }, { child: 'Lost', id: null, actions: ['X'] }],
+      }),
+      comp('Row', 'src/Row.jsx', 1, { actions: [{ name: 'DELETE', trigger: 'intent', sinks: ['PARENT'] }] }),
+    ]))
+    expect(m.parentEdges).toEqual([{ from: 'src/Row.jsx:1', to: 'src/List.jsx:1', actions: ['ROW_DELETE'], line: 9 }])
+    expect(healthList(m).find(h => h.group === 'Rendered but not scanned').items.map(i => i.title)).toEqual(['Lost'])
+    const l = layoutGraph(m)
+    expect(edgePaths(m, l).filter(e => e.cls === 'parent')).toMatchObject([{ from: 'src/Row.jsx:1', to: 'src/List.jsx:1', label: 'ROW_DELETE', marker: 'ah-parent' }])
+  })
+
   it('stable keys: the graph key, else file#name; ghosts by package or directory; byKey', () => {
     const m = buildModel(G([
       comp('P', 'src/a/P.jsx', 1, { children: [{ name: 'Toaster', via: 'tag', id: null, external: 'sygnal/ui' }, { name: 'Nope', via: 'tag' }] }),
@@ -353,7 +367,7 @@ describe('graphView page.css contrast (WCAG AA, both themes)', () => {
   const text = [
     ['ink', ['bg', 'panel', 'card', 'chip']], ['muted', ['bg', 'panel', 'card', 'chip']], ['accent', ['panel', 'accent-soft']],
     ['ev', ['bg', 'panel', 'card']], ['ctx', ['bg', 'panel']], ['err', ['panel', 'err-soft']], ['warn', ['panel', 'bg', 'warn-soft']],
-    ['ok', ['panel']], ['info', ['panel']], ['ink', ['err-soft', 'warn-soft']],
+    ['ok', ['panel']], ['info', ['panel']], ['par', ['bg', 'panel']], ['ink', ['err-soft', 'warn-soft']],
   ]
   const onKind = ['k-root', 'k-child', 'k-coll', 'k-switch', 'k-ghost', 'err', 'warn']
   for (const [name, t] of [['light', light], ['dark', dark]]) {
