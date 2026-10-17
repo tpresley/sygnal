@@ -75,6 +75,12 @@ export async function runGraphLarge(browser, engine) {
           ok(await page.evaluate(() => document.getElementById('svg').classList.contains('far')), 'far at k ≤ 0.3')
           eq(await page.locator('#nodes .node.group .sub').first().evaluate(e => getComputedStyle(e).display), 'none', 'card text hidden')
           ok(await page.locator('#nodes .node.group .name').first().evaluate(e => getComputedStyle(e).display !== 'none'), 'group name shown')
+          // far away a group's name is centred in its card and never grows out of it (user report)
+          const out = await page.evaluate(() => [...document.querySelectorAll('#nodes .node.group')].filter(g => {
+            const c = g.querySelector('.box').getBoundingClientRect(), t = g.querySelector('.name').getBoundingClientRect()
+            return t.top < c.top - 1 || t.bottom > c.bottom + 1 || t.left < c.left - 1 || t.right > c.right + 1
+          }).map(g => g.dataset.key))
+          eq(out, [], 'group names outside their card')
           await page.locator('#zfit').click()
           await api(page, () => { const a = window.__sygnalGraph; a.fit([a.projection.nodes[0].id], false, 1) })
           ok(!await page.evaluate(() => document.getElementById('svg').classList.contains('far')), 'not far at k 1')
