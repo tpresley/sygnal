@@ -16,6 +16,7 @@
 
 // @ts-ignore — resolved at runtime via package exports
 import { renderToString, renderHead, queryCache } from 'sygnal'
+import { shellOf, uidPart } from './shell'
 
 interface PageContext {
   Page: any
@@ -52,16 +53,6 @@ function esc(str: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-}
-
-/**
- * PLAN-4 G-207: the uid() path part of a shell component or the Page (wrapper_0 → 'w0',
- * layout_1 → 'l1', page → 'p'), as onRenderClient gives each nested vnode in its `id` prop. Each
- * one renders here as its own root, so its root is 'u' plus the parts of the shell around it and
- * its own: the same uids as the client's nested instances.
- */
-function uidPart(key: string): string {
-  return key == 'page' ? 'p' : key[0] + key.slice(key.indexOf('_') + 1)
 }
 
 export function onRenderHtml(pageContext: PageContext) {
@@ -128,22 +119,10 @@ export function onRenderHtml(pageContext: PageContext) {
   // PLAN-3 5-5 (H-7): the seeded cache the components' resources render from
   const cache = pageContext.queryCache ? queryCache({ initial: pageContext.queryCache }) : undefined
 
-  // Determine if Wrapper(s) and/or Layout(s) are present — this affects hydration state shape
-  const wrapperArray = config.Wrapper
-    ? (Array.isArray(config.Wrapper) ? config.Wrapper : [config.Wrapper])
-        .filter((W: any) => typeof W === 'function')
-    : []
-  const layoutArray = config.Layout
-    ? (Array.isArray(config.Layout) ? config.Layout : [config.Layout])
-        .filter((L: any) => typeof L === 'function')
-    : []
-  const hasShell = wrapperArray.length > 0 || layoutArray.length > 0
-  // Combined shell: wrappers (outermost) + layouts (innermost around Page)
-  // Must match the order used in onRenderClient's createLayoutWrapper.
-  const shell = [
-    ...wrapperArray.map((w: any, i: number) => ({ comp: w, key: 'wrapper_' + i })),
-    ...layoutArray.map((l: any, i: number) => ({ comp: l, key: 'layout_' + i })),
-  ]
+  // Wrapper(s) and/or Layout(s), outermost first (G-803: Vike lists them closest first; shellOf
+  // reverses them, the same order as onRenderClient's): they decide the hydration state's shape
+  const shell = shellOf(config)
+  const hasShell = shell.length > 0
   // G-207: with a shell, the client nests each shell component and the Page in the one outside it
   // with an `id` prop (onRenderClient), so their uid roots are 'u-w0', 'u-w0-l0', 'u-w0-l0-p'
   const uidRoot = (i: number) => ['u', ...shell.slice(0, i + 1).map(s => uidPart(s.key))].join('-')

@@ -146,6 +146,28 @@ Layout state persists across client-side page navigations. The Layout and Page e
 Render the Page where the Layout places `children`, as above: the server puts the Page's HTML there, and on the client the Page is that child in the reactive component tree. (A Layout written for the server only can place the `innerHTML` prop instead; one that renders neither gets the Page after it.)
 :::
 
+### Nested Layouts
+
+`Layout` (and `Wrapper`) are cumulative: a page gets every `+Layout` on its path. The one closest to the root is outermost, so `pages/+Layout.jsx` wraps `pages/admin/+Layout.jsx`, which wraps the pages under `pages/admin/`:
+
+```jsx
+// pages/admin/+Layout.jsx
+function AdminLayout({ children }) {
+  return (
+    <section className="admin">
+      <aside>Admin</aside>
+      <div className="admin-content">{children}</div>
+    </section>
+  )
+}
+
+AdminLayout.initialState = {}
+
+export default AdminLayout
+```
+
+Every Wrapper is outside every Layout, nested the same way. On client-side navigation, the Layouts and Wrappers that two pages share stay mounted with their state, from the outside in. Going from `/` to `/admin` keeps the root Layout and adds the admin one inside it; going back removes it, and the next visit starts it from its `initialState` again.
+
 ## Head
 
 Use `+Head.jsx` to inject elements into the document `<head>`:

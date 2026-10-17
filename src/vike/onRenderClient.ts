@@ -13,12 +13,16 @@
  * - Wrappers are outermost (context providers, state management)
  * - Layouts are inside wrappers (visual structure, navigation chrome)
  * - Page is innermost (route-specific content, swapped on navigation)
+ * Cumulative Layouts / Wrappers nest the root's outermost (G-803, see shell.ts). Navigating to a
+ * page with another shell (pages/admin/+Layout) keeps the shell components both pages share
+ * mounted, from the outside in, and adds or removes the rest.
  */
 
 // Import from the package entry so rollup externalizes it
 // @ts-ignore — resolved at runtime via package exports
 import { run } from 'sygnal'
 import { owned } from '../extra/owned'
+import { shellOf, uidPart, type ShellPart } from './shell'
 
 declare global {
   interface Window {
@@ -47,6 +51,8 @@ interface PageContext {
 
 /** Track the running Sygnal app for disposal on navigation */
 let currentApp: { sources: any; sinks: any; dispose: () => void } | null = null
+/** G-803: the running shell, outermost first (read by the wrapper's view); null: an app without one */
+let currentShell: ShellPart[] | null = null
 
 /**
  * Mutable references read by the wrapper's view function.
@@ -58,16 +64,6 @@ let currentPageData: any = {}
 let currentRouteParams: any = {}
 let currentUrlPathname: string = ''
 let pageNavCounter: number = 0
-
-/**
- * PLAN-4 G-207: the uid() path part of a shell component or the Page: wrapper_0 → 'w0',
- * layout_1 → 'l1', page → 'p'. Given as the nested vnode's `id` prop, so the Page's uid is
- * 'u-w0-l0-p' however the shell nests it; onRenderHtml renders each one with the same root
- * (renderToString's `uid`), so server and client ids match. (Same helper in onRenderHtml.ts.)
- */
-function uidPart(key: string): string {
-  return key == 'page' ? 'p' : key[0] + key.slice(key.indexOf('_') + 1)
-}
 
 /**
  * PLAN-4.6 R4 (04 §3.11): the core instantiates a component from the vnode's `data.c`, a
@@ -143,11 +139,11 @@ function pageChildVNode(pageState: any, stateField: any = 'page'): any {
  *
  * Nesting order: Wrapper(s) > Layout(s) > Page
  *
- * The wrapper's view reads `currentPage` from the mutable closure, so
- * on client-side navigation only the Page sub-component changes while
- * the Layout and Wrapper stay mounted with their state preserved.
+ * The wrapper's view reads `currentPage` and `currentShell` from the mutable closure, so
+ * on client-side navigation only the Page sub-component (and the shell components the new page
+ * doesn't share) change while the Layout and Wrapper stay mounted with their state preserved.
  */
-function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
+function createLayoutWrapper(Page: any): any {
   currentPage = Page
   currentPageName = Page.componentName || Page.name || 'VikePageComponent'
 
@@ -158,9 +154,6 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   // one (and the Page) gets a { get, set } lens onto its own ROOT slice: an outer component's
   // reducer replacing its state can't wipe the inner slices (R2-2), and no view sees another
   // component's slice.
-  const keys = shellKeys(wrappers, layouts)
-  const shell = [...wrappers, ...layouts].map((comp: any, i: number) => ({ comp, key: keys[i] }))
-
   // The latest root state. Only the outermost lens gets the root itself; the nested lenses get
   // their parent shell component's state. In both directions the outermost lens runs first and
   // synchronously (state: root -> outer get -> inner get; a reducer: outer get, inner get, inner
@@ -180,10 +173,13 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
       return outermost ? root : { ...state }
     },
   })
-  const lenses = keys.map((key, i) => rootLens(key, i === 0, true))
+  // one lens per key and place (outermost or not), the same object on every render
+  const lenses: Record<string, any> = {}
+  const lensOf = (key: string, outermost: boolean) => (lenses[key + outermost] ||= rootLens(key, outermost, true))
   const pageLens = rootLens('page', false, false)
 
   function LayoutWrapperView({ state }: any) {
+    const shell = currentShell || []
     if (shell.length === 0) {
       // No wrappers or layouts — render Page directly
       return pageChildVNode(state.page)
@@ -193,14 +189,14 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
     let inner: any = componentVNode(
       shell[lastIdx].comp,
       shell[lastIdx].key,
-      lenses[lastIdx],
+      lensOf(shell[lastIdx].key, lastIdx === 0),
       [pageChildVNode(state.page, pageLens)],
       state[shell[lastIdx].key]
     )
 
     // Wrap with outer shell components
     for (let i = lastIdx - 1; i >= 0; i--) {
-      inner = componentVNode(shell[i].comp, shell[i].key, lenses[i], [inner], state[shell[i].key])
+      inner = componentVNode(shell[i].comp, shell[i].key, lensOf(shell[i].key, i === 0), [inner], state[shell[i].key])
     }
 
     // Wrap in a plain div so the view returns a regular DOM vnode.
@@ -223,6 +219,7 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   // The wrapper's initial state: a sibling slice for each shell component and the Page.
   // Must match onRenderHtml's serialized state.
   const initialState: any = {}
+  const shell = currentShell || []
   shell.forEach(({ comp, key }: any) => { initialState[key] = { ...(comp.initialState || {}) } })
   initialState.page = Page.initialState || {}
   // G-275: owned (built from the hydrated state and pageContext.data: never frozen in dev)
@@ -250,33 +247,18 @@ function createLayoutWrapper(wrappers: any[], layouts: any[], Page: any): any {
   return LayoutWrapperView
 }
 
-/** State keys of the shell components, outermost first: wrapper_0, ..., layout_0, ... */
-function shellKeys(wrappers: any[], layouts: any[]): string[] {
-  return [
-    ...wrappers.map((_: any, i: number) => 'wrapper_' + i),
-    ...layouts.map((_: any, i: number) => 'layout_' + i),
-  ]
-}
-
-/**
- * Normalize a cumulative config value into an array of functions.
- */
-function toComponentArray(val: any): any[] {
-  if (!val) return []
-  return (Array.isArray(val) ? val : [val]).filter((c: any) => typeof c === 'function')
-}
-
 export function onRenderClient(pageContext: PageContext) {
   const { Page, config } = pageContext
   const data = pageContext.data || {}
 
-  const wrappers = toComponentArray(config.Wrapper)
-  const layouts = toComponentArray(config.Layout)
-  const hasShell = wrappers.length > 0 || layouts.length > 0
+  // The shell, outermost first (G-803: Vike lists cumulative configs closest first); the state
+  // slices of its components and the Page's are siblings at the root (D50)
+  const parts = shellOf(config)
+  const hasShell = parts.length > 0
+  const shell = parts.map(p => p.key)
 
-  // The shell is wrappers (outermost) + layouts; their state slices and the Page's are
-  // siblings at the root (D50).
-  const shell = shellKeys(wrappers, layouts)
+  // a shell page after a page without one (or the reverse, below): a new app
+  if (hasShell && currentApp && !currentShell) { currentApp.dispose(); currentApp = null }
 
   // PLAN-3 5-5 (H-7): seed the caches of the fetch drivers (makeFetchDriver({ cache: queryCache() })
   // exposes it as driver.cache) before the page renders, so its resources start at 'success'
@@ -304,8 +286,22 @@ export function onRenderClient(pageContext: PageContext) {
       pageNavCounter++
 
       const newPageState = { ...(Page.initialState || {}), ...data }
-      // replace the page slice, keeping every shell slice (G-106, D50)
-      const swapPage = (state: any) => ({ ...state, page: newPageState })
+      // replace the page slice, keeping every shell slice (G-106, D50). G-803: a page with another
+      // shell keeps the slices of the components it shares at the same place (key) and starts the
+      // others from their initialState
+      const old = currentShell!
+      const same = parts.length === old.length && parts.every((p, i) => p.comp === old[i].comp)
+      let swapPage = (state: any) => ({ ...state, page: newPageState })
+      if (!same) {
+        currentShell = parts
+        swapPage = (state: any) => {
+          const next: any = { page: newPageState }
+          for (const { comp, key } of parts) {
+            next[key] = old.some(o => o.key === key && o.comp === comp) ? state[key] : { ...(comp.initialState || {}) }
+          }
+          return next
+        }
+      }
       // (PLAN-4.6 core: through the runtime API, 04 §3.11)
       const rt = (currentApp as any).__runtime
       rt?.setState('root', swapPage)
@@ -322,7 +318,7 @@ export function onRenderClient(pageContext: PageContext) {
       if (initialState && initialState[shell[shell.length - 1]] !== undefined) {
         // Hydrated shell state: sibling slices (D50), or the 5.4.0 shape with the Page state
         // under the innermost shell slice (R2-9) — distribute the slices to each component
-        const allShellComps = [...wrappers, ...layouts]
+        const allShellComps = parts.map(p => p.comp)
         let pageState = initialState.page
         shell.forEach((key: string, i: number) => {
           let slice = initialState[key]
@@ -348,7 +344,8 @@ export function onRenderClient(pageContext: PageContext) {
         urlPathname: () => currentUrlPathname,
       }
 
-      const Component = createLayoutWrapper(wrappers, layouts, Page)
+      currentShell = parts
+      const Component = createLayoutWrapper(Page)
 
       try {
         // 3-B2: `__vike` marks the shell's components (Page, Layouts, Wrappers: sub-components of
@@ -372,6 +369,7 @@ export function onRenderClient(pageContext: PageContext) {
       currentApp.dispose()
       currentApp = null
     }
+    currentShell = null
 
     let initialState: any
     // 3-B2: the server's state is here when the page hydrates its HTML
