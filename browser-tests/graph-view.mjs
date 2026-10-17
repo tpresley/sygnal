@@ -95,6 +95,17 @@ export async function runGraphView(browser, engine) {
       eq(await page.locator('#trace.on').count(), 0, 'trace cleared')
     })
 
+    await check('highlighted edges and their labels are drawn above the cards, with a pill; cleared after', async () => {
+      const want = model.eventEdges.filter(e => e.type === 'NAVIGATE').length
+      await page.locator('#dinner [data-trace-event="NAVIGATE"]').first().click()
+      eq(await page.locator('#hl-layer .edge.event').count(), want, 'copied edges in the top layer')
+      eq(await page.locator('#hl-layer .elabel-pill.event').count(), await page.locator('#hl-layer .elabel.event').count(), 'a pill per label')
+      ok(await page.evaluate(() => { const v = document.getElementById('vp').children; return v[v.length - 1].id === 'hl-layer' }), 'the layer is above #nodes')
+      await page.locator('#trace-x').click()
+      await page.keyboard.press('Escape')
+      eq(await page.locator('#hl-layer > *').count(), 0, 'emptied when nothing is highlighted')
+    })
+
     await check('overlay toggles hide and show EVENTS and context edges', async () => {
       const shown = (cls) => page.locator(`#edges .edge.${cls}`).first().evaluate(e => getComputedStyle(e).display !== 'none')
       ok(await shown('event') && await shown('context'), 'both overlays start shown')

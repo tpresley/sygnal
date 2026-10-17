@@ -147,6 +147,8 @@ main { grid-area: canvas; position: relative; overflow: hidden; min-width: 0; }
 .elabel.parent { fill: var(--par); font-weight: 600; }
 .elabel { font-size: 10.5px; fill: var(--muted); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
 .elabel.event { fill: var(--ev); font-weight: 600; }
+.elabel-pill { fill: var(--panel); stroke: var(--line); stroke-width: 1; }
+.elabel-pill.event { stroke: var(--ev); } .elabel-pill.context { stroke: var(--ctx); } .elabel-pill.parent { stroke: var(--par); }
 .elabel.context { fill: var(--ctx); }
 .cluster rect { fill: none; stroke: var(--line); }
 .cluster text { font-size: 12px; fill: var(--muted); font-family: ui-monospace, Menlo, monospace; }

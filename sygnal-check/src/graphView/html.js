@@ -133,7 +133,7 @@ ${css}</style>
       <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="var(--grid)"/></pattern>
     </defs>
     <rect id="bgrect" width="100%" height="100%" fill="url(#dots)"/>
-    <g id="vp"><g id="clusters"></g><g id="edges" aria-hidden="true"></g><g id="labels" aria-hidden="true"></g><g id="nodes"></g></g>
+    <g id="vp"><g id="clusters"></g><g id="edges" aria-hidden="true"></g><g id="labels" aria-hidden="true"></g><g id="nodes"></g><g id="hl-layer" aria-hidden="true" pointer-events="none"></g></g>
   </svg>
   <div class="trace" id="trace" role="status"></div>
   <div class="legend" id="legend" aria-hidden="true">

@@ -213,11 +213,27 @@ export function mountPage(V, G, META) {
   // ───────────── highlight / select / trace ─────────────
   let selected = null, tracing = null
   const pressed = (id) => $(id).getAttribute('aria-pressed') === 'true'
-  function clearHl() { svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e => e.classList.remove('hl')) }
+  // highlighted edges and their labels are copied into a layer above the cards, so a line
+  // that passes behind an intermediate card (and its label) stays visible; unhighlighted, cards stay on top
+  function clearHl() { svg.classList.remove('dim'); svg.querySelectorAll('.hl').forEach(e => e.classList.remove('hl')); $('hl-layer').replaceChildren() }
   function hl(nodeIds, edgePred) {
     clearHl(); svg.classList.add('dim')
     for (const id of nodeIds) nodeEls.get(id)?.classList.add('hl')
-    for (const e of edgeEls) if (edgePred(e)) { e.p.classList.add('hl'); e.t?.classList.add('hl') }
+    const top = $('hl-layer'), labels = []
+    for (const e of edgeEls) if (edgePred(e)) {
+      e.p.classList.add('hl'); e.t?.classList.add('hl')
+      top.appendChild(e.p.cloneNode(false))
+      if (e.t) labels.push(e.t.cloneNode(true))
+    }
+    // on top of a card, a label gets a pill so it doesn't read as part of the card's text
+    for (const t of labels) {
+      top.appendChild(t)
+      const b = t.getBBox()
+      if (!b.width) continue
+      const kind = ['event', 'context', 'parent'].find(k => t.classList.contains(k)) || 'tree'
+      const pill = el('rect', { class: 'elabel-pill ' + kind, x: b.x - 5, y: b.y - 2, width: b.width + 10, height: b.height + 4, rx: (b.height + 4) / 2 })
+      top.insertBefore(pill, t)
+    }
   }
   function neighbourhood(id) {
     const ids = new Set([id])
@@ -486,7 +502,7 @@ export function mountPage(V, G, META) {
   $('m-svg').onclick = () => {
     const clone = svg.cloneNode(true), b = V.bbox(pos, comps.map(c => c.id))
     clone.setAttribute('viewBox', `${b.x0} ${b.y0} ${b.x1 - b.x0} ${b.y1 - b.y0}`); clone.setAttribute('width', b.x1 - b.x0); clone.setAttribute('height', b.y1 - b.y0)
-    clone.querySelector('#vp').removeAttribute('transform'); clone.querySelector('#bgrect').remove(); clone.classList.remove('dim')
+    clone.querySelector('#vp').removeAttribute('transform'); clone.querySelector('#bgrect').remove(); clone.querySelector('#hl-layer').replaceChildren(); clone.classList.remove('dim')
     const cs = getComputedStyle(doc.documentElement)
     const rules = [...doc.styleSheets[0].cssRules]
     const rootRule = rules.find(r => r.selectorText === ':root')
