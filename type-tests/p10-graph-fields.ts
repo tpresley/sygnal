@@ -1,4 +1,4 @@
-// PLAN-10 A-1..A-6, A-8, D521, D522: the static graph's new optional fields (sygnal-check --graph,
+// PLAN-10 A-1..A-6, A-8, A-9, D521, D522: the static graph's new optional fields (sygnal-check --graph,
 // sygnal-check/schema/inspect.schema.json); additive at version 1 (D511)
 import type { InspectGraph, InspectComponent, InspectChild, InspectChildSelect, InspectLocation, InspectActionTrigger } from 'sygnal'
 
@@ -56,4 +56,15 @@ const badReads: InspectComponent['stateReads'] = null
 // @ts-expect-error a child select has its location
 const noLine: InspectChildSelect = { child: 'X', id: null, actions: [] }
 
+// PLAN-10 A-9: Vike routes and the layout → page edge
+const vikePage: InspectComponent = { ...lane, name: 'Page', id: 'pages/orders/@id/+Page.jsx:1', parentId: null, kind: 'root', entry: true, route: '/orders/@id', children: [] }
+const routed: InspectComponent = { ...vikePage, route: null, routeDynamic: true }
+const shared: InspectComponent = { ...vikePage, route: '/orders/@id/edit', routes: ['/orders/@id/edit', '/orders/new', null] }
+const layoutEdge: InspectChild = { name: 'Page', via: 'layout', id: 'pages/orders/@id/+Page.jsx:1' }
+// @ts-expect-error routeDynamic is only ever true (omitted otherwise)
+const badDynamic: InspectComponent['routeDynamic'] = false
+// @ts-expect-error a child's via is one of the known ways
+const badVia: InspectChild['via'] = 'wrapper'
+
+export { vikePage, routed, shared, layoutEdge, badDynamic, badVia }
 export { loc, elsewhere, trigger, g, badEntry, badRole, noLine, live, badShown, badApp, badRemoves, badReads }

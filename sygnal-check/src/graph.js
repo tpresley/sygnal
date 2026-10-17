@@ -24,12 +24,21 @@
  *   viewOnly     true for a function in the scanned files that is rendered as a
  *                component (or started as an entry) but has no statics (PLAN-10
  *                A-1); listed after the others, with empty actions/state/selectors
- *   kind         'root' when no scanned component renders it, else how it is
+ *   kind         'root' when no scanned component's JSX renders it, else how it is
  *                first rendered (tag → child, Collection → collection-item,
- *                Switchable → switchable)
- *   entry        true when run(), defineElement() or a Vike +Page / +Layout default
+ *                Switchable → switchable). Vike's shell edges (via 'layout') don't count:
+ *                a +Page under a +Layout stays 'root' (Vike starts it, entry: true)
+ *   entry        true when run(), defineElement() or a Vike +Page / +Layout / +Wrapper default
  *                export starts it; 'unknown' on the other roots when an entry call's
  *                component can't be resolved (picked at run time); omitted otherwise (A-6)
+ *   route        (A-9, D538; Vike only, model/vike.js) on a +Page's component: its route from
+ *                the filesystem ('/orders/@id'; (group), pages/, src/, index/, renderer/ dropped),
+ *                or the literal string a +route.js / the +config.js `route` sets; null for a Route
+ *                Function or a value the checker can't read (with routeDynamic: true) and for
+ *                _error/+Page (the error page; no routeDynamic). On a +Layout's / +Wrapper's: the
+ *                URL prefix of the directory it applies to. Omitted on other components.
+ *                routes: every route of a component that several +Page files export (route:
+ *                the first, in path order); omitted otherwise
  *   actions      intent actions + model entries; trigger: builtin
  *                (BOOTSTRAP/INITIALIZE/DISPOSE/READY), intent, reply (an
  *                ok/error literal in a request, or a `connections` name),
@@ -71,7 +80,11 @@
  *                resolved through the import (null: not in the graph: a package,
  *                a widget, a file not scanned, a dynamic value); state: a literal
  *                `state` lens; external: the package a tag is imported from
- *                ('sygnal/ui'; package components are not nodes, A-2)
+ *                ('sygnal/ui'; package components are not nodes, A-2).
+ *                via 'layout' (A-9, D538): Vike's shell, Wrapper(s) > Layout(s) > Page as
+ *                sygnal/vike nests them: a +Wrapper / +Layout lists the next +Layout in, or each
+ *                +Page it applies to directly (Vike's inheritance: its directory and below, a
+ *                (group) only inside it); no location (there is no JSX site)
  *   childSelects CHILD.select(Child) in the intent: { child, id, actions (the intent
  *                actions whose stream contains it: the receivers of the child's
  *                PARENT sink), line, column } (omitted when none; A-5)
@@ -175,7 +188,7 @@ export function buildGraph(project, diagnostics = []) {
   // PLAN-10 A-6, A-1: the entries (run(), defineElement(), Vike pages) and the units: the
   // components, then view-only ones (functions in the scanned files rendered as component tags,
   // or started as entries, that have no statics; they render children too); model/renderGraph.js
-  const { units, unitOf, entries, entryUnits, usagesByUnit: usagesByComp, renderedAs } = renderGraph(project)
+  const { units, unitOf, entries, entryUnits, usagesByUnit: usagesByComp, renderedAs, vike } = renderGraph(project)
   const idFor = (ref) => { const u = ref && unitOf(ref); return u ? idOf(u) : null }
 
   // EVENTS: attribute each select / emit to the component whose intent, model or definition contains it
@@ -241,7 +254,19 @@ export function buildGraph(project, diagnostics = []) {
       Object.assign(child, at(usage.node, usage.file, c.file))
       children.push(child)
     }
+    // PLAN-10 A-9 (D538): a Vike Wrapper / Layout renders the next Layout in, or the Page (no JSX
+    // site: no location)
+    for (const u of vike.shellChildren.get(c) || []) children.push({ name: u.name, via: 'layout', id: idOf(u) })
     return children
+  }
+  // PLAN-10 A-9: a Vike page's route (routeDynamic: a Route Function or an unreadable +route), a
+  // Layout's / Wrapper's URL prefix
+  const routeInto = (node, c) => {
+    const r = vike.routes.get(c)
+    if (!r) return
+    node.route = r.route
+    if (r.routeDynamic) node.routeDynamic = true
+    if (r.routes) node.routes = r.routes
   }
   const entryOf = (c) => entryUnits.has(c) ? true : entries.unknown && !renderedAs.has(c) ? 'unknown' : undefined
 
@@ -369,6 +394,7 @@ export function buildGraph(project, diagnostics = []) {
     }
     const entry = entryOf(c)
     if (entry !== undefined) node.entry = entry
+    routeInto(node, c)
     readsInto(node, project, c, usagesByComp.get(c))
     // PLAN-10 A-4: where the context entries and the EVENTS emit / select sites are
     if (c.contextEntries?.size) node.contextEntries = [...c.contextEntries].map(([name, e]) => ({ name, ...at(e.keyNode, e.file, c.file) }))
@@ -447,6 +473,7 @@ export function buildGraph(project, diagnostics = []) {
     }
     const entry = entryOf(u)
     if (entry !== undefined) node.entry = entry
+    routeInto(node, u)
     readsInto(node, project, u, usagesByComp.get(u))
     components.push(node)
   }

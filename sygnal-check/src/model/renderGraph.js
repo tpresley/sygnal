@@ -2,10 +2,11 @@
  * The render graph of a project (PLAN-10 A-1, A-6; moved here from graph.js for X-1's rules):
  * which scanned component renders which, and the entries that start them.
  *
- *   findEntries(project) → { refs: [{ file, node, via }], unknown }
- *     run(App), defineElement(tag, App) (via 'run' | 'element') and Vike's `+Page` / `+Layout`
- *     default exports (via 'vike'); unknown: an entry call whose component the checker can't
- *     resolve (a parameter picked at run time)
+ *   findEntries(project) → { refs: [{ file, node, via, plus?, vike? }], unknown }
+ *     run(App), defineElement(tag, App) (via 'run' | 'element') and Vike's `+Page` / `+Layout` /
+ *     `+Wrapper` default exports (via 'vike'; plus: the plus file's path, vike: 'Page' | 'Layout' |
+ *     'Wrapper'); unknown: an entry call whose component the checker can't resolve (a parameter
+ *     picked at run time)
  *   viewUsages(sink) → [{ usage, via, from?, widget? }]
  *     every child usage of a view sink, with the JSX passed INTO children as via 'slot'
  *     (from: a Collection's `from`; widget tags with `widget: true`)
@@ -23,22 +24,28 @@
  *                   places it is the parent)
  *     hiddenParents(unit) → names of capitalized top-level functions that render it but aren't
  *                   units (plain components nothing scanned renders and no entry starts)
+ *     vike          { routes: Map unit → { route, routeDynamic? }, shellChildren: Map unit → unit[] }
+ *                   (model/vike.js, PLAN-10 A-9): a Vike page's route, a Layout's / Wrapper's URL
+ *                   prefix, and the shell edges Wrapper > Layout(s) > Page. The shell edges are not
+ *                   in parentsOf / renderedAs (no JSX renders them; the rules treat Vike entries as open)
  */
 import path from 'node:path'
 import { walk, unwrap, isFunction } from '../ast.js'
 import { resolveExpr, resolveExport } from './resolve.js'
 import { findBinding } from '../scope.js'
+import { vikeGraph } from './vike.js'
 
 const SYGNAL = /^sygnal(\/|$)/
 // PLAN-10 A-6: the calls that start an app or register a component, and the argument holding it
 const ENTRY_CALLS = { run: 0, defineElement: 1 }
 const ENTRY_VIA = { run: 'run', defineElement: 'element' }
-const VIKE_PAGE = /(^|[\\/])\+(Page|Layout)\.[cm]?[jt]sx?$/
+// Vike's plus files whose default export is a component (+Wrapper: sygnal/vike's own cumulative config)
+const VIKE_PLUS = /(^|[\\/])\+(Page|Layout|Wrapper)\.[cm]?[jt]sx?$/
 
 export function findEntries(project) {
   const refs = []
   let unknown = false
-  const add = (r, via) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node, via }); else unknown = true }
+  const add = (r, via, extra) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node, via, ...extra }); else unknown = true }
   for (const p of project.scanned) {
     const file = project.files.get(p)
     if (!file) continue
@@ -52,7 +59,8 @@ export function findEntries(project) {
       if (arg && arg.type !== 'SpreadElement') add(resolveExpr(project, file, arg), ENTRY_VIA[b.imported])
       return true
     })
-    if (VIKE_PAGE.test(p)) { const r = resolveExport(project, file, 'default'); if (r) add(r, 'vike') }
+    const plus = VIKE_PLUS.exec(p)
+    if (plus) { const r = resolveExport(project, file, 'default'); if (r) add(r, 'vike', { plus: p, vike: plus[2] }) }
   }
   return { refs, unknown }
 }
@@ -174,7 +182,9 @@ export function renderGraph(project) {
     }
     return hidden.get(unit) || []
   }
-  const g = { units, unitOf, entries, entryUnits, usagesByUnit, renderedAs, parentsOf, hiddenParents }
+  // PLAN-10 A-9 (D538): Vike routes and the shell (Wrapper > Layout > Page) edges; not in parentsOf
+  const vike = vikeGraph(project, entries.refs, unitOf)
+  const g = { units, unitOf, entries, entryUnits, usagesByUnit, renderedAs, parentsOf, hiddenParents, vike }
   graphs.set(project, g)
   return g
 }
