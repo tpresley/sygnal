@@ -106,8 +106,8 @@ import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { runRules, sortDiagnostics } from './run.js'
 import { resolveOptions } from './config.js'
-import { memberName, stringValue, loc, walk, fileOfNode, unwrap, isFunction } from './ast.js'
-import { resolveExpr, resolveExport } from './model/resolve.js'
+import { memberName, stringValue, loc, fileOfNode, isFunction } from './ast.js'
+import { resolveExpr } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
 import { listenedControls } from './rules/syg124-controls.js'
 import { behaviorActions } from './model/behaviors.js'
@@ -115,8 +115,8 @@ import { specFields } from './model/timers.js'
 import { CAUSED_EVENTS } from './model/elementCommands.js'
 import { agentName } from './model/agent.js'
 import { contextNames, contextReads } from './model/context.js'
-import { findBinding } from './scope.js'
 import { reducerWrites, behaviorWrites, stateReads } from './model/stateAccess.js'
+import { renderGraph } from './model/renderGraph.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -140,68 +140,12 @@ export function graphFiles(files, options = {}) {
 
 const contains = (outer, inner) => !!outer && !!inner && inner.start >= outer.start && inner.end <= outer.end
 
-/** Every child usage of a view sink, with the ones passed INTO children as 'slot' (widgets: `widget`). */
-function usagesOf(sink, slot = false, out = [], seen = new Set()) {
-  if (!sink || seen.has(sink)) return out
-  seen.add(sink)
-  for (const u of sink.children) {
-    out.push({ usage: u, via: slot ? 'slot' : u.kind, from: u.kind === 'collection' ? collectionFrom(sink, u) : undefined })
-    usagesOf(u.injected, true, out, seen)
-  }
-  for (const w of sink.widgets || []) out.push({ usage: w, via: slot ? 'slot' : 'tag', widget: true })
-  return out
-}
-
 /** The location fields of a node: { line, column }, plus `file` when it isn't the component's file. */
 function where(rel, node, file, base) {
   const p = loc(node)
   const out = { line: p.line, column: p.column }
   if (file && file !== base) out.file = rel(file)
   return out
-}
-
-/** The name a view-only component is declared under (its function, or the const it is assigned to). */
-function declaredName(file, fn) {
-  if (fn.id?.name) return fn.id.name
-  const p = file.parents.get(fn)
-  return p?.type === 'VariableDeclarator' && p.id.type === 'Identifier' ? p.id.name : null
-}
-
-const SYGNAL = /^sygnal(\/|$)/
-// PLAN-10 A-6: the calls that start an app or register a component, and the argument holding it
-const ENTRY_CALLS = { run: 0, defineElement: 1 }
-const VIKE_PAGE = /(^|[\\/])\+(Page|Layout)\.[cm]?[jt]sx?$/
-
-/**
- * The components the scanned files start: run(App), defineElement(tag, App), and Vike's
- * `+Page` / `+Layout` default exports. → { refs: [{ file, node }], unknown } (unknown: a call whose
- * component the checker can't resolve, e.g. a parameter picked at run time)
- */
-function findEntries(project) {
-  const refs = []
-  let unknown = false
-  const add = (r) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node }); else unknown = true }
-  for (const p of project.scanned) {
-    const file = project.files.get(p)
-    if (!file) continue
-    walk(file.ast.program, (n) => {
-      if (n.type !== 'CallExpression') return true
-      const callee = unwrap(n.callee)
-      if (callee?.type !== 'Identifier') return true
-      const b = findBinding(file, callee.name, callee)
-      if (b?.kind !== 'import' || !SYGNAL.test(b.source) || !Object.hasOwn(ENTRY_CALLS, b.imported)) return true
-      const arg = n.arguments[ENTRY_CALLS[b.imported]]
-      if (arg && arg.type !== 'SpreadElement') add(resolveExpr(project, file, arg))
-      return true
-    })
-    if (VIKE_PAGE.test(p)) { const r = resolveExport(project, file, 'default'); if (r) add(r) }
-  }
-  return { refs, unknown }
-}
-
-function collectionFrom(sink, usage) {
-  const c = sink.collections.find(x => x.node === usage.node)
-  return c ? c.from : null
 }
 
 function slimDiagnostic(d, componentId) {
@@ -228,52 +172,11 @@ export function buildGraph(project, diagnostics = []) {
   const idOf = (c) => `${rel(c.file)}:${loc(c.node).line}`
   const at = (node, file, base) => where(rel, node, file, base)
 
-  // PLAN-10 A-6: the entries (run(), defineElement(), Vike pages)
-  const entries = findEntries(project)
-
-  // PLAN-10 A-1: view-only components, functions in the scanned files rendered as component tags
-  // (or started as entries) that have no statics; they render children too
-  const units = [...comps]
-  const viewOnly = new Map() // function node → unit
-  const scannedComp = new Set(comps)
-  const unitOf = (ref) => {
-    if (!ref?.node) return null
-    const c = project.componentForFunction(ref.node)
-    if (c) return scannedComp.has(c) ? c : null
-    if (viewOnly.has(ref.node)) return viewOnly.get(ref.node)
-    if (!project.scanned.has(ref.file.path)) return null
-    const decl = ref.file.parents.get(ref.node)
-    const u = {
-      name: declaredName(ref.file, ref.node), file: ref.file, node: decl?.type === 'VariableDeclarator' ? decl : ref.node, view: ref.node,
-      viewOnly: true, viewInfo: null, staticProps: {},
-    }
-    viewOnly.set(ref.node, u)
-    units.push(u)
-    u.viewInfo = project.viewOf(ref)
-    return u
-  }
-  const entryUnits = new Set(entries.refs.map(unitOf).filter(Boolean))
-  const usagesByComp = new Map()
-  for (let i = 0; i < units.length; i++) {
-    const c = units[i]
-    const usages = usagesOf(c.viewInfo)
-    usagesByComp.set(c, usages)
-    for (const { usage } of usages) {
-      const u = usage.ref && unitOf(usage.ref)
-      if (u?.viewOnly && !u.name) u.name = usage.name
-    }
-  }
-  for (const u of viewOnly.values()) if (!u.name) u.name = path.basename(u.file.path).replace(/\.[^.]+$/, '')
+  // PLAN-10 A-6, A-1: the entries (run(), defineElement(), Vike pages) and the units: the
+  // components, then view-only ones (functions in the scanned files rendered as component tags,
+  // or started as entries, that have no statics; they render children too); model/renderGraph.js
+  const { units, unitOf, entries, entryUnits, usagesByUnit: usagesByComp, renderedAs } = renderGraph(project)
   const idFor = (ref) => { const u = ref && unitOf(ref); return u ? idOf(u) : null }
-
-  // kind: how each component is rendered by the other scanned components
-  const renderedAs = new Map()
-  for (const c of units) {
-    for (const { usage, via } of usagesByComp.get(c)) {
-      const target = usage.ref && unitOf(usage.ref)
-      if (target && target !== c && !renderedAs.has(target)) renderedAs.set(target, via === 'slot' ? usage.kind : via)
-    }
-  }
 
   // EVENTS: attribute each select / emit to the component whose intent, model or definition contains it
   const ownerOf = (e, part) => {

@@ -42,6 +42,13 @@
     "src/List.jsx": "import { Card } from './Card.jsx'\nexport function List({ state }) { return <ul><Card state=\"card\" /></ul> }\n",
     "src/App.jsx": "import { List } from './List.jsx'\nimport { Card } from './Card.jsx'\nexport function App() { return <div><List /></div> }\nApp.initialState = {}\nApp.intent = (sources) => ({ GO: sources.CHILD.select(Card) })\nApp.model = { GO: (s) => s }\n"
   },
+  "SYG170": {
+    "main.jsx": "import { run } from 'sygnal'\nimport App from './App.jsx'\nrun(App)\n",
+    "App.jsx": "export default function App({ context }) {\n  return <p>{context.theme}</p>\n}\nApp.initialState = {}\n"
+  },
+  "SYG171": {
+    "App.jsx": "function Badge() { return <button className=\"b\">x</button> }\nBadge.intent = ({ DOM }) => ({ PICK: DOM.click('.b') })\nBadge.model = { PICK: { PARENT: () => 1 } }\nexport function App() { return <div><Badge /></div> }\nApp.initialState = {}\n"
+  },
   "SYG140": {
     "w.js": "\nimport { defineWidget } from 'sygnal'\nexport const Stars = defineWidget({\n  mount(el, props, emit) { el.onclick = () => { emit('rate', 1); emit('rtae', 2) }; return {} },\n  events: ['rate'],\n})\n"
   },

@@ -62,6 +62,8 @@ const RANGES = [
   ['SYG127', 'C.jsx', 4, 'pager'],
   ['SYG128', 'a.js', 2, 'Add'],
   ['SYG129', 'src/App.jsx', 5, 'Card'],           // the selected component, not the CHILD.select() call
+  ['SYG170', 'App.jsx', 2, 'theme'],              // the field of the read
+  ['SYG171', 'App.jsx', 3, 'PARENT'],             // the first PARENT sink key
   ['SYG140', 'w.js', 4, "'rtae'"],
   ['SYG141', 'Order.jsx', 14, "'.actions'"],
   ['SYG142', 'Order.jsx', 15, 'opne'],

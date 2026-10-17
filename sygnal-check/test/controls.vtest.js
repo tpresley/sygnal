@@ -170,8 +170,9 @@ App.intent = ({ DOM }) => ({ REMOVE: DOM.click(Remove) })
 App.model = { REMOVE: (s) => s }
 `,
     })
-    const d = p.check()
-    expect(codes(d)).toEqual(['SYG104 warn'])
+    // PLAN-10 X-1: App never reads CHILD.select(Item), so Item's PARENT value goes nowhere (SYG171)
+    expect(codes(p.check())).toEqual(['SYG104 warn', 'SYG171 warn'])
+    const d = p.check().filter(x => x.code !== 'SYG171')
     expect(d[0].message).toMatch(/control <Remove> is only rendered inside child component <(Header|Item)>/)
     expect(d[0].data).toMatchObject({ control: 'Remove' })
   })

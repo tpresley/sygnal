@@ -52,6 +52,9 @@ export const CODES = {
   SYG128: { severity: 'error', title: 'Duplicate control key' },
   // PLAN-4 4-G2 (rules/syg129-child-select-grandchild.js; PLAN-3 G-187)
   SYG129: { severity: 'warn', title: "CHILD.select() of a component this one doesn't render" },
+  // PLAN-10 X-1 (D512): graph-wide checks, measured clean on the examples and docs samples
+  SYG170: { severity: 'warn', title: 'Context field read with no provider' },
+  SYG171: { severity: 'warn', title: 'PARENT sink no parent reads' },
   // PLAN-4 GS-8 undo (rules/syg127-behaviors.js)
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },

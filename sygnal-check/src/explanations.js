@@ -147,6 +147,20 @@ export const EXPLANATIONS = {
     explanation: "An intent reads `CHILD.select(TaskRow)`, but the component's view doesn't render `TaskRow`: a component it renders does (a grandchild, for example a Collection item inside a child). A component's `PARENT` output reaches only the component that renders it, so the action never fires and nothing says why. sygnal-check follows the views it can read and reports the chain (`App > ProjectSection > TaskRow`). It says nothing when the view renders the component itself (by tag, as a Collection or Switchable target, or passed into a child), mentions its name some other way, has a Collection or Switchable target it can't resolve, or when nothing it can see renders the component.",
     fix: "Relay the value through the component in between: in `ProjectSection.intent` read `RELAY: CHILD.select(TaskRow)`, in `ProjectSection.model` send it on with `RELAY: { PARENT: (state, data) => data }`, and read `CHILD.select(ProjectSection)` in `App`. For a value many components need, broadcast it with `EVENTS` instead.",
   },
+  SYG170: {
+    title: "Context field read with no provider",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A component reads `context.theme` (in its view, or in a reducer through `props.context`), but neither it nor any component above it has `theme` in its `.context`, so the value is `undefined`. Context flows down the render tree: a component sees what it and its ancestors declare. sygnal-check follows every way up from the reader and reports only when each ends at a component that `run()` or `defineElement()` starts, so it knows the whole chain. It says nothing when the chain leaves what it can see: a component no scanned file renders (a page a router or a test renders), a plain function that renders the reader without being rendered itself, a Vike `+Page` or `+Layout` (Vike adds `pageData`, `routeParams`, `urlPathname` and the layouts' context), JSX passed into another component, an entry call whose component it can't resolve, or a `.context` that isn't an object literal it can read.",
+    fix: "Add the field to the `.context` of the reader or a component above it: `App.context = { theme: (state) => state.theme }`. If the name is misspelled (the message suggests the closest one on the chain), fix the read.",
+  },
+  SYG171: {
+    title: "PARENT sink no parent reads",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A component's model sends to `PARENT`, but none of the components that render it reads `CHILD.select(It)` in its intent. A `PARENT` value reaches only the component that renders it, through `CHILD.select`, so here every value goes nowhere and the click does nothing. sygnal-check reports it when the parents render it by tag, as a Collection item or as a Switchable target, no scanned intent selects it (a select in the wrong component is SYG129), and it can read every parent's intent: one with `uses` (a behavior may read `CHILD`), a sources rest pattern, `CHILD` passed to a helper, or a `CHILD.select()` it can't resolve keeps it silent. A component nothing scanned renders (a catalog part, a `defineElement()` element, whose `PARENT` values become DOM events) and JSX passed into another component (that component places it, so it is the parent) are never reported.",
+    fix: "Read it in the parent's intent and handle it in the model: `App.intent = ({ CHILD }) => ({ PICK: CHILD.select(Badge) })` with `App.model = { PICK: (state, data) => ... }`. If nothing needs the value, remove the `PARENT` sink; for components further apart, use `EVENTS`.",
+  },
   SYG130: {
     title: "href() names no route or leaves out a param",
     severity: "error",
