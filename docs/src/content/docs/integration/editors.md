@@ -154,8 +154,11 @@ To fix everything auto-fixable when you save:
 | `Sygnal: Show Output` | The server's log. Clicking **Sygnal** in the status bar does the same |
 | `Sygnal: Explain Code…` | Pick any SYG code to read its explanation |
 | `Sygnal: Fix All in File` | Applies every auto-fixable Sygnal fix in the active file |
+| `Sygnal: Show App Graph` | Opens the [app graph](/guide/app-graph/#in-vs-code) of the active file's project (or of the workspace folder) in a panel beside the code. It is also in the editor's context menu |
 
 Quick fixes are on `Ctrl+.` (`Cmd+.` on macOS), as usual.
+
+The app graph panel updates as you type (unsaved changes included), selects the component under the cursor, and opens file links in the editor. It needs the bundled `sygnal-check` or a project's own 0.10.0 or later.
 
 ### Navigation, code lenses and rename
 

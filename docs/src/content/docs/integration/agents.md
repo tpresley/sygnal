@@ -62,6 +62,8 @@ The commands below use `npx --no-install`, which runs only the copy installed in
 | `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-507) |
 | `npx --no-install sygnal-check --fix` | Rewrite SYG504/505/506 into the canonical form in place, then check |
 | `npx --no-install sygnal-check --graph [--json]` | Print the app graph (components, actions, events, selectors, findings) |
+| `npx --no-install sygnal-check --graph --json --base main` | What a branch changed in the app graph, as JSON: components added, removed and changed (with the changed fields), and event types added and removed |
+| `npx --no-install sygnal-check --graph=html` | The [app graph](/guide/app-graph/) as an interactive page, for people (`--watch`: live) |
 | `npx --no-install sygnal-check explain SYG104` | What a code means and how to fix it (`--json`, `--all`) |
 | `npx --no-install sygnal-check --json` | Findings as JSON |
 | `npx --no-install sygnal-check mcp` | Start the [MCP server](#mcp-server) |
@@ -88,11 +90,22 @@ The [Vite plugin](/integration/bundler-config/#plugin-options) runs `sygnal-chec
 
 | Tool | Arguments | Returns |
 |---|---|---|
-| `check` | `{ paths?: string[], strict?: boolean }` | `{ diagnostics, summary: { error, warn, info } }` |
-| `graph` | `{ paths?: string[], strict?: boolean }` | the app graph (`InspectGraph`) |
+| `check` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | `{ diagnostics, summary: { error, warn, info } }` |
+| `graph` | `{ paths?: string[], strict?: boolean, a11y?: 'warn' \| 'error' }` | the app graph (`InspectGraph`) |
 | `explain` | `{ code: string }` | the code's title, severity, explanation, fix and docs link |
 
 Paths resolve against the server's working directory (start it in the project root). The default is `["src"]`.
+
+The `graph` tool returns what `--graph --json` prints. Besides each component's actions, state, context, EVENTS, children and selectors, it has what an agent needs to find its way without reading every file:
+
+- `key` (`file#name`), a component id that doesn't change when lines move;
+- `entry` on the components `run()`, `defineElement()` or a Vike page starts, and `route` on Vike pages and layouts;
+- `viewOnly` on components rendered without statics; `external` and `widget` on child entries for package and widget tags; each child's `id`, resolved through the import, so same-named components stay apart;
+- `childSelects`: each `CHILD.select(Child)` and the intent actions it feeds (the receivers of the child's `PARENT` sink);
+- `writes` on actions (the state keys the reducer may write, `null` when unknown) and `stateReads` on components (the state keys the view reads), which answer "who writes `cart`?" and "who shows it?";
+- `line` / `column` on actions, selectors, children, context entries and EVENTS sites, to open the exact place.
+
+[Types](/reference/types/#inspectgraph) lists every field.
 
 Claude Code, from the project root:
 
@@ -184,7 +197,7 @@ See [Diagnostics](/guide/diagnostics/#inspect) for the fields and what to look f
 
 A loop that works well for agents (and people):
 
-1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing. With the [dev server endpoint](#dev-server-mcp-endpoint), `component_tree` and `get_state` show the running app.
+1. **Orient.** Run `npx --no-install sygnal-check --graph --json` (or the `graph` tool) to see the components, their actions, state, context, EVENTS and children before editing. To review a branch, `--graph --json --base main` lists what it changed. With the [dev server endpoint](#dev-server-mcp-endpoint), `component_tree` and `get_state` show the running app.
 2. **Write** the change in the canonical forms (`llms.txt`).
 3. **Test it** with `renderComponent`: drive it with real DOM events, wait, assert, and check for diagnostics.
 

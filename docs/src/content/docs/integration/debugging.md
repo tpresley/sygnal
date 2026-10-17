@@ -76,7 +76,7 @@ Each log entry is prefixed with the component number and name (e.g., `3 | MyComp
 
 ## DevTools Extension
 
-The Sygnal DevTools browser extension (in the repository's `devtools/` folder) shows the component tree, lets you inspect and edit state, time-travel through state history, toggle debug logging, and lists every action with its cause. It connects to the `window.__SYGNAL_DEVTOOLS__` bridge, which the dev-only `sygnal/devtools` entry installs.
+The Sygnal DevTools browser extension (in the repository's `devtools/` folder) shows the component tree, lets you inspect and edit state, time-travel through state history, toggle debug logging, lists every action with its cause, and draws the [app graph](#app-graph) of the running app. It connects to the `window.__SYGNAL_DEVTOOLS__` bridge, which the dev-only `sygnal/devtools` entry installs.
 
 The bridge is a development tool and is not part of production builds. With the [Vite plugin](/integration/bundler-config/#what-the-plugin-does-in-dev) nothing needs setting up: the dev server (`vite`, and the Vike and Astro dev servers) installs it, `vite build` leaves it out, and `sygnal({ devtools: false })` turns it off. `getDevTools()` from `sygnal` returns the installed bridge, or `undefined` when there is none (always in a production build).
 
@@ -204,6 +204,10 @@ window.copyTest = () => console.log(copyAsTest(app, { componentImport: "import A
 | `isRecording()` | Whether the log is recording |
 
 The options are `configureCopyAsTest()`'s. Recording costs nothing in production: the entry is dev-only, and the core has no recording code.
+
+### App graph
+
+The panel's **App graph** button shows the whole running app as the [app graph](/guide/app-graph/#in-sygnal-devtools) page, drawn from `inspect()`: one card per component under each parent (`×N` when there are several instances, so a Collection's items are one card), each `run()` app as its own group, a flash on a card when one of its actions runs, and each instance's state in the detail panel. It refreshes while it is open, shortly after components mount or unmount and after actions. It needs `sygnal/diagnostics` on the page, which the Vite plugin loads in dev. Click the button again to go back to the component tree.
 
 ### Redux DevTools
 
