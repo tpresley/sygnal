@@ -27,6 +27,10 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D512 | 2026-10-16 | P10-Q5: graph-wide checks become rules (SYG170–179) only when measured clean on the examples and docs samples (user) |
 | D513 | 2026-10-16 | P10-Q6: sygnal-check 0.10.0 after Phase 1; live mode, VS Code panel and devtools tab in later minors; sygnal only if `inspect()` or devtools change (user) |
 | D514 | 2026-10-16 | P10-Q7: no large real app supplied: S-1 uses the synthetic corpus and all examples together (user) |
+| D515 | 2026-10-16 | A-2: package and widget components are fields on the child entry (`external`, `widget`), not nodes; every node keeps a real `file:line` id (coordinator, on the worker's proposal) |
+| D516 | 2026-10-16 | A-4: locations are flat `line` / `column`, plus `file` only when it differs from the component's; `modelAt` for an action's model entry; `contextEntries`, `eventSites` per component (coordinator) |
+| D517 | 2026-10-16 | A-3: `events[type].emitterIds` / `selectorIds` parallel to the names, one entry per component, so a name can repeat when two same-named components emit (coordinator) |
+| D518 | 2026-10-16 | A-6: when any entry call's component can't be resolved (a parameter, e.g. ai-showcase's `run(Chat)` in `kimi.js`), the other roots get `entry: 'unknown'` (coordinator) |
 
 ## Items
 
@@ -35,14 +39,14 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | S-1 Large apps research | 0 | 🔄 `p10-s1-large-apps` | output `research/graph-viz/large-apps.md` |
 | S-2 Runtime graphs in the renderer | 0 | 🔄 `p10-s2-s3-design` | |
 | S-3 Live transport design | 0 | 🔄 `p10-s2-s3-design` | includes the `sygnal/vite` dev route question |
-| A-1 View-only components | 1 | 🔄 `p10-graph-data` | |
-| A-2 Package components | 1 | 🔄 `p10-graph-data` | node vs child-entry field: a D-number in Phase 0 |
-| A-3 Ids on links | 1 | 🔄 `p10-graph-data` | |
-| A-4 Source locations | 1 | 🔄 `p10-graph-data` | |
-| A-5 `PARENT` receivers | 1 | 🔄 `p10-graph-data` | |
-| A-6 Entries | 1 | 🔄 `p10-graph-data` | |
+| A-1 View-only components | 1 | ✅ merged `dcbb7e33` | |
+| A-2 Package components | 1 | ✅ merged `dcbb7e33` | node vs child-entry field: a D-number in Phase 0 |
+| A-3 Ids on links | 1 | ✅ merged `dcbb7e33` | |
+| A-4 Source locations | 1 | ✅ merged `dcbb7e33` | |
+| A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
+| A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ⏳ | |
-| A-8 Schema, text, MCP, runtime parity | 1 | 🔄 `p10-graph-data` | static parts; runtime parity after S-2 |
+| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 static parts merged `dcbb7e33` | runtime `inspect()` parity after S-2 |
 | V-1 Renderer module | 1 | 🔄 `p10-viewer-cli` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ⏳ | |
 | V-3 Runtime graphs | 2 | ⏳ | |
@@ -61,7 +65,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | X-1 Graph-wide rules (SYG170–179) | 2 | ⏳ | if P10-Q5 says yes |
 | T-1 Unit tests | 1 | 🔄 `p10-viewer-cli` | |
 | T-2 Browser smoke | 1 | 🔄 `p10-viewer-cli` | |
-| T-3 Graph data fixtures | 1 | 🔄 `p10-graph-data` | |
+| T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
 | T-4 Size and speed | 2 | ⏳ | warn-only |
 | D-1 Docs page | 1 | ⏳ | |
 | D-2 Docs and agent context updates | 2 | ⏳ | |
@@ -80,4 +84,10 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 ## Gaps
 
-None yet.
+| # | Found | Gap | Status |
+|---|---|---|---|
+| G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
+
+## Log
+
+- 2026-10-16 `p10-graph-data` merged (`dcbb7e33`): sygnal-check 1,365 passed / 4 skipped; `test:types` and `test/inspect-kanban.test.js` pass. On the examples nothing disappeared: the fixture goes 6 → 7 components (`Shop` back, `ProductCard` no longer a root); plan5-showcase 43 → 54 (the 10 the spike found missing, plus `Dashboard` and `Notes`); 33 entries in plan5-showcase, 10 in ai-showcase. Also fixed: `public.d.ts` lacked `behavior` on actions/selectors and `agent.queries`; behavior reply targets are namespaced like their `next()` targets.
