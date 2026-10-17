@@ -32,25 +32,25 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 | Item | Phase | Status | Notes |
 |---|---|---|---|
-| S-1 Large apps research | 0 | ⏳ | output `research/graph-viz/large-apps.md` |
-| S-2 Runtime graphs in the renderer | 0 | ⏳ | |
-| S-3 Live transport design | 0 | ⏳ | includes the `sygnal/vite` dev route question |
-| A-1 View-only components | 1 | ⏳ | |
-| A-2 Package components | 1 | ⏳ | node vs child-entry field: a D-number in Phase 0 |
-| A-3 Ids on links | 1 | ⏳ | |
-| A-4 Source locations | 1 | ⏳ | |
-| A-5 `PARENT` receivers | 1 | ⏳ | |
-| A-6 Entries | 1 | ⏳ | |
+| S-1 Large apps research | 0 | 🔄 `p10-s1-large-apps` | output `research/graph-viz/large-apps.md` |
+| S-2 Runtime graphs in the renderer | 0 | 🔄 `p10-s2-s3-design` | |
+| S-3 Live transport design | 0 | 🔄 `p10-s2-s3-design` | includes the `sygnal/vite` dev route question |
+| A-1 View-only components | 1 | 🔄 `p10-graph-data` | |
+| A-2 Package components | 1 | 🔄 `p10-graph-data` | node vs child-entry field: a D-number in Phase 0 |
+| A-3 Ids on links | 1 | 🔄 `p10-graph-data` | |
+| A-4 Source locations | 1 | 🔄 `p10-graph-data` | |
+| A-5 `PARENT` receivers | 1 | 🔄 `p10-graph-data` | |
+| A-6 Entries | 1 | 🔄 `p10-graph-data` | |
 | A-7 State writes and reads | 2 | ⏳ | |
-| A-8 Schema, text, MCP, runtime parity | 1 | ⏳ | |
-| V-1 Renderer module | 1 | ⏳ | from the spike's `template.html` |
+| A-8 Schema, text, MCP, runtime parity | 1 | 🔄 `p10-graph-data` | static parts; runtime parity after S-2 |
+| V-1 Renderer module | 1 | 🔄 `p10-viewer-cli` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ⏳ | |
 | V-3 Runtime graphs | 2 | ⏳ | |
 | V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
-| V-5 Accessibility and polish | 1 | ⏳ | |
+| V-5 Accessibility and polish | 1 | 🔄 `p10-viewer-cli` | |
 | V-6 Diff rendering | 3 | ⏳ | |
-| C-1 `--graph=html` | 1 | ⏳ | |
-| C-2 `--graph=mermaid` | 1 | ⏳ | |
+| C-1 `--graph=html` | 1 | 🔄 `p10-viewer-cli` | |
+| C-2 `--graph=mermaid` | 1 | 🔄 `p10-viewer-cli` | |
 | C-3 `--base <ref>` | 3 | ⏳ | |
 | W-1 `--watch` | 2 | ⏳ | |
 | W-2 `sygnal/vite` dev route | 3 | ⏳ | if S-3 recommends it |
@@ -59,9 +59,9 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P-1 Devtools app graph tab | 2 | ⏳ | |
 | P-2 Static + runtime together | 3 | ⏳ | if W-2 ships |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ⏳ | if P10-Q5 says yes |
-| T-1 Unit tests | 1 | ⏳ | |
-| T-2 Browser smoke | 1 | ⏳ | |
-| T-3 Graph data fixtures | 1 | ⏳ | |
+| T-1 Unit tests | 1 | 🔄 `p10-viewer-cli` | |
+| T-2 Browser smoke | 1 | 🔄 `p10-viewer-cli` | |
+| T-3 Graph data fixtures | 1 | 🔄 `p10-graph-data` | |
 | T-4 Size and speed | 2 | ⏳ | warn-only |
 | D-1 Docs page | 1 | ⏳ | |
 | D-2 Docs and agent context updates | 2 | ⏳ | |
