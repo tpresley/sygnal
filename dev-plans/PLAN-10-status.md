@@ -40,6 +40,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D525 | 2026-10-16 | V-1: the page's modules are inlined as function bodies onto one namespace; inlined files must be import-free with top-level exports only, checked at generation time; comments are not stripped (29.5 KB gzip for the fixture is fine; a regex stripper is a risk) (coordinator, on the worker's proposal) |
 | D526 | 2026-10-16 | The page carries its own CSP (`default-src 'none'`, inline style and script only): it loads nothing and connects nowhere (coordinator) |
 | D527 | 2026-10-16 | `--graph=html` never opens a browser under `CI` or without a TTY, even with `--open` (it says why); `--out` works with every `--graph` format; `--json` with `--graph=html|mermaid` exits 2 (coordinator) |
+| D528 | 2026-10-16 | Revises D517: `events[type].emitters` / `selectors` stay unique names (as before PLAN-10); `emitterIds` / `selectorIds` are independent full lists (components in static graphs, instances in runtime graphs), not parallel to the names. One meaning across both sources; no repeated names (coordinator, on the D522 worker's question) |
+| D529 | 2026-10-16 | Static `key` collisions: the first same-named component in a file keeps `file#name`, later ones get `#2`, `#3` in source order; no runtime `key` until `sygnal/vite` stamps one (P10-Q9) (coordinator) |
 
 ## Items
 
@@ -55,7 +57,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ⏳ | |
-| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 static parts merged `dcbb7e33` | still to do: the `key` field (D521); runtime fields (D522) |
+| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 merged `dcbb7e33`, `3b311330` | `key` (D521) and runtime fields (D522) merged; D528 follow-up in progress on `p10-graph-key-runtime` |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | 🔄 `p10-viewer-cli` | |
 | V-3 Runtime graphs | 2 | ⏳ | |
@@ -100,6 +102,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 
 ## Log
+
+- 2026-10-16 `p10-graph-key-runtime` merged (`3b311330`): static `key`; runtime `children[].ids`, `emitterIds`/`selectorIds`, `entry`, `viewOnly`, `app`, `shown` in the dev entry only (`src/core/` untouched). Size gate 42,496 B before and after. Worker's gates: root vitest 4,936 passed, sygnal-check 1,368, types, browser 377/377, docs build. On integration after a rebuild: sygnal-check 1,403, inspect tests 11/11, types OK.
 
 - 2026-10-16 `p10-viewer-cli` merged (`464fb567`): `sygnal-check/src/graphView/` (model, layout incl. edge routing, mermaid, page), `--graph=html|mermaid|json|text`, `--out`, `--open`/`--no-open`, `--editor`; WCAG AA colours checked by a test; cycles no longer crash the layout. On its own branch: sygnal-check 1,388, browser 377/377 + graph page 11/11 on Chromium, Firefox and WebKit. Page: 100 KB raw / 29.5 KB gzip for the fixture. After the merge with the graph data: sygnal-check 1,400 passed; graph page 9/11 on Chromium (setGraph view drift; a hard-coded fixture id) — sent back to the worker with V-2.
 
