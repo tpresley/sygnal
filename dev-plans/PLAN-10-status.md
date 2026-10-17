@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** Every item merged (Phases 0–3, docs). Remaining: release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** Every item merged (Phases 0–3, docs); release prep done (sygnal 6.6.0, sygnal-check 0.10.0, create-sygnal-app 2.8.0, VS Code extension 0.7.0, Claude Code plugin 0.1.5); PR to `main` open, not merged. Previously remaining: release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
 
 ## Decisions
 
@@ -130,6 +130,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-16 release prep (user approved the versions): versions, lockfile roots, templates on `sygnal` ^6.6.0 / `sygnal-check` ^0.10.0, CHANGELOG 6.6.0 with the measured impact, extension CHANGELOG 0.7.0, plugin 0.1.5, ROADMAP #22 DONE. Checks: build; root vitest 4,986; sygnal-check 1,545; `release-smoke --local` 10/10 templates; `npm --prefix editors/vscode test` OK; `release-plan` lists all five as new. Pushed `plan10-integration` and opened a PR to `main` (not merged, per the user).
 
 - 2026-10-16 `p10-docs` merged; then `b12adb45` (docs worker's findings): the health list's "Actions nothing triggers" now comes from SYG102 only (10 false alarms on ai-showcase gone), and the trace bar sits below the canvas toolbar (browser check). sygnal-check 1,545; graph suites ×6 green on 3 engines; docs build OK. Note for release: the installed skill copy in `~/.claude/skills/sygnal-dev` is outside the repo and needs syncing.
 

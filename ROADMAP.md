@@ -410,7 +410,7 @@ Let a model build an app's UI from parts the app prepared (real Sygnal component
 
 ### 22. An Interactive View of the App Graph (PLAN-10)
 
-**Status:** `PLANNED` (2026-10-16): [PLAN-10](dev-plans/PLAN-10.md), tracker [PLAN-10-status](dev-plans/PLAN-10-status.md); spike in [`research/graph-viz/`](dev-plans/research/graph-viz/README.md).
+**Status:** `DONE`: ships in **6.6.0** (2026-10-16) with `sygnal-check` 0.10.0, `create-sygnal-app` 2.8.0 (templates: `sygnal` ^6.6.0, `sygnal-check` ^0.10.0), the VS Code extension 0.7.0 and the Claude Code plugin 0.1.5 ([PLAN-10](dev-plans/PLAN-10.md), tracker [PLAN-10-status](dev-plans/PLAN-10-status.md); spike and research in [`research/graph-viz/`](dev-plans/research/graph-viz/README.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). The size gate stays at 42,495 B (+9 B for runtime context reads); also fixes nested Vike Layouts (G-803).
 
 `sygnal-check --graph=html` opens an interactive page of the app: what renders what, EVENTS, context, actions, state, DOM inputs, the AI agent surface and the diagnostics, with click-to-code. The same renderer runs live on save, in a VS Code panel, and in the devtools panel on the runtime `inspect()`. The graph data gets the fixes the spike found first.
 

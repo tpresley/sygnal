@@ -1,7 +1,7 @@
 {
   "name": "sygnal",
   "displayName": "Sygnal",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Sygnal for Claude Code: the sygnal-dev skill, and sygnal-check's wiring findings after every edit through its language server",
   "author": {
     "name": "Troy Presley",
