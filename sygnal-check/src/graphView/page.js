@@ -7,7 +7,12 @@
  *     V     the pure modules' exports (buildModel, healthList, layoutGraph, edgePaths, bbox,
  *           toMermaid, …), as html.js inlines them
  *     G     the InspectGraph
- *     META  { title, subtitle?, root?, editor?, select?, codes?: { SYGnnn: title } }
+ *     META  { title, subtitle?, root?, editor?, select?, codes?: { SYGnnn: title }, base? }
+ *
+ * With META.base ({ ref, commit?, graph }: `--base <ref>`, PLAN-10 V-6) the page draws the diff
+ * (diff.js's diffModel): removed components as faded cards, added / removed / changed marks on cards,
+ * edges, folded groups and the outline, a "Changes" section in the sidebar and the detail panel, and
+ * the "Changes only" filter. Health and counts are the head graph's.
  *
  * A runtime graph (`source: 'runtime'`, V-3) goes through runtime.js's fromRuntime() first: cards
  * ×N, instances and their state in the detail panel. Hosts (the devtools panel) set
@@ -45,6 +50,8 @@ export function mountPage(V, G, META) {
   // ───────────── model and layout (pure, see model.js / layout.js) ─────────────
   // replaced as a whole by setGraph(); ids link within one graph, `key`s survive an update
   let M, comps, byId, parentsOf, childrenOf, renderEdges, contextEdges, health, L, pos, events, hay
+  // V-6: the diff with META.base (diff.js), else null
+  let DX = null
   // V-4 (groups.js): the size tier, the directory groups and what is drawn (P). The UI state behind
   // the projection is kept by stable keys (group keys are directories, the focus a component key),
   // so it survives setGraph (live mode, D521)
@@ -53,7 +60,7 @@ export function mountPage(V, G, META) {
   var paintQueued = false
   const ui = { filter: {}, open: new Set(), closed: new Set(), focusKey: null, tree: new Map(), view: 'graph' }
   function project() {
-    tier = V.tierFor(comps.filter(c => !c.ghost).length)
+    tier = V.tierFor(comps.filter(c => !c.ghost && c.diff !== 'removed').length)
     const focus = ui.focusKey != null ? M.byKey.get(ui.focusKey) ?? null : null
     if (focus == null) ui.focusKey = null
     P = V.projectView(M, { tier, groupOf, filter: ui.filter, open: ui.open, closed: ui.closed, focus })
@@ -65,9 +72,10 @@ export function mountPage(V, G, META) {
   const repOf = (id) => P.rep.get(id) ?? (P.byNode.has(id) ? id : null)
   function load(graph) {
     G = graph
-    M = V.buildModel(G?.source === 'runtime' ? V.fromRuntime(G) : G)
+    DX = META.base?.graph && G?.source !== 'runtime' ? V.diffModel(V, META.base.graph, G, { base: META.base.ref, commit: META.base.commit }) : null
+    M = DX ? DX.M : V.buildModel(G?.source === 'runtime' ? V.fromRuntime(G) : G)
     ;({ comps, byId, parentsOf, childrenOf, renderEdges, contextEdges } = M)
-    health = V.healthList(M, META.codes || {})
+    health = V.healthList(DX ? DX.headModel : M, META.codes || {})
     if (M.runtime) health = health.concat(V.runtimeHealth(M))
     groupOf = V.groupKeys(M)
     project()
@@ -91,7 +99,7 @@ export function mountPage(V, G, META) {
   const dirLabel = (d) => M.runtime ? d : d + '/'
   const describe = (c) => c.ghost
     ? `${c.name}, ${ghostWhat(c)}`
-    : `${nameOf(c)}, ${KIND[c.kind] ?? c.kind}${c.shown === false ? ', hidden' : ''}${c.entry === true ? ', entry' : ''}${c.viewOnly ? ', view only' : ''}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
+    : `${nameOf(c)}, ${KIND[c.kind] ?? c.kind}${c.diff ? `, ${c.diff} since ${META.base.ref}` : ''}${c.shown === false ? ', hidden' : ''}${c.entry === true ? ', entry' : ''}${c.viewOnly ? ', view only' : ''}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
   // routes of the drawn edges (edgePaths output): SVG mode makes elements, canvas mode paints them
   let routes = []
   const hideBehavior = () => !!ui.filter.hideBehavior
@@ -114,15 +122,16 @@ export function mountPage(V, G, META) {
         const f = el('text', { class: 'fold', x: b.x + b.w - 14, y: b.y + 22, 'text-anchor': 'end' }, g)
         f.textContent = '− fold'
         f.addEventListener('click', (ev) => { ev.stopPropagation(); foldGroup(b.key) })
-        el('text', { class: 'big', x: b.x + 14, y: b.y + 8, 'dominant-baseline': 'hanging', 'data-w': b.w - 28 }, g).textContent = groupName(b.key)
+        el('text', { class: 'big', x: b.x + 14, y: b.y + 8, 'dominant-baseline': 'hanging', 'data-w': b.w - 28, 'data-h': b.h }, g).textContent = groupName(b.key)
       }
     }
     for (const e of routes) {
       const n = e.edge?.count ?? 1
-      const p = el('path', { class: 'edge ' + e.cls + (n > 1 ? ' bundled' : ''), d: e.d, 'marker-end': `url(#${e.marker})` }, $('edges'))
+      const dc = DX ? V.diffEdgeClass(e) : ''
+      const p = el('path', { class: 'edge ' + e.cls + (n > 1 ? ' bundled' : '') + dc, d: e.d, 'marker-end': `url(#${e.marker})` }, $('edges'))
       if (n > 1) p.style.strokeWidth = Math.min(8, 1.5 + Math.log2(n) * 1.2).toFixed(1)
       let t = null
-      if (e.label) { t = el('text', { class: 'elabel ' + e.cls, x: e.mid[0], y: e.mid[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, $('labels')); t.textContent = e.label }
+      if (e.label) { t = el('text', { class: 'elabel ' + e.cls + dc, x: e.mid[0], y: e.mid[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, $('labels')); t.textContent = e.label }
       edgeEls.push({ ...e, p, t })
     }
     for (const n of P.nodes) {
@@ -133,8 +142,9 @@ export function mountPage(V, G, META) {
       const w = V.worst(c)
       const route = V.routeLabel(c)
       const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry', c.rt && 'rt', c.mounted === false && 'unmounted', c.shown === false && 'hidden-page', n.dim && 'dimf', route != null && 'vike'].filter(Boolean).join(' ')
-      const g = el('g', { class: cls + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
+      const g = el('g', { class: cls + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : '') + (DX ? V.diffNodeClass(c) : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
       el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
+      if (c.diff) { const m = el('g', { class: 'dmark d-' + c.diff, transform: 'translate(2,2)' }, g); el('circle', { r: 8 }, m); el('text', { y: 4, 'text-anchor': 'middle' }, m).textContent = { added: '+', removed: '−', changed: '~' }[c.diff] }
       if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
       // A-9: a Vike card whose name is generic (Page, Layout, Wrapper) is titled by its route
       const byRoute = route != null && /^(Page|Layout|Wrapper)$/.test(c.name)
@@ -177,7 +187,8 @@ export function mountPage(V, G, META) {
   function drawGroupCard(n) {
     const p = pos.get(n.id)
     const w = n.err ? 'error' : n.warn ? 'warn' : null
-    const label = `${n.key}, folded group of ${plural(n.count, 'component')}${n.err ? `, ${n.err} with errors` : ''}${n.warn ? `, ${n.warn} with warnings` : ''}. Enter opens it`
+    const nch = DX ? V.diffGroupCount(DX, n.members, byId) : 0
+    const label = `${n.key}, folded group of ${plural(n.count, 'component')}${n.err ? `, ${n.err} with errors` : ''}${n.warn ? `, ${n.warn} with warnings` : ''}${nch ? `, ${nch} changed since ${META.base.ref}` : ''}. Enter opens it`
     const g = el('g', { class: 'node group' + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': label, 'data-id': n.id, 'data-key': n.key }, $('nodes'))
     el('rect', { class: 'box', width: p.w, height: p.h, rx: 14 }, g)
     const nm = groupName(n.key)
@@ -192,7 +203,8 @@ export function mountPage(V, G, META) {
       el('rect', { class: w === 'error' ? 'err' : 'warn', x: -30, y: -1, width: 34, height: 17, rx: 8.5 }, pg)
       el('text', { x: -13, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = n.err + n.warn
     }
-    el('title', {}, g).textContent = `${dirLabel(n.key)}: ${plural(n.count, 'component')} (click to open)`
+    if (nch) { const m = el('g', { class: 'dmark', transform: 'translate(-6,-8)' }, g); el('rect', { width: 22 + String(nch).length * 6, height: 17, rx: 8.5 }, m); el('text', { x: (22 + String(nch).length * 6) / 2, y: 12.5, 'text-anchor': 'middle' }, m).textContent = `~${nch}` }
+    el('title', {}, g).textContent = `${dirLabel(n.key)}: ${plural(n.count, 'component')}${nch ? `, ${nch} changed` : ''} (click to open)`
     wireNode(g, n.id, () => openGroup(n.key))
   }
   /** An EVENTS bus node (one type: emitters → bus → selectors); a click traces the type. */
@@ -265,7 +277,7 @@ export function mountPage(V, G, META) {
   const apply = () => {
     vp.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`)
     const far = view.k < FAR_K
-    if (far !== isFar) { isFar = far; svg.classList.toggle('far', far); if (!far) for (const t of svg.querySelectorAll('.node.group .name')) t.style.fontSize = '' }
+    if (far !== isFar) { isFar = far; svg.classList.toggle('far', far); if (!far) for (const t of svg.querySelectorAll('.node.group .name')) placeFarName(t, false) }
     if (far && !canvasMode) sizeFarLabels()
     if (canvasMode) paint()
     drawMinimapView()
@@ -290,9 +302,16 @@ export function mountPage(V, G, META) {
   }
   const stopAnim = () => { anim++; animating = false; moved = true }
   /** Far away, directory names stay ~15–18 px on screen, never wider than their box or card. */
+  // A folded group's name is centred in its card and capped by the card's height as well as its
+  // width, so far away it never grows out of the card (it was anchored at the card's top-left)
   function sizeFarLabels() {
-    for (const t of $('clusters').querySelectorAll('.big')) t.style.fontSize = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length)).toFixed(1) + 'px'
-    for (const t of $('nodes').querySelectorAll('.node.group .name')) t.style.fontSize = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length)).toFixed(1) + 'px'
+    for (const t of $('clusters').querySelectorAll('.big')) t.style.fontSize = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length), (Number(t.dataset.h) - 16) * 0.3).toFixed(1) + 'px'
+    for (const t of $('nodes').querySelectorAll('.node.group .name')) placeFarName(t, true)
+  }
+  function placeFarName(t, far) {
+    if (!far) { t.style.fontSize = ''; t.setAttribute('x', 16); t.setAttribute('y', 26); t.removeAttribute('text-anchor'); t.removeAttribute('dominant-baseline'); return }
+    t.setAttribute('x', V.GROUP_W / 2); t.setAttribute('y', V.GROUP_H / 2); t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central')
+    t.style.fontSize = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length), V.GROUP_H * 0.6).toFixed(1) + 'px'
   }
   let fitK = 1
   function fit(ids = [...pos.keys()], animate = true, maxK = 1.15) {
@@ -501,6 +520,7 @@ export function mountPage(V, G, META) {
     out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)}${c.rt && c.rt.count > 1 ? ` <span class="unk">×${c.rt.count}</span>` : ''} <span class="kind ${kindClass(c.kind)}">${esc(kindLabel(c))}</span>${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="tag">view only</span>' : ''}${c.shown === false ? ' <span class="tag">hidden</span>' : ''}<button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
       <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : (c.rt && !c.file ? `<span class="mono">runtime · ${esc(V.rtCardSub(c))}</span>` : fileLink(c.file, c.line, fileLine(c))) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
 
+    if (DX) out.push(V.diffDetailHtml(DX, c, { esc }))
     if (c.diagnostics.length) {
       out.push(`<section class="dsec"><h3>Diagnostics <span class="n">${c.diagnostics.length}</span></h3>${c.diagnostics.map(d => {
         const at = d.line && editorHref(d.file, d.line)
@@ -574,8 +594,9 @@ export function mountPage(V, G, META) {
     inner.innerHTML = out.join('')
     $('dclose').onclick = () => { const id = selected; select(null); nodeEls.get(id)?.focus() }
     const cp = $('dcopy')
+    const raw = () => c.diff === 'removed' ? (META.base.graph.components || []).find(x => 'base:' + x.id === c.id) : (G.components || []).find(x => x.id === c.id)
     const rtOnly = c.rt && !c.file
-    if (cp) cp.onclick = () => copy(JSON.stringify(rtOnly ? c.rt.raw : (G.components || []).find(x => x.id === c.id) ?? null, null, 2), rtOnly ? 'Instances JSON copied' : 'Component JSON copied')
+    if (cp) cp.onclick = () => copy(JSON.stringify(rtOnly ? c.rt.raw : raw() ?? null, null, 2), rtOnly ? 'Instances JSON copied' : 'Component JSON copied')
     if (c.rt) rtFetch(c, inner)
     inner.querySelectorAll('[data-goto]').forEach(n => { n.onclick = () => select(n.dataset.goto, { pan: true }) })
     inner.querySelectorAll('[data-trace-event]').forEach(n => { n.onclick = () => trace('event', n.dataset.traceEvent) })
@@ -586,7 +607,7 @@ export function mountPage(V, G, META) {
 
   // ───────────── sidebar: stats, health, the component list ─────────────
   function drawSidebar() {
-    const real = comps.filter(c => !c.ghost)
+    const real = comps.filter(c => !c.ghost && c.diff !== 'removed')
     const sev = (s) => M.diagnostics.filter(d => d.severity === s).length
     $('title').textContent = META.title ?? 'app'
     $('subtitle').textContent = META.subtitle ?? ''
@@ -597,6 +618,7 @@ export function mountPage(V, G, META) {
     $('health').innerHTML = health.length
       ? health.map((h, gi) => `<details class="health-group" ${gi < 3 && h.tone !== 'ai' && h.tone !== 'muted' ? 'open' : ''}><summary><span class="dot tone-${h.tone}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary><ul class="plain">${h.items.map((it, i) => `<li><button type="button" class="health-item" data-g="${gi}" data-i="${i}"><span class="dot tone-${h.tone}"></span><span class="t">${esc(it.title)}<small title="${esc(it.sub)}">${it.at != null ? esc(V.rtTime(it.at)) + ' · ' : ''}${esc(it.sub)}</small></span></button></li>`).join('')}</ul></details>`).join('')
       : '<div class="empty">✓ No wiring problems found</div>'
+    drawDiffSummary()
     $('health').querySelectorAll('.health-item').forEach(n => {
       n.onclick = () => { const it = health[n.dataset.g].items[n.dataset.i]; if (it.event) trace('event', it.event); else if (it.id) select(it.id, { pan: true }) }
     })
@@ -613,7 +635,7 @@ export function mountPage(V, G, META) {
     const isOpen = (n) => n.group != null && tier.grouped && !ui.focusKey ? !folded.has(n.group) : ui.tree.get(n.path) ?? true
     const item = (id) => {
       const c = byId.get(id), n = diagCount(c), w = V.worst(c), route = V.routeLabel(c)
-      return `<li><button type="button" class="tree-item${P.rep.has(id) ? '' : ' filtered'}" data-id="${esc(c.id)}" aria-current="${String(c.id === selected)}" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(nameOf(c))}${route != null ? ` <span class="unk">${esc(route)}</span>` : ''}${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="unk">·</span>' : ''}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
+      return `<li><button type="button" class="tree-item${P.rep.has(id) ? '' : ' filtered'}${DX ? V.diffNodeClass(c) : ''}"data-id="${esc(c.id)}" aria-current="${String(c.id === selected)}" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(nameOf(c))}${route != null ? ` <span class="unk">${esc(route)}</span>` : ''}${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="unk">·</span>' : ''}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
     }
     const dir = (n) => {
       const open = isOpen(n)
@@ -630,6 +652,18 @@ export function mountPage(V, G, META) {
         $('tree').querySelector(`.tree-toggle[data-path="${CSS.escape(path)}"]`)?.focus()
       }
     })
+  }
+  /** V-6: the sidebar's "Changes" section (diff.js), after the stats; gone without a diff. */
+  function drawDiffSummary() {
+    let sec = $('diffsec')
+    if (!DX) { sec?.remove(); return }
+    if (!sec) {
+      sec = doc.createElement('section')
+      sec.className = 'sec'; sec.id = 'diffsec'; sec.setAttribute('aria-labelledby', 'h-diff')
+      $('stats').closest('.sec').after(sec)
+    }
+    sec.innerHTML = '<h2 id="h-diff">Changes</h2>' + V.diffSummaryHtml(DX, { esc, byId })
+    sec.querySelectorAll('[data-goto]').forEach(n => { n.onclick = () => { if (ui.view !== 'graph') setView('graph'); select(n.dataset.goto, { pan: true }) } })
   }
   drawSidebar()
 
@@ -880,6 +914,7 @@ export function mountPage(V, G, META) {
     $('fl-unreachable').classList.toggle('off', un.disabled)
     $('f-unreach-note').hidden = !noEntry
     $('g-open').hidden = $('g-fold').hidden = !tier.grouped
+    $('fl-changes').style.display = !DX && !ui.filter.changes ? 'none' : '' // V-6: only with a diff
   }
   syncFilterMenu()
   $('f-kind').onchange = () => setFilter({ ...ui.filter, kind: $('f-kind').value })
@@ -1053,7 +1088,9 @@ export function mountPage(V, G, META) {
     select, trace, fit, setGraph,
     // V-4: the size tier and what is drawn; groups, focus, filters and views (state kept by key)
     get tier() { return tier }, get projection() { return P }, get renderer() { return canvasMode ? 'canvas' : 'svg' },
-    get focusKey() { return ui.focusKey }, get filter() { return { ...ui.filter } }, get viewName() { return ui.view },
+    get focusKey() { return ui.focusKey },
+    /** V-6: the diff with META.base (diff.js's GraphDiff), else null */
+    get diff() { return DX ? DX.diff : null }, get filter() { return { ...ui.filter } }, get viewName() { return ui.view },
     groupOf: (id) => groupOf.get(id) ?? null, openGroup, foldGroup, openAll, foldAll, showAll, setFilter, showView: setView,
     /** Show `v` ({ x, y, k }, as `view` gives it) without animating, as a view the user moved (hosts restoring a saved view). */
     setView(v) {

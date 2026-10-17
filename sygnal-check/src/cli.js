@@ -7,6 +7,26 @@
  *   --graph=html --watch  a live page (PLAN-10 W-1, D524): live.js rebuilds on save (watch.js), liveServer.js
  *                    serves it on 127.0.0.1 behind a token; the URL on stdout, opened once (D527 rules)
  *   --graph=mermaid  a Mermaid flowchart on stdout (or --out); --events=false leaves out EVENTS (D504)
+ *   --graph[=<format>] --base <ref>  the graph compared with a git ref (PLAN-10 C-3, D505): the base
+ *                    graph is built from the commit's files (gitBase.js: git ls-tree / cat-file, no
+ *                    checkout; the config file at the ref, tests excluded unless configured; flags
+ *                    win as usual), components matched by `key` ('file#name', D521; a renamed file is
+ *                    a removal and an addition). Formats (graphView/diff.js):
+ *                      json     the diff, not the graph:
+ *                               { base: '<ref>', head: 'working tree', commit: '<sha>',
+ *                                 added: [key], removed: [key],
+ *                                 changed: [{ key, fields: { <field>: { added: [], removed: [] } } }],
+ *                                 events: { added: [type], removed: [type] } }
+ *                               list fields: actions, sinks ('ACTION:SINK'), stateKeys, calculated,
+ *                               stateReads, contextProvides, contextConsumes, eventsEmitted,
+ *                               eventsSelected, children, selectors, diagnostics ('CODE message');
+ *                               scalar fields kind / entry / route are { base, head }
+ *                      text     '+ Name  file', '- Name  file', '~ Name: +action X, -emits Y  file'
+ *                      mermaid  the head graph plus the removed components; classes added / removed /
+ *                               changed, linkStyle on added / removed edges
+ *                      html     the head graph with the diff drawn on it (V-6)
+ *                    Exit 2: not in a git repository, an unknown ref, a path outside the repository,
+ *                    with --watch. A path missing at the ref is fine (everything in it is added).
  * sygnal-check explain <code> [--json] | explain --all [--json]
  * sygnal-check mcp            (MCP server on stdio; see src/mcp.js and bin/sygnal-check.js)
  * sygnal-check lsp            (language server on stdio; see src/lsp/server.js and bin/sygnal-check.js)
@@ -30,6 +50,8 @@ import { getExplanation, listExplanations, formatExplanation, suggestCodes } fro
 import { createLiveProject } from './live.js'
 import { createWatcher } from './watch.js'
 import { createLiveServer } from './liveServer.js'
+import { openRef, baseGraph, inputBase, GitBaseError } from './gitBase.js'
+import { graphDiff, formatDiff, diffMermaid } from './graphView/diff.js'
 
 const HELP = `Usage: sygnal-check [paths...] [options]
        sygnal-check explain <code> [--json]     explain a diagnostic code (e.g. SYG104)
@@ -95,6 +117,12 @@ Options:
   --editor <name>        with --graph=html: where file links open by default:
                          vscode (default) | cursor | windsurf | idea | none
   --events=false         with --graph=mermaid: leave out the EVENTS edges
+  --base <ref>           with --graph: compare the graph with a git ref (a branch,
+                         tag or commit; read with git, no checkout): --json prints
+                         the diff (added / removed / changed components and EVENTS
+                         types), text a summary, mermaid and html the graph with
+                         the changes marked. Components are matched by file and
+                         name: a renamed file is a removal and an addition
   --config <file>        read this JSON config file instead of looking for
                          sygnal-check.config.json / package.json
   --no-config            ignore config files (flags and defaults only)
@@ -109,7 +137,7 @@ Suppress a finding with a comment on the same line or the line above:
  * config file (or the defaults) decide: see resolveOptions in src/config.js.
  */
 export function parseArgs(argv) {
-  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true, watch: false, poll: false, port: undefined }
+  const opts = { paths: [], json: false, strict: undefined, a11y: undefined, fix: false, controls: false, keepClasses: false, graph: false, failOn: 'warn', verbose: false, includeTests: undefined, config: undefined, noConfig: false, help: false, out: undefined, open: undefined, editor: undefined, events: true, watch: false, poll: false, port: undefined, base: undefined }
   let graphFormat = null
   const value = (a, i, name) => {
     if (a.startsWith(name + '=')) {
@@ -142,6 +170,7 @@ export function parseArgs(argv) {
     }
     else if (a === '--events=false' || a === '--events=true') opts.events = a === '--events=true'
     else if (a === '--watch') opts.watch = true
+    else if (a === '--base' || a.startsWith('--base=')) [opts.base, i] = value(a, i, '--base')
     else if (a === '--poll') opts.poll = true
     else if (a.startsWith('--poll=')) {
       opts.poll = Number(a.slice('--poll='.length))
@@ -185,6 +214,8 @@ export function parseArgs(argv) {
   graphOnly('--events', ['mermaid'], !opts.events)
   // W-1: --watch serves the page; a file:// page can't receive updates, so no --out
   graphOnly('--watch', ['html'], opts.watch)
+  graphOnly('--base', GRAPH_FORMATS, opts.base !== undefined)
+  if (opts.base !== undefined && opts.watch) throw new Error('--base cannot be combined with --watch')
   if (opts.watch && opts.out !== undefined) throw new Error('--out cannot be combined with --watch (a saved file can\'t be updated: the page is served instead)')
   if (opts.poll !== false && !opts.watch) throw new Error('--poll needs --watch')
   if (opts.port !== undefined && !opts.watch) throw new Error('--port needs --watch')
@@ -233,13 +264,14 @@ export function openInBrowser(file, { platform = process.platform } = {}) {
 }
 
 /** --graph=html: writes the page, prints where, and opens it when that's wanted and possible. */
-function writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir }) {
+function writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir, base }) {
   const name = projectName(cwd, opts.paths)
   const html = graphHtml(g, {
     title: name,
-    subtitle: `static graph · ${opts.paths.length ? opts.paths.join(' ') : 'configured paths'} · ${new Date().toLocaleString()}`,
+    subtitle: `static graph · ${opts.paths.length ? opts.paths.join(' ') : 'configured paths'}${base ? ` · compared with ${base.ref}` : ''} · ${new Date().toLocaleString()}`,
     root: path.resolve(cwd),
     editor: opts.editor,
+    ...(base ? { base } : {}),
   })
   const file = opts.out !== undefined ? path.resolve(cwd, opts.out) : path.join(tmpdir, `sygnal-graph-${fileSafe(name)}.html`)
   try {
@@ -338,6 +370,30 @@ export async function watchGraph(opts, { cwd, stdout, stderr, env = {}, isTTY, o
   return { url: server.url, server, watcher, live, rebuild, close, closed }
 }
 
+/**
+ * --base <ref> (PLAN-10 C-3): the graph of the ref's commit, with the settings the flags and the
+ * ref's own config file give (an explicit --config file not in the commit is read from the disk).
+ * Throws GitBaseError for the CLI's exit-2 cases.
+ */
+function buildBase(opts, headPaths, { cwd, stderr, shown }) {
+  const tree = openRef(opts.base, { cwd })
+  const explicit = typeof opts.config === 'string' ? path.resolve(cwd, opts.config) : null
+  const io = explicit && !tree.exists(explicit) ? undefined : { exists: tree.exists, read: tree.readOrThrow }
+  const { options: settings, config } = resolveOptions({
+    cwd, config: opts.noConfig ? false : opts.config, strict: opts.strict, a11y: opts.a11y, includeTests: opts.includeTests, io,
+  })
+  const paths = opts.paths.length ? opts.paths : settings.paths
+  for (const p of new Set([...headPaths, ...paths])) {
+    if (!tree.inside(inputBase(p, cwd))) throw new GitBaseError(`--base: ${shown(p)} is outside the git repository (${tree.top})`)
+  }
+  const r = baseGraph(tree, paths, {
+    cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests,
+    extraDiagnostics: config.diagnostics,
+  })
+  for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${opts.base}: everything there counts as added\n`)
+  return { ref: opts.base, commit: tree.commit, graph: r.graph }
+}
+
 const EXPLAIN_HELP = `Usage: sygnal-check explain <code> [--json]
        sygnal-check explain --all [--json]
 
@@ -412,10 +468,25 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
 
   if (opts.graph) {
     const g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, extraDiagnostics: config.diagnostics })
-    if (opts.graph === 'html') return writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir })
-    const text = opts.graph === 'json' ? JSON.stringify(g, null, 2) + '\n'
-      : opts.graph === 'mermaid' ? toMermaid(buildModel(g), { events: opts.events })
-        : formatGraph(g, { verbose: opts.verbose }) + '\n'
+    let base = null
+    if (opts.base !== undefined) {
+      try {
+        base = buildBase(opts, paths, { cwd, stderr, shown })
+      } catch (err) {
+        if (!(err instanceof GitBaseError)) throw err
+        stderr.write(`sygnal-check: ${err.message}\n`)
+        return 2
+      }
+    }
+    if (opts.graph === 'html') return writeGraphPage(g, opts, { cwd, stderr, stdout, env, isTTY, openFile, tmpdir, base })
+    const meta = base && { base: base.ref, head: 'working tree', commit: base.commit }
+    const text = base
+      ? opts.graph === 'json' ? JSON.stringify(graphDiff(base.graph, g, meta), null, 2) + '\n'
+        : opts.graph === 'mermaid' ? diffMermaid({ buildModel, toMermaid }, base.graph, g, { ...meta, events: opts.events })
+          : formatDiff(graphDiff(base.graph, g, meta)) + '\n'
+      : opts.graph === 'json' ? JSON.stringify(g, null, 2) + '\n'
+        : opts.graph === 'mermaid' ? toMermaid(buildModel(g), { events: opts.events })
+          : formatGraph(g, { verbose: opts.verbose }) + '\n'
     if (opts.out === undefined) { stdout.write(text); return 0 }
     const file = path.resolve(cwd, opts.out)
     try {

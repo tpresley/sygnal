@@ -97,8 +97,13 @@ export function globToRegExp(glob) {
  * With `sources` (toSourceMap), files that exist only in memory count as
  * well: one named explicitly is never missing, and one under a directory
  * input (or matching a glob) is added when it passes the walk's filters.
+ *
+ * With `tree` ({ paths: Set<absPath> }, PLAN-10 C-3: the files of a git
+ * commit) the disk is never read: the walk, the globs and the explicit paths
+ * see only the tree's files (a path is a directory when files are under it).
  */
-export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false, sources } = {}) {
+export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false, sources, tree } = {}) {
+  if (tree) return expandTree(inputs, { cwd, includeTests, tree })
   const srcs = toSourceMap(sources, cwd)
   const out = new Set()
   const missing = []
@@ -128,6 +133,31 @@ export function expandInputs(inputs, { cwd = process.cwd(), includeTests = false
     } else {
       out.add(abs)
     }
+  }
+  return { files: [...out].sort(), missing }
+}
+
+/** expandInputs over a virtual tree's file list (no disk). */
+function expandTree(inputs, { cwd, includeTests, tree }) {
+  const all = tree.paths // a Set (or Map) of absolute paths: has() and keys()
+  const out = new Set()
+  const missing = []
+  for (const input of inputs) {
+    if (GLOB_CHARS.test(input)) {
+      const norm = input.split(path.sep).join('/')
+      const segs = norm.split('/')
+      const baseSegs = []
+      for (const s of segs) { if (GLOB_CHARS.test(s)) break; baseSegs.push(s) }
+      const base = path.resolve(cwd, baseSegs.join('/') || '.')
+      const re = globToRegExp(path.resolve(cwd, norm).split(path.sep).join('/'))
+      for (const f of sourcesUnder(base, all, { includeTests })) if (re.test(f.split(path.sep).join('/'))) out.add(f)
+      continue
+    }
+    const abs = path.resolve(cwd, input)
+    if (all.has(abs)) { out.add(abs); continue }
+    const under = sourcesUnder(abs, all, { includeTests })
+    if (under.length) under.forEach(f => out.add(f))
+    else if (![...all.keys()].some(f => f.startsWith(abs + path.sep))) missing.push(input)
   }
   return { files: [...out].sort(), missing }
 }

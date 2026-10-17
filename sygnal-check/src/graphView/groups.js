@@ -17,7 +17,9 @@
  *     when the graph marks none (the "unreachable from any entry" filter is then unavailable; SYG172
  *     is page-only, D534)
  *   FILTERS, filterCount(filter)
- *     filter = { kind?: '' | kind, problems?, hideViewOnly?, hideBehavior?, ai?, unreachable? }
+ *     filter = { kind?: '' | kind, problems?, hideViewOnly?, hideBehavior?, ai?, unreachable?, changes? }
+ *     changes: only components with a `diff` (added, removed or changed: `--base`, diff.js); the
+ *     page offers it only when it draws a diff
  *     hideBehavior changes no node (the page leaves behavior actions out of cards and details)
  *   focusSet(model, id, depth = 2) → Set: the component, its ancestors (to the entries), its
  *     children to `depth`, and its EVENTS, context and PARENT peers
@@ -118,6 +120,7 @@ export const FILTERS = [
   ['hideBehavior', 'Hide behavior actions'],
   ['ai', 'AI surface only'],
   ['unreachable', 'Unreachable from any entry'],
+  ['changes', 'Changes only'],
 ]
 
 export function filterCount(f = {}) {
@@ -127,7 +130,7 @@ export function filterCount(f = {}) {
 const severity = (c) => c.diagnostics.some(d => d.severity === 'error') ? 'error' : c.diagnostics.some(d => d.severity === 'warn') ? 'warn' : null
 
 /** Filters that remove nodes (hideBehavior only changes what a card lists). */
-const nodeFilters = (f) => !!(f.kind || f.problems || f.hideViewOnly || f.ai || f.unreachable)
+const nodeFilters = (f) => !!(f.kind || f.problems || f.hideViewOnly || f.ai || f.unreachable || f.changes)
 
 export function focusSet(model, id, depth = 2) {
   const F = new Set([id])
@@ -170,10 +173,11 @@ export function projectView(model, opts = {}) {
       if (f.problems && !(severity(c) || (c.ghost && !c.external && !c.widget) || orphan.has(c.id))) return false
       if (f.ai && !c.agent && !c.actions.some(a => (a.sinks || []).includes('LLM'))) return false
       if (reach && reach.has(c.id)) return false
+      if (f.changes && !c.diff) return false
       return true
     }
     keep = new Set(M.comps.filter(pred).map(c => c.id))
-    if (f.kind || f.problems || f.ai) {
+    if (f.kind || f.problems || f.ai || f.changes) {
       for (const id of [...keep]) {
         let p = T.firstParent.get(id)
         while (p != null && !keep.has(p)) { keep.add(p); dimmed.add(p); p = T.firstParent.get(p) }
@@ -216,7 +220,7 @@ export function projectView(model, opts = {}) {
     let g = nodes.get(r)
     if (!g) nodes.set(r, g = { id: r, type: 'group', key: r.slice(4), w: GROUP_W, h: GROUP_H, members: [], count: 0, err: 0, warn: 0, ai: 0, entry: false })
     g.members.push(id)
-    if (c.ghost) continue
+    if (c.ghost || c.diff === 'removed') continue // V-6: a removed card is drawn, not counted
     g.count++
     const s = severity(c)
     if (s === 'error') g.err++; else if (s === 'warn') g.warn++

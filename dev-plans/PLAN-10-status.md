@@ -57,6 +57,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D542 | 2026-10-16 | V-4 details on D536: in the small tier (≤ 60) zoom below 0.4 hides card text but keeps overlays (they hide only in the grouped tiers) and a trace always stays visible; a group is the directory two levels below the components' common directory, and a one-component group never folds; tracing opens the folded groups holding its ends (up to 6); the page's graph/EVENTS view switch is `api.showView` (E-2 owns `api.setView`); the synthetic generator lives in `sygnal-check/test/fixtures/graph-synth.js` (the research CLI imports it) (coordinator, on the worker's proposals) |
 | D543 | 2026-10-16 | P10-Q8: `sygnal/vite` serves the live graph page at `/__sygnal/graph` in dev **by default**; `graph: false` turns it off (user) |
 | D544 | 2026-10-16 | P10-Q9: `sygnal/vite` stamps each component with its static key in dev only, so the page can overlay runtime data on the static graph (P-2); nothing in production builds (user) |
+| D545 | 2026-10-16 | C-3/V-6: the diff matches components by `key` (a moved or renamed file is removed + added); the base graph is read from git without a checkout (`ls-tree`, `cat-file --batch`), with the config file as it is at the ref; JSON shape `{ base, head, commit, added, removed, changed: [{ key, fields }], events }` with list fields as `{ added, removed }` and `kind`/`entry`/`route` as `{ base, head }`; `--base` with `--watch` exits 2 for now (coordinator) |
 
 ## Items
 
@@ -79,10 +80,10 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | V-3 Runtime graphs | 2 | ✅ merged `ae0ddda5` | `graphView/runtime.js` | |
 | V-4 Large-app strategies | 1–2 | ✅ merged | D536, D542 | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
-| V-6 Diff rendering | 3 | 🔄 `p10-base-diff` | |
+| V-6 Diff rendering | 3 | ✅ merged | `graphView/diff.js`; canvas mode doesn't paint diff colours (G-808) |
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
 | C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
-| C-3 `--base <ref>` | 3 | 🔄 `p10-base-diff` | |
+| C-3 `--base <ref>` | 3 | ✅ merged | D545; ai-showcase `--base HEAD~1` 364–399 ms (194–210 ms without) |
 | W-1 `--watch` | 2 | ✅ merged | `live.js`, `watch.js`, `liveServer.js`, `graphView/liveHost.js` (D535) | |
 | W-2 `sygnal/vite` dev route | 3 | 🔄 `p10-vite-graph` | D543 |
 | E-1 LSP `sygnal/graph` | 2 | ✅ merged | |
@@ -122,9 +123,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-805 | 2026-10-16 (V-4) | At 2,000 components the folded overview still has 71 group cards; a second grouping level would help | open |
 | G-806 | 2026-10-16 (V-4) | Canvas mode (> 400 drawn nodes): no keyboard navigation on the drawing (the outline is the accessible path) and SVG export is empty | open |
 | G-807 | 2026-10-16 (V-4) | Bus-node lanes sit far from both ends of their edges | open |
+| G-808 | 2026-10-16 (V-6) | Diff: canvas mode doesn't paint diff colours (badges, sidebar and filter work); removed context and PARENT edges aren't drawn; `--base` with `--watch` not supported | open |
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-16 `p10-base-diff` merged: sygnal-check 1,533; browser on Chromium, Firefox and WebKit: static 14, runtime + devtools 9, live 5, VS Code 7, large apps 10, diff 7. Also `04924ccd`: folded group names centred and height-capped when zoomed out (user report; new browser check failed on 68 of 71 cards before).
 
 - 2026-10-16 `p10-large-view` merged (V-4 + the state trace from `writes`/`stateReads`, the context health item per SYG170 and Vike fields, Vike routes on cards and layout edges, G-802). The synthetic generator moved into `sygnal-check/test/fixtures/` so the gate doesn't read `dev-plans/`. On integration: sygnal-check 1,519; browser static 14, runtime + devtools 9, live 5, VS Code 7, large apps 10 on Chromium, Firefox and WebKit. Page: shop fixture 214 KB / 61 KB gzip.
 
