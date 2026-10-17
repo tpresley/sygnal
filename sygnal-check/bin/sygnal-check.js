@@ -11,5 +11,7 @@ if (argv[0] === 'mcp') {
   const { runLspServer } = await import('../src/lsp/server.js')
   process.exit(await runLspServer())
 } else {
-  process.exitCode = main(argv)
+  // --graph=html --watch: a Promise, settled on Ctrl-C once the server and watchers are closed
+  process.exitCode = await main(argv)
+  if (argv.includes('--watch')) process.exit(process.exitCode)
 }

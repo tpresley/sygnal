@@ -6,7 +6,9 @@
  *     meta   { title?, subtitle?, root? (absolute project root, for editor links), editor?
  *              ('vscode' | 'cursor' | 'windsurf' | 'idea' | 'none': the default editor link),
  *              select? (a component name or id to select on load), codes? (code → title; by
- *              default the titles from explanations.json of the codes in the graph) }
+ *              default the titles from explanations.json of the codes in the graph; every title
+ *              when live), live? ({ events, version }: `--graph=html --watch` (PLAN-10 W-1) adds
+ *              liveHost.js, which follows that SSE stream, and `connect-src 'self'` to the CSP) }
  *
  * No build step: the files in this directory are read and concatenated at run time.
  *   - page.css goes into one <style>.
@@ -50,17 +52,18 @@ function assets() {
   if (cached) return cached
   const css = read('page.css')
   if (/<\/style/i.test(css)) throw new Error("graphView/page.css: contains '</style'")
-  cached = { css, js: MODULES.map(m => inlineModule(read(m), m)).join('\n') }
+  cached = { css, js: MODULES.map(m => inlineModule(read(m), m)).join('\n'), live: inlineModule(read('liveHost.js'), 'liveHost.js') }
   return cached
 }
 
 let titles = null
-function codeTitles(graph) {
+function codeTitles(graph, all = false) {
   if (!titles) {
     try {
       titles = new Map(JSON.parse(fs.readFileSync(new URL('../../explanations.json', import.meta.url), 'utf8')).map(e => [e.code, e.title]))
     } catch (_) { titles = new Map() }
   }
+  if (all) return Object.fromEntries([...titles].sort((a, b) => a[0] < b[0] ? -1 : 1))
   const used = new Set()
   for (const c of graph.components || []) for (const d of c.diagnostics || []) used.add(d.code)
   for (const d of graph.diagnostics || []) used.add(d.code)
@@ -68,18 +71,21 @@ function codeTitles(graph) {
 }
 
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: blob:; base-uri 'none'; form-action 'none'"
+// live mode: the page also reads its update stream from the server it came from
+const LIVE_CSP = CSP + "; connect-src 'self'"
 
 export function graphHtml(graph, meta = {}) {
-  const { css, js } = assets()
-  const m = { ...meta, title: meta.title || 'app', codes: meta.codes ?? codeTitles(graph) }
+  const { css, js: pageJs, live } = assets()
+  const js = meta.live ? pageJs + '\n' + live : pageJs
+  const m = { ...meta, title: meta.title || 'app', codes: meta.codes ?? codeTitles(graph, !!meta.live) }
   if (m.root) m.root = String(m.root).replace(/\\/g, '/')
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${CSP}">
-<meta name="generator" content="sygnal-check --graph=html">
+<meta http-equiv="Content-Security-Policy" content="${meta.live ? LIVE_CSP : CSP}">
+<meta name="generator" content="sygnal-check --graph=html">${meta.live ? '\n<link rel="icon" href="data:,">' : ''}
 <title>${escHtml(m.title)} · Sygnal app graph</title>
 <style>
 ${css}</style>
@@ -158,7 +164,9 @@ ${css}</style>
 'use strict'
 const V = {}
 ${js}
-V.mountPage(V, JSON.parse(document.getElementById('graph-data').textContent), JSON.parse(document.getElementById('graph-meta').textContent))
+const read = (id) => JSON.parse(document.getElementById(id).textContent), META = read('graph-meta')
+const api = V.mountPage(V, read('graph-data'), META)
+if (META.live && V.mountLive) V.mountLive(V, api, read('graph-data'), META)
 })()
 </script>
 </body>
