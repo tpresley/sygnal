@@ -43,6 +43,9 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D528 | 2026-10-16 | Revises D517: `events[type].emitters` / `selectors` stay unique names (as before PLAN-10); `emitterIds` / `selectorIds` are independent full lists (components in static graphs, instances in runtime graphs), not parallel to the names. One meaning across both sources; no repeated names (coordinator, on the D522 worker's question) |
 | D529 | 2026-10-16 | Static `key` collisions: the first same-named component in a file keeps `file#name`, later ones get `#2`, `#3` in source order; no runtime `key` until `sygnal/vite` stamps one (P10-Q9) (coordinator) |
 | D530 | 2026-10-16 | Reverses D523: the user accepts a few core bytes for runtime `contextConsumes` (a read-only `InstanceView` getter for the context keys a render read); done with V-3, byte delta reported, stop if over ~40 B gzip (user) |
+| D531 | 2026-10-16 | A-7: `actions[].writes` lists top-level state keys only (no dotted paths), `[]` for no change, `null` when unknown, and is present only on actions with a STATE sink; a reducer returning an object without `...state` writes its keys plus every other `initialState` key (coordinator, on the worker's proposal) |
+| D532 | 2026-10-16 | A-7: one `stateReads` list per component (view, literal child lenses and Collection `from`, `calculated` and `context` functions), with `stateReadsPartial: true` when it may be incomplete (coordinator) |
+| D533 | 2026-10-16 | A-7: `actions[].removes: true` flags a reducer that may return undefined (removes a Collection item), separate from `writes` (coordinator) |
 
 ## Items
 
@@ -57,7 +60,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-4 Source locations | 1 | ✅ merged `dcbb7e33` | |
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
-| A-7 State writes and reads | 2 | 🔄 `p10-state-paths` | |
+| A-7 State writes and reads | 2 | ✅ merged `34e9dba6` | the page doesn't use `writes`/`stateReads` yet: with V-4 | |
 | A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
@@ -101,8 +104,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | # | Found | Gap | Status |
 |---|---|---|---|
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
+| G-801 | 2026-10-16 (A-7) | `analyzeModel` treats a call-built model entry (`SEND: sending(fn)`) as a plain STATE entry, so its other sinks (e.g. `LLM`) are missed; pre-existing | open |
+| G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 `p10-state-paths` merged (`34e9dba6`): known `writes` for kanban 17/17, todomvc 11/11, graph-shop 8/8, plan5-showcase 116/118, ai-showcase 322/334 (the rest genuinely dynamic); partial reads only in ai-showcase (9/31). sygnal-check 1,421 passed; types OK. Also `49a233dd`: Health items indented under their group (user report).
 
 - 2026-10-16 D528 merged (`90e2a085` page, `3e23b82b` static graph): event names unique again, id lists independent. On integration: sygnal-check 1,406 passed, inspect tests 13, types OK, graph page 13/13 (Chromium).
 
