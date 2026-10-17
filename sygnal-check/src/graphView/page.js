@@ -9,6 +9,11 @@
  *     G     the InspectGraph
  *     META  { title, subtitle?, root?, editor?, select?, codes?: { SYGnnn: title } }
  *
+ * A runtime graph (`source: 'runtime'`, V-3) goes through runtime.js's fromRuntime() first: cards
+ * ×N, instances and their state in the detail panel. Hosts (the devtools panel) set
+ * `__sygnalGraph.host = { getState(instanceId) → value | Promise }` and call `action(record)` (a flash
+ * on the instance's card), `state(instanceId, value)` (a state changed) and `setGraph(graph)`.
+ *
  * Keyboard: Tab reaches the canvas (one card at a time is in the tab order); arrow keys move along
  * render edges (up: a parent, down: a child, left / right: the next card in the row); Enter or
  * Space selects; `/` focuses search, `F` fits, Esc clears. The component list in the sidebar is
@@ -42,9 +47,10 @@ export function mountPage(V, G, META) {
   let M, comps, byId, parentsOf, childrenOf, renderEdges, contextEdges, health, L, pos, events, hay
   function load(graph) {
     G = graph
-    M = V.buildModel(G)
+    M = V.buildModel(G?.source === 'runtime' ? V.fromRuntime(G) : G)
     ;({ comps, byId, parentsOf, childrenOf, renderEdges, contextEdges } = M)
     health = V.healthList(M, META.codes || {})
+    if (M.runtime) health = health.concat(V.runtimeHealth(M))
     L = V.layoutGraph(M)
     pos = L.pos
     events = M.events
@@ -61,10 +67,12 @@ export function mountPage(V, G, META) {
   const nd0 = (c) => c.diagnostics.some(d => d.severity !== 'info')
   let restoring = false
   const diagCount = (c) => c.diagnostics.filter(d => d.severity !== 'info').length
-  const fileLine = (c) => `${c.file}${c.line != null ? ':' + c.line : ''}`
+  const fileLine = (c) => c.rt ? V.rtCardSub(c) : `${c.file}${c.line != null ? ':' + c.line : ''}`
+  const nameOf = (c) => c.rt && c.rt.count > 1 ? `${c.name} ×${c.rt.count}` : c.name
+  const dirLabel = (d) => M.runtime ? d : d + '/'
   const describe = (c) => c.ghost
     ? `${c.name}, ${ghostWhat(c)}`
-    : `${c.name}, ${KIND[c.kind] ?? c.kind}${c.entry === true ? ', entry' : ''}${c.viewOnly ? ', view only' : ''}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
+    : `${nameOf(c)}, ${KIND[c.kind] ?? c.kind}${c.shown === false ? ', hidden' : ''}${c.entry === true ? ', entry' : ''}${c.viewOnly ? ', view only' : ''}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
   function drawGraph() {
     for (const g of ['clusters', 'edges', 'labels', 'nodes']) $(g).textContent = ''
     nodeEls.clear()
@@ -72,7 +80,7 @@ export function mountPage(V, G, META) {
     for (const b of L.clusters) {
       const g = el('g', { class: 'cluster', 'aria-hidden': 'true' }, $('clusters'))
       el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 14 }, g)
-      el('text', { x: b.x + 14, y: b.y + 22 }, g).textContent = b.key + '/'
+      el('text', { x: b.x + 14, y: b.y + 22 }, g).textContent = dirLabel(b.key)
     }
     for (const e of V.edgePaths(M, L)) {
       const p = el('path', { class: 'edge ' + e.cls, d: e.d, 'marker-end': `url(#${e.marker})` }, $('edges'))
@@ -83,12 +91,13 @@ export function mountPage(V, G, META) {
     for (const c of comps) {
       const p = pos.get(c.id)
       const w = V.worst(c)
-      const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry'].filter(Boolean).join(' ')
+      const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry', c.rt && 'rt', c.shown === false && 'hidden-page'].filter(Boolean).join(' ')
       const g = el('g', { class: cls + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
       el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
       if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
-      el('text', { class: 'name', x: 16, y: 24 }, g).textContent = c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name
-      const file = c.ghost ? ghostWhat(c) : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
+      const nm = c.rt && c.rt.count > 1 ? `${c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name} ×${c.rt.count}` : c.name
+      el('text', { class: 'name', x: 16, y: 24 }, g).textContent = nm.length > 22 ? nm.slice(0, 21) + '…' : nm
+      const file = c.ghost ? ghostWhat(c) : c.rt ? V.rtCardSub(c) : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
       el('text', { class: 'sub', x: 16, y: 41 }, g).textContent = file.length > 30 ? '…' + file.slice(-29) : file
       if (!c.ghost) {
         const meta = el('text', { class: 'meta', x: 16, y: 60 }, g)
@@ -310,6 +319,7 @@ export function mountPage(V, G, META) {
     if (ed === 'idea') return `idea://open?file=${encodeURIComponent(abs)}&line=${ln}`
     return `${ed}://file${abs.startsWith('/') ? '' : '/'}${encodeURI(abs)}:${ln}`
   }
+  const timeTag = (ms) => ms != null ? ` <span class="unk" title="reported at ${esc(new Date(ms).toISOString())}">${esc(V.rtTime(ms))}</span>` : ''
   const fileLink = (file, line, text) => { const h = editorHref(file, line); return h ? `<a href="${esc(h)}">${esc(text)}</a>` : `<span class="mono">${esc(text)}</span>` }
   const chip = (text, attrs = '', cls = '') => `<span class="chip ${cls}" ${attrs}>${esc(text)}</span>`
   const btnChip = (text, attrs = '', cls = '', label = '') => `<button type="button" class="chip ${cls}" ${attrs}${label ? ` aria-label="${esc(label)}"` : ''}>${esc(text)}</button>`
@@ -329,21 +339,22 @@ export function mountPage(V, G, META) {
 
   function renderDetail(c) {
     const out = []
-    out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)} <span class="kind ${kindClass(c.kind)}">${esc(kindLabel(c))}</span>${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="tag">view only</span>' : ''}<button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
-      <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : fileLink(c.file, c.line, fileLine(c)) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
+    out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)}${c.rt && c.rt.count > 1 ? ` <span class="unk">×${c.rt.count}</span>` : ''} <span class="kind ${kindClass(c.kind)}">${esc(kindLabel(c))}</span>${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="tag">view only</span>' : ''}${c.shown === false ? ' <span class="tag">hidden</span>' : ''}<button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
+      <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : (c.rt ? `<span class="mono">runtime · ${esc(V.rtCardSub(c))}</span>` : fileLink(c.file, c.line, fileLine(c))) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
 
     if (c.diagnostics.length) {
       out.push(`<section class="dsec"><h3>Diagnostics <span class="n">${c.diagnostics.length}</span></h3>${c.diagnostics.map(d => {
         const at = d.line && editorHref(d.file, d.line)
-        return `<div class="diag ${esc(d.severity)}"><div class="code">${d.docsUrl ? `<a href="${esc(d.docsUrl)}" target="_blank" rel="noopener noreferrer">${esc(d.code)}</a>` : esc(d.code)}${META.codes?.[d.code] ? ` <span class="title">${esc(META.codes[d.code])}</span>` : ''}${at ? ` · <a href="${esc(at)}">line ${d.line}</a>` : d.line ? ` · line ${d.line}` : ''}</div><div>${esc(d.message)}</div>${d.fix ? `<div class="fix">Fix: ${esc(d.fix)}</div>` : ''}</div>`
+        return `<div class="diag ${esc(d.severity)}"><div class="code">${d.docsUrl ? `<a href="${esc(d.docsUrl)}" target="_blank" rel="noopener noreferrer">${esc(d.code)}</a>` : esc(d.code)}${META.codes?.[d.code] ? ` <span class="title">${esc(META.codes[d.code])}</span>` : ''}${at ? ` · <a href="${esc(at)}">line ${d.line}</a>` : d.line ? ` · line ${d.line}` : ''}${timeTag(d.timestamp)}</div><div>${esc(d.message)}</div>${d.fix ? `<div class="fix">Fix: ${esc(d.fix)}</div>` : ''}</div>`
       }).join('')}</section>`)
     }
 
+    if (c.rt) out.push(V.rtDetailHtml(c, { esc, btnChip, states: rtStates, canFetch: !!rtHost?.getState }))
     const rel = []
     const parents = parentsOf.get(c.id).map(id => byId.get(id))
     if (parents.length) rel.push(`<div class="r"><span class="lbl">rendered by</span><span class="chips">${parents.map(nameLink).join('')}</span></div>`)
     const kids = renderEdges.filter(e => e.from === c.id)
-    if (kids.length) rel.push(`<div class="r"><span class="lbl">renders</span><span class="chips">${kids.map(e => `<button type="button" class="chip" data-goto="${esc(e.to)}">${esc(byId.get(e.to).name)}${e.label ? ` <small>${esc(e.label)}</small>` : ''}</button>`).join('')}</span></div>`)
+    if (kids.length) rel.push(`<div class="r"><span class="lbl">renders</span><span class="chips">${kids.map(e => `<button type="button" class="chip" data-goto="${esc(e.to)}">${esc(nameOf(byId.get(e.to)))}${e.label ? ` <small>${esc(e.label)}</small>` : ''}</button>`).join('')}</span></div>`)
     if (rel.length) out.push(`<section class="dsec"><h3>Tree</h3><div class="rel">${rel.join('')}</div></section>`)
     const up = M.parentEdges.filter(e => e.from === c.id), down = M.parentEdges.filter(e => e.to === c.id)
     const sends = c.actions.filter(a => a.sinks.includes('PARENT'))
@@ -401,7 +412,8 @@ export function mountPage(V, G, META) {
     inner.innerHTML = out.join('')
     $('dclose').onclick = () => { const id = selected; select(null); nodeEls.get(id)?.focus() }
     const cp = $('dcopy')
-    if (cp) cp.onclick = () => copy(JSON.stringify((G.components || []).find(x => x.id === c.id) ?? null, null, 2), 'Component JSON copied')
+    if (cp) cp.onclick = () => copy(JSON.stringify(c.rt ? c.rt.raw : (G.components || []).find(x => x.id === c.id) ?? null, null, 2), c.rt ? 'Instances JSON copied' : 'Component JSON copied')
+    if (c.rt) rtFetch(c, inner)
     inner.querySelectorAll('[data-goto]').forEach(n => { n.onclick = () => select(n.dataset.goto, { pan: true }) })
     inner.querySelectorAll('[data-trace-event]').forEach(n => { n.onclick = () => trace('event', n.dataset.traceEvent) })
     inner.querySelectorAll('[data-trace-context]').forEach(n => { n.onclick = () => trace('context', n.dataset.traceContext) })
@@ -416,11 +428,11 @@ export function mountPage(V, G, META) {
     $('title').textContent = META.title ?? 'app'
     $('subtitle').textContent = META.subtitle ?? ''
     $('stats').innerHTML = [
-      [real.length, 'components'], [Object.keys(events).length, 'event types'], [real.reduce((n, c) => n + c.actions.length, 0), 'actions'],
+      [real.length, 'components'], ...(M.runtime ? [[real.reduce((n, c) => n + c.rt.count, 0), 'instances']] : []), [Object.keys(events).length, 'event types'], [real.reduce((n, c) => n + c.actions.length, 0), 'actions'],
       [sev('error'), 'errors', 'err'], [sev('warn'), 'warnings', 'warn'], [real.filter(c => c.agent).length, 'agent surfaces'],
     ].map(([n, l, cls]) => `<div class="stat ${n && cls ? cls : ''}"><b>${n}</b><span>${l}</span></div>`).join('')
     $('health').innerHTML = health.length
-      ? health.map((h, gi) => `<details class="health-group" ${gi < 3 && h.tone !== 'ai' && h.tone !== 'muted' ? 'open' : ''}><summary><span class="dot tone-${h.tone}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary><ul class="plain">${h.items.map((it, i) => `<li><button type="button" class="health-item" data-g="${gi}" data-i="${i}"><span class="dot tone-${h.tone}"></span><span class="t">${esc(it.title)}<small title="${esc(it.sub)}">${esc(it.sub)}</small></span></button></li>`).join('')}</ul></details>`).join('')
+      ? health.map((h, gi) => `<details class="health-group" ${gi < 3 && h.tone !== 'ai' && h.tone !== 'muted' ? 'open' : ''}><summary><span class="dot tone-${h.tone}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary><ul class="plain">${h.items.map((it, i) => `<li><button type="button" class="health-item" data-g="${gi}" data-i="${i}"><span class="dot tone-${h.tone}"></span><span class="t">${esc(it.title)}<small title="${esc(it.sub)}">${it.at != null ? esc(V.rtTime(it.at)) + ' · ' : ''}${esc(it.sub)}</small></span></button></li>`).join('')}</ul></details>`).join('')
       : '<div class="empty">✓ No wiring problems found</div>'
     $('health').querySelectorAll('.health-item').forEach(n => {
       n.onclick = () => { const it = health[n.dataset.g].items[n.dataset.i]; if (it.event) trace('event', it.event); else if (it.id) select(it.id, { pan: true }) }
@@ -431,9 +443,9 @@ export function mountPage(V, G, META) {
       let gi = 0
       $('tree').innerHTML = [...groups].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(([d, list]) => {
         const hid = 'tree-dir-' + gi++
-        return `<h3 class="tree-dir" id="${hid}">${esc(d)}/</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => Number(b.entry === true) - Number(a.entry === true) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map(c => {
+        return `<h3 class="tree-dir" id="${hid}">${esc(dirLabel(d))}</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => Number(b.entry === true) - Number(a.entry === true) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)).map(c => {
           const n = diagCount(c), w = V.worst(c)
-          return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(c.name)}${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="unk">·</span>' : ''}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
+          return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(nameOf(c))}${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="unk">·</span>' : ''}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
         }).join('') + '</ul>'
       }).join('')
       $('tree').querySelectorAll('.tree-item').forEach(n => { n.onclick = () => { select(n.dataset.id, { pan: true }); if (innerWidth <= 700) $('side').classList.remove('open') } })
@@ -535,6 +547,7 @@ export function mountPage(V, G, META) {
     selected = null; tabStop = null; tracing = null
     drawGraph()
     drawSidebar()
+    reflash()
     const idOf = (key) => key == null ? null : M.byKey.get(key) ?? null
     if (idOf(was.stop)) setTabStop(idOf(was.stop)); else initTabStop()
     restoring = true
@@ -548,6 +561,50 @@ export function mountPage(V, G, META) {
     if (wasMoved) { moved = true; if (!animating) { view = wasView; apply() } } else fit(undefined, false)
   }
 
+  // ───────────── runtime (V-3): instance state from the host, flashes on actions ─────────────
+  // state values by instance id: fetched for the selected card's open instances, kept across setGraph
+  const rtStates = {}
+  let rtHost = null
+  function rtFill(inner, id) {
+    const pre = [...inner.querySelectorAll('.rt-inst')].find(d => d.dataset.inst === id)?.querySelector('.rt-state')
+    if (pre && Object.prototype.hasOwnProperty.call(rtStates, id)) { pre.textContent = V.rtStateText(rtStates[id]); pre.classList.remove('unk') }
+  }
+  function rtFetch(c, inner) {
+    const want = (id) => {
+      if (typeof rtHost?.getState !== 'function') return
+      let v
+      try { v = rtHost.getState(id) } catch (_) { return }
+      Promise.resolve(v).then(val => {
+        if (val === undefined) return
+        rtStates[id] = val
+        if (selected === c.id) rtFill($('dinner'), id)
+      }, () => {})
+    }
+    inner.querySelectorAll('.rt-inst').forEach(d => {
+      if (d.open) want(d.dataset.inst)
+      d.addEventListener('toggle', () => { if (d.open) want(d.dataset.inst) })
+    })
+  }
+  // a flash in progress survives a redraw (setGraph): it goes on where it was, by card key
+  const FLASH_MS = 900, flashing = new Map()
+  function flash(cardId, elapsed = 0) {
+    const n = nodeEls.get(cardId)
+    if (!n) return false
+    if (!elapsed) flashing.set(byId.get(cardId).key, performance.now())
+    n.classList.remove('flash'); void n.getBBox()
+    n.style.setProperty('--flash-delay', `-${Math.round(elapsed)}ms`)
+    n.classList.add('flash')
+    clearTimeout(n._flashT); n._flashT = setTimeout(() => n.classList.remove('flash'), FLASH_MS + 50 - elapsed)
+    return true
+  }
+  function reflash() {
+    const now = performance.now()
+    for (const [key, t0] of flashing) {
+      const id = M.byKey.get(key)
+      if (now - t0 >= FLASH_MS || !id) flashing.delete(key); else flash(id, now - t0)
+    }
+  }
+
   fit(undefined, false)
   const first = META.select && comps.find(c => c.name === META.select || c.id === META.select || c.key === META.select)
   if (first) select(first.id, { pan: true })
@@ -557,6 +614,14 @@ export function mountPage(V, G, META) {
     get selectedKey() { return selected ? byId.get(selected)?.key ?? null : null },
     get view() { return { ...view } }, get animating() { return animating },
     select, trace, fit, setGraph,
+    /** the host (runtime graphs): { getState(instanceId) → value | Promise } */
+    get host() { return rtHost }, set host(h) { rtHost = h || null },
+    /** an action ran (a devtools ACTIONS record, or one of recentActions): flash its instance's card */
+    action(record) { const id = record && M.graph.rtCardOf?.[String(record.instance)]; return id ? flash(id) : false },
+    /** an instance's state changed (the host pushes it): shown when its card is selected */
+    state(instanceId, value) { const id = String(instanceId); rtStates[id] = value; if (selected && M.graph.rtCardOf?.[id] === selected) rtFill($('dinner'), id) },
+    /** replays the graph's recentActions as flashes, `speed` times faster; returns how many */
+    replay(speed = 4) { const list = G.recentActions || []; const t0 = list.length ? list[0].at : 0; for (const r of list) setTimeout(() => api.action(r), (r.at - t0) / speed); return list.length },
   }
   window.__sygnalGraph = api
   return api
