@@ -203,7 +203,7 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
   "components": [{
     "name": "RootComponent", "id": "src/RootComponent.jsx:12", "parentId": null,
     "file": "src/RootComponent.jsx", "kind": "root",
-    "actions": [{ "name": "ADD_LANE", "trigger": "intent", "sinks": ["STATE"] }],
+    "actions": [{ "name": "ADD_LANE", "trigger": "intent", "sinks": ["STATE"], "writes": ["nextId", "lanes"] }],
     "stateKeys": ["lanes", "dragging", "draggingLane", "nextId"], "calculated": [],
     "contextProvides": ["draggingTaskId", "draggingLaneId"], "contextConsumes": [],
     "eventsEmitted": [], "eventsSelected": ["DELETE_LANE"],
@@ -222,6 +222,8 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `kind` | `root` when no scanned component renders it, else how it's first rendered | how the instance was created (`child` = by tag) |
 | `actions[].trigger` | `intent`, `builtin` (BOOTSTRAP/INITIALIZE/DISPOSE/READY), `reply` (an `ok`/`error` literal in a request, a `connections` name or a timer action), `next` (a `next('X')` literal), `agent` (only an `agent` declaration's action), else `unknown` | the same; `reply` = named by a request the instance was seen sending; `next` = a model-only action whose STATE reducer was seen running. The core adds `INITIALIZE` to every model |
 | `stateKeys` | `initialState` keys | current state keys |
+| `actions[].writes` | on actions with a STATE sink: the top-level state keys the reducer may write (`({ ...state, cart })`, `set({ a })`, `toggle('a')`, a behavior's slice); `[]` when it never changes the state; `null` when unknown (a dynamic key, another spread, a call it can't follow). `removes: true`: it may return `undefined` (removes a Collection item) | not produced |
+| `stateReads` | the top-level state keys the view reads literally (`state.x`, `{ state: { x } }`, through local helpers given the state), the literal lenses it gives children (`state="user"`, `from="items"`), and its calculated / context functions' reads; `stateReadsPartial: true` when the list may be incomplete (omitted when empty / complete) | not produced |
 | `contextConsumes` | context fields the view reads | `null` |
 | `children[].via` | `tag`, `collection` (with `from`), `switchable`, `slot` (passed into a child as children/slots) | `tag`, `collection`, `switchable`, plus `count` |
 | `selectors[]` | intent DOM selectors; `matched`/`isolationHit` from SYG110/SYG104 (`null` for `document`, dynamic selectors); `control` names a control selector (`selector` is then `[data-control="Add"]`) | real DOM: what the DOM checks saw, `events: null`; `renderComponent`: matched against the mock DOM, with event types |

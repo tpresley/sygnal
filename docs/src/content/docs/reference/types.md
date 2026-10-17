@@ -270,11 +270,15 @@ interface InspectComponent {
   entry?: true | 'unknown'       // started by run() (static: also defineElement(), a Vike page)
   app?: number                   // runtime: which run() the instance belongs to
   shown?: false                  // runtime: a hidden Switchable page, or below one
-  actions: { name: string; trigger: 'intent' | 'next' | 'builtin' | 'unknown'; sinks: string[] }[]
+  // writes (static, STATE actions): the top-level keys the reducer may write, null when unknown;
+  // removes: it may return undefined (removes a Collection item)
+  actions: { name: string; trigger: 'intent' | 'next' | 'builtin' | 'unknown'; sinks: string[]; writes?: string[] | null; removes?: true }[]
   stateKeys: string[]
   calculated: string[]
   contextProvides: string[]
   contextConsumes?: string[] | null
+  stateReads?: string[]          // static: the state keys the view (and calculated / context) reads
+  stateReadsPartial?: true       // static: stateReads may be incomplete (the state used whole)
   eventsEmitted: string[]
   eventsSelected: string[]
   // id: static, the rendered component's; ids: runtime, the live instances'

@@ -39,11 +39,23 @@
  *                model like form's, an unreadable intent or dynamic names), else unknown.
  *                line/column (+ file): the intent property, else the model entry;
  *                modelAt: the model entry (A-4)
+ *                writes (A-7, on actions with a STATE sink only): the top-level state keys its
+ *                STATE reducer(s) may write, the union over the model entry and a behavior's
+ *                reducer (a behavior's STATE writes its slice, the uses key); [] when it never
+ *                changes the state; null when any reducer can't be read (model/stateAccess.js
+ *                lists what is known). removes: true when a reducer may return undefined
+ *                (a Collection item removes itself)
  *
  *   Locations (PLAN-10 A-4) are { line, column } (1-based), with `file` only when it
  *   isn't the component's file; actions, selectors, children, controls, commands,
  *   timers, agent actions / queries and childSelects carry them inline.
  *   stateKeys    initialState keys (when statically known)
+ *   stateReads   (A-7) top-level state keys the view reads literally (state.x, { state: { x } },
+ *                through local helpers given the state), the literal lenses it gives children
+ *                (state="user", Collection from="items": a path's first segment), and the reads of
+ *                its calculated and context functions; omitted when none. stateReadsPartial: true
+ *                when the list may be incomplete (the state used whole, a computed key, a function
+ *                the checker can't read); view-only components have them too
  *   contextConsumes  context fields the view reads (context.x / { context: { x } })
  *   events       EVENTS sinks returning { type: 'X' }, emit()/event() calls,
  *                EVENTS.select('X') in the component's intent / static props.
@@ -104,6 +116,7 @@ import { CAUSED_EVENTS } from './model/elementCommands.js'
 import { agentName } from './model/agent.js'
 import { contextNames, contextReads } from './model/context.js'
 import { findBinding } from './scope.js'
+import { reducerWrites, behaviorWrites, stateReads } from './model/stateAccess.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -366,6 +379,20 @@ export function buildGraph(project, diagnostics = []) {
     const intentAt = new Map((c.intent?.actions || []).map(a => [a.name, a]))
     const modelAt = new Map()
     for (const e of modelEntries) if (!modelAt.has(e.action)) modelAt.set(e.action, e)
+    // PLAN-10 A-7: the state keys each STATE reducer writes (the initialState keys, for a reducer
+    // that replaces the whole state; unknown without an initialState static)
+    const knownKeys = c.initialState?.known ? stateKeysOf(c) : null
+    const writesOf = (name, out) => {
+      const lists = []
+      for (const e of modelEntries) {
+        if (e.action !== name || !e.sinks.includes('STATE')) continue
+        lists.push(e.stateValue ? reducerWrites(project, e.stateValue.file, e.stateValue.node, { stateKeys: knownKeys, out }) : null)
+      }
+      const b = owned.get(name)
+      if (b?.sinks.includes('STATE')) lists.push(behaviorWrites(project, b.entry, b.action))
+      if (!lists.length || lists.includes(null)) return null
+      return [...new Set(lists.flat())]
+    }
     const actions = [...sinks].map(([name, s]) => {
       const b = owned.get(name)
       let trigger = BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : agentActions.has(name) ? 'agent' : 'unknown'
@@ -378,6 +405,11 @@ export function buildGraph(project, diagnostics = []) {
       const i = intentAt.get(name), m = modelAt.get(name)
       if (i || m) Object.assign(action, i ? at(i.node, c.intent.file, c.file) : at(m.node, m.file, c.file))
       if (m) action.modelAt = at(m.node, m.file, c.file)
+      if (s.includes('STATE')) {
+        const out = {}
+        action.writes = writesOf(name, out)
+        if (out.removes) action.removes = true
+      }
       return action
     })
 
@@ -422,7 +454,7 @@ export function buildGraph(project, diagnostics = []) {
       file: rel(c.file),
       kind: VIA_KIND[renderedAs.get(c)] || 'root',
       actions,
-      stateKeys: [...new Set([...(c.initialState ? c.initialState.keys.keys() : []), ...(c.uses?.entries || []).filter(e => e.status !== 'invalid').map(e => e.key)])],
+      stateKeys: stateKeysOf(c),
       calculated: [...c.calculatedKeys],
       contextProvides: [...c.contextKeys],
       contextConsumes: contextNames(c.contextConsumed),
@@ -434,6 +466,7 @@ export function buildGraph(project, diagnostics = []) {
     }
     const entry = entryOf(c)
     if (entry !== undefined) node.entry = entry
+    readsInto(node, project, c, usagesByComp.get(c))
     // PLAN-10 A-4: where the context entries and the EVENTS emit / select sites are
     if (c.contextEntries?.size) node.contextEntries = [...c.contextEntries].map(([name, e]) => ({ name, ...at(e.keyNode, e.file, c.file) }))
     if (sites.get(c).length) node.eventSites = sites.get(c)
@@ -511,6 +544,7 @@ export function buildGraph(project, diagnostics = []) {
     }
     const entry = entryOf(u)
     if (entry !== undefined) node.entry = entry
+    readsInto(node, project, u, usagesByComp.get(u))
     components.push(node)
   }
 
@@ -519,6 +553,41 @@ export function buildGraph(project, diagnostics = []) {
   components.forEach((node, i) => { node.key = keys.get(units[i]) })
 
   return { version: 1, source: 'static', components, events, diagnostics: appWide.map(d => slimDiagnostic(d)) }
+}
+
+/** The initialState keys and the uses keys (behavior slices). */
+function stateKeysOf(c) {
+  return [...new Set([...(c.initialState ? c.initialState.keys.keys() : []), ...(c.uses?.entries || []).filter(e => e.status !== 'invalid').map(e => e.key)])]
+}
+
+/**
+ * PLAN-10 A-7: the state keys a component reads: its view (state.x, { state: { x } }), the literal
+ * state lenses it gives children (`state="user"`, Collection `from="items"`: the first segment of a
+ * path), and its calculated and context functions. stateReads is omitted when empty;
+ * stateReadsPartial: true when the list may be incomplete (the state used whole, a computed key,
+ * a view or a function the checker can't read).
+ */
+function readsInto(node, project, c, usages) {
+  const keys = []
+  let partial = false
+  const add = (r) => {
+    if (!r) { partial = true; return }
+    for (const k of r.keys) if (!keys.includes(k)) keys.push(k)
+    if (r.partial) partial = true
+  }
+  add(c.view ? stateReads(project, c.file, c.view) : null)
+  for (const { usage, via, from } of usages || []) {
+    if (via === 'slot') continue
+    for (const lens of [usage.state, from]) if (typeof lens === 'string' && lens) { const k = lens.split('.')[0]; if (!keys.includes(k)) keys.push(k) }
+  }
+  for (const entries of [c.calculatedEntries, c.contextEntries]) {
+    for (const e of entries?.values() || []) {
+      const r = resolveExpr(project, e.file, e.node)
+      add(r?.node && isFunction(r.node) ? stateReads(project, r.file, r.node, { state: true }) : null)
+    }
+  }
+  if (keys.length) node.stateReads = keys
+  if (partial) node.stateReadsPartial = true
 }
 
 /**

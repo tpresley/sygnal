@@ -181,7 +181,9 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
 /**
  * @returns {{
  *   known: boolean,
- *   entries: Array<{ action, sinks: string[], node, key, shorthand }>,
+ *   entries: Array<{ action, sinks: string[], node, key, shorthand,
+ *                    stateValue, hostValue }>,   // PLAN-10 A-7: { node, file } of the STATE / HOST
+ *                                                // reducer (null when the entry has none)
  *   nextTargets: Array<{ name, node, file }>,
  *   dynamicNext: Array<{ node, file }>,
  *   eventsEmitted: Array<{ type, node, file }>,
@@ -228,7 +230,10 @@ export function analyzeModel(project, file, modelNode) {
     const { action, sink, shorthand } = splitModelKey(key)
     const value = p.type === 'ObjectMethod' ? p : unwrap(p.value)
     let sinks
+    // PLAN-10 A-7: the STATE reducer (and a behavior's HOST reducer), for the writes analysis
+    let stateValue = null, hostValue = null
     if (shorthand) {
+      if (sink === 'STATE') stateValue = { node: value, file: mfile }
       sinks = [sink]
       if (sink === 'EVENTS') addEvents(value)
       addReplies(action, sink, value)
@@ -241,14 +246,17 @@ export function analyzeModel(project, file, modelNode) {
         if (!sname) continue
         sinks.push(sname)
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
+        if (sname === 'STATE') stateValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile }
+        if (sname === 'HOST') hostValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile }
         if (sname === 'EVENTS') addEvents(sval)
         addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
         res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), keyNode: sp.key, file: mfile })
       }
     } else {
       sinks = ['STATE']
+      stateValue = { node: value, file: mfile }
     }
-    res.entries.push({ action, sinks, node: p.key, key, shorthand, file: mfile })
+    res.entries.push({ action, sinks, node: p.key, key, shorthand, file: mfile, stateValue, hostValue })
   }
 
   // next('X') targets: inside the model object and any module-level reducer

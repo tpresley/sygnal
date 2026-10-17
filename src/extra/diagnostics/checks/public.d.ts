@@ -130,6 +130,13 @@ export interface InspectAction extends Partial<InspectLocation> {
   behavior?: string
   /** static, PLAN-10 A-4: the model entry (line/column on the action: the intent property, else this) */
   modelAt?: InspectLocation
+  /**
+   * static, PLAN-10 A-7 (actions with a STATE sink only): the top-level state keys the STATE
+   * reducer(s) may write (a behavior's: its slice); [] when it never changes state; null when unknown
+   */
+  writes?: string[] | null
+  /** static, PLAN-10 A-7: a STATE reducer may return undefined (removes a Collection item) */
+  removes?: true
 }
 
 export interface InspectChild extends Partial<InspectLocation> {
@@ -295,6 +302,13 @@ export interface InspectComponent {
   contextProvides: string[]
   /** context fields its view reads (static only; null at runtime) */
   contextConsumes?: string[] | null
+  /**
+   * static, PLAN-10 A-7: top-level state keys the view (and its child lenses, calculated and
+   * context functions) reads literally; omitted when none
+   */
+  stateReads?: string[]
+  /** static, PLAN-10 A-7: stateReads may be incomplete (the state used whole somewhere) */
+  stateReadsPartial?: true
   /** EVENTS types this component emits */
   eventsEmitted: string[]
   /** EVENTS types this component selects ('*' = EVENTS.select() without a type) */

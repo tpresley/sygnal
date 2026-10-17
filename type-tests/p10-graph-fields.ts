@@ -12,7 +12,13 @@ const select: InspectChildSelect = { child: 'CartLine', id: 'src/CartLine.jsx:2'
 
 const shop: InspectComponent = {
   name: 'Shop', id: 'src/App.jsx:24', key: 'src/App.jsx#Shop', parentId: null, file: 'src/App.jsx', kind: 'switchable', viewOnly: true, entry: 'unknown',
-  actions: [{ name: 'GO', trigger: 'intent', sinks: ['STATE'], line: 34, column: 3, modelAt: { line: 39, column: 3 } }],
+  actions: [
+    { name: 'GO', trigger: 'intent', sinks: ['STATE'], line: 34, column: 3, modelAt: { line: 39, column: 3 }, writes: ['page'] },
+    // PLAN-10 A-7: unknown writes, and an item removal
+    { name: 'SET', trigger: 'intent', sinks: ['STATE', 'EFFECT'], writes: null },
+    { name: 'DROP', trigger: 'intent', sinks: ['STATE'], writes: [], removes: true },
+  ],
+  stateReads: ['page', 'cart'], stateReadsPartial: true,
   stateKeys: [], calculated: [], contextProvides: ['currency'], eventsEmitted: [], eventsSelected: ['NAVIGATE'],
   children: [child, widget, lens], selectors: [{ selector: '.logo', events: ['click'], matched: true, isolationHit: null, line: 13, column: 19 }],
   contextEntries: [{ name: 'currency', line: 30, column: 3 }],
@@ -43,7 +49,11 @@ const badApp: InspectComponent['app'] = '0'
 const badEntry: InspectComponent['entry'] = false
 // @ts-expect-error an event site is an emit or a select
 const badRole: NonNullable<InspectComponent['eventSites']>[number]['role'] = 'listen'
+// @ts-expect-error removes is only ever true (omitted otherwise)
+const badRemoves: InspectComponent['actions'][number]['removes'] = false
+// @ts-expect-error stateReads is a list or omitted, never null
+const badReads: InspectComponent['stateReads'] = null
 // @ts-expect-error a child select has its location
 const noLine: InspectChildSelect = { child: 'X', id: null, actions: [] }
 
-export { loc, elsewhere, trigger, g, badEntry, badRole, noLine, live, badShown, badApp }
+export { loc, elsewhere, trigger, g, badEntry, badRole, noLine, live, badShown, badApp, badRemoves, badReads }

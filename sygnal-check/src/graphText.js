@@ -2,8 +2,10 @@
  * Text form of the app graph (`sygnal-check --graph` without --json).
  *
  *   RootComponent  src/RootComponent.jsx:12  root  entry
- *     actions   ADD_LANE (intent → STATE), DELETE_LANE (intent → STATE), INITIALIZE (builtin → STATE)
+ *     actions   ADD_LANE (intent → STATE writes nextId, lanes), DELETE_LANE (intent → STATE writes lanes),
+ *               REMOVE (intent → STATE removes), SAVE (intent → STATE)   (no `writes`: not known)
  *     state     lanes, dragging, nextId
+ *     reads     lanes, dragging   (… when incomplete: the state used whole somewhere)
  *     context   provides draggingTaskId
  *     events    selects DELETE_LANE
  *     children  LaneComponent (collection from 'lanes'), Toaster (tag, sygnal/ui), Menu (widget, sygnal/ui/menu)
@@ -26,6 +28,19 @@ function selectorText(s) {
   return `${s.control ?? s.selector}${s.events?.length ? ` [${s.events.join(',')}]` : ''} ${mark}`
 }
 
+/** PLAN-10 A-7: 'STATE writes a, b' / 'STATE writes nothing' / 'STATE removes'; plain STATE when unknown. */
+function sinkText(a, sink) {
+  if (sink !== 'STATE' || !a.writes) return sink
+  const w = a.writes.length ? `writes ${list(a.writes)}` : a.removes ? '' : 'writes nothing'
+  return `STATE ${[w, a.removes && 'removes'].filter(Boolean).join(' or ')}`
+}
+
+// 'STATE+EFFECT', or 'STATE writes todos + EFFECT' once a sink's text has words
+function sinksText(a) {
+  const xs = a.sinks.map(x => sinkText(a, x))
+  return xs.join(xs.some(x => x.includes(' ')) ? ' + ' : '+')
+}
+
 function timerText(t) {
   const ms = (v) => v == null ? '?' : `${v} ms`
   const how = 'frame' in t ? 'frame' : 'every' in t ? `every ${ms(t.every)}` : 'after' in t ? `after ${ms(t.after)}` : '?'
@@ -39,8 +54,9 @@ export function formatGraph(g, { verbose = false } = {}) {
     const marks = [c.entry === true ? 'entry' : c.entry === 'unknown' ? 'entry?' : '', c.viewOnly ? 'view only' : ''].filter(Boolean).map(m => '  ' + m).join('')
     out.push(`${c.name}  ${c.file ? c.file + ':' + c.id.split(':').pop() : '#' + c.id}  ${c.kind}${marks}`)
     const row = (label, value) => { if (value) out.push(`  ${label.padEnd(9)} ${value}`) }
-    row('actions', list(c.actions.map(a => `${a.name} (${a.trigger}${a.sinks.length ? ' → ' + a.sinks.join('+') : ', no model entry'})`)))
+    row('actions', list(c.actions.map(a => `${a.name} (${a.trigger}${a.sinks.length ? ' → ' + sinksText(a) : ', no model entry'})`)))
     row('state', list(c.stateKeys))
+    row('reads', c.stateReads || c.stateReadsPartial ? `${list(c.stateReads || [])}${c.stateReadsPartial ? (c.stateReads ? ' …' : '…') : ''}` : '')
     row('calc', list(c.calculated))
     const ctx = [
       c.contextProvides.length ? `provides ${list(c.contextProvides)}` : '',
