@@ -25,7 +25,7 @@
   [`research/graph-viz/`](research/graph-viz/README.md) built a working page from the unchanged
   graph and found the data gaps listed in §1.1. The user accepted all of its recommendations on
   2026-10-16 (D500–D507) and asked for research into large apps (S-1).
-- Questions answered 2026-10-16 (D508–D514); Phase 0 started 2026-10-16. Tracker: [`PLAN-10-status.md`](PLAN-10-status.md).
+- Questions answered 2026-10-16 (D508–D514). Phase 0 complete 2026-10-16: the user chose the large-app defaults (D536), no layout dependency (D537), and Vike route labels with layout → page edges (D538, new item A-9). Tracker: [`PLAN-10-status.md`](PLAN-10-status.md).
 
 **Branches:**
 - integration: `plan10-integration`, cut from `main`;

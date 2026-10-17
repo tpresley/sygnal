@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** Phase 0 in progress. The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** Phase 0 complete (S-1 decided: D536–D538); Phases 1–2 in progress. The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
 
 ## Decisions
 
@@ -48,6 +48,9 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D533 | 2026-10-16 | A-7: `actions[].removes: true` flags a reducer that may return undefined (removes a Collection item), separate from `writes` (coordinator) |
 | D534 | 2026-10-16 | X-1 outcome (D512 measured): **SYG170** (context read with no provider) and **SYG171** (`PARENT` that no parent reads) ship as static warnings, 0 findings left on 17 examples, 840 docs samples, the fixtures and the private app after each false positive became a silence condition; **SYG172** (unreachable from any entry) stays page-only (62/62 false positives). Record: `research/graph-viz/graph-rules.md`; the render graph and entries moved to `sygnal-check/src/model/renderGraph.js` (coordinator) |
 | D535 | 2026-10-16 | W-1 details: live pages carry every code title (≈7 KB) since later graphs may add codes; `<link rel="icon" href="data:,">` (Firefox's favicon request vs the CSP); `--poll` defaults to 200 ms (20–60,000); imported files outside the inputs are watched; `--watch` with `--out`, and `--poll`/`--port` without `--watch`, exit 2 (coordinator) |
+| D536 | 2026-10-16 | **Large-app defaults (S-1)**: N ≤ 60 the current layout; 60 < N ≤ 150 open directory groups each laid out on its own, focus mode on select (depth 2), bus nodes only where they cut edges, minimap; N > 150 directory groups start folded (one card each, bundled ×N edges, wrapped rows). Always: semantic zoom (text and overlays hidden below 0.4), search with a results list, health list, outline, an EVENTS table, filters in a menu; SVG, canvas only past ~400 drawn nodes. Not defaults: depth auto-folding, community grouping, a bus node per event type (user) |
+| D537 | 2026-10-16 | No layout library as an optional dependency; the hand-written layered layout stays (user) |
+| D538 | 2026-10-16 | Vike: `+Page` / `+Layout` cards are labelled by their route, and the graph gets an implicit layout → page edge (user) |
 
 ## Items
 
@@ -63,11 +66,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ✅ merged `34e9dba6` | the page doesn't use `writes`/`stateReads` yet: with V-4 | |
+| A-9 Vike routes and layout → page edges | 2 | 🔄 `p10-vike-routes` | D538 (added 2026-10-16) |
 | A-8 Schema, text, MCP, runtime parity | 1 | ✅ merged `3e23b82b` | static + runtime fields, `key`, D528 |
 | V-1 Renderer module | 1 | ✅ merged `464fb567` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ✅ merged `90e2a085` | |
 | V-3 Runtime graphs | 2 | 🔄 `p10-runtime-view` | |
-| V-4 Large-app strategies | 1–2 | ⏳ | after S-1's decision |
+| V-4 Large-app strategies | 1–2 | 🔄 `p10-large-view` | D536; with the page follow-ups (state trace from `writes`/`stateReads`, the context health item fixed per SYG170, unreachable as a filter, G-802) |
 | V-5 Accessibility and polish | 1 | ✅ merged `464fb567` | |
 | V-6 Diff rendering | 3 | ⏳ | |
 | C-1 `--graph=html` | 1 | ✅ merged `464fb567` | |
