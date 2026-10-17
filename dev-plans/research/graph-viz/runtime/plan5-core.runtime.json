@@ -1,0 +1,1471 @@
+{
+  "version": 1,
+  "source": "runtime",
+  "components": [
+    {
+      "name": "Glossary",
+      "id": "0",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "REVERSE",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "SORT",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "terms"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [
+        {
+          "name": "Term",
+          "via": "collection",
+          "count": 3
+        }
+      ],
+      "selectors": [
+        {
+          "selector": ".reverse",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".sort",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Counter",
+      "id": "1",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "INC",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "ARM",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "n",
+        "armed"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".inc",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".arm",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Scoreboard",
+      "id": "2",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "POINT",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "RENAME",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "host",
+        "players"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [
+        {
+          "name": "Greeting",
+          "via": "tag",
+          "count": 1
+        },
+        {
+          "name": "Total",
+          "via": "tag",
+          "count": 1
+        },
+        {
+          "name": "Score",
+          "via": "collection",
+          "count": 2
+        }
+      ],
+      "selectors": [
+        {
+          "selector": ".point",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".rename",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Host",
+      "id": "3",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "INC",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "n"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".inc",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Pin",
+      "id": "4",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "PIN",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "pin"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".pin",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Tasks",
+      "id": "5",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "BACK",
+          "trigger": "intent",
+          "sinks": [
+            "ROUTER"
+          ]
+        },
+        {
+          "name": "ROUTE",
+          "trigger": "reply",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "route",
+        "editor"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [
+        {
+          "name": "Home",
+          "via": "switchable",
+          "count": 1
+        },
+        {
+          "name": "TaskPage",
+          "via": "switchable",
+          "count": 1
+        },
+        {
+          "name": "NotFound",
+          "via": "switchable",
+          "count": 1
+        }
+      ],
+      "selectors": [
+        {
+          "selector": ".back",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Quotes",
+      "id": "6",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "ADD",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "cards",
+        "next"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [
+        {
+          "name": "QuoteCard",
+          "via": "collection",
+          "count": 2
+        }
+      ],
+      "selectors": [
+        {
+          "selector": ".add",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Term",
+      "id": "7",
+      "parentId": "0",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "STAR",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "term",
+        "meaning",
+        "starred"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": "dt",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Term",
+      "id": "8",
+      "parentId": "0",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "STAR",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "term",
+        "meaning",
+        "starred"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": "dt",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Term",
+      "id": "9",
+      "parentId": "0",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "STAR",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "term",
+        "meaning",
+        "starred"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": "dt",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Greeting",
+      "id": "10",
+      "parentId": "2",
+      "kind": "child",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "name"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "Total",
+      "id": "11",
+      "parentId": "2",
+      "kind": "child",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "host",
+        "players"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "Score",
+      "id": "12",
+      "parentId": "2",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "name",
+        "points"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "Score",
+      "id": "13",
+      "parentId": "2",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "name",
+        "points"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "InfoCard",
+      "id": "14",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "FOLD",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "heading",
+        "open"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".fold",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Home",
+      "id": "15",
+      "parentId": "5",
+      "kind": "switchable",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "route",
+        "editor"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "TaskPage",
+      "id": "16",
+      "parentId": "5",
+      "kind": "switchable",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "route",
+        "editor"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "NotFound",
+      "id": "17",
+      "parentId": "5",
+      "kind": "switchable",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "route",
+        "editor"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "QuoteCard",
+      "id": "18",
+      "parentId": "6",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "NEXT",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "REFRESH",
+          "trigger": "intent",
+          "sinks": [
+            "HTTP"
+          ]
+        },
+        {
+          "name": "REMOVE",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "RESOURCE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "quote",
+        "id",
+        "qid"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".next",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".refresh",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".remove",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": [],
+      "resources": [
+        {
+          "name": "quote",
+          "status": "success",
+          "refreshing": false,
+          "hasData": true
+        }
+      ]
+    },
+    {
+      "name": "Signup",
+      "id": "19",
+      "parentId": null,
+      "kind": "root",
+      "actions": [
+        {
+          "name": "CLICK",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "NICK",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "clicks",
+        "nick",
+        "topics"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [
+        {
+          "name": "Topic",
+          "via": "collection",
+          "count": 2
+        }
+      ],
+      "selectors": [
+        {
+          "selector": ".count",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".nick",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": []
+    },
+    {
+      "name": "Topic",
+      "id": "20",
+      "parentId": "19",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "label"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "Topic",
+      "id": "21",
+      "parentId": "19",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "id",
+        "label"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [],
+      "diagnostics": []
+    },
+    {
+      "name": "QuoteCard",
+      "id": "22",
+      "parentId": "6",
+      "kind": "collection-item",
+      "actions": [
+        {
+          "name": "NEXT",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "REFRESH",
+          "trigger": "intent",
+          "sinks": [
+            "HTTP"
+          ]
+        },
+        {
+          "name": "REMOVE",
+          "trigger": "intent",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "RESOURCE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        },
+        {
+          "name": "INITIALIZE",
+          "trigger": "builtin",
+          "sinks": [
+            "STATE"
+          ]
+        }
+      ],
+      "stateKeys": [
+        "quote",
+        "id",
+        "qid"
+      ],
+      "calculated": [],
+      "contextProvides": [],
+      "contextConsumes": null,
+      "eventsEmitted": [],
+      "eventsSelected": [],
+      "children": [],
+      "selectors": [
+        {
+          "selector": ".next",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".refresh",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        },
+        {
+          "selector": ".remove",
+          "events": null,
+          "matched": true,
+          "isolationHit": null
+        }
+      ],
+      "diagnostics": [],
+      "resources": [
+        {
+          "name": "quote",
+          "status": "success",
+          "refreshing": false,
+          "hasData": true
+        }
+      ]
+    }
+  ],
+  "events": {},
+  "diagnostics": [],
+  "recentActions": [
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "terms": [
+          {
+            "id": "v",
+            "term": "View",
+            "meaning": "A function of state that returns JSX.",
+            "starred": false
+          },
+          {
+            "id": "i",
+            "term": "Intent",
+            "meaning": "Turns DOM events into actions.",
+            "starred": false
+          },
+          {
+            "id": "m",
+            "term": "Model",
+            "meaning": "Reducers per action.",
+            "starred": false
+          }
+        ]
+      },
+      "component": "Glossary",
+      "instance": "0",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 13
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "n": 0,
+        "armed": false
+      },
+      "component": "Counter",
+      "instance": "1",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 13
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "host": {
+          "name": "Grace"
+        },
+        "players": [
+          {
+            "id": 1,
+            "name": "Ada",
+            "points": 3
+          },
+          {
+            "id": 2,
+            "name": "Alan",
+            "points": 5
+          }
+        ]
+      },
+      "component": "Scoreboard",
+      "instance": "2",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 13
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "n": 1
+      },
+      "component": "Host",
+      "instance": "3",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 13
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "pin": ""
+      },
+      "component": "Pin",
+      "instance": "4",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 13
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "route": {
+          "name": "home",
+          "params": {},
+          "query": {},
+          "hash": "",
+          "path": "/"
+        },
+        "editor": {
+          "taskId": null,
+          "draft": "",
+          "routes": 0
+        }
+      },
+      "component": "Tasks",
+      "instance": "5",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 14
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "cards": [
+          {
+            "id": 1,
+            "qid": 1
+          }
+        ],
+        "next": 2
+      },
+      "component": "Quotes",
+      "instance": "6",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 14
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "heading": "Shadow card #1",
+        "open": true
+      },
+      "component": "InfoCard",
+      "instance": "14",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 15
+    },
+    {
+      "type": "ROUTE",
+      "data": {
+        "name": "home",
+        "params": {},
+        "query": {},
+        "hash": "",
+        "path": "/"
+      },
+      "component": "Tasks",
+      "instance": "5",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "reply",
+      "at": 16
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "loading"
+      },
+      "component": "QuoteCard",
+      "instance": "18",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 16
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "success",
+        "data": {
+          "id": 1,
+          "text": "Simplicity is prerequisite for reliability.",
+          "author": "Edsger W. Dijkstra"
+        }
+      },
+      "component": "QuoteCard",
+      "instance": "18",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 718
+    },
+    {
+      "type": "INITIALIZE",
+      "data": {
+        "clicks": 0,
+        "nick": "",
+        "topics": [
+          {
+            "id": 1,
+            "label": "Releases"
+          },
+          {
+            "id": 2,
+            "label": "Events"
+          }
+        ]
+      },
+      "component": "Signup",
+      "instance": "19",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 6640
+    },
+    {
+      "type": "CLICK",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Signup",
+      "instance": "19",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6672
+    },
+    {
+      "type": "REVERSE",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Glossary",
+      "instance": "0",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6702
+    },
+    {
+      "type": "SORT",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Glossary",
+      "instance": "0",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6734
+    },
+    {
+      "type": "INC",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Counter",
+      "instance": "1",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6766
+    },
+    {
+      "type": "ARM",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Counter",
+      "instance": "1",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6797
+    },
+    {
+      "type": "POINT",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Scoreboard",
+      "instance": "2",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6829
+    },
+    {
+      "type": "RENAME",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Scoreboard",
+      "instance": "2",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6860
+    },
+    {
+      "type": "INC",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Host",
+      "instance": "3",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6892
+    },
+    {
+      "type": "ADD",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "Quotes",
+      "instance": "6",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6924
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "loading"
+      },
+      "component": "QuoteCard",
+      "instance": "22",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 6924
+    },
+    {
+      "type": "NEXT",
+      "data": {
+        "isTrusted": false,
+        "propagationHasBeenStopped": false,
+        "ownerTarget": {}
+      },
+      "component": "QuoteCard",
+      "instance": "18",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "intent",
+      "at": 6955
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "loading"
+      },
+      "component": "QuoteCard",
+      "instance": "18",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 6955
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "success",
+        "data": {
+          "id": 2,
+          "text": "Make it work, make it right, make it fast.",
+          "author": "Kent Beck"
+        }
+      },
+      "component": "QuoteCard",
+      "instance": "22",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 7626
+    },
+    {
+      "type": "RESOURCE",
+      "data": {
+        "name": "quote",
+        "status": "success",
+        "data": {
+          "id": 2,
+          "text": "Make it work, make it right, make it fast.",
+          "author": "Kent Beck"
+        }
+      },
+      "component": "QuoteCard",
+      "instance": "18",
+      "sinks": [
+        "STATE"
+      ],
+      "cause": "built-in",
+      "at": 7657
+    }
+  ]
+}

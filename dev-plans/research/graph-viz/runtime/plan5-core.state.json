@@ -1,0 +1,234 @@
+{
+  "0": {
+    "terms": [
+      {
+        "id": "i",
+        "term": "Intent",
+        "meaning": "Turns DOM events into actions.",
+        "starred": false
+      },
+      {
+        "id": "m",
+        "term": "Model",
+        "meaning": "Reducers per action.",
+        "starred": false
+      },
+      {
+        "id": "v",
+        "term": "View",
+        "meaning": "A function of state that returns JSX.",
+        "starred": false
+      }
+    ]
+  },
+  "1": {
+    "n": 2,
+    "armed": true
+  },
+  "2": {
+    "host": {
+      "name": "Margaret"
+    },
+    "players": [
+      {
+        "id": 1,
+        "name": "Ada",
+        "points": 4
+      },
+      {
+        "id": 2,
+        "name": "Alan",
+        "points": 5
+      }
+    ]
+  },
+  "3": {
+    "n": 2
+  },
+  "4": {
+    "pin": ""
+  },
+  "5": {
+    "route": {
+      "name": "home",
+      "params": {},
+      "query": {},
+      "hash": "",
+      "path": "/"
+    },
+    "editor": {
+      "taskId": null,
+      "draft": "",
+      "routes": 0
+    }
+  },
+  "6": {
+    "cards": [
+      {
+        "quote": {
+          "status": "success",
+          "data": {
+            "id": 2,
+            "text": "Make it work, make it right, make it fast.",
+            "author": "Kent Beck"
+          }
+        },
+        "id": 1,
+        "qid": 2
+      },
+      {
+        "quote": {
+          "status": "success",
+          "data": {
+            "id": 2,
+            "text": "Make it work, make it right, make it fast.",
+            "author": "Kent Beck"
+          }
+        },
+        "id": 2,
+        "qid": 2
+      }
+    ],
+    "next": 3
+  },
+  "7": {
+    "id": "v",
+    "term": "View",
+    "meaning": "A function of state that returns JSX.",
+    "starred": false
+  },
+  "8": {
+    "id": "i",
+    "term": "Intent",
+    "meaning": "Turns DOM events into actions.",
+    "starred": false
+  },
+  "9": {
+    "id": "m",
+    "term": "Model",
+    "meaning": "Reducers per action.",
+    "starred": false
+  },
+  "10": {
+    "name": "Margaret"
+  },
+  "11": {
+    "host": {
+      "name": "Margaret"
+    },
+    "players": [
+      {
+        "id": 1,
+        "name": "Ada",
+        "points": 4
+      },
+      {
+        "id": 2,
+        "name": "Alan",
+        "points": 5
+      }
+    ]
+  },
+  "12": {
+    "id": 1,
+    "name": "Ada",
+    "points": 4
+  },
+  "13": {
+    "id": 2,
+    "name": "Alan",
+    "points": 5
+  },
+  "14": {
+    "heading": "Shadow card #2",
+    "open": true
+  },
+  "15": {
+    "route": {
+      "name": "home",
+      "params": {},
+      "query": {},
+      "hash": "",
+      "path": "/"
+    },
+    "editor": {
+      "taskId": null,
+      "draft": "",
+      "routes": 0
+    }
+  },
+  "16": {
+    "route": {
+      "name": "home",
+      "params": {},
+      "query": {},
+      "hash": "",
+      "path": "/"
+    },
+    "editor": {
+      "taskId": null,
+      "draft": "",
+      "routes": 0
+    }
+  },
+  "17": {
+    "route": {
+      "name": "home",
+      "params": {},
+      "query": {},
+      "hash": "",
+      "path": "/"
+    },
+    "editor": {
+      "taskId": null,
+      "draft": "",
+      "routes": 0
+    }
+  },
+  "18": {
+    "quote": {
+      "status": "success",
+      "data": {
+        "id": 2,
+        "text": "Make it work, make it right, make it fast.",
+        "author": "Kent Beck"
+      }
+    },
+    "id": 1,
+    "qid": 2
+  },
+  "19": {
+    "clicks": 1,
+    "nick": "",
+    "topics": [
+      {
+        "id": 1,
+        "label": "Releases"
+      },
+      {
+        "id": 2,
+        "label": "Events"
+      }
+    ]
+  },
+  "20": {
+    "id": 1,
+    "label": "Releases"
+  },
+  "21": {
+    "id": 2,
+    "label": "Events"
+  },
+  "22": {
+    "quote": {
+      "status": "success",
+      "data": {
+        "id": 2,
+        "text": "Make it work, make it right, make it fast.",
+        "author": "Kent Beck"
+      }
+    },
+    "id": 2,
+    "qid": 2
+  }
+}
