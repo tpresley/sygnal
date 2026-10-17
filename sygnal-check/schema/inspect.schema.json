@@ -11,7 +11,7 @@
     "source": { "enum": ["runtime", "static"] },
     "components": { "type": "array", "items": { "$ref": "#/$defs/component" } },
     "events": {
-      "description": "EVENTS bus: type -> names of the components that emit / select it",
+      "description": "EVENTS bus: type -> names (and, static, ids) of the components that emit / select it",
       "type": "object",
       "additionalProperties": {
         "type": "object",
@@ -19,7 +19,9 @@
         "additionalProperties": false,
         "properties": {
           "emitters": { "$ref": "#/$defs/strings" },
-          "selectors": { "$ref": "#/$defs/strings" }
+          "selectors": { "$ref": "#/$defs/strings" },
+          "emitterIds": { "$ref": "#/$defs/strings", "description": "static: the ids of the emitters, parallel to emitters (one entry per component)" },
+          "selectorIds": { "$ref": "#/$defs/strings", "description": "static: the ids of the selectors, parallel to selectors" }
         }
       }
     },
@@ -62,6 +64,8 @@
         "parentId": { "type": ["string", "null"], "description": "runtime: parent instance id; static: null" },
         "file": { "type": "string", "description": "static only: source file relative to the working directory" },
         "kind": { "enum": ["root", "child", "collection-item", "switchable"] },
+        "viewOnly": { "const": true, "description": "static: a function rendered as a component (or started as an entry) that has no statics" },
+        "entry": { "enum": [true, "unknown"], "description": "static: started by run(), defineElement() or a Vike +Page/+Layout; 'unknown' on the other roots when an entry call's component can't be resolved (picked at run time); omitted otherwise" },
         "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
         "stateKeys": { "$ref": "#/$defs/strings" },
         "calculated": { "$ref": "#/$defs/strings" },
@@ -75,6 +79,32 @@
         "eventsSelected": { "$ref": "#/$defs/strings" },
         "children": { "type": "array", "items": { "$ref": "#/$defs/child" } },
         "selectors": { "type": "array", "items": { "$ref": "#/$defs/selector" } },
+        "contextEntries": {
+          "description": "static: where the `context` static's entries are (contextProvides with locations); omitted when unknown or none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/namedLocation" }
+        },
+        "eventSites": {
+          "description": "static: the EVENTS emit and select sites of its intent and model; omitted when none",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "role", "line", "column"],
+            "additionalProperties": false,
+            "properties": {
+              "type": { "type": "string" },
+              "role": { "enum": ["emit", "select"] },
+              "line": { "type": "integer" },
+              "column": { "type": "integer" },
+              "file": { "type": "string", "description": "static: when not the component's file" }
+            }
+          }
+        },
+        "childSelects": {
+          "description": "static: the CHILD.select(Child) calls of its intent (the receivers of the child's PARENT sink); omitted when none",
+          "type": "array",
+          "items": { "$ref": "#/$defs/childSelect" }
+        },
         "uses": {
           "description": "static: the entries of the component's `uses` static (behaviors); omitted when it has none",
           "type": "array",
@@ -120,7 +150,10 @@
             "properties": {
               "name": { "type": "string" },
               "consequential": { "type": "boolean", "description": "consequential: true (the user confirms each call)" },
-              "input": { "type": "boolean", "description": "the action takes input (has an input schema)" }
+              "input": { "type": "boolean", "description": "the action takes input (has an input schema)" },
+              "line": { "type": "integer" },
+              "column": { "type": "integer" },
+              "file": { "type": "string", "description": "static: when not the component's file" }
             }
           }
         },
@@ -133,7 +166,10 @@
             "additionalProperties": false,
             "properties": {
               "name": { "type": "string" },
-              "input": { "type": "boolean", "description": "the query takes input (has an input schema)" }
+              "input": { "type": "boolean", "description": "the query takes input (has an input schema)" },
+              "line": { "type": "integer" },
+              "column": { "type": "integer" },
+              "file": { "type": "string", "description": "static: when not the component's file" }
             }
           }
         },
@@ -149,7 +185,10 @@
         "method": { "type": "string", "description": "the command's method (its first key)" },
         "target": { "type": ["string", "null"], "description": "the control's key or the selector; null when not static" },
         "control": { "type": "string", "description": "the control it targets (its key)" },
-        "triggers": { "$ref": "#/$defs/strings", "description": "intent actions listening on the target for a native event the command causes (close, toggle...)" }
+        "triggers": { "$ref": "#/$defs/strings", "description": "intent actions listening on the target for a native event the command causes (close, toggle...)" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
       }
     },
     "timer": {
@@ -162,7 +201,10 @@
         "after": { "type": ["number", "null"] },
         "frame": { "type": ["string", "null"], "description": "the action a frame timer dispatches" },
         "action": { "type": ["string", "null"] },
-        "background": { "const": true }
+        "background": { "const": true },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
       }
     },
     "action": {
@@ -171,9 +213,13 @@
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string" },
-        "trigger": { "enum": ["intent", "next", "reply", "builtin", "agent", "unknown"], "description": "agent: only an agent declaration (sygnal/ai) dispatches it (static)" },
+        "trigger": { "enum": ["intent", "next", "reply", "builtin", "agent", "behavior", "unknown"], "description": "agent: only an agent declaration (sygnal/ai) dispatches it (static); behavior: a behavior's action nothing else triggers that the behavior may dispatch itself in a way the checker can't list (static)" },
         "sinks": { "$ref": "#/$defs/strings" },
-        "behavior": { "type": "string", "description": "the `uses` key of the behavior that owns this action ('pager' for 'pager.NEXT')" }
+        "behavior": { "type": "string", "description": "the `uses` key of the behavior that owns this action ('pager' for 'pager.NEXT')" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" },
+        "modelAt": { "$ref": "#/$defs/location", "description": "static: the model entry" }
       }
     },
     "uses": {
@@ -194,7 +240,14 @@
         "name": { "type": "string" },
         "via": { "enum": ["tag", "collection", "switchable", "slot"] },
         "from": { "type": ["string", "null"], "description": "Collection: the state field it renders, when known" },
-        "count": { "type": "integer", "description": "runtime: live instances behind this entry" }
+        "count": { "type": "integer", "description": "runtime: live instances behind this entry" },
+        "id": { "type": ["string", "null"], "description": "static: the id of the component it renders (resolved through the import); null when it isn't in the graph (a package, a widget, a file not scanned, a dynamic value)" },
+        "state": { "type": "string", "description": "static: the literal `state` lens of a tag (<Greeting state=\"host\" />)" },
+        "external": { "type": "string", "description": "static: the package the tag is imported from ('sygnal/ui')" },
+        "widget": { "const": true, "description": "static: a widget tag (defineWidget, fromZag, fromReact, the sygnal/ui Zag parts)" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
       }
     },
     "selector": {
@@ -207,7 +260,10 @@
         "matched": { "type": ["boolean", "null"], "description": "matches an element the component itself renders (static: in the view source; renderComponent: in the latest render; real DOM: seen by the DOM checks); null when unknown" },
         "isolationHit": { "type": ["string", "null"], "description": "child component whose isolated elements the selector matches instead" },
         "control": { "type": "string", "description": "the control this selector is (its key), when the intent passed a control" },
-        "behavior": { "type": "string", "description": "the `uses` key of the behavior that listens to it (a control or selector passed as its option)" }
+        "behavior": { "type": "string", "description": "the `uses` key of the behavior that listens to it (a control or selector passed as its option)" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
       }
     },
     "control": {
@@ -218,7 +274,45 @@
         "name": { "type": "string", "description": "the control's key (rendered as data-control=\"<name>\")" },
         "element": { "type": ["string", "null"], "description": "the intrinsic tag for a tag spec; null for a spec object" },
         "kind": { "type": "string", "description": "a spec object's kind (e.g. 'widget')" },
-        "listened": { "type": ["boolean", "null"], "description": "the component's intent listens to it; null when unknown" }
+        "listened": { "type": ["boolean", "null"], "description": "the component's intent listens to it; null when unknown" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
+      }
+    },
+    "location": {
+      "type": "object",
+      "description": "static: a source position (1-based); file only when it isn't the component's file",
+      "required": ["line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
+      }
+    },
+    "namedLocation": {
+      "type": "object",
+      "required": ["name", "line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
+      }
+    },
+    "childSelect": {
+      "type": "object",
+      "required": ["child", "id", "actions", "line", "column"],
+      "additionalProperties": false,
+      "properties": {
+        "child": { "type": ["string", "null"], "description": "the selected component's name as written" },
+        "id": { "type": ["string", "null"], "description": "its id; null when it isn't in the graph" },
+        "actions": { "$ref": "#/$defs/strings", "description": "the intent actions whose stream contains the call (the PARENT receivers)" },
+        "line": { "type": "integer" },
+        "column": { "type": "integer" },
+        "file": { "type": "string", "description": "static: when not the component's file" }
       }
     },
     "diagnostic": {
@@ -229,6 +323,7 @@
         "code": { "type": "string" },
         "severity": { "enum": ["error", "warn", "info"] },
         "component": { "type": "string" },
+        "componentId": { "type": "string", "description": "static: the id of the component it is attached to" },
         "message": { "type": "string" },
         "fix": { "type": "string" },
         "docsUrl": { "type": "string" },

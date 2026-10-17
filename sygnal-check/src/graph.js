@@ -16,19 +16,47 @@
  *   id           'file:line' of the component definition; parentId is null
  *                (a component can be rendered by several parents: see the
  *                parents' `children`)
+ *   viewOnly     true for a function in the scanned files that is rendered as a
+ *                component (or started as an entry) but has no statics (PLAN-10
+ *                A-1); listed after the others, with empty actions/state/selectors
  *   kind         'root' when no scanned component renders it, else how it is
  *                first rendered (tag → child, Collection → collection-item,
  *                Switchable → switchable)
+ *   entry        true when run(), defineElement() or a Vike +Page / +Layout default
+ *                export starts it; 'unknown' on the other roots when an entry call's
+ *                component can't be resolved (picked at run time); omitted otherwise (A-6)
  *   actions      intent actions + model entries; trigger: builtin
  *                (BOOTSTRAP/INITIALIZE/DISPOSE/READY), intent, reply (an
  *                ok/error literal in a request, or a `connections` name),
- *                next (a next('NAME') literal in the model), else unknown
+ *                next (a next('NAME') literal in the model), behavior (a `uses`
+ *                entry's action nothing else triggers that the behavior may dispatch
+ *                itself where the checker can't list it: a package behavior, an open
+ *                model like form's, an unreadable intent or dynamic names), else unknown.
+ *                line/column (+ file): the intent property, else the model entry;
+ *                modelAt: the model entry (A-4)
+ *
+ *   Locations (PLAN-10 A-4) are { line, column } (1-based), with `file` only when it
+ *   isn't the component's file; actions, selectors, children, controls, commands,
+ *   timers, agent actions / queries and childSelects carry them inline.
  *   stateKeys    initialState keys (when statically known)
  *   contextConsumes  context fields the view reads (context.x / { context: { x } })
  *   events       EVENTS sinks returning { type: 'X' }, emit()/event() calls,
- *                EVENTS.select('X') in the component's intent / static props
+ *                EVENTS.select('X') in the component's intent / static props.
+ *                The graph's `events[type]` also has emitterIds / selectorIds,
+ *                parallel to emitters / selectors (one entry per component, A-3);
+ *                eventSites: [{ type, role: 'emit' | 'select', line, column }]
+ *                per component (omitted when none)
+ *   contextEntries  [{ name, line, column }] of the `context` static (omitted when none)
  *   children     tag / Collection / Switchable usages in the view, and
- *                components passed into a child as children or slots ('slot')
+ *                components passed into a child as children or slots ('slot'),
+ *                and widget tags (`widget: true`); id: the rendered node's id,
+ *                resolved through the import (null: not in the graph: a package,
+ *                a widget, a file not scanned, a dynamic value); state: a literal
+ *                `state` lens; external: the package a tag is imported from
+ *                ('sygnal/ui'; package components are not nodes, A-2)
+ *   childSelects CHILD.select(Child) in the intent: { child, id, actions (the intent
+ *                actions whose stream contains it: the receivers of the child's
+ *                PARENT sink), line, column } (omitted when none; A-5)
  *   selectors    intent DOM selectors; matched / isolationHit from the
  *                SYG110 / SYG104 findings (null for document/body/dynamic);
  *                `control` names the control a selector is ([data-control="Add"])
@@ -52,7 +80,7 @@
  *                agent.queries tools; omitted when none), partial? (spreads: incomplete) }
  *                (omitted when none). Actions only an agent dispatches have trigger 'agent'
  *   diagnostics  the normal rules (+ strict ones with `strict: true`),
- *                attached to their component, the rest app-wide
+ *                attached to their component (with its `componentId`), the rest app-wide
  */
 import path from 'node:path'
 import { expandInputs } from './files.js'
@@ -60,15 +88,16 @@ import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { runRules, sortDiagnostics } from './run.js'
 import { resolveOptions } from './config.js'
-import { memberName, stringValue, loc } from './ast.js'
-import { resolveExpr } from './model/resolve.js'
+import { memberName, stringValue, loc, walk, fileOfNode, unwrap, isFunction } from './ast.js'
+import { resolveExpr, resolveExport } from './model/resolve.js'
 import { BUILTIN_ACTIONS } from './model/modelEntries.js'
 import { listenedControls } from './rules/syg124-controls.js'
 import { behaviorActions } from './model/behaviors.js'
 import { specFields } from './model/timers.js'
 import { CAUSED_EVENTS } from './model/elementCommands.js'
 import { agentName } from './model/agent.js'
-import { contextNames } from './model/context.js'
+import { contextNames, contextReads } from './model/context.js'
+import { findBinding } from './scope.js'
 
 const VIA_KIND = { tag: 'child', collection: 'collection-item', switchable: 'switchable' }
 
@@ -92,7 +121,7 @@ export function graphFiles(files, options = {}) {
 
 const contains = (outer, inner) => !!outer && !!inner && inner.start >= outer.start && inner.end <= outer.end
 
-/** Every child usage of a view sink, with the ones passed INTO children as 'slot'. */
+/** Every child usage of a view sink, with the ones passed INTO children as 'slot' (widgets: `widget`). */
 function usagesOf(sink, slot = false, out = [], seen = new Set()) {
   if (!sink || seen.has(sink)) return out
   seen.add(sink)
@@ -100,7 +129,55 @@ function usagesOf(sink, slot = false, out = [], seen = new Set()) {
     out.push({ usage: u, via: slot ? 'slot' : u.kind, from: u.kind === 'collection' ? collectionFrom(sink, u) : undefined })
     usagesOf(u.injected, true, out, seen)
   }
+  for (const w of sink.widgets || []) out.push({ usage: w, via: slot ? 'slot' : 'tag', widget: true })
   return out
+}
+
+/** The location fields of a node: { line, column }, plus `file` when it isn't the component's file. */
+function where(rel, node, file, base) {
+  const p = loc(node)
+  const out = { line: p.line, column: p.column }
+  if (file && file !== base) out.file = rel(file)
+  return out
+}
+
+/** The name a view-only component is declared under (its function, or the const it is assigned to). */
+function declaredName(file, fn) {
+  if (fn.id?.name) return fn.id.name
+  const p = file.parents.get(fn)
+  return p?.type === 'VariableDeclarator' && p.id.type === 'Identifier' ? p.id.name : null
+}
+
+const SYGNAL = /^sygnal(\/|$)/
+// PLAN-10 A-6: the calls that start an app or register a component, and the argument holding it
+const ENTRY_CALLS = { run: 0, defineElement: 1 }
+const VIKE_PAGE = /(^|[\\/])\+(Page|Layout)\.[cm]?[jt]sx?$/
+
+/**
+ * The components the scanned files start: run(App), defineElement(tag, App), and Vike's
+ * `+Page` / `+Layout` default exports. → { refs: [{ file, node }], unknown } (unknown: a call whose
+ * component the checker can't resolve, e.g. a parameter picked at run time)
+ */
+function findEntries(project) {
+  const refs = []
+  let unknown = false
+  const add = (r) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node }); else unknown = true }
+  for (const p of project.scanned) {
+    const file = project.files.get(p)
+    if (!file) continue
+    walk(file.ast.program, (n) => {
+      if (n.type !== 'CallExpression') return true
+      const callee = unwrap(n.callee)
+      if (callee?.type !== 'Identifier') return true
+      const b = findBinding(file, callee.name, callee)
+      if (b?.kind !== 'import' || !SYGNAL.test(b.source) || !Object.hasOwn(ENTRY_CALLS, b.imported)) return true
+      const arg = n.arguments[ENTRY_CALLS[b.imported]]
+      if (arg && arg.type !== 'SpreadElement') add(resolveExpr(project, file, arg))
+      return true
+    })
+    if (VIKE_PAGE.test(p)) { const r = resolveExport(project, file, 'default'); if (r) add(r) }
+  }
+  return { refs, unknown }
 }
 
 function collectionFrom(sink, usage) {
@@ -108,9 +185,10 @@ function collectionFrom(sink, usage) {
   return c ? c.from : null
 }
 
-function slimDiagnostic(d) {
+function slimDiagnostic(d, componentId) {
   const out = { code: d.code, severity: d.severity, message: d.message }
   if (d.component) out.component = d.component
+  if (componentId) out.componentId = componentId
   if (d.fix) out.fix = d.fix
   if (d.docsUrl) out.docsUrl = d.docsUrl
   if (d.data !== undefined) out.data = d.data
@@ -129,15 +207,51 @@ export function buildGraph(project, diagnostics = []) {
   const comps = project.components
   const rel = (file) => project.relPath(file.path)
   const idOf = (c) => `${rel(c.file)}:${loc(c.node).line}`
+  const at = (node, file, base) => where(rel, node, file, base)
+
+  // PLAN-10 A-6: the entries (run(), defineElement(), Vike pages)
+  const entries = findEntries(project)
+
+  // PLAN-10 A-1: view-only components, functions in the scanned files rendered as component tags
+  // (or started as entries) that have no statics; they render children too
+  const units = [...comps]
+  const viewOnly = new Map() // function node → unit
+  const scannedComp = new Set(comps)
+  const unitOf = (ref) => {
+    if (!ref?.node) return null
+    const c = project.componentForFunction(ref.node)
+    if (c) return scannedComp.has(c) ? c : null
+    if (viewOnly.has(ref.node)) return viewOnly.get(ref.node)
+    if (!project.scanned.has(ref.file.path)) return null
+    const decl = ref.file.parents.get(ref.node)
+    const u = {
+      name: declaredName(ref.file, ref.node), file: ref.file, node: decl?.type === 'VariableDeclarator' ? decl : ref.node, view: ref.node,
+      viewOnly: true, viewInfo: null, staticProps: {},
+    }
+    viewOnly.set(ref.node, u)
+    units.push(u)
+    u.viewInfo = project.viewOf(ref)
+    return u
+  }
+  const entryUnits = new Set(entries.refs.map(unitOf).filter(Boolean))
+  const usagesByComp = new Map()
+  for (let i = 0; i < units.length; i++) {
+    const c = units[i]
+    const usages = usagesOf(c.viewInfo)
+    usagesByComp.set(c, usages)
+    for (const { usage } of usages) {
+      const u = usage.ref && unitOf(usage.ref)
+      if (u?.viewOnly && !u.name) u.name = usage.name
+    }
+  }
+  for (const u of viewOnly.values()) if (!u.name) u.name = path.basename(u.file.path).replace(/\.[^.]+$/, '')
+  const idFor = (ref) => { const u = ref && unitOf(ref); return u ? idOf(u) : null }
 
   // kind: how each component is rendered by the other scanned components
   const renderedAs = new Map()
-  const usagesByComp = new Map()
-  for (const c of comps) {
-    const usages = usagesOf(c.viewInfo)
-    usagesByComp.set(c, usages)
-    for (const { usage, via } of usages) {
-      const target = usage.ref && project.componentForFunction(usage.ref.node)
+  for (const c of units) {
+    for (const { usage, via } of usagesByComp.get(c)) {
+      const target = usage.ref && unitOf(usage.ref)
       if (target && target !== c && !renderedAs.has(target)) renderedAs.set(target, via === 'slot' ? usage.kind : via)
     }
   }
@@ -155,18 +269,29 @@ export function buildGraph(project, diagnostics = []) {
   }
   const selected = new Map(comps.map(c => [c, new Set()]))
   const emitted = new Map(comps.map(c => [c, new Set()]))
+  const sites = new Map(comps.map(c => [c, []]))
   const events = {}
-  const ev = (type) => events[type] || (events[type] = { emitters: [], selectors: [] })
-  const add = (list, name) => { if (!list.includes(name)) list.push(name) }
+  // PLAN-10 A-3: emitterIds / selectorIds parallel to the names (one entry per component)
+  const ev = (type) => events[type] || (events[type] = { emitters: [], selectors: [], emitterIds: [], selectorIds: [] })
+  const add = (e, key, owner) => {
+    const id = idOf(owner), ids = e[key === 'emitters' ? 'emitterIds' : 'selectorIds']
+    if (ids.includes(id)) return
+    e[key].push(owner.name)
+    ids.push(id)
+  }
+  const site = (owner, type, role, e) => {
+    const file = e.file || fileOfNode(project, e.node, owner.file)
+    sites.get(owner).push({ type, role, ...at(e.node, file, owner.file) })
+  }
   for (const s of project.events.selected) {
     const owner = ownerOf(s, 'select')
     ev(s.type)
-    if (owner) { selected.get(owner).add(s.type); add(events[s.type].selectors, owner.name) }
+    if (owner) { selected.get(owner).add(s.type); add(events[s.type], 'selectors', owner); if (!s.implicit) site(owner, s.type, 'select', s) }
   }
   for (const e of project.events.emitted) {
     const owner = e.component ? comps.find(c => c.name === e.component && c.model?.eventsEmitted.some(x => x.node === e.node)) : ownerOf(e, 'emit')
     ev(e.type)
-    if (owner) { emitted.get(owner).add(e.type); add(events[e.type].emitters, owner.name) }
+    if (owner) { emitted.get(owner).add(e.type); add(events[e.type], 'emitters', owner); site(owner, e.type, 'emit', e) }
   }
 
   // diagnostics: attach to the component (by name, disambiguated by file), the rest app-wide
@@ -180,50 +305,83 @@ export function buildGraph(project, diagnostics = []) {
     else appWide.push(d)
   }
 
+  const childrenOf = (c) => {
+    const children = []
+    for (const { usage, via, from, widget } of usagesByComp.get(c)) {
+      const id = widget ? null : idFor(usage.ref)
+      if (children.some(x => x.name === usage.name && x.via === via && x.id === id)) continue
+      const child = { name: usage.name, via }
+      if (via === 'collection') child.from = from ?? null
+      child.id = id
+      if (usage.state != null) child.state = usage.state
+      if (usage.external) child.external = usage.external
+      if (widget) child.widget = true
+      Object.assign(child, at(usage.node, usage.file, c.file))
+      children.push(child)
+    }
+    return children
+  }
+  const entryOf = (c) => entryUnits.has(c) ? true : entries.unknown && !renderedAs.has(c) ? 'unknown' : undefined
+
   const components = comps.map(c => {
     const intentActions = (c.intent?.actions || []).map(a => a.name)
-    const entries = c.model?.entries || []
+    const modelEntries = c.model?.entries || []
     const next = new Set((c.model?.nextTargets || []).map(t => t.name))
     const replies = new Set([...(c.model?.replyTargets || []), ...(c.connections?.targets || [])].map(t => t.name))
     const sinks = new Map()
     for (const a of intentActions) sinks.set(a, sinks.get(a) || [])
-    for (const e of entries) {
+    for (const e of modelEntries) {
       const list = sinks.get(e.action) || []
       for (const s of e.sinks) if (!list.includes(s)) list.push(s)
       sinks.set(e.action, list)
     }
     // PLAN-4 GS-1: behavior-owned actions ('pager.NEXT'), with the uses key that owns them
     const owned = behaviorActions(c.uses)
+    const usesByKey = new Map()
     for (const e of c.uses?.entries || []) {
+      if (e.status !== 'invalid') usesByKey.set(e.key, e)
       if (!e.def) continue
       for (const t of e.def.nextTargets) next.add(e.def.model?.has(t) ? `${e.key}.${t}` : t)
-      for (const t of e.def.replyTargets) replies.add(t)
+      // PLAN-10 A-8: a reply the behavior's own request names goes to its own (namespaced) action
+      for (const t of e.def.replyTargets) replies.add(e.def.model?.has(t) ? `${e.key}.${t}` : t)
     }
     for (const [name, b] of owned) {
       const list = sinks.get(name) || []
       for (const s of b.sinks) if (!list.includes(s)) list.push(s)
       sinks.set(name, list)
     }
+    // PLAN-10 A-8: the uses entry a namespaced action belongs to, and whether that behavior may
+    // dispatch it itself in a way the checker can't list (a package behavior, an open model, an
+    // intent or next()/reply names it can't read)
+    const usesOf = (name) => { const i = name.indexOf('.'); return i > 0 ? usesByKey.get(name.slice(0, i)) || null : null }
+    const selfDispatched = (e) => e.status === 'opaque' || (!!e.def && (!e.def.model || !e.def.intentActions || e.def.dynamic))
     // PLAN-6 K-1: actions only an agent dispatches (the `agent` static's actions)
     const agentActions = new Set((c.agent?.actions || []).map(a => a.name))
+    const intentAt = new Map((c.intent?.actions || []).map(a => [a.name, a]))
+    const modelAt = new Map()
+    for (const e of modelEntries) if (!modelAt.has(e.action)) modelAt.set(e.action, e)
     const actions = [...sinks].map(([name, s]) => {
       const b = owned.get(name)
-      const action = {
-        name,
-        trigger: BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : agentActions.has(name) ? 'agent' : 'unknown',
-        sinks: s,
-      }
+      let trigger = BUILTIN_ACTIONS.has(name) ? 'builtin' : intentActions.includes(name) || b?.intent ? 'intent' : replies.has(name) ? 'reply' : next.has(name) ? 'next' : agentActions.has(name) ? 'agent' : 'unknown'
+      const u = !b && usesOf(name)
+      if (trigger === 'unknown' && (b ? selfDispatched(b.entry) : u && selfDispatched(u))) trigger = 'behavior'
+      const action = { name, trigger, sinks: s }
       if (b) action.behavior = b.entry.key
+      else if (u) action.behavior = u.key
+      // PLAN-10 A-4: the intent property (else the model entry), and the model entry
+      const i = intentAt.get(name), m = modelAt.get(name)
+      if (i || m) Object.assign(action, i ? at(i.node, c.intent.file, c.file) : at(m.node, m.file, c.file))
+      if (m) action.modelAt = at(m.node, m.file, c.file)
       return action
     })
 
     const own = byComp.get(c)
     const selectors = [...(c.intent?.selectors || []), ...(c.behaviorSelectors || [])].map(sel => {
-      const where = loc(sel.node)
+      const pos = loc(sel.node)
       const srcFile = sel.file || c.intent.file
       const file = rel(srcFile)
       const text = sel.selector ?? srcFile.source.slice(sel.node.start, sel.node.end)
-      const found = own.filter(d => d.file === file && d.line === where.line && d.column === where.column)
+      const found = own.filter(d => d.file === file && d.line === pos.line && d.column === pos.column)
       const crossed = found.find(d => d.code === 'SYG104')
       const missing = found.find(d => d.code === 'SYG110' && d.severity !== 'info')
       const unsure = sel.global || sel.dynamic || found.some(d => d.code === 'SYG110' && d.severity === 'info')
@@ -235,6 +393,7 @@ export function buildGraph(project, diagnostics = []) {
       }
       if (sel.control) out.control = sel.control.key
       if (sel.behavior) out.behavior = sel.behavior
+      Object.assign(out, at(sel.node, srcFile, c.file))
       return out
     })
 
@@ -243,18 +402,10 @@ export function buildGraph(project, diagnostics = []) {
     const unknownIntent = !!c.staticProps.intent && !c.intent?.fn
     const controls = []
     for (const sink of c.viewInfo ? [c.viewInfo, ...project.injectedInto(c.view)] : []) {
-      for (const ctrl of sink.controls.keys()) {
+      for (const [ctrl, openings] of sink.controls) {
         if (controls.some(x => x.ctrl === ctrl)) continue
-        controls.push({ ctrl, name: ctrl.key, element: ctrl.element, kind: ctrl.kind, listened: unknownIntent ? null : listened.has(ctrl) })
+        controls.push({ ctrl, name: ctrl.key, element: ctrl.element, kind: ctrl.kind, listened: unknownIntent ? null : listened.has(ctrl), opening: openings[0] })
       }
-    }
-
-    const children = []
-    for (const { usage, via, from } of usagesByComp.get(c)) {
-      if (children.some(x => x.name === usage.name && x.via === via)) continue
-      const child = { name: usage.name, via }
-      if (via === 'collection') child.from = from ?? null
-      children.push(child)
     }
 
     const node = {
@@ -270,10 +421,23 @@ export function buildGraph(project, diagnostics = []) {
       contextConsumes: contextNames(c.contextConsumed),
       eventsEmitted: [...emitted.get(c)],
       eventsSelected: [...selected.get(c)],
-      children,
+      children: childrenOf(c),
       selectors,
-      diagnostics: own.map(slimDiagnostic),
+      diagnostics: own.map(d => slimDiagnostic(d, idOf(c))),
     }
+    const entry = entryOf(c)
+    if (entry !== undefined) node.entry = entry
+    // PLAN-10 A-4: where the context entries and the EVENTS emit / select sites are
+    if (c.contextEntries?.size) node.contextEntries = [...c.contextEntries].map(([name, e]) => ({ name, ...at(e.keyNode, e.file, c.file) }))
+    if (sites.get(c).length) node.eventSites = sites.get(c)
+    // PLAN-10 A-5: CHILD.select(Child) in the intent, with the intent actions it feeds
+    const childSelects = (c.intent?.childSelects || []).map(cs => ({
+      child: cs.arg?.type === 'StringLiteral' ? cs.arg.value : cs.arg?.type === 'Identifier' ? cs.arg.name : cs.arg ? c.intent.file.source.slice(cs.arg.start, cs.arg.end) : null,
+      id: idFor(cs.ref),
+      actions: actionsAround(c.intent, cs.node),
+      ...at(cs.node, c.intent.file, c.file),
+    }))
+    if (childSelects.length) node.childSelects = childSelects
     if (c.uses?.entries.length) {
       node.uses = c.uses.entries.map(e => ({ key: e.key, behavior: e.def?.name ?? null, status: e.status }))
     }
@@ -284,12 +448,12 @@ export function buildGraph(project, diagnostics = []) {
         if (cmd.control) out.control = cmd.control.key
         const triggers = commandTriggers(c, cmd)
         if (triggers.length) out.triggers = triggers
-        return out
+        return Object.assign(out, at(cmd.node, cmd.file, c.file))
       })
     }
     // PLAN-4 GS-7: the `timers` static's literal specs
     if (c.timers?.specs.length) {
-      node.timers = c.timers.specs.filter(s => s.node.type === 'ObjectExpression').map(s => ({ name: s.name, ...specFields(s.node) }))
+      node.timers = c.timers.specs.filter(s => s.node.type === 'ObjectExpression').map(s => ({ name: s.name, ...specFields(s.node), ...at(s.nameNode || s.node, s.file, c.file) }))
       if (!node.timers.length) delete node.timers
     }
     // PLAN-6 K-1: the `agent` declaration (sygnal/ai)
@@ -300,22 +464,59 @@ export function buildGraph(project, diagnostics = []) {
         tools: agentName(c),
         description: a.description,
         read: a.read,
-        actions: a.actions.map(x => ({ name: x.name, consequential: x.consequential, input: !!x.input })),
+        actions: a.actions.map(x => ({ name: x.name, consequential: x.consequential, input: !!x.input, ...at(x.node, x.file, c.file) })),
       }
-      if (a.queries.length) node.agent.queries = a.queries.map(x => ({ name: x.name, input: !!x.input }))
+      if (a.queries.length) node.agent.queries = a.queries.map(x => ({ name: x.name, input: !!x.input, ...at(x.node, x.file, c.file) }))
       if (!a.known || !a.actionsKnown || (a.queries.length && !a.queriesKnown)) node.agent.partial = true
     }
     if (controls.length) {
-      node.controls = controls.map(({ name, element, kind, listened }) => {
+      node.controls = controls.map(({ name, element, kind, listened, opening }) => {
         const entry = { name, element: element ?? null, listened }
         if (kind) entry.kind = kind
+        const file = opening && fileOfNode(project, opening, c.file)
+        if (file) Object.assign(entry, at(opening, file, c.file))
         return entry
       })
     }
     return node
   })
 
-  return { version: 1, source: 'static', components, events, diagnostics: appWide.map(slimDiagnostic) }
+  // PLAN-10 A-1: the view-only components, after the others
+  for (const u of units.slice(comps.length)) {
+    const node = {
+      name: u.name,
+      id: idOf(u),
+      parentId: null,
+      file: rel(u.file),
+      kind: VIA_KIND[renderedAs.get(u)] || 'root',
+      viewOnly: true,
+      actions: [],
+      stateKeys: [],
+      calculated: [],
+      contextProvides: [],
+      contextConsumes: contextNames(contextReads(u.view)),
+      eventsEmitted: [],
+      eventsSelected: [],
+      children: childrenOf(u),
+      selectors: [],
+      diagnostics: [],
+    }
+    const entry = entryOf(u)
+    if (entry !== undefined) node.entry = entry
+    components.push(node)
+  }
+
+  return { version: 1, source: 'static', components, events, diagnostics: appWide.map(d => slimDiagnostic(d)) }
+}
+
+/** The intent actions whose stream expression contains `node` (a CHILD.select call). */
+function actionsAround(intent, node) {
+  const out = []
+  for (const a of intent.actions) {
+    const v = intent.file.parents.get(a.node)?.value
+    if (v && v.start <= node.start && node.end <= v.end && !out.includes(a.name)) out.push(a.name)
+  }
+  return out
 }
 
 /**

@@ -13,6 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkFiles, graphFiles, validateSchema, CODES } from '../src/index.js'
 import { formatGraph } from '../src/graphText.js'
+import { legacyComponent } from './graph-helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const schema = JSON.parse(fs.readFileSync(path.join(here, '../schema/inspect.schema.json'), 'utf8'))
@@ -115,7 +116,7 @@ describe('graph', () => {
   it('lists the queries; validates against the schema', () => {
     const g = graphFiles(write({ 'Invoices.jsx': CLEAN }), { cwd: tmp })
     expect(validateSchema(schema, g)).toEqual([])
-    expect(g.components[0].agent).toEqual({
+    expect(legacyComponent(g.components[0]).agent).toEqual({
       name: 'invoices', tools: 'invoices', description: 'The invoices', read: true,
       actions: [{ name: 'PAY', consequential: false, input: true }],
       queries: [{ name: 'find', input: true }, { name: 'total', input: false }],
