@@ -4,6 +4,19 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## [Unreleased]
 
+The app graph as an interactive page: `sygnal-check --graph=html`, live with `--watch` or at `/__sygnal/graph` in the Vite dev server, in a VS Code panel and in Sygnal DevTools. See [The App Graph](https://sygnal.js.org/guide/app-graph/).
+
+**Companion packages.**
+- **`sygnal-check`:** `--graph=html` writes the graph as one self-contained page (no network, runs no app code) and opens it: cards for every component, render / Collection / Switchable / Vike layout edges, EVENTS, context and `PARENT` overlays, a health list, a detail panel with line links into the editor (`--editor`), traces of events, context fields, actions and state keys, search, filters, an EVENTS table, SVG / JSON / Mermaid export, and directory groups folded above 150 components. `--graph=html --watch` serves it on 127.0.0.1 behind a token and updates it on every save (`--poll`, `--port`). `--graph=mermaid` prints a flowchart (`--events=false`). `--out`, `--open` / `--no-open`. `--graph[=<format>] --base <ref>` compares the graph with a git ref without a checkout (`--graph --json --base` prints the diff for CI). The graph gains `key`, `entry`, `viewOnly`, Vike `route`s and layout edges, child `id` / `external` / `widget` / `state`, `childSelects`, `emitterIds` / `selectorIds`, `writes` / `removes` on actions, `stateReads`, and source lines on actions, selectors, children, context entries and EVENTS sites, in `--graph --json`, the MCP `graph` tool and the language server's new `sygnal/graph` request. New rules **SYG170** (a context field no provider above gives) and **SYG171** (`PARENT` that no parent selects).
+- **VS Code extension:** **Sygnal: Show App Graph**, the page in a panel that updates as you type.
+
+### Added
+
+- **The app graph in the Vite dev server.** `sygnal/vite` serves the live graph page at `/__sygnal/graph` (local requests only) when `sygnal-check` 0.10.0 or later is installed, and prints its address. In dev it also stamps each component function with its static key (a non-enumerable `__sygnalKey`, reported by `inspect()` as `key`), so the page's **Live data** shows which components are mounted, their instance counts, a flash when an action runs and each instance's state, from the app tabs of the same origin. New option `graph` (default `true`); `graph: false` turns off the route, the stamps and the bridge. `vite build`, `vite preview` and Vitest get none of it.
+- **`installGraphBridge()`** in `sygnal/devtools`: connects the page's apps to the graph page's live data over a same-origin `BroadcastChannel` (`sygnal:graph`). The Vite plugin calls it in dev.
+- **App graph in the DevTools panel.** An **App graph** button draws the running app's `inspect()` graph with the same page: a card per component under each parent (`×N` for several instances), each app as its own group, action flashes and instance state.
+- **More in the runtime `inspect()`** (the `sygnal/diagnostics` dev entry): `key`, `entry`, `viewOnly`, `app`, `shown`, `children[].ids`, `events[type].emitterIds` / `selectorIds`, the time of each diagnostic (`timestamp`), and `contextConsumes`: the context fields the component's latest render read (a read-only getter in the core, 9 B gzip). The `InspectGraph` type gains these and the static graph's new fields, all optional.
+
 ### Fixed
 
 - **A Transition's leave, or a Portal mounted late, under jsdom.** The DOM "poke" that re-emits the app's DOM source after such a change created its event with the global `Event`. jsdom refuses an event from another realm, so a jsdom test whose environment was torn down while a leave transition's timer was pending failed with "parameter 1 is not of type 'Event'" (the 6.5.0 release's CI run did once). It now creates the event from the element's own window. Browsers were not affected.

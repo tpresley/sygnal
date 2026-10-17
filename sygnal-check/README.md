@@ -7,6 +7,7 @@ npx sygnal-check                 # checks ./src
 npx sygnal-check src/components  # files, directories or globs
 npx sygnal-check "src/**/*.tsx" --json
 npx sygnal-check --graph --json  # the app graph: components, actions, events, selectors, findings
+npx sygnal-check --graph=html    # the app graph as an interactive page (--watch: live)
 npx sygnal-check explain SYG104  # what a diagnostic code means and how to fix it
 npx sygnal-check mcp             # MCP server (stdio) with check, graph and explain tools
 npx sygnal-check lsp             # language server (stdio) for editors
@@ -38,7 +39,14 @@ Each line has the form `file:line:col CODE [severity] Component: message (fix)`.
 | `--fix` | Apply the mechanical canonical-form rewrites in place, then check (implies `--strict`) |
 | `--controls` | With `--fix` (implied): also convert single-class intent selectors into [controls](#controls) |
 | `--keep-classes` | With `--controls` (implied): keep every converted class on its element |
-| `--graph` | Print the [app graph](#app-graph---graph) instead of the findings list; with `--json`, as JSON. Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix` |
+| `--graph[=<format>]` | Print the [app graph](#app-graph---graph) instead of the findings list. Formats: `text` (the default), `json` (the same as `--graph --json`), `html` (an [interactive page](#the-graph-page---graphhtml)) and `mermaid` (a [flowchart](#mermaid---graphmermaid)). Exits 0 (findings are part of the graph). Combines with `--strict`, not with `--fix`; `--json` with `html` or `mermaid` exits 2 |
+| `--out <file>` | With `--graph` (any format): write the output to this file. For `html`, the page isn't opened unless `--open` is given |
+| `--open`, `--no-open` | With `--graph=html`: open the page in the default browser, or don't. It never opens when `CI` is set or stdout is not a terminal |
+| `--editor <name>` | With `--graph=html`: where the page's file links open by default: `vscode` (the default), `cursor`, `windsurf`, `idea` or `none` |
+| `--watch` | With `--graph=html`: serve the page live and update it on every save (see [Live](#live---watch)). Not with `--out` or `--base` |
+| `--poll[=<ms>]` | With `--watch`: look for changes every `<ms>` milliseconds (20 to 60000, default 200) instead of file-system events |
+| `--port <n>` | With `--watch`: listen on this port (default: a free one) |
+| `--events=false` | With `--graph=mermaid`: leave out the EVENTS edges |
 | `--base <ref>` | With `--graph` (any format): compare the app graph with a git ref (branch, tag or commit), read with git, no checkout. See [Comparing with a git ref](#comparing-with-a-git-ref---base) |
 | `--config <file>` | Read this JSON [config file](#configuration) instead of looking for `sygnal-check.config.json` / the `package.json` key (also `--config=<file>`; a missing file exits 2) |
 | `--no-config` | Ignore config files: flags and defaults only |
@@ -238,7 +246,31 @@ A component is any function that gets an `.intent`, `.model`, `.initialState`, `
 | `recentActions` | — | with `inspect({ actions })`: the latest actions, `{ type, data, component, instance, sinks, cause, at }` |
 | `diagnostics` | the rule findings (strict ones with `--strict`), with `file`/`line`/`column` | collected diagnostics, by component name |
 
+| `key` | `file#name` (a second component of the same name in a file: `file#name#2`), stable when lines move | the same key when `sygnal/vite`'s dev server stamped the component function, else absent |
+| `entry` | `true` on the components `run()`, `defineElement()` or a Vike `+Page` / `+Layout` / `+Wrapper` starts; `'unknown'` on the other roots when an entry call's component can't be resolved | `true` on an app's root instance |
+| `viewOnly` | `true` on a component rendered as a tag (or started as an entry) that has no statics | the same |
+| `route` / `routes` / `routeDynamic` | Vike: a `+Page`'s route (a `+Layout`'s / `+Wrapper`'s URL prefix); `routes` when several `+Page` files export one component; `routeDynamic` for a Route Function (`route: null`) | not produced |
+| `children[].id` / `.ids` | `id`: the rendered component's id, resolved through the import (`null` when it isn't in the graph); also `state` (a literal lens), `external` (the package of the tag) and `widget`; `via: 'layout'` for Vike's layout → page edges | `ids`: the live instances' ids |
+| `childSelects` | each `CHILD.select(Child)` in the intent: `{ child, id, actions, line, column }` (`actions`: the intent actions it feeds, the receivers of the child's `PARENT` sink) | not produced |
+| `events[type].emitterIds` / `.selectorIds` | every emitting / selecting component's id (independent of the names, which are listed once each) | every instance's id |
+| locations | `line` / `column` (and `file` when it isn't the component's) on actions (`modelAt`: the model entry), selectors, children, controls, commands, timers, agent actions, `contextEntries` and `eventSites`; diagnostics have `componentId` | not produced; runtime diagnostics have a `timestamp` |
+| `app` / `shown` | not produced | the instance's `run()` (its root's index among the live roots); `shown: false` on a hidden Switchable page and below it |
+
 Without `--json`, `--graph` prints a compact per-component summary.
+
+### The graph page (`--graph=html`)
+
+`--graph=html` writes the graph as one self-contained HTML page, `<os temp dir>/sygnal-graph-<project>.html` (`<project>` from the nearest `package.json` `name`), prints the path and opens it in the default browser. `--out <file>` writes it elsewhere and doesn't open it unless `--open` is given; nothing opens when `CI` is set or stdout isn't a terminal. The page shows the components as cards with what renders what (tag, Collection, Switchable, Vike layout), EVENTS, context and `PARENT` overlays, a health list (the findings grouped by code, plus the checks only the whole graph shows), a detail panel with line links into your editor (`--editor`), a trace of any event, context field, action or state key, search, filters, an EVENTS table, and SVG / JSON / Mermaid export. Large apps are grouped by directory and folded above 150 components.
+
+The page loads nothing and connects nowhere (its CSP is `default-src 'none'` with inline style and script), works offline and from `file://`, and runs none of your code. It contains the graph and the project's absolute path (for editor links). The docs page [The App Graph](https://sygnal.js.org/guide/app-graph/) describes it in full.
+
+### Live (`--watch`)
+
+`--graph=html --watch` serves the page on `127.0.0.1` (a random port unless `--port`; a random token in the URL; the `Host` header checked), prints the URL, opens it once, and sends the page a new graph (server-sent events) after every saved change to a scanned file, a file they import or the config file. The page keeps its view, selection and trace, and marks what changed. `--poll` checks for changes on a timer instead of file-system events. Ctrl-C stops it. `sygnal/vite` serves the same live page in its dev server at `/__sygnal/graph`.
+
+### Mermaid (`--graph=mermaid`)
+
+`--graph=mermaid` prints a `flowchart TD`: render edges solid (Collections labelled `[from]`, Switchables `switch`), EVENTS edges dotted (`--events=false` leaves them out). GitHub renders it in a README or a pull request description inside a `mermaid` code fence. The page's Copy as Mermaid gives the same text.
 
 ### Comparing with a git ref (`--base`)
 
