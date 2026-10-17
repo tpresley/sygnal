@@ -6,7 +6,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 
 **Integration branch:** `plan10-integration`, cut on 2026-10-16 from the spike branch `claude/sygnal-check-html-viz-spike-a7f154` (main `55c0e9b3` + the spike and this plan), in the worktree `.claude/worktrees/sygnal-ai-helpers-c2d7fd`.
 
-**State:** Phase 0 complete (S-1 decided: D536–D538). Phases 1–2 code complete except D-1/D-2 (docs); Phase 3 (C-3/V-6 `--base`, W-2, P-2) not started. The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
+**State:** All code items merged (Phases 0–3). Remaining: docs (D-1, D-2), then release prep (sygnal-check 0.10.0, VS Code extension minor, sygnal minor with the G-803 fix and the dev-entry/devtools additions). The spike is done ([`research/graph-viz/`](research/graph-viz/README.md)). Questions answered (D508–D514). Phase 0 started 2026-10-16. Reservations confirmed: SYG170–179 free in `codes.ts` and `explanations.js` (2026-10-16).
 
 ## Decisions
 
@@ -58,6 +58,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D543 | 2026-10-16 | P10-Q8: `sygnal/vite` serves the live graph page at `/__sygnal/graph` in dev **by default**; `graph: false` turns it off (user) |
 | D544 | 2026-10-16 | P10-Q9: `sygnal/vite` stamps each component with its static key in dev only, so the page can overlay runtime data on the static graph (P-2); nothing in production builds (user) |
 | D545 | 2026-10-16 | C-3/V-6: the diff matches components by `key` (a moved or renamed file is removed + added); the base graph is read from git without a checkout (`ls-tree`, `cat-file --batch`), with the config file as it is at the ref; JSON shape `{ base, head, commit, added, removed, changed: [{ key, fields }], events }` with list fields as `{ added, removed }` and `kind`/`entry`/`route` as `{ base, head }`; `--base` with `--watch` exits 2 for now (coordinator) |
+| D546 | 2026-10-16 | W-2: `/__sygnal/graph` reuses the `/__sygnal/mcp` guard unchanged (loopback, local Host or `server.allowedHosts`, local Origin; GET/HEAD; no-store, nosniff, no-referrer, DENY, the live page's CSP); a missing or old sygnal-check answers 404 with an install hint; the page, the overlay and the console check share one `live.js` build (coordinator) |
+| D547 | 2026-10-16 | P-2: runtime data reaches the page over a same-origin `BroadcastChannel` (`sygnal:graph`) from `installGraphBridge()` in `sygnal/devtools` (works with `mcp: false`, no dev-server traffic); the page follows the most recently focused app tab and matches components by stamped key, else a unique name; `graph: false` also turns off the stamps and the bridge (coordinator) |
 
 ## Items
 
@@ -85,18 +87,18 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | C-2 `--graph=mermaid` | 1 | ✅ merged `464fb567` | |
 | C-3 `--base <ref>` | 3 | ✅ merged | D545; ai-showcase `--base HEAD~1` 364–399 ms (194–210 ms without) |
 | W-1 `--watch` | 2 | ✅ merged | `live.js`, `watch.js`, `liveServer.js`, `graphView/liveHost.js` (D535) | |
-| W-2 `sygnal/vite` dev route | 3 | 🔄 `p10-vite-graph` | D543 |
+| W-2 `sygnal/vite` dev route | 3 | ✅ merged | D543, D546 |
 | E-1 LSP `sygnal/graph` | 2 | ✅ merged | |
 | E-2 VS Code panel | 2 | ✅ merged | not yet: marking changed cards as the live page does | |
 | P-1 Devtools app graph tab | 2 | ✅ merged `ae0ddda5` | verified in a harness and in Chromium with `--load-extension`, not in real DevTools | |
-| P-2 Static + runtime together | 3 | 🔄 `p10-vite-graph` | D544 |
+| P-2 Static + runtime together | 3 | ✅ merged | D544, D547; `graphView/liveData.js`, `src/extra/devGraph.ts` |
 | X-1 Graph-wide rules (SYG170–179) | 2 | ✅ merged `d1d174ba` | SYG170, SYG171 shipped; SYG172 page-only (D534) |
 | T-1 Unit tests | 1 | ✅ merged `464fb567` | |
 | T-2 Browser smoke | 1 | ✅ merged `d129d039` | 13/13 on Chromium, Firefox, WebKit | |
 | T-3 Graph data fixtures | 1 | ✅ merged `dcbb7e33` | |
 | T-4 Size and speed | 2 | ✅ (V-4) | first paint syn-2000: Chromium 104–121 ms, Firefox 182–199 ms, WebKit 337–470 ms; page code +23 KB gzip | | warn-only |
-| D-1 Docs page | 1 | ⏳ | |
-| D-2 Docs and agent context updates | 2 | ⏳ | |
+| D-1 Docs page | 1 | 🔄 `p10-docs` | |
+| D-2 Docs and agent context updates | 2 | 🔄 `p10-docs` | |
 
 ## Questions
 
@@ -124,9 +126,12 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-806 | 2026-10-16 (V-4) | Canvas mode (> 400 drawn nodes): no keyboard navigation on the drawing (the outline is the accessible path) and SVG export is empty | open |
 | G-807 | 2026-10-16 (V-4) | Bus-node lanes sit far from both ends of their edges | open |
 | G-808 | 2026-10-16 (V-6) | Diff: canvas mode doesn't paint diff colours (badges, sidebar and filter work); removed context and PARENT edges aren't drawn; `--base` with `--watch` not supported | open |
+| G-809 | 2026-10-16 (P-2) | Live data: components with no top-level binding (anonymous default export, nested function) get no stamp and match by name; the app tab and graph page must share an origin (`localhost` vs `127.0.0.1`); canvas mode doesn't fade unmounted cards | open |
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | ✅ fixed in V-4 |
 
 ## Log
+
+- 2026-10-16 `p10-vite-graph` merged: build; root vitest 4,986 passed; sygnal-check 1,545; types; size gate unchanged (42,495 B); perf gate within limits; browser graph suites ×6 on Chromium, Firefox and WebKit; `test:examples` (all 14, installed) pass; a `vite build` of kanban has no stamps or graph code (worker).
 
 - 2026-10-16 `p10-base-diff` merged: sygnal-check 1,533; browser on Chromium, Firefox and WebKit: static 14, runtime + devtools 9, live 5, VS Code 7, large apps 10, diff 7. Also `04924ccd`: folded group names centred and height-capped when zoomed out (user report; new browser check failed on 68 of 71 cards before).
 
