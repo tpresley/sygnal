@@ -6,6 +6,10 @@
  *     comps         the graph's components (shallow copies with `dir`, `line`, `ghost: false`) plus
  *                   ghost nodes ({ ghost: true, kind: 'ghost' }), in graph order, ghosts last
  *     byId, byName  Map id → comp, Map name → comp[]
+ *     byKey         Map key → id. `key` is stable across graph updates (ids are 'file:line' and move
+ *                   when lines are added above a component): the graph's `key` when it has one
+ *                   (D521), else `${file}#${name}`; ghosts `ghost:${external ?? dir}#${name}`.
+ *                   Selection, positions and remembered UI are kept by key; ids link within one graph
  *     parentsOf, childrenOf   Map id → id[] (render edges, deduped)
  *     renderEdges   [{ from, to, via, label }]   via: 'tag' | 'collection' | 'switchable' | 'slot'
  *     eventEdges    [{ from, to, type }]          every emitter → every selector of the type
@@ -21,7 +25,8 @@
  *   worst(comp) → 'error' | 'warn' | null
  *
  * Ids are preferred wherever the graph has them (children[].id, events[type].emitterIds /
- * selectorIds or { name, id } entries, diagnostics' componentId); names are the fallback,
+ * selectorIds or { name, id } entries, diagnostics' componentId); a child with `id: null` or
+ * `external` is a ghost (one per package and name for `external`); names are the fallback,
  * resolved like an import would be: the same file, then the same directory, then the
  * longest common path.
  *
@@ -44,7 +49,7 @@ export function buildModel(graph) {
     contextProvides: c.contextProvides || [], contextConsumes: c.contextConsumes || [],
     eventsEmitted: c.eventsEmitted || [], eventsSelected: c.eventsSelected || [],
     children: c.children || [], selectors: c.selectors || [], diagnostics: c.diagnostics || [],
-    ghost: false, dir: dirOf(c.file), line: lineOf(c),
+    ghost: false, dir: dirOf(c.file), line: lineOf(c), key: c.key ?? `${c.file}#${c.name}`,
   }))
   const byId = new Map(comps.map(c => [c.id, c]))
   const byName = new Map()
@@ -66,12 +71,15 @@ export function buildModel(graph) {
   const ghosts = new Map()
   for (const c of comps) {
     for (const ch of c.children) {
-      let t = lookup(ch.id, ch.name, c)
+      // `id: null` (the graph says it resolved to no node: a package, a widget, dynamic) never
+      // falls back to the name; a package component is one ghost per (package, name)
+      let t = ch.id === null || ch.external ? null : lookup(ch.id, ch.name, c)
       if (!t) {
-        const gid = `ghost:${c.dir}:${ch.name}`
+        const gid = ch.external ? `external:${ch.external}:${ch.name}` : `ghost:${c.dir}:${ch.name}`
         if (!ghosts.has(gid)) {
           ghosts.set(gid, {
-            id: gid, name: ch.name, ghost: true, kind: 'ghost', file: null, dir: c.dir, line: null,
+            id: gid, key: `ghost:${ch.external ?? c.dir}#${ch.name}`, name: ch.name, ghost: true, kind: 'ghost', file: null, dir: c.dir, line: null,
+            ...(ch.external ? { external: ch.external } : {}), ...(ch.widget ? { widget: true } : {}),
             actions: [], stateKeys: [], calculated: [], contextProvides: [], contextConsumes: [],
             eventsEmitted: [], eventsSelected: [], children: [], selectors: [], diagnostics: [],
           })
@@ -145,7 +153,9 @@ export function buildModel(graph) {
     ...(graph.diagnostics || []).map(d => ({ ...d, compId: lookup(d.componentId, d.component)?.id ?? null })),
   ]
 
-  return { graph, comps, byId, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
+  const byKey = new Map()
+  for (const c of comps) if (!byKey.has(c.key)) byKey.set(c.key, c.id)
+  return { graph, comps, byId, byKey, byName, parentsOf, childrenOf, renderEdges, eventEdges, contextEdges, orphanReads, ghosts: [...ghosts.values()], diagnostics, resolve, events }
 }
 
 export function worst(c) {

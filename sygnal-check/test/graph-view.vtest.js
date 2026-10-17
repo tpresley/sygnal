@@ -100,6 +100,15 @@ describe('graphView model', () => {
       { from: 'src/a/Chat.jsx:1', to: 'src/z/Chat.jsx:1', type: 'B' },
     ])
     expect(m.diagnostics[0].compId).toBe('src/z/Chat.jsx:1')
+    // id: null and external never resolve by name; one ghost per (package, name)
+    const x = buildModel(G([
+      comp('P', 'src/a/P.jsx', 1, { children: [{ name: 'Toaster', via: 'tag', id: null, external: 'sygnal/ui' }, { name: 'Chat', via: 'tag', id: null }] }),
+      comp('R', 'src/b/R.jsx', 1, { children: [{ name: 'Toaster', via: 'tag', id: null, external: 'sygnal/ui' }] }),
+      comp('Toaster', 'src/a/Toaster.jsx', 1),
+      comp('Chat', 'src/a/Chat.jsx', 1),
+    ]))
+    expect(x.ghosts.map(g => [g.id, g.external])).toEqual([['external:sygnal/ui:Toaster', 'sygnal/ui'], ['ghost:src/a:Chat', undefined]])
+    expect(x.renderEdges.map(e => e.to)).toEqual(['external:sygnal/ui:Toaster', 'ghost:src/a:Chat', 'external:sygnal/ui:Toaster'])
     // an id that isn't in the graph falls back to the name
     const f = buildModel(G([comp('P', 'src/P.jsx', 1, { children: [{ name: 'Q', via: 'tag', id: 'gone:1' }] }), comp('Q', 'src/Q.jsx', 1)]))
     expect(f.renderEdges[0].to).toBe('src/Q.jsx:1')
@@ -158,6 +167,21 @@ describe('graphView model', () => {
       ['Controls nothing listens to', 'Add', 'Todos · <button>'],
       ['AI agent surface', 'todos (read)', 'Todos · 2 actions, CLEAR ask first'],
     ])
+  })
+
+  it('stable keys: the graph key, else file#name; ghosts by package or directory; byKey', () => {
+    const m = buildModel(G([
+      comp('P', 'src/a/P.jsx', 1, { children: [{ name: 'Toaster', via: 'tag', id: null, external: 'sygnal/ui' }, { name: 'Nope', via: 'tag' }] }),
+      comp('Q', 'src/a/Q.jsx', 4, { key: 'custom-key' }),
+    ]))
+    expect(m.comps.map(c => c.key)).toEqual(['src/a/P.jsx#P', 'custom-key', 'ghost:sygnal/ui#Toaster', 'ghost:src/a#Nope'])
+    expect(m.byKey.get('src/a/P.jsx#P')).toBe('src/a/P.jsx:1')
+    // the same component after lines were added above it: a new id, the same key
+    const shifted = shop()
+    for (const c of shifted.components) c.id = c.id.replace(/:(\d+)$/, (_, n) => ':' + (Number(n) + 5))
+    const before = buildModel(shop()), after = buildModel(shifted)
+    expect(after.comps.map(c => c.key)).toEqual(before.comps.map(c => c.key))
+    expect(after.comps.map(c => c.id)).not.toEqual(before.comps.map(c => c.id))
   })
 
   it('lineOf, searchText and missing lists', () => {

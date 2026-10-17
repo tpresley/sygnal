@@ -10,12 +10,15 @@
  * (webmcp.html): natively in this Chromium (--enable-features=WebMCP), and through
  * @mcp-b/webmcp-polyfill in a second Chromium launch without the switch, in Firefox and in WebKit
  * (plus a no-WebMCP page). BROWSER_TESTS_ONLY=webmcp runs only that; BROWSER_TESTS_WEBMCP=0 skips it.
+ * PLAN-10 T-2: then the `sygnal-check --graph=html` page from file:// (graph-view.mjs; fails on any
+ * network request). BROWSER_TESTS_ONLY=graphview runs only that; BROWSER_TESTS_GRAPHVIEW=0 skips it.
  */
 
 import { createServer as createNetServer } from 'node:net';
 import { createServer } from 'vite';
 import * as playwright from 'playwright';
 import { consoleAllowlist } from './console-allowlist.mjs';
+import { runGraphView } from './graph-view.mjs';
 
 const ENGINE = process.env.BROWSER || 'chromium';
 if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
@@ -227,6 +230,9 @@ async function run() {
     const onlyWebMcp = only?.toLowerCase() === 'webmcp';
     const withWebMcp = process.env.BROWSER_TESTS_WEBMCP !== '0' && (!only || onlyWebMcp);
     if (onlyWebMcp) process.exit(await runWebMcp(browser, url) ? 1 : 0);
+    const onlyGraphView = only?.toLowerCase() === 'graphview';
+    const withGraphView = process.env.BROWSER_TESTS_GRAPHVIEW !== '0' && (!only || onlyGraphView);
+    if (onlyGraphView) process.exit(await runGraphView(browser, ENGINE) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -299,7 +305,8 @@ async function run() {
     }
 
     const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
-    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed ? 1 : 0);
+    const graphViewFailed = withGraphView ? await runGraphView(browser, ENGINE) : 0;
+    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
     await server.close();

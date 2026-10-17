@@ -35,12 +35,19 @@ export function mountPage(V, G, META) {
   const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`
 
   // ───────────── model and layout (pure, see model.js / layout.js) ─────────────
-  const M = V.buildModel(G)
-  const { comps, byId, parentsOf, childrenOf, renderEdges, contextEdges } = M
-  const health = V.healthList(M, META.codes || {})
-  const L = V.layoutGraph(M)
-  const pos = L.pos
-  const events = M.events
+  // replaced as a whole by setGraph(); ids link within one graph, `key`s survive an update
+  let M, comps, byId, parentsOf, childrenOf, renderEdges, contextEdges, health, L, pos, events, hay
+  function load(graph) {
+    G = graph
+    M = V.buildModel(G)
+    ;({ comps, byId, parentsOf, childrenOf, renderEdges, contextEdges } = M)
+    health = V.healthList(M, META.codes || {})
+    L = V.layoutGraph(M)
+    pos = L.pos
+    events = M.events
+    hay = new Map(comps.map(c => [c.id, V.searchText(c)]))
+  }
+  load(G)
   const evInfo = (t) => events[t] || { emitters: [], selectors: [] }
   const names = (xs) => (xs || []).map(x => typeof x === 'string' ? x : x?.name)
 
@@ -48,53 +55,59 @@ export function mountPage(V, G, META) {
   const svg = $('svg'), vp = $('vp')
   const el = (tag, attrs = {}, parent) => { const e = doc.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e }
   const nodeEls = new Map(), edgeEls = []
-  for (const b of L.clusters) {
-    const g = el('g', { class: 'cluster', 'aria-hidden': 'true' }, $('clusters'))
-    el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 14 }, g)
-    el('text', { x: b.x + 14, y: b.y + 22 }, g).textContent = b.key + '/'
-  }
-  for (const e of V.edgePaths(M, L)) {
-    const p = el('path', { class: 'edge ' + e.cls, d: e.d, 'marker-end': `url(#${e.marker})` }, $('edges'))
-    let t = null
-    if (e.label) { t = el('text', { class: 'elabel ' + e.cls, x: e.mid[0], y: e.mid[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, $('labels')); t.textContent = e.label }
-    edgeEls.push({ ...e, p, t })
-  }
   const diagCount = (c) => c.diagnostics.filter(d => d.severity !== 'info').length
   const fileLine = (c) => `${c.file}${c.line != null ? ':' + c.line : ''}`
   const describe = (c) => c.ghost
-    ? `${c.name}, not scanned`
+    ? `${c.name}, ${c.external ? `from ${c.external}` : 'not scanned'}`
     : `${c.name}, ${KIND[c.kind] ?? c.kind}${diagCount(c) ? `, ${plural(diagCount(c), 'problem')}` : ''}`
-  for (const c of comps) {
-    const p = pos.get(c.id)
-    const w = V.worst(c)
-    const g = el('g', { class: 'node' + (c.ghost ? ' ghost' : '') + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
-    el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
-    if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
-    el('text', { class: 'name', x: 16, y: 24 }, g).textContent = c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name
-    const file = c.ghost ? 'not in scanned files' : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
-    el('text', { class: 'sub', x: 16, y: 41 }, g).textContent = file.length > 30 ? '…' + file.slice(-29) : file
-    if (!c.ghost) {
-      const meta = el('text', { class: 'meta', x: 16, y: 60 }, g)
-      const own = c.actions.filter(a => !a.behavior).length, beh = c.actions.length - own
-      const parts = [[own, 'act' + (beh ? `+${beh}` : '')], [c.stateKeys.length, 'state'], [c.eventsEmitted.length + c.eventsSelected.length, 'events']].filter(([n]) => n)
-      parts.forEach(([n, l], i) => { el('tspan', { class: 'n', dx: i ? 10 : 0 }, meta).textContent = n; el('tspan', {}, meta).textContent = ' ' + l })
-      if (c.agent) el('text', { class: 'ai', x: p.w - 14, y: 60, 'text-anchor': 'end' }, g).textContent = 'AI'
+  function drawGraph() {
+    for (const g of ['clusters', 'edges', 'labels', 'nodes']) $(g).textContent = ''
+    nodeEls.clear()
+    edgeEls.length = 0
+    for (const b of L.clusters) {
+      const g = el('g', { class: 'cluster', 'aria-hidden': 'true' }, $('clusters'))
+      el('rect', { x: b.x, y: b.y, width: b.w, height: b.h, rx: 14 }, g)
+      el('text', { x: b.x + 14, y: b.y + 22 }, g).textContent = b.key + '/'
     }
-    const nd = diagCount(c)
-    if (nd) {
-      const pg = el('g', { class: 'pill', transform: `translate(${p.w - 12},12)` }, g)
-      el('rect', { class: w === 'error' ? 'err' : 'warn', x: -22, y: -1, width: 26, height: 17, rx: 8.5 }, pg)
-      el('text', { x: -9, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = nd
+    for (const e of V.edgePaths(M, L)) {
+      const p = el('path', { class: 'edge ' + e.cls, d: e.d, 'marker-end': `url(#${e.marker})` }, $('edges'))
+      let t = null
+      if (e.label) { t = el('text', { class: 'elabel ' + e.cls, x: e.mid[0], y: e.mid[1], 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, $('labels')); t.textContent = e.label }
+      edgeEls.push({ ...e, p, t })
     }
-    el('title', {}, g).textContent = c.ghost ? `${c.name}: rendered, but not found in the scanned files` : `${c.name}\n${fileLine(c)}`
-    g.addEventListener('click', (ev) => { ev.stopPropagation(); select(c.id) })
-    g.addEventListener('keydown', (ev) => onNodeKey(ev, c.id))
-    g.addEventListener('focus', () => { setTabStop(c.id); if (!selected && !tracing) hover(c.id); ensureVisible(c.id) })
-    g.addEventListener('blur', () => { if (!selected && !tracing) clearHl() })
-    g.addEventListener('mouseenter', () => { if (!selected && !tracing) hover(c.id) })
-    g.addEventListener('mouseleave', () => { if (!selected && !tracing) clearHl() })
-    nodeEls.set(c.id, g)
+    for (const c of comps) {
+      const p = pos.get(c.id)
+      const w = V.worst(c)
+      const g = el('g', { class: 'node' + (c.ghost ? ' ghost' : '') + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
+      el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
+      if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
+      el('text', { class: 'name', x: 16, y: 24 }, g).textContent = c.name.length > 22 ? c.name.slice(0, 21) + '…' : c.name
+      const file = c.ghost ? (c.external ? `from ${c.external}` : 'not in scanned files') : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
+      el('text', { class: 'sub', x: 16, y: 41 }, g).textContent = file.length > 30 ? '…' + file.slice(-29) : file
+      if (!c.ghost) {
+        const meta = el('text', { class: 'meta', x: 16, y: 60 }, g)
+        const own = c.actions.filter(a => !a.behavior).length, beh = c.actions.length - own
+        const parts = [[own, 'act' + (beh ? `+${beh}` : '')], [c.stateKeys.length, 'state'], [c.eventsEmitted.length + c.eventsSelected.length, 'events']].filter(([n]) => n)
+        parts.forEach(([n, l], i) => { el('tspan', { class: 'n', dx: i ? 10 : 0 }, meta).textContent = n; el('tspan', {}, meta).textContent = ' ' + l })
+        if (c.agent) el('text', { class: 'ai', x: p.w - 14, y: 60, 'text-anchor': 'end' }, g).textContent = 'AI'
+      }
+      const nd = diagCount(c)
+      if (nd) {
+        const pg = el('g', { class: 'pill', transform: `translate(${p.w - 12},12)` }, g)
+        el('rect', { class: w === 'error' ? 'err' : 'warn', x: -22, y: -1, width: 26, height: 17, rx: 8.5 }, pg)
+        el('text', { x: -9, y: 11.5, 'text-anchor': 'middle' }, pg).textContent = nd
+      }
+      el('title', {}, g).textContent = c.ghost ? `${c.name}: rendered, but not found in the scanned files` : `${c.name}\n${fileLine(c)}`
+      g.addEventListener('click', (ev) => { ev.stopPropagation(); select(c.id) })
+      g.addEventListener('keydown', (ev) => onNodeKey(ev, c.id))
+      g.addEventListener('focus', () => { setTabStop(c.id); if (!selected && !tracing) hover(c.id); ensureVisible(c.id) })
+      g.addEventListener('blur', () => { if (!selected && !tracing) clearHl() })
+      g.addEventListener('mouseenter', () => { if (!selected && !tracing) hover(c.id) })
+      g.addEventListener('mouseleave', () => { if (!selected && !tracing) clearHl() })
+      nodeEls.set(c.id, g)
+    }
   }
+  drawGraph()
 
   // ───────────── keyboard on the canvas (roving tab stop) ─────────────
   let tabStop = null
@@ -104,11 +117,12 @@ export function mountPage(V, G, META) {
     tabStop = id
     nodeEls.get(id)?.setAttribute('tabindex', '0')
   }
-  {
+  function initTabStop() {
     // the first card of the first cluster (an entry if the graph marks one)
     const first = comps.find(c => c.entry === true) ?? [...comps].sort((a, b) => pos.get(a.id).y - pos.get(b.id).y || pos.get(a.id).x - pos.get(b.id).x)[0]
     if (first) setTabStop(first.id)
   }
+  initTabStop()
   const cx = (id) => pos.get(id).x + pos.get(id).w / 2
   const nearest = (from, ids) => ids.slice().sort((a, b) => Math.abs(cx(a) - cx(from)) - Math.abs(cx(b) - cx(from)) || cx(a) - cx(b))[0]
   function neighbour(id, key) {
@@ -216,7 +230,7 @@ export function mountPage(V, G, META) {
     // the panel narrows the canvas: wait for it, then pan if the card is (partly) hidden
     setTimeout(() => ensureVisible(id, opts.pan), reduceMotion() ? 0 : 200)
   }
-  function trace(kind, key) {
+  function trace(kind, key, opts = {}) {
     tracing = { kind, key }
     const ids = new Set()
     let pred = () => false
@@ -246,7 +260,7 @@ export function mountPage(V, G, META) {
     $('trace-x').onclick = () => { endTrace(); if (selected) hover(selected) }
     announce(t.firstChild.textContent)
     hl(ids, pred)
-    if (ids.size) fit([...ids], true, 1)
+    if (ids.size && opts.fit !== false) fit([...ids], true, 1)
   }
   function endTrace(keepHl) { tracing = null; $('trace').classList.remove('on'); if (!keepHl && !selected) clearHl() }
 
@@ -271,7 +285,7 @@ export function mountPage(V, G, META) {
     return list.map(a => {
       const trig = a.behavior && a.trigger === 'unknown' ? 'maybe' : TRIG[a.trigger] ? a.trigger : 'unknown'
       const lbl = trig === 'maybe' ? '?' : TRIG[trig]
-      const at = a.line != null && editorHref(c.file, a.line)
+      const at = a.line != null && editorHref(a.file ?? c.file, a.line)
       return `<span class="trig t-${trig}" title="trigger: ${esc(lbl)}">${esc(lbl)}</span>`
         + `<span>${btnChip(a.name, `data-trace-action="${esc(a.name)}"`, 'act', `trace action ${a.name}`)}${at ? ` <a href="${esc(at)}" class="unk" title="line ${a.line}">:${a.line}</a>` : ''}</span>`
         + `<span class="sinks">${a.sinks.length ? a.sinks.map(sinkChip).join('') : '<span class="unk">no model entry</span>'}</span>`
@@ -341,7 +355,7 @@ export function mountPage(V, G, META) {
     inner.innerHTML = out.join('')
     $('dclose').onclick = () => { const id = selected; select(null); nodeEls.get(id)?.focus() }
     const cp = $('dcopy')
-    if (cp) cp.onclick = () => copy(JSON.stringify((G.components || []).find(x => x.id === c.id), null, 2), 'Component JSON copied')
+    if (cp) cp.onclick = () => copy(JSON.stringify((G.components || []).find(x => x.id === c.id) ?? null, null, 2), 'Component JSON copied')
     inner.querySelectorAll('[data-goto]').forEach(n => { n.onclick = () => select(n.dataset.goto, { pan: true }) })
     inner.querySelectorAll('[data-trace-event]').forEach(n => { n.onclick = () => trace('event', n.dataset.traceEvent) })
     inner.querySelectorAll('[data-trace-context]').forEach(n => { n.onclick = () => trace('context', n.dataset.traceContext) })
@@ -350,36 +364,38 @@ export function mountPage(V, G, META) {
   }
 
   // ───────────── sidebar: stats, health, the component list ─────────────
-  const real = comps.filter(c => !c.ghost)
-  const sev = (s) => M.diagnostics.filter(d => d.severity === s).length
-  $('title').textContent = META.title ?? 'app'
-  $('subtitle').textContent = META.subtitle ?? ''
-  $('stats').innerHTML = [
-    [real.length, 'components'], [Object.keys(events).length, 'event types'], [real.reduce((n, c) => n + c.actions.length, 0), 'actions'],
-    [sev('error'), 'errors', 'err'], [sev('warn'), 'warnings', 'warn'], [real.filter(c => c.agent).length, 'agent surfaces'],
-  ].map(([n, l, cls]) => `<div class="stat ${n && cls ? cls : ''}"><b>${n}</b><span>${l}</span></div>`).join('')
-  $('health').innerHTML = health.length
-    ? health.map((h, gi) => `<details class="health-group" ${gi < 3 && h.tone !== 'ai' && h.tone !== 'muted' ? 'open' : ''}><summary><span class="dot tone-${h.tone}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary><ul class="plain">${h.items.map((it, i) => `<li><button type="button" class="health-item" data-g="${gi}" data-i="${i}"><span class="dot tone-${h.tone}"></span><span class="t">${esc(it.title)}<small title="${esc(it.sub)}">${esc(it.sub)}</small></span></button></li>`).join('')}</ul></details>`).join('')
-    : '<div class="empty">✓ No wiring problems found</div>'
-  $('health').querySelectorAll('.health-item').forEach(n => {
-    n.onclick = () => { const it = health[n.dataset.g].items[n.dataset.i]; if (it.event) trace('event', it.event); else if (it.id) select(it.id, { pan: true }) }
-  })
-  {
-    const groups = new Map()
-    for (const c of comps) { const d = c.ghost ? '(not scanned)' : c.dir; if (!groups.has(d)) groups.set(d, []); groups.get(d).push(c) }
-    let gi = 0
-    $('tree').innerHTML = [...groups].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(([d, list]) => {
-      const hid = 'tree-dir-' + gi++
-      return `<h3 class="tree-dir" id="${hid}">${esc(d)}/</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0).map(c => {
-        const n = diagCount(c), w = V.worst(c)
-        return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(c.name)}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
-      }).join('') + '</ul>'
-    }).join('')
-    $('tree').querySelectorAll('.tree-item').forEach(n => { n.onclick = () => { select(n.dataset.id, { pan: true }); if (innerWidth <= 700) $('side').classList.remove('open') } })
+  function drawSidebar() {
+    const real = comps.filter(c => !c.ghost)
+    const sev = (s) => M.diagnostics.filter(d => d.severity === s).length
+    $('title').textContent = META.title ?? 'app'
+    $('subtitle').textContent = META.subtitle ?? ''
+    $('stats').innerHTML = [
+      [real.length, 'components'], [Object.keys(events).length, 'event types'], [real.reduce((n, c) => n + c.actions.length, 0), 'actions'],
+      [sev('error'), 'errors', 'err'], [sev('warn'), 'warnings', 'warn'], [real.filter(c => c.agent).length, 'agent surfaces'],
+    ].map(([n, l, cls]) => `<div class="stat ${n && cls ? cls : ''}"><b>${n}</b><span>${l}</span></div>`).join('')
+    $('health').innerHTML = health.length
+      ? health.map((h, gi) => `<details class="health-group" ${gi < 3 && h.tone !== 'ai' && h.tone !== 'muted' ? 'open' : ''}><summary><span class="dot tone-${h.tone}"></span>${esc(h.group)}<span class="n">${h.items.length}</span></summary><ul class="plain">${h.items.map((it, i) => `<li><button type="button" class="health-item" data-g="${gi}" data-i="${i}"><span class="dot tone-${h.tone}"></span><span class="t">${esc(it.title)}<small title="${esc(it.sub)}">${esc(it.sub)}</small></span></button></li>`).join('')}</ul></details>`).join('')
+      : '<div class="empty">✓ No wiring problems found</div>'
+    $('health').querySelectorAll('.health-item').forEach(n => {
+      n.onclick = () => { const it = health[n.dataset.g].items[n.dataset.i]; if (it.event) trace('event', it.event); else if (it.id) select(it.id, { pan: true }) }
+    })
+    {
+      const groups = new Map()
+      for (const c of comps) { const d = c.external ?? (c.ghost ? '(not scanned)' : c.dir); if (!groups.has(d)) groups.set(d, []); groups.get(d).push(c) }
+      let gi = 0
+      $('tree').innerHTML = [...groups].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map(([d, list]) => {
+        const hid = 'tree-dir-' + gi++
+        return `<h3 class="tree-dir" id="${hid}">${esc(d)}/</h3><ul class="plain" aria-labelledby="${hid}">` + list.slice().sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0).map(c => {
+          const n = diagCount(c), w = V.worst(c)
+          return `<li><button type="button" class="tree-item" data-id="${esc(c.id)}" aria-current="false" aria-label="${esc(describe(c))}"><span class="k ${kindClass(c.kind)}"></span>${esc(c.name)}${n ? `<span class="badge kind ${w === 'error' ? 'k-err' : 'k-warn'}">${n}</span>` : ''}</button></li>`
+        }).join('') + '</ul>'
+      }).join('')
+      $('tree').querySelectorAll('.tree-item').forEach(n => { n.onclick = () => { select(n.dataset.id, { pan: true }); if (innerWidth <= 700) $('side').classList.remove('open') } })
+    }
   }
+  drawSidebar()
 
   // ───────────── search ─────────────
-  const hay = new Map(comps.map(c => [c.id, V.searchText(c)]))
   let matches = []
   const q = $('q')
   q.addEventListener('input', () => {
@@ -411,6 +427,8 @@ export function mountPage(V, G, META) {
   const closeMenu = () => { menu.classList.remove('open'); menuBtn.setAttribute('aria-expanded', 'false') }
   menuBtn.onclick = (e) => { e.stopPropagation(); const open = !menu.classList.contains('open'); menu.classList.toggle('open', open); menuBtn.setAttribute('aria-expanded', String(open)); if (open) menu.querySelector('button, select')?.focus() }
   doc.addEventListener('click', (e) => { if (!e.target.closest('.menu')) closeMenu() })
+  // a menu command closes the menu (after its own handler ran)
+  menu.addEventListener('click', (e) => { if (e.target.closest('button')) setTimeout(() => { closeMenu(); menuBtn.focus() }) })
   menu.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); menuBtn.focus() } })
   $('side-btn').onclick = () => { const open = !$('side').classList.contains('open'); $('side').classList.toggle('open', open); $('side-btn').setAttribute('aria-expanded', String(open)) }
 
@@ -457,9 +475,36 @@ export function mountPage(V, G, META) {
   })
   addEventListener('resize', () => fit(undefined, false))
 
+  /**
+   * Replaces the graph in place (live mode, the VS Code panel): redraws, and keeps the view, the
+   * selection, the keyboard position, a running trace and the search by component `key` (ids are
+   * file:line and move when lines are added above a component).
+   */
+  function setGraph(graph) {
+    const keyOf = (id) => id == null ? null : byId.get(id)?.key ?? null
+    const was = { sel: keyOf(selected), stop: keyOf(tabStop), focus: doc.activeElement?.closest?.('.node') ? keyOf(doc.activeElement.dataset.id) : null, trace: tracing, detailScroll: $('dinner').scrollTop }
+    load(graph)
+    selected = null; tabStop = null; tracing = null
+    drawGraph()
+    drawSidebar()
+    const idOf = (key) => key == null ? null : M.byKey.get(key) ?? null
+    if (idOf(was.stop)) setTabStop(idOf(was.stop)); else initTabStop()
+    if (idOf(was.sel)) { select(idOf(was.sel)); $('dinner').scrollTop = was.detailScroll } else select(null)
+    if (was.trace) trace(was.trace.kind, was.trace.key, { fit: false })
+    if (q.value) q.dispatchEvent(new Event('input'))
+    if (idOf(was.focus)) nodeEls.get(idOf(was.focus)).focus({ preventScroll: true })
+    apply()
+  }
+
   fit(undefined, false)
-  const first = META.select && comps.find(c => c.name === META.select || c.id === META.select)
+  const first = META.select && comps.find(c => c.name === META.select || c.id === META.select || c.key === META.select)
   if (first) select(first.id, { pan: true })
-  // for tests and hosts: the computed model and a few actions
-  window.__sygnalGraph = { model: M, layout: L, health, select, trace, fit }
+  // the page's API, for hosts (live mode, the VS Code panel) and tests
+  const api = {
+    get model() { return M }, get layout() { return L }, get health() { return health },
+    get selectedKey() { return selected ? byId.get(selected)?.key ?? null : null },
+    select, trace, fit, setGraph,
+  }
+  window.__sygnalGraph = api
+  return api
 }
