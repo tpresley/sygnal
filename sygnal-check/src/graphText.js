@@ -17,11 +17,26 @@
  *     agent     todos (read): ADD (input), CLEAR_DONE (consequential)
  *     ! SYG110 …
  *   Greeting  src/Scoreboard.jsx:4  child  view only
+ *   Layout  pages/+Layout.jsx:3  root  entry  route /
+ *     children  Page (layout /), Page (layout /orders/@id)   (Vike's shell: the Layout renders these
+ *               pages, A-9; with the page's route when it has one)
+ *   Page  pages/orders/@id/+Page.jsx:1  root  entry  route /orders/@id   ('route (dynamic)': a Route
+ *         Function; 'route (error page)': _error/+Page)
  * (entry: run() / defineElement() / a Vike page; `entry?`: maybe, an entry call can't be resolved)
  *   EVENTS
  *     DELETE_LANE  LaneComponent → RootComponent
  */
 const list = (xs) => xs.join(', ')
+
+/**
+ * PLAN-10 A-9: a Vike component's route: 'route /orders/@id', 'route (dynamic)', 'route (error page)';
+ * 'routes /orders/new, /orders/@id' for a component several +Page files export.
+ */
+function routeText(c) {
+  if (c.route === undefined) return ''
+  const one = (r, dyn) => r ?? (dyn ? '(dynamic)' : '(error page)')
+  return c.routes ? `routes ${c.routes.map((r, i) => one(r, i ? true : c.routeDynamic)).join(', ')}` : `route ${one(c.route, c.routeDynamic)}`
+}
 
 function selectorText(s) {
   const mark = s.isolationHit ? `✗ inside <${s.isolationHit}>` : s.matched === true ? '✓' : s.matched === false ? '✗ not in view' : '?'
@@ -50,8 +65,9 @@ function timerText(t) {
 export function formatGraph(g, { verbose = false } = {}) {
   const out = []
   const shown = (d) => verbose || d.severity !== 'info'
+  const byId = new Map(g.components.map(c => [c.id, c]))
   for (const c of g.components) {
-    const marks = [c.entry === true ? 'entry' : c.entry === 'unknown' ? 'entry?' : '', c.viewOnly ? 'view only' : ''].filter(Boolean).map(m => '  ' + m).join('')
+    const marks = [c.entry === true ? 'entry' : c.entry === 'unknown' ? 'entry?' : '', c.viewOnly ? 'view only' : '', routeText(c)].filter(Boolean).map(m => '  ' + m).join('')
     out.push(`${c.name}  ${c.file ? c.file + ':' + c.id.split(':').pop() : '#' + c.id}  ${c.kind}${marks}`)
     const row = (label, value) => { if (value) out.push(`  ${label.padEnd(9)} ${value}`) }
     row('actions', list(c.actions.map(a => `${a.name} (${a.trigger}${a.sinks.length ? ' → ' + sinksText(a) : ', no model entry'})`)))
@@ -68,7 +84,7 @@ export function formatGraph(g, { verbose = false } = {}) {
       c.eventsSelected.length ? `selects ${list(c.eventsSelected)}` : '',
     ].filter(Boolean).join('; ')
     row('events', evs)
-    row('children', list(c.children.map(ch => `${ch.name} (${[`${ch.widget ? 'widget' : ch.via}${ch.from ? ` from '${ch.from}'` : ''}`, ch.state && `state '${ch.state}'`, ch.external].filter(Boolean).join(', ')})`)))
+    row('children', list(c.children.map(ch => `${ch.name} (${[`${ch.widget ? 'widget' : ch.via}${ch.from ? ` from '${ch.from}'` : ''}${ch.via === 'layout' && byId.get(ch.id)?.route != null ? ` ${byId.get(ch.id).route}` : ''}`, ch.state && `state '${ch.state}'`, ch.external].filter(Boolean).join(', ')})`)))
     row('parent', list((c.childSelects || []).map(s => `from ${s.child ?? '?'} → ${s.actions.length ? s.actions.join(', ') : '?'}`)))
     row('controls', list((c.controls || []).map(x => `${x.name}${x.element ? ` <${x.element}>` : x.kind ? ` (${x.kind})` : ''} ${x.listened ? '✓' : x.listened === false ? '(not listened to)' : '?'}`)))
     row('selectors', list(c.selectors.map(selectorText)))

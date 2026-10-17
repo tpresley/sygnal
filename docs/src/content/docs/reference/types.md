@@ -268,6 +268,9 @@ interface InspectComponent {
   kind: 'root' | 'child' | 'collection-item' | 'switchable'
   viewOnly?: true                // rendered as a component, but has no statics
   entry?: true | 'unknown'       // started by run() (static: also defineElement(), a Vike page)
+  route?: string | null          // static, Vike: a +Page's route ('/orders/@id'), a +Layout's URL prefix
+  routeDynamic?: true            // static, Vike: a Route Function (route: null)
+  routes?: (string | null)[]     // static, Vike: every route of a component several +Page files export
   app?: number                   // runtime: which run() the instance belongs to
   shown?: false                  // runtime: a hidden Switchable page, or below one
   // writes (static, STATE actions): the top-level keys the reducer may write, null when unknown;
@@ -281,8 +284,9 @@ interface InspectComponent {
   stateReadsPartial?: true       // static: stateReads may be incomplete (the state used whole)
   eventsEmitted: string[]
   eventsSelected: string[]
-  // id: static, the rendered component's; ids: runtime, the live instances'
-  children: { name: string; via: 'tag' | 'collection' | 'switchable' | 'slot'; from?: string | null; count?: number; id?: string | null; ids?: string[] }[]
+  // id: static, the rendered component's; ids: runtime, the live instances';
+  // via 'layout' (static, Vike): a +Wrapper / +Layout rendering the next +Layout in, or a +Page
+  children: { name: string; via: 'tag' | 'collection' | 'switchable' | 'slot' | 'layout'; from?: string | null; count?: number; id?: string | null; ids?: string[] }[]
   selectors: { selector: string; events: string[] | null; matched: boolean | null; isolationHit: string | null }[]
   diagnostics: InspectDiagnostic[]
 }

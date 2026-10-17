@@ -141,7 +141,11 @@ export interface InspectAction extends Partial<InspectLocation> {
 
 export interface InspectChild extends Partial<InspectLocation> {
   name: string
-  via: 'tag' | 'collection' | 'switchable' | 'slot'
+  /**
+   * 'layout' (static, PLAN-10 A-9): Vike's shell, a +Wrapper / +Layout rendering the next +Layout in
+   * or a +Page it applies to (Wrapper(s) > Layout(s) > Page); no location (no JSX site)
+   */
+  via: 'tag' | 'collection' | 'switchable' | 'slot' | 'layout'
   /** Collection: the `from` state field, when known */
   from?: string | null
   /** runtime: number of live instances behind this entry (e.g. Collection items) */
@@ -286,11 +290,25 @@ export interface InspectComponent {
   /** PLAN-10 A-1 / D522: rendered as a component (or started as an entry) but has no statics */
   viewOnly?: true
   /**
-   * static, PLAN-10 A-6: started by run(), defineElement() or a Vike +Page / +Layout; 'unknown' on the
+   * static, PLAN-10 A-6: started by run(), defineElement() or a Vike +Page / +Layout / +Wrapper; 'unknown' on the
    * other roots when an entry call's component can't be resolved (picked at run time).
    * runtime (D522): true on an app's root instance
    */
   entry?: true | 'unknown'
+  /**
+   * static, Vike only (PLAN-10 A-9): on a +Page's component its route ('/orders/@id': from the
+   * filesystem, or the literal string a +route file / the config's `route` sets); null for a Route
+   * Function or a route the checker can't read (with `routeDynamic`) and for _error/+Page. On a
+   * +Layout's / +Wrapper's: the URL prefix of the directory it applies to
+   */
+  route?: string | null
+  /**
+   * static, Vike only (PLAN-10 A-9): every route of a component several +Page files export (`route` is
+   * the first, in path order; null for a dynamic one or the error page); omitted otherwise
+   */
+  routes?: (string | null)[]
+  /** static, Vike only (PLAN-10 A-9): the route is a Route Function or can't be read (route: null) */
+  routeDynamic?: true
   /** runtime, PLAN-10 D522: the app (run()) it belongs to: its root's index among the live roots, oldest first */
   app?: number
   /** runtime, PLAN-10 D522: false on a hidden Switchable page and below it; omitted when shown */
