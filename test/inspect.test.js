@@ -20,7 +20,7 @@ function Item({ state }) { return h('li', { className: 'item' }, h('button', { c
 Item.intent = ({ DOM }) => ({ REMOVE: DOM.select('.remove').events('click') })
 Item.model = { REMOVE: { EVENTS: event('ITEM_REMOVED', (s) => s.id) } }
 
-function Badge({ state }) { return h('span', { className: 'badge' }, String(state.count)) }
+function Badge({ state, context }) { return h('span', { className: 'badge ' + context.theme }, String(state.count)) }
 
 function App({ state }) {
   return h('div', null,
@@ -80,7 +80,10 @@ describe('t.inspect() (renderComponent)', () => {
     expect(app.stateKeys.sort()).toEqual(['counter', 'items', 'tab'])
     expect(app.calculated).toEqual(['total'])
     expect(app.contextProvides).toEqual(['theme'])
-    expect(app.contextConsumes).toBe(null)
+    // PLAN-10 D530: the keys the latest render read (InstanceView.reads)
+    expect(app.contextConsumes).toEqual([])
+    expect(byName(g, 'Badge')[0].contextConsumes).toEqual(['theme'])
+    expect(byName(g, 'Item')[0].contextConsumes).toEqual([])
     expect(app.eventsSelected).toEqual(['ITEM_REMOVED'])
 
     const sel = Object.fromEntries(app.selectors.map(s => [s.selector, s]))
@@ -118,6 +121,8 @@ describe('t.inspect() (renderComponent)', () => {
     expect(g.events.ITEM_REMOVED).toEqual({ emitters: [], selectors: ['App'], emitterIds: [], selectorIds: [app.id] })
     // SYG104 for App's '.remove' is attached to App
     expect(app.diagnostics.map(d => d.code)).toContain('SYG104')
+    // PLAN-10 P-1: each runtime diagnostic keeps when it was reported (reported once per process)
+    expect(app.diagnostics.every(d => typeof d.timestamp === 'number' && d.timestamp > 0)).toBe(true)
   })
 
   it('prunes disposed collection items (and the events they emitted)', async () => {

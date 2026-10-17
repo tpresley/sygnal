@@ -21,6 +21,8 @@
  *               component function has no statics), entry (an app's root), app (which run() the
  *               instance belongs to), shown: false (a hidden Switchable page and below), the
  *               instance ids on children entries and in events[type].emitterIds / selectorIds.
+ *               D530: contextConsumes from InstanceView.reads (the keys the latest render read);
+ *               diagnostics keep their `timestamp`.
  *               No `key` (static 'file#name', D521): the runtime has no source file
  *   (PLAN-4 2-C) the action log (./actionLog: actionHooks, a layer of checks/next.ts) feeds
  *               inspect({ actions }): the recent actions (the last RECENT_MAX, any instance)
@@ -210,6 +212,8 @@ const slim = (d: any): InspectDiagnostic => {
   if (d.component) out.component = d.component
   if (d.fix) out.fix = d.fix
   if (d.docsUrl) out.docsUrl = d.docsUrl
+  // PLAN-10 P-1: when it was reported (runtime diagnostics are reported once per process)
+  if (typeof d.timestamp === 'number') out.timestamp = d.timestamp
   if (d.data !== undefined) {
     // keep it JSON-safe (data can hold errors, vnodes, ...)
     try { out.data = JSON.parse(JSON.stringify(d.data)) } catch (_) { /* drop */ }
@@ -338,6 +342,16 @@ function isViewOnly(c: any): boolean {
   return !!fn && STATICS.every(k => fn[k] === undefined)
 }
 
+/** PLAN-10 D530: the context keys the instance's latest render read (InstanceView.reads); every key when it read them all */
+function contextReadsOf(c: any): string[] {
+  const v = c && c.__next
+  const reads: ReadonlySet<string> | null | undefined = v && v.reads
+  if (!reads) return []
+  const out = [...reads].filter(k => k !== '\u0000all')
+  if (reads.has('\u0000all')) { try { for (const k of Object.keys(v.context || {})) if (!out.includes(k)) out.push(k) } catch (_) { /* no context */ } }
+  return out
+}
+
 /** PLAN-10 D522: the app (run()) of each instance: the index of its root among the live roots, oldest first */
 function appsOf(all: Rec[]): Map<Rec, number> {
   const byId = new Map(all.map(r => [r.id, r]))
@@ -391,7 +405,7 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
       stateKeys: stateKeysOf(c, calculated),
       calculated,
       contextProvides: c && isPlainObject(c.context) ? Object.keys(c.context) : [],
-      contextConsumes: null,
+      contextConsumes: contextReadsOf(c),
       eventsEmitted: [...r.eventsEmitted],
       eventsSelected: [...r.eventsSelected],
       children: childrenOf(r, all),

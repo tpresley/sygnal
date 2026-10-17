@@ -75,6 +75,9 @@ describe('kanban: runtime inspect (renderComponent + built dev entry)', () => {
         expect(lane.selectors.every(s => s.isolationHit === null)).toBe(true)
       }
       expect(byName(g, 'TaskCard').every(c => c.kind === 'collection-item')).toBe(true)
+      // PLAN-10 D530: what each instance's latest render read from context (the static graph's reads too)
+      expect(byName(g, 'TaskCard').map(c => c.contextConsumes)).toEqual([['draggingTaskId']])
+      expect(root.contextConsumes).toEqual([])
       // lane-2's task; the TaskCards of the deleted lane-1 were disposed with it (B-024), so
       // none is left under the removed lane's id
       const laneIds = lanes.map(l => l.id)

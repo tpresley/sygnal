@@ -206,6 +206,8 @@ export interface InspectDiagnostic {
   fix?: string
   docsUrl?: string
   data?: any
+  /** runtime only: when it was reported (ms since the epoch; each is reported once per process) */
+  timestamp?: number
   /** static only */
   file?: string
   line?: number
@@ -293,7 +295,7 @@ export interface InspectComponent {
   calculated: string[]
   /** context fields this component provides (Component.context) */
   contextProvides: string[]
-  /** context fields its view reads (static only; null at runtime) */
+  /** context fields its view reads (static: the view source; runtime, D530: what its latest render read) */
   contextConsumes?: string[] | null
   /** EVENTS types this component emits */
   eventsEmitted: string[]
