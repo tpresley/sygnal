@@ -23,7 +23,9 @@
  *               instance ids on children entries and in events[type].emitterIds / selectorIds.
  *               D530: contextConsumes from InstanceView.reads (the keys the latest render read);
  *               diagnostics keep their `timestamp`.
- *               No `key` (static 'file#name', D521): the runtime has no source file
+ *               `key` (PLAN-10 P-2, D544): the static 'file#name' (D521) that sygnal/vite stamps on
+ *               the component function in dev (a non-enumerable `__sygnalKey`), when it is there;
+ *               the runtime itself has no source file
  *   (PLAN-4 2-C) the action log (./actionLog: actionHooks, a layer of checks/next.ts) feeds
  *               inspect({ actions }): the recent actions (the last RECENT_MAX, any instance)
  * Selectors come from the DOM check (real DOM) or from renderComponent (mock
@@ -342,6 +344,13 @@ function isViewOnly(c: any): boolean {
   return !!fn && STATICS.every(k => fn[k] === undefined)
 }
 
+/** PLAN-10 P-2 (D544): the static key sygnal/vite's dev transform stamped on the component function */
+function stampedKey(c: any): string | undefined {
+  const fn = c && c.__next && c.__next.def && c.__next.def.view
+  const k = fn && fn.__sygnalKey
+  return typeof k === 'string' ? k : undefined
+}
+
 /** PLAN-10 D530: the context keys the instance's latest render read (InstanceView.reads); every key when it read them all */
 function contextReadsOf(c: any): string[] {
   const v = c && c.__next
@@ -392,9 +401,11 @@ export function inspect(options: InspectOptions = {}): InspectGraph {
     const calculated = c && c.calculated && typeof c.calculated === 'object' ? Object.keys(c.calculated) : []
     const selectors = selectorsOf(r, options, diags)
     const controls = controlsOf(r, selectors)
+    const key = stampedKey(c)
     return {
       name: r.name,
       id: r.id,
+      ...(key ? {key} : {}),
       parentId: r.parentId,
       kind: r.kind,
       ...(isViewOnly(c) ? {viewOnly: true as const} : {}),

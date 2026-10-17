@@ -85,7 +85,8 @@ export function mountPage(V, G, META) {
   const nd0 = (c) => c.diagnostics.some(d => d.severity !== 'info')
   let restoring = false
   const diagCount = (c) => c.diagnostics.filter(d => d.severity !== 'info').length
-  const fileLine = (c) => c.rt ? V.rtCardSub(c) : `${c.file}${c.line != null ? ':' + c.line : ''}`
+  // a runtime card (no file) is described by its instances; a static card with live data (P-2) keeps its file
+  const fileLine = (c) => c.rt && !c.file ? V.rtCardSub(c) : `${c.file}${c.line != null ? ':' + c.line : ''}`
   const nameOf = (c) => c.rt && c.rt.count > 1 ? `${c.name} ×${c.rt.count}` : c.name
   const dirLabel = (d) => M.runtime ? d : d + '/'
   const describe = (c) => c.ghost
@@ -131,7 +132,7 @@ export function mountPage(V, G, META) {
       const p = pos.get(c.id)
       const w = V.worst(c)
       const route = V.routeLabel(c)
-      const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry', c.rt && 'rt', c.shown === false && 'hidden-page', n.dim && 'dimf', route != null && 'vike'].filter(Boolean).join(' ')
+      const cls = ['node', c.ghost && 'ghost', c.external && 'external', c.widget && 'widget', c.viewOnly && 'view-only', c.entry === true && 'entry', c.rt && 'rt', c.mounted === false && 'unmounted', c.shown === false && 'hidden-page', n.dim && 'dimf', route != null && 'vike'].filter(Boolean).join(' ')
       const g = el('g', { class: cls + (w === 'error' ? ' has-err' : w === 'warn' ? ' has-warn' : ''), transform: `translate(${p.x},${p.y})`, tabindex: -1, role: 'button', 'aria-label': describe(c), 'data-id': c.id }, $('nodes'))
       el('rect', { class: 'box', width: p.w, height: p.h, rx: 11 }, g)
       if (!c.ghost) el('rect', { x: 0, y: 10, width: 3.5, height: p.h - 20, rx: 2, fill: `var(--${{ root: 'k-root', 'collection-item': 'k-coll', switchable: 'k-switch' }[c.kind] ?? 'k-child'})` }, g)
@@ -139,7 +140,7 @@ export function mountPage(V, G, META) {
       const byRoute = route != null && /^(Page|Layout|Wrapper)$/.test(c.name)
       const nm = byRoute ? route : c.rt && c.rt.count > 1 ? `${c.name.length > 16 ? c.name.slice(0, 15) + '…' : c.name} ×${c.rt.count}` : c.name
       el('text', { class: 'name', x: 16, y: 24 }, g).textContent = nm.length > 22 ? nm.slice(0, 21) + '…' : nm
-      const base = c.ghost ? ghostWhat(c) : c.rt ? V.rtCardSub(c) : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
+      const base = c.ghost ? ghostWhat(c) : c.rt && !c.file ? V.rtCardSub(c) : `${c.file.split('/').pop()}${c.line != null ? ':' + c.line : ''}`
       const file = route != null ? `${byRoute ? c.name : route} · ${base}` : base
       el('text', { class: 'sub', x: 16, y: 41 }, g).textContent = file.length > 30 ? (route != null ? file.slice(0, 29) + '…' : '…' + file.slice(-29)) : file
       if (!c.ghost) {
@@ -498,7 +499,7 @@ export function mountPage(V, G, META) {
   function renderDetail(c) {
     const out = []
     out.push(`<div class="dhead"><h2 id="dtitle">${esc(c.name)}${c.rt && c.rt.count > 1 ? ` <span class="unk">×${c.rt.count}</span>` : ''} <span class="kind ${kindClass(c.kind)}">${esc(kindLabel(c))}</span>${c.entry === true ? ' <span class="tag">entry</span>' : ''}${c.viewOnly ? ' <span class="tag">view only</span>' : ''}${c.shown === false ? ' <span class="tag">hidden</span>' : ''}<button type="button" class="close" id="dclose" aria-label="Close details (Esc)">×</button></h2>
-      <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : (c.rt ? `<span class="mono">runtime · ${esc(V.rtCardSub(c))}</span>` : fileLink(c.file, c.line, fileLine(c))) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
+      <div class="loc">${c.ghost ? (c.external ? `A component from the package <code>${esc(c.external)}</code>${c.widget ? ' (a widget)' : ''}.` : c.widget ? 'A widget (defineWidget, fromReact, fromZag…): its inside is not a Sygnal component.' : 'Rendered by a scanned component, but its definition was not found in the scanned files (a plain function, a dynamic tag, or a file outside the paths).') : (c.rt && !c.file ? `<span class="mono">runtime · ${esc(V.rtCardSub(c))}</span>` : fileLink(c.file, c.line, fileLine(c))) + '<span class="spacer"></span><button type="button" class="copy" id="dcopy">Copy JSON</button>'}</div></div>`)
 
     if (c.diagnostics.length) {
       out.push(`<section class="dsec"><h3>Diagnostics <span class="n">${c.diagnostics.length}</span></h3>${c.diagnostics.map(d => {
@@ -573,7 +574,8 @@ export function mountPage(V, G, META) {
     inner.innerHTML = out.join('')
     $('dclose').onclick = () => { const id = selected; select(null); nodeEls.get(id)?.focus() }
     const cp = $('dcopy')
-    if (cp) cp.onclick = () => copy(JSON.stringify(c.rt ? c.rt.raw : (G.components || []).find(x => x.id === c.id) ?? null, null, 2), c.rt ? 'Instances JSON copied' : 'Component JSON copied')
+    const rtOnly = c.rt && !c.file
+    if (cp) cp.onclick = () => copy(JSON.stringify(rtOnly ? c.rt.raw : (G.components || []).find(x => x.id === c.id) ?? null, null, 2), rtOnly ? 'Instances JSON copied' : 'Component JSON copied')
     if (c.rt) rtFetch(c, inner)
     inner.querySelectorAll('[data-goto]').forEach(n => { n.onclick = () => select(n.dataset.goto, { pan: true }) })
     inner.querySelectorAll('[data-trace-event]').forEach(n => { n.onclick = () => trace('event', n.dataset.traceEvent) })

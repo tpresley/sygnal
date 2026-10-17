@@ -123,6 +123,21 @@
  *      `globalThis.__SYGNAL_VIEW_TOKENS__`. The runtime SYG103 check then takes a selector drawn
  *      by a view helper (`{state.open && panel()}`) as conditionally rendered, as it does for
  *      markup in the view function itself (see viewTokensTail).
+ *  12. `graph` option (PLAN-10 W-2 / P-2, D543 / D544, default true; dev server only, never
+ *      `vite build`, `vite preview` or Vitest): the live app graph page at /__sygnal/graph, with
+ *      its SSE stream at /__sygnal/graph/events (./graph.ts; the /__sygnal/mcp guard: loopback
+ *      peer, local Host or server.allowedHosts, local Origin). sygnal-check (from the project,
+ *      skipped silently when missing; a sygnal-check without the page keeps the checker as in 5)
+ *      builds it with createLiveProject on start and after each change: one build gives the page,
+ *      the check overlay / console findings of 5, and the component stamps. Its URL is printed
+ *      under Vite's ("➜  Sygnal graph: http://localhost:5173/__sygnal/graph"). The modules of the
+ *      scanned files get a tail setting a non-enumerable `__sygnalKey` (the static 'file#name'
+ *      key, D521) on each top-level component function, which the runtime inspect() reports as
+ *      `key`; with DevTools on, the dev entries also import 'virtual:sygnal/graph'
+ *      (installGraphBridge from 'sygnal/devtools'), which answers the page's "Live data" over a
+ *      same-origin BroadcastChannel: the page fades components with no instance, shows instance
+ *      counts, flashes a card when its action runs and shows an instance's state. `graph: false`:
+ *      no route, stamps or bridge (the checker of 5 runs check() as before).
  *
  * Why not Vite's `define`? Vite's dependency optimizer does not apply user
  * `define` replacements to pre-bundled dependencies (only process.env.NODE_ENV),
@@ -162,6 +177,8 @@ import { pathToFileURL } from 'node:url'
 import { globalThisAlias } from './globalthis'
 import { attachMcp, mcpClientModule } from './mcp'
 import type { McpPluginOptions } from './mcp'
+import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMiddleware, printGraphUrl, stampTail } from './graph'
+import type { LiveEngine } from './graph'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -282,6 +299,17 @@ export interface SygnalPluginOptions {
    * @default false
    */
   mcp?: boolean | McpPluginOptions
+
+  /**
+   * PLAN-10 W-2 (D543): serve the live app graph page at `/__sygnal/graph` on the dev server (local
+   * requests only, as `/__sygnal/mcp`), built by sygnal-check (skipped silently when it isn't
+   * installed) and updated on every save; its URL is printed under Vite's. P-2 (D544): in dev the
+   * component functions get their static key (a non-enumerable `__sygnalKey`), and the app tabs
+   * answer the page's "Live data" (mounted components, instance counts, action flashes, state).
+   * Dev server only: never `vite build`, `vite preview` or Vitest. false: no route, no stamps.
+   * @default true
+   */
+  graph?: boolean
 }
 
 // Virtual modules (dev server only)
@@ -297,6 +325,8 @@ const OVERLAY_PLUGIN = 'sygnal-check'
 // PLAN-6 E-1: the page side of the dev MCP endpoint
 const MCP_CLIENT = 'virtual:sygnal/mcp'
 const MCP_CLIENT_ID = '\0' + MCP_CLIENT
+// PLAN-10 P-2: the page side of the graph page's "Live data"
+const GRAPH_CLIENT_ID = '\0' + GRAPH_CLIENT
 // Register the runtime checks with the core that loaded last (see the Vike wrapper)
 const REINSTALL_IMPORT = `import { installChecks as __sygnalInstallChecks } from 'sygnal/diagnostics';`
 const REINSTALL_CALL = 'try { __sygnalInstallChecks() } catch (e) { console.warn(e) }\n'
@@ -321,11 +351,17 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const mcpOptions: McpPluginOptions = typeof options.mcp === 'object' && options.mcp ? options.mcp : {}
   const devtoolsOn = options.devtools !== false || mcpOn
   const redux = typeof options.devtools == 'object' && !!options.devtools?.redux
-  const devtoolsImport = (!devtoolsOn ? ''
+  // PLAN-10 W-2 / P-2 (D543, D544): the graph page, the component stamps and (with DevTools and a
+  // sygnal-check that has the page, decided in config()) the app side of its "Live data"
+  const graphOn = options.graph !== false
+  let graphClient = false
+  let engine: Promise<LiveEngine | null> | null = null
+  const devtoolsBase = (!devtoolsOn ? ''
     : redux ? `import { connectReduxDevtools as __sygnalReduxDevtools } from 'sygnal/devtools';__sygnalReduxDevtools();`
     : `import 'sygnal/devtools';`) + (mcpOn ? `import '${MCP_CLIENT}';` : '')
+  let devtoolsImport = devtoolsBase
   // What a dev entry gets: DevTools, then (unless diagnostics are 'off') flags + checks
-  const devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
+  let devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
   const devInject = devOn || devtoolsOn
   let astroClient: Set<string> | undefined
 
@@ -336,6 +372,10 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       isServe = env.command === 'serve'
       isVitest = !!nodeProcess?.env?.VITEST
       root = config?.root ? path.resolve(config.root) : nodeProcess.cwd()
+      // P-2: the graph page's app side, in the dev server only, when the page can exist
+      graphClient = isServe && !isVitest && graphOn && devtoolsOn && graphAvailable(root)
+      devtoolsImport = devtoolsBase + (graphClient ? `import '${GRAPH_CLIENT}';` : '')
+      devSnippet = devtoolsImport + (devOn ? flags + devImports : '')
 
       const result: any = {
         // Ensure sygnal is bundled for SSR rather than externalized.
@@ -440,6 +480,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         if (!isServe || isVitest) return null
         if (source === DEV_CLIENT) return DEV_CLIENT_ID
         if (source === MCP_CLIENT && mcpOn) return MCP_CLIENT_ID
+        if (source === GRAPH_CLIENT && graphClient) return GRAPH_CLIENT_ID
         if (source === 'sygnal' && importer && wrapRun && runtimeImporters.has(cleanId(importer))) {
           return RUNTIME_ID
         }
@@ -459,6 +500,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     load(id: string) {
       if (id === DEV_CLIENT_ID) return devClientModule()
       if (id === MCP_CLIENT_ID && mcpOn) return mcpClientModule(mcpOptions)
+      if (id === GRAPH_CLIENT_ID && graphClient) return graphClientModule()
       if (id === RUNTIME_ID) return runtimeModule(diagnostics)
       // The checks register again once the real entry has loaded: a
       // pre-bundled copy of it can carry its own copy of the Sygnal core
@@ -476,14 +518,25 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       if (mcpOn && server?.middlewares) {
         attachMcp(server, root, mcpOptions, sygnalVersion(root))
       }
-      if (options.check === false) return
+      const checkOn = options.check !== false
+      if (!checkOn && !graphOn) return
       const checkOptions = typeof options.check === 'object' && options.check ? options.check : {}
-      // Deferred: the dev server doesn't wait for the first check
       const checkDefaults = { strict: diagnostics.strict, ignore: diagnostics.ignore }
-      setTimeout(() => {
-        startChecker(server, root, checkOptions, checkDefaults, options.check !== undefined)
-          .catch(err => server?.config?.logger?.warn?.(`[sygnal] sygnal-check could not start: ${err?.message || err}`))
-      }, 0)
+      // Deferred: the dev server doesn't wait for the first check. `engine`: the live graph
+      // project (W-2), null without a sygnal-check that has it
+      engine = new Promise<LiveEngine | null>((resolve) => {
+        setTimeout(() => {
+          startDev(server, root, checkOptions, checkDefaults, options.check !== undefined, checkOn, graphOn).then(resolve, (err) => {
+            server?.config?.logger?.warn?.(`[sygnal] sygnal-check could not start: ${err?.message || err}`)
+            resolve(null)
+          })
+        }, 0)
+      })
+      // W-2 (D543): the page and its stream, behind the MCP endpoint's guard; its URL in the banner
+      if (graphOn && server?.middlewares) {
+        server.middlewares.use(graphMiddleware(server, root, engine))
+        if (graphAvailable(root)) printGraphUrl(server)
+      }
     },
 
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
@@ -493,7 +546,10 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         ? checkPeers(this, adapters, id).then(() => devTransform.call(this, code, id, opts))
         : devTransform.call(this, code, id, opts)
       // 11. the words SYG103 may take as conditionally rendered markup (dev server, diagnostics on)
-      const tokens = isServe && !isVitest && devOn && !opts?.ssr ? viewTokensTail(this, code, id) : null
+      const words = isServe && !isVitest && devOn && !opts?.ssr ? viewTokensTail(this, code, id) : null
+      // 12. P-2 (D544): the static keys of the module's components (dev server, graph on)
+      const stamps = engine && isServe && !isVitest && !opts?.ssr ? componentStampTail(engine, id) : null
+      const tokens = words && stamps ? Promise.all([words, stamps]).then(([a, b]) => a + b) : words || stamps
       if (!tokens) return result
       return Promise.all([result, tokens]).then(([r, tail]: [any, string]) => {
         if (!tail) return r
@@ -585,6 +641,19 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       }
       return done()
   }
+}
+
+// 12. PLAN-10 P-2 (D544): a module of the scanned files gets, in dev, a tail that sets each of its
+// components' static key (sygnal-check's D521 'file#name', from the live graph engine's last build,
+// built again first when the module's text changed) as a non-enumerable `__sygnalKey` on the
+// function; the runtime inspect() reports it as `key`, and the graph page joins instances to cards.
+function componentStampTail(engine: Promise<LiveEngine | null>, id: string): Promise<string> | null {
+  const file = cleanId(id)
+  if (!/\.[cm]?[jt]sx?$/.test(file) || id.includes('node_modules') || id.startsWith('\0')) return null
+  return engine.then((e) => {
+    if (!e) return ''
+    try { return stampTail(e.stampsFor(file) || []) } catch (_) { return '' }
+  })
 }
 
 // 11. SYG103 (the dev runtime check of an intent selector that never matched) lets a selector
@@ -899,16 +968,41 @@ function checkInclude(root: string, include: string[] | undefined, notice: (m: s
   return ['.']
 }
 
-/** Run sygnal-check now and after source changes; report to the terminal and the browser. */
-async function startChecker(server: any, root: string, opts: CheckPluginOptions,
-  defaults: { strict: boolean, ignore: string[] }, explicit: boolean) {
+/**
+ * Load sygnal-check and start what dev uses it for: the checker (`check`, reported to the terminal
+ * and the browser) and the live graph engine (`graph`, PLAN-10 W-2: the page, its stream and the
+ * component stamps). With an engine, both come from one build. Resolves to the engine, or null.
+ */
+async function startDev(server: any, root: string, opts: CheckPluginOptions,
+  defaults: { strict: boolean, ignore: string[] }, explicit: boolean, checkOn: boolean, graphOn: boolean): Promise<LiveEngine | null> {
   const mod = await loadSygnalCheck(root)
   const logger = server?.config?.logger || console
   if (!mod || typeof mod.check !== 'function') {
-    if (explicit) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
-    return
+    if (explicit && checkOn) logger.info('[sygnal] sygnal-check is not installed, so static checks are off (npm i -D sygnal-check)')
+    return null
   }
-  const notice = (m: string) => logger.info(m)
+  const setup = checkSetup(mod, root, opts, defaults, (m: string) => logger.info(m))
+  // PLAN-10 W-2: a sygnal-check with the live project and the page (feature-detected, so an older
+  // one keeps the checker as it was)
+  const engine = graphOn && setup.configAware && typeof mod.createLiveProject === 'function' && typeof mod.graphHtml === 'function'
+    ? createEngine(mod, root, {
+      paths: setup.include, strict: setup.checkOptions.strict, a11y: setup.checkOptions.a11y,
+      ignore: setup.checkOptions.ignore, defaults: setup.checkOptions.defaults,
+    }, logger, true)
+    : null
+  if (checkOn) startChecker(server, root, mod, setup, opts, engine)
+  if (engine) {
+    if (!engine.last) engine.build()
+    engine.watch(server)
+  }
+  return engine
+}
+
+interface CheckSetup { include: string[]; checkOptions: any; configAware: boolean }
+
+/** What sygnal-check checks, with which options (see the `check` option). */
+function checkSetup(mod: any, root: string, opts: CheckPluginOptions,
+  defaults: { strict: boolean, ignore: string[] }, notice: (m: string) => void): CheckSetup {
   // PLAN-7 C-5 (D299): a sygnal-check with config support resolves the settings itself:
   // explicit check.* options > its config file > the `diagnostics` defaults passed as `defaults`.
   // An older one gets exactly what it got before.
@@ -940,6 +1034,17 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
       a11y: opts.a11y === 'error' ? 'error' : 'warn',
     }
   }
+  return { include, checkOptions, configAware }
+}
+
+/**
+ * Run sygnal-check now and after source changes; report to the terminal and the browser. With the
+ * live graph engine (W-2) the findings come from its builds (one build for the page and the
+ * checker); else from check() on each change.
+ */
+function startChecker(server: any, root: string, mod: any, setup: CheckSetup, opts: CheckPluginOptions, engine: LiveEngine | null) {
+  const logger = server?.config?.logger || console
+  const { include, checkOptions, configAware } = setup
   const a11y = checkOptions.a11y
   // Only error-severity findings open Vite's overlay: while an overlay is open
   // Vite's client reloads the page on the first HMR update, so warnings stay
@@ -966,13 +1071,16 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     } catch (_) {}
   }
 
-  const run = (initial = false) => {
+  const run = (initial = false, built?: any[]) => {
     let diags: any[]
-    try {
-      diags = mod.check(include, checkOptions)
-    } catch (err: any) {
-      logger.warn(`[sygnal] sygnal-check failed: ${err?.message || err}`, { timestamp: true })
-      return
+    if (built) diags = built
+    else {
+      try {
+        diags = mod.check(include, checkOptions)
+      } catch (err: any) {
+        logger.warn(`[sygnal] sygnal-check failed: ${err?.message || err}`, { timestamp: true })
+        return
+      }
     }
     // A sygnal-check from before D144 reports SYG7xx as errors under strict: keep them warnings
     // (one with config support postdates D144 and resolves a11y itself)
@@ -1011,7 +1119,12 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     if (!initial) broadcast(changed)
   }
 
-  run(true)
+  if (engine) {
+    // every build of the engine: the first on start, then after changes (its own watcher)
+    let first = !engine.last
+    engine.onBuild((b) => { const initial = first; first = false; run(initial, b.diagnostics || []) })
+    if (engine.last) run(true, engine.last.diagnostics || [])
+  } else run(true)
   // A page that loads (or reloads) asks for the current findings: answer
   // that client only, never every client.
   try {
@@ -1023,6 +1136,7 @@ async function startChecker(server: any, root: string, opts: CheckPluginOptions,
     })
   } catch (_) {}
 
+  if (engine) return
   let timer: any
   const onChange = (file: string) => {
     if (file.split(/[\\/]/).includes('node_modules')) return

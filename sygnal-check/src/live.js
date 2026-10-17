@@ -19,16 +19,20 @@
  *
  * prepare(): options from the root's config file under `settings` (only the defined keys:
  * strict, a11y, ignore, paths (relative to the root), includeTests; `config`: false skips the
- * file, a path reads that one), the files expanded from `paths` (with `sources`, the unsaved
- * buffers, counted), less those `filter(abs)` rejects (the LSP's nested roots), then the project
+ * file, a path reads that one; `defaults`: below the config file, as check()'s), the files
+ * expanded from `paths` (with `sources`, the unsaved buffers, counted), less those `filter(abs)` rejects (the LSP's nested roots), then the project
  * built with the last good substitution.
  *   Prepared { options, config, srcs, files, missing, project (null without files), parseErrors, substituted: Map }
  *
  * build(): prepare() plus the rules and the graph (graph.js buildGraph), as graphFiles() makes it
  * with the config file's findings (`--graph=html` without `--watch` gives the same JSON for the
  * same files). `version` counts the builds whose JSON changed, `changed` says this one did.
- *   Build { graph (null without files), json, hash, version, changed, files, missing,
- *           substituted: string[] (absolute), options, ms }
+ * `diagnostics` is the sorted list the graph was built with (check()'s result for the same files,
+ * with the last good substitution): sygnal/vite reports it and serves the graph from one build
+ * (PLAN-10 W-2). With `stamps: true`, `stamps` is componentStamps(project) (graph.js, P-2):
+ * Map absPath → [{ binding, key }]; else null.
+ *   Build { graph (null without files), json, hash, version, changed, diagnostics, stamps, files,
+ *           missing, substituted: string[] (absolute), options, ms }
  *
  * watchSet(): what a watcher should follow after the last prepare(): `dirs` (the input
  * directories, or a glob's base, watched recursively) and `files` (single files: inputs named
@@ -45,7 +49,7 @@ import { runRules, sortDiagnostics } from './run.js'
 import { resolveOptions, CONFIG_FILE } from './config.js'
 import { expandInputs, toSourceMap } from './files.js'
 import { createParseCache } from './cache.js'
-import { buildGraph } from './graph.js'
+import { buildGraph, componentStamps } from './graph.js'
 
 const isParseError = (d) => d.code === 'SYG900' && /^could not parse file/.test(d.message)
 const GLOB_CHARS = /[*?[\]{}]/
@@ -70,7 +74,7 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
   function prepare({ settings = {}, sources, filter } = {}) {
     const { options, config } = resolveOptions({
       cwd: root, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, paths: settings.paths,
-      includeTests: settings.includeTests, config: settings.config,
+      includeTests: settings.includeTests, config: settings.config, defaults: settings.defaults,
     })
     lastSettings = settings
     const srcs = toSourceMap(sources, root)
@@ -115,18 +119,20 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
     const t0 = performance.now()
     const prep = prepare(args)
     const { project, options, config } = prep
-    let graph = null
+    let graph = null, diagnostics = [...config.diagnostics], stamps = null
     if (project) {
       let diags = runRules(project, selectRules({ strict: options.strict, a11y: options.a11y }))
       diags = [...config.diagnostics, ...diags, ...prep.parseErrors]
       if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
-      graph = buildGraph(project, sortDiagnostics(diags))
-    }
+      diagnostics = sortDiagnostics(diags)
+      graph = buildGraph(project, diagnostics)
+      if (args.stamps) stamps = componentStamps(project)
+    } else if (options.ignore?.length) diagnostics = diagnostics.filter(d => !options.ignore.includes(d.code))
     const json = JSON.stringify(graph)
     const changed = json !== current.json
     if (changed) current = { json, hash: crypto.createHash('sha1').update(json).digest('hex'), version: current.version + 1 }
     return {
-      graph, json, hash: current.hash, version: current.version, changed,
+      graph, json, hash: current.hash, version: current.version, changed, diagnostics, stamps,
       files: prep.files, missing: prep.missing, substituted: [...prep.substituted.keys()], options, ms: performance.now() - t0,
     }
   }

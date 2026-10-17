@@ -275,7 +275,8 @@ export interface InspectComponent {
   id: string
   /**
    * static, PLAN-10 D521: 'file#name', stable when lines move (hosts key selection and positions by it);
-   * a second component of the same name in one file gets 'file#name#2', and so on. Not at runtime
+   * a second component of the same name in one file gets 'file#name#2', and so on. Runtime (PLAN-10 P-2,
+   * D544): the same key when sygnal/vite's dev server stamped the component function, else absent
    */
   key?: string
   /** runtime: the parent instance's id; static: null (see the parents' `children`) */
