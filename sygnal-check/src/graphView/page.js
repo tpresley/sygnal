@@ -305,13 +305,25 @@ export function mountPage(V, G, META) {
   // A folded group's name is centred in its card and capped by the card's height as well as its
   // width, so far away it never grows out of the card (it was anchored at the card's top-left)
   function sizeFarLabels() {
-    for (const t of $('clusters').querySelectorAll('.big')) t.style.fontSize = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length), (Number(t.dataset.h) - 16) * 0.3).toFixed(1) + 'px'
+    for (const t of $('clusters').querySelectorAll('.big')) {
+      const size = Math.min(18 / view.k, Number(t.dataset.w) / (0.62 * t.textContent.length), (Number(t.dataset.h) - 16) * 0.3)
+      t.style.fontSize = size.toFixed(1) + 'px'
+      fitWidth(t, size, Number(t.dataset.w))
+    }
     for (const t of $('nodes').querySelectorAll('.node.group .name')) placeFarName(t, true)
   }
   function placeFarName(t, far) {
     if (!far) { t.style.fontSize = ''; t.setAttribute('x', 16); t.setAttribute('y', 26); t.removeAttribute('text-anchor'); t.removeAttribute('dominant-baseline'); return }
     t.setAttribute('x', V.GROUP_W / 2); t.setAttribute('y', V.GROUP_H / 2); t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'central')
-    t.style.fontSize = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length), V.GROUP_H * 0.6).toFixed(1) + 'px'
+    const size = Math.min(15 / view.k, (V.GROUP_W - 24) / (0.62 * t.textContent.length), V.GROUP_H * 0.6)
+    t.style.fontSize = size.toFixed(1) + 'px'
+    // the 0.62 em per character estimate is short for wider fonts (Linux's default sans): measure and shrink
+    fitWidth(t, size, V.GROUP_W - 24)
+  }
+  function fitWidth(t, size, max) {
+    let w = 0
+    try { w = t.getComputedTextLength() } catch (_) { return }
+    if (w > max) t.style.fontSize = (size * max / w * 0.98).toFixed(1) + 'px'
   }
   let fitK = 1
   function fit(ids = [...pos.keys()], animate = true, maxK = 1.15) {
