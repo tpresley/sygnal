@@ -66,6 +66,7 @@ export { controlFixes } from './fixControls.js'
 export { applyEdits } from './edits.js'
 export { runRules, sortDiagnostics }
 export { graph, graphFiles, buildGraph } from './graph.js'
+export { createLiveProject } from './live.js'
 export { validate as validateSchema } from './schema.js'
 export { EXPLANATIONS } from './explanations.js'
 export { getExplanation, listExplanations, formatExplanation } from './explain.js'

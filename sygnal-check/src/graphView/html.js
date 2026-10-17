@@ -85,7 +85,7 @@ export function graphHtml(graph, meta = {}) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${meta.live ? LIVE_CSP : CSP}">
-<meta name="generator" content="sygnal-check --graph=html">
+<meta name="generator" content="sygnal-check --graph=html">${meta.live ? '\n<link rel="icon" href="data:,">' : ''}
 <title>${escHtml(m.title)} · Sygnal app graph</title>
 <style>
 ${css}</style>
