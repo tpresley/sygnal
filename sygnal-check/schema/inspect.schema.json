@@ -78,6 +78,11 @@
           "type": ["array", "null"],
           "items": { "type": "string" }
         },
+        "stateReads": {
+          "$ref": "#/$defs/strings",
+          "description": "static (PLAN-10 A-7): top-level state keys read literally by the view (state.x, { state: { x } }, also through local helpers given the state), by the literal lenses it gives children (state=\"user\", Collection from=\"items\": a path's first segment) and by its calculated and context functions; omitted when none"
+        },
+        "stateReadsPartial": { "const": true, "description": "static (PLAN-10 A-7): stateReads may be incomplete (the state used whole, a computed key, a function the checker can't read); omitted otherwise" },
         "eventsEmitted": { "$ref": "#/$defs/strings" },
         "eventsSelected": { "$ref": "#/$defs/strings" },
         "children": { "type": "array", "items": { "$ref": "#/$defs/child" } },
@@ -222,7 +227,13 @@
         "line": { "type": "integer" },
         "column": { "type": "integer" },
         "file": { "type": "string", "description": "static: when not the component's file" },
-        "modelAt": { "$ref": "#/$defs/location", "description": "static: the model entry" }
+        "modelAt": { "$ref": "#/$defs/location", "description": "static: the model entry" },
+        "writes": {
+          "type": ["array", "null"],
+          "items": { "type": "string" },
+          "description": "static (PLAN-10 A-7), on actions with a STATE sink only: the top-level state keys its STATE reducer(s) may write (a behavior's: its slice, the uses key); [] when it never changes the state (ABORT, the state itself); null when the checker can't tell (a dynamic key, a spread of anything but the state, a call it can't follow). An object without `...state` replaces the state, so it also writes the other initialState keys"
+        },
+        "removes": { "const": true, "description": "static (PLAN-10 A-7): a STATE reducer may return undefined, which removes a Collection item (or clears the lensed slice); omitted otherwise" }
       }
     },
     "uses": {

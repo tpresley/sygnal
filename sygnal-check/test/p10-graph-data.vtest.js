@@ -55,7 +55,7 @@ describe('the shop fixture', () => {
       name: 'Shop', id: id('App.jsx', 24), key: `${SHOP}/App.jsx#Shop`, parentId: null, file: `${SHOP}/App.jsx`, kind: 'switchable', viewOnly: true,
       actions: [], stateKeys: [], calculated: [], contextProvides: [], contextConsumes: [], eventsEmitted: [], eventsSelected: [],
       children: [{ name: 'ProductCard', via: 'collection', from: 'products', id: id('ProductCard.jsx', 3), line: 25, column: 32 }],
-      selectors: [], diagnostics: [],
+      selectors: [], diagnostics: [], stateReads: ['products'],
     })
     expect(one(g, 'Greeting')).toMatchObject({ kind: 'child', viewOnly: true })
     expect(one(g, 'ProductCard').kind).toBe('collection-item')
@@ -94,7 +94,7 @@ describe('the shop fixture', () => {
   it('A-4: locations on actions, model entries, selectors, EVENTS sites, context entries, agent actions', () => {
     const g = shop()
     const app = one(g, 'App')
-    expect(app.actions.find(a => a.name === 'GO')).toEqual({ name: 'GO', trigger: 'intent', sinks: ['STATE'], line: 34, column: 3, modelAt: { line: 39, column: 3 } })
+    expect(app.actions.find(a => a.name === 'GO')).toEqual({ name: 'GO', trigger: 'intent', sinks: ['STATE'], line: 34, column: 3, modelAt: { line: 39, column: 3 }, writes: ['page'] })
     // a model-only action: its location is the model entry
     expect(app.actions.find(a => a.name === 'SAVE_CART')).toMatchObject({ line: 42, column: 3, modelAt: { line: 42, column: 3 } })
     expect(app.contextEntries).toEqual([{ name: 'currency', line: 30, column: 3 }, { name: 'cartCount', line: 31, column: 3 }])
@@ -184,7 +184,7 @@ describe('inline cases', () => {
     })
     expect(validateSchema(schema, g)).toEqual([])
     const app = one(g, 'App')
-    expect(app.actions).toEqual([{ name: 'ADD', trigger: 'intent', sinks: ['STATE'], line: 2, column: 3, file: 'intent.js', modelAt: { line: 4, column: 15 } }])
+    expect(app.actions).toEqual([{ name: 'ADD', trigger: 'intent', sinks: ['STATE'], line: 2, column: 3, file: 'intent.js', modelAt: { line: 4, column: 15 }, writes: [] }])
     expect(app.selectors[0]).toMatchObject({ selector: '.add', line: 2, column: 18, file: 'intent.js' })
   })
 
