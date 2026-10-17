@@ -114,11 +114,13 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 |---|---|---|---|
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 | G-801 | 2026-10-16 (A-7) | `analyzeModel` treats a call-built model entry (`SEND: sending(fn)`) as a plain STATE entry, so its other sinks (e.g. `LLM`) are missed; pre-existing | open |
-| G-803 | 2026-10-16 (A-9) | Possible runtime bug, unverified: Vike orders cumulative `Layout` values closest-first, while `src/vike/onRenderClient.ts` may treat index 0 as the outermost, which would nest layouts in reverse | 🔄 session `vike-layout-order` (branch from `plan10-integration`); ships in the same release (user, 2026-10-16) |
+| G-803 | 2026-10-16 (A-9) | Possible runtime bug, unverified: Vike orders cumulative `Layout` values closest-first, while `src/vike/onRenderClient.ts` may treat index 0 as the outermost, which would nest layouts in reverse | ✅ fixed (`9e3e0d9a`, merged): real bug; ships with PLAN-10's release (user) |
 | G-804 | 2026-10-16 (E-2) | Components have no end line in the graph, so the VS Code panel's "component under the cursor" is approximate (line to the next component); an additive `endLine` would make it exact | open |
 | G-802 | 2026-10-16 | Page title: with no `package.json` in the scanned folder, `--graph=html` takes the name from an ancestor's (the test fixture shows "sygnal") | open |
 
 ## Log
+
+- 2026-10-16 G-803 fixed in its own session (`vike-layout-order`) and merged: Vike lists cumulative `Layout`/`Wrapper` closest-first (vike 0.4.268), `sygnal/vike` nested index 0 outermost, so nested layouts rendered inside-out on SSR and hydration, and client navigation kept the first page's shell. New `src/vike/shell.ts` shared by `onRenderHtml`/`onRenderClient`; navigation now adds/removes nested Layouts keeping shared ones mounted; `examples/vike` gains `/admin`. On integration: build; root vitest 4,952 passed; sygnal-check 1,497; types; size gate unchanged (42,495 B); `examples/vike` builds; docs build and link check pass.
 
 - 2026-10-16 `p10-vscode` merged: sygnal-check 1,497; browser static 14, runtime + devtools 9, live 5, VS Code panel 7 on Chromium, Firefox and WebKit; `npm --prefix editors/vscode test` (typecheck, unit 17, build, smoke 4/4 in the installed VS Code) passes on integration.
 
