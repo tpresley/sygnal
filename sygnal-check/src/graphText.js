@@ -1,18 +1,21 @@
 /**
  * Text form of the app graph (`sygnal-check --graph` without --json).
  *
- *   RootComponent  src/RootComponent.jsx:12  root
+ *   RootComponent  src/RootComponent.jsx:12  root  entry
  *     actions   ADD_LANE (intent → STATE), DELETE_LANE (intent → STATE), INITIALIZE (builtin → STATE)
  *     state     lanes, dragging, nextId
  *     context   provides draggingTaskId
  *     events    selects DELETE_LANE
- *     children  LaneComponent (collection from 'lanes')
+ *     children  LaneComponent (collection from 'lanes'), Toaster (tag, sygnal/ui), Menu (widget, sygnal/ui/menu)
+ *     parent    from LaneComponent → LANE_DELETED   (CHILD.select(LaneComponent): PARENT receivers)
  *     controls  Add <button> ✓
  *     selectors .add-lane-btn [click] ✓
  *     commands  OPEN_HELP → showModal HelpDialog
  *     timers    tick every 100 ms → TICK
  *     agent     todos (read): ADD (input), CLEAR_DONE (consequential)
  *     ! SYG110 …
+ *   Greeting  src/Scoreboard.jsx:4  child  view only
+ * (entry: run() / defineElement() / a Vike page; `entry?`: maybe, an entry call can't be resolved)
  *   EVENTS
  *     DELETE_LANE  LaneComponent → RootComponent
  */
@@ -33,7 +36,8 @@ export function formatGraph(g, { verbose = false } = {}) {
   const out = []
   const shown = (d) => verbose || d.severity !== 'info'
   for (const c of g.components) {
-    out.push(`${c.name}  ${c.file ? c.file + ':' + c.id.split(':').pop() : '#' + c.id}  ${c.kind}`)
+    const marks = [c.entry === true ? 'entry' : c.entry === 'unknown' ? 'entry?' : '', c.viewOnly ? 'view only' : ''].filter(Boolean).map(m => '  ' + m).join('')
+    out.push(`${c.name}  ${c.file ? c.file + ':' + c.id.split(':').pop() : '#' + c.id}  ${c.kind}${marks}`)
     const row = (label, value) => { if (value) out.push(`  ${label.padEnd(9)} ${value}`) }
     row('actions', list(c.actions.map(a => `${a.name} (${a.trigger}${a.sinks.length ? ' → ' + a.sinks.join('+') : ', no model entry'})`)))
     row('state', list(c.stateKeys))
@@ -48,7 +52,8 @@ export function formatGraph(g, { verbose = false } = {}) {
       c.eventsSelected.length ? `selects ${list(c.eventsSelected)}` : '',
     ].filter(Boolean).join('; ')
     row('events', evs)
-    row('children', list(c.children.map(ch => `${ch.name} (${ch.via}${ch.from ? ` from '${ch.from}'` : ''})`)))
+    row('children', list(c.children.map(ch => `${ch.name} (${[`${ch.widget ? 'widget' : ch.via}${ch.from ? ` from '${ch.from}'` : ''}`, ch.state && `state '${ch.state}'`, ch.external].filter(Boolean).join(', ')})`)))
+    row('parent', list((c.childSelects || []).map(s => `from ${s.child ?? '?'} → ${s.actions.length ? s.actions.join(', ') : '?'}`)))
     row('controls', list((c.controls || []).map(x => `${x.name}${x.element ? ` <${x.element}>` : x.kind ? ` (${x.kind})` : ''} ${x.listened ? '✓' : x.listened === false ? '(not listened to)' : '?'}`)))
     row('selectors', list(c.selectors.map(selectorText)))
     row('commands', list((c.commands || []).map(x => `${x.action} → ${x.method} ${x.target ?? '?'}${x.triggers ? ` (→ ${x.triggers.join(', ')})` : ''}`)))
