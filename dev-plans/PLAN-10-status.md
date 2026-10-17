@@ -32,14 +32,19 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | D517 | 2026-10-16 | A-3: `events[type].emitterIds` / `selectorIds` parallel to the names, one entry per component, so a name can repeat when two same-named components emit (coordinator) |
 | D518 | 2026-10-16 | A-6: when any entry call's component can't be resolved (a parameter, e.g. ai-showcase's `run(Chat)` in `kimi.js`), the other roots get `entry: 'unknown'` (coordinator) |
 | D519 | 2026-10-16 | Amends D514: the user supplied a private Vike app for S-1 (33 components, 29 page entries). Read-only; nothing derived from it (graphs, screenshots, names) is committed; reported as numbers only (user) |
+| D520 | 2026-10-16 | S-2: a runtime graph renders one card per (parent card, component name), labelled ×N; instances and their state in the detail panel, fetched by the host and never inlined; the static health checks that misread runtime data become "not seen yet" groups (coordinator, on S-2) |
+| D521 | 2026-10-16 | A stable component `key` (`file#name`) in the static graph (additive); hosts key selection, positions and UI state by it, since `id` (`file:line`) moves when lines are added (coordinator, on S-3) |
+| D522 | 2026-10-16 | The runtime `inspect()` adds, in the dev entry only: ids on children and EVENTS lists, `entry`, `viewOnly`, `app`, `shown`; no core change; a sygnal minor (D513) (coordinator, on S-2) |
+| D523 | 2026-10-16 | No runtime `contextConsumes` for now: it needs an `InstanceView` getter (core bytes), against the plan's 0-core-bytes invariant; revisit only if P-1 needs it (coordinator, on S-2) |
+| D524 | 2026-10-16 | W-1 design (S-3) adopted: a shared `live.js` factored out of the LSP's `prepare()` (parse cache, last good text) for `--watch`, E-1 and W-2; recursive `fs.watch` with a per-directory fallback (Node 18 on Linux), `--poll`, 50 ms debounce; `node:http` + SSE sending the whole graph, on 127.0.0.1 with a random port and token, a Host check, CSP and `Referrer-Policy: no-referrer`. sygnal-check `engines` stays Node ≥ 18 (coordinator, on S-3) |
 
 ## Items
 
 | Item | Phase | Status | Notes |
 |---|---|---|---|
 | S-1 Large apps research | 0 | 🔄 `p10-s1-large-apps` | output `research/graph-viz/large-apps.md` |
-| S-2 Runtime graphs in the renderer | 0 | 🔄 `p10-s2-s3-design` | |
-| S-3 Live transport design | 0 | 🔄 `p10-s2-s3-design` | includes the `sygnal/vite` dev route question |
+| S-2 Runtime graphs in the renderer | 0 | ✅ merged `9ebadfa6` | `research/graph-viz/runtime-graphs.md`; D520, D522, D523 |
+| S-3 Live transport design | 0 | ✅ merged `9ebadfa6` | `research/graph-viz/live-mode.md`; D521, D524; W-2 recommended for Phase 3 |
 | A-1 View-only components | 1 | ✅ merged `dcbb7e33` | |
 | A-2 Package components | 1 | ✅ merged `dcbb7e33` | node vs child-entry field: a D-number in Phase 0 |
 | A-3 Ids on links | 1 | ✅ merged `dcbb7e33` | |
@@ -47,7 +52,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | A-5 `PARENT` receivers | 1 | ✅ merged `dcbb7e33` | |
 | A-6 Entries | 1 | ✅ merged `dcbb7e33` | `run()`, `defineElement()`, Vike `+Page`/`+Layout`; Astro deferred (G-800) |
 | A-7 State writes and reads | 2 | ⏳ | |
-| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 static parts merged `dcbb7e33` | runtime `inspect()` parity after S-2 |
+| A-8 Schema, text, MCP, runtime parity | 1 | 🟡 static parts merged `dcbb7e33` | still to do: the `key` field (D521); runtime fields (D522) |
 | V-1 Renderer module | 1 | 🔄 `p10-viewer-cli` | from the spike's `template.html` |
 | V-2 Use the new data | 1 | ⏳ | |
 | V-3 Runtime graphs | 2 | ⏳ | |
@@ -82,6 +87,8 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | P10-Q5 Graph-wide rules | answered | accepted (D512) |
 | P10-Q6 Release grouping | answered | accepted (D513) |
 | P10-Q7 A large real app for S-1 | answered | accepted (D514); a private Vike app supplied (D519) |
+| P10-Q8 W-2: serve `/__sygnal/graph` from `sygnal/vite` by default in dev (opt out with `graph: false`)? | open, ask at Phase 3 | S-3 recommends yes |
+| P10-Q9 W-2/P-2: have `sygnal/vite` stamp components with their static key in dev only, so runtime instances match static cards? | open, ask at Phase 3 | S-3 recommends yes |
 
 ## Gaps
 
@@ -90,5 +97,7 @@ Tracks progress for [PLAN-10.md](PLAN-10.md) (an interactive view of the app gra
 | G-800 | 2026-10-16 (A-6) | `.astro` files aren't scanned, so Astro page entries can't be marked | open |
 
 ## Log
+
+- 2026-10-16 `p10-s2-s3-design` merged (`9ebadfa6`): S-2 (runtime samples for kanban and two plan5-showcase sections; the spike page threw on runtime graphs and split instances into roots) and S-3 (rebuild after a one-file edit with a warm cache: kanban 3.3 ms, plan5-showcase 14.5 ms, ai-showcase 41 ms, all examples 77 ms; save → SSE ≈ 78 ms; a fresh CLI run 142–188 ms). Runtime diagnostics are reported once per process, so P-1 shows each with its time.
 
 - 2026-10-16 `p10-graph-data` merged (`dcbb7e33`): sygnal-check 1,365 passed / 4 skipped; `test:types` and `test/inspect-kanban.test.js` pass. On the examples nothing disappeared: the fixture goes 6 → 7 components (`Shop` back, `ProductCard` no longer a root); plan5-showcase 43 → 54 (the 10 the spike found missing, plus `Dashboard` and `Notes`); 33 entries in plan5-showcase, 10 in ai-showcase. Also fixed: `public.d.ts` lacked `behavior` on actions/selectors and `agent.queries`; behavior reply targets are namespaced like their `next()` targets.
