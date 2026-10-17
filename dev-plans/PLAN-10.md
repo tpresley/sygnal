@@ -21,6 +21,7 @@
   (P10-Q6). Core bytes: 0.
 
 **Status:**
+- **Complete; released 2026-10-17** as sygnal 6.6.0 / sygnal-check 0.10.0 / create-sygnal-app 2.8.0 / VS Code extension 0.7.0 / Claude Code plugin 0.1.5 (PR #47).
 - Research done (2026-10-16): the spike in
   [`research/graph-viz/`](research/graph-viz/README.md) built a working page from the unchanged
   graph and found the data gaps listed in §1.1. The user accepted all of its recommendations on
