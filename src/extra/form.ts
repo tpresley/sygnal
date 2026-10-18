@@ -195,7 +195,8 @@ export const form = (schema: any, o: any = {}): any => {
       return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
     },
     DONE: (s) => ({s: done(s)}),
-    RESET: (s, d) => fresh(d && typeof d == 'object' ? d : s.initial),
+    // PLAN-11: only a plain object is new values (a click event from `DOM.click('.reset')` is not)
+    RESET: (s, d) => fresh(d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d)) ? d : s.initial),
     // G-375: the first validation, when the host starts (form() doesn't validate at module load).
     // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck.
     // D239: with resetOnShow (also each time the form element appears again), or a `values`

@@ -905,10 +905,11 @@ export function pager(options?: PagerOptions): Behavior<PagerState, PagerActions
 export type FieldErrors = Record<string, string>
 
 /** One field of a `form` slice: `state.form.fields.email`, `state.form.fields['addresses.7.city']`. */
-export interface FormField {
+export interface FormField<T = any> {
   /** The field name, for `name={f.name}` (the path in `values`; rows of an array by id) */
   name: string;
-  value: any;
+  /** The field's value: typed for a top-level field of a typed form (`fields.email.value: string`) */
+  value: T;
   /** What to show: a server or check error at once, a schema error once the field is touched (per `show`) or after a submit; '' when none */
   error: string;
   /** `!!error`, for `aria-invalid={f.email.invalid}` */
@@ -947,10 +948,24 @@ export interface FormState<V = any> {
   validated: boolean;
 }
 
+type FormIsAny<T> = 0 extends (1 & T) ? true : false
+
+/**
+ * A form's `fields` (PLAN-11 F-1): the top-level fields of `values` by name, typed
+ * (`fields.email.value: string`), and nested paths ('addresses.7.city', 'addresses.7') with any
+ * value. A top-level name that isn't in `values` is a type error (a typo). Untyped values (any):
+ * `Record<string, FormField>`.
+ */
+export type FormFields<V = any> = FormIsAny<V> extends true
+  ? Record<string, FormField>
+  : V extends object
+    ? { [K in keyof V & string]-?: FormField<V[K]> } & { [path: `${string}.${string}`]: FormField }
+    : Record<string, FormField>
+
 /** A `form` slice's calculated fields. */
-export interface FormCalculated {
+export interface FormCalculated<V = any> {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
-  fields: Record<string, FormField>;
+  fields: FormFields<V>;
   /** No schema error and no failed check, as of the schema's last answer (false until its first; an async re-validation keeps the previous value) */
   valid: boolean;
   dirty: boolean;
@@ -966,7 +981,12 @@ export interface FormFieldCheck {
   error?: (body: any) => string | false | null | undefined;
 }
 
-export interface FormOptions<V = any> {
+/** Types only: the key of `FormOptions`' phantom output type (not exported, never set) */
+declare const formOutput: unique symbol
+
+export interface FormOptions<V = any, OUT = any> {
+  /** Phantom, types only: the schema's output (`FormOutput<typeof uses.form>`); never set */
+  readonly [formOutput]?: OUT;
   /**
    * The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236).
    * Or a function of the host component's state, for start values that come from state (a default
@@ -1004,7 +1024,17 @@ export interface FormOptions<V = any> {
   tool?: import('./ai.d').FormToolHandle;
 }
 
-export interface FormActions {
+/**
+ * What `form.ERRORS` takes (the runtime's `replyErrors`): an error reply (a driver's
+ * `{ error, status?, body?, request }` or `{ status, body }`, the body `{ errors }` or the map
+ * itself), a map `{ name: message | messages }`, or a list of issues `[{ path, message }]`
+ */
+export type FormServerErrors =
+  | Record<string, string | ReadonlyArray<string>>
+  | ReadonlyArray<{ message: string; path?: ReadonlyArray<any> }>
+  | { status?: number; body?: any; error?: any; request?: any }
+
+export interface FormActions<V = any> {
   /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
   CHANGE: { name: string; value: any; item?: any };
   /**
@@ -1015,19 +1045,46 @@ export interface FormActions {
   SET: { values: Record<string, any> };
   /** A field lost focus (focusout): its name */
   BLUR: string;
-  /** The form element's submit (default prevented) */
-  SUBMIT: any;
+  /** The form element's submit (default prevented); its data is ignored (a host may dispatch it from a button) */
+  SUBMIT: unknown;
   /** Adds a row to an array field (with the next id): `{ field: 'addresses', value: { street: '' } }` */
   ADD: { field: string; value?: Record<string, any> };
   /** Removes a row by id: `{ field: 'addresses', id }` */
   REMOVE: { field: string; id: any };
-  /** Server errors: an error reply (`{ status, body: { errors } }`) or a map `{ name: message }`; focuses the first */
-  ERRORS: any;
-  /** The submit was saved: `initial` becomes `values` */
-  DONE: any;
-  /** Back to `initial` (or to the values given) */
-  RESET: any;
+  /** Server errors: an error reply (`{ status, body: { errors } }`), a map `{ name: message }` or a list of issues; focuses the first */
+  ERRORS: FormServerErrors;
+  /** The submit was saved: `initial` becomes `values`. Its data (the reply) is ignored */
+  DONE: unknown;
+  /** Back to `initial`, or to the values given (whole values, not merged; anything but a plain object, such as a click event, means `initial`) */
+  RESET: V | null | undefined;
 }
+
+/**
+ * The schema's input type (Standard Schema `~standard.types.input`; zod, valibot and arktype declare
+ * it); `any` for a schema that doesn't declare `types`
+ */
+export type SchemaInput<S> = S extends { readonly '~standard': { readonly types?: infer T } }
+  ? [NonNullable<T>] extends [{ readonly input: infer I }] ? I : any
+  : any
+
+type FormSchemaOutput<S> = S extends { readonly '~standard': { readonly types?: infer T } }
+  ? [NonNullable<T>] extends [{ readonly output: infer O }] ? O : any
+  : any
+
+/** The values type of `form(schema, { values })`: the schema's input when it declares one, else what `values` gives */
+type FormValuesOf<V, S> = FormIsAny<SchemaInput<S>> extends true ? V : SchemaInput<S>
+
+/** What `form()` returns: a behavior whose types carry the values (V) and the schema's output (OUT, the submit payload) */
+export type FormBehavior<V = any, OUT = any> = Behavior<FormState<V>, FormActions<V>, FormCalculated<V>, FormOptions<V, OUT>>
+
+/**
+ * The data the host's submit action gets (the schema's output) from a `form()` use:
+ * `SIGN_UP: { HTTP: (state, data: FormOutput<typeof uses.form>) => ... }`. Or from the schema:
+ * `SchemaOutput<typeof signupSchema>`. `any` for a schema that doesn't declare `types`.
+ */
+export type FormOutput<F> = F extends Behavior<any, any, any, infer OPTIONS>
+  ? OPTIONS extends { readonly [formOutput]?: infer O } ? (unknown extends O ? any : O) : any
+  : any
 
 /**
  * A form with validation (PLAN-5 F-1), any Standard Schema validator (zod, valibot, arktype, a
@@ -1043,7 +1100,10 @@ export interface FormActions {
  * that sends nothing (STATE, PARENT, EVENTS) is done at once. Throws SYG231 when
  * `schema` isn't a Standard Schema.
  */
-export function form<V = any>(schema: StandardSchemaLike, options: FormOptions<V>): Behavior<FormState<V>, FormActions, FormCalculated, FormOptions<V>>
+export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>(
+  schema: S,
+  options: FormOptions<V> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
+): FormBehavior<FormValuesOf<V, S>, FormSchemaOutput<S>>
 
 /** A Standard Schema's result for `values`: errors by field name, and the output when there are none. A Promise for an async schema. */
 export function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>
@@ -2445,10 +2505,15 @@ export type FetchRetry = SocketReconnect & {
   count?: number;
 }
 
-/** Any Standard Schema (https://standardschema.dev): an object with `~standard.validate` */
-export type StandardSchemaLike = {
+/**
+ * Any Standard Schema (https://standardschema.dev): an object with `~standard.validate`. `IN` / `OUT`
+ * are its declared `~standard.types` (input / output; zod, valibot, arktype declare them), read by
+ * `form()`, `SchemaInput` and `SchemaOutput`; a schema without `types` is `StandardSchemaLike<any>`.
+ */
+export type StandardSchemaLike<IN = any, OUT = IN> = {
   readonly '~standard': {
     validate: (value: unknown) => {value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>} | Promise<{value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>}>;
+    readonly types?: { readonly input: IN; readonly output: OUT } | undefined;
     [key: string]: any;
   };
 }

@@ -4,7 +4,7 @@
  */
 import { describe, it, expectTypeOf } from 'vitest'
 import { form, checkForm, formErrors, setField, getField, hasField, fieldName, fieldNames, replyErrors, focusInvalid, ABORT } from 'sygnal'
-import type { Component, UsesState, UsesActions, FormField, FormState, FieldErrors, StandardSchemaLike, ElementCommand } from 'sygnal'
+import type { Component, UsesState, UsesActions, FormField, FormFields, FormState, FieldErrors, StandardSchemaLike, ElementCommand } from 'sygnal'
 
 type Values = { email: string; addresses: { id: number; city: string }[] }
 declare const schema: StandardSchemaLike
@@ -14,7 +14,8 @@ describe('F-1: form', () => {
     const uses = { form: form<Values>(schema, { values: { email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP', check: { email: { request: (email) => ({ url: '/api/free', query: { email } }), error: (b) => !b.free && 'Taken' } } }) }
     type S = UsesState<typeof uses>
     expectTypeOf<S['form']['values']>().toEqualTypeOf<Values>()
-    expectTypeOf<S['form']['fields']>().toEqualTypeOf<Record<string, FormField>>()
+    expectTypeOf<S['form']['fields']>().toEqualTypeOf<FormFields<Values>>()   // PLAN-11 F-1: keyed by Values (was Record<string, FormField>)
+    expectTypeOf<S['form']['fields']['email']>().toEqualTypeOf<FormField<string>>()
     expectTypeOf<S['form']['submitting']>().toEqualTypeOf<boolean>()
     expectTypeOf<S['form']['error']>().toEqualTypeOf<string>()
     expectTypeOf<UsesActions<typeof uses>['form.CHANGE']>().toEqualTypeOf<{ name: string; value: any; item?: any }>()
