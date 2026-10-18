@@ -994,6 +994,12 @@ export interface FormFieldCheck {
 /** Types only: the key of `FormOptions`' phantom output type (not exported, never set) */
 declare const formOutput: unique symbol
 
+/** PLAN-11: the `request` option of form(): a request without reply actions (the form names them), or a function of the submit data and the host state */
+type FormRequestObject = Exclude<FetchRequest, string> & { url: string; ok?: never; error?: never }
+export type FormRequest<OUT = any> =
+  | FormRequestObject
+  | ((data: OUT, state: any) => FormRequestObject | typeof ABORT | null | undefined | false)
+
 export interface FormOptions<V = any, OUT = any> {
   /** Phantom, types only: the schema's output (`FormOutput<typeof uses.form>`); never set */
   readonly [formOutput]?: OUT;
@@ -1003,8 +1009,20 @@ export interface FormOptions<V = any, OUT = any> {
    * from the settings): called when the form starts, and each time it starts over (`resetOnShow`)
    */
   values: V | ((state: any) => V);
-  /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once */
-  submit: string;
+  /**
+   * The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once.
+   * Optional with `request` (then dispatched too, for state; its entry should send no request)
+   */
+  submit?: string;
+  /**
+   * PLAN-11 (6.7): the form sends a valid submit itself on the `http` sink: a request, or a
+   * function of the schema's output and the host's state (`(data, state) => ({ url: '/api/items/' + state.id, method: 'PUT' })`;
+   * `ABORT` / falsy sends nothing and leaves the submit pending). The form adds the body
+   * (`multipart: data` when a top-level value is a File or files, else `json: data`, unless the
+   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` (unless set) and its own
+   * `ok: 'form.DONE'`, `error: 'form.ERRORS'`
+   */
+  request?: FormRequest<OUT>;
   /** Async checks by field name: run on blur and before a submit, which waits for them */
   check?: Record<string, FormFieldCheck>;
   /** When a schema error shows: after the field's blur (default), on input, or only after a submit */
@@ -1114,7 +1132,8 @@ export type FormOutput<F> = F extends Behavior<any, any, any, infer OPTIONS>
  */
 export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>(
   schema: S,
-  options: FormOptions<V> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
+  options: FormOptions<V, FormSchemaOutput<S>> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
+    & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
 ): FormBehavior<FormValuesOf<V, S>, FormSchemaOutput<S>>
 
 /** A Standard Schema's result for `values`: errors by field name, and the output when there are none. A Promise for an async schema. */

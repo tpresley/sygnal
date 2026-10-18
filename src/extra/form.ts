@@ -13,7 +13,12 @@
  * field.
  *
  * Options: `values` (the start values; D239: or a function of the host's state, called when the
- * form starts), `submit` (host action), `check` (async per-field checks through a driver: a
+ * form starts), `submit` (host action), `request` (PLAN-11 F-3: the form sends the valid submit
+ * itself on the `http` sink: a request, or `(data, hostState) => request`, completed with the
+ * body (`multipart: data` when a top-level value is a File / Blob or an array of them, else
+ * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` (unless set)
+ * and its own `ok: '<key>.DONE'`, `error: '<key>.ERRORS'`; with `submit` too, that host action is
+ * still dispatched (for state), and should send no request), `check` (async per-field checks through a driver: a
  * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
  * field was blurred; 'input'; 'submit'), `form` (selector), `http` (the driver sink of the
  * checks, 'HTTP'), `resetOnShow` (D239), `tool` (PLAN-6 A-3, experimental: `formTool({ … })` from
@@ -80,6 +85,9 @@ import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
 
+// PLAN-11 F-3: a submit's data goes as multipart when a top-level value is a file (or files)
+const hasFile = (d: any) => !!d && typeof d == 'object' && Object.values(d).some(x => isFile(x) || Array.isArray(x) && x.some(isFile))
+
 const dev = (...a: any[]): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.form?.(...a)
 const keys = (o: any) => Object.keys(o).filter(k => o[k])
 // PLAN-11 F-2: values compared as JSON, a File by identity-ish fields (JSON gives every File {})
@@ -94,7 +102,7 @@ const drop = (o: any, p: string) => {
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
-  const {values: vo = {}, submit, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again} = o
+  const {values: vo = {}, submit, request: rq, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again} = o
   // D239: `values` can be a function of the host's state, called when the form starts (and each
   // show, resetOnShow). Before that (the host's first render, before its first action) the
   // fields come from calling it with a blank state: every read gives '' in the result
@@ -226,6 +234,14 @@ export const form = (schema: any, o: any = {}): any => {
     return s.queued ? attempt(n, k) : {s: n}
   }
 
+  // PLAN-11 F-3: the `request` option's request for a valid submit (data: the schema's output)
+  const send = (vals: any, h: any, k: string) => {
+    const data = v(vals).value, q = typeof rq == 'function' ? rq(data, h) : rq
+    if (!q || q === ABORT) return ABORT
+    const own = 'json' in q || 'multipart' in q || 'body' in q
+    return {...(!own && (hasFile(data) ? {multipart: data} : {json: data})), progress: `${k}.PROGRESS`, ...q, ok: `${k}.DONE`, error: `${k}.ERRORS`}
+  }
+
   const model: any = {}
   for (const a in steps) {
     let last: any[] = []
@@ -242,12 +258,17 @@ export const form = (schema: any, o: any = {}): any => {
           dev(233, s.values, r)
           // G-577: a submit named after one of the form's own actions goes to that one
           submit in steps && dev(234, submit, k, b)
-          next(submit, r, 0)
+          // PLAN-11 F-3: with `request`, `submit` is optional (dispatched for state when given)
+          if (submit !== undefined || !rq) next(submit, r, 0)
         }
         w && Promise.resolve(v(w.values)).then(() => next('RESULT', w, 0))
       },
       ELEMENT: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.focus || ABORT,
-      ...(checked.length && {[http]: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.req || ABORT}),
+      // the checks' requests, and (PLAN-11 F-3) the `request` option's for a valid submit
+      ...((checked.length || rq) && {[http]: (s: any, d: any, _n: any, p: any, _o: any, k: string) => {
+        const x = out(s, d, k)
+        return x?.req || (x?.send && rq ? send(x.s.values, p?.state, k) : ABORT)
+      }}),
     }
   }
 
@@ -295,7 +316,7 @@ export const form = (schema: any, o: any = {}): any => {
   o.tool?.$?.(b, v)
   b.merge = (c: any, k: string) => {
     const e = c.model?.[submit]
-    req = !!e && typeof e == 'object' && http in e
+    req = !!rq || !!e && typeof e == 'object' && http in e
     merge(c, k)
   }
   return b

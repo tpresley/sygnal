@@ -41,7 +41,7 @@ As for any behavior, a host model entry with the same name runs after the form's
 
 ## File fields
 
-A file input whose `name` is in `values` is a field like any other: its value is the `File` the user picked (an array of them with `multiple`, `null` when none), the schema validates it, its error shows on `fields.avatar.error`, and the submit's data carries it, so the submit entry sends it with [`multipart`](/guide/http/#upload-and-download-progress):
+A file input whose `name` is in `values` is a field like any other: its value is the `File` the user picked (an array of them with `multiple`, `null` when none), the schema validates it, its error shows on `fields.avatar.error`, and the submit's data carries it, so `request` sends it as [`multipart`](/guide/http/#upload-and-download-progress):
 
 ```jsx
 import { form } from 'sygnal'
@@ -67,16 +67,14 @@ function Profile({ state }) {
   )
 }
 
-Profile.uses = { form: form(profileSchema, { values: { name: '', avatar: null }, submit: 'SAVE' }) }
-Profile.model = {
-  SAVE: { HTTP: (state, data) => ({ url: '/api/profile', multipart: data, progress: 'form.PROGRESS', ok: 'form.DONE', error: 'form.ERRORS' }) },
-}
+// the data has a File, so the form sends it as multipart, with progress in state.form.progress
+Profile.uses = { form: form(profileSchema, { values: { name: '', avatar: null }, request: { url: '/api/profile' } }) }
 ```
 
-- **Progress**: with `progress: 'form.PROGRESS'` on the submit's request, the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
+- **Progress**: the form's `request` asks for progress (`progress: 'form.PROGRESS'`; a `submit` entry's request can name it too), and the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
 - **Don't bind `value`**: the browser doesn't let a page set a file input's file. So a reset can't clear it through state; instead the form counts its start overs in `state.form.resets`, and `key={'avatar' + state.form.resets}` makes a new, empty input after each one. For the same reason, show the chosen file's name yourself (`f.avatar.value?.name`): after a reset to saved values (`form.DONE` makes the saved values the start values) the value is still the file while the new input is empty.
 - **Validation** uses your schema's file checks: zod's `z.file()` (`.max()`, `.mime()`), valibot's `v.file()`, or `instanceof File` in a hand-written schema. Required means rejecting `null`.
-- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
+- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`, submit, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
 - A file input whose `name` isn't in `values` is left alone, as before 6.7, for an app that reads its files in its own intent.
 - A `File` can't be serialized, so `persist()` and server-rendered state don't carry file fields.
 
@@ -308,7 +306,11 @@ Signup.model = {
 
 `form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again).
 
-Whether a valid submit waits for `form.DONE` depends on the host's entry for the `submit` action, checked when the host starts:
+Whether a valid submit waits for `form.DONE` depends on how it is sent:
+
+- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (the state before the submit, as for any sink); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` unless it sets `progress`, and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
+
+Otherwise it depends on the host's entry for the `submit` action, checked when the host starts:
 
 - **With the `http` sink** (`SIGN_UP: { HTTP: … }`, or the sink the `http` option names, such as `http: 'API'`): `submitting` is `true` until `form.DONE` or `form.ERRORS`, and a submit meanwhile is dropped ([SYG232](/reference/errors/#syg232)). Even when the entry returns `ABORT` this time, the form waits.
 - **Anything else** (`STATE`, `PARENT`, `EVENTS`, `EFFECT`, `ROUTER`, a reducer function): no request, so the submit is done at once, as if `form.DONE` had arrived (no host `form.DONE` entry runs). An `EFFECT` that calls `next('form.DONE')` itself still works; the second `DONE` changes nothing. Work that answers later without the `http` sink (a promise in an `EFFECT`) gets no pending state: send it through a driver as a request instead.

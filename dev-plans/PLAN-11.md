@@ -126,6 +126,13 @@ input can't be cleared through state, so `state.form.resets` counts start overs 
 A File is a field leaf; `dirty` compares Files by identity. A file input not in `values` stays
 ignored and quiet (the pre-6.7 workaround keeps working).
 
+**F-3 `request` on `form`** (D562, added 2026-10-18 on the user's question). `form(schema,
+{ values, request: { url } | (data, state) => request })`: the form sends a valid submit itself
+on its `http` sink, adding the body (`json: data`, or `multipart` when a top-level value is a
+file), `progress: 'form.PROGRESS'` and its own `ok`/`error`. No host model entry for the common
+"save to a URL" case; `submit` stays for everything else (and is still dispatched when given with
+`request`). The canonical recipe, llms.txt and the skill use `request`.
+
 ### 1.5 Multi-instance tooltips (T)
 
 **T-1** `tooltips({ trigger: '[data-tip]', showDelay?, hideDelay? })` in `sygnal/ui`: one behavior

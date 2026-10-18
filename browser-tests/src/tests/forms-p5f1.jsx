@@ -190,7 +190,7 @@ export async function formTestsP5F1() {
 
   // PLAN-11 F-2: a real file input as a form field; the submit uploads it as multipart with
   // form.PROGRESS; a reset clears the input through the `resets` key
-  await runTest(CAT, 'file field: pick (real input), validate, upload with form.PROGRESS, reset clears the input', async () => {
+  await runTest(CAT, 'file field: pick (real input), validate, the request option uploads it (multipart, form.PROGRESS), reset clears the input', async () => {
     const { id, el } = mountOnScreen()
     const app = run(Avatar, { HTTP: makeFetchDriver() }, { mountPoint: id })
     try {
@@ -285,10 +285,10 @@ function Avatar({ state, uid }) {
   )
 }
 Avatar.initialState = { out: '', steps: [] }
-Avatar.uses = { form: form(avatarSchema, { values: { avatar: null }, submit: 'SAVE', show: 'submit' }) }
+// PLAN-11 F-3: the form sends the submit itself (multipart, since the data has a File)
+Avatar.uses = { form: form(avatarSchema, { values: { avatar: null }, request: { url: '/__upload' }, show: 'submit' }) }
 Avatar.intent = ({ DOM }) => ({ 'form.RESET': DOM.click('.reset') })
 Avatar.model = {
-  SAVE: { HTTP: (state, data) => ({ url: '/__upload', multipart: data, progress: 'form.PROGRESS', ok: 'form.DONE', error: 'form.ERRORS' }) },
   'form.PROGRESS': (state, p) => (p.phase === 'upload' ? { ...state, steps: [...state.steps, p.fraction] } : state),
   'form.DONE': (state, body) => ({ ...state, out: `saved:${body.type}` }),
 }
