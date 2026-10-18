@@ -129,6 +129,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `query` | — | Object appended as a query string, before any `#fragment`: `{ q: 'dune' }` → `?q=dune` (URL-encoded; `null`/`undefined` values skipped; an array repeats the key: `{ tag: ['a', 'b'] }` → `?tag=a&tag=b`) |
 | `json` | — | Body sent as `JSON.stringify(json)` with `Content-Type: application/json` |
 | `body` | — | Raw body (string, `FormData`, `Blob`, …) |
+| `progress` | — | Report upload and download progress: an action name (`'UPLOADING'`) or `true` for `HTTP.progress()` ([Upload and download progress](#upload-and-download-progress)) |
 | `headers` | — | Object or `Headers`, merged over the driver's `headers` case-insensitively (sent with lowercase names) |
 | `latest` | driver's `latest` (false) | Abort this instance's requests with the same key still in flight |
 | `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms |
@@ -145,6 +146,76 @@ Any other field is yours (an id, the query text): it isn't sent, and it comes ba
 
 A request that names only `ok` sends its failures to `HTTP.errors()` (logged when nothing listens), and one that names only `error` sends its successes to `HTTP.select()`. Name both.
 
+## Upload and Download Progress
+
+Add `progress` to a request to hear how far it has got. With an action name, each step arrives as that action of the component that sent it, like `ok` and `error`:
+
+```js live-server
+export default {
+  'POST /api/files': ({ body }) => {
+    const file = body.get('file')
+    return { status: 201, json: { name: file.name, size: file.size }, delayMs: 300 }
+  },
+}
+```
+
+```jsx live title="Upload.jsx"
+import { ABORT } from 'sygnal'
+
+function Upload({ state }) {
+  const percent = Math.round(state.fraction * 100)
+  return (
+    <form className="upload">
+      <input type="file" className="file" aria-label="File to upload" />
+      <button type="button" className="sample">Use a 3 MB sample</button>
+      <button type="submit" disabled={!state.file || state.status === 'uploading'}>Upload</button>
+      <progress max="100" value={percent} aria-label="Upload progress">{percent}%</progress>
+      <p className="status" role="status">{state.message}</p>
+    </form>
+  )
+}
+Upload.initialState = { file: null, fraction: 0, status: 'idle', message: '' }
+Upload.intent = ({ DOM }) => ({
+  PICK:   DOM.select('.file').events('change').map((e) => e.target.files[0] ?? null),
+  SAMPLE: DOM.click('.sample'),
+  SEND:   DOM.select('.upload').events('submit', { preventDefault: true }),
+})
+const busy = (state) => !state.file || state.status === 'uploading'
+Upload.model = {
+  PICK:   (state, file) => ({ ...state, file, fraction: 0, status: 'idle', message: file ? file.name : '' }),
+  SAMPLE: (state) => ({ ...state, file: new File([new Uint8Array(3 * 1024 * 1024)], 'sample.bin'), fraction: 0, status: 'idle', message: 'sample.bin' }),
+  SEND: {
+    STATE: (state) => (busy(state) ? ABORT : { ...state, status: 'uploading', fraction: 0, message: 'Uploading…' }),
+    HTTP:  (state) => {
+      if (busy(state)) return ABORT
+      const body = new FormData()
+      body.append('file', state.file)
+      return { url: '/api/files', body, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }
+    },
+  },
+  UPLOADING: (state, { phase, fraction }) => (phase === 'upload' ? { ...state, fraction } : ABORT),
+  UPLOADED:  (state, saved) => ({ ...state, status: 'done', fraction: 1, message: `Uploaded ${saved.name} (${saved.size} bytes).` }),
+  FAILED:    (state) => ({ ...state, status: 'failed', message: 'Upload failed.' }),
+}
+```
+
+- **Each step** is `{ phase, loaded, total, fraction, category, request }`. `phase` is `'upload'` while the body is sent, then `'download'` while the reply arrives (a GET reports only `'download'`). `total` and `fraction` (0 to 1) are `null` when the size isn't known, such as a download without a `Content-Length`.
+- **How often:** at most one step every 50 ms per phase, always including the first and the last (`fraction: 1`), so a fast connection doesn't render hundreds of times. A retry starts again at 0.
+- **`progress: true`** sends the steps to the source instead: `HTTP.progress('upload')` in the intent, filtered by category like `select()`.
+- **The file** comes from the input's `change` event (`e.target.files`), kept in state, and goes in a `FormData` body. The browser sets the `multipart/form-data` header; don't set `Content-Type` yourself. With the [`form` behavior](/guide/forms/), which ignores file inputs, keep the file in its own state field and add it to the `FormData` in the submit entry.
+- **XMLHttpRequest:** a request with `progress` goes over `XMLHttpRequest`, because it is the only way to see upload progress in every browser (streamed `fetch` uploads work only in Chromium over HTTP/2). The reply is the same as with `fetch`: parsing, statuses, `latest`, `abort`, `timeoutMs` and `retry` all apply. Options `fetch` has and `XMLHttpRequest` doesn't (`init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`) are ignored ([SYG636](/reference/errors/#syg636)), and the driver's `fetch` option isn't used: put auth in `headers`, which apply to both. `progress` does nothing on resources and `batch` requests. Where there is no `XMLHttpRequest` (Node, a service worker), the request is sent with `fetch` and reports no steps.
+
+In a test, `t.progress` sends a step of a pending request, which stays pending until `t.respond` or `t.fail`:
+
+```js
+t.simulateEvent('.sample', 'click')
+t.simulateEvent('.upload', 'submit')
+await t.progress('HTTP', { loaded: 50, total: 100 }, 'UPLOADING')   // phase: 'upload' for a request with a body
+expect(t.state.fraction).toBe(0.5)
+await t.respond('HTTP', { name: 'sample.bin', size: 3145728 }, 'UPLOADED')
+expect(t.state.status).toBe('done')
+```
+
 ## Driver Options
 
 ```javascript
@@ -158,6 +229,7 @@ makeFetchDriver({
   fetch: myFetch,                        // default: globalThis.fetch, read at each request
   cache: queryCache(),                   // the query cache (default: none), see Resources and Caching
   retry: 2,                              // default for GET/HEAD requests (default: 0)
+  XMLHttpRequest: MyXhr,                 // for progress requests (default: the global one)
 })
 ```
 

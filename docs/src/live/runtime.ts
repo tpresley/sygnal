@@ -6,7 +6,7 @@
 import liveCss from './live.css?inline'
 import { MODULES } from './modules'
 import { isRelative, fileKey, resolveLiveFile } from './paths.mjs'
-import { makeDemoFetch, type NoteKind } from './server'
+import { makeDemoFetch, makeDemoXHR, type NoteKind } from './server'
 
 type State = 'idle' | 'loading' | 'running' | 'error'
 interface Compiled { code: string; requires: string[] }
@@ -335,7 +335,7 @@ async function runPanel(p: Panel) {
       pending: (d) => { p.pending += d; p.el.dataset.livePending = String(p.pending) },
     })
     p.token = token
-    const drivers: Record<string, any> = defaultDrivers(Sygnal, mount, Sygnal.makeFetchDriver({ ...httpOptions, fetch: demoFetch }))
+    const drivers: Record<string, any> = defaultDrivers(Sygnal, mount, Sygnal.makeFetchDriver({ ...httpOptions, fetch: demoFetch, XMLHttpRequest: makeDemoXHR(demoFetch) }))
     // LLM (PLAN-6 DX-1, D272): on a page where any block imports sygnal/ai (or this edited demo
     // does), the real chat driver over the real openResponses() transport, through the same demo
     // fetch as HTTP: the demo server's 'POST /v1/responses' route is the model

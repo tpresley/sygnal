@@ -187,7 +187,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
 | A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
-| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent and keep the files out of `values` |
+| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent, keep the file in its own state field (not `values`), and send it in a `FormData` body: [upload with progress](/guide/http/#upload-and-download-progress) |
 
 ## Options
 
