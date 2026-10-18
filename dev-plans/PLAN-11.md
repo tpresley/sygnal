@@ -97,6 +97,13 @@ for init keys XHR ignores (a new SYG code in the HTTP range).
 `FormData` → `HTTP` with `progress`, plus how it sits next to `form()`), llms.txt and skill
 lines; browser test in all three engines.
 
+**U-5 `multipart` as data** (D560, added 2026-10-18 on the user's review of the U-4 example).
+`multipart: { file: state.file, title }` on a request, the multipart counterpart of `json`: the
+driver builds the FormData (a File/Blob a file part, arrays repeat the name, nulls skipped,
+objects as JSON text), drops a `content-type` header (the browser's boundary), POST by default,
+never cached. `new FormData()` in a model was imperative and opaque in `t.requests`. Docs, demo,
+llms/skill and the browser test use it; `body: formData` stays the escape hatch.
+
 ### 1.3 SSE auth headers (E)
 
 **E-1** `SseConnection` gets `headers` (an object or an async function returning one). A

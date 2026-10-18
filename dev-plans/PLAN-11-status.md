@@ -22,6 +22,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 | D557 | 2026-10-17 | T-1: one tip shows at a time; moving to another trigger while one shows switches at once; the tip is found by the trigger's `aria-describedby` (coordinator) |
 | D558 | 2026-10-17 | F-1: a top-level field name not in the typed values is a type error (typos); a typed schema's input wins over `values` (coordinator, on the worker's proposal) |
 | D559 | 2026-10-17 | `form.RESET` takes values only from a plain object, so `'form.RESET': DOM.click('.reset')` resets to the start values instead of to the event (coordinator; found by the F-1 worker) |
+| D560 | 2026-10-18 | U-5: a `multipart` request field, the multipart counterpart of `json`, so a model never builds a FormData (imperative, opaque in t.requests); `body: formData` stays the escape hatch (user) |
 
 ## Items
 
@@ -38,6 +39,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 | U-2 | done | types (`FetchProgress`), fake `t.progress()` |
 | U-3 | done | `progress` is a reply key for SYG102 / SYG112 and LSP completion |
 | U-4 | done | http guide section with a live upload demo (demo XMLHttpRequest in the live runtime), testing guide, llms/skill; browser test in 3 engines |
+| U-5 | done | `multipart` on requests (`toFormData`), types `MultipartValue`; docs, demo, llms/skill, browser test switched to it |
 | E-1 | done | `FetchEventSource` (fetch + the shared SSE parser with id/retry); `headers` on `sse` connections; browser test in 3 engines |
 | F-1 | done | `StandardSchemaLike<IN, OUT>`, `SchemaInput`, `FormFields`, `FormOutput`, `FormServerErrors`; `form.RESET` ignores a click event (runtime fix) |
 | T-1 | done | `tooltips()` in sygnal/ui; docs live demo; browser test in 3 engines; SYG730 fix text |

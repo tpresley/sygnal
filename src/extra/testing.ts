@@ -2742,7 +2742,7 @@ export function renderComponent(
     return scripted(() => pick(name, tg), w => noPending(what, name, tg, w), (e: Pending) => {
       if (!e.step) return new Error(`[Sygnal] ${what}: the request ${brief(e.value)} has no progress: send it with progress: 'UPLOADING' (a reply action) or progress: true`);
       const r = e.req || {};
-      e.step(step.phase || (r.body !== undefined || r.json !== undefined ? 'upload' : 'download'), step.loaded, step.total ?? 0);
+      e.step(step.phase || (r.body !== undefined || r.json !== undefined || r.multipart !== undefined ? 'upload' : 'download'), step.loaded, step.total ?? 0);
     }, sendDue);
   };
   // PLAN-6 L-4: t.stream. Targets as t.respond's (an action name or key, a partial request, a

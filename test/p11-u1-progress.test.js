@@ -242,3 +242,49 @@ describe('SYG636: progress that can\'t be reported as asked', () => {
     expect(d[0].severity).toBe('warn')
   })
 })
+
+// ---- PLAN-11 U-5: multipart as data ---------------------------------------------------------
+import { toFormData } from '../src/extra/fetchDriver.js'
+
+describe('multipart: a FormData body written as data', () => {
+  it('toFormData: files, text, repeated names, skipped nulls, objects as JSON', async () => {
+    const file = new File(['hello'], 'a.txt', { type: 'text/plain' })
+    const fd = toFormData({ file, title: 'T', n: 2, ok: true, tags: ['a', 'b'], none: null, gone: undefined, meta: { x: 1 }, blob: new Blob(['b']) })
+    expect([...fd.keys()]).toEqual(['file', 'title', 'n', 'ok', 'tags', 'tags', 'meta', 'blob'])
+    expect(fd.get('file').name).toBe('a.txt')
+    expect(await fd.get('file').text()).toBe('hello')
+    expect(fd.getAll('tags')).toEqual(['a', 'b'])
+    expect([fd.get('n'), fd.get('ok'), fd.get('meta')]).toEqual(['2', 'true', '{"x":1}'])
+    expect(fd.get('blob').name).toBe('blob')
+  })
+
+  it('the driver sends it as FormData, POST by default, with no content-type header (the boundary is the browser\'s)', async () => {
+    const fetch = vi.fn(async () => new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } }))
+    const req$ = xs.create()
+    const src = makeFetchDriver({ fetch, headers: { 'Content-Type': 'application/json', 'x-a': '1' } })(req$)
+    src.select().addListener({ next: () => {} })
+    req$.shamefullySendNext({ url: '/up', multipart: { file: new File(['x'], 'x.bin') } })
+    await tick()
+    const [, init] = fetch.mock.calls[0]
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeInstanceOf(FormData)
+    expect(init.body.get('file').name).toBe('x.bin')
+    expect(init.headers).toEqual({ 'x-a': '1' })
+  })
+
+  it('renderComponent: t.requests shows the multipart object (plain data), and progress works with it', async () => {
+    const C = (p) => Uploader(p)
+    C.initialState = { ...Uploader.initialState, file: new File(['abc'], 'pic.png') }
+    C.intent = Uploader.intent
+    C.model = { ...Uploader.model, SEND: { HTTP: (s) => ({ url: '/upload', multipart: { file: s.file, title: 'Pic' }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }) } }
+    t = renderComponent(C)
+    t.simulateEvent('.send', 'click')
+    await t.progress('HTTP', { loaded: 1, total: 4 }, 'UPLOADING')
+    expect(t.state).toMatchObject({ phase: 'upload', fraction: 0.25 })
+    const [req] = t.requests('HTTP')
+    expect(req.multipart.title).toBe('Pic')
+    expect(req.multipart.file.name).toBe('pic.png')
+    await t.respond('HTTP', {}, { url: '/upload' })
+    expect(t.state.status).toBe('done')
+  })
+})

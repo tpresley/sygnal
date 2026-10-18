@@ -57,7 +57,7 @@ function checkOne(component: any, sink: string, req: any, where: string) {
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   const url = typeof req.url === 'string' ? req.url : ''
-  const method = String(req.method || (req.json !== undefined || req.body !== undefined ? 'POST' : 'GET')).toUpperCase()
+  const method = String(req.method || (req.json !== undefined || req.body !== undefined || req.multipart !== undefined ? 'POST' : 'GET')).toUpperCase()
   if ((req.cache === true || req.staleTime != null) && !IDEMPOTENT.test(method) && once(`SYG630:${name}:${method}:${url}`)) {
     devReport('SYG630', {
       component,

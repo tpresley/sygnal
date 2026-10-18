@@ -2355,6 +2355,9 @@ export type FetchInit = {
  * descendants'): two instances, or Collection items, using the same category never see or
  * cancel each other's requests. The root component sees every reply.
  */
+/** PLAN-11: one value of a request's `multipart` body */
+export type MultipartValue = Blob | string | number | boolean | null | undefined | Record<string, any>
+
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
@@ -2380,6 +2383,13 @@ export type FetchRequest = string | {
   query?: Record<string, string | number | boolean | null | undefined | Array<string | number | boolean | null | undefined>>;
   /** Sent as JSON.stringify(json), with `Content-Type: application/json` unless set */
   json?: any;
+  /**
+   * PLAN-11 (6.7): a multipart/form-data body, written as data: `{ file: state.file, title: state.title }`.
+   * A File or Blob is a file part, an array repeats the name (`files: [a, b]`), null/undefined are
+   * skipped, an object is sent as JSON text, anything else as a string. The browser sets the
+   * content-type (with its boundary); a `content-type` header is dropped. POST by default
+   */
+  multipart?: Record<string, MultipartValue | ReadonlyArray<MultipartValue>>;
   /** Raw body (string, FormData, Blob, ...) */
   body?: any;
   /**

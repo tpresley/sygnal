@@ -125,9 +125,10 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `ok` | — | Action that receives the parsed body of a 2xx response |
 | `error` | — | Action that receives `{ error, status, body, request }` |
 | `key` | the `ok` action, else `error` | The group for `latest` and `abort` |
-| `method` | `'POST'` with `json`/`body`, else `'GET'` | HTTP method |
+| `method` | `'POST'` with `json`/`multipart`/`body`, else `'GET'` | HTTP method |
 | `query` | — | Object appended as a query string, before any `#fragment`: `{ q: 'dune' }` → `?q=dune` (URL-encoded; `null`/`undefined` values skipped; an array repeats the key: `{ tag: ['a', 'b'] }` → `?tag=a&tag=b`) |
 | `json` | — | Body sent as `JSON.stringify(json)` with `Content-Type: application/json` |
+| `multipart` | — | A `multipart/form-data` body written as data: `{ file: state.file, title: state.title }` ([uploads](#upload-and-download-progress)) |
 | `body` | — | Raw body (string, `FormData`, `Blob`, …) |
 | `progress` | — | Report upload and download progress: an action name (`'UPLOADING'`) or `true` for `HTTP.progress()` ([Upload and download progress](#upload-and-download-progress)) |
 | `headers` | — | Object or `Headers`, merged over the driver's `headers` case-insensitively (sent with lowercase names) |
@@ -186,12 +187,7 @@ Upload.model = {
   SAMPLE: (state) => ({ ...state, file: new File([new Uint8Array(3 * 1024 * 1024)], 'sample.bin'), fraction: 0, status: 'idle', message: 'sample.bin' }),
   SEND: {
     STATE: (state) => (busy(state) ? ABORT : { ...state, status: 'uploading', fraction: 0, message: 'Uploading…' }),
-    HTTP:  (state) => {
-      if (busy(state)) return ABORT
-      const body = new FormData()
-      body.append('file', state.file)
-      return { url: '/api/files', body, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }
-    },
+    HTTP:  (state) => (busy(state) ? ABORT : { url: '/api/files', multipart: { file: state.file }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }),
   },
   UPLOADING: (state, { phase, fraction }) => (phase === 'upload' ? { ...state, fraction } : ABORT),
   UPLOADED:  (state, saved) => ({ ...state, status: 'done', fraction: 1, message: `Uploaded ${saved.name} (${saved.size} bytes).` }),
@@ -202,7 +198,7 @@ Upload.model = {
 - **Each step** is `{ phase, loaded, total, fraction, category, request }`. `phase` is `'upload'` while the body is sent, then `'download'` while the reply arrives (a GET reports only `'download'`). `total` and `fraction` (0 to 1) are `null` when the size isn't known, such as a download without a `Content-Length`.
 - **How often:** at most one step every 50 ms per phase, always including the first and the last (`fraction: 1`), so a fast connection doesn't render hundreds of times. A retry starts again at 0.
 - **`progress: true`** sends the steps to the source instead: `HTTP.progress('upload')` in the intent, filtered by category like `select()`.
-- **The file** comes from the input's `change` event (`e.target.files`), kept in state, and goes in a `FormData` body. The browser sets the `multipart/form-data` header; don't set `Content-Type` yourself. With the [`form` behavior](/guide/forms/), which ignores file inputs, keep the file in its own state field and add it to the `FormData` in the submit entry.
+- **The file** comes from the input's `change` event (`e.target.files`) and is kept in state. `multipart` turns the request's parts into a `multipart/form-data` body, the encoding upload endpoints expect: a `File` or `Blob` is a file part, an array repeats the name (`files: [a, b]`), `null` and `undefined` are left out, an object is sent as JSON text and anything else as a string. The browser writes the `Content-Type` with its boundary, so one set in `headers` is dropped. In a test, `t.requests('HTTP')` shows the parts as you wrote them (`multipart.file.name`). An endpoint that takes the raw bytes needs no encoding: `body: state.file` (with `method: 'PUT'`). With the [`form` behavior](/guide/forms/), which ignores file inputs, keep the file in its own state field and put it next to the values: `multipart: { ...data, file: state.file }`.
 - **XMLHttpRequest:** a request with `progress` goes over `XMLHttpRequest`, because it is the only way to see upload progress in every browser (streamed `fetch` uploads work only in Chromium over HTTP/2). The reply is the same as with `fetch`: parsing, statuses, `latest`, `abort`, `timeoutMs` and `retry` all apply. Options `fetch` has and `XMLHttpRequest` doesn't (`init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`) are ignored ([SYG636](/reference/errors/#syg636)), and the driver's `fetch` option isn't used: put auth in `headers`, which apply to both. `progress` does nothing on resources and `batch` requests. Where there is no `XMLHttpRequest` (Node, a service worker), the request is sent with `fetch` and reports no steps.
 
 In a test, `t.progress` sends a step of a pending request, which stays pending until `t.respond` or `t.fail`:

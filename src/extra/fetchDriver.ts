@@ -9,8 +9,11 @@ import {validateWith} from './standardSchema';
  * declarations in src/index.d.ts and docs/guide/drivers.md. Summary:
  *
  * - Request (sink value): `{ url, ok?, error?, key?, category?, method?, headers?, query?, json?,
- *   body?, latest?, timeoutMs?, parse?, init? }` or a URL string. `json` is stringified with a JSON
- *   content-type; method defaults to POST with a body/json, else GET. `query` is appended as a
+ *   multipart?, body?, latest?, timeoutMs?, parse?, init? }` or a URL string. `json` is stringified
+ *   with a JSON content-type; PLAN-11 U-5: `multipart` (an object) becomes a FormData body (a
+ *   File / Blob a file part, an array repeats the name, null / undefined skipped, an object JSON,
+ *   anything else a string), the content-type left to the browser (its boundary); method defaults
+ *   to POST with a body/json/multipart, else GET. `query` is appended as a
  *   query string (null/undefined values skipped, arrays repeat the key, before any #fragment).
  *   Other fetch options (credentials, mode, cache, ...) go under `init` (R4-5); other top-level
  *   keys are the app's own: not sent, but returned on `request`.
@@ -238,6 +241,17 @@ export const xhrFetch = (X: any, url: string, init: any, on: (phase: string, loa
   x.onabort = () => rej(abortError());
   x.send(init.body ?? null);
 });
+
+/** PLAN-11 U-5: a request's `multipart` object as FormData (see the header) */
+export const toFormData = (parts: any) => {
+  const fd = new FormData();
+  Object.keys(parts || {}).forEach(k => [].concat(parts[k]).forEach((v: any) => {
+    if (v == null) return;
+    if (typeof Blob != 'undefined' && v instanceof Blob) fd.append(k, v, (v as any).name ?? 'blob');
+    else fd.append(k, typeof v == 'object' ? JSON.stringify(v) : String(v));
+  }));
+  return fd;
+};
 
 const IDEMPOTENT = /^(GET|HEAD)$/i;
 // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
@@ -473,12 +487,16 @@ export function makeFetchDriver(options: any = {}) {
 
       const base = options.init;
       // a request's URL and fetch() init (the batch's sub-requests inherit the request's fields)
-      const prep = ({url, method, headers, query, json, body, init: own}: any) => {
+      const prep = ({url, method, headers, query, json, multipart, body, init: own}: any) => {
         const h = mergeHeaders(options.headers, base?.headers, own?.headers, headers);
         let b = body ?? own?.body;
         if (json !== undefined) {
           b = JSON.stringify(json);
           if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
+        } else if (multipart !== undefined) {
+          b = toFormData(multipart);
+          // the browser writes multipart/form-data with its boundary; a content-type set here would break it
+          Object.keys(h).forEach(k => { if (k.toLowerCase() == 'content-type') delete h[k]; });
         }
         return [withQuery((options.baseUrl || '') + (url ?? ''), query), {...pickInit(base), ...pickInit(own), method: method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET'), headers: h, body: b}];
       };

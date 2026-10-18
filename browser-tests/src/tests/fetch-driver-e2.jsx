@@ -47,17 +47,13 @@ export async function fetchDriverTestsE2() {
   })
 
   // PLAN-11 U-4: progress over the browser's real XMLHttpRequest (every engine)
-  await runTest(CAT, 'progress: a FormData upload reports upload steps over XMLHttpRequest, then the reply', async () => {
+  await runTest(CAT, 'progress: a multipart upload reports upload steps over XMLHttpRequest, then the reply', async () => {
     const { id, el } = mount()
     function Up({ state }) { return <div><button className="send">send</button><p className="out">{state.out}</p></div> }
     Up.initialState = { out: '', steps: [] }
     Up.intent = ({ DOM }) => ({ SEND: DOM.click('.send') })
     Up.model = {
-      SEND: { HTTP: () => {
-        const body = new FormData()
-        body.append('file', new File([new Uint8Array(3 * 1024 * 1024)], 'a.bin'))
-        return { url: '/__upload', body, progress: 'STEP', ok: 'DONE', error: 'FAILED' }
-      } },
+      SEND: { HTTP: () => ({ url: '/__upload', multipart: { file: new File([new Uint8Array(3 * 1024 * 1024)], 'a.bin'), note: 'x' }, progress: 'STEP', ok: 'DONE', error: 'FAILED' }) },
       STEP: (s, p) => ({ ...s, steps: [...s.steps, [p.phase, p.fraction]] }),
       DONE: (s, body) => ({ ...s, out: `${body.type}:${body.bytes > 3 * 1024 * 1024}` }),
       FAILED: (s, { error }) => ({ ...s, out: `failed: ${error}` }),

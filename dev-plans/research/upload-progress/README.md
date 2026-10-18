@@ -66,6 +66,9 @@ in-flight fetch with another (D79 de-duplication) since each sender needs its ow
 for progress requests (it can't report upload progress); put auth in `headers`, which apply to
 both transports.
 
+**Body (added 2026-10-18, D560):** a `multipart: { file, ... }` request field builds the
+FormData in the driver, as `json` builds a JSON body, so models return plain data.
+
 **Testing:** `renderComponent`'s HTTP fake answers progress requests from its in-memory fetch as
 today, and a new `t.progress(target, { loaded, total, phase? })` emits a progress event for a
 pending request (targets as `t.respond`).
