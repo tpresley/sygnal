@@ -2703,6 +2703,12 @@ export type SseConnection = SocketActions & {
   /** URL (after `baseUrl`) */
   sse: string;
   withCredentials?: boolean;
+  /**
+   * PLAN-11 (6.7): request headers, e.g. `{ authorization: 'Bearer ' + state.token }`. The native
+   * EventSource can't send headers, so a connection with them is read with `fetch` (same events,
+   * reconnects with `Last-Event-ID`). A changed header (a new token in state) reconnects
+   */
+  headers?: Record<string, string>;
   /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
   events?: Record<string, string>;
 }
@@ -2755,8 +2761,10 @@ export type SocketDriverOptions = {
   queueLimit?: number;
   /** The WebSocket class. Default: `globalThis.WebSocket`, read at connect time (so test stubs apply) */
   WebSocket?: any;
-  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time */
+  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time (an `sse` connection with `headers`: a fetch-based one, unless this is given) */
   EventSource?: any;
+  /** PLAN-11: the fetch for `sse` connections with `headers`. Default: `globalThis.fetch` */
+  fetch?: (input: string, init?: any) => Promise<any>;
 }
 
 /**

@@ -61,4 +61,25 @@ export async function socketDriverTests2A() {
       app.dispose()
     }
   }, 4000)
+
+  // PLAN-11 E-1: an SSE connection with headers is read with fetch (the real browser fetch)
+  await runTest(CAT, 'makeSocketDriver: SSE with an Authorization header (fetch), reconnect with Last-Event-ID', async () => {
+    const { id, el } = mount()
+    function Feed({ state }) { return <p className="log">{state.log.join('|')}</p> }
+    Feed.initialState = { log: [], token: 't0k' }
+    const add = (s, entry) => ({ ...s, log: [...s.log, entry] })
+    Feed.connections = (state) => ({ feed: { sse: '/__sse-auth', headers: { authorization: `Bearer ${state.token}` }, message: 'MSG', open: 'UP' } })
+    Feed.model = {
+      UP: (s, { reconnected }) => add(s, reconnected ? 'reup' : 'up'),
+      MSG: (s, { auth, lastEventId }) => add(s, `${auth}:${lastEventId === null ? '-' : 'id'}`),
+    }
+    const app = run(Feed, { WS: makeSocketDriver() }, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.log')?.textContent.split('|').length >= 4, 3000)
+      const log = el.querySelector('.log').textContent.split('|').slice(0, 4).join('|')
+      assert(log === 'up|Bearer t0k:-|reup|Bearer t0k:id', `got '${log}'`)
+    } finally {
+      app.dispose()
+    }
+  }, 5000)
 }

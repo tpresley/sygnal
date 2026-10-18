@@ -60,8 +60,12 @@ export async function post(url: string, body: any, req: any, signal: AbortSignal
   return res;
 }
 
-/** the SSE frames of a response body: `{ event, data }` (data: the joined data lines) */
-export async function* sse(res: any): AsyncGenerator<{event: string; data: string}> {
+/**
+ * the SSE frames of a response body: `{ event, data }` (data: the joined data lines). PLAN-11
+ * E-1: `meta` (optional) follows the stream's `id` (the last event id, kept across frames) and
+ * `retry` (ms) fields, as EventSource does, for a reconnect
+ */
+export async function* sse(res: any, meta?: {id?: string; retry?: number}): AsyncGenerator<{event: string; data: string}> {
   const reader = res.body.getReader(), dec = new TextDecoder();
   let buf = '', cr = '', done = false;
   try {
@@ -84,6 +88,8 @@ export async function* sse(res: any): AsyncGenerator<{event: string; data: strin
           const v = c < 0 ? '' : line.slice(c + 1).replace(/^ /, '');
           if (field == 'event') event = v;
           else if (field == 'data') data.push(v);
+          else if (meta && field == 'id' && !v.includes('\0')) meta.id = v;
+          else if (meta && field == 'retry' && /^\d+$/.test(v)) meta.retry = +v;
         }
         if (data.length) yield {event, data: data.join('\n')};
       }
