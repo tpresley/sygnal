@@ -89,6 +89,10 @@ App.initialState = { page: 'list', taskId: null }
 - With a router, use the path: `instance={state.route.path}`. Going from `/tasks/1` to `/tasks/2` re-creates the task page; going back to a page with the path it had keeps it.
 - The page sees the new state once before it is re-created (state reaches it before the Switchable re-renders with the new key), so in that moment it may start a request or open a connection for the new values; disposing the old instance aborts or closes it right away.
 
+## Scrolling to the top on a page change
+
+A Switchable doesn't scroll: it only shows another page. With [`makeRouter`](/guide/router/), navigation does: a new page (a link or a push) scrolls to the top, or to the `#hash` target, and back/forward restores where the user was. A Switchable driven by state alone, such as tabs or the steps of a wizard, stays where it is, which is what tabs want. When a step change should scroll, send an element command from the action that changes the step: `NEXT_STEP: { STATE: …, ELEMENT: { scrollIntoView: '.wizard', block: 'start' } }`.
+
 ## Hidden pages pause connections and resources
 
 While a page is hidden, it and every component inside it (sub-components and Collection items) declare only the [`connections`](/guide/sockets/) and `resources` entries marked `background: true`. The others pause: their sockets close (without a `close` action), and their resource requests in flight are aborted while each resource keeps its last result (or goes back to `idle` if nothing had arrived). When the page is shown again, every entry is declared again: the sockets open as new connections (`open` with `reconnected: false`) and the resources refetch, keeping their data with `refreshing: true` ([Resources and Caching](/guide/resources/)).

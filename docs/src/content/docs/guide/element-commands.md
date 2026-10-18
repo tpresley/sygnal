@@ -70,6 +70,8 @@ declare module 'sygnal' {
 }
 ```
 
+A command built outside the model's return, in a variable or a helper, needs a type in TypeScript: in `const top = { scrollIntoView: '.page', block: 'start' }` the `block` widens to `string`, which isn't a `ScrollLogicalPosition`. Annotate it, `const top: ElementCommand = { … }` (or write `satisfies ElementCommand`); `ElementCommand` is exported from `sygnal`. A command written inside the return needs nothing.
+
 Methods that change the DOM Sygnal renders (`remove`, `append`, `setAttribute` and the like) are reported as [SYG641](/reference/errors/#syg641): the next render would undo them or trip over them. Change the state instead.
 
 ## Which element

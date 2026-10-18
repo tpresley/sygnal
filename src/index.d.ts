@@ -53,9 +53,12 @@ type ComponentProps<STATE, PROPS, CONTEXT> = (
  */
 export type UidFunction = (name?: string) => string
 
-/** The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`. */
+/**
+ * The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`.
+ * PLAN-11 Q-1: PROPS = `any` is read as "any other props" (`any & X` would make `state` `any` too).
+ */
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the

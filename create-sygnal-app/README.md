@@ -34,7 +34,7 @@ npx create-sygnal-app my-app --template vite --ts
 Every template comes in JavaScript and TypeScript and includes:
 
 - `npm run dev`, `npm run build` and `npm test` (Vitest, with a starter test using `renderComponent`; `mcp-app` also has `npm start` and a test of its MCP server);
-- [`sygnal-check`](https://www.npmjs.com/package/sygnal-check) as a dev dependency: `npx --no-install sygnal-check --strict` (use `pages` as the path in Vike projects);
+- [`sygnal-check`](https://www.npmjs.com/package/sygnal-check) as a dev dependency: `npx --no-install sygnal-check --strict` (use `pages` as the path in Vike projects); `npm run check` runs it, plus `tsc --noEmit` in the TypeScript templates (sygnal-check finds wiring bugs, not type errors);
 - `AGENTS.md` and `CLAUDE.md`, which point AI coding agents to `node_modules/sygnal/llms.txt` and the project's commands.
 
 ## License

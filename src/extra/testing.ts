@@ -1197,6 +1197,13 @@ const validMs = (v: any) => typeof v == 'number' && Number.isFinite(v) && v >= 0
 // too, so its time is the clock's (Date may be left real by `toFake`), and its waits drive it.
 const fakeClock = (): any => (setTimeout as any).clock;
 const clockNow = (): number => { const c = fakeClock(); return c ? c.now : Date.now(); };
+/** PLAN-11 Q-3: ms until the next pending fake timer (0: none, or real timers) */
+const nextFakeTimer = (): number => {
+  const c = fakeClock();
+  let due = Infinity;
+  try { Object.values(c?.timers || {}).forEach((t: any) => { if (t && t.callAt > c.now && t.callAt < due) due = t.callAt; }); } catch (_) {}
+  return due < Infinity ? due - c.now : 0;
+};
 /**
  * Under fake timers, advance the clock timer by timer (nextAsync flushes promises around each
  * one) until `p` settles. Every pending wait has a timer (its timeout, a quiet-window tick), so
@@ -3134,7 +3141,11 @@ export function renderComponent(
         let msg = `${name} timed out after ${timeoutMs}ms.`;
         const [why, pending] = explainNext(start);
         msg += why;
-        if (pending) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
+        // PLAN-11 Q-3: on the fake clock a state a timer (TIMER driver, periodic, delay) brings
+        // later than the timeout can't arrive in time: name the next pending timer
+        const later = pending ? 0 : nextFakeTimer();
+        if (later) msg += ` A timer is still pending on the fake clock (it fires ${later}ms after this timeout): if the state comes from it, this wait ended first.`;
+        if (pending || later) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
         // G-065: a state from before the call matched; next() only looks at new ones
         for (let i = from - 1; i >= 0; i--) {
           if (test(i)) {
