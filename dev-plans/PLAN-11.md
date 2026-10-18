@@ -118,6 +118,14 @@ connection with headers is read with `fetch` and the SSE parser from `src/extra/
 values' keys; `SUBMIT` / `DONE` / `RESET` / `ERRORS` payloads typed. Type-tests with a zod-shaped
 and a valibot-shaped schema stub. `UsesState` / `UsesActions` documented in llms.txt and the skill.
 
+**F-2 File fields in `form`** (D561, added 2026-10-18 on the user's request). A file input
+named in `values` is a field: its File (`multiple`: an array; none: null), validated by the
+schema, carried by the submit data (`multipart: data`). `form.PROGRESS` (from `progress:
+'form.PROGRESS'` on the submit request) keeps `state.form.progress` while submitting. A file
+input can't be cleared through state, so `state.form.resets` counts start overs for its `key`.
+A File is a field leaf; `dirty` compares Files by identity. A file input not in `values` stays
+ignored and quiet (the pre-6.7 workaround keeps working).
+
 ### 1.5 Multi-instance tooltips (T)
 
 **T-1** `tooltips({ trigger: '[data-tip]', showDelay?, hideDelay? })` in `sygnal/ui`: one behavior

@@ -187,6 +187,41 @@ export async function formTestsP5F1() {
       assert(field(el, 'title').value === '' && el.querySelector('.title-error').textContent === '', `fresh: ${page()}`)
     } finally { app.dispose() }
   }, 15000)
+
+  // PLAN-11 F-2: a real file input as a form field; the submit uploads it as multipart with
+  // form.PROGRESS; a reset clears the input through the `resets` key
+  await runTest(CAT, 'file field: pick (real input), validate, upload with form.PROGRESS, reset clears the input', async () => {
+    const { id, el } = mountOnScreen()
+    const app = run(Avatar, { HTTP: makeFetchDriver() }, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('input[type=file]'))
+      const pickFile = (file) => {
+        const input = el.querySelector('input[type=file]')
+        const dt = new DataTransfer()
+        if (file) dt.items.add(file)
+        input.files = dt.files
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }
+      el.querySelector('button[type=submit]').click()
+      await waitFor(() => el.querySelector('.avatar-error').textContent === 'Choose a file')
+      pickFile(new File([new Uint8Array(2 * 1024 * 1024)], 'photo.bin'))
+      await waitFor(() => el.querySelector('.avatar-error').textContent === '')
+      el.querySelector('button[type=submit]').click()
+      await waitFor(() => el.querySelector('.out').textContent !== '', 15000)
+      const s = app.__runtime.getState()
+      assert(el.querySelector('.out').textContent === 'saved:multipart/form-data', `got '${el.querySelector('.out').textContent}'`)
+      assert(s.steps.length >= 2 && s.steps.at(-1) === 1, `progress steps: ${JSON.stringify(s.steps)}`)
+      assert(s.form.progress === null && s.form.submitted, 'progress cleared by DONE')
+      assert(el.querySelector('input[type=file]').files.length === 1, 'the input keeps its file after the submit')
+      el.querySelector('.reset').click()
+      await waitFor(() => app.__runtime.getState().form.resets === 1)
+      await wait(30)
+      assert(el.querySelector('input[type=file]').files.length === 0, 'the reset re-created the input (empty)')
+      // DONE made the saved values the start values, so the reset keeps the uploaded file (the input can't show it)
+      assert(app.__runtime.getState().form.values.avatar?.name === 'photo.bin', 'values back to the saved ones')
+    } finally { app.dispose() }
+  }, 20000)
 }
 
 const titleSchema = { '~standard': { version: 1, vendor: 'browser-tests', validate: (v) => (v.title.trim() ? { value: v } : { issues: [{ message: 'Required', path: ['title'] }] }) } }
@@ -232,4 +267,28 @@ Pages.intent = ({ DOM }) => ({
 Pages.model = {
   GO: (state, page) => ({ ...state, page }),
   DEFAULT_TASK: (state) => ({ ...state, defaultKind: 'task' }),
+}
+
+// PLAN-11 F-2: a file field (a hand-written Standard Schema: the field must be a File)
+const avatarSchema = { '~standard': { version: 1, vendor: 'test', validate: (v) => (v.avatar instanceof File ? { value: v } : { issues: [{ message: 'Choose a file', path: ['avatar'] }] }) } }
+function Avatar({ state, uid }) {
+  const f = state.form.fields
+  return (
+    <form>
+      <label for={uid('avatar')}>Photo</label>
+      <input id={uid('avatar')} type="file" name="avatar" key={'avatar' + state.form.resets} />
+      <p className="avatar-error">{f.avatar.error}</p>
+      <button type="submit">Upload</button>
+      <button type="button" className="reset">Reset</button>
+      <p className="out">{state.out}</p>
+    </form>
+  )
+}
+Avatar.initialState = { out: '', steps: [] }
+Avatar.uses = { form: form(avatarSchema, { values: { avatar: null }, submit: 'SAVE', show: 'submit' }) }
+Avatar.intent = ({ DOM }) => ({ 'form.RESET': DOM.click('.reset') })
+Avatar.model = {
+  SAVE: { HTTP: (state, data) => ({ url: '/__upload', multipart: data, progress: 'form.PROGRESS', ok: 'form.DONE', error: 'form.ERRORS' }) },
+  'form.PROGRESS': (state, p) => (p.phase === 'upload' ? { ...state, steps: [...state.steps, p.fraction] } : state),
+  'form.DONE': (state, body) => ({ ...state, out: `saved:${body.type}` }),
 }

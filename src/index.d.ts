@@ -946,6 +946,16 @@ export interface FormState<V = any> {
   validating: boolean;
   /** The schema has answered at least once since the start (or the last `form.RESET`) */
   validated: boolean;
+  /**
+   * PLAN-11 (6.7): the submit request's last progress step, when it is sent with
+   * `progress: 'form.PROGRESS'`; null otherwise and after `form.DONE` / `form.ERRORS` / `form.RESET`
+   */
+  progress: { phase: 'upload' | 'download'; loaded: number; total: number | null; fraction: number | null } | null;
+  /**
+   * PLAN-11 (6.7): how many times the form started over (`form.RESET`, `resetOnShow`). A file
+   * input can't be cleared through state: key it with this, `key={'avatar' + state.form.resets}`
+   */
+  resets: number;
 }
 
 type FormIsAny<T> = 0 extends (1 & T) ? true : false
@@ -1035,8 +1045,8 @@ export type FormServerErrors =
   | { status?: number; body?: any; error?: any; request?: any }
 
 export interface FormActions<V = any> {
-  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
-  CHANGE: { name: string; value: any; item?: any };
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed); a file input its File (`multiple`: File[]; none: null) */
+  CHANGE: { name: string; value: any; item?: any; file?: boolean };
   /**
    * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
    * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
@@ -1055,6 +1065,8 @@ export interface FormActions<V = any> {
   ERRORS: FormServerErrors;
   /** The submit was saved: `initial` becomes `values`. Its data (the reply) is ignored */
   DONE: unknown;
+  /** PLAN-11: a progress step of the submit request (`progress: 'form.PROGRESS'` on it): kept as `progress` while submitting */
+  PROGRESS: FetchProgress;
   /** Back to `initial`, or to the values given (whole values, not merged; anything but a plain object, such as a click event, means `initial`) */
   RESET: V | null | undefined;
 }

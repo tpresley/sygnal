@@ -32,6 +32,8 @@
  * before that (a child's first render) the fields come from calling it with a blank state.
  *
  * Slice (state.form): values, initial, errors (all current schema errors by name), touched,
+ * progress (PLAN-11 F-2: the submit's last progress step or null), resets (counts RESET and
+ * resetOnShow starts: key a file input with it, since a file input can't be cleared by state),
  * server (server errors), remote (async check results: '' passed), pending (name -> value being
  * checked), submitting, submitted, submitCount, queued (a submit waits for a check or an async
  * schema), validating (an async schema runs), validated (the schema has answered since the start
@@ -41,11 +43,14 @@
  *
  * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
  * value, which toggles membership when the field is an array; <select multiple> an array of the
- * selected values; type=file is ignored), form.SET ({ values }: G-647, field name -> value, several
+ * selected values; PLAN-11 F-2: a file input its File, `multiple` an array of them, none null),
+ * form.SET ({ values }: G-647, field name -> value, several
  * fields changed at once as if typed: one validation, `touched` as for CHANGE, unknown names
  * skipped; e.g. an AI fill), form.BLUR (name), form.SUBMIT, form.ADD ({ field,
  * value }), form.REMOVE ({ field, id }), form.ERRORS (an error reply or a map: server errors),
- * form.DONE (saved), form.RESET (values?); internal: form.RESULT (an async schema's result),
+ * form.DONE (saved), form.RESET (values?), form.PROGRESS (PLAN-11 F-2: a progress step of the
+ * submit request, `progress: 'form.PROGRESS'`: kept as `progress` while submitting, cleared by
+ * DONE / ERRORS / RESET); internal: form.RESULT (an async schema's result),
  * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
  * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
  * schema answered; with resetOnShow also each time the form element appears, D239).
@@ -73,10 +78,14 @@ import xs from './xstreamCompat'
 import {defineBehavior} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
-import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid} from './formHelpers'
+import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
 
 const dev = (...a: any[]): any => (globalThis as any).__SYGNAL_DIAGNOSTICS__?.form?.(...a)
 const keys = (o: any) => Object.keys(o).filter(k => o[k])
+// PLAN-11 F-2: values compared as JSON, a File by identity-ish fields (JSON gives every File {})
+const fileIds = new WeakMap<object, number>()
+let fileSeq = 0
+const json = (v: any) => JSON.stringify(v, (_k, x) => isFile(x) ? `\0file:${fileIds.get(x) ?? (fileIds.set(x, ++fileSeq), fileSeq)}` : x)
 const drop = (o: any, p: string) => {
   const r: any = {}
   for (const k in o) if (k != p && !k.startsWith(p + '.')) r[k] = o[k]
@@ -137,10 +146,11 @@ export const form = (schema: any, o: any = {}): any => {
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
       : {s: req ? {...s, queued: false, submitting: true} : done({...s, queued: false}), send: 1}
   }
-  const base = (vals: any) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
-    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false})
-  const fresh = (vals: any) => edit(base(vals), vals)
-  const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}})
+  const base = (vals: any, resets = 0) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
+    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false, progress: null, resets})
+  // a start over (RESET, resetOnShow): `resets` counts them, so a file input keyed by it is made anew
+  const fresh = (vals: any, s?: any) => edit(base(vals, s ? (s.resets || 0) + 1 : 0), vals)
+  const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}, progress: null})
   const group = (cur: any, d: any) => {
     if (!Array.isArray(cur) || !('item' in d)) return d.value
     const r = cur.filter(x => x !== d.item)
@@ -149,9 +159,9 @@ export const form = (schema: any, o: any = {}): any => {
 
   // fields changed as typed ones ([name, value] pairs; unknown names skipped, SYG230): their
   // server errors, check results and running checks go, `touched` as show 'input' says; one validation
-  const put = (s: any, d: any[]) => {
+  const put = (s: any, d: any[], quiet?: any) => {
     let vals = s.values, server = drop(s.server, ''), remote = s.remote, pending = s.pending, touched = s.touched
-    for (const [n, y] of d) if (known(s, n)) {
+    for (const [n, y] of d) if (known(s, n, quiet)) {
       vals = setField(vals, n, y), server = drop(server, n), remote = drop(remote, n), pending = drop(pending, n)
       if (show == 'input') touched = {...touched, [n]: true}
     }
@@ -161,7 +171,9 @@ export const form = (schema: any, o: any = {}): any => {
   const steps: Record<string, (s: any, d: any, k: string, h?: any) => any> = {
     // G-376: a checkbox (`item`: its value) on an array field is one of a group: checked adds
     // its value, unchecked removes it
-    CHANGE: (s, d) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : []),
+    // PLAN-11 F-2: a file input whose name isn't in values is left alone, quietly (an app that reads
+    // its files in its own intent, as before 6.7)
+    CHANGE: (s, d) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : [], d?.file),
     BLUR: (s, n, k) => {
       if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
@@ -192,17 +204,20 @@ export const form = (schema: any, o: any = {}): any => {
     SET: (s, d) => put(s, Object.entries(d?.values || {})),
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
-      return {s: {...s, server: e, submitting: false, queued: false}, focus: focusInvalid(e, sel)}
+      return {s: {...s, server: e, submitting: false, queued: false, progress: null}, focus: focusInvalid(e, sel)}
     },
     DONE: (s) => ({s: done(s)}),
+    // PLAN-11 F-2: a progress step of the submit's request (`progress: 'form.PROGRESS'`), while it is pending
+    PROGRESS: (s, d) => s.submitting && d && typeof d == 'object'
+      ? {s: {...s, progress: {phase: d.phase, loaded: d.loaded, total: d.total ?? null, fraction: d.fraction ?? null}}} : null,
     // PLAN-11: only a plain object is new values (a click event from `DOM.click('.reset')` is not)
-    RESET: (s, d) => fresh(d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d)) ? d : s.initial),
+    RESET: (s, d) => fresh(d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d)) ? d : s.initial, s),
     // G-375: the first validation, when the host starts (form() doesn't validate at module load).
     // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck.
     // D239: with resetOnShow (also each time the form element appears again), or a `values`
     // function not called yet, the slice starts over from the start values (h: the host state)
-    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo)
-      : edit({...s, submitting: false, queued: false, pending: {}}, s.values),
+    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo, again && s)
+      : edit({...s, submitting: false, queued: false, pending: {}, progress: null}, s.values),
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -249,9 +264,11 @@ export const form = (schema: any, o: any = {}): any => {
         VALIDATE: again ? xs.merge(xs.of(0), f.elements().filter((e: any) => { const r = e.length && !on; on = e.length; return r })) : xs.of(0),
         // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
         // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
-        // <select multiple> the selected values; type=file is left alone; others give `value`
-        CHANGE: f.events('input').filter(({target: t}: any) => t.type != 'file').map(({target: t}: any) =>
-          t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
+        // <select multiple> the selected values; PLAN-11 F-2: a file input its File (`multiple`:
+        // an array of them; none: null); others give `value`
+        CHANGE: f.events('input').map(({target: t}: any) =>
+          t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
+          : t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
           : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
         BLUR: f.events('focusout').map((e: any) => e.target.name),
         SUBMIT: f.events('submit', {preventDefault: true}),
@@ -270,7 +287,7 @@ export const form = (schema: any, o: any = {}): any => {
       },
       // G-382: an async schema re-validating keeps the last answer's validity (no flicker)
       valid: (s: any) => s.validated && !keys(s.errors).length && !keys(s.remote).length,
-      dirty: (s: any) => JSON.stringify(s.values) != JSON.stringify(s.initial),
+      dirty: (s: any) => json(s.values) != json(s.initial),
       error: (s: any) => s.server[''] || (s.submitCount && s.errors['']) || '',
     },
   })({...o, values}), merge = b.merge

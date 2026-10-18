@@ -23,6 +23,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 | D558 | 2026-10-17 | F-1: a top-level field name not in the typed values is a type error (typos); a typed schema's input wins over `values` (coordinator, on the worker's proposal) |
 | D559 | 2026-10-17 | `form.RESET` takes values only from a plain object, so `'form.RESET': DOM.click('.reset')` resets to the start values instead of to the event (coordinator; found by the F-1 worker) |
 | D560 | 2026-10-18 | U-5: a `multipart` request field, the multipart counterpart of `json`, so a model never builds a FormData (imperative, opaque in t.requests); `body: formData` stays the escape hatch (user) |
+| D561 | 2026-10-18 | F-2: native file fields in `form` (a file input named in `values`), `form.PROGRESS` / `state.form.progress`, and `state.form.resets` for keying file inputs (a reset can't clear one through state); a file input not in values stays ignored without SYG230 (user) |
 
 ## Items
 
@@ -42,6 +43,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 | U-5 | done | `multipart` on requests (`toFormData`), types `MultipartValue`; docs, demo, llms/skill, browser test switched to it |
 | E-1 | done | `FetchEventSource` (fetch + the shared SSE parser with id/retry); `headers` on `sse` connections; browser test in 3 engines |
 | F-1 | done | `StandardSchemaLike<IN, OUT>`, `SchemaInput`, `FormFields`, `FormOutput`, `FormServerErrors`; `form.RESET` ignores a click event (runtime fix) |
+| F-2 | done | file fields in `form` (File values, schema validation), `form.PROGRESS` → `progress`, `resets` for keying the input; docs in forms-reference; browser test in 3 engines |
 | T-1 | done | `tooltips()` in sygnal/ui; docs live demo; browser test in 3 engines; SYG730 fix text |
 | D-1…D-5 | done | widgets new array, ElementCommand annotation, Switchable scroll to router, UsesState, 2000 ms |
 

@@ -337,7 +337,8 @@ describe('G-376: field types', () => {
     expect(t.state.form.values.age).toBe('42')
   })
 
-  it('type=file is ignored (no SYG230, values unchanged)', async () => {
+  // PLAN-11 F-2: a file input is a field when its name is in values; one that isn't stays ignored
+  it('a file input whose name is not in values is ignored (no SYG230, values unchanged)', async () => {
     t = renderComponent(C, { dom: 'real' })
     await t.ready()
     const before = t.state.form.values

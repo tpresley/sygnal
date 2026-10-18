@@ -15,6 +15,7 @@ The details of the [`form` behavior](/guide/forms/). Start with the recipe on [F
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](/guide/forms/#server-errors-and-failed-submits); [check](#async-checks) results; checks running |
 | `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: the request sent and not answered yet; `form.DONE` arrived (or a submit without a request was dispatched); attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
+| `progress`, `resets` | The submit request's last [progress](#file-fields) step (`{ phase, loaded, total, fraction }`, or `null`); how many times the form started over (`form.RESET`, `resetOnShow`), for keying a [file input](#file-fields) |
 | `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors as of the schema's last answer (`false` before the first); values differ from `initial`; the form-level message |
 
 The options are on [Forms](/guide/forms/#options).
@@ -25,7 +26,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 
 | Action | Data |
 |---|---|
-| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`) |
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`; a [file input](#file-fields) its `File`) |
 | `form.SET` | `{ values }`: several fields at once, by field name (`{ name: 'Dana', 'addresses.7.city': 'Hilo' }`), as if the user had typed them: one validation, the fields count as changed, `touched` as for `form.CHANGE` (so errors show by the [`show`](/guide/forms/#options) rule), their server errors and check results cleared. Fields not named keep their values; a name that isn't a field is skipped ([SYG230](/reference/errors/#syg230) in development). For a fill from elsewhere: [an AI extraction](/recipes/ai-form-fill/), a saved draft, an address lookup |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
@@ -33,9 +34,51 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | `form.ERRORS` | Server errors: an error reply, a map or a list of issues |
 | `form.DONE` | The submit's request was saved: `initial` becomes `values`, `submitted` turns on ([a submit without a request](/guide/forms/#submit-without-a-request) needs none) |
 | `form.RESET` | Back to `initial`, or to the values given |
+| `form.PROGRESS` | A progress step of the submit's request, sent with `progress: 'form.PROGRESS'`: kept as `progress` until `form.DONE` or `form.ERRORS` ([file fields](#file-fields)) |
 | `form.VALIDATE` | Internal: the first validation when the host starts; with `resetOnShow`, the start over (also each time the form element appears again) |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
+
+## File fields
+
+A file input whose `name` is in `values` is a field like any other: its value is the `File` the user picked (an array of them with `multiple`, `null` when none), the schema validates it, its error shows on `fields.avatar.error`, and the submit's data carries it, so the submit entry sends it with [`multipart`](/guide/http/#upload-and-download-progress):
+
+```jsx
+import { form } from 'sygnal'
+import { z } from 'zod'
+
+const profileSchema = z.object({
+  name: z.string().min(1, 'Enter your name'),
+  avatar: z.file('Choose a photo').max(5_000_000, 'At most 5 MB').mime(['image/png', 'image/jpeg'], 'A PNG or JPEG photo'),
+})
+
+function Profile({ state }) {
+  const f = state.form.fields
+  const percent = Math.round((state.form.progress?.fraction ?? 0) * 100)
+  return (
+    <form>
+      <label>Name <input name="name" value={f.name.value} /></label>
+      <label>Photo <input type="file" name="avatar" accept="image/*" key={'avatar' + state.form.resets} /></label>
+      <p className="chosen">{f.avatar.value?.name}</p>
+      <p className="error">{f.avatar.error}</p>
+      {state.form.submitting && <progress max="100" value={percent} aria-label="Upload progress" />}
+      <button type="submit" disabled={state.form.submitting}>Save</button>
+    </form>
+  )
+}
+
+Profile.uses = { form: form(profileSchema, { values: { name: '', avatar: null }, submit: 'SAVE' }) }
+Profile.model = {
+  SAVE: { HTTP: (state, data) => ({ url: '/api/profile', multipart: data, progress: 'form.PROGRESS', ok: 'form.DONE', error: 'form.ERRORS' }) },
+}
+```
+
+- **Progress**: with `progress: 'form.PROGRESS'` on the submit's request, the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
+- **Don't bind `value`**: the browser doesn't let a page set a file input's file. So a reset can't clear it through state; instead the form counts its start overs in `state.form.resets`, and `key={'avatar' + state.form.resets}` makes a new, empty input after each one. For the same reason, show the chosen file's name yourself (`f.avatar.value?.name`): after a reset to saved values (`form.DONE` makes the saved values the start values) the value is still the file while the new input is empty.
+- **Validation** uses your schema's file checks: zod's `z.file()` (`.max()`, `.mime()`), valibot's `v.file()`, or `instanceof File` in a hand-written schema. Required means rejecting `null`.
+- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
+- A file input whose `name` isn't in `values` is left alone, as before 6.7, for an app that reads its files in its own intent.
+- A `File` can't be serialized, so `persist()` and server-rendered state don't carry file fields.
 
 ## Any Standard Schema
 

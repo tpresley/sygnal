@@ -18,7 +18,7 @@ describe('F-1: form', () => {
     expectTypeOf<S['form']['fields']['email']>().toEqualTypeOf<FormField<string>>()
     expectTypeOf<S['form']['submitting']>().toEqualTypeOf<boolean>()
     expectTypeOf<S['form']['error']>().toEqualTypeOf<string>()
-    expectTypeOf<UsesActions<typeof uses>['form.CHANGE']>().toEqualTypeOf<{ name: string; value: any; item?: any }>()
+    expectTypeOf<UsesActions<typeof uses>['form.CHANGE']>().toEqualTypeOf<{ name: string; value: any; item?: any; file?: boolean }>()
     expectTypeOf<UsesActions<typeof uses>['form.REMOVE']>().toEqualTypeOf<{ field: string; id: any }>()
     expectTypeOf<FormState<Values>['errors']>().toEqualTypeOf<FieldErrors>()
 
