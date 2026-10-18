@@ -345,3 +345,45 @@ run(App, { HTTP: makeFetchDriver() })
     expect(only(check({ 'src/App.jsx': src, 'src/main.js': MAIN() }), 'SYG609')).toEqual([])
   })
 })
+
+// PLAN-11 Q-6: the intent side, as the dev entry's sources proxy reports it
+const FEED = (intent = "({ DOM, HTTP }) => ({ LOAD: DOM.click('main'), LOADED: HTTP.select('feed') })") => `export function App({ state }) {
+  return <main>{state.items.length}</main>
+}
+App.initialState = { items: [] }
+App.intent = ${intent}
+App.model = {
+  LOAD: (state) => state,
+  LOADED: (state, items) => ({ ...state, items }),
+}
+`
+
+describe('SYG609 (static): an intent source no run() driver provides', () => {
+  it('a destructured HTTP source with run(App): warn at the key, naming the run() call', () => {
+    const d = only(check({ 'src/App.jsx': FEED(), 'src/main.js': MAIN() }), 'SYG609')
+    expect(brief(d)).toEqual(['SYG609 warn src/App.jsx:5'])
+    expect(d[0].message).toBe('App.intent reads the HTTP source, but the run() call that renders App (src/main.js:4) registers no driver named HTTP, so it is undefined')
+    expect(d[0].fix).toContain('run(App, { HTTP: makeFetchDriver() })')
+    expect(d[0].data).toEqual({ name: 'HTTP', kind: 'source', drivers: [] })
+  })
+
+  it('sources.X and const { X } = sources count too, once per source', () => {
+    const member = FEED("(sources) => ({ LOAD: sources.DOM.click('main'), LOADED: sources.HTTP.select('feed'), MORE: sources.HTTP.select('more') })")
+    expect(only(check({ 'src/App.jsx': member, 'src/main.js': MAIN() }), 'SYG609').map(x => x.data.name)).toEqual(['HTTP'])
+    const local = FEED("(sources) => {\n  const { DOM, WS } = sources\n  return { LOAD: DOM.click('main'), LOADED: WS.select('feed') }\n}")
+    const d = only(check({ 'src/App.jsx': local, 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')
+    expect(d.map(x => [x.data.name, x.line])).toEqual([['WS', 6]])
+    expect(d[0].fix).toContain('makeSocketDriver()')
+  })
+
+  it('a driver with that name, drivers it can not list, or no run() call: nothing', () => {
+    expect(only(check({ 'src/App.jsx': FEED(), 'src/main.js': MAIN('App, { HTTP: makeFetchDriver() }') }), 'SYG609')).toEqual([])
+    expect(only(check({ 'src/App.jsx': FEED(), 'src/main.js': MAIN('App, drivers', "import { drivers } from './drivers.js'") }), 'SYG609')).toEqual([])
+    expect(only(check({ 'src/App.jsx': FEED() }), 'SYG609')).toEqual([])
+  })
+
+  it("the core's sources and run()'s default drivers need none (DOM, STATE, CHILD, EVENTS, LOG, dispose$, props$)", () => {
+    const all = FEED("({ DOM, STATE, CHILD, EVENTS, LOG, dispose$, props$, children$, commands$ }) => ({ LOAD: DOM.click('main'), LOADED: EVENTS.select('x') })")
+    expect(only(check({ 'src/App.jsx': all, 'src/main.js': MAIN() }), 'SYG609')).toEqual([])
+  })
+})

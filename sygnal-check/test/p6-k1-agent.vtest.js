@@ -425,6 +425,35 @@ Star.model = { ${model} }
     expect(syg731(check({ 'Star.jsx': toggle('<span className={{ on: state.on }}><button type="button" className="star">Star</button></span>') }))).toEqual([])
     expect(syg731(check({ 'Star.jsx': toggle('<button type="button" className={{ star: true, on: state.on }} {...state.attrs}>Star</button>') }))).toEqual([])
   })
+  // PLAN-11 Q-2: a change announced another way
+  const copy = (button) => toggle(button, "COPY: (state) => ({ ...state, status: 'copied' })", "COPY: DOM.click('.copy')")
+    .replace("{ on: false, filter: 'all' }", "{ status: 'idle' }")
+  it('is quiet when the text, aria-label, aria-live or a status role announces the change', () => {
+    // the text children follow the class's field (nested too)
+    expect(syg731(check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }}>{state.status === 'copied' ? 'Copied!' : 'Copy'}</button>`) }))).toEqual([])
+    expect(syg731(check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }}><span>{state.status === 'copied' ? 'Copied!' : 'Copy'}</span></button>`) }))).toEqual([])
+    // aria-label
+    expect(syg731(check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }} aria-label={state.status === 'copied' ? 'Copied' : 'Copy code'}>⧉</button>`) }))).toEqual([])
+    // aria-live, role="status" / "alert"
+    expect(syg731(check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }} aria-live="polite">Copy</button>`) }))).toEqual([])
+    expect(syg731(check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }} role="status">Copy</button>`) }))).toEqual([])
+    expect(syg731(check({ 'Star.jsx': toggle('<div className={{ star: true, on: state.on }} role="alert">Star</div>') }))).toEqual([])
+  })
+  it('still reports a change the text or label does not follow, and suggests aria-pressed only for a toggle', () => {
+    // a real toggle with only a class (text that reads another field, a literal label)
+    const d = check({ 'Star.jsx': toggle('<button type="button" className={{ star: true, on: state.on }} aria-label="Star">{state.filter}</button>') })
+    expect(syg731(d)).toEqual(['SYG731 2'])
+    expect(only('SYG731')(d)[0].fix).toContain('aria-pressed={state.on}')
+    expect(only('SYG731')(d)[0].data.toggle).toBe(true)
+    // not a toggle: the fix says how to announce the change, aria-pressed only as the last option
+    const c = check({ 'Star.jsx': copy(`<button type="button" className={{ copy: true, copied: state.status === 'copied' }}>Copy</button>`) })
+    expect(syg731(c)).toEqual(['SYG731 2'])
+    const fix = only('SYG731')(c)[0].fix
+    expect(fix).toMatch(/^announce the change/)
+    expect(fix).toContain('aria-live')
+    expect(fix).toContain("aria-pressed={state.status === 'copied'} only if it really is an on/off toggle")
+    expect(only('SYG731')(c)[0].data.toggle).toBe(false)
+  })
 })
 
 // ---------------------------------------------------------------------------

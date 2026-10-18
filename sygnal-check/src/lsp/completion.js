@@ -32,7 +32,7 @@
  *                                      classes, after `#` only ids
  *   EVENTS.select('…')                 EVENTS types emitted anywhere in the project
  *   event('…') / emit('…')             EVENTS types selected anywhere in the project
- *   next('…'), ok/error/delta/tool/block: '…' in the model, timers' action/frame, browser's
+ *   next('…'), ok/error/progress/delta/tool/block: '…' in the model, timers' action/frame, browser's
  *   action/error, resources' ok/error, connections' message/open/close/error
  *                                      the model's actions
  *   <Collection from="…">              initialState and calculated keys
@@ -41,14 +41,14 @@ import path from 'node:path'
 import { cursorContext } from './cursorContext.js'
 import { lineStarts, positionAt } from '../edits.js'
 import { textHash } from './convert.js'
-import { BUILTIN_ACTIONS, REPLY_KEYS, LLM_REPLY_KEYS } from '../model/modelEntries.js'
+import { BUILTIN_ACTIONS, HTTP_REPLY_KEYS, LLM_REPLY_KEYS } from '../model/modelEntries.js'
 
 export const TRIGGER_CHARACTERS = ["'", '"', '`', '.', '#']
 
 /** LSP CompletionItemKind values used here. */
 export const Kind = Object.freeze({ Field: 5, Class: 7, Value: 12, Reference: 18, EnumMember: 20, Event: 23 })
 
-const MODEL_VALUE_KEYS = new Set([...REPLY_KEYS, ...LLM_REPLY_KEYS])
+const MODEL_VALUE_KEYS = new Set([...HTTP_REPLY_KEYS, ...LLM_REPLY_KEYS])
 const LIFECYCLE = ['BOOTSTRAP', 'INITIALIZE', 'DISPOSE']
 const IDENT = /^[A-Za-z_$][\w$]*$/
 const VIA = {

@@ -155,6 +155,33 @@ A.model = { RESOURCE: (state, { name, ...r }) => ({ ...state, [name]: r }) }
   })
 })
 
+// PLAN-11 U-3: an HTTP request's `progress: 'X'` names a reply action like ok / error
+describe('progress: a reply action of an HTTP request', () => {
+  const upload = (progress) => quote(`(state) => ({ url: '/up', method: 'POST', ok: 'LOADED', error: 'FAILED', progress: ${progress} })`, `
+  PROGRESS: (state, p) => ({ ...state, sent: p.loaded }),`)
+  it('triggers its model entry (SYG102)', () => {
+    expect(checkSource(upload("'PROGRESS'")).diags).toEqual([])
+    // without it, PROGRESS is unreachable, and the message lists progress
+    const found = codes(checkSource(upload('true')).diags, 'SYG102')
+    expect(found.map(d => d.data.action)).toEqual(['PROGRESS'])
+    expect(found[0].message).toContain('reply action (ok/error/progress)')
+    // progress: true (HTTP.progress()) is no name: SYG102 stays a warning, not info
+    expect(found[0].severity).not.toBe('info')
+  })
+
+  it('a name with no model entry is SYG112, with a did-you-mean', () => {
+    const [d] = codes(checkSource(upload("'PROGRES'")).diags, 'SYG112')
+    expect(d.data).toEqual({ action: 'PROGRES', key: 'progress', suggestion: 'PROGRESS' })
+    expect(d.message).toContain("names 'PROGRES' as its progress reply action")
+    expect(d.fix).toContain("progress: 'PROGRESS'")
+  })
+
+  it('not on an LLM request (its keys are ok / error / delta / tool)', () => {
+    const src = quote(`(state) => ({ messages: [], ok: 'LOADED', error: 'FAILED', progress: 'NOPE_NOT_AN_ACTION' })`)
+    expect(codes(checkSource(src).diags, 'SYG112')).toEqual([])
+  })
+})
+
 describe('unparsable files (G-164)', () => {
   it('SYG508 skips a project file that failed to parse (no SYG900 next to the parse error)', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sygnal-check-replies-'))
