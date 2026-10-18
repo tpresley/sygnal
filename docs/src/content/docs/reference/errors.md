@@ -2776,7 +2776,7 @@ Severity: `warn` · Reported by: `sygnal-check`
 
 An intent action's stream comes only from `mouseenter` / `mouseover` (or `pointerenter` / `pointerover`) listeners, nothing else triggers it (no other DOM event in that stream, no `next()`, reply action, connection, timer or behavior), and its model entry changes the state. Keyboard users never hover and touch screens hover only on a tap, so what it shows (a tooltip, a preview, a menu) or does can't be reached by them. An `agent` declaration doesn't count as a path: it serves agents, not people. Only streams the checker can see in full are judged (DOM listeners with literal event names, xstream operators, callbacks); an entry without a STATE sink (a prefetch on hover) is not reported. It is a warning, also under `--strict`; `--a11y=error` makes it an error.
 
-**Fix:** Trigger the action from focus too, and close it on blur and Escape as on mouse leave: `SHOW: xs.merge(DOM.mouseenter('.card'), DOM.focusin('.card'))`, `HIDE: xs.merge(DOM.mouseleave('.card'), DOM.focusout('.card'))`; give the element a way to take focus (a `<button>`). For a tooltip, `tooltip()` from `sygnal/ui` handles hover, focus and Escape.
+**Fix:** Trigger the action from focus too, and close it on blur and Escape as on mouse leave: `SHOW: xs.merge(DOM.mouseenter('.card'), DOM.focusin('.card'))`, `HIDE: xs.merge(DOM.mouseleave('.card'), DOM.focusout('.card'))`; give the element a way to take focus (a `<button>`). For a tooltip, `tooltip()` from `sygnal/ui` handles hover, focus and Escape (`tooltips()` for many triggers on one component, such as glossary terms).
 
 ### SYG731
 

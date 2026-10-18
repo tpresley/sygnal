@@ -1,6 +1,6 @@
 ---
 title: Tooltip
-description: Tooltips on a manual popover, placed by CSS anchor positioning, with show and hide delays from timers
+description: Tooltips on a manual popover, placed by CSS anchor positioning, with show and hide delays from timers; tooltips() for many triggers
 ---
 
 `tooltip()` is a [behavior](/guide/behaviors/) that shows a short description of a control when the pointer rests on it or it gets the keyboard focus. The tip is a `popover="manual"` element, so it is drawn in the top layer, above dialogs and scrolling containers. CSS anchor positioning places it next to its trigger; there is no JavaScript positioning. The show and hide delays are [timers](/guide/timers/), so they are cancelled when the pointer leaves early and they run on fake timers in tests.
@@ -50,6 +50,30 @@ The delays need the timer driver in `run()`. Tests don't: [fake timers](/guide/t
 - Escape hides it at once, without moving the focus. (The behavior listens for it on the document only while the tip is shown or about to be.)
 
 `state.saveTip` is `{ open, pending, hover, focus }`: `pending` is `'show'` or `'hide'` while a delay runs; `hover` and `focus` say where the pointer and the focus are. The actions are `saveTip.ENTER` and `saveTip.LEAVE` (data: `'hover'` or `'focus'`), `saveTip.SHOW`, `saveTip.HIDE` (the timers), `saveTip.ESCAPE` and `saveTip.TOGGLED`. The timers are declared under the names `saveTip.show` and `saveTip.hide`, next to the component's own [`timers`](/guide/timers/).
+
+## Many tooltips: `tooltips()`
+
+`tooltip()` keeps a state slice and two timers for each trigger, which is a lot for a paragraph of glossary terms or a toolbar of icon buttons. `tooltips()` serves every trigger of the component with one slice and one pair of timers. Each trigger names its tip with `aria-describedby`, and one tip shows at a time:
+
+```jsx live
+import { tooltips } from 'sygnal/ui'
+
+const TERMS = { MVI: 'Model-View-Intent: the pattern every component follows', driver: 'The code that talks to the outside world', sink: 'What a component sends to a driver' }
+
+function Glossary({ uid }) {
+  const term = (name, text) => (
+    <>
+      <button className="term" aria-describedby={uid('tip-' + name)} style={{ anchorName: '--' + uid(name) }}>{text}</button>
+      <span className="tip" id={uid('tip-' + name)} role="tooltip" popover="manual" style={{ positionAnchor: '--' + uid(name) }}>{TERMS[name]}</span>
+    </>
+  )
+  return <p>Every component is {term('MVI', 'MVI')}: its intent reads events, a {term('driver', 'driver')} performs the effects, and each {term('sink', 'sink')} carries a request.</p>
+}
+
+Glossary.uses = { tips: tooltips({ trigger: '.term', tip: '.tip' }) }
+```
+
+The options are those of `tooltip()`, with `trigger` and `tip` matching every trigger and every tip. Moving from one term to another while a tip is shown switches at once, without a second delay. `state.tips` is `{ id, open, pending, hover, focus }`: `id` is the tip of the trigger last entered and `open` the id of the tip shown. The actions carry the tip's id: `tips.ENTER` and `tips.LEAVE` (`{ via: 'hover' | 'focus', id }`), `tips.TOGGLED` (`{ id, open }`), plus `tips.SHOW`, `tips.HIDE` and `tips.ESCAPE`.
 
 ## Positioning
 

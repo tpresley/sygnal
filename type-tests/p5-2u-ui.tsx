@@ -62,3 +62,10 @@ describe('2-U: sygnal/ui', () => {
     void bad
   })
 })
+
+// PLAN-11 T-1: tooltips() for many triggers
+import { tooltips } from 'sygnal/ui'
+export const tipsUses = { tips: tooltips({ trigger: '.term', tip: '.term-tip', showDelay: 300 }) }
+export const tipsState: import('sygnal/ui').TooltipsState = { id: null, open: 'tip-a', pending: null, hover: false, focus: true }
+// @ts-expect-error trigger and tip are required
+tooltips({ trigger: '.term' })
