@@ -12,6 +12,9 @@
  * SYG635 — `cache: true` / `staleTime` / `{ prefetch }` sent to a driver without a
  *          `queryCache()` (D88): nothing is cached (warn). The source's `__inspect().cache`
  *          is undefined without one
+ * SYG636 — PLAN-11 U-1: `progress` that can't be reported as asked: on a resource or a
+ *          `batch` request (ignored), or with fetch-only `init` options that XMLHttpRequest
+ *          doesn't support (ignored for that request) (warn)
  *
  * Mechanism: onModel wraps the component's own model stream for every sink whose source
  * takes the `resources` static (makeFetchDriver and renderComponent's HTTP fake) and checks
@@ -24,6 +27,12 @@ import {devReport, once, nameOf} from './shared'
 import {isStandardSchema} from '../../standardSchema'
 
 const IDEMPOTENT = /^(GET|HEAD)$/i
+// PLAN-11 U-1: fetch() init options a progress request (XMLHttpRequest) can't honour
+const XHR_IGNORES = ['keepalive', 'priority', 'cache', 'redirect', 'integrity', 'mode', 'referrer', 'referrerPolicy', 'window', 'duplex']
+const reportProgress = (component: any, sink: string, url: string, why: string, fix: string) => {
+  if (!once(`SYG636:${nameOf(component)}:${url}:${why}`)) return
+  devReport('SYG636', {component, message: `${sink} ${url ? url + ' ' : ''}has progress, but ${why}`, fix, data: {sink, url}})
+}
 
 /** instance → reply key lanes it has sent, and ok name → the other key it was sent under */
 const lanes = new WeakMap<object, {used: Set<string>; keyed: Map<string, string>}>()
@@ -58,6 +67,17 @@ function checkOne(component: any, sink: string, req: any, where: string) {
     })
   }
   if (req.cache === true || req.staleTime != null) reportNoCache(component, sink, req.cache === true ? 'cache: true' : 'staleTime', url)
+  if (req.progress) {
+    if (where.includes('.resources.'))
+      reportProgress(component, sink, url, 'resources report no progress (it is ignored)', 'Send the download as a request with progress and reply actions instead of a resource, or remove progress')
+    else if (req.batch)
+      reportProgress(component, sink, url, 'a batch request reports no progress (it is ignored)', 'Send the parts as separate requests with progress, or remove progress')
+    else {
+      const bad = XHR_IGNORES.filter(k => req.init && req.init[k] !== undefined)
+      if (bad.length) reportProgress(component, sink, url, `it goes over XMLHttpRequest, which ignores init.${bad.join(', init.')}`,
+        `Remove ${bad.join(', ')} from init for this request, or drop progress if the request needs ${bad.length > 1 ? 'them' : 'it'}`)
+    }
+  }
   if ('validate' in req && !isStandardSchema(req.validate) && once(`SYG631:${name}:${url}`)) {
     devReport('SYG631', {
       component,

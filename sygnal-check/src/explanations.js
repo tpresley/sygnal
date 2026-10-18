@@ -1114,6 +1114,13 @@ export const EXPLANATIONS = {
     explanation: "A request or resource sets `cache: true` or `staleTime`, or the component sends `{ prefetch: request }`, but the sink's `makeFetchDriver()` has no query cache. The cache is a separate export (D88), so a driver without `cache: queryCache()` caches nothing: the request is sent as an ordinary one, and a prefetch does nothing. In tests the HTTP fake has no cache unless `renderComponent(C, { http: { cache: queryCache() } })` gives it one.",
     fix: "Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.",
   },
+  SYG636: {
+    title: "progress that can't be reported as asked",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "A request sets `progress` (a reply action such as `progress: 'UPLOADING'`, or `true` for `HTTP.progress()`), but the driver can't report it as written. A request with `progress` goes over XMLHttpRequest, the only transport that reports upload progress in every browser, and XMLHttpRequest has no equivalent for some fetch options: `init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrer`, `referrerPolicy`, `window` and `duplex` are ignored for that request. `progress` on a resource or on a `batch` request is ignored altogether: those report no progress.",
+    fix: "Remove the fetch-only `init` options from the progress request, or drop `progress` if the request needs them. For a resource, send the download as a request with `progress` and reply actions (`{ url, progress: 'DOWNLOADING', ok: 'LOADED', error: 'FAILED' }`); for a batch, send the parts as separate requests.",
+  },
   SYG640: {
     title: "Element command target not found",
     severity: "warn",

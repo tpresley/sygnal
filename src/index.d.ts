@@ -2323,6 +2323,15 @@ export type FetchRequest = string | {
   /** Raw body (string, FormData, Blob, ...) */
   body?: any;
   /**
+   * PLAN-11 (6.7): report upload and download progress. An action name: each step arrives as that
+   * action of the sending instance (`UPLOADING: (state, { phase, fraction }) => ...`); `true`: on
+   * `HTTP.progress(category?)`. Data: FetchProgress. The request then goes over XMLHttpRequest
+   * (the only way to see upload progress in every browser); fetch-only `init` options
+   * (`keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrerPolicy`) don't
+   * apply (SYG636). Not for resources or `batch`. Without XMLHttpRequest (Node): no steps
+   */
+  progress?: string | true;
+  /**
    * Latest only: sending this request aborts this component's requests still in flight in the
    * same category; their responses and errors are never delivered. Default: the driver's `latest`
    * option.
@@ -2566,11 +2575,30 @@ export type FetchError<REQUEST = any> = {
   body?: any;
 }
 
+/**
+ * PLAN-11 (6.7): one progress step of a request sent with `progress`. Steps come at most every
+ * 50 ms per phase, always including the first and the last (`fraction: 1`). A request with a
+ * body reports 'upload' then 'download'; a GET only 'download'. A retry starts again at 0.
+ */
+export type FetchProgress<REQUEST = any> = {
+  phase: 'upload' | 'download';
+  /** Bytes sent ('upload') or received ('download') so far */
+  loaded: number;
+  /** Total bytes, or null when unknown (a download without Content-Length) */
+  total: number | null;
+  /** loaded / total (0..1), or null when the total is unknown */
+  fraction: number | null;
+  category: string | undefined;
+  request: REQUEST;
+}
+
 export type FetchSource<VALUE = any> = {
   /** 2xx responses: all of them, one category, or those a predicate accepts */
   select: (category?: string | ((response: FetchResponse<VALUE>) => boolean)) => Stream<FetchResponse<VALUE>>
   /** Failures. Filters like select(). While nothing listens, failures are console.error'd */
   errors: (category?: string | ((failure: FetchError) => boolean)) => Stream<FetchError>
+  /** PLAN-11: progress steps of requests sent with `progress: true`. Filters like select() */
+  progress: (category?: string | ((step: FetchProgress) => boolean)) => Stream<FetchProgress>
 }
 
 export type FetchDriverOptions = {
@@ -2589,8 +2617,10 @@ export type FetchDriverOptions = {
   timeoutMs?: number;
   /** Default `parse` for every request. Default 'auto' */
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
-  /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
+  /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply). Not used for `progress` requests */
   fetch?: (input: string, init?: any) => Promise<any>;
+  /** PLAN-11: the XMLHttpRequest class for `progress` requests. Default: the global one, read at each request */
+  XMLHttpRequest?: any;
   /**
    * PLAN-3 D88: the query cache, off by default: `cache: queryCache({ staleTime })`. On:
    * resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
@@ -3475,6 +3505,14 @@ export interface RenderResult<STATE = any> {
    * throws (the driver would only log it, SYG678).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * PLAN-11 (6.7): one progress step of a pending request sent with `progress` (chosen as in
+   * respond; `'UPLOADING'` matches its progress action too): `t.progress('HTTP', { loaded: 50, total: 100 }, 'UPLOADING')`.
+   * The component gets FetchProgress (`fraction: 0.5`) as that action, or on `HTTP.progress()`
+   * for `progress: true`. `phase` defaults to 'upload' for a request with a body, else
+   * 'download'. The request stays pending until respond()/fail(). Resolves once reduced and rendered.
+   */
+  progress: (sinkName: string, step: { loaded: number; total?: number; phase?: 'upload' | 'download' }, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
    * PLAN-6 L-4: stream into a pending request of the LLM fake (the sink named by `llmSink`,
    * default 'LLM': the real makeChatDriver over an in-memory transport). Chunks: strings (text),

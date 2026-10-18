@@ -310,6 +310,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG634: 'latest: true with a computed key',
   // PLAN-3 5-5 (D88)
   SYG635: 'Caching asked for without a queryCache',
+  // PLAN-11 U-1: progress requests (dev entry, fetch.ts)
+  SYG636: "progress that can't be reported as asked",
   // PLAN-4 GS-2: element commands (reported by the dev entry, checks/elementCommands.ts)
   SYG640: 'Element command target not found',
   SYG641: 'Unknown element command',
@@ -481,6 +483,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG634: 'info',
   // PLAN-3 5-5 (fetch.ts)
   SYG635: 'warn',
+  // PLAN-11 U-1 (fetch.ts)
+  SYG636: 'warn',
   // PLAN-4 GS-2 (checks/elementCommands.ts, through the core bridge; renderComponent too)
   SYG640: 'warn',
   SYG641: 'error',

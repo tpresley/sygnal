@@ -1887,6 +1887,18 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg635"
   },
   {
+    "code": "SYG636",
+    "title": "progress that can't be reported as asked",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "A request sets `progress` (a reply action such as `progress: 'UPLOADING'`, or `true` for `HTTP.progress()`), but the driver can't report it as written. A request with `progress` goes over XMLHttpRequest, the only transport that reports upload progress in every browser, and XMLHttpRequest has no equivalent for some fetch options: `init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrer`, `referrerPolicy`, `window` and `duplex` are ignored for that request. `progress` on a resource or on a `batch` request is ignored altogether: those report no progress.",
+    "fix": "Remove the fetch-only `init` options from the progress request, or drop `progress` if the request needs them. For a resource, send the download as a request with `progress` and reply actions (`{ url, progress: 'DOWNLOADING', ok: 'LOADED', error: 'FAILED' }`); for a batch, send the parts as separate requests.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg636"
+  },
+  {
     "code": "SYG640",
     "title": "Element command target not found",
     "severity": "warn",

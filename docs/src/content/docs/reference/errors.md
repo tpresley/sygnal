@@ -2294,6 +2294,16 @@ A request or resource sets `cache: true` or `staleTime`, or the component sends 
 
 **Fix:** Give the driver a cache: `makeFetchDriver({ cache: queryCache({ staleTime: 30000 }) })` with `import { queryCache } from 'sygnal'` (in tests, `renderComponent(C, { http: { cache: queryCache() } })`). Or remove `cache` / `staleTime` / the prefetch.
 
+### SYG636
+
+**progress that can't be reported as asked**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+A request sets `progress` (a reply action such as `progress: 'UPLOADING'`, or `true` for `HTTP.progress()`), but the driver can't report it as written. A request with `progress` goes over XMLHttpRequest, the only transport that reports upload progress in every browser, and XMLHttpRequest has no equivalent for some fetch options: `init.keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrer`, `referrerPolicy`, `window` and `duplex` are ignored for that request. `progress` on a resource or on a `batch` request is ignored altogether: those report no progress.
+
+**Fix:** Remove the fetch-only `init` options from the progress request, or drop `progress` if the request needs them. For a resource, send the download as a request with `progress` and reply actions (`{ url, progress: 'DOWNLOADING', ok: 'LOADED', error: 'FAILED' }`); for a batch, send the parts as separate requests.
+
 ### SYG640
 
 **Element command target not found**
