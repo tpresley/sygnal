@@ -187,7 +187,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
 | A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
-| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent, keep the file in its own state field (not `values`), and send it in a `FormData` body: [upload with progress](/guide/http/#upload-and-download-progress) |
+| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; send files as an [upload](/guide/http/#upload-and-download-progress), not in `values` |
 
 ## Options
 
@@ -202,48 +202,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)) |
 | `tool` | Experimental: `formTool({ name, description, autosubmit? })` from `sygnal/ai` offers the form to the browser's agent ([WebMCP](/guide/forms-reference/#offer-the-form-to-the-browsers-agent)) |
 
-The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.SET` (several fields at once), `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. `form.RESET` with a plain object sets those values; with anything else (no data, a click event from `'form.RESET': DOM.click('.reset')`) it goes back to the start values. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).
-
-## TypeScript
-
-With a schema that declares its [Standard Schema](https://standardschema.dev) types (zod, valibot and arktype do), `form()` types the values from the schema's input and checks `values` against it. `UsesState<typeof uses>` gives the component's state the slice: `state.form.values.email` and `state.form.fields.email.value` are strings, and a top-level field name that isn't in the values is a type error (nested paths such as `` f[`addresses.${id}.city`] `` stay open). `FormOutput<typeof uses.form>` (or `SchemaOutput<typeof signupSchema>`) is the schema's output, the data of the host's submit action:
-
-```tsx
-import { form } from 'sygnal'
-import type { Component, UsesState, UsesActions, FormOutput } from 'sygnal'
-import { z } from 'zod'
-
-const signupSchema = z.object({
-  email: z.string().trim().email('Enter a valid email address'),
-  age: z.coerce.number().int().min(18, 'You must be 18 or older'),
-})
-
-const uses = {
-  form: form(signupSchema, { values: { email: '', age: '' }, submit: 'SIGN_UP' }),
-}
-
-type State = UsesState<typeof uses>
-type Actions = UsesActions<typeof uses> & { SIGN_UP: FormOutput<typeof uses.form> }
-
-const Signup: Component<State, {}, {}, Actions> = ({ state }) => {
-  const f = state.form.fields
-  return (
-    <form noValidate>
-      <label>Email <input name="email" value={f.email.value} aria-invalid={f.email.invalid} /></label>
-      <label>Age <input name="age" inputMode="numeric" value={f.age.value} aria-invalid={f.age.invalid} /></label>
-      <button type="submit" disabled={state.form.submitting}>Sign up</button>
-    </form>
-  )
-}
-
-Signup.uses = uses
-Signup.model = {
-  // values: { email: string; age: number }, the schema's output
-  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
-}
-```
-
-A schema without `types` (a hand-written one) types the values from `values` and the output as `any`. The reply actions are typed too: `form.ERRORS` takes an error reply, a map `{ name: message }` or a list of issues (`FormServerErrors`), and `form.RESET` the whole values (or nothing, for `initial`).
+The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.SET` (several fields at once), `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).
 
 ## Testing
 
