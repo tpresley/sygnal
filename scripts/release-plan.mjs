@@ -9,6 +9,10 @@
 //   node scripts/release-plan.mjs             a table, then JSON on the last line
 //   node scripts/release-plan.mjs --all       every target counts as new (the workflow's dry run)
 //
+// A new sygnal or VS Code extension version also needs its `## <version>` heading in CHANGELOG.md /
+// editors/vscode/CHANGELOG.md (the release notes the publish job reads after npm publishing): the
+// plan warns when it is missing, and the workflow's plan job fails on it before anything is published.
+//
 // In GitHub Actions it also writes the outputs `any`, `<target>` (true / false: publish it),
 // `<target>_version` and `<target>_published` (already on its registry), and a summary table.
 import fs from 'node:fs'
@@ -22,9 +26,9 @@ const all = process.argv.includes('--all')
 
 const TARGETS = [
   { id: 'check', label: 'sygnal-check', manifest: 'sygnal-check/package.json', where: 'npm' },
-  { id: 'sygnal', label: 'sygnal', manifest: 'package.json', where: 'npm' },
+  { id: 'sygnal', label: 'sygnal', manifest: 'package.json', where: 'npm', changelog: 'CHANGELOG.md' },
   { id: 'csa', label: 'create-sygnal-app', manifest: 'create-sygnal-app/package.json', where: 'npm' },
-  { id: 'vscode', label: 'VS Code extension', manifest: 'editors/vscode/package.json', where: 'Marketplace + Open VSX' },
+  { id: 'vscode', label: 'VS Code extension', manifest: 'editors/vscode/package.json', where: 'Marketplace + Open VSX', changelog: 'editors/vscode/CHANGELOG.md' },
   { id: 'plugin', label: 'Claude Code plugin', manifest: 'editors/claude-code/.claude-plugin/plugin.json', where: 'git tag' },
 ]
 
@@ -60,7 +64,14 @@ function hasTag(tag) {
   return out.trim().length > 0
 }
 
+// The same match as the publish job's awk: a line `## <version>`, then a space or the end of the line.
+function hasChangelogHeading(rel, version) {
+  const text = fs.readFileSync(path.join(repo, rel), 'utf8')
+  return text.split('\n').some((line) => line.startsWith(`## ${version}`) && /^( |$)/.test(line.slice(3 + version.length)))
+}
+
 const plan = {}
+const warnings = []
 for (const t of TARGETS) {
   const m = read(t.manifest)
   let published
@@ -71,9 +82,14 @@ for (const t of TARGETS) {
     t.detail = `Marketplace ${market ? 'has it' : 'no'}, Open VSX ${openvsx ? 'has it' : 'no'}`
   } else published = hasTag(`${m.name}--v${m.version}`)
   plan[t.id] = { label: t.label, version: m.version, publish: all || !published, published }
+  if (t.changelog) {
+    plan[t.id].changelog = hasChangelogHeading(t.changelog, m.version)
+    if (!plan[t.id].changelog && !published) warnings.push(`${t.changelog} has no '## ${m.version}' heading for the new ${t.label} version: the release fails before publishing until it does`)
+  }
   console.log(`${t.label.padEnd(20)} ${m.version.padEnd(8)} ${published ? 'published' : 'NEW'}${t.detail ? ` (${t.detail})` : ''}${all && published ? '  (--all: treated as new)' : ''}`)
 }
 const any = Object.values(plan).some((p) => p.publish)
+for (const w of warnings) console.log(process.env.GITHUB_ACTIONS ? `::warning::${w}` : `warning: ${w}`)
 
 if (process.env.GITHUB_OUTPUT) {
   const lines = [`any=${any}`, ...Object.entries(plan).flatMap(([id, p]) => [`${id}=${p.publish}`, `${id}_version=${p.version}`, `${id}_published=${p.published}`])]

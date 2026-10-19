@@ -2,7 +2,7 @@
 import {isFunction, propName, unwrap, walk} from '../ast.js'
 import {findBinding} from '../scope.js'
 import {splitModelKey} from '../model/modelEntries.js'
-import {sinkTimingContexts, componentStaticKnown, resolveStableValue} from '../model/sinkTiming.js'
+import {sinkTiming, componentStaticKnown, resolveStableValue} from '../model/sinkTiming.js'
 
 const UNKNOWN = Symbol('unknown')
 function literal(node) {
@@ -42,7 +42,7 @@ function aborted(node, file) {
   node = unwrap(node)
   if (node?.type !== 'Identifier') return false
   const b = findBinding(file, node.name, node)
-  return b?.kind === 'import' && b.source === 'sygnal' && b.imported === 'ABORT'
+  return b?.kind === 'import' && /^sygnal(?:\/|$)/.test(b.source) && b.imported === 'ABORT'
 }
 
 // Only expression returns, or straight if/return blocks. Side-effectful statements are opaque.
@@ -225,12 +225,13 @@ function actions(project, comp) {
 export default {
   id:'output-guard-rejects-state',
   codes:['SYG256'],
-  description:'A same-action STATE write makes an after output guard return ABORT',
+  description:'A same-action STATE write makes an output guard return ABORT (Sygnal 7)',
   run(project, report) {
     for (const comp of project.components) {
       if (!comp.staticProps.model || comp.staticProps.uses || comp.staticProps.calculated) continue
-      const contexts = sinkTimingContexts(project, comp).filter(c => c.mode === 'after')
-      if (!contexts.length) continue
+      // Sygnal 7's one contract: outputs get the committed state. 6.x and unknown: nothing to prove.
+      if (sinkTiming(project, comp.file) !== 'after') continue
+      const version = project.sygnalFor(comp.file).version
       for (const a of actions(project, comp)) {
         const state = reducer(a.sinks.get('STATE'), a.file)
         if (!state) continue
@@ -244,14 +245,11 @@ export default {
             .map(t => ({...t, guard:rejection(output.tree, output, t.values)})).find(t => t.guard)
           if (!found) continue
           const fields = guardFields(found.guard, output, found.values)
-          const ctx = contexts[0]
           report({code:'SYG256', component:comp.name, file:a.file, node:found.guard, anchor:node,
-            message:`${a.action}'s ${sink} guard returns ABORT for the state written by STATE under after timing (${ctx.via}${ctx.root?.name ? `: ${ctx.root.name}` : ''})`,
+            message:`${a.action}'s ${sink} guard returns ABORT for the state written by STATE: in Sygnal 7 (installed ${version}) outputs get the committed state`,
             fix:'Use the fourth argument\'s previousState for admission/loading guards and updated state for payload fields; keep the output guard because STATE returning ABORT does not cancel other sinks',
-            related:fields.map(field => ({file:a.file, node:found.nodes.get(field), message:`STATE writes ${field} here`})).concat([
-              {file:ctx.file, node:ctx.node, message:`This ${ctx.via} context uses after snapshots`},
-            ]),
-            data:{action:a.action, sink, fields, timing:'after', context:ctx.via},
+            related:fields.map(field => ({file:a.file, node:found.nodes.get(field), message:`STATE writes ${field} here`})),
+            data:{action:a.action, sink, fields, timing:'after', sygnal:version},
           })
         }
       }

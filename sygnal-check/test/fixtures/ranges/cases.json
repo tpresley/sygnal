@@ -227,10 +227,8 @@
     "child.jsx": "function Child() { return <button className=\"go\">Go</button> }\nChild.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nChild.model = { GO: { PARENT: () => 'go' } }\n",
     "parent.jsx": "import { Child } from './child.jsx'\nexport function Parent({ state }) { return <div>{state.show ? <Child /> : null}</div> }\nParent.initialState = { show: false }\nParent.intent = ({ CHILD }) => ({ GOT: CHILD.select(Child) })\nParent.model = { GOT: (state) => state }\n"
   },
-  "SYG255": {
-    "App.jsx": "import { run } from 'sygnal'\nfunction App(){return <p/>}\nApp.sinkState = 'later'\nrun(App)\n"
-  },
   "SYG454": {
+    "node_modules/sygnal/package.json": "{\"name\": \"sygnal\", \"version\": \"6.6.0\"}",
     "App.jsx": "import { byId } from 'sygnal'\nfunction App({state}){return <Editor state={byId('projects', state.selectedId)} />}\nfunction Editor(){return <p/>}\n"
   },
   "SYG256": {

@@ -6,8 +6,9 @@
 // It runs it in this process through the package's documented API, `runLspServer()` (what
 // `bin/sygnal-check.js lsp` calls), so no second process is started.
 //
-// When the project has no sygnal-check, or one older than the Sygnal 6/7 compatibility release (0.11.0), it
-// prints one line on stderr and answers as an empty language server until its stdin closes: no
+// When the project has no sygnal-check, one without the language server (0.3.x and older), or one
+// older than 0.11.0 (the first that knows Sygnal 7's reducer timing) in a project with Sygnal 7 or
+// later installed, it prints one line on stderr and answers as an empty language server until its stdin closes: no
 // capabilities, no diagnostics. Claude Code then sees a healthy server, so it doesn't log a failed
 // start and retry on every edit, and the model gets nothing (the plugin's skill works regardless).
 //
@@ -18,7 +19,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const MISSING = 'sygnal: no compatible sygnal-check (>= 0.11.0) in this project, so Sygnal diagnostics are off for this session. Install it with `npm install -D sygnal-check@^0.11.0` and start a new session.'
+const MISSING = 'sygnal: no compatible sygnal-check with a language server (>= 0.4.0; >= 0.11.0 for Sygnal 7) in this project, so Sygnal diagnostics are off for this session. Install it with `npm install -D sygnal-check` and start a new session.'
+const OUTDATED = version => `sygnal: this project has Sygnal 7 but sygnal-check ${version}, which predates Sygnal 7's reducer timing (>= 0.11.0 needed), so Sygnal diagnostics are off for this session. Install it with \`npm install -D sygnal-check@^0.11.0\` and start a new session.`
 
 /** The project's sygnal-check entry module, or null when it isn't installed. */
 export function findSygnalCheck(from = process.cwd()) {
@@ -29,18 +31,37 @@ export function findSygnalCheck(from = process.cwd()) {
   }
 }
 
-/** Check metadata before importing a workspace copy: older servers do not understand Sygnal 7. */
-export function compatibleCheck(entry) {
-  for (let dir = path.dirname(entry); ; dir = path.dirname(dir)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
-      if (pkg.name === 'sygnal-check') {
-        const m = /^(\d+)\.(\d+)\.(\d+)(?:([+-]).*)?$/.exec(pkg.version)
-        return !!m && (+m[1] > 0 || +m[2] > 11 || +m[2] === 11 && (+m[3] > 0 || m[4] !== '-'))
-      }
-    } catch { /* seek the package manifest above its entry point */ }
-    if (path.dirname(dir) === dir) return false
+const readJson = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return null } }
+const major = version => { const m = /^(\d+)\.\d+\.\d+(?:[+-].*)?$/.exec(version ?? ''); return m ? +m[1] : null }
+
+/** The installed sygnal's major version, found as sygnal-check finds it: the nearest
+ * node_modules/sygnal/package.json from the project up (or a sygnal checkout itself); null when unknown. */
+export function installedSygnalMajor(from = process.cwd()) {
+  for (let dir = path.resolve(from); ; dir = path.dirname(dir)) {
+    for (const file of [path.join(dir, 'node_modules/sygnal/package.json'), path.join(dir, 'package.json')]) {
+      const pkg = readJson(file)
+      if (pkg?.name === 'sygnal' && typeof pkg.version === 'string') return major(pkg.version)
+    }
+    if (path.dirname(dir) === dir) return null
   }
+}
+
+/** The version of the sygnal-check package an entry module belongs to, or null. */
+export function checkVersion(entry) {
+  for (let dir = path.dirname(entry); ; dir = path.dirname(dir)) {
+    const pkg = readJson(path.join(dir, 'package.json'))
+    if (pkg?.name === 'sygnal-check') return typeof pkg.version === 'string' ? pkg.version : null
+    if (path.dirname(dir) === dir) return null
+  }
+}
+
+/** Check metadata before importing a workspace copy. A checker before 0.11.0 does not know Sygnal 7's
+ * reducer timing (outputs get the committed state), so it is refused when the project has Sygnal 7+;
+ * with Sygnal 6 or an unknown version it is the right checker for the project. */
+export function compatibleCheck(entry, project = process.cwd()) {
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:([+-]).*)?$/.exec(checkVersion(entry) ?? '')
+  const current = !!m && (+m[1] > 0 || +m[2] > 11 || +m[2] === 11 && (+m[3] > 0 || m[4] !== '-'))
+  return current || !(installedSygnalMajor(project) >= 7)
 }
 
 /** A language server on stdin/stdout that offers nothing: answers initialize and shutdown, exits on exit or stdin end. */
@@ -89,7 +110,11 @@ export function runEmptyServer({ input = process.stdin, output = process.stdout,
 export async function main({ project = process.env.SYGNAL_LSP_PROJECT || process.cwd(), stderr = process.stderr } = {}) {
   const entry = findSygnalCheck(project)
   let runLspServer
-  if (entry && compatibleCheck(entry)) {
+  if (entry && !compatibleCheck(entry, project)) {
+    stderr.write(`${OUTDATED(checkVersion(entry))}\n`)
+    return runEmptyServer()
+  }
+  if (entry) {
     try {
       ;({ runLspServer } = await import(pathToFileURL(entry).href))
     } catch (error) {

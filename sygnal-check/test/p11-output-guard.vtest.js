@@ -35,10 +35,11 @@ function textAt(source, d) {
 describe('provable after-state admission guards',()=>{
  it.each(['7.0.0','7.0.0-beta.1','8.0.0'])('reports the original case on installed %s',version=>{
   const source=app(), [d]=guards(source,{version})
-  expect(d).toMatchObject({code:'SYG256',severity:'warn',component:'App',data:{action:'START',sink:'HTTP',fields:['status'],timing:'after',context:'run'}})
+  expect(d).toMatchObject({code:'SYG256',severity:'warn',component:'App',data:{action:'START',sink:'HTTP',fields:['status'],timing:'after',sygnal:version}})
   expect(textAt(source,d)).toBe("s.status !== 'working'")
   expect(textAt(source,d.related[0])).toBe("'working'")
-  expect(d.related[1].message).toContain('run context')
+  expect(d.related).toHaveLength(1)
+  expect(d.message).toContain(`installed ${version}`)
   expect(d.fix).toContain('previousState');expect(d.fix).toContain('does not cancel other sinks')
   expect(d.fixes).toBeUndefined()
  })
@@ -62,6 +63,11 @@ describe('provable after-state admission guards',()=>{
  it('recognizes an aliased imported ABORT',()=>{
   expect(guards(app().replace('{ABORT,','{ABORT as STOP,').replaceAll(': ABORT',': STOP'))).toHaveLength(1)
  })
+ it('recognizes ABORT imported from a sygnal subpath, not from another package',()=>{
+  const sub=`import {ABORT} from 'sygnal/jsx'\n`+app().replace('{ABORT,','{')
+  expect(guards(sub)).toHaveLength(1)
+  expect(guards(`import {ABORT} from 'sygnalish'\n`+app().replace('{ABORT,','{'))).toEqual([])
+ })
  it('resolves an unmodified constant model object',()=>{
   const source=app({model:'model'}).replace('App.model=model',`const model={START:{STATE:${state},HTTP:${output}}};App.model=model`)
   expect(guards(source)).toHaveLength(1)
@@ -76,26 +82,14 @@ describe('version and effective snapshot exclusions',()=>{
   expect(guards(app(),{version})).toEqual([])
  })
  it.each([
+  {entry:''},
+  {entry:`renderComponent(App)`},
   {extra:`App.sinkState='before'`},
   {entry:`run(App,{}, {sinkState:'before'})`},
-  {entry:`renderComponent(App,{sinkState:'before'})`},
-  {entry:`run(App,{},options)`},
-  {extra:`App.sinkState=mode`},
-  {entry:''},
- ])('skips before, unknown and library-only inherited timing %#',opts=>expect(guards(app(opts))).toEqual([]))
- it('uses an explicit component contract before the app setting',()=>{
-  expect(guards(app({extra:`App.sinkState='after'`,entry:`run(App,{}, {sinkState:'before'})`}))).toHaveLength(1)
-  expect(guards(app({extra:`App.sinkState='after'`,entry:''}))).toHaveLength(1)
- })
- it('qualifies a finding with its after entry when another entry runs before',()=>{
-  const d=guards(app({entry:`run(App,{}, {sinkState:'before'});renderComponent(App)`}))
-  expect(d).toHaveLength(1);expect(d[0].message).toContain('(renderComponent: App)')
- })
- it('children inherit app timing independently of their parent contract',()=>{
+ ])('reports every component on Sygnal 7, with any entry and ignoring a leftover sinkState %#',opts=>expect(guards(app(opts))).toHaveLength(1))
+ it('reports a child component the same way as its root',()=>{
   const child=app({entry:''}).replaceAll('App','Child')
-  const source=child+`\nfunction Root(){return <Child/>} Root.sinkState='before';run(Root)`
-  expect(guards(source)[0]?.component).toBe('Child')
-  expect(guards(source.replace("Root.sinkState='before';run(Root)","Root.sinkState='after';run(Root,{}, {sinkState:'before'})"))).toEqual([])
+  expect(guards(child+`\nfunction Root(){return <Child/>};run(Root)`)[0]?.component).toBe('Child')
  })
 })
 describe('do not guess about writes, composition or intent',()=>{
@@ -171,7 +165,7 @@ it.each([false,true])('CLI and editor worker=%s expose the same warning and sour
  const [d]=client.diagnostics.get(uriOf(file)).filter(d=>d.code==='SYG256')
  expect(d).toMatchObject({severity:2,range:{start:{line:want.line-1,character:want.column-1},end:{line:want.endLine-1,character:want.endColumn-1}}})
  expect(d.message).toContain(want.message)
- expect(d.relatedInformation).toHaveLength(2)
+ expect(d.relatedInformation).toHaveLength(1)
 },20000)
 
 describe('STATE path preconditions must establish a write-induced rejection',()=>{
@@ -207,12 +201,3 @@ describe('STATE path preconditions must establish a write-induced rejection',()=
  })
 })
 
-
-describe('prototype option timing evidence',()=>{
- it.each([
-  `const options={__proto__:{get diagnostics(){this.sinkState='before';return 'off'}},sinkState:'after'};run(App,{},options)`,
-  `const base={__proto__:{get diagnostics(){this.sinkState='before';return 'off'}}};run(App,{}, {...base,sinkState:'after'})`,
- ])('does not report after-only advice when an inherited getter can change timing: %s',entry=>{
-  expect(guards(app({entry}))).toEqual([])
- })
-})

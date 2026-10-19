@@ -49,7 +49,6 @@ function underlined(src, d) {
 
 // [code, file, line, underlined text] — one per rule code, for the project in cases.json
 const RANGES = [
-  ['SYG255', 'App.jsx', 3, "'later'"],
   ['SYG256', 'App.jsx', 4, "s.status!=='working'"],
   ['SYG454', 'App.jsx', 2, "byId('projects', state.selectedId)"],
   ['SYG101', 'App.jsx', 3, 'HYDRATE'],

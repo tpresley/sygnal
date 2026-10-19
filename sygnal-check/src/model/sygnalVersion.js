@@ -6,13 +6,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const UNKNOWN = Object.freeze({ version: null, major: null, sinkState: null, defaultSinkState: null })
+// timing: the reducer snapshot contract of the installed major. Sygnal 7 has one contract
+// (STATE first; every other sink gets the committed state); 6.x gives outputs the old state.
+const UNKNOWN = Object.freeze({ version: null, major: null, timing: null })
 const parse = (pkg, manifest) => {
   if (pkg?.name !== 'sygnal' || typeof pkg.version !== 'string') return null
   const m = /^(0|[1-9]\d*)\.\d+\.\d+(?:-[\da-zA-Z.-]+)?(?:\+[\da-zA-Z.-]+)?$/.exec(pkg.version)
   if (!m) return UNKNOWN
   const major = Number(m[1])
-  return { version: pkg.version, major, manifest, sinkState: major >= 7, defaultSinkState: major >= 7 ? 'after' : 'before' }
+  return { version: pkg.version, major, manifest, timing: major >= 7 ? 'after' : 'before' }
 }
 
 export function sygnalVersion(file, { tree, sources } = {}) {

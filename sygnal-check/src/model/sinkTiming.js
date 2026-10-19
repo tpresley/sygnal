@@ -1,36 +1,17 @@
-/** Proven timing contexts for static reducer checks. Unknown means no evidence, never after.
- * Components inherit the app setting, not a parent component's declaration. One proven after
- * entry is enough to diagnose its use, even if another entry runs the same component before.
+/** Reducer snapshot timing for static checks, and stable-value helpers for the proofs that use it.
+ * Sygnal 7 has one contract: STATE runs first and every other sink gets the committed state, so
+ * an installed 7+ means 'after' for every component. 6.x means 'before'. An unknown installed
+ * version is no evidence: callers stay silent.
  */
-import {walk, unwrap, propName, memberName, isFunction} from '../ast.js'
+import {walk, unwrap, memberName, isFunction} from '../ast.js'
 import {findBinding} from '../scope.js'
 import {resolveExpr} from './resolve.js'
-import {renderGraph, viewUsages} from './renderGraph.js'
 
-const ABSENT = Symbol('absent')
-const ACCESSOR = Symbol('accessor')
-const cache = new WeakMap()
 const mutationCache = new WeakMap()
 const contractCache = new WeakMap()
-const ENTRY = {run:[0,2], renderComponent:[0,1], defineElement:[1,2]}
-const sygnal = source => /^sygnal(?:\/|$)/.test(source)
 
-function importedEntry(file, callee) {
-  callee=unwrap(callee)
-  if (callee?.type==='Identifier') {
-    const b=findBinding(file,callee.name,callee)
-    return b?.kind==='import' && sygnal(b.source) && ENTRY[b.imported] ? b.imported : null
-  }
-  if (callee?.type==='MemberExpression' && unwrap(callee.object)?.type==='Identifier') {
-    const b=findBinding(file,callee.object.name,callee)
-    const name=memberName(callee)
-    return b?.kind==='import' && b.imported==='*' && sygnal(b.source) && ENTRY[name] ? name : null
-  }
-  return null
-}
-
-// resolveExpr deliberately tolerates mutable bindings for other analyses. Timing evidence must
-// not turn a let initializer or a directly modified const object into a proven configuration.
+// resolveExpr deliberately tolerates mutable bindings for other analyses. A proof must not
+// turn a let initializer or a directly modified const object into a known value.
 function mutationTarget(node) {
   if (['AssignmentExpression','UpdateExpression'].includes(node.type)) return node.left || node.argument
   if (node.type==='UnaryExpression' && node.operator==='delete') return node.argument
@@ -53,7 +34,7 @@ function mutations(file) {
   return mutationCache.get(file)
 }
 
-function resolved(project,file,node,{component=false}={}) {
+function resolved(project,file,node) {
   node=unwrap(node)
   if (!node) return null
   const aliases=new Set()
@@ -72,10 +53,6 @@ function resolved(project,file,node,{component=false}={}) {
   let mutated=false
   for (const f of new Set([file,r.file])) for (const n of mutations(f)) {
     let target=unwrap(mutationTarget(n))
-    // A component's ordinary static declarations are resolved separately. Only reassignment
-    // changes which component the entry starts; options objects also need property mutation checks.
-    if (component && target.type==='MemberExpression') continue
-    if (component && n.type==='CallExpression') continue
     while (target?.type==='MemberExpression') target=unwrap(target.object)
     const actual=target && resolveExpr(project,f,target)
     if (actual?.node===r.node) mutated=true
@@ -83,88 +60,9 @@ function resolved(project,file,node,{component=false}={}) {
   return mutated ? null : r
 }
 
-function modeValue(project,file,node) {
-  node=unwrap(node)
-  if (node?.type==='Identifier' && node.name==='undefined' && !findBinding(file,'undefined',node)) return ABSENT
-  const r=resolved(project,file,node)
-  return r?.node.type==='StringLiteral' && ['before','after'].includes(r.node.value) ? r.node.value : null
-}
-
-function objectMode(project,file,node,seen=new Set()) {
-  const r=resolved(project,file,node)
-  if (!r || r.node.type!=='ObjectExpression' || seen.has(r.node)) return null
-  const next=new Set(seen).add(r.node)
-  let mode=ABSENT
-  for (const p of r.node.properties) {
-    if (p.type==='SpreadElement') {
-      const spread=objectMode(project,r.file,p.argument,next)
-      if (spread===ACCESSOR) return ACCESSOR
-      if (spread!==ABSENT) mode=spread
-    } else {
-      // run reads other options before copying sinkState. A getter can change the timing
-      // contract during that read; later literal keys cannot prove an accessor is harmless.
-      if (p.type==='ObjectMethod' && ['get','set'].includes(p.kind)) return ACCESSOR
-      const key=propName(p)
-      // A prototype can supply an inherited diagnostics getter that changes sinkState.
-      if (!p.computed && key==='__proto__') return ACCESSOR
-      if (key==='sinkState') mode=p.type==='ObjectProperty' ? modeValue(project,r.file,p.value) : null
-      else if (key===null) mode=null // a computed key could be sinkState
-    }
-  }
-  return mode
-}
-
-function entryMode(project,file,call,index) {
-  // Spread arguments can shift either the component or options positions.
-  if (call.arguments.slice(0,index+1).some(n=>n.type==='SpreadElement')) return null
-  if (!call.arguments[index]) return 'after'
-  const arg=unwrap(call.arguments[index])
-  if (arg?.type==='Identifier' && arg.name==='undefined' && !findBinding(file,'undefined',arg)) return 'after'
-  const mode=objectMode(project,file,arg)
-  return mode===ABSENT ? 'after' : mode===ACCESSOR ? null : mode
-}
-
-function contexts(project) {
-  if (cache.has(project)) return cache.get(project)
-  const byUnit=new Map(), graph=renderGraph(project)
-  for (const p of project.scanned) {
-    const file=project.files.get(p)
-    if (!file?.ast || !(project.sygnalFor(file).major>=7)) continue
-    walk(file.ast.program,n=>{
-      if (n.type!=='CallExpression') return true
-      const via=importedEntry(file,n.callee)
-      if (!via) return true
-      const [componentIndex,optionsIndex]=ENTRY[via]
-      const mode=entryMode(project,file,n,optionsIndex)
-      if (!mode) return true
-      const ref=resolved(project,file,n.arguments[componentIndex],{component:true})
-      if (!ref || !isFunction(ref.node)) return true
-      const root=graph.unitOf(ref)
-      if (!root) return true
-      const context={mode,via,file,node:n,root}
-      const seen=new Set(), pending=[root]
-      while (pending.length) {
-        const unit=pending.pop()
-        if (seen.has(unit)) continue
-        seen.add(unit)
-        if (!byUnit.has(unit)) byUnit.set(unit,[])
-        byUnit.get(unit).push(context)
-        for (const {usage,widget} of viewUsages(unit.viewInfo)) {
-          if (widget || !usage.ref) continue
-          const child=graph.unitOf(usage.ref)
-          if (child) pending.push(child)
-        }
-      }
-      return true
-    })
-  }
-  cache.set(project,byUnit)
-  return byUnit
-}
-
 // Index apparent component static writes once per project. Mutation lists themselves are indexed
 // once per FileInfo; querying many components never rescans all project ASTs.
-export function componentStaticKnown(project,component,prop='sinkState') {
+export function componentStaticKnown(project,component,prop) {
   if (!contractCache.has(project)) {
     const writes=new Map(), results=new WeakMap()
     for (const p of project.scanned) {
@@ -206,18 +104,10 @@ export function resolveStableValue(project,file,node) {
   return resolved(project,file,node)
 }
 
-/**
- * @returns {Array<{mode:'before'|'after', via:string, file:object, node:object, root:object}>}
- * Explicit component contracts are proven without an app entry. Otherwise only reachable,
- * readable imported run/renderComponent/defineElement calls supply evidence. An unknown or
- * invalid component declaration shadows inheritance and returns no contexts.
+/** The snapshot every non-STATE sink of this file's components gets: 'after' on an installed
+ * Sygnal 7 or later, 'before' on 6.x, null when the installed version is unknown.
+ * @returns {'after'|'before'|null}
  */
-export function sinkTimingContexts(project,component) {
-  if (!(project.sygnalFor(component.file).major>=7) || !componentStaticKnown(project,component)) return []
-  const declaration=component.staticProps?.sinkState
-  if (declaration) {
-    const mode=modeValue(project,component.file,declaration)
-    if (mode!==ABSENT) return mode ? [{mode,via:'component',file:component.file,node:declaration,root:component}] : []
-  }
-  return contexts(project).get(component) || []
+export function sinkTiming(project,file) {
+  return project.sygnalFor(file).timing
 }
