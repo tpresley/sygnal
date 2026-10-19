@@ -3,20 +3,26 @@ title: Streaming Chat
 description: Language models as a Sygnal driver — streaming replies as actions, transports for local, hosted and on-device models, structured output and tools
 ---
 
-Most AI integrations start the same way: a component calls a provider SDK, awaits a promise, juggles a loading flag, and hopes nobody clicks twice. Sygnal takes a different path, and it's a satisfying one: **a language model is just another driver**.
+A conversation needs a message history, a draft while a reply streams, a way to stop, and a way to recover from a failure. The [`chat` behavior](/guide/ai-chat/#the-same-chat-with-the-chat-behavior) owns that lifecycle. You provide the markup and register a chat driver once.
 
-A component asks for a reply the way it asks for an [HTTP](/guide/http/) request. A model entry sends the conversation to the `LLM` sink and names the actions that receive the answer: one for the text so far while it streams, one for the finished message, one for a failure. The component never calls `fetch` and never imports a provider. It reduces actions into state, and the view shows the words as they arrive.
+See the [highlighted counter-to-chat example](/ai/overview/#from-counter-to-chat) for the complete addition, including the UI and model connection. Its existing reducers keep working; the conversation lives in its own behavior state.
+
+## One behavior, or individual requests
+
+Use `chat()` when you want a conversation with streaming, history, Stop, and Retry. Use the driver directly for a single request, such as summarizing an article or extracting fields into a form. Both send through the `LLM` sink and receive replies as actions. A component doesn't call a provider SDK itself.
+
+This is where Sygnal saves application code: the behavior coordinates the conversation, and the driver handles transport and reply routing. You can use AI libraries with other frameworks, too; the benefit here is that these pieces share Sygnal's existing state, action, and testing patterns.
 
 ## Any model, same component
 
 What changes from model to model is the **transport**, which you pick once in `main.js`. The component code stays the same whether it talks to:
 
-- **a model on your laptop** through Ollama, with no account, no key and no server code. This is the nicest way to start;
+- **a model on your laptop** through Ollama, with no account, no key and no server code. This is a way to start locally;
 - **a hosted model** (OpenAI, Anthropic, OpenRouter and others) behind an [AI SDK](https://ai-sdk.dev) route on your own server, which keeps the key out of the page;
 - **an agent server** built with TanStack AI, CopilotKit, LangGraph or Mastra, through AG-UI;
 - **the model inside the browser**: Chrome can run a small model on the user's own device, and the `chromePrompt()` transport puts it behind the same driver. Nothing leaves the device.
 
-That last one deserves a moment. A summary, a rewrite or a classification that runs entirely on the visitor's machine, with no server and no cost per request, is a genuinely new kind of web feature, and in Sygnal it is one line in `main.js`.
+The on-device option is useful for summaries or rewrites that should stay on the visitor's machine. Check browser and device availability and provide a [fallback](/recipes/ai-summarize/); changing the transport leaves your component's conversation logic intact.
 
 ## More than text
 

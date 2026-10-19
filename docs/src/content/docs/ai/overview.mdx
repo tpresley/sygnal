@@ -5,9 +5,109 @@ description: What sygnal/ai brings to a web app — streaming chat, decision mod
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-The web has always had one kind of user: a person with a mouse, a keyboard and a screen. That is changing. Language models now read pages, fill in forms and call tools, and people increasingly expect an app to understand a sentence, not just a click. Building for both at once is one of the more interesting things happening to front-end development right now.
+AI features bring more than a request to a model: conversation state, streamed replies, cancellation, retries, tools, and the UI around them. Sygnal provides those pieces through the same drivers, behaviors, actions, and state you use for the rest of an app.
 
-Sygnal turns out to be well suited to it. A Sygnal component already describes its behavior as data: the actions it has, the state it holds, the requests it sends through drivers. That is exactly what a model needs to work with an app safely. So instead of bolting an AI SDK onto the side, `sygnal/ai` plugs models into the same places everything else already goes: a driver for requests, actions for replies, statics for declarations, and the same testing helpers you use for the rest of the app.
+## From counter to chat
+
+Take the [counter from the homepage](/#a-small-component-the-whole-idea) and add a conversation. **The green lines are additions**; the counter's existing intent and reducers keep working. The `chat` behavior owns message history, prompt input, streaming, Stop, errors, and Retry. You write the view.
+
+This example runs here with a scripted reply, so you can try it without a model or a key. The opening question is sent by the line marked “Demo only.” Send another message, press Stop during a reply, or edit the component.
+
+<details>
+<summary>The demo model: a small streaming server route</summary>
+
+This route plays the model for this page. It always sends the same reply; it does not reason about your question or the count. The docs runtime registers the real chat driver against it, using the Open Responses transport shown below.
+
+```js live-server
+import { encodeOpenResponses } from 'sygnal/ai'
+
+export default {
+  'POST /v1/responses': () => ({
+    sse: encodeOpenResponses([
+      'Try the counter buttons. ',
+      'The conversation has its own state, ',
+      'and the counter keeps working. ',
+      'This reply is scripted; connect a model to answer your questions.',
+    ]),
+    delayMs: 200,
+    chunkMs: 250,
+  }),
+}
+```
+
+</details>
+
+```jsx live live-height=300 title="Counter.jsx" ins={1-2,4-5,11-20,35-36,38-43}
+import { chat, messageText } from 'sygnal/ai'
+
+function Counter({ state }) {
+  const c = state.chat
+  const busy = c.status === 'submitted' || c.status === 'streaming'
+  return (
+    <div>
+      <p>Count: {state.count}</p>
+      <button className="increment">+1</button>
+      <button className="reset">Reset</button>
+      <ol aria-live="polite">
+        {c.messages.map((m) => <li key={m.id}>{m.role}: {messageText(m)}</li>)}
+        {c.draft && <li>assistant: {c.draft}</li>}
+      </ol>
+      <form className="ask">
+        <label>Message <input className="prompt" value={c.prompt} /></label>
+        <button type="submit" disabled={busy}>Send</button>
+        <button type="button" className="stop" disabled={!busy}>Stop</button>
+      </form>
+      {c.error && <p role="alert">{c.error} <button className="retry">Retry</button></p>}
+    </div>
+  )
+}
+
+Counter.initialState = { count: 0 }
+
+Counter.intent = ({ DOM }) => ({
+  INCREMENT: DOM.click('.increment'),
+  RESET: DOM.click('.reset'),
+})
+
+Counter.model = {
+  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),
+  RESET: (state) => ({ ...state, count: 0 }),
+  // Demo only: send an opening question when this example mounts.
+  BOOTSTRAP: { EFFECT: (state, data, next) => next('chat.SEND', 'What can I try here?') },
+}
+
+Counter.uses = {
+  chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }),
+}
+
+export default Counter
+```
+
+The counter still owns `state.count`. The behavior adds `state.chat` and namespaced actions such as `chat.SEND`, without new chat reducers in your component. The selectors connect the form and buttons to that behavior. With `agent: false`, this is plain chat: the model cannot read or operate the counter.
+
+### Connect a model once
+
+In your app's entry point, add the driver and choose a transport. Here it connects to a local Ollama model; the highlighted lines are the new driver setup. Pull the model with `ollama pull llama3.2` first ([local setup](/guide/ai-chat/#getting-started)).
+
+```js title="main.js" ins={2,6-10}
+import { run } from 'sygnal'
+import { makeChatDriver, openResponses } from 'sygnal/ai'
+import Counter from './Counter.jsx'
+
+run(Counter, {
+  LLM: makeChatDriver({
+    transport: openResponses({
+      baseURL: 'http://localhost:11434/v1', model: 'llama3.2',
+    }),
+  }),
+})
+```
+
+For a hosted provider, use a [server route](/guide/ai-chat/#shipping-it) that keeps the API key off the page. Authentication, rate limits, conversation storage, and your product's UI are still application work. The small addition here covers the client conversation lifecycle, rather than an entire production chat service.
+
+### From conversation to action
+
+To let a model *use* the app, declare the state it can read and the actions it may call. The [agent example](/ai/agents/#from-a-button-to-a-tool) builds on this counter; the same declaration can serve an in-app assistant, WebMCP, and tests. You choose where to stop: a plain chat needs none of those tools.
 
 ## What's in the box
 
@@ -30,7 +130,10 @@ Some ideas run through every part of `sygnal/ai`:
 - **Keys stay on the server.** Production requests go through your own server route; in development, a local model needs no key at all.
 - **Testable like everything else.** Fake replies, scripted streams and tool calls run in `renderComponent()` with no network.
 
-## Where to start
+## Building with AI, or building AI in?
+
+If a coding agent is writing your app, start with [Why Sygnal if AI already knows React?](/ai/why-sygnal/) for the tradeoffs, then [Built for Coding Agents](/ai/coding-agents/) for the tooling. The features on this page are for the app you ship; you can use that tooling without adding AI to your product.
+
 
 If you want to see a model stream into a component in five minutes, start with [AI Chat](/guide/ai-chat/): it runs against a local model with no account and no key. If you're more curious about the agent side, the [Agents](/guide/agent/) guide shows how one small declaration makes an app operable by a model. And if you just want something to copy, the [AI recipes](/recipes/overview/#ai) build complete features: a triaged support inbox, a form filled from pasted text, on-device summaries.
 

@@ -71,6 +71,7 @@ export default defineConfig({
         {
           label: 'Building with AI',
           items: [
+            { label: 'Why Sygnal?', slug: 'ai/why-sygnal' },
             { label: 'Built for Coding Agents', slug: 'ai/coding-agents' },
             { label: 'Building with AI Agents', slug: 'integration/agents' },
             { label: 'Testing', slug: 'integration/testing' },
