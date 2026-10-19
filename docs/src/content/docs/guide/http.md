@@ -187,7 +187,8 @@ Upload.model = {
   SAMPLE: (state) => ({ ...state, file: new File([new Uint8Array(3 * 1024 * 1024)], 'sample.bin'), fraction: 0, status: 'idle', message: 'sample.bin' }),
   SEND: {
     STATE: (state) => (busy(state) ? ABORT : { ...state, status: 'uploading', fraction: 0, message: 'Uploading…' }),
-    HTTP:  (state) => (busy(state) ? ABORT : { url: '/api/files', multipart: { file: state.file }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }),
+    // STATE has already set status 'uploading': admit the upload by the state before this SEND
+    HTTP:  (state, data, next, { previousState }) => (busy(previousState) ? ABORT : { url: '/api/files', multipart: { file: state.file }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }),
   },
   UPLOADING: (state, { phase, fraction }) => (phase === 'upload' ? { ...state, fraction } : ABORT),
   UPLOADED:  (state, saved) => ({ ...state, status: 'done', fraction: 1, message: `Uploaded ${saved.name} (${saved.size} bytes).` }),

@@ -66,6 +66,32 @@ and reordering keep the child. `key={selected.id}` is no longer needed for a sel
 survive the change into the parent. A child with a custom lens keeps its binding until its key
 changes.
 
+### New: uploads, SSE auth, form files and types, `tooltips()`
+
+- **Upload and download progress** on `makeFetchDriver` requests: `progress: 'UPLOADING'` (a reply
+  action) or `progress: true` (`HTTP.progress(category)`) sends `{ phase, loaded, total, fraction }`
+  steps, throttled to one every 50 ms per phase. Such a request goes over XMLHttpRequest, the only
+  way to see upload progress in every browser; fetch-only `init` options it can't honour are
+  SYG636. Tests: `t.progress('HTTP', { loaded, total }, 'UPLOADING')`.
+- **`multipart: { file, title }`** on a request: the multipart/form-data body as data, the way
+  `json` is; a model never builds a `FormData`.
+- **The `form` behavior** takes file inputs (a field's value is its `File`, `multiple` an array,
+  validated by the schema), keeps the submit's progress in `state.form.progress`
+  (`progress: 'form.PROGRESS'`) and counts start-overs in `state.form.resets` (key a file input
+  with it). `request: { url }` (or `(data, state) => request`) sends a valid submit itself, as
+  JSON or multipart, with `form.DONE` / `form.ERRORS` wired: the common save needs no model entry.
+  `form.RESET` from a click goes back to the start values (it used to take the event as values).
+- **Form types from the schema**: a typed Standard Schema (zod, valibot, arktype) types
+  `state.form.values` and `fields.x.value`; `FormOutput<typeof uses.form>` is the submit data.
+- **SSE connections take `headers`** (`{ authorization: 'Bearer ' + state.token }`): such a stream
+  is read with fetch (`Last-Event-ID`, `retry`), since EventSource can't send headers.
+- **`tooltips()`** in `sygnal/ui`: one behavior and one state slice for every tooltip of a
+  component (glossary terms, icon toolbars), one tip at a time.
+- `Component<State, any>` keeps `state` typed; SYG731 accepts state announced through text,
+  `aria-label`, `aria-live` or `role="status"`; sygnal-check's SYG609 also reports intent sources
+  with no driver; a test wait that times out on the fake clock names the pending timer; every
+  create-sygnal-app template has `npm run check` (TypeScript: sygnal-check and `tsc --noEmit`).
+
 ### Also included
 
 - A child that fails to instantiate is no longer retried on every parent render.

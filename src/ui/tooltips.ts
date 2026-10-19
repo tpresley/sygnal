@@ -59,7 +59,11 @@ const base = /*#__PURE__*/ defineBehavior({
         const pending = s.open == id ? null : 'show'
         return s[k] && s.pending == pending ? ABORT : {...s, [k]: true, pending}
       },
-      ELEMENT: (s: any, {id}: any) => (id != s.id && s.open && s.open != id ? [{hidePopover: at(s.open)}, {showPopover: at(id)}] : ABORT),
+      // 7.0: outputs get the updated slice; "another trigger than before" reads the previous one
+      ELEMENT: (s: any, {id}: any, _n: any, p: any, _o: any, k: string) => {
+        const w = p?.previousState ? p.previousState[k] : s
+        return id != w.id && w.open && w.open != id ? [{hidePopover: at(w.open)}, {showPopover: at(id)}] : ABORT
+      },
     },
     LEAVE: (s: any, {via, id}: any) => {
       if (id != s.id) return ABORT
