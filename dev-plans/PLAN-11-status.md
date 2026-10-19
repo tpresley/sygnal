@@ -6,7 +6,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 
 **Integration branch:** `claude/sygnal-friction-assessment-8ec6df`, cut from `main` 49c2f6d4.
 
-**State:** all items implemented on the integration branch (2026-10-17); the full gate and the PR to main are next.
+**State:** merged in PR #50 (2026-10-18); ships in Sygnal 7.0 with [PLAN-12](PLAN-12.md)'s timing contract (its code was moved to that contract when 7.0 merged main).
 
 ## Decisions
 
@@ -15,7 +15,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 | D550 | 2026-10-17 | Fix the confirmed friction points as assessed (user) |
 | D551 | 2026-10-17 | Full upload progress support, not only a recipe (user) |
 | D552 | 2026-10-17 | Spike the progress API first (user) |
-| D553 | 2026-10-17 | Sinks keep the pre-action state; a checker hint is G-850 (user) |
+| D553 | 2026-10-17 | Sinks keep the pre-action state; a checker hint is G-850 (user). **Superseded** by PLAN-12 P12-D8 (7.0: outputs get the committed state, `props.previousState` the old one) |
 | D554 | 2026-10-17 | sygnal-check stays type-free; templates and docs say to run tsc too (user) |
 | D555 | 2026-10-17 | Progress over XHR, `progress: 'ACTION' \| true`, `HTTP.progress()`, throttled, `t.progress()` (coordinator, on S-1) |
 | D556 | 2026-10-17 | E-1: SSE `headers` are data only (no function form): a token lives in state and a changed header reconnects; an explicit `EventSource` option still wins and gets the headers in its init (coordinator) |
@@ -53,6 +53,6 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 
 | # | Gap |
 |---|---|
-| G-850 | sygnal-check hint when a sink handler reads a state field that the same action's STATE reducer writes (it sees the old value) |
+| G-850 | ~~sygnal-check hint when a sink handler reads a state field that the same action's STATE reducer writes~~ Closed by 7.0: PLAN-12's opt-in timing audit (SYG257) reports such reads at run time, and SYG256 a guard that blocks its own action |
 | G-851 | `processForm` keeps only the last value of a repeated field name (several files, multi-select): changing it to arrays is breaking |
 | G-852 | `initialState` of a host whose State includes `UsesState<typeof uses>` needs a cast (the behavior slices are missing from the literal) |
