@@ -5,7 +5,9 @@ description: How Sygnal helps the agents that write your app — llms.txt, the C
 
 The other half of AI and the web is who writes the code. More and more of it is drafted by coding agents (Claude Code, Cursor, Codex and others), and a framework can make their job much easier or much harder.
 
-Sygnal was shaped with them in mind. The goal is simple to state: **an agent should never have to guess.**
+Sygnal was shaped with them in mind. It supplies current context, explicit component structure, and checks that help an agent verify its work.
+
+**“But AI already knows React. Why learn Sygnal?”** That's a fair starting point. [Why Sygnal?](/ai/why-sygnal/) considers the familiarity advantage, what tools and runtime feedback can add, and when staying with an established stack makes more sense. This page explains how Sygnal supports that workflow.
 
 ## One way to write it
 
@@ -29,7 +31,7 @@ For Claude Code, the Sygnal plugin bundles all of this: the `sygnal-dev` skill w
 
 ## Measured, not assumed
 
-These tools are checked against an eval harness that gives agents the same tasks in Sygnal and in React, with hidden tests. It's how we know the canonical forms and diagnostics actually help, and it keeps the docs honest as the framework grows.
+These tools are checked against an [eval harness](https://github.com/tpresley/sygnal/tree/main/evals/agent-ergonomics) that gives agents paired tasks in Sygnal and React, with hidden tests. It tracks correctness, time, and edit iterations so tooling changes can be evaluated against actual tasks. Results depend on the model, task, and context; the [evidence and its limits](/ai/why-sygnal/#what-evidence-is-there) are part of the tradeoff, too.
 
 ## Where to go next
 
