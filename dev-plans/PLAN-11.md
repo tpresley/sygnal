@@ -1,8 +1,16 @@
 # PLAN-11: Reducer state timing and fresh-app ergonomics
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
-**Status:** M-10 F1–F8 complete. All release gates pass, including 42,993 B against the explicitly approved 43,000 B limit. Runtime built; both npm links refreshed and verified from a fresh consumer. The combined-build limitation was fixed in [M-8](research/rollup-build-lifecycle.md). Major-release work below supersedes the initial minor-release/default and binding decisions.
+**Status:** M-11 (one timing contract, review fixes) complete 2026-10-19. Earlier: M-10 F1–F8 complete. All release gates pass, including 42,993 B against the explicitly approved 43,000 B limit. Runtime built; both npm links refreshed and verified from a fresh consumer. The combined-build limitation was fixed in [M-8](research/rollup-build-lifecycle.md). Major-release work below supersedes the initial minor-release/default and binding decisions.
 **Tracker:** [PLAN-11-status.md](PLAN-11-status.md).
+
+## M-11: one timing contract — approved 2026-10-19
+
+Supersedes the `sinkState` switch below (M-1's 'after' default with per-app/component/behavior
+overrides): 7.0 has one contract, STATE first and outputs on the committed state, with
+`props.previousState` and the opt-in timing audit (SYG257) as the migration aid. Decisions
+P11-D8–D11 and the review fixes are in the [tracker](PLAN-11-status.md); evidence in
+[research/v7-single-contract](research/v7-single-contract/README.md).
 
 ## Sygnal 7 revision — authorized 2026-10-18
 

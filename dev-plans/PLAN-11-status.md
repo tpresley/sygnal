@@ -3,9 +3,32 @@
 Tracks [PLAN-11.md](PLAN-11.md): reducer timing and fresh-app ergonomics.
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
-**State:** M-10 F1–F8 complete. All release gates pass, including size (42,993 B / explicitly approved 43,000 B). Runtime built; both npm links refreshed and verified from a fresh consumer. M-8 resolved the combined-build limitation.
-**Checkout:** Shared working tree; changes are uncommitted. Release metadata is prepared; nothing is published.
+**State:** M-11 (2026-10-19): one timing contract replaces the `sinkState` switch; the review findings are fixed. Size 42,844 B / 43,000 B. Nothing is published.
+**Branch:** `claude/sygnal-7-single-contract`, cut from `a54f4090` (the reviewed M-10 commit) through the `exp/v7-single-contract` spike commits.
 **IDs:** Plan-local P11-D decisions; R/C/B/T work items.
+
+## M-11: one timing contract, and the review fixes (2026-10-19)
+
+A review of `a54f4090` (runtime, tooling and docs, plus an independent rerun of every gate)
+found one release blocker and two runtime regressions. The user then asked whether the timing
+change should be done differently; three spikes (`research/v7-single-contract/README.md`) showed
+that every built-in behavior works on the new contract through `props.previousState`, and that
+removing the switch and its provenance machinery saves 181 B with every browser suite green.
+The user approved the single contract on 2026-10-19.
+
+| Decision | Contract |
+|---|---|
+| P11-D8 | **One timing contract, no option**: STATE runs first in every model entry (normalize sorts it first); every other sink gets the committed state; `props.previousState` is the state from before the action (in STATE both are the old state). `sinkState` is removed everywhere (never released), with the provenance machinery (`sinkTiming.ts`), the runtime SYG255 and the Vike / Astro / element / run / renderComponent plumbing. Supersedes P11-D1–D3 and M-1's switch |
+| P11-D9 | **Built-ins on the contract**: no `before` pins. Behaviors whose STATE and outputs share one transition (form, chat, compose, commandBar) compute their outputs from the previous slice through `was()` / `fromPrevious()` in `behaviors.ts`; the dialog's "was it open" reads `previousState`. Libraries supporting 6 and 7: `props.previousState ?? state` |
+| P11-D10 | **Migration safety net: the timing audit**, SYG257 (info, dev entry, opt-in: `configureTimingAudit`, `renderComponent({ timingAudit })`, `sygnal({ diagnostics: { timingAudit } })`, `__SYGNAL_TIMING_AUDIT__`): an output reading a top-level field its action's STATE changed. Replaces the gradual-migration switch; teams not ready stay on 6.x |
+| P11-D11 | **Self-removal**: when STATE removes the component's own state, the outputs get its last state whether it is a Collection item or bound with `state=` / `byId` (it threw SYG216 for bound children) |
+
+Review fixes (M-11): a failed child keeps its props and is retried only on a changed target
+(was every owner render); the presence scan visits only bound children (a per-owner set);
+SYG454 only for an installed Sygnal 6 (was: also when unknown); the Claude Code plugin refuses
+an old checker only for Sygnal 7 projects; the release workflow checks the CHANGELOG heading
+before publishing; docs review items (model.md heading and anchors, migration procedure,
+front-door pointers, plain-language lifetimes, samples wrong under the committed state).
 
 ## Major-release work
 
