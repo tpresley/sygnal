@@ -1,76 +1,34 @@
 ---
 title: 'Sygnal'
-description: 'An intuitive reactive component framework built on Cycle.js patterns.'
+description: 'A reactive front end framework for the AI age. Built for coding agents, native AI features, and the people behind every app.'
 template: splash
-banner:
-  content: |
-    Sygnal 6.1 adds <code>sygnal/ai</code>: streaming LLM chat, decision models, and apps that AI agents can operate. <a href="/guide/ai-chat/">Get started</a> · <a href="https://github.com/tpresley/sygnal/releases/tag/v6.1.0">Release notes</a>
 hero:
-  tagline: An intuitive reactive component framework built on Cycle.js patterns. Pure components, automatic state management, and zero boilerplate.
+  title: What if a front end framework was built for the AI age?
+  tagline: Meet Sygnal. A reactive component framework that helps coding agents build with confidence, brings AI into your app, and keeps you in control.
   actions:
-    - text: Get Started
+    - text: Start building
       link: /getting-started/
       icon: right-arrow
       variant: primary
-    - text: View on GitHub
-      link: https://github.com/tpresley/sygnal
-      icon: external
-      variant: minimal
+    - text: Explore native AI
+      link: /ai/overview/
+      variant: secondary
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import HomeFeatures from '../../components/HomeFeatures.astro';
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-## Why Sygnal?
+<HomeFeatures />
 
-<CardGrid stagger>
-  <Card title="MVI Architecture" icon="pencil">
-    Model-View-Intent separates *what* happens, *when* it happens, and *how* it looks. Clear data flow makes components easy to reason about and debug.
-  </Card>
+## And what if you just wanted to build a great app?
 
-  <Card title="Reactive Streams" icon="random">
-    Built on xstream and Cycle.js patterns. Every interaction is a stream, giving you powerful composition and transformation with minimal code.
-  </Card>
+You're in the right place. Sygnal is a complete reactive framework for everyday development: pure JSX views, automatic state management, TypeScript, routing, forms, accessible UI parts, and Astro and Vike integrations. Use your editor, your agent, or both. AI features are opt-in.
 
-  <Card title="Zero Boilerplate" icon="rocket">
-    No hooks, no selectors, no dispatchers. Define `initialState`, `intent`, and `model` as static properties and Sygnal wires everything together.
-  </Card>
+The same architecture that helps an agent reason about your code makes it easier for you to read, test, and maintain. **Intent** describes when something happens. **Model** describes what changes. **View** renders the state. No hooks, selectors, or dispatchers.
 
-  <Card title="Pure Components" icon="approve-check">
-    View functions are pure — they receive state, return JSX. No side effects, no lifecycle methods, no `this`. Simple to test and simple to compose.
-  </Card>
+### A small component. The whole idea.
 
-  <Card title="AI Built In" icon="star">
-    `sygnal/ai` streams LLM chat through a driver like HTTP (local models with Ollama, any provider through an AI SDK server), asks decision models typed questions, composes pages and chat cards from your own components, and runs an in-app assistant. Declare what agents may do with the `agent` static, and they can operate your app, in the page or through WebMCP. See [Native AI Support](/ai/overview/).
-  </Card>
-
-  <Card title="Full TypeScript Support" icon="seti:typescript">
-    Written in TypeScript with comprehensive type declarations. Get autocompletion, type checking, and inline documentation for components, state, intent, model, and all framework APIs.
-  </Card>
-
-  <Card title="Diagnostics Built In" icon="warning">
-    Silent wiring mistakes (a selector typo, an action with no handler, an event nobody hears) become coded messages with a fix, in the dev server, in tests, and from the `sygnal-check` static checker.
-  </Card>
-
-  <Card title="Built for Agents" icon="puzzle">
-    A single `llms.txt` reference, canonical forms enforced by strict mode, an app graph from `inspect()`, an MCP server, and a dev MCP endpoint (`sygnal({ mcp: true })`) with the running app's state, so coding agents can write and debug Sygnal code without guessing.
-  </Card>
-
-  <Card title="Collections" icon="list-format">
-    Render dynamic lists of components with automatic isolation, keyed reconciliation, and built-in parent/child communication.
-  </Card>
-
-  <Card title="Astro Integration" icon="astro">
-    First-class Astro support with server-side rendering and client hydration. Drop Sygnal components into any Astro page with a single directive.
-  </Card>
-
-  <Card title="Vike Integration" icon="seti:html">
-    File-based routing with SSR, client-side navigation, and automatic hydration via [Vike](https://vike.dev). Layouts, data fetching, and SPA mode included.
-  </Card>
-</CardGrid>
-
-## A component
-
-A component is a function that renders its state, with the rest as statics: `intent` says *when* something happens, `model` says *what* happens. Press **Edit** to change it and see the result update.
+A view is a function. Its behavior lives alongside it. Press **Edit** to make this one your own.
 
 ```jsx live
 function Counter({ state }) {
@@ -96,6 +54,13 @@ Counter.model = {
 }
 ```
 
-The [Quick Start](/getting-started/) builds one step by step.
+## Where will you start?
 
-**Coming from React or Vue?** [Sygnal for React developers](/coming-from/react/) and [Sygnal for Vue developers](/coming-from/vue/) map what you know onto Sygnal, with live examples.
+<CardGrid>
+  <LinkCard title="Build your first app" href="/getting-started/" description="Scaffold a project and learn the component model, one step at a time." />
+  <LinkCard title="Build with a coding agent" href="/integration/agents/" description="Set up the reference, skills, checker, and MCP tools for your agent's workflow." />
+  <LinkCard title="Bring AI into your app" href="/ai/overview/" description="Explore chat, decisions, composed UI, and agents that can take action." />
+  <LinkCard title="Bring what you already know" href="/coming-from/react/" description="Coming from React? Map familiar ideas onto Sygnal with live examples." />
+</CardGrid>
+
+Coming from Vue? [Start with the Vue guide](/coming-from/vue/). Or [try Sygnal in your browser](/try-it/) without installing anything.
