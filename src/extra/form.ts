@@ -236,6 +236,7 @@ export const form = (schema: any, o: any = {}): any => {
   }
 
   const b = defineBehavior({
+    sinkState: 'before',
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},

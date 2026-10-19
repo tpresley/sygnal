@@ -32,6 +32,7 @@ const collapse = (s: any, v: any) => {
 }
 
 const base = /*#__PURE__*/ defineBehavior({
+  sinkState: 'before',
   initialState: {id: null as null | string, expanded: [] as string[], collapsible: true},
   intent: ({DOM}: any, {trigger, loop}: any) => ({
     TOGGLE: DOM.click(trigger).data('value'),

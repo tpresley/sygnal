@@ -130,6 +130,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
   const {prompt: _selector, ...rest} = options
   const controls = Object.values(catalog.containers || {}).some((c: any) => typeof c.decl?.render == 'function')
   return defineBehavior({
+    sinkState: 'before',
     initialState: {prompt: '', status: 'idle', layout: null, preview: null, pending: null, decisions: null, error: null, ui: {}, local: {}},
     intent: (so: any, _o: any, k: string) => {
       const {DOM} = so

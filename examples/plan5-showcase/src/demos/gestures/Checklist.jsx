@@ -25,7 +25,7 @@ Checklist.model = {
   ADD: {
     STATE: (state) => ({ ...state, rows: [...state.rows, { id: state.next, title: '' }], next: state.next + 1 }),
     // a parent focuses an element inside a child (the new row renders in the same patch)
-    ELEMENT: (state) => ({ focus: focusWithin(`[data-id="${state.next}"] .title`) }),
+    ELEMENT: (state, data, next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
   },
 }
 

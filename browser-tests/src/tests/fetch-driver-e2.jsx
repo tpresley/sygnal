@@ -27,11 +27,11 @@ export async function fetchDriverTestsE2() {
 
   await runTest(CAT, 'makeFetchDriver: latest: true aborts the request in flight (real AbortController)', async () => {
     const { id, el } = mount()
-    function Search({ state }) { return <div><button className="go">go</button><p className="n">{state.n}</p></div> }
+    function Search({ state }) { return <div><button className="go">go</button><p className="n">{state.n}</p><p className="last">{state.last}</p></div> }
     Search.initialState = { n: 0, q: 0 }
     Search.intent = ({ DOM, HTTP }) => ({ GO: DOM.click('.go'), DONE: HTTP.select('s') })
     Search.model = {
-      GO: { STATE: s => ({ ...s, q: s.q + 1 }), HTTP: s => ({ category: 's', url: '/e2-quote.json', query: { q: s.q + 1 }, latest: true }) },
+      GO: { STATE: s => ({ ...s, q: s.q + 1 }), HTTP: s => ({ category: 's', url: '/e2-quote.json', query: { q: s.q }, latest: true }) },
       DONE: (s, { request }) => ({ ...s, n: s.n + 1, last: request.query.q }),
     }
     const app = run(Search, { HTTP: makeFetchDriver() }, { mountPoint: id })
@@ -41,8 +41,9 @@ export async function fetchDriverTestsE2() {
     el.querySelector('.go').click()
     await waitFor(() => el.querySelector('.n').textContent !== '0')
     await new Promise(r => setTimeout(r, 100))
-    const n = el.querySelector('.n').textContent
+    const n = el.querySelector('.n').textContent, last = el.querySelector('.last').textContent
     app.dispose()
     assert(n === '1', `expected only the latest reply, got ${n}`)
+    assert(last === '3', `expected the committed query number 3, got ${last}`)
   })
 }

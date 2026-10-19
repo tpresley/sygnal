@@ -312,7 +312,7 @@ describe('undoable (GS-8 helper)', () => {
     t.simulateAction('INC'); await t.next(s => s.doc.n === 1)
     t.simulateAction('UNDO'); await t.next(s => s.doc.n === 0)
     await settle(10)
-    expect(log).toEqual(['inc', 'undo 1'])
+    expect(log).toEqual(['inc', 'undo 0'])
   })
 
   it('does not change the model it wraps', () => {

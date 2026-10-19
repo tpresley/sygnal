@@ -225,6 +225,8 @@ export interface FakeConnection {
 export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
 
 export interface RenderOptions {
+  /** Inherited output snapshot contract (framework default: after since 7.0). */
+  sinkState?: import('./sinkTiming').SinkState;
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
@@ -550,9 +552,9 @@ export interface RenderResult {
    * render (await t.ready() first). 4-A1: after `await` of any wait, it shows the state the wait
    * resolved with (a later render is held back until the next macrotask).
    */
-  query: (selector: string) => Element | null;
+  query: <E extends Element = Element>(selector: string) => E | null;
   /** Every element matching a selector in the rendered tree (Portals included), as query() */
-  queryAll: (selector: string) => Element[];
+  queryAll: <E extends Element = Element>(selector: string) => E[];
   /**
    * PLAN-5 W-1: a widget's host by selector or control: `.props` (what the view passed it),
    * `.instance` (`dom: 'real'`: what mount returned) and `.dispatch(name, detail)` (the event
@@ -2185,7 +2187,7 @@ export function renderComponent(
     // G-325: without an intent, every model action is simulate-only (no false SYG102)
     if (!intent) testActions.push(...names);
     const p = startNext(componentDef, allDrivers, {
-      useDefaultDrivers: false, onError: options.onError,
+      useDefaultDrivers: false, onError: options.onError, sinkState: options.sinkState,
       __hooks: nextHooks(),
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
@@ -2904,11 +2906,11 @@ export function renderComponent(
   };
   // 6-B (G-185): on the mock DOM, MockElement snapshots of the latest rendered tree
   const mockAll = (s: string): any[] => findAll(vtree, parse(norm(s)), [], []).map(c => mockOf(c, htmlOf));
-  const queryAll = (s: string): Element[] => {
+  const queryAll = <E extends Element = Element>(s: string): E[] => {
     s = selOf(s);
     notYet(`t.queryAll('${s}')`);
     if (!real) return mockAll(s);
-    return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
+    return roots().flatMap(r => Array.from(r.querySelectorAll<E>(s)));
   };
   const queryIn = (s: string): Element | null => {
     for (const r of roots()) {
@@ -2917,11 +2919,11 @@ export function renderComponent(
     }
     return null;
   };
-  const query = (s: string): Element | null => {
+  const query = <E extends Element = Element>(s: string): E | null => {
     s = selOf(s);
     notYet(`t.query('${s}')`);
     if (!real) return mockAll(s)[0] ?? null;
-    return queryIn(s);
+    return queryIn(s) as E | null;
   };
 
   // PLAN-5 W-1: a widget host (selector or control): the props it was rendered with (the mock
@@ -3134,6 +3136,7 @@ export function renderComponent(
         let msg = `${name} timed out after ${timeoutMs}ms.`;
         const [why, pending] = explainNext(start);
         msg += why;
+        if (inputs.length) msg += ` ${inputs.length} simulated input(s) still pending.`;
         if (pending) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
         // G-065: a state from before the call matched; next() only looks at new ones
         for (let i = from - 1; i >= 0; i--) {

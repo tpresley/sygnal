@@ -70,13 +70,14 @@ import { analyzeUses } from './behaviors.js'
 import { analyzeTimers } from './timers.js'
 import { analyzeAgent } from './agent.js'
 import { contextReads, reducerContextReads } from './context.js'
+import { sygnalVersion } from './sygnalVersion.js'
 
 const BROWSER_KEYS = ['action', 'error']
 import { analyzeCommands } from './elementCommands.js'
 
 // isolatedState: PLAN-4 4-G2 (static SYG405)
 // agent: PLAN-6 K-1 (model/agent.js)
-export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent']
+export const STATIC_PROPS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent', 'sinkState']
 
 function parseSuppressions(ast) {
   const map = new Map()
@@ -106,6 +107,15 @@ export class Project {
     this.parseErrors = []
     this._componentFns = new WeakMap() // fn node → ComponentInfo-ish marker
     this._viewCache = new WeakMap()
+    this._sygnalVersions = new Map()
+  }
+
+  /** Installed Sygnal and its timing contract, resolved independently for each package. */
+  sygnalFor(file) {
+    const p = typeof file === 'string' ? file : file.path
+    const dir = path.dirname(p)
+    if (!this._sygnalVersions.has(dir)) this._sygnalVersions.set(dir, sygnalVersion(p, this))
+    return this._sygnalVersions.get(dir)
   }
 
   /** Parse (once) and index a file. Returns FileInfo or null if unreadable/unparseable. */

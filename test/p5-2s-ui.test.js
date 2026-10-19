@@ -42,7 +42,7 @@ const closable = (withValues) => {
         const next = s.tabs.selected === v ? (docs[Math.min(i, docs.length - 1)]?.id ?? null) : s.tabs.selected
         return { ...s, docs, tabs: { ...s.tabs, selected: next } }
       },
-      ELEMENT: (s, v) => {
+      ELEMENT: (_s, v, _next, { previousState: s }) => {
         const i = s.docs.findIndex((d) => d.id === v), docs = s.docs.filter((d) => d.id !== v)
         const next = docs[Math.min(i, docs.length - 1)]
         return next ? { focus: `.tab[data-value="${next.id}"]` } : undefined

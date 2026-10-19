@@ -16,6 +16,10 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 
 `sygnal-check` is a dev dependency of this project, so `npm install` installs it and the commands above run the local copy (`--no-install` never downloads one). If it is missing (no `node_modules` yet), run `npm install` first; if it still isn't there, skip these commands and rely on the runtime diagnostics in the tests (`strict: true` + `t.expectNoDiagnostics()`).
 
+## Snapshot timing and bindings
+
+Sygnal 7 defaults to `sinkState: 'after'`: STATE runs first, then outputs read committed state. Use `props.previousState` for an old value. Explicit library component/behavior timing declarations take precedence. `renderComponent` uses the same default. Sygnal 7 automatically disposes and remounts a child when a known `byId()` or string-path state target changes. An explicit key can also reset a child whose binding stays the same; opaque custom lens target changes need a key. In TypeScript tests use `t.query<HTMLInputElement>(selector)?.value` or typed control tokens.
+
 ## Workflow
 Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check --strict`, both clean. Read the whole `npm test` output: each failure prints above the summary, so piping it through `tail` hides the error (to shorten it, use `npm test 2>&1 | grep -A15 -E 'FAIL|Error'`).
 

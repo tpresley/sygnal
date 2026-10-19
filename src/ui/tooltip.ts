@@ -26,6 +26,7 @@ const mouse = (e: any) => e?.pointerType != 'touch'
 const which = (k: any) => (k == 'focus' ? 'focus' : 'hover')
 
 const base = /*#__PURE__*/ defineBehavior({
+  sinkState: 'before',
   initialState: {open: false, pending: null as null | string, hover: false, focus: false},
   timers: (s: any, o: any) => ({
     show: s?.pending == 'show' && {after: o.showDelay ?? 500, action: 'SHOW'},

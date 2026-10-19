@@ -27,6 +27,7 @@ export type ElementPropType =
   | ArrayConstructor;
 
 export interface ElementOptions {
+  sinkState?: 'before' | 'after';
   /** Properties fed into state (camelCase; the attribute is kebab-case). An array means all String. */
   props?: readonly string[] | Record<string, ElementPropType>;
   /** Sink name → CustomEvent name, e.g. { PARENT: 'task-picked' } */
@@ -166,7 +167,7 @@ export function defineElement(tag: string, Component: any, options: ElementOptio
       }
       const mount = document.createElement('div');
       this.#root.appendChild(mount);
-      this.#app = run(this.#component(), this.#eventDrivers(), {mountPoint: mount as any, uid: this.#uid});
+      this.#app = run(this.#component(), this.#eventDrivers(), {mountPoint: mount as any, uid: this.#uid, sinkState: options.sinkState});
       this.#releaseDevtools();
       live.add(this);
     }

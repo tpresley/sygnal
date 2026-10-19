@@ -40,3 +40,5 @@ Every template comes in JavaScript and TypeScript and includes:
 ## License
 
 MIT
+
+Scaffolding into an initialized repository is supported: `npm create sygnal-app@latest . -- --template vite --ts --no-install`. Existing `.git` (directory or worktree file) and `.DS_Store` are preserved; other existing content is rejected. The package name comes from the destination directory, lowercased and normalized for npm. Templates use Sygnal 7's default `after` snapshot timing; component tests use the same default.

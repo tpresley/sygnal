@@ -1203,6 +1203,62 @@ A model composing from a catalog (sygnal/ai `compose.decisions()` or `compose.ll
 
 **Fix:** Write each description as "Noun (what it shows)", leading with the word a user says for that part and not repeating another part's content ("Revenue (KPI card: this month's total)", "Revenue chart (line chart of the revenue trend)"); put alternatives in a `group`; leave param values out of the description (the param supplies them); word each param's options so they name only what that param changes.
 
+### SYG255
+
+**Invalid reducer snapshot timing**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+sinkState must be 'before' or 'after' on a component, behavior, or app configuration. Sygnal 7 defaults to after; Sygnal 6 always uses the pre-update snapshot and does not support sinkState or props.previousState. The checker resolves the installed Sygnal separately for each source package and reports sinkState as unsupported on 6.x. With no installed version it validates literal modes without assuming a timing default. An explicit component or behavior contract in 7 wins over its inherited default. An action with any after output commits STATE first, then runs outputs in their original order with each contributor's declared snapshot.
+
+**Fix:** On Sygnal 6 remove sinkState, or upgrade to 7 after reviewing non-state reducers. On Sygnal 7 use run(App, drivers, { sinkState: 'after' }), C.sinkState = 'after', or defineBehavior({ sinkState: 'before', ... }). Use props.previousState for old values.
+
+### SYG256
+
+**Output guard rejects the updated state**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+In a proven after context on an installed Sygnal 7 or later, STATE writes a literal field value that makes a same-action output guard return the imported ABORT value. For example, STATE sets status to 'working', then HTTP checks state.status !== 'working' and suppresses the request that just started. This conservative check covers simple field comparisons and boolean guards, retaining STATE branch conditions so a guard already known to reject before STATE is not reported. It skips before timing, unknown versions or timing, prototype/accessor options, and unprovable or composed writes. A clean result does not establish that every admission guard is correct.
+
+**Fix:** Keep the admission guard, but read props.previousState for the value that admitted the action, for example HTTP: (state, data, next, { previousState }) => previousState.status !== 'working' ? { url: '/work', requestId: state.requestId, ok: 'DONE' } : ABORT. Use the updated state for payload fields written by STATE. Do not remove the guard: STATE returning ABORT does not cancel other sinks, so an unconditional output can send duplicate requests. No automatic fix is offered.
+
+Before:
+
+```jsx
+import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: state => state.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // STATE already set status to 'working': the first request is blocked
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}
+```
+
+After:
+
+```jsx
+import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: (state, data, next, { previousState }) => previousState.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // old state admits the action; updated state supplies its requestId
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}
+```
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1817,6 +1873,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.
 
 **Fix:** Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.
+
+### SYG454
+
+**State binding changed without a new component identity**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+In Sygnal 6 a retained component's state path or byId binding is fixed at mount. A changing byId selector without a corresponding key can keep reading and writing the old record. Sygnal 7 disposes and remounts components when a known state path or byId target changes, even with the same explicit key; equivalent fresh byId objects preserve the component. Opaque custom lenses remain mount-bound. The static checker reports direct dynamic unkeyed byId selections for installed Sygnal 6, suppresses them for 7, and qualifies the warning when the installed version is unknown.
+
+**Fix:** On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.
 
 ## SYG5xx: Strict mode (canonical forms)
 

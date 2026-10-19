@@ -43,7 +43,7 @@ Chat.model = {
   DRAFT: (state, draft) => ({ ...state, draft }),
   SEND: {
     STATE: (state) => (state.draft.trim() ? { ...state, draft: '' } : ABORT),
-    WS:    (state) => (state.draft.trim() ? { to: 'room', json: { text: state.draft } } : ABORT),  // queued while (re)connecting
+    WS:    (state, data, next, { previousState }) => (previousState.draft.trim() ? { to: 'room', json: { text: previousState.draft } } : ABORT),  // queued while (re)connecting
   },
   LEAVE:     (state) => ({ ...state, room: null, status: 'offline', messages: [] }),   // closes it: no DROPPED
   RECEIVED:  (state, msg) => ({ ...state, messages: [...state.messages, msg] }),        // the JSON-parsed frame

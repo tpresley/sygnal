@@ -16,6 +16,9 @@
 export const DOCS_BASE_URL = 'https://sygnal.js.org'
 
 export const CODES = {
+  SYG255: {severity: 'error', title: 'Invalid reducer snapshot timing'},
+  SYG256: {severity: 'warn', title: 'Output guard rejects the updated state'},
+  SYG454: {severity: 'warn', title: 'State binding changed without a new component identity'},
   SYG101: { severity: 'warn', title: 'Intent action has no model entry' },
   SYG102: { severity: 'warn', title: 'Model entry is unreachable' },
   SYG104: { severity: 'warn', title: 'Intent selector crosses an isolation boundary' },

@@ -253,6 +253,8 @@ describe('G-158: a state change and a send on the connection in the same action'
   function Chat({ state }) {
     return h('div', null, h('button', { className: 'a' }, 'a'), h('button', { className: 'b' }, 'b'), h('p', { className: 'room' }, String(state.room)))
   }
+  // Historical PLAN-3 sample retains its pre-action draft payload.
+  Chat.sinkState = 'before'
   Chat.initialState = { room: null }
   Chat.connections = (s) => ({ room: s.room && { socket: `/ws/${s.room}` } })
   Chat.intent = ({ DOM }) => ({ JOIN: xs.merge(DOM.click('.a').mapTo('a'), DOM.click('.b').mapTo('b')) })
@@ -402,6 +404,8 @@ describe('task 22 (chat socket) with the connections static', () => {
           h('input', { name: 'text', value: state.draft }),
           h('button', { type: 'submit', disabled: state.status !== 'online' }, 'Send'))))
   }
+  // Historical PLAN-3 sample retains its pre-action draft payload.
+  Chat.sinkState = 'before'
   Chat.initialState = { room: null, status: 'offline', messages: [], draft: '' }
   Chat.intent = ({ DOM }) => ({
     JOIN: DOM.click('.room').map(e => e.target.dataset.room),

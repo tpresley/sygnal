@@ -15,12 +15,12 @@ const SYGNAL_RENDERER_NAME = '@sygnal/astro'
 const ON_ERROR_ID = 'virtual:sygnal/astro-on-error'
 
 /** The Vite plugin serving ON_ERROR_ID; `file` is absolute (undefined: no hook) */
-function onErrorPlugin(file?: string) {
+function onErrorPlugin(file?: string, sinkState?: 'before' | 'after') {
   return {
     name: 'sygnal:astro-on-error',
     resolveId: (id: string) => id === ON_ERROR_ID ? '\0' + ON_ERROR_ID : undefined,
     load: (id: string) => id === '\0' + ON_ERROR_ID
-      ? (file ? `export { default } from ${JSON.stringify(file)}` : 'export default undefined')
+      ? (file ? `export { default } from ${JSON.stringify(file)}` : 'export default undefined') + `;export const sinkState = ${JSON.stringify(sinkState) || 'undefined'}`
       : undefined,
     // Vite 6+ (Astro 6 renders in its own 'prerender' / 'ssr' environments): the island server
     // entry imports the virtual module, so Vite must load it (not Node). `ssr.noExternal`
@@ -49,6 +49,7 @@ interface AstroConfigSetupArgs {
 }
 
 export interface SygnalAstroOptions {
+  sinkState?: 'before' | 'after';
   /**
    * Runtime diagnostics for islands in `astro dev`: a mode or
    * { mode, strict, ignore }, the same as the sygnal/vite `diagnostics`
@@ -135,7 +136,7 @@ export default function sygnalAstroIntegration(options: SygnalAstroOptions = {})
           if (alias.length) vite.resolve = { alias }
         }
 
-        vite.plugins = [...(vite.plugins || []), onErrorPlugin(hook)]
+        vite.plugins = [...(vite.plugins || []), onErrorPlugin(hook, options.sinkState)]
 
         updateConfig({ vite })
       },

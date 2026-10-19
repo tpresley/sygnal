@@ -55,6 +55,7 @@ const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && 
 const FAIL = 'sygnaldialogfail'
 
 const base = /*#__PURE__*/ defineBehavior({
+  sinkState: 'before',
   initialState: {open: false, returnValue: ''},
   intent: ({DOM, STATE}: any, {dialog: d, trigger, close, cancelable, modal}: any) => ({
     ...(trigger && {OPEN: DOM.click(trigger)}),

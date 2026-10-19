@@ -196,6 +196,7 @@ export const sortable = (options: any = {}): any => {
   }
 
   const def = {
+    sinkState: 'before',
     initialState: {...idle, helpId: null},
     // drag state is UI state: persist() leaves this slice out (G-452)
     persist: false,

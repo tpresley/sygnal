@@ -1,0 +1,89 @@
+[
+  {
+    "name": "all-before, original EFFECT precedes STATE",
+    "edges": [
+      [
+        "B",
+        "S"
+      ],
+      [
+        "B",
+        "H"
+      ]
+    ],
+    "solutions": [
+      [
+        "B",
+        "S",
+        "H"
+      ],
+      [
+        "B",
+        "H",
+        "S"
+      ]
+    ]
+  },
+  {
+    "name": "mixed: behavior after, host before originally preceding STATE, behavior-first effect chain",
+    "edges": [
+      [
+        "S",
+        "B"
+      ],
+      [
+        "B",
+        "H"
+      ],
+      [
+        "H",
+        "S"
+      ]
+    ],
+    "solutions": []
+  },
+  {
+    "name": "snapshot contract, no historical pre-STATE host ordering promise",
+    "edges": [
+      [
+        "S",
+        "B"
+      ],
+      [
+        "B",
+        "H"
+      ]
+    ],
+    "solutions": [
+      [
+        "S",
+        "B",
+        "H"
+      ]
+    ]
+  },
+  {
+    "name": "mixed: behavior before original pre-STATE side effect, host after",
+    "edges": [
+      [
+        "B",
+        "S"
+      ],
+      [
+        "S",
+        "H"
+      ],
+      [
+        "B",
+        "H"
+      ]
+    ],
+    "solutions": [
+      [
+        "B",
+        "S",
+        "H"
+      ]
+    ]
+  }
+]

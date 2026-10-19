@@ -27,6 +27,7 @@ function run(
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| `sinkState` | `'before'` \| `'after'` | `'after'` | Sygnal 7: outputs read committed state; `'before'` restores the 6.x snapshot default; explicit component/behavior declarations win. See [Model](/guide/model/#choosing-the-state-seen-by-sinks). |
 | `mountPoint` | `string` | `'#root'` | CSS selector for the DOM element to render into |
 | `fragments` | `boolean` | | No effect since 6.0: fragments (`<>…</>`) always work. The DOM driver splices a fragment's children into its parent before each render, so they are diffed, moved (a keyed fragment, such as a `Collection` item returning `<>…</>`, moves as one) and hydrated like the parent's own children. The children of a keyed fragment get keys derived from the fragment's key and their own (or their tag and position): derived keys never collide with each other, but in a contrived case one could equal a key you wrote by hand on a sibling (avoid keys that look like `"a""b"`) |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
@@ -722,7 +723,10 @@ MyComponent.model = {
 }
 ```
 
-Works with all sinks (EFFECT, EVENTS, PARENT, STATE). The reducer receives the current state, so you can access component data during cleanup. Disposal is recursive: removing a component disposes everything inside it, including nested Collections and Switchables.
+Works with all sinks (EFFECT, EVENTS, PARENT, STATE). The reducer receives the current state,
+or the last owned state when its known binding target has been deleted. Cleanup cannot write
+a deleted target back into the parent. Disposal is recursive: removing a component disposes
+everything inside it, including nested Collections and Switchables.
 
 ---
 
@@ -809,7 +813,7 @@ A new `key` disposes the old instance (`DISPOSE`) and starts a new one (`BOOTSTR
 
 ## byId()
 
-`byId(field, id, idKey = 'id')` returns a `{ get, set }` lens to the element of the array `state[field]` whose `idKey` is `id` (6.3.0, from `sygnal`). `get` returns `undefined` once the element is gone, and `set` then leaves the state unchanged.
+`byId(field, id, idKey = 'id')` returns a `{ get, set }` lens to the element of the array `state[field]` whose `idKey` is `id` (6.3.0, from `sygnal`). `get` returns `undefined` once the element is gone, and `set` then leaves the state unchanged. In Sygnal 7, changing its field/ID/idKey automatically disposes and recreates the bound component, canceling old pending work; equivalent helper objects retain it. This also applies to known path bindings and Collection/VirtualCollection/Switchable targets. Opaque custom lenses still need a changing explicit key to select a new lifetime. In 6.x, `<Editor key={selected.id} state={byId('projects', selected.id)} />` is required for changing selection. See [state lifetimes](/guide/state/#changing-the-selected-record).
 
 ```jsx
 import { byId } from 'sygnal'

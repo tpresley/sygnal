@@ -55,6 +55,8 @@ function Quote({ state }) {
     h('p', { className: 'out' }, `${state.status}:${state.quote ?? ''}`),
     h('p', { className: 'err' }, state.err ? JSON.stringify(state.err) : ''))
 }
+// Keep G-146's explicit 6.x snapshot compatibility case.
+Quote.sinkState = 'before'
 Quote.initialState = { status: 'idle', n: 0 }
 Quote.intent = ({ DOM }) => ({
   LOAD: DOM.click('.load'),

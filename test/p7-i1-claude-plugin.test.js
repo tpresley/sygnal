@@ -159,8 +159,8 @@ describe('the launcher', () => {
     ])
     expect(code).toBe(0)
     expect(stderr.trim().split('\n')).toHaveLength(1)
-    expect(stderr).toMatch(/no sygnal-check with a language server \(>= 0\.4\.0\)/)
-    expect(stderr).toContain('npm install -D sygnal-check')
+    expect(stderr).toMatch(/no compatible sygnal-check \(>= 0\.11\.0\)/)
+    expect(stderr).toContain('npm install -D sygnal-check@^0.11.0')
     expect(replies).toEqual([
       { jsonrpc: '2.0', id: 1, result: { capabilities: {}, serverInfo: { name: 'sygnal (inactive)' } } },
       { jsonrpc: '2.0', id: 2, error: { code: -32601, message: 'sygnal (inactive): textDocument/hover is not supported' } },
@@ -183,14 +183,27 @@ describe('the launcher', () => {
     })
     const { code, replies, stderr } = await runLauncher(cwd, [initialize(cwd), { id: 2, method: 'shutdown' }])
     expect(code).toBe(0)
-    expect(stderr).toMatch(/no sygnal-check with a language server/)
+    expect(stderr).toMatch(/no compatible sygnal-check/)
+    expect(replies[0].result.serverInfo.name).toBe('sygnal (inactive)')
+  })
+
+  it('does not import an old LSP that cannot distinguish Sygnal 6 and 7', async () => {
+    const cwd=tempDir()
+    writeFiles(cwd, {
+      'node_modules/sygnal-check/package.json': JSON.stringify({name:'sygnal-check',version:'0.10.0',type:'module',exports:{'.':'./src/index.js'}}),
+      'node_modules/sygnal-check/src/index.js': "throw new Error('old checker must not load')",
+    })
+    const {code,replies,stderr}=await runLauncher(cwd,[initialize(cwd),{id:2,method:'shutdown'}])
+    expect(code).toBe(0)
+    expect(stderr).toContain('>= 0.11.0')
+    expect(stderr).not.toContain('old checker must not load')
     expect(replies[0].result.serverInfo.name).toBe('sygnal (inactive)')
   })
 
   it("with a capable sygnal-check: calls the package's runLspServer, found from a subdirectory too", async () => {
     const cwd = tempDir()
     writeFiles(cwd, {
-      'node_modules/sygnal-check/package.json': JSON.stringify({ name: 'sygnal-check', version: '0.4.0', type: 'module', exports: { '.': './src/index.js' } }),
+      'node_modules/sygnal-check/package.json': JSON.stringify({ name: 'sygnal-check', version: '0.11.0', type: 'module', exports: { '.': './src/index.js' } }),
       'node_modules/sygnal-check/src/index.js': "export async function runLspServer({ cwd }) { process.stderr.write('fake server in ' + cwd + '\\n'); return 7 }\n",
       'packages/app/src/.keep': '',
     })

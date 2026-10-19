@@ -97,9 +97,10 @@ describe('B-003: non-STATE sinks see the state as of their action', () => {
     expect(seen).toEqual([2])
   })
 
-  it('a non-STATE sink sees the state before its own STATE reducer (unchanged semantics)', async () => {
+  it('an explicit before component keeps the 6.x non-STATE snapshot contract', async () => {
     function C() { return h('div', null) }
     C.initialState = { n: 0 }
+    C.sinkState = 'before'
     C.model = {
       BUMP: { STATE: s => ({ ...s, n: s.n + 1 }), SPY: s => s.n },
     }

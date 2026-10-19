@@ -40,6 +40,34 @@ const REPORTERS = {
 
 /** Hand-written before/after examples, keyed by code. */
 export const EXAMPLES = {
+  SYG256: {
+    before: `import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: state => state.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // STATE already set status to 'working': the first request is blocked
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}`,
+    after: `import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: (state, data, next, { previousState }) => previousState.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // old state admits the action; updated state supplies its requestId
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}`,
+  },
   SYG101: {
     before: `Form.intent = ({ DOM }) => ({ SAVE: DOM.click('.save') })
 Form.model  = { SUBMIT: (state) => ({ ...state, saved: true }) }`,

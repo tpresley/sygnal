@@ -14,6 +14,7 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
   it('PARENT: a conditional ABORT sends nothing to the parent, with no diagnostics', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     function Child({ state }) { return h('button.ping', null, String(state.n)) }
+    Child.sinkState = 'before' // Preserve the original conditional pre-action regression.
     Child.intent = ({ DOM }) => ({ PING: DOM.click('.ping') })
     Child.model = {
       PING: {

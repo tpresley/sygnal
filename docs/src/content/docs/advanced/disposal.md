@@ -40,7 +40,9 @@ TaskCard.model = {
 }
 ```
 
-The DISPOSE reducer receives the current state, so you can read component data during cleanup:
+The DISPOSE reducer receives the current state, so you can read component data during cleanup.
+When a known path/byId target has disappeared, it receives that lifetime's last owned state.
+Cleanup writes cannot recreate the deleted target:
 
 ```jsx
 Timer.model = {
@@ -74,6 +76,15 @@ Use `dispose$` when you need to combine disposal with other streams (e.g., debou
 
 Collection items are automatically disposed when removed from the state array. Each item's `DISPOSE` action (and `dispose$` stream) fires independently.
 
-Disposal is recursive: when an item is removed, every component inside it is disposed too, including nested Collections and Switchables (a removed lane disposes all of its cards). Disposal runs synchronously when the parent re-renders without the child, and each component is disposed at most once.
+Disposal is recursive: when an item is removed, every component inside it is disposed too,
+including nested Collections and Switchables (a removed lane disposes all of its cards).
+Ordinary view removal disposes the child during reconciliation; Collection item removal
+disposes it when the Collection synchronizes its items. Each component is disposed at most once.
+
+Known binding-target deletion is observed after the deleting action completes, including its
+outputs, before later queued work from the old subtree runs. It does not wait for rendering:
+deleting and reinserting the same ID in one synchronous burst still cancels the old lifetime.
+Hidden descendants follow the same disposal rule. A hidden owner's view remains paused;
+its ordinary replacement children mount when it next reconciles, normally when shown again.
 
 Under [`renderComponent()`](/integration/testing/), `t.dispose()` disposes the whole tree, so `DISPOSE` entries of children run as well.

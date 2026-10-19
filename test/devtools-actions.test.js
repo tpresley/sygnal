@@ -20,7 +20,7 @@ function Counter({ state }) {
 Counter.initialState = { count: 0, last: null }
 Counter.intent = ({ DOM }) => ({ INC: DOM.click('.inc'), PING: DOM.click('.count') })
 Counter.model = {
-  INC: { STATE: (s) => ({ ...s, count: s.count + 1 }), EFFECT: (s, _d, next) => next('NOTE', s.count + 1) },
+  INC: { STATE: (s) => ({ ...s, count: s.count + 1 }), EFFECT: (s, _d, next) => next('NOTE', s.count) },
   NOTE: set((_s, n) => ({ last: n })),
   PING: { LOG: () => 'ping' },
 }

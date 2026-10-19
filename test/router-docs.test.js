@@ -106,7 +106,7 @@ it('Unsaved Changes (kept alive by Switchable: YES clears the block)', async () 
     CONFIRM_LEAVE: (state, attempt) => ({ ...state, pending: attempt.proceed }),
     YES: {
       STATE: (state) => ({ ...state, dirty: false, pending: null }),
-      ROUTER: (state) => ({ ...state.pending, block: false }),
+      ROUTER: (state, data, next, { previousState }) => ({ ...previousState.pending, block: false }),
     },
     NO: (state) => ({ ...state, pending: null }),
   }

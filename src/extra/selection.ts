@@ -31,6 +31,7 @@ const idOf = (d: any, attr: string, item: any): any => {
 export const isSelected = (slice: any, id: any): boolean => !!slice?.selected?.includes(String(id))
 
 const def = (multi: boolean, attr: string, item: any) => ({
+  sinkState: 'before' as const,
   initialState: {selected: [] as string[]},
   intent: ({DOM}: any, {item, all, clear}: any) => ({
     ...(item && {SELECT: DOM.click(item)}),

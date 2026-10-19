@@ -55,3 +55,6 @@ export const NOT_SINK = /^(__|(props|children|dispose|commands)\$$|(CHILD|PARENT
  */
 export const abortReason: {r?: string} = {}
 export const abort = (reason?: string): typeof ABORT => (abortReason.r = reason, ABORT)
+
+/** Private semantic binding identity, shared by built-in helpers and the runtime. */
+export const BINDING = /*#__PURE__*/ Symbol.for('sygnal.binding')

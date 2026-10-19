@@ -10,10 +10,11 @@ Counter.intent = ({ DOM }) => ({ INC: DOM.click('.b') })
 Counter.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
 
 parity('parity: timing rules both cores keep', () => {
-  it('every non-STATE sink of an action sees the state from before the action', async () => {
+  it('an explicit before contract retains the 6.x snapshot for every output', async () => {
     const seen = []
     function C({ state }) { return h('button', { className: 'b' }, String(state.n)) }
     C.initialState = { n: 0 }
+    C.sinkState = 'before'
     C.intent = ({ DOM }) => ({ INC: DOM.click('.b') })
     C.model = {
       INC: {

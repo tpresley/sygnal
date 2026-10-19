@@ -122,15 +122,18 @@ Editor.model = {
       files: state.files.filter((f) => f.id !== id),
       tabs: { ...state.tabs, selected: state.tabs.selected === id ? (neighbour(state.files, id)?.id ?? null) : state.tabs.selected },
     }),
-    ELEMENT: (state, id) => {
-      const next = neighbour(state.files, id)
-      return next ? { focus: `.tab[data-value="${next.id}"]` } : ABORT
+    ELEMENT: (state, id, next, { previousState }) => {
+      const nextFile = neighbour(previousState.files, id)
+      return nextFile ? { focus: `.tab[data-value="${nextFile.id}"]` } : ABORT
     },
   },
 }
 ```
 
-(`ELEMENT` gets the state before the action, as every non-`STATE` entry does.)
+In Sygnal 7, the host's `ELEMENT` handler receives updated state after `STATE` removes the
+file. Use `previousState.files` to locate the closed file and choose its neighbor. The tabs
+behavior's own `before` contract does not change the host's output timing. Closing the final
+remaining tab returns `ABORT` because there is no neighbor to focus.
 
 ## Styling
 

@@ -147,7 +147,7 @@ describe('E4: focus', () => {
 
 function Child({ state }) { return h('button', { className: 'btn' }, `child ${state.n}`) }
 Child.intent = ({ DOM }) => ({ INC: DOM.click('.btn') })
-Child.model = { INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => s.n + 1 } }
+Child.model = { INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => s.n } }
 
 function Parent({ state }) {
   return h('div', null,
@@ -243,7 +243,7 @@ function Counter({ state }) { return h('div', { className: 'counter' }, h('butto
 Counter.initialState = { count: 0 }
 Counter.intent = ({ DOM }) => ({ INC: DOM.click('.inc') })
 Counter.model = {
-  INC: { STATE: s => ({ count: s.count + 1 }), EVENTS: (s) => ({ type: 'INC', data: s.count + 1 }), API: s => s.count + 1 },
+  INC: { STATE: s => ({ count: s.count + 1 }), EVENTS: (s) => ({ type: 'INC', data: s.count }), API: s => s.count },
   DISPOSE: { EFFECT: () => disposed() },
 }
 const disposed = vi.fn()

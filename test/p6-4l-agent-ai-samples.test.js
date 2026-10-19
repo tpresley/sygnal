@@ -24,7 +24,7 @@ const FILES = {
 
 // text → the files that contain it verbatim
 const FRAGMENTS = {
-  chatSend: [['llms'], "SEND: { STATE: (s) => ({ ...s, messages: [...s.messages, { role: 'user', content: s.prompt }], prompt: '' }), LLM: (s) => ({ messages: [...s.messages, { role: 'user', content: s.prompt }], key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }"],
+  chatSend: [['llms'], "SEND: { STATE: (s) => ({ ...s, messages: [...s.messages, { role: 'user', content: s.prompt }], prompt: '' }), LLM: (s) => ({ messages: s.messages, key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }"],
   chatDelta: [['llms'], "DELTA: (s, { text }) => ({ ...s, draft: text })"],
   chatDone: [['llms'], "DONE: (s, { message }) => ({ ...s, messages: [...s.messages, message], draft: '' })"],
   chatAbort: [['llms'], "{ abort: 'reply' }"],
@@ -176,7 +176,7 @@ describe('sygnal-check --strict: no findings', () => {
 describe('chat', () => {
   it('SEND builds the request with the new message; DELTA, DONE; t.stream', async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true })
+    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -193,7 +193,7 @@ describe('chat', () => {
 
   it("the llms.txt test line: await t.stream('LLM', ['Hel', 'lo'])", async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true })
+    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -209,7 +209,7 @@ describe('chat', () => {
 
   it("STOP: { abort: 'reply' } ends the stream; nothing more arrives", async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true })
+    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -223,7 +223,7 @@ describe('chat', () => {
 
   it('the plain chat behavior: streams, Stop keeps the partial reply, Retry does not repeat the question', async () => {
     const { Chat } = await load('ChatPlain', MODULES.chatPlain)
-    t = renderComponent(Chat, { strict: true })
+    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.ask', 'submit')
     await t.settle()
@@ -257,7 +257,7 @@ describe('chat', () => {
 
   it('a failure reaches FAILED as { error }', async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat)
+    t = renderComponent(Chat, { sinkState: 'after' })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)

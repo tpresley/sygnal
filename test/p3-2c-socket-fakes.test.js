@@ -329,6 +329,8 @@ describe('task 22 (chat socket) through the fake', () => {
           h('input', { name: 'text', value: state.draft }),
           h('button', { type: 'submit', disabled: state.status !== 'online' }, 'Send'))))
   }
+  // Historical task-22 sample retains its pre-action guards and draft payload.
+  App.sinkState = 'before'
   App.initialState = { room: null, status: 'offline', messages: [], draft: '' }
   App.intent = ({ DOM }) => ({
     JOIN: DOM.click('.room').map(e => e.target.dataset.room),

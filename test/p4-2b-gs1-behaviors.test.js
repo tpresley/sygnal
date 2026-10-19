@@ -110,7 +110,7 @@ describe('GS-1: sharing, Collection items, sinks', () => {
         PICK: {
           STATE: (s, id) => ({ ...s, selected: id }),
           EVENTS: event('PICKED', (s, id) => id),
-          PARENT: (s, id) => ({ picked: id, before: s.selected }),
+          PARENT: (_s, id, _next, { previousState }) => ({ picked: id, before: previousState.sel.selected }),
           EFFECT: (s, id, next) => next('COUNTED', id),
         },
         COUNTED: (s) => ({ ...s, count: s.count + 1 }),
@@ -181,8 +181,8 @@ describe('GS-1: host entries for a behavior action', () => {
     t.simulateEvent(Inc, 'click')
     await t.waitForState(s => s.c.n === 1)
     expect(t.state).toEqual({ total: 2, c: { n: 1, double: 2 } })
-    expect(log).toEqual(['behavior 0', 'host 0'])
-    expect(t.emitted).toEqual([{ type: 'HOST', data: 0 }])
+    expect(log).toEqual(['behavior 1', 'host 1'])
+    expect(t.emitted).toEqual([{ type: 'HOST', data: 1 }])
     t.expectNoDiagnostics()
   })
 

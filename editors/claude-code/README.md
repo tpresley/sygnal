@@ -24,10 +24,10 @@ To try a local checkout instead: `claude --plugin-dir <sygnal checkout>/editors/
 
 ## Requirements
 
-- **sygnal-check 0.4.0 or later in the project** (`npm install -D sygnal-check`). Projects made with `create-sygnal-app` already have it. The plugin never downloads a checker: it runs the copy installed in the project, the one `npx --no-install sygnal-check lsp` runs.
+- **sygnal-check 0.11.0 or later in the project** (`npm install -D sygnal-check@^0.11.0`). Projects made with `create-sygnal-app` already have it. The plugin never downloads a checker: it runs the copy installed in the project, the one `npx --no-install sygnal-check lsp` runs.
 - **Node.js 18 or later** on the `PATH`.
 
-Without a capable sygnal-check (none installed, or 0.3.x, which has no language server), the plugin's server writes one line to its stderr (Claude Code keeps it in its debug log) and stays idle for the session. Claude gets no findings and no errors, and the skill works as usual. Install sygnal-check and start a new session to turn the findings on.
+Without a compatible sygnal-check (none installed, or older than 0.11.0), the plugin's server writes one line to its stderr (Claude Code keeps it in its debug log) and stays idle for the session. Claude gets no findings and no errors, and the skill works as usual. Install sygnal-check 0.11 or later and start a new session to turn the findings on. Older servers cannot distinguish Sygnal 6 snapshot and binding contracts from the Sygnal 7 defaults. The current checker reads the installed library version per source package; the skill covers both versions.
 
 ## What to expect
 

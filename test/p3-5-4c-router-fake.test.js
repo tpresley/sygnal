@@ -112,7 +112,7 @@ describe('router fake', () => {
       CONFIRM_LEAVE: (state, attempt) => ({ ...state, pending: attempt.proceed }),
       YES: {
         STATE: (state) => ({ ...state, pending: null }),
-        ROUTER: (state) => ({ ...state.pending, block: false }),
+        ROUTER: (state, data, next, { previousState }) => ({ ...previousState.pending, block: false }),
       },
       NO: (state) => ({ ...state, pending: null }),
     }

@@ -158,13 +158,13 @@ RootComponent.model = {
         logs: appendLog(state.logs, r === 'decide' ? `Asking ${state.decisionModel} who speaks next` : 'Asking the moderator who speaks next'),
       }
     },
-    EFFECT: (state, _, next) => {
-      const r = route(state)
-      if (r === 'queue') next('PICKED', { speakerId: state.queue[0], by: 'you' })
+    EFFECT: (state, _, next, { previousState }) => {
+      const r = route(previousState)
+      if (r === 'queue') next('PICKED', { speakerId: previousState.queue[0], by: 'you' })
       if (r === 'synthesize') next('SYNTHESIZE')
     },
-    HTTP: (state) => (route(state) === 'decide' ? decideRequest(state) : ABORT),
-    LLM: (state) => (route(state) === 'moderator' ? moderatorPickRequest(state) : ABORT),
+    HTTP: (state, data, next, { previousState }) => (route(previousState) === 'decide' ? decideRequest(state) : ABORT),
+    LLM: (state, data, next, { previousState }) => (route(previousState) === 'moderator' ? moderatorPickRequest(state) : ABORT),
   },
 
   // the decision model's answer: who speaks next, and whether it is time to wrap up
@@ -278,7 +278,7 @@ RootComponent.model = {
         logs: appendLog(state.logs, 'Discussion complete and saved'),
       }
     },
-    LLM: (state, { text }) => (state.sessionId ? ABORT : titleRequest(state, text)),
+    LLM: (state, { text }, next, { previousState }) => (previousState.sessionId ? ABORT : titleRequest(state, text)),
   },
 
   TITLED: (state, { text }) => ({

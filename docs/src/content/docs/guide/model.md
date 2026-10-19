@@ -133,25 +133,55 @@ Any custom driver passed to `run()` is a sink as well, by its name (for example 
 
 A non-STATE reducer can return `ABORT` to send nothing.
 
-### Sinks See the State Before the Action
+### Choosing the State Seen by Sinks
 
-Every sink of one action receives the same `state`: the result of all earlier actions, before this action's own `STATE` reducer runs. `EVENTS`, `PARENT`, `EFFECT` and driver sinks never see what `STATE` returns for the same action. To send the updated value, compute it from `(state, data)` inside the sink:
+**Sygnal 7 defaults to updated-state outputs.** No configuration is needed:
+
+```js
+run(App, drivers)
+```
+
+STATE runs once first, regardless of its position in the model entry. Other sinks receive the
+same committed state, including calculated fields; effects still run synchronously and the DOM
+patch follows the action. ABORT means no state change, not cancellation of the other sinks.
 
 ```jsx
-import { event } from 'sygnal'
-
 Counter.model = {
   INC: {
-    STATE:  (state) => ({ ...state, count: state.count + 1 }),
-    EVENTS: event('COUNT_CHANGED', (state) => ({ count: state.count + 1 })),  // not state.count: that's the old value
-    PARENT: (state, data, next, props) => ({ id: props.id, count: state.count + 1 }),
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    PARENT: (state) => ({ count: state.count }),
+    EFFECT: (state, data, next, { previousState }) => {
+      console.log(previousState.count, '→', state.count)
+    },
   },
 }
 ```
 
-If several sinks need the same derived value, put it in a helper function that each of them calls with `(state, data)`.
+This is a breaking change from 6.x, where every reducer received pre-action state. Upgrading
+requires auditing outputs that already compute the update themselves: `state.count + 1` would
+increment twice in a notification. Use `props.previousState` when a deletion, cancellation or
+comparison needs the old value; `props.state` matches the handler's selected snapshot.
 
-The same holds for requests: when one action sets `state.id` and sends a request for it, build the URL from `data`, not `state` (`` HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED' }) ``). See [HTTP](/guide/http/#build-the-request-from-state-data).
+A library declares its contract with `Counter.sinkState = 'after'` or
+`defineBehavior({ sinkState: 'before', ... })`. Explicit declarations win over inherited app/host
+settings; parent component declarations do not cascade to children. Undeclared old libraries
+inherit defaults and need an audit. Built-in behaviors retain their existing before contract.
+Behavior handlers receive a slice while `props.state` and `props.previousState` are host state.
+
+For an action with any after-state output, the composed STATE transition completes before all
+outputs. Outputs retain their relative order and each contributor gets its declared snapshot.
+Here `'before'` selects the old snapshot; it does not promise execution before STATE. A grouped
+behavior/host EFFECT retains its order and exception boundary. All-before actions retain their
+legacy model ordering. A failed STATE reducer leaves state unchanged and other handlers still run;
+this is not a transaction rollback guarantee for throwing custom lens setters.
+
+### Sinks See the State Before the Action
+
+This is the compatibility mode: `run(App, drivers, { sinkState: 'before' })`. Outputs receive the
+pre-action state and must compute a new value from `(state, data)` themselves. Prefer after for new
+apps. If you select the compatibility mode, match it in
+`renderComponent(C, { sinkState: 'before' })`. These options and `previousState` require 7.x;
+see [Migrating to 7.0](/guide/migrating-to-7/).
 
 ## Emitting Events with `event()`
 

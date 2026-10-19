@@ -506,6 +506,7 @@ export const chat = (options: any = {}): any => {
   /** the card request in flight's key (STOP aborts it) */
   const inflight = (s: any, k: string) => { const x = openToolCalls(s).find((p: any) => composing(p) && p.ui.pending); return x && `${k}.ask:${x.toolCallId}` }
   const b = defineBehavior({
+    sinkState: 'before',
     initialState: {messages: [], prompt: '', draft: '', draftReasoning: '', status: 'ready', pending: null, error: null},
     intent: (so: any) => {
       const {DOM, CHILD} = so

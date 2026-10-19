@@ -587,6 +587,8 @@ describe('task 22 (chat socket) with makeSocketDriver', () => {
           h('input', { name: 'text', value: state.draft }),
           h('button', { type: 'submit', disabled: state.status !== 'online' }, 'Send'))))
   }
+  // Historical PLAN-3 sample retains its pre-action guards and payloads.
+  App.sinkState = 'before'
   App.initialState = { room: null, status: 'offline', messages: [], draft: '' }
   App.intent = ({ DOM }) => ({
     JOIN: DOM.click('.room').map(e => e.target.dataset.room),

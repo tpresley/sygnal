@@ -5,11 +5,12 @@
  * is gone); set: the array with that element replaced (the state unchanged when it is gone).
  * Side-effect free.
  */
-export const byId = (field: string, id: any, idKey = 'id') => ({
+import {BINDING} from '../shared'
+export const byId = (field: string, id: any, idKey = 'id') => Object.defineProperty({
   get: (s: any) => (Array.isArray(s?.[field]) ? s[field].find((x: any) => x?.[idKey] === id) : undefined),
   set: (s: any, v: any) => {
     const a = s?.[field]
     if (!Array.isArray(a) || !a.some((x: any) => x?.[idKey] === id)) return s
     return {...s, [field]: a.map((x: any) => (x?.[idKey] === id ? v : x))}
   },
-})
+}, BINDING, {value: [field, id, idKey]})

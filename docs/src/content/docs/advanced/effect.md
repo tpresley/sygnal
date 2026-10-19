@@ -64,7 +64,7 @@ App.model = {
 }
 ```
 
-Every sink of one action receives the same state: the result of all earlier actions, before this action's own `STATE` reducer runs. So `EFFECT` and `EVENTS` above see `submitting` as it was, not `true`. Pass anything they need through the action's data, or compute it from the same inputs.
+In Sygnal 7, `EFFECT` and `EVENTS` see `submitting: true` by default; an explicit component or behavior declaration wins. `props.previousState` gives the old state. See [snapshot timing](/guide/model/#choosing-the-state-seen-by-sinks) for mixed library/host actions.
 
 ## Async Work That Isn't HTTP
 

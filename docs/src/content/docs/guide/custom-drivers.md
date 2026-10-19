@@ -85,7 +85,7 @@ import { ABORT } from 'sygnal'
 Search.model = {
   SEARCH: {
     STATE: (state) => ({ ...state, reqId: state.reqId + 1, loading: true }),
-    API:   (state, q) => ({ value: { id: state.reqId + 1, q }, ok: 'RESULTS', error: 'FAILED' }),  // sinks see the state before STATE
+    API:   (state, q) => ({ value: { id: state.reqId, q }, ok: 'RESULTS', error: 'FAILED' }),  // after mode: STATE already incremented reqId
   },
   RESULTS: (state, { id, results }) => (id !== state.reqId ? ABORT : { ...state, loading: false, results }),
   FAILED:  (state, { request }) => (request.value.id !== state.reqId ? ABORT : { ...state, loading: false, error: 'Search failed.' }),
@@ -93,7 +93,7 @@ Search.model = {
 // main.js: run(Search, { API: driverFromAsync(async ({ id, q }) => ({ id, results: await searchApi(q) })) })
 ```
 
-- The `API` sink computes `state.reqId + 1` because every sink of an entry sees the state from **before** this action ([Model](/guide/model/#sinks-see-the-state-before-the-action)).
+- Start this app with `run(Search, drivers)`; Sygnal 7 defaults to updated-state outputs, so the `API` sink reads the incremented `state.reqId` ([Model](/guide/model/#choosing-the-state-seen-by-sinks)).
 - A failure carries the original `request`, so `request.value.id` identifies it without the function's help.
 - Clearing the input should bump `reqId` too, so a reply to a request sent before the clear is ignored.
 

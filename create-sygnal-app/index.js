@@ -154,7 +154,7 @@ async function main() {
 
   const targetDir = resolve(process.cwd(), projectName)
 
-  if (existsSync(targetDir) && readdirSync(targetDir).length > 0) {
+  if (existsSync(targetDir) && (!statSync(targetDir).isDirectory() || readdirSync(targetDir).some(name => !['.git', '.DS_Store'].includes(name)))) {
     const msg = `Directory "${projectName}" already exists and is not empty.`
     if (interactive) {
       p.cancel(msg)
@@ -176,7 +176,8 @@ async function main() {
   const pkgPath = join(targetDir, 'package.json')
   if (existsSync(pkgPath)) {
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
-    pkg.name = basename(projectName)
+    pkg.name = basename(targetDir).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[._-]+/, '').slice(0, 214) || 'sygnal-app'
+    if (['node_modules', 'favicon.ico'].includes(pkg.name)) pkg.name = 'sygnal-' + pkg.name
     writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n')
   }
   if (s) s.stop('Project scaffolded.')

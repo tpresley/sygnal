@@ -287,7 +287,7 @@ describe('task 25 (sygnal-25-t1; written for the mock DOM, before it added dom: 
     CONFIRM_LEAVE: (state, { proceed }) => ({ ...state, leaving: proceed }),
     LEAVE: {
       STATE: (state) => ({ ...state, leaving: null }),
-      ROUTER: (state) => ({ ...state.leaving, block: false }),
+      ROUTER: (state, data, next, { previousState }) => ({ ...previousState.leaving, block: false }),
     },
     STAY: (state) => ({ ...state, leaving: null }),
     SAVE: {

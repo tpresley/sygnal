@@ -2,7 +2,54 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## [Unreleased] — Sygnal 7.0.0
+
+### Breaking: output sinks now read updated state by default
+
+**Upgrading from 6.x changes reducer timing even when you pass no options.** STATE now runs
+first; EFFECT, HTTP, EVENTS, PARENT, ELEMENT and other output sinks receive the committed state,
+including calculated fields. For `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => s.n + 1 }`,
+change PARENT to `s => s.n`: the increment already happened. Use `props.previousState` for cleared
+inputs, deleted records and other old values. Effects remain synchronous; output order is preserved.
+
+For gradual migration on **7.x**, use `run(App, drivers, { sinkState: 'before' })` and match it in
+`renderComponent`. Components and behaviors can declare their own timing; those declarations
+win over inherited defaults. Built-in behaviors retain their explicit before contracts. In mixed
+actions, before means an old snapshot, not execution before STATE. Undeclared libraries need an
+audit. The new option and `previousState` are not supported by the published 6.x runtime.
+
+**Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.**
+New starters and repository examples use the 7.x default without redundant timing settings.
+sygnal-check bases compatibility checks on the installed Sygnal version in each package.
+Its new **SYG256** warning catches provable loading/admission guards that reject the state
+written by the same action under `after` timing. Keep the output guard and use `previousState`
+for admission: removing it allows duplicates because STATE returning `ABORT` does not cancel
+other sinks. The checker skips unknown timing and complex writes; audit these guards when migrating.
+
+### Breaking: known binding target changes remount automatically
+
+Changing a child's known path/byId target now disposes the old instance and mounts the new
+selection, canceling old requests, timers and subscriptions. Collection/VirtualCollection `from`
+and Switchable `state` follow the same rule, including hidden pages and overlapping item IDs.
+This intentionally reruns initialization and resets local component state. Equivalent byId
+helpers and ordinary record updates retain identity. Deleting a known selected target also ends its
+old lifetime, so reinserting the same ID cannot revive old pending work; fresh missing-state
+initialization and isolated defaults remain supported. Explicit keys can additionally reset an
+unchanged target; opaque custom-lens target changes still require keys. A stable key cannot
+keep a known target change on the old binding. `sinkState: 'before'` restores timing only;
+it does not disable this lifetime rule.
+
+### Also included
+
+- Fix the combined Rollup build’s compiler watcher/timer lifecycle: `npm run build` exits normally without extra heap flags or per-config subprocesses. Watch rebuilds retain their compiler and release it on shutdown; runtime outputs are unchanged.
+- Observe known-target deletion after each completed action, including hidden descendants and whole Collection/VirtualCollection sources. Old queued parent actions, timers and HTTP replies cannot reach removed or same-ID replacement records between renders; cleanup retains the last owned state without recreating deleted data.
+- Preserve the runtime cancellation signal in mixed before/after EFFECT groups, even when the component has a prop named `signal`.
+- Correct the tabs-close guide's focus command for updated-state outputs. State-wait timeout messages now report queued simulated inputs, and testing guidance distinguishes serialized simulated input from synchronous native bursts.
+- Preserve Git metadata when scaffolding into an initialized repository, and derive a valid package name for `.`.
+- Add generic test-query types while preserving typed-control inference.
+- Companion release metadata: sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0 and Claude Code plugin 0.2.0; new templates require Sygnal ^7.0.0 and checker ^0.11.0.
+- Final kanban bundle: **42,993 B gzip** against the explicitly approved **43,000 B** budget (6.6.0: 42,495 B), with 7 B headroom. Default native-globalThis bundle: **38,984 B**. Performance/count/retention gates pass (0.93 MB settled heap).
+
 
 ### Changed
 

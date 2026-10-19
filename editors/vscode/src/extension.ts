@@ -212,14 +212,14 @@ async function restart(show: (v: boolean) => void): Promise<void> {
   await starting
 }
 
-/** Once per workspace and old version: the workspace copy can't run the server. */
+/** Once per workspace and old version: the workspace copy predates the compatibility minimum. */
 function notifyUpgrade(c: ServerChoice) {
   const key = `sygnal.upgradeNotice:${c.old?.dir}@${c.old?.version}`
   if (ctx.workspaceState.get(key)) return
   void ctx.workspaceState.update(key, true)
   upgradeNotices++
   void vscode.window.showInformationMessage(
-    `This workspace has sygnal-check ${c.old?.version}, which has no language server (it needs 0.4.0 or later). ` +
+    `This workspace has sygnal-check ${c.old?.version}, which predates Sygnal 6/7 compatibility (it needs 0.11.0 or later). ` +
     `Sygnal is using the sygnal-check ${c.version} bundled with the extension. To use the project's version, ` +
     'upgrade it: npm i -D sygnal-check@latest.',
     'Show Output',

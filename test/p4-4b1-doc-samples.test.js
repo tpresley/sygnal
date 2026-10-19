@@ -948,7 +948,7 @@ export const logger = { calls: [], error: (x) => logger.calls.push(x) }
     let vite
     integration.hooks['astro:config:setup']({ addRenderer() {}, updateConfig(c) { vite = c.vite }, command: 'build', config: { root: pathToFileURL(path.resolve('/proj') + '/') } })
     const p = vite.plugins.find(p => p.name === 'sygnal:astro-on-error')
-    expect(p.load(p.resolveId('virtual:sygnal/astro-on-error'))).toBe(`export { default } from ${JSON.stringify(path.resolve('/proj/src/onError.js'))}`)
+    expect(p.load(p.resolveId('virtual:sygnal/astro-on-error'))).toBe(`export { default } from ${JSON.stringify(path.resolve('/proj/src/onError.js'))};export const sinkState = undefined`)
   })
 })
 

@@ -5,6 +5,8 @@ description: Using Sygnal with Astro
 
 Sygnal includes a first-class Astro integration for using Sygnal components as interactive islands in Astro sites.
 
+Sygnal 7 defaults to updated-state output sinks, including islands/pages. No timing option is needed. To migrate incrementally, select `sinkState: 'before'` in the `sygnal({ sinkState: 'before' })` Astro integration options and match it in `renderComponent` tests. Explicit component/behavior declarations still win. See [Migrating to 7.0](/guide/migrating-to-7/).
+
 ## Setup
 
 ```javascript

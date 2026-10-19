@@ -4,10 +4,11 @@ import { run } from 'sygnal'
 // PLAN-4 GS-11 / D120: the app-level error hook, the default export of the module the
 // integration's `onError` option names (undefined without it); served by sygnal/astro's Vite plugin
 // @ts-ignore — a virtual module
-import onError from 'virtual:sygnal/astro-on-error'
+import onError, {sinkState} from 'virtual:sygnal/astro-on-error'
 
 interface SygnalComponent {
   (args: any): any;
+  sinkState?: 'before' | 'after';
   model?: any;
   intent?: any;
   connections?: any;
@@ -63,6 +64,7 @@ export default (element: any) => {
     // views (B-026).
     const islandProps = { ...(props || {}) }
     const Wrapped: any = (args: any) => Component({ ...islandProps, ...args, props: islandProps })
+    Wrapped.sinkState = Component.sinkState
     Wrapped.model = Component.model
     Wrapped.intent = Component.intent
     Wrapped.context = Component.context
@@ -88,7 +90,7 @@ export default (element: any) => {
     // G-206: a `uid` island prop is the island's uid root (as on the server); the view's own
     // uid() function wins over the prop (args are spread last)
     // 3-B2: `__hydrate` tells persist() whether the island starts over the server's markup
-    const app = run(Wrapped, { __hydrate: () => client !== 'only' && canHydrate }, { mountPoint, onError, uid: islandProps.uid })
+    const app = run(Wrapped, { __hydrate: () => client !== 'only' && canHydrate }, { mountPoint, onError, sinkState, uid: islandProps.uid })
     element.__sygnal = app
   }
 }

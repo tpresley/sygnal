@@ -55,7 +55,7 @@ describe('PLAN-4.6 R1 next core: hooks (04-hooks-contract §2.2)', () => {
     expect(log).toEqual([
       ['action', 'Kid', 'K', 'intent'],
       ['wrap', 'K', 'STATE'], ['reducer', 'K', 1, 2],
-      ['wrap', 'K', 'EVENTS'], ['sink', 'K', 'EVENTS', 1],
+      ['wrap', 'K', 'EVENTS'], ['sink', 'K', 'EVENTS', 2],
       ['wrap', 'K', 'EFFECT'], ['next', 'LATER', 5],
     ])
     await sleep(20)

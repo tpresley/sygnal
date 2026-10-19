@@ -263,8 +263,8 @@ describe('event() runtime integration', () => {
     await settle(30)
     appEnv.dispose()
 
-    expect(received).toEqual([{ laneId: 'lane-1', count: 0, via: 'clicked' }])
-    expect(busEvents).toEqual([{ laneId: 'lane-1', count: 0, via: 'clicked' }])
+    expect(received).toEqual([{ laneId: 'lane-1', count: 1, via: 'clicked' }])
+    expect(busEvents).toEqual([{ laneId: 'lane-1', count: 1, via: 'clicked' }])
   })
 
   it('a static-payload event() reaches EVENTS.select', async () => {

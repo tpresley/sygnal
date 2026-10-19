@@ -17,6 +17,15 @@ const state = await t.next(s => s.count === 1)
 t.dispose()
 ```
 
+Sygnal 7 uses updated-state sinks by default in both `run()` and `renderComponent()`.
+For an app using the migration option `sinkState: 'before'`, match it in tests:
+`renderComponent(App, { sinkState: 'before' })`. Sygnal 6.x uses pre-action state and does not
+support this option. See [Migrating to 7.0](/guide/migrating-to-7/).
+In TypeScript, `t.query<HTMLInputElement>('.project-title')?.value` and
+`t.queryAll<HTMLInputElement>('.row input')` assert the element type; typed control tokens infer it.
+Generic types do not validate real elements. Queries are nullable, and mock elements are snapshots,
+so `instanceof HTMLInputElement` is not a cross-mode narrowing strategy.
+
 ## Setup
 
 `renderComponent` works with any JavaScript test runner. With [Vitest](https://vitest.dev/) and the [Sygnal Vite plugin](/integration/bundler-config/), JSX is configured and the dev checks (`sygnal/diagnostics`) are added to the test setup automatically:
@@ -120,6 +129,25 @@ Prefer `simulateEvent`: it also tests the intent wiring (the selector, the event
 
 `simulateEvent` and `simulateAction` calls are delivered in the order you make them. Calls made before the component has finished subscribing are buffered and replayed, so you can call them right after `renderComponent()`. `await t.ready()` resolves once the component is subscribed and the buffered calls have been delivered.
 
+With `dom: 'real'`, simulated inputs wait for a quiet, patched tree between deliveries (a
+10 ms quiet window). Queuing many `simulateEvent()` calls models serialized interaction,
+not a synchronous burst. A large batch can exceed the default 2-second wait timeout while
+inputs are still being delivered. Give a long serialized test an explicit `timeoutMs`, or
+use native clicks when testing a truly synchronous burst:
+
+```js
+const t = renderComponent(Counter, { dom: 'real' })
+await t.ready()
+const button = t.query('.inc')
+if (!button) throw new Error('Counter button is missing')
+for (let i = 0; i < 200; i++) button.click()
+await t.next(state => state.count === 200)
+```
+
+Native events use the current DOM without the helper's readiness checks. `eventWaitMs`
+controls how long a simulated event waits for its target; it does not disable the inter-input
+quiet window. A queued-input timeout does not by itself establish lost runtime updates.
+
 `ready()` is also a cursor for the `next()` calls that follow it: a `next()` right after `await t.ready()` starts at the moment the component became ready, so it also matches the states the replayed calls produced. Both orders work:
 
 ```jsx
@@ -146,7 +174,7 @@ State updates and re-renders are **asynchronous**: after a `simulate*` call, the
 | `t.settle(timeout?)` | nothing | waiting until everything has calmed down |
 | `t.ready()` | nothing | waiting for the initial subscription |
 
-Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms; the `timeoutMs` option changes it for every wait). The timeout error names any model `next()` follow-up that was scheduled during the wait or is still pending, and, for `next()`, a recorded state that already matched before the call.
+Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms; the `timeoutMs` option changes it for every wait). The timeout error reports still-queued simulated inputs, names any model `next()` follow-up that was scheduled during the wait or is still pending, and, for `next()`, a recorded state that already matched before the call.
 
 ### next() vs waitForState()
 
@@ -249,7 +277,7 @@ await t.next(s => s.count === 1)
 t.simulateEvent('.reset', 'click')
 await t.next(s => s.count === 0)
 
-expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
+expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 0 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 

@@ -47,7 +47,7 @@ Quote.intent = ({ DOM }) => ({
 Quote.model = {
   SHOW: {
     STATE: (state, id) => ({ ...state, id, status: 'loading', error: '' }),
-    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // id from data: state.id is still the old one here
+    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // action data or the newly stored state.id both work
   },
   REFRESH: {
     STATE: (state) => (state.id === null ? ABORT : { ...state, status: 'loading', error: '' }),
@@ -68,7 +68,7 @@ Click First, then Second before quote 1 arrives: with `latest: true` the first r
 
 ### Build the request from (state, data)
 
-Every sink of one action sees the state from **before** that action ([Model](/guide/model/#sinks-see-the-state-before-the-action)). In `SHOW` above, `STATE` sets `id`, but the `HTTP` sink still sees the previous `state.id`, so it builds the URL from `data`. `REFRESH` doesn't change `id`, so it can read it from `state`.
+In Sygnal 7, the HTTP sink can read the `id` STATE just stored. Building the URL from action data also works in both modes. `REFRESH` can read the existing ID. For migration, `sinkState: 'before'` restores the 6.x snapshot default; see [snapshot timing](/guide/model/#choosing-the-state-seen-by-sinks).
 
 ## Only the Latest Response
 
@@ -236,9 +236,10 @@ Todos.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle').data('id', Number) }
 Todos.model = {
   TOGGLE: {
     STATE: (state, id) => ({ ...state, error: '', todos: state.todos.map(t => (t.id === id ? { ...t, done: !t.done } : t)) }),
-    HTTP:  (state, id) => {
-      const before = state.todos.find(t => t.id === id)   // the state before this action
-      return { url: `/api/todos/${id}`, method: 'PATCH', json: { done: !before.done }, ok: 'SAVED', error: 'SAVE_FAILED', before }
+    HTTP:  (state, id, next, { previousState }) => {
+      const before = previousState.todos.find(t => t.id === id)   // rollback value
+      const updated = state.todos.find(t => t.id === id)
+      return { url: `/api/todos/${id}`, method: 'PATCH', json: { done: updated.done }, ok: 'SAVED', error: 'SAVE_FAILED', before }
     },
   },
   SAVED:       (state, saved) => ({ ...state, todos: state.todos.map(t => (t.id === saved.id ? saved : t)) }),
@@ -283,7 +284,7 @@ Profile.model = {
   NAME: (state, name) => ({ ...state, name, save: 'idle' }),
   SAVE: {
     STATE: (state) => (state.save === 'saving' ? ABORT : { ...state, save: 'saving' }),
-    HTTP:  (state) => (state.save === 'saving' ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED', error: 'SAVE_FAILED' }),
+    HTTP:  (state, data, next, { previousState }) => (previousState.save === 'saving' ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED', error: 'SAVE_FAILED' }),
   },
   SAVED:       (state) => ({ ...state, save: 'saved' }),
   SAVE_FAILED: (state) => ({ ...state, save: 'failed' }),

@@ -1,8 +1,8 @@
 /**
  * PLAN-4.6 core: running one action (03-proposal §3, 04 §2.4.1).
  *
- * The action's handlers run in model order with (pre, data, next, props), where `pre` is the
- * state (calculated fields included) from before the action, for every sink:
+ * Handlers use their declared before/after snapshots. When any output uses after, STATE runs
+ * first; otherwise legacy model order is retained. Calculated fields are included.
  * - STATE: applied at once (D165). ABORT, or the object it was given (GS-4), is no change.
  *   D205: during an input / change event (an action triggered by typing in a field), no change
  *   still re-renders the instance, so a controlled field shows the model's value again
@@ -23,16 +23,18 @@ import {viewOf} from './view'
 import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 import {dbg} from './debug'
+import {BEFORE, handlersFor} from '../extra/sinkTiming'
 
 export function handle(inst: Inst, type: string, data: any, cause: any, src?: string) {
-  const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
+  const handlers = inst.def.handlers.get(type), app = inst.app, H = app.hooks
   // (an action with no model entry is seen too: the action log lists it with no sinks)
   if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst), source: src})
   dbg(inst, () => `<${type}> Action triggered`)
-  if (!hs) return
+  if (!handlers) return
+  const hs = handlersFor(handlers, inst.def.view.sinkState || app.opts.sinkState)
   const def = inst.def
   const pre = inst.cell.get()
-  let props: any, outs: any[] | undefined
+  let props: any = hs.u ? inst_props(inst, pre) : undefined, afterProps: any, post = pre, outs: any[] | undefined
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {
     if (typeof ms !== 'number') fail('SYG215', inst, `next() delay in '${type}' must be a number`, "Use next('ACTION', data, ms)")
     // G-300: none for an instance being disposed; dispose() clears the pending ones
@@ -43,26 +45,23 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
     const id = setTimeout(() => { ts.delete(id); inst.disposed || app.dispatch(inst, t, d, 'next') }, ms)
     ts.add(id)
   }
-  for (const [sink, h0] of hs) {
+  for (const [sink, h0, timing] of hs) {
     const h = H.wrapHandler ? H.wrapHandler(viewOf(inst), type, sink, h0) || h0 : h0
-    if (sink == 'EFFECT') {
-      if (typeof h != 'function') continue
-      const failed = (e: any) => app.caught(inst, 'SYG214', `EFFECT handler '${type}' threw`, e, 'effect', type)
-      try {
-        const p = {...(props ||= inst_props(inst, pre)), signal: (inst.ac ||= globalThis.AbortController && new AbortController())?.signal}
-        const r = h(pre, data, (t: string, d?: any, ms?: any) => next(t, d, ms, true), p)
-        if (r?.then) r.then(null, failed)
-        else if (r !== undefined && !isAbort(r)) warn('SYG219', inst, `EFFECT handler '${type}' returned a value, which is ignored`, 'Use a STATE or driver sink')
-      } catch (e) { failed(e) }
-      continue
-    }
+    const updated = timing === undefined ? hs.u && sink != 'STATE' : timing & 2
+    const effect = sink == 'EFFECT'
     let v: any
     if (typeof h == 'function') {
-      try { v = h(pre, data, next, props ||= inst_props(inst, pre)) } catch (e) {
-        app.caught(inst, 'SYG216', `Reducer for '${type}' threw; ${sink == 'STATE' ? 'state unchanged' : 'nothing sent'}`, e, 'reducer', type)
-        continue
-      }
+      try {
+        const p = updated ? afterProps ||= inst_props(inst, post, props) : props ||= inst_props(inst, pre)
+        v = h(p.state, data, effect ? (t: string, d?: any, ms?: any) => next(t, d, ms, true) : next,
+          effect ? {...p, signal: (inst.ac ||= globalThis.AbortController && new AbortController())?.signal} : p)
+        if (effect) {
+          if (v?.then) v.then(null, (e: any) => handlerFailed(inst, type, sink, e))
+          else if (v !== undefined && !isAbort(v)) warn('SYG219', inst, `EFFECT handler '${type}' returned a value, which is ignored`, 'Use a STATE or driver sink')
+        }
+      } catch (e) { handlerFailed(inst, type, sink, e); continue }
     } else v = h === undefined || h === true ? data : h
+    if (effect) continue
     if (sink == 'STATE' && (isAbort(v) || v === pre)) {
       // D205: the DOM event being dispatched (window.event) is the one this action came from
       if (/^(input|change)$/.test((globalThis as any).event?.type)) inst.refresh()
@@ -73,6 +72,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
       H.onReducer?.(viewOf(inst), type, pre, v)
       dbg(inst, () => `<${type}> State reducer added`)
       inst.cell.set(v)
+      if (hs.u) post = inst.cell.get()
       // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
       // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228).
       // Only for a state that changed structurally: today an equal one renders nothing (its
@@ -103,9 +103,15 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
   }
 }
 
-/** the handlers' 4th argument: the props, children, slots, context, uid and the pre-action state */
-function inst_props(inst: Inst, pre: any) {
-  return {...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state: pre}
+/** Keep the same failure boundary for sync handlers and rejected EFFECT promises. */
+function handlerFailed(inst: Inst, type: string, sink: string, e: any) {
+  const effect = sink == 'EFFECT'
+  inst.app.caught(inst, effect ? 'SYG214' : 'SYG216', effect ? `EFFECT handler '${type}' threw` : `Reducer for '${type}' threw; ${sink == 'STATE' ? 'state unchanged' : 'nothing sent'}`, e, effect ? 'effect' : 'reducer', type)
+}
+
+/** Reducer props and the internal pre-action props for mixed-origin output groups. */
+function inst_props(inst: Inst, state: any, before?: any) {
+  return {...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state, previousState: before ? before.state : state, [BEFORE]: before}
 }
 
 /**

@@ -229,6 +229,12 @@ async function testing() {
   const stars = t.query(Stars)
   expectType<Equal<typeof stars, Element | null>>()
 
+  const input = t.query<HTMLInputElement>('.row input')
+  expectType<Equal<typeof input, HTMLInputElement | null>>()
+  const buttons = t.queryAll<HTMLButtonElement>('.row button')
+  expectType<Equal<typeof buttons, HTMLButtonElement[]>>()
+  // @ts-expect-error generic query types must be elements
+  t.query<string>('.row')
   // strings unchanged
   const any1 = t.query('.x')
   expectType<Equal<typeof any1, Element | null>>()

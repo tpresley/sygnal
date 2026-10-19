@@ -114,7 +114,7 @@ Article.model = {
   },
   SUMMARIZE: {
     STATE: (state) => (state.status === 'busy' ? ABORT : { ...state, summary: '', status: 'busy' }),
-    LLM: (state) => (state.status === 'busy' ? ABORT : summarize(state.text)),
+    LLM: (state, data, next, { previousState }) => (previousState.status === 'busy' ? ABORT : summarize(state.text)),
   },
   SUMMARY: (state, { text }) => ({ ...state, summary: text }),
   SUMMARIZED: (state, { text }) => ({ ...state, summary: text, status: 'ready' }),
@@ -123,6 +123,7 @@ Article.model = {
 }
 ```
 
+- **Guard against the previous state.** `STATE` marks the article busy before the `LLM` reducer runs. Read `previousState.status` to decide whether a summary was already running; use the updated `state` to build the request.
 - **The summary streams in** through `SUMMARY`, and `SUMMARIZED` ends the busy state.
 - **Degrade, don't hide.** The excerpt is computed in the view from the text, so it needs no model. Where a summary isn't essential, an excerpt is an honest fallback.
 - **Keep prompts short and in `instructions`.** The on-device model is small and has a small context window. Long articles need splitting, or a hosted model.

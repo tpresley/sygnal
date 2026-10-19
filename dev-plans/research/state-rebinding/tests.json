@@ -1,0 +1,26 @@
+{
+  "revision": "5e5205cbadd61865b787f6523c840489e074a28b",
+  "node": "v24.14.0",
+  "results": [
+    {
+      "mode": "baseline",
+      "exit": 0,
+      "summary": " Test Files  15 passed (15)\n      Tests  98 passed (98)\n   Duration  4.53s (transform 1.06s, setup 0ms, import 2.23s, tests 2.20s, environment 3.68s)"
+    },
+    {
+      "mode": "generic",
+      "exit": 0,
+      "summary": " Test Files  15 passed (15)\n      Tests  98 passed (98)\n   Duration  4.53s (transform 1.09s, setup 0ms, import 2.25s, tests 2.20s, environment 3.73s)"
+    },
+    {
+      "mode": "metadata",
+      "exit": 0,
+      "summary": " Test Files  15 passed (15)\n      Tests  98 passed (98)\n   Duration  4.54s (transform 1.08s, setup 0ms, import 2.22s, tests 2.23s, environment 3.72s)"
+    },
+    {
+      "mode": "remount",
+      "exit": 0,
+      "summary": " Test Files  15 passed (15)\n      Tests  98 passed (98)\n   Duration  4.70s (transform 1.18s, setup 0ms, import 2.39s, tests 2.25s, environment 3.80s)"
+    }
+  ]
+}

@@ -18,8 +18,8 @@
  * - Actions drain run-to-completion, FIFO: an action dispatched while another is processed (a
  *   driver emitting synchronously during sink delivery, an EFFECT, a PARENT, a hook) is appended
  *   to the queue, never run nested.
- * - A STATE reducer is applied when its action is processed. Every other sink of that action gets
- *   the state from before it.
+ * - A STATE reducer is applied when its action is processed. Output snapshots follow the component/behavior sinkState contract;
+ *   an action with after-state outputs finishes STATE before running its outputs.
  * - A flush (one microtask after the first commit of a batch) repeats { render top-down, recompute
  *   statics, drain the queue } until nothing changed, then emits ONE root vnode (one patch), then
  *   runs ELEMENT commands and dispatches BOOTSTRAP for the instances created in it.
@@ -35,7 +35,7 @@
 export type ComponentFn = ((input: any) => any) & Record<string, any>
 
 /** One normalized model entry: the sink and its handler (a function, or a constant value) */
-export type Handler = [sink: string, fn: any]
+export type Handler = [sink: string, fn: any, timing?: number]
 
 /**
  * What a definition hook may read and edit: the component's statics, before normalization.

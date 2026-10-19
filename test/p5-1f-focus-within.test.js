@@ -29,7 +29,7 @@ List.model = {
   // add a row and focus its input: the new item renders in the same patch
   ADD: {
     STATE: (s) => ({ ...s, rows: [...s.rows, { id: s.next, title: '' }], next: s.next + 1 }),
-    ELEMENT: (s) => ({ focus: focusWithin(`[data-id="${s.next}"] .title`) }),
+    ELEMENT: (_s, _d, _next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
   },
   FIRST: { ELEMENT: { focus: focusWithin('.email'), preventScroll: true } },
   // the isolated form can't reach it (for contrast)
@@ -110,7 +110,7 @@ describe('the element-commands guide sample (Checklist)', () => {
   Checklist.model = {
     ADD: {
       STATE: (state) => ({ ...state, rows: [...state.rows, { id: state.next, title: '' }], next: state.next + 1 }),
-      ELEMENT: (state) => ({ focus: focusWithin(`[data-id="${state.next}"] .title`) }),
+      ELEMENT: (_state, _data, _next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
     },
   }
   it('each Add focuses the new row', async () => {

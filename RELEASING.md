@@ -109,7 +109,7 @@ All of them must pass. `npm test` needs the `sygnal-check` install above (the Vi
 
 ### Size gate
 
-The gzipped kanban production bundle must stay within the agreed budget, **42,700 B** (D48; raised by D185, D222 and D230; `BUDGET` in `scripts/size-gate.mjs`):
+The gzipped kanban production bundle must stay within the agreed budget, **43,000 B** (D48; raised by D185, D222, D230 and explicit PLAN-11 approvals; `BUDGET` in `scripts/size-gate.mjs`):
 
 ```bash
 node scripts/size-gate.mjs                  # --budget <bytes> to try another limit

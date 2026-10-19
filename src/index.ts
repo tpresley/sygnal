@@ -86,3 +86,5 @@ export * from './cycle/dom/index'
 // and ESM classes tree-shake when an app does not use them.
 export { concat, debounce, throttle, delay, dropRepeats, sampleCombine } from './extra/xstreamExtras'
 export { flattenConcurrently, flattenSequentially } from './extra/flatten'
+
+export type {SinkState} from './extra/sinkTiming'

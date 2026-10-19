@@ -98,6 +98,48 @@ For an item of a list, prefer [`byId`](/reference/api/#byid): `boards.0` follows
 
 A key that itself contains a `.` can't be named this way: before 6.5.0, `state="a.b"` meant the key `"a.b"`, and the development build reports [SYG428](/reference/errors/#syg428) when the state still has such a key. Use a lens for it.
 
+### Changing the Selected Record
+
+**Sygnal 7 treats a known binding target as part of component identity.** A changed path or
+`byId()` field/ID/idKey disposes the old component and mounts a new one automatically:
+
+```jsx
+<ProjectWorkspace state={byId('projects', selected.id)} />
+```
+
+The new lifetime cancels the old requests, delayed `next()` actions and subscriptions, reruns
+initialization, and resets local component state. Descendant bindings follow the new parent.
+Equivalent freshly allocated `byId()` helpers retain the instance, and reordering an array
+retains the record selected by ID. A missing target renders no old entity content. Losing an existing known target also disposes
+the old lifetime, even if the byId arguments stay the same; reinserting the same ID cannot
+revive its old requests or delayed actions. The fresh missing-state lifetime can still initialize
+or fetch its state. Isolated components retain their normal default/seeding rules.
+
+Known-target deletion is observed after the deleting action finishes, before later queued
+actions from that old subtree run. Deleting and reinserting the same ID before a render still
+ends the old lifetime. The deleting action's own outputs complete normally. Cleanup reads the
+last owned state; cleanup writes cannot recreate a deleted target.
+
+This disposal also applies below hidden Switchable pages. A hidden page's view stays paused:
+an ordinary replacement child mounts when its owner next reconciles, normally when shown
+again, and then follows the usual initialization/default rules.
+
+The same rule applies when a Collection/VirtualCollection's known `from` target or a
+Switchable's known `state` target changes. Existing items/pages are disposed before the new
+ones mount, even when their IDs overlap. Changing a value within the same target does not
+cause this reset.
+
+An explicit key remains useful to reset the same target intentionally, or to identify a
+changing **opaque custom lens**. Sygnal cannot infer whether two arbitrary get/set closures
+select the same entity; these retain their mount-time binding unless their key changes. For a disappearing custom
+lens target, conditionally remove the child or include availability in its key.
+A stable explicit key does not suppress a known binding-target change.
+
+In **6.x**, binding targets were mount-time only: pair selection with
+`key={selected.id}`. The version-aware checker reports [SYG454](/reference/errors/#syg454)
+for a dynamic unkeyed byId selection on 6.x; 7.x does not need that warning. See
+[Migrating to 7.0](/guide/migrating-to-7/).
+
 ### Lens-Based (Advanced)
 
 For more control over how state maps between parent and child, use a lens:

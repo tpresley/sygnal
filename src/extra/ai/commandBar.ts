@@ -224,6 +224,7 @@ export const commandBar = (options: any = {}): any => {
   const on = (DOM: any, sel: any, ev = 'click', o?: any) => DOM.select(sel).events(ev, o)
   const E = engineFor
   const b = defineBehavior({
+    sinkState: 'before',
     initialState: {text: '', status: 'ready', command: null, pending: null, unsure: null, result: null, error: null},
     intent: (so: any) => {
       const {DOM} = so

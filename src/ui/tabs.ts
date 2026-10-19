@@ -28,6 +28,7 @@ import {ABORT, defineBehavior} from '../index'
 import {idsOf, keyNav, keyed, lit} from './shared'
 
 const base = /*#__PURE__*/ defineBehavior({
+  sinkState: 'before',
   initialState: {id: null as null | string, selected: null as null | string, orientation: 'horizontal'},
   intent: ({DOM}: any, {tab, orientation, loop}: any) => {
     const v = orientation == 'vertical'

@@ -22,7 +22,7 @@ function fakeCheck(dir: string, version: string, { lsp = false, bin = true } = {
 }
 function folder(name: string) { const d = path.join(tmp, name); fs.mkdirSync(d, { recursive: true }); return d }
 
-const bundled = fakeCheck(path.join(tmp, 'ext/server/sygnal-check'), '0.4.0', { lsp: true })
+const bundled = fakeCheck(path.join(tmp, 'ext/server/sygnal-check'), '0.11.0', { lsp: true })
 
 test('compareVersions', () => {
   assert.equal(compareVersions('0.4.0', '0.4.0'), 0)
@@ -34,11 +34,11 @@ test('compareVersions', () => {
   assert.ok(compareVersions('v0.5.0', '0.4.0') > 0)
 })
 
-test('readCheckCopy: version or capability decides', () => {
-  assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/new'), '0.4.0'))?.capable, true)
+test('readCheckCopy: compatibility version decides', () => {
+  assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/new'), '0.11.0'))?.capable, true)
   assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/old'), '0.3.0'))?.capable, false)
-  // the repository's checker: 0.3.0 in package.json, but it has the server
-  assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/repo'), '0.3.0', { lsp: true }))?.capable, true)
+  // An old server file does not establish version-aware checking support
+  assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/repo'), '0.3.0', { lsp: true }))?.capable, false)
   assert.equal(readCheckCopy(fakeCheck(path.join(tmp, 'c/nobin'), '0.4.0', { bin: false })), undefined)
   assert.equal(readCheckCopy(path.join(tmp, 'c/missing')), undefined)
   const other = folder('c/other'); fs.writeFileSync(path.join(other, 'package.json'), '{"name":"not-it","version":"9.0.0"}')
@@ -56,10 +56,10 @@ test('findWorkspaceCheck walks up node_modules like Node', () => {
 })
 
 test('chooseServer: workspace copy first', () => {
-  const ws = folder('ws1'); fakeCheck(path.join(ws, 'node_modules/sygnal-check'), '0.4.1')
+  const ws = folder('ws1'); fakeCheck(path.join(ws, 'node_modules/sygnal-check'), '0.11.1')
   const c = chooseServer([ws], bundled)
-  assert.equal(c.source, 'workspace'); assert.equal(c.version, '0.4.1'); assert.equal(c.folder, ws)
-  assert.match(describeChoice(c), /0\.4\.1 from the workspace/)
+  assert.equal(c.source, 'workspace'); assert.equal(c.version, '0.11.1'); assert.equal(c.folder, ws)
+  assert.match(describeChoice(c), /0\.11\.1 from the workspace/)
 })
 
 test('chooseServer: bundled when there is none', () => {
@@ -73,12 +73,12 @@ test('chooseServer: bundled, with the reason, when the workspace copy is too old
   const ws = folder('ws3'); fakeCheck(path.join(ws, 'node_modules/sygnal-check'), '0.3.0')
   const c = chooseServer([ws], bundled)
   assert.equal(c.source, 'bundled'); assert.equal(c.reason, 'too-old'); assert.equal(c.old?.version, '0.3.0')
-  assert.match(describeChoice(c), /workspace's sygnal-check 0\.3\.0 has no language server \(needs 0\.4\.0\+\)/)
+  assert.match(describeChoice(c), /workspace's sygnal-check 0\.3\.0 predates Sygnal 6\/7 compatibility \(needs 0\.11\.0\+\)/)
 })
 
 test('chooseServer: a later folder with a capable copy beats an earlier old one', () => {
   const old = folder('ws4a'); fakeCheck(path.join(old, 'node_modules/sygnal-check'), '0.2.0')
-  const good = folder('ws4b'); fakeCheck(path.join(good, 'node_modules/sygnal-check'), '0.4.0')
+  const good = folder('ws4b'); fakeCheck(path.join(good, 'node_modules/sygnal-check'), '0.11.0')
   const c = chooseServer([old, good], bundled)
   assert.equal(c.source, 'workspace'); assert.equal(c.folder, good)
 })
@@ -110,7 +110,7 @@ test('usesSygnal', () => {
 
 test('lacksEditorFeatures: a workspace copy before 0.5.0 without the completion module', () => {
   const old = folder('feat-old'); fakeCheck(path.join(old, 'node_modules/sygnal-check'), '0.4.0', { lsp: true })
-  assert.equal(lacksEditorFeatures(chooseServer([old], bundled)), true)
+  assert.equal(lacksEditorFeatures({...chooseServer([old], bundled),source:'workspace',dir:path.join(old,'node_modules/sygnal-check'),version:'0.4.0'}), true)
   const cur = folder('feat-new'); fakeCheck(path.join(cur, 'node_modules/sygnal-check'), '0.5.0', { lsp: true })
   assert.equal(lacksEditorFeatures(chooseServer([cur], bundled)), false)
   // the repository's checker: an older version string, but it has the features
@@ -119,4 +119,12 @@ test('lacksEditorFeatures: a workspace copy before 0.5.0 without the completion 
   assert.equal(lacksEditorFeatures(chooseServer([repo], bundled)), false)
   // the bundled copy never triggers it
   assert.equal(lacksEditorFeatures(chooseServer([folder('feat-none')], bundled)), false)
+})
+
+
+test('chooseServer uses the compatible bundled checker instead of a 0.10 LSP', () => {
+  const ws=folder('pre-major'); fakeCheck(path.join(ws,'node_modules/sygnal-check'),'0.10.0',{lsp:true})
+  const c=chooseServer([ws],bundled)
+  assert.equal(c.source,'bundled'); assert.equal(c.reason,'too-old')
+  assert.match(describeChoice(c),/needs 0\.11\.0/)
 })

@@ -126,7 +126,7 @@ export function ownedBy(root, isRoot = isSygnalDir) {
 }
 
 const SYGNAL_IMPORT = /\bfrom\s*['"]sygnal(?:\/[^'"]*)?['"]|\brequire\(\s*['"]sygnal(?:\/[^'"]*)?['"]\s*\)|\bimport\(\s*['"]sygnal(?:\/[^'"]*)?['"]\s*\)/
-const COMPONENT_STATIC = /\b[A-Z][\w$]*\.(?:intent|model|initialState|context|onError)\s*=(?!=)/
+const COMPONENT_STATIC = /\b[A-Z][\w$]*\.(?:intent|model|initialState|context|onError|sinkState)\s*=(?!=)/
 
 /** Whether a source text looks like Sygnal code: it imports from sygnal, or sets component statics. */
 export function looksLikeSygnal(text) {

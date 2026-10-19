@@ -6,7 +6,7 @@
 // It runs it in this process through the package's documented API, `runLspServer()` (what
 // `bin/sygnal-check.js lsp` calls), so no second process is started.
 //
-// When the project has no sygnal-check, or one without the language server (0.3.x and older), it
+// When the project has no sygnal-check, or one older than the Sygnal 6/7 compatibility release (0.11.0), it
 // prints one line on stderr and answers as an empty language server until its stdin closes: no
 // capabilities, no diagnostics. Claude Code then sees a healthy server, so it doesn't log a failed
 // start and retry on every edit, and the model gets nothing (the plugin's skill works regardless).
@@ -18,7 +18,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-const MISSING = 'sygnal: no sygnal-check with a language server (>= 0.4.0) in this project, so Sygnal diagnostics are off for this session. Install it with `npm install -D sygnal-check` and start a new session.'
+const MISSING = 'sygnal: no compatible sygnal-check (>= 0.11.0) in this project, so Sygnal diagnostics are off for this session. Install it with `npm install -D sygnal-check@^0.11.0` and start a new session.'
 
 /** The project's sygnal-check entry module, or null when it isn't installed. */
 export function findSygnalCheck(from = process.cwd()) {
@@ -26,6 +26,20 @@ export function findSygnalCheck(from = process.cwd()) {
     return createRequire(path.join(path.resolve(from), 'noop.js')).resolve('sygnal-check')
   } catch {
     return null
+  }
+}
+
+/** Check metadata before importing a workspace copy: older servers do not understand Sygnal 7. */
+export function compatibleCheck(entry) {
+  for (let dir = path.dirname(entry); ; dir = path.dirname(dir)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+      if (pkg.name === 'sygnal-check') {
+        const m = /^(\d+)\.(\d+)\.(\d+)(?:([+-]).*)?$/.exec(pkg.version)
+        return !!m && (+m[1] > 0 || +m[2] > 11 || +m[2] === 11 && (+m[3] > 0 || m[4] !== '-'))
+      }
+    } catch { /* seek the package manifest above its entry point */ }
+    if (path.dirname(dir) === dir) return false
   }
 }
 
@@ -75,7 +89,7 @@ export function runEmptyServer({ input = process.stdin, output = process.stdout,
 export async function main({ project = process.env.SYGNAL_LSP_PROJECT || process.cwd(), stderr = process.stderr } = {}) {
   const entry = findSygnalCheck(project)
   let runLspServer
-  if (entry) {
+  if (entry && compatibleCheck(entry)) {
     try {
       ;({ runLspServer } = await import(pathToFileURL(entry).href))
     } catch (error) {

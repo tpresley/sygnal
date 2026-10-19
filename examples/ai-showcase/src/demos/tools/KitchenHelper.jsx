@@ -178,9 +178,9 @@ const sending = (pick) => ({
       ? { ...state, messages: [...state.messages, { id: `u${state.messages.length}`, role: 'user', content: text.trim() }], prompt: '', status: 'streaming', live: null, steps: 0, error: null }
       : ABORT
   },
-  LLM: (state, data) => {
-    const text = pick(state, data)
-    return canSend(state, text) ? ask(state, [...state.messages, { role: 'user', content: text.trim() }]) : ABORT
+  LLM: (state, data, next, { previousState }) => {
+    const text = pick(previousState, data)
+    return canSend(previousState, text) ? ask(state, state.messages) : ABORT
   },
 })
 
@@ -214,8 +214,8 @@ KitchenHelper.model = {
         status: again ? 'streaming' : 'ready',
       }
     },
-    LLM: (state, { message, toolCalls }) => (toolCalls.length > 0 && state.steps + 1 < MAX_STEPS
-      ? ask(state, upsert(state.messages, answered(state, message)))
+    LLM: (state, { message, toolCalls }) => (toolCalls.length > 0 && state.steps < MAX_STEPS
+      ? ask(state, state.messages)
       : ABORT),
   },
 

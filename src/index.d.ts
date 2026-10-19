@@ -90,13 +90,15 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+export type SinkState = 'before' | 'after'
+
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
   args: DATA,
   next: NextFunction<ACTIONS>,
-  props: ReducerExtras<PROPS, CONTEXT>
+  props: ReducerExtras<PROPS, CONTEXT, STATE>
 ) => RETURN | ABORT | undefined
 
 export type ExactShape<EXPECTED, ACTUAL extends EXPECTED> = ACTUAL &
@@ -232,7 +234,7 @@ type AnySinkConstant =
  * `props.signal` aborts on DISPOSE (undefined where AbortController is missing).
  */
 type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
-  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT> & { signal?: AbortSignal }) => void)
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT, STATE & CALCULATED> & { signal?: AbortSignal }) => void)
 
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;
@@ -777,6 +779,8 @@ export type BehaviorModelEntry<SLICE = any, OPTIONS = any> =
 
 /** The object passed to `defineBehavior()`. Reducers and sinks get the slice, not the host state (HOST: the host state). */
 export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> {
+  /** Explicit library snapshot contract; otherwise inherits the host's effective mode. */
+  sinkState?: SinkState;
   /** The slice a host starts with (`state[key]`); options naming one of its keys override it. */
   initialState: SLICE;
   /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. `key`: the use's key in `uses`. */
@@ -1458,6 +1462,8 @@ export type Component<
    * against the action's data. See `agentTools` in 'sygnal/ai'.
    */
   agent?: AgentDeclaration<STATE & CALCULATED, ACTIONS>;
+  /** Overrides the app default for this component only. */
+  sinkState?: SinkState;
   debug?: boolean;
   /**
    * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
@@ -1768,6 +1774,8 @@ export interface AppErrorInfo {
 export type AppErrorHook = (error: any, info: AppErrorInfo) => void
 
 export type RunOptions = {
+  /** Output snapshot default for undeclared components/behaviors; default 'after' since 7.0. Use 'before' for the 6.x snapshot contract. */
+  sinkState?: SinkState;
   /** Where the app renders: a CSS selector (default '#root') or an element */
   mountPoint?: string | Element;
   /** @deprecated No effect since 6.0: fragments always work (the DOM driver splices them into their parent) */
@@ -3146,7 +3154,9 @@ export type FakeCacheEntry = {
   data: any;
 }
 
+/** Test rendering uses the same 'after' default as run(). */
 export interface RenderOptions {
+  sinkState?: SinkState;
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
@@ -3603,13 +3613,13 @@ export interface RenderResult<STATE = any> {
    * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
    */
   query: {
-    (selector: string): Element | null;
+    <E extends Element = Element>(selector: string): E | null;
     /** A control's element (`t.query(Draft)` is an HTMLInputElement for an 'input' control), or null */
     <CONTROL extends AnyControl>(control: CONTROL): ControlElementOf<CONTROL> | null;
   };
   /** Every element matching a selector (or a control) in the rendered tree (Portals included), as query() */
   queryAll: {
-    (selector: string): Element[];
+    <E extends Element = Element>(selector: string): E[];
     <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;
   };
   /**
