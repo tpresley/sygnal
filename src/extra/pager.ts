@@ -27,7 +27,6 @@ const to = (p: any, page: number) => {
  * `items.slice(state.pager.offset, state.pager.offset + state.pager.pageSize)`.
  */
 export const pager = /*#__PURE__*/ defineBehavior({
-    sinkState: 'before',
   initialState: {page: 0, pageSize: 20, total: null},
   intent: ({DOM}: any, {next, prev}: any) => ({
     ...(next && {NEXT: DOM.click(next)}),

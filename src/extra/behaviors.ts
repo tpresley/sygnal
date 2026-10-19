@@ -45,6 +45,27 @@
  */
 import xs from './xstreamCompat'
 import {isAbort} from '../shared'
+/** A behavior output's slice from before the action (outputs get the updated one): for a transition shared with STATE */
+export const was = (s: any, p: any, k: string) => p?.previousState ? p.previousState[k] : s
+/**
+ * A behavior model whose outputs compute from the state before the action (its slice and
+ * `props.state`), for behaviors whose STATE and outputs share one transition; STATE / HOST as is
+ */
+export const fromPrevious = (model: any) => {
+  const out: any = {}
+  for (const a in model) {
+    const e = model[a]
+    if (!e || typeof e != 'object') { out[a] = e; continue }
+    const m: any = {}
+    for (const s in e) {
+      const f = e[s]
+      m[s] = s == 'STATE' || s == 'HOST' || typeof f != 'function' ? f
+        : (x: any, d: any, n: any, p: any, o: any, k: string) => f(was(x, p, k), d, n, p?.previousState ? {...p, state: p.previousState} : p, o, k)
+    }
+    out[a] = m
+  }
+  return out
+}
 import {effects, withTiming, checkTiming, compileHandlers, TIMING} from './sinkTiming'
 // a model entry as { sink: fn }: a constant is sent as is, `true` sends the action's data, an
 // EFFECT constant does nothing (as the core treats them)

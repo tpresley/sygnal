@@ -26,7 +26,6 @@ import {gone, on} from './shared'
 const isOpen = (el: any) => { try { return el.matches(':popover-open') } catch (_) { return false } }
 
 const base = /*#__PURE__*/ defineBehavior({
-  sinkState: 'before',
   initialState: {open: false},
   intent: ({DOM, STATE}: any, {popover: p, close}: any) => ({
     ...(close && {CLOSE: DOM.click(close)}),

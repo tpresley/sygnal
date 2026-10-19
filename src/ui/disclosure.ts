@@ -13,7 +13,6 @@ import {ABORT, defineBehavior} from '../index'
 import {idsOf, keyed} from './shared'
 
 const base = /*#__PURE__*/ defineBehavior({
-  sinkState: 'before',
   initialState: {id: null as null | string, open: false},
   intent: ({DOM}: any, {trigger}: any) => ({TOGGLE: DOM.click(trigger)}),
   model: {

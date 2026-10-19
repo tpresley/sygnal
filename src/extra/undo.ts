@@ -236,7 +236,6 @@ export const undoable = (model: any, options: UndoOptions): any => {
 export const undo = (options: UndoOptions & { undo?: any, redo?: any }): any => {
   keyed(options)
   const b = defineBehavior({
-    sinkState: 'before',
     initialState: {past: [], future: []},
     intent: ({DOM}: any, {undo, redo}: any) => ({
       ...(undo && {UNDO: DOM.click(undo)}),

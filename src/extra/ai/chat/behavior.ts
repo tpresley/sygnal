@@ -92,7 +92,7 @@
  * closed as not run, an app confirm dropped (a server approval stays answerable), and a card that
  * was composing composed again; open client calls stay answerable.
  */
-import {defineBehavior} from '../../behaviors'
+import {defineBehavior, fromPrevious} from '../../behaviors'
 import {ABORT} from '../../../shared'
 import {report} from '../../diagnostics/index'
 import xs from '../../xstreamCompat'
@@ -506,7 +506,6 @@ export const chat = (options: any = {}): any => {
   /** the card request in flight's key (STOP aborts it) */
   const inflight = (s: any, k: string) => { const x = openToolCalls(s).find((p: any) => composing(p) && p.ui.pending); return x && `${k}.ask:${x.toolCallId}` }
   const b = defineBehavior({
-    sinkState: 'before',
     initialState: {messages: [], prompt: '', draft: '', draftReasoning: '', status: 'ready', pending: null, error: null},
     intent: (so: any) => {
       const {DOM, CHILD} = so
@@ -530,7 +529,7 @@ export const chat = (options: any = {}): any => {
         ...(c.ask?.controls && DOM && {CONTROL: DOM.select('[data-compose-control]').events('click').map(controlOf).filter((x: any) => !!x)}),
       }
     },
-    model: {
+    model: fromPrevious({
       PROMPT: (s: any, p: any) => typeof p == 'string' && p !== s.prompt ? {...s, prompt: p} : ABORT,
       SEND: {
         STATE: (s: any, d: any) => sendStep(s, d) || ABORT,
@@ -610,7 +609,7 @@ export const chat = (options: any = {}): any => {
         ANSWER: {STATE: stateOf(S.answerCard), ...sinks(S.answerCard)},
         CONTROL: (s: any, d: any) => S.controlStep(s, d) || ABORT,
       }),
-    },
+    }),
   })(options)
   // the `prompt` option is a selector, not the slice's start value (defineBehavior's option override)
   b.state = {...b.state, prompt: ''}

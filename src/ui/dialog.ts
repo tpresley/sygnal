@@ -55,7 +55,6 @@ const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && 
 const FAIL = 'sygnaldialogfail'
 
 const base = /*#__PURE__*/ defineBehavior({
-  sinkState: 'before',
   initialState: {open: false, returnValue: ''},
   intent: ({DOM, STATE}: any, {dialog: d, trigger, close, cancelable, modal}: any) => ({
     ...(trigger && {OPEN: DOM.click(trigger)}),
@@ -111,9 +110,10 @@ const base = /*#__PURE__*/ defineBehavior({
     TOGGLED: (s: any, open: boolean) => (open && !s.open ? {...s, open, returnValue: ''} : ABORT),
     CLOSED: {
       STATE: (s: any, returnValue: string) => (!s.open && s.returnValue === returnValue ? ABORT : {...s, open: false, returnValue}),
-      ELEMENT: (s: any, _d: any, _n: any, _p: any, o: any) => {
+      ELEMENT: (s: any, _d: any, _n: any, p: any, o: any, k: string) => {
         const f = o.returnFocus ?? true, sel = f === true ? o.trigger : f
-        if (!s.open || !sel) return ABORT
+        // only a dialog that was open before this close returns the focus
+        if (!(p?.previousState ? p.previousState[k] : s).open || !sel) return ABORT
         // true: the element that opened it (OPEN's close listener, G-430), else the trigger; a
         // selector: that element (each only when the focus was lost)
         return {focus: refocus(sel)}
