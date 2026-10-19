@@ -100,45 +100,43 @@ A key that itself contains a `.` can't be named this way: before 6.5.0, `state="
 
 ### Changing the Selected Record
 
-**Sygnal 7 treats a known binding target as part of component identity.** A changed path or
-`byId()` field/ID/idKey disposes the old component and mounts a new one automatically:
+**A child belongs to the record its `state` points at.** When the binding points at a different
+record (a changed path, or a `byId()` with a different field, id or idKey), Sygnal disposes the
+old child and mounts a new one:
 
 ```jsx
 <ProjectWorkspace state={byId('projects', selected.id)} />
 ```
 
-The new lifetime cancels the old requests, delayed `next()` actions and subscriptions, reruns
-initialization, and resets local component state. Descendant bindings follow the new parent.
-Equivalent freshly allocated `byId()` helpers retain the instance, and reordering an array
-retains the record selected by ID. A missing target renders no old entity content. Losing an existing known target also disposes
-the old lifetime, even if the byId arguments stay the same; reinserting the same ID cannot
-revive its old requests or delayed actions. The fresh missing-state lifetime can still initialize
-or fetch its state. Isolated components retain their normal default/seeding rules.
+The old child's `DISPOSE` runs with its last state, and its pending requests, delayed `next()`
+actions and subscriptions are cancelled. The new child starts over: initialization runs again
+and its local state starts from its defaults. Its DOM is new too, so focus, caret position,
+scroll position and text being typed inside it are lost.
 
-Known-target deletion is observed after the deleting action finishes, before later queued
-actions from that old subtree run. Deleting and reinserting the same ID before a render still
-ends the old lifetime. The deleting action's own outputs complete normally. Cleanup reads the
-last owned state; cleanup writes cannot recreate a deleted target.
+What keeps the child: a new `byId()` call with the same arguments on every render, edits to the
+record's fields, and reordering the array (`byId()` follows the record, not its position).
 
-This disposal also applies below hidden Switchable pages. A hidden page's view stays paused:
-an ordinary replacement child mounts when its owner next reconciles, normally when shown
-again, and then follows the usual initialization/default rules.
+**Deleting the record** disposes the child as well, even though the `byId()` arguments haven't
+changed. That happens after the deleting action finishes, so its outputs still run, and before
+any later action of the old child. `DISPOSE` gets the last state; a STATE change from it can't
+bring the record back. A record added again with the same id gets a new child, without the old
+one's pending work. Children inside a hidden Switchable page are disposed the same way; their
+replacements mount when the page is shown again.
 
-The same rule applies when a Collection/VirtualCollection's known `from` target or a
-Switchable's known `state` target changes. Existing items/pages are disposed before the new
-ones mount, even when their IDs overlap. Changing a value within the same target does not
-cause this reset.
+The same applies to a Collection's or VirtualCollection's `from` and a Switchable's `state`:
+when it points at a different record or array, every item or page is disposed before the new
+ones mount, even when ids overlap.
 
-An explicit key remains useful to reset the same target intentionally, or to identify a
-changing **opaque custom lens**. Sygnal cannot infer whether two arbitrary get/set closures
-select the same entity; these retain their mount-time binding unless their key changes. For a disappearing custom
-lens target, conditionally remove the child or include availability in its key.
-A stable explicit key does not suppress a known binding-target change.
+**Keys.** A `key` still resets a child whose binding hasn't changed: change the key and the
+child starts over. A key that stays the same doesn't keep a child across a binding change; keep
+anything that must survive the change (an open panel, a half-written comment) in the parent's
+state. Sygnal can't tell whether a new [custom lens](#lens-based-advanced) points at a different
+record, so a lens-bound child keeps its binding until its key changes: give it a key tied to the
+record (`key={doc.id}`), and render it only while that record exists.
 
-In **6.x**, binding targets were mount-time only: pair selection with
-`key={selected.id}`. The version-aware checker reports [SYG454](/reference/errors/#syg454)
-for a dynamic unkeyed byId selection on 6.x; 7.x does not need that warning. See
-[Migrating to 7.0](/guide/migrating-to-7/).
+In **6.x**, a child kept the record it was mounted with: pair a changing selection with
+`key={selected.id}`. sygnal-check reports [SYG454](/reference/errors/#syg454) for a `byId()`
+selection without a key when Sygnal 6 is installed. See [Migrating to 7.0](/guide/migrating-to-7/#binding-lifetimes).
 
 ### Lens-Based (Advanced)
 

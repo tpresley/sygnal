@@ -4,52 +4,82 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## [Unreleased] — Sygnal 7.0.0
 
-### Breaking: output sinks now read updated state by default
+**Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.** 7.0
+has one reducer timing contract and no option to switch back; apps that aren't ready stay on 6.x.
 
-**Upgrading from 6.x changes reducer timing even when you pass no options.** STATE now runs
-first; EFFECT, HTTP, EVENTS, PARENT, ELEMENT and other output sinks receive the committed state,
-including calculated fields. For `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => s.n + 1 }`,
-change PARENT to `s => s.n`: the increment already happened. Use `props.previousState` for cleared
-inputs, deleted records and other old values. Effects remain synchronous; output order is preserved.
+### Breaking: STATE runs first, and output sinks see its result
 
-For gradual migration on **7.x**, use `run(App, drivers, { sinkState: 'before' })` and match it in
-`renderComponent`. Components and behaviors can declare their own timing; those declarations
-win over inherited defaults. Built-in behaviors retain their explicit before contracts. In mixed
-actions, before means an old snapshot, not execution before STATE. Undeclared libraries need an
-audit. The new option and `previousState` are not supported by the published 6.x runtime.
+In every model entry STATE now runs first, whatever the key order, and every other sink (EFFECT,
+EVENTS, PARENT, ELEMENT, HTTP and other drivers) gets the committed state, calculated fields
+included, as `state` and `props.state`. The new `props.previousState` (fourth argument) is the
+state from before the action; a STATE reducer gets the old state in both. 6.x gave every reducer
+the state from before the action.
 
-**Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.**
-New starters and repository examples use the 7.x default without redundant timing settings.
-sygnal-check bases compatibility checks on the installed Sygnal version in each package.
-Its new **SYG256** warning catches provable loading/admission guards that reject the state
-written by the same action under `after` timing. Keep the output guard and use `previousState`
-for admission: removing it allows duplicates because STATE returning `ABORT` does not cancel
-other sinks. The checker skips unknown timing and complex writes; audit these guards when migrating.
+- An output that computed the update itself now applies it twice: in
+  `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`, PARENT becomes
+  `s => ({ n: s.n })`.
+- A value STATE clears or deletes (a submitted draft, a removed record) is read from
+  `previousState`.
+- A guard that admits the action (a loading or status flag STATE sets) tests `previousState`.
+  Keep the output guard: STATE returning `ABORT` doesn't cancel the other sinks.
+- When STATE returns `ABORT` or the same state, or throws, the other sinks still run, with
+  `state === previousState`.
+- When STATE removes the component's own state (`STATE: () => undefined` in a Collection item, or
+  a child bound with `state="x"` / `byId()` deleting its record), the other sinks get its last
+  state, so `REMOVE: { STATE: () => undefined, EVENTS: event('REMOVED', (s) => s.id) }` works as
+  before.
+- Behaviors: the first argument is the slice after STATE, `props.state` the host state after
+  STATE, `props.previousState` the host state before the action; the old slice is
+  `props.previousState[key]`. Every built-in behavior (form, chat, compose, commandBar, undo,
+  pager, selection, sortable, and the `sygnal/ui` dialog, popover, tooltip, tabs, accordion and
+  disclosure) is on this contract.
+- Libraries that support 6 and 7 read old values as `props.previousState ?? state`.
 
-### Breaking: known binding target changes remount automatically
+### New: the timing audit (SYG257)
 
-Changing a child's known path/byId target now disposes the old instance and mounts the new
-selection, canceling old requests, timers and subscriptions. Collection/VirtualCollection `from`
-and Switchable `state` follow the same rule, including hidden pages and overlapping item IDs.
-This intentionally reruns initialization and resets local component state. Equivalent byId
-helpers and ordinary record updates retain identity. Deleting a known selected target also ends its
-old lifetime, so reinserting the same ID cannot revive old pending work; fresh missing-state
-initialization and isolated defaults remain supported. Explicit keys can additionally reset an
-unchanged target; opaque custom-lens target changes still require keys. A stable key cannot
-keep a known target change on the old binding. `sinkState: 'before'` restores timing only;
-it does not disable this lifetime rule.
+An opt-in dev check for upgrading 6.x code: with `renderComponent(C, { timingAudit: true })`,
+`sygnal({ diagnostics: { timingAudit: true } })` in `vite.config`, `configureTimingAudit(true)`
+from `'sygnal/diagnostics'` or `globalThis.__SYGNAL_TIMING_AUDIT__ = true`, every output sink that
+reads a top-level state field its action's STATE changed reports **SYG257** (info, once per
+component, action, sink and field). Keep `state` where the new value is meant; read
+`previousState` where the old one was. It is off by default because in code written for 7.0
+reading the new value is the intent, and it adds nothing to production builds.
+
+sygnal-check's **SYG256** (warning) reports an output guard that contradicts the same action's
+literal STATE write, the loading/admission pitfall above. sygnal-check reads the installed
+Sygnal version per package; **SYG454** (a `byId()` selection without a key) applies only to
+Sygnal 6.
+
+### Breaking: a child follows the record its state binding points at
+
+When a child's `state` path, or its `byId()` field, id or idKey, changes, Sygnal disposes the old
+child and mounts a new one: `DISPOSE` runs with the last state, pending requests, delayed `next()`
+actions and subscriptions are cancelled, initialization reruns and local state starts from its
+defaults. The child's DOM is replaced, so focus, caret, scroll position and in-progress input
+inside it are lost. The same applies to Collection/VirtualCollection `from` and Switchable
+`state` (all items or pages, hidden ones included, even when ids overlap). Deleting the bound
+record disposes the child too, after the deleting action's outputs; re-adding the same id gets a
+new child, never the old pending work. A new `byId()` call with the same arguments, field edits
+and reordering keep the child. `key={selected.id}` is no longer needed for a selection.
+
+**A stable explicit key no longer keeps a child across a target change**: lift state that must
+survive the change into the parent. A child with a custom lens keeps its binding until its key
+changes.
 
 ### Also included
 
-- Fix the combined Rollup build’s compiler watcher/timer lifecycle: `npm run build` exits normally without extra heap flags or per-config subprocesses. Watch rebuilds retain their compiler and release it on shutdown; runtime outputs are unchanged.
-- Observe known-target deletion after each completed action, including hidden descendants and whole Collection/VirtualCollection sources. Old queued parent actions, timers and HTTP replies cannot reach removed or same-ID replacement records between renders; cleanup retains the last owned state without recreating deleted data.
-- Preserve the runtime cancellation signal in mixed before/after EFFECT groups, even when the component has a prop named `signal`.
-- Correct the tabs-close guide's focus command for updated-state outputs. State-wait timeout messages now report queued simulated inputs, and testing guidance distinguishes serialized simulated input from synchronous native bursts.
-- Preserve Git metadata when scaffolding into an initialized repository, and derive a valid package name for `.`.
-- Add generic test-query types while preserving typed-control inference.
-- Companion release metadata: sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0 and Claude Code plugin 0.2.0; new templates require Sygnal ^7.0.0 and checker ^0.11.0.
-- Final kanban bundle: **42,993 B gzip** against the explicitly approved **43,000 B** budget (6.6.0: 42,495 B), with 7 B headroom. Default native-globalThis bundle: **38,984 B**. Performance/count/retention gates pass (0.93 MB settled heap).
-
+- A child that fails to instantiate is no longer retried on every parent render.
+- State-wait timeout messages report queued simulated inputs; the testing guide separates
+  serialized simulated input from synchronous native bursts.
+- TypeScript tests can use `t.query<HTMLInputElement>(selector)` and `t.queryAll<…>(selector)`
+  (type assertions, not runtime checks); typed control tokens keep their inference.
+- Scaffolding into a directory that holds only `.git` and/or `.DS_Store` keeps that metadata, and
+  `.` gets a valid package name from the directory.
+- The combined Rollup build exits normally (compiler watcher lifecycle fix).
+- Companion releases: sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0 and
+  Claude Code plugin 0.2.0; new templates require Sygnal ^7.0.0 and sygnal-check ^0.11.0.
+- Kanban bundle: **42,844 B gzip** (budget 43,000 B; 6.6.0: 42,495 B). Default native-globalThis
+  bundle: **38,834 B**. Performance and count gates pass.
 
 ### Changed
 

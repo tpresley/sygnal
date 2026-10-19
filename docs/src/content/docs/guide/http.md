@@ -47,7 +47,7 @@ Quote.intent = ({ DOM }) => ({
 Quote.model = {
   SHOW: {
     STATE: (state, id) => ({ ...state, id, status: 'loading', error: '' }),
-    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // action data or the newly stored state.id both work
+    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // or state.id: STATE has stored it
   },
   REFRESH: {
     STATE: (state) => (state.id === null ? ABORT : { ...state, status: 'loading', error: '' }),
@@ -68,7 +68,7 @@ Click First, then Second before quote 1 arrives: with `latest: true` the first r
 
 ### Build the request from (state, data)
 
-In Sygnal 7, the HTTP sink can read the `id` STATE just stored. Building the URL from action data also works in both modes. `REFRESH` can read the existing ID. For migration, `sinkState: 'before'` restores the 6.x snapshot default; see [snapshot timing](/guide/model/#choosing-the-state-seen-by-sinks).
+STATE runs first, so the HTTP sink of `SHOW` sees the `id` STATE just stored; the action's data has it too. `REFRESH` doesn't change `id` and reads it from `state`. A request that needs a value STATE replaced (a cleared field, a guard on a flag STATE sets) reads it from the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)). Sygnal 6.x gave every sink the state from before the action; see [Migrating to 7.0](/guide/migrating-to-7/).
 
 ## Only the Latest Response
 

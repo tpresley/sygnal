@@ -16,9 +16,9 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 
 `sygnal-check` is a dev dependency of this project, so `npm install` installs it and the commands above run the local copy (`--no-install` never downloads one). This Vike app keeps its code in `pages/`, so pass that path (the default is `src`). If it is missing (no `node_modules` yet), run `npm install` first; if it still isn't there, skip these commands and rely on the runtime diagnostics in the tests (`strict: true` + `t.expectNoDiagnostics()`).
 
-## Snapshot timing and bindings
+## Reducer timing and bindings
 
-Sygnal 7 defaults to `sinkState: 'after'`: STATE runs first, then outputs read committed state. Use `props.previousState` for an old value. Explicit library component/behavior timing declarations take precedence. `renderComponent` uses the same default. Sygnal 7 automatically disposes and remounts a child when a known `byId()` or string-path state target changes. An explicit key can also reset a child whose binding stays the same; opaque custom lens target changes need a key. In TypeScript tests use `t.query<HTMLInputElement>(selector)?.value` or typed control tokens.
+In every model entry STATE runs first: the other sinks (EFFECT, EVENTS, PARENT, HTTP, ...) get the state it committed, so read new values from `state` (`PARENT: (state) => ({ count: state.count })`, not `state.count + 1`). The state from before the action is the fourth argument's `previousState`: use it for a value STATE cleared and in a guard that decides whether the action may start. A child whose `state` binding (a path or `byId()`) points at a different record is disposed and mounted again with fresh local state and new DOM; it needs no `key` for that. A `key` resets a child whose binding stays the same; a custom lens needs `key={record.id}`. In TypeScript tests use `t.query<HTMLInputElement>(selector)?.value` or typed control tokens.
 
 ## Workflow
 Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check pages --strict`, both clean. Read the whole `npm test` output: each failure prints above the summary, so piping it through `tail` hides the error (to shorten it, use `npm test 2>&1 | grep -A15 -E 'FAIL|Error'`).

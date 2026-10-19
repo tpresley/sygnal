@@ -133,17 +133,14 @@ Any custom driver passed to `run()` is a sink as well, by its name (for example 
 
 A non-STATE reducer can return `ABORT` to send nothing.
 
-### Choosing the State Seen by Sinks
+<a id="choosing-the-state-seen-by-sinks"></a><a id="sinks-see-the-state-before-the-action"></a>
 
-**Sygnal 7 defaults to updated-state outputs.** No configuration is needed:
+### What State Each Sink Sees
 
-```js
-run(App, drivers)
-```
-
-STATE runs once first, regardless of its position in the model entry. Other sinks receive the
-same committed state, including calculated fields; effects still run synchronously and the DOM
-patch follows the action. ABORT means no state change, not cancellation of the other sinks.
+In every entry, **STATE runs first**, whatever the order of the keys. Every other sink then gets
+the state STATE committed, calculated fields included, as its first argument (and as
+`props.state`). The fourth argument's `previousState` is the state from before the action. A
+STATE reducer gets the state from before the action in both.
 
 ```jsx
 Counter.model = {
@@ -157,31 +154,38 @@ Counter.model = {
 }
 ```
 
-This is a breaking change from 6.x, where every reducer received pre-action state. Upgrading
-requires auditing outputs that already compute the update themselves: `state.count + 1` would
-increment twice in a notification. Use `props.previousState` when a deletion, cancellation or
-comparison needs the old value; `props.state` matches the handler's selected snapshot.
+So an output reads what STATE stored instead of computing it again, and reads
+`previousState` for a value STATE replaced: a cleared draft, a deleted record, or a guard that
+decides whether the action may start (a loading flag STATE has just set is already set in
+`state`):
 
-A library declares its contract with `Counter.sinkState = 'after'` or
-`defineBehavior({ sinkState: 'before', ... })`. Explicit declarations win over inherited app/host
-settings; parent component declarations do not cascade to children. Undeclared old libraries
-inherit defaults and need an audit. Built-in behaviors retain their existing before contract.
-Behavior handlers receive a slice while `props.state` and `props.previousState` are host state.
+```jsx
+import { ABORT } from 'sygnal'
 
-For an action with any after-state output, the composed STATE transition completes before all
-outputs. Outputs retain their relative order and each contributor gets its declared snapshot.
-Here `'before'` selects the old snapshot; it does not promise execution before STATE. A grouped
-behavior/host EFFECT retains its order and exception boundary. All-before actions retain their
-legacy model ordering. A failed STATE reducer leaves state unchanged and other handlers still run;
-this is not a transaction rollback guarantee for throwing custom lens setters.
+Profile.model = {
+  SAVE: {
+    STATE: (state) => (state.saving ? ABORT : { ...state, saving: true }),
+    HTTP: (state, data, next, { previousState }) =>
+      previousState.saving ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED' },
+  },
+}
+```
 
-### Sinks See the State Before the Action
+When STATE returns `ABORT` or the same state, or throws, the other sinks still run, with `state`
+and `previousState` the same: `ABORT` means "no change", not "cancel". When STATE removes the
+component's own state (`STATE: () => undefined` in a Collection item), the other sinks get its
+last state, so `EVENTS: event('REMOVED', (state) => state.id)` still has the id. Effects run
+synchronously inside the action; the DOM patch follows it.
 
-This is the compatibility mode: `run(App, drivers, { sinkState: 'before' })`. Outputs receive the
-pre-action state and must compute a new value from `(state, data)` themselves. Prefer after for new
-apps. If you select the compatibility mode, match it in
-`renderComponent(C, { sinkState: 'before' })`. These options and `previousState` require 7.x;
-see [Migrating to 7.0](/guide/migrating-to-7/).
+In a [behavior](/guide/behaviors/), the first argument is the slice and `props.state` the host's
+state, both after STATE; `props.previousState` is the host's state from before the action, and
+`props.previousState[key]` the slice from before it.
+
+Sygnal 6.x gave every reducer the state from before the action, and has no `previousState`.
+To upgrade 6.x code, turn on the timing audit: `renderComponent(C, { timingAudit: true })` in a
+test, or `sygnal({ diagnostics: { timingAudit: true } })` in `vite.config`, reports
+[SYG257](/reference/errors/#syg257) for each output that reads a field the same action's STATE
+changed. See [Migrating to 7.0](/guide/migrating-to-7/).
 
 ## Emitting Events with `event()`
 

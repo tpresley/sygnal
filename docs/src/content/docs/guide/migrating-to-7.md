@@ -1,168 +1,316 @@
 ---
 title: Migrating to 7.0
-description: Updated-state output sinks by default, explicit library contracts, and migration from Sygnal 6
+description: Output sinks see the state after STATE, the timing audit that finds the reducers to check, and child lifetimes that follow their state binding
 ---
 
-**Sygnal 7 changes the state seen by output sinks.** In 6.x, every reducer received the state
-from before the action. In 7.x, STATE runs first and output sinks receive its committed result,
-including calculated fields. `run(App)` and `renderComponent(App)` both use this default.
+Sygnal 7.0 has two breaking changes:
 
-This applies to EFFECT, HTTP, EVENTS, PARENT, ELEMENT and other output sinks. Their relative
-order is preserved. Effects remain synchronous within the action; the DOM patch follows it.
-An aborted or failed STATE transition leaves state unchanged and does not cancel other sinks.
+1. **Reducer timing.** The output sinks of an action (EFFECT, EVENTS, PARENT, HTTP, ...) get the
+   state after the action's STATE update. In 6.x every reducer of an action got the state from
+   before it.
+2. **Binding lifetimes.** When a child's `state` binding points at a different record, Sygnal
+   replaces the child with a new instance. In 6.x the child kept the record it was mounted with
+   until its key changed.
 
-## Audit output reducers
+Nothing else in the 6.x API changes. The [timing audit](#step-by-step) points at the
+reducers to check. There is no switch for the old timing: an app moves to 7.0 as a whole. If you
+are not ready, [stay on 6.x](#not-ready-yet).
 
-An output that already computes the update must stop applying it a second time:
+## Reducer timing
 
-```js
-// 6.x: outputs received the old count.
+### What changed
+
+In every model entry, STATE runs first, whatever the order of the keys. Every other sink
+(EFFECT, EVENTS, PARENT, ELEMENT, HTTP and any other driver) then gets the committed state,
+calculated fields included, as its first argument and as `props.state`. The fourth argument's
+`previousState` is the state from before the action.
+
+| Reducer | `state` in 6.x | `state` in 7.0 | `props.previousState` (7.0) |
+|---|---|---|---|
+| STATE | before the action | before the action | before the action |
+| every other sink | before the action | after STATE | before the action |
+
+When STATE returns `ABORT`, returns the same object or throws, the other sinks still run, with
+`state === previousState`. `ABORT` means "no state change", not "cancel the action". Effects
+still run synchronously inside the action, and the DOM patch follows it.
+
+The tradeoff: payloads get simpler, because an output reads the value STATE just stored instead
+of computing it a second time. A guard that decides whether the action may start reads
+`previousState` instead of `state`.
+
+### A value computed twice
+
+An output that computed the new value itself now applies the update twice. A counter that
+tells its parent about the new count:
+
+```jsx
+// 6.x: PARENT got the old count and added 1 itself
 Counter.model = {
   INC: {
-    STATE: state => ({ ...state, count: state.count + 1 }),
-    PARENT: state => ({ count: state.count + 1 }),
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    PARENT: (state) => ({ count: state.count + 1 }),
   },
 }
 ```
 
-```js
-// 7.x: STATE has already incremented count.
+On 7.0 that sends 2 after the first click. Read the stored value instead:
+
+```jsx
+// 7.0: STATE has already incremented count
 Counter.model = {
   INC: {
-    STATE: state => ({ ...state, count: state.count + 1 }),
-    PARENT: state => ({ count: state.count }),
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    PARENT: (state) => ({ count: state.count }),
   },
 }
 ```
 
-Audit requests that append a message, increment a request ID or construct a record alongside
-STATE. Read the resulting value directly. When STATE clears an input or removes a record, use
-`previousState` for the old value:
+Look for the same pattern in requests that append a message, increment a request id or build a
+record alongside STATE.
 
-```js
+### A value STATE clears
+
+The opposite case: STATE clears a field and the output needs what was there. In 6.x the output
+read `state.draft`; on 7.0 that is the empty string. Read it from `previousState`:
+
+```jsx
 Editor.model = {
   SAVE: {
-    STATE: state => ({ ...state, draft: '' }),
+    STATE: (state) => ({ ...state, draft: '' }),
     HTTP: (state, data, next, { previousState }) => ({
-      url: '/api/draft', method: 'POST', body: previousState.draft, ok: 'SAVED',
+      url: '/api/drafts', method: 'POST', json: { text: previousState.draft }, ok: 'SAVED',
     }),
   },
 }
 ```
 
-`props.state` matches the reducer's selected snapshot. `props.previousState` is always the
-pre-action component state. Behavior reducers receive their slice as the first argument;
-their props contain the host's state and previousState.
+### Deleting
 
-### Preserve loading and admission guards
+A component that removes its own state (STATE returns `undefined`: a Collection item removing
+itself, or a child bound with `state="draft"` or `byId()` deleting its record) has no new state
+to give its outputs. They get its last state, as both `state` and `previousState`, so the 6.x
+form keeps working unchanged:
 
-A guard that decides whether an action may start must read the pre-action state. Repeating
-`state.status !== 'working'` in both STATE and HTTP now blocks the first request: STATE has
-already set `status` to `'working'` when HTTP runs. Keep the output guard, but use
-`previousState` for admission:
+```jsx
+import { event } from 'sygnal'
 
-```js
-Worker.model = {
-  START: {
-    STATE: state => state.status !== 'working'
-      ? { ...state, status: 'working' }
-      : ABORT,
-    HTTP: (state, data, next, { previousState }) => previousState.status !== 'working'
-      ? { url: '/work', ok: 'DONE' }
-      : ABORT,
+TodoItem.model = {
+  REMOVE: {
+    STATE: () => undefined,
+    EVENTS: event('TODO_REMOVED', (state) => state.id),
   },
-  DONE: state => ({ ...state, status: 'idle' }),
 }
 ```
 
-The first START sends a request; repeated START actions while working send none. Removing
-the HTTP guard would allow duplicate requests because STATE returning `ABORT` does **not**
-cancel other sinks. Use the updated `state` for request fields written by STATE, and
-`previousState` for checks that admitted the action. The same distinction applies to loading
-booleans, toggle guards, and other output sinks. With an explicit `before` contract, the first
-argument already holds the pre-action snapshot.
-
-[SYG256](/reference/errors#syg256) warns when sygnal-check can prove that a same-action literal
-STATE field write makes a simple output guard return imported `ABORT`. It requires an installed
-Sygnal 7 or later and a known `after` context. It skips explicit `before` timing, unknown versions
-or timing, complex or composed writes, and guards it cannot prove. The warning has no automatic
-fix: preserve the guard and choose its admission snapshot deliberately. Zero warnings do not
-replace auditing these guards during migration.
-
-## Migrate incrementally
-
-On Sygnal 7, restore the old app default while auditing components:
-
-```js
-run(App, drivers, { sinkState: 'before' })
-// Use the same mode in tests.
-renderComponent(App, { sinkState: 'before' })
-```
-
-A component can declare `Editor.sinkState = 'before'` or `'after'`. Its declaration wins over
-the app default and applies only to that component; children independently inherit the app
-default. A behavior can declare `defineBehavior({ sinkState: 'before', ... })`, preserving its
-contract in any host. Built-in behaviors explicitly retain the pre-action snapshots their
-transitions require. Audit undeclared third-party components and behaviors when upgrading.
-
-When an action contains both before and after contributors, the composed STATE transition
-runs first, then outputs retain their relative order and receive their own declared snapshots.
-In this case, `before` promises the old snapshot, not execution before STATE. Grouped EFFECT
-handlers retain their order and shared exception boundary. Actions whose outputs all use before
-retain their legacy model order. Code that used an effect to prepare a subsequent STATE reducer
-should move that work into the state transition instead.
-
-The `sinkState` option and `previousState` are 7.x APIs. They are not compatibility shims that
-can be passed to the published 6.x runtime. sygnal-check resolves the installed Sygnal version
-from each source's package context, including workspace packages, and checks the supported
-contract. Upgrade runtime and tooling together; an unresolved version does not establish which
-default is active.
-
-## Changed binding targets start new lifetimes
-
-Sygnal 6 retained a child's original state binding until its key changed. In 7, changing a
-known path or `byId(field, id, idKey)` target automatically disposes the old instance and
-mounts the new selection. This applies to ordinary child `state`, Collection/VirtualCollection
-`from`, and Switchable `state`. Old requests, delayed actions, subscriptions and descendants
-are disposed; initialization runs again and local component state resets. Collection items
-and Switchable pages with IDs shared across targets do not carry work into the new entity.
-
-You can remove a key used solely to work around `byId()` selection:
+A parent that deletes a record from its own list does get its new state, without the record.
+An output that needs the deleted record finds it in `previousState`:
 
 ```jsx
-// 6.x required key={selected.id}; 7.x follows this target automatically.
+import { event } from 'sygnal'
+
+TodoList.model = {
+  DELETE: {
+    STATE: (state, id) => ({ ...state, todos: state.todos.filter(t => t.id !== id) }),
+    EVENTS: event('TODO_DELETED', (state, id, next, { previousState }) =>
+      previousState.todos.find(t => t.id === id)),
+  },
+}
+```
+
+### Loading and admission guards
+
+A guard that decides whether an action may start must read the state from before the action.
+Repeating `state.status !== 'working'` in both STATE and HTTP now blocks the first request:
+STATE has already set `status` to `'working'` when HTTP runs. Keep the output guard, and test
+`previousState`:
+
+```jsx
+import { ABORT } from 'sygnal'
+
+Worker.model = {
+  START: {
+    STATE: (state) => (state.status !== 'working' ? { ...state, status: 'working' } : ABORT),
+    HTTP: (state, data, next, { previousState }) =>
+      previousState.status !== 'working' ? { url: '/api/work', ok: 'DONE' } : ABORT,
+  },
+  DONE: (state) => ({ ...state, status: 'idle' }),
+}
+```
+
+The first START sends a request; START actions while it works send none. Don't remove the HTTP
+guard: STATE returning `ABORT` does not cancel the other sinks, so without it every START would
+send a request. The same applies to loading flags, toggles and any output that should run only
+when STATE admitted the action. `sygnal-check` reports [SYG256](/reference/errors#syg256) when
+it can prove that an output guard contradicts the same action's literal STATE write, as `HTTP`
+testing `state.status` would here. It can't prove every case, so check these guards during the
+migration even without a warning.
+
+### Behaviors
+
+A behavior's model handlers follow the same contract: the first argument is the slice after
+STATE, `props.state` the host's state after STATE, and `props.previousState` the host's state
+from before the action. The slice from before the action is `props.previousState[key]`, with
+`key` the sixth argument:
+
+```js
+import { defineBehavior } from 'sygnal'
+
+const drafts = defineBehavior({
+  initialState: { draft: '' },
+  model: {
+    SAVE: {
+      STATE: (slice) => ({ ...slice, draft: '' }),
+      HTTP: (slice, data, next, props, options, key) => ({
+        url: '/api/drafts',
+        method: 'POST',
+        json: { text: props.previousState[key].draft },
+        ok: key + '.SAVED',
+      }),
+    },
+  },
+})
+```
+
+Every built-in behavior (form, chat, compose, commandBar, undo, pager, selection, sortable and
+the `sygnal/ui` parts) is on this contract. A host entry next to a behavior's action, such as
+`'chat.DONE'`, follows the same rules.
+
+### Libraries for both 6 and 7
+
+A component or behavior published for both versions reads old values as
+`props.previousState ?? state`: 6.x has no `previousState`, and there `state` is the old value.
+Compute new values from the old ones, as 6.x code did; that gives the same result on both:
+
+```jsx
+Counter.model = {
+  INC: {
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    PARENT: (state, data, next, props) => {
+      const before = props.previousState ?? state
+      return { count: before.count + 1 }
+    },
+  },
+}
+```
+
+## Step by step
+
+1. **Upgrade** `sygnal` and `sygnal-check` together: `npm install sygnal@7 sygnal-check@latest`.
+
+2. **Turn on the timing audit.** It reports [SYG257](/reference/errors#syg257) when an output
+   sink reads a top-level state field that the same action's STATE changed: the reads whose
+   value changed with 7.0. Turn it on in tests with the `renderComponent()` option, and in the
+   dev server with the Vite plugin's:
+
+   ```js
+   const t = renderComponent(App, { timingAudit: true })
+   ```
+
+   ```js
+   // vite.config.js
+   import { defineConfig } from 'vite'
+   import sygnal from 'sygnal/vite'
+
+   export default defineConfig({
+     plugins: [sygnal({ diagnostics: { timingAudit: true } })],
+   })
+   ```
+
+   To turn it on for a whole test file or setup file, call `configureTimingAudit(true)` from
+   `'sygnal/diagnostics'`; `globalThis.__SYGNAL_TIMING_AUDIT__ = true` does the same before the
+   app starts. The audit is part of the dev diagnostics and adds nothing to production builds.
+
+3. **Run the test suite and use the app in dev.** Each report names the component, action, sink
+   and field, once each:
+
+   ```text
+   [Sygnal SYG257] Counter's 'INC' PARENT read 'count', which the same action's STATE changed:
+   since 7.0 it gets the new value (6.x: the old one)
+   ```
+
+4. **Decide each report.** If the output wants the new value (a payload built from what STATE
+   stored), keep reading `state`, and remove any update the output repeats, as in the counter
+   above. If it wants the old value (a cleared field, a deleted record, a guard that admits the
+   action), read `props.previousState.<field>`. A nested read reports its top-level field: a read
+   of `state.form.values` reports `form`.
+
+5. **Run `sygnal-check`** and fix any [SYG256](/reference/errors#syg256).
+
+6. **Turn the audit off** when the reports are resolved. It is opt-in because in code written
+   for 7.0, reading the new value is the intent, and the reports would be noise.
+
+Components and behaviors from other packages count too: check that each supports Sygnal 7, or
+run the audit over the screens that use them.
+
+## Binding lifetimes
+
+### What changed
+
+In 6.x a child kept the record it was mounted with until its key changed, so a selection needed
+`key={selected.id}`. In 7.0, when the record a child's `state` binding points at changes, Sygnal
+disposes the old child and mounts a new one. This applies to:
+
+- a child's `state="path"` when the path changes, and `state={byId(field, id, idKey)}` when the
+  field, id or idKey changes;
+- a Collection's or VirtualCollection's `from`;
+- a Switchable's `state`.
+
+```jsx
+// 6.x needed key={selected.id}; 7.0 follows the selection by itself
 <Workspace state={byId('projects', selected.id)} />
 ```
 
-The `sinkState: 'before'` migration option changes reducer snapshots only; these binding
-lifetime rules still apply. Keep state that must survive selection in the parent/app state.
+The old child gets its `DISPOSE` action with its last state. Its pending requests, delayed
+`next()` actions and subscriptions are cancelled, and every component inside it is disposed. The
+new child starts from scratch: `INITIALIZE` and `BOOTSTRAP` run again and its local state
+starts from its defaults. Collection items and Switchable pages of the old target are disposed
+too, even when the new target has items with the same ids.
 
-Keep explicit keys when they intentionally reset an unchanged target, or when a changing
-custom lens needs a new lifetime. Fresh equivalent byId helpers preserve instances. Normal
-record updates and reordering within a target do not remount it. A stable explicit key does
-not override a known target change. A missing target produces no stale entity content.
-Deleting an existing selected record without changing its byId arguments also disposes that
-entity’s old lifetime. A fresh missing-state lifetime can initialize/fetch data; isolated defaults
-and path seeding still follow the normal creation rules. Reinserting the same ID cannot revive
-old pending work.
+**The child's DOM is replaced.** Focus, caret position, scroll position and any text being typed
+inside it are lost. Keep an input the user may be typing in while the selection changes outside
+the replaced child, or keep its value in the parent's state.
 
-Deletion ends the old known lifetime after the deleting action's outputs finish, before later
-queued work from that subtree can run. This includes deletion and same-ID reinsertion between
-renders, hidden descendants, and whole Collection/VirtualCollection source targets. Cleanup
-receives the last owned state and cannot write a deleted target back into the parent.
+### Deleting the bound record
 
-Hidden page views remain paused. An ordinary replacement child mounts when its owner next
-reconciles (normally when shown), then follows normal initialization and default/seeding rules.
+When the record is deleted (the `byId()` arguments stay the same but the record is gone), the
+old child is disposed as well, after the deleting action finishes, so that action's outputs
+still run. Its `DISPOSE` gets its last state; a `STATE` change from `DISPOSE` can't bring the
+deleted record back. A record added again later with the same id gets a new child, not the old
+child's pending work. Children inside a hidden Switchable page are disposed the same way; their
+replacements mount when the page is shown again.
 
-Arbitrary custom lenses remain opaque: recreating a closure does not establish that its target
-changed, so they retain their mount-time binding. Use a key tied to their selected entity, and conditionally remove the child when that entity
-disappears (or include availability in its key).
-See [state lifetimes](/guide/state/#changing-the-selected-record) for details.
+### What doesn't replace a child
 
-## Other additions
+- A new `byId()` call with the same arguments on every render.
+- Editing the record's fields, or reordering the array it's in.
+- Switching a Switchable's active page with the same `state` target.
 
-Scaffolding into a directory containing only `.git` and/or `.DS_Store` now preserves that
-metadata, and `.` gets a package name from the resolved directory. Other nonempty destinations
-remain rejected. TypeScript tests can use `t.query<HTMLInputElement>(selector)` and
-`t.queryAll<HTMLInputElement>(selector)`; these type arguments assert an element type and do
-not validate it at runtime. Typed control tokens continue to infer their element types.
+### Keys
+
+You can drop a `key` that only worked around `byId()` selection. A key still resets a child whose
+target hasn't changed: change the key and the child starts over.
+
+**A stable key no longer keeps a child across a target change.** In 6.x
+`<Editor key="editor" state={byId('docs', id)} />` kept one editor while `id` changed; in 7.0 the
+editor is replaced. To keep something across the change (an open panel, a scroll position, a
+half-written comment), lift it into the parent's state.
+
+### Custom lenses
+
+Sygnal can't tell whether a new `{ get, set }` lens object points at a different record, so a
+child with a custom lens keeps the binding it was mounted with. Give it a key tied to the
+selected record, and render it only while that record exists (or include availability in the
+key):
+
+```jsx
+{doc && <Editor key={doc.id} state={docLens(doc.id)} />}
+```
+
+See [Changing the selected record](/guide/state/#changing-the-selected-record).
+
+## Not ready yet?
+
+Stay on 6.x (`npm install sygnal@^6`) until the test suite passes on 7.0 with the audit's reports
+resolved. There is no per-component switch for the old timing or the old lifetimes. The current
+`sygnal-check` supports both: on 6.x it still reports
+[SYG454](/reference/errors/#syg454) for a `byId()` selection without a key.

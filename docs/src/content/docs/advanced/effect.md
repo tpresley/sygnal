@@ -64,7 +64,7 @@ App.model = {
 }
 ```
 
-In Sygnal 7, `EFFECT` and `EVENTS` see `submitting: true` by default; an explicit component or behavior declaration wins. `props.previousState` gives the old state. See [snapshot timing](/guide/model/#choosing-the-state-seen-by-sinks) for mixed library/host actions.
+STATE runs first, so `EFFECT` and `EVENTS` see `submitting: true`. The state from before the action is the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)).
 
 ## Async Work That Isn't HTTP
 

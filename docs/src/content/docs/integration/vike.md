@@ -5,8 +5,6 @@ description: Using Sygnal with Vike for SSR and file-based routing
 
 Sygnal includes a [Vike](https://vike.dev) extension that provides server-side rendering, client-side routing, and automatic hydration with file-based routing.
 
-Sygnal 7 defaults to updated-state output sinks, including islands/pages. No timing option is needed. To migrate incrementally, select `sinkState: 'before'` in the Vike `+config` and match it in `renderComponent` tests. Explicit component/behavior declarations still win. See [Migrating to 7.0](/guide/migrating-to-7/).
-
 ## Setup
 
 Install dependencies:

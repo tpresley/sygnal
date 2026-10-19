@@ -43,7 +43,7 @@ TabContainer.model = {
 }
 ```
 
-In Sygnal 7, changing the Switchable’s known `state` path or byId target starts a new host lifetime and disposes all its pages, including hidden pages. Merely switching the active page within the same target still keeps pages alive as described below. Opaque custom lenses need an explicit key when their target changes. See [state lifetimes](/guide/state/#changing-the-selected-record).
+When the Switchable's `state` points at a different record (a changed path, or a `byId()` with a different id), Sygnal 7 disposes it and all its pages, hidden ones included, and mounts a new one. Switching the active page with the same `state` keeps the pages alive, as described below. A Switchable bound with a custom lens keeps its pages until its `key` changes. See [state lifetimes](/guide/state/#changing-the-selected-record).
 
 ## Switchable Props
 

@@ -41,8 +41,8 @@ TaskCard.model = {
 ```
 
 The DISPOSE reducer receives the current state, so you can read component data during cleanup.
-When a known path/byId target has disappeared, it receives that lifetime's last owned state.
-Cleanup writes cannot recreate the deleted target:
+When the record the component was bound to has been deleted, it receives the component's last
+state; a STATE change from `DISPOSE` can't bring the record back:
 
 ```jsx
 Timer.model = {
@@ -78,13 +78,14 @@ Collection items are automatically disposed when removed from the state array. E
 
 Disposal is recursive: when an item is removed, every component inside it is disposed too,
 including nested Collections and Switchables (a removed lane disposes all of its cards).
-Ordinary view removal disposes the child during reconciliation; Collection item removal
-disposes it when the Collection synchronizes its items. Each component is disposed at most once.
+A child the view stops rendering is disposed when its parent renders; a removed Collection item
+when the Collection updates its items. Each component is disposed at most once.
 
-Known binding-target deletion is observed after the deleting action completes, including its
-outputs, before later queued work from the old subtree runs. It does not wait for rendering:
-deleting and reinserting the same ID in one synchronous burst still cancels the old lifetime.
-Hidden descendants follow the same disposal rule. A hidden owner's view remains paused;
-its ordinary replacement children mount when it next reconciles, normally when shown again.
+A child whose bound record is deleted (`state={byId('projects', id)}` after the project is
+removed) is disposed after the deleting action finishes, including its outputs, and before any
+later action of that child runs. It doesn't wait for a render: deleting a record and adding one
+with the same id right after still disposes the old child and its pending work. Children inside
+a hidden Switchable page are disposed the same way; their replacements mount when the page is
+shown again. See [Changing the selected record](/guide/state/#changing-the-selected-record).
 
 Under [`renderComponent()`](/integration/testing/), `t.dispose()` disposes the whole tree, so `DISPOSE` entries of children run as well.

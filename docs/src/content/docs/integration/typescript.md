@@ -182,7 +182,7 @@ QuoteCard.model = {
 }
 ```
 
-In Sygnal 7, `HTTP` receives the state after `STATE` commits, so `state.status` is already `'loading'`. The fourth reducer argument includes typed `state` and `previousState`; use `previousState` for an old value or a guard that `STATE` changes. `SinkState` is the exported `'before' | 'after'` type for an explicit component, behavior, or app timing contract.
+STATE runs first, so `HTTP` gets the state after it: `state.status` is already `'loading'`. The fourth reducer argument has typed `state` and `previousState`; use `previousState` for a value from before the action, or for a guard on a field STATE changes.
 
 `ok` and `error` are typed as plain strings, so a request can be built in a helper without `as const`; a name with no model entry is caught by `sygnal-check` and the dev entry ([SYG112](/reference/errors/#syg112)), not by `tsc`. `then` / `catch` keys are type errors on these requests ([SYG610](/reference/errors/#syg610) at runtime). `{ abort: 'LOADED' }` cancels by action or key name.
 

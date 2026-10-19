@@ -9,6 +9,8 @@ A reactive component framework with pure functions, zero side effects, and autom
 
 ---
 
+> **Upgrading from 6.x?** Sygnal 7.0 changes reducer timing: output sinks (EFFECT, EVENTS, PARENT, HTTP, ...) now see the state after the action's STATE update. See [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/).
+
 ## Why Sygnal?
 
 - **Pure components** — Views are plain functions. All side effects are handled by drivers, outside your code.

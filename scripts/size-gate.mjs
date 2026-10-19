@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 
 // D48; PLAN-4.6 D185 re-enabled it at 42,300 B (D182 had made it informational during the rewrite)
-const BUDGET = 43000  // PLAN-11 M-10: user-approved coordinated lifetime fixes (was 42,950 B; originally 42,700 B, PLAN-5 D230)
+const BUDGET = 43000  // Sygnal 7.0 (PLAN-11 M-10): user-approved for the binding-lifetime fixes (was 42,700 B, PLAN-5 D230)
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')

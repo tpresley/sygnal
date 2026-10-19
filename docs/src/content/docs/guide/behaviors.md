@@ -187,7 +187,7 @@ Two components can use the same behavior, and so can every item of a [Collection
 
 ### Options, the key, host state and timers
 
-Every model handler of a behavior gets the use's options and its key after the usual arguments: `(slice, data, next, props, options, key)`, and the intent gets `(sources, options, key)`. `props.state` is the host's whole state.
+Every model handler of a behavior gets the use's options and its key after the usual arguments: `(slice, data, next, props, options, key)`, and the intent gets `(sources, options, key)`. `props.state` is the host's whole state. As in a component, STATE runs first: an output handler gets the slice and `props.state` after it, and `props.previousState` is the host's state from before the action, so the slice from before it is `props.previousState[key]` ([Model](/guide/model/#what-state-each-sink-sees)).
 
 Two more parts are for behaviors that reach past their slice:
 

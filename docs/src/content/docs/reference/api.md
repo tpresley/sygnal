@@ -27,7 +27,6 @@ function run(
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sinkState` | `'before'` \| `'after'` | `'after'` | Sygnal 7: outputs read committed state; `'before'` restores the 6.x snapshot default; explicit component/behavior declarations win. See [Model](/guide/model/#choosing-the-state-seen-by-sinks). |
 | `mountPoint` | `string` | `'#root'` | CSS selector for the DOM element to render into |
 | `fragments` | `boolean` | | No effect since 6.0: fragments (`<>…</>`) always work. The DOM driver splices a fragment's children into its parent before each render, so they are diffed, moved (a keyed fragment, such as a `Collection` item returning `<>…</>`, moves as one) and hydrated like the parent's own children. The children of a keyed fragment get keys derived from the fragment's key and their own (or their tag and position): derived keys never collide with each other, but in a contrived case one could equal a key you wrote by hand on a sibling (avoid keys that look like `"a""b"`) |
 | `useDefaultDrivers` | `boolean` | `true` | Include default drivers (DOM, STATE, EVENTS, LOG) |
@@ -95,7 +94,7 @@ export default defineConfig({
 |--------|------|---------|-------------|
 | `disableJsx` | `boolean` | `false` | Skip automatic JSX configuration |
 | `disableHmr` | `boolean` | `false` | Skip automatic HMR injection |
-| `diagnostics` | `DiagnosticsMode \| { mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server (`'off'` injects nothing) |
+| `diagnostics` | `DiagnosticsMode \| { mode, strict, timingAudit, ignore }` | `'warn'` | Runtime diagnostics in the dev server (`'off'` injects nothing); `timingAudit: true` turns on the 7.0 timing audit ([SYG257](/reference/errors/#syg257)) |
 | `check` | `boolean \| { strict, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server, when installed |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
 | `nativeGlobalThis` | `boolean` | `true` | Alias xstream's `globalthis` polyfill to the native `globalThis`, in dev, build and Vitest |
@@ -463,10 +462,12 @@ Component.model = {
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `state` | `STATE` | Current component state (with calculated fields) |
+| `state` | `STATE` | Component state after the action's STATE reducer (with calculated fields) |
 | `data` | `any` | Data from the triggering action |
 | `next` | `(action, data?, delay?) => void` | Dispatch a follow-up action |
-| `props` | `object` | Current props, children, slots, context, and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
+| `props` | `object` | Current props, children, slots, context, `state`, `previousState` (the state from before the action, 7.0) and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
+
+Every non-STATE sink gets these arguments: STATE runs first, so `state` is what it committed ([Model](/guide/model/#what-state-each-sink-sees)).
 
 An EFFECT may be `async` and call `next()` after an `await`: a rejection is reported as [SYG214](/reference/errors/#syg214), and `next()` after unmount is ignored ([Async work that isn't HTTP](/advanced/effect/#async-work-that-isnt-http)).
 
@@ -596,6 +597,7 @@ function renderComponent(
 | `drivers` | `object` | `{}` | Additional drivers beyond the defaults |
 | `diagnostics` | `DiagnosticsMode` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
+| `timingAudit` | `boolean` | unchanged | The 7.0 timing audit ([SYG257](/reference/errors/#syg257)) while rendered |
 | `mockConfig` | `object` | `{}` | Mock DOM event streams, by selector |
 | `autoConnect` | `boolean` | `true` | Fake socket connections open by themselves; `false` holds them until `t.open()` |
 | `socketSink` | `string` | `'WS'` | The driverless sink that receives the `connections` static |
@@ -724,8 +726,8 @@ MyComponent.model = {
 ```
 
 Works with all sinks (EFFECT, EVENTS, PARENT, STATE). The reducer receives the current state,
-or the last owned state when its known binding target has been deleted. Cleanup cannot write
-a deleted target back into the parent. Disposal is recursive: removing a component disposes
+or the component's last state when its bound record has been deleted. A STATE change from
+`DISPOSE` can't bring a deleted record back. Disposal is recursive: removing a component disposes
 everything inside it, including nested Collections and Switchables.
 
 ---
@@ -813,7 +815,7 @@ A new `key` disposes the old instance (`DISPOSE`) and starts a new one (`BOOTSTR
 
 ## byId()
 
-`byId(field, id, idKey = 'id')` returns a `{ get, set }` lens to the element of the array `state[field]` whose `idKey` is `id` (6.3.0, from `sygnal`). `get` returns `undefined` once the element is gone, and `set` then leaves the state unchanged. In Sygnal 7, changing its field/ID/idKey automatically disposes and recreates the bound component, canceling old pending work; equivalent helper objects retain it. This also applies to known path bindings and Collection/VirtualCollection/Switchable targets. Opaque custom lenses still need a changing explicit key to select a new lifetime. In 6.x, `<Editor key={selected.id} state={byId('projects', selected.id)} />` is required for changing selection. See [state lifetimes](/guide/state/#changing-the-selected-record).
+`byId(field, id, idKey = 'id')` returns a `{ get, set }` lens to the element of the array `state[field]` whose `idKey` is `id` (6.3.0, from `sygnal`). `get` returns `undefined` once the element is gone, and `set` then leaves the state unchanged. In Sygnal 7, changing its field, id or idKey disposes the bound component and mounts a new one, cancelling its pending work; a new `byId()` call with the same arguments keeps it. The same goes for a `state` path, a Collection's or VirtualCollection's `from` and a Switchable's `state`. A custom lens keeps its child until the child's `key` changes. In 6.x, a changing selection needs `<Editor key={selected.id} state={byId('projects', selected.id)} />`. See [state lifetimes](/guide/state/#changing-the-selected-record).
 
 ```jsx
 import { byId } from 'sygnal'
@@ -1698,6 +1700,7 @@ The dev-only entry with the runtime checks. Importing it registers them; it also
 | `inspect(options?)` | The app graph of the live components (`InspectGraph`) |
 | `configureStrict(on?)` | Strict-mode runtime checks on (`true`), off (`false`) or default (`undefined`: on when `globalThis.__SYGNAL_STRICT__ === true`) |
 | `isStrictEnabled()` | Whether the strict checks are on |
+| `configureTimingAudit(on?)` / `isTimingAuditEnabled()` | The 7.0 timing audit ([SYG257](/reference/errors/#syg257)) on (`true`), off (`false`) or default (`undefined`: on when `globalThis.__SYGNAL_TIMING_AUDIT__ === true`); see [Migrating to 7.0](/guide/migrating-to-7/#step-by-step) |
 | `checkEventBus()` | Report SYG105 for EVENTS types selected but never emitted; returns `{ selected, emitted, selectedNeverEmitted, emittedNeverSelected }` |
 | `listCodes()` / `getCodeInfo(code)` | `{ code, severity, title, docsSlug }` for the registered codes |
 | `configureChecks({ settleMs, idleMs, minRenders })` | Timing of the DOM checks (SYG103/104) |

@@ -112,7 +112,7 @@ Checklist.model = {
 }
 ```
 
-This app uses Sygnal 7’s default updated-state outputs. `props.previousState.next` identifies the row allocated by STATE before it incremented the counter. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
+STATE has already incremented `next` when `ELEMENT` runs, so the new row's id is `previousState.next`. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
 
 ## When it runs
 

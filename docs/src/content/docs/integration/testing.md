@@ -17,10 +17,10 @@ const state = await t.next(s => s.count === 1)
 t.dispose()
 ```
 
-Sygnal 7 uses updated-state sinks by default in both `run()` and `renderComponent()`.
-For an app using the migration option `sinkState: 'before'`, match it in tests:
-`renderComponent(App, { sinkState: 'before' })`. Sygnal 6.x uses pre-action state and does not
-support this option. See [Migrating to 7.0](/guide/migrating-to-7/).
+When upgrading 6.x code, `renderComponent(App, { timingAudit: true })` turns on the 7.0 timing
+audit for that test: [SYG257](/reference/errors/#syg257) reports each output sink that reads a
+state field the same action's STATE changed (since 7.0 it gets the new value). See
+[Migrating to 7.0](/guide/migrating-to-7/).
 In TypeScript, `t.query<HTMLInputElement>('.project-title')?.value` and
 `t.queryAll<HTMLInputElement>('.row input')` assert the element type; typed control tokens infer it.
 Generic types do not validate real elements. Queries are nullable, and mock elements are snapshots,
@@ -267,7 +267,7 @@ import { event } from 'sygnal'
 Counter.model = {
   RESET: {
     STATE:  (state) => ({ ...state, count: 0 }),
-    EVENTS: event('COUNTER_RESET', (state) => state.count),
+    EVENTS: event('COUNTER_RESET', (state, data, next, { previousState }) => previousState.count),
   },
 }
 
@@ -277,7 +277,7 @@ await t.next(s => s.count === 1)
 t.simulateEvent('.reset', 'click')
 await t.next(s => s.count === 0)
 
-expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 0 }])
+expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 
@@ -562,6 +562,7 @@ While a component is rendered, diagnostics are collected (`'collect'` mode by de
 - `t.diagnostics` lists everything collected, info included.
 - `renderComponent(C, { diagnostics: 'error' })` makes every warning throw instead.
 - `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) runtime checks (SYG501, SYG504, SYG508) for this render.
+- `renderComponent(C, { timingAudit: true })` turns on the 7.0 timing audit for this render: [SYG257](/reference/errors/#syg257) (info) for each output sink that reads a top-level field the same action's STATE changed. Info isn't a failure for `expectNoDiagnostics()`; read the reports from `t.diagnostics` (see [Migrating to 7.0](/guide/migrating-to-7/#step-by-step)).
 
 ```jsx
 const t = renderComponent(TodoList, { strict: true })
@@ -603,6 +604,7 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `drivers` | `object` | `{}` | Extra drivers beyond DOM, EVENTS, STATE and LOG |
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
 | `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
+| `timingAudit` | `boolean` | unchanged | The 7.0 timing audit (SYG257) while rendered, for upgrading 6.x code |
 | `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
 | `timeoutMs` | `number` | `2000` | Default timeout of `next()`, `waitForState()` and `settle()` |

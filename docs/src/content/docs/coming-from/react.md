@@ -578,7 +578,7 @@ These come from watching developers and coding agents write their first Sygnal c
 | `value={state.x}` without an `input` action | Typing is undone on the next render ([SYG111](/reference/errors/#syg111)) | `DOM.input('.x').value()` and a reducer |
 | A child with its own `initialState` | An error ([SYG405](/reference/errors/#syg405)) | Put its start values in the parent's state |
 | `state.todos.push(todo); return state` | The change is ignored ([SYG222](/reference/errors/#syg222)) | Return a new object: `{ ...state, todos: [...state.todos, todo] }` |
-| An `HTTP` or `PARENT` sink that reads what `STATE` just set | In Sygnal 7, it sees committed state by default | `props.previousState` holds old values; 6.x used pre-action state ([Model](/guide/model/)) |
+| A `PARENT` or `HTTP` sink that recomputes what `STATE` just set (`PARENT: (s) => s.n + 1`) | The update is applied twice: STATE runs first, so the sink already sees the new `n` | Read the new value from `state`, an old one from the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)) |
 
 ## Bringing Sygnal into a React codebase
 

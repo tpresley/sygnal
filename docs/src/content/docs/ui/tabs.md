@@ -130,10 +130,8 @@ Editor.model = {
 }
 ```
 
-In Sygnal 7, the host's `ELEMENT` handler receives updated state after `STATE` removes the
-file. Use `previousState.files` to locate the closed file and choose its neighbor. The tabs
-behavior's own `before` contract does not change the host's output timing. Closing the final
-remaining tab returns `ABORT` because there is no neighbor to focus.
+`ELEMENT` gets the state after `STATE` removed the file, so it finds the closed file's neighbor
+in `previousState.files`. Closing the last tab returns `ABORT`: there is no neighbor to focus.
 
 ## Styling
 
