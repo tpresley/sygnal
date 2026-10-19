@@ -133,14 +133,15 @@ export const formsCheck: DiagnosticCheck = {
       })
       const model = Object.keys(view.model || {}).map(a => a.split('|')[0].trim()), own = ownActions(b)
       const clash = own.includes(o.submit)
-      if (typeof o.submit != 'string' || !model.includes(o.submit) || clash) {
+      // PLAN-11 F-3: with `request`, the form sends the submit itself and `submit` is optional
+      if (o.request ? o.submit !== undefined && (typeof o.submit != 'string' || !model.includes(o.submit) || clash) : typeof o.submit != 'string' || !model.includes(o.submit) || clash) {
         devReport('SYG234', {
           component,
-          message: typeof o.submit != 'string' ? `${name}'s form '${key}' has no submit action, so a valid submit dispatches nothing`
+          message: typeof o.submit != 'string' ? `${name}'s form '${key}' has no submit action and no request, so a valid submit dispatches nothing`
             : clash ? `${name}'s form '${key}' names submit: '${o.submit}', one of the form's own actions; a valid submit dispatches the form's '${key}.${o.submit}'${model.includes(o.submit) ? `, never ${name}'s '${o.submit}' entry` : ''}`
             : `${name}'s form '${key}' dispatches '${o.submit}' on a valid submit, but ${name} has no model entry '${o.submit}'`,
           fix: clash ? SUBMIT_FIX(key, o.submit, own)
-            : `Name a host action and add it to the model: submit: 'SIGN_UP', model: { SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: '${key}.DONE', error: '${key}.ERRORS' }) } }`,
+            : `Give the form a request, form(schema, { values, request: { url: '/api/signup' } }) (it sends the valid submit itself), or name a host action and add it to the model: submit: 'SIGN_UP', model: { SIGN_UP: { HTTP: (state, values) => ({ url, json: values, ok: '${key}.DONE', error: '${key}.ERRORS' }) } }`,
           data: {key, submit: o.submit},
         })
       }

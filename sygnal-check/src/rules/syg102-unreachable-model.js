@@ -1,7 +1,7 @@
 /**
  * SYG102: a model entry nothing can trigger: no intent action of that name,
  * not a built-in action, no next('X') string literal targets it, no request
- * names it as a reply action (`ok: 'X'` / `error: 'X'` in a value a non-STATE sink
+ * names it as a reply action (`ok: 'X'` / `error: 'X'` / `progress: 'X'` in a value a non-STATE sink
  * returns), and no `connections` entry names it (message/open/close/error), nor a `timers`
  * static (`{ every, action }`, `{ frame: 'FRAME' }`, PLAN-4 GS-7: comp.connections carries them).
  *
@@ -102,8 +102,8 @@ export default {
           component: comp.name,
           file: e.file,
           node: e.node,
-          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, reply action (ok/error), agent action or next('${e.action}') call uses it` +
-            (dynamicNext ? ' (a next() call with a non-literal name might)' : dynamicReplies || behaviorDynamic ? ' (a request with a non-literal ok/error name might)' : ''),
+          message: `model entry '${e.action}' is never triggered: no intent action, built-in action, reply action (ok/error/progress), agent action or next('${e.action}') call uses it` +
+            (dynamicNext ? ' (a next() call with a non-literal name might)' : dynamicReplies || behaviorDynamic ? ' (a request with a non-literal ok/error/progress name might)' : ''),
           fix: comp.intent
             ? `add '${e.action}' to ${comp.name}.intent, name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`
             : `add an intent that returns '${e.action}', name it in a request (ok: '${e.action}'), call next('${e.action}') from another entry, or remove it`,

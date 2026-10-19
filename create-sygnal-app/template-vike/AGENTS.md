@@ -10,6 +10,7 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 |---|---|
 | `npm test` | Runs the Vitest tests (`*.test.js` / `*.test.ts` next to the components) |
 | `npx --no-install sygnal-check pages --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |
+| `npm run check` | The same `sygnal-check --strict` |
 | `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
 | `npx --no-install sygnal-check pages --graph --json` | The app graph: components, actions, selectors, EVENTS |
 | `npm run dev` / `npm run build` | Dev server (prints runtime diagnostics) / production build |

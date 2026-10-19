@@ -15,6 +15,7 @@ The details of the [`form` behavior](/guide/forms/). Start with the recipe on [F
 | `errors` | Every current schema error by field name, shown or not |
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](/guide/forms/#server-errors-and-failed-submits); [check](#async-checks) results; checks running |
 | `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: the request sent and not answered yet; `form.DONE` arrived (or a submit without a request was dispatched); attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
+| `progress`, `resets` | The submit request's last [progress](#file-fields) step (`{ phase, loaded, total, fraction }`, or `null`); how many times the form started over (`form.RESET`, `resetOnShow`), for keying a [file input](#file-fields) |
 | `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors as of the schema's last answer (`false` before the first); values differ from `initial`; the form-level message |
 
 The options are on [Forms](/guide/forms/#options).
@@ -25,7 +26,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 
 | Action | Data |
 |---|---|
-| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`) |
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`; a [file input](#file-fields) its `File`) |
 | `form.SET` | `{ values }`: several fields at once, by field name (`{ name: 'Dana', 'addresses.7.city': 'Hilo' }`), as if the user had typed them: one validation, the fields count as changed, `touched` as for `form.CHANGE` (so errors show by the [`show`](/guide/forms/#options) rule), their server errors and check results cleared. Fields not named keep their values; a name that isn't a field is skipped ([SYG230](/reference/errors/#syg230) in development). For a fill from elsewhere: [an AI extraction](/recipes/ai-form-fill/), a saved draft, an address lookup |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
@@ -33,9 +34,49 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | `form.ERRORS` | Server errors: an error reply, a map or a list of issues |
 | `form.DONE` | The submit's request was saved: `initial` becomes `values`, `submitted` turns on ([a submit without a request](/guide/forms/#submit-without-a-request) needs none) |
 | `form.RESET` | Back to `initial`, or to the values given |
+| `form.PROGRESS` | A progress step of the submit's request, sent with `progress: 'form.PROGRESS'`: kept as `progress` until `form.DONE` or `form.ERRORS` ([file fields](#file-fields)) |
 | `form.VALIDATE` | Internal: the first validation when the host starts; with `resetOnShow`, the start over (also each time the form element appears again) |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
+
+## File fields
+
+A file input whose `name` is in `values` is a field like any other: its value is the `File` the user picked (an array of them with `multiple`, `null` when none), the schema validates it, its error shows on `fields.avatar.error`, and the submit's data carries it, so `request` sends it as [`multipart`](/guide/http/#upload-and-download-progress):
+
+```jsx
+import { form } from 'sygnal'
+import { z } from 'zod'
+
+const profileSchema = z.object({
+  name: z.string().min(1, 'Enter your name'),
+  avatar: z.file('Choose a photo').max(5_000_000, 'At most 5 MB').mime(['image/png', 'image/jpeg'], 'A PNG or JPEG photo'),
+})
+
+function Profile({ state }) {
+  const f = state.form.fields
+  const percent = Math.round((state.form.progress?.fraction ?? 0) * 100)
+  return (
+    <form>
+      <label>Name <input name="name" value={f.name.value} /></label>
+      <label>Photo <input type="file" name="avatar" accept="image/*" key={'avatar' + state.form.resets} /></label>
+      <p className="chosen">{f.avatar.value?.name}</p>
+      <p className="error">{f.avatar.error}</p>
+      {state.form.submitting && <progress max="100" value={percent} aria-label="Upload progress" />}
+      <button type="submit" disabled={state.form.submitting}>Save</button>
+    </form>
+  )
+}
+
+// the data has a File, so the form sends it as multipart, with progress in state.form.progress
+Profile.uses = { form: form(profileSchema, { values: { name: '', avatar: null }, request: { url: '/api/profile' } }) }
+```
+
+- **Progress**: the form's `request` asks for progress (`progress: 'form.PROGRESS'`; a `submit` entry's request can name it too), and the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
+- **Don't bind `value`**: the browser doesn't let a page set a file input's file. So a reset can't clear it through state; instead the form counts its start overs in `state.form.resets`, and `key={'avatar' + state.form.resets}` makes a new, empty input after each one. For the same reason, show the chosen file's name yourself (`f.avatar.value?.name`): after a reset to saved values (`form.DONE` makes the saved values the start values) the value is still the file while the new input is empty.
+- **Validation** uses your schema's file checks: zod's `z.file()` (`.max()`, `.mime()`), valibot's `v.file()`, or `instanceof File` in a hand-written schema. Required means rejecting `null`.
+- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`, submit, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
+- A file input whose `name` isn't in `values` is left alone, as before 6.7, for an app that reads its files in its own intent.
+- A `File` can't be serialized, so `persist()` and server-rendered state don't carry file fields.
 
 ## Any Standard Schema
 
@@ -265,11 +306,15 @@ Signup.model = {
 
 `form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again).
 
-Whether a valid submit waits for `form.DONE` depends on the host's entry for the `submit` action, checked when the host starts:
+Whether a valid submit waits for `form.DONE` depends on how it is sent:
+
+- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (the state before the submit, as for any sink); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` unless it sets `progress`, and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
+
+Otherwise it depends on the host's entry for the `submit` action, checked when the host starts:
 
 - **With the `http` sink** (`SIGN_UP: { HTTP: … }`, or the sink the `http` option names, such as `http: 'API'`): `submitting` is `true` until `form.DONE` or `form.ERRORS`, and a submit meanwhile is dropped ([SYG232](/reference/errors/#syg232)). Even when the entry returns `ABORT` this time, the form waits.
 - **Anything else** (`STATE`, `PARENT`, `EVENTS`, `EFFECT`, `ROUTER`, a reducer function): no request, so the submit is done at once, as if `form.DONE` had arrived (no host `form.DONE` entry runs). An `EFFECT` that calls `next('form.DONE')` itself still works; the second `DONE` changes nothing. Work that answers later without the `http` sink (a promise in an `EFFECT`) gets no pending state: send it through a driver as a request instead.
-- **A host that unmounts** keeps its slice in the parent's state when it has a `state` prop. When it mounts again, the form clears `submitting`, `queued` and running checks (their replies went to the old host); the values, errors and `submitted` stay. `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`); it clears errors, touched fields and the submit count.
+- **A host that unmounts** keeps its slice in the parent's state when it has a `state` prop. When it mounts again, the form clears `submitting`, `queued` and running checks (their replies went to the old host); the values, errors and `submitted` stay. `form.RESET` goes back to `initial`, or to the values it is given (`t.simulateAction('form.RESET', values)`, or an intent action `'form.RESET': DOM.click('.reset')`: data that isn't a plain object, such as the click event, means `initial`); it clears errors, touched fields and the submit count.
 - **Starting over when shown** (`resetOnShow: true`): the form goes back to its start values, as a new form (`initial` too; touched fields, errors, server errors, checks and the submit state cleared), when its host starts (mounted again, a Switchable page made again for another `instance`) and each time its form element appears in the host's DOM after being absent (a Switchable page shown again: hidden pages stay alive and keep their state; a form rendered conditionally). Re-renders while the form is shown keep what the user typed. With the mock DOM (and in SSR) only the host's start counts. A `values` function gets the host's whole state and is called at each start over; without `resetOnShow`, once, when the host starts and the slice is still untouched. Before its first call (the first render of a page that reads its parent's state) the fields come from calling it with a blank state, every value read from it `''`.
 
 ## Without the behavior: the helpers
@@ -345,6 +390,47 @@ Signup.uses = {
 - `autosubmit` defaults to `false`: the agent's call fills the fields and **stays pending until the user submits the form**, then gets the same answer. Set `autosubmit: true` only for forms that are safe to submit without the user looking.
 - A user's own submit is unchanged.
 - `formTool` comes from `sygnal/ai` so that an app using `form` without a tool doesn't carry the tool code. A plain object as `tool` does nothing but report [SYG245](/reference/errors/#syg245) in development.
+
+## TypeScript
+
+With a schema that declares its [Standard Schema](https://standardschema.dev) types (zod, valibot and arktype do), `form()` types the values from the schema's input and checks `values` against it. `UsesState<typeof uses>` gives the component's state the slice: `state.form.values.email` and `state.form.fields.email.value` are strings, and a top-level field name that isn't in the values is a type error (nested paths such as `` f[`addresses.${id}.city`] `` stay open). `FormOutput<typeof uses.form>` (or `SchemaOutput<typeof signupSchema>`) is the schema's output, the data of the host's submit action:
+
+```tsx
+import { form } from 'sygnal'
+import type { Component, UsesState, UsesActions, FormOutput } from 'sygnal'
+import { z } from 'zod'
+
+const signupSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address'),
+  age: z.coerce.number().int().min(18, 'You must be 18 or older'),
+})
+
+const uses = {
+  form: form(signupSchema, { values: { email: '', age: '' }, submit: 'SIGN_UP' }),
+}
+
+type State = UsesState<typeof uses>
+type Actions = UsesActions<typeof uses> & { SIGN_UP: FormOutput<typeof uses.form> }
+
+const Signup: Component<State, {}, {}, Actions> = ({ state }) => {
+  const f = state.form.fields
+  return (
+    <form noValidate>
+      <label>Email <input name="email" value={f.email.value} aria-invalid={f.email.invalid} /></label>
+      <label>Age <input name="age" inputMode="numeric" value={f.age.value} aria-invalid={f.age.invalid} /></label>
+      <button type="submit" disabled={state.form.submitting}>Sign up</button>
+    </form>
+  )
+}
+
+Signup.uses = uses
+Signup.model = {
+  // values: { email: string; age: number }, the schema's output
+  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
+}
+```
+
+A schema without `types` (a hand-written one) types the values from `values` and the output as `any`. The reply actions are typed too: `form.ERRORS` takes an error reply, a map `{ name: message }` or a list of issues (`FormServerErrors`), and `form.RESET` the whole values (or nothing, for `initial`).
 
 ## Diagnostics
 

@@ -20,6 +20,12 @@ export const REPLY_KEYS = new Set(['ok', 'error', 'block'])
  * reply actions. A request is an LLM one when it has a `messages` key or goes to the LLM sink.
  */
 export const LLM_REPLY_KEYS = new Set(['ok', 'error', 'delta', 'tool'])
+/**
+ * PLAN-11 U-3: an HTTP request (a non-LLM one, where ok / error apply) also names a `progress`
+ * reply action (`progress: 'UPLOAD_PROGRESS'`, the fetch driver's upload / download progress).
+ * `progress: true` goes to `HTTP.progress()`: not a name.
+ */
+export const HTTP_REPLY_KEYS = new Set([...REPLY_KEYS, 'progress'])
 export const isLlmRequest = (obj, sink) => sink === 'LLM' ||
   obj.properties.some(p => (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && propName(p) === 'messages')
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */
@@ -128,17 +134,19 @@ export function returnedObjects(project, file, valueNode, depth = 0, seen = new 
 
 /**
  * Reply action names in the requests a sink value returns:
- *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` values)
+ *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` / `progress` values)
  *   dynamic  Array<{ node, file }>              (non-literal values)
  */
 export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
   const out = { targets: [], dynamic: [] }
   for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
-    const k = keys === REPLY_KEYS && isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : keys
+    const k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
     for (const p of obj.properties) {
       if (p.type !== 'ObjectProperty') continue
       const key = propName(p)
       if (!k.has(key)) continue
+      // U-3: `progress: true` (HTTP.progress()) names no action
+      if (key === 'progress' && unwrap(p.value)?.type === 'BooleanLiteral') continue
       const s = stringValue(p.value)
       if (s != null) out.targets.push({ name: s, key, node: p.value, file: f })
       else out.dynamic.push({ node: p.value, file: f })
@@ -188,7 +196,7 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  *   dynamicNext: Array<{ node, file }>,
  *   eventsEmitted: Array<{ type, node, file }>,
  *   eventsDynamic: Array<{ node, file }>,
- *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error names of requests
+ *   replyTargets: Array<{ name, key, sink, action, node, file }>,   // ok/error/progress names of requests
  *   replyDynamic: Array<{ node, file }>,
  *   requests: Array<{ node, file, sink, action }>,   // object literals non-STATE sinks return (PLAN-3 5-3)
  *   sinkValues: Array<{ action, sink, node, keyNode, file }>,  // every non-STATE-shorthand sink value (PLAN-4 GS-2: ELEMENT)

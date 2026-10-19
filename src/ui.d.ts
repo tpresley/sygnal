@@ -75,6 +75,41 @@ export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: '
 /** A tooltip: `uses = { tip: tooltip({ trigger: '.save', tip: '.save-tip' }) }`. Needs makeTimerDriver(). */
 export function tooltip(options: TooltipOptions): Behavior<TooltipState, TooltipActions, {}, TooltipOptions>
 
+// ── Tooltips (PLAN-11) ────────────────────────────────────────────────
+export interface TooltipsState {
+  /** The tip id of the trigger (or tip) last entered */
+  id: string | null
+  /** The id of the tip shown, or null */
+  open: string | null
+  pending: null | 'show' | 'hide'
+  hover: boolean
+  focus: boolean
+}
+export interface TooltipsOptions {
+  /** Every trigger (a selector matching them all); each names its tip with aria-describedby */
+  trigger: BehaviorTarget
+  /** Every tip: role="tooltip" popover="manual" with an id, placed with CSS anchor positioning */
+  tip: BehaviorTarget
+  /** ms before a tip shows (default 500); moving to another trigger while one shows switches at once */
+  showDelay?: number
+  /** ms before it hides (default 100) */
+  hideDelay?: number
+}
+export interface TooltipsActions {
+  ENTER: { via: 'hover' | 'focus'; id: string }
+  LEAVE: { via: 'hover' | 'focus'; id: string }
+  SHOW: any
+  HIDE: any
+  ESCAPE: string
+  TOGGLED: { id: string; open: boolean }
+}
+/**
+ * PLAN-11 (6.7): every tooltip of a component as one behavior (one state slice, two timers):
+ * `uses = { tips: tooltips({ trigger: '.term', tip: '.term-tip' }) }`, each trigger with
+ * `aria-describedby` naming its tip's id. One tip shows at a time. Needs makeTimerDriver().
+ */
+export function tooltips(options: TooltipsOptions): Behavior<TooltipsState, TooltipsActions, {}, TooltipsOptions>
+
 // ── Tabs ──────────────────────────────────────────────────────────────
 export interface TabsState {
   /** The ids' prefix (the key in `uses` unless the `id` option names it) */

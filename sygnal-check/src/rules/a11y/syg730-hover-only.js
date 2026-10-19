@@ -89,7 +89,7 @@ export default {
           component: comp.name,
           file: intent.file, node: sel.node,
           message: `'${a.name}' is triggered only by ${[...new Set(events)].join(' / ')} on ${shown}: keyboard and touch users can't reach it (nothing else in the intent or the model sends '${a.name}')`,
-          fix: `also trigger it from focus or a click: ${a.name}: xs.merge(DOM.${events[0]}(${shown}), DOM.focusin(${shown})) (and close it on focusout / Escape as on mouseleave); for a tooltip use tooltip() from sygnal/ui`,
+          fix: `also trigger it from focus or a click: ${a.name}: xs.merge(DOM.${events[0]}(${shown}), DOM.focusin(${shown})) (and close it on focusout / Escape as on mouseleave); for a tooltip use tooltip() from sygnal/ui (tooltips() for many triggers)`,
           data: { action: a.name, events: [...new Set(events)] },
         })
       }

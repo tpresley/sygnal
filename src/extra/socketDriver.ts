@@ -2,6 +2,7 @@ import xs, {Stream} from 'xstream';
 import {senderOf, keepSender, allowed, makeReplies} from './replies';
 import {error as logError} from './diagnostics/legacy';
 import {backoff} from './backoff';
+import {FetchEventSource} from './fetchEventSource';
 
 /*
  * makeSocketDriver(options?) (PLAN-3 §1.3): WebSocket and server-sent events, declared per
@@ -11,7 +12,7 @@ import {backoff} from './backoff';
  * - Sink values:
  *   - `{ connections: { [name]: spec | falsy } }`: the sender's whole set of connections. Diffed
  *     per (sender, name): a new name opens, a removed or falsy one closes, a changed URL /
- *     protocols / withCredentials / share closes and reopens, anything else (action names,
+ *     protocols / withCredentials / headers / share closes and reopens, anything else (action names,
  *     reconnect) only rebinds.
  *   - `{ to: name, json? | text? | binary? }`: send on the sender's connection `name` (json is
  *     stringified). Queued while (re)connecting, bounded (`queueLimit`, oldest dropped). A send
@@ -36,6 +37,10 @@ import {backoff} from './backoff';
  * - A disposed sender's connections close (and their retries stop); app dispose closes all.
  * - No WebSocket / EventSource (SSR): nothing opens, nothing is reported.
  * - `WebSocket` / `EventSource` are read at connect time: options.WebSocket ?? globalThis.WebSocket.
+ * - PLAN-11 E-1: an `sse` connection with `headers` (data: a token in it comes from state, and a
+ *   changed header reconnects) is read with FetchEventSource (fetch, `options.fetch` if given),
+ *   since EventSource can't send headers. An `options.EventSource` (a polyfill, the test fake)
+ *   still wins and gets the headers in its init.
  */
 
 const SCOPE = '__sygnalScope';
@@ -118,11 +123,12 @@ export function makeSocketDriver(options: any = {}) {
 
     const connect = (t: any) => {
       t.timer = 0;
-      const C = t.sse ? options.EventSource ?? g.EventSource : options.WebSocket ?? g.WebSocket;
+      const hdr = t.sse && t.spec.headers && typeof t.spec.headers == 'object' ? t.spec.headers : undefined;
+      const C = t.sse ? options.EventSource ?? (hdr && typeof g.fetch == 'function' ? FetchEventSource : g.EventSource) : options.WebSocket ?? g.WebSocket;
       if (typeof C != 'function') return;
       let s: any;
       try {
-        s = t.sse ? new C(t.url, {withCredentials: !!t.spec.withCredentials}) : new C(t.url, t.spec.protocols);
+        s = t.sse ? new C(t.url, {withCredentials: !!t.spec.withCredentials, ...(hdr && {headers: hdr, fetch: options.fetch})}) : new C(t.url, t.spec.protocols);
       } catch (error) {
         // a URL the constructor rejects never opens: no retry
         each(t, e => deliver(e, 'error', {error}));
@@ -201,7 +207,7 @@ export function makeSocketDriver(options: any = {}) {
         const sse = typeof spec.sse == 'string';
         const url = resolve(sse ? spec.sse : spec.socket, sse);
         // the connection's identity: a change reconnects, anything else only rebinds
-        const key = (spec.share === false ? 'u' : '') + (sse ? 'e' + !!spec.withCredentials : 's' + JSON.stringify(spec.protocols)) + url;
+        const key = (spec.share === false ? 'u' : '') + (sse ? 'e' + !!spec.withCredentials + (spec.headers ? JSON.stringify(spec.headers) : '') : 's' + JSON.stringify(spec.protocols)) + url;
         if (old && old.key === key) {
           old.spec = spec;
           if (old.t) listen(old.t);

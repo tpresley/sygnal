@@ -40,6 +40,8 @@ export default App
 
 The view's arguments are typed from the annotation: `state` is `AppState` (plus the calculated fields), so callbacks over it (`state.items.find((item) => …)`) need no annotations either.
 
+Run `tsc --noEmit` as well as `sygnal-check`: sygnal-check reads the code without types (it finds wiring bugs, such as an action with no model entry), so a value of the wrong type, like an `initialState` that doesn't match `AppState`, is caught only by `tsc`. The TypeScript templates of create-sygnal-app run both with `npm run check`.
+
 ## Component Type Parameters
 
 ```typescript
@@ -58,7 +60,7 @@ RootComponent<STATE, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVID
 | `SINK_RETURNS` | Return types for non-state sinks (`EVENTS`, `LOG`, `PARENT`) |
 | `PROVIDED_CONTEXT` | Shape of what the component's own `.context` provides (defaults to `CONTEXT`) |
 
-Unused parameters take `{}`: `Component<TaskState, {}, {}, TaskActions>`.
+Unused parameters take `{}`: `Component<TaskState, {}, {}, TaskActions>`. An `any` PROPS (`Component<TaskState, any>`) allows any prop and keeps `state` typed (since 6.7).
 
 ## Sub-components in JSX
 

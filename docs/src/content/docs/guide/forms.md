@@ -71,7 +71,7 @@ function Signup({ state, uid }) {
 Signup.initialState = { accountId: null }
 
 Signup.uses = {
-  form: form(signupSchema, { values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, submit: 'SIGN_UP' }),
+  form: form(signupSchema, { values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, request: { url: '/api/signup' } }),
 }
 
 Signup.intent = ({ DOM }) => ({
@@ -80,7 +80,6 @@ Signup.intent = ({ DOM }) => ({
 })
 
 Signup.model = {
-  SIGN_UP: { HTTP: (state, values) => ({ url: '/api/signup', method: 'POST', json: values, ok: 'form.DONE', error: 'form.ERRORS' }) },
   'form.DONE': (state, account) => ({ ...state, accountId: account.id }),
 }
 ```
@@ -93,8 +92,8 @@ Signup.model = {
 - **`state.form.fields[name]`** is what the view needs for each field: `value`, `error` (the message to show, `''` for none), `invalid` (`!!error`, for `aria-invalid`), `touched`, `dirty` and `pending` (an [async check](/guide/forms-reference/#async-checks) is running), plus `name`.
 - **When errors show**: every change is validated, but a field's schema error shows once the field has lost focus (`show: 'blur'`, the default), or while typing (`show: 'input'`), or only after a submit (`show: 'submit'`). After the first submit every error shows, and each follows the typing. Server errors show at once.
 - **An invalid submit** shows every error, focuses the first invalid field in page order (rows included) and sends nothing.
-- **A valid submit** dispatches the `submit` action (`SIGN_UP`) with the schema's output: the trimmed, transformed values (`email` lower-cased here; the rows without their `id`, because `z.object` strips keys it doesn't declare), not the raw ones. Your model entry for it sends the request, with `ok: 'form.DONE'` and `error: 'form.ERRORS'` as its reply actions.
-- **Pending**: when the submit entry sends a request (an `HTTP` sink), `state.form.submitting` is `true` from the valid submit until `form.DONE` or `form.ERRORS` arrives. Use it for the button's text and `disabled`. A second submit meanwhile is dropped, so a double click sends once.
+- **A valid submit** sends the `request` with the schema's output as its body: the trimmed, transformed values (`email` lower-cased here; the rows without their `id`, because `z.object` strips keys it doesn't declare), not the raw ones. The form adds `json: data` (`multipart` when a value is a [file](/guide/forms-reference/#file-fields)), `progress: 'form.PROGRESS'` and its reply actions `ok: 'form.DONE'`, `error: 'form.ERRORS'`. Other request fields (`method`, `headers`) are sent as written.
+- **Pending**: `state.form.submitting` is `true` from the valid submit until `form.DONE` or `form.ERRORS` arrives. Use it for the button's text and `disabled`. A second submit meanwhile is dropped, so a double click sends once.
 - **`form.DONE`** marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become the new start values (`dirty` is `false` again). A host model entry with the same name runs after the form's and gets the reply body: `'form.DONE': (state, account) => …` above shows the new account's id.
 - **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](/guide/inputs/#labels-and-ids-uid) (a row's ids include its `id`, so they stay unique), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
 
@@ -106,7 +105,7 @@ Reserve the height of the error lines in your CSS (`min-height`). A field's erro
 
 ## Submit without a request
 
-A submit that sends nothing (a wizard step's "Next", a dialog's "OK") is an entry with `STATE`, `PARENT` or `EVENTS` and no `HTTP`. It is done at once: `submitting` stays `false`, `submitted` turns on, and you send no `form.DONE`.
+A submit that sends nothing (a wizard step's "Next", a dialog's "OK") names a host action with `submit` instead of `request`: an entry with `STATE`, `PARENT` or `EVENTS` and no `HTTP`. It is done at once: `submitting` stays `false`, `submitted` turns on, and you send no `form.DONE`. (One with an `HTTP` sink is pending like a `request`.)
 
 ```jsx
 AccountStep.uses = { form: form(accountSchema, { values: { email: '', password: '' }, submit: 'NEXT' }) }
@@ -187,18 +186,19 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
 | A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
-| `<input type="file">` | Not handled: the form ignores it | Leave `value` unbound; read `e.target.files` in your own intent and keep the files out of `values` |
+| `<input type="file">` | Its `File` (`multiple`: an array), or `null` | Don't bind `value`: [file fields](/guide/forms-reference/#file-fields) |
 
 ## Options
 
 | Option | |
 |---|---|
 | `values` | The start values (or a function of the host's state). Field names are paths in it: `email`, `address.city`, and `addresses.7.city` for the row with `id` 7 |
-| `submit` | The host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry). An entry with an `HTTP` sink keeps the submit pending until its reply; any other is done at once ([submit without a request](#submit-without-a-request)) |
+| `request` | What a valid submit sends: `{ url, … }`, or `(data, state) => request` (an id from state) |
+| `submit` | Instead of `request`: the host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry; [submit without a request](#submit-without-a-request)) |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
 | `form` | The form element's selector, default `'form'`. Give each form its own when a component has two: `form: '.login'` and `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |
 | `check` | [Async checks](/guide/forms-reference/#async-checks) by field name |
-| `http` | The driver sink of the requests, default `'HTTP'`: the checks' requests go to it, and a submit entry with this sink waits for its reply |
+| `http` | The driver sink of the requests, default `'HTTP'` |
 | `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)) |
 | `tool` | Experimental: `formTool({ name, description, autosubmit? })` from `sygnal/ai` offers the form to the browser's agent ([WebMCP](/guide/forms-reference/#offer-the-form-to-the-browsers-agent)) |
 

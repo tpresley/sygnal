@@ -10,6 +10,7 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 |---|---|
 | `npm test` | Runs the Vitest tests: the view (`src/App.test.js`) and the MCP server (`server/server.test.js`) |
 | `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |
+| `npm run check` | The same `sygnal-check --strict` |
 | `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
 | `npx --no-install sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
 | `npm run build` | Builds the view as one HTML file, `dist/index.html` (the MCP server serves it) |

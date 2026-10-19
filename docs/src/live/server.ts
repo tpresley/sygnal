@@ -212,3 +212,86 @@ export function makeDemoFetch(table: any, { note, pending }: DemoFetchHooks) {
       .then((res) => respond(res), (e) => respond({ status: 500, text: String(e?.message ?? e) }, `the handler threw: ${e?.message ?? e}`, 'threw'))
   })
 }
+
+/** PLAN-11 U-4: the demo upload speed (bytes per second) of makeDemoXHR, and its limits */
+export const DEMO_UPLOAD_BPS = 1024 * 1024
+const UPLOAD_MS = [400, 4000]
+
+const sizeOf = (body: any): number => {
+  if (body == null) return 0
+  if (typeof body === 'string') return new TextEncoder().encode(body).length
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return body.size
+  if (body instanceof ArrayBuffer || ArrayBuffer.isView(body)) return body.byteLength
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    let n = 0
+    body.forEach((v: any, k) => { n += k.length + (typeof v === 'string' ? new TextEncoder().encode(v).length : v.size) + 100 })
+    return n
+  }
+  return String(body).length
+}
+
+/**
+ * PLAN-11 U-4: an XMLHttpRequest for the live examples' `progress` requests (makeFetchDriver's
+ * XMLHttpRequest option). It "uploads" the body at DEMO_UPLOAD_BPS (one progress event every
+ * 100 ms, 0.4–4 s in all), then answers through the same demo fetch as every other request
+ * (route table, delayMs, the panel's notes), and reports the download. Only what the driver
+ * uses is implemented.
+ */
+export function makeDemoXHR(demoFetch: (input: any, init?: any) => Promise<Response>) {
+  return class DemoXHR {
+    upload: any = {}
+    status = 0
+    statusText = ''
+    response: any = null
+    responseType = ''
+    withCredentials = false
+    onload: any; onerror: any; onabort: any; ontimeout: any; onprogress: any
+    private method = 'GET'
+    private url = ''
+    private headers: Record<string, string> = {}
+    private resHeaders = ''
+    private timer: any
+    private ctl = new AbortController()
+    private done = false
+    open(method: string, url: string) { this.method = method; this.url = url }
+    setRequestHeader(k: string, v: string) { this.headers[k] = v }
+    getAllResponseHeaders() { return this.resHeaders }
+    abort() {
+      if (this.done) return
+      this.done = true
+      clearInterval(this.timer)
+      this.ctl.abort()
+      this.onabort?.()
+    }
+    send(body: any) {
+      const total = sizeOf(body)
+      const fetchNow = () => {
+        if (this.done) return
+        demoFetch(this.url, { method: this.method, headers: this.headers, body, signal: this.ctl.signal })
+          .then(async (res) => {
+            const blob = await res.blob()
+            if (this.done) return
+            this.done = true
+            this.status = res.status
+            this.statusText = res.statusText
+            this.resHeaders = [...res.headers].map(([k, v]) => `${k}: ${v}`).join('\r\n')
+            this.response = blob
+            this.onprogress?.({ loaded: blob.size, total: blob.size, lengthComputable: true })
+            this.onload?.()
+          }, () => { if (!this.done) { this.done = true; this.onerror?.() } })
+      }
+      if (!total) return fetchNow()
+      const ms = Math.min(UPLOAD_MS[1], Math.max(UPLOAD_MS[0], (total / DEMO_UPLOAD_BPS) * 1000))
+      const t0 = performance.now()
+      this.timer = setInterval(() => {
+        const loaded = Math.min(total, Math.round((total * (performance.now() - t0)) / ms))
+        this.upload.onprogress?.({ loaded, total, lengthComputable: true })
+        if (loaded >= total) {
+          clearInterval(this.timer)
+          this.upload.onload?.({ loaded: total, total, lengthComputable: true })
+          fetchNow()
+        }
+      }, 100)
+    }
+  }
+}

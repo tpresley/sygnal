@@ -268,6 +268,8 @@ Star.model = { STAR: (state) => ({ ...state, starred: !state.starred }) }
 
 Use `aria-selected` for a tab, `aria-expanded` for a disclosure, `aria-checked` with `role="switch"`, and `aria-current="page"` for the current link. Native controls that carry their own state (a checkbox, `select`, `details`) aren't reported, and neither is a busy class (`{ saving: state.saving }`) that the click sets rather than toggles.
 
+A change announced another way isn't reported either: the element's text or `aria-label` follows a field of the class condition (a Copy button whose text becomes `{state.status === 'copied' ? 'Copied!' : 'Copy'}`), or it has `aria-live` or `role="status"` / `role="alert"`. `aria-pressed` is only for an on/off toggle; for any other change, let the text or label say it.
+
 ## ARIA values in JSX
 
 An `aria-*` attribute set to `true` renders `"true"`. Set to `false`, it renders `"false"` on the ARIA states that have a false value (`aria-expanded`, `aria-hidden`, `aria-pressed`, `aria-checked`, `aria-selected`, `aria-disabled`, `aria-invalid`, `aria-current`, `aria-haspopup`, `aria-busy`, `aria-modal`, `aria-required`, `aria-readonly`, `aria-multiline`, `aria-multiselectable`, `aria-atomic`, `aria-grabbed`); on any other `aria-*` (a label, an id reference, a number) `false` removes the attribute, so `aria-describedby={hasError && uid('error')}` doesn't announce "false". `null` and `undefined` remove it. Passed to a component, `role`, `for`, `tabindex` and `aria-*` are ordinary props: the component gets the value as written.

@@ -12,7 +12,7 @@
 import { run, makeTimerDriver, event, getDiagnostics, clearDiagnostics } from 'sygnal'
 import { resetChecks } from 'sygnal/diagnostics'
 import {
-  dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
+  dialog, popover, tooltip, tooltips, tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, Toaster,
 } from 'sygnal/ui'
 import { Combobox } from 'sygnal/ui/combobox'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
@@ -148,6 +148,20 @@ function Toolbar({ state, uid }) {
   )
 }
 Toolbar.uses = { tip: tooltip({ trigger: '.save-btn', tip: '.tip' }) }
+
+// PLAN-11 T-1: tooltips(), one behavior for several triggers
+const GLOSS = [['mvi', 'MVI'], ['sink', 'Sink'], ['driver', 'Driver']]
+function Glossary({ uid }) {
+  return (
+    <p className="gloss">
+      {GLOSS.map(([k, label]) => [
+        <button className={'term term-' + k} aria-describedby={uid('tip-' + k)} style={{ anchorName: '--' + uid(k), marginRight: '40px' }}>{label}</button>,
+        <span className={'term-tip tip-' + k} id={uid('tip-' + k)} role="tooltip" popover="manual" style={{ positionAnchor: '--' + uid(k) }}>{label} means…</span>,
+      ])}
+    </p>
+  )
+}
+Glossary.uses = { tips: tooltips({ trigger: '.term', tip: '.term-tip' }) }
 
 const TABS = [['general', 'General'], ['privacy', 'Privacy'], ['advanced', 'Advanced']]
 const tabsApp = (options = {}) => {
@@ -413,6 +427,22 @@ export async function uiTestsP5U() {
       await until(() => !isOpen($('.tip')), 'Escape', 1000)
       assert(Date.now() - t0 < 300, 'Escape waited for the hide delay')
       assert(activeName() === 'save-btn', `focus moved: ${activeName()}`)
+    } finally { app.dispose() }
+  })
+
+  await runTest('tooltips(): one behavior for several terms; hovering one shows its tip, moving to another switches at once', async () => {
+    const { id, app, $ } = await mount(Glossary)
+    try {
+      await window.__pw('hover', `${id} .term-sink`)
+      await until(() => isOpen($('.tip-sink')), 'sink tip not shown', 2000)
+      assert(!isOpen($('.tip-mvi')) && !isOpen($('.tip-driver')), 'another tip is open')
+      const t0 = Date.now()
+      await window.__pw('hover', `${id} .term-driver`)
+      await until(() => isOpen($('.tip-driver')), 'driver tip not shown', 1000)
+      assert(Date.now() - t0 < 400, `switching waited for the show delay (${Date.now() - t0} ms)`)
+      assert(!isOpen($('.tip-sink')), 'the sink tip stayed open')
+      await key('Escape')
+      await until(() => !isOpen($('.tip-driver')), 'Escape', 1000)
     } finally { app.dispose() }
   })
 

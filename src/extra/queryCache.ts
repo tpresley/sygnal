@@ -43,9 +43,10 @@ export function queryCache(o: any = {}): any {
   // the key of a cacheable request (else undefined); `res`: a resource's
   const key = (q: any, res?: any) => {
     if (typeof q == 'string') q = {url: q};
-    const {method, json, body, parse, query} = q;
-    const m = (method || (json !== undefined || body !== undefined ? 'POST' : 'GET')).toUpperCase();
-    const b = json !== undefined ? JSON.stringify(json) : body ?? '';
+    const {method, json, body, parse, query, multipart} = q;
+    const m = (method || (json !== undefined || body !== undefined || multipart !== undefined ? 'POST' : 'GET')).toUpperCase();
+    // PLAN-11 U-5: a multipart request is never cached (its body isn't a string)
+    const b = json !== undefined ? JSON.stringify(json) : multipart !== undefined ? multipart : body ?? '';
     if (q.cache === false || typeof b != 'string' || typeof parse == 'function' || parse == 'response' ||
       !(q.cache || q.staleTime != null || (res && IDEMPOTENT.test(m)))) return;
     return [m, withQuery(q.url ?? '', query, 1), b, parse].join(' ').trim();

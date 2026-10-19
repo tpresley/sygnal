@@ -9,6 +9,7 @@
 export {dialog} from './ui/dialog'
 export {popover} from './ui/popover'
 export {tooltip} from './ui/tooltip'
+export {tooltips} from './ui/tooltips'
 export {tabs, tabsAttrs} from './ui/tabs'
 export {accordion, accordionAttrs} from './ui/accordion'
 export {disclosure, disclosureAttrs} from './ui/disclosure'
