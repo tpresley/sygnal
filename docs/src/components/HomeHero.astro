@@ -1,0 +1,45 @@
+---
+import Default from '@astrojs/starlight/components/Hero.astro'
+import { LinkButton } from '@astrojs/starlight/components'
+
+const { entry } = Astro.locals.starlightRoute
+const isHome = entry.id === 'index' || entry.id === ''
+const { title, tagline, actions = [] } = entry.data.hero || {}
+---
+
+{isHome ? (
+  <div class="home-hero">
+    <p class="eyebrow">Human ideas. Agent capabilities. One framework.</p>
+    <h1 id="_top" data-page-title>{title}</h1>
+    <p class="tagline">{tagline}</p>
+    <div class="actions">
+      {actions.map(({ link, text, variant, icon }) => (
+        <LinkButton href={link} variant={variant} icon={icon?.name}>{text}</LinkButton>
+      ))}
+    </div>
+    <a class="source" href="https://github.com/tpresley/sygnal">Open source. Built on reactive streams. <span>View on GitHub ↗</span></a>
+    <div class="possibilities" aria-label="Build with AI, build AI into your app, and build for people">
+      <span><b>01</b> Build with AI</span>
+      <span><b>02</b> Build AI in</span>
+      <span><b>03</b> Build for people</span>
+    </div>
+  </div>
+) : <Default {...Astro.props} />}
+
+<style>
+  .home-hero { padding-top: clamp(2rem, 6vw, 5rem); }
+  .eyebrow { margin: 0 0 1.5rem; color: var(--sl-color-accent-high); font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+  h1 { max-width: 18ch; margin: 0; color: var(--sl-color-white); font-size: clamp(2.5rem, 5.8vw, 4.75rem); font-weight: 650; line-height: 1.06; letter-spacing: -.045em; text-wrap: balance; }
+  .tagline { max-width: 42rem; margin: 1.75rem 0 0; font-size: clamp(1.05rem, 2vw, 1.25rem); line-height: 1.7; color: var(--sl-color-gray-2); }
+  .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 2rem; }
+  .source { display: inline-block; margin-top: 1.5rem; font-size: .8rem; color: var(--sl-color-gray-2); text-decoration: none; }
+  .source span { color: var(--sl-color-text-accent); white-space: nowrap; }
+  .source:hover span { text-decoration: underline; }
+  .possibilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; border-top: 1px solid var(--sl-color-hairline); margin-top: 3.5rem; padding-top: 1.25rem; font-size: .85rem; }
+  .possibilities span { display: flex; gap: .75rem; align-items: baseline; }
+  .possibilities b { font: .7rem var(--sl-font-mono); color: var(--sl-color-text-accent); }
+  @media (max-width: 32rem) {
+    .possibilities { grid-template-columns: 1fr; gap: .75rem; margin-top: 2.5rem; }
+    .source { max-width: 30ch; line-height: 1.8; }
+  }
+</style>

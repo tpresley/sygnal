@@ -1,0 +1,95 @@
+---
+const features = [
+  {
+    number: '02', topic: 'Streaming chat', title: 'What if AI was a native part of your app?',
+    text: 'Stream a conversation through a driver, just like HTTP. Replies become actions and state updates. Use a local model, your own server, or an on-device model with the same component patterns.',
+    href: '/ai/chat/', link: 'Meet the chat driver',
+  },
+  {
+    number: '03', topic: 'Agent control', title: 'What if your app knew how to work with an agent?',
+    text: 'Declare the actions an agent may take. An in-app assistant or command bar can use them through the same reducers as a click, with validation and confirmation where you need it.',
+    href: '/ai/agents/', link: 'Let agents take action',
+  },
+  {
+    number: '04', topic: 'WebMCP · Experimental', title: 'What if the browser’s agent could use your app?',
+    text: 'Expose your declared tools through WebMCP so a browser agent can call an action directly. Take your components into AI conversations with the MCP Apps driver and starter, too.',
+    href: '/ai/agentic-web/', link: 'Build for the agentic web',
+  },
+  {
+    number: '05', topic: 'Decision models', title: 'What if a model could answer a typed question?',
+    text: 'Classify a ticket, score urgency, or choose the next action with decision models like Jev. Get structured answers with confidence scores, and escalate uncertain cases to a chat model.',
+    href: '/ai/decisions/', link: 'Make a decision',
+  },
+  {
+    number: '06', topic: 'Composed UI', title: 'What if users could ask for the page they need?',
+    text: '“Urgent tickets, pending orders, and a revenue chart.” A model assembles a page from your component catalog. You define the parts and allowed parameters; your app renders the real UI.',
+    href: '/ai/composed-ui/', link: 'Compose a page with a model',
+  },
+]
+---
+
+<section class="home-features" aria-label="What if? Explore the possibilities">
+  <article class="build-panel">
+    <div class="build-copy">
+      <p class="eyebrow"><span>01</span> Built for coding agents</p>
+      <h2>What if your coding agent had a framework it could reason about?</h2>
+      <p>Clear component boundaries. Explicit data flow. One canonical way to write each pattern. Give your agent the context to build, the tools to check its work, and the tests to prove it works.</p>
+      <a href="/ai/coding-agents/">Explore the agent workflow <span aria-hidden="true">→</span></a>
+    </div>
+    <ol class="workflow">
+      <li><strong>Start with context</strong><p><code>create-sygnal-app</code> scaffolds agent instructions. <code>llms.txt</code> and the <code>sygnal-dev</code> skill teach the patterns.</p></li>
+      <li><strong>Check the wiring</strong><p><code>sygnal-check</code> turns silent mistakes into diagnostics with fixes. MCP tools expose the app graph and running state.</p></li>
+      <li><strong>Prove the behavior</strong><p><code>renderComponent()</code> tests actions, state, and fake model replies without a network. The same tools work for you.</p></li>
+    </ol>
+  </article>
+  <div class="feature-grid">
+    {features.map(({ number, topic, title, text, href, link }) => (
+      <article class="feature">
+        <p class="eyebrow"><span>{number}</span> {topic}</p>
+        <h2>{title}</h2>
+        <p>{text}</p>
+        <a href={href}>{link} <span aria-hidden="true">→</span></a>
+      </article>
+    ))}
+    <aside class="principle">
+      <p class="eyebrow">One idea, throughout</p>
+      <p class="principle-title">The model chooses.<br />Your app does.</p>
+      <p>You define the actions, components, and boundaries. AI works within them, through the same state and behavior you can inspect and test.</p>
+      <a href="/ai/overview/#a-few-principles">Explore the principles <span aria-hidden="true">→</span></a>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .home-features { --panel-padding: clamp(1.25rem, 3vw, 2rem); margin-block: 1rem 4rem; }
+  .home-features :is(p, h2, ol) { margin: 0; }
+  .eyebrow { display: flex; align-items: baseline; gap: .8rem; font-size: .7rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--sl-color-accent-high); }
+  .eyebrow span { font-family: var(--sl-font-mono); }
+  .home-features h2 { font-size: clamp(1.4rem, 2.3vw, 1.8rem); line-height: 1.25; letter-spacing: -.025em; color: var(--sl-color-white); text-wrap: balance; }
+  .home-features h2 + p, .principle-title + p { margin-top: 1rem; color: var(--sl-color-gray-2); font-size: .95rem; line-height: 1.75; }
+  .home-features a { display: inline-block; margin-top: 1.5rem; color: var(--sl-color-accent-high); text-decoration: none; font-size: .9rem; font-weight: 600; }
+  .home-features a:hover { text-decoration: underline; }
+  .home-features a span { margin-left: .3rem; }
+  .build-panel { display: grid; grid-template-columns: 1.1fr 1fr; gap: 3rem; padding: var(--panel-padding); border: 1px solid var(--sl-color-accent); border-radius: .75rem; background: linear-gradient(125deg, var(--sl-color-accent-low), transparent 70%); }
+  .build-copy h2 { margin-top: 1.25rem; font-size: clamp(1.6rem, 3vw, 2.25rem); }
+  .workflow { list-style: none; padding: 0; counter-reset: step; }
+  .workflow li { position: relative; padding-left: 2rem; counter-increment: step; }
+  .workflow li::before { content: counter(step); position: absolute; left: 0; top: .2rem; font: .75rem var(--sl-font-mono); color: var(--sl-color-text-accent); }
+  .workflow li + li { margin-top: 1.25rem; border-top: 1px solid var(--sl-color-hairline); padding-top: 1.25rem; }
+  .workflow li + li::before { top: 1.5rem; }
+  .workflow strong { font-size: .95rem; color: var(--sl-color-white); }
+  .workflow p { margin-top: .35rem; font-size: .8rem; line-height: 1.8; color: var(--sl-color-gray-2); }
+  .workflow code { font-size: .9em; overflow-wrap: anywhere; }
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  /* Keep Starlight's prose sibling margins out of the card grid. */
+  .feature-grid > :is(article, aside) { margin: 0; }
+  .feature, .principle { display: flex; flex-direction: column; align-items: start; padding: var(--panel-padding); border: 1px solid var(--sl-color-hairline); border-radius: .75rem; }
+  .feature h2 { margin-top: 1.25rem; }
+  .feature a, .principle a { margin-top: auto; padding-top: 1.5rem; }
+  .principle { background: var(--sl-color-gray-6); }
+  .home-features .principle-title { margin-top: 1.25rem; font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 600; line-height: 1.2; letter-spacing: -.03em; color: var(--sl-color-white); }
+  @media (max-width: 48rem) {
+    .build-panel, .feature-grid { grid-template-columns: 1fr; }
+    .build-panel { gap: 2rem; }
+  }
+</style>
