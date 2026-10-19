@@ -90,8 +90,12 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-export type SinkState = 'before' | 'after'
 
+/**
+ * A reducer's 4th argument. 7.0: STATE runs first; every other sink gets the committed state as
+ * `state` (and as its 1st argument), with the state from before the action as `previousState`
+ * (in a STATE reducer both are the old state)
+ */
 type ReducerExtras<PROPS, CONTEXT, STATE = any> = PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
@@ -779,8 +783,6 @@ export type BehaviorModelEntry<SLICE = any, OPTIONS = any> =
 
 /** The object passed to `defineBehavior()`. Reducers and sinks get the slice, not the host state (HOST: the host state). */
 export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> {
-  /** Explicit library snapshot contract; otherwise inherits the host's effective mode. */
-  sinkState?: SinkState;
   /** The slice a host starts with (`state[key]`); options naming one of its keys override it. */
   initialState: SLICE;
   /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. `key`: the use's key in `uses`. */
@@ -1462,8 +1464,6 @@ export type Component<
    * against the action's data. See `agentTools` in 'sygnal/ai'.
    */
   agent?: AgentDeclaration<STATE & CALCULATED, ACTIONS>;
-  /** Overrides the app default for this component only. */
-  sinkState?: SinkState;
   debug?: boolean;
   /**
    * WebSocket / server-sent events connections derived from state (`makeSocketDriver()`):
@@ -1774,8 +1774,6 @@ export interface AppErrorInfo {
 export type AppErrorHook = (error: any, info: AppErrorInfo) => void
 
 export type RunOptions = {
-  /** Output snapshot default for undeclared components/behaviors; default 'after' since 7.0. Use 'before' for the 6.x snapshot contract. */
-  sinkState?: SinkState;
   /** Where the app renders: a CSS selector (default '#root') or an element */
   mountPoint?: string | Element;
   /** @deprecated No effect since 6.0: fragments always work (the DOM driver splices them into their parent) */
@@ -3154,9 +3152,13 @@ export type FakeCacheEntry = {
   data: any;
 }
 
-/** Test rendering uses the same 'after' default as run(). */
 export interface RenderOptions {
-  sinkState?: SinkState;
+  /**
+   * 7.0 timing audit (SYG257, info): report each output sink that reads a top-level state field
+   * its action's STATE changed (it gets the new value since 7.0; 6.x gave it the old one). For
+   * migrating 6.x code; default off (configureTimingAudit() from 'sygnal/diagnostics' sets it for all)
+   */
+  timingAudit?: boolean;
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /**

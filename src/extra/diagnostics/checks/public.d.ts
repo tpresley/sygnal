@@ -40,6 +40,18 @@ export interface DiagnosticCheck {
  */
 export function configureStrict(on?: boolean): void
 
+/**
+ * 7.0 timing audit (SYG257, info), for migrating 6.x code: report each output sink that reads a
+ * top-level state field its action's STATE changed (since 7.0 it gets the new value; 6.x gave it
+ * the old one; read props.previousState for the old one). true / false, or undefined for the
+ * default (globalThis.__SYGNAL_TIMING_AUDIT__ === true). Also renderComponent(C, { timingAudit })
+ * and sygnal({ diagnostics: { timingAudit: true } }). Diagnostics must be on.
+ */
+export function configureTimingAudit(on?: boolean): void
+
+/** Whether the timing audit is on. */
+export function isTimingAuditEnabled(): boolean
+
 /** Whether the runtime strict checks are on. */
 export function isStrictEnabled(): boolean
 

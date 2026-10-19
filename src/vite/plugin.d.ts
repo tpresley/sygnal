@@ -12,6 +12,13 @@ export interface DiagnosticsPluginOptions {
    * @default false
    */
   strict?: boolean
+  /**
+   * 7.0 timing audit (SYG257, info): the dev snippet sets `globalThis.__SYGNAL_TIMING_AUDIT__ =
+   * true`, and each output sink that reads a top-level state field its action's STATE changed is
+   * reported (since 7.0 it gets the new value; 6.x gave it the old one). For migrating 6.x code.
+   * @default false
+   */
+  timingAudit?: boolean
   /** Diagnostic codes to drop, e.g. ['SYG105'] (runtime and static) */
   ignore?: string[]
 }

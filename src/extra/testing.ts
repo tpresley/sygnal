@@ -253,6 +253,13 @@ export interface RenderOptions {
    */
   strict?: boolean;
   /**
+   * 7.0 timing audit (SYG257, info) while the component is rendered; restored on dispose():
+   * each output sink that reads a top-level state field its action's STATE changed is reported
+   * (it gets the new value since 7.0; 6.x gave it the old one). Requires 'sygnal/diagnostics'.
+   * Default: unchanged (off unless configureTimingAudit(true) was called).
+   */
+  timingAudit?: boolean;
+  /**
    * settle()'s quiet window in ms (default 20): settle() resolves once nothing in the tree has
    * rendered, reduced or changed state for this long. A model `next('X', data, ms)` with a
    * longer delay fires after settle() resolved; raise this, or wait with t.next(pred).
@@ -1369,6 +1376,7 @@ const headFake = () => {
 };
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
+let savedAudit: any;
 
 /*
  * PLAN-4 GS-2, mock DOM: could the element a command targets have this method? The core runs any
@@ -1468,7 +1476,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -1511,6 +1519,7 @@ export function renderComponent(
   if (!active++) {
     savedConfig = _getDiagnosticsConfig();
     savedStrict = core.strict;
+    savedAudit = core.timingAudit;
     // G-051: forget the checks' report dedupe (once()), so a finding from an earlier test is
     // reported again. Only that set: resetChecks() would also drop inspect()'s records of
     // other live instances / apps.
@@ -1518,6 +1527,8 @@ export function renderComponent(
   }
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
+  // 7.0 timing audit (SYG257, 'sygnal/diagnostics'): same bridge flag as configureTimingAudit()
+  if (timingAudit !== undefined) core.timingAudit = timingAudit;
   // PLAN-4 GS-2: element commands run on the real DOM (jsdom gets the missing methods), and their
   // SYG640/SYG641 are reported without the dev entry too
   if (real && !domFakes) domFakes = fakeElementMethods(document.defaultView || globalThis);
@@ -1683,6 +1694,7 @@ export function renderComponent(
     if (!--active) {
       configureDiagnostics(savedConfig);
       core.strict = savedStrict;
+      core.timingAudit = savedAudit;
       domFakes?.();
       domFakes = undefined;
     }

@@ -70,7 +70,10 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
       H.onReducer?.(viewOf(inst), type, pre, v)
       dbg(inst, () => `<${type}> State reducer added`)
       inst.cell.set(v)
+      // a STATE that removed the component's own state (a deleted record it is bound to): the
+      // outputs get its last state, as a Collection item's do
       post = inst.cell.get()
+      if (post === undefined) post = pre
       // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
       // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228).
       // Only for a state that changed structurally: today an equal one renders nothing (its
