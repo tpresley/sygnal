@@ -21,6 +21,8 @@ export type FieldErrors = Record<string, string>
 export type FormCheck = {errors: FieldErrors; value: any}
 
 const isRow = (r: any) => r?.id != null
+/** PLAN-11 F-2: a File / Blob is a field value (a leaf), not an object of fields */
+export const isFile = (v: any) => typeof Blob != 'undefined' && v instanceof Blob
 // the key of segment `s` in `v`: an array's row with that id, else the index unless the element
 // there is a row (G-380: a row is named by its id only; -1, no element), an object's key
 const key = (v: any, s: string): any => {
@@ -70,7 +72,7 @@ export const setField = (values: any, name: string, value: any): any => {
  * array-level error such as "at least one address"); a row's `id` is not a field
  */
 export const fieldNames = (v: any, at = '', row?: boolean): string[] => {
-  if (!v || typeof v != 'object') return at ? [at] : []
+  if (!v || typeof v != 'object' || isFile(v)) return at ? [at] : []
   const a = Array.isArray(v), out = a ? [at] : []
   for (const k in v) {
     const x = (v as any)[k]

@@ -40,7 +40,8 @@ const load = async () => (await import(pathToFileURL(path.join(dir, 'Signup.mjs'
 describe('guide/forms: the agent-sized page (D231)', () => {
   it('leads with the recipe; the page is small enough to read whole', () => {
     expect(page.indexOf('## The recipe')).toBeLessThan(1500)
-    for (const s of ["'form.ADD'", "'form.REMOVE'", 'state.form.submitting', "error: 'form.ERRORS'", '422']) expect(page).toContain(s)
+    // PLAN-11 F-3: the recipe saves with `request` (the form names form.DONE / form.ERRORS itself)
+    for (const s of ["'form.ADD'", "'form.REMOVE'", 'state.form.submitting', "request: { url: '/api/signup' }", "error: 'form.ERRORS'", '422']) expect(page).toContain(s)
     // 18,000 until the live examples added the demo server and the error-line CSS (+436 B)
     expect(Buffer.byteLength(page)).toBeLessThan(18500)
   })

@@ -5,7 +5,7 @@ import type { Tile, TileActions } from './types'
 
 const TILE_TRANSITION_DURATION = 100
 
-const TILE: Component<Tile, any, any, TileActions> = ({ state }) => {
+const TILE: Component<Tile, {}, {}, TileActions> = ({ state }) => {
   const { id, value, row, column, deleted } = state
 
   // determine the classes to apply to the tile

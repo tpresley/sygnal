@@ -462,6 +462,11 @@ export interface RenderResult {
    */
   fail: (sinkName: string, error: any, target?: FakeReplyTarget) => Promise<void>;
   /**
+   * PLAN-11 U-2: one progress step `{ loaded, total?, phase? }` of a pending request sent with
+   * `progress` (chosen as in respond()); it stays pending until respond()/fail().
+   */
+  progress: (sinkName: string, step: {loaded: number; total?: number; phase?: 'upload' | 'download'}, target?: FakeReplyTarget) => Promise<void>;
+  /**
    * PLAN-6 L-4: stream chunks into a pending request of the LLM fake (the sink named by `llmSink`,
    * default 'LLM': the real chat driver over an in-memory transport). Chunks: strings (text),
    * `{ reasoning }`, `{ toolCall: { id?, name, input } }`, `{ toolResult: { id, output } }`,
@@ -1204,6 +1209,13 @@ const validMs = (v: any) => typeof v == 'number' && Number.isFinite(v) && v >= 0
 // too, so its time is the clock's (Date may be left real by `toFake`), and its waits drive it.
 const fakeClock = (): any => (setTimeout as any).clock;
 const clockNow = (): number => { const c = fakeClock(); return c ? c.now : Date.now(); };
+/** PLAN-11 Q-3: ms until the next pending fake timer (0: none, or real timers) */
+const nextFakeTimer = (): number => {
+  const c = fakeClock();
+  let due = Infinity;
+  try { Object.values(c?.timers || {}).forEach((t: any) => { if (t && t.callAt > c.now && t.callAt < due) due = t.callAt; }); } catch (_) {}
+  return due < Infinity ? due - c.now : 0;
+};
 /**
  * Under fake timers, advance the clock timer by timer (nextAsync flushes promises around each
  * one) until `p` settles. Every pending wait has a timer (its timeout, a quiet-window tick), so
@@ -1728,7 +1740,8 @@ export function renderComponent(
   // value: what t.requests lists (normalised); req: the request the driver got; res: the resource;
   // pf: a { prefetch } fetch (5-5: answered into the cache, no reply)
   // llm: the in-memory stream handle of an LLM fake request (PLAN-6 L-4)
-  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any};
+  // step: PLAN-11 U-2, the driver's progress callback of a request sent with `progress` (t.progress)
+  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any; step?: (phase: string, loaded: number, total: number) => void};
   type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
@@ -1761,14 +1774,22 @@ export function renderComponent(
         const lin$ = xs.create();
         llm = {in$: lin$, src: makeChatDriver({transport: tr, _frame: (f: () => void) => { frames.push(f); }})(lin$)};
       }
+      let memFetch: any;
       const http = makeFetchDriver({
         ...httpOptions,
+        // PLAN-11 U-2: a progress request is answered like any other (t.respond / t.fail); its
+        // pending entry keeps the driver's progress callback for t.progress
+        _progress: (url: string, init: any, step: any) => {
+          const r = memFetch(url, init);
+          pending[pending.length - 1].step = step;
+          return r;
+        },
         // 5-3: focus / online come from t.focus() / t.online() only
         _on: (f: any) => { signals.add(f); return () => signals.delete(f); },
         _tap: (req: any, res?: string, pf?: any) => { tapped = [req, res, pf]; },
         // D472: a batch / split request (a large decide()) is one fetch here, answered as one
         _whole: true,
-        fetch: (url: string, init: any) => new Promise((resolve, reject) => {
+        fetch: memFetch = (url: string, init: any) => new Promise((resolve, reject) => {
           const [req, res, pf] = tapped || [{url}];
           tapped = undefined;
           // G-171(1): a resource fetch is listed as { url, ...request, resource: name }; 5-5: a
@@ -1800,6 +1821,7 @@ export function renderComponent(
         return {
           select: (sel?: any) => xs.merge(hs.select(sel), own(false)(sel), sock.select(sel)),
           errors: (sel?: any) => xs.merge(hs.errors(sel), own(true)(sel)),
+          progress: (sel?: any) => hs.progress(sel),
           subs, at, pending, in$, http, ws, llm,
           // 5-3: the driver's matcher / inspection (the dev checks' SYG632, t.cache)
           __matches: http.__matches, __inspect: http.__inspect,
@@ -2485,7 +2507,7 @@ export function renderComponent(
     if (tg === undefined) return {match: cat, desc: catDesc, o};
     if (typeof tg == 'string') {
       // an ok/error action name, key, category, resource name or URL
-      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
+      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.progress, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
     if (typeof tg == 'function') {
       return {match: r => { try { return cat(r) && !!tg(r.value); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
@@ -2718,6 +2740,23 @@ export function renderComponent(
         return {error: err, category, request: e?.req, status: status ?? x?.status, body};
       });
 
+  // PLAN-11 U-2: t.progress. One progress step of a pending request sent with `progress` (its
+  // reply action, or progress() for `progress: true`); the request stays pending. Targets as
+  // t.respond's; the phase defaults to 'upload' for a request with a body, else 'download'
+  const progress = (name: string, step: any, opts?: FakeReplyTarget) => {
+    throwFailure();
+    if (drivers[name]) throw new Error(`[Sygnal] t.progress('${name}'): ${name} has a real driver (passed in drivers), so there is nothing to script`);
+    if (!step || typeof step != 'object' || typeof step.loaded != 'number') throw new Error(`[Sygnal] t.progress('${name}', step): step is { loaded, total?, phase? } (got ${brief(step)})`);
+    const tg = targetOf(opts);
+    const what = `t.progress('${name}'${typeof opts == 'string' ? `, …, '${opts}'` : ''})`;
+    const now = isReady && !inputs.length ? pick(name, tg) : undefined;
+    if (now && !now.step) throw new Error(`[Sygnal] ${what}: the request ${brief(now.value)} has no progress: send it with progress: 'UPLOADING' (a reply action) or progress: true`);
+    return scripted(() => pick(name, tg), w => noPending(what, name, tg, w), (e: Pending) => {
+      if (!e.step) return new Error(`[Sygnal] ${what}: the request ${brief(e.value)} has no progress: send it with progress: 'UPLOADING' (a reply action) or progress: true`);
+      const r = e.req || {};
+      e.step(step.phase || (r.body !== undefined || r.json !== undefined || r.multipart !== undefined ? 'upload' : 'download'), step.loaded, step.total ?? 0);
+    }, sendDue);
+  };
   // PLAN-6 L-4: t.stream. Targets as t.respond's (an action name or key, a partial request, a
   // predicate, { request, nth }); `end: false` (the last argument, or in the target options)
   // leaves the stream open. Chunks become ChatEvents pushed into the in-memory stream; the fake's
@@ -3147,7 +3186,11 @@ export function renderComponent(
         const [why, pending] = explainNext(start);
         msg += why;
         if (inputs.length) msg += ` ${inputs.length} simulated input(s) still pending.`;
-        if (pending) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
+        // PLAN-11 Q-3: on the fake clock a state a timer (TIMER driver, periodic, delay) brings
+        // later than the timeout can't arrive in time: name the next pending timer
+        const later = pending ? 0 : nextFakeTimer();
+        if (later) msg += ` A timer is still pending on the fake clock (it fires ${later}ms after this timeout): if the state comes from it, this wait ended first.`;
+        if (pending || later) msg += ` Wait longer: t.${name}(pred, ms), or the renderComponent timeoutMs option (default for every wait).`;
         // G-065: a state from before the call matched; next() only looks at new ones
         for (let i = from - 1; i >= 0; i--) {
           if (test(i)) {
@@ -3330,6 +3373,7 @@ export function renderComponent(
     requests,
     respond,
     fail,
+    progress,
     stream,
     connections,
     cache,

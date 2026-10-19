@@ -46,4 +46,32 @@ export async function fetchDriverTestsE2() {
     assert(n === '1', `expected only the latest reply, got ${n}`)
     assert(last === '3', `expected the committed query number 3, got ${last}`)
   })
+
+  // PLAN-11 U-4: progress over the browser's real XMLHttpRequest (every engine)
+  await runTest(CAT, 'progress: a multipart upload reports upload steps over XMLHttpRequest, then the reply', async () => {
+    const { id, el } = mount()
+    function Up({ state }) { return <div><button className="send">send</button><p className="out">{state.out}</p></div> }
+    Up.initialState = { out: '', steps: [] }
+    Up.intent = ({ DOM }) => ({ SEND: DOM.click('.send') })
+    Up.model = {
+      SEND: { HTTP: () => ({ url: '/__upload', multipart: { file: new File([new Uint8Array(3 * 1024 * 1024)], 'a.bin'), note: 'x' }, progress: 'STEP', ok: 'DONE', error: 'FAILED' }) },
+      STEP: (s, p) => ({ ...s, steps: [...s.steps, [p.phase, p.fraction]] }),
+      DONE: (s, body) => ({ ...s, out: `${body.type}:${body.bytes > 3 * 1024 * 1024}` }),
+      FAILED: (s, { error }) => ({ ...s, out: `failed: ${error}` }),
+    }
+    let last
+    const app = run(Up, { HTTP: makeFetchDriver() }, { mountPoint: id })
+    await waitFor(() => el.querySelector('.send'))
+    el.querySelector('.send').click()
+    await waitFor(() => el.querySelector('.out').textContent !== '', 15000)
+    last = app.__runtime.getState()
+    const out = el.querySelector('.out').textContent
+    app.dispose()
+    const up = last.steps.filter(s => s[0] === 'upload')
+    assert(out === 'multipart/form-data:true', `got '${out}'`)
+    // A fast localhost upload may emit only completion. Scripted XHR tests cover intermediate steps and throttling.
+    assert(up.length >= 1, `expected an upload step, got ${JSON.stringify(last.steps)}`)
+    assert(up[up.length - 1][1] === 1, `the last upload step is fraction 1: ${JSON.stringify(up)}`)
+    assert(last.steps.some(s => s[0] === 'download'), `a download step: ${JSON.stringify(last.steps)}`)
+  })
 }

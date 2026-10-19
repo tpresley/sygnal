@@ -242,6 +242,11 @@ describe('the form behavior: options and calculated fields', () => {
     await t.settle()
     expect(t.state.form).toMatchObject({ values: empty, initial: empty, submitCount: 0, submitted: false, dirty: false })
     expect(t.query('[name="name"]').value).toBe('')
+    // PLAN-11: data that isn't a plain object (a click event from DOM.click('.reset')) means the start values
+    await type('name', 'Bob')
+    t.simulateAction('form.RESET', { type: 'click', target: {}, __proto__: { preventDefault() {} } })
+    await t.settle()
+    expect(t.state.form.values).toEqual(empty)
   })
   it('a checkbox field takes its checked state; the form selector option', async () => {
     const schema = { '~standard': { version: 1, vendor: 't', validate: (x) => (x.terms ? { value: x } : { issues: [{ message: 'Accept the terms', path: ['terms'] }] }) } }

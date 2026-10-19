@@ -4,7 +4,8 @@
  *
  *   LOAD: { HTTP: (state) => ({ url, ok: 'LOADED', error: 'FIALED' }) }   // no FIALED entry
  *
- * Sources of names: string literal `ok` / `error` values in the objects a
+ * Sources of names: string literal `ok` / `error` values (and `progress`, PLAN-11 U-3, on a
+ * non-LLM request) in the objects a
  * non-STATE sink returns (not EFFECT, EVENTS, PARENT, READY), and the
  * message/open/close/error values in a `connections` static, and the action names of a
  * `timers` static (`{ every, action }`, `{ frame: 'FRAME' }`, PLAN-4 GS-7).

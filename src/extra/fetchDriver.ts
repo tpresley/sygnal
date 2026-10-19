@@ -9,8 +9,11 @@ import {validateWith} from './standardSchema';
  * declarations in src/index.d.ts and docs/guide/drivers.md. Summary:
  *
  * - Request (sink value): `{ url, ok?, error?, key?, category?, method?, headers?, query?, json?,
- *   body?, latest?, timeoutMs?, parse?, init? }` or a URL string. `json` is stringified with a JSON
- *   content-type; method defaults to POST with a body/json, else GET. `query` is appended as a
+ *   multipart?, body?, latest?, timeoutMs?, parse?, init? }` or a URL string. `json` is stringified
+ *   with a JSON content-type; PLAN-11 U-5: `multipart` (an object) becomes a FormData body (a
+ *   File / Blob a file part, an array repeats the name, null / undefined skipped, an object JSON,
+ *   anything else a string), the content-type left to the browser (its boundary); method defaults
+ *   to POST with a body/json/multipart, else GET. `query` is appended as a
  *   query string (null/undefined values skipped, arrays repeat the key, before any #fragment).
  *   Other fetch options (credentials, mode, cache, ...) go under `init` (R4-5); other top-level
  *   keys are the app's own: not sent, but returned on `request`.
@@ -87,6 +90,15 @@ import {validateWith} from './standardSchema';
  *   the request itself) into requests sent again in parallel and combined, at most 3 deep. One
  *   failure fails the request once (`error.status` / `error.body`). No cache entry sharing, no
  *   per-part retry. The test fake (`_whole`) sends and answers it as one request. decide() uses it.
+ * - PLAN-11 U-1 (D555): `progress: 'ACTION'` replies to the sender with each progress step,
+ *   `progress: true` (or a string with no sender) sends it down `progress(category?)`:
+ *   `{ phase: 'upload' | 'download', loaded, total, fraction, category, request }` (`total` /
+ *   `fraction` null when the length is unknown). Such a request goes over XMLHttpRequest (the
+ *   only transport with upload progress in every engine; S-1), turned back into a Response so
+ *   parsing, status, retry and timeouts are the same. Steps are throttled to one per 50 ms per
+ *   phase, keeping the first and the last. Not for resources or `batch`; never shares a fetch.
+ *   No XMLHttpRequest (Node, a service worker): plain fetch, no steps. The transport is
+ *   `options.XMLHttpRequest`, else the global one, read at request time.
  * - dispose / sink completion aborts everything in flight.
  * - `fetch` is read at request time (options.fetch, else globalThis.fetch), so test stubs work.
  * - PLAN-3 5-1 (H-9): renderComponent's HTTP fake runs this driver over an in-memory fetch;
@@ -177,6 +189,70 @@ const mergeHeaders = (...all: any[]) => {
   return out;
 };
 
+// PLAN-11 U-1: statuses whose Response must have a null body
+const NULL_BODY = [101, 103, 204, 205, 304];
+const abortError = () => typeof DOMException == 'function'
+  ? new DOMException('The operation was aborted.', 'AbortError')
+  : Object.assign(new Error('The operation was aborted.'), {name: 'AbortError'});
+/**
+ * PLAN-11 U-1 (S-1): a fetch-shaped call over XMLHttpRequest that reports progress:
+ * `on(phase, loaded, total)` (total 0 when unknown), at most every 50 ms per phase, always the
+ * first and the final step. Resolves with a real Response (blob body, parsed headers); network
+ * errors and timeouts reject with a TypeError, an abort with an AbortError, like fetch.
+ */
+export const xhrFetch = (X: any, url: string, init: any, on: (phase: string, loaded: number, total: number) => void) => new Promise<any>((res, rej) => {
+  const x = new X();
+  const last: any = {};
+  const step = (phase: string, loaded: number, total: number, final?: any) => {
+    const l = last[phase], now = Date.now();
+    if (l && (l.loaded === loaded || (!final && now - l.at < 50 && !(total && loaded >= total)))) return;
+    last[phase] = {loaded, at: now};
+    on(phase, loaded, total);
+  };
+  const ev = (phase: string) => (e: any) => step(phase, e.loaded, e.lengthComputable ? e.total : 0);
+  x.open(init.method || 'GET', url);
+  x.responseType = 'blob';
+  const h = init.headers || {};
+  Object.keys(h).forEach(k => x.setRequestHeader(k, h[k]));
+  if (init.credentials == 'include') x.withCredentials = true;
+  const sig = init.signal;
+  if (sig) {
+    if (sig.aborted) return rej(abortError());
+    sig.addEventListener?.('abort', () => x.abort(), {once: true});
+  }
+  if (init.body != null && x.upload) {
+    x.upload.onprogress = ev('upload');
+    x.upload.onload = (e: any) => step('upload', e.loaded, e.lengthComputable ? e.total : e.loaded, 1);
+  }
+  x.onprogress = ev('download');
+  x.onload = () => {
+    const size = x.response?.size ?? last.download?.loaded ?? 0;
+    step('download', size, size, 1);
+    const headers: any = typeof Headers == 'function' ? new Headers() : undefined;
+    String(x.getAllResponseHeaders?.() || '').trim().split(/[\r\n]+/).forEach((line: string) => {
+      const i = line.indexOf(':');
+      if (i > 0) try { headers?.append(line.slice(0, i).trim(), line.slice(i + 1).trim()); } catch (_) {}
+    });
+    try {
+      res(new Response(NULL_BODY.includes(x.status) ? null : x.response, {status: x.status, statusText: x.statusText, headers}));
+    } catch (e) { rej(e); }
+  };
+  x.onerror = x.ontimeout = () => rej(new TypeError(`Network request failed: ${url}`));
+  x.onabort = () => rej(abortError());
+  x.send(init.body ?? null);
+});
+
+/** PLAN-11 U-5: a request's `multipart` object as FormData (see the header) */
+export const toFormData = (parts: any) => {
+  const fd = new FormData();
+  Object.keys(parts || {}).forEach(k => [].concat(parts[k]).forEach((v: any) => {
+    if (v == null) return;
+    if (typeof Blob != 'undefined' && v instanceof Blob) fd.append(k, v, (v as any).name ?? 'blob');
+    else fd.append(k, typeof v == 'object' ? JSON.stringify(v) : String(v));
+  }));
+  return fd;
+};
+
 const IDEMPOTENT = /^(GET|HEAD)$/i;
 // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
 export const hit = (x: any, q: any) => {
@@ -199,6 +275,13 @@ export function makeFetchDriver(options: any = {}) {
     // q (the request), timer, f (the fetch it waits on), ok / ko (its outcomes) }
     const inflight = new Map<number, any>();
     const subs = new Set<{l: any; sel: any; err: boolean; ns: any[]}>();
+    // PLAN-11 U-1: progress(category?) listeners (not held while nobody listens)
+    const psubs = new Set<{l: any; sel: any; ns: any[]}>();
+    const emitProgress = (v: any) => psubs.forEach(s => {
+      let m = false;
+      try { m = matches(s, v); } catch (_) {}
+      if (m) try { s.l.next(v); } catch (e) { console.error('[Sygnal] makeFetchDriver: a listener threw', e); }
+    });
     // R4-4: replies held until the first select() listener, failures until the first errors()
     // listener (or the next macrotask, when they're logged if nothing listens)
     const started = [false, false];
@@ -246,6 +329,10 @@ export function makeFetchDriver(options: any = {}) {
       return {
         select: make(false),
         errors: make(true),
+        progress: (sel?: any) => {
+          let sub: any;
+          return xs.create<any>({start: l => { psubs.add((sub = {l, sel, ns})); }, stop: () => { psubs.delete(sub); }});
+        },
         isolateSource: (_: any, scope: any) => source(ns.concat(scope)),
         isolateSink: (sink$: any, scope: any) => sink$.map((req: any) => tagRequest(req, scope)),
         // PLAN-4.6: the same per value (the core scopes a request without a stream per instance)
@@ -351,7 +438,7 @@ export function makeFetchDriver(options: any = {}) {
     const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any, pf?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, validate, prefetch} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, validate, prefetch, progress} = req;
       if ('invalidate' in req) return inval(req.invalidate);
       if (prefetch) return C && send(prefetch, 0, rn, -1, R, 1);
       if (resources || refresh) {
@@ -389,7 +476,9 @@ export function makeFetchDriver(options: any = {}) {
       }
       const scope = scopeKey(req);
       // reply actions: keyed per (sender, key ?? ok ?? error); a resource per (sender, '\0' + name)
-      const rk = rn !== undefined ? '\0' + rn : !pf && sender !== undefined && (ok || error) ? key ?? ok ?? error : undefined;
+      // PLAN-11 U-1: a progress action is a reply action too (abort on dispose, its own lane)
+      const pr = !pf && rn === undefined && !req.batch && progress;
+      const rk = rn !== undefined ? '\0' + rn : !pf && sender !== undefined && (ok || error || typeof pr == 'string') ? key ?? ok ?? error ?? pr : undefined;
       if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
         return cancel(r => r.sender === sender && r.rk === (key ?? abort));
       // per (scope, category): another component's requests are never cancelled
@@ -398,12 +487,16 @@ export function makeFetchDriver(options: any = {}) {
 
       const base = options.init;
       // a request's URL and fetch() init (the batch's sub-requests inherit the request's fields)
-      const prep = ({url, method, headers, query, json, body, init: own}: any) => {
+      const prep = ({url, method, headers, query, json, multipart, body, init: own}: any) => {
         const h = mergeHeaders(options.headers, base?.headers, own?.headers, headers);
         let b = body ?? own?.body;
         if (json !== undefined) {
           b = JSON.stringify(json);
           if (!Object.keys(h).some(k => k.toLowerCase() == 'content-type')) h['content-type'] = 'application/json';
+        } else if (multipart !== undefined) {
+          b = toFormData(multipart);
+          // the browser writes multipart/form-data with its boundary; a content-type set here would break it
+          Object.keys(h).forEach(k => { if (k.toLowerCase() == 'content-type') delete h[k]; });
         }
         return [withQuery((options.baseUrl || '') + (url ?? ''), query), {...pickInit(base), ...pickInit(own), method: method || own?.method || base?.method || (b !== undefined ? 'POST' : 'GET'), headers: h, body: b}];
       };
@@ -413,7 +506,8 @@ export function makeFetchDriver(options: any = {}) {
       // parts, at most 3 deep), their parsed bodies merged by `combine` into one reply. The test
       // fake (_whole) answers such a request as one
       const {batch, split, combine = (x: any) => x} = options._whole ? {} as any : req;
-      const k = C?.key(req, rn !== undefined || pf);
+      // PLAN-11 U-1: a progress request never shares a fetch (each sender gets its own steps)
+      const k = pr ? undefined : C?.key(req, rn !== undefined || pf);
       const id = ++seq;
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
@@ -449,7 +543,18 @@ export function makeFetchDriver(options: any = {}) {
         const parser = parserOf(parse || options.parse);
         // the global fetch is called as a method: a detached window.fetch throws "Illegal invocation"
         const g: any = globalThis;
-        const doFetch = options.fetch || (typeof g.fetch == 'function' && ((u: string, i: any) => g.fetch(u, i)));
+        let doFetch = options.fetch || (typeof g.fetch == 'function' && ((u: string, i: any) => g.fetch(u, i)));
+        // PLAN-11 U-1: a progress request over XMLHttpRequest (renderComponent's fake: `_progress`)
+        const X = options.XMLHttpRequest ?? g.XMLHttpRequest;
+        if (pr && (options._progress || typeof X == 'function')) {
+          const step = (phase: string, loaded: number, total: number) => {
+            if (!inflight.has(id) || disposed) return;
+            const t = total > 0 ? total : null;
+            const v = {phase, loaded, total: t, fraction: t ? Math.min(1, loaded / t) : null, category, request: req};
+            typeof pr == 'string' && sender !== undefined ? reply(sender, pr, v) : emitProgress(v);
+          };
+          doFetch = options._progress ? (u: string, i: any) => options._progress(u, i, step, req) : (u: string, i: any) => xhrFetch(X, u, i, step);
+        }
         // the outcome, to every request waiting on this fetch (the failure once, after the last attempt)
         const end = (e: any, x?: any, status?: number) => {
           done(F);

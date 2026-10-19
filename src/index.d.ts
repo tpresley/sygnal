@@ -53,9 +53,12 @@ type ComponentProps<STATE, PROPS, CONTEXT> = (
  */
 export type UidFunction = (name?: string) => string
 
-/** The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`. */
+/**
+ * The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`.
+ * PLAN-11 Q-1: PROPS = `any` is read as "any other props" (`any & X` would make `state` `any` too).
+ */
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  PROPS & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
@@ -908,10 +911,11 @@ export function pager(options?: PagerOptions): Behavior<PagerState, PagerActions
 export type FieldErrors = Record<string, string>
 
 /** One field of a `form` slice: `state.form.fields.email`, `state.form.fields['addresses.7.city']`. */
-export interface FormField {
+export interface FormField<T = any> {
   /** The field name, for `name={f.name}` (the path in `values`; rows of an array by id) */
   name: string;
-  value: any;
+  /** The field's value: typed for a top-level field of a typed form (`fields.email.value: string`) */
+  value: T;
   /** What to show: a server or check error at once, a schema error once the field is touched (per `show`) or after a submit; '' when none */
   error: string;
   /** `!!error`, for `aria-invalid={f.email.invalid}` */
@@ -948,12 +952,36 @@ export interface FormState<V = any> {
   validating: boolean;
   /** The schema has answered at least once since the start (or the last `form.RESET`) */
   validated: boolean;
+  /**
+   * PLAN-11 (6.7): the submit request's last progress step, when it is sent with
+   * `progress: 'form.PROGRESS'`; null otherwise and after `form.DONE` / `form.ERRORS` / `form.RESET`
+   */
+  progress: { phase: 'upload' | 'download'; loaded: number; total: number | null; fraction: number | null } | null;
+  /**
+   * PLAN-11 (6.7): how many times the form started over (`form.RESET`, `resetOnShow`). A file
+   * input can't be cleared through state: key it with this, `key={'avatar' + state.form.resets}`
+   */
+  resets: number;
 }
 
+type FormIsAny<T> = 0 extends (1 & T) ? true : false
+
+/**
+ * A form's `fields` (PLAN-11 F-1): the top-level fields of `values` by name, typed
+ * (`fields.email.value: string`), and nested paths ('addresses.7.city', 'addresses.7') with any
+ * value. A top-level name that isn't in `values` is a type error (a typo). Untyped values (any):
+ * `Record<string, FormField>`.
+ */
+export type FormFields<V = any> = FormIsAny<V> extends true
+  ? Record<string, FormField>
+  : V extends object
+    ? { [K in keyof V & string]-?: FormField<V[K]> } & { [path: `${string}.${string}`]: FormField }
+    : Record<string, FormField>
+
 /** A `form` slice's calculated fields. */
-export interface FormCalculated {
+export interface FormCalculated<V = any> {
   /** Every field of `values` by name (leaves, arrays, and array rows' fields by row id) */
-  fields: Record<string, FormField>;
+  fields: FormFields<V>;
   /** No schema error and no failed check, as of the schema's last answer (false until its first; an async re-validation keeps the previous value) */
   valid: boolean;
   dirty: boolean;
@@ -969,15 +997,38 @@ export interface FormFieldCheck {
   error?: (body: any) => string | false | null | undefined;
 }
 
-export interface FormOptions<V = any> {
+/** Types only: the key of `FormOptions`' phantom output type (not exported, never set) */
+declare const formOutput: unique symbol
+
+/** PLAN-11: the `request` option of form(): a request without reply actions (the form names them), or a function of the submit data and the host state */
+type FormRequestObject = Exclude<FetchRequest, string> & { url: string; ok?: never; error?: never }
+export type FormRequest<OUT = any> =
+  | FormRequestObject
+  | ((data: OUT, state: any) => FormRequestObject | typeof ABORT | null | undefined | false)
+
+export interface FormOptions<V = any, OUT = any> {
+  /** Phantom, types only: the schema's output (`FormOutput<typeof uses.form>`); never set */
+  readonly [formOutput]?: OUT;
   /**
    * The start values; field names are paths in it (rows of an array of objects need an `id`, SYG236).
    * Or a function of the host component's state, for start values that come from state (a default
    * from the settings): called when the form starts, and each time it starts over (`resetOnShow`)
    */
   values: V | ((state: any) => V);
-  /** The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once */
-  submit: string;
+  /**
+   * The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once.
+   * Optional with `request` (then dispatched too, for state; its entry should send no request)
+   */
+  submit?: string;
+  /**
+   * PLAN-11 (6.7): the form sends a valid submit itself on the `http` sink: a request, or a
+   * function of the schema's output and the host's state (`(data, state) => ({ url: '/api/items/' + state.id, method: 'PUT' })`;
+   * `ABORT` / falsy sends nothing and leaves the submit pending). The form adds the body
+   * (`multipart: data` when a top-level value is a File or files, else `json: data`, unless the
+   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` (unless set) and its own
+   * `ok: 'form.DONE'`, `error: 'form.ERRORS'`
+   */
+  request?: FormRequest<OUT>;
   /** Async checks by field name: run on blur and before a submit, which waits for them */
   check?: Record<string, FormFieldCheck>;
   /** When a schema error shows: after the field's blur (default), on input, or only after a submit */
@@ -1007,9 +1058,19 @@ export interface FormOptions<V = any> {
   tool?: import('./ai.d').FormToolHandle;
 }
 
-export interface FormActions {
-  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed) */
-  CHANGE: { name: string; value: any; item?: any };
+/**
+ * What `form.ERRORS` takes (the runtime's `replyErrors`): an error reply (a driver's
+ * `{ error, status?, body?, request }` or `{ status, body }`, the body `{ errors }` or the map
+ * itself), a map `{ name: message | messages }`, or a list of issues `[{ path, message }]`
+ */
+export type FormServerErrors =
+  | Record<string, string | ReadonlyArray<string>>
+  | ReadonlyArray<{ message: string; path?: ReadonlyArray<any> }>
+  | { status?: number; body?: any; error?: any; request?: any }
+
+export interface FormActions<V = any> {
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed); a file input its File (`multiple`: File[]; none: null) */
+  CHANGE: { name: string; value: any; item?: any; file?: boolean };
   /**
    * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
    * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
@@ -1018,19 +1079,48 @@ export interface FormActions {
   SET: { values: Record<string, any> };
   /** A field lost focus (focusout): its name */
   BLUR: string;
-  /** The form element's submit (default prevented) */
-  SUBMIT: any;
+  /** The form element's submit (default prevented); its data is ignored (a host may dispatch it from a button) */
+  SUBMIT: unknown;
   /** Adds a row to an array field (with the next id): `{ field: 'addresses', value: { street: '' } }` */
   ADD: { field: string; value?: Record<string, any> };
   /** Removes a row by id: `{ field: 'addresses', id }` */
   REMOVE: { field: string; id: any };
-  /** Server errors: an error reply (`{ status, body: { errors } }`) or a map `{ name: message }`; focuses the first */
-  ERRORS: any;
-  /** The submit was saved: `initial` becomes `values` */
-  DONE: any;
-  /** Back to `initial` (or to the values given) */
-  RESET: any;
+  /** Server errors: an error reply (`{ status, body: { errors } }`), a map `{ name: message }` or a list of issues; focuses the first */
+  ERRORS: FormServerErrors;
+  /** The submit was saved: `initial` becomes `values`. Its data (the reply) is ignored */
+  DONE: unknown;
+  /** PLAN-11: a progress step of the submit request (`progress: 'form.PROGRESS'` on it): kept as `progress` while submitting */
+  PROGRESS: FetchProgress;
+  /** Back to `initial`, or to the values given (whole values, not merged; anything but a plain object, such as a click event, means `initial`) */
+  RESET: V | null | undefined;
 }
+
+/**
+ * The schema's input type (Standard Schema `~standard.types.input`; zod, valibot and arktype declare
+ * it); `any` for a schema that doesn't declare `types`
+ */
+export type SchemaInput<S> = S extends { readonly '~standard': { readonly types?: infer T } }
+  ? [NonNullable<T>] extends [{ readonly input: infer I }] ? I : any
+  : any
+
+type FormSchemaOutput<S> = S extends { readonly '~standard': { readonly types?: infer T } }
+  ? [NonNullable<T>] extends [{ readonly output: infer O }] ? O : any
+  : any
+
+/** The values type of `form(schema, { values })`: the schema's input when it declares one, else what `values` gives */
+type FormValuesOf<V, S> = FormIsAny<SchemaInput<S>> extends true ? V : SchemaInput<S>
+
+/** What `form()` returns: a behavior whose types carry the values (V) and the schema's output (OUT, the submit payload) */
+export type FormBehavior<V = any, OUT = any> = Behavior<FormState<V>, FormActions<V>, FormCalculated<V>, FormOptions<V, OUT>>
+
+/**
+ * The data the host's submit action gets (the schema's output) from a `form()` use:
+ * `SIGN_UP: { HTTP: (state, data: FormOutput<typeof uses.form>) => ... }`. Or from the schema:
+ * `SchemaOutput<typeof signupSchema>`. `any` for a schema that doesn't declare `types`.
+ */
+export type FormOutput<F> = F extends Behavior<any, any, any, infer OPTIONS>
+  ? OPTIONS extends { readonly [formOutput]?: infer O } ? (unknown extends O ? any : O) : any
+  : any
 
 /**
  * A form with validation (PLAN-5 F-1), any Standard Schema validator (zod, valibot, arktype, a
@@ -1046,7 +1136,11 @@ export interface FormActions {
  * that sends nothing (STATE, PARENT, EVENTS) is done at once. Throws SYG231 when
  * `schema` isn't a Standard Schema.
  */
-export function form<V = any>(schema: StandardSchemaLike, options: FormOptions<V>): Behavior<FormState<V>, FormActions, FormCalculated, FormOptions<V>>
+export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>(
+  schema: S,
+  options: FormOptions<V, FormSchemaOutput<S>> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
+    & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
+): FormBehavior<FormValuesOf<V, S>, FormSchemaOutput<S>>
 
 /** A Standard Schema's result for `values`: errors by field name, and the output when there are none. A Promise for an async schema. */
 export function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>
@@ -2298,6 +2392,9 @@ export type FetchInit = {
  * descendants'): two instances, or Collection items, using the same category never see or
  * cancel each other's requests. The root component sees every reply.
  */
+/** PLAN-11: one value of a request's `multipart` body */
+export type MultipartValue = Blob | string | number | boolean | null | undefined | Record<string, any>
+
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
@@ -2323,8 +2420,24 @@ export type FetchRequest = string | {
   query?: Record<string, string | number | boolean | null | undefined | Array<string | number | boolean | null | undefined>>;
   /** Sent as JSON.stringify(json), with `Content-Type: application/json` unless set */
   json?: any;
+  /**
+   * PLAN-11 (6.7): a multipart/form-data body, written as data: `{ file: state.file, title: state.title }`.
+   * A File or Blob is a file part, an array repeats the name (`files: [a, b]`), null/undefined are
+   * skipped, an object is sent as JSON text, anything else as a string. The browser sets the
+   * content-type (with its boundary); a `content-type` header is dropped. POST by default
+   */
+  multipart?: Record<string, MultipartValue | ReadonlyArray<MultipartValue>>;
   /** Raw body (string, FormData, Blob, ...) */
   body?: any;
+  /**
+   * PLAN-11 (6.7): report upload and download progress. An action name: each step arrives as that
+   * action of the sending instance (`UPLOADING: (state, { phase, fraction }) => ...`); `true`: on
+   * `HTTP.progress(category?)`. Data: FetchProgress. The request then goes over XMLHttpRequest
+   * (the only way to see upload progress in every browser); fetch-only `init` options
+   * (`keepalive`, `priority`, `cache`, `redirect`, `integrity`, `mode`, `referrerPolicy`) don't
+   * apply (SYG636). Not for resources or `batch`. Without XMLHttpRequest (Node): no steps
+   */
+  progress?: string | true;
   /**
    * Latest only: sending this request aborts this component's requests still in flight in the
    * same category; their responses and errors are never delivered. Default: the driver's `latest`
@@ -2439,10 +2552,15 @@ export type FetchRetry = SocketReconnect & {
   count?: number;
 }
 
-/** Any Standard Schema (https://standardschema.dev): an object with `~standard.validate` */
-export type StandardSchemaLike = {
+/**
+ * Any Standard Schema (https://standardschema.dev): an object with `~standard.validate`. `IN` / `OUT`
+ * are its declared `~standard.types` (input / output; zod, valibot, arktype declare them), read by
+ * `form()`, `SchemaInput` and `SchemaOutput`; a schema without `types` is `StandardSchemaLike<any>`.
+ */
+export type StandardSchemaLike<IN = any, OUT = IN> = {
   readonly '~standard': {
     validate: (value: unknown) => {value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>} | Promise<{value?: any; issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>}>;
+    readonly types?: { readonly input: IN; readonly output: OUT } | undefined;
     [key: string]: any;
   };
 }
@@ -2569,11 +2687,30 @@ export type FetchError<REQUEST = any> = {
   body?: any;
 }
 
+/**
+ * PLAN-11 (6.7): one progress step of a request sent with `progress`. Steps come at most every
+ * 50 ms per phase, always including the first and the last (`fraction: 1`). A request with a
+ * body reports 'upload' then 'download'; a GET only 'download'. A retry starts again at 0.
+ */
+export type FetchProgress<REQUEST = any> = {
+  phase: 'upload' | 'download';
+  /** Bytes sent ('upload') or received ('download') so far */
+  loaded: number;
+  /** Total bytes, or null when unknown (a download without Content-Length) */
+  total: number | null;
+  /** loaded / total (0..1), or null when the total is unknown */
+  fraction: number | null;
+  category: string | undefined;
+  request: REQUEST;
+}
+
 export type FetchSource<VALUE = any> = {
   /** 2xx responses: all of them, one category, or those a predicate accepts */
   select: (category?: string | ((response: FetchResponse<VALUE>) => boolean)) => Stream<FetchResponse<VALUE>>
   /** Failures. Filters like select(). While nothing listens, failures are console.error'd */
   errors: (category?: string | ((failure: FetchError) => boolean)) => Stream<FetchError>
+  /** PLAN-11: progress steps of requests sent with `progress: true`. Filters like select() */
+  progress: (category?: string | ((step: FetchProgress) => boolean)) => Stream<FetchProgress>
 }
 
 export type FetchDriverOptions = {
@@ -2592,8 +2729,10 @@ export type FetchDriverOptions = {
   timeoutMs?: number;
   /** Default `parse` for every request. Default 'auto' */
   parse?: 'auto' | 'json' | 'text' | 'response' | ((response: Response) => any);
-  /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply) */
+  /** The fetch implementation. Default: `globalThis.fetch`, read at each request (so test stubs apply). Not used for `progress` requests */
   fetch?: (input: string, init?: any) => Promise<any>;
+  /** PLAN-11: the XMLHttpRequest class for `progress` requests. Default: the global one, read at each request */
+  XMLHttpRequest?: any;
   /**
    * PLAN-3 D88: the query cache, off by default: `cache: queryCache({ staleTime })`. On:
    * resources' GET/HEAD replies are cached (stale-while-revalidate: cached data shows at once,
@@ -2676,6 +2815,12 @@ export type SseConnection = SocketActions & {
   /** URL (after `baseUrl`) */
   sse: string;
   withCredentials?: boolean;
+  /**
+   * PLAN-11 (6.7): request headers, e.g. `{ authorization: 'Bearer ' + state.token }`. The native
+   * EventSource can't send headers, so a connection with them is read with `fetch` (same events,
+   * reconnects with `Last-Event-ID`). A changed header (a new token in state) reconnects
+   */
+  headers?: Record<string, string>;
   /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
   events?: Record<string, string>;
 }
@@ -2728,8 +2873,10 @@ export type SocketDriverOptions = {
   queueLimit?: number;
   /** The WebSocket class. Default: `globalThis.WebSocket`, read at connect time (so test stubs apply) */
   WebSocket?: any;
-  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time */
+  /** The EventSource class. Default: `globalThis.EventSource`, read at connect time (an `sse` connection with `headers`: a fetch-based one, unless this is given) */
   EventSource?: any;
+  /** PLAN-11: the fetch for `sse` connections with `headers`. Default: `globalThis.fetch` */
+  fetch?: (input: string, init?: any) => Promise<any>;
 }
 
 /**
@@ -3484,6 +3631,14 @@ export interface RenderResult<STATE = any> {
    * throws (the driver would only log it, SYG678).
    */
   fail: (sinkName: string, error: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
+  /**
+   * PLAN-11 (6.7): one progress step of a pending request sent with `progress` (chosen as in
+   * respond; `'UPLOADING'` matches its progress action too): `t.progress('HTTP', { loaded: 50, total: 100 }, 'UPLOADING')`.
+   * The component gets FetchProgress (`fraction: 0.5`) as that action, or on `HTTP.progress()`
+   * for `progress: true`. `phase` defaults to 'upload' for a request with a body, else
+   * 'download'. The request stays pending until respond()/fail(). Resolves once reduced and rendered.
+   */
+  progress: (sinkName: string, step: { loaded: number; total?: number; phase?: 'upload' | 'download' }, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
    * PLAN-6 L-4: stream into a pending request of the LLM fake (the sink named by `llmSink`,
    * default 'LLM': the real makeChatDriver over an in-memory transport). Chunks: strings (text),

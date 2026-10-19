@@ -7,6 +7,11 @@
  * - SSE `/__sse`: each connection sends one default message `{ n }` and one `tick` event `{ n }`
  *   (n counts connections), then ends the response, so EventSource reconnects by itself
  *   (`retry: 100`).
+ * - POST `/__upload` (PLAN-11 U-4): reads the body slowly (backpressure, so upload progress
+ *   spreads out) and answers `{ bytes, type }`.
+ * - SSE `/__sse-auth` (PLAN-11 E-1): 401 without `authorization: Bearer t0k`; else one message
+ *   `{ auth, lastEventId }` with `id: <n>`, then ends (`retry: 100`), so a reconnect sends
+ *   `last-event-id`.
  */
 import { createHash } from 'node:crypto'
 
@@ -72,6 +77,23 @@ export function socketTestServer() {
         res.write('retry: 100\n\n')
         res.write(`data: ${JSON.stringify({ n })}\n\n`)
         res.write(`event: tick\ndata: ${JSON.stringify({ n })}\n\n`)
+        setTimeout(() => res.end(), 50)
+      })
+      server.middlewares.use('/__upload', (req, res) => {
+        let bytes = 0
+        req.on('data', c => { bytes += c.length; req.pause(); setTimeout(() => req.resume(), 10) })
+        req.on('end', () => {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ bytes, type: String(req.headers['content-type'] || '').split(';')[0] }))
+        })
+      })
+      let authN = 0
+      server.middlewares.use('/__sse-auth', (req, res) => {
+        if (req.headers.authorization !== 'Bearer t0k') { res.writeHead(401, { 'content-type': 'text/plain' }); return res.end('no') }
+        const n = ++authN
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+        res.write('retry: 100\n\n')
+        res.write(`id: ${n}\ndata: ${JSON.stringify({ auth: req.headers.authorization, lastEventId: req.headers['last-event-id'] || null })}\n\n`)
         setTimeout(() => res.end(), 50)
       })
     },

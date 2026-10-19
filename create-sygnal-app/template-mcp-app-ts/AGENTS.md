@@ -10,6 +10,7 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 |---|---|
 | `npm test` | Runs the Vitest tests: the view (`src/App.test.ts`) and the MCP server (`server/server.test.js`) |
 | `npx --no-install sygnal-check --strict` | Static check for wiring bugs and non-canonical forms; must report nothing |
+| `npm run check` | `sygnal-check --strict` and `tsc --noEmit`: sygnal-check finds wiring bugs, not type errors, so run both |
 | `npx --no-install sygnal-check explain SYG104` | Explains a `[Sygnal SYGnnn]` diagnostic and how to fix it |
 | `npx --no-install sygnal-check --graph --json` | The app graph: components, actions, selectors, EVENTS |
 | `npm run build` | Builds the view as one HTML file, `dist/index.html` (the MCP server serves it) |
@@ -23,7 +24,7 @@ This project uses **Sygnal**, a reactive JSX component framework built on Cycle.
 In every model entry STATE runs first: the other sinks (EFFECT, EVENTS, PARENT, HTTP, ...) get the state it committed, so read new values from `state` (`PARENT: (state) => ({ count: state.count })`, not `state.count + 1`). The state from before the action is the fourth argument's `previousState`: use it for a value STATE cleared and in a guard that decides whether the action may start. A child whose `state` binding (a path or `byId()`) points at a different record is disposed and mounted again with fresh local state and new DOM; it needs no `key` for that. A `key` resets a child whose binding stays the same; a custom lens needs `key={record.id}`. In TypeScript tests use `t.query<HTMLInputElement>(selector)?.value` or typed control tokens.
 
 ## Workflow
-Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npx --no-install sygnal-check --strict`, both clean. Read the whole `npm test` output: each failure prints above the summary, so piping it through `tail` hides the error (to shorten it, use `npm test 2>&1 | grep -A15 -E 'FAIL|Error'`).
+Add a feature in this order: state (`initialState`) → intent (`ACTION: DOM.click('.x')`) → model (`ACTION: (state, data) => ({ ...state, ... })`) → view → test. Finish with `npm test` and `npm run check` (sygnal-check and tsc), both clean. Read the whole `npm test` output: each failure prints above the summary, so piping it through `tail` hides the error (to shorten it, use `npm test 2>&1 | grep -A15 -E 'FAIL|Error'`).
 
 ## Testing your change
 ```js

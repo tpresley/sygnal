@@ -165,3 +165,30 @@ describe('E11: renderComponent with vi.useFakeTimers()', () => {
     expect(t.states.at(-1).sent).toEqual(['a'])
   })
 })
+
+// PLAN-11 Q-3: a state a timer brings later than the wait's timeout: the error names the timer
+describe('Q-3: timeout hint for a pending fake timer', () => {
+  function Later({ state }) { return h('p', null, String(state.done)) }
+  Later.initialState = { done: false }
+  Later.intent = () => ({ DONE: xs.of(true).compose(delay(5000)) })
+  Later.model = { DONE: (s) => ({ ...s, done: true }) }
+
+  it('says a timer is still pending and how to wait longer', async () => {
+    vi.useFakeTimers()
+    t = renderComponent(Later)
+    await t.ready()
+    const err = await t.next(s => s.done).catch(e => e)
+    expect(err.message).toMatch(/next timed out after 2000ms/)
+    expect(err.message).toMatch(/A timer is still pending on the fake clock \(it fires \d+ms after this timeout\)/)
+    expect(err.message).toMatch(/Wait longer: t\.next\(pred, ms\)/)
+    await t.next(s => s.done, 6000)
+    expect(t.state.done).toBe(true)
+  })
+
+  it('no timer hint with real timers', async () => {
+    t = renderComponent(Later)
+    await t.ready()
+    const err = await t.next(s => s.done, 50).catch(e => e)
+    expect(err.message).not.toMatch(/fake clock/)
+  })
+})

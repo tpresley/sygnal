@@ -45,6 +45,9 @@
  *   HTTP: makeFetchDriver({ fetch: demoFetch, ...options })  Sygnal's real fetch driver over a
  *                                  stubbed network (src/live/server.ts): categories,
  *                                  latest/abort, resources and the query cache are the driver's
+ *                                  own. A `progress` request (PLAN-11) goes over the demo
+ *                                  XMLHttpRequest (makeDemoXHR): the body "uploads" at 1 MB/s
+ *                                  (0.4-4 s, a step every 100 ms), then the same demo server answers
  *   DOM: makeViewTransitionDOMDriver(mountPoint)  run()'s DOM driver plus the hook for the
  *                                  `viewTransitions` static: a listed action's patch runs in
  *                                  document.startViewTransition() (Chromium 111+, Safari 18+,

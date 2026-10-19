@@ -56,7 +56,7 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 
 - a new name opens a connection;
 - a removed name or a falsy entry (`state.room && { … }` with no room) closes it;
-- a changed URL, `protocols`, `withCredentials` or `share` closes it and opens the new one, so switching rooms is a state change;
+- a changed URL, `protocols`, `withCredentials`, `headers` or `share` closes it and opens the new one, so switching rooms is a state change;
 - a change to anything else (action names, `reconnect`) applies without reconnecting;
 - when the instance is removed, its connections close.
 
@@ -76,6 +76,7 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 | `share` | Default `true`; `false` gives this connection a socket of its own |
 | `protocols` | WebSocket subprotocols |
 | `withCredentials` | SSE: send cookies cross-origin |
+| `headers` | SSE: request headers, such as `{ authorization: 'Bearer ' + state.token }` ([below](#headers-and-tokens)) |
 | `events` | SSE named events → actions: `{ price: 'PRICE' }` |
 
 Every action key is optional. An event without an action name goes to the source, `WS.select(name)`, as `{ name, type, data }`.
@@ -139,6 +140,22 @@ Ticker.model = {
 
 `EventSource` retries short drops itself (`close` fires with `willReconnect: true`); the driver's `reconnect` applies when it gives up.
 
+### Headers and tokens
+
+The browser's `EventSource` can't send request headers, so an API that wants an `Authorization` header can't be read with it. Give the connection `headers`, and the driver reads that stream with `fetch` instead, with the same events, actions and reconnects (`Last-Event-ID` included):
+
+```jsx
+Ticker.connections = (state) => ({
+  prices: state.token && {
+    sse: '/events/prices',
+    headers: { authorization: `Bearer ${state.token}` },
+    events: { 'price-update': 'PRICE' },
+  },
+})
+```
+
+Keep the token in state: a changed header is a new connection, so a refreshed token reconnects with it, and no token (`state.token &&`) means no connection. A `401` or another non-2xx reply fails the connection (`close` with `willReconnect`), and the driver's `reconnect` policy decides when to try again. Without `headers`, the connection uses `EventSource`, as before; cookies (`withCredentials: true`) work with both. WebSocket connections can't send headers in browsers at all: put the token in the URL or the first message.
+
 ## Static or Model-Sent, Not Both
 
 The `connections` static is the canonical form. A model entry can also send `{ connections: { … } }` to the sink itself (the [alternative form](/advanced/alternative-forms/#model-sent-connections)). Use one or the other in a component: each value is the instance's whole set of connections, so the static and a model-sent value replace each other's connections.
@@ -152,6 +169,7 @@ makeSocketDriver({
   queueLimit: 100,                          // sends kept per connection while (re)connecting
   WebSocket: MyWebSocket,                   // default: globalThis.WebSocket, read at connect time
   EventSource: MyEventSource,               // default: globalThis.EventSource
+  fetch: myFetch,                           // for sse connections with headers (default: globalThis.fetch)
 })
 ```
 
