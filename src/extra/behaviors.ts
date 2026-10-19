@@ -66,7 +66,6 @@ export const fromPrevious = (model: any) => {
   }
   return out
 }
-import {effects, withTiming, checkTiming, compileHandlers, TIMING} from './sinkTiming'
 // a model entry as { sink: fn }: a constant is sent as is, `true` sends the action's data, an
 // EFFECT constant does nothing (as the core treats them)
 const sinksOf = (e: any, S: string): any => {
@@ -143,7 +142,6 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
         return whole ? (isAbort(r) || r === st || !r || r[k] === st?.[k] ? r : {...r, [k]: calc(r[k])})
           : s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r)}
       }
-      if (s != S && !whole) withTiming(f, b.sinkState)
       m[o] = !m[o] ? f : whole ? seq(m[o], f) : seq(f, m[o])
     }
     if (host) {
@@ -152,11 +150,10 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
         const bf = m[s], hf = hs[s]
         m[s] = !bf ? hf
           : s == S ? seq(bf, hf)
-          : s == 'EFFECT' ? effects(bf, hf)
+          : s == 'EFFECT' ? (...x: any[]) => { bf(...x); hf(...x) }
           : hf
       }
     }
-    m[TIMING] = compileHandlers
     model[ns(a)] = m
     owned[ns(a)] = k
   }
@@ -184,7 +181,6 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
  * it with the options for one use (`pager({ pageSize: 10, next: Newer })`) in a component's `uses`.
  */
 export const defineBehavior = (def: any) => (options: any = {}): any => {
-  checkTiming(def.sinkState)
   const init = {...def.initialState}, b: any = {...def, options}
   for (const o in options) if (o in init) init[o] = options[o]
   // the slice a host starts with: initialState, the options naming its keys, its calculated fields

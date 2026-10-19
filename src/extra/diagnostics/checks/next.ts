@@ -368,6 +368,17 @@ function vtReport(dup: any[][]): void {
 export function nextHooks(_api: any): any {
   const core = bridge(), H = core.hooks
   const on = () => H.on()
+  const audited = (f: any, type: string, sink: string, h: any) => (s: any, d: any, nx: any, p: any, ...r: any[]) => {
+    const was = p?.previousState
+    if (!was || was === s || !s || typeof s != 'object' || typeof was != 'object') return h(s, d, nx, p, ...r)
+    const view = new Proxy(s, {get(t: any, k: any, rcv: any) {
+      if (typeof k == 'string' && k in was && was[k] !== t[k] && once(`SYG257:${f.name}:${type}:${sink}:${k}`))
+        devReport('SYG257', {component: f, message: `${f.name}'s '${type}' ${sink} read '${k}', which the same action's STATE changed: since 7.0 it gets the new value (6.x: the old one)`,
+          fix: `If it needs the value from before the action, read props.previousState.${k} (the 4th argument); if the new value is meant, nothing to change`, data: {action: type, sink, field: k}})
+      return Reflect.get(t, k, rcv)
+    }})
+    return h(view, d, nx, p, ...r)
+  }
   const modelOf = (f: Facade) => f.modelMap
   const wired = new WeakSet<object>()
   const wire = (iv: any, names: string[]) => {
@@ -444,6 +455,9 @@ export function nextHooks(_api: any): any {
     onAction(iv: any, a: any) { log.onAction(iv, a) },
     wrapHandler(iv: any, type: string, sink: string, fn: any) {
       let h = log.wrapHandler(iv, type, sink, fn) || fn
+      // spike: the 7.0 timing audit (opt-in): an output that reads a field its action's STATE
+      // changed gets the new value, where 6.x gave it the old one
+      if (on() && (globalThis as any).__SYGNAL_TIMING_AUDIT__ && sink != 'STATE' && typeof h == 'function') h = audited(fac(iv), type, sink, h)
       // SYG222: the STATE reducers, wrapped (today the check rewrote the instance's model)
       if (on() && sink == 'STATE' && typeof fn == 'function') h = watchMutation(fac(iv), type, h)
       return h === fn ? undefined : h

@@ -9,8 +9,6 @@ interface RunDiagnosticsOptions extends DiagnosticsOptions {
 }
 
 interface RunOptions {
-  /** Defaults to 'after'; use 'before' for 6.x snapshot timing. */
-  sinkState?: import('./sinkTiming').SinkState;
   mountPoint?: string;
   /** @deprecated No effect since 6.0 (3-Q): fragments always work (the DOM driver flattens them) */
   fragments?: boolean;

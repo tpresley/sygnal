@@ -87,4 +87,3 @@ export * from './cycle/dom/index'
 export { concat, debounce, throttle, delay, dropRepeats, sampleCombine } from './extra/xstreamExtras'
 export { flattenConcurrently, flattenSequentially } from './extra/flatten'
 
-export type {SinkState} from './extra/sinkTiming'

@@ -225,8 +225,6 @@ export interface FakeConnection {
 export type FakeConnectionTarget = string | Record<string, any> | ((connection: FakeConnection) => boolean);
 
 export interface RenderOptions {
-  /** Inherited output snapshot contract (framework default: after since 7.0). */
-  sinkState?: import('./sinkTiming').SinkState;
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
@@ -2187,7 +2185,7 @@ export function renderComponent(
     // G-325: without an intent, every model action is simulate-only (no false SYG102)
     if (!intent) testActions.push(...names);
     const p = startNext(componentDef, allDrivers, {
-      useDefaultDrivers: false, onError: options.onError, sinkState: options.sinkState,
+      useDefaultDrivers: false, onError: options.onError,
       __hooks: nextHooks(),
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())

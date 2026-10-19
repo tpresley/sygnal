@@ -43,7 +43,6 @@ interface PageContext {
     Wrapper?: any | any[]
     title?: string
     ssr?: boolean
-    sinkState?: 'before' | 'after'
     drivers?: Record<string, (sink: any) => any>
     // PLAN-4 GS-11: the app-level error hook (not Vike's own onError)
     sygnalOnError?: (error: any, info: any) => void
@@ -351,7 +350,7 @@ export function onRenderClient(pageContext: PageContext) {
       try {
         // 3-B2: `__vike` marks the shell's components (Page, Layouts, Wrappers: sub-components of
         // the shell root) for the dev entry, whose SYG224 then says persist() isn't supported there
-        currentApp = run(Component, { ...config.drivers, __vike: () => 1 }, { mountPoint: '#page-view', onError: config.sygnalOnError, sinkState: config.sinkState }) as any
+        currentApp = run(Component, { ...config.drivers, __vike: () => 1 }, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
       } catch (err: any) {
         console.error('[sygnal/vike] Client render error:', err)
         const container = document.getElementById('page-view')
@@ -396,7 +395,7 @@ export function onRenderClient(pageContext: PageContext) {
       // is a hydration (`__hydrate`), keeping that render equal to the server's HTML. A client-side
       // navigation isn't one, though the previous page's markup is still in #page-view
       const hydrating = pageContext.isHydration ?? serverState
-      currentApp = run(Page, { ...config.drivers, __hydrate: () => hydrating }, { mountPoint: '#page-view', onError: config.sygnalOnError, sinkState: config.sinkState }) as any
+      currentApp = run(Page, { ...config.drivers, __hydrate: () => hydrating }, { mountPoint: '#page-view', onError: config.sygnalOnError }) as any
     } catch (err: any) {
       console.error('[sygnal/vike] Client render error:', err)
       const container = document.getElementById('page-view')

@@ -33,7 +33,6 @@ import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
 import './markers/clientonly'
-import {checkTiming} from '../extra/sinkTiming'
 
 const LOOP = 100, HARD = 1000
 // the macrotask, captured at load (a test's fake timers don't hold the ping): Node drains a
@@ -45,8 +44,6 @@ const MC: any = typeof G.MessageChannel == 'function' ? G.MessageChannel : undef
 const ERR_FIX = 'See the attached error'
 
 export interface StartOptions {
-  /** Default for undeclared components/behaviors; 'after' since 7.0. */
-  sinkState?: import('../extra/sinkTiming').SinkState
   mountPoint?: string | Element
   /** no effect (3-Q: the DOM driver flattens fragments) */
   fragments?: boolean
@@ -127,7 +124,6 @@ export class App {
   desc: any[] = []
 
   constructor(public opts: StartOptions = {}) {
-    checkTiming(opts.sinkState)
     this.hooks = {...opts.__hooks}
     this.layers = [opts.__hooks || {}]
     this.initState = opts.__state

@@ -19,7 +19,6 @@ declare type SygnalAstroIntegration = {
 };
 
 export interface SygnalAstroOptions {
-  sinkState?: 'before' | 'after';
   /**
    * Runtime diagnostics for islands in `astro dev`: a mode ('warn',
    * 'collect', 'error' or 'off') or { mode, strict, ignore }, the same as

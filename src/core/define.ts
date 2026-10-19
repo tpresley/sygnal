@@ -17,7 +17,6 @@
 import type {ComponentFn, Def, DefSource, Handler} from './hooks'
 import {defHooks} from './registry'
 import {fail, warn, error as logError} from '../extra/diagnostics/legacy'
-import {checkTiming, TIMING} from '../extra/sinkTiming'
 
 export type Calc = [field: string, fn: (s: any) => any, deps: string[] | null]
 
@@ -129,7 +128,6 @@ function builtIns(src: DefSource, view: ComponentFn): DefSource {
 
 export function normalize(view: ComponentFn, src: DefSource): CoreDef {
   const name = nameOf(view)
-  checkTiming(view.sinkState)
   const handlers = new Map<string, Handler[]>(), sinks = new Set<string>()
   const model = src.model
   for (const key in model || {}) {
@@ -143,7 +141,8 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
     }
     const list: Handler[] = []
     for (const sink in e) list.push([sink, e[sink]]), sinks.add(sink)
-    ;(list as any)[TIMING] = e[TIMING]
+    // 7.0: STATE first, so the other sinks get the state it committed
+    list.sort((a, b) => +(a[0] != 'STATE') - +(b[0] != 'STATE'))
     handlers.set(key, list)
   }
   const c = normCalc(name, src.calculated, src.initialState)
@@ -182,7 +181,7 @@ const defs = new WeakMap<ComponentFn, CoreDef>()
  * does a definition hook registered since (G-383: the browser driver's, added when the first one
  * is made, binds a `browser` declarer's DOM), the last entry of the snapshot
  */
-const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName', 'uses', 'resources', 'browser', 'sinkState']
+const KEYS = ['model', 'intent', 'initialState', 'calculated', 'context', 'isolatedState', 'onError', 'componentName', 'uses', 'resources', 'browser']
 const read = new WeakMap<CoreDef, any[]>()
 const stale = (d: CoreDef, view: any) => {
   const r = read.get(d)!

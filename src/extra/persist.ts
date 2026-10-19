@@ -37,7 +37,6 @@ import {warn} from './diagnostics/legacy';
  *   too), once per kind (restore / save / clear; a save that works again re-arms it); the app
  *   continues on initialState / unsaved, and a failed save is retried at the next change.
  */
-import {effects, mapTiming} from './sinkTiming';
 const g: any = globalThis;
 
 export const setupPersist = (c: any, o: any): void => {
@@ -82,7 +81,7 @@ export const setupPersist = (c: any, o: any): void => {
   };
   const send = (d: any) => d && c.action$.shamefullySendNext({type: 'RESTORE', data: d});
   // PERSIST sinks become EFFECTs (no driver); a model RESTORE entry replaces the built-in one
-  const wrap = (p: any, e?: any) => effects(e, mapTiming(p, (fn: any) => (...a: any[]) => { const v = typeof fn == 'function' ? fn(...a) : fn; v?.clear && clear(); }), true);
+  const wrap = (p: any, e?: any) => (...a: any[]) => { const r = e?.(...a), v = typeof p == 'function' ? p(...a) : p; v?.clear && clear(); return r; };
   const model: any = {RESTORE: (s: any, d: any) => ({...s, ...d})};
   for (const k in c.model) {
     let v = c.model[k];

@@ -334,7 +334,7 @@ function childrenOf(r: Rec, all: Rec[]): InspectChild[] {
 }
 
 /** the statics sygnal-check reads (its STATIC_PROPS): a component function with none is view-only */
-const STATICS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent', 'sinkState']
+const STATICS = ['intent', 'model', 'initialState', 'isolatedState', 'context', 'calculated', 'connections', 'resources', 'route', 'head', 'uses', 'timers', 'persist', 'viewTransitions', 'browser', 'agent']
 
 /** PLAN-10 D522: no statics and nothing the core added (renderComponent's test intent, a behavior's model) */
 function isViewOnly(c: any): boolean {

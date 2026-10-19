@@ -1,8 +1,9 @@
 /**
  * PLAN-4.6 core: running one action (03-proposal §3, 04 §2.4.1).
  *
- * Handlers use their declared before/after snapshots. When any output uses after, STATE runs
- * first; otherwise legacy model order is retained. Calculated fields are included.
+ * STATE runs first (normalize puts it first in each entry); every other handler then gets the
+ * state it committed (7.0), with the state from before the action as `props.previousState`.
+ * Calculated fields are included.
  * - STATE: applied at once (D165). ABORT, or the object it was given (GS-4), is no change.
  *   D205: during an input / change event (an action triggered by typing in a field), no change
  *   still re-renders the instance, so a controlled field shows the model's value again
@@ -23,18 +24,16 @@ import {viewOf} from './view'
 import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 import {dbg} from './debug'
-import {BEFORE, handlersFor} from '../extra/sinkTiming'
 
 export function handle(inst: Inst, type: string, data: any, cause: any, src?: string) {
-  const handlers = inst.def.handlers.get(type), app = inst.app, H = app.hooks
+  const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
   // (an action with no model entry is seen too: the action log lists it with no sinks)
   if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst), source: src})
   dbg(inst, () => `<${type}> Action triggered`)
-  if (!handlers) return
-  const hs = handlersFor(handlers, inst.def.view.sinkState || app.opts.sinkState)
+  if (!hs) return
   const def = inst.def
   const pre = inst.cell.get()
-  let props: any = hs.u ? inst_props(inst, pre) : undefined, afterProps: any, post = pre, outs: any[] | undefined
+  let props: any, afterProps: any, post = pre, outs: any[] | undefined
   const next = (t: string, d?: any, ms: any = 10, effect?: boolean) => {
     if (typeof ms !== 'number') fail('SYG215', inst, `next() delay in '${type}' must be a number`, "Use next('ACTION', data, ms)")
     // G-300: none for an instance being disposed; dispose() clears the pending ones
@@ -45,14 +44,13 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
     const id = setTimeout(() => { ts.delete(id); inst.disposed || app.dispatch(inst, t, d, 'next') }, ms)
     ts.add(id)
   }
-  for (const [sink, h0, timing] of hs) {
+  for (const [sink, h0] of hs) {
     const h = H.wrapHandler ? H.wrapHandler(viewOf(inst), type, sink, h0) || h0 : h0
-    const updated = timing === undefined ? hs.u && sink != 'STATE' : timing & 2
     const effect = sink == 'EFFECT'
     let v: any
     if (typeof h == 'function') {
       try {
-        const p = updated ? afterProps ||= inst_props(inst, post, props) : props ||= inst_props(inst, pre)
+        const p = sink == 'STATE' ? props ||= inst_props(inst, pre, pre) : afterProps ||= inst_props(inst, post, pre)
         v = h(p.state, data, effect ? (t: string, d?: any, ms?: any) => next(t, d, ms, true) : next,
           effect ? {...p, signal: (inst.ac ||= globalThis.AbortController && new AbortController())?.signal} : p)
         if (effect) {
@@ -72,7 +70,7 @@ export function handle(inst: Inst, type: string, data: any, cause: any, src?: st
       H.onReducer?.(viewOf(inst), type, pre, v)
       dbg(inst, () => `<${type}> State reducer added`)
       inst.cell.set(v)
-      if (hs.u) post = inst.cell.get()
+      post = inst.cell.get()
       // GS-12: this app's DOM driver patches inside a View Transition (makeViewTransitionDOMDriver
       // reads the flag on its IsolateModule); includes?.: a non-array static lists nothing (G-228).
       // Only for a state that changed structurally: today an equal one renders nothing (its
@@ -109,9 +107,9 @@ function handlerFailed(inst: Inst, type: string, sink: string, e: any) {
   inst.app.caught(inst, effect ? 'SYG214' : 'SYG216', effect ? `EFFECT handler '${type}' threw` : `Reducer for '${type}' threw; ${sink == 'STATE' ? 'state unchanged' : 'nothing sent'}`, e, effect ? 'effect' : 'reducer', type)
 }
 
-/** Reducer props and the internal pre-action props for mixed-origin output groups. */
-function inst_props(inst: Inst, state: any, before?: any) {
-  return {...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state, previousState: before ? before.state : state, [BEFORE]: before}
+/** the handlers' 4th argument: the props, children, slots, context, uid, the state and the pre-action state */
+function inst_props(inst: Inst, state: any, previousState: any) {
+  return {...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state, previousState}
 }
 
 /**

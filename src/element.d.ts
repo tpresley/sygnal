@@ -29,7 +29,6 @@ export interface ElementOptions<P extends readonly string[] | Record<string, Ele
    * (`dueDate` ↔ `due-date`). String/Number attributes are parsed, Boolean is presence,
    * Object/Array are JSON. An array of names means all String.
    */
-  sinkState?: 'before' | 'after'
   props?: P
   /**
    * Sink name → CustomEvent name, e.g. `{ PARENT: 'task-picked' }`. The event bubbles and is
