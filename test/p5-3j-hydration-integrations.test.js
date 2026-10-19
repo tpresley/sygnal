@@ -6,7 +6,7 @@
 import { describe, it, expect, afterEach, vi, beforeAll } from 'vitest'
 import { JSDOM } from 'jsdom'
 
-vi.mock('virtual:sygnal/astro-on-error', () => ({ sinkState: undefined, default: undefined }))
+vi.mock('virtual:sygnal/astro-on-error', () => ({ default: undefined }))
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' })
 const GLOBALS = ['window', 'document', 'localStorage', 'sessionStorage', 'MutationObserver', 'Node', 'Element', 'HTMLElement', 'DocumentFragment', 'Text', 'Comment', 'SVGElement', 'StorageEvent', 'requestAnimationFrame', 'cancelAnimationFrame']

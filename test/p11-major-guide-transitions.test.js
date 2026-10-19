@@ -36,18 +36,20 @@ it('migration guide preserves loading admission across first, duplicate and comp
  t.simulateAction('START');await t.settle()
  expect(t.state.status).toBe('working');expect(t.requests('HTTP')).toHaveLength(2)
 })
+// 7.0: an output guard reading the updated state rejects the state its own action wrote (SYG256);
+// no guard sends duplicates (STATE's ABORT doesn't cancel other sinks); the guide's form tests previousState
 it.each([
- ['after',true,0],
- ['after',false,2],
- ['before',true,1],
-])('loading-guard migration pitfall: timing=%s guarded=%s emits %s requests',async(sinkState,guarded,count)=>{
+ ['state',0],
+ ['none',2],
+ ['previousState',1],
+])('loading-guard migration pitfall: guard=%s emits %s requests',async(guard,count)=>{
  function Worker(){return h('div')}
  Worker.initialState={status:'idle'}
  Worker.model={START:{
   STATE:s=>s.status!=='working'?{...s,status:'working'}:ABORT,
-  HTTP:s=>!guarded||s.status!=='working'?{url:'/work',ok:'DONE'}:ABORT,
+  HTTP:(s,d,n,p)=>guard==='none'||(guard==='state'?s:p.previousState).status!=='working'?{url:'/work',ok:'DONE'}:ABORT,
  },DONE:s=>({...s,status:'idle'})}
- t=renderComponent(Worker,{sinkState});await t.ready()
+ t=renderComponent(Worker);await t.ready()
  t.simulateAction('START');await t.settle();t.simulateAction('START');await t.settle()
  expect(t.state.status).toBe('working');expect(t.requests('HTTP')).toHaveLength(count)
 })

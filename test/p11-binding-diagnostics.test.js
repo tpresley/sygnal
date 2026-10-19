@@ -45,7 +45,7 @@ it('keyed master-detail edits, fake AI results and persistence stay on the selec
  App.initialState={selected:1,projects:[{id:1,title:'one',tasks:[{id:1,title:'a'}]},{id:2,title:'two',tasks:[{id:2,title:'b'}]}]}
  App.model={SELECT:(s,selected)=>({...s,selected}),CREATE:s=>({...s,selected:3,projects:[...s.projects,{id:3,title:'three',tasks:[{id:3,title:'c'}]}]})}
  App.persist=persist({key:'p11-projects',storage:store,debounceMs:0})
- t=renderComponent(App,{sinkState:'after'});await t.ready()
+ t=renderComponent(App);await t.ready()
  const original=t.state.projects[0]
  t.simulateAction('SELECT',2);await t.settle()
  t.simulateEvent('.item','click');await t.settle()
@@ -56,7 +56,7 @@ it('keyed master-detail edits, fake AI results and persistence stay on the selec
  expect(t.state.projects[0]).toEqual(original)
  await new Promise(resolve=>setTimeout(resolve,20))
  const saved=t.state;t.dispose()
- t=renderComponent(App,{sinkState:'after'});await t.ready();await t.settle()
+ t=renderComponent(App);await t.ready();await t.settle()
  expect(t.state).toEqual(saved);expect(t.html()).toContain('c!')
  expect(diagnostics('SYG454')).toHaveLength(0)
 })

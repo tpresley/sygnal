@@ -10,15 +10,15 @@ Counter.intent = ({ DOM }) => ({ INC: DOM.click('.b') })
 Counter.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
 
 parity('parity: timing rules both cores keep', () => {
-  it('an explicit before contract retains the 6.x snapshot for every output', async () => {
+  it('7.0: STATE runs first whatever the key order; every output gets the committed state, previousState the old one', async () => {
     const seen = []
     function C({ state }) { return h('button', { className: 'b' }, String(state.n)) }
     C.initialState = { n: 0 }
-    C.sinkState = 'before'
     C.intent = ({ DOM }) => ({ INC: DOM.click('.b') })
     C.model = {
       INC: {
-        EFFECT: (s) => { seen.push(['EFFECT', s.n]) },
+        // listed before STATE: still runs after it
+        EFFECT: (s, d, next, p) => { seen.push(['EFFECT', s.n]); seen.push(['WAS', p.previousState.n]) },
         STATE: (s) => ({ ...s, n: s.n + 1 }),
         EVENTS: (s) => { seen.push(['EVENTS', s.n]); return { type: 'X', data: s.n } },
         LOG: (s) => { seen.push(['LOG', s.n]); return 'n' },
@@ -30,9 +30,12 @@ parity('parity: timing rules both cores keep', () => {
     await until(() => expect(m.text('.b')).toBe('1'))
     click(m.$('.b'))
     await until(() => expect(m.text('.b')).toBe('2'))
-    expect(seen.filter((x) => x[0] == 'EFFECT').map((x) => x[1])).toEqual([0, 1])
-    expect(seen.filter((x) => x[0] == 'EVENTS').map((x) => x[1])).toEqual([0, 1])
-    expect(seen.filter((x) => x[0] == 'LOG').map((x) => x[1])).toEqual([0, 1])
+    expect(seen.filter((x) => x[0] == 'EFFECT').map((x) => x[1])).toEqual([1, 2])
+    expect(seen.filter((x) => x[0] == 'WAS').map((x) => x[1])).toEqual([0, 1])
+    expect(seen.filter((x) => x[0] == 'EVENTS').map((x) => x[1])).toEqual([1, 2])
+    expect(seen.filter((x) => x[0] == 'LOG').map((x) => x[1])).toEqual([1, 2])
+    // the order the outputs were listed in, after STATE
+    expect(seen.slice(0, 4).map((x) => x[0])).toEqual(['EFFECT', 'WAS', 'EVENTS', 'LOG'])
   })
 
   it('a batch of synchronous actions is applied in order and rendered in one patch', async () => {

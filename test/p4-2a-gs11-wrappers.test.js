@@ -17,7 +17,7 @@ vi.mock('sygnal', async (importOriginal) => ({
 
 // the module the integration's onError option names (the virtual module re-exports its default)
 const astroHook = vi.hoisted(() => ({ fn: undefined }))
-vi.mock('virtual:sygnal/astro-on-error', () => ({ sinkState: undefined, default: (...a) => astroHook.fn(...a) }))
+vi.mock('virtual:sygnal/astro-on-error', () => ({ default: (...a) => astroHook.fn(...a) }))
 
 const savedWindow = globalThis.window
 globalThis.window = { location: { pathname: '/' } }
@@ -107,15 +107,15 @@ describe("GS-11 / D120: Astro (the integration's onError module)", () => {
     for (const command of ['dev', 'build']) {
       const { id, code } = virtualOf(viteOf({ onError: './src/onError.js' }, command))
       expect(id).toBe('\0virtual:sygnal/astro-on-error')
-      expect(code).toBe(`export { default } from ${JSON.stringify(path.resolve('/proj/src/onError.js'))};export const sinkState = undefined`)
+      expect(code).toBe(`export { default } from ${JSON.stringify(path.resolve('/proj/src/onError.js'))}`)
     }
     // an absolute path is kept
     expect(virtualOf(viteOf({ onError: path.resolve('/abs/hook.ts') })).code).toContain(JSON.stringify(path.resolve('/abs/hook.ts')))
   })
 
   it('without the option the virtual module exports undefined (no hook)', () => {
-    expect(virtualOf(viteOf({})).code).toBe('export default undefined;export const sinkState = undefined')
-    expect(virtualOf(viteOf(undefined, 'dev')).code).toBe('export default undefined;export const sinkState = undefined')
+    expect(virtualOf(viteOf({})).code).toBe('export default undefined')
+    expect(virtualOf(viteOf(undefined, 'dev')).code).toBe('export default undefined')
   })
 
   it('keeps the island entries on Vite: the virtual id is not pre-bundled, sygnal is not externalized for SSR', () => {

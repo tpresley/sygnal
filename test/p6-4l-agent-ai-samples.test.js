@@ -176,7 +176,7 @@ describe('sygnal-check --strict: no findings', () => {
 describe('chat', () => {
   it('SEND builds the request with the new message; DELTA, DONE; t.stream', async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
+    t = renderComponent(Chat, { strict: true })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -193,7 +193,7 @@ describe('chat', () => {
 
   it("the llms.txt test line: await t.stream('LLM', ['Hel', 'lo'])", async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
+    t = renderComponent(Chat, { strict: true })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -209,7 +209,7 @@ describe('chat', () => {
 
   it("STOP: { abort: 'reply' } ends the stream; nothing more arrives", async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
+    t = renderComponent(Chat, { strict: true })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)
@@ -223,7 +223,7 @@ describe('chat', () => {
 
   it('the plain chat behavior: streams, Stop keeps the partial reply, Retry does not repeat the question', async () => {
     const { Chat } = await load('ChatPlain', MODULES.chatPlain)
-    t = renderComponent(Chat, { strict: true, sinkState: 'after' })
+    t = renderComponent(Chat, { strict: true })
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.ask', 'submit')
     await t.settle()
@@ -257,7 +257,7 @@ describe('chat', () => {
 
   it('a failure reaches FAILED as { error }', async () => {
     const { Chat } = await load('Chat', MODULES.chat)
-    t = renderComponent(Chat, { sinkState: 'after' })
+    t = renderComponent(Chat)
     t.simulateEvent('.prompt', 'input', { value: 'Hi' })
     t.simulateEvent('.send', 'click')
     await t.next((s) => s.messages.length === 1)

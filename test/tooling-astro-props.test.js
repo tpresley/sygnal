@@ -12,7 +12,7 @@ vi.mock('sygnal', () => ({
   },
 }))
 // D120: served by the integration's Vite plugin in an Astro project (no hook here)
-vi.mock('virtual:sygnal/astro-on-error', () => ({ sinkState: undefined, default: undefined }))
+vi.mock('virtual:sygnal/astro-on-error', () => ({ default: undefined }))
 
 const { default: clientRenderer } = await import('../dist/astro/client.mjs')
 const { renderToStaticMarkup } = await import('../dist/astro/server.mjs')

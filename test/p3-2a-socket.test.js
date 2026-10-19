@@ -587,8 +587,6 @@ describe('task 22 (chat socket) with makeSocketDriver', () => {
           h('input', { name: 'text', value: state.draft }),
           h('button', { type: 'submit', disabled: state.status !== 'online' }, 'Send'))))
   }
-  // Historical PLAN-3 sample retains its pre-action guards and payloads.
-  App.sinkState = 'before'
   App.initialState = { room: null, status: 'offline', messages: [], draft: '' }
   App.intent = ({ DOM }) => ({
     JOIN: DOM.click('.room').map(e => e.target.dataset.room),
@@ -600,7 +598,8 @@ describe('task 22 (chat socket) with makeSocketDriver', () => {
   App.model = {
     JOIN: {
       STATE: (s, room) => room === s.room ? ABORT : { ...s, room, status: 'connecting', messages: [] },
-      WS: (s, room) => room === s.room ? ABORT : { connections: { room: chatRoom(room) } },
+      // 7.0: the outputs get the updated state: the admission test reads the room before this JOIN
+      WS: (s, room, next, { previousState }) => room === previousState.room ? ABORT : { connections: { room: chatRoom(room) } },
     },
     LEAVE: {
       STATE: s => ({ ...s, room: null, status: 'offline', messages: [] }),
@@ -609,7 +608,8 @@ describe('task 22 (chat socket) with makeSocketDriver', () => {
     SET_DRAFT: (s, draft) => ({ ...s, draft }),
     SEND: {
       STATE: s => isBlank(s.draft) ? ABORT : { ...s, draft: '' },
-      WS: s => isBlank(s.draft) || s.status !== 'online' ? ABORT : { to: 'room', json: { text: s.draft } },
+      // STATE has cleared the draft: send the one from before the action
+      WS: (s, d, next, { previousState: was }) => isBlank(was.draft) || was.status !== 'online' ? ABORT : { to: 'room', json: { text: was.draft } },
     },
     RECEIVED: (s, m) => ({ ...s, messages: [...s.messages, m] }),
     CONNECTED: s => ({ ...s, status: 'online' }),
