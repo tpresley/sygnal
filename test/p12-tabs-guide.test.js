@@ -12,7 +12,7 @@ beforeAll(async()=>{
  const page=fs.readFileSync(path.join(here,'../docs/src/content/docs/ui/tabs.md'),'utf8')
  const source=page.slice(page.indexOf('## Closable tabs')).match(/```jsx live[^\n]*\n([\s\S]*?)\n```/)?.[1]
  expect(source).toBeTruthy()
- dir=fs.mkdtempSync(path.join(here,'.p11-tabs-guide-'))
+ dir=fs.mkdtempSync(path.join(here,'.p12-tabs-guide-'))
  const file=path.join(dir,'Editor.mjs')
  fs.writeFileSync(file,ts.transpileModule(source+'\nexport {Editor}',{fileName:'Editor.jsx',compilerOptions:{
   jsx:ts.JsxEmit.ReactJSX,jsxImportSource:'sygnal',module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022,

@@ -1,6 +1,6 @@
-# PLAN-11 v7 binding lifetime spike
+# PLAN-12 v7 binding lifetime spike
 
-Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p11-*.test.js` and `sygnal-check/test/p11-*.vtest.js`. Summary reports and JSON measurements remain here.
+Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p12-*.test.js` and `sygnal-check/test/p12-*.vtest.js`. Summary reports and JSON measurements remain here.
 
 Research completed 2026-10-18 (Pacific/Honolulu). This revisits the
 [original spike](../state-rebinding/README.md) after accepting a major release.

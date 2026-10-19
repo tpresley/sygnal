@@ -1,11 +1,13 @@
-# PLAN-11 Status Tracker
+# PLAN-12 Status Tracker
 
-Tracks [PLAN-11.md](PLAN-11.md): reducer timing and fresh-app ergonomics.
+**Renumbered 2026-10-19:** written as PLAN-11; the friction-fix plan that merged first (PR #50) holds that number, so this plan, its P12-D decisions, `plan12-*` research notes and `p12-*` tests were renamed (log paths quoted from earlier runs keep their old names).
+
+Tracks [PLAN-12.md](PLAN-12.md): reducer timing and fresh-app ergonomics.
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
 **State:** M-11 (2026-10-19): one timing contract replaces the `sinkState` switch; the review findings are fixed. Size 42,844 B / 43,000 B. Nothing is published.
 **Branch:** `claude/sygnal-7-single-contract`, cut from `a54f4090` (the reviewed M-10 commit) through the `exp/v7-single-contract` spike commits.
-**IDs:** Plan-local P11-D decisions; R/C/B/T work items.
+**IDs:** Plan-local P12-D decisions; R/C/B/T work items.
 
 ## M-11: one timing contract, and the review fixes (2026-10-19)
 
@@ -18,10 +20,10 @@ The user approved the single contract on 2026-10-19.
 
 | Decision | Contract |
 |---|---|
-| P11-D8 | **One timing contract, no option**: STATE runs first in every model entry (normalize sorts it first); every other sink gets the committed state; `props.previousState` is the state from before the action (in STATE both are the old state). `sinkState` is removed everywhere (never released), with the provenance machinery (`sinkTiming.ts`), the runtime SYG255 and the Vike / Astro / element / run / renderComponent plumbing. Supersedes P11-D1–D3 and M-1's switch |
-| P11-D9 | **Built-ins on the contract**: no `before` pins. Behaviors whose STATE and outputs share one transition (form, chat, compose, commandBar) compute their outputs from the previous slice through `was()` / `fromPrevious()` in `behaviors.ts`; the dialog's "was it open" reads `previousState`. Libraries supporting 6 and 7: `props.previousState ?? state` |
-| P11-D10 | **Migration safety net: the timing audit**, SYG257 (info, dev entry, opt-in: `configureTimingAudit`, `renderComponent({ timingAudit })`, `sygnal({ diagnostics: { timingAudit } })`, `__SYGNAL_TIMING_AUDIT__`): an output reading a top-level field its action's STATE changed. Replaces the gradual-migration switch; teams not ready stay on 6.x |
-| P11-D11 | **Self-removal**: when STATE removes the component's own state, the outputs get its last state whether it is a Collection item or bound with `state=` / `byId` (it threw SYG216 for bound children) |
+| P12-D8 | **One timing contract, no option**: STATE runs first in every model entry (normalize sorts it first); every other sink gets the committed state; `props.previousState` is the state from before the action (in STATE both are the old state). `sinkState` is removed everywhere (never released), with the provenance machinery (`sinkTiming.ts`), the runtime SYG255 and the Vike / Astro / element / run / renderComponent plumbing. Supersedes P12-D1–D3 and M-1's switch |
+| P12-D9 | **Built-ins on the contract**: no `before` pins. Behaviors whose STATE and outputs share one transition (form, chat, compose, commandBar) compute their outputs from the previous slice through `was()` / `fromPrevious()` in `behaviors.ts`; the dialog's "was it open" reads `previousState`. Libraries supporting 6 and 7: `props.previousState ?? state` |
+| P12-D10 | **Migration safety net: the timing audit**, SYG257 (info, dev entry, opt-in: `configureTimingAudit`, `renderComponent({ timingAudit })`, `sygnal({ diagnostics: { timingAudit } })`, `__SYGNAL_TIMING_AUDIT__`): an output reading a top-level field its action's STATE changed. Replaces the gradual-migration switch; teams not ready stay on 6.x |
+| P12-D11 | **Self-removal**: when STATE removes the component's own state, the outputs get its last state whether it is a Collection item or bound with `state=` / `byId` (it threw SYG216 for bound children) |
 
 Review fixes (M-11): a failed child keeps its props and is retried only on a changed target
 (was every owner render); the presence scan visits only bound children (a per-owner set);
@@ -42,10 +44,10 @@ The user superseded the minor-release strategy on 2026-10-18. See M-1…M-7 in t
 | M-4 binding-lifetime spike | Complete; target/presence lifetimes accepted, private 137/137 pass |
 | M-5 production binding outcome | Complete; selected-target loss, isolated defaults, hidden pages and reinsertion; 260/260 source tests pass |
 | M-6 migration / docs / changelog | Complete; prominent breaking changes, offline migration, docs/llms/skill and editor companion compatibility |
-| M-7 integration | Complete; [v7 verification](research/plan11-v7-implementation.md) |
+| M-7 integration | Complete; [v7 verification](research/plan12-v7-implementation.md) |
 | M-8 Rollup lifecycle | Complete; standard build exits normally, unchanged artifacts, 44 regression tests pass; [evidence](research/rollup-build-lifecycle.md) |
-| M-9 loading-guard feedback | Implemented SYG256 with installed-version/effective-timing proof, conservative exclusions, CLI/editor parity and updated guidance; [verification](research/plan11-loading-guard-assessment.md) |
-| M-10 final prerelease review | Complete; all correctness/release gates pass. User approved 43,000 B; final 42,993 B. Runtime built, npm links refreshed, fresh consumer verified; [final evidence](research/plan11-f1-f8-implementation.md); [dedup and repros](research/plan11-final-review/README.md) |
+| M-9 loading-guard feedback | Implemented SYG256 with installed-version/effective-timing proof, conservative exclusions, CLI/editor parity and updated guidance; [verification](research/plan12-loading-guard-assessment.md) |
+| M-10 final prerelease review | Complete; all correctness/release gates pass. User approved 43,000 B; final 42,993 B. Runtime built, npm links refreshed, fresh consumer verified; [final evidence](research/plan12-f1-f8-implementation.md); [dedup and repros](research/plan12-final-review/README.md) |
 
 The user first approved a 42,900 B gate for the 42,852 B known-target candidate, then approved
 **42,950 B** for the **42,910 B** candidate including same-ID target disappearance/reinsertion.
@@ -98,7 +100,7 @@ entries produce byte-identical kanban production JS; the linked runtime build wa
 | B-1 | Deferred by accepted decision | No automatic lifetime changes |
 | B-2 | Implemented | SYG454 runtime/static diagnostics, key guidance, keyed master-detail/persistence regression |
 | T-1/T-2 | Implemented | Generic source/public queries, typed-control inference, invalid generics and timing declarations checked |
-| Integration | Complete | [Production verification](research/plan11-implementation.md) |
+| Integration | Complete | [Production verification](research/plan12-implementation.md) |
 
 ## Initial production verification (historical)
 
@@ -118,7 +120,7 @@ entries produce byte-identical kanban production JS; the linked runtime build wa
 - Packed Git-first TypeScript starter: tests, strict checker, types and Vite build pass using the
   local matching toolchain. No registry dependency installation was performed.
 - Final browser run: **377/377** core browser cases pass; WebMCP and all graph-page suites pass.
-  Details and commands are recorded in [production verification](research/plan11-implementation.md).
+  Details and commands are recorded in [production verification](research/plan12-implementation.md).
 
 ## Initial release and compatibility notes (superseded by M-1…M-7)
 
@@ -149,7 +151,7 @@ unchanged. Static query generics assert types; they do not validate DOM element 
 ## Historical research verification log
 
 Research was explicitly authorized after the plan was written. All candidate mutations and
-builds used disposable copies through `research/plan11-harness.mjs`; no production file changed.
+builds used disposable copies through `research/plan12-harness.mjs`; no production file changed.
 
 - Existing selected baseline: **178/178**, 20 files (parity, behaviors, forms, chat, compose, undo).
 - Timing candidate, legacy default: **200/200**, 21 files (22 new research cases).

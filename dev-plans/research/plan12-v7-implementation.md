@@ -1,6 +1,6 @@
-# PLAN-11 Sygnal 7 implementation verification
+# PLAN-12 Sygnal 7 implementation verification
 
-This supersedes the [minor-candidate record](plan11-implementation.md). The user authorized a
+This supersedes the [minor-candidate record](plan12-implementation.md). The user authorized a
 major release with after by default, installed-version tooling, and further binding research.
 No packages were published and no Git commit was created.
 

@@ -1,6 +1,6 @@
-# PLAN-11 F1–F8 implementation
+# PLAN-12 F1–F8 implementation
 
-Status: F1–F8 complete. All release gates pass, including the explicitly approved 43,000 B size gate. Runtime built and both npm links refreshed and independently verified from a fresh consumer. This report supplements the preserved [original review](plan11-final-review/README.md), whose failing counts describe the pre-fix candidate. Nothing is published.
+Status: F1–F8 complete. All release gates pass, including the explicitly approved 43,000 B size gate. Runtime built and both npm links refreshed and independently verified from a fresh consumer. This report supplements the preserved [original review](plan12-final-review/README.md), whose failing counts describe the pre-fix candidate. Nothing is published.
 
 ## Coordinated lifetime correction (F1/F6/F7)
 
@@ -10,7 +10,7 @@ Cleanup reads the last owned state, including edits made since the previous rend
 
 This uses the existing known path/byId contract and internal owner notifications. Arbitrary custom lenses still need explicit keys or conditional mounting to express a new lifetime. No public API was added.
 
-Permanent regressions include `test/p11-hidden-binding.test.js`, `test/p11-queued-parent-loss.test.js`, `test/p11-between-render-loss.test.js`, and `test/p11-lifetime-cleanup.test.js`. Independent review additionally checked cleanup after an unrendered edit and whole-source path/byId loss.
+Permanent regressions include `test/p12-hidden-binding.test.js`, `test/p12-queued-parent-loss.test.js`, `test/p12-between-render-loss.test.js`, and `test/p12-lifetime-cleanup.test.js`. Independent review additionally checked cleanup after an unrendered edit and whole-source path/byId loss.
 
 ## Timing, recipes and testing (F2/F3/F8)
 
@@ -30,7 +30,7 @@ Checker verification: 1,723 tests passed, four skipped; generated explanations a
 
 The final source candidate passes 165 focused tests across 21 files. The original exact-source review runner passes all 12 regressions/controls; the checker/tabs probe now reports no false positives and emits the after-mode focus command.
 
-Seven interleaved baseline/candidate runs of 150,000 operations give median changes of −0.23% for unchanged bindings, +4.29% for nested edits and +5.23% for target switches. Duplicate notifications at the same app state version are skipped; distinct queued writes still notify separately. The unchanged-binding acceptance guard passes. The switch-path overhead is measured and accepted as the cost of ending the old lifetime. Raw measurements and focused logs are in [the lifetime report](plan11-final-review/lifetime-fix.md).
+Seven interleaved baseline/candidate runs of 150,000 operations give median changes of −0.23% for unchanged bindings, +4.29% for nested edits and +5.23% for target switches. Duplicate notifications at the same app state version are skipped; distinct queued writes still notify separately. The unchanged-binding acceptance guard passes. The switch-path overhead is measured and accepted as the cost of ending the old lifetime. Raw measurements and focused logs are in [the lifetime report](plan12-final-review/lifetime-fix.md).
 
 The normal post-build size gate independently confirms **42,993 B gzip**. The user explicitly approved raising the limit from 42,950 B to **43,000 B** on 2026-10-19 (Pacific/Honolulu), after reviewing the overage; the normal gate now passes with **7 B headroom**. The initial approval question measured 42,977 B; the final notification-cache optimization measured 42,993 B and was disclosed before approval. Default bundle: **38,984 B**; core alone: **50,601 B minified / 18,816 B gzip**.
 
@@ -50,4 +50,4 @@ Primary gate logs are `/private/tmp/sygnal-p11-final-{build,npm-test,size,doc-sa
 
 ## Repository cleanup before commit
 
-Temporary spike runners, prototype patches, duplicate review fixtures and raw logs were archived to `/private/tmp/sygnal-plan11-cleanup-twgoiuo7` and removed from the checkout. The generated 0.8.0 VSIX was archived there too. Reports and compact measurement JSON remain as design evidence; maintained regression tests live in the normal test suites. Runtime builds and local npm links remain available.
+Temporary spike runners, prototype patches, duplicate review fixtures and raw logs were archived to `/private/tmp/sygnal-plan12-cleanup-twgoiuo7` and removed from the checkout. The generated 0.8.0 VSIX was archived there too. Reports and compact measurement JSON remain as design evidence; maintained regression tests live in the normal test suites. Runtime builds and local npm links remain available.

@@ -13,7 +13,7 @@ it('the on-device summary recipe retries after completion and ignores an already
   const page=fs.readFileSync(path.join(here,'../docs/src/content/docs/recipes/ai-summarize.md'),'utf8')
   const source=/```jsx live[^\n]*\n([\s\S]*?)\n```/.exec(page)?.[1]
   expect(source).toBeTruthy()
-  const dir=fs.mkdtempSync(path.join(here,'.p11-recipes-'))
+  const dir=fs.mkdtempSync(path.join(here,'.p12-recipes-'))
   let t
   try {
     const file=path.join(dir,'Article.mjs')

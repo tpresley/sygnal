@@ -44,7 +44,7 @@ it('keyed master-detail edits, fake AI results and persistence stay on the selec
  function App({state}){return h(Editor,{key:state.selected,state:byId('projects',state.selected)})}
  App.initialState={selected:1,projects:[{id:1,title:'one',tasks:[{id:1,title:'a'}]},{id:2,title:'two',tasks:[{id:2,title:'b'}]}]}
  App.model={SELECT:(s,selected)=>({...s,selected}),CREATE:s=>({...s,selected:3,projects:[...s.projects,{id:3,title:'three',tasks:[{id:3,title:'c'}]}]})}
- App.persist=persist({key:'p11-projects',storage:store,debounceMs:0})
+ App.persist=persist({key:'p12-projects',storage:store,debounceMs:0})
  t=renderComponent(App);await t.ready()
  const original=t.state.projects[0]
  t.simulateAction('SELECT',2);await t.settle()

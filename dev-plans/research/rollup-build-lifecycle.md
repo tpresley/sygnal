@@ -1,6 +1,6 @@
 # Rollup build lifecycle fix
 
-Follow-up to PLAN-11's combined-build limitation, investigated while the user tests the locally
+Follow-up to PLAN-12's combined-build limitation, investigated while the user tests the locally
 linked Sygnal 7 package. All whole-project build experiments use a temporary checkout. The
 linked checkout's `dist` is left untouched.
 

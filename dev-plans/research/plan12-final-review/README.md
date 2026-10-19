@@ -1,8 +1,8 @@
-# PLAN-11 final prerelease review
+# PLAN-12 final prerelease review
 
-Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p11-*.test.js` and `sygnal-check/test/p11-*.vtest.js`. Summary reports and JSON measurements remain here.
+Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p12-*.test.js` and `sygnal-check/test/p12-*.vtest.js`. Summary reports and JSON measurements remain here.
 
-**Original review outcome: hold 7.0 release.** The findings below describe the pre-fix candidate; original line numbers and failing counts are preserved as review evidence. F1–F8 are now implemented and their original 12 runtime reproductions/controls pass. Final implementation acceptance is complete; all release gates and refreshed links pass under the explicitly approved 43,000 B limit: see [implementation results](../plan11-f1-f8-implementation.md) and [independent fix audit](fix-audit.md).
+**Original review outcome: hold 7.0 release.** The findings below describe the pre-fix candidate; original line numbers and failing counts are preserved as review evidence. F1–F8 are now implemented and their original 12 runtime reproductions/controls pass. Final implementation acceptance is complete; all release gates and refreshed links pass under the explicitly approved 43,000 B limit: see [implementation results](../plan12-f1-f8-implementation.md) and [independent fix audit](fix-audit.md).
 
 No production source was edited during the original review; the linked packages at that time remained the user's test candidate. Findings came from independent timing, binding and tooling reviews, plus the
 coordinator's documentation, package and release-workflow audit.
@@ -163,8 +163,8 @@ or load-test API is required. This is testing ergonomics, not a runtime lost-upd
 From the repository root:
 
 ```sh
-node dev-plans/research/plan11-final-review/run.mjs
-node dev-plans/research/plan11-final-review/checker-and-tabs.mjs
+node dev-plans/research/plan12-final-review/run.mjs
+node dev-plans/research/plan12-final-review/checker-and-tabs.mjs
 ```
 
 The first copies exact current src plus the parity harness into a temporary project and runs

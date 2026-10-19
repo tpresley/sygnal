@@ -1,4 +1,4 @@
-# PLAN-11 independent fix audit
+# PLAN-12 independent fix audit
 
 The coordinated fixes address the concrete F1–F8 findings in the reviewed source. Two further
 lifetime gaps found during this audit—cleanup reading missing state and missed Collection
@@ -10,14 +10,14 @@ claim that final release gates, package refreshes, or all possible lifecycle cas
 
 | Finding | Reviewed result | Evidence / boundary |
 |---|---|---|
-| F1: hidden descendants survive target loss | Owners observe known-target presence at existing action notifications; hidden descendants are invalidated without waiting for their views. | Independent exact-source checks confirm hidden replacement remains deferred until shown. Permanent coverage: `test/p11-hidden-binding.test.js`. Final coordinated runtime suite remains the coordinator's gate. |
+| F1: hidden descendants survive target loss | Owners observe known-target presence at existing action notifications; hidden descendants are invalidated without waiting for their views. | Independent exact-source checks confirm hidden replacement remains deferred until shown. Permanent coverage: `test/p12-hidden-binding.test.js`. Final coordinated runtime suite remains the coordinator's gate. |
 | F2: mixed effects overwrite the cancellation signal | The before adapter restores snapshots and then preserves the runtime-owned `signal`. | Inspected `src/extra/sinkTiming.ts`; the runtime signal is assigned after saved props. Both-order regression coverage belongs to the timing suite. No new independent F2 test run is claimed here. |
-| F3: closing a tab loses focus | The published model uses `previousState.files` to find the neighbor under after timing. | Inspected the recipe and `test/p11-tabs-guide.test.js`: selected first/middle/last closes and final empty state are exercised with real DOM focus. Execution is part of the coordinator's final gates. |
+| F3: closing a tab loses focus | The published model uses `previousState.files` to find the neighbor under after timing. | Inspected the recipe and `test/p12-tabs-guide.test.js`: selected first/middle/last closes and final empty state are exercised with real DOM focus. Execution is part of the coordinator's final gates. |
 | F4: checker loses STATE branch preconditions | Literal transitions retain supported equality, exclusion, and truthiness facts; infeasible paths and guards already rejecting before STATE are excluded. | Permanent ternary/if/boolean regressions retain the original idle-to-working warning. Full checker verification below passed. |
 | F5: prototype getter invalidates timing evidence | Noncomputed `__proto__` option declarations make timing opaque, including known spread origins. | Permanent helper and end-to-end checker regressions. An additional SYG255 spread-validation crash exposed by those tests was fixed and covered. |
-| F6: queued PARENT work reaches a removed ancestor | Presence-loss disposal occurs before the drain advances to later queued work; disposed subtree actions are skipped. | Inspected the coordinated action-notification path and mock/real DOM regressions in `test/p11-queued-parent-loss.test.js`. Final execution is the coordinator's gate. |
-| F7: remove/reinsert between renders revives work | Known-target disappearance is observed between actions, without requiring an intervening render. | Independent host checks confirm old signals abort and captured old next() cannot change same-ID replacements. Timer/HTTP mock/native-click coverage is in `test/p11-between-render-loss.test.js`. |
-| F8: simulated-input timeout hides its backlog | State waits report pending simulated-input count; the testing guide distinguishes serialized simulation from native bursts. | Inspected timeout construction and permanent `test/p11-simulated-input-timeout.test.js`; no sequencing/API change is introduced. Final execution is the coordinator's gate. |
+| F6: queued PARENT work reaches a removed ancestor | Presence-loss disposal occurs before the drain advances to later queued work; disposed subtree actions are skipped. | Inspected the coordinated action-notification path and mock/real DOM regressions in `test/p12-queued-parent-loss.test.js`. Final execution is the coordinator's gate. |
+| F7: remove/reinsert between renders revives work | Known-target disappearance is observed between actions, without requiring an intervening render. | Independent host checks confirm old signals abort and captured old next() cannot change same-ID replacements. Timer/HTTP mock/native-click coverage is in `test/p12-between-render-loss.test.js`. |
+| F8: simulated-input timeout hides its backlog | State waits report pending simulated-input count; the testing guide distinguishes serialized simulation from native bursts. | Inspected timeout construction and permanent `test/p12-simulated-input-timeout.test.js`; no sequencing/API change is introduced. Final execution is the coordinator's gate. |
 
 ## Additional lifetime defects found and corrected
 
@@ -26,7 +26,7 @@ claim that final release gates, package refreshes, or all possible lifecycle cas
    preserves the latest owned snapshot, including updates made before the next render, and
    prevents cleanup writes from recreating the deleted target. The independent test performs
    UPDATE then DROP without awaiting a render and verifies cleanup receives the updated title.
-   Permanent broader coverage is in `test/p11-lifetime-cleanup.test.js`, including descendants,
+   Permanent broader coverage is in `test/p12-lifetime-cleanup.test.js`, including descendants,
    calculated values, Switchable pages, and falsy-but-present state.
 2. Presence checks initially ignored `CollectionHost.arr`, leaving Collection and
    VirtualCollection lifetimes active when a known `from` path disappeared. A second gap

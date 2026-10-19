@@ -1,4 +1,4 @@
-# PLAN-11 implementation verification
+# PLAN-12 implementation verification
 
 The user reviewed the two spike reports before authorizing production work. This record covers
 R/C/B-2/T in the shared checkout. Research candidates retain their original measurements and

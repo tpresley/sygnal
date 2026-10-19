@@ -1,6 +1,6 @@
-# PLAN-11 R-S1: Reducer timing spike
+# PLAN-12 R-S1: Reducer timing spike
 
-Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p11-*.test.js` and `sygnal-check/test/p11-*.vtest.js`. Summary reports and JSON measurements remain here.
+Repository cleanup: temporary runners, prototype patches, duplicate repro fixtures and raw logs were archived outside the repository after implementation. Commands and filenames below describe the historical spike; maintained regressions live in `test/p12-*.test.js` and `sygnal-check/test/p12-*.vtest.js`. Summary reports and JSON measurements remain here.
 
 Research completed 2026-10-18 (Pacific/Honolulu), source baseline
 `5e5205cbadd61865b787f6523c840489e074a28b`, Node v24.14.0, installed Vitest v4.1.11.

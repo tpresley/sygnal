@@ -47,7 +47,7 @@ export const CODES = {
   SYG254: { severity: 'info', title: 'Catalog descriptions or options overlap' },
   SYG450: { severity: 'warn', title: 'Catalog in names an unknown container or slot' },
   SYG680: { severity: 'info', title: 'Part is LLM-only under a decision backend' },
-  // PLAN-11 / 7.0 reducer timing and state bindings: SYG256 (rules/syg256-output-guard.js) on an
+  // PLAN-12 / 7.0 reducer timing and state bindings: SYG256 (rules/syg256-output-guard.js) on an
   // installed Sygnal 7, SYG454 (rules/syg454-byid-binding.js) on an installed Sygnal 6 only
   SYG256: { severity: 'warn', title: 'Output guard rejects the updated state' },
   SYG454: { severity: 'warn', title: 'State binding changed without a new component identity' },

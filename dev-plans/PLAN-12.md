@@ -1,22 +1,24 @@
-# PLAN-11: Reducer state timing and fresh-app ergonomics
+# PLAN-12: Reducer state timing and fresh-app ergonomics
+
+**Renumbered 2026-10-19:** written as PLAN-11; the friction-fix plan that merged first (PR #50) holds that number, so this plan, its P12-D decisions, `plan12-*` research notes and `p12-*` tests were renamed (log paths quoted from earlier runs keep their old names).
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
 **Status:** M-11 (one timing contract, review fixes) complete 2026-10-19. Earlier: M-10 F1–F8 complete. All release gates pass, including 42,993 B against the explicitly approved 43,000 B limit. Runtime built; both npm links refreshed and verified from a fresh consumer. The combined-build limitation was fixed in [M-8](research/rollup-build-lifecycle.md). Major-release work below supersedes the initial minor-release/default and binding decisions.
-**Tracker:** [PLAN-11-status.md](PLAN-11-status.md).
+**Tracker:** [PLAN-12-status.md](PLAN-12-status.md).
 
 ## M-11: one timing contract — approved 2026-10-19
 
 Supersedes the `sinkState` switch below (M-1's 'after' default with per-app/component/behavior
 overrides): 7.0 has one contract, STATE first and outputs on the committed state, with
 `props.previousState` and the opt-in timing audit (SYG257) as the migration aid. Decisions
-P11-D8–D11 and the review fixes are in the [tracker](PLAN-11-status.md); evidence in
+P12-D8–D11 and the review fixes are in the [tracker](PLAN-12-status.md); evidence in
 [research/v7-single-contract](research/v7-single-contract/README.md).
 
 ## Sygnal 7 revision — authorized 2026-10-18
 
 The user chose a major release after reviewing the initial implementation. **Sygnal 7 defaults
-to `after`**; 6.x retains its historical pre-action snapshots. This supersedes P11-D1's minor
-release/default decision and reopens P11-D7's binding-lifetime compatibility restriction.
+to `after`**; 6.x retains its historical pre-action snapshots. This supersedes P12-D1's minor
+release/default decision and reopens P12-D7's binding-lifetime compatibility restriction.
 No package publishing is authorized by this implementation task.
 
 | Item | Implementation steps | Compatibility / verification |
@@ -48,14 +50,14 @@ independently for each child; unknown timing, behaviors, calculated state and am
 apparently mutated models/options are skipped. Source ranges relate the guard, STATE write
 and timing context. CLI/editor diagnostics agree; suppressions work; no autofix or runtime
 ABORT change. Diagnostic registry, explanations, generated reference, changelog, checker README
-and offline guidance are updated. See [implementation and verification](research/plan11-loading-guard-assessment.md).
+and offline guidance are updated. See [implementation and verification](research/plan12-loading-guard-assessment.md).
 
 ### M-10: Final prerelease review — implementation verification
 
 The user requested a final review while testing the linked packages. Independent runtime,
 binding and tooling audits plus fresh integration/packaging checks found the issues below.
 No production changes were made during review. See [findings, reproductions and acceptance
-criteria](research/plan11-final-review/README.md).
+criteria](research/plan12-final-review/README.md).
 
 The user subsequently authorized F1–F8 implementation, explicitly coordinating lifetime fixes,
 using subagents, retaining the 42,950 B budget (or consulting the user if it cannot fit), then
@@ -79,7 +81,7 @@ shares the lifetime-invalidation class of F1 but adds a distinct between-renders
 testing ergonomics. Coordinate F1/F6/F7 rather than fixing only rendered or hidden snapshots.
 The source report and local reproductions are preserved with the review evidence.
 
-F1–F8 are implemented, including coordinated owner notification at action boundaries, preserved cleanup snapshots and whole Collection/VirtualCollection source presence. Focused source coverage: 165 passing tests; the original review reproductions now pass 12/12. Final measured size is **42,993 B / 43,000 B**, passing with 7 B headroom. The user explicitly approved the 43,000 B limit on 2026-10-19 after the final measured overage was disclosed. See [implementation and acceptance evidence](research/plan11-f1-f8-implementation.md). All other release gates pass: library 5,099 tests; checker 1,723 tests; 14 example suites; types; 377 browser cases plus WebMCP/graph checks; retention/count gates (0.93 MB settled heap); 117 docs demos in each of three engines; all ten packed templates; editor/plugin gates. The build is complete. Both global npm module registrations are refreshed; a fresh consumer resolves runtime 7.0.0/checker 0.11.0 and executes the expected installed-version SYG256 diagnostic through its local CLI.
+F1–F8 are implemented, including coordinated owner notification at action boundaries, preserved cleanup snapshots and whole Collection/VirtualCollection source presence. Focused source coverage: 165 passing tests; the original review reproductions now pass 12/12. Final measured size is **42,993 B / 43,000 B**, passing with 7 B headroom. The user explicitly approved the 43,000 B limit on 2026-10-19 after the final measured overage was disclosed. See [implementation and acceptance evidence](research/plan12-f1-f8-implementation.md). All other release gates pass: library 5,099 tests; checker 1,723 tests; 14 example suites; types; 377 browser cases plus WebMCP/graph checks; retention/count gates (0.93 MB settled heap); 117 docs demos in each of three engines; all ten packed templates; editor/plugin gates. The build is complete. Both global npm module registrations are refreshed; a fresh consumer resolves runtime 7.0.0/checker 0.11.0 and executes the expected installed-version SYG256 diagnostic through its local CLI.
 
 Release preparation also requires the dated changelog heading and a fresh VS Code bundled
 checker artifact. Existing gates passing is insufficient to close M-10; regressions above must
@@ -133,7 +135,7 @@ of all four workstreams, then the v7 revision above authorized the framework def
 known-target lifetime changes. Publishing, new dependencies and general scaffold overwrite
 behavior remain outside this implementation.
 
-Use plan-local decision IDs `P11-D*` and item IDs below; do not claim another plan's reserved
+Use plan-local decision IDs `P12-D*` and item IDs below; do not claim another plan's reserved
 global D/G number block. Record later findings and decisions in the tracker.
 
 ## Research results (2026-10-18)
@@ -181,15 +183,15 @@ audit. Assessment on the current checkout confirmed:
 
 | Decision | Contract |
 |---|---|
-| P11-D1 | Introduce `sinkState: 'before' \| 'after'`; preserve `'before'` as the framework default in this release. A future default change requires a major release and a separate decision. |
-| P11-D2 | A component's explicit `sinkState` wins over the `run()` default. Resolve each child independently; a parent's declaration does not cascade. The app setting never forcibly overrides an explicit library contract. |
-| P11-D3 | Behaviors declare their own timing and retain it after model composition. Library declarations must travel with their handlers, rather than inheriting arbitrary host defaults. |
-| P11-D4 | Provide `props.previousState`; keep `props.state` consistent with the handler's effective timing. Preserve the existing reducer argument positions. |
-| P11-D5 | Allow `.git` and `.DS_Store` as pre-existing destination entries, preserve them, and reject ordinary nonempty destinations. No merge/overwrite option. |
-| P11-D6 | Add generic string-query overloads while retaining `Element` defaults and typed-control inference. Generics assert a type; they do not validate the DOM. |
-| P11-D7 | Explore automatic rebinding before settling for a key requirement. Include production rebinding without another approval step in the later implementation run if all B-S1 gates pass. If they fail, ship the fallback and report why; do not quietly broaden the API or size budget. |
+| P12-D1 | Introduce `sinkState: 'before' \| 'after'`; preserve `'before'` as the framework default in this release. A future default change requires a major release and a separate decision. |
+| P12-D2 | A component's explicit `sinkState` wins over the `run()` default. Resolve each child independently; a parent's declaration does not cascade. The app setting never forcibly overrides an explicit library contract. |
+| P12-D3 | Behaviors declare their own timing and retain it after model composition. Library declarations must travel with their handlers, rather than inheriting arbitrary host defaults. |
+| P12-D4 | Provide `props.previousState`; keep `props.state` consistent with the handler's effective timing. Preserve the existing reducer argument positions. |
+| P12-D5 | Allow `.git` and `.DS_Store` as pre-existing destination entries, preserve them, and reject ordinary nonempty destinations. No merge/overwrite option. |
+| P12-D6 | Add generic string-query overloads while retaining `Element` defaults and typed-control inference. Generics assert a type; they do not validate the DOM. |
+| P12-D7 | Explore automatic rebinding before settling for a key requirement. Include production rebinding without another approval step in the later implementation run if all B-S1 gates pass. If they fail, ship the fallback and report why; do not quietly broaden the API or size budget. |
 
-P11-D7 reflects the user's conditional preference. The numeric spike thresholds below are
+P12-D7 reflects the user's conditional preference. The numeric spike thresholds below are
 planning guardrails, not previously measured results or user-supplied budgets.
 
 ## 2. R — Reducer state timing

@@ -600,11 +600,11 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-9 X-2: static only (sygnal-check); listed so the entry knows their titles
   SYG253: 'warn',
   SYG254: 'info',
-  // PLAN-11: static only; proven after-state output guard contradiction.
+  // PLAN-12: static only; proven after-state output guard contradiction.
   SYG256: 'warn',
   // 7.0: the opt-in timing audit (checks/next.ts; configureTimingAudit)
   SYG257: 'info',
-  // PLAN-11: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
+  // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
 }
 

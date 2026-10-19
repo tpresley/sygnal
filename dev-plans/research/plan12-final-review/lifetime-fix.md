@@ -75,7 +75,7 @@ writes through the root dist symlink.
 The complete candidate is 43 B above the existing 42,950 B gate. Its extra size fixes
 three demonstrated lifetime failures plus cleanup state and omitted host presence.
 A one-field cached-state representation saved 12 B and one pointer per known binding
-compared with a separate presence flag and snapshot. The gate was unchanged during the subtask. The user subsequently approved **43,000 B**; the coordinator’s normal final gate passes at **42,993 B** with 7 B headroom. See [final implementation acceptance](../plan11-f1-f8-implementation.md).
+compared with a separate presence flag and snapshot. The gate was unchanged during the subtask. The user subsequently approved **43,000 B**; the coordinator’s normal final gate passes at **42,993 B** with 7 B headroom. See [final implementation acceptance](../plan12-f1-f8-implementation.md).
 
 ## Timing measurements
 
