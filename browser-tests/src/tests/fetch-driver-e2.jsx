@@ -68,7 +68,8 @@ export async function fetchDriverTestsE2() {
     app.dispose()
     const up = last.steps.filter(s => s[0] === 'upload')
     assert(out === 'multipart/form-data:true', `got '${out}'`)
-    assert(up.length >= 2, `expected several upload steps, got ${JSON.stringify(last.steps)}`)
+    // A fast localhost upload may emit only completion. Scripted XHR tests cover intermediate steps and throttling.
+    assert(up.length >= 1, `expected an upload step, got ${JSON.stringify(last.steps)}`)
     assert(up[up.length - 1][1] === 1, `the last upload step is fraction 1: ${JSON.stringify(up)}`)
     assert(last.steps.some(s => s[0] === 'download'), `a download step: ${JSON.stringify(last.steps)}`)
   })

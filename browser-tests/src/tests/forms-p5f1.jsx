@@ -211,7 +211,8 @@ export async function formTestsP5F1() {
       await waitFor(() => el.querySelector('.out').textContent !== '', 15000)
       const s = app.__runtime.getState()
       assert(el.querySelector('.out').textContent === 'saved:multipart/form-data', `got '${el.querySelector('.out').textContent}'`)
-      assert(s.steps.length >= 2 && s.steps.at(-1) === 1, `progress steps: ${JSON.stringify(s.steps)}`)
+      // A fast localhost upload may emit only the final 100% progress event.
+      assert(s.steps.length >= 1 && s.steps.at(-1) === 1, `progress steps: ${JSON.stringify(s.steps)}`)
       assert(s.form.progress === null && s.form.submitted, 'progress cleared by DONE')
       assert(el.querySelector('input[type=file]').files.length === 1, 'the input keeps its file after the submit')
       el.querySelector('.reset').click()
