@@ -89,6 +89,13 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ### Fixed
 
+- **Follow-ups from trying the PLAN-13 build in Temper.** A Switchable page with a per-page
+  `state` map no longer reports SYG106 for the Switchable's own `state` prop (every page did, so
+  `expectNoDiagnostics()` failed). The `sygnal-check` command line reads `replyKeys` (check,
+  `--fix`, `--graph`, `--base`; the API and the language server already did). SSE `resume` replaces
+  an id parameter the URL already has instead of adding a second one. An `every` timer ticks once
+  per interval under a test clock that freezes `Date.now()` while timers run (Playwright's
+  `setFixedTime()`): its drift-free delays had grown by one interval per tick (1, 3, 6, 10 s).
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**
   When a write's `ok` action navigated (`ROUTER`) and its `invalidates` (a URL prefix or a tag)
   matched a resource of a lens- or key-bound page, the page's new request was sent and then the

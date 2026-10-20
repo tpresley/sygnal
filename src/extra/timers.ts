@@ -13,7 +13,8 @@ import {makeReplies} from './replies';
  *   falsy one stops, a changed spec restarts (an equal one keeps running).
  * - `every`: drift-free; tick n is due at start + n * every (each delay is computed from the
  *   start, not chained). A late tick (a throttled background tab) coalesces the missed ones:
- *   n jumps. Data `{ n, t }`: the tick number from 1, `t` = Date.now().
+ *   n jumps. A delay is at most `every`, so a frozen Date.now() (a test clock that fixes the time
+ *   while timers run) ticks once per interval. Data `{ n, t }`: the tick number from 1, `t` = Date.now().
  * - `after`: fires once, data `{ t }`. It doesn't fire again while the same spec stays declared.
  * - `frame`: every animation frame (requestAnimationFrame; setTimeout 16 ms without it), data
  *   `{ t, dt }`: Date.now() and the ms since the previous frame (0 on the first).
@@ -47,7 +48,9 @@ const start = (s: any, send: (type: string, data: any) => void, e: any): (() => 
       last = ts;
     } else if (every) {
       n = Math.max(n + 1, Math.floor((t - t0) / every));
-      later(t0 + (n + 1) * every - t);
+      // never more than one interval: under a frozen Date.now() (Playwright's setFixedTime: Date is
+      // fixed, timers run) the drift-free delay grew by one interval per tick
+      later(Math.min(every, t0 + (n + 1) * every - t));
       send(s.action, {n, t});
     } else {
       e.d = 1;
