@@ -136,3 +136,19 @@ describe('F-3: SYG429 (dev checks)', () => {
     t.dispose()
   })
 })
+
+describe('F-3 follow-up: no SYG106 on map pages', () => {
+  it("a page doesn't report the Switchable's own state map as a prop", async () => {
+    setupChecks()
+    function App({ state }) { return h('main', null, h(Switchable, { of: { a: A, b: B }, current: state.cur, state: { a: 'pages.a', b: 'pages.b' } })) }
+    App.initialState = { cur: 'a', pages: { a: { n: 0 }, b: { n: 1 } } }
+    App.model = { SHOW: (s, cur) => ({ ...s, cur }) }
+    const t = renderComponent(App)
+    await t.ready()
+    t.simulateAction('SHOW', 'b')
+    await t.next((s) => s.cur === 'b')
+    expect(diagnostics('SYG106')).toEqual([])
+    t.expectNoDiagnostics()
+    t.dispose()
+  })
+})

@@ -8,6 +8,9 @@
  * lens (a state field name or a { get, set } object), so it is only reported
  * when the value can't be a lens.
  *
+ * A Switchable page is exempt from the `state` part: it gets the Switchable's props, and their
+ * `state` is the host's binding (PLAN-13 F-3's per-page map is not a lens, and isn't the page's).
+ *
  * Mechanism: onRender reads the component's current (sanitized) props.
  * Reported once per component name and prop.
  */
@@ -39,7 +42,9 @@ export const propsCheck: DiagnosticCheck = {
       })
     }
 
-    if ('state' in props) {
+    // PLAN-13 F-3 follow-up: a Switchable page gets the Switchable's props, whose `state` is the
+    // host's binding (a per-page map too), consumed by the host: not a prop meant for the page
+    if ('state' in props && component.__next?.kind !== 'page') {
       const value = props.state
       const isLens = typeof value === 'string' || (value && typeof value === 'object' && typeof value.get === 'function')
       if (!isLens && value !== undefined && once(`SYG106:${name}:state`)) {
