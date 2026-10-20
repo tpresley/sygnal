@@ -74,6 +74,13 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   to render `/` first and send its requests. The entry's other sinks (a guard's redirect) still run
   once, when the router answers. Tests only; no core change.
 
+- **sygnal-check follows `next` into helpers (PLAN-13 C-3).** A model that passes `next` to a
+  function (`advance(state, next)`), imported or in the same file and with any parameter name, has
+  that function's `next('X')` calls counted as its own, 3 calls deep: SYG102 sees the targets, and
+  SYG117 reports a bad one in the helper's file. A helper it can't read (a package) makes the
+  targets unknown, so SYG102 drops to info. The language server re-checks the component when the
+  helper changes.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

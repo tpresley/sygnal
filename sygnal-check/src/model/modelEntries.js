@@ -310,7 +310,39 @@ export function analyzeModel(project, file, modelNode) {
 
   // next('X') targets: inside the model object and any module-level reducer
   // functions it references by name.
-  const scanned = new Set()
+  const scanned = new Set(), pushed = new Set()
+  const target = (n, f) => {
+    if (pushed.has(n)) return
+    pushed.add(n)
+    const s = stringValue(n.arguments[0])
+    if (s != null) res.nextTargets.push({ name: s, node: n.arguments[0], file: f })
+    else res.dynamicNext.push({ node: n, file: f })
+  }
+  // PLAN-13 C-3: a call that passes `next` on (`advance(next, state)`, an imported helper or one
+  // in this file): the callee's parameter at that position is `next` there, scanned in the
+  // callee's file (3 calls deep). A callee the checker can't read may call anything: dynamic
+  const passOn = (n, f, names, depth) => {
+    const i = n.arguments.findIndex(a => unwrap(a)?.type === 'Identifier' && names.has(unwrap(a).name))
+    if (i < 0 || nextName(n, names)) return
+    const h = resolveExpr(project, f, n.callee)
+    let p = h?.node && isFunction(h.node) ? h.node.params[i] : null
+    if (p?.type === 'AssignmentPattern') p = p.left
+    if (p?.type !== 'Identifier') return depth < 3 && res.dynamicNext.push({ node: n, file: f })
+    if (depth >= 3 || scanned.has(h.node.body)) return
+    scanned.add(h.node.body)
+    const inner = new Set([p.name])
+    walk(h.node.body, (m) => {
+      if (m.type === 'CallExpression') {
+        if (nextName(m, inner)) target(m, h.file)
+        else passOn(m, h.file, inner, depth + 1)
+      }
+      return true
+    })
+  }
+  const nextName = (n, names) => {
+    const c = unwrap(n.callee)
+    return c.type === 'Identifier' && names.has(c.name) && n.arguments.length > 0
+  }
   const scanNext = (root, f) => {
     if (!root || scanned.has(root)) return
     scanned.add(root)
@@ -321,12 +353,8 @@ export function analyzeModel(project, file, modelNode) {
     })
     walk(root, (n) => {
       if (n.type === 'CallExpression') {
-        const c = unwrap(n.callee)
-        if (c.type === 'Identifier' && nextNames.has(c.name) && n.arguments.length) {
-          const s = stringValue(n.arguments[0])
-          if (s != null) res.nextTargets.push({ name: s, node: n.arguments[0], file: f })
-          else res.dynamicNext.push({ node: n, file: f })
-        }
+        if (nextName(n, nextNames)) target(n, f)
+        else passOn(n, f, nextNames, 0)
       }
       if (n.type === 'Identifier' && n !== root) {
         const b = findBinding(f, n.name, n)
