@@ -19,6 +19,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   and so are `connections` specs and SSE `events` maps held in consts. SYG102 no longer reports
   their reply actions as unreachable, SYG112 checks the names, SYG152 and `--graph` see the requests.
 
+- **SYG256 sees past helper calls in other fields (PLAN-13 C-2).** A call in the STATE reducer
+  stopped the proof, so a leave-guard like `EDIT: { STATE: (s, d) => ({ ...s, dirty: true, edit:
+  { ...s.edit, [keyOf(s)]: d } }), ROUTER: (s) => s.dirty ? ABORT : … }` went unreported. A call
+  (or a function) inside a plain field's value now only makes that field unknown; calls in a test,
+  a spread or a computed key of the written object, and any assignment, still keep the check out.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**
