@@ -81,6 +81,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   targets unknown, so SYG102 drops to info. The language server re-checks the component when the
   helper changes.
 
+- **`replyKeys` in sygnal-check's config (PLAN-13 C-4).** A custom driver's own reply keys
+  (`cancelled: 'UP_CANCELLED'`) can be listed in `sygnal-check.config.json`, for every sink
+  (`["cancelled"]`) or per sink (`{ "UPLOAD": ["progress", "cancelled"] }`): their actions count for
+  SYG102 and are checked by SYG112. Without the setting, a request key the checker doesn't know
+  whose value names a model entry makes that entry's SYG102 info, pointing at `replyKeys`.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

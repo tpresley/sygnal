@@ -87,6 +87,7 @@ Or under the `"sygnal-check"` key of `package.json`:
 | `ignore` | string[] | `[]` | Codes to drop entirely, e.g. `["SYG105"]` |
 | `paths` | string[] | `["src"]` | Files, directories or globs to check when none are given, relative to the config file |
 | `includeTests` | boolean | `false` | Also scan `*.test.*` / `*.spec.*` files (`--include-tests`) |
+| `replyKeys` | array, or object of arrays | none | Request keys a custom driver replies with (`makeReplies()`), beside `ok` / `error` / `progress`: `["cancelled"]` for every sink, or `{ "UPLOAD": ["progress", "cancelled"] }` per sink. Their actions are triggers for SYG102 and checked by SYG112. Without it, a request key the checker doesn't know whose value names a model entry (`cancelled: 'UP_CANCELLED'`) makes that entry's SYG102 info, with this setting as the fix |
 
 `$schema` is allowed and ignored. Settings are taken from, highest first:
 

@@ -95,8 +95,10 @@ function parseSuppressions(ast) {
 }
 
 export class Project {
-  constructor({ cwd = process.cwd(), sources, cache, tree } = {}) {
+  constructor({ cwd = process.cwd(), sources, cache, tree, replyKeys } = {}) {
     this.cwd = cwd
+    // PLAN-13 C-4: the config's custom reply keys (all sinks: an array; per sink: an object)
+    this.replyKeys = replyKeys || []
     this.tree = tree || null // PLAN-10 C-3: a virtual file tree instead of the disk
     this.sources = toSourceMap(sources, cwd) // absPath → text (unsaved buffers)
     this.cache = cache || null // ParseCache (PLAN-7 C-3)

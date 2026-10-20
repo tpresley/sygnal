@@ -194,5 +194,5 @@ Uploader.model = {
 - `...replies` marks the source: the core stamps each request a component sends to it with the sending instance, and adds that instance's replies to its actions. `senderOf(req)` reads the stamp.
 - `reply(sender, type, data)` dispatches `type` on that instance only, as often as you call it. A Collection item, or any of several instances of one component, hears only its own replies.
 - `onStop(sender)` runs when that instance is disposed; replies to it after that are dropped (`listening(sender)` tells). Abort its work there.
-- The names are the component's model entries, as with `makeFetchDriver`: a missing one is [SYG112](/reference/errors/#syg112) in the dev checks. `sygnal-check` reads `ok`, `error` and `progress` keys; it doesn't know other keys your driver invents.
+- The names are the component's model entries, as with `makeFetchDriver`: a missing one is [SYG112](/reference/errors/#syg112) in the dev checks. `sygnal-check` reads `ok`, `error` and `progress` keys; list the other keys your driver replies with in `replyKeys` in `sygnal-check.config.json` (`{ "replyKeys": { "UPLOAD": ["cancelled"] } }`), and their actions are checked too ([Editor setup](/integration/editors/)).
 - In tests pass the real driver with a scripted `send`: `renderComponent(Uploader, { drivers: { UPLOAD: makeUploadDriver(fakeSend) } })`.

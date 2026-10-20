@@ -155,10 +155,23 @@ export function returnedObjects(project, file, valueNode, depth = 0, seen = new 
  *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` / `progress` values)
  *   dynamic  Array<{ node, file }>              (non-literal values)
  */
+/** PLAN-13 C-4: the config's `replyKeys` for a sink (an array: every sink; an object: per sink) */
+export const customReplyKeys = (project, sink) => {
+  const r = project.replyKeys
+  return Array.isArray(r) ? r : (r && sink && r[sink]) || []
+}
+
 export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
-  const out = { targets: [], dynamic: [] }
+  const out = { targets: [], dynamic: [], candidates: [] }
+  const custom = customReplyKeys(project, sink)
   for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
-    const k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
+    let k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
+    if (custom.length) k = new Set([...k, ...custom])
+    // C-4: an UPPER_CASE value under another key may name a reply action of a custom driver
+    for (const p of obj.properties) {
+      const key = p.type === 'ObjectProperty' && propName(p), v = key && !k.has(key) && stringValue(p.value)
+      if (v && /^[A-Z][A-Z0-9_]*$/.test(v)) out.candidates.push({ name: v, key, node: p.value, file: f })
+    }
     for (const p of obj.properties) {
       if (p.type !== 'ObjectProperty') continue
       const key = propName(p)
@@ -245,7 +258,7 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [], sinkValues: [], computed: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], replyCandidates: [], requests: [], sinkValues: [], computed: [] }
   const r = resolveExpr(project, file, modelNode)
   // PLAN-4 GS-8: undoable(model, options) is the model plus UNDO / REDO (src/extra/undo.ts)
   if (r?.node?.type === 'CallExpression' && isSygnalImport(r.file, r.node.callee, 'undoable') && r.node.arguments[0]) {
@@ -269,6 +282,7 @@ export function analyzeModel(project, file, modelNode) {
     const t = replyNames(project, mfile, valueNode, REPLY_KEYS, sink)
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
+    res.replyCandidates.push(...t.candidates.map(x => ({ ...x, sink, action })))
     res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))
   }
 
