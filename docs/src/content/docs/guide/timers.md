@@ -57,7 +57,7 @@ So `timers` is a description, not a command: return what should be running now. 
 
 An `every` timer schedules each tick from the moment it started, not from the previous tick: tick `n` is due at start + n × `every`. A late tick doesn't push the later ones back, so 1,000 ticks of 100 ms end 100 s after the start. Use the `t` in the data (or `Date.now()` in the intent) for elapsed time rather than counting ticks.
 
-When a tick comes very late (a browser throttles timers in a background tab), the missed ticks are not delivered one by one: they are coalesced into the next one, and `n` jumps over them.
+When a tick comes very late (a browser throttles timers in a background tab), the missed ticks are not delivered one by one: they are coalesced into the next one, and `n` jumps over them. A delay is never longer than `every`, so a test clock that fixes `Date.now()` while timers keep running (Playwright's `clock.setFixedTime()`) still gets one tick per interval.
 
 ## A stopwatch
 
