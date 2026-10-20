@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete).
+**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete); SP-F1 and SP-F3 run, Phase 3 awaiting the user's go-ahead.
 
 ## Decisions
 
@@ -28,16 +28,18 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | done | SYG302 (info, static only): `rules/syg302-xstream-default-import.js`, `--fix` into the file's sygnal import; accessibility.md sample fixed; custom-drivers note; llms.txt / skill line; `sygnal-check/test/p13-x1-xstream-import.vtest.js` (p9-d471's fix fixture now also loses its xstream import) |
 | D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional, not run) | done | `makeReplies`, `senderOf` exported from `sygnal` (tree-shaken: 0 B in apps that don't import them), types `ReplySender` / `ReplyChannel` in `index.d.ts`, `type-tests/p13-d1-replies.ts`; guide section + API reference; `test/p13-d1-reply-helpers.test.js` (progress ×2 then ok, error, per-Collection-item delivery, onStop abort, SYG112). SP-D1 skipped: a `defineDriver({ replies })` wrapper only saves the spread, and declaring keys to sygnal-check is C-4's question (`replyKeys`) |
 | S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional, not run) | done | `socketDriver.ts`: per-entry `meta`, per-transport last id (`resume`: URL parameter for EventSource, `init.lastEventId` → `Last-Event-ID` in FetchEventSource), `staleAfterMs` timer (smallest over subscribers, re-armed by events, `onbeat` from the SSE parser's reads); fake: `t.push(…, { id })`, resumed URLs keyed to their connection; types `SseEvent`, `meta` / `resume` / `staleAfterMs`, `SocketClose.stale`; `test/p13-s1-sse-resume.test.js` (12). SP-S1 skipped: the behaviour rests on documented EventSource / fetch semantics; a real-proxy check is G-901 |
-| F-1 | #37 statics see context | 3 | SP-F1 (recommended) | todo | needs go-ahead after spike |
+| F-1 | #37 statics see context | 3 | SP-F1 (done) | awaiting go-ahead | spike recommends variant A (+19 B) |
 | F-2 | #38 deep-link tests start on the real route | 3 | SP-F2 (optional) | todo | |
 | C-3 | #26 `next()` in an imported helper | 3 | — | todo | |
 | C-4 | #33 custom reply keys (`replyKeys`) | 3 | — | todo | |
-| F-3 | #35 per-page Switchable state | 3 | SP-F3 (recommended) | todo | after F-1 |
+| F-3 | #35 per-page Switchable state | 3 | SP-F3 (done) | awaiting go-ahead | spike recommends no core change (+94 B) and documenting a wrapper page per slice |
 
 ## Spikes
 
 | Spike | Question | Report | Outcome |
 |---|---|---|---|
+| SP-F1 | statics see context: which statics, skip condition, cost | [p13-f1](research/p13-f1/README.md), branch `exp/p13-f1` | all function statics get `(state, context)`; re-run on a changed context object (A, +19 B) vs per-key read tracking (B, +65 B); **recommend A**; decision pending (user) |
+| SP-F3 | per-page Switchable state map: lifetime, cost | [p13-f3](research/p13-f3/README.md), branch `exp/p13-f3` | map works with 7.0's per-page remake, +94 B before presence handling / checks; a one-line wrapper page does the same at 0 B; **recommend docs only**; decision pending (user) |
 | SP-R1 | other re-entrant paths in the fetch driver | inline (no branch): the driver was instrumented to log every stale `load()` and every `resources` declaration nested inside another's loop, then the whole library suite and the R-1 tests ran | the guard fires only in the lens / key invalidation cases; no nested `resources` loop anywhere; `inval` and the focus / reconnect loop read `R.q` per resource, so after a nested reload they refetch the *new* request (redundant at worst, G-900); `upd` writes data only (no send). No further fix |
 
 ## Gaps
