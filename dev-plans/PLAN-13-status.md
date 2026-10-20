@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** done; release prep for 7.1.0 / sygnal-check 0.12.0 / create-sygnal-app 2.10.0 / extension 0.9.0 / plugin 0.2.1 (2026-10-20). Merged in PR #56, follow-ups in PR #57.
+**State:** **complete; released 2026-10-20** as sygnal 7.1.0 / sygnal-check 0.12.0 / create-sygnal-app 2.10.0 / VS Code extension 0.9.0 / Claude Code plugin 0.2.1 (PRs #56, #57, #58; release run 39393011902, registry smoke passed).
 
 ## Decisions
 

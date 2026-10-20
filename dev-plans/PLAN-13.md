@@ -20,7 +20,7 @@ plugin needs a local marketplace update), and #44's exact version pins (carets s
 - **create-sygnal-app minor** (2.10.0): no Google Fonts, a `.gitignore`.
 - VS Code extension / Claude Code plugin: bundle and skill updates only if their content changes.
 
-**Status:** planned 2026-10-19. Tracker: [`PLAN-13-status.md`](PLAN-13-status.md).
+**Status:** **complete; released 2026-10-20** as sygnal 7.1.0 / sygnal-check 0.12.0 / create-sygnal-app 2.10.0 / VS Code extension 0.9.0 / Claude Code plugin 0.2.1. Tracker: [`PLAN-13-status.md`](PLAN-13-status.md).
 
 **Branches:** integration `claude/plan-13-temper-feedback`, cut from `main` (97b7e285, after the
 7.0.0 post-release PR #55); spikes as `exp/p13-*` with reports in `dev-plans/research/p13-*/`.
