@@ -2,7 +2,7 @@
   "name": "sygnal",
   "displayName": "Sygnal",
   "description": "Sygnal's static checker in the editor: wiring bugs that fail silently (intent/model/view, EVENTS, child components, Collections) as you type, with explanations, quick fixes, completions, go to definition, code lenses and a safe rename.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "publisher": "sygnal",
   "license": "MIT",

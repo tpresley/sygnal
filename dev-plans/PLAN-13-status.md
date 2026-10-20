@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete); SP-F1 and SP-F3 run, F-1 and F-3 done (user's go-ahead, D603 / D604); all items done (Phase 3 with the user's go-ahead); full gate and PR next.
+**State:** done; release prep for 7.1.0 / sygnal-check 0.12.0 / create-sygnal-app 2.10.0 / extension 0.9.0 / plugin 0.2.1 (2026-10-20). Merged in PR #56, follow-ups in PR #57.
 
 ## Decisions
 
