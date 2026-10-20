@@ -2,6 +2,8 @@
 #
 #   plan      which versions are new (scripts/release-plan.mjs): the three npm packages, the VS Code
 #             extension (Marketplace + Open VSX) and the Claude Code plugin (a git tag)
+#             and, for a new sygnal / extension version, its `## <version>` CHANGELOG heading (fails
+#             here, before anything is published; a dry run warns)
 #   gates     RELEASING.md's gates (gates.yml), when anything is new
 #   publish   environment `release`: waits for a required reviewer's approval, then publishes
 #             - npm: trusted publishing (OIDC; provenance is automatic), sygnal-check → sygnal →
@@ -73,6 +75,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - id: plan
         run: node scripts/release-plan.mjs ${{ env.DRY_RUN == 'true' && '--all' || '' }}
+      # The publish job reads the release notes after npm publishing; check the headings here, before
+      # the gates and the approval, so a missing one stops the release with nothing half-published.
+      # Same match as the notes steps below. A dry run only warns (CHANGELOG.md keeps
+      # `## [Unreleased]` until release prep renames it).
+      - name: CHANGELOG headings for the new versions
+        env:
+          SYGNAL_NEW: ${{ steps.plan.outputs.sygnal }}
+          SYGNAL: ${{ steps.plan.outputs.sygnal_version }}
+          VSCODE_NEW: ${{ steps.plan.outputs.vscode }}
+          VSCODE: ${{ steps.plan.outputs.vscode_version }}
+        run: |
+          level=error; [ "$DRY_RUN" = true ] && level=warning
+          missing=0
+          has() { awk -v v="$2" '$0 ~ "^## " v "( |$)" {f=1} END {exit !f}' "$1"; }
+          if [ "$SYGNAL_NEW" = true ] && ! has CHANGELOG.md "$SYGNAL"; then
+            echo "::$level::CHANGELOG.md has no '## $SYGNAL' heading"; missing=1
+          fi
+          if [ "$VSCODE_NEW" = true ] && ! has editors/vscode/CHANGELOG.md "$VSCODE"; then
+            echo "::$level::editors/vscode/CHANGELOG.md has no '## $VSCODE' heading"; missing=1
+          fi
+          [ "$missing" = 0 ] || [ "$level" = warning ]
 
   gates:
     needs: plan

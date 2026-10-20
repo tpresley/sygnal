@@ -65,7 +65,8 @@ Quote.intent = ({ DOM }) => ({
 const quoteModel = (req = {}) => ({
   LOAD: {
     STATE: s => ({ ...s, status: 'loading', n: s.n + 1 }),
-    HTTP: s => ({ url: `/api/q/${s.n}`, ok: 'LOADED', error: 'FAILED', latest: true, ...req }),
+    // 7.0: outputs get the updated state; the request numbers from the count before this LOAD
+    HTTP: (s, d, next, { previousState }) => ({ url: `/api/q/${previousState.n}`, ok: 'LOADED', error: 'FAILED', latest: true, ...req }),
   },
   OTHER: { HTTP: () => ({ url: '/api/other', ok: 'OTHER_LOADED', error: 'FAILED', latest: true, ...req }) },
   ABORT_ACTION: { HTTP: () => ({ abort: 'LOADED' }) },

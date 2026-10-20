@@ -158,12 +158,16 @@ When the entry also sends to another sink, the object form keeps the removal as 
 TodoItem.model = {
   DELETE: {
     STATE:  () => undefined,                        // still removes the item
-    EVENTS: event('TODO_DELETED', (state) => state.id),
+    EVENTS: event('TODO_DELETED', (state) => state.id),   // the item's last state
   },
 }
 ```
 
 This is the one place where returning `undefined` is intended. (In a root component, a reducer that returns `undefined` is a bug: [SYG202](/reference/errors/#syg202).) The parent can also remove items itself, by filtering the array in its own reducer, for example when it receives a `PARENT` event from the item (see [Parent-Child Communication](/guide/parent-child/)).
+
+An item's STATE removes its own state here, so its other sinks get its last state: `state.id` is the removed item's id.
+
+When `from` points at a different array (a changed path, or a `byId()` with a different id), Sygnal 7 disposes the Collection and all its items, then mounts a new one for the new array, even when items in both arrays share ids. Editing or reordering items in the same array keeps them. A Collection whose `from` is a custom lens keeps its items until its `key` changes. The same goes for VirtualCollection. See [state lifetimes](/guide/state/#changing-the-selected-record).
 
 ## Disposal
 

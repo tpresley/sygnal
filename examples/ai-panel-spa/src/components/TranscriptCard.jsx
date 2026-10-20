@@ -159,7 +159,7 @@ TranscriptCard.model = {
   // the root runs the follow-up: it owns the discussion's requests
   ASK: {
     STATE: (state) => (question(state) ? { ...state, followUpInput: '' } : ABORT),
-    PARENT: (state) => (question(state) ? { question: question(state) } : ABORT),
+    PARENT: (state, data, next, { previousState }) => (question(previousState) ? { question: question(previousState) } : ABORT),
   },
 }
 

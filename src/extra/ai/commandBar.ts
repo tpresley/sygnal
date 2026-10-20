@@ -48,7 +48,7 @@
  * It reaches the runtime through the shared link (./link.ts, D283), as `chat` does.
  */
 import xs from 'xstream'
-import {defineBehavior} from '../behaviors'
+import {defineBehavior, fromPrevious} from '../behaviors'
 import {ABORT} from '../../shared'
 import {agentTools, labelsUntrusted} from './agent/index'
 import {decide as decideRequest} from './decide'
@@ -242,7 +242,7 @@ export const commandBar = (options: any = {}): any => {
         ...(deny && {DENY: on(DOM, deny)}),
       }
     },
-    model: {
+    model: fromPrevious({
       INPUT: (s: any, v: any) => typeof v == 'string' && v !== s.text ? {...s, text: v} : ABORT,
       RUN: {
         STATE: (s: any, d: any, _n: any, p: any, o: any, k: string) => runStep(s, d, E(p, k, o))?.s || ABORT,
@@ -275,7 +275,7 @@ export const commandBar = (options: any = {}): any => {
       // a command ran (or was refused): the result; the input is cleared when it was this command
       DONE: (s: any, d: any) => s.status != 'running' ? ABORT
         : {...s, status: 'ready', command: null, pending: null, result: d, text: d?.ok && s.text.trim() === d.command ? '' : s.text},
-    },
+    }),
   })(options)
   return linked(b)
 }

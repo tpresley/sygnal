@@ -18,11 +18,11 @@ parity('parity: action log (t.actions, t.explain)', () => {
     const t = renderComponent(C)
     await t.ready()
     t.simulateEvent('.b', 'click')
-    await t.waitForState((s) => s.n === 11)
+    await t.waitForState((s) => s.n === 12)
     const mine = t.actions.filter((a) => a.cause !== 'built-in').map(({ component, type, sinks, cause, data }) => ({ component, type, sinks: [...sinks].sort(), cause, ...(type == 'LATER' && { data }) }))
     expect(mine).toEqual([
       { component: 'C', type: 'INC', sinks: ['EFFECT', 'STATE'], cause: 'intent' },
-      { component: 'C', type: 'LATER', sinks: ['STATE'], cause: 'next', data: 0 },
+      { component: 'C', type: 'LATER', sinks: ['STATE'], cause: 'next', data: 1 },
     ])
     const e = t.explain((s) => s.n === 1)
     expect(e.type).toBe('INC')

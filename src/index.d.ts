@@ -93,13 +93,19 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
     ) => void
   : (action: string, data?: any, delay?: number) => void
 
-type ReducerExtras<PROPS, CONTEXT> = PROPS & { context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+
+/**
+ * A reducer's 4th argument. 7.0: STATE runs first; every other sink gets the committed state as
+ * `state` (and as its 1st argument), with the state from before the action as `previousState`
+ * (in a STATE reducer both are the old state)
+ */
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
   args: DATA,
   next: NextFunction<ACTIONS>,
-  props: ReducerExtras<PROPS, CONTEXT>
+  props: ReducerExtras<PROPS, CONTEXT, STATE>
 ) => RETURN | ABORT | undefined
 
 export type ExactShape<EXPECTED, ACTUAL extends EXPECTED> = ACTUAL &
@@ -235,7 +241,7 @@ type AnySinkConstant =
  * `props.signal` aborts on DISPOSE (undefined where AbortController is missing).
  */
 type EffectReducer<STATE, PROPS, ACTIONS, DATA, CALCULATED, CONTEXT = {}> =
-  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT> & { signal?: AbortSignal }) => void)
+  | ((state: STATE & CALCULATED, args: DATA, next: NextFunction<ACTIONS>, props: ReducerExtras<PROPS, CONTEXT, STATE & CALCULATED> & { signal?: AbortSignal }) => void)
 
 type DefaultSinks<STATE, PROPS, ACTIONS, DATA, CALCULATED, SINK_RETURNS extends NonStateSinkReturns = {}, CONTEXT = {}> = {
   STATE?: SinkValue<STATE, PROPS, ACTIONS, DATA, STATE, CALCULATED, CONTEXT>;
@@ -3294,6 +3300,12 @@ export type FakeCacheEntry = {
 }
 
 export interface RenderOptions {
+  /**
+   * 7.0 timing audit (SYG257, info): report each output sink that reads a top-level state field
+   * its action's STATE changed (it gets the new value since 7.0; 6.x gave it the old one). For
+   * migrating 6.x code; default off (configureTimingAudit() from 'sygnal/diagnostics' sets it for all)
+   */
+  timingAudit?: boolean;
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
@@ -3758,13 +3770,13 @@ export interface RenderResult<STATE = any> {
    * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
    */
   query: {
-    (selector: string): Element | null;
+    <E extends Element = Element>(selector: string): E | null;
     /** A control's element (`t.query(Draft)` is an HTMLInputElement for an 'input' control), or null */
     <CONTROL extends AnyControl>(control: CONTROL): ControlElementOf<CONTROL> | null;
   };
   /** Every element matching a selector (or a control) in the rendered tree (Portals included), as query() */
   queryAll: {
-    (selector: string): Element[];
+    <E extends Element = Element>(selector: string): E[];
     <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;
   };
   /**

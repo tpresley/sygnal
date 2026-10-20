@@ -16,7 +16,7 @@ parity('parity: reentrancy (FIFO, run to completion, one patch)', () => {
   function B({ state }) { return h('i', { className: 'b' }, `b${state.n}`) }
   const make = (order) => {
     A.intent = ({ DOM }) => ({ GO: DOM.click('.a') })
-    A.model = { GO: { STATE: (s) => { order.push('A.STATE'); return { ...s, n: s.n + 1 } }, BUS: (s) => { order.push('A.BUS'); return { type: 'PING', data: s.n + 1 } }, EFFECT: () => order.push('A.EFFECT') } }
+    A.model = { GO: { STATE: (s) => { order.push('A.STATE'); return { ...s, n: s.n + 1 } }, BUS: (s) => { order.push('A.BUS'); return { type: 'PING', data: s.n } }, EFFECT: () => order.push('A.EFFECT') } }
     B.intent = ({ BUS }) => ({ PING: BUS.select('PING') })
     B.model = { PING: (s, n) => { order.push('B.PING'); return { ...s, n: s.n + n } } }
     function P() { return h('div', null, h(A, { state: 'a' }), h(B, { state: 'b' })) }
@@ -57,14 +57,14 @@ parity('parity: reentrancy (FIFO, run to completion, one patch)', () => {
     function P({ state }) { return h('div', null, h('button', { className: 'go' }, String(state.n)), h(Child, { state: 'child' })) }
     P.initialState = { n: 0, child: { v: 0 } }
     P.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
-    P.model = { GO: { STATE: (s) => ({ ...s, n: s.n + 1 }), EFFECT: (s) => { cmd$.shamefullySendNext(s.n + 1); trace.push(['EFFECT returned', s.n]) } } }
+    P.model = { GO: { STATE: (s) => ({ ...s, n: s.n + 1 }), EFFECT: (s) => { cmd$.shamefullySendNext(s.n); trace.push(['EFFECT returned', s.n]) } } }
     const m = mount(P)
     await until(() => expect(m.text('.c')).toBe('0'))
     await sleep(20)
     click(m.$('.go')); click(m.$('.go'))
     await until(() => expect(m.text('.go') + m.text('.c')).toBe('22'))
     expect(trace.filter((t) => t[0] == 'CMD')).toEqual([['CMD', 1], ['CMD', 2]])
-    expect(trace.filter((t) => t[0] != 'CMD')).toEqual([['EFFECT returned', 0], ['EFFECT returned', 1]])
+    expect(trace.filter((t) => t[0] != 'CMD')).toEqual([['EFFECT returned', 1], ['EFFECT returned', 2]])
   })
 
   it('an EFFECT dispatching synchronously: the dispatched action runs right after the current one, before the next event; one patch [D165 synchronous reducers]', async () => {
@@ -76,13 +76,13 @@ parity('parity: reentrancy (FIFO, run to completion, one patch)', () => {
     function P({ state }) { return h('div', null, h('button', { className: 'go' }, String(state.n)), h(Child, { state: 'child' })) }
     P.initialState = { n: 0, child: { v: 0 } }
     P.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
-    P.model = { GO: { STATE: (s) => ({ ...s, n: s.n + 1 }), EFFECT: (s) => { cmd$.shamefullySendNext(s.n + 1); trace.push(['EFFECT returned', s.n]) } } }
+    P.model = { GO: { STATE: (s) => ({ ...s, n: s.n + 1 }), EFFECT: (s) => { cmd$.shamefullySendNext(s.n); trace.push(['EFFECT returned', s.n]) } } }
     const m = mount(P)
     await until(() => expect(m.text('.c')).toBe('0'))
     await sleep(20)
     const before = m.patches()
     click(m.$('.go')); click(m.$('.go'))
-    expect(trace).toEqual([['EFFECT returned', 0], ['CMD', 1], ['EFFECT returned', 1], ['CMD', 2]])
+    expect(trace).toEqual([['EFFECT returned', 1], ['CMD', 1], ['EFFECT returned', 2], ['CMD', 2]])
     await until(() => expect(m.text('.go') + m.text('.c')).toBe('22'))
     await sleep(10)
     expect(m.patches() - before).toBe(1)

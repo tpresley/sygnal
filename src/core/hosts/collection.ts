@@ -81,7 +81,7 @@ const OWN = new Set(['of', 'from', 'filter', 'sort', 'idfield', 'className', 'vi
 const NONE: any[] = []
 
 /** the array cell for `from` (D178: a missing key renders once it appears), or null for an invalid `from` (renders nothing) */
-function arrayCell(owner: Inst, from: any): Cell | null {
+function arrayCell(owner: Inst, from: any): (Cell & {has?(): boolean}) | null {
   const oc = owner.cell, name = owner.def.name
   if (from === undefined) {
     // the owner's state is the array (or its `value`, as today)
@@ -93,7 +93,7 @@ function arrayCell(owner: Inst, from: any): Cell | null {
   // a key or a path ('board.cards'); SYG401 for one that isn't an array is the dev entry's (checks/collections.ts)
   if (typeof from == 'string') return keyCell(oc, from, owner.def.calcNames?.has(pathOf(from)[0]) && name, undefined, 'Collection')
   if (isObj(from) && typeof from.get == 'function') {
-    let lp: any = {}, lv: any
+    let lp: any = {}, lv: any, raw: any
     return {
       get() {
         const p = oc.get()
@@ -106,11 +106,12 @@ function arrayCell(owner: Inst, from: any): Cell | null {
             owner.app.appError(owner, e, 'view')
             return lv
           }
-          lv = g
+          raw = lv = g
           if (!Array.isArray(lv)) { warn('SYG401', name, "Collection 'from' getter returned a non-array; it renders nothing", 'Return an array from get()', lv); lv = NONE }
         }
         return lv
       },
+      has() { this.get(); return raw !== undefined },
       set(v) {
         if (typeof from.set != 'function') return
         const p = oc.get(), n = from.set(p, v)

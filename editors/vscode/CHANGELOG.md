@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0
+
+Bundles sygnal-check 0.11.0 for Sygnal 7.0.0 and existing Sygnal 6 apps.
+
+- Checks reducer timing and known state-binding changes against the installed Sygnal version in each source package. In Sygnal 7 every non-STATE sink gets the committed state and known changed binding targets remount; Sygnal 6 keeps its original contracts. Adds the SYG257 explanation (the opt-in 7.0 timing audit).
+- Workspace checkers now need 0.11.0 or later. Earlier copies fall back to the bundled checker with an upgrade message, including copies that already have a language server.
+
 ## 0.7.0
 
 Bundles sygnal-check 0.10.0 (Sygnal 6.6.0).

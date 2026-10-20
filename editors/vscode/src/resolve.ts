@@ -3,8 +3,8 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
-/** The first sygnal-check version with `sygnal-check lsp`. */
-export const MIN_LSP_VERSION = '0.4.0'
+/** Minimum checker with installed-Sygnal 6/7 timing and binding compatibility. */
+export const MIN_LSP_VERSION = '0.11.0'
 /** The first sygnal-check with completions, go to definition / references, code lens and rename (PLAN-7 Phase 4). */
 export const FEATURES_VERSION = '0.5.0'
 
@@ -14,7 +14,7 @@ export interface CheckCopy {
   version: string
   /** `bin/sygnal-check.js` */
   bin: string
-  /** Whether this copy has the language server. */
+  /** Whether this copy supports the current Sygnal 6/7 language-server contract. */
   capable: boolean
 }
 
@@ -27,7 +27,7 @@ export interface ServerChoice {
   reason?: 'none' | 'too-old' | 'untrusted'
   /** The workspace folder the copy was found from (workspace), or the old copy found (too-old). */
   folder?: string
-  /** For `too-old`: the workspace copy that can't run the server. */
+  /** For `too-old`: the workspace copy below the compatibility minimum. */
   old?: CheckCopy
 }
 
@@ -49,8 +49,8 @@ function readJson(file: string): any {
 }
 
 /**
- * Reads a sygnal-check package directory. `capable` is true for a version ≥ 0.4.0, or for any copy
- * that has `src/lsp/server.js` (the repository's checker is 0.3.0 until the 0.4.0 release).
+ * Reads a sygnal-check package directory. Old LSP-capable copies still lack Sygnal 7
+ * compatibility, so a server file alone cannot satisfy the minimum version.
  */
 export function readCheckCopy(dir: string): CheckCopy | undefined {
   const pkg = readJson(path.join(dir, 'package.json'))
@@ -59,7 +59,7 @@ export function readCheckCopy(dir: string): CheckCopy | undefined {
   const binRel = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.['sygnal-check'] ?? 'bin/sygnal-check.js'
   const bin = path.join(dir, binRel)
   if (!fs.existsSync(bin)) return undefined
-  const capable = compareVersions(version, MIN_LSP_VERSION) >= 0 || fs.existsSync(path.join(dir, 'src', 'lsp', 'server.js'))
+  const capable = compareVersions(version, MIN_LSP_VERSION) >= 0
   return { dir, version, bin, capable }
 }
 
@@ -131,7 +131,7 @@ export function lacksEditorFeatures(c: ServerChoice): boolean {
 export function describeChoice(c: ServerChoice): string {
   if (c.source === 'workspace') return `sygnal-check ${c.version} from the workspace (${c.dir})`
   const why = c.reason === 'too-old'
-    ? `the workspace's sygnal-check ${c.old?.version} has no language server (needs ${MIN_LSP_VERSION}+)`
+    ? `the workspace's sygnal-check ${c.old?.version} predates Sygnal 6/7 compatibility (needs ${MIN_LSP_VERSION}+)`
     : c.reason === 'untrusted'
       ? 'the workspace is not trusted'
       : 'no sygnal-check in the workspace'

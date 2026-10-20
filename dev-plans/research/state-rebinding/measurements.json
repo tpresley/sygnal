@@ -1,0 +1,309 @@
+{
+  "node": "v24.14.0",
+  "revision": "5e5205cbadd61865b787f6523c840489e074a28b",
+  "results": [
+    {
+      "mode": "baseline",
+      "sizeExit": 0,
+      "sizeOutput": "kanban production bundle, gzip -c | wc -c:\n  (a) nativeGlobalThis: false: 42,495 B  (budget 42,700 B, 205 B headroom)\n  (b) default (native globalThis): 38,493 B  (informational; 4,002 B less)\n  (c) src/core/** alone (esbuild, minified; the rest external): 49,430 B min / 18,350 B gzip  (informational)\nsize-gate: OK",
+      "numbers": [
+        42495,
+        42700,
+        205,
+        38493,
+        4002,
+        49430,
+        18350
+      ],
+      "timings": [
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 29.837
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 29.960458000000003
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 32.73229099999999
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 29.195875
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 30.200750000000006
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 32.582499999999996
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 29.777667
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 30.238167000000004
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.85125000000001
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.887083
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 30.741083000000003
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.191125
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 29.272417000000004
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 29.439750000000004
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 32.65462499999998
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "generic",
+      "sizeExit": 0,
+      "sizeOutput": "kanban production bundle, gzip -c | wc -c:\n  (a) nativeGlobalThis: false: 42,577 B  (budget 42,700 B, 123 B headroom)\n  (b) default (native globalThis): 38,565 B  (informational; 4,012 B less)\n  (c) src/core/** alone (esbuild, minified; the rest external): 49,750 B min / 18,446 B gzip  (informational)\nsize-gate: OK",
+      "numbers": [
+        42577,
+        42700,
+        123,
+        38565,
+        4012,
+        49750,
+        18446
+      ],
+      "timings": [
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 31.63875
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 33.418041
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 34.99516700000001
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.886459000000002
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 31.478875000000002
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 34.07599999999999
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 32.760125
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 31.765874999999994
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.878708999999986
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 31.979666999999996
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 31.847791
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.616709
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 31.012709
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 31.501124999999988
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 34.039083000000005
+          }
+        ]
+      ]
+    },
+    {
+      "mode": "metadata",
+      "sizeExit": 0,
+      "sizeOutput": "kanban production bundle, gzip -c | wc -c:\n  (a) nativeGlobalThis: false: 42,611 B  (budget 42,700 B, 89 B headroom)\n  (b) default (native globalThis): 38,600 B  (informational; 4,011 B less)\n  (c) src/core/** alone (esbuild, minified; the rest external): 49,862 B min / 18,488 B gzip  (informational)\nsize-gate: OK",
+      "numbers": [
+        42611,
+        42700,
+        89,
+        38600,
+        4011,
+        49862,
+        18488
+      ],
+      "timings": [
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.915332999999997
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 32.6065
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.091041000000004
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.751583999999998
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 33.096084000000005
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.017917
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.279332999999998
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 32.18375
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 32.25820799999998
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 29.733290999999998
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 32.18920800000001
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 32.13258299999998
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 30.27625
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 32.654208
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 33.449040999999994
+          }
+        ]
+      ]
+    }
+  ]
+}

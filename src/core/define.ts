@@ -141,6 +141,8 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
     }
     const list: Handler[] = []
     for (const sink in e) list.push([sink, e[sink]]), sinks.add(sink)
+    // 7.0: STATE first, so the other sinks get the state it committed
+    list.sort((a, b) => +(a[0] != 'STATE') - +(b[0] != 'STATE'))
     handlers.set(key, list)
   }
   const c = normCalc(name, src.calculated, src.initialState)

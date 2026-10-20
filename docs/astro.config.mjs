@@ -238,6 +238,7 @@ export default defineConfig({
           label: 'Upgrading',
           collapsed: true,
           items: [
+            { label: 'Migrating to 7.0', slug: 'guide/migrating-to-7' },
             { label: 'Migrating to 6.0', slug: 'guide/migrating-to-6' },
           ],
         },

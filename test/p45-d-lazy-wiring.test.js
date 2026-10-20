@@ -126,7 +126,7 @@ describe('P45-D: lazy wiring, each source in a child, a Collection item and afte
         await until(() => expect(t.text('.fx')).toBe('1'))
         t.click('.inc')
         await until(() => expect(t.text('.fx')).toBe('2'))
-        expect(seen).toEqual(where.startsWith('child') ? ['c0', 'c1'] : ['x0', 'x1'])
+        expect(seen).toEqual(where.startsWith('child') ? ['c1', 'c2'] : ['x1', 'x2'])
       })
 
       it('CHILD: the parent hears the PARENT values of this child', async () => {

@@ -94,8 +94,8 @@ Chat.model = {
     STATE: (state) => (state.prompt.trim()
       ? { ...state, messages: [...state.messages, { role: 'user', content: state.prompt }], prompt: '', status: 'streaming', error: null }
       : ABORT),
-    // sinks see the state before the action: the conversation plus the prompt being sent
-    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, { role: 'user', content: state.prompt }]) : ABORT),
+    // STATE has stored the new message; the prompt from before it decides whether to send
+    LLM: (state, data, next, { previousState }) => (previousState.prompt.trim() ? ask(state.messages) : ABORT),
   },
   STOP: {
     // keep the text that arrived; nothing arrives after the abort
@@ -116,7 +116,7 @@ Chat.model = {
 What the component does:
 
 - **The conversation is state.** `messages` holds the user's messages and the model's replies. Every request sends the whole conversation: models are stateless, so the history goes with each turn. A message you write yourself can be `{ role: 'user', content: text }`: the driver, `messageText()` and every transport accept that short form.
-- **`SEND` has two sinks.** `STATE` adds the user's message, `LLM` sends the request. Both see the state from before the action ([Model](/guide/model/#sinks-see-the-state-before-the-action)), so the `LLM` sink builds the message list with the prompt itself.
+- **`SEND` has two sinks.** `STATE` adds the user's message, `LLM` sends the request. STATE runs first, so the `LLM` sink sends the message list STATE just stored; STATE has cleared `prompt`, so the empty-submit guard reads `previousState.prompt` ([Model](/guide/model/#what-state-each-sink-sees)).
 - **`DELTA` shows the reply so far.** Its `text` is all the text received, not just the new piece, so the reducer only replaces `draft`.
 - **`DONE` gets the finished message** and appends it to the conversation as is.
 - **`STOP` aborts the request** by its key. Nothing arrives after an abort, not even `FAILED`.
@@ -390,7 +390,7 @@ Shopping.model = {
     STATE: (state) => (state.prompt.trim()
       ? { ...state, messages: [...state.messages, { role: 'user', content: state.prompt }], prompt: '', status: 'streaming', error: null }
       : ABORT),
-    LLM: (state) => (state.prompt.trim() ? ask([...state.messages, { role: 'user', content: state.prompt }]) : ABORT),
+    LLM: (state, data, next, { previousState }) => (previousState.prompt.trim() ? ask(state.messages) : ABORT),
   },
   DELTA: (state, { text }) => ({ ...state, draft: text }),
   // runs the call as it arrives; the model's input is unchecked, so check it
@@ -404,8 +404,8 @@ Shopping.model = {
       draft: '',
       status: toolCalls.length ? 'streaming' : 'ready',
     }),
-    // after tool calls, send the conversation again with their outputs
-    LLM: (state, { message, toolCalls }) => (toolCalls.length ? ask([...state.messages, answered(message, state.items)]) : ABORT),
+    // after tool calls, send the conversation again: STATE has added the answered message
+    LLM: (state, { toolCalls }) => (toolCalls.length ? ask(state.messages) : ABORT),
   },
   FAILED: (state, { error }) => ({ ...state, draft: '', status: 'ready', error: error.message }),
 }

@@ -73,7 +73,7 @@ Chat.intent = ({ DOM }) => ({
 })
 const req = (s, extra) => ({ messages: [...s.messages, { role: 'user', parts: [{ type: 'text', text: `q${s.n}` }] }], key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED', tool: 'TOOL', coalesce: 'none', ...extra })
 Chat.model = {
-  SEND: { STATE: s => ({ ...s, status: 'streaming', n: s.n + 1 }), LLM: s => req(s) },
+  SEND: { STATE: s => ({ ...s, status: 'streaming', n: s.n + 1 }), LLM: (_s, _data, _next, { previousState }) => req(previousState) },
   SEND2: { LLM: s => req(s, { key: 'side', ok: 'SIDE_DONE' }) },
   STOP: { STATE: s => ({ ...s, status: 'ready' }), LLM: () => ({ abort: 'reply' }) },
   STOPK: { LLM: () => ({ abort: true, key: 'side' }) },

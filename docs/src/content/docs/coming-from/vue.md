@@ -428,7 +428,7 @@ Note.model = {
 }
 ```
 
-The request is built from the action's value (`text`), not from `state.text`: every sink of an entry sees the state from before the action, so the value comes with the action.
+The request uses the debounced action value (`text`), so it saves the text that triggered this action. `STATE` runs first and the `HTTP` reducer receives the updated state; here only `status` changes. Use the fourth argument's `previousState` when a request needs a value from before the action.
 
 ### Timers and lifecycle
 
@@ -763,7 +763,7 @@ Sygnal's development diagnostics catch most of these, in the browser console and
 | A button in a slot, handled in the parent's intent | The action never fires ([SYG104](/reference/errors/#syg104)): the child renders it, so the child's intent hears it | Handle it in the child and send it up with `PARENT`, or keep the button outside the child |
 | A class in the view that doesn't match the intent's selector | The action never fires ([SYG110](/reference/errors/#syg110)) | Keep the names in step; `sygnal-check` compares them |
 | A child with its own `initialState` | An error ([SYG405](/reference/errors/#syg405)) | Put its start values in the parent's state |
-| An `HTTP` or `PARENT` sink that reads what `STATE` just set | It sees the state from before the action | Compute the value from `(state, data)` in each sink ([Model](/guide/model/)) |
+| A `PARENT` or `HTTP` sink that recomputes what `STATE` just set (`PARENT: (s) => s.n + 1`) | The update is applied twice: STATE runs first, so the sink already sees the new `n` | Read the new value from `state`, an old one from the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)) |
 
 ## Using Sygnal from a Vue app
 

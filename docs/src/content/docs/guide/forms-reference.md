@@ -308,7 +308,7 @@ Signup.model = {
 
 Whether a valid submit waits for `form.DONE` depends on how it is sent:
 
-- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (the state before the submit, as for any sink); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` unless it sets `progress`, and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
+- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (as committed: the outputs' state since 7.0); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` unless it sets `progress`, and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
 
 Otherwise it depends on the host's entry for the `submit` action, checked when the host starts:
 

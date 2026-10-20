@@ -34,8 +34,8 @@ Chat.model = {
     STATE: (state) => state.prompt.trim()
       ? { ...state, messages: withPrompt(state), prompt: '', status: 'streaming', error: null }
       : ABORT,
-    LLM: (state) => state.prompt.trim()
-      ? { messages: withPrompt(state), key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED', tool: 'TOOL' }
+    LLM: (state, _data, _next, { previousState }) => previousState.prompt.trim()
+      ? { messages: state.messages, key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED', tool: 'TOOL' }
       : ABORT,
   },
   STOP: {

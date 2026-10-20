@@ -84,7 +84,7 @@ Checklist.intent = ({ DOM }) => ({ ADD: DOM.click('.add') })
 Checklist.model = {
   ADD: {
     STATE: (s) => ({ ...s, rows: [...s.rows, { id: s.next, title: '' }], next: s.next + 1 }),
-    ELEMENT: (s) => ({ focus: focusWithin(`[data-id="${s.next}"] .title`) }),
+    ELEMENT: (_s, _data, _next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
   },
 }
 

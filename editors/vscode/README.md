@@ -55,8 +55,8 @@ Sygnal's wiring mistakes fail silently at run time: an intent selector the view 
 
 ## Which sygnal-check it runs
 
-1. **Your project's own** `node_modules/sygnal-check`, when it is version 0.4.0 or later (the first with the language server). The editor then reports exactly what your CLI and CI report. Completions, go to definition / references, code lenses and rename need 0.5.0 or later: with 0.4.0 you get the findings, hovers and quick fixes only.
-2. Otherwise, the **copy bundled with the extension**. The status bar item shows which one is in use: hover over **Sygnal** for the version and where it comes from. If your project has an older `sygnal-check`, the extension says so once and suggests `npm i -D sygnal-check@latest`.
+1. **Your project's own** `node_modules/sygnal-check`, when it is version 0.11.0 or later. This version checks the installed Sygnal separately for each source package: 6.x gives outputs the pre-update state, while in 7.x every non-STATE sink gets the committed state and known changed state bindings remount. The editor then reports exactly what your CLI and CI report.
+2. Otherwise, the **copy bundled with the extension**. The status bar item shows which one is in use: hover over **Sygnal** for the version and where it comes from. Older checkers, including versions that have a language server, predate this compatibility support. If your project has an older `sygnal-check`, the extension says so once and suggests `npm i -D sygnal-check@latest`.
 
 In a workspace you haven't trusted (Restricted Mode), the extension only runs its bundled copy, never code from the workspace.
 

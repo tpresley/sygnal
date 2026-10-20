@@ -126,7 +126,7 @@ ReadingList.model = {
     },
     AGENT_CALL: (state) => {
       const args = parsedArgs(state.args)
-      return args && state.picked ? { value: { id: state.call.id + 1, name: state.picked, args }, ok: 'CALLED', error: 'CALL_FAILED' } : ABORT
+      return args && state.picked ? { value: { id: state.call.id, name: state.picked, args }, ok: 'CALLED', error: 'CALL_FAILED' } : ABORT
     },
   },
   // only the newest call's answer counts (a form tool's call may still wait for your submit)

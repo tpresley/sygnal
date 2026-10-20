@@ -40,7 +40,9 @@ TaskCard.model = {
 }
 ```
 
-The DISPOSE reducer receives the current state, so you can read component data during cleanup:
+The DISPOSE reducer receives the current state, so you can read component data during cleanup.
+When the record the component was bound to has been deleted, it receives the component's last
+state; a STATE change from `DISPOSE` can't bring the record back:
 
 ```jsx
 Timer.model = {
@@ -74,6 +76,16 @@ Use `dispose$` when you need to combine disposal with other streams (e.g., debou
 
 Collection items are automatically disposed when removed from the state array. Each item's `DISPOSE` action (and `dispose$` stream) fires independently.
 
-Disposal is recursive: when an item is removed, every component inside it is disposed too, including nested Collections and Switchables (a removed lane disposes all of its cards). Disposal runs synchronously when the parent re-renders without the child, and each component is disposed at most once.
+Disposal is recursive: when an item is removed, every component inside it is disposed too,
+including nested Collections and Switchables (a removed lane disposes all of its cards).
+A child the view stops rendering is disposed when its parent renders; a removed Collection item
+when the Collection updates its items. Each component is disposed at most once.
+
+A child whose bound record is deleted (`state={byId('projects', id)}` after the project is
+removed) is disposed after the deleting action finishes, including its outputs, and before any
+later action of that child runs. It doesn't wait for a render: deleting a record and adding one
+with the same id right after still disposes the old child and its pending work. Children inside
+a hidden Switchable page are disposed the same way; their replacements mount when the page is
+shown again. See [Changing the selected record](/guide/state/#changing-the-selected-record).
 
 Under [`renderComponent()`](/integration/testing/), `t.dispose()` disposes the whole tree, so `DISPOSE` entries of children run as well.

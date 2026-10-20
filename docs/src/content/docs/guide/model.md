@@ -133,25 +133,59 @@ Any custom driver passed to `run()` is a sink as well, by its name (for example 
 
 A non-STATE reducer can return `ABORT` to send nothing.
 
-### Sinks See the State Before the Action
+<a id="choosing-the-state-seen-by-sinks"></a><a id="sinks-see-the-state-before-the-action"></a>
 
-Every sink of one action receives the same `state`: the result of all earlier actions, before this action's own `STATE` reducer runs. `EVENTS`, `PARENT`, `EFFECT` and driver sinks never see what `STATE` returns for the same action. To send the updated value, compute it from `(state, data)` inside the sink:
+### What State Each Sink Sees
+
+In every entry, **STATE runs first**, whatever the order of the keys. Every other sink then gets
+the state STATE committed, calculated fields included, as its first argument (and as
+`props.state`). The fourth argument's `previousState` is the state from before the action. A
+STATE reducer gets the state from before the action in both.
 
 ```jsx
-import { event } from 'sygnal'
-
 Counter.model = {
   INC: {
-    STATE:  (state) => ({ ...state, count: state.count + 1 }),
-    EVENTS: event('COUNT_CHANGED', (state) => ({ count: state.count + 1 })),  // not state.count: that's the old value
-    PARENT: (state, data, next, props) => ({ id: props.id, count: state.count + 1 }),
+    STATE: (state) => ({ ...state, count: state.count + 1 }),
+    PARENT: (state) => ({ count: state.count }),
+    EFFECT: (state, data, next, { previousState }) => {
+      console.log(previousState.count, '→', state.count)
+    },
   },
 }
 ```
 
-If several sinks need the same derived value, put it in a helper function that each of them calls with `(state, data)`.
+So an output reads what STATE stored instead of computing it again, and reads
+`previousState` for a value STATE replaced: a cleared draft, a deleted record, or a guard that
+decides whether the action may start (a loading flag STATE has just set is already set in
+`state`):
 
-The same holds for requests: when one action sets `state.id` and sends a request for it, build the URL from `data`, not `state` (`` HTTP: (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED' }) ``). See [HTTP](/guide/http/#build-the-request-from-state-data).
+```jsx
+import { ABORT } from 'sygnal'
+
+Profile.model = {
+  SAVE: {
+    STATE: (state) => (state.saving ? ABORT : { ...state, saving: true }),
+    HTTP: (state, data, next, { previousState }) =>
+      previousState.saving ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED' },
+  },
+}
+```
+
+When STATE returns `ABORT` or the same state, or throws, the other sinks still run, with `state`
+and `previousState` the same: `ABORT` means "no change", not "cancel". When STATE removes the
+component's own state (`STATE: () => undefined` in a Collection item), the other sinks get its
+last state, so `EVENTS: event('REMOVED', (state) => state.id)` still has the id. Effects run
+synchronously inside the action; the DOM patch follows it.
+
+In a [behavior](/guide/behaviors/), the first argument is the slice and `props.state` the host's
+state, both after STATE; `props.previousState` is the host's state from before the action, and
+`props.previousState[key]` the slice from before it.
+
+Sygnal 6.x gave every reducer the state from before the action, and has no `previousState`.
+To upgrade 6.x code, turn on the timing audit: `renderComponent(C, { timingAudit: true })` in a
+test, or `sygnal({ diagnostics: { timingAudit: true } })` in `vite.config`, reports
+[SYG257](/reference/errors/#syg257) for each output that reads a field the same action's STATE
+changed. See [Migrating to 7.0](/guide/migrating-to-7/).
 
 ## Emitting Events with `event()`
 

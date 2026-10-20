@@ -1,0 +1,296 @@
+[
+  {
+    "mode": "baseline",
+    "run": 0,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 268.699791
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 415.99879100000004
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 313.0329589999999
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 0,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 264.967584
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 446.262541
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 316.168667
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 1,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 266.72887499999996
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 437.206209
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 323.97287499999993
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 1,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 271.330667
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 418.90191599999997
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 306.05783299999996
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 2,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 261.329041
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 426.5190830000001
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 324.6798329999999
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 2,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 286.207916
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 452.108
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 322.18612499999995
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 3,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 267.78137499999997
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 434.984542
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 315.0831249999999
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 3,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 268.788209
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 413.57925000000006
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 308.938041
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 4,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 265.158
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 420.775375
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 316.08954200000016
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 4,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 280.742542
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 442.97212499999995
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 323.491542
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 5,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 265.532875
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 436.707708
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 327.61791600000004
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 5,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 266.15487499999995
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 412.36758399999997
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 302.90424999999993
+      }
+    ]
+  },
+  {
+    "mode": "baseline",
+    "run": 6,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 268.40087500000004
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 410.422917
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 307.8343329999999
+      }
+    ]
+  },
+  {
+    "mode": "cached",
+    "run": 6,
+    "timings": [
+      {
+        "task": "unchanged-lens",
+        "iterations": 150000,
+        "ms": 270.581375
+      },
+      {
+        "task": "switch",
+        "iterations": 150000,
+        "ms": 437.76899999999995
+      },
+      {
+        "task": "nested-edit",
+        "iterations": 150000,
+        "ms": 319.14754100000005
+      }
+    ]
+  }
+]

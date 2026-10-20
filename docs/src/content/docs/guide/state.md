@@ -98,6 +98,46 @@ For an item of a list, prefer [`byId`](/reference/api/#byid): `boards.0` follows
 
 A key that itself contains a `.` can't be named this way: before 6.5.0, `state="a.b"` meant the key `"a.b"`, and the development build reports [SYG428](/reference/errors/#syg428) when the state still has such a key. Use a lens for it.
 
+### Changing the Selected Record
+
+**A child belongs to the record its `state` points at.** When the binding points at a different
+record (a changed path, or a `byId()` with a different field, id or idKey), Sygnal disposes the
+old child and mounts a new one:
+
+```jsx
+<ProjectWorkspace state={byId('projects', selected.id)} />
+```
+
+The old child's `DISPOSE` runs with its last state, and its pending requests, delayed `next()`
+actions and subscriptions are cancelled. The new child starts over: initialization runs again
+and its local state starts from its defaults. Its DOM is new too, so focus, caret position,
+scroll position and text being typed inside it are lost.
+
+What keeps the child: a new `byId()` call with the same arguments on every render, edits to the
+record's fields, and reordering the array (`byId()` follows the record, not its position).
+
+**Deleting the record** disposes the child as well, even though the `byId()` arguments haven't
+changed. That happens after the deleting action finishes, so its outputs still run, and before
+any later action of the old child. `DISPOSE` gets the last state; a STATE change from it can't
+bring the record back. A record added again with the same id gets a new child, without the old
+one's pending work. Children inside a hidden Switchable page are disposed the same way; their
+replacements mount when the page is shown again.
+
+The same applies to a Collection's or VirtualCollection's `from` and a Switchable's `state`:
+when it points at a different record or array, every item or page is disposed before the new
+ones mount, even when ids overlap.
+
+**Keys.** A `key` still resets a child whose binding hasn't changed: change the key and the
+child starts over. A key that stays the same doesn't keep a child across a binding change; keep
+anything that must survive the change (an open panel, a half-written comment) in the parent's
+state. Sygnal can't tell whether a new [custom lens](#lens-based-advanced) points at a different
+record, so a lens-bound child keeps its binding until its key changes: give it a key tied to the
+record (`key={doc.id}`), and render it only while that record exists.
+
+In **6.x**, a child kept the record it was mounted with: pair a changing selection with
+`key={selected.id}`. sygnal-check reports [SYG454](/reference/errors/#syg454) for a `byId()`
+selection without a key when Sygnal 6 is installed. See [Migrating to 7.0](/guide/migrating-to-7/#binding-lifetimes).
+
 ### Lens-Based (Advanced)
 
 For more control over how state maps between parent and child, use a lens:

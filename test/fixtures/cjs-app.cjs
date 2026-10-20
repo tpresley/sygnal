@@ -71,7 +71,7 @@ function defineApp({ createElement: h, Collection, event, debounce, ABORT }) {
         const n = state.count + 1
         return { ...state, count: n, items: [...state.items, { id: n, label: 'item ' + n }] }
       },
-      EVENTS: event('ITEM_ADDED', state => 'item ' + (state.count + 1)),
+      EVENTS: event('ITEM_ADDED', state => 'item ' + state.count),
     },
     RESET: state => (state.count === 0 ? ABORT : { ...state, count: 0, items: [] }),
     ECHO: (state, data) => ({ ...state, echo: data }),

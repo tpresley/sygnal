@@ -109,12 +109,12 @@ Checklist.model = {
   ADD: {
     STATE: (state) => ({ ...state, rows: [...state.rows, { id: state.next, title: '' }], next: state.next + 1 }),
     // the new row renders in the same patch, before the command runs
-    ELEMENT: (state) => ({ focus: focusWithin(`[data-id="${state.next}"] .title`) }),
+    ELEMENT: (state, data, next, { previousState }) => ({ focus: focusWithin(`[data-id="${previousState.next}"] .title`) }),
   },
 }
 ```
 
-The reducer for `ELEMENT` sees the state before the action, so `state.next` is the new row's id. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
+STATE has already incremented `next` when `ELEMENT` runs, so the new row's id is `previousState.next`. Prefer the child's own model when the child decides; `focusWithin` is for a parent that does (adding a row, submitting a form whose fields are child components). If nothing matches, nothing happens; `renderComponent()` reports [SYG640](/reference/errors/#syg640) when nothing in the view, children included, matches.
 
 ## When it runs
 

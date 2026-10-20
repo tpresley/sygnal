@@ -80,6 +80,27 @@ describe('create-sygnal-app templates: editor recommendation + sygnal-check conf
 
     afterAll(() => { if (tmp) fs.rmSync(tmp, { recursive: true, force: true }) })
 
+    for (const metadata of [['.git'], ['.DS_Store'], ['.git', '.DS_Store']]) {
+      it(`scaffolds into . preserving ${metadata.join(' and ')}`, () => {
+        const target = fs.mkdtempSync(path.join(tmp, 'Git First-'))
+        for (const name of metadata) fs.writeFileSync(path.join(target, name), name === '.git' ? 'gitdir: ../kept-worktree' : 'kept')
+        execFileSync(process.execPath, [path.join(pkgDir, 'index.js'), '.', '--template', 'vite', '--ts', '--no-install'], {cwd:target, stdio:'ignore'})
+        for (const name of metadata) expect(fs.readFileSync(path.join(target,name),'utf8')).toBe(name === '.git' ? 'gitdir: ../kept-worktree' : 'kept')
+        expect(readJson(path.join(target,'package.json')).name).toBe(path.basename(target).toLowerCase().replace(/[^a-z0-9._-]+/g,'-'))
+        expect(fs.existsSync(path.join(target,'node_modules'))).toBe(false)
+      })
+    }
+    it('preserves a .git directory and rejects ordinary files and unrelated dotfiles without writes', () => {
+      const target=fs.mkdtempSync(path.join(tmp,'git-dir-'))
+      fs.mkdirSync(path.join(target,'.git'));fs.writeFileSync(path.join(target,'.git','HEAD'),'keep-head')
+      execFileSync(process.execPath,[path.join(pkgDir,'index.js'),'.','--template','vite','--js','--no-install'],{cwd:target,stdio:'ignore'})
+      expect(fs.readFileSync(path.join(target,'.git','HEAD'),'utf8')).toBe('keep-head')
+      for(const name of ['package.json','source.js','.env']) {
+        const dest=fs.mkdtempSync(path.join(tmp,'reject-'));fs.writeFileSync(path.join(dest,name),'keep')
+        expect(()=>execFileSync(process.execPath,[path.join(pkgDir,'index.js'),'.','--template','vite','--js','--no-install'],{cwd:dest,stdio:'ignore'})).toThrow()
+        expect(fs.readdirSync(dest)).toEqual([name]);expect(fs.readFileSync(path.join(dest,name),'utf8')).toBe('keep')
+      }
+    })
     it('the tarball contains both files of every template', () => {
       for (const { dir } of VARIANTS) {
         expect(fs.existsSync(path.join(pkgDir, dir, '.vscode/extensions.json')), dir).toBe(true)

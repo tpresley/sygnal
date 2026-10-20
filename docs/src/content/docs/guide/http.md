@@ -47,7 +47,7 @@ Quote.intent = ({ DOM }) => ({
 Quote.model = {
   SHOW: {
     STATE: (state, id) => ({ ...state, id, status: 'loading', error: '' }),
-    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // id from data: state.id is still the old one here
+    HTTP:  (state, id) => ({ url: `/api/quotes/${id}`, ok: 'LOADED', error: 'FAILED', latest: true }),  // or state.id: STATE has stored it
   },
   REFRESH: {
     STATE: (state) => (state.id === null ? ABORT : { ...state, status: 'loading', error: '' }),
@@ -68,7 +68,7 @@ Click First, then Second before quote 1 arrives: with `latest: true` the first r
 
 ### Build the request from (state, data)
 
-Every sink of one action sees the state from **before** that action ([Model](/guide/model/#sinks-see-the-state-before-the-action)). In `SHOW` above, `STATE` sets `id`, but the `HTTP` sink still sees the previous `state.id`, so it builds the URL from `data`. `REFRESH` doesn't change `id`, so it can read it from `state`.
+STATE runs first, so the HTTP sink of `SHOW` sees the `id` STATE just stored; the action's data has it too. `REFRESH` doesn't change `id` and reads it from `state`. A request that needs a value STATE replaced (a cleared field, a guard on a flag STATE sets) reads it from the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)). Sygnal 6.x gave every sink the state from before the action; see [Migrating to 7.0](/guide/migrating-to-7/).
 
 ## Only the Latest Response
 
@@ -187,7 +187,8 @@ Upload.model = {
   SAMPLE: (state) => ({ ...state, file: new File([new Uint8Array(3 * 1024 * 1024)], 'sample.bin'), fraction: 0, status: 'idle', message: 'sample.bin' }),
   SEND: {
     STATE: (state) => (busy(state) ? ABORT : { ...state, status: 'uploading', fraction: 0, message: 'Uploading…' }),
-    HTTP:  (state) => (busy(state) ? ABORT : { url: '/api/files', multipart: { file: state.file }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }),
+    // STATE has already set status 'uploading': admit the upload by the state before this SEND
+    HTTP:  (state, data, next, { previousState }) => (busy(previousState) ? ABORT : { url: '/api/files', multipart: { file: state.file }, progress: 'UPLOADING', ok: 'UPLOADED', error: 'FAILED' }),
   },
   UPLOADING: (state, { phase, fraction }) => (phase === 'upload' ? { ...state, fraction } : ABORT),
   UPLOADED:  (state, saved) => ({ ...state, status: 'done', fraction: 1, message: `Uploaded ${saved.name} (${saved.size} bytes).` }),
@@ -304,9 +305,10 @@ Todos.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle').data('id', Number) }
 Todos.model = {
   TOGGLE: {
     STATE: (state, id) => ({ ...state, error: '', todos: state.todos.map(t => (t.id === id ? { ...t, done: !t.done } : t)) }),
-    HTTP:  (state, id) => {
-      const before = state.todos.find(t => t.id === id)   // the state before this action
-      return { url: `/api/todos/${id}`, method: 'PATCH', json: { done: !before.done }, ok: 'SAVED', error: 'SAVE_FAILED', before }
+    HTTP:  (state, id, next, { previousState }) => {
+      const before = previousState.todos.find(t => t.id === id)   // rollback value
+      const updated = state.todos.find(t => t.id === id)
+      return { url: `/api/todos/${id}`, method: 'PATCH', json: { done: updated.done }, ok: 'SAVED', error: 'SAVE_FAILED', before }
     },
   },
   SAVED:       (state, saved) => ({ ...state, todos: state.todos.map(t => (t.id === saved.id ? saved : t)) }),
@@ -351,7 +353,7 @@ Profile.model = {
   NAME: (state, name) => ({ ...state, name, save: 'idle' }),
   SAVE: {
     STATE: (state) => (state.save === 'saving' ? ABORT : { ...state, save: 'saving' }),
-    HTTP:  (state) => (state.save === 'saving' ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED', error: 'SAVE_FAILED' }),
+    HTTP:  (state, data, next, { previousState }) => (previousState.save === 'saving' ? ABORT : { url: '/api/profile', method: 'PUT', json: { name: state.name }, ok: 'SAVED', error: 'SAVE_FAILED' }),
   },
   SAVED:       (state) => ({ ...state, save: 'saved' }),
   SAVE_FAILED: (state) => ({ ...state, save: 'failed' }),

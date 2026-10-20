@@ -84,7 +84,7 @@ async function bundledScenario(step) {
   assert.equal(st.visible, true)
   assert.match(st.text, /Sygnal/)
   assert.match(st.tooltip, /sygnal-check \S+ bundled with the extension/)
-  assert.match(st.tooltip, /sygnal-check 0\.3\.0 has no language server/)
+  assert.match(st.tooltip, /sygnal-check 0\.3\.0 predates Sygnal 6\/7 compatibility/)
   assert.equal(api.choice().source, 'bundled')
   assert.equal(api.choice().reason, 'too-old')
   assert.equal(api.upgradeNotices(), 1)

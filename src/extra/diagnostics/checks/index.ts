@@ -107,6 +107,7 @@ import {nextHooks} from './next'
 
 export {checkEventBus} from './events'
 export {configureStrict, isStrictEnabled} from './strict'
+export {configureTimingAudit, isTimingAuditEnabled} from './timingAudit'
 export type {EventBusSummary} from './events'
 export {RXJS_HINTS} from './rxjsHints'
 export {inspect} from './inspect'

@@ -1203,6 +1203,62 @@ A model composing from a catalog (sygnal/ai `compose.decisions()` or `compose.ll
 
 **Fix:** Write each description as "Noun (what it shows)", leading with the word a user says for that part and not repeating another part's content ("Revenue (KPI card: this month's total)", "Revenue chart (line chart of the revenue trend)"); put alternatives in a `group`; leave param values out of the description (the param supplies them); word each param's options so they name only what that param changes.
 
+### SYG256
+
+**Output guard rejects the updated state**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+Since Sygnal 7, STATE runs first in a model entry and every other sink gets the committed state. On an installed Sygnal 7 or later, this check reports a STATE write of a literal field value that makes a same-action output guard return the imported ABORT value. For example, STATE sets status to 'working', then HTTP checks state.status !== 'working' and suppresses the request that just started. This conservative check covers simple field comparisons and boolean guards, retaining STATE branch conditions so a guard already known to reject before STATE is not reported. It is silent on Sygnal 6 (outputs get the old state there), when the installed version is unknown, and for unprovable or composed writes (behaviors, calculated fields, spreads). A clean result does not establish that every admission guard is correct.
+
+**Fix:** Keep the admission guard, but read props.previousState (the state from before the action) for the value that admitted it, for example HTTP: (state, data, next, { previousState }) => previousState.status !== 'working' ? { url: '/work', requestId: state.requestId, ok: 'DONE' } : ABORT. Use the updated state for payload fields written by STATE. Do not remove the guard: STATE returning ABORT does not cancel other sinks, so an unconditional output can send duplicate requests. No automatic fix is offered.
+
+Before:
+
+```jsx
+import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: state => state.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // STATE already set status to 'working': the first request is blocked
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}
+```
+
+After:
+
+```jsx
+import { ABORT } from 'sygnal'
+Worker.initialState = { status: 'idle', requestId: 0 }
+Worker.model = {
+  START: {
+    STATE: state => state.status !== 'working'
+      ? { ...state, status: 'working', requestId: state.requestId + 1 }
+      : ABORT,
+    HTTP: (state, data, next, { previousState }) => previousState.status !== 'working'
+      ? { url: '/work', requestId: state.requestId, ok: 'DONE' }
+      : ABORT, // old state admits the action; updated state supplies its requestId
+  },
+  DONE: state => ({ ...state, status: 'idle' }),
+}
+```
+
+### SYG257
+
+**Output reads a field its action changed (7.0 timing audit)**
+
+Severity: `info` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HTTP, EVENTS, PARENT, ELEMENT, another driver or a behavior output) read a top-level state field that the same action's STATE changed. Since 7.0 the output gets the new, committed value; in 6.x it got the old one. Reported once per component, action, sink and field. In code written for 7.0 reading the new value is the intended behavior, so the audit is off by default: turn it on while migrating a 6.x app with configureTimingAudit(true) from 'sygnal/diagnostics', renderComponent(C, { timingAudit: true }), sygnal({ diagnostics: { timingAudit: true } }) in the Vite plugin, or globalThis.__SYGNAL_TIMING_AUDIT__ = true. Dev only: production builds contain none of it.
+
+**Fix:** If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1817,6 +1873,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.
 
 **Fix:** Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.
+
+### SYG454
+
+**State binding changed without a new component identity**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+In Sygnal 6 a retained component's state path or byId binding is fixed at mount. A changing byId selector without a corresponding key can keep reading and writing the old record. Sygnal 7 disposes and remounts components when a known state path or byId target changes, even with the same explicit key; equivalent fresh byId objects preserve the component. Opaque custom lenses remain mount-bound. The static checker reports direct dynamic unkeyed byId selections only when the installed Sygnal is known to be 6; it is silent for 7 and when the installed version cannot be determined (no node_modules, Yarn PnP, git-tree --base checks).
+
+**Fix:** On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.
 
 ## SYG5xx: Strict mode (canonical forms)
 

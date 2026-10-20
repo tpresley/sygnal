@@ -18,8 +18,8 @@
  * - Actions drain run-to-completion, FIFO: an action dispatched while another is processed (a
  *   driver emitting synchronously during sink delivery, an EFFECT, a PARENT, a hook) is appended
  *   to the queue, never run nested.
- * - A STATE reducer is applied when its action is processed. Every other sink of that action gets
- *   the state from before it.
+ * - A STATE reducer is applied when its action is processed, before the action's other sinks;
+ *   they get the state it committed, with the state from before it as `props.previousState` (7.0).
  * - A flush (one microtask after the first commit of a batch) repeats { render top-down, recompute
  *   statics, drain the queue } until nothing changed, then emits ONE root vnode (one patch), then
  *   runs ELEMENT commands and dispatches BOOTSTRAP for the instances created in it.

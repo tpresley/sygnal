@@ -15,7 +15,7 @@
  */
 import xs from '../extra/xstreamCompat'
 import {StateSource} from '../cycle/state/StateSource'
-import {uidPart} from '../shared'
+import {uidPart, BINDING} from '../shared'
 import {warn, error as logError, fail} from '../extra/diagnostics/legacy'
 import type {App} from './runtime'
 import {tearDown, INST, SEED} from './teardown'
@@ -28,6 +28,20 @@ import {makeCommandSource} from '../extra/command'
 import {attach, detach} from './statics'
 import {dbg} from './debug'
 import {sameData} from '../cycle/dom/utils'
+
+// v7: a known binding target joins key/id/path in the lifetime identity. Fresh equivalent
+// byId helpers retain identity; opaque lenses need an explicit key for a new target.
+function bindingChanged(a: any, b: any): boolean {
+  if (a === b) return false
+  const x = a?.[BINDING], y = b?.[BINDING]
+  return x && y ? !x.every((v: any, i: number) => Object.is(v, y[i]))
+    : !!(x || y || typeof a == 'string' || typeof b == 'string' || a === undefined || b === undefined)
+}
+
+function bindingState(k: any): any {
+  const c = k.base || k.cell || k.arr
+  return c && (c.has?.() ?? c.get() !== undefined) ? (k.cell || k.arr).get() : undefined
+}
 
 const ERR_FIX = 'See the attached error'
 
@@ -65,8 +79,8 @@ const idOf = (n: any, path: string) => {
 }
 
 /**
- * a component vnode's props, without `resetState` (D174: read at creation, like `state`, never a
- * prop of the child)
+ * a component vnode's props, without `resetState` (D174: read at creation, never a
+ * prop of the child). Known `state` target changes start a new lifetime in v7.
  */
 function propsOf(p: any) {
   if (!p) return {}
@@ -118,12 +132,15 @@ const ALL = '\u0000all'
 
 let IDS = 0
 
-/** a child that failed to instantiate: renders the owner's error fallback (SYG408) */
+/**
+ * a child that failed to instantiate: renders the owner's error fallback (SYG408). It keeps its
+ * props, so only a changed binding target makes another attempt (not every owner render)
+ */
 class Failed {
   last: any; lr = true; ready = true; def: any = null; disposed = false; shown = true
-  constructor(public outv: any) {}
+  constructor(public outv: any, public props?: any) {}
   render() { return this.outv }
-  setProps() {}
+  setProps(p: any) { this.props = p }
   dispose() {}
 }
 
@@ -144,6 +161,8 @@ export class Inst {
   raw!: any[]
   slots: Record<string, any[]> = {}
   kids = new Map<string, any>()
+  /** the children with a string / byId binding: the presence scan's (notify) */
+  bound?: Set<any>
   uidBase: string
   /** the parent's view of this instance's output (last vnode / READY it injected) */
   last: any; lr = true
@@ -177,7 +196,7 @@ export class Inst {
   rep: any[] | null = null
 
   constructor(
-    public app: App, public def: CoreDef, public parent: Inst | null, base: Cell,
+    public app: App, public def: CoreDef, public parent: Inst | null, public base: Cell,
     public dom: any, props: Record<string, any>, children: any[], public scope: string | undefined,
     uidBase: string, public kind: 'root' | 'child' | 'item' | 'page' = parent ? 'child' : 'root', reset = false,
   ) {
@@ -285,8 +304,26 @@ export class Inst {
   }
   /** called after each action and before each render pass: STATE.stream emits a new state */
   notify() {
-    const v = this.cell.raw()
-    if (v !== this.stLast && v !== undefined) { this.stLast = v; this.st$.shamefullySendNext(v) }
+    // A completed action can remove and reinsert a target before the next render. Owners
+    // observe each transition, including hidden pages; the current action finishes first.
+    // only the bound children (a string / byId binding), not every child
+    if (this.bound) for (const k of this.bound) {
+      if (k.disposed) { this.bound.delete(k); continue }
+      const previous = k.bs, state = k.bs = bindingState(k)
+      if (previous !== undefined && state === undefined) {
+        // Cleanup reads its last owned snapshot. A dying path must not recreate the
+        // deleted target; the fresh lifetime receives a new writable cell at reconciliation.
+        const cell = k.cell || k.arr
+        cell.get = () => previous
+        cell.set = () => {}
+        k.dispose()
+        this.forced = true
+      }
+    }
+    if (this.st$) {
+      const v = this.cell.raw()
+      if (v !== this.stLast && v !== undefined) { this.stLast = v; this.st$.shamefullySendNext(v) }
+    }
   }
   dispose$() {
     return this.disp$ ||= xs.create()
@@ -495,9 +532,16 @@ export class Inst {
         let view = data.c
         if (view) for (const r of resolvers) view = r(view, this) || view
         let k = this.kids.get(id)
-        if (k && view && k.def && k.def.view !== view) { k.dispose(); this.kids.delete(id); k = undefined }
+        // Collection and VirtualCollection share an array cell; Switchable binds `state`.
+        const binding = host && sel != 'switchable' ? 'from' : 'state'
+        if (k && (k.disposed || (view && k.def && k.def.view !== view) || bindingChanged(k.props?.[binding], props[binding]))) { k.dispose(); this.kids.delete(id); k = undefined }
         if (k) k.setProps(props, children, n, id)
-        else this.kids.set(id, host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
+        else this.kids.set(id, k = host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
+        if (typeof props[binding] == 'string' || props[binding]?.[BINDING]) {
+          k.bs = bindingState(k)
+          ;(this.bound ||= new Set()).add(k)
+          this.app.watchers.add(this)
+        }
         return
       }
       if (posts[sel] && !(ps ||= []).includes(sel)) ps.push(sel)
@@ -511,11 +555,11 @@ export class Inst {
 
   /** a host (Collection, Switchable); one that throws renders the owner's error fallback (SYG408) */
   host(make: any, props: Record<string, any>, children: any[], id: string, n: any): any {
-    try { return make(this, props, children, id, n) } catch (err) { return this.failed(err) }
+    try { return make(this, props, children, id, n) } catch (err) { return this.failed(err, props) }
   }
 
   /** the owner's error fallback for a child that failed to instantiate (SYG408) */
-  failed(err: any): Failed {
+  failed(err: any, props?: any): Failed {
     const e = err instanceof Error ? err : new Error(String(err))
     let out: any = errorDiv(this.def.name)
     if (this.def.onError) {
@@ -523,7 +567,7 @@ export class Inst {
       catch (fe) { logError('SYG407', this, 'onError threw; rendering an empty error <div>', 'Make onError return a vnode', fe) }
     }
     this.app.caught(this, 'SYG408', 'Sub-component threw; rendering the error fallback', e, 'instantiate')
-    return new Failed(out)
+    return new Failed(out, props)
   }
 
   /** a tag child: state="key" | state={lens} | none (the parent's state) | isolatedState (D174: `resetState`) */
@@ -543,7 +587,7 @@ export class Inst {
       return new Inst(app, def, this, cell, this.dom && this.dom.isolateSource(this.dom, scope), props, children, scope,
         this.uid(uidPart(id.replace(/.*::(r\.)?/, ''))), 'child', reset)
     } catch (err) {
-      return this.failed(err)
+      return this.failed(err, props)
     }
   }
 
@@ -589,7 +633,7 @@ export class Inst {
     const subs = this.subs
     if (subs.length) tearDown(() => { for (const s of subs) s.unsubscribe() }, app.dq, this)
     this.subs = []
-    if (this.st$) app.watchers.delete(this)
+    app.watchers.delete(this)
     this.hub = null
   }
 }

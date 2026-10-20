@@ -80,7 +80,7 @@
  * run when the host is created.
  */
 import xs from './xstreamCompat'
-import {defineBehavior} from './behaviors'
+import {defineBehavior, was} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
@@ -251,7 +251,9 @@ export const form = (schema: any, o: any = {}): any => {
       // VALIDATE: on the host's state (HOST), for a `values` function; the slice's own steps on it
       ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => { const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
         : {STATE: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.s || ABORT},
-      EFFECT: (s: any, d: any, next: any, _p: any, _o: any, k: string) => {
+      // outputs share STATE's transition: computed from the slice before the action
+      EFFECT: (s: any, d: any, next: any, p: any, _o: any, k: string) => {
+        s = was(s, p, k)
         const x = out(s, d, k), w = x?.wait
         if (x?.send) {
           const r = v(x.s.values).value
@@ -263,10 +265,11 @@ export const form = (schema: any, o: any = {}): any => {
         }
         w && Promise.resolve(v(w.values)).then(() => next('RESULT', w, 0))
       },
-      ELEMENT: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.focus || ABORT,
-      // the checks' requests, and (PLAN-11 F-3) the `request` option's for a valid submit
+      ELEMENT: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(was(s, p, k), d, k)?.focus || ABORT,
+      // the checks' requests, and (PLAN-11 F-3) the `request` option's for a valid submit; the
+      // step from the slice before the action (7.0: outputs get the updated one), the host state as committed
       ...((checked.length || rq) && {[http]: (s: any, d: any, _n: any, p: any, _o: any, k: string) => {
-        const x = out(s, d, k)
+        const x = out(was(s, p, k), d, k)
         return x?.req || (x?.send && rq ? send(x.s.values, p?.state, k) : ABORT)
       }}),
     }

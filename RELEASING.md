@@ -80,7 +80,7 @@ Set the versions (no `npm version`: it also commits and tags):
   grep -n -E '"sygnal(-check)?":' create-sygnal-app/template-*/package.json
   ```
   The templates' `sygnal-check.config.json` (PLAN-7 I-3) is read only from `sygnal-check` 0.4.0 on (0.3.0 never opens it), so the range must reach 0.4.0 for new projects to use it.
-- `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph.
+- `CHANGELOG.md`: rename `## [Unreleased]` to `## <SYGNAL> — <date>`, and fill in the "Measured impact" paragraph. The release workflow's plan job checks this heading (and `editors/vscode/CHANGELOG.md`'s `## <version>` when the extension is new) before the gates and any publish, and stops the run when it is missing (a dry run warns).
 - `ROADMAP.md`: the release line names the template range (`sygnal` ^6.0.0); update it if it still describes the current release.
 
 Bump the extension (§8) and the plugin (§9) in the same commit when they ship. Commit, and push to `main` (or merge a pull request): the Release workflow starts. Running the gates locally first (§2–§4) is optional; the workflow runs them before anything is published.
@@ -109,7 +109,7 @@ All of them must pass. `npm test` needs the `sygnal-check` install above (the Vi
 
 ### Size gate
 
-The gzipped kanban production bundle must stay within the agreed budget, **42,700 B** (D48; raised by D185, D222 and D230; `BUDGET` in `scripts/size-gate.mjs`):
+The gzipped kanban production bundle must stay within the agreed budget, **43,000 B** (D48; raised by D185, D222, D230 and explicit PLAN-12 approvals; `BUDGET` in `scripts/size-gate.mjs`):
 
 ```bash
 node scripts/size-gate.mjs                  # --budget <bytes> to try another limit

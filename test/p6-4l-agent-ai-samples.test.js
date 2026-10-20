@@ -24,7 +24,7 @@ const FILES = {
 
 // text → the files that contain it verbatim
 const FRAGMENTS = {
-  chatSend: [['llms'], "SEND: { STATE: (s) => ({ ...s, messages: [...s.messages, { role: 'user', content: s.prompt }], prompt: '' }), LLM: (s) => ({ messages: [...s.messages, { role: 'user', content: s.prompt }], key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }"],
+  chatSend: [['llms'], "SEND: { STATE: (s) => ({ ...s, messages: [...s.messages, { role: 'user', content: s.prompt }], prompt: '' }), LLM: (s) => ({ messages: s.messages, key: 'reply', delta: 'DELTA', ok: 'DONE', error: 'FAILED' }) }"],
   chatDelta: [['llms'], "DELTA: (s, { text }) => ({ ...s, draft: text })"],
   chatDone: [['llms'], "DONE: (s, { message }) => ({ ...s, messages: [...s.messages, message], draft: '' })"],
   chatAbort: [['llms'], "{ abort: 'reply' }"],

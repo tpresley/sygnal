@@ -18,7 +18,8 @@ describe('B-029: ABORT from non-STATE sinks is silent', () => {
     Child.model = {
       PING: {
         STATE: s => ({ ...s, n: s.n + 1 }),
-        PARENT: s => (s.n % 2 ? ABORT : { n: s.n }),
+        // 7.0: the count from before the action (the outputs get the updated one)
+        PARENT: (s, d, next, { previousState: p }) => (p.n % 2 ? ABORT : { n: p.n }),
       },
     }
     function Parent({ state }) { return createElement('div', null, createElement(Child, { state: 'child' }), createElement('p', null, String(state.got.length))) }

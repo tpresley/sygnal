@@ -419,7 +419,8 @@ describe('task 22 (chat socket) with the connections static', () => {
     SET_DRAFT: (state, draft) => ({ ...state, draft }),
     SEND: {
       STATE: (state) => state.draft.trim() ? { ...state, draft: '' } : ABORT,
-      WS: (state) => state.draft.trim() ? { to: 'room', json: { text: state.draft } } : ABORT,
+      // STATE has cleared the draft: send the one from before the action
+      WS: (state, d, next, { previousState: was }) => was.draft.trim() ? { to: 'room', json: { text: was.draft } } : ABORT,
     },
     RECEIVED: (state, msg) => ({ ...state, messages: [...state.messages, msg] }),
     CONNECTED: (state) => ({ ...state, status: 'online' }),

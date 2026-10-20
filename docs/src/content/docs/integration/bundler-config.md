@@ -35,9 +35,10 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 |---|---|---|---|
 | `disableJsx` | `boolean` | `false` | Don't configure JSX (set it up yourself) |
 | `disableHmr` | `boolean` | `false` | Don't inject HMR wiring (handle HMR yourself, or let a framework such as Vike do it) |
-| `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` or `{ mode, strict, ignore }` | `'warn'` | Runtime diagnostics in the dev server. `'off'` injects no checks |
+| `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` or `{ mode, strict, timingAudit, ignore }` | `'warn'` | Runtime diagnostics in the dev server. `'off'` injects no checks |
 | `diagnostics.mode` | same as above | `'warn'` | The runtime [diagnostics mode](/guide/diagnostics/#modes) |
 | `diagnostics.strict` | `boolean` | `false` | Turn on the [strict-mode](/guide/strict-mode/) runtime checks; also the default for `check.strict` |
+| `diagnostics.timingAudit` | `boolean` | `false` | Turn on the 7.0 timing audit in the dev server: [SYG257](/reference/errors/#syg257) for each output sink that reads a state field its action's STATE changed (for [upgrading 6.x code](/guide/migrating-to-7/#step-by-step); tests use `renderComponent(C, { timingAudit: true })`) |
 | `diagnostics.ignore` | `string[]` | `[]` | Codes to drop, at runtime and in `sygnal-check` |
 | `check` | `boolean` or `{ strict, a11y, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server (skipped silently when it isn't installed) |
 | `check.strict` | `boolean` | the config file's `strict`, else `diagnostics.strict` | Also run the strict rules (SYG501-508) |

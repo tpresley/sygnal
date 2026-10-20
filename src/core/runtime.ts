@@ -96,6 +96,8 @@ export class App {
   /** run()'s hooks, then each addHooks() layer (G-297) */
   layers: Hooks[]
   born: Inst[] = []
+  /** Last state version delivered to stream listeners and binding owners. */
+  nv?: number
   watchers = new Set<Inst>()
   /** streams the disposed instances left without listeners, stopped when the drain / flush ends */
   dq: any[] = []
@@ -185,6 +187,8 @@ export class App {
   }
   /** STATE.stream: the instances whose state changed emit it */
   notify() {
+    if (this.nv === this.ver) return
+    this.nv = this.ver
     for (const i of this.watchers) i.notify()
   }
 
@@ -280,7 +284,7 @@ export class App {
         this.ran = false
         this.last = v
         this.hooks.onPatch?.(v)
-        this.vdomL?.next(v)
+        this.vdomL?.next(v ?? null)
       }
       if (this.dq.length) this.stopLater()
     } finally {

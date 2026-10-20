@@ -74,7 +74,7 @@ parity('parity: Switchable hidden pages kept alive, current, instance', () => {
   it("a hidden page's actions still run and its PARENT reaches the parent's CHILD.select(Page)", async () => {
     function Page({ state }) { return h('p', { className: 'pg' }, String(state.v)) }
     Page.intent = ({ DOM }) => ({ T: DOM.click('.pg'), TICK: xs.periodic(5).take(3) })
-    Page.model = { TICK: { STATE: (s) => ({ ...s, v: s.v + 1 }), PARENT: (s) => s.v + 1 }, T: (s) => s }
+    Page.model = { TICK: { STATE: (s) => ({ ...s, v: s.v + 1 }), PARENT: (s) => s.v }, T: (s) => s }
     function Other() { return h('p', { className: 'other' }, 'other') }
     function P({ state }) { return h('div', null, h(Switchable, { of: { pg: Page, other: Other }, current: 'other' }), h('b', { className: 'got' }, state.got.join())) }
     P.initialState = { v: 0, got: [] }
@@ -141,7 +141,7 @@ parity('parity: D172 hidden pages render on first show (G-121; no `lazy` prop)',
     const log = { views: 0, boot: 0 }
     function Hidden({ state }) { log.views++; return h('p', { className: 'hid' }, `h${state.n}`) }
     Hidden.intent = () => ({ TICK: xs.periodic(5).take(2) })
-    Hidden.model = { TICK: { STATE: (s) => ({ ...s, n: s.n + 1 }), PARENT: (s) => s.n + 1 }, BOOTSTRAP: { EFFECT: () => log.boot++ } }
+    Hidden.model = { TICK: { STATE: (s) => ({ ...s, n: s.n + 1 }), PARENT: (s) => s.n }, BOOTSTRAP: { EFFECT: () => log.boot++ } }
     function Shown() { return h('p', { className: 'shown' }, 's') }
     function P({ state }) { return h('div', null, h('button', { className: 'flip' }), h(Switchable, { of: { s: Shown, h: Hidden }, current: state.page, state: 'h' }), h('b', { className: 'got' }, state.got.join())) }
     P.initialState = { page: 's', h: { n: 0 }, got: [] }

@@ -24,10 +24,10 @@ To try a local checkout instead: `claude --plugin-dir <sygnal checkout>/editors/
 
 ## Requirements
 
-- **sygnal-check 0.4.0 or later in the project** (`npm install -D sygnal-check`). Projects made with `create-sygnal-app` already have it. The plugin never downloads a checker: it runs the copy installed in the project, the one `npx --no-install sygnal-check lsp` runs.
+- **sygnal-check in the project** (`npm install -D sygnal-check`): 0.4.0 or later (the first with the language server), and **0.11.0 or later for Sygnal 7** (`npm install -D sygnal-check@^0.11.0`). Projects made with `create-sygnal-app` already have it. The plugin never downloads a checker: it runs the copy installed in the project, the one `npx --no-install sygnal-check lsp` runs.
 - **Node.js 18 or later** on the `PATH`.
 
-Without a capable sygnal-check (none installed, or 0.3.x, which has no language server), the plugin's server writes one line to its stderr (Claude Code keeps it in its debug log) and stays idle for the session. Claude gets no findings and no errors, and the skill works as usual. Install sygnal-check and start a new session to turn the findings on.
+Without a compatible sygnal-check (none installed, 0.3.x, which has no language server, or older than 0.11.0 in a project with Sygnal 7 installed), the plugin's server writes one line to its stderr (Claude Code keeps it in its debug log) and stays idle for the session. Claude gets no findings and no errors, and the skill works as usual. Install sygnal-check and start a new session to turn the findings on. Checkers before 0.11.0 predate Sygnal 7's reducer timing, so they are refused only when the project's installed Sygnal (the nearest `node_modules/sygnal`) is 7 or later; a Sygnal 6 project, or one whose Sygnal version can't be read, keeps using its own checker.
 
 ## What to expect
 

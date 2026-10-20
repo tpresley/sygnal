@@ -66,7 +66,7 @@ describe('integration/testing.md patterns (both cores)', () => {
     await t.next(s => s.count === 1)
     t.simulateEvent('.reset', 'click')
     await t.next(s => s.count === 0)
-    expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
+    expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 0 }])
     expect(t.html()).toContain('<span class="count">0</span>')
   })
 

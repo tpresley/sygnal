@@ -1,0 +1,9 @@
+{
+  "revision": "5e5205cbadd61865b787f6523c840489e074a28b",
+  "node": "v24.14.0",
+  "result": {
+    "exit": 0,
+    "summary": " Test Files  21 passed (21)\n      Tests  200 passed (200)\n   Duration  8.48s (transform 1.54s, setup 0ms, import 3.15s, tests 8.50s, environment 3.93s)"
+  },
+  "orderingExit": 0
+}

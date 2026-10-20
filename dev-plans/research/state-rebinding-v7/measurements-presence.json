@@ -1,0 +1,108 @@
+{
+  "node": "v24.14.0",
+  "revision": "5e5205cbadd61865b787f6523c840489e074a28b",
+  "results": [
+    {
+      "mode": "presence",
+      "fixtureGzip": 40524,
+      "sizeExit": 1,
+      "sizeOutput": "kanban production bundle, gzip -c | wc -c:\n  (a) nativeGlobalThis: false: 42,911 B  (budget 42,900 B, 11 B OVER)\n  (b) default (native globalThis): 38,910 B  (informational; 4,001 B less)\n  (c) src/core/** alone (esbuild, minified; the rest external): 50,267 B min / 18,738 B gzip  (informational)",
+      "numbers": [
+        42911,
+        42900,
+        11,
+        38910,
+        4001,
+        50267,
+        18738
+      ],
+      "timings": [
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 33.863958
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 64.043834
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 39.093042
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 32.924834000000004
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 65.60791699999999
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 39.08574999999999
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 33.189916999999994
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 65.251417
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 39.976
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 33.024666
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 65.15150000000001
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 40.82599999999999
+          }
+        ],
+        [
+          {
+            "task": "unchanged-lens",
+            "iterations": 15000,
+            "ms": 32.830125
+          },
+          {
+            "task": "switch",
+            "iterations": 15000,
+            "ms": 64.530125
+          },
+          {
+            "task": "nested-edit",
+            "iterations": 15000,
+            "ms": 39.578374999999994
+          }
+        ]
+      ]
+    }
+  ]
+}

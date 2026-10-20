@@ -64,7 +64,7 @@ App.model = {
 }
 ```
 
-Every sink of one action receives the same state: the result of all earlier actions, before this action's own `STATE` reducer runs. So `EFFECT` and `EVENTS` above see `submitting` as it was, not `true`. Pass anything they need through the action's data, or compute it from the same inputs.
+STATE runs first, so `EFFECT` and `EVENTS` see `submitting: true`. The state from before the action is the fourth argument's `previousState` ([Model](/guide/model/#what-state-each-sink-sees)).
 
 ## Async Work That Isn't HTTP
 

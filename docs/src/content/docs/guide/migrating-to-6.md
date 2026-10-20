@@ -299,7 +299,7 @@ What can break (in tests; no documented app behaviour changes):
 - **Tests that awaited one microtask "for the reducer"** still pass; the await is no longer needed.
 - **More than 100 renders under fake timers that are never advanced** no longer stall.
 
-Every non-STATE sink still sees the state from before the action's reducer, as documented in [Model](/guide/model/).
+Every non-STATE sink still sees the state from before the action's reducer (changed in 7.0: see [Migrating to 7.0](/guide/migrating-to-7/)).
 
 ## Behaviour changes
 

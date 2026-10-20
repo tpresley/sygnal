@@ -34,7 +34,7 @@
  * reads it as `props.state` (the pre-action state), and one memo per behavior value makes STATE,
  * the sink and EFFECT of one action compute the same step.
  */
-import {defineBehavior} from '../../behaviors'
+import {defineBehavior, fromPrevious} from '../../behaviors'
 import {ABORT} from '../../../shared'
 import {fail} from '../../diagnostics/legacy'
 import {finish, fromTree, removeNode, toTree} from './layout'
@@ -144,7 +144,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
           .map(({key, name, value}: any) => ({key, name, value}))}),
       }
     },
-    model: {
+    model: fromPrevious({
       PROMPT: (s: any, p: any) => typeof p == 'string' && p !== s.prompt ? {...s, prompt: p} : ABORT,
       COMPOSE: {HOST: host(start), [S]: sink(start)},
       REPLY: {
@@ -178,6 +178,6 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
       CONTROL: (s: any, c: any) => c && typeof c.key == 'string' && typeof c.name == 'string'
         ? {...s, ui: {...s.ui, [c.key]: {...s.ui?.[c.key], [c.name]: c.value}}} : ABORT,
       DONE: () => ABORT,
-    },
+    }),
   })(rest)
 }

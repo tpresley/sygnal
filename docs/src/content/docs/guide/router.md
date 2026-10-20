@@ -183,7 +183,7 @@ Editor.model = {
   CONFIRM_LEAVE: (state, attempt) => ({ ...state, pending: attempt.proceed }),
   YES: {
     STATE:  (state) => ({ ...state, dirty: false, pending: null }),
-    ROUTER: (state) => ({ ...state.pending, block: false }),   // clear the block and go
+    ROUTER: (state, data, next, { previousState }) => ({ ...previousState.pending, block: false }),   // clear the block and go
   },
   NO: (state) => ({ ...state, pending: null }),
 }

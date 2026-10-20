@@ -69,6 +69,26 @@ The option takes precedence over the dev flag the Vite plugin sets. `run(App, {}
 
 `ignore` drops codes entirely: they are not collected, printed or thrown. Use it for a check that doesn't fit your app, such as SYG105 when events are emitted for code outside Sygnal. Prefer fixing the cause, or suppressing one finding in `sygnal-check` with a `// sygnal-ignore SYG110` comment on (or above) the line. The Vite plugin's `diagnostics.ignore` applies the same list to the runtime and to `sygnal-check`.
 
+### The 7.0 timing audit
+
+Since 7.0, a model entry's STATE runs first and the other sinks see its result (6.x gave them the
+state from before the action). For code written against 6.x, the timing audit reports
+[SYG257](/reference/errors/#syg257) (info) when an output sink reads a top-level state field that
+the same action's STATE changed, once per component, action, sink and field:
+
+```text
+[Sygnal SYG257] Counter's 'INC' PARENT read 'count', which the same action's STATE changed:
+since 7.0 it gets the new value (6.x: the old one)
+```
+
+If the sink wants the new value, nothing changes; if it wanted the old one, read
+`props.previousState.count`. The audit is off by default, since in 7.0 code reading the new value
+is the intent. Turn it on in a test with `renderComponent(C, { timingAudit: true })`, in the dev
+server with `sygnal({ diagnostics: { timingAudit: true } })`, or with `configureTimingAudit(true)`
+from `sygnal/diagnostics` (or `globalThis.__SYGNAL_TIMING_AUDIT__ = true`). It needs the
+`sygnal/diagnostics` entry, like the other dev checks. See
+[Migrating to 7.0](/guide/migrating-to-7/#step-by-step).
+
 ## The `sygnal/diagnostics` dev entry
 
 Most runtime checks don't ship in your app. They live in a separate entry that you load only in development:
@@ -87,6 +107,7 @@ The entry also exports a few helpers:
 |---|---|
 | `inspect(options?)` | The app graph of the live components (see [inspect](#inspect)) |
 | `configureStrict(on?)` / `isStrictEnabled()` | Turn the runtime [strict-mode](/guide/strict-mode/) checks on or off |
+| `configureTimingAudit(on?)` / `isTimingAuditEnabled()` | Turn the [timing audit](#the-70-timing-audit) on or off |
 | `checkEventBus()` | Report SYG105 for every EVENTS type that was selected but never emitted, and return the bus registry |
 | `listCodes()` / `getCodeInfo(code)` | Metadata for every registered code |
 | `configureChecks({ settleMs, idleMs, minRenders })` | Tune the timing of the DOM checks (mostly for tests) |

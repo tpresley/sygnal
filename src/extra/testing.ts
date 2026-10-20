@@ -253,6 +253,13 @@ export interface RenderOptions {
    */
   strict?: boolean;
   /**
+   * 7.0 timing audit (SYG257, info) while the component is rendered; restored on dispose():
+   * each output sink that reads a top-level state field its action's STATE changed is reported
+   * (it gets the new value since 7.0; 6.x gave it the old one). Requires 'sygnal/diagnostics'.
+   * Default: unchanged (off unless configureTimingAudit(true) was called).
+   */
+  timingAudit?: boolean;
+  /**
    * settle()'s quiet window in ms (default 20): settle() resolves once nothing in the tree has
    * rendered, reduced or changed state for this long. A model `next('X', data, ms)` with a
    * longer delay fires after settle() resolved; raise this, or wait with t.next(pred).
@@ -555,9 +562,9 @@ export interface RenderResult {
    * render (await t.ready() first). 4-A1: after `await` of any wait, it shows the state the wait
    * resolved with (a later render is held back until the next macrotask).
    */
-  query: (selector: string) => Element | null;
+  query: <E extends Element = Element>(selector: string) => E | null;
   /** Every element matching a selector in the rendered tree (Portals included), as query() */
-  queryAll: (selector: string) => Element[];
+  queryAll: <E extends Element = Element>(selector: string) => E[];
   /**
    * PLAN-5 W-1: a widget's host by selector or control: `.props` (what the view passed it),
    * `.instance` (`dom: 'real'`: what mount returned) and `.dispatch(name, detail)` (the event
@@ -1381,6 +1388,7 @@ const headFake = () => {
 };
 let savedConfig: ReturnType<typeof _getDiagnosticsConfig>;
 let savedStrict: any;
+let savedAudit: any;
 
 /*
  * PLAN-4 GS-2, mock DOM: could the element a command targets have this method? The core runs any
@@ -1480,7 +1488,7 @@ export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -1523,6 +1531,7 @@ export function renderComponent(
   if (!active++) {
     savedConfig = _getDiagnosticsConfig();
     savedStrict = core.strict;
+    savedAudit = core.timingAudit;
     // G-051: forget the checks' report dedupe (once()), so a finding from an earlier test is
     // reported again. Only that set: resetChecks() would also drop inspect()'s records of
     // other live instances / apps.
@@ -1530,6 +1539,8 @@ export function renderComponent(
   }
   configureDiagnostics({mode: diagnostics || (prevMode == 'off' ? 'collect' : prevMode)});
   if (strict !== undefined) core.strict = strict;
+  // 7.0 timing audit (SYG257, 'sygnal/diagnostics'): same bridge flag as configureTimingAudit()
+  if (timingAudit !== undefined) core.timingAudit = timingAudit;
   // PLAN-4 GS-2: element commands run on the real DOM (jsdom gets the missing methods), and their
   // SYG640/SYG641 are reported without the dev entry too
   if (real && !domFakes) domFakes = fakeElementMethods(document.defaultView || globalThis);
@@ -1695,6 +1706,7 @@ export function renderComponent(
     if (!--active) {
       configureDiagnostics(savedConfig);
       core.strict = savedStrict;
+      core.timingAudit = savedAudit;
       domFakes?.();
       domFakes = undefined;
     }
@@ -2943,11 +2955,11 @@ export function renderComponent(
   };
   // 6-B (G-185): on the mock DOM, MockElement snapshots of the latest rendered tree
   const mockAll = (s: string): any[] => findAll(vtree, parse(norm(s)), [], []).map(c => mockOf(c, htmlOf));
-  const queryAll = (s: string): Element[] => {
+  const queryAll = <E extends Element = Element>(s: string): E[] => {
     s = selOf(s);
     notYet(`t.queryAll('${s}')`);
     if (!real) return mockAll(s);
-    return roots().flatMap(r => Array.from(r.querySelectorAll(s)));
+    return roots().flatMap(r => Array.from(r.querySelectorAll<E>(s)));
   };
   const queryIn = (s: string): Element | null => {
     for (const r of roots()) {
@@ -2956,11 +2968,11 @@ export function renderComponent(
     }
     return null;
   };
-  const query = (s: string): Element | null => {
+  const query = <E extends Element = Element>(s: string): E | null => {
     s = selOf(s);
     notYet(`t.query('${s}')`);
     if (!real) return mockAll(s)[0] ?? null;
-    return queryIn(s);
+    return queryIn(s) as E | null;
   };
 
   // PLAN-5 W-1: a widget host (selector or control): the props it was rendered with (the mock
@@ -3173,6 +3185,7 @@ export function renderComponent(
         let msg = `${name} timed out after ${timeoutMs}ms.`;
         const [why, pending] = explainNext(start);
         msg += why;
+        if (inputs.length) msg += ` ${inputs.length} simulated input(s) still pending.`;
         // PLAN-11 Q-3: on the fake clock a state a timer (TIMER driver, periodic, delay) brings
         // later than the timeout can't arrive in time: name the next pending timer
         const later = pending ? 0 : nextFakeTimer();

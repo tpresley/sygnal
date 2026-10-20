@@ -214,7 +214,7 @@ const extracting = (email) => ({
   STATE: (state, data) => (canExtract(state, email(state, data))
     ? { ...state, email: email(state, data), status: 'extracting', raw: '', event: null, issues: null, error: null, meta: null }
     : ABORT),
-  LLM: (state, data) => (canExtract(state, email(state, data)) ? extract(state, email(state, data)) : ABORT),
+  LLM: (state, data, next, { previousState }) => (canExtract(previousState, email(previousState, data)) ? extract(state, state.email) : ABORT),
 })
 
 const answeredBy = (state, usage) => ({ model: modelOf(pickedModel(state, PICKER)), usage })

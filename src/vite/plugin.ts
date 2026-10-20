@@ -192,6 +192,8 @@ export interface DiagnosticsPluginOptions {
   mode?: DiagnosticsMode
   /** Strict (canonical-form, SYG5xx) runtime checks: sets globalThis.__SYGNAL_STRICT__. @default false */
   strict?: boolean
+  /** 7.0 timing audit (SYG257, info): sets globalThis.__SYGNAL_TIMING_AUDIT__. @default false */
+  timingAudit?: boolean
   /** Diagnostic codes to drop, e.g. ['SYG105'] */
   ignore?: string[]
 }
@@ -344,7 +346,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   // Files whose `import ... from 'sygnal'` resolves to the run() wrapper
   const runtimeImporters = new Set<string>()
   // Statements run before the app starts: dev flag (+ strict flag)
-  const flags = DEV_FLAG + (diagnostics.strict ? STRICT_FLAG : '')
+  const flags = DEV_FLAG + (diagnostics.strict ? STRICT_FLAG : '') + (diagnostics.timingAudit ? AUDIT_FLAG : '')
   const devImports = `import 'sygnal/diagnostics';import '${DEV_CLIENT}';`
   // D77: the DevTools bridge, dev only. First, so the diagnostics entry finds it.
   // E-1: the MCP endpoint needs the bridge, so `mcp` turns it on
@@ -791,7 +793,7 @@ function viteMajor(ctx: any, root: string): number {
   return Infinity
 }
 
-interface NormalizedDiagnostics { mode: DiagnosticsMode, strict: boolean, ignore: string[] }
+interface NormalizedDiagnostics { mode: DiagnosticsMode, strict: boolean, timingAudit: boolean, ignore: string[] }
 
 const MODES: DiagnosticsMode[] = ['off', 'collect', 'warn', 'error']
 
@@ -801,7 +803,7 @@ function normalizeDiagnostics(value: SygnalPluginOptions['diagnostics']): Normal
   if (!MODES.includes(mode)) {
     throw new Error(`[vite-plugin-sygnal] diagnostics mode must be one of ${MODES.map(m => `'${m}'`).join(', ')}; got ${JSON.stringify(mode)}`)
   }
-  return { mode, strict: !!o.strict, ignore: Array.isArray(o.ignore) ? o.ignore.map(String) : [] }
+  return { mode, strict: !!o.strict, timingAudit: !!o.timingAudit, ignore: Array.isArray(o.ignore) ? o.ignore.map(String) : [] }
 }
 
 /** Module id without a query or hash. */
@@ -1156,6 +1158,8 @@ function startChecker(server: any, root: string, mod: any, setup: CheckSetup, op
 
 const DEV_FLAG = 'if (globalThis.__SYGNAL_DEV__ === undefined) globalThis.__SYGNAL_DEV__ = true;'
 const STRICT_FLAG = 'if (globalThis.__SYGNAL_STRICT__ === undefined) globalThis.__SYGNAL_STRICT__ = true;'
+// 7.0: the opt-in timing audit (SYG257, 'sygnal/diagnostics' checks/timingAudit.ts)
+const AUDIT_FLAG = 'if (globalThis.__SYGNAL_TIMING_AUDIT__ === undefined) globalThis.__SYGNAL_TIMING_AUDIT__ = true;'
 
 // A top-level (column 0) run(Component, ...) statement: bare, or declaring a
 // new binding. Assignments to existing variables, nested calls and indented

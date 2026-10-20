@@ -176,7 +176,7 @@ SignupB.model = {
   }),
   BLUR: {
     STATE: (state, name) => (name ? { ...state, touched: { ...state.touched, [name]: true }, checking: name === 'email' && needsCheck(state) ? state.values.email : state.checking } : ABORT),
-    HTTP: (state, name) => (name === 'email' && needsCheck(state)
+    HTTP: (state, name, _next, { previousState }) => (name === 'email' && needsCheck(previousState)
       ? { url: '/api/email-available', query: { email: state.values.email }, ok: 'EMAIL_CHECKED', error: 'EMAIL_CHECK_FAILED', latest: true }
       : ABORT),
   },
@@ -184,8 +184,8 @@ SignupB.model = {
   EMAIL_CHECK_FAILED: (state) => ({ ...state, checking: null }),
   SUBMIT: {
     STATE: (state) => (state.submitting ? ABORT : { ...state, submitCount: state.submitCount + 1, submitting: !blocked(state, state.errors) }),
-    ELEMENT: (state) => (state.submitting ? ABORT : focusInvalid({ ...state.errors, email: state.errors.email || state.emailTaken })),
-    HTTP: (state) => (state.submitting || blocked(state, state.errors) ? ABORT
+    ELEMENT: (state, _data, _next, { previousState }) => (previousState.submitting ? ABORT : focusInvalid({ ...state.errors, email: state.errors.email || state.emailTaken })),
+    HTTP: (state, _data, _next, { previousState }) => (previousState.submitting || blocked(state, state.errors) ? ABORT
       : { url: '/api/signup', method: 'POST', json: checkForm(signupSchema, state.values).value, ok: 'SIGNED_UP', error: 'SIGNUP_FAILED' }),
   },
   SIGNED_UP: (state) => ({ ...state, submitting: false, done: true }),

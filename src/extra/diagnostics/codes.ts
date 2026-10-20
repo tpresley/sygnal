@@ -371,6 +371,9 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-9 X-2: static only (sygnal-check rules/syg253-catalog.js)
   SYG253: 'Misspelled catalog declaration key',
   SYG254: 'Catalog descriptions or options overlap',
+  SYG256: 'Output guard rejects the updated state',
+  SYG257: 'Output reads a field its action changed (7.0 timing audit)',
+  SYG454: 'State binding changed without a new component identity',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
@@ -601,6 +604,12 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // PLAN-9 X-2: static only (sygnal-check); listed so the entry knows their titles
   SYG253: 'warn',
   SYG254: 'info',
+  // PLAN-12: static only; proven after-state output guard contradiction.
+  SYG256: 'warn',
+  // 7.0: the opt-in timing audit (checks/next.ts; configureTimingAudit)
+  SYG257: 'info',
+  // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
+  SYG454: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

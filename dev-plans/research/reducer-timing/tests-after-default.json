@@ -1,0 +1,9 @@
+{
+  "revision": "5e5205cbadd61865b787f6523c840489e074a28b",
+  "node": "v24.14.0",
+  "result": {
+    "exit": 1,
+    "summary": " Test Files  1 failed | 20 passed (21)\n      Tests  1 failed | 199 passed (200)\n   Duration  9.58s (transform 1.64s, setup 0ms, import 3.28s, tests 10.55s, environment 3.88s)\n⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯\n FAIL  test/parity/action-log.test.js > parity: action log (t.actions, t.explain) > records actions with their component, the sinks each fed and their cause; next() is a \"next\" action\nError: waitForState timed out after 2000ms. Model next() calls during the wait: next('LATER') scheduled by C with a 5ms delay."
+  },
+  "orderingExit": 0
+}

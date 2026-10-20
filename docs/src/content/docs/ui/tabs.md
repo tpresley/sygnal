@@ -122,15 +122,16 @@ Editor.model = {
       files: state.files.filter((f) => f.id !== id),
       tabs: { ...state.tabs, selected: state.tabs.selected === id ? (neighbour(state.files, id)?.id ?? null) : state.tabs.selected },
     }),
-    ELEMENT: (state, id) => {
-      const next = neighbour(state.files, id)
-      return next ? { focus: `.tab[data-value="${next.id}"]` } : ABORT
+    ELEMENT: (state, id, next, { previousState }) => {
+      const nextFile = neighbour(previousState.files, id)
+      return nextFile ? { focus: `.tab[data-value="${nextFile.id}"]` } : ABORT
     },
   },
 }
 ```
 
-(`ELEMENT` gets the state before the action, as every non-`STATE` entry does.)
+`ELEMENT` gets the state after `STATE` removed the file, so it finds the closed file's neighbor
+in `previousState.files`. Closing the last tab returns `ABORT`: there is no neighbor to focus.
 
 ## Styling
 

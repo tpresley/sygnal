@@ -28,6 +28,7 @@ import {watchMutation} from './state'
 import {checkRequest} from './replies'
 import {check as checkFetch} from './fetch'
 import {checkSentCommand} from './elementCommands'
+import {audited} from './timingAudit'
 import {checkCollection} from './collections'
 import {eventEmitted, actionListener as recentActions} from './inspect'
 import {actionHooks} from './actionLog'
@@ -444,6 +445,8 @@ export function nextHooks(_api: any): any {
     onAction(iv: any, a: any) { log.onAction(iv, a) },
     wrapHandler(iv: any, type: string, sink: string, fn: any) {
       let h = log.wrapHandler(iv, type, sink, fn) || fn
+      // 7.0 timing audit (SYG257, opt-in; checks/timingAudit.ts): checked per call, so turning it on later counts
+      if (on() && sink != 'STATE' && typeof h == 'function') h = audited(fac(iv), type, sink, h)
       // SYG222: the STATE reducers, wrapped (today the check rewrote the instance's model)
       if (on() && sink == 'STATE' && typeof fn == 'function') h = watchMutation(fac(iv), type, h)
       return h === fn ? undefined : h

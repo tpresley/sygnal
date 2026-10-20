@@ -1047,6 +1047,30 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg254"
   },
   {
+    "code": "SYG256",
+    "title": "Output guard rejects the updated state",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "Since Sygnal 7, STATE runs first in a model entry and every other sink gets the committed state. On an installed Sygnal 7 or later, this check reports a STATE write of a literal field value that makes a same-action output guard return the imported ABORT value. For example, STATE sets status to 'working', then HTTP checks state.status !== 'working' and suppresses the request that just started. This conservative check covers simple field comparisons and boolean guards, retaining STATE branch conditions so a guard already known to reject before STATE is not reported. It is silent on Sygnal 6 (outputs get the old state there), when the installed version is unknown, and for unprovable or composed writes (behaviors, calculated fields, spreads). A clean result does not establish that every admission guard is correct.",
+    "fix": "Keep the admission guard, but read props.previousState (the state from before the action) for the value that admitted it, for example HTTP: (state, data, next, { previousState }) => previousState.status !== 'working' ? { url: '/work', requestId: state.requestId, ok: 'DONE' } : ABORT. Use the updated state for payload fields written by STATE. Do not remove the guard: STATE returning ABORT does not cancel other sinks, so an unconditional output can send duplicate requests. No automatic fix is offered.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg256"
+  },
+  {
+    "code": "SYG257",
+    "title": "Output reads a field its action changed (7.0 timing audit)",
+    "severity": "info",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry"
+    ],
+    "explanation": "An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HTTP, EVENTS, PARENT, ELEMENT, another driver or a behavior output) read a top-level state field that the same action's STATE changed. Since 7.0 the output gets the new, committed value; in 6.x it got the old one. Reported once per component, action, sink and field. In code written for 7.0 reading the new value is the intended behavior, so the audit is off by default: turn it on while migrating a 6.x app with configureTimingAudit(true) from 'sygnal/diagnostics', renderComponent(C, { timingAudit: true }), sygnal({ diagnostics: { timingAudit: true } }) in the Vite plugin, or globalThis.__SYGNAL_TIMING_AUDIT__ = true. Dev only: production builds contain none of it.",
+    "fix": "If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg257"
+  },
+  {
     "code": "SYG301",
     "title": "RxJS operator used on an xstream stream",
     "severity": "error",
@@ -1558,6 +1582,18 @@
     "explanation": "A component instance's identity among its parent view's children is its component plus its `key`, else its `id` prop, else its position in the view. Two tags of the same component with the same `key` (or `id`) in one view, anywhere in it, are the same identity, so they are one instance: it has one state, both places show its output, and the second tag's props replace the first's. Reported once per parent, component and key.",
     "fix": "Give each tag a key that is unique among its parent view's children, usually from the data it shows (`<Card key={card.id} />`). Use the same key for the same thing on every render: a new key makes a new instance.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg453"
+  },
+  {
+    "code": "SYG454",
+    "title": "State binding changed without a new component identity",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "In Sygnal 6 a retained component's state path or byId binding is fixed at mount. A changing byId selector without a corresponding key can keep reading and writing the old record. Sygnal 7 disposes and remounts components when a known state path or byId target changes, even with the same explicit key; equivalent fresh byId objects preserve the component. Opaque custom lenses remain mount-bound. The static checker reports direct dynamic unkeyed byId selections only when the installed Sygnal is known to be 6; it is silent for 7 and when the installed version cannot be determined (no node_modules, Yarn PnP, git-tree --base checks).",
+    "fix": "On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg454"
   },
   {
     "code": "SYG501",

@@ -97,11 +97,11 @@ describe('B-003: non-STATE sinks see the state as of their action', () => {
     expect(seen).toEqual([2])
   })
 
-  it('a non-STATE sink sees the state before its own STATE reducer (unchanged semantics)', async () => {
+  it('7.0: a non-STATE sink gets the committed state; props.previousState has the state before', async () => {
     function C() { return h('div', null) }
     C.initialState = { n: 0 }
     C.model = {
-      BUMP: { STATE: s => ({ ...s, n: s.n + 1 }), SPY: s => s.n },
+      BUMP: { STATE: s => ({ ...s, n: s.n + 1 }), SPY: s => s.n, OLD: (s, d, next, p) => p.previousState.n },
     }
     t = renderComponent(C)
     await t.ready()
@@ -109,7 +109,8 @@ describe('B-003: non-STATE sinks see the state as of their action', () => {
     t.simulateAction('BUMP')
     await t.waitForState(s => s.n === 2)
     await settle()
-    expect(t.sinkValues('SPY')).toEqual([0, 1])
+    expect(t.sinkValues('SPY')).toEqual([1, 2])
+    expect(t.sinkValues('OLD')).toEqual([0, 1])
   })
 })
 

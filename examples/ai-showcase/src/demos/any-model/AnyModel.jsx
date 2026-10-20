@@ -131,10 +131,10 @@ const sending = (pick) => ({
     const text = send(state, pick(state, data))
     return text ? { ...state, messages: [...state.messages, { id: `u${state.messages.length}`, role: 'user', content: text }], prompt: '', status: 'streaming', draft: '', reasoning: '', error: null } : ABORT
   },
-  // sinks see the state before the action
-  LLM: (state, data) => {
-    const text = send(state, pick(state, data))
-    return text ? ask(state, [...state.messages, { role: 'user', content: text }]) : ABORT
+  // STATE runs first: send the messages it stored; the guard reads the state from before it
+  LLM: (state, data, next, { previousState }) => {
+    const text = send(previousState, pick(previousState, data))
+    return text ? ask(state, state.messages) : ABORT
   },
 })
 

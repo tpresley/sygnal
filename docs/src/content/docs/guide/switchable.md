@@ -43,6 +43,8 @@ TabContainer.model = {
 }
 ```
 
+When the Switchable's `state` points at a different record (a changed path, or a `byId()` with a different id), Sygnal 7 disposes it and all its pages, hidden ones included, and mounts a new one. Switching the active page with the same `state` keeps the pages alive, as described below. A Switchable bound with a custom lens keeps its pages until its `key` changes. See [state lifetimes](/guide/state/#changing-the-selected-record).
+
 ## Switchable Props
 
 | Prop | Type | Description |

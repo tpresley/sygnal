@@ -2,7 +2,110 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## [Unreleased] — Sygnal 7.0.0
+
+**Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.** 7.0
+has one reducer timing contract and no option to switch back; apps that aren't ready stay on 6.x.
+
+### Breaking: STATE runs first, and output sinks see its result
+
+In every model entry STATE now runs first, whatever the key order, and every other sink (EFFECT,
+EVENTS, PARENT, ELEMENT, HTTP and other drivers) gets the committed state, calculated fields
+included, as `state` and `props.state`. The new `props.previousState` (fourth argument) is the
+state from before the action; a STATE reducer gets the old state in both. 6.x gave every reducer
+the state from before the action.
+
+- An output that computed the update itself now applies it twice: in
+  `INC: { STATE: s => ({ ...s, n: s.n + 1 }), PARENT: s => ({ n: s.n + 1 }) }`, PARENT becomes
+  `s => ({ n: s.n })`.
+- A value STATE clears or deletes (a submitted draft, a removed record) is read from
+  `previousState`.
+- A guard that admits the action (a loading or status flag STATE sets) tests `previousState`.
+  Keep the output guard: STATE returning `ABORT` doesn't cancel the other sinks.
+- When STATE returns `ABORT` or the same state, or throws, the other sinks still run, with
+  `state === previousState`.
+- When STATE removes the component's own state (`STATE: () => undefined` in a Collection item, or
+  a child bound with `state="x"` / `byId()` deleting its record), the other sinks get its last
+  state, so `REMOVE: { STATE: () => undefined, EVENTS: event('REMOVED', (s) => s.id) }` works as
+  before.
+- Behaviors: the first argument is the slice after STATE, `props.state` the host state after
+  STATE, `props.previousState` the host state before the action; the old slice is
+  `props.previousState[key]`. Every built-in behavior (form, chat, compose, commandBar, undo,
+  pager, selection, sortable, and the `sygnal/ui` dialog, popover, tooltip, tabs, accordion and
+  disclosure) is on this contract.
+- Libraries that support 6 and 7 read old values as `props.previousState ?? state`.
+
+### New: the timing audit (SYG257)
+
+An opt-in dev check for upgrading 6.x code: with `renderComponent(C, { timingAudit: true })`,
+`sygnal({ diagnostics: { timingAudit: true } })` in `vite.config`, `configureTimingAudit(true)`
+from `'sygnal/diagnostics'` or `globalThis.__SYGNAL_TIMING_AUDIT__ = true`, every output sink that
+reads a top-level state field its action's STATE changed reports **SYG257** (info, once per
+component, action, sink and field). Keep `state` where the new value is meant; read
+`previousState` where the old one was. It is off by default because in code written for 7.0
+reading the new value is the intent, and it adds nothing to production builds.
+
+sygnal-check's **SYG256** (warning) reports an output guard that contradicts the same action's
+literal STATE write, the loading/admission pitfall above. sygnal-check reads the installed
+Sygnal version per package; **SYG454** (a `byId()` selection without a key) applies only to
+Sygnal 6.
+
+### Breaking: a child follows the record its state binding points at
+
+When a child's `state` path, or its `byId()` field, id or idKey, changes, Sygnal disposes the old
+child and mounts a new one: `DISPOSE` runs with the last state, pending requests, delayed `next()`
+actions and subscriptions are cancelled, initialization reruns and local state starts from its
+defaults. The child's DOM is replaced, so focus, caret, scroll position and in-progress input
+inside it are lost. The same applies to Collection/VirtualCollection `from` and Switchable
+`state` (all items or pages, hidden ones included, even when ids overlap). Deleting the bound
+record disposes the child too, after the deleting action's outputs; re-adding the same id gets a
+new child, never the old pending work. A new `byId()` call with the same arguments, field edits
+and reordering keep the child. `key={selected.id}` is no longer needed for a selection.
+
+**A stable explicit key no longer keeps a child across a target change**: lift state that must
+survive the change into the parent. A child with a custom lens keeps its binding until its key
+changes.
+
+### New: uploads, SSE auth, form files and types, `tooltips()`
+
+- **Upload and download progress** on `makeFetchDriver` requests: `progress: 'UPLOADING'` (a reply
+  action) or `progress: true` (`HTTP.progress(category)`) sends `{ phase, loaded, total, fraction }`
+  steps, throttled to one every 50 ms per phase. Such a request goes over XMLHttpRequest, the only
+  way to see upload progress in every browser; fetch-only `init` options it can't honour are
+  SYG636. Tests: `t.progress('HTTP', { loaded, total }, 'UPLOADING')`.
+- **`multipart: { file, title }`** on a request: the multipart/form-data body as data, the way
+  `json` is; a model never builds a `FormData`.
+- **The `form` behavior** takes file inputs (a field's value is its `File`, `multiple` an array,
+  validated by the schema), keeps the submit's progress in `state.form.progress`
+  (`progress: 'form.PROGRESS'`) and counts start-overs in `state.form.resets` (key a file input
+  with it). `request: { url }` (or `(data, state) => request`) sends a valid submit itself, as
+  JSON or multipart, with `form.DONE` / `form.ERRORS` wired: the common save needs no model entry.
+  `form.RESET` from a click goes back to the start values (it used to take the event as values).
+- **Form types from the schema**: a typed Standard Schema (zod, valibot, arktype) types
+  `state.form.values` and `fields.x.value`; `FormOutput<typeof uses.form>` is the submit data.
+- **SSE connections take `headers`** (`{ authorization: 'Bearer ' + state.token }`): such a stream
+  is read with fetch (`Last-Event-ID`, `retry`), since EventSource can't send headers.
+- **`tooltips()`** in `sygnal/ui`: one behavior and one state slice for every tooltip of a
+  component (glossary terms, icon toolbars), one tip at a time.
+- `Component<State, any>` keeps `state` typed; SYG731 accepts state announced through text,
+  `aria-label`, `aria-live` or `role="status"`; sygnal-check's SYG609 also reports intent sources
+  with no driver; a test wait that times out on the fake clock names the pending timer; every
+  create-sygnal-app template has `npm run check` (TypeScript: sygnal-check and `tsc --noEmit`).
+
+### Also included
+
+- A child that fails to instantiate is no longer retried on every parent render.
+- State-wait timeout messages report queued simulated inputs; the testing guide separates
+  serialized simulated input from synchronous native bursts.
+- TypeScript tests can use `t.query<HTMLInputElement>(selector)` and `t.queryAll<…>(selector)`
+  (type assertions, not runtime checks); typed control tokens keep their inference.
+- Scaffolding into a directory that holds only `.git` and/or `.DS_Store` keeps that metadata, and
+  `.` gets a valid package name from the directory.
+- The combined Rollup build exits normally (compiler watcher lifecycle fix).
+- Companion releases: sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0 and
+  Claude Code plugin 0.2.0; new templates require Sygnal ^7.0.0 and sygnal-check ^0.11.0.
+- Kanban bundle: **42,844 B gzip** (budget 43,000 B; 6.6.0: 42,495 B). Default native-globalThis
+  bundle: **38,834 B**. Performance and count gates pass.
 
 ### Changed
 
