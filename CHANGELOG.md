@@ -2,10 +2,35 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased] — Sygnal 7.0.0
+## 7.0.0 — 2026-10-19
 
 **Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.** 7.0
 has one reducer timing contract and no option to switch back; apps that aren't ready stay on 6.x.
+
+**Measured impact.** Size: the kanban gate is (a) 42,844 B with `nativeGlobalThis: false` (6.6.0:
+42,495 B; budget raised from 42,700 B to 43,000 B for the binding lifetimes) and (b) 38,834 B by
+default. Most of the growth is the binding-lifetime bookkeeping; the single timing contract is
+smaller than the opt-in switch it replaced (−181 B against the 7.0 candidate). The timing audit is
+in the dev diagnostics entry (0 production bytes), and the upload, SSE, form and `tooltips()`
+features add nothing to an app that doesn't use them. The perf count gate is within its limits.
+
+**Companion packages.**
+- **`sygnal-check` 0.11.0:** checks reducer timing and binding changes against the Sygnal version
+  installed for each source package (7: every output gets the committed state, changed known
+  targets remount; 6: the 6.x contracts). New **SYG256** (an output guard that rejects the state
+  its own action writes, in a Sygnal 7 project); **SYG454** (an unkeyed dynamic `byId` selection)
+  only for an installed Sygnal 6. SYG731 accepts state announced through text, `aria-label`,
+  `aria-live` or `role="status"`; SYG609 also reports intent sources with no driver; `progress`
+  counts as a reply-action key (SYG102 / SYG112). Explanations for SYG257 and SYG636. Its caret
+  range doesn't reach 0.11.0 from `^0.10.0`, so update the dev dependency.
+- **`create-sygnal-app` 2.9.0:** every template depends on `sygnal` ^7.0.0 and `sygnal-check`
+  ^0.11.0 and has `npm run check` (TypeScript templates: sygnal-check and `tsc --noEmit`).
+  Scaffolding into a directory that holds only `.git` and/or `.DS_Store` keeps that metadata, and
+  `.` gets a valid package name from the directory.
+- **VS Code extension 0.8.0:** bundles `sygnal-check` 0.11.0 for Sygnal 7 and existing Sygnal 6
+  apps; workspace checkers need 0.11.0 or later (earlier ones fall back to the bundled checker).
+- **Claude Code plugin 0.2.0:** the `sygnal-dev` skill describes Sygnal 7; a project's
+  `sygnal-check` older than 0.11.0 is refused only when the project has Sygnal 7.
 
 ### Breaking: STATE runs first, and output sinks see its result
 
@@ -99,13 +124,9 @@ changes.
   serialized simulated input from synchronous native bursts.
 - TypeScript tests can use `t.query<HTMLInputElement>(selector)` and `t.queryAll<…>(selector)`
   (type assertions, not runtime checks); typed control tokens keep their inference.
-- Scaffolding into a directory that holds only `.git` and/or `.DS_Store` keeps that metadata, and
-  `.` gets a valid package name from the directory.
 - The combined Rollup build exits normally (compiler watcher lifecycle fix).
-- Companion releases: sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0 and
-  Claude Code plugin 0.2.0; new templates require Sygnal ^7.0.0 and sygnal-check ^0.11.0.
-- Kanban bundle: **42,844 B gzip** (budget 43,000 B; 6.6.0: 42,495 B). Default native-globalThis
-  bundle: **38,834 B**. Performance and count gates pass.
+- The release workflow checks the CHANGELOG headings of the new versions before the gates and
+  any publish.
 
 ### Changed
 

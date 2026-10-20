@@ -421,3 +421,19 @@ Let a model build an app's UI from parts the app prepared (real Sygnal component
 | V, C | The renderer and `--graph=html` / `--graph=mermaid`; `--base <ref>` diff mode (P3) | P1 |
 | W, E, P | `--watch`, the VS Code panel, the devtools app graph tab | P2 |
 | X | Graph-wide rules (SYG170–179), if measured clean | P2 |
+
+---
+
+## Sygnal 7.0
+
+### 23. Friction Fixes from Building an App (PLAN-11)
+
+**Status:** `DONE`: ships in **7.0.0** (2026-10-19) ([PLAN-11](dev-plans/PLAN-11.md), tracker [PLAN-11-status](dev-plans/PLAN-11-status.md); upload spike in [`research/upload-progress/`](dev-plans/research/upload-progress/README.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). Merged as additive features (PR #50) and moved to 7.0's timing contract when 7.0 merged them.
+
+Upload and download progress on HTTP requests (over XMLHttpRequest), `multipart` request bodies, file fields, progress and a declarative `request` in the `form` behavior, form types from the Standard Schema, SSE connections with headers, `tooltips()` for many triggers, and the smaller fixes an agent hit building a real app on 6.6.
+
+### 24. Reducer Timing and State-Binding Lifetimes (PLAN-12)
+
+**Status:** `DONE`: ships in **7.0.0** (2026-10-19) with `sygnal-check` 0.11.0, `create-sygnal-app` 2.9.0 (templates: `sygnal` ^7.0.0, `sygnal-check` ^0.11.0), the VS Code extension 0.8.0 and the Claude Code plugin 0.2.0 ([PLAN-12](dev-plans/PLAN-12.md), tracker [PLAN-12-status](dev-plans/PLAN-12-status.md); the single-contract spike in [`research/v7-single-contract/`](dev-plans/research/v7-single-contract/README.md); upgrade guide [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/)). Breaking. The size gate is 42,844 B (budget 43,000 B).
+
+One reducer timing contract: STATE runs first and every other sink gets the state it committed, with `props.previousState` for the old one and the opt-in timing audit (SYG257) for upgrading 6.x code. A child whose known path or `byId` target changes or disappears is replaced, so old requests and timers can't reach the new record.
