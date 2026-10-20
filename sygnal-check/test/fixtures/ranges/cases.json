@@ -20,6 +20,9 @@
   "SYG112": {
     "App.jsx": "\nfunction Chat({ state }) { return <ul className=\"m\">{state.n}</ul> }\nChat.connections = (state) => ({ room: { socket: '/ws', message: 'RECIEVED', error: 'SOCKET_ERROR' } })\nChat.model = { RECEIVED: (s) => s, SOCKET_ERROR: (s) => s }\n"
   },
+  "SYG117": {
+    "App.jsx": "\nfunction A() { return <button className=\"go\">go</button> }\nA.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nA.model = { GO: { EFFECT: (s, d, next) => next('MOVED') }, MOVE: (s) => s }\n"
+  },
   "SYG124": {
     "TodoItem.jsx": "export default function TodoItem({ state }) { return <li>{state.t}</li> }\nTodoItem.intent = ({ DOM }) => ({ X: DOM.click('li') })\nTodoItem.model = { X: { PARENT: (s) => s } }\n",
     "App.jsx": "import { controls } from 'sygnal'\nimport TodoItem from './TodoItem.jsx'\nconst { Add } = controls({ Add: 'button' })\nfunction Badge() { return <span>!</span> }\nconst handler = () => '.x'\nexport function App() { return <div className=\"x\"><Add /><TodoItem /><Badge /></div> }\nApp.intent = ({ DOM }) => ({ A: DOM.click(TodoItem), B: DOM.click(Add) })\nApp.model = { A: (s) => s }\n"

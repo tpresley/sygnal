@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1 done.
+**State:** in progress (2026-10-19): R-1, N-1 done.
 
 ## Decisions
 
@@ -20,7 +20,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | Item | Feedback | Phase | Spike | State | Notes |
 |---|---|---|---|---|---|
 | R-1 | #36 invalidation / navigation race | 1 | SP-R1 (optional) | done | `load()` stops when `R.q` changed or paused after its write; `test/p13-r1-invalidation-race.test.js` (lens / key / root × prefix / tag / refresh, two resources); SP-R1 probe below; core bytes: 0 (fetch driver only, see size gate) |
-| N-1 | #45 `next()` with no entry here | 2 | — | todo | dev warning + checker rule |
+| N-1 | #45 `next()` with no entry here | 2 | — | done | SYG117 (warn): dev entry `onNext` in `checks/next.ts` (names the nearest ancestor with the entry, did-you-mean) and sygnal-check `rules/syg117-next-without-entry.js` (render-graph ancestors, rename fix); 0 production bytes; tests `test/diagnostics/p13-n1-next-without-entry.test.js`, `sygnal-check/test/p13-n1-next.vtest.js` |
 | C-1 | #25, #43 reply names via helpers / consts | 2 | — | todo | |
 | C-2 | SYG256 missed the leave-guard | 2 | — | todo | |
 | T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | todo | |

@@ -4,6 +4,15 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## [Unreleased]
 
+### Added
+
+- **SYG117: `next()` to an action the component has no entry for (PLAN-13 N-1).** `next('X')`
+  reaches only its own component's model, so a child's `next('ENTER')` for an action only its
+  parent handles silently did nothing. The dev checks (`sygnal/diagnostics`, 0 production bytes)
+  warn on the first such `next()` per component and name, naming the ancestor that handles it and
+  the fix (send it up with `PARENT` or `EVENTS`), or the closest entry for a typo. `sygnal-check`
+  reports a literal `next('X')` with no entry `X` in the same component (with a rename fix for a typo).
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

@@ -261,6 +261,8 @@ MyComponent.model = {
 
 Without a delay, the follow-up action runs about 10 ms later. You can call `next()` several times in one reducer. The delay must be a number of milliseconds ([SYG215](/reference/errors/#syg215)).
 
+`next()` reaches this component's own model only. A child's `next('ENTER')` does nothing when only its parent has an `ENTER` entry: send the action up with a [`PARENT`](/guide/parent-child/) sink (or `EVENTS`) instead. The dev checks and `sygnal-check` report a `next()` to an action the component has no entry for ([SYG117](/reference/errors/#syg117)).
+
 ## Built-in Actions
 
 Sygnal dispatches these actions itself; add a model entry to react to them:

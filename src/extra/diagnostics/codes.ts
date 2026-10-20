@@ -146,6 +146,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG111: 'Controlled input has no input listener',
   SYG115: 'Unknown DOM event shorthand',
   SYG116: 'EVENTS value has no string type',
+  // PLAN-13 N-1: dev entry (checks/next.ts onNext) and sygnal-check
+  SYG117: 'next() names an action with no model entry',
   SYG124: 'Component used as a control or selector',
   SYG125: 'Control given .intent, .model or .initialState',
   SYG126: 'Control rendered but never listened to',
@@ -426,6 +428,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG112: 'error',
   SYG115: 'warn',
   SYG116: 'error',
+  SYG117: 'warn',
   // PLAN-4 1-D: controls, static (sygnal-check)
   SYG124: 'error',
   SYG125: 'error',
