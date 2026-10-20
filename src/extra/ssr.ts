@@ -147,7 +147,7 @@ function withUses(def: any, state: any): any {
  * state reads from the cache ('success' with the cached data), else 'loading' ('idle' for a
  * falsy request), as the client's first paint does with the same (hydrated) cache
  */
-function withResources(def: any, state: any): any {
+function withResources(def: any, state: any, ctx?: any): any {
   state = withUses(def, state)
   const res = def && def.resources
   if (!res || !state || typeof state !== 'object' || Array.isArray(state)) return state
@@ -155,7 +155,7 @@ function withResources(def: any, state: any): any {
   for (const n of Object.keys(res)) {
     if (out[n] !== undefined) continue
     let q: any
-    try { q = typeof res[n] === 'function' ? res[n](state) : res[n] } catch (_) {}
+    try { q = typeof res[n] === 'function' ? res[n](state, ctx) : res[n] } catch (_) {}
     const E = q && ssrCache ? ssrCache.get(ssrCache.key(q, 1)) : undefined
     out[n] = E && E.at > 0 ? {status: 'success', data: E.v} : {status: q ? 'loading' : 'idle'}
   }
@@ -198,10 +198,26 @@ function viewFailed(def: any, err: any, name: string): any {
   return vnode
 }
 
-function collectHead(def: any, state: any): void {
+function collectHead(def: any, state: any, ctx?: any): void {
   const h = def && def.head
   if (!heads || !h) return
-  try { heads.push(typeof h === 'function' ? h(state) : h) } catch (_) {}
+  try { heads.push(typeof h === 'function' ? h(state, ctx) : h) } catch (_) {}
+}
+
+/**
+ * PLAN-13 F-1: the context a component sees (its parent's, plus its own entries computed on
+ * `state`). The statics get it as on the client; for `resources` it is computed on the state
+ * before the resources are filled in (a context entry can't read the component's own resource)
+ */
+function contextOf(def: any, state: any, parent: Record<string, any>): Record<string, any> {
+  const own = def.context || {}, out: Record<string, any> = {...parent}
+  for (const key of Object.keys(own)) {
+    const f = own[key]
+    if (typeof f === 'function' && state != null) {
+      try { out[key] = f(state) } catch (_) {}
+    }
+  }
+  return out
 }
 
 /**
@@ -245,20 +261,11 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
 
   const ownState = state !== undefined ? state : componentDef.initialState
   // 5-5: the view sees its resources; the hydration script keeps the state as it was given
-  const resolvedState = withResources(componentDef, ownState)
-  collectHead(componentDef, resolvedState)
+  const resolvedState = withResources(componentDef, ownState, contextOf(componentDef, ownState, context))
 
   // Build context: merge parent context with component's own context definitions
-  const componentContext = componentDef.context || {}
-  const mergedContext: Record<string, any> = {...context}
-  for (const key of Object.keys(componentContext)) {
-    const contextFn = componentContext[key]
-    if (typeof contextFn === 'function' && resolvedState != null) {
-      try {
-        mergedContext[key] = contextFn(resolvedState)
-      } catch (_) {}
-    }
-  }
+  const mergedContext = contextOf(componentDef, resolvedState, context)
+  collectHead(componentDef, resolvedState, mergedContext)
 
   // Call the view function
   let vnode: any
@@ -474,19 +481,10 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     // State passed directly
     childState = stateProp
   }
-  childState = withResources(componentDef, childState)
+  childState = withResources(componentDef, childState, contextOf(componentDef, childState, context))
 
   // Build child context
-  const childContext: Record<string, any> = {...context}
-  const componentContext = componentDef.context || {}
-  for (const key of Object.keys(componentContext)) {
-    const contextFn = componentContext[key]
-    if (typeof contextFn === 'function' && childState != null) {
-      try {
-        childContext[key] = contextFn(childState)
-      } catch (_) {}
-    }
-  }
+  const childContext = contextOf(componentDef, childState, context)
 
   // Extract slots from children
   const slots: Record<string, any[]> = {}
@@ -507,7 +505,7 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     slots.default.push(...defaultSlotChildren)
   }
 
-  collectHead(componentDef, childState)
+  collectHead(componentDef, childState, childContext)
 
   // Call the view function
   let result: any
@@ -713,20 +711,11 @@ function renderSwitchable(vnode: any, context: Record<string, any>, parentState:
  * Internal helper: render a component def to a VNode (not HTML string).
  */
 function renderToStringInternal(componentDef: any, state: any, context: Record<string, any>, uid: string): any {
-  const resolvedState = withResources(componentDef, state !== undefined ? state : componentDef.initialState)
+  const own = state !== undefined ? state : componentDef.initialState
+  const resolvedState = withResources(componentDef, own, contextOf(componentDef, own, context))
+  const mergedContext = contextOf(componentDef, resolvedState, context)
 
-  const componentContext = componentDef.context || {}
-  const mergedContext: Record<string, any> = {...context}
-  for (const key of Object.keys(componentContext)) {
-    const contextFn = componentContext[key]
-    if (typeof contextFn === 'function' && resolvedState != null) {
-      try {
-        mergedContext[key] = contextFn(resolvedState)
-      } catch (_) {}
-    }
-  }
-
-  collectHead(componentDef, resolvedState)
+  collectHead(componentDef, resolvedState, mergedContext)
   let vnode: any
   try {
     vnode = componentDef({

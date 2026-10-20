@@ -58,6 +58,7 @@ Quote.model = {
 - **A refetch of the same request keeps what is shown.** `{ refresh: 'quote' }`, an [invalidation](#invalidation), a [focus or reconnect refetch](#focus-reconnect-and-polling), polling, or the same request declared again after a pause keep `status`, `data` and `error`, and set `refreshing: true` until the reply lands. Show a spinner next to the data, or treat `refreshing` like loading when the old data must not be visible.
 - **A new request clears it.** When the derived request changes (another id), the resource goes to `'loading'` with no data, and the earlier request is aborted: its reply never lands. For pagination, where the previous page should stay visible, set `keepPrevious: true` on the request: the old `data` stays (with `refreshing: true`) until the new page arrives.
 - **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing.
+- **An entry gets the context too**: `(state, context)`. A routed page reads `route` from context (`(state, { route }) => `/api/tasks/${route.params.id}``) instead of keeping a copy of it; the entries are computed again when the context changes ([Router](/guide/router/)).
 - `ok` / `error` on the request also dispatch those actions after the write, for side work such as appending pages.
 - A Collection item, or any component instance, has its own resources. Removing it aborts them.
 - In a hidden [Switchable](/guide/switchable/#hidden-pages-pause-connections-and-resources) page, resources pause: the request in flight is aborted and the resource keeps its last result (`refreshing` off; `'idle'` if nothing had arrived yet). When the page is shown again, the same request is refetched, keeping data. Mark an entry `background: true` to keep it live while hidden.
@@ -209,6 +210,7 @@ QuoteEditor.model = {
 - The value is a tag (`'quotes'`), a URL prefix of the request's `url` (a string starting with `/`: `'/api/quotes'`), an array of them, or a predicate `(request) => boolean`. Tags are explicit: nothing is derived from the URL.
 - Matching **mounted** resources refetch, keeping their data (`refreshing: true`); matching cache entries are marked stale, so the next use refetches. Invalidation works with or without the cache.
 - **Invalidation aborts older reads.** A refetch aborts the resource's read already in flight, so a reply sent before the save never lands after it: no request ids or sequence numbers. A shared cache fetch in flight for a matching entry still answers the requests waiting on it, but never writes the cache.
+- **An `ok` action that navigates is fine.** When the `ok` action changes the resource's request (a `ROUTER` move to the next record), the new request is sent and the invalidation never resends the old one after it.
 - An `invalidate` that matches nothing is reported as [SYG632](/reference/errors/#syg632) (info).
 
 ## Writing a reply into the cache

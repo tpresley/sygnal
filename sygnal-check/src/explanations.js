@@ -32,7 +32,7 @@ export const EXPLANATIONS = {
     title: "Output guard rejects the updated state",
     severity: "warn",
     reportedBy: ["static"],
-    explanation: "Since Sygnal 7, STATE runs first in a model entry and every other sink gets the committed state. On an installed Sygnal 7 or later, this check reports a STATE write of a literal field value that makes a same-action output guard return the imported ABORT value. For example, STATE sets status to 'working', then HTTP checks state.status !== 'working' and suppresses the request that just started. This conservative check covers simple field comparisons and boolean guards, retaining STATE branch conditions so a guard already known to reject before STATE is not reported. It is silent on Sygnal 6 (outputs get the old state there), when the installed version is unknown, and for unprovable or composed writes (behaviors, calculated fields, spreads). A clean result does not establish that every admission guard is correct.",
+    explanation: "Since Sygnal 7, STATE runs first in a model entry and every other sink gets the committed state. On an installed Sygnal 7 or later, this check reports a STATE write of a literal field value that makes a same-action output guard return the imported ABORT value. For example, STATE sets status to 'working', then HTTP checks state.status !== 'working' and suppresses the request that just started. This conservative check covers simple field comparisons and boolean guards, retaining STATE branch conditions so a guard already known to reject before STATE is not reported. It is silent on Sygnal 6 (outputs get the old state there), when the installed version is unknown, and for unprovable or composed writes (behaviors, calculated fields, spreads, a call or assignment that could change the guarded field). A call inside another field's value (an `edit` map built with a helper) doesn't stop it: the literal field beside it is still written. A clean result does not establish that every admission guard is correct.",
     fix: "Keep the admission guard, but read props.previousState (the state from before the action) for the value that admitted it, for example HTTP: (state, data, next, { previousState }) => previousState.status !== 'working' ? { url: '/work', requestId: state.requestId, ok: 'DONE' } : ABORT. Use the updated state for payload fields written by STATE. Do not remove the guard: STATE returning ABORT does not cancel other sinks, so an unconditional output can send duplicate requests. No automatic fix is offered.",
   },
   SYG257: {
@@ -125,6 +125,27 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry"],
     explanation: "A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.",
     fix: "Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.",
+  },
+  SYG117: {
+    title: "next() names an action with no model entry",
+    severity: "warn",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "`next('X')` in a model handler dispatches `X` to the same component, and only there. When that component has no model entry `X`, nothing happens: no error, no state change. The usual cause is a child calling `next()` for an action its parent handles (a card's `next('ENTER')` when only the page has `ENTER`), which looks like a hang; a typo is the other. The dev entry reports the first `next()` of each name a component sends with no entry, and names the nearest ancestor that has one. `sygnal-check` reports a literal `next('X')` in the model (the module-level reducers it references, and the helpers it passes `next` to, imported ones included, 3 calls deep) when the same component has no entry `X`, not counting a behavior's own actions.",
+    fix: "To reach the parent, send the action up: give the entry a `PARENT` sink (`PARENT: (state) => ({ … })`) and read it in the parent's intent with `ENTER: CHILD.select(Card)`, or emit `EVENTS: event('ENTER', …)` and select it there. For a typo, use the existing entry's name; otherwise add the entry to this component's model.",
+  },
+  SYG302: {
+    title: "Default import from 'xstream'",
+    severity: "info",
+    reportedBy: ["static"],
+    explanation: "xstream is published as CommonJS with an `exports.default`. Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `\"type\": \"module\"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there and a driver or test fails when it runs. Sygnal resolves that default once and re-exports it, so drivers, intents and tests can use the same `xs` everywhere. `sygnal-check` reports a default import from `'xstream'` in the scanned files.",
+    fix: "Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name). `sygnal-check --fix` rewrites an import whose only specifier is the default one. Types stay importable from xstream: `import type { Stream } from 'xstream'`.",
+  },
+  SYG429: {
+    title: "Switchable state map names no page",
+    severity: "warn",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "A Switchable's `state` can be a map from page names to bindings, `state={{ projects: 'pages.projects', settings: 'pages.settings' }}`: each listed page binds its own slice (a key, a path, a lens or a `byId` selection) with a tag child's lifetime rules, and the pages not listed share the owner's state. A key that is not one of the `of` pages binds nothing, so the page it was meant for (usually a typo of its name) shares the owner's whole state instead of its slice. The dev checks report it once per component and key when the Switchable renders; `sygnal-check` reports it when `of` is an object literal.",
+    fix: "Use the page's name from `of={{ … }}` as the key (the message names the closest one), or remove the entry.",
   },
   SYG124: {
     title: "Component used as a control or selector",

@@ -23,6 +23,12 @@ export const CODES = {
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },
+  // PLAN-13 N-1 (rules/syg117-next-without-entry.js; the dev entry reports it at run time too)
+  SYG117: { severity: 'warn', title: 'next() names an action with no model entry' },
+  // PLAN-13 F-3 (rules/syg429-switchable-state-map.js; the dev entry reports it at run time too)
+  SYG429: { severity: 'warn', title: 'Switchable state map names no page' },
+  // PLAN-13 X-1 (rules/syg302-xstream-default-import.js)
+  SYG302: { severity: 'info', title: "Default import from 'xstream'" },
   // PLAN-4 CT-1 controls (model/controls.js)
   SYG124: { severity: 'error', title: 'Component used as a control or selector' },
   SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },

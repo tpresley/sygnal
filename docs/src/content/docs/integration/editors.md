@@ -521,6 +521,7 @@ Or under the `"sygnal-check"` key of `package.json`:
 | `ignore` | string[] | `[]` | Codes to drop entirely |
 | `paths` | string[] | `["src"]` | Files, directories or globs to check, relative to the config file |
 | `includeTests` | boolean | `false` | Also check `*.test.*` / `*.spec.*` files |
+| `replyKeys` | array, or object of arrays | none | Request keys your own drivers reply with, as `ok` / `error` are: `["cancelled"]` for every sink, or `{ "UPLOAD": ["progress", "cancelled"] }` per sink. Their actions count as triggers (SYG102) and are checked (SYG112) |
 
 Projects made with `create-sygnal-app` have one with `{ "strict": true }`.
 

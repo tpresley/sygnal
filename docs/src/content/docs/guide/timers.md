@@ -26,7 +26,7 @@ The key is yours to choose (`TIMER` by convention): Sygnal finds the driver by t
 
 ## The timers static
 
-`timers` takes the state (with its calculated fields) and returns an object of named timers. Each value is a timer spec, or a falsy value for "not now":
+`timers` takes the state (with its calculated fields) and the component's context (its second argument, as for every declaration static) and returns an object of named timers. Each value is a timer spec, or a falsy value for "not now":
 
 ```jsx
 Game.timers = (state) => ({
@@ -44,7 +44,7 @@ Game.timers = (state) => ({
 
 Any spec can add `background: true` (see [hidden pages](#hidden-pages)). The action is one of the component's own actions: it goes to the instance that declared the timer, and every sink of its model entry runs, as for an intent action.
 
-Sygnal compares the result with the previous one, name by name, whenever the state changes:
+Sygnal compares the result with the previous one, name by name, whenever the state or the context changes:
 
 - a new name starts its timer;
 - a name that is gone, or now falsy, stops its timer;

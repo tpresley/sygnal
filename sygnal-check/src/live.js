@@ -84,7 +84,7 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
     last = out
     if (!files.length) return out
 
-    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache })
+    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache, replyKeys: options.replyKeys })
     let project = buildWith(srcs)
     // last good: files that don't parse now, but did before
     const broken = new Set(project.parseErrors.map(e => e.file))

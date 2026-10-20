@@ -90,7 +90,7 @@ export function withConfigDiagnostics(diags, configDiags, ignore) {
 /** check() for an already expanded list of absolute file paths (see expandInputs). */
 export function checkFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache })
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache, replyKeys: options.replyKeys })
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
   let diags = runRules(project, rules)
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))

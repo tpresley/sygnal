@@ -1477,6 +1477,26 @@ Place.model = {
 
 ---
 
+## makeReplies() / senderOf()
+
+Reply actions for a driver you write: the protocol `makeFetchDriver`, `driverFromAsync` and the socket driver use. See [Reply actions in your own driver](/guide/custom-drivers/#reply-actions-in-your-own-driver).
+
+```typescript
+function makeReplies(onStop?: (sender: ReplySender) => void): {
+  replies: { __sygnalReplies: true; replies(sender: ReplySender): Stream<{ type: string; data: any }> };
+  reply(sender: ReplySender, type: string, data?: any): void;
+  listening(sender: ReplySender): boolean;
+}
+function senderOf(request: object): ReplySender | undefined
+```
+
+- Spread `replies` into the driver's source (`return { ...replies }`). The core then stamps every request a component sends to it with that instance, and delivers each `reply(sender, type, data)` as the action `type` on exactly that instance. `reply()` can be called any number of times per request (progress, then a result).
+- `senderOf(request)` is the stamp, `undefined` for a value no component sent. `ReplySender` is opaque: keep it, compare it, pass it back.
+- `onStop(sender)` runs when that instance is disposed (a removed Collection item, a page left): abort its work there. Replies to a gone sender are dropped; `listening(sender)` says whether it is still there.
+- Reply names with no model entry on the sender are [SYG112](/reference/errors/#syg112) in the dev checks.
+
+---
+
 ## makeServiceWorkerDriver()
 
 Creates a Cycle.js driver that registers a service worker and exposes lifecycle events as streams. ([PWA Helpers guide](/integration/pwa/))

@@ -11,11 +11,14 @@
  *     `contextConsumes`; it was computed in graph.js before N-1 and is byte-identical)
  *   reducerContextReads(project, file, modelNode) → Array<{ name, node, file }>
  *     the reads in a model's handlers (4th parameter), sink functions included
+ *   staticContextReads(project, file, staticProps) → Array<{ name, node, file }>
+ *     PLAN-13 F-1: the reads in the declaration statics' second parameter (the context itself):
+ *     `resources` entries, `timers`, `connections`, `head`, `browser`
  */
 import { walk, unwrap, isFunction, propName, memberName, stringValue } from '../ast.js'
 import { resolveExpr } from './resolve.js'
 
-export function contextReads(fn, index = 0) {
+export function contextReads(fn, index = 0, direct = false) {
   if (!fn || !fn.params) return null
   const out = []
   const locals = new Set()
@@ -29,7 +32,11 @@ export function contextReads(fn, index = 0) {
       if (k) out.push({ name: k, node: p.key })
     }
   }
-  if (first?.type === 'ObjectPattern') {
+  // PLAN-13 F-1: a static's second parameter is the context itself
+  if (direct) {
+    if (first?.type === 'ObjectPattern') fromPattern(first)
+    else if (first?.type === 'Identifier') locals.add(first.name)
+  } else if (first?.type === 'ObjectPattern') {
     for (const p of first.properties) {
       if (p.type !== 'ObjectProperty' || propName(p) !== 'context') continue
       let v = p.value
@@ -91,6 +98,23 @@ export function reducerContextReads(project, file, modelNode) {
     if (v?.node?.type === 'ObjectExpression') {
       for (const q of v.node.properties) if (q.type !== 'SpreadElement') handler(v.file, q.type === 'ObjectMethod' ? q : q.value)
     }
+  }
+  return out
+}
+
+const STATICS = ['resources', 'timers', 'connections', 'head', 'browser']
+export function staticContextReads(project, file, sp) {
+  const out = []
+  const fnReads = (f, n) => {
+    const h = isFunction(n) ? { file: f, node: n } : resolveExpr(project, f, n)
+    if (h?.node && isFunction(h.node)) for (const x of contextReads(h.node, 1, true) || []) out.push({ ...x, file: h.file })
+    return h
+  }
+  for (const k of STATICS) {
+    if (!sp[k]) continue
+    const v = fnReads(file, sp[k])
+    // an object of functions (resources, or timers / head as objects)
+    if (v?.node?.type === 'ObjectExpression') for (const q of v.node.properties) if (q.type !== 'SpreadElement') fnReads(v.file, q.type === 'ObjectMethod' ? q : q.value)
   }
   return out
 }

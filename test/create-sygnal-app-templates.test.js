@@ -108,6 +108,25 @@ describe('create-sygnal-app templates: editor recommendation + sygnal-check conf
       }
     })
 
+    // PLAN-13 T-1: npm drops `.gitignore` from a package; the template's `gitignore` is renamed
+    it('every template ships its gitignore in the tarball, and scaffolds it as .gitignore', () => {
+      for (const { template, dir } of VARIANTS) {
+        expect(fs.existsSync(path.join(pkgDir, dir, 'gitignore')), dir).toBe(true)
+        const proj = projects[dir]
+        expect(fs.existsSync(path.join(proj, 'gitignore')), dir).toBe(false)
+        const lines = fs.readFileSync(path.join(proj, '.gitignore'), 'utf8').split('\n')
+        for (const l of ['node_modules', 'dist', '.vite', '*.local']) expect(lines, `${dir}: ${l}`).toContain(l)
+        if (template === 'astro') expect(lines).toContain('.astro')
+      }
+    })
+    it('no scaffolded project loads remote fonts', () => {
+      for (const { dir } of VARIANTS) {
+        const proj = projects[dir]
+        const files = fs.readdirSync(proj, { recursive: true }).filter(f => /\.(html|astro|css|jsx?|tsx?)$/.test(f))
+        expect(files.filter(f => /fonts\.(googleapis|gstatic)\.com|'Inter'/.test(fs.readFileSync(path.join(proj, f), 'utf8'))), dir).toEqual([])
+      }
+    })
+
     for (const { template, dir } of VARIANTS) {
       it(`${dir}: scaffolded with both files, and sygnal-check reads the config`, () => {
         const proj = projects[dir]

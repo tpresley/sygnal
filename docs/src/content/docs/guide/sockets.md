@@ -60,7 +60,7 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 - a change to anything else (action names, `reconnect`) applies without reconnecting;
 - when the instance is removed, its connections close.
 
-`connections` receives the state with its [calculated fields](/guide/calculated-fields/).
+`connections` receives the state with its [calculated fields](/guide/calculated-fields/), and the component's context as its second argument: `(state, { route }) => ({ feed: { sse: `/events/${route.params.id}` } })`. It is computed again when either changes.
 
 ### Spec
 
@@ -78,6 +78,9 @@ The core sends the result of `connections` to the `WS` sink at startup and whene
 | `withCredentials` | SSE: send cookies cross-origin |
 | `headers` | SSE: request headers, such as `{ authorization: 'Bearer ' + state.token }` ([below](#headers-and-tokens)) |
 | `events` | SSE named events → actions: `{ price: 'PRICE' }` |
+| `meta` | SSE: `true` gives `message` and `events` actions `{ data, id, event }` (the event id and type) ([below](#event-ids-resuming-and-dead-streams)) |
+| `resume` | SSE: `true` or a parameter name: a reconnect the driver makes resumes from the last event id ([below](#event-ids-resuming-and-dead-streams)) |
+| `staleAfterMs` | A connection silent this long is dropped and reconnects; `close` gets `stale: true` ([below](#event-ids-resuming-and-dead-streams)) |
 
 Every action key is optional. An event without an action name goes to the source, `WS.select(name)`, as `{ name, type, data }`.
 
@@ -155,6 +158,26 @@ Ticker.connections = (state) => ({
 ```
 
 Keep the token in state: a changed header is a new connection, so a refreshed token reconnects with it, and no token (`state.token &&`) means no connection. A `401` or another non-2xx reply fails the connection (`close` with `willReconnect`), and the driver's `reconnect` policy decides when to try again. Without `headers`, the connection uses `EventSource`, as before; cookies (`withCredentials: true`) work with both. WebSocket connections can't send headers in browsers at all: put the token in the URL or the first message.
+
+### Event ids, resuming and dead streams
+
+Three spec keys help with feeds that must not miss events:
+
+```jsx
+Feed.connections = () => ({
+  feed: { sse: '/events', meta: true, resume: true, staleAfterMs: 45_000, message: 'EVENT', close: 'DROPPED' },
+})
+Feed.model = {
+  EVENT: (state, { data, id, event }) => ({ ...state, items: [...state.items, data], lastId: id }),
+  DROPPED: (state, { stale, willReconnect }) => ({ ...state, status: willReconnect ? 'reconnecting' : 'offline' }),
+}
+```
+
+- **`meta: true`**: the `message` and `events` actions get `{ data, id, event }`: the data (JSON-parsed when it parses), the event's `id:` (the last one sent when this event has none, `''` when there was none), and its type (`'message'` or the named event).
+- **`resume`**: `EventSource` sends `Last-Event-ID` on its own retries, but when it gives up (a proxy answering `502`, a non-2xx on the `headers` path) the driver reconnects with a new one, which starts from nothing. With `resume` the connection keeps the last event id and that reconnect asks for it: over `fetch` (with `headers`) as the `Last-Event-ID` header, and with the native `EventSource`, which can't send it, on the URL: `?lastEventId=<id>` for `resume: true`, or `?cursor=<id>` for `resume: 'cursor'`. The server reads whichever it supports. A new connection (a new URL, a remounted component) starts fresh.
+- **`staleAfterMs`**: a stream can go silent without closing (a half-open connection behind a proxy or a sleeping laptop's network). When nothing arrives for that many milliseconds the driver closes the connection as a drop: `close` fires with `{ stale: true, willReconnect }` and the reconnect policy applies (with `resume`, from the last id). Over `fetch` (`headers`) any bytes count, so a server heartbeat comment (`: ping`) keeps it open; the native `EventSource` only reports events, so the heartbeat must be a `message` or a named event in `events`. It works for WebSocket connections too (any message counts). Set it comfortably above the server's heartbeat interval.
+
+In tests, `t.push('WS', data, { id: 'e-7' })` gives a pushed event its id.
 
 ## Static or Model-Sent, Not Both
 

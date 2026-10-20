@@ -2,6 +2,100 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Added
+
+- **SYG117: `next()` to an action the component has no entry for (PLAN-13 N-1).** `next('X')`
+  reaches only its own component's model, so a child's `next('ENTER')` for an action only its
+  parent handles silently did nothing. The dev checks (`sygnal/diagnostics`, 0 production bytes)
+  warn on the first such `next()` per component and name, naming the ancestor that handles it and
+  the fix (send it up with `PARENT` or `EVENTS`), or the closest entry for a typo. `sygnal-check`
+  reports a literal `next('X')` with no entry `X` in the same component (with a rename fix for a typo).
+
+- **sygnal-check reads reply names through request helpers and consts (PLAN-13 C-1).** An object
+  argument with a reply key of a call a sink returns is a request (`req('/a', { ok: 'GOT_A' })`,
+  `api.get_run(args, { ok: 'RUN' })`, any callee), a returned const is followed (`HTTP: () => SNAP`),
+  and so are `connections` specs and SSE `events` maps held in consts. SYG102 no longer reports
+  their reply actions as unreachable, SYG112 checks the names, SYG152 and `--graph` see the requests.
+
+- **SYG256 sees past helper calls in other fields (PLAN-13 C-2).** A call in the STATE reducer
+  stopped the proof, so a leave-guard like `EDIT: { STATE: (s, d) => ({ ...s, dirty: true, edit:
+  { ...s.edit, [keyOf(s)]: d } }), ROUTER: (s) => s.dirty ? ABORT : … }` went unreported. A call
+  (or a function) inside a plain field's value now only makes that field unknown; calls in a test,
+  a spread or a computed key of the written object, and any assignment, still keep the check out.
+
+- **create-sygnal-app: no Google Fonts, and a `.gitignore` (PLAN-13 T-1).** The vite, vite-pwa and
+  astro templates loaded Inter from Google Fonts; every template now uses a system font stack and
+  loads nothing remote. No template wrote a `.gitignore` (npm leaves it out of the package): each
+  ships `gitignore`, scaffolded as `.gitignore` (`node_modules`, `dist`, `.vite`, `.astro`,
+  `*.local`, `dev-dist` for the PWA). The release smoke checks both.
+
+- **SYG302: `import xs from 'xstream'` (PLAN-13 X-1).** Under Node ESM and Vite 8 (a `"type":
+  "module"` package) xstream's CommonJS default import is the module object, so a custom driver's
+  `xs.create` is undefined. The docs, llms.txt and the skill use `import { xs } from 'sygnal'`
+  (the accessibility guide's sample was the last default import), the custom-drivers guide says
+  why, and `sygnal-check` reports the default import (info) with a `--fix`.
+
+- **`makeReplies()` and `senderOf()` for drivers you write (PLAN-13 D-1).** The reply-action
+  protocol `makeFetchDriver`, `driverFromAsync` and the socket driver use is exported and typed
+  (`ReplySender`, `ReplyChannel`): spread `replies` into the source, `reply(senderOf(req), type,
+  data)` as often as needed (progress, then a result), and abort a disposed sender's work in
+  `onStop`. The custom-drivers guide has an upload driver that replies more than once.
+
+- **SSE event ids, resuming and dead streams (PLAN-13 S-1).** On a `connections` spec: `meta:
+  true` gives SSE `message` / `events` actions `{ data, id, event }`; `resume: true | 'param'`
+  keeps the last event id and makes a reconnect the driver makes (after EventSource gave up, e.g. a
+  proxy 502, or a non-2xx on the `headers` path) resume from it, as `Last-Event-ID` over fetch or
+  `?lastEventId=` (or `?param=`) on the EventSource URL; `staleAfterMs` (SSE and WebSocket) closes
+  a connection that stays silent that long as a drop (`close` gets `stale: true`) so the reconnect
+  policy applies; over fetch, heartbeat comments count. `t.push(sink, data, { id })` gives a test
+  event its id. No bytes for apps without a socket driver.
+
+- **Declaration statics see the context (PLAN-13 F-1).** `resources`, `timers`, `connections`,
+  `head` and `browser` get `(state, context)` and are computed again when the component's context
+  changes (by identity, D603; an unrelated write re-runs nothing). A routed page reads `route` from
+  context (`App.context = { route: (s) => s.route }`, `TaskPage.resources = { task: (s, { route })
+  => … }`) instead of keeping a copy of the params in its own state. Server rendering passes the
+  context to `resources` and `head` too; the types take it as the second parameter; `sygnal-check`
+  counts context reads in the statics for SYG170. Core: +19 B (kanban gzip).
+
+- **Per-page Switchable state (PLAN-13 F-3).** `state` takes a map from page names to bindings
+  (`state={{ projects: 'pages.projects', settings: byId('teams', state.teamId) }}`): each listed
+  page binds its own key, path, lens or byId selection with a tag child's lifetime rules (another
+  target makes only that page again; a deleted target disposes it on its last state), and the
+  pages not listed share the owner's state. A key that names no page is the new **SYG429** (dev
+  checks and `sygnal-check`, with a rename fix). Types infer the page names from `of`. Core:
+  +126 B (kanban gzip), leaving 18 B of the 43,000 B budget with F-1.
+
+- **Deep-link tests start on their route (PLAN-13 F-2).** `renderComponent(App, { router, url })`
+  applies the root's `route` entry's STATE reducer to the initial state with the `url`'s route
+  before the first render: `initialState`'s `router.current()` ran at module load, so a test used
+  to render `/` first and send its requests. The entry's other sinks (a guard's redirect) still run
+  once, when the router answers. Tests only; no core change.
+
+- **sygnal-check follows `next` into helpers (PLAN-13 C-3).** A model that passes `next` to a
+  function (`advance(state, next)`), imported or in the same file and with any parameter name, has
+  that function's `next('X')` calls counted as its own, 3 calls deep: SYG102 sees the targets, and
+  SYG117 reports a bad one in the helper's file. A helper it can't read (a package) makes the
+  targets unknown, so SYG102 drops to info. The language server re-checks the component when the
+  helper changes.
+
+- **`replyKeys` in sygnal-check's config (PLAN-13 C-4).** A custom driver's own reply keys
+  (`cancelled: 'UP_CANCELLED'`) can be listed in `sygnal-check.config.json`, for every sink
+  (`["cancelled"]`) or per sink (`{ "UPLOAD": ["progress", "cancelled"] }`): their actions count for
+  SYG102 and are checked by SYG112. Without the setting, a request key the checker doesn't know
+  whose value names a model entry makes that entry's SYG102 info, pointing at `replyKeys`.
+
+### Fixed
+
+- **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**
+  When a write's `ok` action navigated (`ROUTER`) and its `invalidates` (a URL prefix or a tag)
+  matched a resource of a lens- or key-bound page, the page's new request was sent and then the
+  invalidation sent the old one in the same lane, cancelling the new one: the new page showed the
+  old record. A load now stops when the resource's request changed (or it was paused) while it
+  wrote its loading state; refresh, polling and focus refetches go through the same path.
+
 ## 7.0.0 — 2026-10-19
 
 **Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.** 7.0

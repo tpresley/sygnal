@@ -96,6 +96,24 @@ export default {
           })
           continue
         }
+        // PLAN-13 C-4: a request names it under a key the checker doesn't know (a custom driver's
+        // reply key): info, pointing at replyKeys (never silent)
+        const cand = model.replyCandidates?.find(c => c.name === e.action)
+        if (cand) {
+          report({
+            code: 'SYG102',
+            severity: 'info',
+            component: comp.name,
+            file: e.file,
+            node: e.node,
+            message: `model entry '${e.action}' is never triggered as far as the checker knows: the ${cand.sink} request of '${cand.action}' names it as '${cand.key}', which isn't a reply key it knows`,
+            fix: `if ${cand.sink}'s driver replies with '${cand.key}', add it to replyKeys in sygnal-check.config.json: { "replyKeys": { "${cand.sink}": ["${cand.key}"] } }`,
+            data: { action: e.action, key: cand.key, sink: cand.sink },
+            related: [{ file: cand.file, node: cand.node, message: `'${cand.key}: ${e.action}' here` }],
+            fixes: removeFix(model, e),
+          })
+          continue
+        }
         report({
           code: 'SYG102',
           severity: dynamic ? 'info' : undefined,

@@ -41,6 +41,12 @@ import {FetchEventSource} from './fetchEventSource';
  *   changed header reconnects) is read with FetchEventSource (fetch, `options.fetch` if given),
  *   since EventSource can't send headers. An `options.EventSource` (a polyfill, the test fake)
  *   still wins and gets the headers in its init.
+ * - PLAN-13 S-1: SSE `meta: true`: message and `events` actions get `{ data, id, event }`. `resume:
+ *   true | 'param'`: the transport keeps the last event id, and a reconnect the driver makes (after
+ *   EventSource gave up) asks to resume from it: `?lastEventId=` (or `?param=`) on the URL, or
+ *   `Last-Event-ID` on the fetch path (`init.lastEventId`). `staleAfterMs` (SSE and WebSocket): no
+ *   event for that long (over fetch: no bytes, heartbeat comments count) closes the connection as a
+ *   drop (`close` gets `stale: true`), so the reconnect policy applies.
  */
 
 const SCOPE = '__sygnalScope';
@@ -96,19 +102,40 @@ export function makeSocketDriver(options: any = {}) {
     const out = (t: any, data: any, e: any) => {
       try { t.s.send(data); } catch (error) { deliver(e, 'error', {error}); }
     };
+    // S-1: an SSE event as a subscriber gets it (`meta`: with its id and type); the transport
+    // keeps the last id (resume) and counts it as life (staleAfterMs)
+    const got = (t: any, m: any, e: any) => e.sse && e.spec.meta ? {data: parse(m.data), id: m.lastEventId ?? '', event: m.type || 'message'} : parse(m.data);
+    const seen = (t: any, m: any) => { if (m.lastEventId) t.id = m.lastEventId; alive(t); };
     // SSE named events: one listener per name across the subscribers
     const listen = (t: any) => t.s && t.sse && each(t, e => Object.keys(e.spec.events || {}).forEach(name => {
       if (t.on.has(name)) return;
       t.on.add(name);
       const s = t.s;
-      s.addEventListener(name, (m: any) => t.s === s && each(t, x => {
-        const a = x.spec.events?.[name];
-        if (typeof a == 'string' && x.sender !== undefined) reply(x.sender, a, parse(m.data));
-      }));
+      s.addEventListener(name, (m: any) => {
+        if (t.s !== s) return;
+        seen(t, m);
+        each(t, x => {
+          const a = x.spec.events?.[name];
+          if (typeof a == 'string' && x.sender !== undefined) reply(x.sender, a, got(t, m, x));
+        });
+      });
     }));
+    // S-1: staleAfterMs (the smallest of the subscribers'): re-armed by every event; when it fires
+    // the connection is dropped (as if the server had gone) and the reconnect policy applies
+    const alive = (t: any) => {
+      clearTimeout(t.st);
+      const ms = Math.min(...[...t.subs].map(e => e.spec.staleAfterMs).filter(x => x > 0));
+      const s = t.s;
+      if (s && ms < 1 / 0) t.st = setTimeout(() => {
+        if (t.s !== s) return;
+        try { s.close(); } catch (_) {}
+        gone(t, t.sse ? {stale: true} : {code: 1006, reason: 'stale', stale: true});
+      }, ms);
+    };
 
     // the socket closed (or failed to open) without the driver closing it
     const gone = (t: any, info: any) => {
+      clearTimeout(t.st);
       t.s = null;
       t.open = false;
       let again: any;
@@ -126,9 +153,13 @@ export function makeSocketDriver(options: any = {}) {
       const hdr = t.sse && t.spec.headers && typeof t.spec.headers == 'object' ? t.spec.headers : undefined;
       const C = t.sse ? options.EventSource ?? (hdr && typeof g.fetch == 'function' ? FetchEventSource : g.EventSource) : options.WebSocket ?? g.WebSocket;
       if (typeof C != 'function') return;
+      // S-1: resume from the last event id: Last-Event-ID on the fetch path (init.lastEventId, which
+      // a polyfill or the test fake gets too), else a URL parameter
+      const r = t.sse && t.id && [...t.subs].map(e => e.spec.resume).find(x => x);
+      const url = r && !hdr ? t.url + (t.url.includes('?') ? '&' : '?') + encodeURIComponent(r === true ? 'lastEventId' : r) + '=' + encodeURIComponent(t.id) : t.url;
       let s: any;
       try {
-        s = t.sse ? new C(t.url, {withCredentials: !!t.spec.withCredentials, ...(hdr && {headers: hdr, fetch: options.fetch})}) : new C(t.url, t.spec.protocols);
+        s = t.sse ? new C(url, {withCredentials: !!t.spec.withCredentials, ...(hdr && {headers: hdr, fetch: options.fetch}), ...(r && {lastEventId: t.id})}) : new C(t.url, t.spec.protocols);
       } catch (error) {
         // a URL the constructor rejects never opens: no retry
         each(t, e => deliver(e, 'error', {error}));
@@ -141,12 +172,19 @@ export function makeSocketDriver(options: any = {}) {
       s.onopen = mine(() => {
         t.n = 0;
         t.open = true;
+        alive(t);
         each(t, e => { deliver(e, 'open', {reconnected: !!e.opened}); e.opened = true; });
         const q = t.queue;
         t.queue = [];
         q.forEach((x: any) => t.s === s && out(t, x.data, x.e));
       });
-      s.onmessage = mine((m: any) => { const d = parse(m.data); each(t, e => deliver(e, 'message', d)); });
+      s.onmessage = mine((m: any) => {
+        if (t.sse) seen(t, m); else alive(t);
+        const d = parse(m.data);
+        each(t, e => deliver(e, 'message', e.spec.meta && t.sse ? got(t, m, e) : d));
+      });
+      // S-1: FetchEventSource's bytes (heartbeat comments) count as life
+      s.onbeat = mine(() => alive(t));
       s.onerror = mine((error: any) => {
         each(t, e => deliver(e, 'error', {error}));
         if (t.sse) {
@@ -162,6 +200,7 @@ export function makeSocketDriver(options: any = {}) {
     // closes the driver makes: no `close` action, late events ignored, retry cancelled
     const end = (t: any) => {
       clearTimeout(t.timer);
+      clearTimeout(t.st);
       transports.delete(t.key);
       const s = t.s;
       t.s = null;

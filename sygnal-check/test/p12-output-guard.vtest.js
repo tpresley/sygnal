@@ -201,3 +201,28 @@ describe('STATE path preconditions must establish a write-induced rejection',()=
  })
 })
 
+
+// PLAN-13 C-2: the Temper leave-guard. A call in a non-literal property value (the edit map's
+// computed key) only makes that field unknown; `dirty: true` beside it still proves the guard
+describe('C-2: calls that cannot affect the guarded fields',()=>{
+ const temper=(stateBody,extra='')=>app({model:`{EDIT:{STATE:${stateBody},ROUTER:(s)=>s.dirty?ABORT:{to:'next'}}}`,extra:`const keyOf=(s)=>s.id\n${extra}`}).replace("App.intent=({DOM})=>({START:DOM.click('.start')})","App.intent=({DOM})=>({EDIT:DOM.input('.start')})")
+ it('reports the Temper shape',()=>{
+  const source=temper(`(state,data)=>({...state,dirty:true,edit:{...state.edit,[keyOf(state)]:data}})`)
+  const [d,...rest]=guards(source)
+  expect(rest).toEqual([])
+  expect(d).toMatchObject({code:'SYG256',data:{action:'EDIT',sink:'ROUTER',fields:['dirty']}})
+  expect(textAt(source,d)).toBe('s.dirty')
+ })
+ it.each([
+  `(state,data)=>({...state,dirty:true,items:state.items.map(i=>({...i,seen:true}))})`,
+  `(state,data)=>({...state,dirty:true,stamp:Date.now(),list:new Set(data)})`,
+ ])('reports with calls and functions in other fields %#',stateBody=>expect(guards(temper(stateBody))).toHaveLength(1))
+ it.each([
+  `(state,data)=>({...state,dirty:flag(data)})`,
+  `(state,data)=>({...touch(state),dirty:true})`,
+  `(state,data)=>({...state,[keyOf(state)]:data,dirty:true})`,
+  `(state,data)=>check(state)?{...state,dirty:true}:ABORT`,
+  `(state,data)=>({...state,dirty:true,items:state.items.map(i=>{i.seen=true;return i})})`,
+  `(state,data)=>({...state,dirty:true,n:state.n++})`,
+ ])('still silent when the call can affect the guard, or with a write %#',stateBody=>expect(guards(temper(stateBody))).toEqual([]))
+})

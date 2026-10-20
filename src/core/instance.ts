@@ -31,11 +31,20 @@ import {sameData} from '../cycle/dom/utils'
 
 // v7: a known binding target joins key/id/path in the lifetime identity. Fresh equivalent
 // byId helpers retain identity; opaque lenses need an explicit key for a new target.
-function bindingChanged(a: any, b: any): boolean {
+export function bindingChanged(a: any, b: any): boolean {
   if (a === b) return false
   const x = a?.[BINDING], y = b?.[BINDING]
   return x && y ? !x.every((v: any, i: number) => Object.is(v, y[i]))
     : !!(x || y || typeof a == 'string' || typeof b == 'string' || a === undefined || b === undefined)
+}
+
+/** a binding whose target is known (a key, a byId selection): its deletion ends the child */
+export const known = (b: any) => typeof b == 'string' || b?.[BINDING]
+/** F-3: `owner` watches child (or Switchable page) `k`'s target: notify() disposes it when deleted */
+export function watch(owner: Inst, k: any) {
+  k.bs = bindingState(k)
+  ;(owner.bound ||= new Set()).add(k)
+  owner.app.watchers.add(owner)
 }
 
 function bindingState(k: any): any {
@@ -192,7 +201,7 @@ export class Inst {
   // flag they were computed from; its reply streams
   st: Array<[string, string]> | null = null
   sv: Record<string, any> | null = null
-  sS: any; sH: any
+  sS: any; sH: any; sC: any
   rep: any[] | null = null
 
   constructor(
@@ -537,11 +546,7 @@ export class Inst {
         if (k && (k.disposed || (view && k.def && k.def.view !== view) || bindingChanged(k.props?.[binding], props[binding]))) { k.dispose(); this.kids.delete(id); k = undefined }
         if (k) k.setProps(props, children, n, id)
         else this.kids.set(id, k = host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
-        if (typeof props[binding] == 'string' || props[binding]?.[BINDING]) {
-          k.bs = bindingState(k)
-          ;(this.bound ||= new Set()).add(k)
-          this.app.watchers.add(this)
-        }
+        if (known(props[binding])) watch(this, k)
         return
       }
       if (posts[sel] && !(ps ||= []).includes(sel)) ps.push(sel)

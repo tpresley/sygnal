@@ -77,8 +77,11 @@ export type StateProp = string | Lense<any, any>
  */
 export type ElementProps<PROPS> =
   0 extends (1 & PROPS) ? PROPS
-  : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp; resetState?: boolean }
-  : PROPS
+  // PLAN-13 F-3: Switchable's own `state` (a per-page map too) is kept as it declares it
+  : PROPS extends { of: Record<string, any>; current: string } ? PROPS
+  : WithStateProp<PROPS>
+
+type WithStateProp<PROPS> = 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp; resetState?: boolean } : PROPS
 
 /** PROPS without `state`, `context`, `slots` and `uid` (keeps optionality and index signatures, unlike Omit). */
 type WithoutViewOnlyProps<PROPS> = {
@@ -1568,10 +1571,12 @@ export type Component<
    * actions on this instance; send with `{ to: 'room', json }` from a model entry (a connection
    * the same action opens or changes is declared first). Dispose closes them.
    */
-  connections?: (state: STATE & CALCULATED) => Connections;
+  connections?: (state: STATE & CALCULATED, context: CONTEXT) => Connections;
   /**
    * PLAN-3: declarative reads (`makeFetchDriver()`). Each entry derives a
-   * request from state; falsy means idle:
+   * request from state (and, PLAN-13 F-1, the context as its second argument, as every
+   * declaration static: `(state, { route }) => '/api/items/' + route.params.id`; re-run when the
+   * context changes); falsy means idle:
    * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
    * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
    * error, refreshing }`, written by the built-in RESOURCE action (idle until the first request).
@@ -1581,7 +1586,7 @@ export type Component<
    * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
    * request also dispatch those actions after the write.
    */
-  resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
+  resources?: { [name: string]: (state: STATE & CALCULATED, context: CONTEXT) => ResourceRequest | false | null | undefined | '' | 0 };
   /**
    * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
    * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
@@ -1603,7 +1608,7 @@ export type Component<
    * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
    * static, it is sent with or without a model; a root needs `initialState` (SYG132).
    */
-  head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
+  head?: (state: STATE & CALCULATED, context: CONTEXT) => HeadValue | false | null | undefined;
   /**
    * PLAN-4 GS-1: behaviors this component uses, each under its state key:
    * `TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }` gives
@@ -1620,7 +1625,7 @@ export type Component<
    * fires once (`{ t }`), `frame` runs every animation frame (`{ t, dt }`). A hidden Switchable
    * page's timers stop unless `background: true`; dispose stops them; nothing runs during SSR.
    */
-  timers?: (state: STATE & CALCULATED) => Timers<ActionNameOf<ACTIONS>>;
+  timers?: (state: STATE & CALCULATED, context: CONTEXT) => Timers<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-5 B-3: browser sources derived from state, run by `makeBrowserDriver()` (registered:
    * `run(App, { BROWSER: makeBrowserDriver() })`; renderComponent provides a fake, `t.browser`)
@@ -1630,7 +1635,7 @@ export type Component<
    * restarts. A hidden Switchable page's sources stop unless `background: true`; dispose stops
    * them; nothing runs during SSR.
    */
-  browser?: (state: STATE & CALCULATED) => BrowserSources<ActionNameOf<ACTIONS>>;
+  browser?: (state: STATE & CALCULATED, context: CONTEXT) => BrowserSources<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-4 GS-5: save this root component's state and restore it at startup:
    * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })`. `pick` / `omit`
@@ -1753,8 +1758,8 @@ export type VirtualCollectionProps<PROPS = any, STATE = any> = {
 /** Where `scrollToIndex` / `scrollToId` put the row: 'auto' (default) scrolls only when it isn't in view */
 export type ScrollToAlign = 'auto' | 'start' | 'center' | 'end'
 
-export type SwitchableProps<PROPS = any> = {
-  of: Record<string, AnyComponent>;
+export type SwitchableProps<PROPS = any, OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
+  of: OF;
   current: string;
   /**
    * The current page's instance key. When it changes, the current page is disposed and created
@@ -1762,7 +1767,14 @@ export type SwitchableProps<PROPS = any> = {
    * show. Switching `current` alone keeps pages alive. Router recipe: `instance={state.route.path}`
    */
   instance?: string | number;
-  state?: string | Lense;
+  /**
+   * The pages' state: a key or path (`'pages'`), a lens, or (PLAN-13 F-3) a map from page names to
+   * those (`{ projects: 'pages.projects', settings: byId('teams', state.teamId) }`): each listed
+   * page binds its own target with a tag child's lifetime rules (another key or id makes that page
+   * again, a deleted target disposes it), and the pages not listed share the owner's state. A key
+   * that names no page is SYG429
+   */
+  state?: string | Lense | { [PAGE in keyof NoInfer<OF>]?: string | Lense };
 } & Omit<PROPS, 'of' | 'state' | 'current' | 'instance'>
 
 export type PortalProps = {
@@ -2261,7 +2273,7 @@ export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(p
  *   <VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} />
  */
 export function VirtualCollection<PROPS extends { [prop: string]: any }, STATE = any>(props: VirtualCollectionProps<PROPS, STATE>): JSX.Element
-export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
+export function Switchable<PROPS extends { [prop: string]: any }, OF extends Record<string, AnyComponent> = Record<string, AnyComponent>>(props: SwitchableProps<PROPS, OF>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
 export function Suspense(props: SuspenseProps): JSX.Element
@@ -2321,6 +2333,48 @@ export type ReplyRequest = {
   /** Not allowed (SYG610, not sent). Use `error` */
   catch?: never;
 }
+
+declare const replySenderBrand: unique symbol
+/**
+ * The component instance that sent a request to a driver (opaque). `senderOf(request)` reads it;
+ * pass it to `reply()` to answer that instance with one of its actions.
+ */
+export type ReplySender = { readonly [replySenderBrand]: true }
+
+/** What makeReplies() returns: the source part that marks the driver, and the way to answer */
+export type ReplyChannel = {
+  /**
+   * Spread into the driver's source (`return { ...replies, select }`): the core then stamps each
+   * request a component sends with its sender and delivers `reply()`s as that instance's actions.
+   */
+  replies: { readonly __sygnalReplies: true; replies(sender: ReplySender): Stream<{ type: string; data: any }> };
+  /** Dispatch `type` with `data` on the sender (dropped when it is gone). Call it as often as needed */
+  reply(sender: ReplySender, type: string, data?: any): void;
+  /** Whether the sender is still mounted (a reply would reach it) */
+  listening(sender: ReplySender): boolean;
+}
+
+/**
+ * PLAN-13 D-1: reply actions for a driver you write (the protocol makeFetchDriver,
+ * driverFromAsync and the socket driver use). `onStop(sender)` runs when a sender is disposed:
+ * abort what it still has in flight.
+ *
+ *   const { replies, reply } = makeReplies((sender) => inflight.get(sender)?.abort())
+ *   sink$.addListener({ next: (req) => {
+ *     const sender = senderOf(req)
+ *     if (sender === undefined) return                    // not sent by a component
+ *     run(req, (f) => req.progress && reply(sender, req.progress, f))
+ *       .then((v) => req.ok && reply(sender, req.ok, v), (error) => req.error && reply(sender, req.error, { error, request: req }))
+ *   } })
+ *   return { ...replies }
+ *
+ * A name with no model entry on the sender is SYG112 in the dev entry (ok / error / progress
+ * statically). Guide: https://sygnal.js.org/guide/custom-drivers/
+ */
+export function makeReplies(onStop?: (sender: ReplySender) => void): ReplyChannel
+
+/** The component instance that sent `request` to a driver with reply actions, or undefined (not sent by a component) */
+export function senderOf(request: object): ReplySender | undefined
 
 /**
  * A request to a driverFromAsync() sink: your own fields (`value`, the args, ...) plus the
@@ -2797,6 +2851,15 @@ export type SocketActions = {
    * hidden page's connections close, and open again as new ones when it is shown)
    */
   background?: boolean;
+  /**
+   * PLAN-13 S-1: a connection that stays silent this long (ms) is taken as dead (a half-open
+   * socket behind a proxy): it is closed as a drop, `close` gets `{ stale: true, willReconnect }`,
+   * and the reconnect policy applies. Every event counts; over fetch (an `sse` with `headers`)
+   * any bytes do, heartbeat comments (`: ping`) included, while the native EventSource needs a
+   * real event (a `message`, or a named event listed in `events`). Set it above the server's
+   * heartbeat interval
+   */
+  staleAfterMs?: number;
   /** Not allowed: a `then` key makes the value a thenable (SYG610). Use `message` / `open` */
   then?: never;
   catch?: never;
@@ -2823,6 +2886,29 @@ export type SseConnection = SocketActions & {
   headers?: Record<string, string>;
   /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
   events?: Record<string, string>;
+  /**
+   * PLAN-13 S-1: the `message` and `events` actions get `SseEvent` (`{ data, id, event }`: the
+   * event id and type) instead of the data alone
+   */
+  meta?: boolean;
+  /**
+   * PLAN-13 S-1: resume after a reconnect the driver makes (EventSource gave up: a proxy 502, a
+   * non-2xx on the `headers` path) from the last event id. Over fetch (`headers`) it is sent as
+   * `Last-Event-ID`; the native EventSource can't send it, so it goes on the URL:
+   * `?lastEventId=<id>` (`true`) or `?<name>=<id>` (a parameter name). EventSource's own retries
+   * send `Last-Event-ID` anyway
+   */
+  resume?: true | string;
+}
+
+/** PLAN-13 S-1: an SSE event as a `meta: true` connection's actions get it */
+export type SseEvent<DATA = any> = {
+  /** The data, JSON-parsed when it parses */
+  data: DATA;
+  /** The event's `id:` (the last one sent when this event has none; '' when there was none) */
+  id: string;
+  /** The event type: 'message', or the named event's name */
+  event: string;
 }
 
 /**
@@ -2848,7 +2934,7 @@ export type SocketRequest =
 /** Data of a connection's `open` action */
 export type SocketOpen = { reconnected: boolean }
 /** Data of a connection's `close` action (SSE: no code / reason) */
-export type SocketClose = { code?: number; reason?: string; willReconnect: boolean }
+export type SocketClose = { code?: number; reason?: string; willReconnect: boolean; /** PLAN-13 S-1: closed by staleAfterMs (nothing arrived) */ stale?: true }
 /** Data of a connection's `error` action: the error Event (or the constructor's exception) */
 export type SocketError = { error: any }
 
@@ -3670,9 +3756,10 @@ export interface RenderResult<STATE = any> {
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**
    * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
-   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event.
+   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event;
+   * `{ id }` gives an SSE event its id (what `meta: true` reports and `resume` resumes from).
    */
-  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; connection?: FakeConnectionTarget }) => Promise<void>;
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; id?: string | number; connection?: FakeConnectionTarget }) => Promise<void>;
   /**
    * Connection(s) close without the app closing them: `close` fires with `{ code, reason,
    * willReconnect }` (default `{ code: 1006, reason: '' }`; a connecting one fails to open: `error`

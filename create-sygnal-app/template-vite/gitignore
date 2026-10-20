@@ -1,0 +1,15 @@
+# dependencies
+node_modules
+
+# build output
+dist
+dist-ssr
+.vite
+
+# local env files and logs
+*.local
+npm-debug.log*
+
+# editor and OS files
+.DS_Store
+.idea

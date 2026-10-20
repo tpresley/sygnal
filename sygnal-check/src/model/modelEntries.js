@@ -99,11 +99,18 @@ function isDecideCall(file, call) {
   return isSygnalImport(file, callee, 'decide')
 }
 
+/** every key that names a reply action on some request (an object argument with one is a request's options, C-1) */
+const ANY_REPLY_KEY = new Set([...HTTP_REPLY_KEYS, ...LLM_REPLY_KEYS])
+const hasReplyKey = (obj) => obj.properties.some(p => p.type === 'ObjectProperty' && ANY_REPLY_KEY.has(propName(p)))
+
 /**
  * Object literals a sink value can produce: the object itself, or a function's returns (through
  * ?:, &&, ||), and (PLAN-6 K-1, 0-S5) the returns of a local helper it calls
  * (`LLM: (state) => ask(state.messages)` with `const ask = (messages) => ({ messages, ok: 'DONE' })`),
  * and (G-648) the options object of a `decide({ ..., ok: 'TRIAGED' })` / `decide.openai(...)` call.
+ * PLAN-13 C-1: a returned identifier is followed to its const (`HTTP: () => SNAP`), and a returned
+ * call's object-literal arguments that hold a reply key are requests too, whatever the callee
+ * (`req('/a', { ok: 'GOT_A' })`, `api.get_run(args, { ok: 'RUN' })`, an imported helper).
  */
 export function returnedObjects(project, file, valueNode, depth = 0, seen = new Set()) {
   const r = resolveExpr(project, file, valueNode)
@@ -111,24 +118,35 @@ export function returnedObjects(project, file, valueNode, depth = 0, seen = new 
   if (!fn || seen.has(fn)) return []
   seen.add(fn)
   const objs = []
-  const collect = (e) => {
+  const collect = (e, f) => {
     e = unwrap(e)
     if (!e) return
-    if (e.type === 'ConditionalExpression') { collect(e.consequent); collect(e.alternate); return }
-    if (e.type === 'LogicalExpression') { collect(e.right); if (e.operator !== '&&') collect(e.left); return }
-    if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1]); return }
-    if (e.type === 'ObjectExpression') objs.push({ node: e, file: r.file })
-    else if (e.type === 'CallExpression' && isDecideCall(r.file, e)) {
+    if (e.type === 'ConditionalExpression') { collect(e.consequent, f); collect(e.alternate, f); return }
+    if (e.type === 'LogicalExpression') { collect(e.right, f); if (e.operator !== '&&') collect(e.left, f); return }
+    if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1], f); return }
+    if (e.type === 'ObjectExpression') objs.push({ node: e, file: f })
+    else if (e.type === 'Identifier' && e.name !== 'undefined') {
+      // C-1: a const holding the request (or a call that makes it)
+      const x = resolveExpr(project, f, e)
+      if (x?.node && x.node !== e && !seen.has(x.node) && !isFunction(x.node)) { seen.add(x.node); collect(x.node, x.file) }
+    } else if (e.type === 'CallExpression' && isDecideCall(f, e)) {
       // G-648: decide() / decide.openai() (sygnal/ai) pass their reply keys through to the request
-      const arg = e.arguments[0] && resolveExpr(project, r.file, e.arguments[0])
+      const arg = e.arguments[0] && resolveExpr(project, f, e.arguments[0])
       if (arg?.node?.type === 'ObjectExpression') objs.push({ node: arg.node, file: arg.file })
-    } else if (e.type === 'CallExpression' && depth < 3 && unwrap(e.callee).type === 'Identifier') {
-      const h = resolveExpr(project, r.file, e.callee)
-      if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen))
+    } else if (e.type === 'CallExpression') {
+      if (depth < 3 && unwrap(e.callee).type === 'Identifier') {
+        const h = resolveExpr(project, f, e.callee)
+        if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen))
+      }
+      // C-1: the options passed to a request helper
+      for (const a of e.arguments) {
+        const x = a.type === 'SpreadElement' ? null : resolveExpr(project, f, a)
+        if (x?.node?.type === 'ObjectExpression' && hasReplyKey(x.node) && !objs.some(o => o.node === x.node)) objs.push({ node: x.node, file: x.file })
+      }
     }
   }
-  if (isFunction(fn)) returnedExpressions(fn).forEach(collect)
-  else collect(fn)
+  if (isFunction(fn)) returnedExpressions(fn).forEach(e => collect(e, r.file))
+  else collect(fn, r.file)
   return objs
 }
 
@@ -137,10 +155,23 @@ export function returnedObjects(project, file, valueNode, depth = 0, seen = new 
  *   targets  Array<{ name, key, node, file }>   (string literal `ok` / `error` / `progress` values)
  *   dynamic  Array<{ node, file }>              (non-literal values)
  */
+/** PLAN-13 C-4: the config's `replyKeys` for a sink (an array: every sink; an object: per sink) */
+export const customReplyKeys = (project, sink) => {
+  const r = project.replyKeys
+  return Array.isArray(r) ? r : (r && sink && r[sink]) || []
+}
+
 export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
-  const out = { targets: [], dynamic: [] }
+  const out = { targets: [], dynamic: [], candidates: [] }
+  const custom = customReplyKeys(project, sink)
   for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
-    const k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
+    let k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
+    if (custom.length) k = new Set([...k, ...custom])
+    // C-4: an UPPER_CASE value under another key may name a reply action of a custom driver
+    for (const p of obj.properties) {
+      const key = p.type === 'ObjectProperty' && propName(p), v = key && !k.has(key) && stringValue(p.value)
+      if (v && /^[A-Z][A-Z0-9_]*$/.test(v)) out.candidates.push({ name: v, key, node: p.value, file: f })
+    }
     for (const p of obj.properties) {
       if (p.type !== 'ObjectProperty') continue
       const key = propName(p)
@@ -158,31 +189,54 @@ export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = n
 /**
  * Action names a `connections` static names (message/open/close/error keys of
  * any object literal inside it, and the values of an SSE `events` map, PLAN-3 §1.3).
+ * PLAN-13 C-1: a spec, an `events` map or a whole return held in a const is followed.
  * @returns {{ targets: Array<{ name, key, node, file }>, dynamic: Array<{ node, file }> }}
  */
 export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
   const out = { targets: [], dynamic: [] }
   const r = resolveExpr(project, file, node)
   if (!r?.node) return out
-  walk(r.node, (n) => {
+  const seen = new Set([r.node])
+  // the object literal a const (in value position) holds, walked as if written in place
+  const follow = (e, f) => {
+    e = unwrap(e)
+    if (e?.type !== 'Identifier') return
+    const x = resolveExpr(project, f, e)
+    if (x?.node?.type !== 'ObjectExpression' || seen.has(x.node)) return
+    seen.add(x.node)
+    scan(x.node, x.file)
+  }
+  const scan = (root, f) => walk(root, (n) => {
+    if (n.type === 'ArrowFunctionExpression' && n.body.type !== 'BlockStatement') follow(n.body, f)
+    if (n.type === 'ReturnStatement' && n.argument) follow(n.argument, f)
+    if (n.type === 'SpreadElement') follow(n.argument, f)
     if (n.type !== 'ObjectProperty') return true
     const key = propName(n)
     // G-163: an SSE spec's `events: { 'price-update': 'PRICE' }` names actions too (connections only)
-    if (keys === CONNECTION_KEYS && key === 'events' && n.value?.type === 'ObjectExpression') {
-      for (const p of n.value.properties) {
-        if (p.type !== 'ObjectProperty') continue
-        const s = stringValue(p.value)
-        if (s != null) out.targets.push({ name: s, key: 'events', node: p.value, file: r.file })
-        else out.dynamic.push({ node: p.value, file: r.file })
+    if (keys === CONNECTION_KEYS && key === 'events') {
+      let ev = unwrap(n.value), ef = f
+      if (ev?.type === 'Identifier') {
+        const x = resolveExpr(project, f, ev)
+        if (x?.node?.type === 'ObjectExpression') { ev = x.node; ef = x.file }
       }
-      return false
+      if (ev?.type === 'ObjectExpression') {
+        for (const p of ev.properties) {
+          if (p.type !== 'ObjectProperty') continue
+          const s = stringValue(p.value)
+          if (s != null) out.targets.push({ name: s, key: 'events', node: p.value, file: ef })
+          else out.dynamic.push({ node: p.value, file: ef })
+        }
+        return false
+      }
     }
-    if (!keys.has(key)) return true
+    if (!keys.has(key)) { follow(n.value, f); return true }
     const s = stringValue(n.value)
-    if (s != null) out.targets.push({ name: s, key, node: n.value, file: r.file })
-    else out.dynamic.push({ node: n.value, file: r.file })
+    if (s != null) out.targets.push({ name: s, key, node: n.value, file: f })
+    else out.dynamic.push({ node: n.value, file: f })
     return true
   })
+  if (r.node.type === 'Identifier') follow(r.node, r.file)
+  else scan(r.node, r.file)
   return out
 }
 
@@ -204,7 +258,7 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
  * }}
  */
 export function analyzeModel(project, file, modelNode) {
-  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], requests: [], sinkValues: [], computed: [] }
+  const res = { known: true, entries: [], nextTargets: [], dynamicNext: [], eventsEmitted: [], eventsDynamic: [], replyTargets: [], replyDynamic: [], replyCandidates: [], requests: [], sinkValues: [], computed: [] }
   const r = resolveExpr(project, file, modelNode)
   // PLAN-4 GS-8: undoable(model, options) is the model plus UNDO / REDO (src/extra/undo.ts)
   if (r?.node?.type === 'CallExpression' && isSygnalImport(r.file, r.node.callee, 'undoable') && r.node.arguments[0]) {
@@ -228,6 +282,7 @@ export function analyzeModel(project, file, modelNode) {
     const t = replyNames(project, mfile, valueNode, REPLY_KEYS, sink)
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
+    res.replyCandidates.push(...t.candidates.map(x => ({ ...x, sink, action })))
     res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))
   }
 
@@ -269,7 +324,39 @@ export function analyzeModel(project, file, modelNode) {
 
   // next('X') targets: inside the model object and any module-level reducer
   // functions it references by name.
-  const scanned = new Set()
+  const scanned = new Set(), pushed = new Set()
+  const target = (n, f) => {
+    if (pushed.has(n)) return
+    pushed.add(n)
+    const s = stringValue(n.arguments[0])
+    if (s != null) res.nextTargets.push({ name: s, node: n.arguments[0], file: f })
+    else res.dynamicNext.push({ node: n, file: f })
+  }
+  // PLAN-13 C-3: a call that passes `next` on (`advance(next, state)`, an imported helper or one
+  // in this file): the callee's parameter at that position is `next` there, scanned in the
+  // callee's file (3 calls deep). A callee the checker can't read may call anything: dynamic
+  const passOn = (n, f, names, depth) => {
+    const i = n.arguments.findIndex(a => unwrap(a)?.type === 'Identifier' && names.has(unwrap(a).name))
+    if (i < 0 || nextName(n, names)) return
+    const h = resolveExpr(project, f, n.callee)
+    let p = h?.node && isFunction(h.node) ? h.node.params[i] : null
+    if (p?.type === 'AssignmentPattern') p = p.left
+    if (p?.type !== 'Identifier') return depth < 3 && res.dynamicNext.push({ node: n, file: f })
+    if (depth >= 3 || scanned.has(h.node.body)) return
+    scanned.add(h.node.body)
+    const inner = new Set([p.name])
+    walk(h.node.body, (m) => {
+      if (m.type === 'CallExpression') {
+        if (nextName(m, inner)) target(m, h.file)
+        else passOn(m, h.file, inner, depth + 1)
+      }
+      return true
+    })
+  }
+  const nextName = (n, names) => {
+    const c = unwrap(n.callee)
+    return c.type === 'Identifier' && names.has(c.name) && n.arguments.length > 0
+  }
   const scanNext = (root, f) => {
     if (!root || scanned.has(root)) return
     scanned.add(root)
@@ -280,12 +367,8 @@ export function analyzeModel(project, file, modelNode) {
     })
     walk(root, (n) => {
       if (n.type === 'CallExpression') {
-        const c = unwrap(n.callee)
-        if (c.type === 'Identifier' && nextNames.has(c.name) && n.arguments.length) {
-          const s = stringValue(n.arguments[0])
-          if (s != null) res.nextTargets.push({ name: s, node: n.arguments[0], file: f })
-          else res.dynamicNext.push({ node: n, file: f })
-        }
+        if (nextName(n, nextNames)) target(n, f)
+        else passOn(n, f, nextNames, 0)
       }
       if (n.type === 'Identifier' && n !== root) {
         const b = findBinding(f, n.name, n)

@@ -129,7 +129,70 @@ function makeClockDriver() {
 // model:   START: { CLOCK: () => ({ start: true, ms: 1000 }) }
 ```
 
+Import `xs` from `'sygnal'`, not `import xs from 'xstream'`: xstream is CommonJS, and under Node's ESM loader or Vite 8 (in a `"type": "module"` package) its default import is the module object, so `xs.create` is undefined when the driver starts. Sygnal's `xs` is the same xstream with that default resolved; `sygnal-check` reports the default import as [SYG302](/reference/errors/#syg302) (info) and `--fix` rewrites it.
+
 - The intent reads the source as `CLOCK.select(…)`. Return whatever API suits the driver; `select()` is the convention.
 - A `dispose()` on the source is called when the app is disposed (or hot-reloaded).
-- A hand-written driver has no reply actions: its source is read in the intent. Use `driverFromAsync` when a request/reply shape fits.
+- A hand-written driver's source is read in the intent unless it answers with reply actions ([below](#reply-actions-in-your-own-driver)). Use `driverFromAsync` when a single request/reply fits.
 - In tests, any driver you don't pass is replaced by a recording fake (`t.sinkValues('CLOCK')`); pass a stub in `drivers` to emit values.
+
+## Reply actions in your own driver
+
+`driverFromAsync` answers each request once. A driver that answers several times (upload progress, then the result) or that has its own lifecycle uses the same reply-action protocol directly: `makeReplies()` and `senderOf()`.
+
+```javascript
+// drivers/upload.js
+import { makeReplies, senderOf } from 'sygnal'
+
+// send(file, step, signal): uploads `file`, calls step(fraction) as it goes, resolves with the result
+export function makeUploadDriver(send) {
+  return (sink$) => {
+    const inflight = new Map()   // sender → AbortController
+    // onStop: the sending component was disposed, so its upload is aborted
+    const { replies, reply } = makeReplies((sender) => inflight.get(sender)?.abort())
+    sink$.addListener({
+      next: (req) => {
+        const sender = senderOf(req)
+        if (sender === undefined) return   // not sent by a component: nobody to answer
+        const ctl = new AbortController()
+        inflight.set(sender, ctl)
+        send(req.file, (fraction) => req.progress && reply(sender, req.progress, fraction), ctl.signal).then(
+          (result) => req.ok && reply(sender, req.ok, result),
+          (error) => req.error && reply(sender, req.error, { error, request: req }),
+        )
+      },
+    })
+    return { ...replies }
+  }
+}
+
+// main.js: run(App, { UPLOAD: makeUploadDriver(sendToS3) })
+```
+
+```jsx
+// Uploader.jsx
+export function Uploader({ state }) {
+  return (
+    <div>
+      <button type="button" className="go">Upload</button>
+      <progress value={state.fraction} />
+      {state.failed && <p role="alert">{state.failed}</p>}
+    </div>
+  )
+}
+
+Uploader.initialState = { fraction: 0, done: null, failed: null }
+Uploader.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+Uploader.model = {
+  GO: { UPLOAD: () => ({ file: 'report.pdf', progress: 'UP_PROGRESS', ok: 'UPLOADED', error: 'UP_FAILED' }) },
+  UP_PROGRESS: (state, fraction) => ({ ...state, fraction }),
+  UPLOADED: (state, result) => ({ ...state, done: result }),
+  UP_FAILED: (state, { error }) => ({ ...state, failed: error.message }),
+}
+```
+
+- `...replies` marks the source: the core stamps each request a component sends to it with the sending instance, and adds that instance's replies to its actions. `senderOf(req)` reads the stamp.
+- `reply(sender, type, data)` dispatches `type` on that instance only, as often as you call it. A Collection item, or any of several instances of one component, hears only its own replies.
+- `onStop(sender)` runs when that instance is disposed; replies to it after that are dropped (`listening(sender)` tells). Abort its work there.
+- The names are the component's model entries, as with `makeFetchDriver`: a missing one is [SYG112](/reference/errors/#syg112) in the dev checks. `sygnal-check` reads `ok`, `error` and `progress` keys; list the other keys your driver replies with in `replyKeys` in `sygnal-check.config.json` (`{ "replyKeys": { "UPLOAD": ["cancelled"] } }`), and their actions are checked too ([Editor setup](/integration/editors/)).
+- In tests pass the real driver with a scripted `send`: `renderComponent(Uploader, { drivers: { UPLOAD: makeUploadDriver(fakeSend) } })`.

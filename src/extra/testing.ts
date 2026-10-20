@@ -5,6 +5,7 @@ import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import {ownedCopy} from './owned';
+import {isAbort} from '../shared';
 import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, report} from './diagnostics/index';
 import xs from './xstreamCompat';
@@ -496,9 +497,10 @@ export interface RenderResult {
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**
    * PLAN-3 2-C: the server sends `data` (objects as JSON text) on the open connection(s): `message`
-   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event.
+   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event;
+   * `{ id }` (PLAN-13 S-1): its SSE event id (`meta`, `resume`).
    */
-  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; connection?: FakeConnectionTarget}) => Promise<void>;
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; id?: string | number; connection?: FakeConnectionTarget}) => Promise<void>;
   /**
    * PLAN-3 2-C: the connection(s) close without the app closing them (a connecting one fails to
    * open: `error` first): `close` fires with `{ code, reason, willReconnect }` and the fake
@@ -1283,7 +1285,9 @@ const fakeSocketClass = (sse: boolean, made: (s: any) => void) => class {
   onopen: any; onmessage: any; onerror: any; onclose: any;
   constructor(url: string, arg?: any) {
     this.url = String(url);
-    this.k = sockKey(sse, this.url, arg);
+    // PLAN-13 S-1: a resumed SSE reconnect's URL ends with the id parameter; its key doesn't
+    const id = sse && arg?.lastEventId;
+    this.k = sockKey(sse, id ? this.url.replace(new RegExp('[?&][^?&=]+=' + encodeURIComponent(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), '') : this.url, arg);
     made(this);
   }
   send() {}
@@ -1952,7 +1956,7 @@ export function renderComponent(
   for (const k in uses) for (const a in uses[k]?.model || {}) names.push(k + '.' + a);
   // G-275: the caller's initialState is owned (the dev statics freeze leaves it alone). G-289: a
   // copy is marked, not the caller's object
-  const init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
+  let init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
   // G-028: with no intent, model or initialState nothing would ever emit state, so the view
   // never renders. Leave intent/model unset so the component falls back to the same no-op
   // model run() uses, and renders.
@@ -2213,6 +2217,17 @@ export function renderComponent(
       },
     };
   };
+  // PLAN-13 F-2: a root that declares `route` starts from the test URL's route: its initialState's
+  // router.current() ran at module load, before the test's URL existed. The route entry's STATE
+  // reducer is applied to the initial state (its other sinks, a guard's redirect, run once when the
+  // router answers the declaration), so the first render and the statics see the page the test
+  // starts on: no render of '/' and no request for it
+  const re = rt && typeof componentDef.route == 'string' && model[componentDef.route]
+  const seed = typeof re == 'function' ? re : re && typeof re == 'object' && typeof re.STATE == 'function' && re.STATE
+  if (seed && init !== undefined) {
+    const v = seed(init, rt!.r.current(), noop, {state: init, previousState: init})
+    if (v !== undefined && !isAbort(v)) init = v
+  }
   let sources: any, sinks: any;
   try {
     // the root runs with the test intent, model, initial state and name, and the drivers above.
@@ -2848,11 +2863,13 @@ export function renderComponent(
   };
   const open = (name: string, target?: FakeConnectionTarget) => sockCall('open', name, target, [0], sockOpen);
   const push = (name: string, data: any, target?: any) => {
-    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection') ? target : {connection: target};
+    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection' || k == 'id') ? target : {connection: target};
     const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
     const ev = o.event;
     return sockCall('push', name, o.connection, [1], s => {
-      const m = {type: ev || 'message', data: raw};
+      // PLAN-13 S-1: `id` sets the event id; as in EventSource, lastEventId keeps the last one
+      if (s.sse && o.id != null) s.lastId = String(o.id);
+      const m: any = {type: ev || 'message', data: raw, ...(s.sse && {lastEventId: s.lastId ?? ''})};
       if (!ev || ev == 'message') sockFire(s, 'message', m);
       if (s.sse) (s.ls[ev || 'message'] || []).forEach((f: any) => { try { f(m); } catch (e) { console.error(e); } });
     });

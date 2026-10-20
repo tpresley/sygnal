@@ -220,7 +220,7 @@ Sizes.model = { SIZE: (state, size) => ({ ...state, size }) }
 An intent action comes only from `mouseenter` or `mouseover` (also `pointerenter` / `pointerover`), nothing else sends it, and it changes the state. Keyboard users never hover, and touch screens hover only on a tap, so a tooltip, preview or menu shown this way is out of their reach. Trigger it from focus too, and close it on blur as on mouse leave:
 
 ```jsx
-import xs from 'xstream'
+import { xs } from 'sygnal'
 
 // Flagged: SHOW: DOM.mouseenter('.info'), with nothing else sending SHOW
 

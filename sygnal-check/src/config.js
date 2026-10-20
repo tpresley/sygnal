@@ -6,7 +6,9 @@
  *   package.json                        { "sygnal-check": { "strict": true } }
  *
  * Keys: strict (boolean), a11y ('warn' | 'error'), ignore (codes), paths (files, directories or
- * globs, relative to the file's directory; default ['src']), includeTests (boolean). `$schema` is
+ * globs, relative to the file's directory; default ['src']), includeTests (boolean), replyKeys
+ * (PLAN-13 C-4: request keys a custom driver uses for reply actions, `["cancelled"]` for every sink or
+ * `{ "UPLOAD": ["progress", "cancelled"] }` per sink; default none). `$schema` is
  * allowed and ignored. JSON only: no JS config is ever evaluated.
  *
  * Precedence, highest first: explicit options (CLI flags, API options, editor settings), the
@@ -39,7 +41,7 @@ import { closestName } from './names.js'
 
 export const CONFIG_FILE = 'sygnal-check.config.json'
 export const PACKAGE_KEY = 'sygnal-check'
-export const DEFAULTS = Object.freeze({ strict: false, a11y: 'warn', ignore: Object.freeze([]), paths: Object.freeze(['src']), includeTests: false })
+export const DEFAULTS = Object.freeze({ strict: false, a11y: 'warn', ignore: Object.freeze([]), paths: Object.freeze(['src']), includeTests: false, replyKeys: Object.freeze([]) })
 export const CONFIG_KEYS = Object.keys(DEFAULTS)
 const A11Y = ['warn', 'error']
 const ALLOWED = ['$schema']
@@ -136,6 +138,12 @@ function validate(obj, { text, rel, dir, offset, where }, diagnostics) {
     } else if (key === 'ignore') {
       if (isStrings(value)) config[key] = value.slice()
       else bad(key, `'ignore' must be an array of codes, got ${JSON.stringify(value)}, so it is ignored`, `use a list such as ["SYG105"]`)
+    } else if (key === 'replyKeys') {
+      // PLAN-13 C-4: a list of key names, or sink name → list
+      const ok = isStrings(value) || (isObj(value) && Object.values(value).every(isStrings))
+      const named = (l) => l.every(k => /^[A-Za-z_$][\w$]*$/.test(k))
+      if (ok && (Array.isArray(value) ? named(value) : Object.values(value).every(named))) config[key] = Array.isArray(value) ? value.slice() : {...value}
+      else bad(key, `'replyKeys' must be an array of request key names, or an object of sink name → array, got ${JSON.stringify(value)}, so it is ignored`, `use ["cancelled"] or { "UPLOAD": ["progress", "cancelled"] }`)
     } else if (key === 'paths') {
       if (isStrings(value) && value.length) config[key] = value.map(p => path.resolve(dir, p))
       else bad(key, `'paths' must be a non-empty array of strings (files, directories or globs), got ${JSON.stringify(value)}, so it is ignored`, `use a list such as ["src"]`)

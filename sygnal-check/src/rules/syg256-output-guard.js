@@ -130,11 +130,25 @@ function rejectedBefore(tree,r,facts) {
   return rejectedBefore(tree.yes,r,facts) && rejectedBefore(tree.no,r,facts)
 }
 
+// PLAN-13 C-2: a call (or a function) in the value of a leaf object's plain property only makes that
+// field UNKNOWN; the literal fields beside it are still written (`edit: { ...s.edit, [keyOf(s)]: d }`
+// next to `dirty: true`). One anywhere else (a test, a spread, a computed key) and any assignment,
+// update or delete, nested functions included, keep the proof out.
+const CALLS = ['CallExpression', 'OptionalCallExpression', 'NewExpression', 'TaggedTemplateExpression']
+const EFFECTS = ['AssignmentExpression', 'UpdateExpression', 'AwaitExpression', 'YieldExpression']
+function leafValue(n, r, leaves) {
+  const parents = r.file.parents
+  for (let c = n, p = parents.get(c); p && c !== r.fn.body; c = p, p = parents.get(p))
+    if (p.type === 'ObjectProperty' && p.value === c && !p.computed && leaves.has(parents.get(p))) return true
+  return false
+}
 function writes(r) {
   let safe = true
+  const leaves = new Set()
+  ;(function each(t) { if (!t) return; if (t.test) { each(t.yes); each(t.no) } else if (t.leaf) leaves.add(t.leaf) })(r.tree)
   walk(r.fn.body, n => {
-    if (['CallExpression', 'OptionalCallExpression', 'NewExpression', 'AssignmentExpression', 'UpdateExpression', 'AwaitExpression', 'YieldExpression', 'TaggedTemplateExpression'].includes(n.type) ||
-      n.type === 'UnaryExpression' && n.operator === 'delete' || isFunction(n)) safe = false
+    if (EFFECTS.includes(n.type) || n.type === 'UnaryExpression' && n.operator === 'delete' ||
+      (CALLS.includes(n.type) || isFunction(n)) && !leafValue(n, r, leaves)) safe = false
   })
   if (!safe) return []
   const result = []

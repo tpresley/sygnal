@@ -146,6 +146,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG111: 'Controlled input has no input listener',
   SYG115: 'Unknown DOM event shorthand',
   SYG116: 'EVENTS value has no string type',
+  // PLAN-13 N-1: dev entry (checks/next.ts onNext) and sygnal-check
+  SYG117: 'next() names an action with no model entry',
   SYG124: 'Component used as a control or selector',
   SYG125: 'Control given .intent, .model or .initialState',
   SYG126: 'Control rendered but never listened to',
@@ -181,6 +183,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
+  // PLAN-13 F-3: dev entry (checks/next.ts onRender) and sygnal-check
+  SYG429: 'Switchable state map names no page',
   SYG432: 'VirtualCollection item does not render one element',
   SYG433: 'VirtualCollection scroll target not in the list',
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
@@ -196,6 +200,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG202: 'STATE reducer returned undefined',
   // SYG3xx streams & intent construction (1A)
   SYG301: 'RxJS operator used on an xstream stream',
+  // PLAN-13 X-1: static only (sygnal-check)
+  SYG302: "Default import from 'xstream'",
   // SYG4xx collections / switchable / sub-components / context (1A)
   SYG401: "Collection 'from' field is missing or not an array",
   // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
@@ -426,6 +432,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG112: 'error',
   SYG115: 'warn',
   SYG116: 'error',
+  SYG117: 'warn',
   // PLAN-4 1-D: controls, static (sygnal-check)
   SYG124: 'error',
   SYG125: 'error',
@@ -437,6 +444,10 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG129: 'warn',
   // PLAN-10 X-1: static only (sygnal-check)
   SYG170: 'warn',
+  // PLAN-13 X-1: static only (sygnal-check)
+  SYG302: 'info',
+  // PLAN-13 F-3 (checks/next.ts)
+  SYG429: 'warn',
   SYG171: 'warn',
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)

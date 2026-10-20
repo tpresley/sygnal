@@ -30,6 +30,9 @@
 import intentWithoutModel from './syg101-intent-without-model.js'
 import unreachableModel from './syg102-unreachable-model.js'
 import unknownReplyAction from './syg112-unknown-reply-action.js'
+import nextWithoutEntry from './syg117-next-without-entry.js'
+import xstreamDefaultImport from './syg302-xstream-default-import.js'
+import switchableStateMap from './syg429-switchable-state-map.js'
 import selectorInView from './syg110-selector-in-view.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
@@ -62,6 +65,9 @@ export const coreRules = [
   intentWithoutModel,
   unreachableModel,
   unknownReplyAction,
+  nextWithoutEntry, // SYG117 (PLAN-13 N-1): next('X') with no entry X in the same component
+  xstreamDefaultImport, // SYG302 (PLAN-13 X-1): import xs from 'xstream' (info, --fix)
+  switchableStateMap, // SYG429 (PLAN-13 F-3): a Switchable state map key that names no page
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
   collectionFrom,

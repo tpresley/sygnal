@@ -18,11 +18,12 @@
  *   page after a patch, G-460: on rendered elements), SYG612 (D173: a form
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
  *   guide), SYG453 (PLAN-9, D470: two children with one identity share one instance), SYG426
- *   (PLAN-9, D471: a lowercase <collection> / <switchable> tag, deprecated in 6.3.0).
+ *   (PLAN-9, D471: a lowercase <collection> / <switchable> tag, deprecated in 6.3.0), SYG117
+ *   (PLAN-13 N-1: next() to an action the component has no model entry for).
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
-import {bridge, devReport, reportSafely, once, onReset, nameOf, isPlainObject} from './shared'
+import {bridge, devReport, reportSafely, once, onReset, nameOf, isPlainObject, didYouMean} from './shared'
 import {DEV_CODE_SEVERITY} from '../codes'
 import {watchMutation} from './state'
 import {checkRequest} from './replies'
@@ -198,6 +199,31 @@ function lowercaseTags(iv: any): void {
     })
     const kids = n.children
     if (Array.isArray(kids)) for (const k of kids) walk(k, d + 1)
+  }
+  walk(raw.tmpl, 0)
+}
+
+/**
+ * PLAN-13 F-3 SYG429: a Switchable's per-page `state={{ page: … }}` with a key that names no page
+ * (read from the owner's template, as SYG426; 0 production bytes). Once per component and key
+ */
+function switchableMaps(iv: any): void {
+  const raw = iv.i
+  if (!raw?.kids?.size || !raw.tmpl) return
+  const walk = (n: any, d: number): void => {
+    if (!n || typeof n != 'object' || n.$p || d > 300) return
+    const p = n.sel == 'switchable' && n.data?.props, st = p?.state
+    if (st && isPlainObject(st) && typeof st.get != 'function' && isPlainObject(p.of)) {
+      const pages = Object.keys(p.of)
+      for (const k of Object.keys(st)) if (!(k in p.of) && once(`SYG429:${iv.name}:${k}`)) devReport('SYG429', {
+        component: iv.name,
+        message: `${iv.name}'s Switchable state map binds '${k}', which is not one of its pages (${pages.join(', ')}), so that binding is never used${didYouMean(k, pages)}`,
+        fix: 'Use the page name from of={{ … }} as the key, or remove the entry',
+        data: {key: k, pages},
+      })
+    }
+    const kids = n.children
+    if (Array.isArray(kids)) for (const c of kids) walk(c, d + 1)
   }
   walk(raw.tmpl, 0)
 }
@@ -430,7 +456,7 @@ export function nextHooks(_api: any): any {
       H.onRender(f, vnode)
       if (!on()) return
       removedTags(f, vnode)
-      try { lowercaseTags(iv) } catch (_) { /* a check never breaks the app */ }
+      try { lowercaseTags(iv); switchableMaps(iv) } catch (_) { /* a check never breaks the app */ }
       // SYG453: only a view with children can render one twice
       if (iv.children().length) try { sharedIdentity(iv, vnode) } catch (_) { /* a check never breaks the app */ }
     },
@@ -459,6 +485,23 @@ export function nextHooks(_api: any): any {
         if (src && src.__sygnalReplies === true) checkRequest(f, sink, v, Object.keys(f.modelMap))
         if (src && src.__sygnalStatic === 'resources') checkFetch(f, sink, v)
       } catch (_) { /* a check never breaks the app */ }
+    },
+    // SYG117 (PLAN-13 N-1): next('X') goes to the component's own model only; with no entry
+    // for X it does nothing (an ancestor's entry of that name never runs)
+    onNext(iv: any, type: string) {
+      if (!on() || iv.def.handlers.has(type)) return
+      const name = iv.name
+      if (!once(`SYG117:${name}:${type}`)) return
+      let up: any = live.get(iv.parentId)
+      while (up && !up.def.handlers.has(type)) up = live.get(up.parentId)
+      devReport('SYG117', {
+        component: name,
+        message: `${name} calls next('${type}'), but ${name} has no model entry '${type}', so the action does nothing${up ? `: next() never reaches ${up.name}, which handles '${type}'` : ''}${didYouMean(type, iv.def.handlers.keys())}`,
+        fix: up
+          ? `next() stays in its own component. Send it up instead: give the entry that calls it a PARENT sink (PARENT: (state) => ({ … })) and add ${type}: CHILD.select(${name}) to ${up.name}.intent, or emit EVENTS: event('${type}', …) and select it there`
+          : `Add the entry to ${name}.model (${type}: (state, data) => …), or fix the name to match an existing one`,
+        data: {action: type, ...(up ? {handledBy: up.name} : {})},
+      })
     },
     onElementCommand(iv: any, cmd: any) {
       if (!on()) return

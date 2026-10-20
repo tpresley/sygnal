@@ -13,6 +13,8 @@ import {sse} from './ai/transports/shared';
  * - a non-2xx status or another content type: `error` with readyState CLOSED (no retry; the
  *   driver's reconnect policy decides);
  * - `close()` aborts the request and stops retrying.
+ * - PLAN-13 S-1: `init.lastEventId` seeds the id sent as `Last-Event-ID` (a driver reconnect that
+ *   resumes); `onbeat` (not EventSource's) is called for any bytes read, heartbeat comments too.
  */
 
 const NAMES = ['CONNECTING', 'OPEN', 'CLOSED'];
@@ -27,16 +29,18 @@ export class FetchEventSource {
   onopen: any = null;
   onmessage: any = null;
   onerror: any = null;
+  onbeat: any = null;
   private ls = new Map<string, Set<(e: any) => void>>();
-  private meta: {id?: string; retry?: number} = {id: '', retry: 3000};
+  private meta: {id?: string; retry?: number; beat?: () => void} = {id: '', retry: 3000, beat: () => this.onbeat?.()};
   private ctl: any;
   private timer: any;
   private init: any;
 
-  constructor(url: string, init: {withCredentials?: boolean; headers?: Record<string, string>; fetch?: any} = {}) {
+  constructor(url: string, init: {withCredentials?: boolean; headers?: Record<string, string>; fetch?: any; lastEventId?: string} = {}) {
     this.url = url;
     this.withCredentials = !!init.withCredentials;
     this.init = init;
+    if (init.lastEventId) this.meta.id = init.lastEventId;
     queueMicrotask(() => this.connect());
   }
 
