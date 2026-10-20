@@ -69,3 +69,19 @@ it('the language server reads replyKeys from the config file', async () => {
   await client.settle()
   expect(client.diags(A).map(d => d.code)).not.toContain('SYG102')
 })
+
+import { spawnSync } from 'node:child_process'
+it('the command line reads replyKeys too (check, --graph)', () => {
+  const bin = path.resolve(import.meta.dirname, '../bin/sygnal-check.js')
+  for (const [cfg, expectNone] of [['{ "replyKeys": { "UPLOAD": ["cancelled"] } }', true], ['{}', false]]) {
+    const dir = tempDir({ 'package.json': '{ "name": "p", "private": true }', 'sygnal-check.config.json': cfg, 'src/App.jsx': app })
+    cleanup.push(() => fs.rmSync(dir, { recursive: true, force: true }))
+    const r = spawnSync(process.execPath, [bin, '--json', '--fail-on=never'], { cwd: dir, encoding: 'utf8' })
+    const codes = JSON.parse(r.stdout).map(d => d.code)
+    expect(codes.includes('SYG102'), cfg).toBe(!expectNone)
+    const g = spawnSync(process.execPath, [bin, '--graph=json'], { cwd: dir, encoding: 'utf8' })
+    const graph = JSON.parse(g.stdout)
+    const act = graph.components[0].actions.find(a => a.name === 'UP_CANCELLED')
+    expect(act.trigger, cfg).toBe(expectNone ? 'reply' : 'unknown')
+  }
+})

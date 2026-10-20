@@ -388,7 +388,7 @@ function buildBase(opts, headPaths, { cwd, stderr, shown }) {
   }
   const r = baseGraph(tree, paths, {
     cwd, strict: settings.strict, a11y: settings.a11y, ignore: settings.ignore, includeTests: settings.includeTests,
-    extraDiagnostics: config.diagnostics,
+    replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics,
   })
   for (const m of r.missing) stderr.write(`sygnal-check: ${shown(m)} is not in ${opts.base}: everything there counts as added\n`)
   return { ref: opts.base, commit: tree.commit, graph: r.graph }
@@ -467,7 +467,7 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
   }
 
   if (opts.graph) {
-    const g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, extraDiagnostics: config.diagnostics })
+    const g = graphFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, includeTests: settings.includeTests, replyKeys: settings.replyKeys, extraDiagnostics: config.diagnostics })
     let base = null
     if (opts.base !== undefined) {
       try {
@@ -501,13 +501,13 @@ export function main(argv, { stdout = process.stdout, stderr = process.stderr, c
 
   let fixDiags = []
   if (opts.fix) {
-    const r = fixFiles(files, { cwd, controls: opts.controls, keepClasses: opts.keepClasses })
+    const r = fixFiles(files, { cwd, controls: opts.controls, keepClasses: opts.keepClasses, replyKeys: settings.replyKeys })
     const n = r.files.length
     stderr.write(`sygnal-check: fixed ${r.fixed} issue${r.fixed === 1 ? '' : 's'}${opts.controls ? '' : ` in ${n} file${n === 1 ? '' : 's'}`}\n`)
     if (opts.controls) stderr.write(`sygnal-check: converted ${r.controls} selector${r.controls === 1 ? '' : 's'} to controls in ${r.controlFiles} file${r.controlFiles === 1 ? '' : 's'}\n`)
     fixDiags = r.diagnostics // SYG900 "fix skipped" (a rewrite that would not parse was rolled back)
   }
-  const diags = sortDiagnostics([...configDiags, ...fixDiags, ...checkFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore })])
+  const diags = sortDiagnostics([...configDiags, ...fixDiags, ...checkFiles(files, { cwd, strict: settings.strict, a11y: settings.a11y, ignore, replyKeys: settings.replyKeys })])
   if (opts.json) stdout.write(JSON.stringify(diags, null, 2) + '\n')
   else stdout.write(formatDiagnostics(diags, { verbose: opts.verbose }) + '\n')
 
