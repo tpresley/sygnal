@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2 done.
+**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1 done.
 
 ## Decisions
 
@@ -24,7 +24,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | N-1 | #45 `next()` with no entry here | 2 | — | done | SYG117 (warn): dev entry `onNext` in `checks/next.ts` (names the nearest ancestor with the entry, did-you-mean) and sygnal-check `rules/syg117-next-without-entry.js` (render-graph ancestors, rename fix); 0 production bytes; tests `test/diagnostics/p13-n1-next-without-entry.test.js`, `sygnal-check/test/p13-n1-next.vtest.js` |
 | C-1 | #25, #43 reply names via helpers / consts | 2 | — | done | `modelEntries.js`: `returnedObjects` follows returned identifiers and takes a returned call's object arguments with a reply key (any callee, D602); `connectionNames` follows consts in value position (specs, `events`, returns, spreads); `sygnal-check/test/p13-c1-reply-helpers.vtest.js` |
 | C-2 | SYG256 missed the leave-guard | 2 | — | done | `writes()` allows calls / functions only inside a leaf object's plain property value (that field is UNKNOWN); tests, spreads, computed keys, assignments still abort; Temper shape + 8 cases in `p12-output-guard.vtest.js`; no new findings in examples or docs samples |
-| T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | todo | |
+| T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | done | fonts links removed (6 templates), `'Inter'` out of all font stacks (10 style files → system stack); `template-*/gitignore` renamed to `.gitignore` at the root by `copyDir`; tests in `test/create-sygnal-app-templates.test.js`; `release-smoke.mjs` checks both |
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | todo | docs + checker hint |
 | D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional) | todo | |
 | S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional) | todo | |

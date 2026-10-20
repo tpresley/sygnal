@@ -2,7 +2,8 @@
 // The template smoke checks of RELEASING.md (§4 before publishing, §7 after), as one script.
 // Every template (vite, vite-pwa, vike, astro, mcp-app; js and ts) is scaffolded into a new
 // folder, installed, and must pass its tests, `sygnal-check --strict` (`pages` for Vike), `tsc
-// --noEmit` for TypeScript, and its production build; both Vike templates are then checked in
+// --noEmit` for TypeScript, and its production build (and has a .gitignore and no remote fonts,
+// PLAN-13 T-1); both Vike templates are then checked in
 // Chromium: hydration, client navigation without a reload, one nav bar, a clean console.
 //
 //   node scripts/release-smoke.mjs --local      pack this checkout's three packages and scaffold
@@ -138,6 +139,12 @@ for (const p of projects) {
     for (const [name, v] of [['sygnal', V.sygnal], ['sygnal-check', V.check]]) {
       if (!ls.includes(`${name}@${v}`)) throw new Error(`${name}@${v} isn't the installed version`)
     }
+    // PLAN-13 T-1: the scaffold has its .gitignore (stored as `gitignore`: npm drops dotfiles) and
+    // loads no remote fonts
+    if (!/^node_modules$/m.test(fs.readFileSync(path.join(cwd, '.gitignore'), 'utf8'))) throw new Error('.gitignore does not ignore node_modules')
+    const remote = fs.readdirSync(cwd, { recursive: true }).filter((f) => !String(f).startsWith('node_modules') && /\.(html|astro|css|jsx?|tsx?)$/.test(f))
+      .filter((f) => /fonts\.(googleapis|gstatic)\.com/.test(fs.readFileSync(path.join(cwd, f), 'utf8')))
+    if (remote.length) throw new Error(`remote fonts in ${remote.join(', ')}`)
     run('npm', ['test'], { cwd, log })
     run('npx', ['--no-install', 'sygnal-check', ...(p.t === 'vike' ? ['pages'] : []), '--strict'], { cwd, log })
     if (p.lang === 'ts') run('npx', ['--no-install', 'tsc', '--noEmit', '-p', '.'], { cwd, log })

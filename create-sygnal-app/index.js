@@ -220,15 +220,19 @@ async function main() {
 // app, and the suffix keeps the Sygnal repo's own test run from collecting
 // them.
 const TEMPLATE_SUFFIX = '.tmpl'
+// npm leaves `.gitignore` out of a published package, so each template stores it as
+// `gitignore` and the copy names it back (PLAN-13 T-1)
+const RENAMED = { gitignore: '.gitignore' }
 
-function copyDir(src, dest) {
+function copyDir(src, dest, root = true) {
   mkdirSync(dest, { recursive: true })
   for (const entry of readdirSync(src)) {
     if (entry === 'node_modules') continue
     const srcPath = join(src, entry)
-    const destPath = join(dest, entry.endsWith(TEMPLATE_SUFFIX) ? entry.slice(0, -TEMPLATE_SUFFIX.length) : entry)
+    const name = root && RENAMED[entry] || entry
+    const destPath = join(dest, name.endsWith(TEMPLATE_SUFFIX) ? name.slice(0, -TEMPLATE_SUFFIX.length) : name)
     if (statSync(srcPath).isDirectory()) {
-      copyDir(srcPath, destPath)
+      copyDir(srcPath, destPath, false)
     } else {
       writeFileSync(destPath, readFileSync(srcPath))
     }

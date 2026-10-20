@@ -25,6 +25,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   (or a function) inside a plain field's value now only makes that field unknown; calls in a test,
   a spread or a computed key of the written object, and any assignment, still keep the check out.
 
+- **create-sygnal-app: no Google Fonts, and a `.gitignore` (PLAN-13 T-1).** The vite, vite-pwa and
+  astro templates loaded Inter from Google Fonts; every template now uses a system font stack and
+  loads nothing remote. No template wrote a `.gitignore` (npm leaves it out of the package): each
+  ships `gitignore`, scaffolded as `.gitignore` (`node_modules`, `dist`, `.vite`, `.astro`,
+  `*.local`, `dev-dist` for the PWA). The release smoke checks both.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**
