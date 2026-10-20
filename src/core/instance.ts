@@ -192,7 +192,7 @@ export class Inst {
   // flag they were computed from; its reply streams
   st: Array<[string, string]> | null = null
   sv: Record<string, any> | null = null
-  sS: any; sH: any
+  sS: any; sH: any; sC: any
   rep: any[] | null = null
 
   constructor(

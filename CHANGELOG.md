@@ -52,6 +52,14 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   policy applies; over fetch, heartbeat comments count. `t.push(sink, data, { id })` gives a test
   event its id. No bytes for apps without a socket driver.
 
+- **Declaration statics see the context (PLAN-13 F-1).** `resources`, `timers`, `connections`,
+  `head` and `browser` get `(state, context)` and are computed again when the component's context
+  changes (by identity, D603; an unrelated write re-runs nothing). A routed page reads `route` from
+  context (`App.context = { route: (s) => s.route }`, `TaskPage.resources = { task: (s, { route })
+  => … }`) instead of keeping a copy of the params in its own state. Server rendering passes the
+  context to `resources` and `head` too; the types take it as the second parameter; `sygnal-check`
+  counts context reads in the statics for SYG170. Core: +19 B (kanban gzip).
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

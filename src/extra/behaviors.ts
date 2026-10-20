@@ -96,10 +96,10 @@ const addTimers = (v: any): void => {
   if (timed.has(v)) return
   timed.add(v)
   let own = v.timers
-  const all = (st: any) => {
+  const all = (st: any, c?: any) => {
     const o: any = {}, f = own
-    if (typeof f == 'function') Object.assign(o, f(st))
-    else if (f && typeof f == 'object') for (const r in f) o[r] = f[r](st)
+    if (typeof f == 'function') Object.assign(o, f(st, c))
+    else if (f && typeof f == 'object') for (const r in f) o[r] = f[r](st, c)
     const u = v.uses
     for (const k in u) {
       const b = u[k], t = b?.timers?.(st?.[k] ?? b.state, b.options, k), rn = (a: any) => a in (b.model || {}) ? k + '.' + a : a

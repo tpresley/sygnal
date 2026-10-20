@@ -1568,10 +1568,12 @@ export type Component<
    * actions on this instance; send with `{ to: 'room', json }` from a model entry (a connection
    * the same action opens or changes is declared first). Dispose closes them.
    */
-  connections?: (state: STATE & CALCULATED) => Connections;
+  connections?: (state: STATE & CALCULATED, context: CONTEXT) => Connections;
   /**
    * PLAN-3: declarative reads (`makeFetchDriver()`). Each entry derives a
-   * request from state; falsy means idle:
+   * request from state (and, PLAN-13 F-1, the context as its second argument, as every
+   * declaration static: `(state, { route }) => '/api/items/' + route.params.id`; re-run when the
+   * context changes); falsy means idle:
    * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
    * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
    * error, refreshing }`, written by the built-in RESOURCE action (idle until the first request).
@@ -1581,7 +1583,7 @@ export type Component<
    * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
    * request also dispatch those actions after the write.
    */
-  resources?: { [name: string]: (state: STATE & CALCULATED) => ResourceRequest | false | null | undefined | '' | 0 };
+  resources?: { [name: string]: (state: STATE & CALCULATED, context: CONTEXT) => ResourceRequest | false | null | undefined | '' | 0 };
   /**
    * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
    * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
@@ -1603,7 +1605,7 @@ export type Component<
    * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
    * static, it is sent with or without a model; a root needs `initialState` (SYG132).
    */
-  head?: (state: STATE & CALCULATED) => HeadValue | false | null | undefined;
+  head?: (state: STATE & CALCULATED, context: CONTEXT) => HeadValue | false | null | undefined;
   /**
    * PLAN-4 GS-1: behaviors this component uses, each under its state key:
    * `TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }` gives
@@ -1620,7 +1622,7 @@ export type Component<
    * fires once (`{ t }`), `frame` runs every animation frame (`{ t, dt }`). A hidden Switchable
    * page's timers stop unless `background: true`; dispose stops them; nothing runs during SSR.
    */
-  timers?: (state: STATE & CALCULATED) => Timers<ActionNameOf<ACTIONS>>;
+  timers?: (state: STATE & CALCULATED, context: CONTEXT) => Timers<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-5 B-3: browser sources derived from state, run by `makeBrowserDriver()` (registered:
    * `run(App, { BROWSER: makeBrowserDriver() })`; renderComponent provides a fake, `t.browser`)
@@ -1630,7 +1632,7 @@ export type Component<
    * restarts. A hidden Switchable page's sources stop unless `background: true`; dispose stops
    * them; nothing runs during SSR.
    */
-  browser?: (state: STATE & CALCULATED) => BrowserSources<ActionNameOf<ACTIONS>>;
+  browser?: (state: STATE & CALCULATED, context: CONTEXT) => BrowserSources<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-4 GS-5: save this root component's state and restore it at startup:
    * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })`. `pick` / `omit`

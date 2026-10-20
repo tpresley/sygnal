@@ -76,17 +76,17 @@ const shownOf = (inst: Inst) => {
 /** recompute the instance's declarations when its state or shown flag changed; send the changed ones */
 export function checkStatics(inst: Inst) {
   if (inst.disposed) return
-  const s = inst.cell.get(), shown = shownOf(inst)
+  const s = inst.cell.get(), shown = shownOf(inst), c = inst.context()
   // no state yet: nothing declared (as the state stream, which skips undefined)
-  if (s === undefined || (s === inst.sS && shown === inst.sH)) return
-  inst.sS = s; inst.sH = shown
+  if (s === undefined || (s === inst.sS && shown === inst.sH && c === inst.sC)) return
+  inst.sS = s; inst.sH = shown; inst.sC = c
   const view = inst.def.view, sv = inst.sv!
   for (const [n, k] of inst.st!) {
     const f = view[k]
     let v: any = f
     try {
-      if (typeof f == 'function') v = f(s)
-      else if (f && typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s) }
+      if (typeof f == 'function') v = f(s, c)
+      else if (f && typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s, c) }
     } catch (e) {
       // as today: nothing sent; the next value is sent even when equal to the last one
       inst.app.caught(inst, 'SYG216', `${k} threw; nothing sent`, e, 'declaration')

@@ -33,7 +33,7 @@ export default TaskPage
 
 It is sent to the driver at start and whenever the result changes. Each component instance has one entry; its next value replaces it, and a falsy value or the component's disposal removes it.
 
-- Like every declaration static, `head` is computed from the component's state, with or without a model; a root needs an `initialState` (SYG132).
+- Like every declaration static, `head` is computed from the component's state (and its context, the second argument: `(state, { route }) => ({ title: … })`), with or without a model; a root needs an `initialState` (SYG132).
 - `meta` keys starting with `og:`, `article:`, `fb:` (and the other Open Graph prefixes) become `<meta property>`, the others `<meta name>`. A `null` value removes a key a component mounted earlier set.
 - `link` entries are merged by `key` when they have one, else by `rel` for `canonical`, else by `rel` and `href`.
 

@@ -15,6 +15,8 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | D600 | 2026-10-19 | Fix the confirmed feedback items except the "no change needed" group (user) |
 | D601 | 2026-10-19 | Spikes allowed where design or cost is unclear; outcome recorded before production work (user) |
 | D602 | 2026-10-19 | C-1: an object argument of a returned call is a request's options when it has a reply key, whatever the callee (a non-sygnal `decide({ ok })` included; g648's test updated). A real SYG102 hidden this way needs a returned call that takes `{ ok: 'X' }` and never sends a request: judged unlikely next to the helper pattern's false SYG102s |
+| D603 | 2026-10-19 | F-1: variant A (re-run statics on a changed context object), after a benchmark showed no performance case for per-key tracking (user: "default to A unless the results strongly suggest B") |
+| D604 | 2026-10-19 | F-3: build the per-page `state` map (user prefers it to the wrapper page); ask about the size budget if it doesn't fit |
 
 ## Items
 
@@ -28,7 +30,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | done | SYG302 (info, static only): `rules/syg302-xstream-default-import.js`, `--fix` into the file's sygnal import; accessibility.md sample fixed; custom-drivers note; llms.txt / skill line; `sygnal-check/test/p13-x1-xstream-import.vtest.js` (p9-d471's fix fixture now also loses its xstream import) |
 | D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional, not run) | done | `makeReplies`, `senderOf` exported from `sygnal` (tree-shaken: 0 B in apps that don't import them), types `ReplySender` / `ReplyChannel` in `index.d.ts`, `type-tests/p13-d1-replies.ts`; guide section + API reference; `test/p13-d1-reply-helpers.test.js` (progress ×2 then ok, error, per-Collection-item delivery, onStop abort, SYG112). SP-D1 skipped: a `defineDriver({ replies })` wrapper only saves the spread, and declaring keys to sygnal-check is C-4's question (`replyKeys`) |
 | S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional, not run) | done | `socketDriver.ts`: per-entry `meta`, per-transport last id (`resume`: URL parameter for EventSource, `init.lastEventId` → `Last-Event-ID` in FetchEventSource), `staleAfterMs` timer (smallest over subscribers, re-armed by events, `onbeat` from the SSE parser's reads); fake: `t.push(…, { id })`, resumed URLs keyed to their connection; types `SseEvent`, `meta` / `resume` / `staleAfterMs`, `SocketClose.stale`; `test/p13-s1-sse-resume.test.js` (12). SP-S1 skipped: the behaviour rests on documented EventSource / fetch semantics; a real-proxy check is G-901 |
-| F-1 | #37 statics see context | 3 | SP-F1 (done) | awaiting go-ahead | spike recommends variant A (+19 B) |
+| F-1 | #37 statics see context | 3 | SP-F1 (done) | done | D603 (variant A): `checkStatics` passes `inst.context()` and re-runs on a changed context object; behaviors' timers accessor forwards it; SSR `contextOf()` for `resources` / `head`; types (second parameter of the five statics), `type-tests/p13-f1-statics-context.tsx`; sygnal-check `staticContextReads` → SYG170; docs (router, resources, timers, sockets, head), llms.txt / skill; `test/p13-f1-statics-context.test.js`, `sygnal-check/test/p13-f1-static-context.vtest.js`; core +19 B |
 | F-2 | #38 deep-link tests start on the real route | 3 | SP-F2 (optional) | todo | |
 | C-3 | #26 `next()` in an imported helper | 3 | — | todo | |
 | C-4 | #33 custom reply keys (`replyKeys`) | 3 | — | todo | |
