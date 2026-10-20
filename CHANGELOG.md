@@ -13,6 +13,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   the fix (send it up with `PARENT` or `EVENTS`), or the closest entry for a typo. `sygnal-check`
   reports a literal `next('X')` with no entry `X` in the same component (with a rename fix for a typo).
 
+- **sygnal-check reads reply names through request helpers and consts (PLAN-13 C-1).** An object
+  argument with a reply key of a call a sink returns is a request (`req('/a', { ok: 'GOT_A' })`,
+  `api.get_run(args, { ok: 'RUN' })`, any callee), a returned const is followed (`HTTP: () => SNAP`),
+  and so are `connections` specs and SSE `events` maps held in consts. SYG102 no longer reports
+  their reply actions as unreachable, SYG112 checks the names, SYG152 and `--graph` see the requests.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

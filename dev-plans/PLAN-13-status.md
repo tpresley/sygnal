@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1 done.
+**State:** in progress (2026-10-19): R-1, N-1, C-1 done.
 
 ## Decisions
 
@@ -14,6 +14,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 |---|---|---|
 | D600 | 2026-10-19 | Fix the confirmed feedback items except the "no change needed" group (user) |
 | D601 | 2026-10-19 | Spikes allowed where design or cost is unclear; outcome recorded before production work (user) |
+| D602 | 2026-10-19 | C-1: an object argument of a returned call is a request's options when it has a reply key, whatever the callee (a non-sygnal `decide({ ok })` included; g648's test updated). A real SYG102 hidden this way needs a returned call that takes `{ ok: 'X' }` and never sends a request: judged unlikely next to the helper pattern's false SYG102s |
 
 ## Items
 
@@ -21,7 +22,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 |---|---|---|---|---|---|
 | R-1 | #36 invalidation / navigation race | 1 | SP-R1 (optional) | done | `load()` stops when `R.q` changed or paused after its write; `test/p13-r1-invalidation-race.test.js` (lens / key / root × prefix / tag / refresh, two resources); SP-R1 probe below; core bytes: 0 (fetch driver only, see size gate) |
 | N-1 | #45 `next()` with no entry here | 2 | — | done | SYG117 (warn): dev entry `onNext` in `checks/next.ts` (names the nearest ancestor with the entry, did-you-mean) and sygnal-check `rules/syg117-next-without-entry.js` (render-graph ancestors, rename fix); 0 production bytes; tests `test/diagnostics/p13-n1-next-without-entry.test.js`, `sygnal-check/test/p13-n1-next.vtest.js` |
-| C-1 | #25, #43 reply names via helpers / consts | 2 | — | todo | |
+| C-1 | #25, #43 reply names via helpers / consts | 2 | — | done | `modelEntries.js`: `returnedObjects` follows returned identifiers and takes a returned call's object arguments with a reply key (any callee, D602); `connectionNames` follows consts in value position (specs, `events`, returns, spreads); `sygnal-check/test/p13-c1-reply-helpers.vtest.js` |
 | C-2 | SYG256 missed the leave-guard | 2 | — | todo | |
 | T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | todo | |
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | todo | docs + checker hint |

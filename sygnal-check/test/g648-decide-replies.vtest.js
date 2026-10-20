@@ -61,11 +61,11 @@ describe('G-648: reply actions inside decide()', () => {
     expect(by(d, 'SYG102').map(x => x.data.action)).toEqual(['TRIAGE_FAILED'])
   })
 
-  it('a decide() that is not sygnal/ai\'s is not read as a request', () => {
+  it('a decide() that is not sygnal/ai\'s: its options are a request helper\'s (PLAN-13 C-1, D602)', () => {
     const d = check(component(`import { choice } from 'sygnal/ai'
 import { decide } from './elsewhere.js'`,
       `(state) => decide({ ok: 'TRIAGED', error: 'TRIAGE_FAILED' })`))
-    expect(by(d, 'SYG102').map(x => x.data.action).sort()).toEqual(['TRIAGED', 'TRIAGE_FAILED'])
+    expect(by(d, 'SYG102')).toEqual([])
   })
 
   it('a resources decide({ ..., ok }) names its reply action too', () => {
