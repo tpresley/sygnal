@@ -12,7 +12,7 @@ are features: upload/download progress in `makeFetchDriver`, auth headers on SSE
 - **sygnal-check minor**: SYG731 exemptions, SYG609 for sources, the `progress` reply key.
 - **create-sygnal-app minor**: TS templates run `tsc --noEmit` in their check script.
 
-**Status:** planned 2026-10-17; S-1 done; all items implemented 2026-10-17 (D556–D559). Tracker: [`PLAN-11-status.md`](PLAN-11-status.md).
+**Status:** **Complete; released 2026-10-19 in sygnal 7.0.0** (PR #50, then 7.0's PR #53). Planned as a 6.7 minor; it shipped with 7.0 instead. Tracker: [`PLAN-11-status.md`](PLAN-11-status.md).
 
 **Branches:** integration `claude/sygnal-friction-assessment-8ec6df` (cut from `main` 49c2f6d4);
 spikes in `dev-plans/research/`.
