@@ -68,6 +68,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   checks and `sygnal-check`, with a rename fix). Types infer the page names from `of`. Core:
   +126 B (kanban gzip), leaving 18 B of the 43,000 B budget with F-1.
 
+- **Deep-link tests start on their route (PLAN-13 F-2).** `renderComponent(App, { router, url })`
+  applies the root's `route` entry's STATE reducer to the initial state with the `url`'s route
+  before the first render: `initialState`'s `router.current()` ran at module load, so a test used
+  to render `/` first and send its requests. The entry's other sinks (a guard's redirect) still run
+  once, when the router answers. Tests only; no core change.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

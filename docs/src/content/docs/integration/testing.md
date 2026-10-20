@@ -475,7 +475,7 @@ Disposing a component closes its connections, and `t.dispose()` closes all of th
 
 ### Routing: navigate(), back(), location
 
-A component that declares `route` needs the app's router: pass the object `makeRouter()` returns as `router`. With no `ROUTER` driver in `drivers`, `renderComponent` runs that router's real driver over an in-memory history, so guards, redirects, `block` and link handling are the driver's own code. The real `window.location` never changes. The history starts at `url` (default `'/'`). Without `router`, a component that declares `route` throws, naming the option.
+A component that declares `route` needs the app's router: pass the object `makeRouter()` returns as `router`. With no `ROUTER` driver in `drivers`, `renderComponent` runs that router's real driver over an in-memory history, so guards, redirects, `block` and link handling are the driver's own code. The real `window.location` never changes. The history starts at `url` (default `'/'`), and the test starts on it: the root's `initialState` read `router.current()` when the module loaded, so `renderComponent` applies the root's `route` entry's STATE reducer to the initial state with the `url`'s route before the first render (its other sinks, such as a guard's redirect, run once when the router answers). A deep-link test renders its page first and sends no request for `/`. Without `router`, a component that declares `route` throws, naming the option.
 
 ```jsx
 import { renderComponent } from 'sygnal'
@@ -617,7 +617,7 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `resourceSink` | `string` | `'HTTP'` | The driverless sink that receives the components' `resources` static (see [Resources](#resources)) |
 | `http` | `object` | — | Options for the HTTP fakes' `makeFetchDriver()` (all but `fetch`), e.g. `{ cache: queryCache() }` or `{ retry: 2 }` ([Resources and Caching](/guide/resources/#testing)) |
 | `router` | `Router` | none | The app's router (`makeRouter()`'s result): runs its driver over an in-memory history (see [Routing](#routing-navigate-back-location)). Required when a component declares `route` |
-| `url` | `string` | `'/'` | The router fake's start URL |
+| `url` | `string` | `'/'` | The router fake's start URL; the root's `route` entry's STATE reducer applies its route to the initial state before the first render |
 | `routerSink` | `string` | `'ROUTER'` | The sink the router fake serves |
 | `routerScroll`, `routerFocus` | `boolean` (`routerFocus`: or selectors) | `false` | Run the router's scroll restoration / focus handling |
 | `headSink` | `string` | `'HEAD'` | The sink the HEAD fake serves (`t.head()`) |

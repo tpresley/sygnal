@@ -5,6 +5,7 @@ import {enrichEventStream} from '../cycle/dom/enrichEventStream';
 import eventBusDriver from './eventDriver';
 import logDriver from './logDriver';
 import {ownedCopy} from './owned';
+import {isAbort} from '../shared';
 import {renderToInnerHtml} from './ssr';
 import {_getDiagnosticsConfig, configureDiagnostics, getDiagnosticsMode, isDiagnosticsEnabled, onDiagnostic, report} from './diagnostics/index';
 import xs from './xstreamCompat';
@@ -1955,7 +1956,7 @@ export function renderComponent(
   for (const k in uses) for (const a in uses[k]?.model || {}) names.push(k + '.' + a);
   // G-275: the caller's initialState is owned (the dev statics freeze leaves it alone). G-289: a
   // copy is marked, not the caller's object
-  const init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
+  let init = initialState !== undefined ? ownedCopy(initialState) : componentDef.initialState;
   // G-028: with no intent, model or initialState nothing would ever emit state, so the view
   // never renders. Leave intent/model unset so the component falls back to the same no-op
   // model run() uses, and renders.
@@ -2216,6 +2217,17 @@ export function renderComponent(
       },
     };
   };
+  // PLAN-13 F-2: a root that declares `route` starts from the test URL's route: its initialState's
+  // router.current() ran at module load, before the test's URL existed. The route entry's STATE
+  // reducer is applied to the initial state (its other sinks, a guard's redirect, run once when the
+  // router answers the declaration), so the first render and the statics see the page the test
+  // starts on: no render of '/' and no request for it
+  const re = rt && typeof componentDef.route == 'string' && model[componentDef.route]
+  const seed = typeof re == 'function' ? re : re && typeof re == 'object' && typeof re.STATE == 'function' && re.STATE
+  if (seed && init !== undefined) {
+    const v = seed(init, rt!.r.current(), noop, {state: init, previousState: init})
+    if (v !== undefined && !isAbort(v)) init = v
+  }
   let sources: any, sinks: any;
   try {
     // the root runs with the test intent, model, initial state and name, and the drivers above.
