@@ -2,7 +2,32 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## 7.1.0 — 2026-10-20
+
+Fixes and additions from building an app (Temper's Tune UI) on 7.0 ([PLAN-13](dev-plans/PLAN-13.md)):
+an invalidation / navigation race, declaration statics that see the context, per-page Switchable
+state, SSE resume and dead-stream detection, reply helpers for hand-written drivers, and more
+precise `sygnal-check` findings. All additive.
+
+**Measured impact.** Size: the kanban gate is (a) 42,982 B with `nativeGlobalThis: false` (7.0.0:
+42,844 B; budget 43,000 B, 18 B headroom) and (b) 38,987 B by default. Statics with context cost
+19 B and the per-page Switchable map 126 B (it reuses the owner's binding watch for a page whose
+record is deleted); everything else is in drivers, the dev diagnostics entry, the test helper or
+`sygnal-check`, and adds nothing to an app that doesn't use it. The perf count gate is within its
+limits.
+
+**Companion packages.**
+- **`sygnal-check` 0.12.0:** SYG117 (`next()` to an action with no entry here), SYG302 (`import xs
+  from 'xstream'`, with `--fix`), SYG429 (a Switchable state map key that names no page); reply names
+  through request helpers and consts; SYG256 sees past helper calls in other fields; `next` followed
+  into helpers, imported ones included; context reads in the statics count for SYG170; `replyKeys`
+  in the config file. Its caret range doesn't reach 0.12.0 from `^0.11.0`, so update the dev
+  dependency.
+- **`create-sygnal-app` 2.10.0:** templates depend on `sygnal` ^7.1.0 and `sygnal-check` ^0.12.0, use
+  a system font stack (no Google Fonts) and scaffold a `.gitignore`.
+- **VS Code extension 0.9.0:** bundles `sygnal-check` 0.12.0.
+- **Claude Code plugin 0.2.1:** the `sygnal-dev` skill covers 7.1 (statics with context, per-page
+  Switchable state, SSE resume, reply helpers, `import { xs } from 'sygnal'`).
 
 ### Added
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+Bundles sygnal-check 0.12.0 (Sygnal 7.1.0). The extension's own code doesn't change.
+
+- New findings: SYG117 (`next('X')` where the component has no entry `X`, naming the parent that handles it), SYG302 (`import xs from 'xstream'`, with a quick fix to `import { xs } from 'sygnal'`) and SYG429 (a Switchable state map key that names no page).
+- Fewer false findings: reply action names in request helpers (`req('/a', { ok })`), returned consts and `connections` consts; `next` passed into a helper, imported ones included (a helper edit re-checks its callers); SYG256 past helper calls in other fields; context reads in the declaration statics for SYG170.
+- `replyKeys` in `sygnal-check.config.json` names a custom driver's reply keys.
+
 ## 0.8.0
 
 Bundles sygnal-check 0.11.0 for Sygnal 7.0.0 and existing Sygnal 6 apps.

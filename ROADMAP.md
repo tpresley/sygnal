@@ -424,6 +424,14 @@ Let a model build an app's UI from parts the app prepared (real Sygnal component
 
 ---
 
+## Sygnal 7.1
+
+### 25. Feedback from Building an App on 7.0 (PLAN-13)
+
+**Status:** `DONE`: ships in **7.1.0** (2026-10-20) with `sygnal-check` 0.12.0, `create-sygnal-app` 2.10.0 (templates: `sygnal` ^7.1.0, `sygnal-check` ^0.12.0), the VS Code extension 0.9.0 and the Claude Code plugin 0.2.1 ([PLAN-13](dev-plans/PLAN-13.md), tracker [PLAN-13-status](dev-plans/PLAN-13-status.md); spikes in [`research/p13-f1/`](dev-plans/research/p13-f1/README.md) and [`research/p13-f3/`](dev-plans/research/p13-f3/README.md); release notes in [`CHANGELOG.md`](CHANGELOG.md)). The size gate is 42,982 B (budget 43,000 B).
+
+The invalidation / navigation race (R-1), statics that see the context (F-1), per-page Switchable state (F-3), SSE `meta` / `resume` / `staleAfterMs` (S-1), `makeReplies()` / `senderOf()` for hand-written drivers (D-1), deep-link tests that start on their route (F-2), and `sygnal-check` precision (SYG117, SYG302, SYG429, helpers, `replyKeys`).
+
 ## Sygnal 7.0
 
 ### 23. Friction Fixes from Building an App (PLAN-11)
