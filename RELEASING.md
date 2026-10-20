@@ -16,11 +16,11 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 | Placeholder | Package | Last published |
 |---|---|---|
-| `<SYGNAL>` | `sygnal` | 7.0.0 |
-| `<CHECK>` | `sygnal-check` | 0.11.0 |
-| `<CSA>` | `create-sygnal-app` | 2.9.0 |
+| `<SYGNAL>` | `sygnal` | 7.1.0 |
+| `<CHECK>` | `sygnal-check` | 0.12.0 |
+| `<CSA>` | `create-sygnal-app` | 2.10.0 |
 
-`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v7.0.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
+`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v7.1.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
 ## How a release runs
 
@@ -203,7 +203,7 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-Last published: the extension 0.8.0 (2026-10-19; tag `vscode-v0.8.0`) and the Claude Code plugin 0.2.0 (tag `sygnal--v0.2.0`), both through the release workflow.
+Last published: the extension 0.9.0 (2026-10-20; tag `vscode-v0.9.0`) and the Claude Code plugin 0.2.1 (tag `sygnal--v0.2.1`), both through the release workflow.
 
 **One-time setup (the maintainer's accounts).** The publisher `sygnal` exists on both registries (0.1.0).
 - **VS Code Marketplace, Microsoft Entra ID** (global Azure DevOps tokens stop working on December 1, 2026). The workflow signs in to Entra as an app registration that trusts GitHub's OIDC token for this repository's environment `release`, then runs `vsce publish --azure-credential` (`@vscode/vsce` 4.0.0, pinned in `editors/vscode`). No secret and no Azure subscription are involved. Microsoft documents this route for Azure Pipelines; the GitHub Actions form follows the same steps:
