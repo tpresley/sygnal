@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1 done.
+**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1 done.
 
 ## Decisions
 
@@ -26,7 +26,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | C-2 | SYG256 missed the leave-guard | 2 | — | done | `writes()` allows calls / functions only inside a leaf object's plain property value (that field is UNKNOWN); tests, spreads, computed keys, assignments still abort; Temper shape + 8 cases in `p12-output-guard.vtest.js`; no new findings in examples or docs samples |
 | T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | done | fonts links removed (6 templates), `'Inter'` out of all font stacks (10 style files → system stack); `template-*/gitignore` renamed to `.gitignore` at the root by `copyDir`; tests in `test/create-sygnal-app-templates.test.js`; `release-smoke.mjs` checks both |
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | done | SYG302 (info, static only): `rules/syg302-xstream-default-import.js`, `--fix` into the file's sygnal import; accessibility.md sample fixed; custom-drivers note; llms.txt / skill line; `sygnal-check/test/p13-x1-xstream-import.vtest.js` (p9-d471's fix fixture now also loses its xstream import) |
-| D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional) | todo | |
+| D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional, not run) | done | `makeReplies`, `senderOf` exported from `sygnal` (tree-shaken: 0 B in apps that don't import them), types `ReplySender` / `ReplyChannel` in `index.d.ts`, `type-tests/p13-d1-replies.ts`; guide section + API reference; `test/p13-d1-reply-helpers.test.js` (progress ×2 then ok, error, per-Collection-item delivery, onStop abort, SYG112). SP-D1 skipped: a `defineDriver({ replies })` wrapper only saves the spread, and declaring keys to sygnal-check is C-4's question (`replyKeys`) |
 | S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional) | todo | |
 | F-1 | #37 statics see context | 3 | SP-F1 (recommended) | todo | needs go-ahead after spike |
 | F-2 | #38 deep-link tests start on the real route | 3 | SP-F2 (optional) | todo | |

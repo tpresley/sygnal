@@ -12,6 +12,8 @@ export { Suspense } from "./suspense"
 export { Slot } from "./slot"
 export { lazy } from "./lazy"
 export { driverFromAsync } from "./extra/driverFactories"
+// PLAN-13 D-1: the reply-action protocol, for drivers written by hand
+export { makeReplies, senderOf } from './extra/replies'
 export { makeFetchDriver } from "./extra/fetchDriver"
 export { queryCache } from "./extra/queryCache"
 export { makeSocketDriver } from "./extra/socketDriver"

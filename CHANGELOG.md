@@ -37,6 +37,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   (the accessibility guide's sample was the last default import), the custom-drivers guide says
   why, and `sygnal-check` reports the default import (info) with a `--fix`.
 
+- **`makeReplies()` and `senderOf()` for drivers you write (PLAN-13 D-1).** The reply-action
+  protocol `makeFetchDriver`, `driverFromAsync` and the socket driver use is exported and typed
+  (`ReplySender`, `ReplyChannel`): spread `replies` into the source, `reply(senderOf(req), type,
+  data)` as often as needed (progress, then a result), and abort a disposed sender's work in
+  `onStop`. The custom-drivers guide has an upload driver that replies more than once.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

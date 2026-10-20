@@ -2322,6 +2322,48 @@ export type ReplyRequest = {
   catch?: never;
 }
 
+declare const replySenderBrand: unique symbol
+/**
+ * The component instance that sent a request to a driver (opaque). `senderOf(request)` reads it;
+ * pass it to `reply()` to answer that instance with one of its actions.
+ */
+export type ReplySender = { readonly [replySenderBrand]: true }
+
+/** What makeReplies() returns: the source part that marks the driver, and the way to answer */
+export type ReplyChannel = {
+  /**
+   * Spread into the driver's source (`return { ...replies, select }`): the core then stamps each
+   * request a component sends with its sender and delivers `reply()`s as that instance's actions.
+   */
+  replies: { readonly __sygnalReplies: true; replies(sender: ReplySender): Stream<{ type: string; data: any }> };
+  /** Dispatch `type` with `data` on the sender (dropped when it is gone). Call it as often as needed */
+  reply(sender: ReplySender, type: string, data?: any): void;
+  /** Whether the sender is still mounted (a reply would reach it) */
+  listening(sender: ReplySender): boolean;
+}
+
+/**
+ * PLAN-13 D-1: reply actions for a driver you write (the protocol makeFetchDriver,
+ * driverFromAsync and the socket driver use). `onStop(sender)` runs when a sender is disposed:
+ * abort what it still has in flight.
+ *
+ *   const { replies, reply } = makeReplies((sender) => inflight.get(sender)?.abort())
+ *   sink$.addListener({ next: (req) => {
+ *     const sender = senderOf(req)
+ *     if (sender === undefined) return                    // not sent by a component
+ *     run(req, (f) => req.progress && reply(sender, req.progress, f))
+ *       .then((v) => req.ok && reply(sender, req.ok, v), (error) => req.error && reply(sender, req.error, { error, request: req }))
+ *   } })
+ *   return { ...replies }
+ *
+ * A name with no model entry on the sender is SYG112 in the dev entry (ok / error / progress
+ * statically). Guide: https://sygnal.js.org/guide/custom-drivers/
+ */
+export function makeReplies(onStop?: (sender: ReplySender) => void): ReplyChannel
+
+/** The component instance that sent `request` to a driver with reply actions, or undefined (not sent by a component) */
+export function senderOf(request: object): ReplySender | undefined
+
 /**
  * A request to a driverFromAsync() sink: your own fields (`value`, the args, ...) plus the
  * reply-action keys `ok` / `error`. Type the driver's sink with it: `{ QUOTE: { source:
