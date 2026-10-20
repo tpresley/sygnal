@@ -2,6 +2,17 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+### Fixed
+
+- **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**
+  When a write's `ok` action navigated (`ROUTER`) and its `invalidates` (a URL prefix or a tag)
+  matched a resource of a lens- or key-bound page, the page's new request was sent and then the
+  invalidation sent the old one in the same lane, cancelling the new one: the new page showed the
+  old record. A load now stops when the resource's request changed (or it was paused) while it
+  wrote its loading state; refresh, polling and focus refetches go through the same path.
+
 ## 7.0.0 — 2026-10-19
 
 **Read [Migrating to 7.0](https://sygnal.js.org/guide/migrating-to-7/) before upgrading.** 7.0

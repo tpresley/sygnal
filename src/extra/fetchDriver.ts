@@ -431,6 +431,9 @@ export function makeFetchDriver(options: any = {}) {
       if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
       else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
       else write(s, n, R, 'loading');
+      // R-1: the write is dispatched synchronously; when it changed the request (a navigation
+      // recomputed the statics and a nested load sent the new one) or paused it, q is stale
+      if (R.q !== q || R.p) return;
       if (go || q.validate) R.i = send(q, s, n, after, R);
     };
 

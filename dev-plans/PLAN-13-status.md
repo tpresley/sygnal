@@ -4,9 +4,9 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Numbering:** a reserved block, decisions **D600–D649**, gaps **G-900–G-949**.
 
-**Integration branch:** `claude/plan-13-temper-feedback`, cut from `main` 97b7e285.
+**Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** planned 2026-10-19; nothing started.
+**State:** in progress (2026-10-19): R-1 done.
 
 ## Decisions
 
@@ -19,7 +19,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 | Item | Feedback | Phase | Spike | State | Notes |
 |---|---|---|---|---|---|
-| R-1 | #36 invalidation / navigation race | 1 | SP-R1 (optional) | todo | fix verified in a scratch copy |
+| R-1 | #36 invalidation / navigation race | 1 | SP-R1 (optional) | done | `load()` stops when `R.q` changed or paused after its write; `test/p13-r1-invalidation-race.test.js` (lens / key / root × prefix / tag / refresh, two resources); SP-R1 probe below; core bytes: 0 (fetch driver only, see size gate) |
 | N-1 | #45 `next()` with no entry here | 2 | — | todo | dev warning + checker rule |
 | C-1 | #25, #43 reply names via helpers / consts | 2 | — | todo | |
 | C-2 | SYG256 missed the leave-guard | 2 | — | todo | |
@@ -37,8 +37,10 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 | Spike | Question | Report | Outcome |
 |---|---|---|---|
+| SP-R1 | other re-entrant paths in the fetch driver | inline (no branch): the driver was instrumented to log every stale `load()` and every `resources` declaration nested inside another's loop, then the whole library suite and the R-1 tests ran | the guard fires only in the lens / key invalidation cases; no nested `resources` loop anywhere; `inval` and the focus / reconnect loop read `R.q` per resource, so after a nested reload they refetch the *new* request (redundant at worst, G-900); `upd` writes data only (no send). No further fix |
 
 ## Gaps
 
 | # | Gap |
 |---|---|
+| G-900 | A root-level page (and a resource reloaded before the invalidation loop reaches it) whose `ok` action navigates gets the new request twice: the navigation sends it, then the invalidation refetches it (same request, the first one cancelled). Correct but wasteful; skipping a resource whose read started after the write's reply would also need the cache's stale-marking of that fetch rethought. Not fixed |
