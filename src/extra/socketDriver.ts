@@ -155,8 +155,14 @@ export function makeSocketDriver(options: any = {}) {
       if (typeof C != 'function') return;
       // S-1: resume from the last event id: Last-Event-ID on the fetch path (init.lastEventId, which
       // a polyfill or the test fake gets too), else a URL parameter
+      // (a parameter the URL already has is replaced, not added again)
       const r = t.sse && t.id && [...t.subs].map(e => e.spec.resume).find(x => x);
-      const url = r && !hdr ? t.url + (t.url.includes('?') ? '&' : '?') + encodeURIComponent(r === true ? 'lastEventId' : r) + '=' + encodeURIComponent(t.id) : t.url;
+      let url = t.url;
+      if (r && !hdr) {
+        const p = encodeURIComponent(r === true ? 'lastEventId' : r) + '=', v = p + encodeURIComponent(t.id);
+        const re = new RegExp('([?&])' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[^&#]*');
+        url = re.test(url) ? url.replace(re, '$1' + v) : url + (url.includes('?') ? '&' : '?') + v;
+      }
       let s: any;
       try {
         s = t.sse ? new C(url, {withCredentials: !!t.spec.withCredentials, ...(hdr && {headers: hdr, fetch: options.fetch}), ...(r && {lastEventId: t.id})}) : new C(t.url, t.spec.protocols);

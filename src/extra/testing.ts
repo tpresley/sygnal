@@ -1275,19 +1275,27 @@ const sockKey = (sse: boolean, url: string, arg: any) => (sse ? 'e' + !!(arg && 
  * PLAN-3 2-C: the in-memory WebSocket / EventSource the fake's makeSocketDriver opens. The
  * harness drives it (t.open / t.push / t.drop); the driver's own close() is the app's close.
  */
+/** `url` without its query parameter `name` (PLAN-13 S-1: a resumed reconnect's id parameter) */
+const withoutParam = (url: string, name: string) =>
+  url.replace(new RegExp('([?&])' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '=[^&#]*&?'), '$1').replace(/[?&](#|$)/, '$1');
 const fakeSocketClass = (sse: boolean, made: (s: any) => void) => class {
   readyState = 0;
   sse = sse;
   byApp = false;
   k: string;
+  rn?: string;
   url: string;
   ls: Record<string, any[]> = {};
   onopen: any; onmessage: any; onerror: any; onclose: any;
   constructor(url: string, arg?: any) {
     this.url = String(url);
-    // PLAN-13 S-1: a resumed SSE reconnect's URL ends with the id parameter; its key doesn't
+    // PLAN-13 S-1: a resumed SSE reconnect's URL has the id parameter (added, or replacing the
+    // declared one): its key leaves that parameter out (`rn`: its name; made() compares the
+    // connections' URLs without it too)
     const id = sse && arg?.lastEventId;
-    this.k = sockKey(sse, id ? this.url.replace(new RegExp('[?&][^?&=]+=' + encodeURIComponent(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), '') : this.url, arg);
+    const m = id && new RegExp('[?&]([^?&=]+)=' + encodeURIComponent(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=&|#|$)').exec(this.url);
+    if (m) this.rn = m[1];
+    this.k = sockKey(sse, m ? withoutParam(this.url, m[1]) : this.url, arg);
     made(this);
   }
   send() {}
@@ -1855,7 +1863,7 @@ export function renderComponent(
     const w: Sock = {src: null, in$: xs.create(), conns: new Map(), sockets: [], sent: [], declaring: null};
     const made = (s: any) => {
       w.sockets.push(s);
-      const all = [...w.conns.values()].flatMap(m => [...m.values()]).filter(c => c.k == s.k);
+      const all = [...w.conns.values()].flatMap(m => [...m.values()]).filter(c => (s.rn ? sockKey(true, withoutParam(c.url, s.rn), c.spec) : c.k) == s.k);
       if (w.declaring) {
         // a declaration opened it: the first new connection with its key (and, shared, the
         // other new shared ones)

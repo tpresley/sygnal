@@ -91,6 +91,10 @@ describe('SSE resume', () => {
   it("resume: 'cursor' names the parameter, after the URL's own query", () => {
     expect(reconnect({ resume: 'cursor' }, '/events?room=a')[1].url).toBe('/events?room=a&cursor=e-41')
   })
+  it('a URL that already has the parameter gets it replaced, not a second one', () => {
+    expect(reconnect({ resume: true }, '/events?lastEventId=old&room=a')[1].url).toBe('/events?lastEventId=e-41&room=a')
+    expect(reconnect({ resume: 'cursor' }, '/events?room=a&cursor=old')[1].url).toBe('/events?room=a&cursor=e-41')
+  })
   it('no resume, or no id seen yet: the URL as declared', () => {
     expect(reconnect({})[1].url).toBe('/events')
     vi.useFakeTimers()
@@ -219,6 +223,26 @@ describe('renderComponent: t.push(…, { id }) with meta and resume', () => {
     expect(t.connections('WS')).toMatchObject([{ name: 'feed', state: 'open' }])
     await t.push('WS', { n: 3 }, { id: 'a2' })
     expect(t.state.events.at(-1)).toEqual({ data: { n: 3 }, id: 'a2', event: 'message' })
+    t.dispose()
+  })
+})
+
+describe('renderComponent: resume on a URL that already has the parameter', () => {
+  it('the stale reconnect replaces it and the fake keeps the connection', async () => {
+    function Feed({ state }) { return h('p', null, String(state.events.length)) }
+    Feed.initialState = { events: [], drops: 0 }
+    Feed.connections = () => ({ feed: { sse: '/events?lastEventId=s0', meta: true, resume: true, staleAfterMs: 1000, message: 'GOT', close: 'DROPPED' } })
+    Feed.model = { GOT: (s, e) => ({ ...s, events: [...s.events, e] }), DROPPED: (s) => ({ ...s, drops: s.drops + 1 }) }
+    vi.useFakeTimers()
+    const t = renderComponent(Feed)
+    await t.ready()
+    await t.push('WS', { n: 1 }, { id: 'a1' })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(t.state.drops).toBe(1)
+    await vi.advanceTimersByTimeAsync(700)
+    expect(t.connections('WS')).toMatchObject([{ name: 'feed', state: 'open' }])
+    await t.push('WS', { n: 2 }, { id: 'a2' })
+    expect(t.state.events.at(-1)).toEqual({ data: { n: 2 }, id: 'a2', event: 'message' })
     t.dispose()
   })
 })
