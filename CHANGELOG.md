@@ -31,6 +31,12 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   ships `gitignore`, scaffolded as `.gitignore` (`node_modules`, `dist`, `.vite`, `.astro`,
   `*.local`, `dev-dist` for the PWA). The release smoke checks both.
 
+- **SYG302: `import xs from 'xstream'` (PLAN-13 X-1).** Under Node ESM and Vite 8 (a `"type":
+  "module"` package) xstream's CommonJS default import is the module object, so a custom driver's
+  `xs.create` is undefined. The docs, llms.txt and the skill use `import { xs } from 'sygnal'`
+  (the accessibility guide's sample was the last default import), the custom-drivers guide says
+  why, and `sygnal-check` reports the default import (info) with a `--fix`.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

@@ -133,6 +133,13 @@ export const EXPLANATIONS = {
     explanation: "`next('X')` in a model handler dispatches `X` to the same component, and only there. When that component has no model entry `X`, nothing happens: no error, no state change. The usual cause is a child calling `next()` for an action its parent handles (a card's `next('ENTER')` when only the page has `ENTER`), which looks like a hang; a typo is the other. The dev entry reports the first `next()` of each name a component sends with no entry, and names the nearest ancestor that has one. `sygnal-check` reports a literal `next('X')` in the model (and the module-level reducers it references) when the same component has no entry `X`, not counting a behavior's own actions.",
     fix: "To reach the parent, send the action up: give the entry a `PARENT` sink (`PARENT: (state) => ({ … })`) and read it in the parent's intent with `ENTER: CHILD.select(Card)`, or emit `EVENTS: event('ENTER', …)` and select it there. For a typo, use the existing entry's name; otherwise add the entry to this component's model.",
   },
+  SYG302: {
+    title: "Default import from 'xstream'",
+    severity: "info",
+    reportedBy: ["static"],
+    explanation: "xstream is published as CommonJS with an `exports.default`. Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `\"type\": \"module\"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there and a driver or test fails when it runs. Sygnal resolves that default once and re-exports it, so drivers, intents and tests can use the same `xs` everywhere. `sygnal-check` reports a default import from `'xstream'` in the scanned files.",
+    fix: "Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name). `sygnal-check --fix` rewrites an import whose only specifier is the default one. Types stay importable from xstream: `import type { Stream } from 'xstream'`.",
+  },
   SYG124: {
     title: "Component used as a control or selector",
     severity: "error",

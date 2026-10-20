@@ -104,6 +104,9 @@
   "SYG248": {
     "Shop.jsx": "export default function Shop({ state }) {\n  return <p>{state.search?.status}</p>\n}\nShop.initialState = { query: '' }\nShop.model = { SEARCH: (state, query) => ({ ...state, query }) }\nShop.agent = { name: 'shop', actions: { SEARCH: { description: 'Search', until: 'search' } } }\n"
   },
+  "SYG302": {
+    "App.jsx": "import xs from 'xstream'\nfunction A() { return <p /> }\nA.intent = () => ({ T: xs.periodic(10) })\nA.model = { T: (s) => s }\n"
+  },
   "SYG401": {
     "collection-from.jsx": "// <Collection from=\"x\"> pointing at a missing or non-array initialState field.\nimport { Collection } from 'sygnal'\n\nfunction Item({ state }) {\n  return <li className=\"item\">{state.text}</li>\n}\n\nconst BASE = { items: [], config: { pageSize: 10 } }\n\nfunction List({ state }) {\n  return (\n    <ul className=\"list\">\n      <Collection of={Item} from=\"item\" /> {/* expect: SYG401 */}\n      <collection of={Item} from=\"config\" /> {/* expect: SYG401 */}\n      <Collection of={Item} from=\"items\" />\n      <Collection of={Item} from=\"visible\" />\n    </ul>\n  )\n}\n\nList.initialState = { ...BASE, title: 'List' }\nList.calculated = { visible: (state) => state.items.slice(0, 10) }\n\nexport default List\n"
   },

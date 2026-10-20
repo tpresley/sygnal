@@ -1295,6 +1295,16 @@ import { debounce } from 'sygnal'
 RESULTS: DOM.input('.q').value().compose(debounce(300))
 ```
 
+### SYG302
+
+**Default import from 'xstream'**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+xstream is published as CommonJS with an `exports.default`. Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `"type": "module"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there and a driver or test fails when it runs. Sygnal resolves that default once and re-exports it, so drivers, intents and tests can use the same `xs` everywhere. `sygnal-check` reports a default import from `'xstream'` in the scanned files.
+
+**Fix:** Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name). `sygnal-check --fix` rewrites an import whose only specifier is the default one. Types stay importable from xstream: `import type { Stream } from 'xstream'`.
+
 ## SYG4xx: Collections, Switchable, sub-components and context
 
 ### SYG401

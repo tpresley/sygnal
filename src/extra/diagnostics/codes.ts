@@ -198,6 +198,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG202: 'STATE reducer returned undefined',
   // SYG3xx streams & intent construction (1A)
   SYG301: 'RxJS operator used on an xstream stream',
+  // PLAN-13 X-1: static only (sygnal-check)
+  SYG302: "Default import from 'xstream'",
   // SYG4xx collections / switchable / sub-components / context (1A)
   SYG401: "Collection 'from' field is missing or not an array",
   // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
@@ -440,6 +442,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG129: 'warn',
   // PLAN-10 X-1: static only (sygnal-check)
   SYG170: 'warn',
+  // PLAN-13 X-1: static only (sygnal-check)
+  SYG302: 'info',
   SYG171: 'warn',
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)

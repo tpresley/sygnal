@@ -55,7 +55,9 @@ Ok.initialState = { items: [] }
 
   it('--fix renames the tags and extends the sygnal import (a new one for sygnal/vike)', () => {
     const out = fix({ 'app.jsx': APP })['app.jsx']
-    expect(out).toContain("import { ABORT, Collection, Switchable, Portal } from 'sygnal'\nimport { ClientOnly } from 'sygnal/vike'\n")
+    // (PLAN-13 X-1: SYG302's fix moves the fixture's `import xs from 'xstream'` into the same import)
+    expect(out).toContain("import { ABORT, xs, Collection, Switchable, Portal } from 'sygnal'\nimport { ClientOnly } from 'sygnal/vike'\n")
+    expect(out).not.toContain("from 'xstream'")
     expect(out).toContain('<ul><Collection of={Item} from="items" /></ul>')
     expect(out).toContain('<Collection of={Item} from="more"></Collection>')
     expect(out).toContain('<Switchable of={{ a: Page }} current="a" />')

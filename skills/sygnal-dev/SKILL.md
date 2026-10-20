@@ -37,7 +37,7 @@ Canonical forms, API facts, wiring rules and testing for everyday work. Full spe
 - There is one state tree. A child sees its parent's whole state, or a slice with `state="key"` (or a path: `state="settings.rules"`, `"boards[0].title"`). A Collection item sees one array element.
 - A child belongs to the record its `state` points at (Sygnal 7): when a path or `byId()` target changes, or its record is deleted, the old child is disposed (its DISPOSE gets its last state; its requests, timers and subscriptions are cancelled) and a new one mounts with fresh local state and new DOM (focus and typing inside it are lost). So `<Workspace state={byId('projects', selected.id)} />` needs no key. Same for Collection/VirtualCollection `from` and Switchable `state`. A stable `key` doesn't keep a child across a target change (keep that state in the parent); a custom lens needs `key={record.id}`. Sygnal 6 fixes bindings at mount: use `key={selected.id}` there (SYG454).
 - Every side effect is a sink of a model entry (STATE, EVENTS, PARENT, EFFECT, custom drivers). JSX never has event handlers (`onClick`).
-- Streams are xstream, not RxJS. An intent's DOM selectors only see the component's own JSX, never a child component's.
+- Streams are xstream, not RxJS: `import { xs } from 'sygnal'` (not `import xs from 'xstream'`, the module object under Node ESM / Vite 8: SYG302). An intent's DOM selectors only see the component's own JSX, never a child component's.
 
 ```jsx
 import { ABORT } from 'sygnal'

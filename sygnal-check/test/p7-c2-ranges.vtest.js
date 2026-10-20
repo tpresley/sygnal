@@ -59,6 +59,7 @@ const RANGES = [
   ['SYG111', 'C.jsx', 3, 'value={null}'],
   ['SYG112', 'App.jsx', 3, "'RECIEVED'"],
   ['SYG117', 'App.jsx', 4, "'MOVED'"],
+  ['SYG302', 'App.jsx', 1, "import xs from 'xstream'"],
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],
   ['SYG126', 'App.jsx', 3, '<A'],                 // endNode: "<Control", not the whole tag
