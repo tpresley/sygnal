@@ -35,6 +35,22 @@ function call), and `objIsEqual` drops the unchanged value, so nothing is re-sen
 entry that returns a new object on every write (`user: s => ({ ...s.user })`) makes the statics
 re-run on every flush, as it already makes the views re-render.
 
+**Performance (added on request).** `test/sp-f1-bench.test.js` on `exp/p13-f1`: N Collection items
+declare `resources = { r: (s, c) => ({ url, tags: [c.route.name] }) }` under a root whose context
+has `route` (read) and `tick` (not read); M actions per case through `renderComponent`, timed to the
+render after each, median of 5 runs (ms per action):
+
+| case | A, N=1,000 | B, N=1,000 | A, N=5,000 | B, N=5,000 |
+|---|---|---|---|---|
+| `tick` changes (unread key) | 14.4 (A again: 14.6) | 14.3 | 19.3 | 17.9 |
+| a write that changes no context entry | 14.2 (14.7) | 14.3 | 16.8 | 16.9 |
+| `route` changes (read key, same request) | 14.7 (14.3) | 14.8 | 18.9 | 19.7 |
+
+At 1,000 items the variants are within run-to-run noise. At 5,000, re-running a static costs about
+0.5 µs per call: B saves about 1.4 ms per unread-key change and spends about 0.9 ms more per read-key
+change (its Proxy and Set). The flush itself dominates either way. **Conclusion: no performance
+reason to pay B's extra 46 B; A stays the recommendation.**
+
 **Left for F-1 proper.**
 - SSR: `withResources(def, state)` in `src/extra/ssr.ts` gets the context too; the component's own
   context entries are computed from its state after the resources today, so pass the parent's
