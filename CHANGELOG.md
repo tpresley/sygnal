@@ -43,6 +43,15 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   data)` as often as needed (progress, then a result), and abort a disposed sender's work in
   `onStop`. The custom-drivers guide has an upload driver that replies more than once.
 
+- **SSE event ids, resuming and dead streams (PLAN-13 S-1).** On a `connections` spec: `meta:
+  true` gives SSE `message` / `events` actions `{ data, id, event }`; `resume: true | 'param'`
+  keeps the last event id and makes a reconnect the driver makes (after EventSource gave up, e.g. a
+  proxy 502, or a non-2xx on the `headers` path) resume from it, as `Last-Event-ID` over fetch or
+  `?lastEventId=` (or `?param=`) on the EventSource URL; `staleAfterMs` (SSE and WebSocket) closes
+  a connection that stays silent that long as a drop (`close` gets `stale: true`) so the reconnect
+  policy applies; over fetch, heartbeat comments count. `t.push(sink, data, { id })` gives a test
+  event its id. No bytes for apps without a socket driver.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

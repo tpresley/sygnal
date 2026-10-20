@@ -65,12 +65,14 @@ export async function post(url: string, body: any, req: any, signal: AbortSignal
  * E-1: `meta` (optional) follows the stream's `id` (the last event id, kept across frames) and
  * `retry` (ms) fields, as EventSource does, for a reconnect
  */
-export async function* sse(res: any, meta?: {id?: string; retry?: number}): AsyncGenerator<{event: string; data: string}> {
+export async function* sse(res: any, meta?: {id?: string; retry?: number; beat?: () => void}): AsyncGenerator<{event: string; data: string}> {
   const reader = res.body.getReader(), dec = new TextDecoder();
   let buf = '', cr = '', done = false;
   try {
     for (;;) {
       const r = await reader.read();
+      // PLAN-13 S-1: any bytes (a heartbeat comment too) show the stream is alive
+      if (!r.done) meta?.beat?.();
       // line ends -> \n (a \r at a chunk's end waits: it may be half of a \r\n)
       let s = cr + (r.done ? '\n\n' : dec.decode(r.value, {stream: true}));
       cr = !r.done && s.endsWith('\r') ? '\r' : '';

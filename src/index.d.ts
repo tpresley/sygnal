@@ -2839,6 +2839,15 @@ export type SocketActions = {
    * hidden page's connections close, and open again as new ones when it is shown)
    */
   background?: boolean;
+  /**
+   * PLAN-13 S-1: a connection that stays silent this long (ms) is taken as dead (a half-open
+   * socket behind a proxy): it is closed as a drop, `close` gets `{ stale: true, willReconnect }`,
+   * and the reconnect policy applies. Every event counts; over fetch (an `sse` with `headers`)
+   * any bytes do, heartbeat comments (`: ping`) included, while the native EventSource needs a
+   * real event (a `message`, or a named event listed in `events`). Set it above the server's
+   * heartbeat interval
+   */
+  staleAfterMs?: number;
   /** Not allowed: a `then` key makes the value a thenable (SYG610). Use `message` / `open` */
   then?: never;
   catch?: never;
@@ -2865,6 +2874,29 @@ export type SseConnection = SocketActions & {
   headers?: Record<string, string>;
   /** Named events → actions: `{ 'price-update': 'PRICE' }` (data JSON-parsed when it parses) */
   events?: Record<string, string>;
+  /**
+   * PLAN-13 S-1: the `message` and `events` actions get `SseEvent` (`{ data, id, event }`: the
+   * event id and type) instead of the data alone
+   */
+  meta?: boolean;
+  /**
+   * PLAN-13 S-1: resume after a reconnect the driver makes (EventSource gave up: a proxy 502, a
+   * non-2xx on the `headers` path) from the last event id. Over fetch (`headers`) it is sent as
+   * `Last-Event-ID`; the native EventSource can't send it, so it goes on the URL:
+   * `?lastEventId=<id>` (`true`) or `?<name>=<id>` (a parameter name). EventSource's own retries
+   * send `Last-Event-ID` anyway
+   */
+  resume?: true | string;
+}
+
+/** PLAN-13 S-1: an SSE event as a `meta: true` connection's actions get it */
+export type SseEvent<DATA = any> = {
+  /** The data, JSON-parsed when it parses */
+  data: DATA;
+  /** The event's `id:` (the last one sent when this event has none; '' when there was none) */
+  id: string;
+  /** The event type: 'message', or the named event's name */
+  event: string;
 }
 
 /**
@@ -2890,7 +2922,7 @@ export type SocketRequest =
 /** Data of a connection's `open` action */
 export type SocketOpen = { reconnected: boolean }
 /** Data of a connection's `close` action (SSE: no code / reason) */
-export type SocketClose = { code?: number; reason?: string; willReconnect: boolean }
+export type SocketClose = { code?: number; reason?: string; willReconnect: boolean; /** PLAN-13 S-1: closed by staleAfterMs (nothing arrived) */ stale?: true }
 /** Data of a connection's `error` action: the error Event (or the constructor's exception) */
 export type SocketError = { error: any }
 
@@ -3712,9 +3744,10 @@ export interface RenderResult<STATE = any> {
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**
    * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
-   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event.
+   * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event;
+   * `{ id }` gives an SSE event its id (what `meta: true` reports and `resume` resumes from).
    */
-  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; connection?: FakeConnectionTarget }) => Promise<void>;
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; id?: string | number; connection?: FakeConnectionTarget }) => Promise<void>;
   /**
    * Connection(s) close without the app closing them: `close` fires with `{ code, reason,
    * willReconnect }` (default `{ code: 1006, reason: '' }`; a connecting one fails to open: `error`

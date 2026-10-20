@@ -304,7 +304,7 @@ Chat.model = {
   DROPPED:   (state, { willReconnect }) => ({ ...state, status: willReconnect ? 'reconnecting' : 'offline' }),
 }
 ```
-- main.js: `run(Chat, { WS: makeSocketDriver() })`; without it nothing opens, silently. Spec: `socket` or `sse` (read-only; `events: { 'price-update': 'PRICE' }`), optional `message open close error` actions, `reconnect` (`false` = never), `share` (default: one socket per URL), SSE `headers` (`{ authorization: 'Bearer ' + state.token }`: read with fetch, since EventSource sends no headers). `close` fires only for drops the app didn't cause (leaving, a URL change and unmount close silently), so no connection ids. `{ to }` on an undeclared, closed or SSE connection is SYG611. Guide: https://sygnal.js.org/guide/sockets/
+- main.js: `run(Chat, { WS: makeSocketDriver() })`; without it nothing opens, silently. Spec: `socket` or `sse` (read-only; `events: { 'price-update': 'PRICE' }`), optional `message open close error` actions, `reconnect` (`false` = never), `share` (default: one socket per URL), SSE `headers` (`{ authorization: 'Bearer ' + state.token }`: read with fetch, since EventSource sends no headers), SSE `meta: true` (`{ data, id, event }`), `resume: true | 'param'` (reconnects resume from the last event id), `staleAfterMs` (silence = a reconnecting drop, `close` gets `stale: true`). `close` fires only for drops the app didn't cause (leaving, a URL change and unmount close silently), so no connection ids. `{ to }` on an undeclared, closed or SSE connection is SYG611. Guide: https://sygnal.js.org/guide/sockets/
 - A hidden Switchable page pauses its connections and resources; `background: true` on an entry keeps it live.
 ### Router (makeRouter + route) and HEAD
 ```jsx

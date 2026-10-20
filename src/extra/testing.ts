@@ -496,9 +496,10 @@ export interface RenderResult {
   open: (sinkName: string, target?: FakeConnectionTarget) => Promise<void>;
   /**
    * PLAN-3 2-C: the server sends `data` (objects as JSON text) on the open connection(s): `message`
-   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event.
+   * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event;
+   * `{ id }` (PLAN-13 S-1): its SSE event id (`meta`, `resume`).
    */
-  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; connection?: FakeConnectionTarget}) => Promise<void>;
+  push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; id?: string | number; connection?: FakeConnectionTarget}) => Promise<void>;
   /**
    * PLAN-3 2-C: the connection(s) close without the app closing them (a connecting one fails to
    * open: `error` first): `close` fires with `{ code, reason, willReconnect }` and the fake
@@ -1283,7 +1284,9 @@ const fakeSocketClass = (sse: boolean, made: (s: any) => void) => class {
   onopen: any; onmessage: any; onerror: any; onclose: any;
   constructor(url: string, arg?: any) {
     this.url = String(url);
-    this.k = sockKey(sse, this.url, arg);
+    // PLAN-13 S-1: a resumed SSE reconnect's URL ends with the id parameter; its key doesn't
+    const id = sse && arg?.lastEventId;
+    this.k = sockKey(sse, id ? this.url.replace(new RegExp('[?&][^?&=]+=' + encodeURIComponent(id).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), '') : this.url, arg);
     made(this);
   }
   send() {}
@@ -2848,11 +2851,13 @@ export function renderComponent(
   };
   const open = (name: string, target?: FakeConnectionTarget) => sockCall('open', name, target, [0], sockOpen);
   const push = (name: string, data: any, target?: any) => {
-    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection') ? target : {connection: target};
+    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection' || k == 'id') ? target : {connection: target};
     const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
     const ev = o.event;
     return sockCall('push', name, o.connection, [1], s => {
-      const m = {type: ev || 'message', data: raw};
+      // PLAN-13 S-1: `id` sets the event id; as in EventSource, lastEventId keeps the last one
+      if (s.sse && o.id != null) s.lastId = String(o.id);
+      const m: any = {type: ev || 'message', data: raw, ...(s.sse && {lastEventId: s.lastId ?? ''})};
       if (!ev || ev == 'message') sockFire(s, 'message', m);
       if (s.sse) (s.ls[ev || 'message'] || []).forEach((f: any) => { try { f(m); } catch (e) { console.error(e); } });
     });

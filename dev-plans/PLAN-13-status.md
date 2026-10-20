@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1 done.
+**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete).
 
 ## Decisions
 
@@ -27,7 +27,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | T-1 | #44 Google Fonts, no `.gitignore` | 2 | — | done | fonts links removed (6 templates), `'Inter'` out of all font stacks (10 style files → system stack); `template-*/gitignore` renamed to `.gitignore` at the root by `copyDir`; tests in `test/create-sygnal-app-templates.test.js`; `release-smoke.mjs` checks both |
 | X-1 | #34 `import xs from 'xstream'` | 2 | — | done | SYG302 (info, static only): `rules/syg302-xstream-default-import.js`, `--fix` into the file's sygnal import; accessibility.md sample fixed; custom-drivers note; llms.txt / skill line; `sygnal-check/test/p13-x1-xstream-import.vtest.js` (p9-d471's fix fixture now also loses its xstream import) |
 | D-1 | #32 reply helpers for custom drivers | 2 | SP-D1 (optional, not run) | done | `makeReplies`, `senderOf` exported from `sygnal` (tree-shaken: 0 B in apps that don't import them), types `ReplySender` / `ReplyChannel` in `index.d.ts`, `type-tests/p13-d1-replies.ts`; guide section + API reference; `test/p13-d1-reply-helpers.test.js` (progress ×2 then ok, error, per-Collection-item delivery, onStop abort, SYG112). SP-D1 skipped: a `defineDriver({ replies })` wrapper only saves the spread, and declaring keys to sygnal-check is C-4's question (`replyKeys`) |
-| S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional) | todo | |
+| S-1 | #41, #42, #28 SSE meta / resume / staleAfterMs | 2 | SP-S1 (optional, not run) | done | `socketDriver.ts`: per-entry `meta`, per-transport last id (`resume`: URL parameter for EventSource, `init.lastEventId` → `Last-Event-ID` in FetchEventSource), `staleAfterMs` timer (smallest over subscribers, re-armed by events, `onbeat` from the SSE parser's reads); fake: `t.push(…, { id })`, resumed URLs keyed to their connection; types `SseEvent`, `meta` / `resume` / `staleAfterMs`, `SocketClose.stale`; `test/p13-s1-sse-resume.test.js` (12). SP-S1 skipped: the behaviour rests on documented EventSource / fetch semantics; a real-proxy check is G-901 |
 | F-1 | #37 statics see context | 3 | SP-F1 (recommended) | todo | needs go-ahead after spike |
 | F-2 | #38 deep-link tests start on the real route | 3 | SP-F2 (optional) | todo | |
 | C-3 | #26 `next()` in an imported helper | 3 | — | todo | |
@@ -45,3 +45,4 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | # | Gap |
 |---|---|
 | G-900 | A root-level page (and a resource reloaded before the invalidation loop reaches it) whose `ok` action navigates gets the new request twice: the navigation sends it, then the invalidation refetches it (same request, the first one cancelled). Correct but wasteful; skipping a resource whose read started after the write's reply would also need the cache's stale-marking of that fetch rethought. Not fixed |
+| G-901 | S-1's half-open handling is tested with fakes only (SP-S1 not run): a real browser behind the Vite dev proxy, in the three engines, would confirm that `staleAfterMs` fires on a silent half-open stream and that each engine's EventSource gives up on a proxy 502 as the fakes do |
