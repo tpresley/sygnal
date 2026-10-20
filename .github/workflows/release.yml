@@ -218,8 +218,10 @@ jobs:
 
   smoke:
     needs: [plan, publish]
+    # after a push, and after a manual run that published (7.0.0 was released by a manual run after
+    # its push run stopped at the CHANGELOG check, and this job was skipped)
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'push' || inputs.dry_run == false) &&
       (needs.plan.outputs.sygnal == 'true' || needs.plan.outputs.check == 'true' || needs.plan.outputs.csa == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 60

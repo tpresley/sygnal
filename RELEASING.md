@@ -16,11 +16,11 @@ The steps use placeholders for the versions. Choose them first (the choice is th
 
 | Placeholder | Package | Last published |
 |---|---|---|
-| `<SYGNAL>` | `sygnal` | 6.6.0 |
-| `<CHECK>` | `sygnal-check` | 0.10.0 |
-| `<CSA>` | `create-sygnal-app` | 2.8.0 |
+| `<SYGNAL>` | `sygnal` | 7.0.0 |
+| `<CHECK>` | `sygnal-check` | 0.11.0 |
+| `<CSA>` | `create-sygnal-app` | 2.9.0 |
 
-`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v6.6.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
+`sygnal-check` and `create-sygnal-app` get a new version whenever their folder changed since the last release (`git log v7.0.0.. -- sygnal-check create-sygnal-app`). In 6.0.0 both did: `sygnal-check` 0.2.0 added the accessibility lane and the 6.0 rules, and `create-sygnal-app` 2.0.0's templates moved to `sygnal` ^6.0.0.
 
 ## How a release runs
 
@@ -31,7 +31,7 @@ Publishing is done by GitHub Actions, with no stored credentials (`.github/workf
 3. **The gates run** (`.github/workflows/gates.yml`, the same as CI on every pull request): `npm test`, `sygnal-check`, the docs samples and error reference, the docs build and live demos in Chromium, Firefox and WebKit, the size gate, the extension gate in a downloaded VS Code, and every template from this commit's tarballs (§2–§4).
 4. **You approve.** The `publish` job uses the environment `release` (deployments from `main` only, required reviewer: the maintainer): GitHub asks you to review the deployment (a notification, or Actions → the run → Review deployments).
 5. **It publishes what is new**, in order: `sygnal-check`, `sygnal`, `create-sygnal-app` (npm trusted publishing: OIDC, provenance attached), the tag `v<SYGNAL>` and its GitHub release (notes from `CHANGELOG.md`), the extension to the Marketplace (Microsoft Entra ID) and Open VSX (trusted publishing) from the `.vsix` the gates built, the tag `vscode-v<version>` with the `.vsix` attached, and the plugin's tag `sygnal--v<version>`.
-6. **The registry smoke check runs** (§7): every template from the published packages. A failure fails the run, and GitHub notifies you.
+6. **The registry smoke check runs** (§7): every template from the published packages, after a push and after a manual run that isn't a dry run. A failure fails the run, and GitHub notifies you.
 
 A release of one package (a `sygnal-check` patch, an extension-only release) is just that package's version change. Re-running a failed run publishes only what is still missing (`--skip-duplicate` for the extension registries).
 
@@ -203,7 +203,7 @@ If a smoke check fails, fix the problem on `main` and publish a patch release of
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.
 
-Last published: the extension 0.7.0 (2026-10-17; tag `vscode-v0.7.0`) and the Claude Code plugin 0.1.5 (tag `sygnal--v0.1.5`), both through the release workflow.
+Last published: the extension 0.8.0 (2026-10-19; tag `vscode-v0.8.0`) and the Claude Code plugin 0.2.0 (tag `sygnal--v0.2.0`), both through the release workflow.
 
 **One-time setup (the maintainer's accounts).** The publisher `sygnal` exists on both registries (0.1.0).
 - **VS Code Marketplace, Microsoft Entra ID** (global Azure DevOps tokens stop working on December 1, 2026). The workflow signs in to Entra as an app registration that trusts GitHub's OIDC token for this repository's environment `release`, then runs `vsce publish --azure-credential` (`@vscode/vsce` 4.0.0, pinned in `editors/vscode`). No secret and no Azure subscription are involved. Microsoft documents this route for Azure Pipelines; the GitHub Actions form follows the same steps:

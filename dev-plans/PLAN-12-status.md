@@ -5,7 +5,7 @@
 Tracks [PLAN-12.md](PLAN-12.md): reducer timing and fresh-app ergonomics.
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
-**State:** M-11 (2026-10-19): one timing contract replaces the `sinkState` switch; the review findings are fixed. Size 42,844 B / 43,000 B. Nothing is published.
+**State:** **PLAN-12 complete. Released 2026-10-19** as sygnal 7.0.0, sygnal-check 0.11.0, create-sygnal-app 2.9.0 (npm), VS Code extension 0.8.0 (Marketplace and Open VSX) and Claude Code plugin 0.2.0 (PR #53, merge `e93d0578`; PR #54 dated the CHANGELOG after the push run stopped at the pre-publish heading check, then a manual release run published; the registry smoke check passed all ten templates).
 **Branch:** `claude/sygnal-7-single-contract`, cut from `a54f4090` (the reviewed M-10 commit) through the `exp/v7-single-contract` spike commits.
 **IDs:** Plan-local P12-D decisions; R/C/B/T work items.
 

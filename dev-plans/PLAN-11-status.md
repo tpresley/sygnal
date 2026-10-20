@@ -6,7 +6,7 @@ Tracks progress for [PLAN-11.md](PLAN-11.md) (friction fixes from building an ap
 
 **Integration branch:** `claude/sygnal-friction-assessment-8ec6df`, cut from `main` 49c2f6d4.
 
-**State:** merged in PR #50 (2026-10-18); ships in Sygnal 7.0 with [PLAN-12](PLAN-12.md)'s timing contract (its code was moved to that contract when 7.0 merged main).
+**State:** **PLAN-11 complete. Released 2026-10-19 in sygnal 7.0.0** (sygnal-check 0.11.0, create-sygnal-app 2.9.0, VS Code extension 0.8.0, Claude Code plugin 0.2.0): merged in PR #50, moved to [PLAN-12](PLAN-12.md)'s timing contract when 7.0 merged it (PR #53). Open gaps: G-851, G-852.
 
 ## Decisions
 

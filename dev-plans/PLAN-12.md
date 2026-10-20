@@ -3,7 +3,7 @@
 **Renumbered 2026-10-19:** written as PLAN-11; the friction-fix plan that merged first (PR #50) holds that number, so this plan, its P12-D decisions, `plan12-*` research notes and `p12-*` tests were renamed (log paths quoted from earlier runs keep their old names).
 
 **Created:** 2026-10-18 (Pacific/Honolulu).
-**Status:** M-11 (one timing contract, review fixes) complete 2026-10-19. Earlier: M-10 F1–F8 complete. All release gates pass, including 42,993 B against the explicitly approved 43,000 B limit. Runtime built; both npm links refreshed and verified from a fresh consumer. The combined-build limitation was fixed in [M-8](research/rollup-build-lifecycle.md). Major-release work below supersedes the initial minor-release/default and binding decisions.
+**Status:** **Complete; released 2026-10-19** as sygnal 7.0.0 / sygnal-check 0.11.0 / create-sygnal-app 2.9.0 / VS Code extension 0.8.0 / Claude Code plugin 0.2.0 (PRs #53, #54). M-11 (one timing contract, review fixes) and M-10 F1–F8 complete.
 **Tracker:** [PLAN-12-status.md](PLAN-12-status.md).
 
 ## M-11: one timing contract — approved 2026-10-19
