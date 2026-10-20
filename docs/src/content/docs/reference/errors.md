@@ -1764,6 +1764,16 @@ Since 6.5.0, a child's `state="a.b"`, a Switchable's `state` and a Collection's 
 
 **Fix:** Rename the key so it has no dot (`{ ab: [...] }` with `state="ab"`), or keep it and pass a lens: `state={{ get: (s) => s['a.b'], set: (s, v) => ({ ...s, 'a.b': v }) }}`.
 
+### SYG429
+
+**Switchable state map names no page**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+A Switchable's `state` can be a map from page names to bindings, `state={{ projects: 'pages.projects', settings: 'pages.settings' }}`: each listed page binds its own slice (a key, a path, a lens or a `byId` selection) with a tag child's lifetime rules, and the pages not listed share the owner's state. A key that is not one of the `of` pages binds nothing, so the page it was meant for (usually a typo of its name) shares the owner's whole state instead of its slice. The dev checks report it once per component and key when the Switchable renders; `sygnal-check` reports it when `of` is an object literal.
+
+**Fix:** Use the page's name from `of={{ … }}` as the key (the message names the closest one), or remove the entry.
+
 ### SYG430
 
 **VirtualCollection has no bounded height**

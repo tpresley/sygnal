@@ -6,7 +6,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 
 **Integration branch:** `claude/plan-13-sygnal-29fa20` (this session's worktree branch; the plan's `claude/plan-13-temper-feedback` name was not used), cut from `main` 8e2c4600.
 
-**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete); SP-F1 and SP-F3 run, Phase 3 awaiting the user's go-ahead.
+**State:** in progress (2026-10-19): R-1, N-1, C-1, C-2, T-1, X-1, D-1, S-1 done (Phase 2 complete); SP-F1 and SP-F3 run, F-1 and F-3 done (user's go-ahead, D603 / D604); F-2, C-3, C-4 awaiting the user's go-ahead.
 
 ## Decisions
 
@@ -34,7 +34,7 @@ Tracks progress for [PLAN-13.md](PLAN-13.md) (feedback from building Temper on S
 | F-2 | #38 deep-link tests start on the real route | 3 | SP-F2 (optional) | todo | |
 | C-3 | #26 `next()` in an imported helper | 3 | — | todo | |
 | C-4 | #33 custom reply keys (`replyKeys`) | 3 | — | todo | |
-| F-3 | #35 per-page Switchable state | 3 | SP-F3 (done) | awaiting go-ahead | spike recommends no core change (+94 B) and documenting a wrapper page per slice |
+| F-3 | #35 per-page Switchable state | 3 | SP-F3 (done) | done | D604: the map (`mapOf`: an object with no `get`), a cell per listed page (`bind()`), per-page remake on `bindingChanged`, a deleted target disposed through the owner's own `watch()` / `notify()` (shared with tag children) and remade in `setProps`; SYG429 (dev `switchableMaps` on the owner's template, sygnal-check `rules/syg429-switchable-state-map.js`); types (`SwitchableProps<PROPS, OF>`, `NoInfer`, `ElementProps` keeps Switchable's `state`), `type-tests/p13-f3-switchable-map.tsx`; Switchable guide, llms.txt / skill; `test/p13-f3-switchable-map.test.js`, `sygnal-check/test/p13-f3-switchable-map.vtest.js`; core +126 B (42,982 B with F-1: 18 B headroom) |
 
 ## Spikes
 

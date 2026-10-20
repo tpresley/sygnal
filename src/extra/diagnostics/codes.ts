@@ -183,6 +183,8 @@ export const CODE_TITLES: Record<string, string> = {
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts)
   SYG430: 'VirtualCollection has no bounded height',
   SYG431: 'VirtualCollection items without ids',
+  // PLAN-13 F-3: dev entry (checks/next.ts onRender) and sygnal-check
+  SYG429: 'Switchable state map names no page',
   SYG432: 'VirtualCollection item does not render one element',
   SYG433: 'VirtualCollection scroll target not in the list',
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
@@ -444,6 +446,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG170: 'warn',
   // PLAN-13 X-1: static only (sygnal-check)
   SYG302: 'info',
+  // PLAN-13 F-3 (checks/next.ts)
+  SYG429: 'warn',
   SYG171: 'warn',
   SYG221: 'error',
   // PLAN-4 GS-4 (state.ts)

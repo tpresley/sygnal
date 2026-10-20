@@ -267,10 +267,19 @@ function handleElement(project, file, el, sink, visited) {
     }
     const fromAttr = jsxAttr(opening, 'from')
     const fromExpr = jsxAttrExpr(fromAttr)
+    // PLAN-13 F-3: a Switchable's per-page `state={{ page: … }}` (an object literal with no `get`)
+    const stExpr = kind === 'switchable' ? unwrap(jsxAttrExpr(jsxAttr(opening, 'state'))) : null
+    const stateMap = stExpr?.type === 'ObjectExpression' && !stExpr.properties.some(p => p.type !== 'SpreadElement' && propName(p) === 'get')
+      ? stExpr.properties.filter(p => p.type === 'ObjectProperty' && propName(p) != null).map(p => ({ key: propName(p), node: p.key }))
+      : null
     const usage = {
       kind,
       tag: name,
       node: opening,
+      file,
+      stateMap,
+      ofKeys: kind === 'switchable' && ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
+        ? ofExpr.properties.map(p => propName(p)) : null,
       from: fromExpr ? stringValue(fromExpr) : null,
       fromNode: fromAttr || null,
       targets: targets.map(t => ({ name: exprName(t) || (stringValue(t) ?? '?'), ref: refFor(project, file, t), node: t })),

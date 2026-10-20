@@ -77,8 +77,11 @@ export type StateProp = string | Lense<any, any>
  */
 export type ElementProps<PROPS> =
   0 extends (1 & PROPS) ? PROPS
-  : 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp; resetState?: boolean }
-  : PROPS
+  // PLAN-13 F-3: Switchable's own `state` (a per-page map too) is kept as it declares it
+  : PROPS extends { of: Record<string, any>; current: string } ? PROPS
+  : WithStateProp<PROPS>
+
+type WithStateProp<PROPS> = 'state' extends keyof PROPS ? WithoutViewOnlyProps<PROPS> & { state?: StateProp; resetState?: boolean } : PROPS
 
 /** PROPS without `state`, `context`, `slots` and `uid` (keeps optionality and index signatures, unlike Omit). */
 type WithoutViewOnlyProps<PROPS> = {
@@ -1755,8 +1758,8 @@ export type VirtualCollectionProps<PROPS = any, STATE = any> = {
 /** Where `scrollToIndex` / `scrollToId` put the row: 'auto' (default) scrolls only when it isn't in view */
 export type ScrollToAlign = 'auto' | 'start' | 'center' | 'end'
 
-export type SwitchableProps<PROPS = any> = {
-  of: Record<string, AnyComponent>;
+export type SwitchableProps<PROPS = any, OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
+  of: OF;
   current: string;
   /**
    * The current page's instance key. When it changes, the current page is disposed and created
@@ -1764,7 +1767,14 @@ export type SwitchableProps<PROPS = any> = {
    * show. Switching `current` alone keeps pages alive. Router recipe: `instance={state.route.path}`
    */
   instance?: string | number;
-  state?: string | Lense;
+  /**
+   * The pages' state: a key or path (`'pages'`), a lens, or (PLAN-13 F-3) a map from page names to
+   * those (`{ projects: 'pages.projects', settings: byId('teams', state.teamId) }`): each listed
+   * page binds its own target with a tag child's lifetime rules (another key or id makes that page
+   * again, a deleted target disposes it), and the pages not listed share the owner's state. A key
+   * that names no page is SYG429
+   */
+  state?: string | Lense | { [PAGE in keyof NoInfer<OF>]?: string | Lense };
 } & Omit<PROPS, 'of' | 'state' | 'current' | 'instance'>
 
 export type PortalProps = {
@@ -2263,7 +2273,7 @@ export function Collection<PROPS extends { [prop: string]: any }, STATE = any>(p
  *   <VirtualCollection of={Row} from="rows" className="rows" estimateSize={32} />
  */
 export function VirtualCollection<PROPS extends { [prop: string]: any }, STATE = any>(props: VirtualCollectionProps<PROPS, STATE>): JSX.Element
-export function Switchable<PROPS extends { [prop: string]: any }>(props: SwitchableProps<PROPS>): JSX.Element
+export function Switchable<PROPS extends { [prop: string]: any }, OF extends Record<string, AnyComponent> = Record<string, AnyComponent>>(props: SwitchableProps<PROPS, OF>): JSX.Element
 export function Portal(props: PortalProps): JSX.Element
 export function Transition(props: TransitionProps): JSX.Element
 export function Suspense(props: SuspenseProps): JSX.Element

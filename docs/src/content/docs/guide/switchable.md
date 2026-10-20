@@ -52,7 +52,24 @@ When the Switchable's `state` points at a different record (a changed path, or a
 | `of` | Object | Maps names to components: `{ name: Component }` |
 | `current` | String | The name of the currently active component |
 | `instance` | String or Number | Optional key of the current page's instance: when it changes, the page is created again with fresh state ([below](#a-new-instance-of-a-page-instance)) |
-| `state` | String or Lens | Optional state slice for the switched components |
+| `state` | String, Lens, or an object of them per page | Optional state slice for the switched components, or one per page ([below](#per-page-state)) |
+
+## Per-page state
+
+Give each page its own slice with a map from page names to bindings. Each entry is what a tag child's `state` can be: a key, a path, a lens or a `byId()` selection. The pages not in the map share the owner's state:
+
+```jsx
+<Switchable
+  of={{ projects: Projects, settings: Settings, help: Help }}
+  current={state.page}
+  state={{ projects: 'pages.projects', settings: byId('teams', state.teamId) }}
+/>
+```
+
+- Each page follows its own binding with a tag child's [lifetime rules](/guide/state/#changing-the-selected-record): when an entry points at another record (another key, another id), only that page is disposed and made again; the others keep their instances. When its record is deleted, the page is disposed with its last state (its DISPOSE sees it; nothing is written back), and a new one renders once the record is there again.
+- Every page still starts at mount and keeps working while hidden, on its own slice.
+- A map key that is not one of the `of` pages binds nothing, so the page it was meant for shares the owner's state: the dev checks and `sygnal-check` report it as [SYG429](/reference/errors/#syg429).
+- A routed page needs no copy of the route in its slice: provide `route` as [context](/guide/router/) and read it in the page's view and statics.
 
 ## How It Works
 

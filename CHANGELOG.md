@@ -60,6 +60,14 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   context to `resources` and `head` too; the types take it as the second parameter; `sygnal-check`
   counts context reads in the statics for SYG170. Core: +19 B (kanban gzip).
 
+- **Per-page Switchable state (PLAN-13 F-3).** `state` takes a map from page names to bindings
+  (`state={{ projects: 'pages.projects', settings: byId('teams', state.teamId) }}`): each listed
+  page binds its own key, path, lens or byId selection with a tag child's lifetime rules (another
+  target makes only that page again; a deleted target disposes it on its last state), and the
+  pages not listed share the owner's state. A key that names no page is the new **SYG429** (dev
+  checks and `sygnal-check`, with a rename fix). Types infer the page names from `of`. Core:
+  +126 B (kanban gzip), leaving 18 B of the 43,000 B budget with F-1.
+
 ### Fixed
 
 - **An invalidation no longer resends a resource's old request after a navigation (PLAN-13 R-1).**

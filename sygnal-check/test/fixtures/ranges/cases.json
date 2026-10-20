@@ -117,6 +117,9 @@
   "SYG422": {
     "T.jsx": "export function T() { return <p /> }\nT.timers = (state) => ({ x: state.on && 100 })\nT.model = { A: (s) => s }\n"
   },
+  "SYG429": {
+    "App.jsx": "import { Switchable } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Switchable of={{ a: A }} current=\"a\" state={{ a: 'x', bb: 'y' }} /></main> }\nApp.initialState = { x: {}, y: {} }\n"
+  },
   "SYG440": {
     "App.jsx": "import Left from './Left.jsx'\nimport Right from './Right.jsx'\nexport default function App() { return <div><Left /><Right /></div> }\nApp.initialState = { x: 1 }\n",
     "Left.jsx": "export default function Left({ state }) { return <p>{state.x}</p> }\nLeft.model = { PING: (state) => ({ ...state }) }\nLeft.agent = { name: 'panel', actions: { PING: { description: 'Ping' } } }\n",

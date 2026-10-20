@@ -203,6 +203,31 @@ function lowercaseTags(iv: any): void {
   walk(raw.tmpl, 0)
 }
 
+/**
+ * PLAN-13 F-3 SYG429: a Switchable's per-page `state={{ page: … }}` with a key that names no page
+ * (read from the owner's template, as SYG426; 0 production bytes). Once per component and key
+ */
+function switchableMaps(iv: any): void {
+  const raw = iv.i
+  if (!raw?.kids?.size || !raw.tmpl) return
+  const walk = (n: any, d: number): void => {
+    if (!n || typeof n != 'object' || n.$p || d > 300) return
+    const p = n.sel == 'switchable' && n.data?.props, st = p?.state
+    if (st && isPlainObject(st) && typeof st.get != 'function' && isPlainObject(p.of)) {
+      const pages = Object.keys(p.of)
+      for (const k of Object.keys(st)) if (!(k in p.of) && once(`SYG429:${iv.name}:${k}`)) devReport('SYG429', {
+        component: iv.name,
+        message: `${iv.name}'s Switchable state map binds '${k}', which is not one of its pages (${pages.join(', ')}), so that binding is never used${didYouMean(k, pages)}`,
+        fix: 'Use the page name from of={{ … }} as the key, or remove the entry',
+        data: {key: k, pages},
+      })
+    }
+    const kids = n.children
+    if (Array.isArray(kids)) for (const c of kids) walk(c, d + 1)
+  }
+  walk(raw.tmpl, 0)
+}
+
 /** the instance fields the checks read from today's Component instances */
 class Facade {
   _so: any
@@ -431,7 +456,7 @@ export function nextHooks(_api: any): any {
       H.onRender(f, vnode)
       if (!on()) return
       removedTags(f, vnode)
-      try { lowercaseTags(iv) } catch (_) { /* a check never breaks the app */ }
+      try { lowercaseTags(iv); switchableMaps(iv) } catch (_) { /* a check never breaks the app */ }
       // SYG453: only a view with children can render one twice
       if (iv.children().length) try { sharedIdentity(iv, vnode) } catch (_) { /* a check never breaks the app */ }
     },

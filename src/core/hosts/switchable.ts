@@ -17,7 +17,7 @@
  */
 import {hosts} from '../registry'
 import {resolve} from './collection'
-import {Inst, shallowEq} from '../instance'
+import {Inst, shallowEq, bindingChanged, known, watch} from '../instance'
 import {Cell, keyCell, lensCell, localCell, pathOf} from '../cell'
 import {isObj} from '../define'
 import {uidPart} from '../../shared'
@@ -39,6 +39,9 @@ function check(owner: Inst, props: Record<string, any>) {
   if (!(cur in of)) fail('SYG416', owner, `Switchable 'current' '${cur}' is not a key of 'of'`, CUR_FIX)
 }
 
+/** F-3: a per-page map (an object that is not a lens or a byId selection: no `get`), or null */
+const mapOf = (st: any) => isObj(st) && typeof st.get != 'function' ? st : null
+
 /** a page's props: the Switchable's, kept by identity while equal (`of` compared shallowly) */
 function sameProps(a: any, b: any) {
   if (!a || !b) return false
@@ -51,6 +54,7 @@ function sameProps(a: any, b: any) {
 export class SwitchableHost {
   pages: Record<string, Page> = {}
   cell: Cell
+  map: any
   cur!: string
   ready = true
   disposed = false
@@ -61,10 +65,11 @@ export class SwitchableHost {
 
   constructor(public owner: Inst, props: Record<string, any>, children: any[], id: string) {
     check(owner, props)
-    const st = props.state, calc = typeof st == 'string' && owner.def.calcNames?.has(pathOf(st)[0])
-    this.cell = typeof st == 'string' ? keyCell(owner.cell, st, calc && owner.def.name, undefined, 'Switchable sub-component')
-      : st !== undefined ? lensCell(owner.cell, st, owner.def.name, (e) => owner.app.appError(owner, e, 'view'))
-      : owner.cell
+    const st = props.state
+    // F-3: `state={{ page: key | lens | byId }}` (not a lens, not a byId selection): each listed
+    // page binds its own target, with a tag child's lifetime rules; the others share the owner's state
+    this.map = mapOf(st)
+    this.cell = this.bind(this.map ? undefined : st)
     this.uidBase = owner.uid(uidPart(id.replace(/.*::(r\.)?/, '')))
     this.props = props
     this.kids = children
@@ -75,9 +80,17 @@ export class SwitchableHost {
     this.setProps(props, children)
   }
 
+  bind(st: any): Cell {
+    const owner = this.owner, calc = typeof st == 'string' && owner.def.calcNames?.has(pathOf(st)[0])
+    return typeof st == 'string' ? keyCell(owner.cell, st, calc && owner.def.name, undefined, 'Switchable sub-component')
+      : st !== undefined ? lensCell(owner.cell, st, owner.def.name, (e) => owner.app.appError(owner, e, 'view'))
+      : owner.cell
+  }
+
   make(name: string, view: any): Inst {
     const o = this.owner, app = o.app, def = app.def(view), scope = app.scope()
-    const inst = new Inst(app, def, o, def.isolated ? localCell(app, this.cell) : this.cell, o.dom && o.dom.isolateSource(o.dom, scope),
+    const c = this.map ? this.bind(this.map[name]) : this.cell
+    const inst = new Inst(app, def, o, def.isolated ? localCell(app, c) : c, o.dom && o.dom.isolateSource(o.dom, scope),
       this.props, this.kids, scope, this.uidBase + '-' + uidPart(name), 'page')
     inst.shown = false
     return inst
@@ -95,15 +108,20 @@ export class SwitchableHost {
       this.kids = children
       for (const n in this.pages) this.pages[n].inst.setProps(props, children)
     }
+    // F-3: a page whose own binding target changed (7.0's rule, per page), or that the owner
+    // disposed because its target was deleted, is made again
+    const m = this.map, nm = this.map = mapOf(props.state)
     // G-317: a lazy() page that has loaded is made again with the loaded component
     for (const n in this.pages) {
       const p = this.pages[n], fn = resolve(p.view, this.owner)
-      if (fn !== p.fn) {
+      if (fn !== p.fn || p.inst.disposed || m && nm && bindingChanged(m[n], nm[n])) {
         const shown = p.inst.shown
-        p.inst.dispose()
+        p.inst.disposed || p.inst.dispose()
         p.inst = this.make(n, p.fn = fn)
         p.inst.shown = shown
       }
+      // the owner disposes a page whose target is deleted, as a tag child; it is made again above
+      if (nm && known(nm[n])) watch(this.owner, p.inst)
     }
     const page = this.pages[cur]
     if (page) {

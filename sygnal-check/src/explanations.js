@@ -140,6 +140,13 @@ export const EXPLANATIONS = {
     explanation: "xstream is published as CommonJS with an `exports.default`. Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `\"type\": \"module\"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there and a driver or test fails when it runs. Sygnal resolves that default once and re-exports it, so drivers, intents and tests can use the same `xs` everywhere. `sygnal-check` reports a default import from `'xstream'` in the scanned files.",
     fix: "Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name). `sygnal-check --fix` rewrites an import whose only specifier is the default one. Types stay importable from xstream: `import type { Stream } from 'xstream'`.",
   },
+  SYG429: {
+    title: "Switchable state map names no page",
+    severity: "warn",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "A Switchable's `state` can be a map from page names to bindings, `state={{ projects: 'pages.projects', settings: 'pages.settings' }}`: each listed page binds its own slice (a key, a path, a lens or a `byId` selection) with a tag child's lifetime rules, and the pages not listed share the owner's state. A key that is not one of the `of` pages binds nothing, so the page it was meant for (usually a typo of its name) shares the owner's whole state instead of its slice. The dev checks report it once per component and key when the Switchable renders; `sygnal-check` reports it when `of` is an object literal.",
+    fix: "Use the page's name from `of={{ … }}` as the key (the message names the closest one), or remove the entry.",
+  },
   SYG124: {
     title: "Component used as a control or selector",
     severity: "error",
