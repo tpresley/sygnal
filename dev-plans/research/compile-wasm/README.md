@@ -155,7 +155,7 @@ dropping a feature saves.
 - **`src/extra/widget.ts` shipped in every app** (2.2 KB min), used or not: one top-level
   statement, `;(rewrite as any).$k = inPortal`, is a side effect the bundler must keep, and it kept
   the module. Moved into `defineWidget()` (the only place `rewrite` gets registered), **kanban
-  42,975 → 42,073 B gzip (−902 B)**. No compiler needed; widget and portal tests pass (13 files,
+  42,975 → 42,073 B gzip (−902 B)** (measured with the prototype `instance.ts` change also in, so the fix alone is a few bytes more). No compiler needed; widget and portal tests pass (13 files,
   105 tests). This change is on this branch (`src/extra/widget.ts`) and is the one result here
   worth merging as is.
 - **Switchable's host registers on import** (by design, so the lowercase `<switchable>` tag works
