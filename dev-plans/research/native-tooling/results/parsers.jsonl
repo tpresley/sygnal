@@ -1,0 +1,4 @@
+{"dir":"plan5-showcase","files":50,"babel":"5.3 ms","oxc eager":"7.2 ms","oxc raw":"3.0 ms","oxc lazy":"0.9 ms","swc json":"9.4 ms","meriyah":"3.8 ms"}
+{"dir":"doc-samples","files":873,"babel":"26.0 ms","oxc eager":"36.5 ms","oxc raw":"12.8 ms","oxc lazy":"5.4 ms","swc json":"52.7 ms (2 failed)","meriyah":"14.8 ms"}
+{"dir":"large20k","files":380,"babel":"26.0 ms","oxc eager":"60.3 ms","oxc raw":"14.7 ms","oxc lazy":"5.8 ms","swc json":"83.4 ms","meriyah":"23.2 ms"}
+{"dir":"large100k","files":1745,"babel":"110.3 ms","oxc eager":"280.7 ms","oxc raw":"102.2 ms","oxc lazy":"26.9 ms","swc json":"386.6 ms","meriyah":"99.8 ms"}
