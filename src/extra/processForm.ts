@@ -33,7 +33,8 @@ export default function processForm(
   return merged$.map((e: any) => {
     if (preventDefault) e.preventDefault();
     const formEl = e.type === 'submit' ? e.srcElement : e.currentTarget;
-    const formData = new FormData(formEl);
+    // alt-renderers spike (D-AR-2): a non-DOM host's form gives its own entries
+    const formData = typeof formEl.toFormData == 'function' ? formEl.toFormData() : new FormData(formEl);
     const entries: FormEntries = {event: e, eventType: e.type};
     const submitBtn = formEl.querySelector('input[type=submit]:focus');
     if (submitBtn) {
