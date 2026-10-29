@@ -1,0 +1,348 @@
+{
+  "date": "2026-10-29T23:44:07.187Z",
+  "iter": 10,
+  "results": {
+    "create 1k rows": {
+      "table-base": {
+        "latency": 18,
+        "cpu": 29.5,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 18.6,
+        "cpu": 28.87,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 13.2,
+        "cpu": 20.08,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 19.3,
+        "cpu": 29.46,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 18.95,
+        "cpu": 29.6,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 23.8,
+        "cpu": 37.18,
+        "errors": []
+      },
+      "react": {
+        "latency": 13.25,
+        "cpu": 20.81,
+        "errors": []
+      }
+    },
+    "replace 1k rows": {
+      "table-base": {
+        "latency": 18.6,
+        "cpu": 32.13,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 15.85,
+        "cpu": 26.41,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 15.95,
+        "cpu": 26.66,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 21.8,
+        "cpu": 35.88,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 24.95,
+        "cpu": 41.26,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 34.4,
+        "cpu": 58.65,
+        "errors": []
+      },
+      "react": {
+        "latency": 20.65,
+        "cpu": 31.96,
+        "errors": []
+      }
+    },
+    "update every 10th (1k)": {
+      "table-base": {
+        "latency": 3.65,
+        "cpu": 13.67,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 2.15,
+        "cpu": 8.46,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 2.55,
+        "cpu": 11.49,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 3,
+        "cpu": 11.7,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 4.45,
+        "cpu": 17.45,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 3.1,
+        "cpu": 15.03,
+        "errors": []
+      },
+      "react": {
+        "latency": 2.25,
+        "cpu": 10.13,
+        "errors": []
+      }
+    },
+    "select row (1k)": {
+      "table-base": {
+        "latency": 1.6,
+        "cpu": 12.51,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 0.85,
+        "cpu": 9.17,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 0.5,
+        "cpu": 7.56,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 2.1,
+        "cpu": 15.41,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 1.75,
+        "cpu": 18.23,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 1.6,
+        "cpu": 13.63,
+        "errors": []
+      },
+      "react": {
+        "latency": 0.7,
+        "cpu": 12.53,
+        "errors": []
+      }
+    },
+    "swap rows (1k)": {
+      "table-base": {
+        "latency": 1.95,
+        "cpu": 13.1,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 1.55,
+        "cpu": 8.8,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 1.35,
+        "cpu": 11.49,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 2.2,
+        "cpu": 16.26,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 3,
+        "cpu": 18.85,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 1.75,
+        "cpu": 15.37,
+        "errors": []
+      },
+      "react": {
+        "latency": 14.85,
+        "cpu": 28.37,
+        "errors": []
+      }
+    },
+    "remove row (1k)": {
+      "table-base": {
+        "latency": 2.2,
+        "cpu": 16.07,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 2.05,
+        "cpu": 16.6,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 1.05,
+        "cpu": 13.06,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 1.8,
+        "cpu": 15.51,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 1.9,
+        "cpu": 18.54,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 1.75,
+        "cpu": 13.7,
+        "errors": []
+      },
+      "react": {
+        "latency": 1.25,
+        "cpu": 9.45,
+        "errors": []
+      }
+    },
+    "create 10k rows": {
+      "table-base": {
+        "latency": 156.8,
+        "cpu": 179.64,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 144.6,
+        "cpu": 167.79,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 134.9,
+        "cpu": 158.14,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 226.35,
+        "cpu": 248.38,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 209.85,
+        "cpu": 230.4,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 201.8,
+        "cpu": 224.16,
+        "errors": []
+      },
+      "react": {
+        "latency": 263.25,
+        "cpu": 285.7,
+        "errors": []
+      }
+    },
+    "append 1k to 1k": {
+      "table-base": {
+        "latency": 17.3,
+        "cpu": 33.19,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 16.5,
+        "cpu": 31.74,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 13.15,
+        "cpu": 24.67,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 22.7,
+        "cpu": 40.17,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 19.3,
+        "cpu": 32.39,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 17.9,
+        "cpu": 30.13,
+        "errors": []
+      },
+      "react": {
+        "latency": 13.6,
+        "cpu": 22.45,
+        "errors": []
+      }
+    },
+    "clear 1k rows": {
+      "table-base": {
+        "latency": 2.7,
+        "cpu": 8.64,
+        "errors": []
+      },
+      "table-a": {
+        "latency": 2.6,
+        "cpu": 8.19,
+        "errors": []
+      },
+      "table-b": {
+        "latency": 2.05,
+        "cpu": 7.5,
+        "errors": []
+      },
+      "coll-base": {
+        "latency": 3.6,
+        "cpu": 11.88,
+        "errors": []
+      },
+      "coll-a": {
+        "latency": 3.5,
+        "cpu": 11.64,
+        "errors": []
+      },
+      "coll-b": {
+        "latency": 2.95,
+        "cpu": 10.28,
+        "errors": []
+      },
+      "react": {
+        "latency": 2.45,
+        "cpu": 6.86,
+        "errors": []
+      }
+    },
+    "memory": {
+      "table-base": 0.89,
+      "table-a": 0.54,
+      "table-b": 0.53,
+      "coll-base": 5.75,
+      "coll-a": 5.41,
+      "coll-b": 5.43,
+      "react": 1.36
+    }
+  }
+}

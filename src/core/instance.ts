@@ -127,6 +127,9 @@ let left = 0
 export const sameTree = (a: any, b: any): boolean => (left = SAME_MAX, same(a, b))
 function same(a: any, b: any): boolean {
   if (a === b) return true
+  // compile-wasm prototype: a compiled block (its data the block's constant object, its holes in
+  // `v`) is the same when its hole values are
+  if (a && b && b.v && a.data === b.data && a.sel === b.sel && a.key === b.key) return sameKids(a.v, b.v)
   if (--left < 0 || !a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
