@@ -238,8 +238,8 @@ export function createWorkerTarget(port: WorkerPort, options: WorkerTargetOption
   /** a stream the page feeds: the page subscribes to `drv` (its source, or source[method](...args)) */
   const pageStream = (drv: string, method?: string, args: any[] = []) => {
     let sid = 0
-    return xs.create<any>({
-      start(l) { sid = ++nextSub; subs.set(sid, l); port.postMessage({sub: sid, drv, method, args}) },
+    return xs.create({
+      start(l: any) { sid = ++nextSub; subs.set(sid, l); port.postMessage({sub: sid, drv, method, args}) },
       stop() { subs.delete(sid); port.postMessage({unsub: sid}) },
     })
   }
