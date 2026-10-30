@@ -276,6 +276,30 @@ export default [
 		]
   },
 
+  // 'sygnal/api' (dev preview): like 'sygnal/ai', a re-export of the main bundle's src/extra/api/
+  // from the external 'sygnal' (its SYG690 warning uses the app's one diagnostics module).
+  {
+    input: 'src/api.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./api'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./api'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-api-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]api\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // PLAN-5 W-2 (D203, D209): the adapter entries. Their framework / Zag imports stay external
   // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
   // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).

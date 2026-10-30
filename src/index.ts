@@ -76,6 +76,8 @@ export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } fro
 export { openToolCalls, askCard } from './extra/ai/index'
 // PLAN-9 M-1: <Composed catalog from /> (documented import: 'sygnal/ai')
 export { Composed } from './extra/ai/index'
+// sygnal/api (dev preview; documented import: 'sygnal/api', src/api.ts): typed API clients
+export { orpcClient, openApiClient, honoClient, contractHash, contractSkew, isContractSkew, contractFetch, fixture, errorFixture } from './extra/api/index'
 // PLAN-9 (D463): a lens to an array element by id
 export { byId } from './extra/lens'
 
