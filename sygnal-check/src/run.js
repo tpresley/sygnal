@@ -64,14 +64,73 @@ function rawFixAllEdits(r) {
 }
 
 /**
- * Run rules over an already-built project. `parseErrors: false` leaves out the parse errors'
- * SYG900 (the language server runs the rules in two calls and adds them once).
+ * Per-file rule memo (native-tooling round 2, incremental checking): `createRuleMemo()`, passed
+ * as runRules(…, { memo }) across the builds of one project (Project `previous`), keeps what a
+ * `perFile` rule reported for each FileInfo. A build that reuses a FileInfo (unchanged, nothing it
+ * imports changed) replays its reports instead of running the rule on it again.
+ *
+ * A rule declares `perFile: true` when running it on a project narrowed to one scanned file
+ * (`scanned` = that file, `components` = its components; everything else as in the project)
+ * reports exactly that file's share of the whole run, and that share depends only on the file and
+ * what it imports. `perFile: (project, file) => key` adds a key the share also depends on (say the
+ * installed Sygnal's major): a memo entry is used only while the key is the same.
  */
-export function runRules(project, rules, { parseErrors = true } = {}) {
+const PERFILE_ALWAYS = typeof process !== 'undefined' && process.env?.SYGNAL_CHECK_PERFILE === '1'
+
+export function createRuleMemo() {
+  return new WeakMap() // rule → WeakMap<FileInfo, { key, reports }>
+}
+
+/** `project` narrowed to one scanned file (a perFile rule's run). */
+function narrowed(project, path, components) {
+  const v = Object.create(project)
+  v.scanned = new Set([path])
+  v.components = components
+  return v
+}
+
+/** A perFile rule as a rule that runs it per file not in the memo, then replays every file's reports. */
+function memoized(rule, memo, project) {
+  return {
+    id: rule.id,
+    run(_, report) {
+      let byFile = memo.get(rule)
+      if (!byFile) memo.set(rule, byFile = new WeakMap())
+      const compsOf = new Map()
+      for (const c of project.components) {
+        if (!compsOf.has(c.file.path)) compsOf.set(c.file.path, [])
+        compsOf.get(c.file.path).push(c)
+      }
+      for (const p of project.scanned) {
+        const file = project.files.get(p)
+        if (!file) continue
+        const key = typeof rule.perFile === 'function' ? rule.perFile(project, file) : null
+        let entry = byFile.get(file)
+        if (!entry || entry.key !== key) {
+          const reports = []
+          rule.run(narrowed(project, p, compsOf.get(p) || []), (r) => { reports.push(r) })
+          byFile.set(file, entry = { key, reports })
+        }
+        for (const r of entry.reports) report(r)
+      }
+    },
+  }
+}
+
+/**
+ * Run rules over an already-built project. `parseErrors: false` leaves out the parse errors'
+ * SYG900 (the language server runs the rules in two calls and adds them once). `memo`
+ * (createRuleMemo()): run the `perFile` rules incrementally (above).
+ */
+export function runRules(project, rules, { parseErrors = true, memo = null } = {}) {
+  // SYGNAL_CHECK_PERFILE=1 (tests): every run through the per-file split, so each rule test also
+  // checks that a `perFile` rule's per-file runs add up to its whole run
+  if (!memo && PERFILE_ALWAYS) memo = createRuleMemo()
   const out = []
   const seen = new Set()
   const starts = new Map() // absPath → line starts, for the fixes' positions
-  for (const rule of rules) {
+  for (const rule0 of rules) {
+    const rule = memo && rule0.perFile ? memoized(rule0, memo, project) : rule0
     const report = (r) => {
       let file = r.file
       let node = r.node

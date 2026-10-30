@@ -28,6 +28,7 @@ export default {
   id: 'xstream-default-import',
   codes: ['SYG302'],
   description: "Default import from 'xstream'",
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

@@ -15,6 +15,7 @@ export default {
   id: 'webmcp-form-attrs',
   codes: ['SYG153'],
   description: 'WebMCP form attribute written as a DOM property',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

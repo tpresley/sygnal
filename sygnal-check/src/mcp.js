@@ -43,7 +43,7 @@ import path from 'node:path'
 import readline from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { expandInputs } from './files.js'
-import { checkFiles, withConfigDiagnostics } from './index.js'
+import { checkFiles, withConfigDiagnostics, createCheckSession } from './index.js'
 import { graphFiles } from './graph.js'
 import { resolveOptions } from './config.js'
 import { createParseCache } from './cache.js'
@@ -124,11 +124,11 @@ function a11yOf(args) {
   return args.a11y
 }
 
-function callTool(name, args, cwd, cache) {
+function callTool(name, args, cwd, cache, session) {
   args = isObj(args) ? args : {}
   if (name === 'check') {
     const { files, options, configDiagnostics } = settingsFor(cwd, args)
-    const diagnostics = withConfigDiagnostics(checkFiles(files, { ...options, cache }), configDiagnostics, options.ignore)
+    const diagnostics = withConfigDiagnostics(checkFiles(files, { ...options, cache, session }), configDiagnostics, options.ignore)
     return { diagnostics, summary: summarize(diagnostics) }
   }
   if (name === 'graph') {
@@ -151,6 +151,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
   const error = (id, code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data !== undefined ? { data } : {}) } })
   const serverInfo = { name: 'sygnal-check', version: pkg.version }
   const cache = createParseCache() // PLAN-7 C-3: unchanged files aren't re-parsed between calls
+  const session = createCheckSession() // and repeated checks of the same files are incremental
 
   /**
    * A request's era from its `_meta`: 'modern', 'legacy', or an error response (an unknown
@@ -217,7 +218,7 @@ export function createMcpServer({ cwd = process.cwd() } = {}) {
         const tool = TOOLS.find(t => t.name === params.name)
         if (!tool) return error(id, -32602, `Unknown tool: ${params.name}`)
         try {
-          const value = callTool(tool.name, params.arguments, cwd, cache)
+          const value = callTool(tool.name, params.arguments, cwd, cache, session)
           return result(id, { content: [{ type: 'text', text: JSON.stringify(value, null, 2) }], structuredContent: value, isError: false })
         } catch (err) {
           const text = err instanceof ToolError ? err.message : `sygnal-check ${tool.name} failed: ${err?.message || err}`

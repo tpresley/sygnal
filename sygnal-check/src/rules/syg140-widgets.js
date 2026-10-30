@@ -251,6 +251,7 @@ export default {
   id: 'widgets',
   codes: ['SYG140', 'SYG141', 'SYG142', 'SYG143', 'SYG144'],
   description: 'Widgets: undeclared dispatch / listener / command, the tag as a selector, native event names',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const path of project.scanned) {
       const file = project.files.get(path)

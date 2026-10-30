@@ -90,6 +90,7 @@ export default {
   id: 'missing-export',
   codes: ['SYG427'],
   description: 'A component imported from a module that does not export it',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

@@ -21,7 +21,8 @@
     "README.md"
   ],
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run && node test/run-perfile.mjs",
+    "test:perfile": "node test/run-perfile.mjs"
   },
   "engines": {
     "node": ">=18"

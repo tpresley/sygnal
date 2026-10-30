@@ -26,7 +26,9 @@ npm run test:recipes   # the docs recipes' code (dev-plans/research/p5-recipes, 
 node scripts/perf-gate.mjs --runs=3  # the count gate alone, 3 runs with min … max per metric
 node scripts/perf-report.mjs         # timing ratios to React vs the timing targets (warn-only, ~1.5 min, not in npm test);
                                      #   harness: benchmarks/audit (see benchmarks/README.md)
-npm --prefix sygnal-check test       # static checker package (1,208 tests, *.vtest.js; SYGNAL_CHECK_LATENCY=1 adds the latency gates)
+npm --prefix sygnal-check test       # static checker package (1,755 tests, *.vtest.js, run twice: plain, then SYGNAL_CHECK_PERFILE=1
+                                     #   through incremental checking's per-file split; SYGNAL_CHECK_LATENCY=1 adds the latency gates,
+                                     #   best run alone: SYGNAL_CHECK_LATENCY=1 npx --prefix sygnal-check vitest run --root sygnal-check test/lsp-latency.vtest.js)
 npm --prefix editors/vscode test     # the VS Code extension: typecheck, unit, build, smoke test in the installed VS Code (not in npm test)
 npm --prefix docs run build          # docs site + internal link check + file-name tab check (check-code-titles.mjs)
 npm --prefix docs run check-live     # every live example of the built docs/dist in Playwright; must pass on BROWSER=chromium, firefox and webkit

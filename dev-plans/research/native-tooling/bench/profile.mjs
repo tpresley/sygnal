@@ -69,7 +69,7 @@ const out = {
   read: +median(read).toFixed(1), parse: +median(parse).toFixed(1), index: +median(index).toFixed(1),
   model: +median(model).toFixed(1), rules: +median(rules).toFixed(1),
   warm: +median(warm).toFixed(1), edit: +median(edit).toFixed(1),
-  topRules: top.slice(0, 6).map(([id, ms]) => `${id} ${ms.toFixed(1)}`),
+  topRules: top.slice(0, +(process.env.TOP || 6)).map(([id, ms]) => `${id} ${ms.toFixed(1)}`),
 }
 if (asJson) console.log(JSON.stringify(out))
 else console.log(out)
