@@ -1,17 +1,9 @@
 import {Stream} from 'xstream';
 
-declare var window: any;
-declare var global: any;
-
-function getGlobal(this: any): any {
-  let globalObj: any;
-  if (typeof window !== 'undefined') {
-    globalObj = window;
-  } else if (typeof global !== 'undefined') {
-    globalObj = global;
-  } else {
-    globalObj = this;
-  }
+// globalThis: a module Web Worker has no `window` or `global`, and `this` is undefined in a
+// module (research: dev-plans/research/web-worker)
+function getGlobal(): any {
+  let globalObj: any = globalThis;
   globalObj.Cyclejs = globalObj.Cyclejs || {};
   globalObj = globalObj.Cyclejs;
   globalObj.adaptStream = globalObj.adaptStream || ((x: any) => x);
