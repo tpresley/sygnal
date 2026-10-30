@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-30T10:19:43.447Z",
+  "chromium": "153.0.8010.12",
+  "gpu": true,
+  "load": 10.63720703125,
+  "results": [
+    {
+      "name": "own",
+      "n": 1000,
+      "create": 16.9,
+      "frameMove": 1,
+      "frameMoveLayered": 2,
+      "framePan": 1,
+      "hit": 0.004,
+      "heapMB": 0.5
+    },
+    {
+      "name": "konva",
+      "n": 1000,
+      "create": 25.3,
+      "frameMove": 3.5,
+      "frameMoveLayered": 0.5,
+      "framePan": 3.8,
+      "hit": 0.002,
+      "hitAfterMove": 2.1,
+      "heapMB": 1.1
+    },
+    {
+      "name": "pixi",
+      "n": 1000,
+      "create": 62,
+      "frameMove": 0.8,
+      "frameMoveLayered": null,
+      "framePan": 0.7,
+      "hit": 0.088,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "heapMB": 5.7
+    },
+    {
+      "name": "own",
+      "n": 5000,
+      "create": 152.6,
+      "frameMove": 3.9,
+      "frameMoveLayered": 1.9,
+      "framePan": 3.7,
+      "hit": 0.019,
+      "heapMB": 1.6
+    },
+    {
+      "name": "konva",
+      "n": 5000,
+      "create": 51,
+      "frameMove": 13.4,
+      "frameMoveLayered": 0.7,
+      "framePan": 14,
+      "hit": 0.002,
+      "hitAfterMove": 11,
+      "heapMB": 3
+    },
+    {
+      "name": "pixi",
+      "n": 5000,
+      "create": 132,
+      "frameMove": 0.7,
+      "frameMoveLayered": null,
+      "framePan": 1.6,
+      "hit": 0.447,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "heapMB": 21
+    },
+    {
+      "name": "own",
+      "n": 10000,
+      "create": 27.7,
+      "frameMove": 7.9,
+      "frameMoveLayered": 2.3,
+      "framePan": 7.8,
+      "hit": 0.036,
+      "heapMB": 2.9
+    },
+    {
+      "name": "konva",
+      "n": 10000,
+      "create": 81.3,
+      "frameMove": 24.6,
+      "frameMoveLayered": 0.7,
+      "framePan": 26.2,
+      "hit": 0.003,
+      "hitAfterMove": 20.5,
+      "heapMB": 5.4
+    },
+    {
+      "name": "pixi",
+      "n": 10000,
+      "create": 220.2,
+      "frameMove": 1,
+      "frameMoveLayered": null,
+      "framePan": 2.7,
+      "hit": 0.924,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "heapMB": 40.1
+    }
+  ]
+}

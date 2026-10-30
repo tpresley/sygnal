@@ -1,0 +1,15 @@
+{
+  "name": "sygnal-canvas-apps-research",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config.mjs",
+    "build": "vite build --config vite.config.mjs",
+    "test": "vitest run --config vitest.config.mjs",
+    "perf": "node perf/run.mjs"
+  },
+  "devDependencies": {
+    "konva": "10.9.0",
+    "pixi.js": "8.22.0"
+  }
+}

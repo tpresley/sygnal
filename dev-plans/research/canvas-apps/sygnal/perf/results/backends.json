@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-30T10:19:20.116Z",
+  "chromium": "153.0.8010.12",
+  "gpu": false,
+  "load": 9.7138671875,
+  "results": [
+    {
+      "name": "own",
+      "n": 1000,
+      "create": 9,
+      "frameMove": 1,
+      "frameMoveLayered": 0.3,
+      "framePan": 0.9,
+      "hit": 0.004,
+      "heapMB": 0.5
+    },
+    {
+      "name": "konva",
+      "n": 1000,
+      "create": 21.1,
+      "frameMove": 2.3,
+      "frameMoveLayered": 0.1,
+      "framePan": 2.7,
+      "hit": 0.002,
+      "hitAfterMove": 2.2,
+      "heapMB": 1.1
+    },
+    {
+      "name": "pixi",
+      "n": 1000,
+      "create": 287.1,
+      "frameMove": 14.4,
+      "frameMoveLayered": null,
+      "framePan": 14.6,
+      "hit": 0.09,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "heapMB": 5.7
+    },
+    {
+      "name": "own",
+      "n": 5000,
+      "create": 16.5,
+      "frameMove": 4,
+      "frameMoveLayered": 0.3,
+      "framePan": 3.9,
+      "hit": 0.019,
+      "heapMB": 1.6
+    },
+    {
+      "name": "konva",
+      "n": 5000,
+      "create": 47,
+      "frameMove": 11.4,
+      "frameMoveLayered": 0.1,
+      "framePan": 11.5,
+      "hit": 0.002,
+      "hitAfterMove": 11.1,
+      "heapMB": 3
+    },
+    {
+      "name": "pixi",
+      "n": 5000,
+      "create": 321.9,
+      "frameMove": 47,
+      "frameMoveLayered": null,
+      "framePan": 47,
+      "hit": 0.458,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "heapMB": 21.1
+    },
+    {
+      "name": "own",
+      "n": 10000,
+      "create": 23.8,
+      "frameMove": 7.9,
+      "frameMoveLayered": 0.3,
+      "framePan": 7.7,
+      "hit": 0.035,
+      "heapMB": 2.9
+    },
+    {
+      "name": "konva",
+      "n": 10000,
+      "create": 69.4,
+      "frameMove": 21.5,
+      "frameMoveLayered": 0.1,
+      "framePan": 22.4,
+      "hit": 0.002,
+      "hitAfterMove": 20.4,
+      "heapMB": 5.4
+    },
+    {
+      "name": "pixi",
+      "n": 10000,
+      "create": 402.3,
+      "frameMove": 82.4,
+      "frameMoveLayered": null,
+      "framePan": 84.6,
+      "hit": 0.943,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "heapMB": 40.1
+    }
+  ]
+}
