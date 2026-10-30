@@ -1,0 +1,18 @@
+[package]
+name = "sygnal-native-rs"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# The oxc crates at the version oxc-parser 0.156.0 (npm, the JS lite runner's parser) is built from.
+[dependencies]
+oxc_allocator = "=0.156.0"
+oxc_ast = "=0.156.0"
+oxc_ast_visit = "=0.156.0"
+oxc_parser = "=0.156.0"
+oxc_span = "=0.156.0"
+oxc_str = "=0.156.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

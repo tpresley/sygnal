@@ -14,7 +14,10 @@ Three things buy more than a native port, at a fraction of the cost:
 3. **Bundling the CLI.** About −30 % of a small project's CLI time, which is mostly module loading.
 
 The native prototype (Go on esbuild's parser, four rules) is 15–25× faster end to end. But on the **same rule
-logic**, single-threaded native beats JS on oxc-parser by only **~1.25×**. The rest comes from multiple cores
+logic**, single-threaded Go beats JS on oxc-parser by only **~1.25×**. **Round 3 corrects this for Rust:** on oxc,
+in one Linux container with all three, Rust is **7–8×** faster than JS on one core
+([Round 3](#round-3-rust-oxc-vs-go-vs-js-same-rules-one-container)). The recommendation holds there with a revised
+threshold. The rest of Go's lead comes from multiple cores
 (which JS can get with workers) and from doing **far less analysis** than sygnal-check. The lite rules have
 **19 false positives on the real examples** and 82 % precision on the docs samples, where sygnal-check has none.
 That gap is the 26k lines of model code a port would have to rewrite and keep in parity.
@@ -328,7 +331,7 @@ Do now, in JS (small, safe, measured):
 Revisit a native core **only if** one of these holds after (1)–(3):
 
 - **An incrementally re-checked edit is still above ~50 ms on a real app**, not a generated one, of ≥ 100k
-  lines. Native's same-logic factor is ~1.25×; it only matters once parallelism and incrementality are used up.
+  lines. Round 3 measured the same-logic factor at 7–8× for Rust/oxc (the ~1.25× was Go/esbuild); it matters only once parallelism and incrementality are used up.
 - **Someone needs ~10 ms CLI runs**: a tool invoking sygnal-check per file or per keystroke as a process, at
   hundreds of runs per task, where a long-lived MCP or LSP connection is not an option. The answer then is a
   small native *front end* (file facts plus a fast-path rule subset), not a port.
@@ -456,6 +459,91 @@ The bundle would save another ~19 ms per CLI run, but:
 Lazy-loading the LSP, MCP and graph modules was measured too. The check path alone costs ~41 of the
 CLI's ~51 ms of imports, and `main()` would have to become async, so it isn't worth it.
 
+## Round 3: Rust (oxc) vs Go vs JS, same rules, one container
+
+[`native-rust/`](native-rust/) is the four lite rules as a Rust crate on the oxc crates at 0.156.0,
+the version the npm `oxc-parser` used by the JS runner is built from. It mirrors
+`lite/facts-estree.mjs` function for function, like the Go binary, and runs on N threads with
+`std::thread::scope`. Its release binary is 1.5 MB.
+
+**Setup** ([`docker/`](docker/)):
+
+- One image built from official bases: `rust:1-slim-bookworm` with Node copied from
+  `node:24-bookworm-slim` and Go from `golang:1.24-bookworm`. All three variants run in the same
+  container, so on the same kernel, CPUs and file system.
+- Digests used:
+  - `rust@sha256:24707e70a4f1e23d9a7b25202ec43126d28a52294b96aad5c670df1fd1f1d400`
+  - `node@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c`
+  - `golang@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac`
+- Toolchain versions: rustc 1.99.1, Node 24.22.2, Go 1.24.13 (linux/arm64), 16 CPUs.
+- **This is Docker Desktop's Linux VM on the M3 Max, not the host.** The numbers compare the three
+  variants with each other; they don't compare with the macOS numbers above.
+- The inputs were generated inside the container with the same generators. `target/`, cargo, Go and
+  npm caches and the inputs lived in a named volume.
+- Raw output: [`results/docker-rust-go-js.log`](results/docker-rust-go-js.log).
+
+**Parity.** JS (oxc-parser via napi), Go (esbuild) and Rust (oxc) produce byte-identical sorted
+output on plan5-showcase (7 findings), synth500 (130), synth2000 (518), large20k (57) and
+large100k (267).
+
+**In-process, warm** (median of 9 whole-project runs; files read from the page cache):
+
+| input | JS, 1 core | Go, 1 core | Rust, 1 core | Go, 16 | Rust, 16 | Rust vs JS, 1 core |
+|---|---:|---:|---:|---:|---:|---:|
+| plan5-showcase (50 files) | 7.2 ms | 5.3 | 1.0 | 5.3 | 0.4 | 7× |
+| synth500 | 50.3 | 32.7 | 6.4 | 13.1 | 1.4 | 8× |
+| large20k | 53.2 | 38.4 | 7.2 | 16.2 | 1.0 | 7× |
+| synth2000 | 201.3 | 113.6 | 25.6 | 33.0 | 4.1 | 8× |
+| large100k | 241.4 | 153.2 | 31.4 | 45.3 | 3.6 | 8× |
+
+**End to end**, process included (median of 7): large20k JS 128 ms, Go 27 ms, Rust **4 ms**;
+large100k JS 349, Go 66, Rust 9; plan5-showcase JS 54, Go 7, Rust 2.
+
+**Where JS spends its time** (large20k, files in memory): oxc's native parse plus raw transfer into
+JS objects is 16 ms; the JS facts walk is **32 ms**; the cross-file join is 0.6 ms. synth2000: 46 /
+136 / 4 ms. Two things follow:
+
+- The JS side's cost is mostly the generic `for (k in node)` walk over the ESTree objects, not the
+  parser.
+- sygnal-check's own walker is tighter: a flat pre-order node list per AST, built once (G-660). So
+  this ratio overstates the gap for a tuned JS checker.
+
+**What this changes in the conclusion.** Round 1's "~1.25×" was Go vs JS. esbuild's parser is a
+bundler parser that runs a full visit pass (symbols, scopes, lowering checks), and the Go side paid
+for it. **Rust on oxc, with the same logic, is 7–8× faster than JS on one core, and 50–70× on 16
+cores.** The language factor is real, and larger than round 1 said.
+
+The recommendation still stands:
+
+- **Editor path.** Incremental JS now re-checks a 20k-line project in 25 ms, inside the language
+  server's 150 ms debounce. A Rust core would cut that to a few ms. That is a gain nobody sees
+  behind the debounce, bought with a second implementation of the model.
+- **Cold, whole-project checks** (CI, the docs sample checker, `--graph` on a 100k-line app) are
+  where 7–8× is visible: ~1.3 s → maybe 150–250 ms for the full rule set, if the model ports with
+  the same factor. Today that is a CI cost of about a second.
+- **Revised threshold.** Consider a Rust core (oxc parser plus a per-file facts layer, rules and
+  join in JS or Rust) once a real app's cold full check exceeds ~2 s, or a tool needs whole-project
+  checks in the tens of milliseconds outside a long-lived process.
+
+  A hybrid that keeps rules in JS pays the AST or facts transfer: here 16 ms of raw transfer per
+  20k lines, about 2× Rust's whole check. To keep the speed, the facts layer must stay on the Rust
+  side and send compact facts, not ASTs.
+
+  The maintenance costs in §4 are unchanged.
+
+**Footprint, all removed afterwards.**
+
+| item | size |
+|---|---:|
+| the bench image | 1.2 GB |
+| base images: rust (817 MB), golang (861 MB), node (249 MB) | 1.9 GB |
+| the cache volume: target/ 211 MB, cargo 80 MB, Go caches 87 MB, inputs 22 MB, npm 12 MB | 406 MB |
+
+All removed after the run. One mistake during cleanup: `docker builder prune --filter until=2h`
+removed build-cache entries *older* than two hours, so it cleared about 8.1 GB of the machine's
+Docker build cache that wasn't this session's. No images, containers or volumes were touched; the
+cache rebuilds on the next `docker build`.
+
 ## Files
 
 | path | what |
@@ -471,6 +559,8 @@ CLI's ~51 ms of imports, and `main()` would have to become async, so it isn't wo
 | `lite/` | the 4-rule subset on ESTree, the oxc-parser runner, sygnal-check's findings for the same codes |
 | `oxlint-plugin/` | the per-file rules as an oxlint JS plugin |
 | `native-go/` | Go prototype on esbuild's parser (`sh build.sh`, then `bin/sygnal-native [-j N] [-time] [-repeat N] <dir>`) |
+| `native-rust/` | Rust prototype on the oxc crates 0.156.0 (`cargo build --release`; same flags as the Go binary) |
+| `docker/` | the one-container comparison: `Dockerfile` (official bases), `run.sh` (builds, inputs, parity, timings), `warm-js.mjs`, `e2e.mjs` |
 | `results/` | raw output of the runs above |
 
 To reproduce:
