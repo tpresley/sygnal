@@ -21,6 +21,8 @@ const esmFile = resolve(dist, 'index.esm.js')
 
 // Exports that are deliberately not functions.
 const NON_FUNCTION_EXPORTS = { ABORT: 'symbol', onlineStatus$: 'object',
+  // compiled views' runtimes (sygnal/vite compile; internal): __cv (tier A), __cvs (SSR), __cvb (blocks)
+  __cv: 'object', __cvs: 'object', __cvb: 'object',
   // PLAN-5 B-3: the browser sources makeBrowserDriverWith() takes
   intersectionSource: 'object', resizeSource: 'object', mediaSource: 'object', storageSource: 'object',
   visibilitySource: 'object', onlineSource: 'object', geolocationSource: 'object', clipboardSource: 'object' }

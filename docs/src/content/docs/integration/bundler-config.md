@@ -47,6 +47,7 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `check.ignore` | `string[]` | the config file's `ignore`, else `diagnostics.ignore` | Codes to drop |
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
+| `compile` | `boolean` or `{ views, ssr, blocks, test }` | `false` | Experimental, Vite 8: compile JSX views at build time (same DOM, less work per render; see [Compiled Views](/integration/compiled-views/)) |
 | `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
 | `devtools` | `boolean` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge in the dev server. `false` leaves it out |
 | `mcp` | `boolean` or `{ timeout, confirm }` | `false` | Serve the [dev MCP endpoint](/integration/agents/#dev-server-mcp-endpoint) at `/__sygnal/mcp`, so a coding agent can read and drive the open page. Also installs the DevTools bridge |

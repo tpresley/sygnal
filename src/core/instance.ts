@@ -21,7 +21,7 @@ import type {App} from './runtime'
 import {tearDown, INST, SEED} from './teardown'
 import {CoreDef, defOf, isObj} from './define'
 import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell, pathOf} from './cell'
-import {hosts, posts, pres, resolvers} from './registry'
+import {ext, hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
@@ -127,6 +127,8 @@ let left = 0
 export const sameTree = (a: any, b: any): boolean => (left = SAME_MAX, same(a, b))
 function same(a: any, b: any): boolean {
   if (a === b) return true
+  // CV-3: a compiled block (its inside is its hole values)
+  if (b?.$b) return !!a?.$b && ext.sb!(a, b)
   if (--left < 0 || !a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
@@ -467,10 +469,11 @@ export class Inst {
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
     }
     if (!viewDirty && !kidsDirty) return this.outv
-    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), this.tmpl); return this.outv }
+    // CV-3: hooks (dev checks, devtools, testing) see a compiled block's vnodes (ext.xb)
+    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(this.tmpl) : this.tmpl); return this.outv }
     let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
-    this.app.hooks.onRender?.(viewOf(this), v)
+    this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(v) : v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
   }
 

@@ -6,7 +6,7 @@ import * as is from './is'
 // (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
 // vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class (a second copy of
 // the core, e.g. Astro's SSR bundle, makes its own).
-function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
+export function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
   this.sel = sel
   this.data = data
   this.children = children
@@ -227,6 +227,17 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   return [modules.props !== undefined && 'props', key]
 }
 const own = Object.prototype.hasOwnProperty
+// one key into `out` by its route (also compiled views' data, CV-2: __cv.d)
+const put = (out: any, r: any, key: string, val: any): void => {
+  const [b, name, kind] = r
+  if (kind == 1) {
+    const o = bucket(out, b)
+    if (val !== undefined) o[name] = val
+  } else if (val === undefined) return
+  else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
+  else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
+  else out[key] = val
+}
 const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>, c?: any): any => {
   const out: any = {}
   lent = null
@@ -237,15 +248,7 @@ const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<strin
     let r = routes.get(key)
     // G-350: capped (data-dependent keys, e.g. `data-${id}`, are routed but not kept)
     if (r === undefined && (r = route(key, modules, c), routes.size < 1024)) routes.set(key, r)
-    if (!r) continue
-    const [b, name, kind] = r
-    if (kind == 1) {
-      const o = bucket(out, b)
-      if (val !== undefined) o[name] = val
-    } else if (val === undefined) continue
-    else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-    else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
-    else out[key] = val
+    if (r) put(out, r, key, val)
   }
   const props = out.props
   if (props && (props.autoFocus || props.autoSelect)) applyFocusProps(out)
@@ -338,6 +341,33 @@ export const createElementWithModules = (modules: Record<string, any>) => {
 }
 
 export const createElement = createElementWithModules(defaultModules)
+
+// CV-2 (compiled views, tier A): what code compiled by sygnal/vite's `compile` option calls instead
+// of jsx() for an HTML element that isn't a form field (src/vite/compile.ts decides). The data is
+// made by sanitizeData, as the pragma's: once at module load for an element whose attributes are
+// all static (hoisted: one object, so the same-output check and the module update hook hit `===`),
+// else on each render. `c`: the children as the JSX runtime gets them (undefined, one child, or an
+// array). The element is a Plain vnode exactly when the pragma's would be.
+const cvRoutes = new Map<string, any>()
+const cvSd = (data: any): any => sanitizeData(data, defaultModules, cvRoutes)
+const cvE = (sel: string, d: any, c: any, key?: any): any => {
+  const children = c === undefined ? [] : is.array(c) ? c : [c]
+  const text = sanitizeText(children)
+  if (text !== undefined) return new (Plain as any)(sel, d, undefined, text, key)
+  const kids: any[] = []
+  return flatten(children, kids) ? new (Plain as any)(sel, d, kids, undefined, key) : {sel, data: d, children: kids, text: undefined, elm: undefined, key}
+}
+// an element with dynamic attributes: its keys' routes, resolved once at module load (r), and the
+// data made from the values in that order on each render (d), as sanitizeData makes it
+const cvR = (keys: string[]): any => [keys, keys.map(k => route(k, defaultModules))]
+const cvD = (R: any, vals: any[]): any => {
+  const out: any = {}, [keys, rs] = R
+  lent = null
+  for (let i = 0; i < keys.length; i++) if (rs[i]) put(out, rs[i], keys[i], vals[i])
+  return out
+}
+/** @internal compiled views (sygnal/vite `compile`): sd(data), r(keys), d(routes, values), e(sel, data, children, key) */
+export const __cv = {sd: cvSd, r: cvR, d: cvD, e: cvE}
 /** G-350 (tests): the sizes of the tag cache and of a createElement's route cache */
 export const __cacheSizes = (ce: any) => ({ tags: Object.keys(tags).length, routes: ce.$r.size })
 

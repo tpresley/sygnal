@@ -12,7 +12,7 @@ import { build } from 'esbuild'
 import { JSDOM } from 'jsdom'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(repo, 'dist', 'index.esm.js')
@@ -150,4 +150,30 @@ describe('G-751: every marker works through its public import (dist, esbuild, js
     expect(errors).toEqual([])
     w.close()
   }, 30000)
+})
+
+// A top-level `rewrite.$k = inPortal` in src/extra/widget.ts kept the whole widget module (~2 KB
+// min, 902 B gzip of kanban) in every app built with Vite 8: rolldown keeps a property write on a
+// module-level function that Rollup drops. defineWidget() sets it now. Bundled with
+// examples/kanban's Vite 8, as the size gate does (Rollup never showed the leak)
+describe('defineWidget: the widget module tree-shakes (dist, Vite 8 / rolldown)', () => {
+  const WIDGET = /'__sw'|"__sw"|`__sw`/
+  const viteBundle = async (contents) => {
+    const kanban = path.join(repo, 'examples', 'kanban')
+    const { createRequire } = await import('node:module')
+    const vite = await import(pathToFileURL(createRequire(path.join(kanban, 'package.json')).resolve('vite')).href)
+    const dir = fs.mkdtempSync(path.join(tmp, 'w-'))
+    fs.writeFileSync(path.join(dir, 'main.js'), contents)
+    const r = await vite.build({ root: dir, configFile: false, logLevel: 'silent', resolve: { alias: { sygnal: dist } },
+      build: { write: false, minify: false, lib: { entry: path.join(dir, 'main.js'), formats: ['es'], fileName: 'app' },
+        rollupOptions: { external: (id) => /^(snabbdom|xstream|@tanstack)/.test(id) } } })
+    return (Array.isArray(r) ? r[0] : r).output[0].code
+  }
+  it('an app that never calls defineWidget has none of it', async () => {
+    expect(await viteBundle(CASES.none)).not.toMatch(WIDGET)
+    expect(await viteBundle(app(['defineWidget'], "h('span', null, 'x')"))).not.toMatch(WIDGET)
+  }, 60000)
+  it('an app that defines a widget keeps it', async () => {
+    expect(await viteBundle(app(['defineWidget'], 'h(W)', 'const W = defineWidget({ mount() {} })\n'))).toMatch(WIDGET)
+  }, 60000)
 })

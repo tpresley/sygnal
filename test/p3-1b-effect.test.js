@@ -27,7 +27,6 @@ afterEach(() => {
   t?.dispose()
   t = undefined
   process.off('unhandledRejection', onUnhandled)
-  delete process.env.SYGNAL_DEBUG
   vi.restoreAllMocks()
 })
 
@@ -129,7 +128,8 @@ describe('1-B: async EFFECT', () => {
     t.dispose()
     t = undefined
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
-    process.env.SYGNAL_DEBUG = 'true'
+    // debug logging on after the dispose (the component's own flag: SYGNAL_DEBUG is read at load in Node)
+    App.debug = true
     gate.resolve()
     await wait(50)
     expect(done).toBe(0)

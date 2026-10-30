@@ -4,6 +4,15 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## [Unreleased]
 
+- **Smaller bundles with Vite 8:** `src/extra/widget.ts` set a property on a module-level function at
+  load, which rolldown keeps, so every Vite 8 app shipped the widget module whether or not it called
+  `defineWidget()` (kanban: 42,975 → 42,073 B gzip, −902 B). The assignment moved into
+  `defineWidget()`.
+- **Faster dispatch in Node:** the debug check read `process.env.SYGNAL_DEBUG` on every action,
+  most of the per-action cost in Node (SSR, tests, headless apps): 665 → 105 ns per action. In Node
+  the variable is now read once, when Sygnal loads (`SYGNAL_DEBUG=true node server.js`, as
+  documented); in the browser `window.SYGNAL_DEBUG` is still read on each call.
+
 **Companion packages.**
 - **`sygnal-check`:** incremental checking. A check session (`createCheckSession()`,
   `checkFiles(files, { cache, session })`) reuses the previous check's model for the files a change

@@ -58,7 +58,7 @@ MyComponent.debug = true
 
 ## Global Debug
 
-In the browser, set `window.SYGNAL_DEBUG = 'true'` (the DevTools extension can toggle it). In Node, set the environment variable:
+In the browser, set `window.SYGNAL_DEBUG = 'true'` (the DevTools extension can toggle it). In Node, set the environment variable when the process starts (it is read once, when Sygnal loads):
 
 ```bash
 SYGNAL_DEBUG=true node server.js

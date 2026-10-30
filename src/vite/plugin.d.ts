@@ -122,6 +122,24 @@ export interface SygnalPluginOptions {
   nativeGlobalThis?: boolean
 
   /**
+   * Experimental: compile JSX views at build time. Vite 8 only (a no-op with a warning below);
+   * files under node_modules are never compiled. `true`: every part that has shipped; an object
+   * turns parts off (each defaults to true):
+   * - `views`: an HTML element (not a form field, custom element or SVG tag) becomes a direct vnode
+   *   call, its data made once at module load when its attributes are static. The vnodes are the
+   *   ones the JSX runtime makes.
+   * - `ssr`: in server builds, compiled elements render to HTML strings inside renderToString (the
+   *   same HTML, no vnode per element). Never under Vitest.
+   * - `blocks`: in client code, a `.map()` row and the element a component returns become a
+   *   block: a template cloned once, then only its dynamic parts written. Whatever reads vnodes
+   *   (dev checks, devtools, renderComponent, a non-browser driver) gets the block's plain vnodes.
+   * - `test`: compile under Vitest too (`views` and `blocks`), so tests run what ships.
+   * With `compile` on, the plugin is an array of two plugins.
+   * @default false
+   */
+  compile?: boolean | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean }
+
+  /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet. It installs the DevTools bridge
    * (`window.__SYGNAL_DEVTOOLS__`) for the browser extension. Production builds
@@ -185,6 +203,7 @@ export interface McpPluginOptions {
  * sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })
  * ```
  */
+export default function sygnal(options: SygnalPluginOptions & { compile: true | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean } }): any[]
 export default function sygnal(options?: SygnalPluginOptions): {
   name: string
   config: (config: any, env: { command: string }) => any
