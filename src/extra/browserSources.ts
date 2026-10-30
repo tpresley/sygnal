@@ -15,7 +15,8 @@ import {defHooks} from '../core/registry';
  *   functions), the spec's kind being the source key it has (the first of KINDS): `intersection` / `resize` (a selector in
  *   the component's own DOM, or `true` for its root element), `media` (a query), `storage` (a key;
  *   `area: 'session'`, `json: true`), `visibility: true`, `online: true`, `geolocation` (true or
- *   PositionOptions). `action` names the action; `error` (geolocation, storage) the failure one.
+ *   PositionOptions), `frame: true` (animation frames; `every: n` takes every n-th). `action` names
+ *   the action; `error` (geolocation, storage) the failure one.
  * - Diffed per (instance, name), comparing specs structurally, as timers: a new name starts, a
  *   removed or falsy one stops, a changed spec restarts. The core sends only `background: true`
  *   entries while the instance is on a hidden Switchable page (they restart when it's shown);
@@ -41,7 +42,7 @@ import {defHooks} from '../core/registry';
 
 const g: any = globalThis;
 const noop = () => {};
-const KINDS = ['intersection', 'resize', 'media', 'storage', 'visibility', 'online', 'geolocation'];
+const KINDS = ['intersection', 'resize', 'media', 'storage', 'visibility', 'online', 'geolocation', 'frame'];
 const diag = (...a: any[]) => g.__SYGNAL_DIAGNOSTICS__?.browserSource?.(...a);
 
 /** What a declared source gets: the instance's DOM source, its action, its failure */
@@ -245,6 +246,29 @@ export const geolocationSource: BrowserSource = {d: {
 }};
 
 /**
+ * Animation frames (canvas-three Q5): `{ frame: true, action, every? }`, data `{ t, dt }` in
+ * seconds (the frame's time; the time since the last frame delivered). Per-frame values that only
+ * move the picture belong in a widget's own loop (no action per frame); this is for state that
+ * changes each frame: a simulation step, a HUD timer (`every: 10`).
+ */
+export const frameSource: BrowserSource = {d: {
+  frame: (s, c) => {
+    const raf = g.requestAnimationFrame;
+    if (!raf) return;
+    let id: any, n = 0, last = -1;
+    const loop = (ms: number) => {
+      id = raf(loop);
+      if (n++ % (s.every || 1)) return;
+      const t = ms / 1000;
+      c.send({t, dt: last < 0 ? 0 : t - last});
+      last = t;
+    };
+    id = raf(loop);
+    return () => g.cancelAnimationFrame(id);
+  },
+}};
+
+/**
  * The clipboard (permission-gated), as commands: `{ copy: text, ok?, error? }` and
  * `{ paste: true, ok, error? }`, data `{ text }`; a failure `{ name, message }` to `error`.
  */
@@ -323,4 +347,4 @@ export const browserDriver = (sources: BrowserSource[], runners: Map<any, any>) 
 export const makeBrowserDriverWith = (...sources: BrowserSource[]) => browserDriver(sources, new Map());
 
 /** Every browser source: `run(App, { BROWSER: makeBrowserDriver() })` */
-export const makeBrowserDriver = () => makeBrowserDriverWith(intersectionSource, resizeSource, mediaSource, storageSource, visibilitySource, onlineSource, geolocationSource, clipboardSource);
+export const makeBrowserDriver = () => makeBrowserDriverWith(intersectionSource, resizeSource, mediaSource, storageSource, visibilitySource, onlineSource, geolocationSource, frameSource, clipboardSource);

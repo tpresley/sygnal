@@ -1189,6 +1189,7 @@ const browserFake = (o: any = {}, real?: boolean) => {
       visibility: on('visibility', () => ({visible: env.visible})),
       online: on('online', () => ({online: env.online})),
       geolocation: on('geolocation', (_, c) => env.deny.has('geolocation') ? void c.fail(DENIED) : env.pos && pos(env.pos)),
+      frame: on('frame'),
     },
     c: {
       copy: (v: any, ok: any, fail: any) => env.deny.has('clipboard') ? clipFail(fail) : (env.clip = '' + v.copy, ok({text: env.clip})),
@@ -2722,6 +2723,18 @@ export function renderComponent(
       if (!arguments.length) return bwOf('clipboard').env.clip;
       return envChange('clipboard', b => { b.env.clip = '' + text; });
     },
+    // frames on the fake clock: each frame declaration hears its every-th frame as `{ t, dt }`
+    frame: (n = 1, ms = 1000 / 60) => envChange('frame', b => {
+      for (let i = 0; i < n; i++) {
+        b.env.ft = (b.env.ft || 0) + ms;
+        b.each('frame', (e: any) => {
+          if ((e.n = (e.n || 0) + 1) % (e.s.every || 1) != 1 % (e.s.every || 1)) return;
+          const t = b.env.ft / 1000;
+          e.c.send({t, dt: e.t === undefined ? 0 : t - e.t});
+          e.t = t;
+        });
+      }
+    }),
     deny: (...kinds: string[]) => {
       const b = bwOf('deny');
       kinds.forEach(k => b.env.deny.add(k));

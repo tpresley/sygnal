@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import {describe, it, expect} from 'vitest'
 import {renderComponent} from 'sygnal'
-import {controlled} from '../lib/controlled'
+import {controlled} from '../../../../src/extra/controlled'
 import {Notes} from '../app/Notes'
-import {islandOf} from '../lib/island'
 
 describe('controlled(): the protocol alone', () => {
   // the app's state lags the widget (a worker renderer, the RN bridge, an async model): the props
@@ -12,7 +11,7 @@ describe('controlled(): the protocol alone', () => {
     let text = ''
     const writes: string[] = []
     const write = (v: string) => { text = v; writes.push(v) }
-    const c = controlled({write})
+    const c = controlled(write)
     const naive = (v: string) => { if (v !== text) write(v) }
     const prop = impl == 'naive' ? naive : (v: string) => c.prop(v)
     const type = (v: string) => { text = v; c.local(v) }
@@ -32,19 +31,21 @@ describe('controlled(): the protocol alone', () => {
   })
   it("the app's own values win; an unchanged prop never overwrites", () => {
     let text = ''
-    const c = controlled({write: (v: string) => { text = v }})
+    const c = controlled((v: string) => { text = v })
     c.prop('')
     text = 'hello'; c.local('hello')
-    expect(c.prop('')).toBe(false)          // the prop didn't change (a re-render for something else)
+    c.prop('')                              // the prop didn't change (a re-render for something else)
     expect(text).toBe('hello')
-    expect(c.prop('HELLO')).toBe(true)      // a transform by the app
+    c.prop('HELLO')                         // a transform by the app
     expect(text).toBe('HELLO')
-    expect(c.prop('')).toBe(true)           // a reset
+    c.prop('')                              // a reset
     expect(text).toBe('')
+    expect(c.st.writes).toBe(2)
   })
 })
 
-const editorOf = (t: any) => islandOf(t.container.querySelector('.code'))
+// the widget's record on its host: the instance (the EditorView) and the controlled value's counts
+const editorOf = (t: any) => { const r = t.container.querySelector('.code').__sw; return {view: r.i, c: {stats: r.c.st}} }
 const typeAt = (ed: any, pos: number, insert: string) => ed.view.dispatch({changes: {from: pos, insert}, selection: {anchor: pos + insert.length}, userEvent: 'input.type'})
 const macrotask = () => new Promise(r => setTimeout(r, 0))
 

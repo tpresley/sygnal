@@ -1,12 +1,12 @@
 import { defineConfig } from 'vite'
 import { fileURLToPath } from 'node:url'
+import { alias } from './vitest.config.mjs'
 
-// The browser demo: index.html → app/main.tsx. Sygnal is src/ bundled once by build-demo.mjs
-// (core and JSX runtime in one module)
-const demo = fileURLToPath(new URL('./dist/sygnal-demo.js', import.meta.url))
-
+// The browser demo: index.html → app/main.tsx, against src/ (as the tests; src/cycle/dom/index.ts
+// re-exports its types with `export type`, so Vite's per-file transform serves it)
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
-  resolve: { alias: [{ find: /^sygnal(\/jsx-runtime|\/jsx-dev-runtime)?$/, replacement: demo }] },
+  resolve: { alias },
   esbuild: { jsx: 'automatic', jsxImportSource: 'sygnal' },
+  server: { fs: { allow: [fileURLToPath(new URL('../../../', import.meta.url))] } },
 })

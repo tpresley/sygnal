@@ -228,6 +228,8 @@ export class Inst {
   subs: any[] = []
   /** a Collection item's key; the isolate memo (runtime scopeValue) */
   k: any; $iso: any
+  /** canvas-three F2: a template node's last injected copy, by the node (its children array, `.r` the copy) */
+  ic?: WeakMap<any, any>
   srcs?: Record<string, any>
   fb?: Record<string, any>
   ac?: AbortController | null
@@ -649,7 +651,13 @@ export class Inst {
       const v = this.inject(c[i], path + '.' + i)
       if (v !== c[i]) (out ||= c.slice())[i] = v
     }
-    return out ? {...n, children: out} : n
+    if (!out) return n
+    // canvas-three F2: the same children as this node's last injection: its last copy, so snabbdom
+    // skips an element (and its hooks: a widget's postpatch) above components that didn't change
+    const p = (this.ic ||= new WeakMap()).get(n)
+    if (p && p.length == out.length && p.every((x: any, i: number) => x === out[i])) return p.r
+    this.ic.set(n, out)
+    return out.r = {...n, children: out}
   }
 
   // ---------------------------------------------------------------- actions

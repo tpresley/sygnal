@@ -490,7 +490,8 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
   // any children); the client patch replaces the fallback and mounts the widget (extra/widget.ts)
   if (sel === 'widget' && vnode.data?.ww) {
     const {ww, wp, h} = vnode.data, fb = ww.def.fallback, host = ww.$ssr(vnode)
-    if (fb != null) host.children = [].concat(typeof fb == 'function' ? fb(wp, h) : fb).map((c: any) => typeof c == 'object' ? c : {text: String(c)})
+    // (a widget with children: its children container first, server-rendered too)
+    if (fb != null) host.children = [...(host.children || []), ...[].concat(typeof fb == 'function' ? fb(wp, h) : fb).map((c: any) => typeof c == 'object' ? c : {text: String(c)})]
     return processSSRTree(host, context, parentState, uid, path)
   }
 

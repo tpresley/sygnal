@@ -11,7 +11,7 @@ export function Bar({state, context}: any) {
   const bw = (W - PAD * 2) / context.count - 8, x = PAD + state.i * (bw + 8), bh = (state.value / context.max) * (H - PAD * 2)
   return (
     <g x={x} y={H - PAD}>
-      <rect className="bar" aria-label={`${state.label}: ${state.value}`} x={0} y={-bh} width={bw} height={bh} rx={3} fill={state.on ? '#ffb547' : '#4f8cff'} />
+      <rect className="bar" role="button" attrs={{tabindex: 0}} aria-pressed={String(state.on)} aria-label={`${state.label}: ${state.value}`} x={0} y={-bh} width={bw} height={bh} rx={3} fill={state.on ? '#ffb547' : '#4f8cff'} />
       <text x={bw / 2} y={14} fontSize={10} fill="#9aa4b2" textAnchor="middle" pointerEvents="none">{state.label}</text>
     </g>
   )
@@ -33,8 +33,11 @@ export function Chart({state}: any) {
     <section className="chart-panel">
       <h2>Canvas 2D</h2>
       <Canvas2D className="chart" width={W} height={H} background="#10141c">
-        <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#3a4352" pointerEvents="none" />
-        <Collection of={Bar} from="bars" />
+        {/* an <svg> root: the hidden children are rendered SVG, so focusable and accessible */}
+        <svg aria-label="Sales by day">
+          <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#3a4352" pointerEvents="none" />
+          <Collection of={Bar} from="bars" />
+        </svg>
       </Canvas2D>
       <p className="tip">{state.hover ? `${state.hover}` : 'hover a bar'} · selected total {total}</p>
     </section>

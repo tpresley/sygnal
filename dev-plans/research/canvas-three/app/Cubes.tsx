@@ -16,7 +16,7 @@ export function Cube({state, context}: any) {
   // per-frame values go through `animate` (lib/three.ts), never through state
   const spin = context.spin ? (t: number) => [t * 0.3, t * (state.selected ? 2 : 0.8) + state.id, 0] : undefined
   return (
-    <mesh className="cube" role="button" aria-label={`cube ${state.id}${state.selected ? " (selected)" : ""}`} position={[state.x, 0, 0]} scale={state.selected ? 1.3 : 1} rotation={[0.4, 0.6 + state.id, 0]} animate={spin && {rotation: spin}}>
+    <mesh className="cube" role="button" tabIndex={0} aria-pressed={String(state.selected)} aria-label={`cube ${state.id}${state.selected ? " (selected)" : ""}`} position={[state.x, 0, 0]} scale={state.selected ? 1.3 : 1} rotation={[0.4, 0.6 + state.id, 0]} animate={spin && {rotation: spin}}>
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial color={state.hover ? '#ffffff' : state.color} emissive={state.selected ? state.color : '#000000'} emissiveIntensity={0.35} />
     </mesh>
@@ -29,7 +29,8 @@ Cube.intent = ({DOM}: any) => ({
   REMOVE: DOM.select('.cube').events('dblclick'),
 })
 Cube.model = {
-  SELECT: (state: CubeState, e: any) => ({...state, selected: !state.selected, hitAt: e.point.map((n: number) => +n.toFixed(2))}),
+  // (a keyboard click, Enter on the focused cube, carries no intersection)
+  SELECT: (state: CubeState, e: any) => ({...state, selected: !state.selected, hitAt: e.point ? e.point.map((n: number) => +n.toFixed(2)) : null}),
   OVER: (state: CubeState) => ({...state, hover: true}),
   OUT: (state: CubeState) => ({...state, hover: false}),
   REMOVE: () => undefined,

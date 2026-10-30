@@ -1,5 +1,6 @@
 /**
- * <Scene>: a three.js island inside a DOM app (defineIsland + the three target + the pointer router).
+ * <Scene>: a three.js island inside a DOM app: defineWidget({ children: true }) + the three target
+ * + the pointer router.
  *
  *   <Scene className="viewport" width={640} height={400} background="#10141c">
  *     <ambientLight intensity={0.4} />
@@ -8,26 +9,35 @@
  *
  * Props: width, height (else the host's size), background, frameloop ('demand' | 'always' |
  * 'never'), headless (no WebGLRenderer: picking and the scene graph only; the default in jsdom
- * and on a host document), camera + orbit (a controlled camera: controlled.ts).
+ * and on a host document), camera + Orbit (a controlled camera: sygnal's controlled() helper; the
+ * widget's own `value` protocol is for one `value` prop, the camera is a second one).
+ *
+ * Keyboard: the children are accessible (defineWidget's default): a mesh with `tabIndex={0}` and a
+ * role is focusable, Enter / Space click it (with no intersection on the event), and the focus
+ * ring is drawn where the object is (focus()).
  *
  * Frame loop ('demand', react-three-fiber's term): a frame is drawn after a patch of the island,
  * and continuously while any element has an `animate` prop. A frame runs the `animate`
  * functions and draws; the app's state, views and the DOM patch are not involved.
  */
 import * as THREE from 'three'
-import {defineIsland} from './island'
+import {defineWidget} from 'sygnal'
+import {controlled} from '../../../../src/extra/controlled'
 import {createThreeTarget} from './three'
 import {pointerRouter} from './events'
-import {controlled} from './controlled'
 
 const isHeadless = (el: any) => {
   const win = el.ownerDocument?.defaultView
   return !win?.WebGL2RenderingContext || (typeof navigator != 'undefined' && /jsdom/i.test(navigator.userAgent))
 }
 
-export const Scene = defineIsland({
-  name: 'scene',
-  mount(el, props, emit) {
+export const Scene = defineWidget({
+  name: 'Scene',
+  children: true,
+  // three's <line> is an SVG tag to the pragma: plain here
+  tags: ['line'],
+  events: ['camerachange'],
+  mount(el: any, props: any, emit: any) {
     const doc = el.ownerDocument
     const target = createThreeTarget()
     const headless = props.headless ?? isHeadless(el)
@@ -50,6 +60,11 @@ export const Scene = defineIsland({
 
     // input: native pointer events on the canvas → raycasts → DOM-shaped events on the elements
     const router = pointerRouter((x, y) => target.pick(x / w * 2 - 1, -(y / h) * 2 + 1), el.firstChild)
+    // the keyboard focus ring: where the focused child's object is drawn
+    const ring = doc.createElement('div')
+    Object.assign(ring.style, {position: 'absolute', width: '56px', height: '56px', margin: '-28px 0 0 -28px', border: '2px solid #ffb547', borderRadius: '50%', pointerEvents: 'none', display: 'none'})
+    if (!el.style.position) el.style.position = 'relative'
+    el.appendChild(ring)
     const on = (type: string, kind: string) => {
       const f = (e: any) => { router.input(kind, e.offsetX, e.offsetY, e); if (kind != 'leave') invalidate() }
       canvas.addEventListener(type, f)
@@ -85,7 +100,7 @@ export const Scene = defineIsland({
       invalidate()
     }
     let camProp = props.camera, synced = false
-    if (props.Orbit) cam = controlled({write: writeCam, equals: (a: any, b: any) => JSON.stringify(a) == JSON.stringify(b)})
+    if (props.Orbit) cam = controlled(writeCam, (a: any, b: any) => JSON.stringify(a) == JSON.stringify(b))
     // after a sync: the scene's camera may be new (the first sync makes it); the controls follow it
     const afterSync = () => {
       if (props.Orbit && orbit?.object !== target.camera()) {
@@ -102,8 +117,8 @@ export const Scene = defineIsland({
       }
     }
 
-    const inst = {
-      target, router, stats, canvas, el,
+    const inst: any = {
+      target, router, stats, canvas, el, ring, props,
       get headless() { return headless },
       invalidate, tick,
       /** raw input at canvas pixels (tests) */
@@ -131,21 +146,29 @@ export const Scene = defineIsland({
         target.dispose()
         renderer?.dispose()
         canvas.remove()
+        ring.remove()
       },
     }
     return inst
   },
-  update(inst, props, prev) {
+  update(inst: any, props: any) {
+    const prev = inst.props
+    inst.props = props
     if (props.width != prev.width || props.height != prev.height) inst.resize(props.width || inst.el.clientWidth, props.height || inst.el.clientHeight)
     if (props.camera !== prev.camera && props.camera) inst.setCamera(props.camera)
     if (props.background !== prev.background) inst.target.scene.background = props.background ? new THREE.Color(props.background) : null
     if (props.frameloop !== prev.frameloop) inst.setFrameloop(props.frameloop || 'demand')
     inst.invalidate()
   },
-  sync(inst, children) {
+  sync(inst: any, children: any) {
     inst.target.sync(children)
     inst.afterSync()
     inst.invalidate()
   },
-  unmount: (inst) => inst.dispose(),
+  focus(inst: any, child: any) {
+    const p = child && inst.pixelOf(child)
+    inst.ring.style.display = p ? 'block' : 'none'
+    if (p) Object.assign(inst.ring.style, {left: p[0] + 'px', top: p[1] + 'px'})
+  },
+  unmount: (inst: any) => inst.dispose(),
 })

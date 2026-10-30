@@ -6,6 +6,9 @@
  *     <text x={10} y={20} fill="#ccc">Sales</text>
  *   </Canvas2D>
  *
+ * Children wrapped in an <svg> are rendered (visually hidden, defineWidget's default), so they are
+ * focusable (`attrs={{ tabindex: 0 }}`) and in the accessibility tree; the painter walks through it.
+ *
  * The vocabulary is SVG's (g, rect, circle, line, text, path), so the pragma already gives these
  * tags the SVG namespace and their props as attributes: the hidden children are real SVG elements
  * (selectable, isolated, readable by an accessibility tree), and the painter reads the attribute
@@ -22,7 +25,7 @@
  * would be built from the same vnodes, as the three target does; their own hit testing would
  * produce the element for the router.
  */
-import {defineIsland} from './island'
+import {defineWidget} from 'sygnal'
 import {pointerRouter} from './events'
 
 type Item = {el: any, tag: string, a: any, ox: number, oy: number, alpha: number, text?: string, path?: any}
@@ -107,11 +110,20 @@ export function hitTest(list: Item[], x: number, y: number, ctx?: any): Item | n
   return null
 }
 
+/** an item's box in canvas coordinates [x, y, w, h] (the focus ring) */
+export function bounds(it: Item): number[] | null {
+  const a = it.a
+  if (it.tag == 'rect') return [it.ox + num(a.x), it.oy + num(a.y), num(a.width), num(a.height)]
+  if (it.tag == 'circle') return [it.ox + num(a.cx) - num(a.r), it.oy + num(a.cy) - num(a.r), 2 * num(a.r), 2 * num(a.r)]
+  return null
+}
+
 const headless = (el: any) => typeof navigator == 'undefined' || /jsdom/i.test(navigator.userAgent) || !el.ownerDocument?.defaultView?.CanvasRenderingContext2D
 
-export const Canvas2D = defineIsland({
-  name: 'canvas2d',
-  mount(el, props) {
+export const Canvas2D = defineWidget({
+  name: 'Canvas2D',
+  children: true,
+  mount(el: any, props: any) {
     const doc = el.ownerDocument, win = doc.defaultView
     const canvas = doc.createElement('canvas')
     const dpr = win?.devicePixelRatio || 1
@@ -120,14 +132,21 @@ export const Canvas2D = defineIsland({
     size()
     el.appendChild(canvas)
     const ctx = headless(el) ? null : canvas.getContext('2d')
-    const inst: any = {canvas, ctx, list: [] as Item[], paints: 0, background: props.background}
+    const inst: any = {canvas, ctx, list: [] as Item[], paints: 0, background: props.background, props, focused: null}
     const raf = win?.requestAnimationFrame?.bind(win)
     let pending = 0
     inst.invalidate = () => {
       if (!ctx || pending) return
       pending = raf ? raf(inst.draw) : setTimeout(inst.draw, 0)
     }
-    inst.draw = () => { pending = 0; paint(ctx, inst.list, w, h, inst.background, dpr); inst.paints++ }
+    inst.draw = () => {
+      pending = 0
+      paint(ctx, inst.list, w, h, inst.background, dpr)
+      // the keyboard focus ring around the focused child
+      const it = inst.list.find((i: Item) => i.el === inst.focused), b = it && bounds(it)
+      if (b) { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.strokeRect(b[0] - 3, b[1] - 3, b[2] + 6, b[3] + 6) }
+      inst.paints++
+    }
     inst.resize = (W: number, H: number) => { w = W; h = H; size(); inst.invalidate() }
     inst.pick = (x: number, y: number) => {
       const it = hitTest(inst.list, x, y, ctx)
@@ -143,13 +162,16 @@ export const Canvas2D = defineIsland({
     inst.dispose = () => { offs.forEach(f => f()); canvas.remove() }
     return inst
   },
-  update(inst, props, prev) {
+  update(inst: any, props: any) {
+    const prev = inst.props
+    inst.props = props
     if (props.width != prev.width || props.height != prev.height) inst.resize(props.width || 300, props.height || 150)
     if (props.background != prev.background) { inst.background = props.background; inst.invalidate() }
   },
-  sync(inst, children) {
+  sync(inst: any, children: any) {
     inst.list = displayList(children)
     inst.invalidate()
   },
-  unmount: (inst) => inst.dispose(),
+  focus(inst: any, child: any) { inst.focused = child; inst.invalidate() },
+  unmount: (inst: any) => inst.dispose(),
 })

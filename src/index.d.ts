@@ -610,8 +610,48 @@ export type WidgetEmit<EV extends string = string> = WidgetDispatch<EV>
 export interface WidgetDefinition<P = {}, I = unknown, EV extends string = string, TAG extends string = 'div'> {
   /** A name for diagnostics and inspect() (`'DatePicker'`); the host tag stands in without one */
   name?: string;
-  /** The host element (default `'div'`). It has no children of its own: the widget owns its content. */
+  /** The host element (default `'div'`). Without `children`, it has no children of its own: the widget owns its content. */
   tag?: TAG;
+  /**
+   * Declarative children (an "island": a WebGL scene's objects, a map's markers, a chart's
+   * series). The tag's JSX children are rendered by the app's DOM driver into a container in
+   * the host (`[data-widget-children]`), as ordinary elements: components, `<Collection>`,
+   * isolation and intents work inside. `sync` gets them; the widget paints them its own way and
+   * dispatches DOM events on them. `true`: the container is visually hidden but in the
+   * accessibility tree (Enter / Space on a focused child is its `click`; `focus` is told);
+   * `'hidden'`: hidden from everything.
+   */
+  children?: true | 'hidden';
+  /**
+   * With `children`: called after mount and after each patch in which the children's vnodes
+   * changed, with the children container's patched vnode (each child's props as the view wrote
+   * them, in `data.props` / `data.attrs`, and its element in `.elm`).
+   */
+  sync?(instance: I, children: VNode, el: WidgetElementOf<TAG>): void;
+  /** With `children`: a child got keyboard focus (`null`: none has it); draw a focus ring where it is */
+  focus?(instance: I, child: Element | null, el: WidgetElementOf<TAG>): void;
+  /**
+   * Tags of the widget's children vocabulary that are SVG tags to the JSX pragma (`marker`,
+   * `line`, `text`): they become plain elements app-wide (props stay props). Children of a
+   * literal `<svg>` in the same template are still SVG.
+   */
+  tags?: readonly string[];
+  /**
+   * Experimental (7.2): the widget carries a value both the app and the user change (an
+   * editor's text, a camera, a map's viewport). The `value` prop is controlled: `write` is
+   * called only when the app changed it to something the widget didn't report itself (no echo
+   * loops, no stale writes); the widget reports its own changes with `dispatch(event, value)`
+   * (`event` default `'change'`). With `strict` (here, or the `strict` prop), an edit the model
+   * didn't take (the prop never moved) is written back after the app's turn. `read` makes the
+   * host's `value` the widget's (`.value()` in intents). `update` is not called for `value` alone.
+   */
+  value?: {
+    write(instance: I, value: any, el: WidgetElementOf<TAG>): void;
+    read?(instance: I, el: WidgetElementOf<TAG>): any;
+    equals?(a: any, b: any): boolean;
+    event?: NoInfer<EV>;
+    strict?: boolean;
+  };
   /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
@@ -645,7 +685,8 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
  * (`controls({ Due: DatePicker })`, the alternative form).
  */
 export interface Widget<P = {}, I = unknown, EV extends string = string, TAG extends string = string> extends ControlSpecObject<P & WidgetHostProps> {
-  (props: P & WidgetHostProps): JSX.Element;
+  /** (JSX children: rendered for a widget with `children`, ignored otherwise) */
+  (props: P & WidgetHostProps & { children?: unknown }): JSX.Element;
   readonly kind: 'widget';
   /** The declared events */
   readonly events: readonly EV[];
@@ -3162,7 +3203,10 @@ interface BrowserSpecBase<ACTION extends string> {
  * - `visibility: true`: the document's visibility, data `{ visible }`;
  * - `online: true`: the network, data `{ online }`;
  * - `geolocation`: watchPosition (permission-gated; `true` or PositionOptions), data
- *   `BrowserPosition`, failures `{ code, message }` to `error`.
+ *   `BrowserPosition`, failures `{ code, message }` to `error`;
+ * - `frame: true`: animation frames (requestAnimationFrame), data `BrowserFrame`; `every: n`
+ *   delivers every n-th frame. Each delivered frame is an action and a render: for values that
+ *   only move a picture, use the widget's own frame loop.
  * An invalid spec is not started (SYG663 in dev).
  */
 export type BrowserSpec<ACTION extends string = string> =
@@ -3173,6 +3217,7 @@ export type BrowserSpec<ACTION extends string = string> =
   | (BrowserSpecBase<ACTION> & { visibility: true })
   | (BrowserSpecBase<ACTION> & { online: true })
   | (BrowserSpecBase<ACTION> & { geolocation: true | { enableHighAccuracy?: boolean; maximumAge?: number; timeout?: number }; error?: ACTION })
+  | (BrowserSpecBase<ACTION> & { frame: true; every?: number })
 
 /** A component's browser sources, by name: a falsy entry (`!state.seen && { ... }`) is stopped */
 export type BrowserSources<ACTION extends string = string> = { [name: string]: BrowserSpec<ACTION> | false | null | undefined | 0 | '' }
@@ -3183,6 +3228,9 @@ export interface BrowserIntersection { visible: boolean; ratio: number; index: n
 export interface BrowserResize { width: number; height: number; index: number; dataset: Record<string, string> }
 /** The data of a `geolocation` action */
 export interface BrowserPosition { latitude: number; longitude: number; accuracy: number; altitude: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null; timestamp: number }
+
+/** The data of a `frame` action, in seconds: the frame's time, and the time since the last frame delivered (0 for the first) */
+export interface BrowserFrame { t: number; dt: number }
 
 /**
  * PLAN-5 B-3: a command for the browser driver's sink, from a model entry
@@ -3211,6 +3259,8 @@ export const visibilitySource: BrowserSource
 export const onlineSource: BrowserSource
 /** `geolocation` declarations */
 export const geolocationSource: BrowserSource
+/** `frame` declarations (animation frames) */
+export const frameSource: BrowserSource
 /** the `copy` / `paste` commands */
 export const clipboardSource: BrowserSource
 
@@ -3548,6 +3598,8 @@ export interface BrowserFake {
   clipboard(): string;
   /** the clipboard's text is now `text` */
   clipboard(text: string): Promise<void>;
+  /** `n` animation frames of `ms` each (default 1 frame of 1000/60 ms): each `frame` declaration hears its every-th one as `{ t, dt }` */
+  frame(n?: number, ms?: number): Promise<void>;
   /** deny permissions: copy/paste fail with NotAllowedError, geolocation with code 1 (running ones too) */
   deny(...kinds: Array<'geolocation' | 'clipboard'>): void;
   /** the running declarations, in start order: `{ name, ...spec, component }` */
