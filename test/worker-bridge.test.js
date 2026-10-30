@@ -4,12 +4,14 @@
 // (Q-WW-2 declared preventDefault, Q-WW-3 held submit, Q-WW-4 caret, Q-WW-7 coalescing), the
 // rebase, no echo, and the page drivers. The whole-app mirror test (todomvc, 120 random actions)
 // is examples/todomvc-worker's; the real Worker path is browser-tests' (worker-p72.jsx).
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { run, createElement as h, Collection, xs } from 'sygnal'
 import { createWorkerTarget } from 'sygnal/worker'
 import { startBridge, rebase, caret } from 'sygnal/worker/page'
 
 const settle = (ms = 30) => new Promise((ok) => setTimeout(ok, ms))
+// the channel's round trips take longer on a loaded machine: wait for the outcome, not a fixed time
+const until = (fn) => vi.waitFor(fn, { timeout: 2000, interval: 10 })
 let env = null
 afterEach(() => { env?.app.dispose(); env?.bridge.stop(); env?.ch.port1.close(); env?.ch.port2.close(); env = null })
 
@@ -52,9 +54,10 @@ describe('sygnal/worker: fields', () => {
     Object.defineProperty(input, 'value', { get() { return desc.get.call(this) }, set(v) { writes++; desc.set.call(this, v) }, configurable: true })
     input.value = 'ab'; writes = 0
     input.dispatchEvent(new InputEvent('input', { bubbles: true }))
+    await until(() => expect(env.target.doc.querySelector('.new').value).toBe('ab'))
+    // the worker's render of the same value (and the flush after it) is not written back
     await settle()
     expect(writes).toBe(0)
-    expect(env.target.doc.querySelector('.new').value).toBe('ab')
   })
 
   it('rebases a worker value onto what the user typed since, and the app state follows (an input event)', async () => {
@@ -65,13 +68,11 @@ describe('sygnal/worker: fields', () => {
     submit(input.form)
     await settle(0)
     typeInto(input, 'W') // before the worker's clear arrives
-    await settle()
-    expect(input.value).toBe('W')
-    expect(items(mount)).toEqual(['Buy milk'])
+    await until(() => expect(items(mount)).toEqual(['Buy milk']))
+    await until(() => expect(input.value).toBe('W'))
     typeInto(input, 'alk')
     submit(input.form)
-    await settle()
-    expect(items(mount)).toEqual(['Buy milk', 'Walk'])
+    await until(() => expect(items(mount)).toEqual(['Buy milk', 'Walk']))
     expect(input.value).toBe('')
   })
 
@@ -85,13 +86,11 @@ describe('sygnal/worker: fields', () => {
     typeInto(input, 'Walk dog')
     submit(input.form)
     typeInto(input, 'Feed cat')
-    await settle(80)
-    expect(items(mount)).toEqual(['Buy milk', 'Walk dog'])
-    expect(input.value).toBe('Feed cat')
+    await until(() => expect(items(mount)).toEqual(['Buy milk', 'Walk dog']))
+    await until(() => expect(input.value).toBe('Feed cat'))
     expect(bridge.stats.held).toBeGreaterThan(0)
     submit(input.form)
-    await settle(80)
-    expect(items(mount)).toEqual(['Buy milk', 'Walk dog', 'Feed cat'])
+    await until(() => expect(items(mount)).toEqual(['Buy milk', 'Walk dog', 'Feed cat']))
   })
 
   it('Q-WW-4: the caret keeps its place through a worker write and a rebase', async () => {
@@ -106,8 +105,7 @@ describe('sygnal/worker: fields', () => {
     input.value = '  abcd'
     input.setSelectionRange(4, 4) // between b and c
     input.dispatchEvent(new InputEvent('input', { bubbles: true }))
-    await settle()
-    expect(input.value).toBe('abcd')
+    await until(() => expect(input.value).toBe('abcd'))
     expect([input.selectionStart, input.selectionEnd]).toEqual([2, 2])
     expect(caret('Buy milkW', 'W', 9)).toBe(1)
     expect(rebase('Buy milk', 'Buy milkW', '')).toBe('W')
@@ -133,8 +131,7 @@ describe('sygnal/worker: declared preventDefault (Q-WW-2), on the page synchrono
 
   it('applies an intent\'s declaration inside its isolation scope only; a pattern matches event fields', async () => {
     const { mount, bridge } = setup(List)
-    await bridge.ready
-    await settle()
+    await until(() => expect(mount.querySelectorAll('.go').length).toBe(3))
     const click = (el) => { const e = new MouseEvent('click', { bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented }
     const key = (el, k) => { const e = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: k }); el.dispatchEvent(e); return e.defaultPrevented }
     const [top, row1] = mount.querySelectorAll('.go')
@@ -171,12 +168,10 @@ describe('sygnal/worker: high-frequency events (Q-WW-7)', () => {
     const pad = mount.querySelector('.pad')
     for (let x = 1; x <= 10; x++) pad.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: x }))
     for (let i = 0; i < 4; i++) pad.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 5 }))
-    await settle(60)
-    expect(mount.querySelector('p').textContent).toBe('m10,w20')
+    await until(() => expect(mount.querySelector('p').textContent).toBe('m10,w20'))
     pad.dispatchEvent(new MouseEvent('pointermove', { bubbles: true, clientX: 42 }))
     pad.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await settle(60)
-    expect(mount.querySelector('p').textContent).toBe('m10,w20,m42,c')
+    await until(() => expect(mount.querySelector('p').textContent).toBe('m10,w20,m42,c'))
   })
 })
 
@@ -190,8 +185,7 @@ describe('sygnal/worker: page drivers', () => {
     App.model = { LOADED: { STATE: (s, v) => ({ v }), STORE: (s, v) => ({ wrote: v }) } }
     const { mount, bridge } = setup(App, { drivers: { STORE }, remotes: { STORE: ['get'] } })
     await bridge.ready
-    await settle()
-    expect(mount.textContent).toBe('saved:a')
+    await until(() => expect(mount.textContent).toBe('saved:a'))
     expect(written).toEqual([{ wrote: 'saved:a' }])
   })
 })
