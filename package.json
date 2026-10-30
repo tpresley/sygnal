@@ -5,6 +5,16 @@
   "main": "./dist/index.cjs.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.esm.js",
+  "sideEffects": [
+    "./dist/index.esm.js",
+    "./dist/index.cjs.js",
+    "./dist/diagnostics.esm.js",
+    "./dist/diagnostics.cjs.js",
+    "./dist/devtools.esm.js",
+    "./dist/devtools.cjs.js",
+    "./dist/shims/globalthis.cjs",
+    "./dist/sygnal.min.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

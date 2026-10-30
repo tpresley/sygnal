@@ -171,7 +171,6 @@ function chunked(qs: any, meta: any, name: string, instructions: string, head: a
  * probable (its own answer object), else the first chunk (all answered a head option)
  */
 function unchunk(a: any, meta: any) {
-  const out = {...a}
   const best: any = {}
   for (const [name, m] of Object.entries<any>(meta)) {
     if (m.base == null || !a[name]) continue
@@ -180,7 +179,7 @@ function unchunk(a: any, meta: any) {
     const p = (y: any) => y.probabilities?.[y.choice] ?? 0
     if (!b || (head(b) && !head(x)) || (!head(b) && !head(x) && p(x) > p(b))) best[m.base] = x
   }
-  return Object.assign(out, best)
+  return {...a, ...best}
 }
 const readChunked = (a: any, name: string) => a[name]
 

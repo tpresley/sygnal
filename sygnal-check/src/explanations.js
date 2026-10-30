@@ -343,6 +343,13 @@ export const EXPLANATIONS = {
     explanation: "A STATE reducer returned `undefined`, typically from a block-bodied arrow function without `return`. In a root component this wipes the state (a warning). Returning `undefined` from a Collection item's reducer is the documented way to remove the item, so it is not reported there; in another sub-component (a child rendered by tag) it is reported as info. `INITIALIZE` and internal `__*` actions are excluded.",
     fix: "Return the new state, e.g. `(state, data) => ({ ...state, ... })`, or return `ABORT` to leave the state unchanged.",
   },
+  SYG204: {
+    title: "Root component has no state, so its view never renders",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "The core calls a component's view only while its state is defined. A root component gets its first state from `initialState`, from an `INITIALIZE` reducer, or, with no model at all, renders without one. A root that has a model but no `initialState` starts with `undefined` state, so nothing is rendered: no error, an empty page, and a `DOM.click()` intent that can never fire because its element never appears. Generated code that has no data of its own often looks like this. The dev entry checks once per app, after the first render and the `BOOTSTRAP` reducers' flush, and reports a root whose state is still `undefined`, naming the reducers that could set it later. It is runtime-only: the root is whatever `run()` is given, which a static check can't know reliably.",
+    fix: "Give the root an `initialState`, `App.initialState = {}` when it has no data of its own, or return the first state from an `INITIALIZE` reducer. To show a loading state before data arrives, start from one (`{ loading: true }`) rather than from no state.",
+  },
   SYG206: {
     title: "Invalid calculated field definition",
     severity: "error",
