@@ -1,0 +1,20 @@
+{
+  "name": "sygnal-sandbox-spike",
+  "private": true,
+  "type": "module",
+  "description": "Research spike: untrusted / generated Sygnal components in QuickJS-in-WASM (dev-plans/research/sandbox/README.md)",
+  "scripts": {
+    "build": "node build-guest.mjs",
+    "test": "node build-guest.mjs && node --test test/*.test.mjs",
+    "bench": "node build-guest.mjs && node bench.mjs"
+  },
+  "dependencies": {
+    "sygnal": "file:../../..",
+    "quickjs-emscripten-core": "0.32.0",
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0"
+  },
+  "devDependencies": {
+    "@jitl/quickjs-ng-wasmfile-release-sync": "0.32.0",
+    "ses": "2.3.0"
+  }
+}
