@@ -187,6 +187,7 @@ export default defineConfig({
             { label: 'Write Once: Web, Native, Terminal', slug: 'renderers/write-once' },
             { label: 'React Native', slug: 'renderers/react-native' },
             { label: 'three.js', slug: 'renderers/three' },
+            { label: 'Canvas', slug: 'renderers/canvas' },
             { label: 'Terminal Apps', slug: 'renderers/terminal' },
             { label: 'Agent UI', slug: 'renderers/agent-ui' },
             { label: 'Off the Main Thread', slug: 'renderers/off-main-thread' },

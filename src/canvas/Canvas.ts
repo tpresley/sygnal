@@ -146,6 +146,18 @@ function checkRebuild(el: any, items: Node[]) {
   } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
+const sameActive = (a: Set<any> | null, b: Set<any> | null) => a === b || (!!a && !!b && a.size == b.size && [...a].every(x => b.has(x)))
+function sameDisplay(la: Layer[], va: Live[], lb: Layer[], vb: Live[]) {
+  if (la.length != lb.length || va.length != vb.length) return false
+  for (let i = 0; i < la.length; i++) {
+    const a = la[i], b = lb[i]
+    if (a.el !== b.el || a.outline !== b.outline || a.label !== b.label || a.a11y !== b.a11y || !sameActive(a.active, b.active)) return false
+    if (a.items !== b.items && (!a.els || a.items.length != b.items.length || a.items.some((n, j) => n !== b.items[j]))) return false
+  }
+  for (let i = 0; i < va.length; i++) if (va[i].node !== vb[i].node || va[i].el !== vb[i].el) return false
+  return true
+}
+
 export const Canvas = defineWidget({
   name: 'Canvas',
   children: true,
@@ -245,11 +257,18 @@ export const Canvas = defineWidget({
     // the camera: a controlled value
     const cam = controlled((v: Camera) => { inst.camera = v; invalidate() }, sameCam)
     cam.prop(inst.camera)
+    // camerachange at most once a frame: the first change of a frame at once (so the app's
+    // overlay renders before the canvas paints: one paint, handles in step with the shapes), later
+    // ones of the same frame at its end
+    let emitted: Camera | null = null
     const setLocal = (v: Camera) => {
       inst.camera = v
       cam.local(v)
       invalidate()
-      if (!camPending) camPending = raf ? raf(() => { camPending = 0; emit('camerachange', inst.camera) }) : (emit('camerachange', v), 0)
+      if (!raf) return emit('camerachange', v)
+      if (camPending) return
+      emit('camerachange', emitted = v)
+      camPending = raf(() => { camPending = 0; if (emitted !== inst.camera) emit('camerachange', emitted = inst.camera) })
     }
     // a camera gesture: the backend may scale its cache; at rest it repaints crisp
     const gesture = (on: boolean) => {
@@ -465,18 +484,21 @@ export const Canvas = defineWidget({
     const prev = inst.props
     inst.props = props
     if (props.width && (props.width != prev.width || props.height != prev.height)) inst.resize(props.width, props.height)
+    // a camera the app changed is written (and painted); the canvas's own camera coming back is not
     if (props.camera !== prev.camera && props.camera) inst.setCamera(props.camera)
     if (props.follow !== prev.follow) inst.follow = props.follow || null
-    inst.invalidate()
+    if (props.follow !== prev.follow || props.background !== prev.background || props.grid !== prev.grid || props.repaint !== prev.repaint || props.backend !== prev.backend) inst.invalidate()
   },
   sync(inst: any, children: any) {
     const {layers, live, props} = readChildren(children)
     for (const l of layers) if (!l.els) checkRebuild(l.el, l.items)
+    // an app render that changed nothing the canvas shows (its camera echo, a panel's state): no paint
+    const same = sameDisplay(inst.layers, inst.live, layers, live)
     inst.layers = layers
     inst.live = live
     inst.nodeProps = props
     inst.follow = inst.props.follow || null
-    inst.invalidate()
+    if (!same) inst.invalidate()
   },
   unmount: (inst: any) => inst.dispose(),
 })

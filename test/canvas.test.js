@@ -323,6 +323,22 @@ describe('canvas2d(): the static layer, the camera cache, translation blits', ()
     expect(s.statics).toBe(1)
   })
 
+  it('a zoom-out during the gesture draws the overview under the scaled bitmap (painted once), not a repaint per step', () => {
+    const { canvas } = fakeCanvas(), b = canvas2d()(canvas), layers = [{ items: doc, active: null }]
+    let cam = { x: 100, y: 100, zoom: 2 }
+    b.paint(frame(layers, cam), stats())
+    cam = zoomAt(cam, 1.6, 400, 300)
+    let s = stats(); b.paint(frame(layers, cam, { moving: true }), s)
+    // the first uncovered step paints the overview
+    expect(s).toMatchObject({ scaled: 1, statics: 1 })
+    cam = zoomAt(cam, 1.3, 400, 300)
+    s = stats(); b.paint(frame(layers, cam, { moving: true }), s)
+    expect(s).toMatchObject({ scaled: 1, statics: 0 })
+    // at rest: a crisp repaint
+    s = stats(); b.paint(frame(layers, cam, { moving: false }), s)
+    expect(s.statics).toBe(1)
+  })
+
   it('a big followed set that only translated is one blit, not a repaint', () => {
     const { canvas } = fakeCanvas(), b = canvas2d()(canvas)
     const ids = new Set(doc.slice(0, 100).map((n) => n.id)), layers = [{ items: doc, active: null }]
