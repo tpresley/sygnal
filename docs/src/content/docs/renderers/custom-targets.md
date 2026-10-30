@@ -55,14 +55,16 @@ export function createJsonTarget(send, styles = []) {
 }
 ```
 
+Here the app runs in a Web Worker, so the "remote screen" is the page that started it. `self.postMessage` and `self.onmessage` are the worker's own channel to that page, not Sygnal APIs. For a socket or a native shell, pass that channel's send function and call `target.receive` from its message handler instead.
+
 ```js
-// main.js
+// main.js: runs in a Web Worker (new Worker('./main.js', { type: 'module' }))
 import { run } from 'sygnal'
 import App from './App.jsx'
 import { createJsonTarget } from './jsonTarget.js'
 
-const target = createJsonTarget((tree) => postMessage(tree))
-onmessage = (e) => target.receive(e.data)
+const target = createJsonTarget((tree) => self.postMessage(tree))  // tree → the page
+self.onmessage = (e) => target.receive(e.data)                     // the page's events → the app
 run(App, { DOM: target.driver })
 ```
 
