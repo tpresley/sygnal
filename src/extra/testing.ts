@@ -1,4 +1,5 @@
 import {start as startNext} from '../core/runtime';
+import {ext} from '../core/registry';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -3059,7 +3060,7 @@ export function renderComponent(
     }
     later(last => {
       const rel = real ? realEl() : undefined;
-      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(vtree, rel) || []) : findChain();
+      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
       const el = real ? rel : chain?.[chain.length - 1];
       if (!page && !el) {
         if (!last) return false;

@@ -469,10 +469,11 @@ export class Inst {
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
     }
     if (!viewDirty && !kidsDirty) return this.outv
-    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), this.tmpl); return this.outv }
+    // CV-3: hooks (dev checks, devtools, testing) see a compiled block's vnodes (ext.xb)
+    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(this.tmpl) : this.tmpl); return this.outv }
     let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
-    this.app.hooks.onRender?.(viewOf(this), v)
+    this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(v) : v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
   }
 

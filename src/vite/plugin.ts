@@ -292,10 +292,11 @@ export interface SygnalPluginOptions {
    *   vnodes are the ones the JSX runtime makes.
    * - `ssr` (CV-1): in server builds, compiled elements render to HTML strings in renderToString
    *   (same HTML, no vnode per element). Never under Vitest.
-   * - `blocks` (CV-3): in production client builds (`vite build`; never the dev server or Vitest,
-   *   whose checks and devtools read vnodes), a `.map()` row and the element a component returns
-   *   become a block: a template cloned once per row, then only its dynamic parts written.
-   * - `test`: compile under Vitest too (`views` only), so tests run what ships.
+   * - `blocks` (CV-3): in client code, a `.map()` row and the element a component returns become a
+   *   block: a template cloned once per row, then only its dynamic parts written. Whatever reads
+   *   vnodes (the dev checks, devtools, renderComponent, a driver other than the browser DOM's) gets
+   *   the block's plain vnodes.
+   * - `test`: compile under Vitest too (`views` and `blocks`), so tests run what ships.
    * @default false
    */
   compile?: boolean | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean }
@@ -391,18 +392,17 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   let warnedCompile = false
   const co = options.compile === true ? {} : options.compile || null
   const compileOn = (k: 'views' | 'ssr' | 'blocks' | 'test') => !!co && (co as any)[k] !== false
-  // (its own command / Vitest flags: it may be used without the main plugin, e.g. added to a config
-  // that already has sygnal())
-  let cServe = false, cVitest = false
+  // (its own Vitest flag: it may be used without the main plugin, e.g. added to a config that already
+  // has sygnal())
+  let cVitest = false
   const compilePlugin = co && {
     name: 'vite-plugin-sygnal:compile',
     enforce: 'pre' as const,
-    config(_: any, env: { command: string }) {
-      cServe = env.command === 'serve'
+    config() {
       cVitest = !!nodeProcess?.env?.VITEST
     },
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
-      const isVitest = cVitest, isServe = cServe
+      const isVitest = cVitest
       const file = id.split('?')[0]
       if (!/\.[jt]sx$/.test(file) || file.includes('/node_modules/') || id.startsWith('\0')) return null
       if (isVitest && !compileOn('test')) return null
@@ -413,7 +413,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         if (!warnedCompile) { warnedCompile = true; this.warn('[sygnal] `compile` needs Vite 8; views are not compiled') }
         return null
       }
-      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr, blocks: !ssr && !isServe && !isVitest && compileOn('blocks') })
+      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr, blocks: !ssr && compileOn('blocks') })
     },
   }
   const main = {

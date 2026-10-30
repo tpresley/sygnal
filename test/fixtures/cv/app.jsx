@@ -59,3 +59,14 @@ export function mount(App, el) {
   const app = run(App, { IN: () => in$ }, { mountPoint: el })
   return { send: (t, d) => push({ t, d }), dispose: app.dispose, app }
 }
+
+// CV-4: rendered on the server with rows, then hydrated (the same initial state on both sides)
+export function HydrTable(p) { return Table(p) }
+HydrTable.initialState = { rows: rowsOf(12).map((r, i) => i == 3 ? { ...r, label: '' } : r), selected: 2 }
+HydrTable.intent = intent
+HydrTable.model = MODEL
+export function HydrColl(p) { return Coll(p) }
+HydrColl.initialState = { rows: rowsOf(12), selected: 2 }
+HydrColl.context = Coll.context
+HydrColl.intent = intent
+HydrColl.model = MODEL

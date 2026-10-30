@@ -130,10 +130,10 @@ export interface SygnalPluginOptions {
    *   ones the JSX runtime makes.
    * - `ssr`: in server builds, compiled elements render to HTML strings inside renderToString (the
    *   same HTML, no vnode per element). Never under Vitest.
-   * - `blocks`: in production client builds (never the dev server or Vitest), a `.map()` row and
-   *   the element a component returns become a block: a template cloned once, then only its
-   *   dynamic parts written.
-   * - `test`: compile under Vitest too (`views` only), so tests run what ships.
+   * - `blocks`: in client code, a `.map()` row and the element a component returns become a
+   *   block: a template cloned once, then only its dynamic parts written. Whatever reads vnodes
+   *   (dev checks, devtools, renderComponent, a non-browser driver) gets the block's plain vnodes.
+   * - `test`: compile under Vitest too (`views` and `blocks`), so tests run what ships.
    * With `compile` on, the plugin is an array of two plugins.
    * @default false
    */

@@ -113,24 +113,24 @@ describe('sygnal/vite compile option', () => {
     expect(noViews.transform.call(ctx(), SRC, '/app/V.jsx')).toBeNull()
     expect(noViews.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true }).code).toMatch(/__cvs\.r\(/)
   })
-  it('the compile plugin alone knows Vitest and the dev server (its own config hook)', async () => {
+  it('the compile plugin alone knows Vitest (its own config hook)', async () => {
     const { sygnal, ctx } = await load()
     const ROW = 'export const L = ({ xs }) => <ul className="l">{xs.map(x => <li key={x}><b>{x}</b></li>)}</ul>\n'
-    // under Vitest (this run): no SSR compile, no blocks
+    // under Vitest (this run): no SSR compile; blocks (the tests run what ships)
     const [t] = sygnal({ compile: true })
     t.config({}, { command: 'serve' })
     expect(t.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true }).code).not.toMatch(/__cvs/)
-    expect(t.transform.call(ctx(), ROW, '/app/L.jsx').code).not.toMatch(/__cvb/)
-    // a production build (no VITEST): blocks for the rows
+    expect(t.transform.call(ctx(), ROW, '/app/L.jsx').code).toMatch(/__cvb\.B\(/)
+    expect(sygnal({ compile: { blocks: false } })[0].transform.call(ctx(), ROW, '/app/L.jsx').code).not.toMatch(/__cvb/)
+    // a server build (no VITEST): SSR compiled, never blocks
     const vitest = process.env.VITEST
     delete process.env.VITEST
     try {
       const [b] = sygnal({ compile: true })
       b.config({}, { command: 'build' })
-      expect(b.transform.call(ctx(), ROW, '/app/L.jsx').code).toMatch(/__cvb\.B\(/)
-      const [d] = sygnal({ compile: true })
-      d.config({}, { command: 'serve' })
-      expect(d.transform.call(ctx(), ROW, '/app/L.jsx').code).not.toMatch(/__cvb/)
+      const out = b.transform.call(ctx(), ROW, '/app/L.jsx', { ssr: true }).code
+      expect(out).toMatch(/__cvs\.r\(/)
+      expect(out).not.toMatch(/__cvb/)
     } finally { process.env.VITEST = vitest }
   })
   it('skips node_modules, non-JSX files and virtual modules', async () => {

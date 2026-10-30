@@ -286,7 +286,7 @@ export class App {
       if (v !== this.last || this.ran) {
         this.ran = false
         this.last = v
-        this.hooks.onPatch?.(v)
+        this.hooks.onPatch?.(ext.xb ? ext.xb(v) : v)
         // CV-3: compiled blocks are patched only by the browser DOM driver; any other gets their vnodes
         this.vdomL?.next(ext.xb && !this.bd ? ext.xb(v ?? null) : v ?? null)
       }

@@ -25,7 +25,7 @@ let patch: any, creates: any[], update: any
 const MARK = '\u0001'
 const txt = (v: any): string => v == null || v === false || v === true ? '' : '' + v
 
-type Def = {fn: (h: (i: number) => any) => any; kinds: string; ok?: boolean; sel?: string; frag?: any; paths?: number[][]; tags?: string[]; hook?: any; rd?: any; rdh?: any}
+type Def = {elms?: (vn: any) => void; fn: (h: (i: number) => any) => any; kinds: string; ok?: boolean; sel?: string; frag?: any; paths?: number[][]; eps?: number[][]; tags?: string[]; hook?: any; rd?: any; rdh?: any}
 
 // the template: the skeleton (text holes as markers, inner data holes as a data-cvh marker)
 // rendered by snabbdom; the hole paths found by walking the skeleton and the DOM together; a
@@ -41,9 +41,10 @@ function setup(def: Def): void {
   update ||= (modules[modules.length - 1] as any).update
   patch(document.createElement('div'), skel)
   const root = skel.elm, copy = root.cloneNode(true)
-  const paths: number[][] = [], tags: string[] = []
+  const paths: number[][] = [], tags: string[] = [], eps: number[][] = []
   let ok = true
   const walk = (v: any, el: any, cp: any, path: number[]): void => {
+    eps.push(path)
     const d = v.data
     if (d?.dataset?.cvh !== undefined) { const i = +d.dataset.cvh; paths[i] = path; tags[i] = v.sel; el.removeAttribute('data-cvh') }
     else for (const p in d?.props) if (cp[p] !== el[p]) ok = false
@@ -65,7 +66,7 @@ function setup(def: Def): void {
   if (!ok) return
   const frag = document.createDocumentFragment()
   while (root.firstChild) frag.appendChild(root.firstChild)
-  def.frag = frag; def.paths = paths; def.tags = tags; def.sel = skel.sel; def.ok = true
+  def.frag = frag; def.paths = paths; def.eps = eps; def.tags = tags; def.sel = skel.sel; def.ok = true
   const at = (elm: any, p: number[]): any => { let n = elm; for (let i = 0; i < p.length; i++) n = n.childNodes[p[i]]; return n }
   const write = (vn: any, fresh: boolean, old?: any): void => {
     const r = vn.r, v = vn.v
@@ -82,16 +83,64 @@ function setup(def: Def): void {
     const r = vn.r = new Array(k.length)
     for (let i = 1; i < k.length; i++) r[i] = at(elm, paths[i])
     write(vn, true)
+    elmsOf(vn)
   }
+  // CV-4: the server's markup inside an adopted block element (makeDOMDriver's adopt(): `$a`)
+  // taken as the block's, when it is the template with these values: the same elements, and the
+  // same text, split where the template has separate text nodes (the server's HTML joins them).
+  // Then the holes are its nodes and nothing is made again; anything else: false (made again)
+  const hydrate = (vn: any): boolean => {
+    const vals = new Map<any, string>()
+    for (let i = 1; i < k.length; i++) if (k[i] == 't') vals.set(at(frag, paths[i]), txt(vn.v[i]))
+    const same = (tp: any, sp: any): boolean => {
+      let s = sp.firstChild
+      for (let t = tp.firstChild; t; t = t.nextSibling) {
+        if (t.nodeType == 3) {
+          // a run of template text nodes against one server text node (or none, all empty)
+          const run: string[] = []
+          for (let u = t; u && u.nodeType == 3; t = u, u = u.nextSibling) run.push(vals.has(u) ? vals.get(u)! : u.data)
+          const all = run.join('')
+          if (!s || s.nodeType != 3) { if (all) return false; s = sp.insertBefore(document.createTextNode(''), s) }
+          if (s.data !== all) return false
+          for (let j = 0; j < run.length - 1; j++) s = s.splitText(run[j].length)
+          s = s.nextSibling
+        } else {
+          if (!s || s.nodeType != 1 || s.localName != t.localName || !same(t, s)) return false
+          s = s.nextSibling
+        }
+      }
+      return !s
+    }
+    if (!same(frag, vn.elm)) return false
+    const r = vn.r = new Array(k.length)
+    for (let i = 1; i < k.length; i++) r[i] = at(vn.elm, paths[i])
+    // the server wrote the same attributes: the modules write the inner data as on create
+    for (let i = 1; i < k.length; i++) if (k[i] == 'd') { const n = {sel: tags[i], data: vn.v[i], elm: r[i]}; for (const f of creates) f(EMPTY, n) }
+    elmsOf(vn)
+    return true
+  }
+  // the element of every vnode of the block's expansion, if one was made (dev hooks, testing)
+  const elmsOf = (vn: any): void => {
+    const x = expandOne.get(vn)
+    if (!x) return
+    x.elm = vn.elm
+    let j = 0
+    const set = (v: any): void => { for (const c of v.children || []) if (c && c.sel !== undefined) { c.elm = at(vn.elm, eps[j++]); set(c) } }
+    set(x)
+  }
+  def.elms = elmsOf
   def.hook = {
     create: (_: any, vn: any) => make(vn),
     // an old vnode that isn't this block's (hydration adopted the server markup): its children are
     // left to the block, which makes its inside again
     prepatch: (old: any) => { if (!old.r) old.children = old.text = undefined },
+    // (another block's vnode, after a hot swap replaced the module: made again too)
     update: (old: any, vn: any) => {
-      if (!old.r) { vn.elm.textContent = ''; return make(vn) }
+      if (!old.r && old.$a && hydrate(vn)) return
+      if (!old.r || old.$b !== vn.$b) { vn.elm.textContent = ''; return make(vn) }
       vn.r = old.r
       write(vn, false, old)
+      elmsOf(vn)
     },
   }
 }
@@ -102,7 +151,14 @@ export function expand(v: any): any {
   if (!v || typeof v != 'object') return v
   if (v.$b) {
     let x = expandOne.get(v)
-    if (!x) { x = v.$b.fn((i: number) => v.v[i]); x.key = v.key; expandOne.set(v, x) }
+    if (!x) {
+      x = v.$b.fn((i: number) => v.v[i])
+      // the block's own data (an isolation scope a Collection gave it), without its hook
+      const {hook, ...data} = v.data
+      x.data = data; x.key = v.key
+      expandOne.set(v, x)
+      if (v.elm) v.$b.elms?.(v)
+    }
     return x
   }
   const c = v.children

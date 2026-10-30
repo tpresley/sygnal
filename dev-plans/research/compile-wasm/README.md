@@ -15,7 +15,8 @@ The prototypes above became a real, opt-in compiler on this branch. Plan and sta
 | `sygnal({ compile: true \| { views, ssr, blocks, test } })` (Vite 8; source maps via magic-string) | committed | `test/cv-compile.test.js` (option, maps, the CJS build, the Vite 7 warning) | — |
 | Tier A (CV-2): `__cv.e`, data made by the pragma's own `sanitizeData` / `route()` | committed | 55 fixture views same vnodes; 202 repo JSX files compile; 11 example suites pass compiled | select 1k (3 runs, loaded machine): 1.7 → 1.0 ms; Collection 2.5 → 1.7 ms |
 | Compiled SSR (CV-1): HTML parts in `renderToString` | committed | 55 fixture views byte-identical HTML; 2,000-shape differential test of the fast tag writer | table SSR 4.7× (1k rows), 5.5× (10k) |
-| Blocks (CV-3 v1, production client builds) | committed | jsdom: same DOM over 14 actions, blocks really made; Chromium: same DOM and same mutation counts per step | timing waits for a quiet window |
+| Blocks (CV-3; all client code since round 3, expanded for every vnode reader) | committed | jsdom: same DOM over 14 actions, blocks really made; Chromium: same DOM and same mutation counts per step; 11 example suites compiled | select row 1k 1.9 → 1.05 ms (React 0.9); create/append not faster yet (CV-3b) |
+| Hydration of blocks (CV-4) | committed | server rows keep their elements and text nodes, then patch like a fresh mount | — |
 
 Switchable on first use: deferred to the next major with the D471 lowercase-marker removal
 (coordinator decision).

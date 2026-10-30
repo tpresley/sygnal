@@ -7,6 +7,7 @@
 import {uidPart, vtStyle} from '../shared'
 import {sortFn} from '../core/hosts/collection'
 import {keyOf} from '../core/cell'
+import {ext} from '../core/registry'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -406,6 +407,8 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
  */
 function processSSRTree(vnode: any, context: Record<string, any>, parentState: any, uid: string, path: string): any {
   if (!vnode) return vnode
+  // CV-3: a compiled block (client code rendered on a server: tests, t.html()) as its vnodes
+  if (vnode.$b) vnode = ext.xb!(vnode)
   // CV-1: the parts of a compiled element (its only child: the element's path is `path` less `.0`)
   if (vnode instanceof Html) {
     const at = path.slice(0, path.lastIndexOf('.'))

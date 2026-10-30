@@ -7,7 +7,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { renderComponent, __cvb } from '../dist/index.esm.js'
+import { renderComponent, renderToString, __cvb } from '../dist/index.esm.js'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
@@ -90,6 +90,32 @@ describe('CV-3: the mock DOM gets plain vnodes', () => {
         expect(tb.html()).toBe(ta.html())
       }
       ta.dispose(); tb.dispose()
+    })
+  }
+})
+
+describe('CV-4: blocks hydrate server markup', () => {
+  for (const name of ['HydrTable', 'HydrColl']) {
+    it(`${name}: keeps the server's row elements and text nodes, and then patches like a fresh render`, async () => {
+      const html = renderToString(off.mod[name])
+      const el = document.createElement('div'), fresh = document.createElement('div')
+      el.innerHTML = html
+      document.body.append(el, fresh)
+      const lbls = [...el.querySelectorAll('.lbl')], texts = lbls.map(l => l.firstChild)
+      expect(lbls.length).toBe(12)
+      const made = __cvb.n
+      const y = on.mod.mount(on.mod[name], el), z = on.mod.mount(on.mod[name], fresh)
+      await settle(); await settle()
+      // adopted, not made again: the same element and text node objects, no block made on `el`
+      expect([...el.querySelectorAll('.lbl')].every((l, i) => l === lbls[i] && (l.firstChild === texts[i] || texts[i] == null))).toBe(true)
+      expect(__cvb.n - made).toBe(12)  // the fresh mount's 12 only
+      expect(el.innerHTML).toBe(fresh.innerHTML)
+      for (const [t, d] of [['SELECT', 5], ['UPDATE'], ['RICH'], ['SWAP'], ['REMOVE', 7]]) {
+        y.send(t, d); z.send(t, d)
+        await settle(); await settle()
+        expect(el.innerHTML, `after ${t}`).toBe(fresh.innerHTML)
+      }
+      y.dispose(); z.dispose(); el.remove(); fresh.remove()
     })
   }
 })

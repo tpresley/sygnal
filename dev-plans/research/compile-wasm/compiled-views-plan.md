@@ -234,6 +234,44 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
   caught the compile plugin depending on the main plugin's `config` hook for its Vitest / dev
   flags (SSR-compiled code ran under Vitest when the compile plugin was used alone); it has its
   own hook now, with a test.
-- Not yet: blocks in dev and under Vitest (the dev checks and devtools would need `expand`); CV-4
-  hydration that adopts without remaking; CV-5; the full timing run in a quiet window (pages
-  `table-cv` / `table-cva` / `coll-cv` / `coll-cva` are ready in `bench.mjs`).
+- **Timing run** (2026-10-29 15:33–15:53, coordinator's quiet window: the other sessions idle;
+  load average 5.6 at the start, 9.5 at the end; the maintainer's k3d cluster container held ~90%
+  of one core throughout). `results/bench-2026-10-30T0153.json`, 10 iterations + 3 warm-up, median
+  latency in ms (cpu in the file):
+
+  | Op | table (JSX) | tier A | tier A + blocks | React 19 | Collection (JSX) | Coll. tier A | Coll. + blocks |
+  |---|---:|---:|---:|---:|---:|---:|---:|
+  | create 1k | 20.3 | 19.7 | 21.8 | 18.4 | 24.2 | 24.95 | 21.95 |
+  | replace 1k | 17.55 | 16.2 | 18.35 | 21.35 | 29.7 | 21.55 | 26.65 |
+  | update every 10th | 3.85 | 2.95 | 3.7 | 2.95 | 4.45 | 3.2 | 3.55 |
+  | **select row** | 1.9 | 1.5 | **1.05** | 0.9 | 1.8 | 1.5 | **1.4** |
+  | swap rows | 2.95 | 2.8 | 2.1 | 15.15 | 1.85 | 2.0 | 2.85 |
+  | remove row | 2.95 | 2.45 | 2.1 | 1.95 | 2.15 | 1.8 | 1.7 |
+  | create 10k | 162.4 | 160.1 | 149.75 | 254.5 | 232.9 | 211.05 | 218.25 |
+  | append 1k | 18.5 | 18.9 | 19.3 | 15.75 | 23.35 | 18.75 | 21.7 |
+  | clear 1k | 3.9 | 4.15 | 2.95 | 4.15 | 3.75 | 4.55 | 3.1 |
+  | heap, 1k rows (MB) | 0.89 | 0.70 | 0.62 | 1.36 | 5.75 | 5.56 | 5.46 |
+
+  Select row (the op compiling targets) goes 1.9 → 1.05 ms, against React's 0.9; remove and clear
+  are at or under React; heap −30%. Under this load the other ops move by about their noise
+  (swings of 20–30% between the Collection columns). **Create and append don't gain with the
+  compiled blocks**: a 20-iteration re-run (`bench-2026-10-30T0158.json`, load ~8) gave create 1k
+  22.8 (JSX) / 22.5 (compiled blocks) / **18.25 (the hand-written block prototype)** / 20.5 (React).
+  Both pages make the same DOM (checked). The per-row JS differs by ~1 ms (the compiled block's
+  root data goes through the snabbdom modules); the remaining ~3 ms is native and `(program)` time
+  in the profile. The clone source isn't the cause (template content, an innerHTML fragment and
+  a createElement fragment clone at the same speed). Open item CV-3b.
+- **Blocks in dev and under Vitest** (round 3): `compile.blocks` now applies to all client code.
+  Whatever reads vnodes gets the block's plain vnodes, each element with its `elm` from the
+  template's element paths: the core's `onRender` / `onPatch` hooks (dev checks, devtools),
+  renderComponent's real-DOM element→vnode mapping and the SSR walk (`t.html()`, renderToString of
+  client code in tests). A hot swap that replaces a block's module makes the block's inside again.
+  Every installed Vite 8 example passes compiled (11 suites, 220 tests; kanban's TaskCard is a
+  block there).
+- **CV-4 hydration**: makeDOMDriver's `adopt()` keeps a block's server element, and the block
+  takes the server's markup as its own when it is the template with these values (text nodes split
+  where the server joined them, an empty text hole's node added); otherwise it makes its inside
+  again. Test: a server-rendered table and Collection keep every row's element and text node, no
+  block is made, then 5 actions patch like a fresh mount.
+- Size: uncompiled kanban 42,145 B (855 B headroom; the alt-renderers branch adds ~12 B).
+- Not yet: CV-3b (create/append with compiled blocks), CV-5 (static context keys), CV-6 (docs).
