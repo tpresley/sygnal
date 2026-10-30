@@ -28,8 +28,8 @@ shape), `?input=transient`, `?repaint=full`, `?app=proposed` (the rewrite on the
   event with `event.hit` = the shape's id. One Collection item per shape costs 3.7× the main-thread
   time at 10k (20.4 against 5.5 ms per move, 80 against 12 ms at CPU ×4) and 5× the memory: fine
   up to ~1k, and the right tool for the few interactive things with their own behaviour.
-- **Drags go through the action queue.** At 10k shapes it fits the frame budget even throttled ×4,
-  and it keeps undo-per-gesture, snapping, the live panels, replay and multiplayer working from
+- **Drags go through the action queue.** At 10k shapes a drag fits the frame budget even
+  throttled ×4 (dragging a whole 10k selection is the exception: 20 ms a step), and it keeps undo-per-gesture, snapping, the live panels, replay and multiplayer working from
   one state tree. A transient channel (`follow`, the drag analogue of `animate`) is the escape
   hatch for very large selections.
 - **The canvas carries the performance work so the app doesn't**: a static layer plus a live layer
@@ -39,11 +39,13 @@ shape), `?input=transient`, `?repaint=full`, `?app=proposed` (the rewrite on the
   duplicates the state tree; Pixi wins the raw GPU frame but loses memory, hit testing and every
   machine without a GPU. Hit testing on the data is backend-independent, so a backend only paints.
 - **`sygnal/canvas` = the island + a small kit.** The Figma-lite on it is 728 lines against 1,504
-  built by hand and 1,915 for the React + react-konva baseline, with the same features and tests.
-- **Against React + Konva, measured with its own script**: Sygnal uses ~5× less memory, starts
-  and loads faster, zooms cheaper and commits drags 5× faster; React + Konva is faster at dragging
-  a whole 10k selection and at panning at 10k, through bitmap caches the Sygnal canvas doesn't
-  have yet for the camera. Details in §8.
+  built by hand and 1,915 for the React + react-konva baseline, for the same spec (the baseline
+  adds a few extras: cut, ⌘[ / ⌘], ⇧2, collapsible frames).
+- **Against React + Konva, measured with its own script on this machine**: Sygnal uses ~5× less
+  memory, starts and loads faster, zooms cheaper and commits a big drag 6× faster; with `follow` it
+  drags a whole 10k selection faster too (6.7 vs 9.0 ms). React + Konva pans 3.5× cheaper at 10k
+  (a camera bitmap cache the Sygnal canvas doesn't have yet), is 1.5–3 ms cheaper per small drag,
+  and through the plain action queue a select-all drag at 10k is 20.3 against 9.0 ms. Details in §8.
 
 ---
 
@@ -161,7 +163,7 @@ Written while building; each entry says where it is in the code.
     `src/extra/controlled`, the router imports `src/three/events`: both belong in a shared module.
 13. **`sygnal/worker` doesn't run widgets yet**, so the editor can't move into a worker unchanged (§7).
 14. **Dragging a whole 10k selection through the queue** was the one case far over budget (42.5 ms
-    per step in §8's first rounds). A CPU profile (`perf/profile.mjs`) showed no framework cost at
+    per step in §8's first rounds; 20.3 ms after the fixes below, 6.7 ms with `follow`). A CPU profile (`perf/profile.mjs`) showed no framework cost at
     the top: it was the canvas copying a bitmap four times the canvas's area, the GC behind 10k new
     shape objects per move (and an outline copy of each), and an AABB `WeakMap` cache churning on
     objects that live one frame. Fixed in the canvas (copy only the visible part, uncached AABBs
@@ -257,7 +259,8 @@ the canvas draws). The React baseline went transient by necessity (its workaroun
 of truth during a drag, kept apart by hand"); here it is an option, declared in state.
 
 **Recommendation.** Drags, resizes, rotations and marquees go through the action queue. Keep
-`follow` as the documented escape hatch for heavy cases (a 10k-shape selection, a slow device),
+`follow` as the documented escape hatch for heavy cases (a 10k-shape selection: 6.7 against
+20.3 ms per step in §8; a slow device),
 the way `animate` is for per-frame motion. The model's own cost is small: 0.12 ms per move at 10k
 in Node, and 11.6 ms once at the press, to sort 30k snap targets (a visible hitch at 10k; a lazy or
 grid-indexed target set would fix it).
@@ -310,7 +313,8 @@ so identity is the key) and nodes outside the viewport are skipped. At 100 % zoo
   help small edits (a colour change) in a huge document, where today the static bitmap repaints
   whole, at the cost of a spatial index and clip bookkeeping. Measure before building.
 - **Pan and zoom repaint everything**, because the camera is part of the static bitmap's key: at
-  10k shapes fitted that is a full repaint per wheel event (§8 has the numbers). The next step is
+  10k shapes fitted that is a full repaint per wheel event: 12.1 ms a pan step against the React
+  baseline's 3.4 ms (§8). The next step is
   the blit trick for the camera: shift (pan) or scale (zoom) the static bitmap during the gesture
   and repaint crisp at rest, as tiled editors and the React baseline's pan cache do.
 
@@ -593,16 +597,47 @@ and the tasks between them, so about twice my harness's per-move figure), drag s
 100 or all shapes selected on a wandering path that engages snapping, wheel pan, ctrl-wheel zoom.
 Loop overhead (a hover step) was 1.0–1.4 ms in both apps.
 
-{{CONTRACT_TABLE}}
+Clean rounds, run one after another on a quiet machine (1-min load 6.6–7.6, no other gate;
+`overlapped-gate/` holds two runs that overlapped the coordinator's gate and are not used).
+Busy median per step in ms (p95 in brackets); React + Konva round 4, Sygnal round 4 on the final
+build, Sygnal transient (`?input=transient`) round 4. Earlier rounds agree within ~15 %, except
+Sygnal's big-selection drag, which the fixes in finding 14 brought from 42.5 to 20.3 ms at 10k.
+
+| shapes | scenario | React + Konva | Sygnal (queue) | Sygnal (transient) |
+|---:|---|---:|---:|---:|
+| 1k | drag 1 | 3.2 (4.1) | 3.7 (5.8) | 2.4 (3.1) |
+| 1k | drag 100 | 3.6 (5.3) | 5.0 (7.3) | 4.0 (5.1) |
+| 1k | drag all | 4.7 (7.6) | 6.3 (8.4) | 4.0 (5.3) |
+| 1k | pan / zoom | 2.6 / 8.5 | 5.7 / 5.4 | – |
+| 5k | drag 1 | 3.5 (5.4) | 5.2 (6.6) | 4.7 (6.3) |
+| 5k | drag 100 | 4.1 (5.1) | 7.0 (8.8) | 6.8 (8.8) |
+| 5k | drag all | 7.8 (9.5) | 12.0 (15.7) | 4.9 (6.6) |
+| 5k | pan / zoom | 3.5 / 7.8 | 9.6 / 5.8 | – |
+| 10k | drag 1 | 3.2 (5.3) | 5.9 (8.2) | 6.1 (7.7) |
+| 10k | drag 100 | 4.7 (6.3) | 7.8 (11.0) | 8.3 (10.4) |
+| 10k | drag all | 9.0 (10.4) | **20.3** (25.8; wall 66 ms: a frame dropped per step) | **6.7** (8.6) |
+| 10k | pan / zoom | **3.4** / 7.9 | **12.1** / 6.1 | – |
+
+| | React + Konva | Sygnal |
+|---|---:|---:|
+| startup (bench ready + a frame) | 104.7 ms | 87.2 ms |
+| generate + paint 10k | 179 ms | 64 ms |
+| JS heap after GC, 1k / 5k / 10k | 6.7 / 23.9 / 50.1 MB | 3.2 / 5.8 / 9.0 MB |
+| drop after dragging all 10k (commit) | 233 ms | 40 ms |
+
+Every scenario stays inside one frame (wall ≈ 49 ms = the script's two-frame settle) except
+Sygnal's queue drag of all 10k shapes. Small drags cost Sygnal 1.5–3 ms more per step than the
+baseline's imperative drag (one action, a flush, the App render and patch, the panels), within budget.
 
 Raw reports: `sygnal/perf/results/contract/*.json` and `*.md` (one per run and app).
 
 **Where React + Konva is better**
-- **Big-selection drags and pan at 10k.** It caches the dragged selection as one bitmap and
-  translates a Konva group imperatively, outside its store (its workaround 1), and caches the page
-  as a bitmap during a camera gesture. Sygnal's queue path still builds 10k new shape objects per
-  move for a select-all drag; `follow` (the transient channel) closes most of that gap (the
-  transient row), and the camera blit (§4) is the missing piece for pan.
+- **Pan at every size, and small drags.** It caches the page as a bitmap during a camera gesture
+  (3.4 against 12.1 ms per pan step at 10k), and its drag is imperative outside its store (its
+  workaround 1), so a one-shape drag is 1.5–3 ms cheaper per step. A select-all drag through
+  Sygnal's action queue builds 10k new shape objects per move (20.3 against 9.0 ms); Sygnal's
+  `follow` channel beats the baseline there (6.7 ms), but it is an opt-in, and the camera blit
+  (§4) is the missing piece for pan.
 - **Konva's Transformer** gives handles, rotation and multi-node transforms for free (with quirks:
   its workaround 5), and Konva has text layout, filters and caching APIs ready.
 - **Types end to end.** The baseline type-checks with `tsc --noEmit`; the Sygnal app leans on `any`
@@ -613,12 +648,12 @@ Raw reports: `sygnal/perf/results/contract/*.json` and `*.md` (one per run and a
   collapsible frames in the layers panel, frame-relative coordinates.
 
 **Where Sygnal is better**
-- **Memory**: about 5× less JS heap at 10k (9.1 vs 50.1 MB): no node object per shape outside the
-  state tree.
-- **Startup and generate**: faster to first frame (87 vs 106 ms) and to load a 10k document
-  (62 vs 164 ms), and the drop at the end of a drag commits in 33–39 ms against 200 ms (the
-  baseline remounts and re-attaches its Transformer to 10k nodes).
-- **Zoom**: cheaper per step at 10k.
+- **Memory**: about 5.5× less JS heap at 10k (9.0 vs 50.1 MB): no node object per shape outside
+  the state tree.
+- **Startup and generate**: faster to first frame (87 vs 105 ms) and to load a 10k document
+  (64 vs 179 ms), and the drop at the end of a select-all drag commits in 40 ms against 233 ms
+  (the baseline remounts and re-attaches its Transformer to 10k nodes).
+- **Zoom**: cheaper per step at every size (6.1 against 7.9 ms at 10k).
 - **One source of truth during gestures.** The baseline lists nine workarounds (re-render storms,
   an id → Konva node registry, `flushSync` not reaching the Konva reconciler, O(n²) remounts,
   Transformer quirks, the hit graph, ellipse origins, a passive wheel). Sygnal's friction list
@@ -659,8 +694,8 @@ proposed subpath the Sygnal app is 38 % of the React app's size.
   yjs diff all key on node identity. A reducer that rebuilds every shape (`shapes.map(s => ({...s}))`)
   silently turns every frame into a full repaint. A dev-mode check (more than k nodes changed
   identity with equal fields) would catch it.
-- **Pan and zoom at 10k** repaint everything per wheel event today (§8); fine on this machine,
-  not on a slow one. The camera blit (§4) is needed before shipping.
+- **Pan at 10k** repaints everything per wheel event today: 12.1 ms a step against the baseline's
+  3.4 (§8); fine on this machine, not on a slow one. The camera blit (§4) is needed before shipping.
 - **Measurements are from one machine** (M3 Max, headless Chromium, dpr 1) under a background
   load of ~9. CPU throttling ×4 approximates a slower main thread but not a slower GPU; dpr 2
   quadruples the raster work and isn't measured here.
