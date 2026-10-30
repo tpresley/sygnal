@@ -1,0 +1,10 @@
+{
+  "name": "sygnal-compose-sandbox-spike",
+  "private": true,
+  "type": "module",
+  "description": "Research spike: model-generated parts in sygnal/ai compose, run in the QuickJS sandbox (dev-plans/research/compose-sandbox/README.md)",
+  "scripts": {
+    "test": "node scripts/setup.mjs && node ../../../node_modules/vitest/vitest.mjs run",
+    "bench": "node scripts/setup.mjs && node ../../../node_modules/vitest/vitest.mjs run --config bench/vitest.bench.mjs"
+  }
+}
