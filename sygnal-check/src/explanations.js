@@ -1331,6 +1331,20 @@ export const EXPLANATIONS = {
     explanation: "`chat({ ask: { catalog } })` (sygnal/ai) gives the model the `ask_user` tool: a card is composed from the catalog's parts, and the call waits until a result part (`result: true`) answers it with `compose.answer(props, value)`. This catalog has no part with `result: true`, so no card it can build is answerable: every `ask_user` call stays open until the user presses Stop or sends a new message. Reported once per `chat()` call, also in production.",
     fix: "Mark the parts the user answers with `result: true` (a choice, a picker, a form, a yes/no) and send `compose.answer(props, value)` to PARENT from their model, for example `PICK: { PARENT: (_s, value, _n, props) => compose.answer(props, value) }`.",
   },
+  SYG690: {
+    title: "API contract skew",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "`contractFetch()` (sygnal/api) wraps the `fetch` of `makeFetchDriver` and `makeSocketDriver` and watches for the answer `contractSkew()` gives on the server: a 409 `CONTRACT_SKEW` with an `x-contract-skew` header. It means the app sends a contract hash (`contractHash(contract)` in a header, through the client's `headers` option) that differs from the server's: the tab was loaded before a deploy changed the API, so its requests may no longer match the server's inputs or outputs. Each such request fails with `isContractSkew(failure)` true in its `error` action (a resource has `status: 'error'`). Reported once per `contractFetch()`, also in production; `onSkew` is called for every skew answer.",
+    fix: "Offer a reload from `onSkew` (`contractFetch({ onSkew: () => showReloadBanner() })`) or from the `error` action (`isContractSkew(failure)`). Deploy the client and the server together, and send the hash of the contract the client was built with.",
+  },
+  SYG691: {
+    title: "Unknown API endpoint",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A member chain on a client made by `orpcClient(contract)` (sygnal/api) names a procedure or router that the contract doesn't have, such as `api.quotes.lst()` for a contract with `quotes.list`. The client mirrors the contract router: each procedure is an endpoint function, each router an object, so the misspelled name is `undefined`, and calling it throws `TypeError: api.quotes.lst is not a function` when the model entry or resource runs. TypeScript reports this in a typed project; sygnal-check follows the client to its `orpcClient(...)` call and the contract to its object literal, through imports, so plain JavaScript gets it too. It is silent when a level of the contract can't be listed (a spread, a computed key, a router built by a function call).",
+    fix: "Use the procedure's name as the contract declares it (the message suggests the closest one), or add the procedure to the contract and implement it on the server.",
+  },
   SYG674: {
     title: "WebMCP not available",
     severity: "info",

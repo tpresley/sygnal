@@ -1,0 +1,16 @@
+{
+  "name": "sygnal-fullstack-contracts-spike",
+  "private": true,
+  "type": "module",
+  "description": "Research spike: shared API contracts between a Sygnal client and a Hono server (not shipped)",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "server": "node app/serve.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "hono": "4.13.12",
+    "sygnal": "file:../../../.."
+  }
+}

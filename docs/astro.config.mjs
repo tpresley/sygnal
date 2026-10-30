@@ -130,6 +130,7 @@ export default defineConfig({
             { label: 'Resources and Caching', slug: 'guide/resources' },
             { label: 'Persistence', slug: 'guide/persistence' },
             { label: 'Sockets', slug: 'guide/sockets' },
+            { label: 'Typed APIs', slug: 'guide/typed-apis' },
             { label: 'Timers', slug: 'guide/timers' },
             { label: 'Browser Sources', slug: 'guide/browser-sources' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },

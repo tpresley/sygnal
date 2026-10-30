@@ -35,6 +35,8 @@ export const GUIDES = [
   'ai-compose', 'ai-cards',
   // PLAN-12: ship the major-release migration alongside the agent reference.
   'migrating-to-7',
+  // sygnal/api (dev preview)
+  'typed-apis',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).

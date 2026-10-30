@@ -368,6 +368,7 @@ For reads, see the [pagination and infinite list recipes](/guide/resources/#reci
 
 - [Resources and Caching](/guide/resources/): declarative reads, the query cache, invalidation, retries, validation
 - [Sockets](/guide/sockets/): WebSocket and server-sent events with `makeSocketDriver()`
+- [Typed APIs](/guide/typed-apis/): requests built from an API contract (oRPC, OpenAPI, Hono), with typed replies and errors (dev preview)
 - [Custom Drivers](/guide/custom-drivers/): `driverFromAsync()` for any promise-returning function, and hand-written drivers
 - [Server Functions](/integration/server-functions/): calling Telefunc functions through a driver with reply actions
 - [AI Chat](/guide/ai-chat/): the chat driver, whose requests and reply actions work like these, with streamed text

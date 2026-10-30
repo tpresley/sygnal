@@ -5,14 +5,14 @@ Reactive component framework built on Cycle.js patterns. All source is TypeScrip
 ## Build & Test
 
 ```bash
-npm run build          # Rollup → dist/ (24 configs: core UMD + CJS/ESM, sygnal/jsx, jsx-runtime,
+npm run build          # Rollup → dist/ (25 configs: core UMD + CJS/ESM, sygnal/jsx, jsx-runtime,
                        #   jsx-dev-runtime, sygnal/diagnostics, sygnal/devtools, sygnal/element, sygnal/ui,
-                       #   sygnal/zag, sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, sygnal/react, sygnal/ai,
+                       #   sygnal/zag, sygnal/ui/menu, sygnal/ui/select, sygnal/ui/combobox, sygnal/react, sygnal/ai, sygnal/api,
                        #   the globalthis shim, sygnal/vite, Astro (3), Vike (4)) + bundled .d.ts
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (2,583; test/parity/: the core's behaviour contract)
-                       #   test:examples       each example's own suite (14 examples, 223 tests)
+                       #   test:examples       each example's own suite (15 examples, 236 tests)
                        #   test:types          tsc on type-tests/
                        #   test:browser        browser-tests/ (184; Chromium. Opt-in other engines:
                        #                       BROWSER=firefox|webkit npm --prefix browser-tests test)
@@ -97,6 +97,7 @@ MyComponent.onError = (error, { componentName }) => fallbackVNode  // Error boun
 - `src/ui/zag/` + `src/ui-menu.ts`, `src/ui-select.ts`, `src/ui-combobox.ts` — Menu, Select, Combobox on Zag machines (`fromZag`), one subpath each (`sygnal/ui/menu|select|combobox`, D211); types `src/ui-*.d.ts` (shared: `src/ui-zag-types.d.ts`)
 - `src/zag.ts` — `sygnal/zag`: `fromZag(zag, render, options)`, a Zag.js machine as a widget tag (`@zag-js/vanilla`, a private snabbdom patch)
 - `src/react.ts` — `sygnal/react`: `fromReact(Component, options)`, a React (or preact/compat) component as a widget tag
+- `src/extra/api/` + `src/api.ts` — `sygnal/api` (dev preview; research: `dev-plans/research/fullstack-contracts/`): typed clients for an API contract, `orpcClient(contract)` (oRPC's OpenAPIHandler wire format), `openApiClient<paths>()` (openapi-typescript), `honoClient<ExtractSchema<typeof app>>()`; each call builds a FetchRequest (GET: tagged `api:<id>`, a resource) or an SseConnection (streams), so no driver of its own. Plus `contractHash`/`contractSkew`/`isContractSkew`/`contractFetch` (version skew, SYG690) and `fixture`/`errorFixture` (renderComponent; an endpoint is a `t.respond`/`t.fail`/`t.push` target). Re-exported from the external `sygnal` like `sygnal/ai`; types `src/api.d.ts` (structural: no oRPC/Hono type imports). Tests `test/api-*.test.js` run real oRPC and Hono servers in-process (root devDependencies, pinned); sygnal-check SYG691 (`rules/syg691-unknown-endpoint.js`) checks `orpcClient` member chains against the contract
 - `src/extra/ai/` + `src/ai.ts` — `sygnal/ai` (PLAN-6): LLM chat driver and transports, decisions, the `agent` layer. The code is in the main bundle (exported from `src/index.ts`, tree-shaken); `src/ai.ts` re-exports it from the external `sygnal` (one copy of the internals, G-581; `test/p6-ai-entry.test.js`); types `src/ai.d.ts`
 - `src/extra/` — Helpers (processForm, processDrag, eventDriver, driverFactories, `fetchDriver.ts` (`makeFetchDriver`: opt-in HTTP driver, `HTTP.select(category)`/`HTTP.errors(category)`, `latest: true` aborts superseded requests), reducers `set`/`toggle`/`event`/`emit`, etc.)
 - `src/extra/testing.ts` — `renderComponent()`: mock DOM by default or `dom: 'real'` (real DOM driver in `document.body`; `t.container`/`t.query`/`t.queryAll`), `simulateEvent`/`simulateAction`, `ready`/`next`/`waitForState`/`settle`, `t.state`, `html`, `sinkValues`/`emitted`, fakes for driverless sinks (`t.respond`/`t.fail`/`t.requests`, e.g. for `makeFetchDriver`), works under fake timers (`vi.useFakeTimers()`: the waits drive the clock), `expectNoDiagnostics`, `inspect`

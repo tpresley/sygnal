@@ -1,0 +1,32 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable",
+      "DOM.AsyncIterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "jsx": "react-jsx",
+    "jsxImportSource": "sygnal",
+    "types": []
+  },
+  "include": [
+    "lib/**/*",
+    "app/**/*",
+    "fnapp/**/*",
+    "baseline/**/*",
+    "test/**/*",
+    "type-tests/**/*"
+  ],
+  "exclude": [
+    "lib/vite-server-functions.ts",
+    "test/fnapp.server.test.ts", "test/fn-dev-server.ts"
+  ]
+}

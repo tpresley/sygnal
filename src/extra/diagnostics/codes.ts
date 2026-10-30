@@ -385,6 +385,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG684: 'Client tool shadows an agent tool',
   SYG685: 'Answer for a tool call that is not open',
   SYG686: 'Ask catalog without a result part',
+  // sygnal/api (dev preview)
+  SYG690: 'API contract skew',
+  SYG691: 'Unknown API endpoint',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -571,6 +574,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG684: 'warn',
   SYG685: 'warn',
   SYG686: 'warn',
+  // sygnal/api: contractFetch() (SYG690); static only: sygnal-check (SYG691)
+  SYG690: 'warn',
+  SYG691: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

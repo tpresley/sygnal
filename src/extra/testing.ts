@@ -2534,7 +2534,10 @@ export function renderComponent(
       return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.progress, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
     if (typeof tg == 'function') {
-      return {match: r => { try { return cat(r) && !!tg(r.value); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
+      // a sygnal/api endpoint: its own match (called as a predicate it would build a request)
+      const ep = typeof tg.id == 'string' && typeof tg.match == 'function';
+      const f = ep ? tg.match : tg;
+      return {match: r => { try { return cat(r) && !!f(r.value); } catch (_) { return false; } }, desc: ep ? ` of endpoint ${tg.id}${catDesc}` : ` matching the predicate${catDesc}`, o};
     }
     if (tg && typeof tg == 'object') {
       const keys = Object.keys(tg);
@@ -2838,6 +2841,10 @@ export function renderComponent(
   const connTarget = (tg: any): [(c: Conn) => boolean, string] => {
     if (tg === undefined) return [() => true, ''];
     if (typeof tg == 'string') return [c => c.name === tg || c.url === tg || (c.sse ? c.spec.sse : c.spec.socket) === tg, ` matching '${tg}'`];
+    if (typeof tg == 'function' && typeof tg.id == 'string' && typeof tg.match == 'function') {
+      // a sygnal/api stream endpoint: the connections it declared
+      return [c => (c.spec as any)?.endpoint === tg.id, ` of endpoint ${tg.id}`];
+    }
     if (typeof tg == 'function') return [c => { try { return !!tg(sockView(c)); } catch (_) { return false; } }, ' matching the predicate'];
     if (tg && typeof tg == 'object') {
       return [c => { const v: any = sockView(c); return Object.keys(tg).every(k => same(tg[k], v[k])); }, ` matching ${brief(tg)}`];
