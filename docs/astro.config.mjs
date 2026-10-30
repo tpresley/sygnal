@@ -176,6 +176,16 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Beyond the Browser',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'renderers/overview' },
+            { label: 'Terminal Apps', slug: 'renderers/terminal' },
+            { label: 'Agent UI', slug: 'renderers/agent-ui' },
+            { label: 'Writing a Renderer Target', slug: 'renderers/custom-targets' },
+          ],
+        },
+        {
           label: 'Recipes',
           collapsed: true,
           items: [

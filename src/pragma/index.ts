@@ -337,6 +337,8 @@ export const createElementWithModules = (modules: Record<string, any>) => {
   // skips `children`)
   ;(ce as any).a = ca
   ;(ce as any).$r = routes
+  // sygnal/host registerFieldTags(): a renderer target's own form-field tags take bit 1 here
+  ;(ce as any).$t = tags
   return ce
 }
 

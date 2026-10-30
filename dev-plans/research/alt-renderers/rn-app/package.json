@@ -1,0 +1,12 @@
+{
+  "name": "sygnal-rn-research",
+  "private": true,
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "expo": "~58.0.21",
+    "sygnal": "file:../../../.."
+  }
+}

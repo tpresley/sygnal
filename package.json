@@ -81,6 +81,21 @@
       "import": "./dist/react.esm.js",
       "require": "./dist/react.cjs.js"
     },
+    "./host": {
+      "types": "./src/host.d.ts",
+      "import": "./dist/host.esm.js",
+      "require": "./dist/host.cjs.js"
+    },
+    "./terminal": {
+      "types": "./src/terminal.d.ts",
+      "import": "./dist/terminal.esm.js",
+      "require": "./dist/terminal.cjs.js"
+    },
+    "./agent-ui": {
+      "types": "./src/agent-ui.d.ts",
+      "import": "./dist/agent-ui.esm.js",
+      "require": "./dist/agent-ui.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",

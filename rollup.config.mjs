@@ -374,6 +374,35 @@ export default [
 		]
   },
 
+  // Renderer targets (research: dev-plans/research/alt-renderers). 'sygnal/host': the kit (a host
+  // tree, the host driver, the user-agent actions), with Sygnal's snabbdom modules inlined (they are
+  // stateless per patch; snabbdom stays external) and its core import ('./index', '../index') the
+  // external 'sygnal' (its xs, its pragma: one core per app). 'sygnal/terminal' and
+  // 'sygnal/agent-ui' are targets on the kit: 'sygnal' and 'sygnal/host' stay external.
+  ...[
+    ['host', [[/[\\/]src[\\/]host\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]host[\\/]/, '../index', 'sygnal']]],
+    ['terminal', [[/[\\/]src[\\/]terminal\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]terminal\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]terminal[\\/]/, '../host', 'sygnal/host']]],
+    ['agent-ui', [[/[\\/]src[\\/]agent-ui\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]agent-ui\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]agent-ui[\\/]/, '../host', 'sygnal/host']]],
+  ].map(([entry, rules]) => ({
+    input: `src/${entry}.ts`,
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id),
+    output: [
+      { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: `sygnal-${entry}-externals`,
+				resolveId(source, importer) {
+					for (const [re, from, id] of rules) if (source === from && importer && re.test(importer)) return { id, external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
