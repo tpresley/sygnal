@@ -14,7 +14,7 @@ Sygnal ships four **renderer targets**:
 | [`sygnal/terminal`](/renderers/terminal/) | text in a terminal | key presses | CLI tools, dashboards, agent consoles |
 | [`sygnal/agent-ui`](/renderers/agent-ui/) | an accessibility snapshot an LLM reads | tool calls (MCP, or your own loop) | letting an agent operate your app's UI |
 
-You can write more with [`sygnal/host`](/renderers/custom-targets/), the kit the other three are built on. To write one component file for all of them, use the neutral primitives: see [Write Once](/renderers/write-once/).
+To keep a web app's work off the main thread, run the whole app in a Web Worker with [`sygnal/worker`](/renderers/off-main-thread/) (experimental): the page only applies its changes to the DOM. You can write more with [`sygnal/host`](/renderers/custom-targets/), the kit the other three are built on. To write one component file for all of them, use the neutral primitives: see [Write Once](/renderers/write-once/).
 
 ```jsx
 // main.js

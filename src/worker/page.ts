@@ -67,8 +67,7 @@ export function startBridge(worker: BridgePort, mount: Element, options: BridgeO
   const nodes = new Map<number, Node>()
   const idOf = new WeakMap<Node, number>()
   const scopes = new WeakMap<Node, string>()
-  // per field: the values the page sent with its events since the worker's last ack ([seq, value]),
-  // the base of a rebase when a worker value arrives that is older than the user's typing
+  // per field: what the worker had, in order (see prop), and the seq of its last edit the page sent
   const sent = new WeakMap<Node, [number, string][]>()
   const lastEdit = new WeakMap<Node, number>()
   const composing = new WeakSet<Node>()
@@ -251,6 +250,8 @@ export function startBridge(worker: BridgePort, mount: Element, options: BridgeO
       if (!log) sent.set(field, log = [])
       log.push([ev.seq, ev.state.value!])
       lastEdit.set(field, ev.seq)
+      // only the last entry the worker has acknowledged is still a possible base
+      if (log.length > 32) { let b = 0; for (let i = 0; i < log.length; i++) if (log[i][0] <= ack) b = i; log.splice(0, b) }
     }
     post({ev: [ev]})
   }
