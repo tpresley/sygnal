@@ -4,8 +4,10 @@
  * cube's <mesh> element, and `DOM.click('.cube')` takes it, isolated per item, as for a button.
  */
 import {Collection} from 'sygnal'
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
 import {Scene} from '../lib/Scene'
 
+const HOME = {position: [0, 1.5, 6], target: [0, 0, 0]}
 const COLORS = ['#4f8cff', '#ffb547', '#3ccf91', '#ef5b5b', '#b07cff']
 
 export type CubeState = {id: number, x: number, color: string, selected: boolean, hover: boolean, hitAt: number[] | null}
@@ -44,14 +46,16 @@ export function CubesApp({state}: any) {
         <p className="hit">{last ? `hit at ${last.hitAt.join(', ')}` : 'click a cube'}</p>
         <button className="add">Add cube</button>
         <button className="spin">{state.spin ? 'Stop spinning' : 'Spin'}</button>
+        <button className="reset-view">Reset view</button>
+        <p className="camera">camera {state.camera.position.map((n: number) => n.toFixed(1)).join(', ')}</p>
         <ul className="list">
           {state.cubes.map((c: CubeState) => <li key={c.id} className={c.selected ? 'on' : ''} style={{color: c.color}}>cube {c.id}{c.hover ? ' (hover)' : ''}</li>)}
         </ul>
       </aside>
-      <Scene className="viewport" width={state.width} height={state.height} background="#10141c" frameloop={state.frameloop}>
+      <Scene className="viewport" width={state.width} height={state.height} background="#10141c" frameloop={state.frameloop} Orbit={OrbitControls} camera={state.camera}>
         <ambientLight intensity={0.6} />
         <directionalLight position={[3, 5, 4]} intensity={2} />
-        <perspectiveCamera makeDefault position={[0, 1.5, 6]} lookAt={[0, 0, 0]} fov={50} />
+        <perspectiveCamera makeDefault fov={50} />
         <group className="cubes">
           <Collection of={Cube} from="cubes" />
         </group>
@@ -65,11 +69,15 @@ CubesApp.initialState = {
   width: 640,
   height: 400,
   frameloop: 'demand',
+  camera: HOME,
 }
 CubesApp.context = {spin: (state: any) => state.spin}
 CubesApp.intent = ({DOM}: any) => ({
   ADD: DOM.click('.add'),
   SPIN: DOM.click('.spin'),
+  // the user orbited (one event per gesture); the island skips this value when it comes back as a prop
+  CAMERA: DOM.select('.viewport').events('camerachange').map((e: any) => e.detail),
+  RESET_VIEW: DOM.click('.reset-view'),
 })
 CubesApp.model = {
   ADD: (state: any) => {
@@ -78,4 +86,6 @@ CubesApp.model = {
     return {...state, cubes: cubes.map((c, i) => ({...c, x: (i - (cubes.length - 1) / 2) * 1.8}))}
   },
   SPIN: (state: any) => ({...state, spin: !state.spin}),
+  CAMERA: (state: any, camera: any) => ({...state, camera}),
+  RESET_VIEW: (state: any) => ({...state, camera: HOME}),
 }

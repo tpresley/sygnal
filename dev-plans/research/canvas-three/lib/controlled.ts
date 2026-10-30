@@ -5,7 +5,7 @@
  *
  *   const c = controlled({ write: (v) => editor.setText(v), equals })
  *   // the widget changed by itself:      c.local(v); emit('change', v)
- *   // a render passed the prop:          c.prop(props.value)
+ *   // mount (the widget made with it), then every render:   c.prop(props.value)
  *   // (optional) a frame after local():  c.settle(props.value)   → reverts an edit the app rejected
  *
  * Rules (the RN TextInput bridge needed the same, with event counts):
@@ -47,7 +47,8 @@ export function controlled<T>({write, equals = Object.is, max = 64}: {write: (v:
     },
     prop(v) {
       if (has && equals(v, lastProp)) return false
-      has = true
+      // the first prop is what the widget was made with
+      if (!has) { has = true; lastProp = current = v; return false }
       lastProp = v
       dirty = false
       const i = queue.findIndex(q => equals(q, v))

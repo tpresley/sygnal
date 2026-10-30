@@ -84,12 +84,22 @@ export const Scene = defineIsland({
       orbit?.update()
       invalidate()
     }
-    if (props.Orbit) {
-      orbit = new props.Orbit(target.camera(), canvas)
-      cam = controlled({write: writeCam, equals: (a: any, b: any) => JSON.stringify(a) == JSON.stringify(b)})
-      // the user moved the camera: an event per gesture end (not per frame)
-      orbit.addEventListener('change', invalidate)
-      orbit.addEventListener('end', () => { const v = readCam(); cam.local(v); emit('camerachange', v) })
+    let camProp = props.camera, synced = false
+    if (props.Orbit) cam = controlled({write: writeCam, equals: (a: any, b: any) => JSON.stringify(a) == JSON.stringify(b)})
+    // after a sync: the scene's camera may be new (the first sync makes it); the controls follow it
+    const afterSync = () => {
+      if (props.Orbit && orbit?.object !== target.camera()) {
+        orbit?.dispose()
+        orbit = new props.Orbit(target.camera(), canvas)
+        // the user moved the camera: one event per gesture (its end), not per frame
+        orbit.addEventListener('change', invalidate)
+        orbit.addEventListener('end', () => { const v = readCam(); cam.local(v); emit('camerachange', v) })
+      }
+      if (!synced) {
+        synced = true
+        // the camera starts where the prop says (the controlled value's baseline)
+        if (camProp) { writeCam(camProp); cam?.prop(camProp) }
+      }
     }
 
     const inst = {
@@ -110,8 +120,10 @@ export const Scene = defineIsland({
       },
       resize,
       setFrameloop(f: string) { frameloop = f; invalidate() },
-      setCamera(v: any) { cam ? cam.prop(v) : writeCam(v) },
+      setCamera(v: any) { camProp = v; if (synced) cam ? cam.prop(v) : writeCam(v) },
+      afterSync,
       cam: () => cam,
+      orbit: () => orbit,
       dispose() {
         pending && caf?.(pending)
         offs.forEach(f => f())
@@ -121,7 +133,6 @@ export const Scene = defineIsland({
         canvas.remove()
       },
     }
-    if (props.camera) inst.setCamera(props.camera)
     return inst
   },
   update(inst, props, prev) {
@@ -133,6 +144,7 @@ export const Scene = defineIsland({
   },
   sync(inst, children) {
     inst.target.sync(children)
+    inst.afterSync()
     inst.invalidate()
   },
   unmount: (inst) => inst.dispose(),

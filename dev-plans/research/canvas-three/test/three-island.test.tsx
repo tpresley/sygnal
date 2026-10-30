@@ -93,3 +93,27 @@ describe('the same component under the mock DOM (no target at all)', () => {
     expect(t.state.cubes[0].hitAt).toEqual([0, 0.5, 0.5])
   })
 })
+
+const near = (a: number[], b: number[]) => a.forEach((x, i) => expect(x).toBeCloseTo(b[i], 6))
+
+describe('a controlled camera (OrbitControls ↔ state)', () => {
+  it('the user orbits: state follows, no write back; Reset view: written once', async () => {
+    const t = renderComponent(CubesApp, {dom: 'real'})
+    await t.ready()
+    const s = scene(t), cam = s.target.camera(), orbit = s.orbit()
+    near(cam.position.toArray(), [0, 1.5, 6])
+    // a drag, as OrbitControls ends one
+    cam.position.set(4, 2, 3)
+    orbit.dispatchEvent({type: 'end'})
+    await t.waitForState((st: any) => st.camera.position[0] == 4)
+    await t.settle()
+    expect(s.cam().stats).toEqual({writes: 0, echoes: 1, reverts: 0})
+    near(cam.position.toArray(), [4, 2, 3])
+    t.simulateEvent('.reset-view', 'click')
+    await t.waitForState((st: any) => st.camera.position[0] == 0)
+    await t.settle()
+    near(cam.position.toArray(), [0, 1.5, 6])
+    expect(s.cam().stats.writes).toBe(1)
+    t.dispose()
+  })
+})
