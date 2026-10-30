@@ -274,4 +274,25 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
   again. Test: a server-rendered table and Collection keep every row's element and text node, no
   block is made, then 5 actions patch like a fresh mount.
 - Size: uncompiled kanban 42,145 B (855 B headroom; the alt-renderers branch adds ~12 B).
-- Not yet: CV-3b (create/append with compiled blocks), CV-5 (static context keys), CV-6 (docs).
+- **CV-3b (create/append): not a compiler gap; the earlier numbers were load drift.** Measured
+  interleaved (`ab.mjs`: every page open, round-robin in a rotating order; load 9.6 → 7.2), create
+  1k gives JSX 18.9 [17.9–22.2], tier A 20.7 [16.9–22.7], compiled blocks 19.5 [16.3–21.4], the hand
+  prototype 17.3 [14.8–18.9], React 18.2 [16.8–20.8] ms (median [p25–p75], 25 rounds). Append 1k:
+  15.9 / 15.7 / 16.6 / 14.3 (JSX / blocks / hand / React). The spreads are wider than the
+  differences. A timeline trace (`trace.mjs`) shows why: about half the latency is Layout
+  (8–12 ms), with style and GC on top. Compiling doesn't change those, and they swing with the load.
+  JS time is 5.8 ms (JSX), 4.8 ms (compiled blocks), 4.0 ms (hand prototype). The remaining JS
+  difference is the block root's data going through the snabbdom modules (className, dataset:
+  ≈0.5 ms) plus the runtime's bookkeeping (path lookup, expansion map). It's the price of exact
+  module semantics, kept. The sequential bench's 22.5 vs 18.3 ms came from pages measured minutes
+  apart while the load drifted. Ruled out: the DOM made (identical), the clone source (a
+  template's content, an innerHTML fragment and a createElement fragment clone at the same speed in
+  Chromium; importNode is cloneNode plus an adopt, so it can't be faster than a same-document
+  clone), and insertBefore vs append (both pages insert each row through snabbdom's insertBefore
+  and append one cloned fragment per row). Blocks pay off on patches (select, remove, clear, swap),
+  where JS is most of the time; on create, layout bounds them.
+- **CV-5 skipped**: the per-render read tracking a static `$ctx` would skip (a Proxy and a Set per
+  view) costs ≈40 ns per view (node microbenchmark), ≈0.04 ms of the 1.4 ms Collection select at 1k
+  rows (≈3%, within noise). The Collection's per-instance cost is elsewhere (context(), cell reads,
+  the isolation copy).
+- Not yet: CV-6 (docs).
