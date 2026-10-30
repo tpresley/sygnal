@@ -169,3 +169,26 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
 - **Q-3**: compile under Vitest by default (tests then run what ships) or not (tests see plain vnodes)?
 - **Q-4**: export the pragma's `route()` from an internal subpath the plugin can import (`sygnal/internal`), or
   duplicate the plugin's own copy, kept in sync by the parity suite?
+
+## Status
+
+- **CV-2 started** (2026-10-29): `sygnal({ compile: true })` (Vite 8) compiles HTML elements to
+  `__cv.e(sel, data, children, key)` (`src/vite/compile.ts`; runtime `__cv` in
+  `src/pragma/index.ts`). The compiler never re-implements routing, which settles Q-4 (no shared
+  `route()` export needed): a static element's data is made by the pragma's own `sanitizeData`
+  once at module load (hoisted), and a dynamic element's keys are routed once at load by the
+  pragma's `route()` (`__cv.r`). Its data is then built per render by the same per-key code
+  `sanitizeData` uses (`put`, `__cv.d`). Text follows oxc's JSX whitespace rules (tabs inside a line
+  stay); elements with HTML entities bail (the parser keeps entities raw).
+- Parity: `test/cv-compile.test.js`, 50 fixture views (`test/fixtures/cv/views.jsx`) give the same
+  vnodes, plain flags included, compiled and not. All 202 `.jsx`/`.tsx` files in the repo compile
+  to code oxc accepts (3,070 elements). `check-dom.mjs` shows the same DOM for `table-cv` and
+  `coll-cv` (the JSX baselines built with `compile: true`).
+- Every installed Vite 8 example passes its own suite with compile on
+  (`test-examples-compiled.mjs`: 11 suites, 220 tests; a probe confirmed kanban's three views were
+  compiled under Vitest). getting-started is on Vite 7 (compile is a no-op there).
+- First timing (3 runs, before pre-routed data): select row 1k, table 1.7 → 1.0 ms (hand-written
+  tier A 0.9), Collection 2.5 → 1.7 ms. The full run waits for a quieter machine (load ≈ 46).
+- Size: uncompiled kanban +3 B (the `put()` refactor): 42,058 B, 942 B headroom.
+- Not yet: source maps (Q-2), a plugin test for the Vite 7 warning, the full timing run, then CV-1
+  (compiled SSR) and CV-3 (blocks).

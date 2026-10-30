@@ -30,7 +30,7 @@ async function trace(page) {
   p.on('pageerror', e => errors.push(e.message))
   await p.addInitScript(HELPERS)
   await p.goto(`${server.url}/${relative(repo, resolve(here, 'apps', page + '.html'))}`)
-  await p.waitForFunction(() => document.querySelector('#main')?.children.length > 0)
+  await p.waitForFunction(() => document.querySelector('#main')?.children.length > 0, null, { timeout: 120000 })
   const snaps = []
   for (const [act, done] of STEPS) {
     // a row's identity: id, class, data-id, texts (attribute order and the isolation attributes left out)
@@ -41,7 +41,7 @@ async function trace(page) {
   return { snaps, errors }
 }
 let bad = 0
-for (const [base, variants] of [['table-base', ['table-a', 'table-b']], ['coll-base', ['coll-a', 'coll-b']]]) {
+for (const [base, variants] of [['table-base', ['table-cv', 'table-a', 'table-b']], ['coll-base', ['coll-cv', 'coll-a', 'coll-b']]]) {
   const want = await trace(base)
   for (const v of variants) {
     const got = await trace(v)

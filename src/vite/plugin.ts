@@ -180,6 +180,7 @@ import { attachMcp, mcpClientModule } from './mcp'
 import type { McpPluginOptions } from './mcp'
 import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMiddleware, printGraphUrl, stampTail } from './graph'
 import type { LiveEngine } from './graph'
+import { compileViews } from './compile'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -282,6 +283,15 @@ export interface SygnalPluginOptions {
   nativeGlobalThis?: boolean
 
   /**
+   * CV-2 (experimental): compile JSX views at build time (tier A: an HTML element's data made once
+   * at module load when its attributes are static, and no JSX runtime call per element). The
+   * vnodes are the ones the JSX runtime makes. Vite 8 only (it uses Vite's JSX parser); a no-op
+   * with a warning below. Files under node_modules are never compiled.
+   * @default false
+   */
+  compile?: boolean
+
+  /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet, which installs the DevTools bridge for
    * the browser extension. Production builds never contain it. false: not injected.
@@ -368,7 +378,23 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const devInject = devOn || devtoolsOn
   let astroClient: Set<string> | undefined
 
-  return {
+  // CV-2: its own plugin, before Vite's JSX transform (this plugin's transform runs after it)
+  let warnedCompile = false
+  const compilePlugin = options.compile && {
+    name: 'vite-plugin-sygnal:compile',
+    enforce: 'pre' as const,
+    transform(this: any, code: string, id: string) {
+      const file = id.split('?')[0]
+      if (!/\.[jt]sx$/.test(file) || file.includes('/node_modules/') || id.startsWith('\0')) return null
+      if (viteMajor(this, root) < 8) {
+        if (!warnedCompile) { warnedCompile = true; this.warn('[sygnal] `compile` needs Vite 8; views are not compiled') }
+        return null
+      }
+      const out = compileViews(code, file, (c, o) => this.parse(c, o))
+      return out == null ? null : { code: out, map: null }
+    },
+  }
+  const main = {
     name: 'vite-plugin-sygnal',
 
     config(this: any, config: any, env: { command: string }) {
@@ -561,6 +587,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       })
     },
   }
+  return compilePlugin ? [compilePlugin, main] : main
 
   function devTransform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null

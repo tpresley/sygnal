@@ -30,7 +30,7 @@ export { default as exactState } from "./extra/exactState"
 export { default as run } from './extra/run'
 export { default as enableHMR } from './extra/hmr'
 export { default as classes } from './extra/classes'
-export { createElement } from './pragma/index'
+export { createElement, __cv } from './pragma/index'
 export { createCommand } from './extra/command'
 export { createRef, createRef$ } from './extra/ref'
 export { controls } from './extra/controls'
