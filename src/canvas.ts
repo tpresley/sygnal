@@ -26,7 +26,7 @@ export {exportSVG} from './canvas/svg'
 export {measureText, hitNodes, paintWorld, paintNode, indexOf} from './canvas/paint'
 export {
   CAMERA, toWorld, toScreen, zoomAt, panBy, fit, centre, rotate, toLocal, corners, aabb, union,
-  overlaps, contains, rectOf, viewport, hitBox, boxOf, selectionBox,
+  overlaps, contains, rectOf, viewport, hitBox, boxOf, selectionBox, positionsOf,
 } from './canvas/geometry'
 export {pointer} from './canvas/pointer'
 export {gesture} from './canvas/gesture'

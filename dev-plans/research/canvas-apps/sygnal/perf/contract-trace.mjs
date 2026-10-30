@@ -1,4 +1,4 @@
-// main-thread time by trace event (self time, top level tasks) for N steps of a scenario at 10k
+// main-thread time by trace event (self time, top level tasks) for N steps of a scenario at 10k (argv: <pan|zoom|drag> <url> [selection size for drag])
 const { chromium } = await import('playwright')
 const mode = process.argv[2] || 'pan', url = process.argv[3] || 'http://localhost:4801/', N = 60
 const b = await chromium.launch(), page = await b.newPage({ viewport: { width: 1440, height: 900 } })
@@ -7,7 +7,7 @@ await page.evaluate(() => window.__canvasBench.generate(10000))
 const c = await page.evaluate(() => window.__canvasBench.canvasCenter())
 await page.mouse.move(c.x + 37, c.y - 23)
 if ((process.argv[2] || '') == 'zoom' || process.argv[3] == 'zoom') await page.keyboard.down('Control')
-if (mode == 'drag') { await page.evaluate(() => window.__canvasBench.select(1)); const p = await page.evaluate(() => window.__canvasBench.dragPoint()); await page.mouse.move(p.x, p.y); await page.mouse.down() }
+if (mode == 'drag') { await page.evaluate((n) => window.__canvasBench.select(n), Number(process.argv[4] || 1)); const p = await page.evaluate(() => window.__canvasBench.dragPoint()); await page.mouse.move(p.x, p.y); await page.mouse.down() }
 for (let i = 0; i < 10; i++) { await page.mouse.wheel(mode == 'zoom' ? 0 : 24, mode == 'zoom' ? -20 : 18); await page.evaluate(() => window.__canvasBench.frame()) }
 await b.startTracing(page, { categories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'blink', 'cc', 'gpu', 'skia', 'v8'] })
 let P = null

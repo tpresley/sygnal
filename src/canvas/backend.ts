@@ -14,9 +14,9 @@
  *   copy of the bitmap at an offset while the region covers what is visible; a zoom while the
  *   camera is in a gesture (`frame.moving`) scales it, and the crisp repaint follows at rest.
  * - **Live layer**: active nodes, outline layers and the screen-space overlay repaint every frame;
- *   64 or more live nodes that only translated since they were painted are one bitmap blit.
+ *   1,000 or more live nodes that only translated since they were painted are one bitmap blit.
  */
-import {aabb, overlaps, viewport, toScreen, type AABB, type Camera} from './geometry'
+import {aabb, overlaps, viewport, toScreen, positionsOf, type AABB, type Camera} from './geometry'
 import {paintWorld, paintNode, type Node} from './paint'
 
 export type PaintLayer = {items: Node[], active: Set<any> | null, outline?: string}
@@ -43,7 +43,9 @@ export interface BackendInstance {
 export type CanvasBackend = (canvas: any) => BackendInstance | null
 
 const ALL = new Set<any>()
-const BLIT_MIN = 64
+// the live nodes worth a translation blit: below this, painting them is cheaper than the bitmap copy
+// (Chromium at 10k shapes: 100 nodes paint in 5.5 ms a step, blit in 8.1; even at about 1,000)
+const BLIT_MIN = 1000
 // device pixels a cached bitmap may have (16 M: 64 MB of RGBA)
 const MAX_PIXELS = 16e6
 // the overview's budget (4 M device pixels)
@@ -56,16 +58,26 @@ const inside = (a: AABB, b: AABB) => a.x0 >= b.x0 - 1e-9 && a.y0 >= b.y0 - 1e-9 
 const outlined = (n: Node, color: string): Node => ({...n, type: n.type == 'ellipse' ? 'ellipse' : 'rect', fill: 'none', stroke: color, strokeWidth: 1, dash: null, opacity: 1})
 const moved = (n: Node, dx: number, dy: number): Node => ({...n, x: n.x + dx, y: n.y + dy})
 
+// a translation's tolerance in world units: (x + d) - x isn't d in floating point
+const EPS = 1e-6
 /** [dx, dy] when every node of b is the same node of a moved by one (dx, dy), else null */
 export function translation(a: Node[], b: Node[]): [number, number] | null {
   const dx = b[0].x - a[0].x, dy = b[0].y - a[0].y
   for (let i = 0; i < a.length; i++) {
     const p = a[i], q = b[i]
     if (p === q) { if (dx || dy) return null; continue }
-    if (q.x - p.x !== dx || q.y - p.y !== dy) return null
+    if (Math.abs(q.x - p.x - dx) > EPS || Math.abs(q.y - p.y - dy) > EPS) return null
     for (const k in q) if (k != 'x' && k != 'y' && q[k] !== p[k]) return null
   }
   return [dx, dy]
+}
+
+/** the nodes of `items` whose id is in `ids`, in their order: by position for a few (no pass over a big layer each frame) */
+function activeOf(items: Node[], ids: Set<any>, prev?: Node[]): Node[] {
+  if (ids.size * 16 > items.length) return items.filter(n => ids.has(n.id))
+  const pos = positionsOf(items, prev), at: number[] = []
+  for (const id of ids) { const j = pos.get(id); if (j !== undefined) at.push(j) }
+  return at.sort((a, b) => a - b).map(j => items[j])
 }
 
 // the world AABB of a layer's nodes (lines and paths count as unbounded: they are never culled)
@@ -107,7 +119,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   // the overview: the whole static content at a low resolution, painted when a zoom gesture first
   // shows more than the static bitmap has (what a zoom-out uncovers, until the crisp repaint at rest)
   let ov: Cache = {bmp: null, region: null, zoom: 0, key: null}
-  let lastCam: Camera | null = null
+  let lastCam: Camera | null = null, lastItems: Node[][] = []
   const blits: any[] = []
   // the live layer on a canvas of its own, over the main one (transparent, no pointer events): a
   // frame whose static layer didn't change touches only it, as Konva's layers do. Without a parent
@@ -205,9 +217,16 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     if (off) { d = [d[0] + off[0], d[1] + off[1]]; if (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my) return false }
     lctx.setTransform(1, 0, 0, 1, 0, 0)
     lctx.globalAlpha = 1
-    // only the part of the bitmap that lands on the canvas (a quarter of it): the copy is the raster cost
+    // only the part of the bitmap that lands on the canvas, and of that only the moving nodes' bounds
+    // (with room for strokes and frame names): the copy is the raster cost, a full canvas of it
+    // costs more than painting a hundred nodes
     const W = canvas.width, H = canvas.height, sx = Math.round((mx - d[0] * z) * dpr), sy = Math.round((my - d[1] * z) * dpr)
-    lctx.drawImage(c.bmp, sx, sy, W, H, 0, 0, W, H)
+    const b = contentOf(c.nodes), p = toScreen(cam, b.x0 + d[0], b.y0 + d[1]), q = toScreen(cam, b.x1 + d[0], b.y1 + d[1]), pad = 24
+    // (a line or path is unbounded: the whole canvas)
+    const fin = isFinite(p.x + q.x + p.y + q.y)
+    const x0 = fin ? Math.max(0, Math.floor(p.x * dpr) - pad) : 0, y0 = fin ? Math.max(0, Math.floor(p.y * dpr) - pad) : 0
+    const x1 = fin ? Math.min(W, Math.ceil(q.x * dpr) + pad) : W, y1 = fin ? Math.min(H, Math.ceil(q.y * dpr) + pad) : H
+    if (x1 > x0 && y1 > y0) lctx.drawImage(c.bmp, sx + x0, sy + y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0)
     return true
   }
 
@@ -299,7 +318,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         f.layers.forEach((l, i) => {
           const sk = skips[i]
           if (!sk) return
-          let act = sk === ALL ? l.items : l.items.filter(n => sk.has(n.id))
+          let act = sk === ALL ? l.items : activeOf(l.items, sk, lastItems[i])
           // a big followed set is a known translation: its unshifted nodes, blitted at the offset
           const whole = !!fo && act.length >= BLIT_MIN && act.every(n => fo.ids.has(n.id))
           if (fo && !whole) act = act.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n)
@@ -314,6 +333,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       if (f.overlay.length) liveDirty = true
       lctx.globalAlpha = 1
       lastCam = cam
+      lastItems = f.layers.map(l => l.items)
     },
     dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; live?.remove() },
   }

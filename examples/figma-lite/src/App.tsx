@@ -36,24 +36,47 @@ function overlay(s: State) {
 }
 
 const num = (v: number) => Math.round(v * 100) / 100
-function field(label: string, key: string, vals: any[], type = 'number', fmt = (v: any) => v) {
-  const same = vals.length && vals.every(v => v === vals[0])
+const MIXED = {}
+/**
+ * the selection's common value of `key` (`map`ped), or MIXED. Shapes are read as it goes: a mixed
+ * field stops at its second shape. During a move only x and y change: the other fields are read once
+ * per gesture (keyed by its starting shapes), so a drag of 10k shapes doesn't scan them per frame
+ */
+const atStart = new WeakMap<object, Map<string, any>>(), same = (v: any) => v
+function common(s: State, key: string, map = same) {
+  const g = s.gesture, keep = g?.kind == 'move' && key != 'x' && key != 'y'
+  let m = keep ? atStart.get(g!.before) : undefined
+  const k = map === same ? key : key + '*'
+  if (m?.has(k)) return m.get(k)
+  const ids = s.selection
+  let v: any = MIXED, i = 0
+  for (; i < ids.length; i++) {
+    const x = byId(s.shapes, ids[i])
+    if (!x) continue
+    const y = map((x as any)[key])
+    if (v === MIXED) v = y
+    else if (y !== v) { v = MIXED; break }
+  }
+  if (keep) { if (!m) atStart.set(g!.before, m = new Map()); m.set(k, v) }
+  return v
+}
+function field(label: string, key: string, v: any, type = 'number', fmt = (v: any) => v) {
   return (
     <label className="field">
       <span>{label}</span>
-      <input className="prop" type={type} data={{key}} value={same ? String(fmt(vals[0])) : ''} placeholder={vals.length ? 'Mixed' : ''} />
+      <input className="prop" type={type} data={{key}} value={v === MIXED ? '' : String(fmt(v))} placeholder="Mixed" />
     </label>
   )
 }
 
 // a plain function, not a <PropsPanel> tag: a capitalized tag is a component, isolated from App's intent
 function propsPanel(s: State) {
-  const sel = s.selection.map(id => byId(s.shapes, id)!).filter(Boolean)
-  if (!sel.length) return <aside className="props"><h2>Design</h2><p className="hint">Select a layer to edit its properties.</p></aside>
-  const v = (k: string) => sel.map((x: any) => x[k])
+  const first = s.selection.length ? byId(s.shapes, s.selection[0]) : null
+  if (!first) return <aside className="props"><h2>Design</h2><p className="hint">Select a layer to edit its properties.</p></aside>
+  const v = (k: string, map?: (v: any) => any) => common(s, k, map)
   return (
     <aside className="props" aria-label="Properties">
-      <h2>{sel.length == 1 ? sel[0].name : `${sel.length} layers`}</h2>
+      <h2>{s.selection.length == 1 ? first.name : `${s.selection.length} layers`}</h2>
       <div className="grid">
         {field('X', 'x', v('x'), 'number', num)}{field('Y', 'y', v('y'), 'number', num)}
         {field('W', 'width', v('width'), 'number', num)}{field('H', 'height', v('height'), 'number', num)}
@@ -62,10 +85,10 @@ function propsPanel(s: State) {
       <h3>Fill</h3>
       <div className="grid">{field('', 'fill', v('fill'), 'color')}{field('', 'fill', v('fill'), 'text')}</div>
       <h3>Stroke</h3>
-      <div className="grid">{field('', 'stroke', v('stroke').map(c => c == 'none' ? '#000000' : c), 'color')}{field('W', 'strokeWidth', v('strokeWidth'), 'number', num)}</div>
+      <div className="grid">{field('', 'stroke', v('stroke', c => c == 'none' ? '#000000' : c), 'color')}{field('W', 'strokeWidth', v('strokeWidth'), 'number', num)}</div>
       <h3>Layer</h3>
       <div className="grid">{field('%', 'opacity', v('opacity'), 'number', (o: number) => Math.round(o * 100))}
-        {sel.every(x => x.type == 'text') ? field('Aa', 'fontSize', v('fontSize'), 'number', num) : null}</div>
+        {v('type') == 'text' ? field('Aa', 'fontSize', v('fontSize'), 'number', num) : null}</div>
       <h3>Export</h3>
       <div className="row"><button className="export" data={{which: 'selection'}}>Export selection as SVG</button></div>
     </aside>

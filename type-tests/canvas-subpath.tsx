@@ -3,7 +3,7 @@ import { ABORT, keymap as mainKeymap, xs } from 'sygnal'
 import type { Component } from 'sygnal'
 import {
   Canvas, canvasOf, canvas2d, pointer, keymap, history, handles, selectionBox, resize, rotation, turn, scaleInto,
-  gesture, snap, snapTargets, fit, union, zoomAt, toScreen, toWorld, exportSVG, CAMERA, aabb,
+  gesture, snap, snapTargets, fit, union, zoomAt, toScreen, toWorld, exportSVG, CAMERA, aabb, positionsOf,
 } from 'sygnal/canvas'
 import type { Camera, Node, Pointer, Gesture, Box, CanvasEventFields, History } from 'sygnal/canvas'
 
@@ -68,4 +68,6 @@ const svg: string = exportSVG([{ id: 'a', type: 'rect', x: 0, y: 0, width: 1, he
 const c = canvasOf(document.body)
 c?.pointer('down', 1, 2, { pointerId: 1 })
 const f: Partial<CanvasEventFields> = { hit: 'a', world: { x: 0, y: 0 } }
+const pos = positionsOf([{ id: 'a' }], [{ id: 'a' }])
+expectType<Equal<typeof pos, Map<any, number>>>()
 void [bad, svg, f]

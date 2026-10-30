@@ -172,6 +172,27 @@ describe('Figma-lite in jsdom (headless canvas)', () => {
     t.dispose()
   })
 
+  it('properties during a move of several shapes: X, Y live (mixed or common), the rest as at the start', async () => {
+    const {t, p} = await open()
+    const prop = (k: string) => t.container.querySelector(`.prop[data-key="${k}"]`) as HTMLInputElement
+    // e1 and t1 share x (500), not y; e1 and the ellipse's fill
+    await p('down', 550, 90); await p('up', 550, 90)
+    await p('down', 510, 210, {shiftKey: true}); await p('up', 510, 210, {shiftKey: true})
+    expect(t.state.selection).toEqual(['e1', 't1'])
+    expect([prop('x').value, prop('y').value, prop('opacity').value]).toEqual(['500', '', '100'])
+    expect(t.container.querySelector('.props h2')!.textContent).toBe('2 layers')
+    expect(t.container.querySelector('.prop[data-key="fontSize"]')).toBe(null)
+    await p('move', 550, 90); await p('down', 550, 90)
+    for (const x of [570, 590, 613]) {
+      await p('move', x, 90)
+      expect(t.state.gesture?.moved).toBe(true)
+      expect([prop('x').value, prop('y').value, prop('opacity').value]).toEqual([String(500 + x - 550), '', '100'])
+    }
+    await p('up', 613, 90)
+    expect(prop('x').value).toBe('563')
+    t.dispose()
+  })
+
   it('layers panel: drag a row into a frame', async () => {
     const {t, shape} = await open()
     const row = (id: string) => t.container.querySelector(`[data-id="${id}"]`) as HTMLElement
@@ -210,7 +231,8 @@ describe('Figma-lite in jsdom (headless canvas)', () => {
     expect(t.state.shapes.length).toBe(10000)
     // the layers panel renders a window, not 10k rows
     expect(t.container.querySelectorAll('.layer').length).toBeLessThan(40)
-    const before = t.state.shapes
+    const before = t.state.shapes, rows = (t.state as any).rows
+    expect(rows.length).toBe(10000)
     // shape s0 at world (0, 0)–(40, 40): its screen point under the fitted camera
     const cam = t.state.camera, sx = (20 - cam.x) * cam.zoom, sy = (20 - cam.y) * cam.zoom
     await drag([sx, sy], [sx + 30, sy + 30])
@@ -218,6 +240,8 @@ describe('Figma-lite in jsdom (headless canvas)', () => {
     const after = t.state.shapes
     expect(after.filter((s: any, i: number) => s !== before[i]).map((s: any) => s.id)).toEqual(['s0'])
     expect(c.layers[0].items).toBe(after)
+    // the rows didn't change (a move shows nothing new in the panel): the same array, nothing for the panel to do
+    expect((t.state as any).rows).toBe(rows)
     t.dispose()
   })
 })

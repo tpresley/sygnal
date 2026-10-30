@@ -807,4 +807,56 @@ earlier day, when React + Konva was also about 10 % cheaper (its pan was 3.4 the
   array (0.3 ms), `VirtualCollection`'s key index of 10k rows (0.3 ms), `patch`. React's drag moves
   the Konva node outside its store, so none of that runs (its workaround 1). A next step on our side:
   make rows and indexes incremental for an array that changed in k places (a core `VirtualCollection`
-  question), or `follow` for big documents.
+  question), or `follow` for big documents. Done next (below).
+
+### Drag cost at 10k: work per move proportional to what changed (2026-10-30)
+
+The coordinator's follow-up: drag 1 and drag 100 at or below React + Konva, drag all as close as it
+gets. Profiled with `contract-prof.mjs` / `contract-trace.mjs` (drag with a selection size; a copy
+following `run.mjs`'s path), then fixed where the time was:
+
+- **Core: the Collection key index** (`indexer` in `src/core/cell.ts`, shared by `<Collection>` and
+  `<VirtualCollection>`) keeps its key map for a new array of the same length whose replaced elements
+  keep their keys: an identity check per element, no map of n keys. **`<VirtualCollection>`** then
+  keeps its key list with no pass over the keys (no filter or sort). Public API unchanged; tests
+  `test/virtual-incremental.test.js`, `test/collection-cost.test.js`.
+- **`positionsOf(items, prev)`** (new, exported): the id → index map of a node array; an array whose
+  replaced nodes kept their ids shares prev's map. The canvas uses it for the live layer's active
+  nodes (they were an O(n) `filter` per frame), `selectionBox` reads it.
+- **Translation blits:** the check had no float tolerance (`(x + d) - x !== d`), so a drag of all 10k
+  repainted the blit bitmap almost every frame (4.4 ms of `drawImage` + 10k nodes). The copy is now
+  clipped to the moving nodes' bounds, and the threshold is 1,000 nodes, not 64: below that, painting
+  them costs less than copying a canvas-sized bitmap (100 nodes at 10k: 5.5 against 8.1 ms a step).
+- The active `Set` is cached per `active` array (`sameSet` over 10k ids per frame), and SYG262's
+  check makes no pass unless diagnostics are on (it ran in production builds).
+- **The example (a pattern change, documented in the guide):** `patch` copies the array and replaces
+  k slots, handing the new array the old id map (`positionsOf`); `rows` returns the previous rows
+  array when the replaced shapes show the same rows, so the layers panel and its VirtualCollection do
+  nothing during a drag; the properties panel reads the selection lazily (a mixed field stops at its
+  second shape) and keeps the non-x/y fields for the length of a move; the snap box is computed once
+  per gesture.
+
+`perf/run.mjs`, drag / pan / zoom only, three rounds alternating apps, load 5–9 (no other gate;
+the coordinator held its jobs). Busy median per step in ms; raw reports in
+`sygnal/perf/results/contract/drag-fix/`:
+
+| shapes | scenario | React + Konva | before | after |
+|---:|---|---:|---:|---:|
+| 1k | drag 1 / 100 / all | 4.2 / 4.2 / 7.2 | 4.5 / 5.5 / 8.7 | **4.0** / **3.7** / **5.0** |
+| 5k | drag 1 / 100 / all | 4.0 / 4.0 / 8.0 | 5.9 / 8.7 / 12.3 | 4.2 / 5.0 / **7.2** |
+| 10k | drag 1 / 100 / all | 4.2 / 4.8 / 8.9 | 7.9 / 10.1 / 21.3 | 4.2 / 5.6 / **8.7** |
+| 10k | pan / zoom | 3.4 / 8.7 | 3.5 / 7.1 | **3.3** / **7.2** |
+
+("Before" is the table above, from an earlier session in which React + Konva measured 3.5 / 4.1 /
+8.7 at 10k.) Per round at 10k, drag 1: 4.41, 3.95, 4.19 against 3.99, 4.22, 4.53; drag all: 8.64,
+8.90, 8.71 against 8.54, 8.97, 8.93.
+
+- **Drag 1 ties** React + Konva at 10k (4.2 / 4.2) and is within 0.2 ms at 5k; **drag all** is now
+  at or below it at every size (it was 2.4× at 10k), and the drop after dragging all is 32 against
+  199 ms.
+- **Drag 100 is still about 1 ms behind at 5k and 10k** (5.0 / 5.6 against 4.0 / 4.8; ahead at 1k).
+  The app's JS per step is now about 1 ms. Skipping the live layer's paint removes the gap
+  (`contract-trace`, 10k: 6.1 → 5.2 ms), so what's left is the Canvas 2D paint of the 100 moving
+  nodes (rounded rects and ellipses, a fill each) on the live canvas. Next candidates, not done:
+  painting the live layer only within the dirty bounds (clear and paint a rectangle, not the canvas),
+  or a cached sprite per moving node.

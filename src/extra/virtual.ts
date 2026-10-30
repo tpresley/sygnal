@@ -103,6 +103,8 @@ export class VirtualHost extends CollectionHost {
   declare lw: any
   declare cd: any
   declare gk: (i: number) => any
+  /** the index's map the keys were read from (the index keeps it for an array whose keys didn't move) */
+  declare lm: any
   /** per item instance: [its vnode, index, set size, role, pinned top, the decorated vnode] */
   declare dc: WeakMap<Inst, any[]>
   /** the shown rows' indexes (aligned with `shown`) */
@@ -282,6 +284,10 @@ export class VirtualHost extends CollectionHost {
     if (!this.index) return false
     const [a, m] = this.index(), {filter, sort} = this.props
     if (a === this.la && filter === this.lf && sort === this.ls) return false
+    // a new array with every key in place (the index kept its map) and nothing that reads the
+    // items' fields (filter, sort): the same list, no pass over the keys
+    if (m === this.lm && this.la && filter === this.lf && typeof filter != 'function' && !sort && !this.ls) { this.la = a; return false }
+    this.lm = m
     // no filter, no sort and no duplicate key: the index's keys are the list, in order (100k rows:
     // no second pass making keys)
     let all: any[]

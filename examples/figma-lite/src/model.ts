@@ -82,7 +82,9 @@ function startMove(s: State, p: Pointer): State {
   // snap targets: the visible shapes that don't move (Figma snaps to what you can see)
   const view = viewport(s.camera, s.size.width, s.size.height)
   const others = s.shapes.filter(x => !moving.has(x.id) && !x.hidden && overlaps(aabb(x), view)).map(aabb)
-  return {...s, gesture: gesture.start('move', p, {before: s.shapes, ids, starts, targets: snapTargets(others)}) as G}
+  // the selection's box at the start (what snaps): once per gesture, not per move
+  const box = union(s.selection.map(id => starts[id]).filter(Boolean))!
+  return {...s, gesture: gesture.start('move', p, {before: s.shapes, ids, starts, box, targets: snapTargets(others)}) as G}
 }
 
 export function move(s: State, p: Pointer): State {
@@ -123,8 +125,7 @@ function applyMove(s: State, dx: number, dy: number, snapping: boolean): State {
   const g = s.gesture!
   let guides: Guide[] = []
   if (snapping) {
-    const box = union(s.selection.map(id => g.starts![id]).filter(Boolean))!
-    const r = snap(box, dx, dy, g.targets!, 6 / s.camera.zoom)
+    const r = snap(g.box!, dx, dy, g.targets!, 6 / s.camera.zoom)
     dx = r.dx; dy = r.dy; guides = r.guides
   }
   const ids = new Set(g.ids)
@@ -239,8 +240,17 @@ export function setProp(s: State, {key, value}: {key: string, value: string}): S
 /** the layers panel's rows: top of the stack first, children under their frame */
 // rows are kept by id while what a row shows is unchanged: a drag replaces shapes (new x, y), not
 // rows, so the panel's items keep their identity and don't re-render
-let lastRows = new Map<string, Row>()
+let lastRows = new Map<string, Row>(), lastShapes: Shape[] = [], lastOut: Row[] = []
+// what a row shows of a shape (and where it sits: id, parent)
+const sameRow = (a: Shape, b: Shape) => a.id === b.id && (a.parent ?? null) === (b.parent ?? null) && a.name === b.name && a.type === b.type && !a.hidden === !b.hidden && !a.locked === !b.locked
 export function rows(shapes: Shape[]): Row[] {
+  // the same shapes in place, the replaced ones showing the same rows (a drag, a resize, a colour):
+  // the same rows array, so the panel (and VirtualCollection's index) has nothing to do
+  if (shapes.length == lastShapes.length) {
+    let i = 0
+    for (; i < shapes.length && (shapes[i] === lastShapes[i] || sameRow(shapes[i], lastShapes[i])); i++);
+    if (i == shapes.length) { lastShapes = shapes; return lastOut }
+  }
   const kids = new Map<string | null, Shape[]>()
   for (const x of shapes) { const k = x.parent ?? null; let a = kids.get(k); if (!a) kids.set(k, a = []); a.push(x) }
   const out: Row[] = []
@@ -256,7 +266,8 @@ export function rows(shapes: Shape[]): Row[] {
   }
   walk(null, 0)
   lastRows = new Map(out.map(r => [r.id, r]))
-  return out
+  lastShapes = shapes
+  return (lastOut = out)
 }
 
 export type LayerMsg =

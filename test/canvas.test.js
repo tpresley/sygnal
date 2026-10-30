@@ -11,7 +11,7 @@ import { renderComponent } from '../src/extra/testing.js'
 import { keymap, xs } from '../src/index.ts'
 import {
   Canvas, canvasOf, canvas2d, pointer, history, handles, selectionBox, resize, rotation, turn, scaleInto,
-  gesture, snap, snapTargets, fit, union, zoomAt, toScreen, toWorld, panBy, exportSVG, CAMERA, aabb, hitNodes,
+  gesture, snap, snapTargets, fit, union, zoomAt, toScreen, toWorld, panBy, exportSVG, CAMERA, aabb, hitNodes, positionsOf,
   keymap as canvasKeymap,
 } from '../src/canvas.ts'
 import { shared } from '../src/yjs.ts'
@@ -339,11 +339,77 @@ describe('canvas2d(): the static layer, the camera cache, translation blits', ()
     expect(s.statics).toBe(1)
   })
 
+  it('the live layer finds its active nodes by position: in layer order, the id map shared across a drag\'s arrays', () => {
+    const { canvas, calls } = fakeCanvas(), b = canvas2d()(canvas)
+    const moved = (dx) => doc.map((n, i) => i == 7 || i == 3 ? { ...n, x: n.x + dx } : n)
+    const active = new Set(['s7', 's3'])
+    b.paint(frame([{ items: doc, active: null }]), stats())
+    const a1 = moved(1), a2 = moved(2)
+    b.paint(frame([{ items: a1, active }]), stats())
+    const s = stats(); calls.length = 0
+    b.paint(frame([{ items: a2, active }]), s)
+    expect(s).toMatchObject({ statics: 0, nodes: 2 })
+    // painted bottom to top: s3 before s7, at their new x
+    const rects = calls.filter((c) => c[0] == 'rect').map((c) => c[1])
+    expect(rects).toEqual([a2[3].x, a2[7].x])
+    expect(positionsOf(a2)).toBe(positionsOf(a1))
+  })
+
+  it('positionsOf: one id → index map per array; shared with prev while every id stays in place', () => {
+    const a = [{ id: 'a' }, { id: 'b' }, { id: 'c' }], m = positionsOf(a)
+    expect([...m]).toEqual([['a', 0], ['b', 1], ['c', 2]])
+    expect(positionsOf(a)).toBe(m)
+    const b2 = [a[0], { id: 'b', x: 1 }, a[2]]
+    expect(positionsOf(b2, a)).toBe(m)
+    // an id moved, or no prev: a map of its own
+    const c2 = [a[1], a[0], a[2]]
+    expect([...positionsOf(c2, a)]).toEqual([['b', 0], ['a', 1], ['c', 2]])
+    expect(positionsOf([...a])).not.toBe(m)
+    // selectionBox reads it
+    const boxes = [{ id: 'p', x: 0, y: 0, width: 10, height: 10 }, { id: 'q', x: 20, y: 0, width: 10, height: 10 }]
+    positionsOf(boxes)
+    expect(selectionBox(boxes, ['q', 'p'])).toEqual({ x: 0, y: 0, width: 30, height: 10, rotation: 0 })
+  })
+
+  // 1,200 nodes, 40 a row at 20 px, 15 px each: a set of 1,000 or more is blitted
+  const big = Array.from({ length: 1200 }, (_, i) => rect('b' + i, (i % 40) * 20, Math.floor(i / 40) * 20, 15, 15))
+  const K = 1000, first = new Set(big.slice(0, K).map((n) => n.id))
+  const shift = (dx, dy = dx) => big.map((n, i) => i < K ? { ...n, x: n.x + dx, y: n.y + dy } : n)
+
+  it('a big active set dragged by a fractional delta is a blit per frame ((x + d) - x is not d in floating point)', () => {
+    const { canvas } = fakeCanvas(), b = canvas2d()(canvas)
+    b.paint(frame([{ items: shift(0.1, 0.1 / 3), active: first }]), stats())
+    for (const d of [0.3, 1.7, 2.9]) {
+      const s = stats(); b.paint(frame([{ items: shift(d, d / 3), active: first }]), s)
+      expect(s).toMatchObject({ statics: 0, blits: 1, nodes: 0 })
+    }
+  })
+
+  it('a blit copies only the moving nodes\' bounds (plus a margin), not the whole canvas', () => {
+    const { canvas, calls } = fakeCanvas(), b = canvas2d()(canvas)
+    // the first 1,000 nodes span 0..795 × 0..495; then moved by 10
+    b.paint(frame([{ items: shift(0), active: first }]), stats())
+    calls.length = 0
+    const s = stats(); b.paint(frame([{ items: shift(10), active: first }]), s)
+    expect(s.blits).toBe(1)
+    const [, , , , w, h, dx, dy] = calls.filter((c) => c[0] == 'drawImage').at(-1)
+    expect([dx, dy, w, h]).toEqual([0, 0, 800, 10 + 495 + 24])
+  })
+
+  it('a smaller moving set is painted (cheaper than a bitmap copy)', () => {
+    const { canvas } = fakeCanvas(), b = canvas2d()(canvas)
+    const few = new Set(big.slice(0, 100).map((n) => n.id))
+    const moved = (d) => big.map((n, i) => i < 100 ? { ...n, x: n.x + d } : n)
+    b.paint(frame([{ items: moved(0), active: few }]), stats())
+    const s = stats(); b.paint(frame([{ items: moved(5), active: few }]), s)
+    expect(s).toMatchObject({ statics: 0, blits: 0, nodes: 100 })
+  })
+
   it('a big followed set that only translated is one blit, not a repaint', () => {
     const { canvas } = fakeCanvas(), b = canvas2d()(canvas)
-    const ids = new Set(doc.slice(0, 100).map((n) => n.id)), layers = [{ items: doc, active: null }]
-    b.paint(frame(layers, CAMERA, { follow: { ids, dx: 0, dy: 0 } }), stats())
-    const s = stats(); b.paint(frame(layers, CAMERA, { follow: { ids, dx: 5, dy: 3 } }), s)
+    const layers = [{ items: big, active: null }]
+    b.paint(frame(layers, CAMERA, { follow: { ids: first, dx: 0, dy: 0 } }), stats())
+    const s = stats(); b.paint(frame(layers, CAMERA, { follow: { ids: first, dx: 5, dy: 3 } }), s)
     expect(s).toMatchObject({ statics: 0, blits: 1, nodes: 0 })
   })
 })

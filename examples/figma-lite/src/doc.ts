@@ -5,7 +5,7 @@
  * A shape is a canvas node (sygnal/canvas's box-based vocabulary) plus `name`, `parent` (a frame's id),
  * `hidden`, `locked`: the array is the canvas's data layer as it is, no mapping.
  */
-import {aabb, overlaps, contains, measureText, type AABB} from 'sygnal/canvas'
+import {aabb, overlaps, contains, measureText, positionsOf, type AABB} from 'sygnal/canvas'
 
 export type Type = 'rect' | 'ellipse' | 'text' | 'frame'
 export type Shape = {
@@ -35,13 +35,9 @@ export const fitText = (s: Shape): Shape => {
 }
 
 // id → index, once per array (arrays are immutable: identity is the cache key), so lookups over a
-// 10k selection stay O(1) each
-const positions = new WeakMap<Shape[], Map<string, number>>()
-export const posOf = (shapes: Shape[]) => {
-  let m = positions.get(shapes)
-  if (!m) { m = new Map(); shapes.forEach((s, i) => m!.set(s.id, i)); positions.set(shapes, m) }
-  return m
-}
+// 10k selection stay O(1) each. sygnal/canvas's: patch hands the new array the old one's map (the
+// order doesn't change), and selectionBox and the canvas read the same one
+export const posOf = (shapes: Shape[]) => positionsOf(shapes) as Map<string, number>
 export const byId = (shapes: Shape[], id: string | null) => id == null ? undefined : shapes[posOf(shapes).get(id) ?? -1]
 
 /** ids of a shape and everything inside it */
@@ -61,16 +57,33 @@ export function withDescendants(shapes: Shape[], ids: string[]): Set<string> {
   return out
 }
 
-/** replace shapes by id (one pass; untouched shapes keep their identity: the canvas caches them) */
+/**
+ * replace shapes by id (untouched shapes keep their identity: the canvas caches them). With a few
+ * `ids` (a drag), a copy of the array with their slots replaced: the per-move work is the k shapes,
+ * not a callback per shape. The new array shares the old one's id map (the ids stay in place)
+ */
 export function patch(shapes: Shape[], f: (s: Shape) => Shape | null | undefined, ids?: Set<string>): Shape[] {
-  let changed = false
-  const out = shapes.map(s => {
-    if (ids && !ids.has(s.id)) return s
-    const n = f(s)
-    if (n && n !== s) { changed = true; return n }
-    return s
-  })
-  return changed ? out : shapes
+  let out: Shape[] | null = null
+  if (ids && ids.size * 8 < shapes.length) {
+    const pos = posOf(shapes)
+    for (const id of ids) {
+      const i = pos.get(id), s = i === undefined ? undefined : shapes[i]
+      const n = s && f(s)
+      if (n && n !== s) (out ||= shapes.slice())[i!] = n
+    }
+  } else {
+    let changed = false
+    const all = shapes.map(s => {
+      if (ids && !ids.has(s.id)) return s
+      const n = f(s)
+      if (n && n !== s) { changed = true; return n }
+      return s
+    })
+    if (changed) out = all
+  }
+  if (!out) return shapes
+  positionsOf(out, shapes)
+  return out
 }
 
 /** remove ids and their descendants */

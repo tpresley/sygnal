@@ -138,24 +138,26 @@ The camera is `{ x, y, zoom }`: the world point at the canvas's top-left corner,
 
 The camera is a controlled value. The canvas moves it itself and reports each change once a frame as `camerachange` (the detail is the camera); store it if your view needs it (handles, a zoom readout). A `camera` prop you change (zoom to fit, 100 %) is written to the canvas; the canvas's own changes coming back as props are recognised and not written again.
 
-The geometry functions are plain functions for reducers and views: `toWorld(camera, sx, sy)`, `toScreen(camera, wx, wy)`, `zoomAt(camera, zoom, sx, sy)` (keeps the point under the cursor), `panBy`, `fit(union(shapes), width, height, padding)`, `viewport`, `aabb`, `union`, `selectionBox(shapes, ids)`. `canvasresize` reports the canvas's size, for `fit`.
+The geometry functions are plain functions for reducers and views: `toWorld(camera, sx, sy)`, `toScreen(camera, wx, wy)`, `zoomAt(camera, zoom, sx, sy)` (keeps the point under the cursor), `panBy`, `fit(union(shapes), width, height, padding)`, `viewport`, `aabb`, `union`, `selectionBox(shapes, ids)`, `positionsOf(shapes, previous)`. `canvasresize` reports the canvas's size, for `fit`.
 
 ## Painting and performance
 
 The canvas paints on demand, at most once a frame, and does the performance work so the app doesn't have to:
 
 - **A static and a live layer.** Data-layer nodes outside `active` are painted once into a cached bitmap; the live layer (active nodes, outline layers, screen-space nodes) repaints each frame. A drag repaints one shape, not the document.
-- **Translation blits.** When 64 or more live nodes only moved by one offset since they were painted (a big selection being dragged), the canvas moves their bitmap instead of repainting them.
+- **Translation blits.** When 1,000 or more live nodes only moved by one offset since they were painted (a big selection being dragged), the canvas moves their bitmap instead of repainting them.
 - **The camera cache.** The cached bitmap covers a region around the view; a pan copies it at an offset, and a zoom gesture scales it, with a sharp repaint when the gesture ends. At 10,000 shapes a pan step costs about what React + Konva's page cache does.
 - **Culling.** Nodes out of view aren't painted.
 
 All of this keys on **node identity**: a node that didn't change must be the same object. Replace only the shapes that change (`shapes.map((s) => (s.id === id ? { ...s, x } : s))`), never every shape (`shapes.map((s) => ({ ...s }))`): that silently turns every frame into a full repaint. In development, the canvas reports a layer whose nodes all changed identity with equal fields as [SYG262](/reference/errors/#syg262).
 
+The app's own work per move should grow with the shapes that moved, not with the document. With 10,000 shapes, an id lookup map rebuilt for every new array, or a derived list (a layers panel's rows) recomputed from every shape, costs more than the painting. `positionsOf(shapes, previous)` is the canvas's id → index map: a new array whose replaced shapes kept their ids shares the previous array's map after an identity check per slot, and `selectionBox` and the canvas read the same map. A derived list can do the same: when the replaced shapes show the same rows (a drag changes `x` and `y`, not names), return the previous rows array. A `<VirtualCollection>` given the same array does nothing, and given a new array whose keys stay in place it keeps its row list without a pass over the keys. `examples/figma-lite` does both (`patch` in `doc.ts`, `rows` in `model.ts`).
+
 `repaint="full"` repaints everything each frame (for comparison). The painter is a backend: `backend={canvas2d()}` is the default, the canvas's own Canvas 2D painter, and the backend only paints (hit testing, the camera, routing and the projection stay in the canvas), so a WebGL backend can be added later without changing apps.
 
 ### `follow`: the escape hatch for very large selections
 
-Drags normally go through the action queue, as in the demo: every move is an action, the reducer moves the shapes, and everything that reads state (snapping, the properties panel, other users) follows the drag as it happens. At 10,000 shapes that fits a frame, except when the whole document is selected: building 10,000 new shapes per move is the one case that doesn't.
+Drags normally go through the action queue, as in the demo: every move is an action, the reducer moves the shapes, and everything that reads state (snapping, the properties panel, other users) follows the drag as it happens. At 10,000 shapes that fits a frame with the whole document selected: about 9 ms a step in Chromium, as React + Konva. On slower devices, or with more shapes, building every selected shape anew per move is what stops fitting.
 
 For that case, `follow` hands the per-frame part to the canvas:
 

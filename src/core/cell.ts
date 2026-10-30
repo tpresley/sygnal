@@ -178,9 +178,15 @@ export function indexer(arr: Cell): Index {
   return () => {
     const g = arr.get(), a = Array.isArray(g) ? g : EMPTY
     if (a !== la) {
+      // the same length, and every replaced element keeps its key (a drag, an edit): the same map,
+      // after identity checks (no map of n keys per change)
+      let map = t[1], i = 0
+      if (a.length == t[0].length) for (; i < a.length && (a[i] === la[i] || keyOf(a[i], i) == keyOf(la[i], i)); i++);
+      if (i < a.length || !a.length) {
+        map = new Map()
+        for (i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!map.has(k)) map.set(k, i) }
+      }
       la = a
-      const map = new Map()
-      for (let i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!map.has(k)) map.set(k, i) }
       t = [a, map]
     }
     return t

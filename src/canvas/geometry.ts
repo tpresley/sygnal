@@ -93,6 +93,25 @@ export const indexOf = (items: any[]): Map<any, any> => {
   return m
 }
 
+const places = new WeakMap<any[], Map<any, number>>()
+/**
+ * id → index, once per array; an array that differs from `prev` only in nodes that keep their id
+ * (a drag replaces a few nodes) shares prev's map after identity checks: no map of n ids per frame
+ */
+export function positionsOf(items: any[], prev?: any[] | null): Map<any, number> {
+  let m = places.get(items)
+  if (m) return m
+  const pm = prev && places.get(prev)
+  if (pm && prev!.length == items.length) {
+    let i = 0
+    for (; i < items.length && (items[i] === prev![i] || items[i].id === prev![i].id); i++);
+    if (i == items.length) m = pm
+  }
+  if (!m) { m = new Map(); items.forEach((n, i) => n.id != null && !m!.has(n.id) && m!.set(n.id, i)) }
+  places.set(items, m)
+  return m
+}
+
 /** an AABB as a box (unrotated) */
 export const boxOf = (a: AABB): Box => ({x: a.x0, y: a.y0, width: a.x1 - a.x0, height: a.y1 - a.y0, rotation: 0})
 
@@ -101,10 +120,11 @@ export const boxOf = (a: AABB): Box => ({x: a.x0, y: a.y0, width: a.x1 - a.x0, h
  * none of `ids` is in `nodes`
  */
 export function selectionBox<T extends Box & {id?: any}>(nodes: T[], ids: Iterable<any>): Box | null {
-  // by the array's index when one exists (the painter's, the hit test's); else one pass that stops
+  // by the array's index when one exists (the painter's, the hit test's, positionsOf's); else one pass that stops
   // when all are found: no index built per frame for a drag's new array
-  const idx = index.get(nodes), sel: T[] = []
+  const idx = index.get(nodes), pos = places.get(nodes), sel: T[] = []
   if (idx) for (const id of ids) { const n = idx.get(id); if (n) sel.push(n) }
+  else if (pos) for (const id of ids) { const j = pos.get(id); if (j !== undefined) sel.push(nodes[j]) }
   else {
     const want = new Set(ids)
     for (let i = 0; i < nodes.length && sel.length < want.size; i++) if (want.has(nodes[i].id)) sel.push(nodes[i])

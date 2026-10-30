@@ -96,6 +96,31 @@ describe('Collection index', () => {
     expect(q).not.toBe(p)
     expect(q[1].get('y')).toBe(0)
   })
+
+  it('a new array with every key in place (a drag, an edit) keeps the map: no rebuild per change', () => {
+    let a = [{ id: 'x', v: 1 }, { id: 'y', v: 1 }, 'p']
+    const ix = indexer({ get: () => a, set: (v) => { a = v } })
+    const p = ix()
+    // element y replaced with the same id, the primitive with another (index keys stay)
+    a = [a[0], { id: 'y', v: 2 }, 'q']
+    const q = ix()
+    expect(q).not.toBe(p)
+    expect(q[0]).toBe(a)
+    expect(q[1]).toBe(p[1])
+    // a key moved: a new map
+    a = [a[1], a[0], 'q']
+    const r = ix()
+    expect(r[1]).not.toBe(q[1])
+    expect([...r[1]]).toEqual([['y', 0], ['x', 1], ['\u00002', 2]])
+    // another id in a slot, the same length: a new map
+    a = [a[0], { id: 'z' }, 'q']
+    expect([...ix()[1]]).toEqual([['y', 0], ['z', 1], ['\u00002', 2]])
+    // shorter, then empty
+    a = [a[0]]
+    expect([...ix()[1]]).toEqual([['y', 0]])
+    a = []
+    expect(ix()[1].size).toBe(0)
+  })
 })
 
 describe('enriched event streams', () => {

@@ -66,6 +66,11 @@ const textOf = (v: any): string => v.text != null ? String(v.text) : (v.children
 type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>, outline?: string, label?: string, a11y?: number}
 type Live = {el: any, node: Node}
 
+// one Set per `active` array (a drag's ids are the same array each frame: the Set, and the painter's
+// checks on it, are the same too)
+const sets = new WeakMap<any[], Set<any>>()
+const setOf = (a: any[]) => { let s = sets.get(a); if (!s) sets.set(a, s = new Set(a)); return s }
+
 // one node object per vnode: an unchanged child (a Collection item that didn't re-render keeps its
 // vnode) keeps its node, so the static layer's cache survives
 const nodes = new WeakMap<any, Node>()
@@ -92,7 +97,7 @@ export function readChildren(container: any) {
       const tag = tagOf(v.sel), d = v.data || {}, p = {...d.attrs, ...d.props}
       if (p.display == 'none') continue
       if (tag == 'shapes') {
-        layers.push({el: v.elm, items: d.props?.items || p.items || [], active: p.active?.length ? new Set(p.active) : null, outline: p.outline, label: p['aria-label'], a11y: p.a11y})
+        layers.push({el: v.elm, items: d.props?.items || p.items || [], active: p.active?.length ? setOf(p.active) : null, outline: p.outline, label: p['aria-label'], a11y: p.a11y})
         jsx = null
         continue
       }
@@ -131,7 +136,8 @@ const prevItems = new WeakMap<any, Node[]>(), reported = new WeakSet<any>()
 function checkRebuild(el: any, items: Node[]) {
   const d = (globalThis as any).__SYGNAL_DIAGNOSTICS__, prev = el && prevItems.get(el)
   if (el) prevItems.set(el, items)
-  if (!d || !prev || prev === items || items.length < 64 || prev.length != items.length || reported.has(el)) return
+  // (dev only: diagnostics on; a production build makes no pass over the layer)
+  if (!d?.hooks?.on?.() || !prev || prev === items || items.length < 64 || prev.length != items.length || reported.has(el)) return
   let same = 0
   const need = items.length / 2
   for (let i = 0; i < items.length && same < need; i++) if (items[i] !== prev[i] && shallowEqual(items[i], prev[i])) same++

@@ -172,6 +172,12 @@ export function hitBox(b: Box & { type?: string }, p: Pt, slop?: number): boolea
 export function boxOf(a: AABB): Box
 /** one node's own (rotated) box, or the bounds of several; null when none of `ids` is in `nodes` */
 export function selectionBox(nodes: readonly (Box & { id?: any })[], ids: Iterable<any>): Box | null
+/**
+ * id → index of a node array, once per array. An array that differs from `prev` only in nodes that
+ * keep their id (a drag's new array) shares prev's map after identity checks: no map of n ids per
+ * change. The canvas keeps one per data layer; selectionBox uses it when there is one
+ */
+export function positionsOf(items: readonly { id?: any }[], prev?: readonly { id?: any }[] | null): Map<any, number>
 
 // ---------------------------------------------------------------- painting, hit testing, export
 

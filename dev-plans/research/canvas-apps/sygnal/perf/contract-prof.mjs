@@ -1,4 +1,4 @@
-// CPU profile of N wheel-pan steps (or a drag) at 10k shapes; self time by function
+// CPU profile of N wheel-pan steps (or a drag) at 10k shapes; self time by function (argv: <pan|zoom|drag> <url> [selection size for drag])
 const { chromium } = await import('playwright')
 const mode = process.argv[2] || 'pan', url = process.argv[3] || 'http://localhost:4801/'
 const b = await chromium.launch(), page = await b.newPage({ viewport: { width: 1440, height: 900 } })
@@ -7,7 +7,7 @@ await page.evaluate(() => window.__canvasBench.generate(10000))
 const cdp = await page.context().newCDPSession(page)
 const c = await page.evaluate(() => window.__canvasBench.canvasCenter())
 await page.mouse.move(c.x, c.y)
-if (mode == 'drag') { await page.evaluate(() => window.__canvasBench.select(1)); const p = await page.evaluate(() => window.__canvasBench.dragPoint()); await page.mouse.move(p.x, p.y); await page.mouse.down() }
+if (mode == 'drag') { await page.evaluate((n) => window.__canvasBench.select(n), Number(process.argv[4] || 1)); const p = await page.evaluate(() => window.__canvasBench.dragPoint()); await page.mouse.move(p.x, p.y); await page.mouse.down() }
 await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 100 }); await cdp.send('Profiler.start')
 for (let i = 0; i < 120; i++) {
   if (mode == 'pan') await page.mouse.wheel(i % 40 < 20 ? 24 : -24, i % 30 < 15 ? 18 : -18)

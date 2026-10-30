@@ -115,9 +115,9 @@ behaves as on 7.1.0.
     trackpad pinch, two-finger touch pinch, space-drag, middle-drag), reported once a frame as `camerachange`.
   - Painting: a static layer plus a live layer (the app passes `active={ids}`), translation blits for
     big moving sets, and a camera cache: a pan is a copy of the cached bitmap, a zoom gesture scales it
-    and repaints sharp at rest. At 10,000 shapes a pan step costs 3.5 ms against React + react-konva's 3.7 ms (12.1 ms before the cache).
+    and repaints sharp at rest. At 10,000 shapes a pan step costs 3.5 ms against React + react-konva's 3.7 ms (12.1 ms before the cache), and a drag of all 10,000 through the action queue 8.7 ms against 8.9.
   - The kit: `gesture`, `snap` / `snapTargets`, `handles`, `resize`, `rotation`, `turn`, `scaleInto`,
-    `selectionBox`, `fit`, `union`, `toWorld` / `toScreen`, `exportSVG`, and `history(field)`, which routes
+    `selectionBox`, `positionsOf` (an id → index map a drag's new arrays share), `fit`, `union`, `toWorld` / `toScreen`, `exportSVG`, and `history(field)`, which routes
     to `sygnal/yjs`'s per-user UndoManager when the field is shared (one undo step per gesture).
   - `follow={{ ids, from }}`: the transient escape hatch for very large selections (the canvas drags them
     with no action per move; the app commits on release).
@@ -172,6 +172,10 @@ behaves as on 7.1.0.
   re-injected another child.
 - `sygnal/agent-ui`: a role-less container the app listens to no longer hides the controls inside it.
 - `src/` can be served by Vite directly (its types are re-exported with `export type`).
+- `<Collection>` / `<VirtualCollection>`: a new array whose elements keep their keys in place (a drag,
+  an edit) keeps the key index (an identity check per element instead of a map of every key), and
+  `<VirtualCollection>` then keeps its row list without a pass over the keys. A 10,000-row list that
+  changes in one place per frame no longer costs a pass over 10,000 keys.
 
 - **Runs in a Web Worker:** `run()` no longer reads the `window` global (`src/cycle/run/adapt.ts` uses
   `globalThis`), so an app can run in a module worker on `sygnal/host` (research:
