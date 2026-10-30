@@ -24,7 +24,7 @@ export interface RenderToHTMLOptions {
 }
 
 export async function renderToHTML(opts: RenderToHTMLOptions): Promise<{html: string; violations: string[]; ms: number}> {
-  const limits = limitsOf({bootMs: 200, ...opts.limits})
+  const limits = limitsOf(opts.limits)
   const QJS = opts.quickjs || await loadQuickJS({maxWasmBytes: limits.maxWasmBytes})
   const t0 = performance.now()
   let json: string | null = null, error: any = null
