@@ -121,7 +121,7 @@ export function createSandbox(QJS, opts) {
     ctx.setProp(host, name, h); h.dispose()
   }
   fn('render', (h) => {
-    if (renders.length >= 16) throw new SandboxError('protocol', 'too many renders in one call')
+    if (renders.length >= 4) throw new SandboxError('protocol', 'too many renders in one call')
     renders.push(str(h)); stats.renders++
   })
   fn('emit', (h) => {
@@ -193,6 +193,8 @@ export function createSandbox(QJS, opts) {
       const j = rt.executePendingJobs(10000)
       settle(j)
       if (rt.hasPendingJob()) throw new SandboxError('timeout', 'endless promise jobs')
+      // then the tree, once
+      settle(ctx.callFunction(entries.flush, ctx.undefined))
     } catch (e) {
       deadline = Infinity
       return kill(e.reason || classify(e), e.message || String(e))
@@ -267,7 +269,7 @@ export function createSandbox(QJS, opts) {
     settle(ctx.evalCode(opts.kernel, 'guest-kernel.js'))
     const sbx = ctx.getProp(ctx.global, '__sandbox')
     // the kernel's own functions, taken before the component runs (it could replace __sandbox)
-    for (const k of ['dispatch', 'fire', 'resolve', 'props', 'start']) entries[k] = ctx.getProp(sbx, k)
+    for (const k of ['dispatch', 'fire', 'resolve', 'props', 'start', 'flush']) entries[k] = ctx.getProp(sbx, k)
     sbx.dispose()
     settle(ctx.evalCode(opts.source, 'component.js'))
     deadline = Infinity

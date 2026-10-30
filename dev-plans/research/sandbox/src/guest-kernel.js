@@ -49,9 +49,9 @@ function ser(n, out) {
 // an unchanged subtree's nodes stay addressable
 function mark(n, out) { if (n.childNodes) for (const c of n.childNodes) { out.set(nodeId(c), c); mark(c, out) } }
 
-let pendingRender = false, lastMsg = ''
+let dirty = false, lastMsg = ''
 function flushTree() {
-  pendingRender = false
+  dirty = false
   const out = new Map()
   const tree = doc.body.childNodes.map(c => ser(c, out))
   byId.clear()
@@ -63,7 +63,9 @@ function flushTree() {
   // nothing moved (a change that patched back to what was sent): no message
   if (msg !== lastMsg || tree.some(n => typeof n != 'number')) H.render(lastMsg = msg)
 }
-doc.onChange = () => { if (!pendingRender) { pendingRender = true; queueMicrotask(flushTree) } }
+// one render per guest entry: the host calls __sandbox.flush() once the entry's promise jobs ran
+// (a click on a checkbox changes the tree twice, its checked state, then the patch: one message)
+doc.onChange = () => { dirty = true }
 
 // --- events coming in ----------------------------------------------------------------------------
 const EVENT_FIELDS = /^(key|code|shiftKey|ctrlKey|altKey|metaKey|button|clientX|clientY|deltaX|deltaY|detail)$/
@@ -80,6 +82,7 @@ G.__sandbox = {
     for (const k in init) if (EVENT_FIELDS.test(k)) e[k] = init[k]
     return el.dispatchEvent(e) ? 0 : 1
   },
+  flush() { if (dirty) flushTree(); return 0 },
   fire(id) { const f = timers.get(id); timers.delete(id); if (f) f() },
   resolve(id, ok, payloadJson) { const p = fetches.get(id); fetches.delete(id); if (p) ok ? p.ok(JSON.parse(payloadJson)) : p.fail(new Error(payloadJson)) },
   props(json) { props$.shamefullySendNext(JSON.parse(json)) },

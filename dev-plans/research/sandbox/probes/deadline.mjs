@@ -18,20 +18,23 @@ const CASES = {
 
 if (process.argv[2] === '--case') {
   const {mount} = await import('../test/helpers.mjs')
-  const [, , , name, mem] = process.argv
+  const {loadQuickJS} = await import('../src/sandbox.js')
+  const [, , , name, mem, cap] = process.argv
+  const QJS = cap ? await loadQuickJS({maxWasmBytes: +cap << 20}) : undefined
   const t = mount(`
     export default function P() { return <button className="b">go</button> }
     P.intent = ({ DOM }) => ({ GO: DOM.select('.b').events('click') })
     P.model = { GO: (s) => { ${CASES[name]} } }
-  `, {limits: {memoryBytes: +mem << 20, callMs: 100, cpuShare: 1e9}})
+  `, {QJS, limits: {memoryBytes: +mem << 20, callMs: 100, cpuShare: 1e9}})
   const t0 = performance.now()
   t.fire('.b', 'click')
-  console.log(JSON.stringify({ms: Math.round(performance.now() - t0), reason: t.errors[0]?.reason || (t.logs.some(l => /SYG216/.test(l[1])) ? 'reducer threw (' + t.logs.find(l => /SYG216/.test(l[1]))[1].split('error ').pop() + ')' : 'none')}))
+  const threw = t.logs.find(l => /SYG216/.test(l[1]))
+  console.log(JSON.stringify({ms: Math.round(performance.now() - t0), reason: t.errors[0]?.reason || (threw ? 'reducer threw ' + threw[1].split('InternalError: ').pop() + ' (SYG216)' : 'none')}))
 } else {
-  console.log('| case | 16 MB limit | 64 MB limit |\n|---|---|---|')
+  console.log('| case | heap limit 16 MB | heap limit 64 MB | heap 16 MB, instance capped at 48 MB |\n|---|---|---|---|')
   for (const name of Object.keys(CASES)) {
-    const cells = [16, 64].map((mem) => {
-      const r = spawnSync(process.execPath, [import.meta.filename, '--case', name, mem], {timeout: 15000, encoding: 'utf8', cwd: import.meta.dirname})
+    const cells = [[16], [64], [16, 48]].map(([mem, cap]) => {
+      const r = spawnSync(process.execPath, [import.meta.filename, '--case', name, mem, cap || ''], {timeout: 15000, encoding: 'utf8', cwd: import.meta.dirname})
       if (r.error || r.status !== 0) return r.error?.code === 'ETIMEDOUT' ? '**> 15 s (process killed)**' : 'crashed: ' + (r.stderr || '').split('\n').find(l => /Error|Abort/.test(l))
       const o = JSON.parse(r.stdout.trim().split('\n').pop())
       return `${o.ms} ms, ${o.reason}`

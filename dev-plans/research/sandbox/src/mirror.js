@@ -28,8 +28,70 @@ const FIELD = /^(input|textarea|select|button|output|fieldset)$/
 
 let roots = 0
 
+export const DEFAULT_POLICY = {maxNodes: 5000, maxDepth: 128, maxText: 1 << 20, imageOrigins: []}
+
+/**
+ * One element's attributes and inline style through the allowlist (the mirror and SSR share it):
+ * returns {attrs: Map, css: string}; what it drops goes to violate(what).
+ */
+export function sanitize(tag, n, prefix, policy, violate) {
+  const attrs = new Map()
+  for (const [k0, v0] of Object.entries(n.a || {})) {
+    const k = String(k0).toLowerCase(), v = String(v0)
+    if (k === 'id') attrs.set('id', prefix + v)
+    else if (ID_REFS.test(k)) attrs.set(k, v.split(/\s+/).map(x => prefix + x).join(' '))
+    else if (k === 'name') { if (FIELD.test(tag)) attrs.set(k, v); else violate(`name on <${tag}>`) }
+    else if (k === 'type') { if (tag !== 'input' || INPUT_TYPES.test(v)) attrs.set(k, v); else violate(`input type ${v}`) }
+    else if (k === 'href') { if (tag === 'a' && SAFE_HREF.test(v.trim())) attrs.set(k, v); else violate(`href ${v.slice(0, 40)}`) }
+    else if (k === 'src') { if (tag === 'img' && imageOk(v, policy)) attrs.set(k, v); else violate(`src ${v.slice(0, 40)}`) }
+    else if (k === 'style') violate('style attribute') // inline style arrives as n.s, filtered below
+    else if (ATTRS.test(k)) attrs.set(k, v)
+    else violate(`attribute ${k}`)
+  }
+  if (tag === 'a' && attrs.has('href')) { attrs.set('rel', 'noopener noreferrer'); attrs.set('target', '_blank') }
+  const css = []
+  for (const [k, v0] of Object.entries(n.s || {})) {
+    const name = String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase()), v = String(v0)
+    if (!/^-?[a-z][a-z-]*$/.test(name) || BAD_STYLE.test(v)) { violate(`style ${name}`); continue }
+    css.push(`${name}: ${v}`)
+  }
+  return {attrs, css: css.join('; ')}
+}
+function imageOk(v, policy) {
+  if (/^data:image\/(png|gif|jpeg|webp);base64,/i.test(v)) return true
+  try { return policy.imageOrigins.includes(new URL(v).origin) } catch { return false }
+}
+
+const VOID = new Set(['br', 'hr', 'img', 'input', 'col'])
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c])
+/**
+ * SSR from a sandbox: one render message's tree as HTML, through the same allowlist and limits
+ * (a full tree: no bare ids). Edge / multi-tenant rendering of a tenant's component.
+ */
+export function treeToHTML(tree, opts = {}) {
+  const policy = {...DEFAULT_POLICY, ...opts.policy}, prefix = opts.prefix ?? 'sbx-'
+  const violations = [], violate = (w) => { if (violations.length < 100) violations.push(w) }
+  let count = 0, text = 0
+  const out = (n, depth) => {
+    if (depth > policy.maxDepth || ++count > policy.maxNodes) throw new Error('sandbox tree: over the limits')
+    if (!n || typeof n != 'object') throw new Error('sandbox tree: malformed node (SSR needs a full tree)')
+    if (typeof n.x == 'string') { if ((text += n.x.length) > policy.maxText) throw new Error('sandbox tree: too much text'); return esc(n.x) }
+    const tag = String(n.t)
+    if (!TAGS.has(tag)) { violate(`tag <${tag}>`); return '' }
+    const {attrs, css} = sanitize(tag, n, prefix, policy, violate)
+    if ('v' in n && tag === 'input') attrs.set('value', String(n.v))
+    if (n.k && (tag === 'input' || tag === 'option')) attrs.set(tag === 'option' ? 'selected' : 'checked', '')
+    if (css) attrs.set('style', css)
+    const open = `<${tag}${[...attrs].map(([k, v]) => ` ${k}="${esc(v)}"`).join('')}>`
+    if (VOID.has(tag)) return open
+    const inner = tag === 'textarea' ? esc(n.v ?? '') : (Array.isArray(n.c) ? n.c : []).map(c => out(c, depth + 1)).join('')
+    return `${open}${inner}</${tag}>`
+  }
+  return {html: (Array.isArray(tree) ? tree : []).map(n => out(n, 0)).join(''), violations}
+}
+
 export function createMirror(container, opts = {}) {
-  const policy = {maxNodes: 5000, maxDepth: 128, maxText: 1 << 20, imageOrigins: [], ...opts.policy}
+  const policy = {...DEFAULT_POLICY, ...opts.policy}
   const doc = container.ownerDocument
   const prefix = `sbx${++roots}-`
   const root = doc.createElement('div')
@@ -71,31 +133,9 @@ export function createMirror(container, opts = {}) {
     if (!TAGS.has(tag)) { violate(`tag <${tag}>`); return null }
     let el = nodes.get(n.i)
     if (!el || el.localName !== tag) { el = doc.createElement(tag); nodes.set(n.i, el); idOf.set(el, n.i) }
-    // attributes: the allowed ones, as given; everything else on the element goes
-    const want = new Map()
-    for (const [k0, v0] of Object.entries(n.a || {})) {
-      const k = String(k0).toLowerCase(), v = String(v0)
-      if (k === 'id') want.set('id', prefix + v)
-      else if (ID_REFS.test(k)) want.set(k, v.split(/\s+/).map(x => prefix + x).join(' '))
-      else if (k === 'name') { if (FIELD.test(tag)) want.set(k, v); else violate(`name on <${tag}>`) }
-      else if (k === 'type') { if (tag !== 'input' || INPUT_TYPES.test(v)) want.set(k, v); else violate(`input type ${v}`) }
-      else if (k === 'href') { if (tag === 'a' && SAFE_HREF.test(v.trim())) want.set(k, v); else violate(`href ${v.slice(0, 40)}`) }
-      else if (k === 'src') { if (tag === 'img' && imageOk(v)) want.set(k, v); else violate(`src ${v.slice(0, 40)}`) }
-      else if (k === 'style') violate('style attribute') // inline style arrives as n.s, filtered below
-      else if (ATTRS.test(k)) want.set(k, v)
-      else violate(`attribute ${k}`)
-    }
-    if (tag === 'a' && want.has('href')) { want.set('rel', 'noopener noreferrer'); want.set('target', '_blank') }
+    const {attrs: want, css: cssText} = sanitize(tag, n, prefix, policy, violate)
     for (const a of [...el.attributes]) if (a.name !== 'style' && !want.has(a.name)) el.removeAttribute(a.name)
     for (const [k, v] of want) if (el.getAttribute(k) !== v) el.setAttribute(k, v)
-    // inline style
-    const css = []
-    for (const [k, v0] of Object.entries(n.s || {})) {
-      const name = String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase()), v = String(v0)
-      if (!/^-?[a-z][a-z-]*$/.test(name) || BAD_STYLE.test(v)) { violate(`style ${name}`); continue }
-      css.push(`${name}: ${v}`)
-    }
-    const cssText = css.join('; ')
     if ((el.getAttribute('style') || '') !== cssText) cssText ? el.setAttribute('style', cssText) : el.removeAttribute('style')
     // field state the guest controls
     if ('v' in n && el.value !== String(n.v)) el.value = String(n.v)
@@ -109,11 +149,6 @@ export function createMirror(container, opts = {}) {
     }
     while (el.childNodes.length > kids.length) el.removeChild(el.lastChild)
     return el
-  }
-
-  function imageOk(v) {
-    if (/^data:image\/(png|gif|jpeg|webp);base64,/i.test(v)) return true
-    try { const u = new URL(v); return policy.imageOrigins.includes(u.origin) } catch { return false }
   }
 
   return {
