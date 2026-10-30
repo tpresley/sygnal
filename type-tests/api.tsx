@@ -88,9 +88,11 @@ Bad.model = {
 }
 
 // fixtures are typed by the endpoint
-fixture(api.quotes.add, { id: 1, text: 't', at: 'x' })
+// the server's value (a Date), returned as JSON delivers it (a string)
+const fx: { at: string } = fixture(api.quotes.add, { id: 1, text: 't', at: new Date(0) })
 // @ts-expect-error a fixture with the wrong shape
-fixture(api.quotes.add, { id: '1', text: 't', at: 'x' })
+fixture(api.quotes.add, { id: '1', text: 't', at: new Date(0) })
+export { fx }
 const e = errorFixture(api.quotes.add, 'DUPLICATE', { id: 1 })
 const code: 'DUPLICATE' = e.body.code
 // @ts-expect-error not a declared error of this endpoint

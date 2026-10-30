@@ -55,11 +55,16 @@ type EndpointInfo<K> = {
   match(request: unknown): boolean
 }
 
-/** One endpoint of a client: builds the request (or stream connection) for an input */
-export type Endpoint<IN, OUT, ERR = unknown, K extends 'query' | 'mutation' | 'stream' = 'query' | 'mutation' | 'stream'> =
+/**
+ * One endpoint of a client: builds the request (or stream connection) for an input. `OUT` is the
+ * reply as JSON delivers it; `RAW` the server's value before JSON (a `Date` where OUT has a string)
+ */
+export type Endpoint<IN, OUT, ERR = unknown, K extends 'query' | 'mutation' | 'stream' = 'query' | 'mutation' | 'stream', RAW = OUT> =
   (K extends 'stream'
     ? (...args: Args<IN, StreamOptions>) => ApiStream<OUT>
-    : (...args: Args<IN, CallOptions>) => ApiRequest<OUT, ERR>) & EndpointInfo<K>
+    : (...args: Args<IN, CallOptions>) => ApiRequest<OUT, ERR>) & EndpointInfo<K> & { readonly '~raw'?: RAW }
+/** The server's value of an endpoint's reply, before JSON (what fixture() takes) */
+export type RawOutput<E> = E extends { readonly '~raw'?: infer R } ? R : Output<E>
 
 /**
  * The data of the endpoint's `ok` reply action (or of each stream event), as JSON delivers it:
@@ -100,8 +105,8 @@ export type OrpcErrorBody<EM> =
 type OrpcProcedure = { '~orpc': { route: unknown; errorMap: unknown; inputSchema?: unknown; outputSchema?: unknown } }
 type OrpcEndpoint<P> = P extends { '~orpc': { inputSchema?: infer I; outputSchema?: infer O; errorMap: infer EM } }
   ? SchemaOut<O> extends AsyncIterable<infer Y>
-    ? Endpoint<unknown extends SchemaIn<I> ? undefined : SchemaIn<I>, Jsonify<Y>, OrpcErrorBody<EM>, 'stream'>
-    : Endpoint<unknown extends SchemaIn<I> ? undefined : SchemaIn<I>, Jsonify<SchemaOut<O>>, OrpcErrorBody<EM>, 'query' | 'mutation'>
+    ? Endpoint<unknown extends SchemaIn<I> ? undefined : SchemaIn<I>, Jsonify<Y>, OrpcErrorBody<EM>, 'stream', Y>
+    : Endpoint<unknown extends SchemaIn<I> ? undefined : SchemaIn<I>, Jsonify<SchemaOut<O>>, OrpcErrorBody<EM>, 'query' | 'mutation', SchemaOut<O>>
   : never
 /** The client of an oRPC contract router: the same tree, each procedure an Endpoint */
 export type OrpcClient<R> = R extends OrpcProcedure ? OrpcEndpoint<R> : { [K in keyof R]: OrpcClient<R[K]> }
@@ -199,16 +204,16 @@ export function contractFetch(options?: {
 // ── test fixtures ──────────────────────────────────────────────────────
 
 /**
- * A reply body for `t.respond` (or one event for `t.push`), typed by the endpoint and, for an
- * oRPC contract, checked against its output schema (a fixture that drifted from the contract
- * throws). Returned as JSON delivers it.
+ * A reply body for `t.respond` (or one event for `t.push`): the server's value (a `Date` stays a
+ * `Date`), typed by the endpoint and, for an oRPC contract, checked against its output schema (a
+ * fixture that drifted from the contract throws). Returned as JSON delivers it.
  */
-export function fixture<E extends Endpoint<any, any, any, any>>(endpoint: E, data: Output<E>): Output<E>
+export function fixture<E extends Endpoint<any, any, any, any, any>>(endpoint: E, data: RawOutput<E>): Output<E>
 /**
  * An error reply in oRPC's shape, its data checked against the declared error's schema:
  * `const e = errorFixture(api.quotes.add, 'DUPLICATE', { id: 1 }); await t.fail('HTTP', e.status, { body: e.body })`
  */
-export function errorFixture<E extends Endpoint<any, any, any, any>, C extends DefinedCode<E>>(
+export function errorFixture<E extends Endpoint<any, any, any, any, any>, C extends DefinedCode<E>>(
   endpoint: E, code: C, data?: Extract<ErrorBody<E>, { code: C }> extends { data: infer D } ? D : unknown, message?: string,
 ): { status: number; body: [Extract<ErrorBody<E>, { code: C }>] extends [never] ? { defined: true; code: C; status: number; message: string; data: unknown } : Extract<ErrorBody<E>, { code: C }> }
 /** The codes of an endpoint's declared errors (oRPC), else any string */

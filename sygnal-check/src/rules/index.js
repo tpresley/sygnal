@@ -58,6 +58,7 @@ import catalog from './syg253-catalog.js'
 import byIdBinding from './syg454-byid-binding.js'
 import outputGuard from './syg256-output-guard.js'
 import lowercaseMarkers from './syg426-lowercase-markers.js'
+import unknownEndpoint from './syg691-unknown-endpoint.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -86,6 +87,7 @@ export const coreRules = [
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
   widgets, // SYG140-SYG144 (PLAN-5 W-1)
   removedForms, // SYG612 statically (PLAN-4.6 R5): forms 6.0 removed
+  unknownEndpoint, // SYG691 (sygnal/api dev preview): an orpcClient chain naming no procedure
   lowercaseMarkers, // SYG426 (PLAN-9, D471): lowercase marker tags, deprecated in 6.3.0 (with --fix)
   agent, // SYG150, SYG151, SYG240, SYG243, SYG440, SYG441 (PLAN-6 K-1: the agent static)
   llmRequest, // SYG152 (PLAN-6 K-1)
