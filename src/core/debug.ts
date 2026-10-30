@@ -14,7 +14,9 @@ declare const process: {env: Record<string, any>}
 const ENV: any = (typeof window != 'undefined' && window) || {SYGNAL_DEBUG: typeof process != 'undefined' && process.env ? process.env.SYGNAL_DEBUG : undefined}
 
 export function dbg(inst: Inst, msg: () => string) {
-  if (!(inst.debug || inst.def.view.debug || ENV.SYGNAL_DEBUG === 'true' || ENV.SYGNAL_DEBUG === true)) return
+  // (one read of window.SYGNAL_DEBUG: a missing property of window is a slow lookup)
+  let d
+  if (!(inst.debug || inst.def.view.debug || (d = ENV.SYGNAL_DEBUG) === 'true' || d === true)) return
   // G-331: the message (JSON of a BigInt or circular value) and the DevTools bridge never break
   // the action being logged
   let m: string

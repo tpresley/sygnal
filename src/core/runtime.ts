@@ -29,7 +29,7 @@ import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
 import {ext} from './registry'
-import {stopQueued, INST, SET, SEED} from './teardown'
+import {stopQueued, SET, SEED} from './teardown'
 import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
@@ -354,7 +354,7 @@ export class App {
   scopeValue(parent: Inst, _: string, v: any, inst: Inst) {
     const d = parent.dom
     if (!d || inst.scope === undefined) return v
-    if (typeof d.isolateValue == 'function') return d.isolateValue(v, inst.scope)
+    if (typeof d.isolateValue == 'function') return d.isolateValue(v, inst.scope, inst)
     let r: any
     this.pipe(inst, '\u0000DOM', v, (s$) => d.isolateSink(s$, inst.scope), (x) => { r = x })
     return r
@@ -380,22 +380,21 @@ export class App {
   }
 
   // ---------------------------------------------------------------- intent sources
-  /** the getters of an instance's intent sources (one descriptor map per app and kind) */
-  srcDesc(child: boolean) {
+  /** an instance's intent sources by name, each a getter of its instance (one table per app and kind; Inst SRC) */
+  srcDesc(child: boolean): Record<string, (i: Inst) => any> {
     const k = +child
     if (this.desc[k]) return this.desc[k]
-    const d: any = {}
-    const get = (f: (i: Inst) => any) => ({get(this: any) { return f(this[INST]) }, enumerable: true, configurable: true})
-    for (const n in this.sources) if (n !== 'DOM') d[n] = get(i => i.src(n))
-    d.DOM = get(i => i.dom && (i.wd ||= wrapDOM(i.dom)))
-    d.STATE = get(i => i.stateSource())
-    d.CHILD = get(i => i.childSource())
-    d.dispose$ = get(i => i.dispose$())
+    const d: any = Object.create(null)
+    for (const n in this.sources) if (n !== 'DOM') d[n] = (i: Inst) => i.src(n)
+    d.DOM = (i: Inst) => i.dom && (i.wd ||= wrapDOM(i.dom))
+    d.STATE = (i: Inst) => i.stateSource()
+    d.CHILD = (i: Inst) => i.childSource()
+    d.dispose$ = (i: Inst) => i.dispose$()
     if (child) {
-      d.props$ = get(i => i.props$ || seeded(i, 'props$', i.props))
-      d.children$ = get(i => i.children$ || seeded(i, 'children$', i.children))
+      d.props$ = (i: Inst) => i.props$ || seeded(i, 'props$', i.props)
+      d.children$ = (i: Inst) => i.children$ || seeded(i, 'children$', i.children)
       // a Command passed as a prop (createCommand): its messages, as today's `commands$`
-      d.commands$ = get(i => i.commands())
+      d.commands$ = (i: Inst) => i.commands()
     }
     return (this.desc[k] = d)
   }
@@ -464,9 +463,9 @@ export class App {
   }
 }
 
-function wrapDOM(dom: any) {
-  return new Proxy(dom, {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any) => t.select(sel).events(p))})
-}
+// (one handler for every instance's DOM source)
+const DOMH: ProxyHandler<any> = {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any) => t.select(sel).events(p))}
+const wrapDOM = (dom: any) => new Proxy(dom, DOMH)
 /** props$ / children$: a memory stream with the current value, fed by setProps */
 function seeded(i: any, k: string, v: any) {
   const s = xs.createWithMemory()

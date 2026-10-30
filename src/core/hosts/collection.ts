@@ -266,7 +266,7 @@ export class CollectionHost {
               this.ip, this.kids, scope, this.uidBase + '-' + keyName(k), 'item')
             this.items.set(k, inst);
             // its key (A-1's view-transition name)
-            (inst as any).k = k
+            inst.k = k
           }
           shown.push(inst)
         }

@@ -28,18 +28,23 @@ export class MainDOMSource {
     private _eventDelegator: EventDelegator,
     private _name: string
   ) {
-    this.isolateSource = (source, scope) =>
-      new MainDOMSource(
-        source._rootElement$,
-        source._sanitation$,
-        source._namespace.concat(getScopeObj(scope)),
-        source._isolateModule,
-        source._eventDelegator,
-        source._name
-      );
-    this.isolateSink = makeIsolateSink(this._namespace) as any;
-    this.isolateValue = makeIsolateValue(this._namespace);
   }
+
+  // (methods and lazily made functions, not closures per source: one source per instance)
+  public isolateSource(source: MainDOMSource, scope: string): MainDOMSource {
+    return new MainDOMSource(
+      source._rootElement$,
+      source._sanitation$,
+      source._namespace.concat(getScopeObj(scope)),
+      source._isolateModule,
+      source._eventDelegator,
+      source._name
+    );
+  }
+  private _is?: IsolateSink<VNode>;
+  private _iv?: (node: any, scope: string, memo?: any) => any;
+  get isolateSink(): IsolateSink<VNode> { return this._is ||= makeIsolateSink(this._namespace) as any }
+  get isolateValue(): (node: any, scope: string, memo?: any) => any { return this._iv ||= makeIsolateValue(this._namespace) }
 
   private _elements(): Stream<Array<Element>> {
     if (this._namespace.length === 0) {
@@ -148,7 +153,4 @@ export class MainDOMSource {
     this._sanitation$.shamefullySendNext(null);
   }
 
-  public isolateSource: (source: MainDOMSource, scope: string) => MainDOMSource;
-  public isolateSink: IsolateSink<VNode>;
-  public isolateValue: (node: any, scope: string) => any;
 }

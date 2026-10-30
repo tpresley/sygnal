@@ -37,26 +37,30 @@ const pick = (s$: any, get: (e: any) => any) => (fn?: (v: any) => any): any =>
  *   DOM.select('.due').events('change').detail()
  */
 export function enrichEventStream(stream$: any): any {
+  return Object.assign(stream$, METHODS)
+}
+
+// (methods every enriched stream shares: an event stream is made for each instance's intent)
+const METHODS = {
   // .value(fn?) — e.target.value; .checked(fn?) — e.target.checked as a boolean
-  stream$.value = pick(stream$, (e: any) => e?.target?.value)
-  stream$.checked = pick(stream$, (e: any) => !!e?.target?.checked)
+  value(this: any, fn?: any) { return pick(this, (e: any) => e?.target?.value)(fn) },
+  checked(this: any, fn?: any) { return pick(this, (e: any) => !!e?.target?.checked)(fn) },
   // .data(name, fn?) — dataset[name] from e.target or its nearest ancestor that has it.
   // dataset keys are camelCase but attributes are kebab-case (`taskId` is `data-task-id`), so the
   // closest() selector converts (B-028). The name may be given either way: `.data('taskId')` and
   // `.data('task-id')` read the same attribute (3E/R3).
-  stream$.data = (name: string, fn?: (v: any) => any): any => {
+  data(this: any, name: string, fn?: (v: any) => any): any {
     const key = String(name).replace(/-([a-z])/g, (_, c) => c.toUpperCase())
     const attr = `[data-${key.replace(/[A-Z]/g, c => '-' + c.toLowerCase())}]`
-    return pick(stream$, (e: any) => {
+    return pick(this, (e: any) => {
       const t = e?.target
       const el = typeof t?.closest == 'function' ? t.closest(attr) || t : t
       return el?.dataset?.[key]
     })(fn)
-  }
+  },
   // .target(fn?) — e.target; .key(fn?) — e.key (keyboard events)
-  stream$.target = pick(stream$, (e: any) => e?.target)
-  stream$.key = pick(stream$, (e: any) => e?.key)
+  target(this: any, fn?: any) { return pick(this, (e: any) => e?.target)(fn) },
+  key(this: any, fn?: any) { return pick(this, (e: any) => e?.key)(fn) },
   // .detail(fn?) — e.detail (CustomEvents: widgets' emit(), web components) (PLAN-5 W-3)
-  stream$.detail = pick(stream$, (e: any) => e?.detail)
-  return stream$
+  detail(this: any, fn?: any) { return pick(this, (e: any) => e?.detail)(fn) },
 }
