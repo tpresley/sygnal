@@ -133,9 +133,13 @@ const eventYields = (schema: any) => {
 };
 
 /** every procedure of an oRPC contract router: [keys, procedure] */
-const procedures = (router: any, keys: string[] = [], out: [string[], any][] = []) => {
+const procedures = (router: any, keys: string[] = [], out: [string[], any][] = [], seen = new Set<any>()) => {
   if (isProcedure(router)) out.push([keys, router]);
-  else if (router && typeof router == 'object') Object.keys(router).forEach(k => procedures(router[k], [...keys, k], out));
+  // a router is plain nested objects: not a schema (a contract module may export those too), no cycles
+  else if (router && typeof router == 'object' && !router['~standard'] && !seen.has(router)) {
+    seen.add(router);
+    Object.keys(router).forEach(k => procedures(router[k], [...keys, k], out, seen));
+  }
   return out;
 };
 
@@ -143,29 +147,34 @@ const orpcRoute = (keys: string[], p: any) => {
   const def = p['~orpc'];
   const method = String(def.route.method || 'POST').toUpperCase();
   const path = def.route.path || '/' + keys.map(encodeURIComponent).join('/');
-  const yields = eventYields(def.outputSchema);
-  return {id: keys.join('.'), def, method, path, yields, kind: yields ? 'stream' : method == 'GET' ? 'query' : 'mutation'} as const;
+  // a manifest (a contract without its schemas, or a server function) says `stream` and `kind`
+  const yields = def.stream ? def.outputSchema || {} : eventYields(def.outputSchema);
+  const kind: 'query' | 'mutation' | 'stream' = yields ? 'stream' : def.kind || (method == 'GET' ? 'query' : 'mutation');
+  return {id: keys.join('.'), def, method, path, yields, kind};
+};
+
+/** one procedure's endpoint (a contract's, a manifest's or a server function's) */
+const orpcEndpoint = (keys: string[], p: any, options: any) => {
+  const r = orpcRoute(keys, p);
+  if (r.def.route.inputStructure === 'detailed') throw new Error(`[Sygnal] orpcClient: ${r.id} uses inputStructure: 'detailed', which sygnal/api doesn't support yet`);
+  if (r.kind == 'stream' && r.method != 'GET') throw new Error(`[Sygnal] orpcClient: ${r.id} is an event iterator: give it .route({ method: 'GET' }) so it can be read as server-sent events`);
+  if (options.validate && r.def.manifest) throw new Error(`[Sygnal] orpcClient: ${r.id} has no schemas in the client build (sygnal/vite's api.contracts replaced them): validate: true needs them, so leave that module out of api.contracts`);
+  const build = (input: any): Built => {
+    const {url, used} = fill(r.path, input, false);
+    const rest = isObj(input) ? {...input} : input;
+    if (isObj(rest)) used.forEach(n => delete rest[n]);
+    const full = join(options.prefix, url);
+    if (r.method == 'GET') return {url: full, query: isObj(rest) ? brackets(rest) : {}};
+    return {url: full, body: true, json: isObj(rest) && !Object.keys(rest).length && used.length ? undefined : rest};
+  };
+  const errors: any = {};
+  Object.keys(r.def.errorMap || {}).forEach(code => { errors[code] = {status: r.def.errorMap[code]?.status, data: r.def.errorMap[code]?.data}; });
+  return endpoint(r.id, r.kind, r.method, r.path, build, options, {output: r.yields || r.def.outputSchema, errors});
 };
 
 export function orpcClient(contract: any, options: any = {}) {
-  const make = (keys: string[], p: any) => {
-    const r = orpcRoute(keys, p);
-    if (r.def.route.inputStructure === 'detailed') throw new Error(`[Sygnal] orpcClient: ${r.id} uses inputStructure: 'detailed', which sygnal/api doesn't support yet`);
-    if (r.kind == 'stream' && r.method != 'GET') throw new Error(`[Sygnal] orpcClient: ${r.id} is an event iterator: give it .route({ method: 'GET' }) so it can be read as server-sent events`);
-    const build = (input: any): Built => {
-      const {url, used} = fill(r.path, input, false);
-      const rest = isObj(input) ? {...input} : input;
-      if (isObj(rest)) used.forEach(n => delete rest[n]);
-      const full = join(options.prefix, url);
-      if (r.method == 'GET') return {url: full, query: isObj(rest) ? brackets(rest) : {}};
-      return {url: full, body: true, json: isObj(rest) && !Object.keys(rest).length && used.length ? undefined : rest};
-    };
-    const errors: any = {};
-    Object.keys(r.def.errorMap || {}).forEach(code => { errors[code] = {status: r.def.errorMap[code]?.status, data: r.def.errorMap[code]?.data}; });
-    return endpoint(r.id, r.kind, r.method, r.path, build, options, {output: r.yields || r.def.outputSchema, errors});
-  };
   const walk = (node: any, keys: string[]): any => {
-    if (isProcedure(node)) return make(keys, node);
+    if (isProcedure(node)) return orpcEndpoint(keys, node, options);
     const out: any = {};
     Object.keys(node || {}).forEach(k => { out[k] = walk(node[k], [...keys, k]); });
     return out;
@@ -242,6 +251,8 @@ const schemaShape = (s: any, io: 'input' | 'output') => {
 };
 
 export function contractHash(contract: any): string {
+  // a manifest made at build time (sygnal/vite's api.contracts) carries its hash
+  if (contract && typeof contract['~hash'] == 'string') return contract['~hash'];
   const ps = procedures(contract);
   if (!ps.length) return cyrb53(stable(contract));
   const shape = ps.map(([keys, p]) => {
@@ -261,12 +272,14 @@ export function contractHash(contract: any): string {
 export function contractSkew(request: Request, {hash, header, require}: {hash: string; header: string; require?: boolean}): Response | undefined {
   const sent = request.headers.get(header);
   if (sent === hash || (sent === null && !require)) return undefined;
-  return new Response(JSON.stringify({
-    defined: true, code: SKEW, status: 409,
-    message: 'This client was built for another version of the API; reload to update it',
-    data: {client: sent, server: hash},
-  }), {status: 409, headers: {'content-type': 'application/json', [SKEW_HEADER]: '1', [SERVER_HASH]: hash}});
+  return skewResponse(sent, hash);
 }
+
+const skewResponse = (client: string | null, server: string | null) => new Response(JSON.stringify({
+  defined: true, code: SKEW, status: 409,
+  message: 'This client was built for another version of the API; reload to update it',
+  data: {client, server},
+}), {status: 409, headers: {'content-type': 'application/json', [SKEW_HEADER]: '1', [SERVER_HASH]: server ?? ''}});
 
 /** whether an `error` reply (FetchFailure) is a contract skew answer */
 export const isContractSkew = (failure: any) => failure?.status === 409 && failure?.body?.code === SKEW;
@@ -289,6 +302,176 @@ export function contractFetch({fetch: f, onSkew}: {fetch?: typeof fetch; onSkew?
     }
     return res;
   };
+}
+
+// ── build time: a contract without its schemas ─────────────────────────
+
+/**
+ * sygnal/vite's `api.contracts`: what a client needs of a contract (routes, kinds, error codes and
+ * statuses) and its hash, so the client bundle has no schema library. Plain JSON (`~hash` aside).
+ */
+export function contractManifest(contract: any) {
+  const count = procedures(contract).length;
+  if (!count) return {manifest: undefined, hash: '', count};
+  const walk = (node: any, keys: string[]): any => {
+    if (isProcedure(node)) {
+      const r = orpcRoute(keys, node);
+      const errorMap: any = {};
+      Object.keys(r.def.errorMap || {}).forEach(c => { errorMap[c] = {status: r.def.errorMap[c]?.status}; });
+      const route: any = {method: r.method, path: r.path};
+      if (r.def.route.inputStructure) route.inputStructure = r.def.route.inputStructure;
+      return {'~orpc': {route, kind: r.kind, stream: r.kind == 'stream', manifest: true, errorMap}};
+    }
+    const out: any = {};
+    Object.keys(node || {}).forEach(k => { if (procedures(node[k]).length) out[k] = walk(node[k], [...keys, k]); });
+    return out;
+  };
+  return {manifest: walk(contract, []), hash: contractHash(contract), count};
+}
+
+// ── function-first: *.server.ts modules ────────────────────────────────
+
+/*
+ * A `*.server.ts` file exports query(input, fn), mutation(input, fn) and stream(input, fn). Its
+ * path and export names are the contract: `src/quotes.server.ts` → `export const list` is
+ * `quotes.list`, POST /quotes/list (a stream: GET, read as server-sent events). sygnal/vite
+ * (`api: { functions: true }`) replaces the file in the client by stubs that build the requests,
+ * so nothing of it but its export names, kinds and error codes reaches the bundle; on the
+ * server, serverFunctions(import.meta.glob(...), { os }) makes the oRPC router to mount.
+ * Input is always validated (a Standard Schema, or none: then only an empty input passes), the
+ * wire is plain JSON (oRPC's OpenAPIHandler), and only module exports are functions (no closures
+ * over component scope, no ids made from a closure).
+ */
+
+const FN = '~sygnal';
+const FN_HEADER = 'x-api-functions';
+
+/** "no input": undefined, null or {} pass */
+const noInput = {'~standard': {version: 1, vendor: 'sygnal', validate: (v: any) => (v == null || (isObj(v) && !Object.keys(v).length) ? {value: undefined} : {issues: [{message: 'This function takes no input'}]})}};
+const isSchema = (s: any) => !!s && typeof s['~standard']?.validate == 'function';
+
+function serverFunction(kind: 'query' | 'mutation' | 'stream', args: any[]) {
+  let [input, fn, opts] = args;
+  if (typeof input == 'function' && !isSchema(input)) [input, fn, opts] = [undefined, input, fn];
+  const sig = `${kind}(input, fn, options)`;
+  if (input !== undefined && !isSchema(input)) throw new Error(`[Sygnal] ${sig}: input must be a Standard Schema (zod, Valibot, ArkType, ...): a server function always validates its input (leave it out to take none)`);
+  if (typeof fn != 'function') throw new Error(`[Sygnal] ${sig}: fn must be a function`);
+  if (opts?.output !== undefined && !isSchema(opts.output)) throw new Error(`[Sygnal] ${sig}: options.output must be a Standard Schema`);
+  const meta: any = {kind, input: input || noInput, output: opts?.output, errors: opts?.errors || {}, fn};
+  const call: any = (i?: any, o?: any) => {
+    if (!meta.endpoint) throw new Error(`[Sygnal] this ${kind}() has no id: import it from its *.server.ts file with sygnal/vite's \`api: { functions: true }\`, or mount it with serverFunctions()`);
+    return meta.endpoint(i, o);
+  };
+  call[FN] = meta;
+  meta.call = call;
+  return call;
+}
+
+/** A query (a POST that is a resource: tagged, invalidatable): `export const list = query(z.object({ tag: z.string() }), async ({ tag }) => ...)` */
+export const query = (...args: any[]) => serverFunction('query', args);
+/** A mutation (a POST with reply actions) */
+export const mutation = (...args: any[]) => serverFunction('mutation', args);
+/** A stream: an async generator read as server-sent events (a GET: its input comes from the query string) */
+export const stream = (...args: any[]) => serverFunction('stream', args);
+
+/** `src/admin/users.server.ts` (or `/src/...`, `../src/...`) → `admin/users` */
+export const fnNamespace = (file: string, dir = 'src') => {
+  let f = file.split('?')[0].replace(/\\/g, '/').replace(/^(\.{1,2}\/)+|^\/+/, '');
+  const d = dir.replace(/^\.?\/+|\/+$/g, '');
+  if (d && f.startsWith(d + '/')) f = f.slice(d.length + 1);
+  return f.replace(/\.server\.[cm]?[jt]sx?$/, '');
+};
+
+const fnSpec = (id: string, kind: string, errors: any, schemas?: any) => ({'~orpc': {
+  route: {method: kind == 'stream' ? 'GET' : 'POST', path: '/' + id.split('.').map(encodeURIComponent).join('/')},
+  kind, stream: kind == 'stream', manifest: !schemas, errorMap: errors,
+  inputSchema: schemas?.input, outputSchema: schemas?.output,
+}});
+
+/** each file's server functions: its namespace, its own contract tree (for the hash), [name, meta] */
+export function fnFiles(modules: Record<string, any>, dir = 'src') {
+  return Object.keys(modules).sort().map(file => {
+    const ns = fnNamespace(file, dir);
+    const keys = ns.split('/');
+    const tree: any = {};
+    let node = tree;
+    keys.forEach(k => { node = node[k] = {}; });
+    const fns: [string, any][] = [];
+    Object.keys(modules[file] || {}).forEach(name => {
+      const meta = modules[file][name]?.[FN];
+      if (!meta) return;
+      const id = [...keys, name].join('.');
+      node[name] = Object.assign(fnSpec(id, meta.kind, meta.errors, meta), {[FN]: meta});
+      fns.push([name, meta]);
+    });
+    return {file, ns, keys, tree, fns, hash: contractHash(tree)};
+  });
+}
+
+/**
+ * Generated code only (sygnal/vite): in the client, `spec` is `{ kind, errors }` and this is the
+ * stub endpoint; in server and test code it gives a module's own server function its id.
+ */
+export function __serverFunction(id: string, value: any, client: any = {}) {
+  const meta = value?.[FN];
+  if (meta) {
+    if (!meta.endpoint) {
+      meta.id = id;
+      meta.endpoint = orpcEndpoint(id.split('.'), fnSpec(id, meta.kind, meta.errors, meta), client);
+      Object.assign(value, meta.endpoint);
+    }
+    return value;
+  }
+  if (value && typeof value.kind == 'string') return orpcEndpoint(id.split('.'), fnSpec(id, value.kind, value.errors || {}), client);
+  return value;
+}
+
+const validated = async (schema: any, value: any) => {
+  const r = await schema['~standard'].validate(value);
+  if (r.issues) throw new Error(`[Sygnal] a stream event does not match its output schema: ${r.issues.map((i: any) => i.message).join('; ')}`);
+  return r.value;
+};
+
+/**
+ * On the server: the oRPC router of the `*.server.ts` modules, to mount with oRPC's
+ * OpenAPIHandler (Sygnal has no server of its own, so `os` comes from '@orpc/server'):
+ *   const fns = serverFunctions(import.meta.glob('/src/**\/*.server.ts', { eager: true }), { os })
+ *   const handler = new OpenAPIHandler(fns.router)   // prefix: the plugin's api.prefix ('/api')
+ * `fns.skew(request)` answers a request from a client built against another version of a file
+ * with 409 CONTRACT_SKEW (the `x-api-functions` header: `<file>:<hash>`).
+ */
+export function serverFunctions(modules: Record<string, any>, {os, dir = 'src', header = FN_HEADER}: {os: any; dir?: string; header?: string}) {
+  if (!os || typeof os.route != 'function') throw new Error("[Sygnal] serverFunctions(modules, { os }): pass oRPC's `os` (import { os } from '@orpc/server'); Sygnal has no server of its own");
+  const files = fnFiles(modules, dir);
+  const router: any = {};
+  const contract: any = {};
+  const hashes: Record<string, string> = {};
+  files.forEach(f => {
+    if (hashes[f.ns] !== undefined) throw new Error(`[Sygnal] serverFunctions: two modules are ${f.ns}`);
+    hashes[f.ns] = f.hash;
+    let r = router, c = contract;
+    f.keys.forEach(k => { r = r[k] ??= {}; c = c[k] ??= {}; });
+    f.fns.forEach(([name, meta]) => {
+      const id = [...f.keys, name].join('.');
+      if (r[name]) throw new Error(`[Sygnal] serverFunctions: ${id} is defined twice`);
+      __serverFunction(id, meta.call);
+      c[name] = fnSpec(id, meta.kind, meta.errors, meta);
+      let b = os.route(c[name]['~orpc'].route).input(meta.input);
+      if (Object.keys(meta.errors).length) b = b.errors(meta.errors);
+      if (meta.output && meta.kind != 'stream') b = b.output(meta.output);
+      r[name] = b.handler(meta.kind == 'stream'
+        ? async function* (o: any) { for await (const v of meta.fn(o.input, o)) yield meta.output ? await validated(meta.output, v) : v; }
+        : (o: any) => meta.fn(o.input, o));
+    });
+  });
+  const skew = (request: Request): Response | undefined => {
+    const sent = request.headers.get(header);
+    if (sent === null) return undefined;
+    const i = sent.lastIndexOf(':');
+    const server = hashes[sent.slice(0, i)];
+    return i > 0 && sent.slice(i + 1) === server ? undefined : skewResponse(sent, server === undefined ? null : sent.slice(0, i) + ':' + server);
+  };
+  return {router, contract, hashes, skew};
 }
 
 // ── test fixtures ──────────────────────────────────────────────────────

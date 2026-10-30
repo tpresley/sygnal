@@ -1,9 +1,11 @@
 // A list (a resource), an add form (a mutation with a typed error), delete buttons, and a live
-// feed (an event iterator). No URL, route or reply type is written here: they come from the contract.
+// feed (an event iterator). No URL, route or reply type is written here: they come from the contract
+// (src/contract.ts) and, for Suggest, from a function-first module (src/ideas.server.ts).
 import type { Component, Resource, FetchRequest, FetchSource, SocketSource, ActionsOf, IntentSources } from 'sygnal'
 import { isContractSkew } from 'sygnal/api'
 import type { Output, ApiFailure } from 'sygnal/api'
 import { api } from './api'
+import { suggest } from './ideas.server'
 
 type Quote = Output<typeof api.quotes.add>
 
@@ -21,12 +23,15 @@ const intent = ({ DOM }: IntentSources<State, Drivers>) => ({
   TYPE: DOM.input('.draft').value(),
   ADD: DOM.select('.add-form').events('submit', { preventDefault: true }),
   REMOVE: DOM.click('.remove').data('id', Number),
+  SUGGEST: DOM.click('.suggest'),
 })
 type Actions = ActionsOf<typeof intent> & {
   ADDED: Output<typeof api.quotes.add>
   FAILED: ApiFailure<typeof api.quotes.add>
   REMOVED: Output<typeof api.quotes.remove>
   ARRIVED: Output<typeof api.quotes.feed>
+  SUGGESTED: Output<typeof suggest>
+  NO_IDEA: ApiFailure<typeof suggest>
 }
 
 export const Quotes: Component<State, {}, Drivers, Actions> = ({ state }) => (
@@ -38,6 +43,7 @@ export const Quotes: Component<State, {}, Drivers, Actions> = ({ state }) => (
     <form className="add-form">
       <input className="draft" value={state.draft} aria-label="New quote" />
       <button type="submit">Add</button>
+      <button type="button" className="suggest">Suggest</button>
     </form>
     <p className="message" role="status">{state.message}</p>
     {state.quotes.status === 'loading' && <p className="loading">Loading…</p>}
@@ -77,5 +83,9 @@ Quotes.model = {
   }),
   REMOVE: { HTTP: (_state, id) => api.quotes.remove({ id }, { ok: 'REMOVED', invalidates: [api.quotes.list] }) },
   REMOVED: (state, { removed }) => ({ ...state, message: removed ? 'Removed' : 'Already gone' }),
+  // a function-first call (src/ideas.server.ts): the same request data as the contract's
+  SUGGEST: { HTTP: (state) => suggest({ tag: state.tag }, { ok: 'SUGGESTED', error: 'NO_IDEA' }) },
+  SUGGESTED: (state, { text }) => ({ ...state, draft: text }),
+  NO_IDEA: (state, { body }) => ({ ...state, message: body?.defined ? `${body.message}: ${body.data.tag}` : 'No suggestion' }),
   ARRIVED: (state, quote) => ({ ...state, live: [quote, ...state.live].slice(0, 5) }),
 }

@@ -181,6 +181,7 @@ import type { McpPluginOptions } from './mcp'
 import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMiddleware, printGraphUrl, stampTail } from './graph'
 import type { LiveEngine } from './graph'
 import { compileViews } from './compile'
+import { apiPlugin } from './api'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -333,6 +334,20 @@ export interface SygnalPluginOptions {
    * @default true
    */
   graph?: boolean
+
+  /**
+   * sygnal/api (dev preview): wire the app's API into the dev server and the client build.
+   * - `handler`: a module whose default export is a Fetch handler (Request → Response), served in
+   *   dev at `prefix` (default '/api'); a production server mounts the same module.
+   * - `contracts`: contract modules (oRPC) that client code gets as routes and a build-time
+   *   contractHash only, without their schemas (not under Vitest; leave a module out to validate
+   *   replies on the client).
+   * - `functions`: function-first `*.server.ts` files under `dir` (default 'src'): replaced in
+   *   client code by stubs that build the requests; `header` (default 'x-api-functions') carries
+   *   each file's contract hash. The server mounts them with `serverFunctions()` and oRPC.
+   * With `api` set, the plugin is an array.
+   */
+  api?: { handler?: string; prefix?: string; contracts?: string[]; functions?: boolean | { dir?: string; header?: string } }
 }
 
 // Virtual modules (dev server only)
@@ -609,7 +624,9 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       })
     },
   }
-  return compilePlugin ? [compilePlugin, main] : main
+  const api = options.api ? apiPlugin(options.api) : null
+  const plugins = [compilePlugin, main, api].filter(Boolean)
+  return plugins.length > 1 ? plugins : main
 
   function devTransform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
