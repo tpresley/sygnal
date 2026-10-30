@@ -34,11 +34,19 @@ export const fitText = (s: Shape): Shape => {
   return m.width == s.width && m.height == s.height ? s : {...s, width: Math.max(m.width, 4), height: m.height}
 }
 
-export const byId = (shapes: Shape[], id: string | null) => id == null ? undefined : shapes.find(s => s.id === id)
+// id → index, once per array (arrays are immutable: identity is the cache key), so lookups over a
+// 10k selection stay O(1) each
+const positions = new WeakMap<Shape[], Map<string, number>>()
+export const posOf = (shapes: Shape[]) => {
+  let m = positions.get(shapes)
+  if (!m) { m = new Map(); shapes.forEach((s, i) => m!.set(s.id, i)); positions.set(shapes, m) }
+  return m
+}
+export const byId = (shapes: Shape[], id: string | null) => id == null ? undefined : shapes[posOf(shapes).get(id) ?? -1]
 
 /** ids of a shape and everything inside it */
 export function subtree(shapes: Shape[], id: string): string[] {
-  const i = shapes.findIndex(s => s.id === id)
+  const i = posOf(shapes).get(id) ?? -1
   if (i < 0) return []
   const out = [id], set = new Set(out)
   for (let j = i + 1; j < shapes.length && shapes[j].parent != null && set.has(shapes[j].parent!); j++) out.push(shapes[j].id), set.add(shapes[j].id)
@@ -48,7 +56,8 @@ export function subtree(shapes: Shape[], id: string): string[] {
 /** the selection plus the descendants of selected frames, without duplicates */
 export function withDescendants(shapes: Shape[], ids: string[]): Set<string> {
   const out = new Set<string>()
-  for (const id of ids) for (const d of subtree(shapes, id)) out.add(d)
+  // only frames have descendants
+  for (const id of ids) if (byId(shapes, id)?.type == 'frame') { for (const d of subtree(shapes, id)) out.add(d) } else out.add(id)
   return out
 }
 
@@ -82,7 +91,7 @@ export function moveTo(shapes: Shape[], id: string, parent: string | null, index
 /** the index right after the subtree of `id` (inserting there puts something above it) */
 export const after = (shapes: Shape[], id: string) => {
   const t = subtree(shapes, id)
-  return shapes.findIndex(s => s.id === t[t.length - 1]) + 1
+  return (posOf(shapes).get(t[t.length - 1]) ?? -1) + 1
 }
 
 /** the topmost frame containing the point (world), skipping `skip` */

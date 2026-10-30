@@ -41,17 +41,17 @@ const HISTORY = 200
 /** a document edit: the old shapes go on the undo stack */
 export const commit = (s: State, shapes: Shape[], before = s.shapes): State =>
   shapes === before ? {...s, shapes} : {...s, shapes, past: [...s.past.slice(-HISTORY + 1), before], future: []}
-const live = (s: State, sel: string[]) => sel.filter(id => s.shapes.some(x => x.id === id))
+const live = (s: State, sel: string[]) => sel.filter(id => byId(s.shapes, id))
 
 export const undo = (s: State): State => {
   if (!s.past.length) return ABORT as any
   const prev = s.past[s.past.length - 1]
-  return {...s, shapes: prev, past: s.past.slice(0, -1), future: [s.shapes, ...s.future], selection: s.selection.filter(id => prev.some(x => x.id === id)), gesture: null, editing: null}
+  return {...s, shapes: prev, past: s.past.slice(0, -1), future: [s.shapes, ...s.future], selection: s.selection.filter(id => byId(prev, id)), gesture: null, editing: null}
 }
 export const redo = (s: State): State => {
   if (!s.future.length) return ABORT as any
   const next = s.future[0]
-  return {...s, shapes: next, past: [...s.past, s.shapes], future: s.future.slice(1), selection: s.selection.filter(id => next.some(x => x.id === id))}
+  return {...s, shapes: next, past: [...s.past, s.shapes], future: s.future.slice(1), selection: s.selection.filter(id => byId(next, id))}
 }
 
 // ---------------------------------------------------------------- selection geometry
@@ -255,7 +255,7 @@ export function nudge(s: State, {dx, dy}: {dx: number, dy: number}): State {
   return commit(s, patch(s.shapes, x => ({...x, x: x.x + dx, y: x.y + dy}), ids))
 }
 
-export const copy = (s: State): State => s.selection.length ? {...s, clipboard: s.shapes.filter(x => withDescendants(s.shapes, s.selection).has(x.id))} : ABORT as any
+export const copy = (s: State): State => { if (!s.selection.length) return ABORT as any; const all = withDescendants(s.shapes, s.selection); return {...s, clipboard: s.shapes.filter(x => all.has(x.id))} }
 
 function pasteShapes(s: State, src: Shape[], dx: number, dy: number): State {
   if (!src.length) return ABORT as any
@@ -270,7 +270,7 @@ function pasteShapes(s: State, src: Shape[], dx: number, dy: number): State {
   return commit({...s, seq: g.seq(), selection: newRoots}, shapes)
 }
 export const paste = (s: State) => pasteShapes(s, s.clipboard, 10, 10)
-export const duplicate = (s: State) => pasteShapes(s, s.shapes.filter(x => withDescendants(s.shapes, s.selection).has(x.id)), 10, 10)
+export const duplicate = (s: State) => { const all = withDescendants(s.shapes, s.selection); return pasteShapes(s, s.shapes.filter(x => all.has(x.id)), 10, 10) }
 export const selectAll = (s: State): State => ({...s, selection: s.shapes.filter(x => x.parent == null && !x.locked && !x.hidden).map(x => x.id)})
 export const escape = (s: State): State => s.editing ? textDone(s) : s.gesture ? {...s, shapes: s.gesture.before, gesture: null, guides: []} : s.tool != 'select' ? {...s, tool: 'select'} : {...s, selection: []}
 

@@ -244,3 +244,29 @@ describe('one Collection item per shape (?render=collection)', () => {
     t.dispose()
   })
 })
+
+describe('pointer capture (lib/canvas/router.ts, as sygnal/three defines it)', () => {
+  it('captured moves carry captured + delta; a drag sends no click; explicit mode captures on request', async () => {
+    const {Canvas: C} = await import('../lib/canvas')
+    const seen: any[] = []
+    function Probe() {
+      return <C className="pc" capture="explicit"><shapes className="doc" items={[{id: 'a', type: 'rect', x: 0, y: 0, width: 50, height: 50}]} /><rect className="grab" capture x={100} y={0} width={50} height={50} /></C>
+    }
+    Probe.intent = ({DOM}: any) => ({EV: DOM.select('.pc').events('pointermove').map((e: any) => ['move', e.target.getAttribute?.('class'), !!e.captured, e.delta?.x]),
+      CL: DOM.select('.pc').events('click').map((e: any) => ['click', e.target.getAttribute?.('class')])})
+    Probe.initialState = {}
+    Probe.model = {EV: (s: any, d: any) => (seen.push(d), s), CL: (s: any, d: any) => (seen.push(d), s)}
+    const t = renderComponent(Probe, {dom: 'real'})
+    await t.ready()
+    const c = canvasOf(t.container.querySelector('.pc'))
+    // explicit mode: the data layer isn't captured (moves follow the pointer to the background)
+    c.pointer('down', 10, 10); c.pointer('move', 200, 200); c.pointer('up', 200, 200)
+    // the element with `capture` is: its moves stay on it, with deltas; no click after a 30 px drag
+    c.pointer('down', 110, 10); c.pointer('move', 140, 10); c.pointer('up', 140, 10)
+    // a press without a drag clicks
+    c.pointer('down', 110, 10); c.pointer('up', 111, 10)
+    await t.settle()
+    expect(seen).toEqual([['move', null, false, undefined], ['move', 'grab', true, 30], ['click', 'grab']])
+    t.dispose()
+  })
+})

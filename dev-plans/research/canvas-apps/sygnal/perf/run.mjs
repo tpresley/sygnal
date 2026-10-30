@@ -6,6 +6,8 @@
  *   node perf/run.mjs --only=data           # scenarios whose name contains "data"
  *   node perf/run.mjs --runs=3 --moves=60
  *   node perf/run.mjs --react=<dir>         # also the React + react-konva baseline (its built dist/)
+ *   node perf/run.mjs --throttle=4          # CDP CPU throttling
+ *   node perf/run.mjs --zoom=1              # stress documents at 100 % (most shapes culled) instead of fitted
  *   node perf/run.mjs --max-load=12         # wait (≤ 10 min) for no other gate process and a 1-min load below this
  *
  * What it measures, per scenario (a document of n shapes, the build's own stress generator):
@@ -73,7 +75,7 @@ const builds = {
   sygnal: {
     dir: join(here, 'dist'),
     build: () => execSync('npx vite build --config vite.config.mjs --logLevel warn', {cwd: here, stdio: 'inherit'}),
-    url: (base, n, o) => `${base}?shapes=${n}&render=${o.render || 'data'}&input=${o.input || 'queue'}&repaint=${o.repaint || 'layers'}${o.zoom ? '&zoom=' + o.zoom : ''}`,
+    url: (base, n, o) => `${base}?shapes=${n}&render=${o.render || 'data'}&input=${o.input || 'queue'}&repaint=${o.repaint || 'layers'}${args.zoom ? '&zoom=' + args.zoom : ''}`,
     // ready: the canvas painted the document; returns [first paint ms, shape 0's centre in page px]
     ready: async page => {
       await page.waitForFunction(() => { const i = document.querySelector('.board')?.__sw?.i; return i && i.st.first > 0 }, null, {timeout: 120_000})
@@ -110,6 +112,8 @@ async function measure(browser, base, b, n, o) {
   const page = await ctx.newPage()
   const cdp = await ctx.newCDPSession(page)
   await cdp.send('Performance.enable')
+  // --throttle=4: CDP CPU throttling (a mid-range laptop's main thread, roughly)
+  if (args.throttle) await cdp.send('Emulation.setCPUThrottlingRate', {rate: +args.throttle})
   await page.goto(b.url(base, n, o))
   const at = await b.ready(page)
   await page.waitForTimeout(300)
@@ -173,7 +177,7 @@ for (const b of used) servers[b] = await serve(builds[b].dir)
 // a browser per run, launched after the wait (another session's gate may stop stray browsers)
 const probe = await chromium.launch({headless: true}), version = probe.version()
 await probe.close()
-const out = {date: new Date().toISOString(), moves: MOVES, runs: RUNS, chromium: version, cpus: os.cpus().length, results: []}
+const out = {date: new Date().toISOString(), throttle: +(args.throttle || 1), moves: MOVES, runs: RUNS, chromium: version, cpus: os.cpus().length, results: []}
 console.log(`Chromium ${version}, ${MOVES} moves, ${RUNS} run(s); load ${os.loadavg().map(x => x.toFixed(1)).join(' ')}`)
 console.log('scenario'.padEnd(26) + 'startup  heapMB   dom  main/move script/move  frame p50/p95/max   paint  load')
 for (const s of todo) {

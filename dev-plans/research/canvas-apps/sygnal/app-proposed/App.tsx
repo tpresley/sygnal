@@ -29,7 +29,6 @@ function overlay(s: State) {
   const box = M.selectionBox(s)
   if (box && !s.editing) {
     // each selected shape's own outline when several are selected
-    if (s.selection.length > 1) for (const id of s.selection) { const sh = byId(s.shapes, id); if (sh) out.push(<rect className="sel-outline" space="screen" {...screenBox(sh)} fill="none" stroke={BLUE} strokeWidth={1} pointerEvents="none" />) }
     out.push(...handles(box, cam, {grips: !(s.gesture?.kind == 'move' && s.gesture.moved)}))
   }
   return out
@@ -108,6 +107,8 @@ export function App({state: s}: {state: State & {rows: M.Row[]}}) {
       <main className={'stage tool-' + s.tool}>
         <Canvas className="board" camera={s.camera} grid>
           <shapes className="doc" items={s.shapes} active={active} />
+          {/* each selected shape's own outline when several are selected: an outline layer (data, never hit) */}
+          {s.selection.length > 1 && !s.editing && <shapes className="sel-outlines" items={s.selection.map(id => byId(s.shapes, id)).filter(Boolean)} outline={BLUE} />}
           {overlay(s)}
         </Canvas>
         {editor}

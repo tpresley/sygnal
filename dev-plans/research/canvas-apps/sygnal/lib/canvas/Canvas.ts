@@ -46,7 +46,7 @@ const NODE = /^(rect|ellipse|text|line|path|frame)$/
 const OWN = /^(className|class|key|style|role|tabIndex|title|ref|hook|attrs|data|space)$|^(aria|data)-/
 const textOf = (v: any): string => v.text != null ? String(v.text) : (v.children || []).map(textOf).join('')
 
-type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>}
+type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>, outline?: string}
 type Live = {el: any, node: Node, screen: boolean}
 
 // one node object per vnode: an unchanged child (a Collection item that didn't re-render keeps its
@@ -74,7 +74,7 @@ export function readChildren(container: any) {
       if (!v?.sel) continue
       const tag = tagOf(v.sel), d = v.data || {}, p = {...d.attrs, ...d.props}
       if (p.display == 'none') continue
-      if (tag == 'shapes') { layers.push({el: v.elm, items: d.props?.items || [], active: p.active?.length ? new Set(p.active) : null}); jsx = null; continue }
+      if (tag == 'shapes') { layers.push({el: v.elm, items: d.props?.items || [], active: p.active?.length ? new Set(p.active) : null, outline: p.outline}); jsx = null; continue }
       const sc = p.space ? p.space == 'screen' : screen
       if (NODE.test(tag)) {
         const node = nodeOf(v, tag, p)
@@ -93,6 +93,22 @@ export function readChildren(container: any) {
 
 const headless = (el: any) => typeof navigator == 'undefined' || /jsdom/i.test(navigator.userAgent) || !el.ownerDocument?.defaultView?.CanvasRenderingContext2D
 const sameCam = (a: Camera, b: Camera) => a.x == b.x && a.y == b.y && a.zoom == b.zoom
+// an outline layer paints every node's outline (1 screen px) and is never hit
+const ALL = new Set<any>()
+const outlined = (n: Node, color: string): Node => ({...n, type: n.type == 'ellipse' ? 'ellipse' : 'rect', fill: 'none', stroke: color, strokeWidth: 1, dash: null, opacity: 1, rotation: n.rotation})
+const BLIT_MIN = 64
+const NONE: Node[] = []
+/** [dx, dy] when every node of b is the same node of a moved by one (dx, dy), else null */
+function translation(a: Node[], b: Node[]): [number, number] | null {
+  const dx = b[0].x - a[0].x, dy = b[0].y - a[0].y
+  for (let i = 0; i < a.length; i++) {
+    const p = a[i], q = b[i]
+    if (p === q) { if (dx || dy) return null; continue }
+    if (q.x - p.x !== dx || q.y - p.y !== dy) return null
+    for (const k in q) if (k != 'x' && k != 'y' && q[k] !== p[k]) return null
+  }
+  return [dx, dy]
+}
 const TYPING = /^(INPUT|TEXTAREA|SELECT)$/
 
 export const Canvas = defineWidget({
@@ -136,7 +152,7 @@ export const Canvas = defineWidget({
       if (!ctx) return
       const t0 = performance.now(), cam = inst.camera, view = viewport(cam, w, h)
       const mode = inst.props.repaint || 'layers'
-      const stat = {nodes: 0, culled: 0, ms: 0}
+      const stat: any = {nodes: 0, culled: 0, ms: 0}
       const fd = followDelta(), fids = fd && inst.follow?.ids?.length ? new Set(inst.follow.ids) : null
       const bg = () => {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -146,9 +162,9 @@ export const Canvas = defineWidget({
         if (inst.props.grid && cam.zoom >= 4) grid(ctx, cam, w, h)
       }
       // the active (or following) nodes of each layer, painted live
-      const skips = inst.layers.map((l: Layer) => fids ? new Set([...(l.active || []), ...fids]) : l.active)
+      const skips = inst.layers.map((l: Layer) => l.outline ? ALL : fids ? new Set([...(l.active || []), ...fids]) : l.active)
       if (mode == 'layers') {
-        const key = {cam, w, h, layers: inst.layers.map((l: Layer, i: number) => ({items: l.items, skip: skips[i]}))}
+        const key = {cam, w, h, layers: inst.layers.map((l: Layer, i: number) => skips[i] === ALL ? {items: NONE, skip: ALL} : {items: l.items, skip: skips[i]})}
         if (!staticCanvas) { staticCanvas = doc.createElement('canvas') }
         if (!reusable(staticKey, key)) {
           staticCanvas.width = canvas.width; staticCanvas.height = canvas.height
@@ -158,22 +174,28 @@ export const Canvas = defineWidget({
           sc.fillStyle = inst.props.background || '#f5f5f5'
           sc.fillRect(0, 0, w, h)
           if (inst.props.grid && cam.zoom >= 4) grid(sc, cam, w, h)
-          inst.layers.forEach((l: Layer, i: number) => paintWorld(sc, l.items, cam, dpr, view, skips[i], stat))
+          inst.layers.forEach((l: Layer, i: number) => skips[i] !== ALL && paintWorld(sc, l.items, cam, dpr, view, skips[i], stat))
           staticKey = key
         } else st.cached++
         ctx.setTransform(1, 0, 0, 1, 0, 0)
         ctx.globalAlpha = 1
         ctx.drawImage(staticCanvas, 0, 0)
-        // the live layer: active nodes in their layer's order
+        // the live layer: active nodes in their layer's order, outline layers whole
         inst.layers.forEach((l: Layer, i: number) => {
           const sk = skips[i]
           if (!sk) return
-          const act = l.items.filter(n => sk.has(n.id))
-          paintWorld(ctx, fids && fd ? act.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n) : act, cam, dpr, view, null, stat)
+          let act = sk === ALL ? l.items : l.items.filter(n => sk.has(n.id))
+          if (fids && fd) act = act.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n)
+          if (l.outline) act = act.map(n => outlined(n, l.outline!))
+          if (!blit(i, act, cam, stat)) paintWorld(ctx, act, cam, dpr, view, null, stat)
         })
       } else {
         bg()
-        inst.layers.forEach((l: Layer) => paintWorld(ctx, fids && fd ? l.items.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n) : l.items, cam, dpr, view, null, stat))
+        inst.layers.forEach((l: Layer) => {
+          let items = fids && fd ? l.items.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n) : l.items
+          if (l.outline) items = items.map(n => outlined(n, l.outline!))
+          paintWorld(ctx, items, cam, dpr, view, null, stat)
+        })
       }
       // screen-space JSX nodes (handles, guides) on top, in canvas pixels
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -181,8 +203,30 @@ export const Canvas = defineWidget({
       ctx.globalAlpha = 1
       // the first paint with content (benchmarks: startup)
       if (!st.first && stat.nodes) st.first = performance.now()
-      st.paints++; st.nodes = stat.nodes; st.culled = stat.culled; st.ms = performance.now() - t0
+      st.paints++; st.nodes = stat.nodes; st.culled = stat.culled; st.blits = stat.blits || 0; st.ms = performance.now() - t0
       inst.props.onPaint?.(st)
+    }
+    // the live layer's moving nodes as a bitmap: a big set that only translated since it was painted
+    // (every node the same dx, dy, nothing else changed: a drag) is one drawImage, not a repaint.
+    // The bitmap is the canvas plus a half-canvas margin on each side, so what moves in is there.
+    const blits: any[] = []
+    const blit = (i: number, act: Node[], cam: Camera, stat: any) => {
+      if (act.length < BLIT_MIN) return false
+      let c = blits[i]
+      const z = cam.zoom, mx = w / 2, my = h / 2
+      let d = c && sameCam(c.cam, cam) && c.nodes.length == act.length ? translation(c.nodes, act) : null
+      if (d && (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my)) d = null
+      if (!d) {
+        c = blits[i] = c || {bmp: doc.createElement('canvas')}
+        c.bmp.width = Math.round(w * 2 * dpr); c.bmp.height = Math.round(h * 2 * dpr)
+        const bc = c.bmp.getContext('2d'), wide = {...cam, x: cam.x - mx / z, y: cam.y - my / z}
+        paintWorld(bc, act, wide, dpr, viewport(wide, w * 2, h * 2), null, stat)
+        c.nodes = act; c.cam = cam; d = [0, 0]
+      } else stat.blits = (stat.blits || 0) + 1
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.globalAlpha = 1
+      ctx.drawImage(c.bmp, Math.round((d[0] * z - mx) * dpr), Math.round((d[1] * z - my) * dpr))
+      return true
     }
     inst.paintNow = () => { if (pending) caf?.(pending), pending = 0; draw() }
 
@@ -200,12 +244,12 @@ export const Canvas = defineWidget({
         if (hitNodes([node], screen, 2)) return {el: e, hit: null, node, world, screen}
       }
       for (let i = inst.layers.length - 1; i >= 0; i--) {
-        const l = inst.layers[i], n = hitNodes(l.items, world, slop)
+        const l = inst.layers[i], n = l.outline ? null : hitNodes(l.items, world, slop)
         if (n) return {el: l.els ? l.els.get(n.id ?? n) : l.el, hit: n.id ?? null, node: n, world, screen}
       }
       return {el: el.firstChild, hit: null, node: null, world, screen}
     }
-    const router = inst.router = captureRouter(pick, el.firstChild, at)
+    const router = inst.router = captureRouter(pick, el.firstChild, at, () => inst.props.capture == 'explicit' ? 'explicit' : 'all')
     inst.pointer = (kind: string, x: number, y: number, init?: any) => {
       st.events++
       // following (the transient channel): the canvas paints the drag; the app hears only the up
