@@ -404,3 +404,19 @@ memory, the core caught it (SYG216) and the sandbox lives on inside its limit.
    Otherwise stay on stock `@jitl/*` packages.
 7. **Default tier.** In-thread (sync events, accidents only) for generated code and the worker
    for everything else, or the worker everywhere and accept async events?
+
+
+---
+
+## Maintainer decisions (2026-10-30)
+
+Reviewed on the research decisions page. Unless a line says otherwise, the recommendation was approved as written.
+
+- Q1 kernel: `sygnal/vite` builds it from the app's installed packages, and `buildSandboxKernel()` covers non-Vite apps. Not shipped prebuilt.
+- Q2 generated code in `sygnal/ai`: **changed.** Spike a `compose` part kind for generated components now, and include it if it works well. The fallback is the recommendation: an opt-in `render_component` client tool for chat cards only, with errors returned for a repair turn.
+- Q3: `<Sandboxed>` requires `emits: { TYPE: schema }` (Standard Schema). Undeclared or invalid events are dropped, with a dev warning.
+- Q4: keep guest class names by default, with a prefix option. No guest stylesheets for now.
+- Q5: focus is a capability scoped to the box, off by default, and only effective while focus is already inside it.
+- Q6: no custom QuickJS build. Stay on the stock `@jitl/*` packages.
+- Q7: the default tier is the Worker (`isolation: 'worker'`). In-page is an opt-in, documented as being for model-written code, not hostile code.
+- §6 findings: all approved for fixing. Host `preventDefault` (together with web-worker Q-WW-2), host delegation indexed by event type, a dev diagnostic for a root without `initialState`, a verified `sideEffects` allowlist, and spreads instead of `Object.assign` on untrusted data.

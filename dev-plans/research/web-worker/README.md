@@ -272,3 +272,16 @@ Technical, for whoever builds it:
 - **Q-WW-8. Devtools relay and HMR**: the devtools hook layer through the bridge's channel, and `getState()` carried across a worker reload.
 - **Q-WW-9. A dirty-node list in `sygnal/host`** (a `Set` of changed nodes since the last read) would make the flush O(changes) instead of O(children of each dirty parent). Today a one-row change in a 10,000-row list compares 10,000 child ids, about 0.1 ms each flush (§4.2). It only matters for very large lists.
 - **Not recommended:** Partytown-style synchronous access through `Atomics.wait`. It needs cross-origin isolation (COOP/COEP headers, which break many third-party embeds), it blocks the worker on every read, and it doesn't fix `preventDefault` either: the page's dispatch can't wait for the worker.
+
+
+---
+
+## Maintainer decisions (2026-10-30)
+
+Reviewed on the research decisions page. Unless a line says otherwise, the recommendation was approved as written.
+
+- Q-WW-1: ship `sygnal/worker` + `sygnal/worker/page` as experimental, with the docs page "Running off the main thread".
+- Q-WW-2: declarative `preventDefault` (`true` or an object pattern) in `sygnal/host`. This also fixes sandbox §6.1.
+- Q-WW-3, 4, 7: in the first version (hold submit until the last edit arrives, keep the cursor, coalesce events per frame).
+- Q-WW-5, 6, 8: follow-ups after the preview. Their limitations must be documented on the docs page (no `sygnal/ui` dialogs or popovers, widgets, devtools or HMR in a worker app yet).
+- Q-WW-9: not now.

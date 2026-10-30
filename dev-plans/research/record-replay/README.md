@@ -437,3 +437,19 @@ files are imported as they are (fixtures wrap them without changes).
 | `spike/replay.test.jsx` | the 11 tests: replays, divergences, generators, redaction |
 | `spike/measure.test.jsx` | §8 (opt-in) |
 | `spike/generated/` | committed recordings, the generated replay tests (run in the suite), the Copy as test output, a divergence report |
+
+
+---
+
+## Maintainer decisions (2026-10-30)
+
+Reviewed on the research decisions page. Unless a line says otherwise, the recommendation was approved as written.
+
+- Q1 `filterAction` / `onAction` returning `false`: **changed, add it now.** Bytes were the main reason to wait, and the maintainer accepts the bytes.
+- Q2 `onDispatch` at enqueue time: **changed, add it now.** Getting the DOM event there needs the browser and host DOM drivers to expose the event they're delivering (not `globalThis.event`, which workers and host targets don't have). That is design work, not a reason to wait.
+- Q3: `setState` goes through `onAction` as a `'setState'` cause, as long as it fits within the size budget.
+- Q4 explicit entropy: recommendation (no new canonical form; dev-only patching; a non-strict sygnal-check hint for `Date.now()` / `Math.random()` in reducers) pending the maintainer's confirmation after an explanation.
+- Q5: a new `sygnal/replay` subpath, with `replay()` on the testing entry.
+- Q6: checkpoints after each patch.
+- Q7: `dropNoops` on by default, with an option to keep them.
+- Q8: recordings carry the Sygnal version and the component and action names. A mismatch warns, and the recording still replays.

@@ -224,3 +224,19 @@ Reading: bytes per op are 1–2 orders of magnitude below sending the slice and 
 - Replicache maintenance mode / Zero building on it: https://forums.basehub.com/rocicorp/mono/1, https://zero.rocicorp.dev
 - Productlane's move from Replicache to Zero (April 2026): https://feedback.clerk.com/blog/zero-migration
 - Versions from the npm registry on 2026-10-30: yjs 13.6.33 (beta 14.0.0-16), loro-crdt 1.17.1, @automerge/automerge 3.5.0, @liveblocks/yjs 3.24.5, valtio-yjs 0.7.0, @syncedstore/core 0.6.0 (last published 2023), fractional-indexing 4.0.0
+
+
+---
+
+## Maintainer decisions (2026-10-30)
+
+Reviewed on the research decisions page. Unless a line says otherwise, the recommendation was approved as written.
+
+- Q1 shape: infer by default, an optional `shape` option, and a dev warning when inference meets an ambiguous empty array.
+- Q2: only `uses: { key: shared() }`. No component static.
+- Q3 seeding: `whenSynced` by default, `ifEmpty` for local-only documents.
+- Q4: `undo()` on a shared key is a dev diagnostic (new SYG code) pointing to the driver's per-user undo command. No automatic rerouting.
+- Q5: keep the `*.LOCAL` action and hide `*.LOCAL` / `*.REMOTE` in devtools. No core hook.
+- Q6 SYG127: a behavior marker (`ownsState: false`) that sygnal-check reads from the factory.
+- Q7: Loro is the second backend, later (P4), not in the next preview.
+- Q8: no server-authoritative spike now. Leave it to `$sync` + `sygnal/api`.
