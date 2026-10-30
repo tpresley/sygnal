@@ -70,7 +70,7 @@ export async function canvasTests7_2() {
   const setup = async () => {
     const { id, el } = mountOnScreen()
     const app = run(Editor, {}, { mountPoint: id })
-    await waitFor(() => el.querySelector('.board canvas'), 4000)
+    await waitFor(() => el.querySelector('.board canvas.sygnal-canvas'), 4000)
     await wait(30)
     const c = canvasOf(el.querySelector('.board'))
     const r = () => c.canvas.getBoundingClientRect()
@@ -140,8 +140,8 @@ export async function canvasTests7_2() {
   await runTest(CAT, 'text editing: a double-click opens the textarea (focused by ELEMENT, not stolen by the press); typing edits the node', async () => {
     const { id, at, out, el, done } = await setup()
     try {
-      const [x, y] = at(230, 55), b = el.querySelector('.board canvas').getBoundingClientRect()
-      await window.__pw('dblclick', `${id} .board canvas`, { position: { x: x - b.x, y: y - b.y } })
+      const [x, y] = at(230, 55), b = el.querySelector('.board canvas.sygnal-canvas').getBoundingClientRect()
+      await window.__pw('dblclick', `${id} .board canvas.sygnal-canvas`, { position: { x: x - b.x, y: y - b.y } })
       await waitFor(() => el.querySelector('.text-edit'), 2000)
       await waitFor(() => document.activeElement === el.querySelector('.text-edit'), 2000).catch(() => { throw new Error('focus: ' + document.activeElement?.outerHTML?.slice(0, 80)) })
       await window.__pw('press', `${id} .text-edit`, 'End')
