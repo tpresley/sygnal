@@ -196,6 +196,10 @@ export async function compileCard(code) {
 
 Sucrase, Babel or the TypeScript compiler (`jsx: 'react'`, `jsxFactory: '__h'`, `module: 'commonjs'`) work the same way.
 
+## Model-generated parts (experimental)
+
+`generatedRuntime({ kernel, compile })` is the runtime of parts a model writes for [`compose`](/guide/ai-compose/#generated-parts-experimental): it compiles the model's module (`sucraseCompiler(() => import('sucrase'))`, with sucrase as your app's own dependency), checks it before it mounts, and runs it in a box whose failures (`compile`, `check`, `runtime`, `empty`, and the sandbox's own) and dropped events (`sandboxreject`, with `onReject` on `createSandbox`) are what a repair loop needs. It is experimental and outside semver; the guide has the API.
+
 ## Without Vite
 
 `buildSandboxKernel()` from `sygnal/sandbox/build` builds the same kernel string in Node with the project's Vite, esbuild or Rollup (`bundler: 'auto'` picks the first one installed). Build it once, at build time or at server start, and serve it to the page as a string:

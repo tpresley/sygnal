@@ -48,7 +48,8 @@ function param(part: string, name: string, p: any): Param {
     if (p.default !== undefined && typeof p.default != 'number') fail(`${where}: the default is not a number`)
     return {kind: 'number', min: p.min, max: p.max, default: p.default, bins: p.bins, label: p.label}
   }
-  if (p.type == 'text') return {kind: 'text', maxLength: p.maxLength, default: p.default, required: !!p.required, label: p.label}
+  // format: 'code' (a generated part's source): printed as code, not as "short text"; asked_for ignores its length
+  if (p.type == 'text') return {kind: 'text', maxLength: p.maxLength, default: p.default, required: !!p.required, label: p.label, ...(p.format == 'code' && {format: 'code' as const})}
   if (p.type == 'list') return {kind: 'list', items: p.items, min: p.min, max: p.max, required: !!p.required, default: p.default, label: p.label}
   return fail(`${where} needs \`options\`, \`from\`, or \`type: 'number' | 'text' | 'list'\``)
 }

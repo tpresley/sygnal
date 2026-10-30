@@ -42,6 +42,8 @@ export interface SandboxOptions {
   /** the EVENTS types the page accepts, each with a Standard Schema for its data */
   emits?: Record<string, StandardSchemaLike>
   onEmit?: (ev: {type: string; data: any}) => void
+  /** an event the page dropped (not declared, invalid data, a schema that threw): what a repair loop hears */
+  onReject?: (r: SandboxReject) => void
   onError?: (e: SandboxError) => void
   /** the guest's `PROPS` source (JSON) */
   props?: any
@@ -56,6 +58,14 @@ export interface SandboxOptions {
   preventKeys?: string[]
   /** worker: the .wasm bytes or module, posted to the worker */
   wasm?: ArrayBuffer | Uint8Array | WebAssembly.Module
+}
+
+/** an event the page dropped: `undeclared` (no such type in emits), `invalid` (its schema's issues), `threw`, or `none` (no emits) */
+export interface SandboxReject {
+  type: string
+  reason: 'undeclared' | 'invalid' | 'threw' | 'none'
+  issues: Array<{path: Array<string | number>; message: string}>
+  declared: string[]
 }
 
 export interface StandardSchemaLike {
@@ -82,25 +92,31 @@ const diag = (code: string, message: string, fix: string, data?: any) => {
 }
 
 /** the page's gate for the guest's EVENTS: declared types only, data through the type's schema, in order */
-export function emitGate(emits: Record<string, StandardSchemaLike> | undefined, deliver: (ev: {type: string; data: any}) => void) {
+export function emitGate(emits: Record<string, StandardSchemaLike> | undefined, deliver: (ev: {type: string; data: any}) => void, reject?: (r: SandboxReject) => void) {
   let chain: Promise<void> | null = null, warnedNone = false
-  const drop = (type: string, why: string, data?: any) => diag('SYG692', `sygnal/sandbox: dropped the guest's '${type}' event: ${why}`,
-    "Declare each event type the page accepts in emits, with a Standard Schema for its data: emits={{ ANSWER: schema }}", data)
+  const declared = emits ? Object.keys(emits) : []
+  const drop = (type: string, reason: SandboxReject['reason'], why: string, issues?: any) => {
+    diag('SYG692', `sygnal/sandbox: dropped the guest's '${type}' event: ${why}`,
+      "Declare each event type the page accepts in emits, with a Standard Schema for its data: emits={{ ANSWER: schema }}", issues)
+    reject?.({type, reason, declared, issues: Array.isArray(issues)
+      ? issues.map((i: any) => ({path: (i?.path || []).map((p: any) => (p && typeof p == 'object' ? p.key : p)), message: String(i?.message ?? i)}))
+      : []})
+  }
   const check = (ev: {type: string; data: any}): {type: string; data: any} | null | Promise<{type: string; data: any} | null> => {
     if (!emits) {
-      if (!warnedNone) { warnedNone = true; drop(ev.type, 'no emits declared') }
+      if (!warnedNone) { warnedNone = true; drop(ev.type, 'none', 'no emits declared') }
       return null
     }
     const schema = Object.prototype.hasOwnProperty.call(emits, ev.type) ? emits[ev.type] : undefined
-    if (!schema) { drop(ev.type, 'not declared in emits'); return null }
+    if (!schema) { drop(ev.type, 'undeclared', 'not declared in emits'); return null }
     const done = (r: any) => {
-      if (r && r.issues) { drop(ev.type, 'invalid data: ' + r.issues.map((i: any) => i.message).join('; '), r.issues); return null }
+      if (r && r.issues) { drop(ev.type, 'invalid', 'invalid data: ' + r.issues.map((i: any) => i.message).join('; '), r.issues); return null }
       return {type: ev.type, data: r ? r.value : undefined}
     }
     try {
       const r = schema['~standard'].validate(ev.data)
-      return r && typeof (r as any).then == 'function' ? (r as Promise<any>).then(done, (e) => { drop(ev.type, 'its schema threw: ' + (e?.message || e)); return null }) : done(r)
-    } catch (e: any) { drop(ev.type, 'its schema threw: ' + (e?.message || e)); return null }
+      return r && typeof (r as any).then == 'function' ? (r as Promise<any>).then(done, (e) => { drop(ev.type, 'threw', 'its schema threw: ' + (e?.message || e)); return null }) : done(r)
+    } catch (e: any) { drop(ev.type, 'threw', 'its schema threw: ' + (e?.message || e)); return null }
   }
   return (ev: {type: string; data: any}) => {
     if (!ev || typeof ev.type != 'string') return
@@ -122,7 +138,7 @@ export function createSandbox(opts: SandboxOptions): Sandbox {
   const limits = limitsOf(opts.limits)
   if (!opts.container || typeof (opts.container as any).appendChild != 'function') throw new TypeError('sygnal/sandbox: `container` must be an element (renderToHTML renders without one)')
   const caps = opts.capabilities || {}
-  const gate = emitGate(opts.emits, (ev) => opts.onEmit?.(ev))
+  const gate = emitGate(opts.emits, (ev) => opts.onEmit?.(ev), opts.onReject && ((r) => opts.onReject!(r)))
   let dead = false, failure: SandboxError | null = null
   const onError = (e: SandboxError) => {
     if (dead) return

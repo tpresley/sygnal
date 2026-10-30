@@ -107,6 +107,7 @@ G.__sandbox = {
     if (typeof App != 'function') throw new Error('sandbox: the source exports no component')
     // a root without state never renders (SYG204); generated code often has none
     if (App.initialState === undefined) App.initialState = {}
+    wiringCheck(App)
     app = run(App, {
       DOM: makeHostDriver(doc, {onError: (e: any) => console.error('patch', String(e?.message || e))}),
       EVENTS: eventsDriver,
@@ -116,6 +117,25 @@ G.__sandbox = {
     return 1
   },
   dispose() { app && app.dispose() },
+}
+
+// sygnal-check's SYG101 at boot, on the actions the intent really returns: an action with no model
+// entry does nothing and throws nothing (the core's own check is in the dev build only). Model-written
+// code gets this wrong silently, so the kernel says so; a page may treat the line as a failure
+// (compose.generated does). Behavior actions ('page.COMPOSE') belong to `uses`: not checked.
+function wiringCheck(App: any) {
+  const intent = App.intent, model = App.model
+  if (typeof intent != 'function' || (model != null && typeof model != 'object')) return
+  App.intent = function (this: any, ...args: any[]) {
+    const out = intent.apply(this, args)
+    if (out && typeof out == 'object') {
+      for (const k of Object.keys(out)) {
+        if (k.includes('.') || (model && Object.prototype.hasOwnProperty.call(model, k))) continue
+        console.warn(`[Sygnal SYG101] intent action '${k}' has no model entry, so it never does anything; add '${k}' to model or remove it from intent`)
+      }
+    }
+    return out
+  }
 }
 
 // --- drivers -------------------------------------------------------------------------------------

@@ -122,6 +122,8 @@ export interface SandboxOptions<E extends Record<string, StandardSchemaLike<any>
   /** the guest's EVENTS the page accepts, each with a Standard Schema; others are dropped (SYG692 in dev) */
   emits?: E
   onEmit?: (ev: SandboxEvent<E>) => void
+  /** an event the page dropped (not declared, invalid data, a schema that threw, no emits) */
+  onReject?: (r: SandboxReject) => void
   /** the sandbox was killed (it leaves no DOM behind) */
   onError?: (e: SandboxError) => void
   /** the guest's `PROPS` source (JSON) */
@@ -176,8 +178,17 @@ export const Sandboxed: Widget<SandboxedProps, unknown, 'emit' | 'sandboxerror'>
 /** A `<Sandboxed>` tag with props preset (`kernel`, `worker`, `limits`, `capabilities`, …) */
 export function sandboxed(defaults: Partial<SandboxedProps>): Widget<Partial<Omit<SandboxedProps, 'emits'>> & { emits: Record<string, StandardSchemaLike<any>> }, unknown, 'emit' | 'sandboxerror'>
 
-/** The page's gate for a guest's EVENTS (createSandbox uses it): declared types, valid data, in order */
-export function emitGate(emits: Record<string, StandardSchemaLike<any>> | undefined, deliver: (ev: { type: string; data: unknown }) => void): (ev: { type: string; data: unknown }) => void
+/** An event the page dropped: `undeclared` (not in emits), `invalid` (its schema's issues), `threw` (its schema threw), `none` (no emits) */
+export interface SandboxReject {
+  type: string
+  reason: 'undeclared' | 'invalid' | 'threw' | 'none'
+  issues: Array<{ path: Array<string | number>; message: string }>
+  /** the types emits declares */
+  declared: string[]
+}
+
+/** The page's gate for a guest's EVENTS (createSandbox uses it): declared types, valid data, in order; `reject` hears the dropped ones */
+export function emitGate(emits: Record<string, StandardSchemaLike<any>> | undefined, deliver: (ev: { type: string; data: unknown }) => void, reject?: (r: SandboxReject) => void): (ev: { type: string; data: unknown }) => void
 
 /** A QuickJS module (quickjs-emscripten-core's QuickJSWASMModule) */
 export type QuickJSModule = { newRuntime(...args: any[]): any } & Record<string, any>
@@ -218,3 +229,71 @@ export function sanitize(tag: string, node: unknown, prefix: string, policy: San
 
 /** The protocol version between the page and the kernel (internal; a kernel of another version is refused) */
 export const PROTOCOL: number
+
+// ---- generated parts (experimental, outside semver) ---------------------------------------------
+// The runtime of model-written parts for sygnal/ai's compose.generated(). Research:
+// dev-plans/research/compose-sandbox. Guide: https://sygnal.js.org/guide/ai-compose/#generated-parts-experimental
+
+/** Why a generated part failed: the check before mount, the box's own checks, or the sandbox killed it */
+export type GeneratedFailure = 'compile' | 'check' | 'runtime' | 'empty' | SandboxReason
+
+export interface GeneratedRuntimeOptions {
+  /** the guest kernel: `import kernel from 'sygnal/sandbox/kernel?raw'` (sygnal/vite), or buildSandboxKernel() */
+  kernel: string
+  /** an ES module with JSX → the CommonJS the kernel runs (JSX to `__h` / `__frag`): sucraseCompiler(load), or your own */
+  compile: (code: string) => string | Promise<string>
+  /** more checks before mount (e.g. sygnal-check where it can run): each message (`line N: …`) fails the part with 'compile' */
+  check?: (code: string) => string[] | Promise<string[]>
+  /** worker: makes the Worker (default: the script shipped as 'sygnal/sandbox/worker') */
+  worker?: () => SandboxWorker | Promise<SandboxWorker>
+  /** the .wasm bytes or module */
+  wasm?: ArrayBuffer | Uint8Array | WebAssembly.Module
+  /** thread: one QuickJS module (default: a fresh capped instance per part) */
+  quickjs?: QuickJSModule
+  /** over GENERATED_LIMITS */
+  limits?: Partial<SandboxLimits>
+  /** the guest's console lines */
+  log?: (level: string, text: string) => void
+}
+
+/** The props of a generated runtime's Box (compose.generated renders it; your own host can too) */
+export interface GeneratedBoxProps {
+  /** the model's source: an ES module with JSX; a new value replaces the box in the same element */
+  code: string
+  /** required: `{ TYPE: StandardSchema }` for every event the code may send */
+  emits: Record<string, StandardSchemaLike<any>>
+  /** the code's PROPS (JSON); sent again only when its JSON changed */
+  input?: unknown
+  /** default 'worker' */
+  isolation?: 'worker' | 'thread'
+  /** characters; longer code fails with 'compile' */
+  maxCode?: number
+  limits?: Partial<SandboxLimits>
+  policy?: Partial<SandboxPolicy>
+  /** none by default */
+  capabilities?: SandboxCapabilities
+  /** the check before mount (default true) */
+  checks?: boolean
+}
+
+export interface GeneratedRuntime {
+  /**
+   * A widget tag. Its DOM events: `emit` `{ type, data }` (validated), `sandboxready` `{ tier, readyMs, bootMs }`,
+   * `sandboxerror` `{ reason: GeneratedFailure, message }`, `sandboxreject` (SandboxReject)
+   */
+  readonly Box: Widget<GeneratedBoxProps, unknown, 'emit' | 'sandboxready' | 'sandboxerror' | 'sandboxreject'>
+  /** compile and check (the Box calls this): the CommonJS source, or the error a repair turn reads */
+  compile(code: string, checks?: boolean): Promise<{ ok: true; source: string } | { ok: false; error: string }>
+  readonly limits: Readonly<SandboxLimits>
+  readonly stats: { mounted: number; live: number; compiles: number; compileMs: number }
+  readonly kernel: string
+}
+
+/** EXPERIMENTAL (outside semver): the runtime of model-generated parts (compose.generated's first argument) */
+export function generatedRuntime(options: GeneratedRuntimeOptions): GeneratedRuntime
+/** A `compile` on sucrase, the app's own dependency: `sucraseCompiler(() => import('sucrase'))` loads it with the first part */
+export function sucraseCompiler(load: unknown | (() => Promise<unknown>)): (code: string) => Promise<string>
+/** The page's parser-free check before mount: JSX event handlers (`onClick={…}`, dropped in a Sygnal view), as `line N: …` messages */
+export function lintGenerated(code: string): string[]
+/** A generated part's limits: heap 16 MB, instance 48 MB, stack 256 KB, boot 500 ms, 50 ms per event, worker watchdog 1 s */
+export const GENERATED_LIMITS: Readonly<Partial<SandboxLimits>>
