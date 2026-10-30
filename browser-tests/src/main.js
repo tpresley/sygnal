@@ -60,6 +60,7 @@ import { mcpAppTestsP6_3X } from './tests/mcp-app-p6-3x.jsx'
 import { moveParentTestsP9G750 } from './tests/move-parent-p9-g750.jsx'
 import { workerTests7_2 } from './tests/worker-7-2.jsx'
 import { threeTestsCT } from './tests/three-ct.jsx'
+import { canvasTests7_2 } from './tests/canvas-7-2.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -130,6 +131,7 @@ async function runAll() {
     moveParentTestsP9G750,
     workerTests7_2,
     threeTestsCT,
+    canvasTests7_2,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue
