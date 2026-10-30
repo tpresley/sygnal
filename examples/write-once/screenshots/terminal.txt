@@ -1,0 +1,7 @@
+TASKS
+1 open · 1 done
+[What needs doing?] [Add]
+[x] Write the component once [✕]
+[ ] Run it on iOS [✕]
+[Clear done]
+

@@ -156,6 +156,39 @@ App.model = { ADD: (s) => s }
   })
 })
 
+describe('sygnal/primitives tags', () => {
+  it('render where they are written (an element, not a child component): no SYG104 for a control inside one', () => {
+    const p = project({
+      'Counter.jsx': `import { controls } from 'sygnal'
+import { View, Text, Pressable } from 'sygnal/primitives'
+const { Inc } = controls({ Inc: Pressable })
+export default function Counter({ state }) {
+  return <View style={{ padding: 16 }}><Text>{state.count}</Text><View><Inc>+</Inc></View></View>
+}
+Counter.initialState = { count: 0 }
+Counter.intent = ({ DOM }) => ({ INC: DOM.click(Inc) })
+Counter.model = { INC: (s) => ({ count: s.count + 1 }) }
+`,
+    })
+    expect(codes(p.check())).toEqual([])
+  })
+
+  it('a same-named component from elsewhere is still a component', () => {
+    const p = project({
+      'App.jsx': `import { controls } from 'sygnal'
+import View from './View.jsx'
+const { Inc } = controls({ Inc: 'button' })
+export function App() { return <div><View><Inc>+</Inc></View></div> }
+App.intent = ({ DOM }) => ({ INC: DOM.click(Inc) })
+App.model = { INC: (s) => s }
+`,
+      'View.jsx': `export default function View({ children }) { return <section>{children}</section> }
+`,
+    })
+    expect(codes(p.check())).toEqual(['SYG104 warn'])
+  })
+})
+
 describe('SYG104 by control', () => {
   it('reports a parent listening to a control rendered only inside a child', () => {
     const p = project({

@@ -180,6 +180,8 @@ export default defineConfig({
           collapsed: true,
           items: [
             { label: 'Overview', slug: 'renderers/overview' },
+            { label: 'Write Once: Web, Native, Terminal', slug: 'renderers/write-once' },
+            { label: 'React Native', slug: 'renderers/react-native' },
             { label: 'Terminal Apps', slug: 'renderers/terminal' },
             { label: 'Agent UI', slug: 'renderers/agent-ui' },
             { label: 'Writing a Renderer Target', slug: 'renderers/custom-targets' },

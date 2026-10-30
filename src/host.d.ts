@@ -56,12 +56,16 @@ export class HostDocument {
   listenedTypes(el: HostElement): string[]
   /** the event types app-wide listeners (DOM.select('document')) take */
   globalTypes(): string[]
-  /** schedule onChange (called by every mutation) */
-  changed(): void
+  /** a mutation: `node`'s revision and its ancestors' move (attrRevision too with `attr`); schedules onChange */
+  changed(node?: HostNode, attr?: boolean): void
 }
 
 export abstract class HostNode {
   ownerDocument: HostDocument
+  /** moves on any change to the node or below it (doc.changed) */
+  revision: number
+  /** moves on a change of its own attributes, classes, style or dataset */
+  attrRevision: number
   parentNode: HostElement | null
   readonly parentElement: HostElement | null
   readonly nextSibling: HostNode | null
@@ -156,8 +160,11 @@ export interface HostSource {
 /** A DOM driver rendering into a host document: run(App, { DOM: makeHostDriver(doc) }) */
 export function makeHostDriver(doc?: HostDocument, options?: HostDriverOptions): (vnode$: any, name?: string) => HostSource
 
-/** Form-field tags of a target's own vocabulary, beyond input / textarea / select (call before the first render) */
-export function registerFieldTags(...tags: string[]): void
+/**
+ * Form-field tags of a target's own vocabulary, beyond input / textarea / select (call before the
+ * first render): a name (a text field) or `{ tag, kind: 'checkbox' }` (toggled by a click)
+ */
+export function registerFieldTags(...tags: (string | { tag: string, kind?: 'text' | 'checkbox' })[]): void
 
 export function matches(el: HostElement, selector: string, stop?: HostElement | null): boolean
 export function querySelectorAll(root: HostElement, selector: string): HostElement[]
@@ -195,6 +202,8 @@ export function isFocusable(el: HostElement, rules?: readonly HostStyleRule[]): 
 /** focusable, or an element the app's intents listen to clicks on */
 export function isInteractive(el: HostElement, rules?: readonly HostStyleRule[]): boolean
 export function isTextField(el: HostElement): boolean
+/** a checkbox or radio <input>, or a registered checkbox-kind tag */
+export function isCheckable(el: HostElement): boolean
 export function focusableElements(doc: HostDocument, rules?: readonly HostStyleRule[], options?: { listened?: boolean }): HostElement[]
 export function moveFocus(doc: HostDocument, step: 1 | -1, rules?: readonly HostStyleRule[], options?: { listened?: boolean }): HostElement | null
 export function labelTarget(label: HostElement): HostElement | null
