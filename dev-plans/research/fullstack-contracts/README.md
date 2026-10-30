@@ -317,8 +317,51 @@ The maintainer's decisions (relayed by the coordinator):
 
 ### Not done / follow-ups
 
-- `llms.txt` and the `sygnal-dev` skill don't mention `sygnal/api` yet (it is a dev preview; add it when it stabilises).
+- ~~`llms.txt` and the `sygnal-dev` skill don't mention `sygnal/api` yet.~~ Done in round 3.
 - Not supported yet: oRPC `inputStructure: 'detailed'`, `oc.prefix()` routers whose paths are set by `enhanceRouter`, and the RPC protocol (by design).
-- `contractHash` runs on the client at startup and pulls the contract's schemas into the bundle; a build-time hash (a Vite `define`) would avoid that.
-- The root `zod` devDependency should move to ≥ 4.6.6.
+- ~~`contractHash` runs on the client at startup and pulls the contract's schemas into the bundle.~~ Round 3: `api.contracts`.
+- ~~The root `zod` devDependency should move to ≥ 4.6.6.~~ Round 3: `^4.6.7`.
+
+## 11. Round 3: function-first and build-time hashing
+
+The maintainer approved the function-first layer (file-based, plain JSON, mandatory validation, mounted with oRPC: still no Sygnal server) and build-time contract hashing.
+
+### What was built
+
+- **`query` / `mutation` / `stream` in `*.server.ts` files** (`sygnal/api`). A call validates its arguments: the input is a Standard Schema or left out (then only `undefined`, `null` or `{}` passes), `options.output` validates replies (each stream event, checked by Sygnal since oRPC's `eventIterator` would be a dependency), `options.errors` declares errors (oRPC's `.errors()`). The value is the endpoint function once it has an id; until then a call throws with how to get one.
+- **`serverFunctions(modules, { os, dir, header })`** builds the oRPC router from `import.meta.glob` modules (`os` passed in: no oRPC dependency), with `hashes` per file and `skew(request)`. The id is the path under `dir` plus the export name (`src/ideas.server.ts` → `ideas.suggest`); a query and a mutation are POST (JSON keeps types; a query is still tagged as a resource), a stream is GET (SSE). The same plain contract shape (`'~orpc'` with `kind`, `stream`, `manifest`) feeds `contractHash` and `orpcClient`, so function-first and contract-first share one client path.
+- **sygnal/vite `api` option** (`src/vite/api.ts`, its own plugin in the returned array):
+  - `handler`: in dev, requests under `prefix` (default `/api`) go to the module's default export (a Fetch handler). This replaced the example's own Node ↔ Fetch adapter.
+  - `contracts`: in client code, a listed module becomes `contractManifest()` output, each contract export an object of routes, kinds and error statuses with a non-enumerable `~hash` that `contractHash` returns. Not under Vitest (fixtures need schemas). `orpcClient(manifest, { validate: true })` throws.
+  - `functions`: in client code, a `*.server.ts` file under `dir` becomes stubs (`__serverFunction(id, { kind, errors }, { prefix, headers: { 'x-api-functions': '<file>:<hash>' } })`). In server code and under Vitest, the file keeps its code and gets `__serverFunction(id, export, { prefix })` appended per export, so components under test can call it and `t.respond` can target it.
+  - Both read the modules' exports by evaluating them on the server side: the dev server's `ssrLoadModule`, or for `vite build` a temporary middleware-mode server of the project's own Vite (resolved from the app's root, not Sygnal's) with the app's config file; a global flag stops that nested config from adding the `api` plugin again.
+- **SYG691 extended**: in client code (imports `sygnal` or has JSX), a named import from a `*.server` module that uses `sygnal/api` must be one of its `query`/`mutation`/`stream` exports: an unknown name (closest suggested) or a constant/helper (undefined in the client build). Silent for server code, wrapper calls, re-exports, `export *` and `*.server` files without `sygnal/api` (Vike's convention).
+- **Tests**: `test/api-functions.test.js` (11, real oRPC in-process: validation, errors, no-input, streams with output checks, per-file skew, manifests), `test/api-plugin.test.js` (3, builds `test/fixtures/api-app` with the root Vite 7 in a child process and greps the bundle for secrets, server-only imports, non-function exports, zod, and the server's hashes), the example's bundle test (Vite 8, same greps on `examples/typed-api`), sygnal-check (3 more).
+- **Docs**: `guide/typed-apis` says contract-first is primary, adds "A client without the schemas" and "Function-first: `*.server.ts` modules". `llms.txt` (both copies, still 322 lines) and the skill mention `sygnal/api`.
+
+### Size (examples/typed-api client bundle, Vite 8, minified)
+
+| Build | Raw | gzip (Vite) |
+|---|---|---|
+| Before (contract module in the client) | 226.83 kB | 73.74 kB |
+| `api.contracts: ['src/contract.ts']` | 135.31 kB | 47.71 kB |
+| + the function-first Suggest call | 136.20 kB | 48.04 kB |
+
+The difference is zod and `@orpc/contract`. The server's `contractHash(contract)` equals the hash the plugin computed at build time (asserted by the example's bundle test).
+
+### Decisions I made myself
+
+- **Query and mutation are POST**; only streams are GET. A GET query would put the input in the query string as strings, and function-first users would need `z.coerce` for every number. Resources and `invalidates` work with POST because a query is tagged like a GET endpoint.
+- **Skew is per file**, header `x-api-functions: <file>:<hash>`. A per-app hash would 409 every call after any server file changed, and it would depend on the server's glob matching the plugin's file set exactly (a silent prod-only failure if not). Per file, a missing file is a 404 and an unchanged file keeps working.
+- **The hash is computed by evaluating modules**, not from source text. It then changes only when ids, routes, schemas or error codes change (not for a body edit), and it catches a schema imported from another module. The price: a `*.server.ts` or contract module's top level runs in Node at build time, so it must be free of side effects (documented). Alternatives were a source-text hash (Next.js-style build id: any edit forces a reload; misses imported schemas) or no hash for function-first.
+- **The dev handler is the app's module**, not a server of Sygnal's: the plugin only bridges Node's request to a Fetch handler, so dev and production run the same code.
+- **Names**: the main bundle exports `serverQuery`/`serverMutation`/`serverStream` (no generic `query` in `sygnal`), and `sygnal/api` re-exports them as `query`/`mutation`/`stream`. `__serverFunction` is exported for generated code.
+- **`api.contracts` drops every non-contract export** of the module rather than keeping schemas, so the saving can't silently disappear; a client import of a schema from it then fails the build.
+- **zod**: the root moved to `^4.6.7` (npm resolved the current patch).
+
+### Not done / follow-ups
+
+- Other packages still pin zod 4.6.5: `docs/package.json` (exact), several eval task starters (exact and caret), `examples/ai-showcase`, `examples/plan5-showcase`, `dev-plans/research/ecosystem-experiments`.
+- Function-first `stream` inputs arrive as strings (GET). A POST stream through FetchEventSource would keep JSON types.
+- No live demo of function-first in the docs: the live runtime has no Vite plugin to make stubs.
 
