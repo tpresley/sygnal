@@ -1,0 +1,6 @@
+{
+  "description": "llms-context spike, llms.txt-only control: no sygnal-dev skill; the package's llms.txt replaced by the pre-split single file (84,249 B). The arm where the llms.txt layout alone decides what the agent learns. Compare with llms-ctx-new-noskill",
+  "sygnal": "branch",
+  "skill": "none",
+  "overlay": { "sygnal": { "afterInstall": { "node_modules/sygnal/llms.txt": "evals/agent-ergonomics/variants/llms-ctx/llms-old.txt" } } }
+}

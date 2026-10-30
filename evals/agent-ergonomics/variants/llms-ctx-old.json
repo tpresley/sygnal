@@ -1,0 +1,6 @@
+{
+  "description": "llms-context spike, control: this checkout's build with the context from before the split (llms.txt 84,249 B in one file, the skill from 6df80015 without references/). afterInstall puts the old llms.txt over the packed one; the packed llms/ topic files stay but nothing in the old file points at them. Compare with llms-ctx-new (dev-plans/research/llms-context/README.md, 'Paid eval plan')",
+  "sygnal": "branch",
+  "skill": { "gitRef": "6df80015", "path": "skills/sygnal-dev" },
+  "overlay": { "sygnal": { "afterInstall": { "node_modules/sygnal/llms.txt": "evals/agent-ergonomics/variants/llms-ctx/llms-old.txt" } } }
+}

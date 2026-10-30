@@ -225,6 +225,8 @@
     "dist",
     "src",
     "llms.txt",
+    "llms",
+    "llms-full.txt",
     "CHANGELOG.md"
   ],
   "scripts": {

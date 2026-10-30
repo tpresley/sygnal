@@ -1,0 +1,5 @@
+{
+  "description": "llms-context spike, llms.txt-only treatment: no sygnal-dev skill; the package as shipped (core llms.txt + llms/<topic>.md the core indexes). Compare with llms-ctx-old-noskill",
+  "sygnal": "branch",
+  "skill": "none"
+}

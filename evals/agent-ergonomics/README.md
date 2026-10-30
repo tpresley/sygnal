@@ -28,7 +28,7 @@ evals/agent-ergonomics/
   starter-kits/sygnal-v2/  starter 2's Sygnal-arm AGENTS.md / CLAUDE.md (as *.tmpl, so the repo has no stray CLAUDE.md), from the 5.4.0 template
   lib/limits.mjs        usage/rate-limit detection and the backoff schedule
   lib/pool.mjs          the orchestrator's worker pool, with usage-limit pauses and a clean stop
-  variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*, p3-*, p4-ct1-*, p4-final6, p4-gs14-*: PLAN-4 4-E, p5-final, p5-f1-*: PLAN-5 4-E; p6-final: PLAN-6 4-E; p9-final, p9-no-skill: PLAN-9 E-4; p5-4s-toc: PLAN-5 4-S skill format; run.md)
+  variants/<name>.json  one spec per experiment arm (baseline-5.4.0, branch, e1-*, e5-*, e7-*, e8-*, e9-*, p3-*, p4-ct1-*, p4-final6, p4-gs14-*: PLAN-4 4-E, p5-final, p5-f1-*: PLAN-5 4-E; p6-final: PLAN-6 4-E; p9-final, p9-no-skill: PLAN-9 E-4; p5-4s-toc: PLAN-5 4-S skill format; llms-ctx-*: the llms-context spike, dev-plans/research/llms-context; run.md)
   variants/skills/<x>/  skill variants a spec points at (resources-first: PLAN-3 D91; controls: PLAN-4 1-E;
                         p5-4s-toc points at evals/agent-ergonomics/skills-toc instead, D226)
   variants/p4-ct1-b/    PLAN-4 1-E arm B: converted starters (starters/, from gen-starters.mjs), AGENTS.md.tmpl, llms.txt

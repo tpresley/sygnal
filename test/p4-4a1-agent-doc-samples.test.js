@@ -9,6 +9,7 @@
 // actions driven by simulateAction), so the agent docs
 // stay strict-clean and a11y-clean (scripts/check-doc-samples.mjs checks the code blocks too).
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest'
+import { llmsText, skillText } from './helpers/agent-context.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -20,8 +21,8 @@ import { checkFiles } from '../sygnal-check/src/index.js'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..')
 const FILES = {
-  llms: fs.readFileSync(path.join(repo, 'llms.txt'), 'utf8'),
-  skill: fs.readFileSync(path.join(repo, 'skills/sygnal-dev/SKILL.md'), 'utf8'),
+  llms: llmsText(),   // llms.txt + its topic files
+  skill: skillText(),  // SKILL.md + its references
 }
 const BOTH = ['llms', 'skill']
 
