@@ -139,6 +139,11 @@
       "import": "./dist/three.esm.js",
       "require": "./dist/three.cjs.js"
     },
+    "./canvas": {
+      "types": "./src/canvas.d.ts",
+      "import": "./dist/canvas.esm.js",
+      "require": "./dist/canvas.cjs.js"
+    },
     "./yjs": {
       "types": "./src/yjs.d.ts",
       "import": "./dist/yjs.esm.js",

@@ -414,6 +414,9 @@ export default [
     // 'sygnal/three' (research: dev-plans/research/canvas-three): three stays external (an optional
     // peerDependency, D209), as 'sygnal' and 'sygnal/host' (its host mode) do
     ['three', [[/[\\/]src[\\/]three[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]three[\\/]/, '../host', 'sygnal/host']]],
+    // 'sygnal/canvas' (research: dev-plans/research/canvas-apps): no dependencies; the pointer router
+    // and controlled() (src/extra, no core imports) are bundled, 'sygnal' stays external
+    ['canvas', [[/[\\/]src[\\/]canvas\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]canvas[\\/]/, '../index', 'sygnal']]],
     // 'sygnal/worker' (research: dev-plans/research/web-worker): the worker half, on the external
     // 'sygnal' and 'sygnal/host'; 'sygnal/worker/page': the page half, no core (xstream, and the
     // kit's selector matching inlined)

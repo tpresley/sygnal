@@ -9,7 +9,7 @@
  */
 import {HostDocument, makeHostDriver} from '../host'
 import {createThreeTarget} from './target'
-import {pointerRouter} from './events'
+import {pointerRouter} from '../extra/pointer'
 
 export function createThreeHost({width = 300, height = 150, doc = new HostDocument()} = {}) {
   const target = createThreeTarget()

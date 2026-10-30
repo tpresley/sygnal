@@ -63,6 +63,13 @@ export const EXPLANATIONS = {
     explanation: "Without a `shape`, `shared()` infers how each field of the slice is stored in the Yjs document from its value: an array of objects that all have an `id` becomes an id-keyed collection (concurrent adds, edits, moves and removes of different items merge), any other array a `Y.Array` of plain values. An empty array fits both, so the driver guesses a collection; if the field later holds plain values (strings, numbers), it is switched to a list then, and a concurrent edit by another client can be lost in the switch. Reported once per field path, in dev, when the slice is first written to the document.",
     fix: "Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.",
   },
+  SYG262: {
+    title: "Canvas data layer rebuilt with equal nodes",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "A `<shapes items={…}>` data layer of `sygnal/canvas` got a new array in which at least half of its nodes (64 or more) are new objects with exactly the fields of the nodes they replace: a reducer rebuilt every shape (`shapes.map(s => ({ ...s }))`, a JSON round trip, a fresh copy from a store) while changing few or none. The canvas keys its static layer, its translation blits and its camera cache on node identity (as `sygnal/yjs` keys its diff on it), so a layer whose nodes all change identity repaints everything on every frame, silently: the app still works, at a full repaint's cost. Reported once per layer, in dev, by the Canvas when it syncs its children.",
+    fix: "Replace only the nodes that change and keep the others: `shapes.map(s => s.id === id ? { ...s, x } : s)`, or patch by index. For a selection, look the ids up in a `Set` and return the untouched objects as they are.",
+  },
   SYG454: {
     title: "State binding changed without a new component identity",
     severity: "warn",

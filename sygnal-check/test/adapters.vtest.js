@@ -129,6 +129,35 @@ World.model = { CAMERA: (s, camera) => ({ ...s, camera }), HIT: (s) => ({ ...s, 
   })
 })
 
+describe("sygnal/canvas's Canvas tag", () => {
+  const app = (intent) => ({
+    'Board.jsx': `
+import { Canvas, pointer } from 'sygnal/canvas'
+export function Board({ state }) {
+  return <main>
+    <Canvas className="board" camera={state.camera}>
+      <shapes className="doc" items={state.shapes} active={null} />
+      <ellipse className="pin" role="button" tabIndex={0} aria-label="Pin" x={10} y={10} width={12} height={12} />
+    </Canvas>
+  </main>
+}
+Board.initialState = { camera: { x: 0, y: 0, zoom: 1 }, shapes: [], hits: 0 }
+Board.intent = ({ DOM }) => (${intent})
+Board.model = { CAMERA: (s, camera) => ({ ...s, camera }), DOWN: (s) => ({ ...s, hits: s.hits + 1 }), PIN: (s) => s, SIZE: (s) => s }
+`,
+  })
+
+  it("its className is the host's (no SYG110), camerachange / canvasresize are declared; <shapes> and the node tags are the view's", () => {
+    const ds = check(app(`{ CAMERA: DOM.select('.board').events('camerachange').detail(), SIZE: DOM.select('.board').events('canvasresize').detail(), DOWN: DOM.select('.doc').events('pointerdown').map(pointer), PIN: DOM.click('.pin') }`), { strict: true })
+    expect(codes(ds)).toEqual([])
+  })
+
+  it('a near-typo of camerachange is SYG141; the tag as a selector is SYG143', () => {
+    const ds = check(app(`{ CAMERA: DOM.select('.board').events('camerachang').detail(), DOWN: DOM.select(Canvas).events('pointerdown') }`))
+    expect(codes(ds)).toEqual(expect.arrayContaining(['SYG141', 'SYG143']))
+  })
+})
+
 describe("sygnal/sandbox's Sandboxed tag", () => {
   const app = (intent) => ({
     'Card.jsx': `

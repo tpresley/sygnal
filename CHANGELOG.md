@@ -102,6 +102,35 @@ behaves as on 7.1.0.
   - `three` (0.170 or later) is an optional peer dependency. About 6 KB gzip (GLTFLoader loads when a
     model first needs it), nothing for an app that doesn't import it. Guide: "three.js". Example:
     `examples/three-cubes`.
+- **2D canvas apps:** `sygnal/canvas` is an infinite canvas for editors, whiteboards and diagrams.
+  Research and the maintainer's decisions: `dev-plans/research/canvas-apps`.
+  - Shapes are data in state: `<shapes items={state.shapes} />` in a `<Canvas>` paints, culls and
+    hit-tests them all with one element. A hit is a DOM event on it with `event.hit` = the shape's id.
+    JSX nodes (`rect`, `ellipse`, `text`, `line`, `path`, `frame`, `space="screen"`) are for the few
+    things with behaviour of their own (handles, pins).
+  - One box-based vocabulary everywhere (`x y width height rotation radius parent`): an ellipse is its
+    box, not SVG's `cx cy rx ry`.
+  - Pointer capture by default (`capture="all"`): the pressed shape keeps every move and the up, with
+    `delta` from the press. A controlled camera with pan and zoom built in (wheel, ctrl-wheel and
+    trackpad pinch, two-finger touch pinch, space-drag, middle-drag), reported once a frame as `camerachange`.
+  - Painting: a static layer plus a live layer (the app passes `active={ids}`), translation blits for
+    big moving sets, and a camera cache: a pan is a copy of the cached bitmap, a zoom gesture scales it
+    and repaints sharp at rest. At 10,000 shapes a pan step costs 3.5 ms against React + react-konva's 3.7 ms (12.1 ms before the cache).
+  - The kit: `gesture`, `snap` / `snapTargets`, `handles`, `resize`, `rotation`, `turn`, `scaleInto`,
+    `selectionBox`, `fit`, `union`, `toWorld` / `toScreen`, `exportSVG`, and `history(field)`, which routes
+    to `sygnal/yjs`'s per-user UndoManager when the field is shared (one undo step per gesture).
+  - `follow={{ ids, from }}`: the transient escape hatch for very large selections (the canvas drags them
+    with no action per move; the app commits on release).
+  - Accessibility: each data layer is projected into a list of buttons (the nodes in view) that screen
+    readers and the `sygnal/agent-ui` snapshot read; activating one presses the node.
+  - SYG262 (dev): a data layer whose nodes all changed identity with equal fields (a reducer that
+    rebuilds every shape), which makes every frame a full repaint.
+  - The painter is a backend (`canvas2d()`, the default). No dependencies; 15 KB min+gzip, nothing for an
+    app that doesn't import it. Guide: "Canvas". Example: `examples/figma-lite`.
+- **Keyboard shortcuts:** `keymap(DOM, { 'mod+z': 'UNDO', delete: 'DELETE', left: ['NUDGE', { dx: -1 }] })`
+  (from `sygnal`) gives one action stream per name, default prevented and never while typing in a field.
+- **One pointer router:** `sygnal/three` and `sygnal/canvas` share `src/extra/pointer.ts` (capture as
+  `sygnal/three` defines it; a 2D scene's background target and implicit capture are options of it).
 - **Collaborative state:** `sygnal/yjs` shares one key of the state between users through a Yjs
   document. `uses = { board: shared() }` and `run(Board, { SHARED: makeYjsDriver({ doc, provider }) })`.
   - Reducers don't change: each new `state.board` is diffed into the document (`board.LOCAL`, once per

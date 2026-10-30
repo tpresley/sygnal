@@ -36,6 +36,7 @@ export { createCommand } from './extra/command'
 export { createRef, createRef$ } from './extra/ref'
 export { controls } from './extra/controls'
 export { defineWidget } from './extra/widget'
+export { keymap } from './extra/keymap'
 // sygnal/three's <Model> / <Texture> placeholders (an external bundle: the core's registry, not a copy)
 export { pres as __pres } from './core/registry'
 export { defineBehavior } from './extra/behaviors'
