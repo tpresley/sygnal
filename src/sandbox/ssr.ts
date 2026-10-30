@@ -19,6 +19,8 @@ export interface RenderToHTMLOptions {
   limits?: Partial<SandboxLimits>
   policy?: Partial<MirrorPolicy>
   quickjs?: any
+  /** the guest's console (default: dropped) */
+  log?: (level: string, text: string) => void
 }
 
 export async function renderToHTML(opts: RenderToHTMLOptions): Promise<{html: string; violations: string[]; ms: number}> {
@@ -28,7 +30,7 @@ export async function renderToHTML(opts: RenderToHTMLOptions): Promise<{html: st
   let json: string | null = null, error: any = null
   const sb = createEngine(QJS, {
     kernel: opts.kernel, source: opts.source, exportName: opts.exportName, props: opts.props, limits,
-    log: () => {},
+    log: opts.log || (() => {}),
     onRender: (j) => { json ??= j },
     onError: (e) => { error = e },
   })

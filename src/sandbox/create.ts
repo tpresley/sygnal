@@ -37,7 +37,7 @@ export interface SandboxOptions {
   /** the export to run (default: `default`, else the first function) */
   exportName?: string
   /** the element the sandbox renders below (its own root div is appended) */
-  container?: Element | null
+  container: Element
   isolation?: 'worker' | 'thread'
   /** the EVENTS types the page accepts, each with a Standard Schema for its data */
   emits?: Record<string, StandardSchemaLike>
@@ -103,6 +103,7 @@ export function emitGate(emits: Record<string, StandardSchemaLike> | undefined, 
     } catch (e: any) { drop(ev.type, 'its schema threw: ' + (e?.message || e)); return null }
   }
   return (ev: {type: string; data: any}) => {
+    if (!ev || typeof ev.type != 'string') return
     const r = check(ev)
     if (!chain && !(r && typeof (r as any).then == 'function')) { if (r) deliver(r as any); return }
     // an async schema: keep the guest's order
@@ -119,7 +120,7 @@ export function createSandbox(opts: SandboxOptions): Sandbox {
   const isolation = opts.isolation ?? 'worker'
   if (isolation !== 'worker' && isolation !== 'thread') throw new TypeError(`sygnal/sandbox: isolation must be 'worker' or 'thread', got ${JSON.stringify(isolation)}`)
   const limits = limitsOf(opts.limits)
-  if (isolation === 'worker' && !opts.container) throw new TypeError("sygnal/sandbox: isolation 'worker' needs a container (renderToHTML renders without one)")
+  if (!opts.container || typeof (opts.container as any).appendChild != 'function') throw new TypeError('sygnal/sandbox: `container` must be an element (renderToHTML renders without one)')
   const caps = opts.capabilities || {}
   const gate = emitGate(opts.emits, (ev) => opts.onEmit?.(ev))
   let dead = false, failure: SandboxError | null = null

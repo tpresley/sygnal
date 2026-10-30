@@ -111,8 +111,8 @@ export interface SandboxOptions<E extends Record<string, StandardSchemaLike<any>
   source: string
   /** the export to run (default `default`, else the first function) */
   exportName?: string
-  /** where the sandbox renders (its root div is appended). Required for 'worker' */
-  container?: Element | null
+  /** where the sandbox renders (its root div is appended) */
+  container: Element
   /**
    * `'worker'` (default): QuickJS in a Worker with a watchdog: for code that may be hostile.
    * `'thread'`: on the page's thread, with synchronous events (a guest `preventDefault()` works):
@@ -206,6 +206,8 @@ export interface RenderToHTMLOptions {
   policy?: Partial<SandboxPolicy>
   /** reuse a module (default: a fresh capped instance per call) */
   quickjs?: QuickJSModule
+  /** the guest's console (default: dropped) */
+  log?: (level: string, text: string) => void
 }
 /** SSR: the component's first render as HTML, through the mirror's allowlist (on the caller's thread) */
 export function renderToHTML(options: RenderToHTMLOptions): Promise<{ html: string; violations: string[]; ms: number }>
