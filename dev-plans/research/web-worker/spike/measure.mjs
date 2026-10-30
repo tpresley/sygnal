@@ -106,17 +106,17 @@ async function session(mode, n, withStats) {
   await page.click('.new-todo')
   await page.keyboard.type('Fresh todo')
   await resetStats(page)
-  let lat = page.evaluate((n) => window.__arm('keydown', `document.querySelectorAll('.todo-list li').length === ${n + 1}`), n)
+  await page.evaluate((n) => { window.__lat = window.__arm('keydown', `document.querySelectorAll('.todo-list li').length === ${n + 1}`) }, n)
   await page.keyboard.press('Enter')
-  rec(`n=${n}: add a todo, Enter → painted (ms)`, await lat)
+  rec(`n=${n}: add a todo, Enter → painted (ms)`, await page.evaluate(() => window.__lat))
   await settled(page)
   msgs.add = await bridgeStats(page)
 
   // 2. toggle the first todo: click → .completed painted
   await resetStats(page)
-  lat = page.evaluate(() => window.__arm('mousedown', `document.querySelector('.todo-list li').classList.contains('completed')`))
+  await page.evaluate(() => { window.__lat = window.__arm('mousedown', `document.querySelector('.todo-list li').classList.contains('completed')`) })
   await page.click('.todo-list li .toggle')
-  rec(`n=${n}: toggle one, click → painted (ms)`, await lat)
+  rec(`n=${n}: toggle one, click → painted (ms)`, await page.evaluate(() => window.__lat))
   await settled(page)
   msgs['toggle one'] = await bridgeStats(page)
 
@@ -137,13 +137,13 @@ async function session(mode, n, withStats) {
   await resetStats(page)
   const t0 = await page.evaluate(() => performance.now())
   // toggle-all completes everything unless everything is completed already (n=0: the one todo)
-  lat = page.evaluate(() => {
+  await page.evaluate(() => {
     const all = document.querySelectorAll('.todo-list li').length, done = document.querySelectorAll('.todo-list li.completed').length
-    return window.__arm('click', `document.querySelectorAll('.todo-list li.completed').length === ${done === all ? 0 : all}`)
+    window.__lat = window.__arm('click', `document.querySelectorAll('.todo-list li.completed').length === ${done === all ? 0 : all}`)
   })
   await page.evaluate(() => document.querySelector('.toggle-all').click())
   await page.keyboard.press('z')
-  const allDone = await lat
+  const allDone = await page.evaluate(() => window.__lat)
   await page.waitForTimeout(300)
   const w = await page.evaluate((t0) => {
     const long = window.__long.filter((l) => l.start >= t0)
