@@ -360,7 +360,9 @@ export default [
 
   {
     input: 'src/vite/plugin.ts',
-    external: [],
+    // CV (Q-2): magic-string (compiled views' source maps) is a regular dependency, kept external
+    // (D209); only the plugin imports it, never an app bundle
+    external: ['magic-string'],
     output: [
       { file: pkg.exports['./vite'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./vite'].import, format: 'es', ...sourcemapOptions }
@@ -374,7 +376,8 @@ export default [
 
   {
     input: 'src/astro/index.ts',
-    external: [],
+    // the Vite plugin inside it imports magic-string: external, as in sygnal/vite (D209)
+    external: ['magic-string'],
     output: [
       { file: pkg.exports['./astro'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro'].import, format: 'es', ...sourcemapOptions }

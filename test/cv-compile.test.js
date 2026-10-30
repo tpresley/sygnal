@@ -3,7 +3,7 @@
 // plugin, compile off and on ('sygnal' external: both bundles use the same dist), calls every
 // fixture view and compares the trees: sel, key, text, data (deep; functions by name), children,
 // and whether each vnode is the pragma's plain kind (`$p`).
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -69,5 +69,58 @@ describe('CV-2: compiled views make the JSX runtime\'s vnodes', () => {
     const [t, p] = on.mod.cases.table
     const a = t(p).children[0].children[0], b = t(p).children[0].children[0]
     expect(a.data).toBe(b.data)
+  })
+})
+
+// the option (plan Q-1, Q-3) and the transform's output (Q-2: a source map)
+describe('sygnal/vite compile option', () => {
+  const load = async () => {
+    const vite = await import(pathToFileURL(createRequire(path.join(kanban, 'package.json')).resolve('vite')).href)
+    const sygnal = (await import(pathToFileURL(path.join(repo, 'dist', 'vite', 'plugin.mjs')).href)).default
+    // a Vite 8 plugin context: its parser, and the meta viteMajor reads
+    const ctx = (warn = () => {}, viteVersion = '8.3.5') => ({ parse: (c, o) => vite.parseAst(c, o), meta: { viteVersion }, warn })
+    return { sygnal, ctx }
+  }
+  const SRC = 'export const V = ({ n }) => <div className="a">{n}</div>\n'
+  it('off by default: one plugin, no compile step', async () => {
+    const { sygnal } = await load()
+    expect(Array.isArray(sygnal())).toBe(false)
+    expect(Array.isArray(sygnal({ compile: false }))).toBe(false)
+  })
+  it('compile: true adds a pre plugin that compiles client and server code, with a source map', async () => {
+    const { sygnal, ctx } = await load()
+    const [c, main] = sygnal({ compile: true })
+    expect(c.enforce).toBe('pre')
+    expect(main.name).toBe('vite-plugin-sygnal')
+    const client = c.transform.call(ctx(), SRC, '/app/V.jsx')
+    expect(client.code).toMatch(/__cv\.e\("div"/)
+    expect(client.map.sources).toEqual(['/app/V.jsx'])
+    expect(client.map.mappings.length).toBeGreaterThan(0)
+    const server = c.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true })
+    expect(server.code).toMatch(/__cvs\.r\("div"/)
+  })
+  it('{ ssr: false } / { views: false } turn one part off', async () => {
+    const { sygnal, ctx } = await load()
+    const [noSsr] = sygnal({ compile: { ssr: false } })
+    expect(noSsr.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true }).code).toMatch(/__cv\.e\(/)
+    const [noViews] = sygnal({ compile: { views: false } })
+    expect(noViews.transform.call(ctx(), SRC, '/app/V.jsx')).toBeNull()
+    expect(noViews.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true }).code).toMatch(/__cvs\.r\(/)
+  })
+  it('skips node_modules, non-JSX files and virtual modules', async () => {
+    const { sygnal, ctx } = await load()
+    const [c] = sygnal({ compile: true })
+    expect(c.transform.call(ctx(), SRC, '/app/node_modules/x/V.jsx')).toBeNull()
+    expect(c.transform.call(ctx(), SRC, '/app/V.js')).toBeNull()
+    expect(c.transform.call(ctx(), SRC, '\0virtual.jsx')).toBeNull()
+  })
+  it('warns once and compiles nothing below Vite 8', async () => {
+    const { sygnal, ctx } = await load()
+    const [c] = sygnal({ compile: true })
+    const warn = vi.fn()
+    expect(c.transform.call(ctx(warn, '7.3.6'), SRC, '/app/V.jsx')).toBeNull()
+    expect(c.transform.call(ctx(warn, '7.3.6'), SRC, '/app/W.jsx')).toBeNull()
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toMatch(/needs Vite 8/)
   })
 })

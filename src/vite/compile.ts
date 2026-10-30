@@ -7,8 +7,17 @@
  * fields, spreads, refs, ...) is left as JSX for the JSX transform; their children may still
  * compile. The output vnodes are the ones the pragma would make (test/cv-compile.test.js).
  *
- * `parse` is Vite 8's parseAst (ESTree + JSX, UTF-16 offsets). No source map yet (plan Q-2).
+ * CV-1 (`ssr`, server builds): the outermost compiled element stays a vnode (`__cvs.r`: the
+ * root's `data-sygnal-ssr` stamp and the SSR walk need one) whose inside is HTML parts made by
+ * ssr.ts (`__cvs.f`, `__cvs.s`): open tags and static subtrees serialized by its own vnodeToHtml
+ * (cached per escaping mode), text escaped by its escapeHtml, anything not compiled (components,
+ * markers, fields, ...) kept as a vnode at the child path the JSX runtime's tree would give it.
+ * The HTML is renderToString's (test/cv-ssr.test.js).
+ *
+ * `parse` is Vite 8's parseAst (ESTree + JSX, UTF-16 offsets). The source map maps each rewritten
+ * JSX expression to its start (magic-string).
  */
+import MagicString from 'magic-string'
 
 // HTML elements the compiler takes. Not here: the form fields (input, textarea, select, option:
 // the controlled-input module re-syncs them; the pragma never makes them plain), SVG and MathML
@@ -21,12 +30,15 @@ const HTML = new Set(('a abbr address article aside audio b bdi bdo blockquote b
   'video wbr').split(' '))
 // attributes the pragma gives run-time behaviour (hooks) or that change what the element is
 const BAIL_ATTR = /^(ref|autoFocus|autoSelect|hook|children|key)$/
+// in server builds also: the SSR serializer gives these their own content
+const SSR_BAIL_ATTR = /^(innerHTML|textContent)$/
 // an HTML entity: JSX decodes them, the parser keeps them raw (the pragma path decodes through the JSX transform)
 const ENTITY = /&(#\d+|#x[\da-f]+|[a-z][a-z\d]*);/i
 
 type Sub = [number, number, string]
 
-export function compileViews(code: string, id: string, parse: (code: string, opts: any) => any): string | null {
+export function compileViews(code: string, id: string, parse: (code: string, opts: any) => any, opts: {ssr?: boolean} = {}): {code: string; map: any} | null {
+  const ssr = !!opts.ssr
   if (!/<[a-z]/.test(code)) return null
   let ast: any
   try { ast = parse(code, {lang: /\.tsx$/.test(id) ? 'tsx' : /\.ts$/.test(id) ? 'ts' : 'jsx'}) } catch { return null }
@@ -58,17 +70,23 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
     if (!t || !HTML.has(t)) return false
     for (const a of el.openingElement.attributes) {
       if (a.type != 'JSXAttribute' || a.name.type != 'JSXIdentifier') return false
-      if (BAIL_ATTR.test(a.name.name) && a.name.name != 'key') return false
+      if (BAIL_ATTR.test(a.name.name) && a.name.name != 'key' || ssr && SSR_BAIL_ATTR.test(a.name.name)) return false
       const v = a.value
       if (v && v.type == 'Literal' && ENTITY.test(String(v.value))) return false
       if (v && v.type != 'Literal' && !(v.type == 'JSXExpressionContainer' && v.expression.type != 'JSXEmptyExpression')) return false
     }
-    for (const c of el.children) if (c.type == 'JSXText' && ENTITY.test(c.value)) return false
+    for (const c of el.children) if (c.type == 'JSXText' && ENTITY.test(c.value) || c.type == 'JSXSpreadChild') return false
     return true
   }
+  // no expression anywhere below (attributes, children): its HTML never changes (CV-1)
+  const isStatic = (el: any): boolean => compilable(el)
+    && el.openingElement.attributes.every((a: any) => !a.value || a.value.type == 'Literal')
+    && el.children.every((c: any) => c.type == 'JSXText' || c.type == 'JSXElement' && isStatic(c))
 
   // a JSX node in expression position: compiled, or JSX whose children may compile
-  const jsx = (node: any): string => node.type == 'JSXElement' && compilable(node) ? element(node) : jsxSource(node)
+  // (`vnodes`: inside a static SSR subtree's vnode factory, every element is a client one)
+  let vnodes = 0
+  const jsx = (node: any): string => node.type == 'JSXElement' && compilable(node) ? (ssr && !vnodes ? ssrRoot(node) : element(node)) : jsxSource(node)
   const jsxSource = (node: any): string => {
     const subs: Sub[] = []
     const open = node.openingElement
@@ -77,15 +95,15 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
       if (v) subsIn(v, subs)
     }
     for (const c of node.children) {
-      if (c.type == 'JSXElement') subs.push([c.start, c.end, compilable(c) ? '{' + element(c) + '}' : jsxSource(c)])
+      if (c.type == 'JSXElement') subs.push([c.start, c.end, compilable(c) ? '{' + jsx(c) + '}' : jsxSource(c)])
       else if (c.type == 'JSXFragment') subs.push([c.start, c.end, jsxSource(c)])
       else if (c.type == 'JSXExpressionContainer') subsIn(c.expression, subs)
     }
     return src(node.start, node.end, subs)
   }
 
-  const element = (el: any): string => {
-    compiled++
+  // the element's data expression and key (a static one hoisted; see __cv in src/pragma/index.ts)
+  const dataOf = (el: any): [string, string, boolean] => {
     let key = 'undefined', dynamic = false
     const names: string[] = [], vals: string[] = []
     for (const a of el.openingElement.attributes) {
@@ -97,12 +115,50 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
     }
     // static: made once at load by the pragma's sanitizeData; dynamic: the keys routed once at
     // load by the pragma's route(), the data made per render from the values (__cv.d)
-    let data: string
-    if (!dynamic) data = hoist('__cv.sd({' + names.map((n, i) => JSON.stringify(n) + ': ' + vals[i]).join(', ') + '})')
-    else data = `__cv.d(${hoist('__cv.r(' + JSON.stringify(names) + ')')}, [${vals.join(', ')}])`
-    const kids = children(el.children)
-    const c = kids.length == 0 ? 'undefined' : kids.length == 1 ? kids[0] : '[' + kids.join(', ') + ']'
+    const data = !dynamic ? hoist('__cv.sd({' + names.map((n, i) => JSON.stringify(n) + ': ' + vals[i]).join(', ') + '})')
+      : `__cv.d(${hoist('__cv.r(' + JSON.stringify(names) + ')')}, [${vals.join(', ')}])`
+    return [data, key, dynamic]
+  }
+  const childArg = (kids: string[]): string => kids.length == 0 ? 'undefined' : kids.length == 1 ? kids[0] : '[' + kids.join(', ') + ']'
+  const element = (el: any): string => {
+    compiled++
+    const [data, key] = dataOf(el)
+    const c = childArg(children(el.children, false))
     return `__cv.e(${JSON.stringify(tag(el))}, ${data}, ${c}${key == 'undefined' ? '' : ', ' + key})`
+  }
+  // CV-1: the outermost compiled element in server code: a vnode with HTML parts inside
+  const ssrRoot = (el: any): string => {
+    compiled++
+    const [data, key] = dataOf(el)
+    return `__cvs.r(${JSON.stringify(tag(el))}, ${data}, ${childArg(children(el.children, true))}${key == 'undefined' ? '' : ', ' + key})`
+  }
+  // CV-1: a compiled element inside one: a static one's HTML made once (per escaping mode), else
+  // its open tag (static: once) and its children's parts
+  const ssrInner = (el: any): string => {
+    compiled++
+    if (isStatic(el)) { vnodes++; const v = element(el); vnodes--; return `__cvs.s(${hoist('__cvs.S(() => ' + v + ')')})` }
+    const [data, , dynamic] = dataOf(el), t = JSON.stringify(tag(el))
+    const open = dynamic ? `__cvs.od(${t}, ${data})` : hoist(`__cvs.O(${t}, ${data})`)
+    return `__cvs.f(${open}, ${childArg(children(el.children, true))})`
+  }
+  // CV-1: JSX in a direct value position of a compiled element's child expression (the expression,
+  // a ?: branch, either side of && || ??, an array element, a .map() arrow's expression body) can
+  // only become that element's child, so a compilable one is an HTML chunk; anything else (JSX in a
+  // variable, a call's argument, a component prop) stays a vnode
+  const direct = (n: any, subs: Sub[]): void => {
+    if (!n) return
+    const t = n.type
+    if (t == 'JSXElement' && compilable(n)) subs.push([n.start, n.end, ssrInner(n)])
+    else if (t == 'ParenthesizedExpression') direct(n.expression, subs)
+    else if (t == 'ConditionalExpression') { subsIn(n.test, subs); direct(n.consequent, subs); direct(n.alternate, subs) }
+    else if (t == 'LogicalExpression') { direct(n.left, subs); direct(n.right, subs) }
+    else if (t == 'ArrayExpression') { for (const e of n.elements) e && (e.type == 'SpreadElement' ? subsIn(e, subs) : direct(e, subs)) }
+    else if (t == 'CallExpression' && n.callee.type == 'MemberExpression' && !n.callee.computed && n.callee.property.name == 'map'
+      && n.arguments.length == 1 && n.arguments[0].type == 'ArrowFunctionExpression' && n.arguments[0].expression) {
+      subsIn(n.callee, subs)
+      for (const p of n.arguments[0].params) subsIn(p, subs)
+      direct(n.arguments[0].body, subs)
+    } else subsIn(n, subs)
   }
   const hoist = (obj: string): string => {
     const i = hoisted.indexOf(obj)
@@ -112,12 +168,17 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
   }
   // the children as the JSX transform passes them: JSX text cleaned as the JSX spec does (lines
   // trimmed, empty lines dropped, joined by a space), empty expressions dropped
-  const children = (list: any[]): string[] => {
+  const children = (list: any[], html: boolean): string[] => {
     const out: string[] = []
     for (const c of list) {
       if (c.type == 'JSXText') { const t = cleanText(c.value); if (t) out.push(JSON.stringify(t)) }
-      else if (c.type == 'JSXExpressionContainer') { if (c.expression.type != 'JSXEmptyExpression') out.push('(' + expr(c.expression) + ')') }
-      else if (c.type == 'JSXSpreadChild') out.push('...(' + expr(c.expression) + ')')
+      else if (c.type == 'JSXExpressionContainer') {
+        const e = c.expression
+        if (e.type == 'JSXEmptyExpression') continue
+        if (html && !vnodes) { const subs: Sub[] = []; direct(e, subs); out.push('(' + src(e.start, e.end, subs) + ')') }
+        else out.push('(' + expr(e) + ')')
+      }
+      else if (html && !vnodes && c.type == 'JSXElement' && compilable(c)) out.push(ssrInner(c))
       else out.push(jsx(c))
     }
     return out
@@ -125,8 +186,10 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
 
   const subs = subsIn(ast)
   if (!compiled) return null
-  const head = `import { __cv } from 'sygnal';\n` + hoisted.map((h, i) => `const $cv${i} = ${h};\n`).join('')
-  return head + src(0, code.length, subs)
+  const ms = new MagicString(code)
+  for (const [a, b, t] of subs) ms.overwrite(a, b, t)
+  ms.prepend(`import { __cv${ssr ? ', __cvs' : ''} } from 'sygnal';\n` + hoisted.map((h, i) => `const $cv${i} = ${h};\n`).join(''))
+  return {code: ms.toString(), map: ms.generateMap({hires: 'boundary', source: id, includeContent: true})}
 }
 
 // JSX text as oxc's JSX transform cleans it (the transform the plugin configures): split on line

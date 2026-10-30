@@ -5,6 +5,7 @@ import { Collection, Switchable, createRef } from 'sygnal'
 
 function Child({ label, children }) { return <em className="child">{label}{children}</em> }
 function Item({ state }) { return <li>{state.id}</li> }
+function U({ uid }) { return <b id={uid('x')}>u</b> }
 const ref = createRef()
 const rows = [{ id: 1, label: 'one' }, { id: 2, label: 'two <b>' }, { id: 3, label: '' }]
 
@@ -79,5 +80,9 @@ export const cases = {
   memberTag: [() => { const T = { X: Child }; return <div><T.X label="m" /></div> }, {}],
   insideComponentChildren: [() => <Child label="p"><div className="in">{1}</div></Child>, {}],
   conditionalElement: [({ a }) => (a ? <b className="t">t</b> : <i className="f">f</i>), { a: false }],
+  uidPaths: [() => <div><span>a</span>{[<U />, [<U />, 'x']]}<p className="p">{null}<U /><i>{1}<U /></i></p><U key="k" /></div>, {}],
+  innerHTML: [({ h }) => <div><p innerHTML={h} /></div>, { h: '<b>raw</b>' }],
+  staticDeep: [() => <div><header className="h"><h1>T <em>i</em></h1><nav><a href="/a">A</a></nav></header><img src="x.png" alt="" /></div>, {}],
+  escapes: [({ t }) => <div title={t} data-q={t}>{t}<b>{t}</b></div>, { t: `<a href="x">&'"` }],
   nested: [({ items }) => <main><header><h1>Title</h1></header><nav>{items.map(i => <a key={i} href={'#' + i}>{i}</a>)}</nav><footer>©</footer></main>, { items: ['a', 'b'] }],
 }

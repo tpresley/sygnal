@@ -283,13 +283,19 @@ export interface SygnalPluginOptions {
   nativeGlobalThis?: boolean
 
   /**
-   * CV-2 (experimental): compile JSX views at build time (tier A: an HTML element's data made once
-   * at module load when its attributes are static, and no JSX runtime call per element). The
-   * vnodes are the ones the JSX runtime makes. Vite 8 only (it uses Vite's JSX parser); a no-op
-   * with a warning below. Files under node_modules are never compiled.
+   * Experimental (dev-plans/research/compile-wasm/compiled-views-plan.md): compile JSX views at
+   * build time. Vite 8 only (it uses Vite's JSX parser); a no-op with a warning below. Files under
+   * node_modules are never compiled. `true`: every part that has shipped. An object turns parts
+   * off (each defaults to true):
+   * - `views` (CV-2): an HTML element (not a form field, custom element or SVG tag) becomes a
+   *   direct vnode call; its data is made once at module load when its attributes are static. The
+   *   vnodes are the ones the JSX runtime makes.
+   * - `ssr` (CV-1): in server builds, compiled elements render to HTML strings in renderToString
+   *   (same HTML, no vnode per element). Never under Vitest.
+   * - `test`: compile under Vitest too (`views` only), so tests run what ships.
    * @default false
    */
-  compile?: boolean
+  compile?: boolean | { views?: boolean; ssr?: boolean; test?: boolean }
 
   /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
@@ -380,18 +386,23 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
 
   // CV-2: its own plugin, before Vite's JSX transform (this plugin's transform runs after it)
   let warnedCompile = false
-  const compilePlugin = options.compile && {
+  const co = options.compile === true ? {} : options.compile || null
+  const compileOn = (k: 'views' | 'ssr' | 'test') => !!co && (co as any)[k] !== false
+  const compilePlugin = co && {
     name: 'vite-plugin-sygnal:compile',
     enforce: 'pre' as const,
-    transform(this: any, code: string, id: string) {
+    transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       const file = id.split('?')[0]
       if (!/\.[jt]sx$/.test(file) || file.includes('/node_modules/') || id.startsWith('\0')) return null
+      if (isVitest && !compileOn('test')) return null
+      // server code renders to strings (never under Vitest: renderComponent's mock DOM needs vnodes)
+      const ssr = !!opts?.ssr && !isVitest && compileOn('ssr')
+      if (!ssr && !compileOn('views')) return null
       if (viteMajor(this, root) < 8) {
         if (!warnedCompile) { warnedCompile = true; this.warn('[sygnal] `compile` needs Vite 8; views are not compiled') }
         return null
       }
-      const out = compileViews(code, file, (c, o) => this.parse(c, o))
-      return out == null ? null : { code: out, map: null }
+      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr })
     },
   }
   const main = {

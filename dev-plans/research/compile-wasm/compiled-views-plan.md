@@ -190,5 +190,22 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
 - First timing (3 runs, before pre-routed data): select row 1k, table 1.7 → 1.0 ms (hand-written
   tier A 0.9), Collection 2.5 → 1.7 ms. The full run waits for a quieter machine (load ≈ 46).
 - Size: uncompiled kanban +3 B (the `put()` refactor): 42,058 B, 942 B headroom.
-- Not yet: source maps (Q-2), a plugin test for the Vite 7 warning, the full timing run, then CV-1
-  (compiled SSR) and CV-3 (blocks).
+- **Decisions (coordinator, 2026-10-29):** Q-1 `compile: true | { views, ssr, test }` (each part
+  defaults on in the object form; `true` = everything shipped; off by default, default-on revisited at
+  the dev preview). Q-2 `magic-string` (^1.4.3) as a regular dependency, external in `sygnal/vite` and
+  `sygnal/astro` (no dist file bundles it). Q-3 compile under Vitest by default (`views` only), opt
+  out with `compile: { test: false }`. Done; tests in `test/cv-compile.test.js` (option shape, source
+  map, node_modules/virtual skips, the once-only Vite 7 warning).
+- **CV-1 done** (compiled SSR). In server builds (never under Vitest) the outermost compiled element
+  is `__cvs.r` (a vnode, so the root's `data-sygnal-ssr` stamp and the walk work), and compiled
+  elements below it are HTML chunks (`__cvs.f/s`, `src/extra/ssr.ts`). JSX in a *direct value
+  position* of a compiled element's child expression (`?:`, `&& || ??`, arrays, a `.map()` arrow's
+  expression body) is a chunk too; JSX anywhere else stays a vnode. Open tags and static subtrees
+  are serialized by `vnodeToHtml` once per escaping mode. Dynamic open tags take a fast path for
+  `props` + `dataset` that mirrors `buildAttributes` (a 2,000-shape differential test against
+  `vnodeToHtml`). Non-compiled children keep the child path the JSX runtime's tree gives them, so
+  `uid()` and hydration ids match. `test/cv-ssr.test.js`: all 55 fixture views give byte-identical
+  HTML. Benchmark table (`ssr/bench.mjs`, the real compiler): **1k rows 1.78 → 0.38 ms (4.7×), 10k
+  rows 23.7 → 4.3 ms (5.5×)**; the hand-written template's 16–26× is the ceiling (left: per-row data
+  objects and the fast-path tag writer).
+- Not yet: CV-3 (blocks), then the full timing run in a quiet window.

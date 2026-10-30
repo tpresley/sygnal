@@ -172,6 +172,7 @@
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
     "@tanstack/virtual-core": "^3.17.11",
+    "magic-string": "^1.4.3",
     "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
   },
