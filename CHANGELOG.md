@@ -93,8 +93,12 @@ behaves as on 7.1.0.
 - `sygnal/agent-ui`: a role-less container the app listens to no longer hides the controls inside it.
 - `src/` can be served by Vite directly (its types are re-exported with `export type`).
 
-**Measured impact.** Size: the kanban gate is 42,428 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
-budget 43,000 B, 572 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
+- **Runs in a Web Worker:** `run()` no longer reads the `window` global (`src/cycle/run/adapt.ts` uses
+  `globalThis`), so an app can run in a module worker on `sygnal/host` (research:
+  `dev-plans/research/web-worker/`).
+
+**Measured impact.** Size: the kanban gate is 42,472 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
+budget 43,000 B, 528 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
 renderer field tags cost about 100 B, and the cheaper Collection items about 260 B. The new subpaths
 add nothing to an app that doesn't import them. The perf count gate is within its limits.
 
