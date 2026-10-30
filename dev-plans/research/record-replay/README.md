@@ -448,7 +448,7 @@ Reviewed on the research decisions page. Unless a line says otherwise, the recom
 - Q1 `filterAction` / `onAction` returning `false`: **changed, add it now.** Bytes were the main reason to wait, and the maintainer accepts the bytes.
 - Q2 `onDispatch` at enqueue time: **changed, add it now.** Getting the DOM event there needs the browser and host DOM drivers to expose the event they're delivering (not `globalThis.event`, which workers and host targets don't have). That is design work, not a reason to wait.
 - Q3: `setState` goes through `onAction` as a `'setState'` cause, as long as it fits within the size budget.
-- Q4 explicit entropy: recommendation (no new canonical form; dev-only patching; a non-strict sygnal-check hint for `Date.now()` / `Math.random()` in reducers) pending the maintainer's confirmation after an explanation.
+- Q4 explicit entropy: **changed, add a canonical form.** Handlers get `now()`, `random()` and `uuid()` through their props (and `next`'s context), so replay and `renderComponent` can supply them (fixed clock and ids in tests). sygnal-check flags `Date.now()`, `Math.random()` and `crypto.randomUUID()` in reducers: a strict-mode SYG5xx (the existing convention for non-canonical forms that still work), and a default-mode hint inside reducers, where drift breaks replay. Developers can ignore or turn off either. Global patching stays as the fallback for code that keeps the globals.
 - Q5: a new `sygnal/replay` subpath, with `replay()` on the testing entry.
 - Q6: checkpoints after each patch.
 - Q7: `dropNoops` on by default, with an option to keep them.
