@@ -37,20 +37,38 @@ The maintainer approved building the kit and two targets (coordinator decisions:
 
 ---
 
-## Round 3 (2026-10-29): React Native, prepared, not yet run on iOS
+## Round 3 (2026-10-29): React Native on the iOS simulator
 
-`rn-app/` is an Expo app written by hand (no generator):
+`rn-app/` is a hand-written Expo app (SDK 58: react-native 0.88.1, react 19.3.0), run in Expo Go on an iPhone 17 Pro simulator (iOS 26.3) with `npx expo start --ios`. It needs no CocoaPods: Expo Go hosts the JS bundle, and Metro serves `sygnal` from this repo through the `file:` link (`metro.config.js`).
 
-- `src/nativeHost.jsx`: Sygnal → React Native on `sygnal/host`. A host tree is re-rendered as RN host components on each change. Native callbacks (`onPress`, `onChangeText`, `onSubmitEditing`, `onValueChange`) become DOM events through the host's user-agent actions. The neutral tags (`view`, `row`, `txt`, `pressable`, `textinput`, `toggle`, registered with `registerFieldTags`) and common HTML tags map to `View`, `Text`, `Pressable`, `TextInput` and `Switch`.
-- `src/counter.jsx`: an HTML view, so the web's component runs natively unchanged.
-- `src/todos.logic.js` + `src/todos.native.jsx`: shared intent and model (controls), with a native view.
-- `App.js`, `metro.config.js` (sygnal from this repo through the `file:` link), `app.json`, `package.json` (expo ~58.0.21).
+| Counter: an HTML view, unchanged | Todos: shared logic, native view | after "Clear done" |
+|---|---|---|
+| ![counter](screenshots/ios-counter.png) | ![todos](screenshots/ios-todos.png) | ![cleared](screenshots/ios-todos-cleared.png) |
 
-Verified so far: `npx vitest run --config dev-plans/research/alt-renderers/rn-app/vitest.config.mjs` runs `nativeHost.jsx` and both components in jsdom, with `react-native` stubbed onto react-dom host components (`test/react-native-stub.jsx`). That's 3 tests: the counter, the todo list (type, Enter, toggle, clear, remove), and the logic under `renderComponent`. Two findings from it: `activate()` gives checkbox semantics only to `<input type=checkbox>`, so a `toggle` fires its click, input and change itself; and a host must stop painting before `dispose()` empties the tree (`host.stop()`).
+What the screenshots show, each driven on the simulator through Sygnal:
 
-**Not done: the iOS simulator run and its screenshots.** This session's permission mode refused to run downloaded tooling (`npx create-expo-app` was denied as "code from external"). Running the app needs the user to allow `npm install` and `npx expo install --fix` in `rn-app/`, then `npx expo start --ios`. That last step installs Expo Go into the simulator, because CocoaPods isn't installed, so `expo run:ios` (a native build) would also need `gem install cocoapods`. Generated `ios/`, `android/` and `.expo/` are in `rn-app/.gitignore`.
+- **Counter.** Taps on the native `Pressable`s go `onPress` → `activate()` (a host `click`) → `DOM.click(Inc)` → the model, ending at "Count: 3" (+ + − + +). `src/counter.jsx` is plain HTML (`<section>`, `<h1>`, `<button>` controls). It's the component a web app would run, and the bridge maps the HTML tags onto RN components.
+- **Todos.** Typed into a native `TextInput` (`onChangeText` → host `input` → `DOM.input(Draft).value()`), then Add (`DOM.click(Add)`). The Collection renders the new item. Flipping a `Switch` (`onValueChange` → host `click`, `input`, `change` → `DOM.change(Done)`) applies the line-through, and the calculated field updates the count to "1 left". "Clear done" removes the done item. The intent and model are in `src/todos.logic.js`, shared with any other view of the same controls.
+
+**Bridge findings from the device run** (all fixed in `src/nativeHost.jsx`; the jsdom tests didn't catch them):
+
+1. **Styles must be copied.** React freezes the style objects it renders (in dev), and snabbdom's style module mutates the host element's own `style` object on the next patch. Seen on iOS as "You attempted to set the key `textDecorationLine` … frozen". The bridge now passes `{ ...el.style }`.
+2. **A controlled `TextInput` across an asynchronous round trip** (native text → `input` → Sygnal state → host patch → React render) gets values that lag the native text while typing fast, and rendering them reset the field mid-word. The bridge now treats a value the native side itself produced since the app last caught up as an echo: the native text stands, and any other value (the app clearing the field after Add) wins.
+3. **A `toggle` isn't an `<input type=checkbox>`**, so `activate()` doesn't give it checkbox semantics. The bridge fires `click`, `input` and `change` itself.
+4. **A host must stop painting before `dispose()`** empties the tree (`host.stop()`).
+
+**Not bridge bugs, noted for whoever reruns this:**
+
+- In the first session (Metro in CI mode, Expo Go's first launch), no taps reached Sygnal, and the plain React tab bar didn't respond either. After restarting Metro without CI mode and relaunching Expo Go, every press reached `onPress` and updated state. I didn't establish the cause.
+- Injected simulator taps don't flip a native `UISwitch`, but a short horizontal swipe does. Two taps on the same spot in quick succession sometimes register once.
+- With typing injected far faster than a person types (22 characters at once) and Add tapped about a second later, the item sometimes got a truncated title: the press was handled before the last keystrokes' updates. Logged `onChangeText` calls showed every keystroke arriving in order, and waiting 2 s before Add gave the full title. A production bridge should memoize per host element (it re-renders the whole tree per change, in dev mode here).
+
+Verification: `npx vitest run --config dev-plans/research/alt-renderers/rn-app/vitest.config.mjs` (3 tests, jsdom with `react-native` stubbed) plus the simulator run above. To rerun: `npm install` and `npx expo start --ios` in `rn-app/`. `node_modules/`, `.expo/`, `ios/` and `android/` are gitignored; no `ios/` build was generated.
+
+**Assessment.** The React Native path works: shared intent and model drive native views through `sygnal/host` with no change to the core or the component code, and an HTML view runs natively as is. The cost is a second tree (the host tree beside React's) and a whole-tree React render per change in this prototype. The work left before shipping a `sygnal/react-native`: per-element memoization, a real controlled-input protocol (event counts, as React Native's own `TextInput` uses), styles mapped from the host stylesheet, `Image` / `ScrollView` / list virtualization primitives, and a device build (`expo run:ios`, which needs CocoaPods).
 
 ---
+
 
 Run it:
 

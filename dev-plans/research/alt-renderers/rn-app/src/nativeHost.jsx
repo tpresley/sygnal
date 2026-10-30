@@ -23,7 +23,28 @@ const s = StyleSheet.create({
 })
 
 const fire = (el, type, init) => el.dispatchEvent(new HostEvent(type, init))
-const styleOf = (el) => (el.style && Object.keys(el.style).length ? el.style : undefined)
+// a copy: React freezes the style objects it renders (dev), and snabbdom's style module mutates
+// the element's own object on the next patch (seen on iOS: "attempted to set the key … frozen")
+const styleOf = (el) => (el.style && Object.keys(el.style).length ? { ...el.style } : undefined)
+
+/**
+ * A controlled TextInput across an asynchronous round trip: native text → input event → Sygnal
+ * state → host patch → this render. Typing faster than that round trip makes the app's value lag
+ * the native one, and rendering a lagging value resets the field mid-typing (characters lost: seen
+ * on the iOS simulator). So a value the native side itself produced since the app last caught up
+ * is an echo, and the native text stands; any other value (the app cleared or set the field) wins.
+ */
+function NativeTextInput({ el }) {
+  const echo = (el.__echo ||= { last: el.value, seen: new Set() })
+  if (el.value === echo.last) echo.seen.clear()
+  else if (!echo.seen.has(el.value)) { echo.last = el.value; echo.seen.clear() }
+  return (
+    <TextInput style={[s.input, styleOf(el)]} value={echo.last} placeholder={el.placeholder || undefined}
+      onFocus={() => el.focus()}
+      onChangeText={(v) => { echo.last = v; echo.seen.add(v); el.value = v; fire(el, 'input') }}
+      onSubmitEditing={() => pressKey(el, 'Enter')} />
+  )
+}
 
 /** tag → (element, children) → a React element */
 const TABLE = {
@@ -36,12 +57,7 @@ const TABLE = {
       <Text style={s.buttonText}>{kids}</Text>
     </Pressable>
   ),
-  textinput: (el) => (
-    <TextInput style={[s.input, styleOf(el)]} value={el.value} placeholder={el.placeholder || undefined}
-      onFocus={() => el.focus()}
-      onChangeText={(v) => { el.value = v; fire(el, 'input') }}
-      onSubmitEditing={() => pressKey(el, 'Enter')} />
-  ),
+  textinput: (el) => <NativeTextInput el={el} />,
   // a toggle isn't an <input type=checkbox> to activate(): it gets a checkbox's events itself
   toggle: (el) => <Switch value={el.checked} onValueChange={(v) => { el.checked = v; fire(el, 'click'); fire(el, 'input'); fire(el, 'change') }} />,
 }
