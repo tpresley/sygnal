@@ -41,7 +41,9 @@ describe('strict mode switch', () => {
     expect(getCodeInfo('SYG501')).toMatchObject({ severity: 'error', title: 'Removed in 6.0: view with positional arguments' })
     expect(getCodeInfo('SYG507')).toMatchObject({ severity: 'info' })
     expect(getCodeInfo('SYG508')).toMatchObject({ severity: 'warn', title: 'select()/errors() round trip where reply actions would do' })
-    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(8)
+    expect(getCodeInfo('SYG509')).toMatchObject({ severity: 'warn', title: 'Clock or randomness read from a global in a handler' })
+    expect(getCodeInfo('SYG258')).toMatchObject({ severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' })
+    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(9)
   })
 
   it('reports nothing when strict is off, even for every non-canonical form', async () => {

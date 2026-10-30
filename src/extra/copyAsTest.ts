@@ -42,6 +42,13 @@ export interface CopyAsTestOptions {
   testName?: string
   /** adds a `// @vitest-environment <env>` first line (e.g. 'jsdom') */
   environment?: string
+  /**
+   * 7.2: 'steps' (default): explicit simulateAction / respond lines. 'replay': the recording of
+   * sygnal/replay's newest recorder (startRecording() before run()) and a test that replays it
+   * (works for child instances, timer replies, clock and randomness); `drivers` / `imports` /
+   * `renderOptions` don't apply
+   */
+  mode?: 'steps' | 'replay'
 }
 
 export interface CopyAsTestResult {
@@ -53,6 +60,9 @@ export interface CopyAsTestResult {
   warnings: string[]
   /** actions written as simulateAction / respond / fail */
   replayed: number
+  /** replay mode: the recording's JSON, to save next to the test as `file` */
+  recording?: string
+  file?: string
 }
 
 const REPLAY = new Set(['intent', 'simulateAction', 'behavior', 'agent'])
@@ -283,4 +293,16 @@ export function sessionToTest(rec: SessionRecording, options: CopyAsTestOptions 
     '',
   ].join('\n')
   return {code, complete: !incomplete.length, warnings, replayed}
+}
+
+/**
+ * 7.2: Copy as test's replay mode: the test and recording of sygnal/replay's newest recorder (it
+ * puts itself on the dev bridge, so sygnal/devtools imports no replay code)
+ */
+export function replayFile(options: CopyAsTestOptions = {}): CopyAsTestResult {
+  const rec = (globalThis as any).__SYGNAL_DIAGNOSTICS__?.recorder
+  if (!rec?.log()) throw new Error("[Sygnal DevTools] copyAsTest (replay mode): nothing recorded: import { startRecording } from 'sygnal/replay' and call it before run()")
+  const {componentImport, componentName, testName, environment} = options
+  const {code, recording, file} = rec.test({componentImport, componentName, testName, environment})
+  return {code, complete: true, warnings: [], replayed: JSON.parse(recording).a.length, recording, file}
 }

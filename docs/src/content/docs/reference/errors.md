@@ -1269,6 +1269,16 @@ An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HT
 
 **Fix:** If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.
 
+### SYG258
+
+**Clock or randomness read from a global in a STATE reducer**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The reducer then gives a different state each time the same action runs, so replaying recorded actions (record/replay, a test with `renderComponent`) does not reproduce the state. Model handlers receive `now()`, `random()` and `uuid()` on their 4th argument (props); record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply them, so the reducer stays deterministic. Calls in nested functions, views and intents are not reported. The global still works: replay patches it as a fallback, so this is a warning, not an error. Under `sygnal-check --strict` the same reads are reported as SYG509 instead (which also covers EFFECT and other sink handlers). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ "ignore": ["SYG258"] }`) or put `// sygnal-ignore SYG258` above the line.
+
+**Fix:** Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1722,7 +1732,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 Two or more items in a `<Collection>`'s array have the same `id`. A Collection keys its items by `id` (an item without one by its index in the array), so only the first item with that id renders, and the item component's writes go to that first item. The others are not shown.
 
-**Fix:** Give every item a unique `id` when it is created, for example from a counter in state or `crypto.randomUUID()`. Items with no `id` at all are keyed by their index.
+**Fix:** Give every item a unique `id` when it is created, for example from a counter in state or `uuid()` from the reducer's 4th argument (`(state, data, next, { uuid }) => …`). Items with no `id` at all are keyed by their index.
 
 ### SYG425
 
@@ -2121,6 +2131,16 @@ Quote.model = {
   FAILED: (state, { status }) => ({ ...state, status }),
 }
 ```
+
+### SYG509
+
+**Clock or randomness read from a global in a handler**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). A model handler (a STATE reducer, an EFFECT handler, another sink's handler or the payload function of `event()`) calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The canonical form takes `now()`, `random()` and `uuid()` from the handler's 4th argument (props), which record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply, so replaying the actions gives the same result. Calls in nested functions, views and intents are not reported. The global still works (replay patches it as a fallback). In strict mode it replaces SYG258, so a read in a STATE reducer is reported once. `--fix` rewrites the reads and the parameter list when that is safe (a plain JavaScript handler whose 4th parameter is missing, a name or a destructuring pattern). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ "ignore": ["SYG509"] }`) or put `// sygnal-ignore SYG509` above the line.
+
+**Fix:** Use the handler's 4th argument: `SAVE: { EFFECT: (state, data, next, { now }) => { localStorage.setItem('savedAt', String(now())) } }`, or `(state, data, next, props) => … props.uuid() …`; `new Date()` becomes `new Date(now())`.
 
 ## SYG6xx: Drivers, sources and component setup
 

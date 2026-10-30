@@ -8,7 +8,7 @@
 import {installDevTools} from './extra/devtools'
 import {getSession, isRecording} from './extra/devtoolsActions'
 import type {SessionRecording} from './extra/devtoolsActions'
-import {sessionToTest} from './extra/copyAsTest'
+import {sessionToTest, replayFile} from './extra/copyAsTest'
 import type {CopyAsTestOptions, CopyAsTestResult} from './extra/copyAsTest'
 
 installDevTools()
@@ -24,6 +24,7 @@ const isSession = (x: any): x is SessionRecording => !!x && typeof x == 'object'
  * an instance id; a component; run()'s result; or a SessionRecording from getSession()).
  */
 export function copyAsTestResult(target?: any, options?: CopyAsTestOptions): CopyAsTestResult {
+  if (options?.mode == 'replay') return replayFile(options)
   if (!isSession(target) && !isRecording()) throw new Error('[Sygnal DevTools] copyAsTest: nothing was recorded: import sygnal/devtools before run() (in a browser), or call recordActions() first')
   return sessionToTest(isSession(target) ? target : getSession(target), options)
 }

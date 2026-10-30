@@ -230,6 +230,23 @@ export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
+   * 7.2: what handlers' `now()` (4th argument) returns: a number fixes the clock at that time (ms
+   * since the epoch, or a Date), a function is called each time. Default: Date.now() (fake timers
+   * apply)
+   */
+  now?: number | Date | (() => number);
+  /**
+   * 7.2: what handlers' `random()` returns: a number seeds a deterministic generator (the same
+   * sequence on every run), a function is called each time. Default: Math.random()
+   */
+  random?: number | (() => number);
+  /**
+   * 7.2: what handlers' `uuid()` returns: `true` gives deterministic UUID-shaped ids in order
+   * (`00000000-0000-4000-8000-000000000001`, `…002`, ...), a function is called each time.
+   * Default: crypto.randomUUID()
+   */
+  uuid?: true | (() => string);
+  /**
    * D214: context from the ancestors the rendered component would have, for testing a child
    * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
    * descendants read it as `context.lang`; the component's own `.context` entries win over a key
@@ -1497,6 +1514,30 @@ function fakeElementMethods(W: any): () => void {
   return () => added.forEach(([proto, name, own]) => { delete proto[name]; if (own) Object.defineProperty(proto, name, own); });
 }
 
+/** 7.2: renderComponent's now / random / uuid options as the handlers' entropy functions */
+export function entropyOf(o: {now?: any; random?: any; uuid?: any}) {
+  const e: {now?: () => number; random?: () => number; uuid?: () => string} = {}
+  const {now, random, uuid} = o
+  if (now != null) e.now = typeof now == 'function' ? now : () => +now
+  if (typeof random == 'function') e.random = random
+  else if (typeof random == 'number') {
+    // mulberry32: a small seeded generator, the same sequence for the same seed
+    let a = random >>> 0
+    e.random = () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  if (typeof uuid == 'function') e.uuid = uuid
+  else if (uuid === true) {
+    let n = 0
+    e.uuid = () => '00000000-0000-4000-8000-' + (++n).toString(16).padStart(12, '0')
+  }
+  return e
+}
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -2245,6 +2286,7 @@ export function renderComponent(
     const p = startNext(componentDef, allDrivers, {
       useDefaultDrivers: false, onError: options.onError,
       __hooks: nextHooks(),
+      __entropy: entropyOf(options),
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
       __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,

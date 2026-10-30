@@ -248,5 +248,11 @@
     "contract.js": "export const contract = { quotes: { list: oc.route({ method: 'GET' }) } }\n",
     "api.js": "import { orpcClient } from 'sygnal/api'\nimport { contract } from './contract.js'\nexport const api = orpcClient(contract)\n",
     "Q.jsx": "import { api } from './api.js'\nexport function Q() { return <ul /> }\nQ.resources = { quotes: () => api.quotes.lst() }\n"
+  },
+  "SYG258": {
+    "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
+  },
+  "SYG509": {
+    "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
   }
 }

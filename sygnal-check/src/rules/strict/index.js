@@ -14,6 +14,7 @@ import eventsEmit from './syg505-events-emit.js'
 import childSelectString from './syg506-child-select-string.js'
 import propDrilling from './syg507-prop-drilling.js'
 import selectRoundtrip from './syg508-select-roundtrip.js'
+import clockInHandler from './syg509-clock-in-handler.js'
 
 export const strictRules = [
   positionalView,     // SYG501 (C1)
@@ -24,4 +25,5 @@ export const strictRules = [
   childSelectString,  // SYG506 (C7)
   propDrilling,       // SYG507 (C10, info)
   selectRoundtrip,    // SYG508 (PLAN-3 §1.1: reply actions)
+  clockInHandler,     // SYG509 (record/replay: now()/random()/uuid() from props; replaces SYG258)
 ]

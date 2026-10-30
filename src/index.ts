@@ -1,7 +1,7 @@
 'use strict'
 
 // export sygnal core functions
-export { ABORT, abort } from "./shared"
+export { ABORT, abort, deliver as __deliver } from "./shared"
 export { defineComponent } from "./defineComponent"
 export { Collection } from "./collection"
 export { VirtualCollection } from "./extra/virtual"
@@ -45,6 +45,8 @@ export { sortable } from './extra/sortable'
 export { undoable, undo } from './extra/undo'
 export { persist } from './extra/persist'
 export { renderComponent } from './extra/testing'
+// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './extra/replay/index'
 export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
 export { renderToString, __cvs } from './extra/ssr'

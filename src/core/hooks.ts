@@ -167,8 +167,22 @@ export interface Hooks {
   onIntent?(inst: InstanceView, actionNames: string[]): void
 
   // ------------------------------------------------------------------ actions
-  /** an action is about to be processed (dequeued); `cause` says where it came from */
-  onAction?(inst: InstanceView, action: ActionRecord): void
+  /**
+   * an action was queued (`app.dispatch`), before it runs: the enqueue time, and `event`, the DOM
+   * event a DOM driver (the browser driver, sygnal/host's) was delivering when it was dispatched
+   * (an intent action from a click or a keystroke; undefined for a timer, a reply, a next()).
+   * 7.2 (record/replay: input times, redaction by provenance). setState and the core's internal
+   * seeds aren't reported here (onAction sees setState)
+   */
+  onDispatch?(inst: InstanceView, type: string, data: any, cause: ActionCause, event: any): void
+  /**
+   * an action is about to be processed (dequeued); `cause` says where it came from. Return
+   * `false` to drop it: no handler runs, nothing else sees it (7.2: a replay mutes the inputs the
+   * replayed code makes itself). A `setState` from the runtime API comes here too (7.2), as
+   * `{type: 'setState', cause: 'setState', data: the new state}`, only when it changes the state;
+   * `false` drops the write
+   */
+  onAction?(inst: InstanceView, action: ActionRecord): void | false
   /**
    * Wrap one handler of an action. `fn` is the model entry (a function or a constant). Return a
    * replacement with the same contract; ABORT / the same state still mean "no change". Used by

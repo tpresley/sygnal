@@ -465,7 +465,7 @@ Component.model = {
 | `state` | `STATE` | Component state after the action's STATE reducer (with calculated fields) |
 | `data` | `any` | Data from the triggering action |
 | `next` | `(action, data?, delay?) => void` | Dispatch a follow-up action |
-| `props` | `object` | Current props, children, slots, context, `state`, `previousState` (the state from before the action, 7.0) and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
+| `props` | `object` | Current props, children, slots, context, `state`, `previousState` (the state from before the action, 7.0), `now()`, `random()`, `uuid()` (the clock and randomness, 7.2: [Model](/guide/model/#the-clock-and-randomness)) and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
 
 Every non-STATE sink gets these arguments: STATE runs first, so `state` is what it committed ([Model](/guide/model/#what-state-each-sink-sees)).
 
@@ -607,6 +607,9 @@ function renderComponent(
 | `browserSink` | `string` | `'BROWSER'` | The sink of the browser fake (the real browser driver over fake sources, driven by `t.browser`), unless a driver is passed under that name |
 | `browser` | `BrowserFakeOptions` | (see guide) | The browser fake's environment at the start: `{ media, storage, sessionStorage, visible, online, clipboard, position, deny }` ([Browser Sources](/guide/browser-sources/#testing)) |
 | `storage` | `Record<string, entry \| string>` | `{}` | The fake storage of a root's [`persist()`](/guide/persistence/#testing) (`'local'` and `'session'` alike): key to `{ version, state }` (with `format: 'plain'`, the stored keys) or a raw string. Used as is: writes land in it, and calls given the same object share it |
+| `now` | `number \| Date \| () => number` | `Date.now()` | What handlers' `now()` returns: a fixed time or a function ([Testing](/integration/testing/#a-fixed-clock-and-ids)) |
+| `random` | `number \| () => number` | `Math.random()` | What handlers' `random()` returns: a number seeds a deterministic generator |
+| `uuid` | `true \| () => string` | `crypto.randomUUID()` | What handlers' `uuid()` returns: `true` gives ordered UUID-shaped ids |
 
 The [Testing guide's options table](/integration/testing/#options) lists the rest (timing, HTTP, router and head fakes).
 
@@ -661,6 +664,17 @@ t.dispose()
 ```
 
 See [Testing guide](/integration/testing/) for full usage patterns.
+
+---
+
+## replay()
+
+```ts
+import { replay } from 'sygnal'            // or 'sygnal/replay'
+function replay(Component, recording: Recording | string, options?: ReplayOptions): Promise<ReplayResult>
+```
+
+Replays a recording made with `startRecording()` from `sygnal/replay` in `renderComponent`, and compares each action and screen update with it: `{ ok, divergence, view, effects, unhandled, unresolved, warnings, final, t }`. Options: `drivers`, `render`, `stopAt`, `entropy`, `warn`. `sygnal/replay` also exports `startRecording({ redact, dropNoops, vnodes })`, `replayTest(recording)`, `bugReport(recording, result)`, `timeline()`, `finalState()`, `RECORDING_SCHEMA` and `inertDriver()`. Dev preview: see [Record and Replay](/guide/record-replay/).
 
 ---
 

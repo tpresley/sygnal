@@ -49,7 +49,8 @@ The new core replaces all of it with three layers:
 | `onPatch(vnode)` | after the one root patch of a flush | the perf gate's and parity suite's DOM wrapper (test-only today) |
 | `wrapSources(inst, sources)` | once, before the intent | `diag.sourcesFor`, testing's `inject` (mutating `sources`/`sourceNames`), shorthand/controls/replies Proxies |
 | `onIntent(inst, names)` | after the intent returned | `diag.onIntent` action-name checks (SYG605, inspect) |
-| `onAction(inst, action)` | an action is dequeued, with `cause` | `action$._n`, `action$.shamefullySendNext` and `_replies[i]._n` patches (action log, devtools `patchReplies`), `onActionDispatched` |
+| `onDispatch(inst, type, data, cause, event)` | 7.2: an action is queued (`app.dispatch`), with the DOM event being delivered when it was (§2.7); not for setState or the core's seeds | new (record/replay: input times, redaction by provenance) |
+| `onAction(inst, action)` | an action is dequeued, with `cause`. 7.2: returning `false` drops it (no handler runs); a runtime `setState` comes here too as `{type: 'setState', cause: 'setState', data: the new state}`, only when it changes the state (`false` drops the write) | `action$._n`, `action$.shamefullySendNext` and `_replies[i]._n` patches (action log, devtools `patchReplies`), `onActionDispatched` |
 | `wrapHandler(inst, type, sink, fn)` | per handler, when the action runs | `makeOnAction` / `makeEffectHandler` replacement, SYG222 reducer wrapping |
 | `onReducer(inst, type, prev, next)` | after STATE was applied | `diag.onReducer` |
 | `onSink(inst, type, sink, value)` | a non-STATE sink produced a value | `model$[sink]` replacements (replies, fetch, ELEMENT, EVENTS taps), `recordChildSinks` |
@@ -62,6 +63,7 @@ The new core replaces all of it with three layers:
 | `onError(error, info)` | errors with a phase | `sources.__e` / run()'s `onError` |
 
 **Rules:**
+- Layers compose: a wrapping hook (`wrapHandler`, `wrapSources`, `transformDef`) wraps what the layers below gave; any other hook calls every layer, and returns `false` when any layer did (`onAction`: dropped, `onElementCommand`: not run; 7.2).
 - Hooks run synchronously inside the queue/flush. A hook may dispatch (it is queued FIFO), but must not render, patch or dispose.
 - A hook gets an `InstanceView`, never the raw instance.
 - Hooks are per app, so two apps on a page never see each other's (today `pendingReducers` and the diagnostics bridge are page-wide). `globalThis.__SYGNAL_DIAGNOSTICS__` stays the dev entry's bridge, but what it installs becomes hooks: the runtime reads the registered check set once per app.
@@ -70,7 +72,7 @@ The new core replaces all of it with three layers:
 
 - **`InstanceView`:** `id`, `parentId`, `name`, `def`, `state`, `props`, `context`, `kind`, `shown`, `disposed`, `uid`, `children()`, `sources`. Devtools' "about 15 fields" all come from here.
 - **`getState()`:** replaces `STATE.stream._v`.
-- **`setState(target, state | fn)`:** a queued action with cause `'setState'`, applied run-to-completion, one patch. It replaces every `shamefullySendNext` of a reducer: devtools time travel, element prop sync, HMR state restore, Vike page swaps, the lazy re-render tick.
+- **`setState(target, state | fn)`:** a queued action with cause `'setState'`, applied run-to-completion, one patch. 7.2: `onAction` sees it (type `'setState'`, the new state as data) when it changes the state, so a recording made across time travel, an HMR restore, element props or a Vike swap replays; the action log and devtools' action list skip it. It replaces every `shamefullySendNext` of a reducer: devtools time travel, element prop sync, HMR state restore, Vike page swaps, the lazy re-render tick.
 - **`dispatch(target, type, data, cause)`:** replaces testing's `simulateAction` push and persist's RESTORE push.
 - **`addHooks(hooks)`:** a dev entry or devtools connecting after `run()`.
 - **`flushed()`:** testing's settle without polling.
@@ -116,6 +118,15 @@ The new core replaces all of it with three layers:
 
 - Every page is created at mount (its INITIALIZE, intent, actions, BOOTSTRAP, PARENT and `background: true` statics run from then on). A hidden page's view is first called when it is first shown, with the current state, as today (G-121). After that its render is skipped while hidden and it renders on show if its inputs changed. No new prop.
 - **READY:** the Switchable stays ready for its owner, as today.
+
+### 2.7 Record / replay (7.2 dev preview; research: `dev-plans/research/record-replay`)
+
+The maintainer's decisions on the record/replay spike (Q1–Q4) added three things to the contract:
+
+- **Drop (Q1).** `onAction` returning `false` drops the action: no handler runs, D205's refresh doesn't happen. `sygnal/replay` drops the inputs the replayed code makes itself (a fake timer's tick, a `next()` timeout) and dispatches their recorded twins instead.
+- **`onDispatch` (Q2).** Called at enqueue with `event`: the DOM event a DOM driver was delivering when the action was dispatched (an intent action from a click or a keystroke), else `undefined`. Not `globalThis.event`, which workers and `sygnal/host` targets don't have: the browser DOM driver (`EventDelegator.onEvent`, `fromEvent` for `document` / `body` listeners) and the host driver (`HostSource.events`) run the delivery inside `deliver(event, f)` (`src/shared.ts`), which sets the slot the core reads (`delivering`) and restores it after (nested deliveries). Zero work beyond the slot write when no layer has `onDispatch`. An action an EFFECT dispatches synchronously during that delivery carries the event too. The recorder uses it for input times (enqueue, not processing) and for exact redaction provenance (an intent action from a text-entry event).
+- **`setState` through `onAction` (Q3)**, above.
+- **Explicit entropy (Q4)** is not a hook: every handler's 4th argument has `now()`, `random()` and `uuid()` (`Date.now()`, `Math.random()`, `crypto.randomUUID()` read at call time, so fake timers and spies apply; a component prop of the same name wins). `StartOptions.__entropy` replaces them per app (renderComponent's `now` / `random` / `uuid` options). A recorder or replayer wraps them in `wrapHandler` (it gets the props as the 4th argument), which also covers an async EFFECT after an `await`.
 
 ## 3. Consumers: what they use today, and the hook that replaces it
 

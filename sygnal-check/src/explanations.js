@@ -42,6 +42,13 @@ export const EXPLANATIONS = {
     explanation: "An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HTTP, EVENTS, PARENT, ELEMENT, another driver or a behavior output) read a top-level state field that the same action's STATE changed. Since 7.0 the output gets the new, committed value; in 6.x it got the old one. Reported once per component, action, sink and field. In code written for 7.0 reading the new value is the intended behavior, so the audit is off by default: turn it on while migrating a 6.x app with configureTimingAudit(true) from 'sygnal/diagnostics', renderComponent(C, { timingAudit: true }), sygnal({ diagnostics: { timingAudit: true } }) in the Vite plugin, or globalThis.__SYGNAL_TIMING_AUDIT__ = true. Dev only: production builds contain none of it.",
     fix: "If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.",
   },
+  SYG258: {
+    title: "Clock or randomness read from a global in a STATE reducer",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The reducer then gives a different state each time the same action runs, so replaying recorded actions (record/replay, a test with `renderComponent`) does not reproduce the state. Model handlers receive `now()`, `random()` and `uuid()` on their 4th argument (props); record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply them, so the reducer stays deterministic. Calls in nested functions, views and intents are not reported. The global still works: replay patches it as a fallback, so this is a warning, not an error. Under `sygnal-check --strict` the same reads are reported as SYG509 instead (which also covers EFFECT and other sink handlers). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ \"ignore\": [\"SYG258\"] }`) or put `// sygnal-ignore SYG258` above the line.",
+    fix: "Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.",
+  },
   SYG454: {
     title: "State binding changed without a new component identity",
     severity: "warn",
@@ -782,7 +789,7 @@ export const EXPLANATIONS = {
     severity: "warn",
     reportedBy: ["dev-entry"],
     explanation: "Two or more items in a `<Collection>`'s array have the same `id`. A Collection keys its items by `id` (an item without one by its index in the array), so only the first item with that id renders, and the item component's writes go to that first item. The others are not shown.",
-    fix: "Give every item a unique `id` when it is created, for example from a counter in state or `crypto.randomUUID()`. Items with no `id` at all are keyed by their index.",
+    fix: "Give every item a unique `id` when it is created, for example from a counter in state or `uuid()` from the reducer's 4th argument (`(state, data, next, { uuid }) => …`). Items with no `id` at all are keyed by their index.",
   },
   SYG425: {
     title: "isolatedState slice lacks initialState keys",
@@ -1022,6 +1029,13 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry", "static"],
     explanation: "Strict mode only. A component sends a request with `category: 'quote'` to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, or a sink named `HTTP`) and reads the reply back in its own intent with `HTTP.select('quote')` or `HTTP.errors('quote')`. The canonical form is a request with reply actions: it names them in the request, so the intent line, the category string and the select/errors split all go away, and the reply reaches exactly the component instance that sent it. `select()`/`errors()` remain for requests without reply actions and for stream-level composition (see Alternative forms). The runtime check (`configureStrict(true)`, `renderComponent(C, { strict: true })`) reports a request whose category the same component selects on a source with reply actions.",
     fix: "Name the reply actions in the request and remove the intent line: `LOAD: { HTTP: (state) => ({ url: '/api/quote', ok: 'LOADED', error: 'FAILED' }) }`, with `LOADED: (state, body) => …` (the parsed body) and `FAILED: (state, { status }) => …` in the model.",
+  },
+  SYG509: {
+    title: "Clock or randomness read from a global in a handler",
+    severity: "warn",
+    reportedBy: ["static"],
+    explanation: "Strict mode only (`sygnal-check --strict`). A model handler (a STATE reducer, an EFFECT handler, another sink's handler or the payload function of `event()`) calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The canonical form takes `now()`, `random()` and `uuid()` from the handler's 4th argument (props), which record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply, so replaying the actions gives the same result. Calls in nested functions, views and intents are not reported. The global still works (replay patches it as a fallback). In strict mode it replaces SYG258, so a read in a STATE reducer is reported once. `--fix` rewrites the reads and the parameter list when that is safe (a plain JavaScript handler whose 4th parameter is missing, a name or a destructuring pattern). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ \"ignore\": [\"SYG509\"] }`) or put `// sygnal-ignore SYG509` above the line.",
+    fix: "Use the handler's 4th argument: `SAVE: { EFFECT: (state, data, next, { now }) => { localStorage.setItem('savedAt', String(now())) } }`, or `(state, data, next, props) => … props.uuid() …`; `new Date()` becomes `new Date(now())`.",
   },
   SYG601: {
     title: "Retired in 6.0: Missing or invalid sources",

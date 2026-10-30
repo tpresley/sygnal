@@ -88,8 +88,8 @@ const model = {
   EXAMPLE: { EFFECT: (state, prompt, next) => next('page.COMPOSE', { prompt, fresh: true }) },
   FOLLOW_UP: { EFFECT: (state, prompt, next) => next('page.COMPOSE', prompt) },
   // these run after the behavior's own entries: who composes, and how long it took
-  'page.COMPOSE': (state) => (state.page.status === 'composing' ? { ...state, composer: pickedChoice(state).label, startedAt: Date.now(), took: null } : ABORT),
-  'page.DONE': (state) => ({ ...state, took: state.startedAt ? Date.now() - state.startedAt : null }),
+  'page.COMPOSE': (state, data, next, { now }) => (state.page.status === 'composing' ? { ...state, composer: pickedChoice(state).label, startedAt: now(), took: null } : ABORT),
+  'page.DONE': (state, data, next, { now }) => ({ ...state, took: state.startedAt ? now() - state.startedAt : null }),
 }
 
 /** composes with a decision model: decide() requests on HTTP */

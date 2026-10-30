@@ -16,6 +16,7 @@ Sygnal 6.0 removed several forms that used to be listed here: `'ACTION | SINK'` 
 | [`return state` for "no change"](#returning-the-unchanged-state) | `return ABORT` | — (SYG502 retired in 6.0) | no |
 | [Side effect in a STATE reducer + `ABORT`](#side-effects-in-a-state-reducer) | `ACTION: { EFFECT: fn }` | SYG503 | no |
 | [`HTTP.select()`/`errors()` reading back your own request](#selecterrors-round-trip) | `{ url, ok: 'LOADED', error: 'FAILED' }` | SYG508 | no |
+| [`Date.now()` / `Math.random()` / `crypto.randomUUID()` in a handler](#the-clock-and-randomness-from-globals) | `(state, data, next, { now, random, uuid })` | SYG509 (SYG258 outside strict mode, STATE reducers) | yes |
 | [Model-sent `{ connections }`](#model-sent-connections) | the `connections` static | — | no |
 | [`driverFromAsync` around `fetch`](#driverfromasync-for-http) | `makeFetchDriver()` | — | no |
 | [Controls](#controls-instead-of-class-selectors) (`controls()`, `<Add>`, `DOM.click(Add)`) | class and attribute selectors: `<button className="add">`, `DOM.click('.add')` | — | the other way: `--fix --controls` converts selectors to controls (opt-in) |
@@ -127,6 +128,18 @@ Quote.model = {
 ```
 
 The reply-action form puts the request and the place its reply goes on one line, drops the category string and the intent lines, and delivers the reply to exactly the sending instance. Strict mode flags the round trip as [SYG508](/reference/errors/#syg508). `select()` and `errors()` remain valid, and are not flagged, for requests without reply actions whose replies another component reads, for custom drivers without reply actions, and for stream-level composition (combining replies with other streams in the intent). With `latest: true`, a request without reply actions is superseded per category (`{ category, abort: true }` cancels), one with reply actions per key (`{ abort: 'LOADED' }`). See [HTTP](/guide/http/#requests-without-reply-actions-select-and-errors).
+
+## The clock and randomness from globals
+
+```jsx
+// Alternative: the globals
+Board.model = { ADD_TASK: (state, title) => ({ ...state, tasks: [...state.tasks, { id: crypto.randomUUID(), title, at: Date.now() }] }) }
+
+// Canonical (7.2): the handler's 4th argument
+Board.model = { ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, at: now() }] }) }
+```
+
+Both give the same values in the app. Only the canonical form can be fixed by a test (`renderComponent(Board, { now: …, uuid: true })`) and supplied by a [replay](/guide/record-replay/) after an `await`; a replay patches the globals only while a handler runs synchronously. `sygnal-check` reports the globals in a STATE reducer as [SYG258](/reference/errors/#syg258), and in any handler as [SYG509](/reference/errors/#syg509) in strict mode; `--fix` rewrites them. See [The Clock and Randomness](/guide/model/#the-clock-and-randomness).
 
 ## Model-sent connections
 

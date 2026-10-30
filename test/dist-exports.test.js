@@ -25,7 +25,8 @@ const NON_FUNCTION_EXPORTS = { ABORT: 'symbol', onlineStatus$: 'object',
   __cv: 'object', __cvs: 'object', __cvb: 'object',
   // PLAN-5 B-3: the browser sources makeBrowserDriverWith() takes
   intersectionSource: 'object', resizeSource: 'object', mediaSource: 'object', storageSource: 'object',
-  visibilitySource: 'object', onlineSource: 'object', geolocationSource: 'object', clipboardSource: 'object' }
+  visibilitySource: 'object', onlineSource: 'object', geolocationSource: 'object', clipboardSource: 'object',
+  RECORDING_SCHEMA: 'object' }
 const EXTRAS = ['concat', 'debounce', 'throttle', 'delay', 'dropRepeats', 'sampleCombine', 'flattenConcurrently', 'flattenSequentially']
 
 // Shared probe body: `s` is the module namespace. Prints JSON {types, calls}.

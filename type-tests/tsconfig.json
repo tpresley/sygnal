@@ -23,6 +23,7 @@
       "sygnal/zag": ["../src/zag.d.ts"],
       "sygnal/ai": ["../src/ai.d.ts"],
       "sygnal/api": ["../src/api.d.ts"],
+      "sygnal/replay": ["../src/replay.d.ts"],
       "sygnal/react": ["../src/react.d.ts"],
       "sygnal/host": ["../src/host.d.ts"],
       "sygnal/terminal": ["../src/terminal.d.ts"],

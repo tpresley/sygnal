@@ -76,6 +76,11 @@
       "import": "./dist/api.esm.js",
       "require": "./dist/api.cjs.js"
     },
+    "./replay": {
+      "types": "./src/replay.d.ts",
+      "import": "./dist/replay.esm.js",
+      "require": "./dist/replay.cjs.js"
+    },
     "./react": {
       "types": "./src/react.d.ts",
       "import": "./dist/react.esm.js",

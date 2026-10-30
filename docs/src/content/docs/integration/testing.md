@@ -249,6 +249,31 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 - Without `renderComponent` (an app started with `run()` in a test), the app needs no clock to start or render: `INITIALIZE` runs at construction, the intent is subscribed at creation, a render follows a state change in a microtask, and `BOOTSTRAP` runs a microtask after the first render. `await Promise.resolve()` (a few times for nested work) lets them happen. Only your own timers (a model `next('X', data, ms)`, `debounce`, `xs.periodic`) need the clock moved.
 - Keep the defaults for what is faked: faking `queueMicrotask` or `nextTick` stops the state pipeline. Waits that need real I/O (a real request, a dynamic `import()`) don't progress on a fake clock; test those with real timers.
 
+### A fixed clock and ids
+
+Handlers that read [`now()`, `random()` or `uuid()`](/guide/model/#the-clock-and-randomness) from their 4th argument get values the test can fix, so a state with ids and timestamps is the same on every run:
+
+```jsx
+import { it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Board from './Board.jsx'
+
+it('adds a task with an id and a creation time', async () => {
+  const t = renderComponent(Board, { now: new Date('2026-01-01T00:00:00Z'), uuid: true })
+  await t.ready()
+  t.simulateAction('ADD_TASK', 'Write the report')
+  await t.settle()
+  expect(t.state.tasks.at(-1)).toEqual({ id: '00000000-0000-4000-8000-000000000001', title: 'Write the report', created: Date.parse('2026-01-01T00:00:00Z') })
+  t.dispose()
+})
+```
+
+- `now`: a number (ms since the epoch) or a `Date` fixes the clock; a function is called each time. Without it, `now()` is `Date.now()`, so `vi.useFakeTimers()` / `vi.setSystemTime()` move it.
+- `random`: a number seeds a deterministic generator (the same sequence on every run); a function is called each time.
+- `uuid`: `true` gives UUID-shaped ids in order (`…000000000001`, `…000000000002`); a function is called each time.
+
+To test a whole recorded session instead of writing the steps, see [Record and Replay](/guide/record-replay/).
+
 ## Reading Output
 
 | Helper | Returns |
@@ -626,6 +651,9 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `browser` | `object` | none | The browser fake's environment at the start (`media`, `storage`, `sessionStorage`, `visible`, `online`, `clipboard`, `position`, `deny`) |
 | `storage` | `object` | `{}` | The fake storage of a root's `persist()`: key to `{ version, state }` (or a raw string), read back with `t.storage(key)`; `t.settle()` makes the pending writes. Used as is, so two calls given the same object share it ([Persistence](/guide/persistence/#testing)) |
 | `titleTemplate` | `string` | none | The HEAD fake's title template (`'%s · App'`) |
+| `now` | `number \| Date \| () => number` | `Date.now()` | What handlers' `now()` returns: a fixed time, or a function ([A fixed clock and ids](#a-fixed-clock-and-ids)) |
+| `random` | `number \| () => number` | `Math.random()` | What handlers' `random()` returns: a number seeds a deterministic generator |
+| `uuid` | `true \| () => string` | `crypto.randomUUID()` | What handlers' `uuid()` returns: `true` gives ordered UUID-shaped ids |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
