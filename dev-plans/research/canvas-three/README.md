@@ -53,6 +53,11 @@ The coordinator accepted the design (Q1–Q5, under the maintainer's delegation)
 
 **Decision I made (Q5 reversed).** The round-1 report said Sygnal had no frame source; that was wrong. `makeTimerDriver`'s `timers` static has had `{ frame: 'ACTION' }` (data `{ t, dt }` in ms, `requestAnimationFrame` with a 16 ms fallback, fake timers drive it) since PLAN-4. A `frame` kind in the `browser` static would have been a second API for the same thing with other units, so I built it, then removed it before committing the docs; the islands guide points at the `frame` timer. The research's `lib/frame.ts` stays as the measurement harness.
 
+**Gates** (a quiet window, after `npm run build`):
+- Size gate: kanban **42,471 B** with `nativeGlobalThis: false`, against 42,413 B before this round: **+58 B**, 529 B headroom. The core's `inject` reuse is +40 B gzip (src/core alone 19,153 → 19,193 B; +123 B min). The rest is the pragma's `<svg>` placeholder guard. Everything in `widget.ts`, `controlled.ts` and agent-ui is outside the kanban bundle.
+- `npm test`: vitest 5,392 passed, 33 skipped, 0 failed (after folding the `llms.txt` additions into its 322-line budget and copying it to `docs/public/`). Examples: all pass. Types: pass. Browser tests: 381/381 (Chromium). Perf count gate (`--runs=3`): all within limits; heap 0.95–0.96 MB against 1.00, and 0.95 MB with the `inject` cache bypassed, so the cache doesn't add to it.
+- Docs: build + link check + code titles pass; `check-doc-samples`: 926 clean, 0 findings; `check-live`: 122 demos ok in Chromium, Firefox and WebKit, including `/guide/islands/` (Lights, Note).
+
 **Verified in Chromium** (the desktop app's browser pane, WebGL on), against `src/`: Tab from "Reset view" reaches the cubes, Enter selects one, the focus ring is drawn where the cube is, and the browser's accessibility tree lists `button "cube 0"` … `button "cube 1 (selected)"`; the canvas bars are `button "Thu: 15"` etc., Enter toggles a focused bar and its ring is drawn on the canvas.
 
 ![keyboard focus on a cube](screenshots/keyboard-focus.jpg)
