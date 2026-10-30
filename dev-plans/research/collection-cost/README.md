@@ -91,7 +91,34 @@ Retained per Collection item (`objects.mjs`, 1k rows, exact):
 
 CPU profile, create 1k rows (Collection table): `sources()` self time 1.11 → 0.07 ms per create.
 
-Timings: PENDING the quiet window (`ab.mjs`, base vs new).
+Timings (`ab.mjs`, Chromium, 25 interleaved rounds; create 10k: 8 rounds on fresh pages), run
+2026-10-29 in the coordinator's quiet window (1-minute load ~9 → 7). Still running and outside
+our control: the maintainer's Docker VM (~2 cores), Spotlight indexing after the npm installs,
+possibly a booted iOS simulator. `performance.now()` is coarsened to 0.1 ms on these pages, so
+the small ops move in 0.1 ms steps. Median [p25 – p75] ms; raw: `ab-results.json`.
+
+| Op | core before | core after | DOM latency before | DOM latency after |
+|---|---|---|---|---|
+| select row (1k Collection) | 1.6 [1.3 – 1.8] | **1.3** [1.1 – 1.4] | 2.0 [1.7 – 2.2] | **1.7** [1.5 – 1.9] |
+| create 1k rows | 6.0 [4.5 – 7.0] | **4.7** [3.3 – 6.2] | 21.4 [19.1 – 23.1] | 19.3 [17.5 – 21.7] |
+| replace 1k rows | 4.5 [4.4 – 5.7] | **3.7** [3.2 – 3.8] | 22.1 [21.3 – 24.8] | 21.6 [20.5 – 23.0] |
+| append 1k to 1k | 4.5 [4.2 – 5.4] | **3.4** [3.3 – 3.9] | 19.6 [18.8 – 22.2] | 18.0 [17.4 – 19.1] |
+| create 10k rows | 66.6 [61.3 – 68.3] | **49.6** [48.9 – 52.6] | 214.0 [209.3 – 219.3] | **196.7** [192.3 – 200.6] |
+| update every 10th (1k) | 1.1 [1.0 – 1.4] | 1.0 [0.8 – 1.3] | 3.0 [2.8 – 3.5] | 2.9 [2.6 – 4.1] |
+| clear 1k rows | 0.8 [0.8 – 0.9] | 0.8 [0.7 – 0.9] | 3.5 [3.3 – 3.7] | 3.8 [3.4 – 4.3] |
+| mount 1k counters | 6.2 [4.2 – 7.8] | 6.2 [4.2 – 6.6] | 17.4 [14.8 – 21.6] | 16.9 [15.6 – 19.4] |
+| update 1 of 1k counters | 0.5 [0.5 – 0.6] | 0.5 [0.5 – 0.7] | 1.2 [1.1 – 1.4] | 1.2 [1.1 – 1.6] |
+| unmount 1k counters | 0.7 [0.6 – 0.9] | 0.7 [0.6 – 0.7] | 3.0 [2.6 – 3.9] | 2.7 [2.6 – 3.1] |
+
+Reading it:
+- **Core time, create/append/replace on the Collection table: −18 to −26%.** Create 10k: −26%,
+  with no overlap between the interquartile ranges.
+- **Select: −19%** (1.6 → 1.3 ms). That's the per-render context Proxy, handler and Set, and
+  smaller item objects to walk. DOM latency 2.0 → 1.7 ms (React 19: 0.9 ms in the compile-wasm
+  runs, a different session).
+- **Counters (mount/unmount churn): no change measured.** The quartile range of mount narrowed,
+  but the median is the same. Its items are small, and the browser's own element work dominates.
+- **Clear, update: unchanged** (within the 0.1 ms timer step).
 
 Count gate: unchanged (patches 1/1/1, streams 1.0 per item, unmount setTimeouts 2,
 ScopeCheckers 0, heap after 5×1k create/clear 0.92 base vs 0.95 new, within run-to-run noise).
@@ -129,6 +156,7 @@ No limit moved down, so `gate.json` is unchanged.
 - `objects.mjs`: retained objects and bytes per item (heap snapshot diff)
 - `node-bench.mjs`: the Collection table in Node (jsdom); `onPatch` gives the core's part. jsdom's
   heap makes its GC noisy; kept for quick checks
+- `ab-results.json`: the timing run above
 - `results/`: git-ignored scratch (base dist copy, built pages, the size-variant builder)
 - `test/collection-cost.test.js`: what intents and views see after the change (sources as a
   plain object, context reads after the view returned, the shared index pair, the shared helpers)
