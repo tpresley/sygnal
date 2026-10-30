@@ -736,3 +736,75 @@ All seven answered as the coordinator recommended:
 5. **Backend:** our own Canvas 2D painter, pluggable, with a PixiJS backend later as an optional peer and no WebGL path now. Required before shipping: the camera bitmap cache for panning, and an accessibility projection of data layers (a virtual accessibility tree that the agent UI snapshot can read as well).
 6. **Editor behavior (level 3):** not now. Revisit after a second app (a whiteboard or diagram editor) shows the shared policy.
 7. **Undo with `sygnal/yjs`:** `history('shapes')` routes to the shared per-user UndoManager when its field is shared (one API), and a gesture marks its own undo boundary.
+
+---
+
+## Built: `sygnal/canvas` (2026-10-30)
+
+The subpath is in `src/canvas.ts` and `src/canvas/` (the 7.2 dev preview), the editor is
+`examples/figma-lite` (from `app-proposed/`), the guide is `docs/.../renderers/canvas.md`. What changed
+from the prototype, beyond moving it:
+
+- **One pointer router**, `src/extra/pointer.ts` (three's `events.ts` moved there). The canvas's needs
+  are options: `capture(hit)` (implicit capture), `fields(x, y)` (captured coordinates without a drag
+  plane) and a background target. Captured `delta` is the world move from the press, as in three. One
+  difference from the prototype's router: an uncaptured press and release (`capture="explicit"`)
+  click their common ancestor even after a move, as the DOM does.
+- **The camera cache.** The static layer is an opaque offscreen bitmap of a world region: the view,
+  plus a half-view margin of content once the camera moves. A pan at the same zoom is a copy at an
+  offset. A zoom gesture scales it with nearest-neighbour sampling, up to 2× (bilinear scaling cost
+  5.7 ms per step in Chromium's software raster). What a zoom-out uncovers is drawn from an overview:
+  all the content at no more than 4 M px, painted once per content version. The sharp repaint comes
+  120 ms after the last wheel event.
+- **The live layer on its own canvas**, transparent, over the main one. A frame whose static layer
+  didn't change leaves the main canvas alone. Before this, every drag frame copied the whole static
+  bitmap (2.5 ms of raster at 10k).
+- **One paint per camera step.** The first camera change of a frame is reported at once, so the app's
+  overlay (handles, hover outline) renders before the paint. `update()` / `sync()` don't repaint for
+  the camera's own echo, or for a render that changed nothing the canvas shows.
+- **No O(n) pass on a cached frame.** Content bounds are cached per items array and computed only
+  when the camera moved. `selectionBox` doesn't build an index per frame.
+- **The accessibility projection.** Each data layer gets a `role=group` of `role=button` items (up to
+  100 nodes in view) inside its element. Screen readers and the `sygnal/agent-ui` snapshot read them;
+  activating one is a press and release on the node. **SYG262** (dev) flags a layer whose nodes all
+  changed identity with equal fields. **`history(field)`** routes to the per-user `Y.UndoManager` when
+  `shared()` syncs the field: `shared()` reads the `Symbol.for('sygnal.history')` marker on
+  `undo` / `redo`, and each commit bumps a step that closes the undo item, with `captureTimeout` off.
+  `shared()` syncs objects, so the shared field is a document object (`state.doc.shapes`), not the array.
+- `keymap` is on the main export (0 B in the size gate: kanban 42,599 B before and after).
+
+### Numbers (React + Konva's `perf/run.mjs`, both apps, the same session)
+
+Three rounds, alternating apps. Load average 8–11; the machine idles near 9, and no gate ran. Busy
+median per step in ms; the raw reports are in `sygnal/perf/results/contract/subpath/`, and
+`sygnal/perf/contract-summary.mjs` prints the medians. "Spike" is §8's prototype, measured on an
+earlier day, when React + Konva was also about 10 % cheaper (its pan was 3.4 then, 3.7 now).
+
+| shapes | scenario | React + Konva | sygnal/canvas | spike (prototype) |
+|---:|---|---:|---:|---:|
+| 1k | drag 1 / 100 / all | 4.3 / 4.4 / 7.1 | 4.5 / 5.5 / 8.7 | 3.7 / 5.0 / 6.3 |
+| 1k | pan / zoom | 3.4 / 8.3 | **3.0** / **7.3** | 5.7 / 5.4 |
+| 5k | drag 1 / 100 / all | 4.1 / 3.8 / 7.7 | 5.9 / 8.7 / 12.3 | 5.2 / 7.0 / 12.0 |
+| 5k | pan / zoom | 3.7 / 8.5 | **3.4** / **7.3** | 9.6 / 5.8 |
+| 10k | drag 1 / 100 / all | 3.5 / 4.1 / 8.7 | 7.9 / 10.1 / 21.3 | 5.9 / 7.8 / 20.3 |
+| 10k | pan / zoom | 3.7 / 8.3 | **3.5** / **7.1** | **12.1** / 6.1 |
+
+| | React + Konva | sygnal/canvas |
+|---|---:|---:|
+| startup | 104.5 ms | 70.8 ms |
+| generate + paint 10k | 178 ms | 62 ms |
+| JS heap 1k / 5k / 10k | 6.7 / 23.9 / 50.1 MB | 3.3 / 6.1 / 10.2 MB |
+| drop after dragging all 10k | 214 ms | 45 ms |
+| production bundle (gzip) | 197 KB | 69 KB (`sygnal/canvas` itself: 15.2 KB min+gzip) |
+
+- **Pan** at 10k: 3.5 ms against React + Konva's 3.7 the same day (per round: 3.45, 3.25, 3.45 /
+  2.33, 3.71, 3.68 / 3.01, 3.37, 3.31). It was 12.1 ms in the prototype. On the spike day's numbers
+  it ties the 3.4 target rather than clearly beating it. **Zoom** is cheaper than React + Konva at
+  every size.
+- **Small drags at 10k are still about 2× React + Konva** (7.9 against 3.5 ms; 5.9 in the spike's
+  run). Profiled (`sygnal/perf/contract-prof.mjs <pan|zoom|drag> <url>` on an unminified build; `contract-trace.mjs` gives main-thread time by trace event): the canvas's own part is now small. Most of the step
+  is the app's O(n) work per move: the layers panel's `rows` (0.7 ms), `posOf`'s id map of the new
+  array (0.3 ms), `VirtualCollection`'s key index of 10k rows (0.3 ms), `patch`. React's drag moves
+  the Konva node outside its store, so none of that runs (its workaround 1). A next step on our side:
+  make rows and indexes incremental for an array that changed in k places (a core `VirtualCollection`
+  question), or `follow` for big documents.
