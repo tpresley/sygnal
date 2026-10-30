@@ -43,6 +43,9 @@ export interface ActionListener {
 }
 
 const BUILT_IN = /^(BOOTSTRAP|INITIALIZE|DISPOSE|RESOURCE)$/
+// a behavior's plumbing actions (sygnal/yjs shared(): 'board.LOCAL', 'board.REMOTE') mark their
+// handlers, so they are 'built-in' too (DevTools hides them with INITIALIZE)
+const MARK = Symbol.for('sygnal.builtIn')
 
 /** now on the test's fake clock when there is one (vi.useFakeTimers()), else Date.now() */
 export const clockNow = (): number => {
@@ -54,7 +57,8 @@ export const clockNow = (): number => {
  * PLAN-4.6 R4: the same log on the core, from its hooks (04 §3.3) instead of instance
  * patches: onAction opens the record (the core passes the cause: 'intent', 'next', 'reply',
  * 'built-in', 'simulateAction'), wrapHandler sees which sinks produced a value. Same records,
- * same cause rules: a built-in type is 'built-in' unless simulated; an intent action a behavior
+ * same cause rules: a built-in type (or one whose handlers carry Symbol.for('sygnal.builtIn')) is
+ * 'built-in' unless simulated; an intent action a behavior
  * owns is 'behavior'. `only(inst)`: the instances to record (renderComponent: its own tree).
  */
 export function actionHooks(listener: ActionListener, only?: (inst: any) => boolean): any {
@@ -77,7 +81,7 @@ export function actionHooks(listener: ActionListener, only?: (inst: any) => bool
       const hs = inst.def.handlers.get(type) || [], order = hs.map((h: any) => h[0])
       const opened = type == 'INITIALIZE' && init.get(inst)
       if (opened) { init.delete(inst); cur.set(inst, [opened, order]); return }
-      const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) ? 'built-in'
+      const cause: ActionCause = a.cause == 'simulateAction' ? a.cause : BUILT_IN.test(type) || hs.some((h: any) => h[1]?.[MARK]) ? 'built-in'
         : a.cause == 'next' || a.cause == 'reply' || a.cause == 'agent' ? a.cause
         : owned && Object.prototype.hasOwnProperty.call(owned, type) ? 'behavior' : 'intent'
       const rec: ActionRecord = {type, data: a.data, component: inst.name, instance: String(inst.id), sinks: [], cause, time: clockNow(), ...(a.source !== undefined && {source: a.source})}

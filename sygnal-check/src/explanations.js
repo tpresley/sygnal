@@ -42,6 +42,20 @@ export const EXPLANATIONS = {
     explanation: "An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HTTP, EVENTS, PARENT, ELEMENT, another driver or a behavior output) read a top-level state field that the same action's STATE changed. Since 7.0 the output gets the new, committed value; in 6.x it got the old one. Reported once per component, action, sink and field. In code written for 7.0 reading the new value is the intended behavior, so the audit is off by default: turn it on while migrating a 6.x app with configureTimingAudit(true) from 'sygnal/diagnostics', renderComponent(C, { timingAudit: true }), sygnal({ diagnostics: { timingAudit: true } }) in the Vite plugin, or globalThis.__SYGNAL_TIMING_AUDIT__ = true. Dev only: production builds contain none of it.",
     fix: "If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.",
   },
+  SYG260: {
+    title: "undo() or undoable() on a key shared() syncs",
+    severity: "warn",
+    reportedBy: ["runtime", "static"],
+    explanation: "`shared()` from `sygnal/yjs` keeps `state[key]` in a Yjs document that other clients edit too. Sygnal's `undo({ key })` behavior and `undoable(model, { key })` record snapshots of the whole slice and restore one on UNDO: the restored snapshot is then written to the document like any local edit, so it reverts every change other users made since that snapshot, not only this user's. The Yjs driver has a per-user undo instead: a `Y.UndoManager` per shared key that tracks only this client's own transactions, so a remote change made after this user's edit survives the undo. Reported by `shared()` when the component is first created (dev, `renderComponent`) for an `undo()` in the same `uses`, and by sygnal-check for `undo({ key })` and `undoable(model, { key })` with a literal key.",
+    fix: "Remove the snapshot undo for that key and send the commands to the driver: `UNDO: { SHARED: { undo: 'board' } }`, `REDO: { SHARED: { redo: 'board' } }`; `shared({ history: 'history' })` puts `{ canUndo, canRedo }` in `state.history` for the buttons. `undo()` on keys that aren't shared keeps working next to it.",
+  },
+  SYG261: {
+    title: "shared() inferred the kind of an empty array",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "Without a `shape`, `shared()` infers how each field of the slice is stored in the Yjs document from its value: an array of objects that all have an `id` becomes an id-keyed collection (concurrent adds, edits, moves and removes of different items merge), any other array a `Y.Array` of plain values. An empty array fits both, so the driver guesses a collection; if the field later holds plain values (strings, numbers), it is switched to a list then, and a concurrent edit by another client can be lost in the switch. Reported once per field path, in dev, when the slice is first written to the document.",
+    fix: "Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.",
+  },
   SYG454: {
     title: "State binding changed without a new component identity",
     severity: "warn",

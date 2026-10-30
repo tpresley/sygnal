@@ -1,6 +1,6 @@
 # Collaborative state through a CRDT (research)
 
-**Status:** research spike, not shipped. Branch `claude/explore-crdt-state`, from `claude/advanced-integration` (7.2.0-preview.0).
+**Status:** productized as the experimental `sygnal/yjs` subpath (P0–P2 of §9) on `claude/build-yjs`; see "Productized" at the end. The spike below is kept as it was. Branch `claude/explore-crdt-state`, from `claude/advanced-integration` (7.2.0-preview.0).
 **Question:** can part of a Sygnal state tree be shared between clients through a CRDT (Yjs first) and still keep "one state tree, reducers in the model, effects as data"?
 **Short answer:** yes, without changing the core. A driver owns the `Y.Doc`. A behavior (`uses: { board: shared() }`) sends each new value of `state.board` to the driver as data, and brings remote changes back in as an action. Reducers don't change and know nothing about Yjs. The spike passes 24 tests: two- and three-client convergence, offline merge, per-user undo, presence, a real y-websocket server, and a randomized fuzz (300 runs × 40 actions passed locally). A local operation costs 14–155 bytes on the wire and 0.02–0.7 ms of driver time at 10–1000 items. It adds 0 B to the core.
 
@@ -240,3 +240,35 @@ Reviewed on the research decisions page. Unless a line says otherwise, the recom
 - Q6 SYG127: a behavior marker (`ownsState: false`) that sygnal-check reads from the factory.
 - Q7: Loro is the second backend, later (P4), not in the next preview.
 - Q8: no server-authoritative spike now. Leave it to `$sync` + `sygnal/api`.
+
+---
+
+## Productized (P0–P2, branch `claude/build-yjs`)
+
+`src/yjs.ts`, `src/yjs/` (`mapping.ts`, `driver.ts`, `shared.ts`, `testing.ts`), `src/yjs-testing.ts`; types `src/yjs.d.ts`, `src/yjs-testing.d.ts`; guide `guide/collaborative-state.md` with a live demo (two windows on an in-memory network). Following the decisions above:
+
+- Q1: inferred, with `shape` (`'text' | 'list' | 'collection' | 'map' | 'value'`, `collection({ ...item fields })`, objects of fields); an empty array without a shape is reported once in dev (SYG261).
+- Q2: `uses: { key: shared() }` only.
+- Q3: `seed: 'whenSynced'` (default; the provider's `synced` / `whenSynced` / 'sync' / 'synced', or `synced: promise`); edits made before the sync are written onto the document's content. `'ifEmpty'` seeds at once.
+- Q4: SYG260 (warn): `shared()` reports `undo()` on its key in dev; sygnal-check reports `undo({ key })` and `undoable(model, { key })` (`rules/syg260-shared-undo.js`).
+- Q5: LOCAL / REMOTE handlers carry `Symbol.for('sygnal.builtIn')`; the dev action log (`checks/actionLog.ts`) calls them 'built-in', so DevTools hides them. No core change: the size gate is byte-identical (42,366 B).
+- Q6: `shared()` returns `ownsState: false`; sygnal-check reads it from the first-party entry (`model/behaviors.js`, module `sygnal/yjs` only) and from a hand-written factory returning an object literal with it.
+
+Changes from the spike found while productizing:
+- `between()` → `fractional-indexing` (^4.0.0, a dependency; keys like `a0`, `a1`); keys that aren't valid ones (an older document) are rekeyed.
+- A list of plain values compared its elements with the whole-array equality (a crash on `tags: ['a']`); fixed.
+- The REMOTE action's driver sink acks the slice it committed, and LOCAL sends the committed slice. With the spike's single `emitted`, two remote transactions arriving before the app ran, then a local edit, could revert the newer remote value (`test/yjs-driver.test.js`, 'REMOTE').
+- Root-level types that arrive in an update are placeholders until first read; Yjs then replaces them in `doc.share` under the same name. A name cache keyed on its size went stale when a client saw the document seeded before its own first value (the docs' second demo window stopped receiving changes). Found by driving the demo in Chromium; covered by a driver-level test.
+- P2: incremental read (only the types a transaction changed are read again; collection items placed by binary search), writes skip unchanged items by identity and key only inserted items, LOCAL is coalesced per flush (2,000 back-to-back actions: 1 transaction).
+
+Measurements (`MEASURE=1 npx vitest run test/yjs-measure.test.js`, Node 22, one machine, medians; local write ms / remote read ms):
+
+| op | 10 items | 100 items | 1000 items |
+|---|---|---|---|
+| toggle | 29 B, 0.10 / 0.03 | 29 B, 0.09 / 0.01 | 32 B, 0.09 / 0.007 |
+| type a character (Y.Text) | 20 B, 0.06 / 0.02 | 20 B, 0.09 / 0.02 | 22 B, 0.13 / 0.01 |
+| add | 121 B, 0.15 / 0.05 | 122 B, 0.16 / 0.05 | 128 B, 0.12 / 0.01 |
+| move last to first | 32 B, 0.19 / 0.03 | 32 B, 0.40 / 0.04 | 35 B, 0.72 / 0.02 |
+| remove | 14 B, 0.16 / 0.03 | 14 B, 0.10 / 0.01 | 15 B, 0.34 / 0.02 |
+
+The spike's remote read at 1000 items was 0.97 ms. `sygnal/yjs` is 5.6 KB min+gzip (Yjs and fractional-indexing external); `sygnal/yjs/testing` 0.6 KB.

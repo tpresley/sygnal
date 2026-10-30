@@ -379,6 +379,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG254: 'Catalog descriptions or options overlap',
   SYG256: 'Output guard rejects the updated state',
   SYG257: 'Output reads a field its action changed (7.0 timing audit)',
+  // sygnal/yjs (research: dev-plans/research/crdt-state): shared() reports them (dev), SYG260 statically too
+  SYG260: 'undo() or undoable() on a key shared() syncs',
+  SYG261: 'shared() inferred the kind of an empty array',
   SYG454: 'State binding changed without a new component identity',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
@@ -625,6 +628,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG256: 'warn',
   // 7.0: the opt-in timing audit (checks/next.ts; configureTimingAudit)
   SYG257: 'info',
+  // sygnal/yjs: reported with the severity passed (shared() in dev; sygnal-check: SYG260)
+  SYG260: 'warn',
+  SYG261: 'warn',
   // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
 }

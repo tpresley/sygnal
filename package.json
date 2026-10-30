@@ -111,6 +111,16 @@
       "import": "./dist/three.esm.js",
       "require": "./dist/three.cjs.js"
     },
+    "./yjs": {
+      "types": "./src/yjs.d.ts",
+      "import": "./dist/yjs.esm.js",
+      "require": "./dist/yjs.cjs.js"
+    },
+    "./yjs/testing": {
+      "types": "./src/yjs-testing.d.ts",
+      "import": "./dist/yjs-testing.esm.js",
+      "require": "./dist/yjs-testing.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
@@ -207,6 +217,7 @@
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
     "@tanstack/virtual-core": "^3.17.11",
+    "fractional-indexing": "^4.0.0",
     "magic-string": "^1.4.3",
     "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
@@ -219,7 +230,9 @@
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "react-native": ">=0.76.0",
-    "three": ">=0.170.0"
+    "three": ">=0.170.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.0"
   },
   "peerDependenciesMeta": {
     "@zag-js/combobox": {
@@ -244,6 +257,12 @@
       "optional": true
     },
     "three": {
+      "optional": true
+    },
+    "y-protocols": {
+      "optional": true
+    },
+    "yjs": {
       "optional": true
     }
   },
@@ -282,6 +301,10 @@
     "typescript": "^5.4.5",
     "valibot": "^1.5.0",
     "vitest": "^4.0.18",
+    "ws": "8.22.0",
+    "y-protocols": "1.0.7",
+    "y-websocket": "3.1.0",
+    "yjs": "13.6.33",
     "zod": "^4.6.7"
   },
   "overrides": {

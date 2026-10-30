@@ -25,6 +25,8 @@ interface Panel {
   server?: string
   name: string
   gen: number
+  /** this run's client on the page's Yjs network (a page that imports sygnal/yjs) */
+  peer?: any
   app?: { dispose(): void; __runtime?: any }
   /** the running app's identity: its callbacks act only while it is the panel's app */
   token?: object
@@ -48,6 +50,11 @@ const ENTRY = '/__example'
 const AI = 'sygnal/ai'
 /** a block on the page imports sygnal/ai: every demo on it gets the LLM driver (G-615) */
 let pageUsesAi = false
+const YJS = 'sygnal/yjs'
+const YJS_TESTING = 'sygnal/yjs/testing'
+/** a block on the page imports sygnal/yjs: every demo on it is a client of one in-memory network */
+let pageUsesYjs = false
+let yjsNetwork: any
 const DEBOUNCE = 400
 
 const decode = (s: string | undefined) => decodeURIComponent(s || '')
@@ -159,6 +166,9 @@ function disposeApp(p: Panel) {
   p.app = undefined
   p.token = undefined
   if (app) try { app.dispose() } catch (e) { console.warn('[live] dispose threw', e) }
+  // the run's Yjs client leaves the page's network (the others keep the document)
+  if (p.peer) try { p.peer.leave() } catch (e) { console.warn('[live] leave threw', e) }
+  p.peer = undefined
 }
 
 // ---- after the DOM patch -----------------------------------------------------------------
@@ -252,6 +262,7 @@ async function runPanel(p: Panel) {
     const loaded = new Map<string, any>()
     await Promise.all([...bare].map(async (s) => loaded.set(s, await load(s))))
     const ai = pageUsesAi || bare.has(AI) ? loaded.get(AI) ?? await load(AI) : undefined
+    const yjs = pageUsesYjs || bare.has(YJS) ? [loaded.get(YJS) ?? await load(YJS), loaded.get(YJS_TESTING) ?? await load(YJS_TESTING)] : undefined
     if (gen !== p.gen) return
 
     // evaluate: CommonJS-style, one fresh instance of each live-file per run
@@ -340,6 +351,13 @@ async function runPanel(p: Panel) {
     // does), the real chat driver over the real openResponses() transport, through the same demo
     // fetch as HTTP: the demo server's 'POST /v1/responses' route is the model
     if (ai) drivers.LLM = ai.makeChatDriver({ transport: ai.openResponses({ model: 'demo', fetch: demoFetch }) })
+    // SHARED (sygnal/yjs): on a page where any block imports sygnal/yjs, the real Yjs driver on a
+    // client of the page's in-memory network (createNetwork() from sygnal/yjs/testing), so every
+    // demo on the page is one user of the same document; Restart rejoins
+    if (yjs) {
+      const peer = p.peer = (yjsNetwork ||= yjs[1].createNetwork()).join()
+      drivers.SHARED = yjs[0].makeYjsDriver({ doc: peer.doc, provider: peer })
+    }
     app = Sygnal.run(Component, drivers, {
       mountPoint: mount,
       uid: p.id,
@@ -527,6 +545,8 @@ export function start() {
 
   pageUsesAi = [...document.querySelectorAll<HTMLElement>('.sygnal-live, .sygnal-live-file, .sygnal-live-server')]
     .some((el) => decodeJSON(el.dataset.compiled)?.requires?.includes(AI) || /\bfrom\s+['"]sygnal\/ai['"]/.test(decode(el.dataset.code)))
+  pageUsesYjs = [...document.querySelectorAll<HTMLElement>('.sygnal-live, .sygnal-live-file, .sygnal-live-server')]
+    .some((el) => decodeJSON(el.dataset.compiled)?.requires?.includes(YJS) || /\bfrom\s+['"]sygnal\/yjs['"]/.test(decode(el.dataset.code)))
   // a live-server block serves the panels after it, until the next one
   let server: string | undefined
   let n = 0

@@ -94,6 +94,21 @@ behaves as on 7.1.0.
     as a scene on `sygnal/host`, and `sceneOf(el)` for tests in jsdom (headless raycasts, no WebGL).
   - `three` (0.170 or later) is an optional peer dependency. About 5 KB gzip, nothing for an app that
     doesn't import it. Guide: "three.js". Example: `examples/three-cubes`.
+- **Collaborative state:** `sygnal/yjs` shares one key of the state between users through a Yjs
+  document. `uses = { board: shared() }` and `run(Board, { SHARED: makeYjsDriver({ doc, provider }) })`.
+  - Reducers don't change: each new `state.board` is diffed into the document (`board.LOCAL`, once per
+    flush), and other users' changes arrive as `board.REMOTE`, applied only while there's no unsynced
+    local edit. DevTools hides both, as it hides `INITIALIZE`.
+  - Arrays of items with `id` merge concurrent adds, edits, moves and removes (order keys from
+    `fractional-indexing`). `shape` declares fields (`'text'` merges typing by character); without one
+    the kind is inferred, and an empty array is reported in dev (SYG261).
+  - The first value seeds an empty document after the provider's first sync (`seed: 'whenSynced'`; or
+    `'ifEmpty'`). Undo per user (`{ SHARED: { undo: 'board' } }`), presence, and `{ connect }` to work
+    offline. `undo()` on a shared key is SYG260 (dev and sygnal-check).
+  - `sygnal/yjs/testing`: `createNetwork()`, an in-memory network of peers for tests and demos.
+  - `yjs` and `y-protocols` are optional peer dependencies; Sygnal ships no network code (any Yjs
+    provider works). About 5.6 KB gzip, nothing for an app that doesn't import it. Guide:
+    "Collaborative State". Research: `dev-plans/research/crdt-state`.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
@@ -123,7 +138,9 @@ add nothing to an app that doesn't import them. The perf count gate is within it
   scope, SYG702 no longer scans every element per field (it was quadratic on large apps), the
   installed Sygnal is looked up once per directory, and the CLI uses Node's compile cache
   (Node ≥ 22.1). A rule can declare `perFile` (README "Writing a rule"). SYG691: a procedure name that
-  isn't in an `orpcClient` contract, with a "did you mean".
+  isn't in an `orpcClient` contract, with a "did you mean". `shared()` from `sygnal/yjs` is a known
+  behavior: its key in `initialState` is not SYG127 (the behavior marker `ownsState: false`, also read
+  from a hand-written factory), and SYG260 reports `undo()` / `undoable()` on a shared key.
 
 ## 7.1.0 — 2026-10-20
 
