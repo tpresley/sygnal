@@ -822,6 +822,156 @@ Workspace.agent = {
 
 The [`chat` behavior](/guide/agent/#an-in-app-assistant-chat) and the call rules are in Agents.
 
+## Generated parts (experimental)
+
+:::caution[Experimental, outside semver]
+`compose.generated` is in the 7.2 dev preview as an opt-in. Its API can change in any release, and how often real models write a working part against its rules hasn't been measured yet. Keep it behind a flag, and prefer prepared parts.
+:::
+
+Sometimes no prepared part shows what the user asks for. A **generated part** lets the model write that one part's component as code, which runs in [`sygnal/sandbox`](/advanced/sandboxed-components/). The rule "the model only chooses" is relaxed inside the box only:
+
+- the code reads only the data keys you declare in `data`, computed from your state by your `from`;
+- it can only send the event types you declare in `emits`, and the page checks each one against its Standard Schema before your intent sees it;
+- it runs in QuickJS in a Worker, with no `document`, `window`, `fetch`, storage or imports other than `'sygnal'`.
+
+`generatedRuntime()` from `sygnal/sandbox` owns the code: it compiles it, checks it and runs it. `compose.generated(runtime, { data, emits })` from `sygnal/ai` turns that into a catalog part, the prompt rules and a repair loop:
+
+```jsx
+// Dashboard.jsx
+import { compose, defineCatalog } from 'sygnal/ai'
+import { generatedRuntime, sucraseCompiler } from 'sygnal/sandbox'
+import kernel from 'sygnal/sandbox/kernel?raw'
+import { z } from 'zod'
+import { Revenue } from './Revenue.jsx'
+
+const runtime = generatedRuntime({ kernel, compile: sucraseCompiler(() => import('sucrase')) })
+
+const gen = compose.generated(runtime, {
+  data: {
+    orders: { description: 'the recent orders', shape: '[{ id: number, customer: number, total: number, status: "paid" | "pending" }]', from: (state) => state.orders },
+  },
+  emits: {
+    OPEN_CUSTOMER: { description: 'the user picked a customer', schema: z.object({ id: z.number().int() }) },
+  },
+})
+
+const catalog = defineCatalog({
+  parts: {
+    revenue: { component: Revenue, description: 'Revenue (KPI card: the total this month)' },
+    custom: gen.part,
+  },
+})
+
+export function Dashboard({ state }) {
+  return <main>{catalog.render(state.page, state)}</main>
+}
+Dashboard.initialState = { orders: [], openCustomer: null }
+Dashboard.uses = {
+  page: compose(catalog, { backend: compose.llm({ instructions: gen.instructions }) }),
+  fix: gen.repair(),
+}
+Dashboard.intent = ({ CHILD }) => ({
+  OPEN_CUSTOMER: gen.events(CHILD, 'OPEN_CUSTOMER'),
+})
+Dashboard.model = {
+  OPEN_CUSTOMER: (state, { id }) => ({ ...state, openCustomer: id }),
+}
+```
+
+- **Opt in per catalog.** `gen.part` is in a catalog only when you put it there. It works with `compose.llm()` only, because a decision model can't write code.
+- **The model writes one node per generated part** in the same structured reply as the rest of the page: `{ part: 'custom', params: { title, reads, code } }`. `code` is a `format: 'code'` text param and comes last in the schema, so it streams last. `gen.instructions` is the rules the model needs: the component shape, what isn't there, each data key's shape and each event's JSON Schema (from zod 4's Standard JSON Schema). The prompt holds shapes, never your data.
+- **Partial code never mounts.** While the reply streams, the preview shows a node only once its JSON object closes, so a part's box boots with its final code. It keeps its node key from the preview to the final layout, so it mounts once.
+- **Events are your actions.** `gen.events(CHILD, type)` is a stream of `{ node, ...data }`, where `data` is the schema's output (a zod object strips the keys it doesn't declare). The model never names one of your actions. Treat `emits` as user input: a part written under prompt injection can send a valid event the user didn't mean, so confirm anything destructive.
+- **`reads` picks keys from `data`.** A name you didn't declare reads nothing. The box gets the values as JSON on `PROPS`, and again only when their JSON changes.
+
+### Defaults
+
+| option | default | |
+|---|---|---|
+| `isolation` | `'worker'` | QuickJS in a Worker with a watchdog. `'thread'` runs on the page's thread: synchronous events, but a loop over slow builtins can overrun the deadline |
+| `maxUses` | `3` | generated parts per page. The model's output time dominates: about 4–9 s per part at 100 tokens/s |
+| `maxCode` | `4000` | characters. The schema caps `code` at `maxCode + 1`, so code compose had to cut fails as "too long" instead of mounting truncated |
+| `maxAttempts` | `2` | repair turns per part (`gen.repair({ maxAttempts })`) |
+| `check` | `true` | the check before mount |
+| `capabilities` | none | no `fetch`, no navigation. Pass `capabilities: { fetch: { allow: [...] } }` to grant one |
+| limits | `GENERATED_LIMITS` | heap 16 MB in a 48 MB instance, boot 500 ms, 50 ms per event, watchdog 1 s |
+
+### Failures and repair
+
+A part that fails reports it to `gen.repair()`, which sends the model one small request: the failing code and one line that names the error, never the page or the other parts. The reply's code is an overlay keyed by the failing code's hash. The layout keeps the model's original code, so a layout that arrives after the fix, a follow-up edit, or a restored page all get the fix. While it waits, the part shows "Fixing this part…". A part still failing after `maxAttempts` repairs shows `fallback` ("This part couldn't be built.") in its own place, and the rest of the page is unaffected.
+
+| reason | what happened | what the model reads |
+|---|---|---|
+| `compile` | a syntax error, code over `maxCode`, a JSX event handler, or your `check` | `compile: Unexpected token (12:55)`, `line 7: JSX event handlers (onClick) don't run …` |
+| `check` | an intent action with no model entry (checked in the box at boot) | `check: SYG101: intent action 'PICK' has no model entry …` |
+| `error` | the module threw while loading, such as an import | `error: sandbox: 'date-fns' can't be imported here` |
+| `runtime` | the view or a reducer threw | `runtime: view threw (SYG406): ReferenceError: 'document' is not defined` |
+| `empty` | it booted and drew nothing | `empty: the component rendered nothing` |
+| `timeout`, `memory`, `cpu`, `crash` | the sandbox stopped it | `timeout: the worker didn't answer in 1000 ms; terminated` |
+| rejected | it sent an undeclared type or invalid data (the part keeps working) | `the app dropped an event OPEN_CUSTOMER: invalid (id: …)` |
+
+`t.state.fix` (the `repair` slice) holds the overlay (`patches`), each chain's `status` (`repairing`, `patched`, `fixed`, `gave-up`) and a `log`. It is plain JSON: `persist` it with the page if a reload shouldn't repair again.
+
+### Compiling and checking in the browser
+
+`compile` turns the model's module into the CommonJS the kernel runs. Sygnal doesn't ship a compiler: `sucraseCompiler(load)` wraps [sucrase](https://github.com/alangpierce/sucrase), which your app installs and imports itself. Pass a dynamic import, `() => import('sucrase')`, and the compiler loads with the first generated part, outside your main chunk. Sucrase is small and fast, it only parses and prints (trusted code reading untrusted text), and its errors carry `line:column` for the repair request. `compile` can be any function, sync or async, such as esbuild-wasm or the TypeScript compiler.
+
+The check before mount has two parts, and neither loads anything on the page:
+
+- On the page, `lintGenerated(code)` finds JSX event handlers (`onClick={…}`). A Sygnal view drops them silently, and they are the most common React habit.
+- In the box, the kernel checks the wiring when the component boots. An intent action with no model entry (SYG101) never does anything and never throws, so a loop that only listens for errors would never repair it. The kernel compares the actions intent really returns with the model's keys, so it needs no parser.
+
+sygnal-check's full rules are an opt-in for where Node runs, such as a server that composes, or your tests: pass `check: (code) => messages` to `generatedRuntime`, and each message fails the part with reason `compile`. sygnal-check isn't loaded in the browser.
+
+### A generated card in a chat
+
+A `render_component` card is the one-part case: a catalog with one part, `gen.card(type)`, used as the chat's direct `ask` catalog. The model's `ask_user` input is the card with its code, and the code's `type` event, validated, is the call's output.
+
+```jsx
+// Assistant.jsx
+import { chat, compose, defineCatalog, askCard } from 'sygnal/ai'
+import { generatedRuntime, sucraseCompiler } from 'sygnal/sandbox'
+import kernel from 'sygnal/sandbox/kernel?raw'
+import { z } from 'zod'
+
+const gen = compose.generated(generatedRuntime({ kernel, compile: sucraseCompiler(() => import('sucrase')) }), {
+  data: { plans: { description: 'the pricing plans', shape: '[{ id: "free" | "team", name: string, price: number }]', from: (state) => state.plans } },
+  emits: { PICK_PLAN: { description: 'the plan the user picked (the answer)', schema: z.object({ id: z.enum(['free', 'team']) }) } },
+})
+const cards = defineCatalog({ parts: { card: gen.card('PICK_PLAN') }, rows: false })
+
+export function Assistant({ state }) {
+  return (
+    <div className="chat">
+      {state.assistant.messages.flatMap((m) => m.parts.map((p) => (p.type === 'tool-ask_user' ? askCard(cards, state, p) : null)))}
+    </div>
+  )
+}
+Assistant.initialState = { plans: [{ id: 'free', name: 'Free', price: 0 }, { id: 'team', name: 'Team', price: 12 }] }
+Assistant.uses = {
+  assistant: chat({ ask: { catalog: cards, direct: true, instructions: gen.instructions } }),
+  fix: gen.repair(),
+}
+```
+
+The answer is `{ part: 'card', answer: { id: 'team' } }`, as for any [card](/guide/ai-cards/). A card whose code fails goes through the same repair loop.
+
+### Testing generated parts
+
+The model is scripted, as for any composition: answer the compose request with a reply that holds the code, and answer a repair request on its own key.
+
+<!-- docs-check: skip -->
+```js
+// Dashboard.test.js
+const t = renderComponent(Dashboard, { dom: 'real' })
+t.simulateAction('page.COMPOSE', 'refunds by customer')
+await t.respond('LLM', JSON.stringify({ asked_for: ['refunds'], children: [{ part: 'custom', params: { title: 'Refunds', reads: ['orders'], code } }] }), 'page.REPLY')
+const fix = t.requests('LLM').find((r) => String(r.key).startsWith('fix:'))   // a failing part's repair request
+await t.respond('LLM', JSON.stringify({ code: fixedCode }), 'fix.REPLY')
+```
+
+The box needs the real DOM (`dom: 'real'`). In Node, pass `worker` a `worker_threads` Worker of `sygnal/sandbox/worker`, or use `isolation: 'thread'`.
+
 ## Testing
 
 Tests never call a model. `composeWith(t, catalog, tree)` answers the pending composition so that it becomes `tree`, whichever backend is pending: it builds each step's reply with the backend's own `fake()` (the `decide()` answers, or the LLM's JSON) and sends it as the model would. So one test runs against both backends:

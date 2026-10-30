@@ -1,5 +1,14 @@
 # Generated parts in `compose`, run in the QuickJS sandbox
 
+> **Shipped (experimental, 7.2 dev preview)** on `claude/build-compose-generated`:
+> `compose.generated(runtime, …)` (`src/extra/ai/compose/generated.ts`) on
+> `generatedRuntime({ kernel, compile })` from `sygnal/sandbox` (`src/sandbox/generated.ts`), the §7
+> patch applied, the suites moved to `test/compose-generated-*.test.js`. Changes from this spike:
+> the defaults are §8's (`maxUses: 3`, `maxCode: 4000`); the compile step is the app's (`sucraseCompiler`
+> on the app's own sucrase, §9.3); the wiring check moved into the kernel (SYG101 at boot, reason
+> `check`), so sygnal-check isn't loaded in the browser and is an opt-in `check` where Node runs;
+> `gen.card(type)` is the `render_component` card. The spike's own code below is unchanged.
+
 Research spike for sandbox question Q2 (`dev-plans/research/sandbox/README.md` §9 and the
 maintainer decisions). The question: can `sygnal/ai`'s `compose` take a **generated** part, a
 component the model writes, and run it inside the QuickJS sandbox well enough to ship in the next

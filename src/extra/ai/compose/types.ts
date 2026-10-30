@@ -13,14 +13,14 @@
  *
  *   options: { kind: 'options', options: { value: description }, default, label?, ask? }
  *   number:  { kind: 'number', min?, max?, default?, bins?: { number: description }, label? }
- *   text:    { kind: 'text', maxLength?, default?, required, label? }
+ *   text:    { kind: 'text', maxLength?, default?, required, label?, format?: 'code' }
  *   list:    { kind: 'list', items?: { maxLength? }, min?, max?, required, default?, label? }
  *   record:  { kind: 'record', from: (state) => [{ value, name?, aliases?, description? }], label? }
  */
 export type Param =
   | {kind: 'options'; options: Record<string, string>; default?: any; label?: string; ask?: string}
   | {kind: 'number'; min?: number; max?: number; default?: number; bins?: Record<string, string>; label?: string}
-  | {kind: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string}
+  | {kind: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string; format?: 'code'}
   | {kind: 'list'; items?: {maxLength?: number}; min?: number; max?: number; required?: boolean; default?: string[]; label?: string}
   | {kind: 'record'; from: (state: any) => any[]; label?: string; default?: undefined}
 

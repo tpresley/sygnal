@@ -1,5 +1,5 @@
 // Types for 'sygnal/ai' (PLAN-6). The implementation lives in src/extra/ai/ (D253).
-import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors, RenderResult } from 'sygnal'
+import type { FetchRequest, Behavior, BehaviorTarget, FieldErrors, RenderResult, StandardSchemaLike } from 'sygnal'
 import type { Stream } from 'xstream'
 
 /** A part of a chat message (AI SDK UIMessage-shaped, D252) */
@@ -1289,7 +1289,7 @@ export type CatalogParam =
   /** a number (LLM: a number; decisions: a bin, which names the vague words it covers) */
   | { type: 'number'; min?: number; max?: number; default?: number; bins?: Record<string | number, string>; label?: string }
   /** free text: LLM only (a decision model keeps the default; `required` with no default makes the part LLM-only) */
-  | { type: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string }
+  | { type: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string; /** source code (a generated part's): the prompt says so, and asked_for items keep their own length */ format?: 'code' }
   /** a list of short texts: LLM only */
   | { type: 'list'; items?: { maxLength?: number }; min?: number; max?: number; required?: boolean; default?: readonly string[]; label?: string }
   /** a record: one node per record (at most one per part) */
@@ -1628,6 +1628,99 @@ export const compose: {
   action<K extends string = 'page'>(key?: K, options?: { description?: string; timeout?: number }): Record<`${K}.COMPOSE`, AgentAction<any, { prompt: string; fresh?: boolean }>>
   /** PLAN-9 C-2: a composition as an agent's `read` shows it: its status, the layout as a tree, the error */
   summary(slice: ComposeState | null | undefined): { status: ComposeStatus; page: ComposeTree; error?: string } | undefined
+  /**
+   * EXPERIMENTAL (outside semver): a part whose component the model writes, run in sygnal/sandbox.
+   * `runtime` is `generatedRuntime({ kernel, compile })` from 'sygnal/sandbox'. Add `gen.part` to the
+   * catalogs that may have one (never a default), `gen.instructions` to compose.llm's instructions,
+   * `fix: gen.repair()` to the host's `uses`, and read events with `gen.events(CHILD, type)`.
+   */
+  generated<STATE = any, const D extends Record<string, GeneratedData<STATE>> = {}, const E extends Record<string, GeneratedEmit> = {}>(
+    runtime: { readonly Box: any },
+    options?: ComposeGeneratedOptions<STATE, D, E>
+  ): ComposeGenerated<D, E>
+}
+
+// ---- compose.generated (experimental, outside semver) -------------------------------------------
+
+/** A data key a generated part may read: its value is `from(state)`, as JSON, when the node lists the key in `reads` */
+export interface GeneratedData<STATE = any> {
+  /** what the prompt says it is */
+  description: string
+  /** its shape for the prompt (never the data): '[{ id: number, name: string }]' */
+  shape?: string
+  from: (state: STATE) => unknown
+}
+/** An event type a generated part may send: its data passes `schema` (its output reaches the host), anything else is dropped */
+export interface GeneratedEmit<S extends StandardSchemaLike = StandardSchemaLike> {
+  description?: string
+  /** a Standard Schema (zod 4's JSON Schema export goes into the prompt) */
+  schema: S
+}
+
+export interface ComposeGeneratedOptions<STATE = any, D = {}, E = {}> {
+  /** what the code may read (default none) */
+  data?: D & Record<string, GeneratedData<STATE>>
+  /** what the code may send (default none: the part only displays) */
+  emits?: E & Record<string, GeneratedEmit>
+  /** the part id the prompt names (default 'custom'; use it as the catalog key) */
+  id?: string
+  /** characters of code (default 4000; the schema caps `code` at maxCode + 1) */
+  maxCode?: number
+  /** generated parts per page (default 3) */
+  maxUses?: number
+  /** default 'worker' (QuickJS in a Worker with a watchdog); 'thread' is the opt-in */
+  isolation?: 'worker' | 'thread'
+  /** over the runtime's limits */
+  limits?: Record<string, number>
+  policy?: Record<string, unknown>
+  /** none by default (e.g. `{ fetch: { allow: [...] } }`) */
+  capabilities?: Record<string, unknown>
+  /** the check before mount (default true) */
+  check?: boolean
+  /** the class names the prompt offers */
+  classes?: string
+  /** the part's description in the catalog */
+  description?: string
+  /** what a part the model couldn't fix shows (default "This part couldn't be built.") */
+  fallback?: string
+  /** the host key of `gen.repair()` (default 'fix') */
+  repairKey?: string
+  /** the repair requests' sink (default 'LLM') */
+  sink?: string
+}
+
+/** A generated part's event as the host's intent reads it */
+export type GeneratedEvent<E, K extends keyof E> = { node: string } & (E[K] extends { schema: infer S } ? SchemaOutput<S> : unknown)
+
+/** gen.repair()'s slice (`state.fix`): the overlay of fixed code and each chain's status */
+export interface GeneratedRepairState {
+  /** hash(failing code) → fixed code */
+  patches: Record<string, string>
+  parents: Record<string, string>
+  attempts: Record<string, number>
+  status: Record<string, 'repairing' | 'patched' | 'fixed' | 'gave-up'>
+  pending: Record<string, string>
+  log: Array<{ node: string; root: string; attempt: number; kind: string; reason?: string; message: string; gaveUp?: true }>
+}
+
+export interface ComposeGenerated<D = {}, E = {}> {
+  readonly id: string
+  /** the catalog part: `defineCatalog({ parts: { custom: gen.part } })` */
+  readonly part: CatalogPartDecl
+  /** the part as a chat card's result part: the code's `type` event is the card's answer (render_component) */
+  card(type: keyof E & string): CatalogPartDecl
+  /** the part's component (CHILD.select(gen.Host) hears its reports) */
+  readonly Host: any
+  /** the prompt rules: compose.llm({ instructions: gen.instructions }) */
+  readonly instructions: string
+  /** the repair requests' instructions */
+  readonly repairInstructions: string
+  /** the host's intent: one declared event type of every generated part, validated */
+  events<K extends keyof E & string>(CHILD: any, type: K): Stream<GeneratedEvent<E, K>>
+  /** the repair loop: `uses = { fix: gen.repair({ maxAttempts: 2, model }) }` */
+  repair(options?: { maxAttempts?: number; model?: string }): Behavior<GeneratedRepairState, { REPLY: any; FAILED: any }>
+  readonly schemas: { [K in keyof E]: E[K] extends { schema: infer S } ? S : never }
+  readonly repairKey: string
 }
 
 /**

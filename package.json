@@ -351,6 +351,7 @@
     "react-dom": "19.3.0",
     "rollup": "^3.28.1",
     "rollup-plugin-dts": "^6.1.1",
+    "sucrase": "^3.35.1",
     "three": "0.186.1",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5",

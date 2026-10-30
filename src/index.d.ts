@@ -4139,6 +4139,8 @@ export { openToolCalls, askCard } from './ai.d'
 export { Composed } from './ai.d'
 export type { ChatClientTool, ChatAskOptions, ChatCard, ChatCardStatus, ChatToolPart, ComposedProps } from './ai.d'
 export type { Catalog, CatalogDecl, CatalogPartDecl, CatalogContainerDecl, CatalogParam, CatalogParamValue, CatalogParamsOf, CatalogRecord, CatalogPart, CatalogContainer, CatalogOption, CatalogTree, CatalogTreeNode, ComposeTree, ContainerView, Layout, LayoutNode, ComposeRenderOptions, ComposeRenderable, ComposeBackend, ComposeNames, ComposeState, ComposeStatus, ComposeActions, ComposeOptions, ComposeAnswer } from './ai.d'
+// compose.generated (experimental, outside semver)
+export type { ComposeGenerated, ComposeGeneratedOptions, GeneratedData, GeneratedEmit, GeneratedEvent, GeneratedRepairState } from './ai.d'
 
 /**
  * PLAN-9 (D463): a `{ get, set }` lens to the element of the array `state[field]` whose `idKey`

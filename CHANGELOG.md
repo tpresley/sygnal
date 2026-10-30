@@ -135,6 +135,28 @@ behaves as on 7.1.0.
     SSR: `renderToHTML()`.
   - `quickjs-emscripten-core` and `@jitl/quickjs-wasmfile-release-sync` are optional peer dependencies.
     Guide: "Sandboxed Components".
+- **Generated parts in `compose`** (experimental, outside semver even after 7.2.0 until real-model
+  success rates are measured): `compose.generated(runtime, { data, emits })` lets the model write a part's
+  component as code when no prepared part fits; it runs in `sygnal/sandbox`. Research:
+  `dev-plans/research/compose-sandbox`.
+  - `generatedRuntime({ kernel, compile })` from `sygnal/sandbox` compiles, checks and runs the code;
+    `sucraseCompiler(() => import('sucrase'))` is a `compile` on the app's own sucrase.
+  - `gen.part` goes in the catalogs that may have one (never a default), `gen.instructions` in
+    `compose.llm()`'s instructions, `fix: gen.repair()` in `uses`; `gen.events(CHILD, type)` gives the
+    host the validated events.
+  - Defaults: `isolation: 'worker'`, `maxUses: 3`, `maxCode: 4000`, `maxAttempts: 2`, the check before
+    mount on, no capabilities.
+  - Partial code never mounts while a reply streams; a part keeps its node key from the preview to the
+    final layout. A failure becomes one small repair request (the code and the error); a part the model
+    can't fix shows a fallback in its own place.
+  - `gen.card(type)` is the `render_component` chat card: the one-part case, as `chat({ ask })`'s direct
+    catalog.
+  - The check before mount loads nothing on the page: JSX event handlers on the page, and the kernel now
+    warns at boot about an intent action with no model entry (SYG101). sygnal-check is an opt-in `check`
+    where Node runs.
+  - `createSandbox({ onReject })` and `emitGate(emits, deliver, reject)` report dropped events.
+  - Text params take `format: 'code'`: the prompt calls them source code, and `asked_for` items keep
+    their own length.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma

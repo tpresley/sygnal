@@ -11,6 +11,8 @@
  *   not hostile code).
  * - loadQuickJS({ maxWasmBytes }): a QuickJS module, a fresh instance with a capped memory.
  * - renderToHTML(options), treeToHTML(tree): SSR through the same allowlist.
+ * - generatedRuntime({ kernel, compile }) (experimental, outside semver): the runtime of
+ *   model-generated parts for sygnal/ai's compose.generated(); sucraseCompiler(load) is a `compile`.
  * - quickjs-emscripten-core and @jitl/quickjs-wasmfile-release-sync are optional peers (D209),
  *   loaded on first use; 'sygnal' stays external (one core per app). 0 B in the core.
  */
@@ -20,3 +22,4 @@ export {loadQuickJS, poisoned} from './sandbox/quickjs'
 export {renderToHTML} from './sandbox/ssr'
 export {treeToHTML, sanitize, DEFAULT_POLICY} from './sandbox/mirror'
 export {SandboxError, DEFAULT_LIMITS, PROTOCOL} from './sandbox/protocol'
+export {generatedRuntime, sucraseCompiler, lintGenerated, GENERATED_LIMITS} from './sandbox/generated'

@@ -117,7 +117,7 @@ const placeOk = (it: any, place: string) => placesOf(it).some((e: string) => e =
  * plan into the text it writes, so a shorter cap cut a 120-character question at 60 under a
  * grammar that enforces maxLength (Ollama)
  */
-const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text').map((p: any) => p.d.maxLength ?? 40)))
+const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text' && p.d.format != 'code').map((p: any) => p.d.maxLength ?? 40)))
 
 // ---------------------------------------------------------------- prompt (research wording, exact)
 function paramText(p: any) {
@@ -135,6 +135,7 @@ function paramText(p: any) {
     return `${name}: ${label ? label + '. ' : ''}a number${range}${bins}${def}`
   }
   if (kind == 'list') return `${name}${label ? `: ${label}` : ''}; a list of ${d.min ? `${d.min} to ` : 'at most '}${d.max ?? 6} short texts`
+  if (d.format == 'code') return `${name}${label ? `: ${label}` : ''}; source code, at most ${d.maxLength ?? 40} characters${d.required ? '; always set it' : ''}`
   return `${name}${label ? `: ${label}` : ''}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
 }
 
