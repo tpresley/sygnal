@@ -166,7 +166,24 @@ VERDICT_PLACEHOLDER
 
 ## 6. Size, subpaths and D209
 
-SIZE_PLACEHOLDER
+**The one core change (committed on this branch):** `src/cycle/run/adapt.ts`'s `getGlobal()` picked `window`, then `global`, then `this`. In a module worker none of them exists (`this` is undefined in a module), so `run()` threw `Cannot read properties of undefined (reading 'Cyclejs')` before anything rendered. QuickJS in the compile-wasm session hit the same fallback. It's now `globalThis`, which the core already uses (`runtime.ts`, `actions.ts`), and the change **saves bytes**:
+
+| `node scripts/size-gate.mjs` | before | after | Δ |
+|---|---|---|---|
+| (a) kanban, `nativeGlobalThis: false` (gated) | 42,413 B | 42,401 B | **−12 B** (headroom 587 → 599 B) |
+| (b) kanban, default | 38,421 B | 38,404 B | −17 B |
+| (c) `src/core/**` alone | 19,153 B | 19,153 B | 0 (`adapt.ts` is outside `src/core`) |
+
+Nothing else in the core changed. `sygnal/host` is unchanged too: the diff reads its public tree and revisions.
+
+**Subpaths (proposed, D-WW-6):** two entries, so each thread loads only its half, and neither adds a runtime dependency (D209: none new; xstream is already one).
+
+| Subpath | Contents | Imports | Size of the spike's code (esbuild, minified, gzip -9) |
+|---|---|---|---|
+| `sygnal/worker` | `createWorkerTarget(port, options)` → `{ driver, remote, call, flush }` | `sygnal`, `sygnal/host` (external) | 4.8 KB / **2.2 KB** |
+| `sygnal/worker/page` (or `sygnal/bridge`) | `startBridge(worker, mount, options)` | `xstream` only (for page-side drivers' sinks) | 4.4 KB / **2.0 KB** (10.3 KB with xstream, which a page with Sygnal-style drivers loads anyway) |
+
+The worker bundle is the app plus the core plus `sygnal/host` (`dist/host.esm.js`: 20 KB gzip unminified, with snabbdom's modules inlined). The page bundle is the bridge and the page drivers only. In todomvc, the page still pulls in the core because its drivers `import { xs } from 'sygnal'`. Page drivers written for a worker app should import `xstream` directly.
 
 ---
 

@@ -1,4 +1,3 @@
-import '../src/worker-env'
 import {run} from 'sygnal'
 import App from './app.jsx'
 import {createWorkerTarget} from '../src/worker-target'
