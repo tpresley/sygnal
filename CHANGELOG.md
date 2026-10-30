@@ -73,8 +73,8 @@ behaves as on 7.1.0.
       `DOM.input('.x').value()`. A helper taken off its stream (`const { value } = DOM.input('.x')`) no
       longer knows the stream. Nothing in the docs or examples does this.
 
-**Measured impact.** Size: the kanban gate is 42,413 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
-budget 43,000 B, 587 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
+**Measured impact.** Size: the kanban gate is 42,428 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
+budget 43,000 B, 572 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
 renderer field tags cost about 100 B, and the cheaper Collection items about 260 B. The new subpaths
 add nothing to an app that doesn't import them. The perf count gate is within its limits.
 
