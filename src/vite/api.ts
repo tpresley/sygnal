@@ -26,7 +26,7 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 // @ts-ignore
 import { Readable } from 'node:stream'
-import { contractManifest, fnFiles, fnNamespace } from '../extra/api/index'
+import { contractManifest, fnFiles, fnNamespace } from '../extra/api/contract'
 
 export interface ApiPluginOptions {
   handler?: string
