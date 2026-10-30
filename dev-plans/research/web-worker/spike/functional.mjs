@@ -27,7 +27,7 @@ for (const mode of (process.env.MODES || 'main,worker').split(',')) {
   const errors = []
   page.on('pageerror', (e) => errors.push(String(e)))
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
-  await page.goto(`${url}/${mode}.html`)
+  await page.goto(`${url}/todomvc/${mode}.html`)
   await page.evaluate(() => localStorage.clear())
   await page.reload()
   await page.waitForSelector('.new-todo')

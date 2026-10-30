@@ -30,6 +30,8 @@ export const OP = {
 
 type Rec = {rev: number, arev: number, attrs?: Map<string, string>, style?: Record<string, any>, value?: string, checked?: boolean, selected?: boolean, kids?: number[], data?: string}
 
+const FRAME = 16
+
 export interface PageEvent {
   seq: number
   type: string
@@ -40,7 +42,11 @@ export interface PageEvent {
 }
 
 export interface WorkerTargetOptions {
-  /** count posted messages and their JSON size (for measurement) */
+  /**
+   * count posted messages, their JSON size and the vnode format's size (measurement: it
+   * stringifies every message and every flush's vnode, so it slows the worker down). The page
+   * can also turn it on with {stats: 'on'}
+   */
   stats?: boolean
 }
 
@@ -59,7 +65,8 @@ export function createWorkerTarget(port: {postMessage(m: any): void, addEventLis
   let lastActive: HostElement | null = null
   let lastListen = ''
   const detached = new Set<HostNode>()
-  const stats = {messages: 0, bytes: 0, ops: 0, flushMs: 0}
+  const stats = {messages: 0, bytes: 0, ops: 0, flushMs: 0, vnodes: 0, vnodeBytes: 0}
+  let counting = !!options.stats
 
   // ---- tree → ops ---------------------------------------------------------------------------
 
@@ -159,7 +166,8 @@ export function createWorkerTarget(port: {postMessage(m: any): void, addEventLis
     if (types !== lastListen) { lastListen = types; msg.listen = types.split(' ').filter(Boolean) }
     if (!ops.length && !msg.listen) return
     ops = []
-    if (options.stats) {
+    lastPost = performance.now()
+    if (counting) {
       stats.messages++; stats.ops += countOps(msg.ops); stats.bytes += JSON.stringify(msg).length
       stats.flushMs += performance.now() - t0
     }
@@ -167,11 +175,19 @@ export function createWorkerTarget(port: {postMessage(m: any): void, addEventLis
   }
 
   // one message per flush: Sygnal's flush (and an EFFECT's writes, autoFocus) run in microtasks
-  // and frames; a macrotask after the change collects all of them
+  // and frames; a macrotask after the change collects all of them. Busy (a message went out less
+  // than a frame ago), wait for the rest of that frame: 10k <Transition> timers firing one by one
+  // made 1,160 messages of 3 ops each, and each flush walks the 10k-child list (README §4)
   let scheduled = false
+  let lastPost = -Infinity
   const mc = new MessageChannel()
-  mc.port1.onmessage = flush
-  doc.onChange = () => { if (!scheduled) { scheduled = true; mc.port2.postMessage(0) } }
+  mc.port1.onmessage = () => { if (scheduled) flush() }
+  doc.onChange = () => {
+    if (scheduled) return
+    scheduled = true
+    const wait = lastPost + FRAME - performance.now()
+    wait > 0 ? setTimeout(() => { if (scheduled) flush() }, wait) : mc.port2.postMessage(0)
+  }
 
   // ---- page events → host events ------------------------------------------------------------
 
@@ -250,10 +266,22 @@ export function createWorkerTarget(port: {postMessage(m: any): void, addEventLis
     }
     else if (d.emit) subs.get(d.emit)?.next(d.v)
     else if (d.ret) { const c = calls.get(d.ret); calls.delete(d.ret); d.error ? c?.reject(new Error(d.error)) : c?.resolve(d.v) }
+    else if (d.stats === 'on') counting = true
+    else if (d.stats === 'reset') for (const k in stats) (stats as any)[k] = 0
     else if (d.stats) port.postMessage({stats: {...stats}})
   })
 
-  return {doc, driver: makeHostDriver(doc), remote, call, flush, stats}
+  const hostDriver = makeHostDriver(doc)
+  // with stats: also what the other wire format would have sent (each flush's whole vnode, as
+  // JSON without elements, hooks and functions)
+  const skip = new Set(['elm', 'hook', 'c', 'ns'])
+  const replacer = (k: string, v: any) => skip.has(k) || typeof v == 'function' ? undefined : v
+  const driver = (vnode$: any, name?: string) => {
+    vnode$.addListener({next: (v: any) => { if (!counting) return; stats.vnodes++; stats.vnodeBytes += JSON.stringify(v, replacer)?.length ?? 0 }, error: () => {}, complete: () => {}})
+    return hostDriver(vnode$, name)
+  }
+
+  return {doc, driver, remote, call, flush, stats}
 }
 
 function countOps(ops: any[]) {

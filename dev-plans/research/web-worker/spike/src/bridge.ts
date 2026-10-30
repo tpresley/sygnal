@@ -20,7 +20,7 @@ export interface BridgeOptions {
    * e.preventDefault() comes too late.
    */
   preventDefault?: [string, string][]
-  /** count messages, bytes and apply time (window.__bridge.stats) */
+  /** count messages and bytes on both sides (window.__bridge.stats; slows both down: measurement only) */
   stats?: boolean
   /** called after each batch of ops is applied (tests, measurement) */
   onApply?: (ops: number) => void
@@ -210,6 +210,7 @@ export function startBridge(worker: Worker, mount: Element, options: BridgeOptio
     } else if (d.stats) (window as any).__workerStats = d.stats
   })
 
+  if (options.stats) worker.postMessage({stats: 'on'})
   const api = {stats, nodes, worker, reset() { Object.assign(stats, {in: 0, inBytes: 0, out: 0, outBytes: 0, ops: 0, applyMs: 0}) }}
   ;(window as any).__bridge = api
   return api
