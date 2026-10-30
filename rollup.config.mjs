@@ -414,12 +414,17 @@ export default [
     // 'sygnal/three' (research: dev-plans/research/canvas-three): three stays external (an optional
     // peerDependency, D209), as 'sygnal' and 'sygnal/host' (its host mode) do
     ['three', [[/[\\/]src[\\/]three[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]three[\\/]/, '../host', 'sygnal/host']]],
+    // 'sygnal/worker' (research: dev-plans/research/web-worker): the worker half, on the external
+    // 'sygnal' and 'sygnal/host'; 'sygnal/worker/page': the page half, no core (xstream, and the
+    // kit's selector matching inlined)
+    ['worker', [[/[\\/]src[\\/]worker[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]worker[\\/]/, '../host', 'sygnal/host']]],
+    ['worker-page', []],
   ].map(([entry, rules]) => ({
     input: `src/${entry}.ts`,
     external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^react(-native)?$/.test(id) || /^three(\/|$)/.test(id),
     output: [
-      { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
-      { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }
+      { file: pkg.exports[entry === 'worker-page' ? './worker/page' : `./${entry}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[entry === 'worker-page' ? './worker/page' : `./${entry}`].import, format: 'es', ...sourcemapOptions }
     ],
 		plugins: [
 			{

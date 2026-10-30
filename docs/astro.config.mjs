@@ -187,6 +187,7 @@ export default defineConfig({
             { label: 'three.js', slug: 'renderers/three' },
             { label: 'Terminal Apps', slug: 'renderers/terminal' },
             { label: 'Agent UI', slug: 'renderers/agent-ui' },
+            { label: 'Off the Main Thread', slug: 'renderers/off-main-thread' },
             { label: 'Writing a Renderer Target', slug: 'renderers/custom-targets' },
           ],
         },

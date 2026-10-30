@@ -31,6 +31,16 @@ export interface HostDelegate {
   accepts(el: HostElement): boolean
   /** a DOM.select('document' | 'body') source */
   global?: boolean
+  /** the host driver's: the default action it cancels (`events(type, { preventDefault })`) */
+  preventDefault?: boolean | Record<string, unknown> | ((e: HostEvent) => boolean)
+  /** the host driver's: its selector inside its isolation scope ('' for the scope's root) */
+  selector?: string
+  /** the host driver's: its isolation scope's key (indexed delegation) */
+  scope?: string
+  /** the host driver's: whether it accepts `el`, an element of its scope whose scope root is `sr` */
+  at?(el: HostElement, sr: HostElement | null): boolean
+  /** the host driver's: deliver `e` as `el` (its currentTarget) */
+  deliver?(e: HostEvent, el: HostElement): void
 }
 
 /** A node's stable id while it lives (snapshot refs, op logs) */
@@ -134,6 +144,12 @@ export class HostElement extends HostNode {
 /** snabbdom's DOMAPI over a host document */
 export function hostApi(doc: HostDocument): Record<string, (...args: any[]) => any>
 
+/** `events(type, options)`: as the DOM driver's */
+export interface HostEventsOptions {
+  /** cancel the default action when this source delivers the event: true, a pattern of event fields (`{ key: 'Tab' }`), or a predicate (in-thread only: a worker app's page can't call it) */
+  preventDefault?: boolean | Record<string, unknown> | ((e: HostEvent) => boolean)
+}
+
 export interface HostDriverOptions {
   /** extra snabbdom modules, after Sygnal's own */
   modules?: any[]
@@ -147,7 +163,7 @@ export interface HostDriverOptions {
 export interface HostSource {
   readonly doc: HostDocument
   select(selector: string | Function): HostSource
-  events(type: string, options?: unknown): Stream<HostEvent> & { value(): Stream<string>, checked(): Stream<boolean>, key(): Stream<string>, data(name: string): Stream<string | undefined>, target(): Stream<HostElement>, detail(): Stream<any> }
+  events(type: string, options?: HostEventsOptions): Stream<HostEvent> & { value(): Stream<string>, checked(): Stream<boolean>, key(): Stream<string>, data(name: string): Stream<string | undefined>, target(): Stream<HostElement>, detail(): Stream<any> }
   elements(): Stream<HostElement[]>
   element(): Stream<HostElement>
   /** whether this source delivers an event with `el` as its current target */

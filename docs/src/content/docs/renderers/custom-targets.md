@@ -70,6 +70,8 @@ run(App, { DOM: target.driver })
 
 The app itself doesn't change. That's the whole contract: the target reads `doc.body` when it changes, and it dispatches events on host elements.
 
+For that worker case on the web, [`sygnal/worker`](/renderers/off-main-thread/) is the finished target: it sends patch operations instead of whole trees, and its page bridge handles fields, focus, `preventDefault` and the drivers that must stay on the page.
+
 ## Painting
 
 - `doc.onChange` is called once per microtask after any change: a patch, a `value` an EFFECT wrote, a class `<Transition>` added. Alternatively, `makeHostDriver(doc, { onPatch })` calls you after each patch only.
@@ -95,6 +97,10 @@ Turn every platform event into the DOM's events, never into new names. Intents, 
 
 `el.dispatchEvent(new HostEvent(type, init))` sends any other event, and the `init` fields land on the event (`detail`, `pointerId`, …). `doc.listenedTypes(el)` tells you which event types the app's intents would receive from an element. `doc.globalTypes()` lists the ones `DOM.select('document')` listens for.
 
+`dispatchEvent` returns `false` when the app prevented the default action, either in a listener or through an intent's `events(type, { preventDefault })` option (`true`, a pattern of event fields such as `{ key: 'Tab' }`, or a predicate), as on the web. Run the default action yourself only when it returns `true`. A target that must decide before it dispatches (a remote screen whose own default runs at once) can read the declarations: each entry of `doc.delegates` carries its event `type`, its `preventDefault`, and its scope-relative `selector`. That is how `sygnal/worker`'s page applies them synchronously.
+
+Delivery is indexed by event type and isolation scope: an event walks from its target to the root once, and tests only the sources of each element's own component. In a 1,000-row Collection with a click source per row, a click costs about a tenth of what a delegate-by-delegate walk did (30 µs instead of 300 µs in Node, the action included).
+
 ## Your own tags
 
 A native target may want its own vocabulary (`<view>`, `<txt>`, `<textinput>`) instead of HTML. Any lowercase tag works. Three rules:
@@ -119,4 +125,4 @@ Run an app on your driver and assert on what you paint. The library's own tests 
 
 ## What stays web-only
 
-`Portal` (it mounts into `document`), the [UI parts](/ui/overview/) built on native `<dialog>` and popover, the [browser sources](/guide/browser-sources/), view transitions, and `VirtualCollection` (it measures elements) need the browser's DOM. On a host target, use your platform's equivalents through drivers.
+`Portal` (it mounts into `document`), the [UI parts](/ui/overview/) built on native `<dialog>` and popover, the [browser sources](/guide/browser-sources/), view transitions, and `VirtualCollection` (it measures elements) need the browser's DOM. On a host target, use your platform's equivalents through drivers. A worker app on the web has more limits of its own: see [Not supported yet](/renderers/off-main-thread/#not-supported-yet).

@@ -285,3 +285,21 @@ Reviewed on the research decisions page. Unless a line says otherwise, the recom
 - Q-WW-3, 4, 7: in the first version (hold submit until the last edit arrives, keep the cursor, coalesce events per frame).
 - Q-WW-5, 6, 8: follow-ups after the preview. Their limitations must be documented on the docs page (no `sygnal/ui` dialogs or popovers, widgets, devtools or HMR in a worker app yet).
 - Q-WW-9: not now.
+
+---
+
+## Shipped as a dev preview (2026-10-29)
+
+`sygnal/worker` + `sygnal/worker/page` (`src/worker/`), `examples/todomvc-worker`, the docs page `renderers/off-main-thread`. Changes from the spike: Q-WW-2 (intents' `preventDefault: true | pattern` crosses as `[type, selector, global, scope, pattern]`, applied on the page with sygnal/host's selector matching inside the isolation scope; scope roots travel as op 9, SCOPE), Q-WW-3 (a submit waits until the form's last edit is acknowledged, and events after a submit wait until the worker handled it; sequence numbers are given at post time so acks only grow; a rebased value crosses as an `input` event, not `{sync}`, so a model tracking the text follows), Q-WW-4 (`caret()`), Q-WW-7 (pointermove, mousemove, scroll, wheel once a frame; wheel deltas summed; scroll carries scrollTop/scrollLeft). Dropped from the spike: `target.call()` (Q-WW-5) and the `?stats` JSON counting. sygnal/host: `events(type, { preventDefault })` honoured, delegation indexed by type and scope (sandbox §6.1, §6.2).
+
+The spike's `functional.mjs` (17 checks) passes on the shipped subpaths in Chromium, Firefox and WebKit, and `measure.mjs` / `measure-stream.mjs` (spike pages re-pointed at `dist/worker*.esm.js`; load average 8–28 during the run):
+
+| todomvc, medians of 5 | main | worker |
+|---|---|---|
+| n=0 toggle one, click → painted | 15.7 ms | 32.5 ms |
+| n=1,000 toggle one | 15.4 | 32.8 |
+| n=10,000 load → ready (long tasks) | 3,685 (3,511) | 552 (253) |
+| n=10,000 add a todo | 91.0 | 105.8 (spike: 53.9 vs 152.6) |
+| n=10,000 toggle one | 120.1 | 83.7 |
+| n=10,000 toggle all: key pressed meanwhile, input → paint | 128 | 16 |
+| stream: keystroke p95, page long tasks | 56 ms, 40 | 16 ms, 0 |

@@ -11,6 +11,7 @@
  * Hermes or a test.
  */
 import {matches, querySelectorAll} from './selector'
+import {DelegateSet} from './delegation'
 
 export type HostListener = (e: HostEvent) => void
 
@@ -43,6 +44,17 @@ export interface HostDelegate {
   accepts(el: HostElement): boolean
   /** a DOM.select('document' | 'body') source: it hears every event of its type */
   global?: boolean
+  /** the default action it cancels (events(type, { preventDefault })): true, or a pattern of event fields */
+  preventDefault?: boolean | Record<string, unknown> | ((e: HostEvent) => boolean)
+  /** a selector source's selector (scope-relative; '' for the scope's root) */
+  selector?: string
+  /**
+   * indexed delegation (the host driver's own delegates, src/host/delegation.ts): the isolation
+   * scope's key, whether it accepts `el` (scope root `sr`), and delivery of the event as `el`
+   */
+  scope?: string
+  at?(el: HostElement, sr: HostElement | null): boolean
+  deliver?(e: HostEvent, el: HostElement): void
 }
 
 let ids = 0
@@ -80,8 +92,8 @@ export class HostDocument {
   /** called once per microtask after any change to the tree (a renderer repaints) */
   onChange: (() => void) | null = null
   activeElement: HostElement | null = null
-  /** the renderer driver's root delegates: they see every dispatched event first */
-  delegates = new Set<HostDelegate>()
+  /** the renderer driver's root delegates: they see every dispatched event first (indexed by type and scope) */
+  delegates: Set<HostDelegate> = new DelegateSet()
   /** pokeDOM (Transition, Portal) builds its event from defaultView.Event */
   defaultView = {Event: HostEvent}
   body: HostElement
@@ -285,7 +297,9 @@ export class HostElement extends HostNode {
   dispatchEvent(e: any): boolean {
     const ev: HostEvent = e instanceof HostEvent ? e : new HostEvent(e.type, {bubbles: e.bubbles})
     ev.target = this
-    for (const d of [...this.ownerDocument.delegates]) if (d.type === ev.type) d(ev)
+    const ds = this.ownerDocument.delegates
+    if (ds instanceof DelegateSet) ds.dispatch(ev)
+    else for (const d of [...ds]) if (d.type === ev.type) d(ev)
     for (let n: HostElement | null = this; n && !ev.cancelBubble; n = ev.bubbles ? n.parentNode : null) {
       ev.currentTarget = n
       const s = n.listeners.get(ev.type)
