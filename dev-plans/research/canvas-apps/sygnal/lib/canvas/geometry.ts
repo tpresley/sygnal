@@ -50,16 +50,15 @@ export function corners(b: Box): Pt[] {
   return [[b.x, b.y], [b.x + b.width, b.y], [b.x + b.width, b.y + b.height], [b.x, b.y + b.height]].map(([x, y]) => rotate({x, y}, o, r))
 }
 
-// one AABB per node object: nodes are immutable data, so identity is the cache key
+// one AABB per rotated node object: nodes are immutable data, so identity is the cache key
 const aabbs = new WeakMap<object, AABB>()
 export function aabb(b: Box): AABB {
+  // unrotated: cheaper to compute than to cache (a drag makes thousands of new nodes per frame)
+  if (!b.rotation) return {x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height}
   let a = aabbs.get(b)
   if (a) return a
-  if (!b.rotation) a = {x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height}
-  else {
-    const c = corners(b)
-    a = {x0: Math.min(...c.map(p => p.x)), y0: Math.min(...c.map(p => p.y)), x1: Math.max(...c.map(p => p.x)), y1: Math.max(...c.map(p => p.y))}
-  }
+  const c = corners(b)
+  a = {x0: Math.min(...c.map(p => p.x)), y0: Math.min(...c.map(p => p.y)), x1: Math.max(...c.map(p => p.x)), y1: Math.max(...c.map(p => p.y))}
   aabbs.set(b, a)
   return a
 }

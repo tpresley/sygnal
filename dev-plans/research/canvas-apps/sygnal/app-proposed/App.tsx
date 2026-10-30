@@ -107,8 +107,8 @@ export function App({state: s}: {state: State & {rows: M.Row[]}}) {
       <main className={'stage tool-' + s.tool}>
         <Canvas className="board" camera={s.camera} grid>
           <shapes className="doc" items={s.shapes} active={active} />
-          {/* each selected shape's own outline when several are selected: an outline layer (data, never hit) */}
-          {s.selection.length > 1 && !s.editing && <shapes className="sel-outlines" items={s.selection.map(id => byId(s.shapes, id)).filter(Boolean)} outline={BLUE} />}
+          {/* each selected shape's own outline when several are selected (not while they move): an outline layer, never hit */}
+          {s.selection.length > 1 && !s.editing && !(g?.kind == 'move' && g.moved) && <shapes className="sel-outlines" items={s.selection.map(id => byId(s.shapes, id)).filter(Boolean)} outline={BLUE} />}
           {overlay(s)}
         </Canvas>
         {editor}

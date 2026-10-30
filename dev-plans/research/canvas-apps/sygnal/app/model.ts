@@ -309,7 +309,9 @@ export function setProp(s: State, {key, value}: {key: string, value: string}): S
 // ---------------------------------------------------------------- layers panel
 
 /** the layers panel's rows: top of the stack first, children under their frame */
-const rowCache = new WeakMap<Shape, Row>()
+// rows are kept by id while what a row shows is unchanged: a drag replaces shapes (new x, y), not
+// rows, so the panel's items keep their identity and don't re-render
+let lastRows = new Map<string, Row>()
 export function rows(shapes: Shape[]): Row[] {
   const kids = new Map<string | null, Shape[]>()
   for (const x of shapes) { const k = x.parent ?? null; let a = kids.get(k); if (!a) kids.set(k, a = []); a.push(x) }
@@ -318,13 +320,14 @@ export function rows(shapes: Shape[]): Row[] {
     const a = kids.get(p)
     if (a) for (let i = a.length - 1; i >= 0; i--) {
       const x = a[i]
-      let r = rowCache.get(x)
-      if (!r || r.depth != d) rowCache.set(x, r = {id: x.id, name: x.name, type: x.type, depth: d, hidden: !!x.hidden, locked: !!x.locked})
+      let r = lastRows.get(x.id)
+      if (!r || r.depth != d || r.name !== x.name || r.type !== x.type || r.hidden !== !!x.hidden || r.locked !== !!x.locked) r = {id: x.id, name: x.name, type: x.type, depth: d, hidden: !!x.hidden, locked: !!x.locked}
       out.push(r)
       if (x.type == 'frame') walk(x.id, d + 1)
     }
   }
   walk(null, 0)
+  lastRows = new Map(out.map(r => [r.id, r]))
   return out
 }
 

@@ -3,7 +3,7 @@
  *
  *   <Canvas className="board" camera={state.camera} background="#f5f5f5" grid>
  *     <shapes className="doc" items={state.shapes} />                 // a data layer: one element
- *     <rect className="handle" data={{ handle: 'se' }} space="screen" … />   // JSX nodes: one element each
+ *     <rect className="handle" data={{ part: 'se' }} space="screen" … />     // JSX nodes: one element each
  *   </Canvas>
  *
  * Children (the island's, rendered hidden but accessible):
@@ -11,6 +11,8 @@
  *   are painted and hit-tested by the canvas; no element per node. A hit dispatches on the layer's
  *   element with `event.hit` = the node's id (`event.node` its data). `active={ids}`: nodes that
  *   are about to change every frame (a drag): painted on the live layer, so the rest stays cached.
+ *   `outline={color}`: a layer that paints its nodes' outlines (1 screen px) and is never hit
+ *   (selection and hover outlines, peers' selections).
  * - Any other node tag (`rect ellipse text line path frame`, a `g` to group): one element per node,
  *   for handles, guides, a marquee, a few interactive things with their own intents. World
  *   coordinates, or `space="screen"` (canvas pixels: handles keep their size at any zoom).
@@ -18,7 +20,10 @@
  *
  * Input: native pointer events → captureRouter → DOM events on the picked element, every one with
  * `world`, `screen`, `hit`, `node`. A miss targets the children container, so one listener on the
- * Canvas's className sees every press. Between down and up the pointer is captured (router.ts).
+ * Canvas's className sees every press. Pointer capture as sygnal/three defines it (router.ts):
+ * `capture="all"` (default: every press) or `"explicit"` (a `capture` prop, or setPointerCapture).
+ * The native events stop at the canvas element; a press blurs a focused field and prevents the
+ * mouse compatibility defaults.
  *
  * Navigation (built in, `navigate={false}` turns it off): wheel pans, ctrl/⌘-wheel and trackpad
  * pinch zoom toward the cursor, space-drag and middle-drag pan. The camera is a controlled value
@@ -33,7 +38,8 @@
  * Painting: on demand, once a frame after a sync / camera change. `repaint="layers"` (default):
  * the data layers without their `active` nodes are cached as a bitmap until a node outside
  * `active` changes or the camera moves; the live layer (active nodes, JSX nodes) repaints every
- * time. `repaint="full"` repaints everything. Off-screen nodes are culled.
+ * time; 64 or more live nodes that only translated since they were painted are one bitmap blit.
+ * `repaint="full"` repaints everything. Off-screen nodes are culled.
  */
 import {defineWidget} from 'sygnal'
 import {controlled} from '../../../../../../src/extra/controlled'
@@ -225,7 +231,9 @@ export const Canvas = defineWidget({
       } else stat.blits = (stat.blits || 0) + 1
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.globalAlpha = 1
-      ctx.drawImage(c.bmp, Math.round((d[0] * z - mx) * dpr), Math.round((d[1] * z - my) * dpr))
+      // only the part of the bitmap that lands on the canvas (a quarter of it): the copy is the raster cost
+      const W = canvas.width, H = canvas.height, sx = Math.round((mx - d[0] * z) * dpr), sy = Math.round((my - d[1] * z) * dpr)
+      ctx.drawImage(c.bmp, sx, sy, W, H, 0, 0, W, H)
       return true
     }
     inst.paintNow = () => { if (pending) caf?.(pending), pending = 0; draw() }
