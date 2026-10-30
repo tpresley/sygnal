@@ -1,0 +1,149 @@
+{
+ "rounds": 25,
+ "dists": [
+  "base",
+  "new"
+ ],
+ "results": {
+  "create 1k rows": {
+   "base": {
+    "core": 6,
+    "coreP25": 4.5,
+    "coreP75": 7,
+    "dom": 21.4
+   },
+   "new": {
+    "core": 4.7,
+    "coreP25": 3.3,
+    "coreP75": 6.2,
+    "dom": 19.3
+   }
+  },
+  "replace 1k rows": {
+   "base": {
+    "core": 4.5,
+    "coreP25": 4.4,
+    "coreP75": 5.7,
+    "dom": 22.1
+   },
+   "new": {
+    "core": 3.7,
+    "coreP25": 3.2,
+    "coreP75": 3.8,
+    "dom": 21.6
+   }
+  },
+  "update every 10th (1k)": {
+   "base": {
+    "core": 1.1,
+    "coreP25": 1,
+    "coreP75": 1.4,
+    "dom": 3
+   },
+   "new": {
+    "core": 1,
+    "coreP25": 0.8,
+    "coreP75": 1.3,
+    "dom": 2.9
+   }
+  },
+  "select row (1k)": {
+   "base": {
+    "core": 1.6,
+    "coreP25": 1.3,
+    "coreP75": 1.8,
+    "dom": 2
+   },
+   "new": {
+    "core": 1.3,
+    "coreP25": 1.1,
+    "coreP75": 1.4,
+    "dom": 1.7
+   }
+  },
+  "create 10k rows": {
+   "base": {
+    "core": 66.6,
+    "coreP25": 61.3,
+    "coreP75": 68.3,
+    "dom": 214
+   },
+   "new": {
+    "core": 49.6,
+    "coreP25": 48.9,
+    "coreP75": 52.6,
+    "dom": 196.7
+   }
+  },
+  "append 1k to 1k": {
+   "base": {
+    "core": 4.5,
+    "coreP25": 4.2,
+    "coreP75": 5.4,
+    "dom": 19.6
+   },
+   "new": {
+    "core": 3.4,
+    "coreP25": 3.3,
+    "coreP75": 3.9,
+    "dom": 18
+   }
+  },
+  "clear 1k rows": {
+   "base": {
+    "core": 0.8,
+    "coreP25": 0.8,
+    "coreP75": 0.9,
+    "dom": 3.5
+   },
+   "new": {
+    "core": 0.8,
+    "coreP25": 0.7,
+    "coreP75": 0.9,
+    "dom": 3.8
+   }
+  },
+  "mount 1k components": {
+   "base": {
+    "core": 6.2,
+    "coreP25": 4.2,
+    "coreP75": 7.8,
+    "dom": 17.4
+   },
+   "new": {
+    "core": 6.2,
+    "coreP25": 4.2,
+    "coreP75": 6.6,
+    "dom": 16.9
+   }
+  },
+  "update 1 of 1k": {
+   "base": {
+    "core": 0.5,
+    "coreP25": 0.5,
+    "coreP75": 0.6,
+    "dom": 1.2
+   },
+   "new": {
+    "core": 0.5,
+    "coreP25": 0.5,
+    "coreP75": 0.7,
+    "dom": 1.2
+   }
+  },
+  "unmount 1k components": {
+   "base": {
+    "core": 0.7,
+    "coreP25": 0.6,
+    "coreP75": 0.9,
+    "dom": 3
+   },
+   "new": {
+    "core": 0.7,
+    "coreP25": 0.6,
+    "coreP75": 0.7,
+    "dom": 2.7
+   }
+  }
+ }
+}
