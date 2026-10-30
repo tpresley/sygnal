@@ -13,6 +13,8 @@ description: >
 
 Canonical forms, API facts, wiring rules and testing for everyday work. Full spec: `node_modules/sygnal/llms.txt`. Other features (Portals, Transitions, Suspense, Slots, SSR, Astro/Vike): https://sygnal.js.org/guide/components/. **Write only the canonical forms shown here**: `sygnal-check --strict` flags the others (SYG5xx).
 
+**References** (load one before writing that feature; each assumes this file): [ai](references/ai.md) (`sygnal/ai`: one-off LLM requests, `agent` static, decisions, composed pages and chat cards), [ui](references/ui.md) (`sygnal/ui` parts, Menu/Select/Combobox, `sortable`, `<VirtualCollection>`, `browser` static, library recipes), [graphics](references/graphics.md) (islands, `sygnal/three`, `sygnal/canvas`), [typed-apis](references/typed-apis.md) (`sygnal/api`), [collaboration](references/collaboration.md) (`sygnal/yjs`), [renderers](references/renderers.md) (terminal, agent-ui, React Native, Web Worker), [sandbox](references/sandbox.md), [replay](references/replay.md).
+
 ## 1. Workflow
 
 **Version first:** this skill describes Sygnal 7. Check the installed package, not just its dependency range. For 6.x, use its shipped `llms.txt` as the API reference: output reducers see pre-action state, binding changes need keys, and `previousState`, the timing audit and generic test-query overloads are unavailable until an upgrade (https://sygnal.js.org/guide/migrating-to-7/). Current sygnal-check supports both installed versions.
@@ -172,60 +174,11 @@ StarRating.model = { PICK: { PARENT: (state, value, next, props) => ({ name: pro
 - **Form with validation**: `Signup.uses = { form: form(schema, { values: { email: '', items: [{ id: 1, qty: '1' }] }, request: { url: '/api/signup' } }) }` (any Standard Schema). Fields inside the `<form>` match by `name`: no intent per field. View: `const f = state.form.fields`, `value={f.email.value}`, `{f.email.error}` (after blur/submit), `aria-invalid={f.email.invalid}`, ids from `uid()`. An invalid submit focuses the first invalid field; a valid one sends `request` with the parsed values (the form adds `json`/`multipart`, `ok: 'form.DONE'`, `error: 'form.ERRORS'`, `progress: 'form.PROGRESS'`; `(data, state) => ({ url, method: 'PUT' })` when it needs state); `state.form.submitting` until the reply; a submit that sends nothing: `submit: 'NEXT'` + `NEXT: { PARENT: … }`, done at once; a 422 `{ errors: { name: msg } }` or `[{ path, message }]` lands on the fields. Rows inline, no Collection child: `name={f['items.' + row.id + '.qty'].name}`, `'form.ADD': DOM.click('.add').mapTo({ field: 'items', value: { qty: '1' } })`, `'form.REMOVE': DOM.click('.remove').map(e => ({ field: 'items', id: e.target.dataset.id }))` (`data-id={row.id}`). Tests: `t.simulateEvent('[name="email"]', 'input', { value })`, `'focusout'`, `'submit'` on the form.
 - **`form` values live in the host's state** (a Switchable page shares its parent's), so they survive visits. Empty on each visit: `form(schema, { values: EMPTY, submit: 'SAVE', resetOnShow: true })`; a default from state: `values: (state) => ({ ...EMPTY, kind: state.settings.kind })`. Keep `resetOnShow` when removing a feature.
 - **Third-party widget** (date picker, chart, editor): `defineWidget({ tag, mount(el, props, dispatch), update, unmount, events, commands })` is a tag: `<DatePicker className="due" value={state.due} />`, `DOM.select('.due').events('pick').detail()` (never `DOM.select(DatePicker)`), `OPEN: { ELEMENT: { open: '.due' } }`; tests `t.widget('.due').dispatch('pick', d)`. `update` runs only when a prop is a different value (shallow): pass a chart a new array, never one changed in place. A web component is an element: render its tag, select its class (`web-components.md`).
-- **Imperative island** (three.js scene, canvas, map with markers as JSX children): `defineWidget({ children: true, mount, sync })`; the children are elements the widget reads in `sync` and draws; it dispatches DOM events on them (raycast / hit test → `click` on `v.elm`), so each child component's intent uses `DOM.click('.cube')`. Per-frame motion is computed in the widget from props, not in state (`islands.md`). A three.js scene: `<Scene>` from `sygnal/three` (`npm install three`): meshes, geometries, materials, lights and cameras as lowercase tags, raycast hits as `click` / `pointerover` on the mesh's element with `event.point`, `animate={{ rotation: (t) => [0, t, 0] }}` for motion, `<Model src="/tree.glb" />` / `<Texture src="/wood.jpg" />` for loaded assets (with `<Suspense>`; a failed load renders `onError`), `capture="xz"` to drag a mesh along the floor (`pointermove` with `event.captured` and `event.delta`), `draggable` for `processDrag`, tests with `sceneOf(el).click(meshEl)` / `.drag(meshEl, [x, y])` under `dom: 'real'` (`renderers/three.md`).
+- **Imperative island** (three.js scene, 2D editor or whiteboard on a canvas, map with markers as JSX children): `defineWidget({ children: true, mount, sync })`, `<Scene>` from `sygnal/three`, `<Canvas>` from `sygnal/canvas`: read [references/graphics.md](references/graphics.md) first.
 - Dialog, popover, tooltip (`tooltips()` for many triggers), tabs, accordion, disclosure, toasts → `sygnal/ui` behaviors + `<Toaster />`; Menu/Select/Combobox → `sygnal/ui/menu|select|combobox` widget tags (events `select` / `value-change`); one React or Zag component → `fromReact` / `fromZag` (`adapters.md`).
 - Drag to reorder → `uses = { sort: sortable({ from, item, handle }) }` + a live region for `state.sort.message` (English; a spec's wording: `messages: { drop, cancel, … }`, `(label, position, count) => text`). Long list → `<VirtualCollection className="rows">` is the scroll container: height, `aria-label`, `role` on it, never in your own scrolling `<ul>` (SYG430: fix the height); jump with `ELEMENT { scrollToIndex | scrollToId }`. Visibility/size/media/storage/network → `browser` static + `makeBrowserDriver()` (`browser-sources.md`); `lazy(…, { when: 'visible' })`.
 - Table → TanStack in the view; i18n → `.context.t` + `persist` (`recipes/overview.md`).
-- **AI** (`sygnal/ai`): a chat conversation is the `chat` behavior, never hand-rolled: `uses = { chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }) }` → `state.chat` (`messages`, `prompt`, `draft`, `status`, `error`; Stop keeps the partial reply, Retry doesn't repeat the question); a one-off request (summary, structured `output`) is an `LLM` sink request `{ messages: [{ role: 'user', content: text }], delta: 'DELTA', ok: 'DONE', error: 'FAILED' }`; both need `makeChatDriver({ transport })` (tests: `t.stream('LLM', ['Hi'])`); what agents may run is the `agent` static `{ name, description, read, actions, queries }` (only declared actions; `read` is all they see; `queries: { find: { description, input, run: (state, input) => result } }` are read-only lookups, pure and synchronous; an action that starts a fetch answers once it lands with `until: 'resourceName'`; tests: `t.callTool(name, args)`); typed answers: `decide()` + `choice` / `noul` / `score` as a resource. No provider API key in the browser: `uiMessageStream('/api/chat')` to your server.
-### Composed UI and chat cards (`sygnal/ai`)
-A model builds a page (or a card in a chat) from parts the app prepared: it only picks parts, params and places, never markup. Guides: `ai-compose.md`, `ai-cards.md`.
-```jsx
-import { defineCatalog, compose, Composed } from 'sygnal/ai'
-import { OrdersTable, Checklist } from './parts.jsx'
-
-export const catalog = defineCatalog({
-  parts: {
-    orders: {
-      component: OrdersTable,
-      description: 'Orders (table of recent orders)',   // all a model sees: "Noun (what it shows)"
-      params: { status: { default: 'any', options: { any: 'orders of every status', pending: 'pending orders (not paid yet)' } } },
-    },
-    tasks: { component: Checklist, state: 'tasks', description: "Tasks (the user's checklist)" },   // a lens into app state
-  },
-})
-
-export function Dashboard({ state }) {
-  return (
-    <main>
-      <form className="ask">
-        <input className="prompt" aria-label="The page you want" value={state.page.prompt} />
-        <button type="submit">Compose</button>
-      </form>
-      <Composed catalog={catalog} from="page" />
-    </main>
-  )
-}
-Dashboard.initialState = { tasks: [] }
-Dashboard.uses = { page: compose(catalog, { backend: compose.decisions({ model: 'jev-latest' }), form: '.ask', prompt: '.prompt' }) }
-```
-```js
-import { it, expect } from 'vitest'
-import { renderComponent } from 'sygnal'
-import { composeWith } from 'sygnal/ai'
-import { catalog, Dashboard } from './Dashboard.jsx'
-
-it('composes the pending orders', async () => {
-  const t = renderComponent(Dashboard)
-  t.simulateAction('page.COMPOSE', 'Pending orders')
-  await composeWith(t, catalog, [{ part: 'orders', params: { status: 'pending' } }])   // answers either backend
-  await t.waitForState((s) => s.page.status === 'done')
-  expect(t.state.page.layout.nodes.orders.params).toEqual({ status: 'pending' })
-  t.dispose()
-})
-```
-- `backend: compose.llm()` (the `LLM` sink, a streamed preview) takes the same catalog, view and tests. `compose.decisions()` posts to your `/api/decide` route, which holds the API key. `state.page`: `status` (`'composing' | 'preview' | 'done' | 'unavailable' | 'error'`), `layout` (plain JSON), `decisions`, `error`.
-- Parts are the host's children, keyed by their node key: params arrive as props, `CHILD.select(Part)` hears their `PARENT`, a `state` lens edits app state. A follow-up `next('page.COMPOSE', 'Move the orders to the top')` edits the page and keeps the untouched parts' instances; `{ prompt, fresh: true }` starts over. One part per record: a param `{ from: (state) => records }` + `state: (node) => byId('customers', node.params.id)` (`byId` from `'sygnal'`). Containers (`containers: { tabs: { slots, render: (view) => … } }`) are view functions, never components (SYG161). `{catalog.render(state.page, state)}` is the view-call form of `<Composed>`. An agent composes with `actions: { ...compose.action('page') }` and reads `compose.summary(state.page)`.
-- **Chat cards**: `chat({ form: '.ask', prompt: '.prompt', ask: { catalog } })` under `assistant` gives the model `ask_user({ need })`; render each `tool-ask_user` message part with `askCard(catalog, state, part)` (null while composing; the card is `part.ui`, `status` `'composing' | 'open' | 'answered' | 'failed' | 'cancelled'`). A part with `result: true` answers it: `PICK: { PARENT: (state, id, next, props) => compose.answer(props, id) }` → the call's output `{ part, answer }` (no result part: SYG686). Tools the app answers itself: `clientTools: { confirm: { description, inputSchema } }`, `openToolCalls(state.assistant)`, `next('assistant.TOOL_OUTPUT', { toolCallId, output })`. Tests: `await t.stream('LLM', [{ toolCall: { id: 'c1', name: 'ask_user', input: { need: 'Pick a plan' } } }])`, then `await composeWith(t, catalog, [{ part: 'plans' }])`.
+- **AI** (`sygnal/ai`): a chat conversation is the `chat` behavior, never hand-rolled: `uses = { chat: chat({ agent: false, form: '.ask', prompt: '.prompt', stop: '.stop', regenerate: '.retry' }) }` → `state.chat` (`messages`, `prompt`, `draft`, `status`, `error`), `makeChatDriver({ transport })`, tests `t.stream('LLM', ['Hi'])`. No provider API key in the browser: `uiMessageStream('/api/chat')` to your server. One-off requests, the `agent` static, `decide()`, pages and chat cards a model composes from your parts (`defineCatalog`, `compose`, `chat({ ask })`): read [references/ai.md](references/ai.md) first.
 ### Element commands, timers, persistence
 - **ELEMENT** (built in) calls a method on an element of the sending instance's view, after the render the action causes: `ELEMENT: (s) => (validate(s).email ? { focus: '.email' } : ABORT)`. First key = method (`focus`, `scrollIntoView`, `showModal`, `close`…), its value the target; other keys are options (`{ close: '.help', returnValue: 'done' }`); an array sends several. Tests: `t.commands('ELEMENT')`. `node_modules/sygnal/dist/guide/element-commands.md`
 - **Timers**: `Clock.timers = (state) => ({ tick: state.running && { every: 1000, action: 'TICK' } })` (or `{ after: ms, action }`, `{ frame: 'FRAME' }`), diffed by name: falsy stops. Needs `run(App, { TIMER: makeTimerDriver() })` (SYG643); `TICK` gets `{ n, t }`. Tests need no driver: fake timers + `t.timers()`. `node_modules/sygnal/dist/guide/timers.md`

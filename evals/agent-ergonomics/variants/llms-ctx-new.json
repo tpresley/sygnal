@@ -1,0 +1,5 @@
+{
+  "description": "llms-context spike, treatment: this checkout's build and context as shipped (llms.txt core 63,963 B + llms/<topic>.md on demand; the skill with references/ generated from the same topic files). Compare with llms-ctx-old",
+  "sygnal": "branch",
+  "skill": { "dir": "skills/sygnal-dev" }
+}
