@@ -1,0 +1,12 @@
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 20px; background: #0b0e14; color: #e6e9ef; font: 14px/1.45 system-ui, sans-serif; }
+.cubes-app { display: grid; grid-template-columns: 210px 640px; gap: 16px; align-items: start; }
+.panel { background: #151a23; border-radius: 10px; padding: 14px; }
+.panel h1 { font-size: 18px; margin: 0 0 6px; }
+.panel p { margin: 4px 0; color: #9aa4b2; }
+.panel ul { padding-left: 18px; margin: 8px 0 0; }
+.panel li.on { font-weight: 600; }
+button { background: #232b38; color: #e6e9ef; border: 1px solid #2f3a4b; border-radius: 6px; padding: 5px 10px; margin: 6px 6px 0 0; cursor: pointer; }
+.viewport { border-radius: 10px; overflow: hidden; line-height: 0; }
+.viewport canvas { display: block; cursor: pointer; }

@@ -29,6 +29,7 @@
       "sygnal/agent-ui": ["../src/agent-ui.d.ts"],
       "sygnal/primitives": ["../src/primitives.d.ts"],
       "sygnal/react-native": ["../src/react-native.d.ts"],
+      "sygnal/three": ["../src/three.d.ts"],
       "sygnal/ai": ["../src/ai.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],

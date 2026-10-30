@@ -387,9 +387,12 @@ export default [
     ['primitives', []],
     // 'sygnal/react-native': react and react-native stay external (optional peerDependencies, D209)
     ['react-native', [[/[\\/]src[\\/]react-native\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]react-native\.ts$/, './host', 'sygnal/host']]],
+    // 'sygnal/three' (research: dev-plans/research/canvas-three): three stays external (an optional
+    // peerDependency, D209), as 'sygnal' and 'sygnal/host' (its host mode) do
+    ['three', [[/[\\/]src[\\/]three[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]three[\\/]/, '../host', 'sygnal/host']]],
   ].map(([entry, rules]) => ({
     input: `src/${entry}.ts`,
-    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^react(-native)?$/.test(id),
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^react(-native)?$/.test(id) || /^three(\/|$)/.test(id),
     output: [
       { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }
