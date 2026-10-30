@@ -30,6 +30,14 @@ The tests import `src/` directly (aliases in `vitest.config.mjs`, as the alt-ren
 
 ---
 
+## Round 3 (2026-10-29): `sygnal/three`
+
+The maintainer approved a first-party subpath. The three.js target moved from `lib/` to `src/three.ts` + `src/three/` (`target.ts`, `events.ts`, `scene.ts`, `host.ts`), with hand-written `src/three.d.ts`; `lib/` now re-exports it, so the research tests run on the shipped code. `three` is an optional peer (`>=0.170.0`, D209), external in both builds with `sygnal` and `sygnal/host` (`test/renderers-entries.test.js`: the imports are exactly those three; both formats load in plain Node and raycast a host scene). Root devDependencies `three@0.186.1`, `@types/three@0.186.0` (exact). Tests: `test/three.test.js` (9), `type-tests/three-subpath.tsx` (not `three.tsx`: with `baseUrl: "."` a bare `'three'` resolved to it), `examples/three-cubes` (4, jsdom, strict-clean, screenshot). Docs: `renderers/three` ("Beyond the Browser"), shipped in `dist/guide` with `islands`; `llms.txt`, the skill, `CLAUDE.md`, CHANGELOG.
+
+Found and fixed on the way: `animate` stopping on a key with no static prop now resets it to the class default (it kept the last animated value); sygnal-check now knows `Scene` from `sygnal/three` as a widget tag (its `className` is the host's: a false SYG110 otherwise) and walks a widget's JSX children in the view's scope (a test in `adapters.vtest.js`); the example's Vite config dedupes `three` (the `file:` link would otherwise load the repo's copy too; an installed `sygnal` has no such problem).
+
+Gate (merged with `claude/advanced-integration` incl. the Web Worker work): size gate 42,459 B (541 B headroom; src/core alone 19,193 B gzip, unchanged by this round: the core didn't grow); `npm test`: vitest 5,405 passed, examples all pass (three-cubes 4), types pass, browser 381/381, perf count gate within limits (heap 0.95); sygnal-check 1,785 passed (both runs); docs build + links + code titles, check-doc-samples 926 clean, check-live 122 demos ok in Chromium, Firefox and WebKit. `sygnal/three` is 4.6 KB minified + gzip.
+
 ## Round 2 (2026-10-29): built into `src/`
 
 The coordinator accepted the design (Q1–Q5, under the maintainer's delegation). What landed on this branch, after merging `claude/advanced-integration`:
