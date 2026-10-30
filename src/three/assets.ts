@@ -45,6 +45,8 @@ export interface Asset {
   /** owners whose view rendered the placeholder: they render again when the load settles */
   owners: Set<any>
   model: boolean
+  /** cleared from the cache while in use: freed when its last element goes */
+  gone?: boolean
   take(): any
   release(): void
 }
@@ -99,7 +101,12 @@ export function asset(model: boolean, src: string, loader?: any): Asset {
     },
     release() {
       // a remount (a new Scene, new `args`) takes it again in the same patch: wait a microtask
-      if (--a!.users <= 0) queueMicrotask(() => { if (a!.users <= 0 && m!.get(src) === a) m!.delete(src), free(a!.value) })
+      if (--a!.users <= 0) queueMicrotask(() => {
+        if (a!.users > 0 || m!.get(src) !== a && !a!.gone) return
+        if (m!.get(src) === a) m!.delete(src)
+        a!.gone = false
+        free(a!.value)
+      })
     },
   }
   m.set(src, a)
@@ -126,7 +133,7 @@ export const preload = (src: string, loader?: any) => asset(!/\.(png|jpe?g|webp|
 export function clear(src?: string, loader?: any) {
   for (const [k, m] of cache) if (!loader || k === loader) for (const [s, a] of m) if (src == null || s === src) {
     m.delete(s)
-    if (a.s == 1 && a.users <= 0) free(a.value)
+    if (a.s == 1) a.users <= 0 ? free(a.value) : a.gone = true
   }
 }
 

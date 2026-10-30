@@ -93,6 +93,25 @@ describe('<Model> and <Texture>', () => {
     t.dispose()
   })
 
+  it('clear() on an asset in use: freed when its last element goes; the next render loads it again', async () => {
+    const t = renderComponent(Forest, { dom: 'real' })
+    await t.ready()
+    const v = tree()
+    loads['/tree.glb'].resolve(v)
+    await flush(); await t.settle()
+    let freed = 0
+    v.scene.children[0].geometry.addEventListener('dispose', () => freed++)
+    Model.clear('/tree.glb')
+    expect(freed).toBe(0)
+    t.simulateAction('SET', { trees: [] })
+    await t.settle(); await flush()
+    expect(freed).toBe(1)
+    t.simulateAction('SET', { trees: [3] })
+    await t.settle()
+    expect(count['/tree.glb']).toBe(2)
+    t.dispose()
+  })
+
   it('a remount in the same patch keeps the asset (no free, no second load)', async () => {
     const t = renderComponent(Forest, { dom: 'real' })
     await t.ready()
