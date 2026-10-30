@@ -72,6 +72,26 @@ behaves as on 7.1.0.
       `.detail()`) are now methods shared by every stream. Call them on the stream:
       `DOM.input('.x').value()`. A helper taken off its stream (`const { value } = DOM.input('.x')`) no
       longer knows the stream. Nothing in the docs or examples does this.
+- **Imperative islands:** a widget can take JSX children: `defineWidget({ children: true, sync })`.
+  - The children (a 3D scene's objects, a map's markers, a canvas's shapes) are rendered by Sygnal as
+    elements, so components, `Collection`, isolation and intents work inside. The widget draws them its
+    own way and dispatches DOM events on them: a raycast hit is a `click` on the cube's element, and
+    `DOM.click('.cube')` takes it.
+  - The children are visually hidden but accessible: Enter and Space click a focused child, and
+    `focus(instance, child)` tells the widget where to draw the ring. `children: 'hidden'` opts out.
+  - `sync` runs only when the children changed. `tags` keeps a widget's vocabulary (`marker`, `line`)
+    out of the pragma's SVG handling.
+  - `value: { write, read?, equals?, strict? }` makes the `value` prop controlled: Sygnal writes only the
+    app's own changes, never echoes of the widget's, and `strict` writes back an edit the model refused.
+  - Guide: "Imperative Islands" (three.js, canvas 2D, CodeMirror). Research: `dev-plans/research/canvas-three`.
+
+**Fixed.**
+- A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
+  turned them into SVG attributes).
+- An element above an unchanged component was patched again (its hooks ran) whenever its parent
+  re-injected another child.
+- `sygnal/agent-ui`: a role-less container the app listens to no longer hides the controls inside it.
+- `src/` can be served by Vite directly (its types are re-exported with `export type`).
 
 **Measured impact.** Size: the kanban gate is 42,428 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
 budget 43,000 B, 572 B headroom). The widget fix saves 902 B. The core hooks for compiled views and

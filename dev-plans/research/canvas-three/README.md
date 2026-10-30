@@ -30,6 +30,33 @@ The tests import `src/` directly (aliases in `vitest.config.mjs`, as the alt-ren
 
 ---
 
+## Round 2 (2026-10-29): built into `src/`
+
+The coordinator accepted the design (Q1–Q5, under the maintainer's delegation). What landed on this branch, after merging `claude/advanced-integration`:
+
+| Piece | Where | What |
+|---|---|---|
+| Islands in `defineWidget` (Q1) | `src/extra/widget.ts` | `children: true \| 'hidden'`: the marker keeps its JSX children, the host gets a `[data-widget-children]` container with them (walked by the core, so components and Collection work inside); `sync(instance, childrenVnode, host)` after mount and after a patch whose children vnodes changed (identity); `focus(instance, child \| null)`; `tags` clears the pragma's SVG bit for the widget's vocabulary (F3, 0 B in the pragma: it writes the existing `$t` table); SSR renders the children too |
+| Accessible children (Q4) | same | visually hidden (the sr-only clip), not `hidden`; Enter / Space on a focused non-native child dispatches its `click`; `children: 'hidden'` opts out |
+| Controlled value (Q3) | `src/extra/controlled.ts`, `widget.ts` | `value: { write, read?, equals?, event?, strict? }`: the `value` prop goes through `controlled()` (echoes skipped, app changes written once, `strict` reverts an `ABORT`ed edit a macrotask later); `read` defines the host's `value` (`.value()` in intents); `update` isn't called for `value` alone. Experimental |
+| Q2 | (no code) | raycast events follow DOM rules, as the prototype already did |
+| Q5 `frame` | **not built** (my decision, see below) | the `timers` static already has `{ frame: 'ACTION' }` |
+| F1 | `src/agent-ui/snapshot.ts` | a role-less listened element is a leaf only when nothing interactive is inside it |
+| F2 | `src/core/instance.ts` (`inject`) | a template node's last injected copy is kept (`ic`, a WeakMap per instance) and reused when its injected children are the same objects |
+| F3 | `widget.ts` `tags` | as above. Scoping SVG routing to `<svg>` ancestors was not possible: a component's output is made before it is placed, so the pragma can't see its ancestors |
+| SVG props bug | `src/pragma/index.ts` (`applySvg`) | found while wrapping canvas children in `<svg>`: a component placeholder or marker (`<Collection>`) under a literal `<svg>` had its props moved to attrs, so the component got none. Now skipped |
+| F4 | `src/cycle/dom/index.ts` | `export type` for the type re-exports (`tsc --isolatedModules`: 0 errors); the research demo now serves `src/` through Vite directly |
+| Types | `src/index.d.ts`, `type-tests/islands.tsx` | `children`, `sync`, `focus`, `tags`, `value` (`event: NoInfer<EV>`); the widget tag accepts children |
+| Tests | `test/islands-widgets.test.js` (12) | children with components / Collection / isolation, the sync skip, keyboard and focus, `'hidden'`, SSR, `tags`, `value` (echoes, app writes, clamp, strict), F2 (fails without the fix), agent-ui F1, components under `<svg>` (fails without the fix) |
+| Docs | `guide/islands.md` (new; live canvas and CodeMirror demos, a three.js recipe), `guide/widgets.md` (children, controlled values), `reference/api.md`, `recipes/code-editor.md`, `llms.txt`, the skill, CHANGELOG | |
+| Prototypes | `lib/Scene.ts`, `lib/Canvas2D.ts`, `lib/Editor.ts` | now `defineWidget` from `src/` (`lib/island.ts` is only `islandOf`); the three.js scene has keyboard focus (Tab, Enter, a projected ring) and the chart's bars are focusable SVG in an `<svg>` |
+
+**Decision I made (Q5 reversed).** The round-1 report said Sygnal had no frame source; that was wrong. `makeTimerDriver`'s `timers` static has had `{ frame: 'ACTION' }` (data `{ t, dt }` in ms, `requestAnimationFrame` with a 16 ms fallback, fake timers drive it) since PLAN-4. A `frame` kind in the `browser` static would have been a second API for the same thing with other units, so I built it, then removed it before committing the docs; the islands guide points at the `frame` timer. The research's `lib/frame.ts` stays as the measurement harness.
+
+**Verified in Chromium** (the desktop app's browser pane, WebGL on), against `src/`: Tab from "Reset view" reaches the cubes, Enter selects one, the focus ring is drawn where the cube is, and the browser's accessibility tree lists `button "cube 0"` … `button "cube 1 (selected)"`; the canvas bars are `button "Thu: 15"` etc., Enter toggles a focused bar and its ring is drawn on the canvas.
+
+![keyboard focus on a cube](screenshots/keyboard-focus.jpg)
+
 ## 1. Prior art
 
 | Library | How the tree is built | Events | Frame loop | Props / children | Two-way values |

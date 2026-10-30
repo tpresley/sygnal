@@ -3203,10 +3203,7 @@ interface BrowserSpecBase<ACTION extends string> {
  * - `visibility: true`: the document's visibility, data `{ visible }`;
  * - `online: true`: the network, data `{ online }`;
  * - `geolocation`: watchPosition (permission-gated; `true` or PositionOptions), data
- *   `BrowserPosition`, failures `{ code, message }` to `error`;
- * - `frame: true`: animation frames (requestAnimationFrame), data `BrowserFrame`; `every: n`
- *   delivers every n-th frame. Each delivered frame is an action and a render: for values that
- *   only move a picture, use the widget's own frame loop.
+ *   `BrowserPosition`, failures `{ code, message }` to `error`.
  * An invalid spec is not started (SYG663 in dev).
  */
 export type BrowserSpec<ACTION extends string = string> =
@@ -3217,7 +3214,6 @@ export type BrowserSpec<ACTION extends string = string> =
   | (BrowserSpecBase<ACTION> & { visibility: true })
   | (BrowserSpecBase<ACTION> & { online: true })
   | (BrowserSpecBase<ACTION> & { geolocation: true | { enableHighAccuracy?: boolean; maximumAge?: number; timeout?: number }; error?: ACTION })
-  | (BrowserSpecBase<ACTION> & { frame: true; every?: number })
 
 /** A component's browser sources, by name: a falsy entry (`!state.seen && { ... }`) is stopped */
 export type BrowserSources<ACTION extends string = string> = { [name: string]: BrowserSpec<ACTION> | false | null | undefined | 0 | '' }
@@ -3228,9 +3224,6 @@ export interface BrowserIntersection { visible: boolean; ratio: number; index: n
 export interface BrowserResize { width: number; height: number; index: number; dataset: Record<string, string> }
 /** The data of a `geolocation` action */
 export interface BrowserPosition { latitude: number; longitude: number; accuracy: number; altitude: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null; timestamp: number }
-
-/** The data of a `frame` action, in seconds: the frame's time, and the time since the last frame delivered (0 for the first) */
-export interface BrowserFrame { t: number; dt: number }
 
 /**
  * PLAN-5 B-3: a command for the browser driver's sink, from a model entry
@@ -3259,8 +3252,6 @@ export const visibilitySource: BrowserSource
 export const onlineSource: BrowserSource
 /** `geolocation` declarations */
 export const geolocationSource: BrowserSource
-/** `frame` declarations (animation frames) */
-export const frameSource: BrowserSource
 /** the `copy` / `paste` commands */
 export const clipboardSource: BrowserSource
 
@@ -3598,8 +3589,6 @@ export interface BrowserFake {
   clipboard(): string;
   /** the clipboard's text is now `text` */
   clipboard(text: string): Promise<void>;
-  /** `n` animation frames of `ms` each (default 1 frame of 1000/60 ms): each `frame` declaration hears its every-th one as `{ t, dt }` */
-  frame(n?: number, ms?: number): Promise<void>;
   /** deny permissions: copy/paste fail with NotAllowedError, geolocation with code 1 (running ones too) */
   deny(...kinds: Array<'geolocation' | 'clipboard'>): void;
   /** the running declarations, in start order: `{ name, ...spec, component }` */

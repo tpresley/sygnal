@@ -17,10 +17,10 @@
  */
 import {bridge, devReport, once} from './shared'
 
-const KINDS = ['intersection', 'resize', 'media', 'storage', 'visibility', 'online', 'geolocation', 'frame']
+const KINDS = ['intersection', 'resize', 'media', 'storage', 'visibility', 'online', 'geolocation']
 const SOURCE: Record<string, string> = {
   intersection: 'intersectionSource', resize: 'resizeSource', media: 'mediaSource', storage: 'storageSource',
-  visibility: 'visibilitySource', online: 'onlineSource', geolocation: 'geolocationSource', frame: 'frameSource',
+  visibility: 'visibilitySource', online: 'onlineSource', geolocation: 'geolocationSource',
   copy: 'clipboardSource', paste: 'clipboardSource', setItem: 'storageSource', removeItem: 'storageSource',
 }
 const brief = (v: any) => { try { return JSON.stringify(v) } catch (_) { return String(v) } }

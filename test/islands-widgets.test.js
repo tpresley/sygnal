@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // canvas-three (dev-plans/research/canvas-three): widgets with declarative children (islands),
-// their accessibility, the controlled `value`, `tags`, and the browser static's `frame` kind.
+// their accessibility, the controlled `value`, `tags`; and the fixes found on the way (core inject,
+// components under <svg>, the agent-ui snapshot).
 import { describe, it, expect, afterEach } from 'vitest'
 import { createElement as h } from '../src/pragma/index.js'
 import { defineWidget } from '../src/extra/widget.ts'
@@ -180,23 +181,6 @@ describe('defineWidget({ value }) (experimental): the controlled value', () => {
     expect(f.text).toBe('hi')
     expect(f.writes).toEqual(['hi'])
     t.dispose()
-  })
-})
-
-describe('the browser static: frame', () => {
-  function Clock({ state }) { return h('p', null, `${state.frames} ${state.t.toFixed(3)}`) }
-  Clock.initialState = { frames: 0, t: 0, on: true }
-  Clock.browser = (s) => ({ tick: s.on && { frame: true, every: 2, action: 'TICK' } })
-  Clock.model = { TICK: (s, f) => ({ ...s, frames: s.frames + 1, t: f.t, dt: f.dt }) }
-
-  it('renderComponent: t.browser.frame(n) delivers every n-th frame as { t, dt }', async () => {
-    const t = renderComponent(Clock)
-    await t.ready()
-    await t.browser.frame(4, 10)
-    await t.waitForState(s => s.frames == 2)
-    expect(t.state.t).toBeCloseTo(0.03)
-    expect(t.state.dt).toBeCloseTo(0.02)
-    expect(t.browser.active()[0]).toMatchObject({ name: 'tick', frame: true, every: 2 })
   })
 })
 

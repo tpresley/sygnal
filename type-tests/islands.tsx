@@ -1,9 +1,9 @@
 /**
- * canvas-three: widgets with children (islands), the controlled `value` (experimental), `tags`,
- * and the browser static's `frame` kind.
+ * canvas-three: widgets with children (islands), the controlled `value` (experimental) and `tags`
+
  */
-import { defineWidget, frameSource, makeBrowserDriverWith, renderComponent } from 'sygnal'
-import type { BrowserFrame, BrowserSpec, Component, VNode } from 'sygnal'
+import { defineWidget } from 'sygnal'
+import type { VNode } from 'sygnal'
 
 type Equal<A, B> =
   (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false
@@ -56,21 +56,4 @@ defineWidget({
   mount: () => 0,
 })
 
-// the frame kind
-const tick: BrowserSpec<'TICK'> = { frame: true, every: 2, action: 'TICK' }
-// @ts-expect-error frame is `true`
-const bad: BrowserSpec<'TICK'> = { frame: 2, action: 'TICK' }
-const driver = makeBrowserDriverWith(frameSource)
-
-type S = { t: number }
-const Clock: Component<S> = ({ state }) => <p>{state.t}</p>
-Clock.browser = (s) => ({ tick: s.t < 10 && { frame: true, action: 'TICK' } })
-Clock.model = { TICK: (s, f: BrowserFrame) => ({ t: s.t + f.dt }) }
-
-async function t() {
-  const r = renderComponent(Clock, { initialState: { t: 0 } })
-  await r.browser.frame(3, 16)
-  await r.browser.frame()
-}
-
-export { scene, Hidden, editor, tick, bad, driver, t }
+export { scene, Hidden, editor }
