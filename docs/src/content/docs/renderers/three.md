@@ -1,6 +1,6 @@
 ---
 title: three.js
-description: Build three.js scenes as Sygnal views with sygnal/three. Meshes, lights and cameras as JSX, raycast clicks and hovers as DOM events for intents, per-frame animation outside state, a controlled camera, keyboard access, and tests without WebGL
+description: Build three.js scenes as Sygnal views with sygnal/three. Meshes, lights and cameras as JSX, raycast clicks and hovers as DOM events for intents, models and textures loaded with Suspense, dragging with pointer capture, per-frame animation outside state, a controlled camera, keyboard access, and tests without WebGL
 ---
 
 `sygnal/three` renders a three.js scene from JSX. A `<Scene>` sits in an ordinary component tree, and its children (`<mesh>`, `<group>`, `<boxGeometry>`, `<meshStandardMaterial>`, lights, cameras) become THREE objects. The children are elements of your app, so a cube can be a component with its own intent and model, kept in a `<Collection>`. A click on the canvas is a raycast, and the cube it hits gets a DOM `click`, so `DOM.click('.cube')` works as it does for a button.
@@ -54,7 +54,7 @@ Cubes.initialState = {
 
 ![The three-cubes example: a cube selected by a raycast click, one hovered](https://raw.githubusercontent.com/tpresley/sygnal/main/examples/three-cubes/screenshot.png)
 
-The [three-cubes example](https://github.com/tpresley/sygnal/tree/main/examples/three-cubes) adds hover, removal, spinning, an orbit camera and tests.
+The [three-cubes example](https://github.com/tpresley/sygnal/tree/main/examples/three-cubes) adds hover, removal, spinning, dragging, a loaded model, an orbit camera and tests.
 
 ## Tags and props
 
@@ -78,9 +78,11 @@ extend({ TextGeometry })   // <textGeometry args={[...]} />
 | `hit={false}` | Raycasts pass through the object, as CSS `pointer-events: none` |
 | `dispose={null}` | Don't dispose the object when its element goes |
 | `makeDefault` | This camera renders the scene (else the first camera, else a default one) |
+| `capture`, `capture="xz"` | A press on the object captures the pointer until it goes up ([Dragging](#dragging)) |
+| `draggable` | The HTML drag events, for `processDrag` ([Dragging](#dragging)) |
 | `className`, `role`, `tabIndex`, `aria-*` | The element's: for intents and for accessibility |
 
-**Disposal.** An object the scene made from a tag is disposed when its element leaves the view (its geometry, its material: their GPU memory is freed). An object you pass as a prop (`geometry={shared}`) is yours and is never disposed.
+**Disposal.** An object the scene made from a tag is disposed when its element leaves the view (its geometry, its material: their GPU memory is freed). An object you pass as a prop (`geometry={shared}`), or place with `<primitive object={obj} />`, is yours and is never disposed.
 
 **Unknown tags pass through.** A tag that isn't a three.js class (a component's wrapper `<div>`, a `<Collection>`) adds nothing to the scene: its children attach to the nearest object above it.
 
@@ -102,6 +104,130 @@ The scene raycasts pointer input on its canvas and dispatches the DOM's events o
 The events bubble up the scene's elements, so `DOM.click('.world')` on a `<group className="world">` hears a click on any mesh in it. Each one carries the intersection as plain data: `point` (world coordinates), `distance`, `uv`, `normal`, `faceIndex`, `ndc` (the pointer in normalized device coordinates), and `object` (the THREE object hit, for reading; keep it out of state). A click on empty space hits nothing; the canvas still gets the browser's own event.
 
 Only the topmost hit is a target, as in the DOM. (react-three-fiber instead calls handlers on every object along the ray until one stops it.)
+
+## Loading models and textures
+
+`<Model>` places a loaded model and `<Texture>` a loaded texture. Wrap the part that loads in `<Suspense>` for a fallback until it arrives:
+
+```jsx
+// Garden.jsx
+import { Suspense } from 'sygnal'
+import { Scene, Model, Texture } from 'sygnal/three'
+
+export function Garden({ state }) {
+  return (
+    <Scene className="viewport" width={640} height={400}>
+      <ambientLight intensity={0.8} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[10, 10]} />
+        <meshStandardMaterial>
+          <Texture src="/textures/grass.jpg" />
+        </meshStandardMaterial>
+      </mesh>
+      <Suspense fallback={<mesh><coneGeometry args={[0.5, 1.2]} /><meshBasicMaterial wireframe /></mesh>}>
+        {state.trees.map((tree) => <Model key={tree.id} src="/models/tree.glb" className="tree" position={tree.at} />)}
+      </Suspense>
+    </Scene>
+  )
+}
+
+Garden.initialState = { trees: [{ id: 1, at: [-2, 0, 0] }, { id: 2, at: [2, 0, -1] }] }
+```
+
+- **`<Model src>`** loads `.glb` and `.gltf` files with three's GLTFLoader, which `sygnal/three` imports the first time a model needs it (a separate chunk in your build). Each `<Model>` places its own clone of the model's scene, so the same model can stand in many places; the clones share the geometries and materials. It takes the props any scene element does: `position`, `rotation`, `scale`, `className`, `role`, and children.
+- **`<Texture src>`** loads an image with THREE.TextureLoader (in the sRGB color space, for color maps) and attaches it to its parent as `map`. Give `attach="normalMap"` (or any other key) to put it elsewhere.
+- **Any loader.** `loader={OBJLoader}` takes a loader class; `loader={gltfLoader}` takes a configured instance (a GLTFLoader with a DRACOLoader). `<Model>` places whatever the loader returns as an object (or its `.scene`); `<Texture>` attaches the value, so an STL geometry or an HDR environment works too (`<Texture src="/env.hdr" loader={RGBELoader} attach="environment" />` under the scene's root).
+
+**Suspense.** The load starts while the view renders, before the scene draws anything. A `<Suspense>` boundary inside the `<Scene>` (above) shows a 3D fallback in place of the part that is loading, and the rest of the scene is there at once. A boundary around the whole `<Scene>` shows an ordinary fallback (`<p>Loading…</p>`) and creates the scene once everything has loaded. Without a boundary, the scene starts empty where the model goes and the model appears when it arrives.
+
+**The cache.** A load is shared by every element that names the same URL with the same loader, in any scene on the page: two scenes with the same model fetch it once. When the last element using an asset leaves the view, its geometries, materials and textures are disposed and it leaves the cache; a model that is shown again is loaded again. `Model.preload(src)` starts a load ahead of time (on hover, at startup), and `Model.clear(src)` forgets one (so a failed load is tried again on the next render).
+
+**Errors.** A load that fails is an error of the view that names it: its component's [`onError`](/advanced/error-boundaries/) renders, with `could not load /models/tree.glb: …` as the message.
+
+<!-- docs-check: skip -->
+```jsx
+Garden.onError = (error) => <p className="error">{error.message}</p>
+```
+
+## Dragging
+
+Give an object `capture` and a press on it captures the pointer, as [`setPointerCapture`](https://developer.mozilla.org/docs/Web/API/Element/setPointerCapture) does in the DOM. Until the button goes up, `pointermove` and `pointerup` go to that object wherever the pointer is: off the object, off the canvas. Each captured event's `point` is on a drag plane through the point the pointer went down on, and `delta` is how far it has moved on that plane:
+
+```jsx
+// Piece.jsx
+export function Piece({ state }) {
+  return (
+    <mesh className="piece" capture="xz" position={[state.x, 0.5, state.z]}>
+      <boxGeometry />
+      <meshStandardMaterial color={state.from ? '#ffb547' : '#4f8cff'} />
+    </mesh>
+  )
+}
+
+Piece.intent = ({ DOM }) => ({
+  GRAB: DOM.select('.piece').events('gotpointercapture'),
+  DRAG: DOM.select('.piece').events('pointermove').filter((event) => event.captured),
+  DROP: DOM.select('.piece').events('lostpointercapture'),
+})
+
+Piece.model = {
+  GRAB: (state) => ({ ...state, from: [state.x, state.z] }),
+  DRAG: (state, event) => ({ ...state, x: state.from[0] + event.delta[0], z: state.from[1] + event.delta[2] }),
+  DROP: (state) => ({ ...state, from: null }),
+}
+```
+
+| `capture` | The drag plane |
+|---|---|
+| `capture="xz"` | Horizontal (the ground): the object slides along the floor |
+| `capture="xy"`, `capture="yz"` | Vertical, facing the z or the x axis |
+| `capture` | Facing the camera: the object follows the pointer on the screen |
+
+- The capture begins with `gotpointercapture` and ends with `lostpointercapture` on the object, as in the DOM. A captured event carries `captured: true`, `point`, `delta`, `ray` (the pointer's ray) and `ndc`.
+- While the pointer is captured there are no hover events, and camera controls (`Orbit`) ignore the gesture, so dragging an object doesn't turn the camera.
+- A press that moves no more than 3 px is still a click. A drag is not: it sends no `click` (the one difference from the DOM, which clicks after any press and release on the same element).
+- `event.target.setPointerCapture(event.pointerId)` on a scene element works too, and captures with a plane facing the camera.
+
+### Drag and drop
+
+`draggable` makes an object a source of the [HTML drag events](https://developer.mozilla.org/docs/Web/API/HTML_Drag_and_Drop_API): after a 3 px move from a press on it, `dragstart` on it, `dragenter` / `dragover` / `dragleave` on the object under the pointer (the ray passes through the dragged object), `drop` there if its last `dragover` was canceled, and `dragend`. So [`processDrag`](/guide/drag-and-drop/) works unchanged:
+
+```jsx
+// Sorter.jsx
+import { ABORT, processDrag } from 'sygnal'
+import { Scene } from 'sygnal/three'
+
+export function Sorter({ state }) {
+  return (
+    <Scene className="viewport" width={640} height={400}>
+      <ambientLight />
+      {state.boxes.map((box) => (
+        <mesh key={box.id} className="box" draggable data-id={box.id} position={[box.x, 0, 0]}>
+          <boxGeometry args={[0.6, 0.6, 0.6]} />
+          <meshBasicMaterial color="#4f8cff" />
+        </mesh>
+      ))}
+      <mesh className="bin" position={[0, -1.5, 0]}><boxGeometry args={[3, 0.4, 1]} /><meshBasicMaterial color="#3ccf91" /></mesh>
+    </Scene>
+  )
+}
+
+Sorter.initialState = { boxes: [{ id: 'a', x: -1 }, { id: 'b', x: 1 }], dragging: null }
+
+Sorter.intent = ({ DOM }) => {
+  const { dragStart$, dragOver$, drop$ } = processDrag({ draggable: DOM.select('.box'), dropZone: DOM.select('.bin') })
+  // OVER keeps dragOver$ listened to: its preventDefault is what lets the bin take the drop
+  return { PICK: dragStart$.map((event) => event.target.dataset.id), OVER: dragOver$, BIN: drop$ }
+}
+
+Sorter.model = {
+  PICK: (state, id) => ({ ...state, dragging: id }),
+  OVER: () => ABORT,
+  BIN: (state) => ({ ...state, boxes: state.boxes.filter((box) => box.id !== state.dragging), dragging: null }),
+}
+```
+
+The events carry a `dataTransfer` (one per drag: `setData` and `getData` work between `dragstart` and `drop`) and the hit's fields (`point`, `distance`, …). During the drag the source gets no pointer events and no click. An object that has both `capture` and `draggable` follows the pointer (its `pointermove`) while the drop target under it gets `dragover`.
 
 ## Keyboard and screen readers
 
@@ -177,12 +303,15 @@ test('a click in the canvas selects the cube under it', async () => {
 | `sceneOf(el)` | |
 |---|---|
 | `click(element)` | Pointer down and up where the element's object is drawn, through the raycaster |
-| `pointer(kind, x, y)` | Raw input at canvas pixels: `'move'`, `'down'`, `'up'`, `'leave'`, or another event type |
+| `pointer(kind, x, y)` | Raw input at canvas pixels: `'move'`, `'down'`, `'up'`, `'cancel'`, `'leave'`, or another event type |
+| `drag(element, to, { steps })` | A drag through the raycaster: down on the element, `steps` moves to `to` (canvas pixels, or another element's place), up |
 | `pixelOf(element)` | Where the object is drawn |
 | `tick(ms)` | One frame at `ms`: the `animate` functions, then the draw |
 | `target` | The three target: `objectOf(element)`, `scene`, `camera()`, `pick(x, y)`, `stats` |
 
 Without `dom: 'real'`, `renderComponent`'s mock DOM tests the components inside the scene without a scene at all: `t.simulateEvent('.cube', 'click', { point: [0, 0.5, 0.5] })`.
+
+**Loading in tests.** jsdom loads no images, and Node's `fetch` takes no relative URLs. Test a model with the real GLTFLoader by reading the file (the three-cubes example's test does this), or give `<Model>` a `loader` of your own whose `loadAsync` returns what the test decides.
 
 ## A whole app as a scene
 
@@ -202,4 +331,4 @@ The [agent UI](/renderers/agent-ui/) reads the same tree: a scene whose meshes h
 
 ## Size and limits
 
-`sygnal/three` is about 5 KB gzip on top of three.js, and adds nothing to an app that doesn't import it. It is a dev preview in 7.2: the API may change. Not yet supported: pointer capture for dragging objects, instanced meshes with an event per instance, and loaders as tags (load models in an EFFECT and pass them as props).
+`sygnal/three` is about 6 KB gzip on top of three.js (GLTFLoader is loaded only when a model needs it), and adds nothing to an app that doesn't import it. It is a dev preview in 7.2: the API may change. Not yet supported: instanced meshes with an event per instance, and cloning skinned (animated) models: `<Model>` clones with `Object3D.clone()`, which doesn't rebind a skeleton, and doesn't play the model's animations.
