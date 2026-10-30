@@ -391,10 +391,18 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   let warnedCompile = false
   const co = options.compile === true ? {} : options.compile || null
   const compileOn = (k: 'views' | 'ssr' | 'blocks' | 'test') => !!co && (co as any)[k] !== false
+  // (its own command / Vitest flags: it may be used without the main plugin, e.g. added to a config
+  // that already has sygnal())
+  let cServe = false, cVitest = false
   const compilePlugin = co && {
     name: 'vite-plugin-sygnal:compile',
     enforce: 'pre' as const,
+    config(_: any, env: { command: string }) {
+      cServe = env.command === 'serve'
+      cVitest = !!nodeProcess?.env?.VITEST
+    },
     transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
+      const isVitest = cVitest, isServe = cServe
       const file = id.split('?')[0]
       if (!/\.[jt]sx$/.test(file) || file.includes('/node_modules/') || id.startsWith('\0')) return null
       if (isVitest && !compileOn('test')) return null

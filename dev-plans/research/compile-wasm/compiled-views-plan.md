@@ -229,6 +229,11 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
   (tier A + blocks) and `-cva` (tier A) pages give the same DOM at every step and **the same DOM
   mutation count per step** as the JSX pages. The CommonJS plugin build is tested (it had a
   magic-string interop bug, fixed: the named import).
+- Gate after CV-3: vitest 5,300; examples 14 suites / 232 tests; types; browser 381; count gate;
+  and every installed Vite 8 example's suite with `compile: true` (11 suites, 220 tests). That run
+  caught the compile plugin depending on the main plugin's `config` hook for its Vitest / dev
+  flags (SSR-compiled code ran under Vitest when the compile plugin was used alone); it has its
+  own hook now, with a test.
 - Not yet: blocks in dev and under Vitest (the dev checks and devtools would need `expand`); CV-4
   hydration that adopts without remaking; CV-5; the full timing run in a quiet window (pages
   `table-cv` / `table-cva` / `coll-cv` / `coll-cva` are ready in `bench.mjs`).
