@@ -38,6 +38,9 @@ describe('"sideEffects" allowlist', () => {
       './dist/diagnostics.esm.js', './dist/diagnostics.cjs.js',
       './dist/devtools.esm.js', './dist/devtools.cjs.js',
       './dist/shims/globalthis.cjs',
+      // sygnal/sandbox: the worker script listens for messages, the guest kernel's entry sets the
+      // guest's globals (both run as entries of their own: a Worker, a QuickJS context)
+      './dist/sandbox-worker.esm.js', './dist/sandbox-worker.cjs.js', './dist/sandbox-kernel.esm.js',
       './dist/sygnal.min.js',
     ])
     for (const f of pkg.sideEffects) expect(existsSync(join(root, f)), f).toBe(true)
@@ -60,7 +63,7 @@ describe('"sideEffects" allowlist', () => {
 })
 
 describe('esbuild drops what is unused', () => {
-  const pure = ['primitives', 'host', 'terminal', 'agent-ui', 'ui', 'ui/menu', 'ui/select', 'ui/combobox', 'zag', 'react', 'ai', 'api', 'element', 'jsx-runtime', 'jsx', 'three', 'react-native']
+  const pure = ['primitives', 'host', 'terminal', 'agent-ui', 'ui', 'ui/menu', 'ui/select', 'ui/combobox', 'zag', 'react', 'ai', 'api', 'element', 'jsx-runtime', 'jsx', 'three', 'react-native', 'sandbox', 'sandbox/build']
   it.each(pure)("a bare import 'sygnal/%s' bundles to nothing", async (sub) => {
     expect(await bundle(`import 'sygnal/${sub}'`)).toBe('')
   })
