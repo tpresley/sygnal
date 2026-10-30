@@ -2,7 +2,8 @@
  * Widgets (PLAN-5 W-1): `defineWidget({ tag, mount, update, unmount, events, commands })`, and
  * (W-2) the adapters' widgets: `fromZag(zag, render, { events, commands })` from 'sygnal/zag',
  * `fromReact(Comp, { events, commands })` from 'sygnal/react', and the Menu / Select / Combobox
- * tags of 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' (D211; one subpath per part).
+ * tags of 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' (D211; one subpath per part),
+ * and 'sygnal/three''s Scene.
  *
  * A widget tag (`<DatePicker className="due" />`) renders its host element in the scope of the
  * view that uses it (it is not a child component), so its className/id count for SYG110/SYG640
@@ -55,9 +56,14 @@ export function uiZagPart(b) {
   const w = b && b.kind === 'import' && Object.hasOwn(UI_ZAG, b.imported) && UI_ZAG[b.imported]
   return w && b.source === w[0] ? b.imported : null
 }
-/** the Widget a binding imported from a Zag part's ui subpath names, or null */
+// canvas-three: other library widget tags (div hosts): their module, events and commands
+const LIB_WIDGETS = {
+  Scene: ['sygnal/three', ['camerachange'], []],
+}
+/** the Widget a binding imported from a Zag part's ui subpath (or a library widget's module) names, or null */
 function uiZagWidget(b, name) {
-  const part = uiZagPart(b), w = part && UI_ZAG[part].slice(1)
+  const part = uiZagPart(b), lib = !part && b?.kind === 'import' && Object.hasOwn(LIB_WIDGETS, b.imported) && LIB_WIDGETS[b.imported]
+  const w = part ? UI_ZAG[part].slice(1) : lib && b.source === lib[0] ? lib.slice(1) : null
   return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null } : null
 }
 

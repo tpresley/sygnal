@@ -320,7 +320,9 @@ function handleElement(project, file, el, sink, visited) {
     sink.tokens.push({ kind: 'control', control, name: control.key, file, start: opening.name.start, end: opening.name.end })
   }
 
-  // PLAN-5 W-1: a widget tag renders its host element here (opaque: no children of its own)
+  // PLAN-5 W-1: a widget tag renders its host element here. canvas-three: a widget with `children`
+  // (an island: <Scene>'s meshes) renders its JSX children here too, as elements of this view
+  // (a widget without it ignores them at run time; walking them costs nothing)
   const widget = !control && isComponentTag(name) && !TRANSPARENT.has(name) ? resolveWidgetJSX(project, file, opening) : null
   if (widget) {
     sink.widgets.push({ name, widget, node: opening, file, external: packageOf(file, opening.name) })
@@ -330,6 +332,7 @@ function handleElement(project, file, el, sink, visited) {
       const v = a.type === 'JSXAttribute' ? jsxAttrExpr(a) : a.argument
       if (v && v.type !== 'StringLiteral') visitInto(project, file, v, sink, visited)
     }
+    for (const c of el.children) visitInto(project, file, c, sink, visited)
     return
   }
 

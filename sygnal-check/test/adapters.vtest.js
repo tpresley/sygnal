@@ -100,3 +100,31 @@ Review.model = { RATE: (s, rating) => ({ ...s, rating }), O: (s) => s }
     expect(codes(ds)).toEqual([])
   })
 })
+
+describe("sygnal/three's Scene tag", () => {
+  const app = (intent) => ({
+    'World.jsx': `
+import { Scene } from 'sygnal/three'
+export function World({ state }) {
+  return <main>
+    <Scene className="viewport" width={300} height={200} camera={state.camera}>
+      <mesh className="cube" role="button" tabIndex={0} aria-label="Cube" />
+    </Scene>
+  </main>
+}
+World.initialState = { camera: { position: [0, 0, 5] }, hits: 0 }
+World.intent = ({ DOM }) => (${intent})
+World.model = { CAMERA: (s, camera) => ({ ...s, camera }), HIT: (s) => ({ ...s, hits: s.hits + 1 }) }
+`,
+  })
+
+  it('its className is the host\'s (no SYG110), camerachange is declared; its children are the view\'s', () => {
+    const ds = check(app(`{ CAMERA: DOM.select('.viewport').events('camerachange').detail(), HIT: DOM.click('.cube') }`), { strict: true })
+    expect(codes(ds)).toEqual([])
+  })
+
+  it('a near-typo of camerachange is SYG141; the tag as a selector is SYG143', () => {
+    const ds = check(app(`{ CAMERA: DOM.select('.viewport').events('camerachang').detail(), HIT: DOM.select(Scene).events('click') }`))
+    expect(codes(ds)).toEqual(expect.arrayContaining(['SYG141', 'SYG143']))
+  })
+})
