@@ -420,3 +420,24 @@ Reviewed on the research decisions page. Unless a line says otherwise, the recom
 - Q6: no custom QuickJS build. Stay on the stock `@jitl/*` packages.
 - Q7: the default tier is the Worker (`isolation: 'worker'`). In-page is an opt-in, documented as being for model-written code, not hostile code.
 - §6 findings: all approved for fixing. Host `preventDefault` (together with web-worker Q-WW-2), host delegation indexed by event type, a dev diagnostic for a root without `initialState`, a verified `sideEffects` allowlist, and spreads instead of `Object.assign` on untrusted data.
+
+## Productized (7.2.0-preview, branch `claude/build-sandbox`)
+
+The spike became the experimental `sygnal/sandbox` subpath (`src/sandbox/`, guide
+`advanced/sandboxed-components`), following the decisions above:
+
+- One API, `createSandbox({ isolation: 'worker' | 'thread' })` and `<Sandboxed>`, with the Worker as
+  the default. The protocol is versioned (`PROTOCOL`); a kernel of another version is refused.
+- The kernel is built from the app's installed packages: `sygnal/vite` resolves
+  `sygnal/sandbox/kernel?raw` with the project's Vite, and `buildSandboxKernel()`
+  (`sygnal/sandbox/build`) uses Vite, esbuild or Rollup. Only the kernel's own entry
+  (`dist/sandbox-kernel.esm.js`, `sygnal` and `sygnal/host` external) ships.
+- `emits: { TYPE: schema }` is required on `<Sandboxed>`; undeclared or invalid events are dropped
+  (SYG692 in dev). Guest classes are kept (`policy.classPrefix` to isolate). Focus is the
+  `capabilities.focus` capability, off by default, applied only while focus is inside the box.
+- The three findings: an instance per sandbox with a capped `WebAssembly.Memory` (64 MB) by default;
+  the Worker's watchdog as the hard stop (the thread tier documented as not for hostile code);
+  `stackBytes` defaults to 256 KB and over 384 KB is refused, and a provoked crash (`test/sandbox-escape`)
+  poisons only its own instance.
+- Not done here (other branches): the `sygnal/ai` integration (`claude/explore-compose-sandbox`), and
+  the `sygnal/host` fixes from §6.1/§6.2.
