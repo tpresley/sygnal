@@ -1,0 +1,64 @@
+{
+  "measured": "2026-10-30T05:08:56.779Z",
+  "node": "v22.22.0",
+  "overhead": {
+    "actionsPerRun": 300,
+    "perClickMs": {
+      "off": 1.159,
+      "record": 1.603,
+      "record+html": 1.624,
+      "record+redact": 1.861
+    },
+    "overheadMs": {
+      "record": 0.444,
+      "record+html": 0.464,
+      "record+redact": 0.701
+    },
+    "actionsPerClick": 2.02,
+    "logBytesPerClick": 289,
+    "stateBytes": 84,
+    "hookMsPerClick": {
+      "onCreate": 0.0013,
+      "onAction": 0.0094,
+      "wrapHandler": 0.0011,
+      "onReducer": 0.0259,
+      "onPatch": 0.1251,
+      "onSink": 0.091,
+      "onDispose": 0.0001
+    },
+    "replayMsPerInput": 2.15,
+    "replayOk": true
+  },
+  "perMinute": {
+    "sessionMs": 20590,
+    "actions": 141,
+    "inputs": 140,
+    "dropped": 90,
+    "checkpoints": 139,
+    "bytes": 29984,
+    "gzip": 5826,
+    "perMinute": {
+      "actions": 411,
+      "bytes": 87374,
+      "gzip": 16977
+    },
+    "bytesPerAction": 213,
+    "replayMs": 546,
+    "replayOk": true
+  },
+  "perMinuteNoDrop": {
+    "sessionMs": 20555,
+    "actions": 231,
+    "inputs": 230,
+    "dropped": 0,
+    "checkpoints": 139,
+    "bytes": 37728,
+    "gzip": 6950,
+    "perMinute": {
+      "actions": 674,
+      "bytes": 110128,
+      "gzip": 20287
+    },
+    "bytesPerAction": 163
+  }
+}
