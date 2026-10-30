@@ -86,6 +86,16 @@
       "import": "./dist/host.esm.js",
       "require": "./dist/host.cjs.js"
     },
+    "./worker": {
+      "types": "./src/worker.d.ts",
+      "import": "./dist/worker.esm.js",
+      "require": "./dist/worker.cjs.js"
+    },
+    "./worker/page": {
+      "types": "./src/worker-page.d.ts",
+      "import": "./dist/worker-page.esm.js",
+      "require": "./dist/worker-page.cjs.js"
+    },
     "./terminal": {
       "types": "./src/terminal.d.ts",
       "import": "./dist/terminal.esm.js",
