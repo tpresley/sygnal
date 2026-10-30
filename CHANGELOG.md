@@ -2,6 +2,17 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+- **Smaller bundles with Vite 8:** `src/extra/widget.ts` set a property on a module-level function at
+  load, which rolldown keeps, so every Vite 8 app shipped the widget module whether or not it called
+  `defineWidget()` (kanban: 42,975 → 42,073 B gzip, −902 B). The assignment moved into
+  `defineWidget()`.
+- **Faster dispatch in Node:** the debug check read `process.env.SYGNAL_DEBUG` on every action,
+  most of the per-action cost in Node (SSR, tests, headless apps): 665 → 105 ns per action. In Node
+  the variable is now read once, when Sygnal loads (`SYGNAL_DEBUG=true node server.js`, as
+  documented); in the browser `window.SYGNAL_DEBUG` is still read on each call.
+
 ## 7.1.0 — 2026-10-20
 
 Fixes and additions from building an app (Temper's Tune UI) on 7.0 ([PLAN-13](dev-plans/PLAN-13.md)):
