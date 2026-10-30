@@ -9,10 +9,12 @@ app is `sygnal/app/`. The React + react-konva baseline of the same spec is to li
 cd dev-plans/research/canvas-apps/sygnal
 npm install                 # konva + pixi.js, only for the backend comparison (§5)
 npm run dev                 # the app (Vite, against src/: no build of the root needed)
-npm test                    # 25 tests: the whole editor in jsdom, both versions (§6)
+npm test                    # 26 tests: the whole editor in jsdom, both versions (§6), capture
 node perf/run.mjs           # §2–§4 in Playwright Chromium from the cache (≈ 25 min, 3 runs)
 node perf/backends.mjs [--gpu]   # §5
 node perf/e2e.mjs           # real input in real Chromium: pan, zoom, capture, text focus, DnD
+node perf/profile.mjs       # a CPU profile of a drag (default: all 10k shapes selected)
+node scripts/count-lines.mjs   # line counts, counted as the React baseline counts
 npx vitest run --config perf/vitest.cost.mjs   # §7: the model's own cost per move, in Node
 ```
 
@@ -21,7 +23,27 @@ shape), `?input=transient`, `?repaint=full`, `?app=proposed` (the rewrite on the
 
 ## Summary
 
-{{SUMMARY}}
+- **Build it on data, not on elements.** A document of shapes is `<shapes items={state.shapes} />`
+  on one canvas element: painted, culled and hit-tested by the canvas, a hit is an ordinary DOM
+  event with `event.hit` = the shape's id. One Collection item per shape costs 3.7× the main-thread
+  time at 10k (20.4 against 5.5 ms per move, 80 against 12 ms at CPU ×4) and 5× the memory: fine
+  up to ~1k, and the right tool for the few interactive things with their own behaviour.
+- **Drags go through the action queue.** At 10k shapes it fits the frame budget even throttled ×4,
+  and it keeps undo-per-gesture, snapping, the live panels, replay and multiplayer working from
+  one state tree. A transient channel (`follow`, the drag analogue of `animate`) is the escape
+  hatch for very large selections.
+- **The canvas carries the performance work so the app doesn't**: a static layer plus a live layer
+  (the app only says `active={ids}`), translation blits for big moving sets, culling, pointer
+  capture as `sygnal/three` defines it, a controlled camera with built-in pan and zoom.
+- **Backend: the own Canvas 2D painter, pluggable.** Konva is slower at the same job (2.7×) and
+  duplicates the state tree; Pixi wins the raw GPU frame but loses memory, hit testing and every
+  machine without a GPU. Hit testing on the data is backend-independent, so a backend only paints.
+- **`sygnal/canvas` = the island + a small kit.** The Figma-lite on it is 728 lines against 1,504
+  built by hand and 1,915 for the React + react-konva baseline, with the same features and tests.
+- **Against React + Konva, measured with its own script**: Sygnal uses ~5× less memory, starts
+  and loads faster, zooms cheaper and commits drags 5× faster; React + Konva is faster at dragging
+  a whole 10k selection and at panning at 10k, through bitmap caches the Sygnal canvas doesn't
+  have yet for the camera. Details in §8.
 
 ---
 
@@ -138,6 +160,16 @@ Written while building; each entry says where it is in the code.
 12. **`controlled()` and the router aren't public.** The camera imports
     `src/extra/controlled`, the router imports `src/three/events`: both belong in a shared module.
 13. **`sygnal/worker` doesn't run widgets yet**, so the editor can't move into a worker unchanged (§7).
+14. **Dragging a whole 10k selection through the queue** was the one case far over budget (42.5 ms
+    per step in §8's first rounds). A CPU profile (`perf/profile.mjs`) showed no framework cost at
+    the top: it was the canvas copying a bitmap four times the canvas's area, the GC behind 10k new
+    shape objects per move (and an outline copy of each), and an AABB `WeakMap` cache churning on
+    objects that live one frame. Fixed in the canvas (copy only the visible part, uncached AABBs
+    for unrotated boxes) and the app (no per-shape outlines while moving, as the React build does,
+    and layer rows kept by id). Lesson for the subpath: identity caches pay only when identity
+    survives; per-frame paths need allocation budgets.
+15. **Per-shape selection outlines** as JSX nodes were one element per selected shape (10k for
+    select-all). They needed a new layer kind: `<shapes items={selected} outline={color} />`.
 
 ---
 
@@ -271,7 +303,8 @@ so identity is the key) and nodes outside the viewport are skipped. At 100 % zoo
   `active={ids being dragged}`.
 - **Translation blits**: when the live layer holds 64 or more nodes that only moved by one
   (dx, dy) since they were painted (a drag of a big selection), the canvas blits their bitmap at
-  the offset instead of repainting them. The React baseline does the same by hand (its
+  the offset instead of repainting them (a bitmap with a half-canvas margin, of which only the
+  visible part is copied). The React baseline does the same by hand (its
   `bitmapCache.ts`, ≥ 300 nodes); here the canvas detects it (an O(k) shallow compare).
 - **Dirty regions**: not built. Layers already make a drag O(1) in paint; dirty rectangles would
   help small edits (a colour change) in a huge document, where today the static bitmap repaints
@@ -548,14 +581,109 @@ here). It fits this app's shape well:
 
 ## 8. Against the React + react-konva baseline
 
-{{SECTION8}}
+The baseline (branch `claude/explore-canvas-react-baseline`, 2e4e0c5e; React 19.3 with the React
+Compiler, react-konva 19.3 on Konva 10.9, Zustand, @tanstack/react-virtual) defines a benchmark
+contract, `window.__canvasBench`, and a `perf/run.mjs` that drives any app exposing it. The
+Sygnal app implements the contract in `sygnal/app/bench.ts`, including its stress grid (40 px
+cells, 30 × 30 shapes, rect/ellipse alternating, Mulberry32 fills, zoomed to fit), so **both apps
+were measured by the baseline's own script on this machine**, from `git archive` of its branch
+into the scratchpad (nothing of it is on this branch). Its method: real CDP input, 120 measured
+steps after 10 warm-up steps, **busy** = the renderer main thread's task time per step (two frames
+and the tasks between them, so about twice my harness's per-move figure), drag scenarios with 1,
+100 or all shapes selected on a wandering path that engages snapping, wheel pan, ctrl-wheel zoom.
+Loop overhead (a hover step) was 1.0–1.4 ms in both apps.
+
+{{CONTRACT_TABLE}}
+
+Raw reports: `sygnal/perf/results/contract/*.json` and `*.md` (one per run and app).
+
+**Where React + Konva is better**
+- **Big-selection drags and pan at 10k.** It caches the dragged selection as one bitmap and
+  translates a Konva group imperatively, outside its store (its workaround 1), and caches the page
+  as a bitmap during a camera gesture. Sygnal's queue path still builds 10k new shape objects per
+  move for a select-all drag; `follow` (the transient channel) closes most of that gap (the
+  transient row), and the camera blit (§4) is the missing piece for pan.
+- **Konva's Transformer** gives handles, rotation and multi-node transforms for free (with quirks:
+  its workaround 5), and Konva has text layout, filters and caching APIs ready.
+- **Types end to end.** The baseline type-checks with `tsc --noEmit`; the Sygnal app leans on `any`
+  in intents and `ABORT as any` in reducers (finding 10).
+- **Ecosystem and familiarity**: react-virtual, React DevTools, and the fact that most teams can
+  read the code already. Its 43 unit tests cover the model functions directly.
+- It implements a few things this build doesn't: cut, ⌘[ / ⌘] reorder, ⇧2 zoom to selection,
+  collapsible frames in the layers panel, frame-relative coordinates.
+
+**Where Sygnal is better**
+- **Memory**: about 5× less JS heap at 10k (9.1 vs 50.1 MB): no node object per shape outside the
+  state tree.
+- **Startup and generate**: faster to first frame (87 vs 106 ms) and to load a 10k document
+  (62 vs 164 ms), and the drop at the end of a drag commits in 33–39 ms against 200 ms (the
+  baseline remounts and re-attaches its Transformer to 10k nodes).
+- **Zoom**: cheaper per step at 10k.
+- **One source of truth during gestures.** The baseline lists nine workarounds (re-render storms,
+  an id → Konva node registry, `flushSync` not reaching the Konva reconciler, O(n²) remounts,
+  Transformer quirks, the hit graph, ellipse origins, a passive wheel). Sygnal's friction list
+  (§1) is about as long but mostly small and local; none of it needed two copies of the document.
+- **Tests drive the whole editor.** The Sygnal suite presses, drags and types through the real
+  canvas headlessly (jsdom, 26 tests in ~4 s), not only the pure model.
+
+**Lines** (both counted with the baseline's rule: non-blank, non-comment, CSS included):
+
+| | React + Konva | Sygnal, built | Sygnal on the proposed `sygnal/canvas` |
+|---|---:|---:|---:|
+| document, model, undo, commands | 598 | 445 | 392 |
+| interactions, canvas, rendering | 805 | 679 (lib/canvas) + in the model | – (the subpath) |
+| panels and view | 266 | 265 | 221 |
+| export, shell, bench, CSS | 246 | 115 | 115 |
+| **total app** | **1,915** | **1,504** | **728** |
+
+The categories don't line up exactly (Sygnal's interactions live in `model.ts`, React's in hooks),
+so compare totals. Like for like, the built Sygnal app writes its own canvas (679 lines, written
+as a library; an app-only version would be about 450), where the React app gets Konva and its
+Transformer and still writes 303 lines of rendering and 502 of interactions around them. On the
+proposed subpath the Sygnal app is 38 % of the React app's size.
 
 ---
 
 ## Risks
 
-{{RISKS}}
+- **A second scene vocabulary.** The node vocabulary (box-based, `radius`, `parent` clipping) is
+  close to SVG's names but not SVG: `ellipse` takes `x y width height`, not `cx cy rx ry`. The
+  canvas-three spike's `<Canvas2D>` used SVG's. One of the two has to win before anything ships;
+  I'd keep this one (editors think in boxes) and say so in the docs.
+- **The hidden children are SVG elements with editor props as attributes** (`<rect space="screen"
+  data-part …>`): harmless, but the accessibility story (canvas-three Q4) only holds for JSX nodes.
+  A data layer is one element: its 10k shapes are invisible to assistive tech and to the agent UI
+  snapshot unless the canvas grows a virtual accessibility tree (an `aria` projection of the data
+  layer, like the layers panel already is).
+- **Throughput depends on structural sharing.** The layer cache, the translation blits and the
+  yjs diff all key on node identity. A reducer that rebuilds every shape (`shapes.map(s => ({...s}))`)
+  silently turns every frame into a full repaint. A dev-mode check (more than k nodes changed
+  identity with equal fields) would catch it.
+- **Pan and zoom at 10k** repaint everything per wheel event today (§8); fine on this machine,
+  not on a slow one. The camera blit (§4) is needed before shipping.
+- **Measurements are from one machine** (M3 Max, headless Chromium, dpr 1) under a background
+  load of ~9. CPU throttling ×4 approximates a slower main thread but not a slower GPU; dpr 2
+  quadruples the raster work and isn't measured here.
+- **Text** is the weakest part of both versions: single-style text, measured with canvas
+  metrics, no wrapping. Rich text on a canvas is a project of its own.
+- **Konva/Pixi parity** was measured on the backends alone (§5). A Pixi backend inside the app
+  would still pay the vnode/state side that §2 measures; only the paint column would change.
 
 ## Open questions for the maintainer
 
-{{QUESTIONS}}
+1. **The vocabulary**: box-based nodes (this spike) or SVG's (canvas-three's `<Canvas2D>`) for
+   `sygnal/canvas`? Or both, with SVG names in JSX and boxes for data layers?
+2. **Which level ships first**: the island alone (level 1), or with the kit (level 2)? The kit is
+   80 lines of pure functions plus `keymap`, which is useful outside canvases too (should
+   `keymap` live in the core's `extra/`?).
+3. **One pointer router** for `sygnal/three` and `sygnal/canvas` (`src/extra/pointer.ts`), with
+   capture as the three drag work defined it: OK to merge the two now, while both are in the
+   dev preview?
+4. **The transient channel** (`follow`): ship it as the documented escape hatch, or leave drags to
+   the action queue only until an app needs more?
+5. **Backends**: is "own Canvas 2D painter, pluggable, a Pixi backend later as an optional peer"
+   the direction, or should a WebGL path be in from the start?
+6. **An editor behavior** (level 3): worth a second app (a diagram editor or a whiteboard) to find
+   the shared policy, or out of scope for Sygnal?
+7. **Undo with `sygnal/yjs`**: should `history('shapes')` route to the shared UndoManager when its
+   field is shared (one API for both), and how should a gesture mark its undo boundary?

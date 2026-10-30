@@ -191,9 +191,11 @@ export const Canvas = defineWidget({
           const sk = skips[i]
           if (!sk) return
           let act = sk === ALL ? l.items : l.items.filter(n => sk.has(n.id))
-          if (fids && fd) act = act.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n)
+          // a big followed set is a known translation: its unshifted nodes, blitted at the offset
+          const whole = fids && fd && act.length >= BLIT_MIN && act.every(n => fids.has(n.id))
+          if (fids && fd && !whole) act = act.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n)
           if (l.outline) act = act.map(n => outlined(n, l.outline!))
-          if (!blit(i, act, cam, stat)) paintWorld(ctx, act, cam, dpr, view, null, stat)
+          if (!blit(i, act, cam, stat, whole ? fd! : null)) paintWorld(ctx, whole ? act.map(n => ({...n, x: n.x + fd![0], y: n.y + fd![1]})) : act, cam, dpr, view, null, stat)
         })
       } else {
         bg()
@@ -216,7 +218,7 @@ export const Canvas = defineWidget({
     // (every node the same dx, dy, nothing else changed: a drag) is one drawImage, not a repaint.
     // The bitmap is the canvas plus a half-canvas margin on each side, so what moves in is there.
     const blits: any[] = []
-    const blit = (i: number, act: Node[], cam: Camera, stat: any) => {
+    const blit = (i: number, act: Node[], cam: Camera, stat: any, off: number[] | null) => {
       if (act.length < BLIT_MIN) return false
       let c = blits[i]
       const z = cam.zoom, mx = w / 2, my = h / 2
@@ -229,6 +231,7 @@ export const Canvas = defineWidget({
         paintWorld(bc, act, wide, dpr, viewport(wide, w * 2, h * 2), null, stat)
         c.nodes = act; c.cam = cam; d = [0, 0]
       } else stat.blits = (stat.blits || 0) + 1
+      if (off) { d = [d[0] + off[0], d[1] + off[1]]; if (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my) return false }
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.globalAlpha = 1
       // only the part of the bitmap that lands on the canvas (a quarter of it): the copy is the raster cost
