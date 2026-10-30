@@ -2,7 +2,35 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## [Unreleased]
+## 7.2.0-preview.0 — dev preview
+
+A dev preview (`npm install sygnal@next sygnal-check@next`). Its new subpaths and the `compile` option are
+experimental, and their APIs may change before 7.2.0. Everything is additive: an app that uses none of it
+behaves as on 7.1.0.
+
+**New (experimental).**
+- **Renderer targets:** the same components on other hosts than the browser DOM.
+  - `sygnal/host` is the kit: a browser-free host tree, `makeHostDriver(doc)`, selectors and per-target
+    stylesheets, and browser-like default actions (`activate`, `pressKey`, `fill`, …).
+  - `sygnal/terminal` renders in a terminal: `runTerminal(App)`, and `createTerminal()` for tests.
+  - `sygnal/agent-ui` renders for an LLM agent: an accessibility snapshot with refs, `ui_*` tools that
+    become DOM events, and `serveMcp`.
+  - `registerFieldTags()` lets a target's own form-field tags re-sync their value like `input`.
+  - Guides: "Beyond the Browser", with "Writing a Renderer Target". Example: `examples/renderer-targets`.
+- **Typed APIs:** `sygnal/api` builds typed requests from an API contract for the existing HTTP and
+  socket drivers, with no new driver.
+  - Clients: `orpcClient`, `openApiClient` and `honoClient`.
+  - Version skew: `contractHash` / `contractSkew` / `isContractSkew` / `contractFetch`, reported as SYG690.
+  - Testing: `fixture` / `errorFixture` for `renderComponent`.
+  - Guide: "Typed APIs". Example: `examples/typed-api`.
+- **Compiled views:** `sygnal({ compile: true | { views, ssr, blocks, test } })` in `sygnal/vite`
+  (Vite 8) compiles view JSX at build time.
+  - Static element data is built once, and dynamic keys are routed once.
+  - `.map()` rows and component roots become template-cloned blocks.
+  - Server rendering becomes string templates (4.7–5.5× on the benchmark table).
+  - Same vnodes, DOM and HTML as without it. Tests, devtools and other renderers see ordinary vnodes.
+  - Off by default. `magic-string` is a new dependency of the plugin only.
+  - Guide: "Compiled Views".
 
 - **Smaller bundles with Vite 8:** `src/extra/widget.ts` set a property on a module-level function at
   load, which rolldown keeps, so every Vite 8 app shipped the widget module whether or not it called
@@ -12,6 +40,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   most of the per-action cost in Node (SSR, tests, headless apps): 665 → 105 ns per action. In Node
   the variable is now read once, when Sygnal loads (`SYGNAL_DEBUG=true node server.js`, as
   documented); in the browser `window.SYGNAL_DEBUG` is still read on each call.
+
+**Measured impact.** Size: the kanban gate is 42,153 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
+budget 43,000 B, 847 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
+renderer field tags cost about 100 B. The new subpaths add nothing to an app that doesn't import them.
+The perf count gate is within its limits.
 
 **Companion packages.**
 - **`sygnal-check`:** incremental checking. A check session (`createCheckSession()`,
@@ -23,7 +56,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   (was 400 ms), 150 ms debounce included. Faster in general: identifier lookups use a table per
   scope, SYG702 no longer scans every element per field (it was quadratic on large apps), the
   installed Sygnal is looked up once per directory, and the CLI uses Node's compile cache
-  (Node ≥ 22.1). A rule can declare `perFile` (README "Writing a rule").
+  (Node ≥ 22.1). A rule can declare `perFile` (README "Writing a rule"). SYG691: a procedure name that
+  isn't in an `orpcClient` contract, with a "did you mean".
 
 ## 7.1.0 — 2026-10-20
 

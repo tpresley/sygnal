@@ -143,26 +143,29 @@ jobs:
       - name: Publish sygnal-check ${{ env.CHECK }}
         if: needs.plan.outputs.check == 'true'
         run: |
+          distTag() { case "$1" in *-*) echo --tag next ;; esac; }  # a prerelease (7.2.0-preview.0) goes to `next`, never `latest`
           if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.check_published }}" = true ]; then
             npm pack --dry-run --prefix sygnal-check ./sygnal-check
           else
-            npm publish --prefix sygnal-check ./sygnal-check ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+            npm publish --prefix sygnal-check ./sygnal-check $(distTag "$CHECK") ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
           fi
       - name: Publish sygnal ${{ env.SYGNAL }}
         if: needs.plan.outputs.sygnal == 'true'
         run: |
+          distTag() { case "$1" in *-*) echo --tag next ;; esac; }  # a prerelease (7.2.0-preview.0) goes to `next`, never `latest`
           if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.sygnal_published }}" = true ]; then
             npm run build:all && npm pack --dry-run
           else
-            npm publish ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+            npm publish $(distTag "$SYGNAL") ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
           fi
       - name: Publish create-sygnal-app ${{ env.CSA }}
         if: needs.plan.outputs.csa == 'true'
         run: |
+          distTag() { case "$1" in *-*) echo --tag next ;; esac; }  # a prerelease (7.2.0-preview.0) goes to `next`, never `latest`
           if [ "$DRY_RUN" = true ] && [ "${{ needs.plan.outputs.csa_published }}" = true ]; then
             npm pack --dry-run --prefix create-sygnal-app ./create-sygnal-app
           else
-            npm publish --prefix create-sygnal-app ./create-sygnal-app ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
+            npm publish --prefix create-sygnal-app ./create-sygnal-app $(distTag "$CSA") ${{ env.DRY_RUN == 'true' && '--dry-run' || '' }}
           fi
       - name: Tag v${{ env.SYGNAL }} and create its GitHub release
         if: needs.plan.outputs.sygnal == 'true' && env.DRY_RUN != 'true'
@@ -170,7 +173,8 @@ jobs:
           awk -v v="$SYGNAL" '$0 ~ "^## " v "( |$)" {f=1; next} /^## /{f=0} f' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           test -s "$RUNNER_TEMP/notes.md" || { echo "::error::CHANGELOG.md has no '## $SYGNAL' entry"; exit 1; }
           git tag "v$SYGNAL" && git push origin "v$SYGNAL"
-          gh release create "v$SYGNAL" --title "$SYGNAL" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          pre=; case "$SYGNAL" in *-*) pre=--prerelease ;; esac
+          gh release create "v$SYGNAL" --title "$SYGNAL" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag $pre
 
       # ---- the VS Code extension: the .vsix the gates built and tested ----
       - name: Get the .vsix from the gates
@@ -219,9 +223,12 @@ jobs:
   smoke:
     needs: [plan, publish]
     # after a push, and after a manual run that published (7.0.0 was released by a manual run after
-    # its push run stopped at the CHANGELOG check, and this job was skipped)
+    # its push run stopped at the CHANGELOG check, and this job was skipped). Not for a dev preview
+    # (a prerelease sygnal): the templates' `^7.x` ranges never pick a prerelease, so the scaffolds
+    # would get `latest`; RELEASING.md "Dev previews" runs the local smoke instead.
     if: >-
       (github.event_name == 'push' || inputs.dry_run == false) &&
+      !contains(needs.plan.outputs.sygnal_version, '-') &&
       (needs.plan.outputs.sygnal == 'true' || needs.plan.outputs.check == 'true' || needs.plan.outputs.csa == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 60

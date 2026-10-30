@@ -76,6 +76,7 @@ The app itself doesn't change. That's the whole contract: the target reads `doc.
 - Walk `doc.body` (`childNodes`, `nodeType` 1 for elements and 3 for text, `localName`, `getAttribute`, `classList`, `style`, `value`, `checked`, `textContent`).
 - `computeStyle(el, rules)` merges your target's `[selector, style]` rules with the element's inline `style` (`display: 'none'` from `hidden` too). `isHidden(el, rules)` checks the ancestors as well. A stylesheet is how an app tells a non-CSS target what is shown. Define what other keys mean for your platform.
 - `nodeId(el)` is a stable number for as long as the element lives. Use it for refs, diffs and remote ids.
+- `node.revision` moves whenever the node or anything below it changes, and `el.attrRevision` when its own attributes, classes, style or dataset change. Repaint only the subtrees whose revision moved: `sygnal/react-native` memoizes each element's React component on it.
 - `doc.activeElement` is the focused element. Draw focus your platform's way.
 
 ## Input
@@ -105,10 +106,12 @@ A native target may want its own vocabulary (`<view>`, `<txt>`, `<textinput>`) i
   // setup.js
   import { registerFieldTags } from 'sygnal/host'
 
-  registerFieldTags('textinput', 'toggle')
+  registerFieldTags('textinput', { tag: 'toggle', kind: 'checkbox' })
   ```
 
-- Select them with [controls](/guide/controls/) in intents (`controls({ Name: 'textinput' })`), so the same intent works on a web view that renders `<input>`.
+  A name is a text field: typing edits it, and it's a `textbox` to the agent UI. `kind: 'checkbox'` makes a click toggle `checked` and fire `click`, `input` and `change`, as a checkbox does.
+
+- Select them with [controls](/guide/controls/) in intents (`controls({ Name: 'textinput' })`), so the same intent works on a web view that renders `<input>`. Or start from the [primitives](/renderers/write-once/), which already render HTML on the web and a marker (`data-primitive`) a native target maps.
 
 ## Testing a target
 

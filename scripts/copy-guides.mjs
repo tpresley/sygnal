@@ -38,7 +38,7 @@ export const GUIDES = [
   // sygnal/api (dev preview)
   'typed-apis',
   // renderer targets (sygnal/terminal, sygnal/agent-ui, sygnal/host)
-  'renderers/overview', 'renderers/terminal', 'renderers/agent-ui', 'renderers/custom-targets',
+  'renderers/overview', 'renderers/write-once', 'renderers/react-native', 'renderers/terminal', 'renderers/agent-ui', 'renderers/custom-targets',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).

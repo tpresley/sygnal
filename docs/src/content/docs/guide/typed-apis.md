@@ -1,6 +1,6 @@
 ---
 title: Typed APIs
-description: Typed clients for an API contract with sygnal/api (dev preview) — oRPC, OpenAPI and Hono — with requests as data, typed replies and errors, contract fixtures and version-skew detection
+description: Typed clients for an API contract with sygnal/api (dev preview) — oRPC, OpenAPI and Hono, or function-first *.server.ts modules — with requests as data, typed replies and errors, contract fixtures and version-skew detection
 ---
 
 :::caution[Dev preview]
@@ -22,6 +22,8 @@ There are three adapters, one per kind of contract. All of them use plain JSON o
 - `honoClient<ExtractSchema<typeof app>>()`: the routes of a [Hono](https://hono.dev) app.
 
 Sygnal doesn't ship a server. It is a client for the server you choose. (For Telefunc's server functions under Vike, see [Server Functions](/integration/server-functions/).)
+
+**Contract-first is the primary form.** The contract is a module of its own: the API's definition, reviewed and versioned as one, and shared by the client and the server. For an app whose API serves only itself, there is also a [function-first form](#function-first-serverts-modules): you write the server functions in `*.server.ts` files, and their exports are the contract. Both forms build the same requests and use the same oRPC server.
 
 ## An oRPC contract
 
@@ -185,7 +187,7 @@ In JavaScript, [sygnal-check](/guide/diagnostics/) reports a misspelled procedur
 
 ## The server
 
-On the server, implement the contract with oRPC and serve it with the `OpenAPIHandler`. It is a Fetch handler (`Request` → `Response`), so it mounts in Hono, a Worker, Vite's dev server or Node:
+On the server, implement the contract with oRPC and serve it with the `OpenAPIHandler`. It is a Fetch handler (`Request` → `Response`), so it mounts in Hono, a Worker or Node. In development, `sygnal({ api: { handler: 'server/api.ts' } })` serves a module's default export (a Fetch handler) at `/api` from Vite's dev server:
 
 ```ts title="server.ts"
 import { implement } from '@orpc/server'
@@ -216,7 +218,7 @@ export async function handle(request: Request) {
 - **GET input comes from the query string**, so every value arrives as a string. Give non-string fields of a GET procedure a coercing schema: `z.coerce.number()`, `z.coerce.boolean()`.
 - An input with `inputStructure: 'detailed'` (separate params, query, headers and body) isn't supported yet. `orpcClient` throws when it creates the client.
 
-The [`typed-api` example](https://github.com/tpresley/sygnal/tree/main/examples/typed-api) is a complete app: the contract, the oRPC server in Vite's dev server, a component with a resource, a mutation, a delete and a live feed, and its tests.
+The [`typed-api` example](https://github.com/tpresley/sygnal/tree/main/examples/typed-api) is a complete app: the contract, the oRPC server in Vite's dev server, a component with a resource, a mutation, a delete, a live feed and one function-first call, and its tests (one of them builds the client and searches it for server code).
 
 ## Testing
 
@@ -290,6 +292,26 @@ run(App, { HTTP: makeFetchDriver({ fetch }), WS: makeSocketDriver({ fetch }) })
 - **`contractSkew(request, { hash, header })`** answers a request that sends another hash with a 409 `CONTRACT_SKEW`. A request without the header passes, unless you set `require: true`.
 - **`isContractSkew(failure)`** tells an `error` action or a failed resource apart. **`contractFetch()`** reports [SYG690](/reference/errors/#syg690) once and calls `onSkew` for each skew answer.
 
+### A client without the schemas
+
+`orpcClient` needs the contract's routes, not its schemas, unless it validates replies on the client (`validate: true`). Name the contract module in the Vite plugin, and client code gets only what the client uses: each procedure's route, kind and declared error statuses, plus the contract hash computed at build time. The schema library is left out of the bundle:
+
+```ts title="vite.config.ts"
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal({ api: { contracts: ['src/contract.ts'], handler: 'server/api.ts' } })],
+})
+```
+
+Nothing changes in the app: `orpcClient(contract)` and `contractHash(contract)` take the replaced module as they took the original. In the `typed-api` example, the client bundle goes from 226.8 kB to 135.3 kB (73.7 kB to 47.7 kB gzipped).
+
+- **The module runs in Node at build time** (and in the dev server) so the plugin can read its schemas. Keep a contract module free of side effects.
+- **Only contracts are kept.** Another export of the module (a schema) is left out, so a client import of it fails the build. Put a schema the client needs in a module of its own.
+- **`validate: true` needs the schemas.** `orpcClient` throws if the module was replaced, so leave that module out of `contracts`.
+- **Tests run the module as written** (under Vitest nothing is replaced), so `fixture()` still checks against the schemas.
+
 ## OpenAPI (any back end)
 
 For an API described by an OpenAPI document (Go, Python, Rails, or oRPC's `OpenAPIGenerator`), generate its `paths` type with openapi-typescript (`npx openapi-typescript openapi.json -o api-types.ts`), then name each endpoint once:
@@ -334,6 +356,77 @@ addQuote({ json: { text: 'Less, but better.' } }, { ok: 'ADDED', error: 'FAILED'
 
 The input is `hc`'s `{ param, query, json, header }`. `Output` is the output of the route's 2xx responses, and `ErrorBody` that of the others. A `streamSSE` route is `hono.sse<Event>('/api/feed')`.
 
+## Function-first: `*.server.ts` modules
+
+When the API exists only for this app, you can skip the separate contract. Write each server function in a `*.server.ts` file and import it from components. The file's path and its export names are the contract:
+
+```ts title="src/ideas.server.ts"
+import { z } from 'zod'
+import { query, mutation } from 'sygnal/api'
+import { db } from '../server/db'
+
+export const suggest = query(z.object({ tag: z.string() }), async ({ tag }) => ({ text: await db.ideas.pick(tag) }))
+
+export const save = mutation(
+  z.object({ text: z.string().min(3) }),
+  async ({ text }, { context, errors }) => {
+    if (await db.ideas.full()) throw errors.FULL()
+    return db.ideas.insert({ text, by: context.user })
+  },
+  { errors: { FULL: { status: 507, message: 'No room for more ideas' } } },
+)
+```
+
+```tsx title="src/Ideas.tsx"
+import type { Output } from 'sygnal/api'
+import { suggest, save } from './ideas.server'
+
+Ideas.model = {
+  SUGGEST: { HTTP: (state) => suggest({ tag: state.tag }, { ok: 'SUGGESTED' }) },
+  SUGGESTED: (state, { text }) => ({ ...state, draft: text }),
+  SAVE: { HTTP: (state) => save({ text: state.draft }, { ok: 'SAVED', error: 'FAILED' }) },
+}
+type Saved = Output<typeof save>
+```
+
+```ts title="vite.config.ts"
+import { defineConfig } from 'vite'
+import sygnal from 'sygnal/vite'
+
+export default defineConfig({
+  plugins: [sygnal({ api: { functions: true, handler: 'server/api.ts' } })],
+})
+```
+
+On the server, `serverFunctions()` turns the modules into an oRPC router. Sygnal still has no server: oRPC's `OpenAPIHandler` serves it, with the same wire format as a contract:
+
+```ts title="server/api.ts"
+import { os } from '@orpc/server'
+import { OpenAPIHandler } from '@orpc/openapi/fetch'
+import { serverFunctions } from 'sygnal/api'
+
+const functions = serverFunctions(import.meta.glob('/src/**/*.server.ts', { eager: true }), { os })
+const handler = new OpenAPIHandler(functions.router)
+
+export default async function handle(request: Request): Promise<Response> {
+  const skew = functions.skew(request)
+  if (skew) return skew
+  const { matched, response } = await handler.handle(request, { prefix: '/api', context: { user: await userOf(request) } })
+  return matched ? response : new Response('Not found', { status: 404 })
+}
+```
+
+- **The path and the export name are the endpoint.** `src/ideas.server.ts` is `ideas`, so `suggest` is `ideas.suggest` at `POST /api/ideas/suggest`. A query and a mutation are POSTs with a JSON body, so numbers stay numbers. A query is also tagged like a GET endpoint, so it works as a resource and with `invalidates`. `stream(input, async function* (…) {…})` is a GET read as server-sent events, for `connections`; its input comes from the query string, so coerce non-string fields.
+- **The client gets stubs.** In client code, the plugin replaces the file with one stub per server function: its id, kind, declared error statuses and the file's hash. The file's imports (the database, API keys), the function bodies and its other exports never reach the bundle. The `typed-api` example's tests build the client and search it for the server code and the key.
+- **Only `query`, `mutation` and `stream` exports reach the client.** A constant or a helper exported from the file is undefined in the client build, though it type-checks. sygnal-check reports that import, and a misspelled one ([SYG691](/reference/errors/#syg691)).
+- **Validation is required.** The first argument is a Standard Schema (zod, Valibot, ArkType). Leave it out for a function that takes no input: then only an empty input is accepted. `output` validates the reply too (each event of a stream), and `errors` declares errors by code: typed on the client like a contract's, thrown with `errors.CODE()` on the server.
+- **The second argument is oRPC's handler options:** `context` (what the server passes to `handler.handle`; type it with `declare module 'sygnal/api' { interface ServerContext { user?: User } }`), `signal` and `errors`.
+- **Only module exports are server functions.** Nothing inline in a component, and no closure over client values: what crosses the network is the validated JSON input.
+- **Skew is checked per file.** Each stub sends its file's contract hash (`x-api-functions: ideas:…`), and `functions.skew(request)` answers 409 `CONTRACT_SKEW` when that file's functions changed since the client was built. Calls to other files keep working. To compute the hash, the plugin loads the `*.server.ts` modules in Node at build time (and in the dev server), so keep their top level free of side effects: open connections on first use.
+- **Tests:** under Vitest the file keeps its code, and each export is also an endpoint. Answer a component's call with the fakes, as for a contract (`t.respond('HTTP', fixture(suggest, { text: 'Breathe.' }), suggest)`), or run the real functions in-process through the handler.
+
+Choose function-first for an app whose API has no other client. Choose a contract when the API is shared with other clients or teams, or when it is versioned on its own: the contract is then the API's definition, and the server implements it.
+
 ## Reference
 
 | Export | |
@@ -346,3 +439,6 @@ The input is `hc`'s `{ param, query, json, header }`. `Output` is the output of 
 | `Output<E>`, `Input<E>`, `ErrorBody<E>`, `ApiFailure<E>`, `RawOutput<E>`, `Jsonify<T>` | Types |
 | `fixture(endpoint, data)`, `errorFixture(endpoint, code, data?, message?)` | Test fixtures |
 | `contractHash(contract)`, `contractSkew(request, { hash, header, require? })`, `isContractSkew(failure)`, `contractFetch({ fetch?, onSkew? })` | Version skew |
+| `query(input?, fn, options?)`, `mutation(…)`, `stream(…)` | Function-first server functions in `*.server.ts` files; `options`: `output`, `errors` |
+| `serverFunctions(modules, { os, dir?, header? })` | On the server: `{ router, contract, hashes, skew(request) }` for oRPC's `OpenAPIHandler` |
+| `sygnal({ api })` | The Vite plugin: `handler` (served at `prefix`, default `'/api'`, in dev), `contracts` (client modules without schemas), `functions` (`true` or `{ dir, header }`: `*.server.ts` stubs) |

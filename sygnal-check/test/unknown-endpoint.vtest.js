@@ -67,3 +67,44 @@ const other = { quotes: {} }; other.quotes.lst`)
     expect(check({ 'api.js': local, 'Quotes.jsx': component(`api.zzz`) }, ['Quotes.jsx'])).toEqual([])
   })
 })
+
+describe('SYG691 (static): function-first imports from *.server modules', () => {
+  const server = `import { z } from 'zod'
+import { query, mutation, stream } from 'sygnal/api'
+import { db } from '../server/db.js'
+export const suggest = query(z.object({ tag: z.string() }), ({ tag }) => db.pick(tag))
+const save = mutation(z.object({ text: z.string() }), ({ text }) => db.save(text))
+export { save }
+export const ticks = stream(async function* () { yield 1 })
+export const LIMIT = 10
+export function helper() { return 1 }
+export const wrapped = withAuth(query(() => 1))
+export type Idea = { text: string }
+`
+  const client = (imports) => `import { ${imports} } from './ideas.server'
+export function Ideas({ state }) { return <p>{state.text}</p> }
+`
+
+  it('reports a misspelled server function with the closest name', () => {
+    const d = check({ 'src/ideas.server.ts': server, 'src/Ideas.jsx': client('sugest, save') }, ['src/Ideas.jsx'])
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toBe(`'./ideas.server' has no server function 'sugest' (did you mean 'suggest'?)`)
+    expect(d[0].fix).toBe(`import 'suggest'`)
+  })
+
+  it('reports an export that is no server function: the client stub leaves it out', () => {
+    const d = check({ 'src/ideas.server.ts': server, 'src/Ideas.jsx': client('LIMIT, helper, ticks') }, ['src/Ideas.jsx'])
+    expect(d.map(x => x.data.name)).toEqual(['LIMIT', 'helper'])
+    expect(d[0].message).toMatch(/'LIMIT' from '\.\/ideas\.server' is not a query, mutation or stream/)
+  })
+
+  it('is silent for server code, unclear exports, type imports, export * and modules without sygnal/api', () => {
+    const handler = `import { LIMIT, helper } from '../src/ideas.server'\nexport default () => LIMIT + helper()\n`
+    expect(check({ 'src/ideas.server.ts': server, 'server/handler.js': handler }, ['server/handler.js'])).toEqual([])
+    expect(check({ 'src/ideas.server.ts': server, 'src/Ideas.jsx': client('wrapped, type Idea') }, ['src/Ideas.jsx'])).toEqual([])
+    const star = `import { query } from 'sygnal/api'\nexport * from './more.js'\n`
+    expect(check({ 'src/ideas.server.ts': star, 'src/more.js': '', 'src/Ideas.jsx': client('anything') }, ['src/Ideas.jsx'])).toEqual([])
+    const vike = `export const data = 1\n`
+    expect(check({ 'src/ideas.server.ts': vike, 'src/Ideas.jsx': client('nope') }, ['src/Ideas.jsx'])).toEqual([])
+  })
+})

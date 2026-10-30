@@ -37,6 +37,47 @@ The maintainer approved building the kit and two targets (coordinator decisions:
 
 ---
 
+## Round 4 (2026-10-30): `sygnal/react-native`, `sygnal/primitives`, write-once
+
+Built on `claude/advanced-integration` (fast-forwarded). The round-3 prototype became a subpath:
+
+| Piece | Where | What |
+|---|---|---|
+| host change tracking | `src/host/dom.ts` | every mutation moves `revision` on the node and its ancestors; `attrRevision` for its own attributes, classes, style and dataset (style and dataset are tracked proxies); `checked` and `selected` are tracked accessors; dataset reflects to `data-*` attributes, as the DOM's |
+| field kinds | `src/host.ts`, `src/host/actions.ts` | `registerFieldTags('textinput', { tag: 'toggle', kind: 'checkbox' })`: `isCheckable` / `isTextField` drive `activate` (checkbox semantics), typing, the terminal's widgets, the agent's roles and `ui_check` / `ui_type`, and the native mapping |
+| `sygnal/primitives` | `src/primitives.ts`, `.d.ts` | `View`, `Text`, `Pressable`, `TextInput`, `Switch`, `Image`, `ScrollView`, `List`: JSX tags and controls() specs; render HTML plus `data-primitive`; React Native style objects (`webStyle`: px, shorthands, React Native's box defaults on the web) |
+| `sygnal/react-native` | `src/react-native.ts`, `.d.ts` | `SygnalView`, `createNativeHost`; memoized element per host node and revision; primitives, HTML tags and registered field kinds mapped to React Native components; native callbacks become DOM events through the host's actions; stylesheet rules compiled with `StyleSheet.create`; `List` as a `FlatList`; `components` for your own |
+| sygnal-check | `sygnal-check/src/model/view.js` | primitives from `sygnal/primitives` are the HTML element they render (no false SYG104); 2 tests in `controls.vtest.js` |
+| tests | `test/renderers-react-native.test.js` (+ `test/fixtures/react-native-stub.js`), `type-tests/primitives-react-native.tsx` | primitives on the web DOM, terminal and agent UI; the bridge in jsdom with react-native stubbed onto react-dom: mapping, events, controlled fields, styles, HTML views, field kinds, render and commit counts |
+| example | `examples/write-once` | one `Tasks.jsx` on the web (Vite), iOS (Expo Go) and the terminal; 3 tests; screenshots |
+| docs | `renderers/write-once`, `renderers/react-native`, plus the overview and custom-targets updates | |
+
+**Incremental rendering, measured** (`test/renderers-react-native.test.js`: 100 items, 303 elements, `onNodeRender` and a React `Profiler`):
+
+| change | elements rendered (full / incremental) | React commits (full / incremental) |
+|---|---|---|
+| initial | 303 / 303 | — |
+| a counter at the top | 303 / 2 | 1 / 1 |
+| one item's switch | 303 / 4 (root, List, the item, its Switch) | 1 / 1 |
+
+**Controlled inputs without the echo hack.** The round-3 truncation came from the prototype capturing `el.value` into the React element when the host changed, so a render committed later could hand React Native a value older than the native text. The bridge now reads the host value inside the React render, and React Native's own `TextInput` event-count protocol does the rest. On the iOS simulator, 28 characters injected at once kept every letter. A title is only short when Add is tapped before the injected keystrokes have all arrived, which is input timing, not a reset.
+
+**Decisions (mine).**
+
+- The primitives render **HTML** on the web, with a `data-primitive` marker for native, instead of neutral tags plus a web tag mapper. The web, the terminal and the agent UI need nothing new, and sygnal-check sees an HTML element.
+- Primitive styles are **React Native style objects** everywhere. The web form converts them (`px`, shorthands, React Native's box defaults), and the native bridge reads `px` back and drops web-only keys.
+- `defaultNativeStyles` style plain HTML tags only (`:not([data-primitive])`): a primitive looks the way the app styles it, as in React Native.
+- An HTML container whose children are all inline renders as a row on native, the way a browser flows it.
+- Text style inheritance is one level: a View-like element's text keys style the `Text` that wraps its own direct text. Nested `Text` inherits natively.
+- A stylesheet with descendant or child combinators makes a class change re-render that subtree. Selector lists alone (`h4, h5`) don't.
+- `select` on native steps through its options (React Native's core has no picker); `components` can supply a real one.
+- `react-native >= 0.76` is an optional peer dependency. Build-time declarations live in `src/react-peers.d.ts`, and the library tests stub react-native rather than installing it at the root.
+- The example's Metro config keeps hierarchical lookup (Expo nests some packages), and pins `react` / `react-native` to the app with `resolveRequest`, so the symlinked repo doesn't bring its own React.
+
+**Verified on device:** iOS 26.3 simulator, Expo Go, Expo SDK 58 (react-native 0.88.1). Typing, Add, Switch, Clear done, the FlatList-backed `List`, and controls styled with React Native style objects all worked. `Image` and `ScrollView` are verified in jsdom only. A native build (CocoaPods) was not needed and not attempted.
+
+---
+
 ## Round 3 (2026-10-29): React Native on the iOS simulator
 
 `rn-app/` is a hand-written Expo app (SDK 58: react-native 0.88.1, react 19.3.0), run in Expo Go on an iPhone 17 Pro simulator (iOS 26.3) with `npx expo start --ios`. It needs no CocoaPods: Expo Go hosts the JS bundle, and Metro serves `sygnal` from this repo through the `file:` link (`metro.config.js`).

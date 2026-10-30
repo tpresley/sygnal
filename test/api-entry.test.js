@@ -15,7 +15,9 @@ describe('sygnal/api entry', () => {
       expect(src).toMatch(/['"]sygnal['"]/)
       expect(src.replace(/\/\/# sourceMappingURL.*/, '').length).toBeLessThan(300 + 150 * Object.keys(api).length)
     }
-    expect(Object.keys(api).sort()).toEqual(['contractFetch', 'contractHash', 'contractSkew', 'errorFixture', 'fixture', 'honoClient', 'isContractSkew', 'openApiClient', 'orpcClient'])
-    for (const name of Object.keys(api)) expect(api[name]).toBe(sygnal[name])
+    expect(Object.keys(api).sort()).toEqual(['__serverFunction', 'contractFetch', 'contractHash', 'contractSkew', 'errorFixture', 'fixture', 'honoClient', 'isContractSkew', 'mutation', 'openApiClient', 'orpcClient', 'query', 'serverFunctions', 'stream'])
+    // query / mutation / stream are serverQuery / ... in the main bundle (no generic names there)
+    const main = { query: 'serverQuery', mutation: 'serverMutation', stream: 'serverStream' }
+    for (const name of Object.keys(api)) expect(api[name]).toBe(sygnal[main[name] || name])
   })
 })

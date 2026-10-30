@@ -199,6 +199,16 @@ Each project is scaffolded into a new folder (create-sygnal-app refuses a folder
 
 If a smoke check fails, fix the problem on `main` and publish a patch release of the affected package.
 
+## Dev previews
+
+A dev preview ships unreleased features (for example the `sygnal/api`, renderer-target and compiled-views work) to people who opt in, without touching `latest`:
+
+- **Versions:** the next minor with a prerelease suffix, `7.2.0-preview.0`, `7.2.0-preview.1`, …, and the same for `sygnal-check` when it changed (`0.13.0-preview.0`). Leave `create-sygnal-app`, the VS Code extension and the Claude Code plugin alone: their templates and manifests point at stable versions.
+- **Changelog:** a `## 7.2.0-preview.0 — <date>` heading, which the plan job checks as usual. The final release folds the preview entries into its own `## 7.2.0` entry.
+- **Publishing:** the same workflow, from `main` (the npm trust is pinned to `main` and the `release` environment). A version with a `-` is published with `--tag next`, so `npm install sygnal` still gets `latest`, and its GitHub release is marked as a pre-release. Users install it with `npm install sygnal@next sygnal-check@next`.
+- **Smoke:** the registry `smoke` job is skipped for a prerelease, because the templates' `^7.x` ranges never select one. Run `node scripts/release-smoke.mjs --local` on the release commit instead, before merging it to `main`.
+- **By hand:** `npm publish --tag next` (and `--prefix sygnal-check ./sygnal-check --tag next`). Without `--tag`, npm 11 refuses to publish a prerelease.
+
 ## 8. The VS Code extension (`editors/vscode/`)
 
 The extension (id `sygnal.sygnal`) is published to the VS Code Marketplace and to Open VSX (VSCodium, Cursor, Windsurf and others) as the same `.vsix`. It bundles a copy of `sygnal-check` from `sygnal-check/` at build time, as the fallback for projects without a capable one (D301), so release it after `sygnal-check` and from the released commit. Only the maintainer publishes; the tokens never go into the repository.

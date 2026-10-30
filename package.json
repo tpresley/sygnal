@@ -1,6 +1,6 @@
 {
   "name": "sygnal",
-  "version": "7.1.0",
+  "version": "7.2.0-preview.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "types": "./dist/index.d.ts",
@@ -95,6 +95,16 @@
       "types": "./src/agent-ui.d.ts",
       "import": "./dist/agent-ui.esm.js",
       "require": "./dist/agent-ui.cjs.js"
+    },
+    "./primitives": {
+      "types": "./src/primitives.d.ts",
+      "import": "./dist/primitives.esm.js",
+      "require": "./dist/primitives.cjs.js"
+    },
+    "./react-native": {
+      "types": "./src/react-native.d.ts",
+      "import": "./dist/react-native.esm.js",
+      "require": "./dist/react-native.cjs.js"
     },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
@@ -202,7 +212,8 @@
     "@zag-js/select": "~1.45.0",
     "@zag-js/vanilla": "~1.45.0",
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "react-native": ">=0.76.0"
   },
   "peerDependenciesMeta": {
     "@zag-js/combobox": {
@@ -221,6 +232,9 @@
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "react-native": {
       "optional": true
     }
   },
@@ -257,7 +271,7 @@
     "typescript": "^5.4.5",
     "valibot": "^1.5.0",
     "vitest": "^4.0.18",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "overrides": {
     "vite": "^7.3.6"

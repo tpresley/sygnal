@@ -218,3 +218,86 @@ export function errorFixture<E extends Endpoint<any, any, any, any, any>, C exte
 ): { status: number; body: [Extract<ErrorBody<E>, { code: C }>] extends [never] ? { defined: true; code: C; status: number; message: string; data: unknown } : Extract<ErrorBody<E>, { code: C }> }
 /** The codes of an endpoint's declared errors (oRPC), else any string */
 type DefinedCode<E> = [Extract<ErrorBody<E>, { defined: true }>] extends [never] ? string : Extract<ErrorBody<E>, { defined: true }>['code']
+
+// ── function-first: *.server.ts modules ────────────────────────────────
+
+/**
+ * The `context` a server function gets: whatever the server passes to oRPC's
+ * `handler.handle(request, { context })`. Augment it for your app:
+ * `declare module 'sygnal/api' { interface ServerContext { user?: User } }`
+ */
+export interface ServerContext { [key: string]: unknown }
+
+type ErrorMapOf = Record<string, { status?: number; message?: string; data?: StandardSchemaLike<any, any> }>
+/** What a server function gets after its input: oRPC's handler options */
+export type ServerFunctionOptions<EM = {}> = {
+  context: ServerContext
+  signal?: AbortSignal
+  lastEventId?: string
+  /** oRPC's declared-error constructors: `throw errors.DUPLICATE({ data: { id } })` */
+  errors: { [C in keyof EM & string]: (options?: { message?: string; data?: EM[C] extends { data?: infer D } ? SchemaIn<D> : undefined; cause?: unknown }) => Error }
+}
+type FnOptions<EM> = {
+  /** Validate the reply too (oRPC's `.output()`; each event of a stream) */
+  output?: StandardSchemaLike<any, any>
+  /** Declared errors, by code (oRPC's `.errors()`): typed on the client as `ErrorBody` */
+  errors?: EM
+}
+
+/**
+ * A query in a `*.server.ts` module: a POST that is a resource (tagged `api:<id>`, refetched by
+ * `invalidates`). Its input is always validated: pass a Standard Schema, or leave it out to take
+ * no input. `export const list = query(z.object({ tag: z.string() }), async ({ tag }) => db.list(tag))`
+ * gives the client (through sygnal/vite's stub) `list({ tag }, { ok: 'LISTED' })`.
+ */
+export function query<S extends StandardSchemaLike<any, any>, R, EM extends ErrorMapOf = {}>(
+  input: S, fn: (input: SchemaOut<S>, options: ServerFunctionOptions<EM>) => R, options?: FnOptions<EM>,
+): Endpoint<SchemaIn<S>, Jsonify<Awaited<R>>, OrpcErrorBody<EM>, 'query', Awaited<R>>
+export function query<R, EM extends ErrorMapOf = {}>(
+  fn: (input: undefined, options: ServerFunctionOptions<EM>) => R, options?: FnOptions<EM>,
+): Endpoint<undefined, Jsonify<Awaited<R>>, OrpcErrorBody<EM>, 'query', Awaited<R>>
+/** A mutation in a `*.server.ts` module: a POST with reply actions (`ok`, `error`, `invalidates`) */
+export function mutation<S extends StandardSchemaLike<any, any>, R, EM extends ErrorMapOf = {}>(
+  input: S, fn: (input: SchemaOut<S>, options: ServerFunctionOptions<EM>) => R, options?: FnOptions<EM>,
+): Endpoint<SchemaIn<S>, Jsonify<Awaited<R>>, OrpcErrorBody<EM>, 'mutation', Awaited<R>>
+export function mutation<R, EM extends ErrorMapOf = {}>(
+  fn: (input: undefined, options: ServerFunctionOptions<EM>) => R, options?: FnOptions<EM>,
+): Endpoint<undefined, Jsonify<Awaited<R>>, OrpcErrorBody<EM>, 'mutation', Awaited<R>>
+/**
+ * A stream in a `*.server.ts` module: an async generator, one server-sent event per `yield`, for
+ * `connections`. It is a GET, so its input comes from the query string (strings: coerce numbers).
+ */
+export function stream<S extends StandardSchemaLike<any, any>, Y, EM extends ErrorMapOf = {}>(
+  input: S, fn: (input: SchemaOut<S>, options: ServerFunctionOptions<EM>) => AsyncIterable<Y>, options?: FnOptions<EM>,
+): Endpoint<SchemaIn<S>, Jsonify<Y>, OrpcErrorBody<EM>, 'stream', Y>
+export function stream<Y, EM extends ErrorMapOf = {}>(
+  fn: (input: undefined, options: ServerFunctionOptions<EM>) => AsyncIterable<Y>, options?: FnOptions<EM>,
+): Endpoint<undefined, Jsonify<Y>, OrpcErrorBody<EM>, 'stream', Y>
+
+/**
+ * On the server: the oRPC router of the app's `*.server.ts` modules (keys: their paths; the part
+ * after `dir/` names them, so `/src/quotes.server.ts` is `quotes`). Mount `router` with oRPC's
+ * OpenAPIHandler at the plugin's `api.prefix`, behind `skew(request)`:
+ * ```ts
+ * const fns = serverFunctions(import.meta.glob('/src/**\/*.server.ts', { eager: true }), { os })
+ * ```
+ */
+export function serverFunctions(modules: Record<string, unknown>, options: {
+  /** oRPC's `os` (from '@orpc/server'): Sygnal has no server of its own */
+  os: unknown
+  /** The folder the module paths are named from (default 'src', as the plugin's `api.dir`) */
+  dir?: string
+  /** The header the client stubs send `<file>:<hash>` in (default 'x-api-functions') */
+  header?: string
+}): {
+  /** oRPC's router: `new OpenAPIHandler(router)` */
+  router: any
+  /** The contract the stubs are built from (plain data and the schemas) */
+  contract: unknown
+  /** Each file's contract hash */
+  hashes: Record<string, string>
+  /** 409 CONTRACT_SKEW for a request from a client built against another version of its file */
+  skew(request: Request): Response | undefined
+}
+/** Generated code only (sygnal/vite): a client stub, or a server function given its id */
+export function __serverFunction(id: string, value: unknown, client?: ClientOptions): any

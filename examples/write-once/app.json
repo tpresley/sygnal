@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "Sygnal Tasks",
+    "slug": "sygnal-write-once",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "ios": { "bundleIdentifier": "org.sygnal.example.writeonce" }
+  }
+}

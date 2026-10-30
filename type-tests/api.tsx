@@ -180,3 +180,43 @@ export { hout, hbad, hadd }
 type J = Jsonify<{ a: Date; b: () => void; c: { d: Date[] } }>
 const j: J = { a: 's', c: { d: ['s'] } }
 export { j }
+
+// ── function-first (*.server.ts) ────────────────────────────────────────
+import { query, mutation, stream, serverFunctions } from 'sygnal/api'
+
+declare module 'sygnal/api' { interface ServerContext { user?: { name: string } } }
+
+const fnSuggest = query(z.object({ tag: z.string() }), async ({ tag }, { context, errors }) => {
+  if (!tag) throw errors.NO_IDEAS({ data: { tag } })
+  return { text: tag + (context.user?.name ?? ''), at: new Date() }
+}, { errors: { NO_IDEAS: { status: 404, data: z.object({ tag: z.string() }) } } })
+fnSuggest({ tag: 'a' }, { ok: 'SUGGESTED', error: 'NO_IDEA', invalidates: [fnSuggest] })
+// @ts-expect-error tag is a string
+fnSuggest({ tag: 1 })
+// @ts-expect-error the input is required
+fnSuggest()
+const fnOut: Output<typeof fnSuggest> = { text: 't', at: '1970-01-01T00:00:00.000Z' }
+const fnErr = (e: ErrorBody<typeof fnSuggest>) => (e.defined && e.code === 'NO_IDEAS' ? e.data.tag : e.message)
+const fnFx: { at: string } = fixture(fnSuggest, { text: 't', at: new Date(0) })
+const fnReq: FetchRequest = fnSuggest({ tag: 'a' })
+export { fnOut, fnErr, fnFx, fnReq }
+
+const fnCount = query(() => 3)
+fnCount()
+const fnN: Output<typeof fnCount> = 3
+// @ts-expect-error an undeclared error code
+query(z.string(), (_s, { errors }) => { throw errors.NOPE() })
+const fnDouble = mutation(z.object({ n: z.number() }), ({ n }) => n * 2)
+// @ts-expect-error n is a number
+fnDouble({ n: '2' })
+const fnTicks = stream(async function* () { yield { i: 1 } })
+const fnConns: Connections = { ticks: fnTicks(undefined, { message: 'TICK' }) }
+const fnTick: Output<typeof fnTicks> = { i: 1 }
+// @ts-expect-error a stream is no request to invalidate
+fnDouble({ n: 1 }, { invalidates: [fnTicks] })
+export { fnN, fnConns, fnTick }
+
+const fns = serverFunctions({ '/src/x.server.ts': { fnSuggest } }, { os: {} })
+const fnSkew: Response | undefined = fns.skew(new Request('http://x'))
+const fnHashes: Record<string, string> = fns.hashes
+export { fnSkew, fnHashes }

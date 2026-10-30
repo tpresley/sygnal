@@ -10,6 +10,12 @@
  * too). A namespace is an object literal; anything else is a procedure, whose own properties
  * (`id`, `kind`, `match`, ...) are not checked. Silent when a level can't be listed (a spread, a
  * computed key, a router built by a call).
+ *
+ * Function-first: in client code (a file that imports 'sygnal' or has JSX), a named import from
+ * a `*.server` module that uses sygnal/api must name one of its query / mutation / stream
+ * exports. sygnal/vite's client stub has only those: another export (a constant, a helper) is
+ * missing in the client build, and a misspelled one is missing everywhere. Silent when the
+ * module's exports can't be listed (`export *`) or an export's value isn't clear (a wrapper call).
  */
 import { walk, unwrap, propName } from '../ast.js'
 import { findBinding } from '../scope.js'
@@ -58,10 +64,89 @@ function chainOf(member) {
   return n.type === 'Identifier' ? { root: n, parts } : null
 }
 
+const SERVER_SPEC = /\.server(\.[cm]?[jt]sx?)?$/
+const FN_KINDS = new Set(['query', 'mutation', 'stream'])
+
+/** a *.server module's exports: Map name → 'fn' | 'other' | 'unknown'; null if it doesn't use sygnal/api */
+function serverExports(file) {
+  const body = file.ast.program.body
+  const usesApi = body.some((s) => s.type === 'ImportDeclaration' && s.source.value === 'sygnal/api')
+  if (!usesApi) return null
+  const out = new Map()
+  const kindOf = (init) => {
+    const n = init && unwrap(init)
+    if (!n) return 'other'
+    if (n.type === 'CallExpression') {
+      const c = unwrap(n.callee)
+      const b = c.type === 'Identifier' && findBinding(file, c.name, c)
+      if (b && b.kind === 'import' && b.source === 'sygnal/api' && FN_KINDS.has(b.imported)) return 'fn'
+      return 'unknown'
+    }
+    return n.type === 'Identifier' || n.type === 'MemberExpression' || n.type === 'AwaitExpression' ? 'unknown' : 'other'
+  }
+  for (const stmt of body) {
+    if (stmt.type === 'ExportAllDeclaration') { out[OPEN] = true; continue }
+    if (stmt.type !== 'ExportNamedDeclaration' || stmt.exportKind === 'type') continue
+    const d = stmt.declaration
+    if (d?.type === 'VariableDeclaration') for (const x of d.declarations) { if (x.id.type === 'Identifier') out.set(x.id.name, kindOf(x.init)) }
+    else if (d?.type === 'FunctionDeclaration' || d?.type === 'ClassDeclaration') out.set(d.id.name, 'other')
+    else if (d) continue      // a type or interface
+    for (const sp of stmt.specifiers || []) {
+      if (sp.exportKind === 'type') continue
+      const name = sp.exported.type === 'Identifier' ? sp.exported.name : sp.exported.value
+      if (stmt.source) { out.set(name, 'unknown'); continue }
+      const b = findBinding(file, sp.local.name, sp.local)
+      out.set(name, b?.kind === 'var' ? kindOf(b.init) : b?.kind === 'function' || b?.kind === 'class' ? 'other' : 'unknown')
+    }
+  }
+  return out
+}
+
+/** whether a file is client code: it imports 'sygnal' (or its JSX runtime) or has JSX */
+function isClient(file) {
+  if (file.ast.program.body.some((s) => s.type === 'ImportDeclaration' && /^sygnal(\/jsx(-dev)?-runtime)?$/.test(s.source.value))) return true
+  let jsx = false
+  walk(file.ast.program, (n) => { if (n.type === 'JSXElement' || n.type === 'JSXFragment') jsx = true; return !jsx })
+  return jsx
+}
+
+function checkServerImports(project, file, report) {
+  if (SERVER_SPEC.test(file.path)) return
+  let client
+  for (const stmt of file.ast.program.body) {
+    if (stmt.type !== 'ImportDeclaration' || stmt.importKind === 'type' || !SERVER_SPEC.test(stmt.source.value)) continue
+    if (client === undefined) client = isClient(file)
+    if (!client) return
+    const target = project.loadImport(file, stmt.source.value)
+    const ex = target?.ast && serverExports(target)
+    if (!ex) continue
+    const fns = [...ex.keys()].filter((k) => ex.get(k) === 'fn')
+    for (const sp of stmt.specifiers) {
+      if (sp.type !== 'ImportSpecifier' || sp.importKind === 'type') continue
+      const name = sp.imported.type === 'Identifier' ? sp.imported.name : sp.imported.value
+      const kind = ex.get(name)
+      if (kind === 'fn' || kind === 'unknown' || (!kind && ex[OPEN])) continue
+      const near = closestName(name, fns)
+      const src = stmt.source.value
+      report({
+        code: 'SYG691',
+        file,
+        node: sp.imported,
+        message: kind
+          ? `'${name}' from '${src}' is not a query, mutation or stream: the client build has only those (sygnal/vite api.functions), so it is undefined there`
+          : `'${src}' has no server function '${name}'${near ? ` (did you mean '${near}'?)` : ''}`,
+        fix: kind ? `move '${name}' out of the *.server module (a shared module both sides import), or make it a query, mutation or stream`
+          : near ? `import '${near}'` : `export '${name}' from ${src} as a query, mutation or stream${fns.length ? `, or use one of: ${fns.join(', ')}` : ''}`,
+        data: { name, path: [src], suggestion: near },
+      })
+    }
+  }
+}
+
 export default {
   id: 'unknown-endpoint',
   codes: ['SYG691'],
-  description: 'An orpcClient member chain that names no procedure of the contract',
+  description: 'An orpcClient member chain that names no procedure of the contract, or a client import from a *.server module that is no server function',
   run(project, report) {
     const trees = new WeakMap()
     const treeFor = (c) => {
@@ -71,6 +156,7 @@ export default {
     for (const p of project.scanned) {
       const file = project.files.get(p)
       if (!file?.ast) continue
+      checkServerImports(project, file, report)
       const roots = new Map()
       walk(file.ast.program, (n) => {
         if (n.type !== 'MemberExpression' && n.type !== 'OptionalMemberExpression') return true
