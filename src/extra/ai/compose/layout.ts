@@ -63,6 +63,8 @@ function stripDefaults(cat: Catalog, part: string, params: any): Record<string, 
   if (!params || typeof params != 'object') return
   const e: any = cat.get(part), out: any = {}
   for (const k in params) {
+    // a model's "__proto__" param (an own key after JSON.parse) is no param: `out[k] =` would set out's prototype
+    if (k == '__proto__') continue
     const d = e?.kind == 'part' && e.params[k]
     if (params[k] === undefined || (d && same(params[k], d.default))) continue
     out[k] = params[k]
@@ -103,7 +105,7 @@ export function fromTree(cat: Catalog, tree: Tree, previous?: Layout | null): La
       t.slots = {}
       const names: string[] = e?.kind == 'container' ? e.slotNames : ['default']
       if (Array.isArray(ch)) t.slots[names.includes('default') ? 'default' : names[0]] = ch.map(build).filter(Boolean) as T[]
-      else if (ch && typeof ch == 'object') for (const s in ch) t.slots[s] = (Array.isArray(ch[s]) ? ch[s] : []).map(build).filter(Boolean) as T[]
+      else if (ch && typeof ch == 'object') for (const s in ch) if (s != '__proto__') t.slots[s] = (Array.isArray(ch[s]) ? ch[s] : []).map(build).filter(Boolean) as T[]
     }
     return t
   }

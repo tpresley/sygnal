@@ -453,7 +453,8 @@ export function repairTree(ctx: Ctx, kids: Array<TNode | null>, issues: Issue[] 
 const stripDefaults = (it: any, params?: Record<string, any>) => {
   if (!params) return undefined
   const out: any = {}
-  for (const k in params) if (params[k] !== it.params.find((p: any) => p.name == k)?.d.default) out[k] = params[k]
+  // a model's `"__proto__"` param (an own key after JSON.parse) is no param: `out[k] =` would set out's prototype
+  for (const k in params) if (k != '__proto__' && params[k] !== it.params.find((p: any) => p.name == k)?.d.default) out[k] = params[k]
   return Object.keys(out).length ? out : undefined
 }
 
@@ -535,7 +536,9 @@ export function parsePartialJSON(text: string): any {
         i++
         const v = value()
         if (v === INCOMPLETE) return markPartial(o)
-        o[k] = v
+        // as JSON.parse: a "__proto__" key is own data (`o[k] =` would set o's prototype)
+        if (k == '__proto__') Object.defineProperty(o, k, {value: v, enumerable: true, writable: true, configurable: true})
+        else o[k] = v
         if (v && typeof v == 'object' && v[PARTIAL]) return markPartial(o)
       }
     }
