@@ -111,6 +111,20 @@
       "import": "./dist/three.esm.js",
       "require": "./dist/three.cjs.js"
     },
+    "./sandbox": {
+      "types": "./src/sandbox.d.ts",
+      "import": "./dist/sandbox.esm.js",
+      "require": "./dist/sandbox.cjs.js"
+    },
+    "./sandbox/build": {
+      "types": "./src/sandbox-build.d.ts",
+      "import": "./dist/sandbox-build.esm.js",
+      "require": "./dist/sandbox-build.cjs.js"
+    },
+    "./sandbox/worker": {
+      "import": "./dist/sandbox-worker.esm.js",
+      "require": "./dist/sandbox-worker.cjs.js"
+    },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
       "types": "./src/vite/plugin.d.ts",
@@ -212,16 +226,21 @@
     "xstream": "^11.14.0"
   },
   "peerDependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "~0.32.0",
     "@zag-js/combobox": "~1.45.0",
     "@zag-js/menu": "~1.45.0",
     "@zag-js/select": "~1.45.0",
     "@zag-js/vanilla": "~1.45.0",
+    "quickjs-emscripten-core": "~0.32.0",
     "react": ">=18.0.0",
     "react-dom": ">=18.0.0",
     "react-native": ">=0.76.0",
     "three": ">=0.170.0"
   },
   "peerDependenciesMeta": {
+    "@jitl/quickjs-wasmfile-release-sync": {
+      "optional": true
+    },
     "@zag-js/combobox": {
       "optional": true
     },
@@ -232,6 +251,9 @@
       "optional": true
     },
     "@zag-js/vanilla": {
+      "optional": true
+    },
+    "quickjs-emscripten-core": {
       "optional": true
     },
     "react": {
@@ -251,6 +273,7 @@
     "@ag-ui/core": "1.0.2",
     "@ag-ui/encoder": "1.0.2",
     "@anthropic-ai/sdk": "0.131.0",
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/ext-apps": "2.0.3",
     "@orpc/contract": "1.15.6",
@@ -273,6 +296,7 @@
     "hono": "4.13.13",
     "jsdom": "^29.1.1",
     "preact": "11.0.0",
+    "quickjs-emscripten-core": "0.32.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rollup": "^3.28.1",

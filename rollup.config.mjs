@@ -410,6 +410,35 @@ export default [
 		]
   })),
 
+  // 'sygnal/sandbox' (dev preview; research: dev-plans/research/sandbox): the page side ('sygnal'
+  // external: one core; quickjs-emscripten-core and its variant external: optional peers, D209),
+  // the worker script (the peers only), the guest kernel's entry (ESM only, 'sygnal' and
+  // 'sygnal/host' external: sygnal/vite or buildSandboxKernel() bundles it with the app's installed
+  // packages, never shipped prebuilt) and 'sygnal/sandbox/build' (Node: buildSandboxKernel).
+  ...[
+    ['sandbox', 'src/sandbox.ts', ['cjs', 'es']],
+    ['sandbox-worker', 'src/sandbox/worker-entry.ts', ['cjs', 'es']],
+    ['sandbox-kernel', 'src/sandbox/kernel.ts', ['es']],
+    ['sandbox-build', 'src/sandbox-build.ts', ['cjs', 'es']],
+  ].map(([name, input, formats]) => ({
+    input,
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^(quickjs-emscripten-core|@jitl\/)/.test(id),
+    output: formats.map((format) => ({ file: `dist/${name}.${format == 'es' ? 'esm' : 'cjs'}.js`, format, ...sourcemapOptions })),
+		plugins: [
+			{
+				name: `sygnal-${name}-externals`,
+				resolveId(source, importer) {
+					if (!importer || !/[\\/]src[\\/]sandbox[\\/]/.test(importer)) return null
+					if (source === '../index') return { id: 'sygnal', external: true }
+					if (source === '../host') return { id: 'sygnal/host', external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
