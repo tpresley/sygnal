@@ -45,6 +45,8 @@ const applySvg = (vnode: any): void => {
   // SVG namespace was done, with its subtree, when it was made
   if (!vnode || vnode.sel === undefined || (vnode.$p && vnode.data.ns)) return
   const data = vnode.data || {}
+  // a component or marker (<Collection>) placeholder keeps its props: its output is SVG by its tags
+  if (data.c || data.m) return
   const props = data.props || {}
   const attrs: any = {}
   for (const k in props) if (k != 'className' && props[k] !== undefined) attrs[k] = props[k]

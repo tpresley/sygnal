@@ -161,10 +161,13 @@ export function snapshotTree(doc: HostDocument, options: SnapshotOptions = {}): 
     const listened = NATIVE.test(el.localName) ? [] : el.ownerDocument.listenedTypes(el).filter(t => !/^(focus|blur|focusin|focusout)$/.test(t))
     if (!role && !(interactive && listened.length)) return null
     const node: AgentNode = {role: role || 'generic'}
-    const leaf = /^(textbox|searchbox|checkbox|radio|switch|slider|spinbutton|combobox|listbox|button|link|img|heading|option|progressbar)$/.test(node.role) || !role
+    // a role-less element the app listens to is one control (its contents its name), unless
+    // interactive elements are inside it: a scene-graph group with a click intent (canvas-three F1)
+    // keeps its children
+    const leaf = /^(textbox|searchbox|checkbox|radio|switch|slider|spinbutton|combobox|listbox|button|link|img|heading|option|progressbar)$/.test(node.role) || !role && !el.querySelectorAll('*').some(d => isInteractive(d, rules))
     // a name from contents only for the roles that take one (ARIA "name from content"); a
-    // landmark, list or group is named by aria-label / aria-labelledby / title only
-    const name = !role || CONTENT_NAMED.test(node.role) ? nameOf(el, rules) : labelOnly(el, rules)
+    // landmark, list or group (or such a container) is named by aria-label / aria-labelledby / title only
+    const name = !role && leaf || CONTENT_NAMED.test(node.role) ? nameOf(el, rules) : labelOnly(el, rules)
     if (name) node.name = name
     if (interactive) node.ref = 'e' + nodeId(el)
     if (listened.length) node.on = listened

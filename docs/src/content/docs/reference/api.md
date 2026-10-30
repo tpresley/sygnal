@@ -854,7 +854,7 @@ const DatePicker = defineWidget({
 
 | Field | Description |
 |-------|-------------|
-| `tag` | The host element (default `'div'`); it has no children of its own |
+| `tag` | The host element (default `'div'`); without `children`, it has no children of its own |
 | `mount(el, props, dispatch, error)` | Called once the host is in the page; returns the instance. `dispatch(name, detail)` sends an event; `error(e)` reports a later failure the widget caught itself (a library's own redraw), handled like a throwing `update` (SYG661) |
 | `update(instance, props, el)` | Called with the newest props when they change (shallow; `style`/`attrs` objects by their entries); without it, a change remounts |
 | `unmount(instance, el)` | Called when the host leaves the page |
@@ -864,6 +864,11 @@ const DatePicker = defineWidget({
 | `hostProps` | More prop names to put on the host (besides `id`, `className`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*`, `data-*`) |
 | `ownProps` | Prop names that stay off the host (the widget applies them itself) |
 | `name` | A name for diagnostics |
+| `children` | `true`: the tag's JSX children render into a visually hidden, accessible container in the host (Enter / Space click a focused child); `'hidden'`: hidden from everything ([islands](/guide/islands/)) |
+| `sync(instance, children, el)` | With `children`: after mount and after each patch that changed the children; `children` is the container's patched vnode (props as written, `.elm` per child) |
+| `focus(instance, child, el)` | With `children`: a child got keyboard focus (`null`: none) |
+| `tags` | Tag names of the children's vocabulary the pragma would take for SVG (`marker`, `line`): plain elements app-wide |
+| `value` | Experimental: `{ write(instance, value, el), read?, equals?, event?, strict? }`, a [controlled value](/guide/widgets/#controlled-values-experimental): `write` only for the app's own changes to the `value` prop, never for echoes of what the widget dispatched |
 
 A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws, or a call to `mount`'s `error(e)`, is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)):
 

@@ -610,8 +610,48 @@ export type WidgetEmit<EV extends string = string> = WidgetDispatch<EV>
 export interface WidgetDefinition<P = {}, I = unknown, EV extends string = string, TAG extends string = 'div'> {
   /** A name for diagnostics and inspect() (`'DatePicker'`); the host tag stands in without one */
   name?: string;
-  /** The host element (default `'div'`). It has no children of its own: the widget owns its content. */
+  /** The host element (default `'div'`). Without `children`, it has no children of its own: the widget owns its content. */
   tag?: TAG;
+  /**
+   * Declarative children (an "island": a WebGL scene's objects, a map's markers, a chart's
+   * series). The tag's JSX children are rendered by the app's DOM driver into a container in
+   * the host (`[data-widget-children]`), as ordinary elements: components, `<Collection>`,
+   * isolation and intents work inside. `sync` gets them; the widget paints them its own way and
+   * dispatches DOM events on them. `true`: the container is visually hidden but in the
+   * accessibility tree (Enter / Space on a focused child is its `click`; `focus` is told);
+   * `'hidden'`: hidden from everything.
+   */
+  children?: true | 'hidden';
+  /**
+   * With `children`: called after mount and after each patch in which the children's vnodes
+   * changed, with the children container's patched vnode (each child's props as the view wrote
+   * them, in `data.props` / `data.attrs`, and its element in `.elm`).
+   */
+  sync?(instance: I, children: VNode, el: WidgetElementOf<TAG>): void;
+  /** With `children`: a child got keyboard focus (`null`: none has it); draw a focus ring where it is */
+  focus?(instance: I, child: Element | null, el: WidgetElementOf<TAG>): void;
+  /**
+   * Tags of the widget's children vocabulary that are SVG tags to the JSX pragma (`marker`,
+   * `line`, `text`): they become plain elements app-wide (props stay props). Children of a
+   * literal `<svg>` in the same template are still SVG.
+   */
+  tags?: readonly string[];
+  /**
+   * Experimental (7.2): the widget carries a value both the app and the user change (an
+   * editor's text, a camera, a map's viewport). The `value` prop is controlled: `write` is
+   * called only when the app changed it to something the widget didn't report itself (no echo
+   * loops, no stale writes); the widget reports its own changes with `dispatch(event, value)`
+   * (`event` default `'change'`). With `strict` (here, or the `strict` prop), an edit the model
+   * didn't take (the prop never moved) is written back after the app's turn. `read` makes the
+   * host's `value` the widget's (`.value()` in intents). `update` is not called for `value` alone.
+   */
+  value?: {
+    write(instance: I, value: any, el: WidgetElementOf<TAG>): void;
+    read?(instance: I, el: WidgetElementOf<TAG>): any;
+    equals?(a: any, b: any): boolean;
+    event?: NoInfer<EV>;
+    strict?: boolean;
+  };
   /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
@@ -645,7 +685,8 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
  * (`controls({ Due: DatePicker })`, the alternative form).
  */
 export interface Widget<P = {}, I = unknown, EV extends string = string, TAG extends string = string> extends ControlSpecObject<P & WidgetHostProps> {
-  (props: P & WidgetHostProps): JSX.Element;
+  /** (JSX children: rendered for a widget with `children`, ignored otherwise) */
+  (props: P & WidgetHostProps & { children?: unknown }): JSX.Element;
   readonly kind: 'widget';
   /** The declared events */
   readonly events: readonly EV[];

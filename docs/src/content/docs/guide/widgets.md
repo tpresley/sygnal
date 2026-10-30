@@ -64,8 +64,10 @@ Task.model = {
 | `hostProps` | More prop names to put on the host element. |
 | `ownProps` | Prop names that stay off the host although they would go there (the widget applies them itself, e.g. `aria-label` on its own control). |
 | `name` | A name for diagnostics (`'DatePicker'`). |
+| `children`, `sync`, `focus`, `tags` | Declarative [children](#children-islands): the tag's JSX children (a scene's objects, a map's markers, a chart's series), rendered as elements the widget reads in `sync`. |
+| `value` | Experimental: a [controlled value](#controlled-values-experimental) both the app and the user change (an editor's text). |
 
-**The host is the widget's.** Sygnal renders the host element and never its content: the widget can add, move and remove elements inside it, and a re-render doesn't touch them. Children passed to the tag are ignored.
+**The host is the widget's.** Sygnal renders the host element and never its content: the widget can add, move and remove elements inside it, and a re-render doesn't touch them. Children passed to the tag are ignored, unless the widget declares [`children`](#children-islands).
 
 **Props.** Every prop the view passes reaches `mount` and `update` (except `key` and `ref`). The ones that describe the element also go on the host: `id`, `className`/`class`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*` and `data-*`, plus the names in `hostProps`. Other props (`value` above) are the widget's alone, so the widget, not Sygnal, decides what the input shows. Sygnal toggles only its own `className` tokens on the host, so the classes a library adds to it (flatpickr's `flatpickr-input`) stay when the `className` changes. A `ref` gets the host element.
 
@@ -131,6 +133,65 @@ export const Sparkline = defineWidget({
 ```
 
 A failure during `mount` itself is thrown, not passed to `error` (it is [SYG660](/reference/errors/#syg660)); an `error` call after the widget unmounted does nothing.
+
+## Children (islands)
+
+Some widgets are made of parts the app thinks of as a list: the objects of a 3D scene, the markers of a map, the series of a chart, the shapes on a canvas. With `children: true`, the tag's JSX children are rendered by Sygnal, as ordinary elements, into a container inside the host. The widget reads them in `sync` and draws them its own way. Because they are elements of the app's own tree, everything works inside: components with their own intent and model, `<Collection>`, isolation, context, and `DOM.click('.marker')` in an intent.
+
+<!-- docs-check: skip -->
+```jsx
+// the view: the stops are a Collection of components, each with its own intent
+<RouteMap className="map" center={state.center}>
+  <Collection of={Stop} from="stops" />
+</RouteMap>
+
+// Stop.jsx
+function Stop({ state }) {
+  return <mapMarker className="stop" position={[state.lat, state.lng]} role="button" tabIndex={0} aria-label={state.name} />
+}
+Stop.intent = ({ DOM }) => ({ OPEN: DOM.click('.stop') })
+```
+
+| Field | Meaning |
+|-------|---------|
+| `children` | `true`: the children's container is visually hidden but in the accessibility tree; `'hidden'`: hidden from everything. |
+| `sync(instance, children, el)` | Called after `mount`, and after each patch in which the children changed. `children` is the container's vnode: each child's `sel` (its tag), its props as the view wrote them (`data.props`, and `data.attrs` for ARIA and SVG tags; arrays and functions stay as they are), its own `children`, and its element in `.elm`. Keep a `Map` from element to the library's object, as you would from a key. |
+| `focus(instance, child, el)` | A child got keyboard focus (`null`: none has it). Draw a focus ring where the child is drawn. |
+| `tags` | Tag names of your children's vocabulary that the JSX pragma takes for SVG (`marker`, `line`, `text`, `filter`, `mask`): they become plain elements app-wide, so their props stay props. Children of a literal `<svg>` stay SVG. |
+
+**Events.** The widget turns its own input into DOM events on the child elements: a click on a map marker, a raycast hit in a 3D scene, a hit test on a canvas. `el.dispatchEvent(new MouseEvent('click', { bubbles: true }))` on the child's element reaches `DOM.click('.stop')` in that item's own intent, and bubbles to its ancestors, as a click on a button does. Put what the event knows on it (`Object.defineProperty(event, 'point', { value })`) so the model can read it.
+
+**Accessibility.** The children are in the accessibility tree by default. A child with a `role`, an accessible name and `tabIndex={0}` is a control a screen reader announces and Tab reaches, though it is drawn on a canvas. Enter and Space on a focused child click it (a keyboard click carries no position), and `focus` tells the widget where to draw the ring. `children: 'hidden'` opts out, for decoration.
+
+**When `sync` runs.** It runs when the children's vnodes changed: a patch elsewhere in the app doesn't call it. A child's component that didn't render again keeps its vnode, so `sync` can skip unchanged subtrees by comparing vnodes.
+
+[Imperative islands](/guide/islands/) builds three widgets this way: a three.js scene with raycast events, a canvas 2D painter with hit testing, and a CodeMirror editor.
+
+## Controlled values (experimental)
+
+An editor's text, a camera, a map's viewport: the user changes it in the widget, the app keeps it in state and sometimes sets it (a reset, a loaded document, a clamp). Writing the prop into the widget on every change makes echo loops (the write fires the widget's change event) and loses keystrokes when the state is a step behind the user. With `value`, Sygnal decides when to write:
+
+<!-- docs-check: skip -->
+```jsx
+export const Editor = defineWidget({
+  events: ['change'],
+  mount: (el, props, dispatch) => makeEditor(el, props.value, (text) => dispatch('change', text)),
+  value: {
+    write: (editor, text) => editor.replaceText(text),   // only the app's own changes get here
+    read: (editor) => editor.text,                      // the host's value: .value() in intents
+  },
+})
+
+// <Editor className="notes" value={state.text} />      EDIT: DOM.select('.notes').events('change').value()
+```
+
+- The widget reports the user's changes with `dispatch('change', value)` (or `value.event`). Sygnal remembers them, so when the same value comes back as the `value` prop, it is not written: no loop, and a late echo while the user types on doesn't reset the field.
+- `write` runs only when the app changed `value` to something the widget didn't report: a reset, a loaded document, a value the model clamped or transformed. A render for any other reason never writes.
+- `strict` (in `value`, or the `strict` prop) also writes back an edit the model didn't take: when its `value` prop never moved (the reducer returned `ABORT`), the widget shows the state again after the app's turn.
+- `equals(a, b)` compares values (default `Object.is`); give one for objects (a camera's position).
+- `update` isn't called for a change of `value` alone.
+
+`write` must not report back: apply it the way the library marks a programmatic change (CodeMirror: a transaction annotation the update listener skips; Leaflet: a flag around `setView`). This API may change before it is stable.
 
 ## Accessibility
 

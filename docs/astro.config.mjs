@@ -151,6 +151,7 @@ export default defineConfig({
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
             { label: 'Widgets', slug: 'guide/widgets' },
+            { label: 'Imperative Islands', slug: 'guide/islands' },
             { label: 'Web Components', slug: 'guide/web-components' },
             { label: 'Adapters', slug: 'guide/adapters' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
