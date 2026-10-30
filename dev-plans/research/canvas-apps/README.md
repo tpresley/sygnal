@@ -722,3 +722,17 @@ proposed subpath the Sygnal app is 38 % of the React app's size.
    the shared policy, or out of scope for Sygnal?
 7. **Undo with `sygnal/yjs`**: should `history('shapes')` route to the shared UndoManager when its
    field is shared (one API for both), and how should a gesture mark its undo boundary?
+
+---
+
+## Maintainer decisions (2026-10-30)
+
+All seven answered as the coordinator recommended:
+
+1. **Vocabulary:** box-based nodes (`x`, `y`, `width`, `height`, `radius`, `parent` clipping) everywhere, in JSX and data layers alike. The canvas-three spike's SVG names are dropped, and the docs say so.
+2. **First release:** level 1 (the island) and level 2 (the kit) together. `keymap` goes on the main export (tree-shaken), since it's useful outside canvases.
+3. **One pointer router** for `sygnal/three` and `sygnal/canvas` (`src/extra/pointer.ts`), with capture as the three drag work defined it, merged now while both are in the dev preview.
+4. **`follow`** ships as the documented escape hatch for very large selections.
+5. **Backend:** our own Canvas 2D painter, pluggable, with a PixiJS backend later as an optional peer and no WebGL path now. Required before shipping: the camera bitmap cache for panning, and an accessibility projection of data layers (a virtual accessibility tree that the agent UI snapshot can read as well).
+6. **Editor behavior (level 3):** not now. Revisit after a second app (a whiteboard or diagram editor) shows the shared policy.
+7. **Undo with `sygnal/yjs`:** `history('shapes')` routes to the shared per-user UndoManager when its field is shared (one API), and a gesture marks its own undo boundary.
