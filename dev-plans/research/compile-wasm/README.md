@@ -243,7 +243,8 @@ guest needed only `global` and a `setTimeout` shim (xstream's deferred stop).
 
 ## Recommended next steps
 
-1. **Merge the `widget.ts` side-effect fix** (−902 B gzip on kanban, restores real size headroom).
+1. **Done on this branch (round 2):** the `widget.ts` side-effect fix with a Vite 8 regression test,
+   and `SYGNAL_DEBUG` read once in Node (665 → 105 ns per action). Before that: **merge the `widget.ts` side-effect fix** (−902 B gzip on kanban, restores real size headroom).
    Check the other entry points for the same pattern (a top-level property assignment on an
    unexported function): `size/attribute.mjs` is the tool.
 2. **Fix the Node `process.env` read in `dbg()`** after deciding whether `SYGNAL_DEBUG` may change
@@ -253,9 +254,11 @@ guest needed only `global` and a `setTimeout` shim (xstream's deferred stop).
 4. **Compiled views, tier A then B**, behind an opt-in plugin option, starting with `.map()` rows and
    Collection item views: a PLAN-sized project (transform, hole kinds, hydration, mock-DOM fallback,
    devtools). Keep the count gate's patch counts; add timing ops for blocks to the perf report.
-5. **Switchable registration on first use** (or a plugin flag), −824 B for apps without it; and
-   consider production message extraction (≈ 1.5 KB) as a separate decision (it changes what users
-   see in production consoles).
+5. **Switchable registration on first use: −824 B, lands with the D471 lowercase-marker removal
+   patch** ([`../lowercase-marker-removal/`](../lowercase-marker-removal/)) in the next major. In 7.x
+   the lowercase `<switchable>` tag is documented to work with no import, so the host stays
+   registered on import (coordinator decision, 2026-10-29). Production message extraction (≈ 1.5 KB)
+   is a separate decision (it changes what users see in production consoles).
 6. **WASM: nothing in the core.** Optionally a sandboxed-component runner on QuickJS-in-WASM as a
    `sygnal/ai` experiment, if running generated components safely becomes a goal.
 
