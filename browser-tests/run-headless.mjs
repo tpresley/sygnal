@@ -15,6 +15,8 @@
  * PLAN-10 W-1), the VS Code panel's page (graph-vscode.mjs, PLAN-10 E-2) and the `--base` diff page
  * (graph-view-diff.mjs, PLAN-10 V-6). BROWSER_TESTS_ONLY=graphview runs only
  * those; BROWSER_TESTS_GRAPHVIEW=0 skips them.
+ * sygnal/sandbox: a production build of test/fixtures/sandbox-app, both tiers (sandbox.mjs).
+ * BROWSER_TESTS_ONLY=sandbox runs only that; BROWSER_TESTS_SANDBOX=0 skips it.
  */
 
 import { createServer as createNetServer } from 'node:net';
@@ -26,6 +28,7 @@ import { runGraphLive } from './graph-live.mjs';
 import { runGraphLarge } from './graph-view-large.mjs';
 import { runGraphVscode } from './graph-vscode.mjs';
 import { runGraphDiff } from './graph-view-diff.mjs';
+import { runSandbox } from './sandbox.mjs';
 
 const ENGINE = process.env.BROWSER || 'chromium';
 if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
@@ -240,6 +243,9 @@ async function run() {
     const onlyGraphView = only?.toLowerCase() === 'graphview';
     const withGraphView = process.env.BROWSER_TESTS_GRAPHVIEW !== '0' && (!only || onlyGraphView);
     if (onlyGraphView) process.exit((await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) + (await runGraphDiff(browser, ENGINE)) ? 1 : 0);
+    const onlySandbox = only?.toLowerCase() === 'sandbox';
+    const withSandbox = process.env.BROWSER_TESTS_SANDBOX !== '0' && (!only || onlySandbox);
+    if (onlySandbox) process.exit(await runSandbox(browser, ENGINE) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -313,7 +319,8 @@ async function run() {
 
     const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
     const graphViewFailed = withGraphView ? (await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) + (await runGraphDiff(browser, ENGINE)) : 0;
-    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed ? 1 : 0);
+    const sandboxFailed = withSandbox ? await runSandbox(browser, ENGINE) : 0;
+    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed || sandboxFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
     await server.close();

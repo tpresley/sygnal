@@ -118,8 +118,8 @@ export function createSandbox(opts: SandboxOptions): Sandbox {
   if (typeof opts.source != 'string') throw new TypeError('sygnal/sandbox: `source` must be the component compiled to a CommonJS string')
   const isolation = opts.isolation ?? 'worker'
   if (isolation !== 'worker' && isolation !== 'thread') throw new TypeError(`sygnal/sandbox: isolation must be 'worker' or 'thread', got ${JSON.stringify(isolation)}`)
-  if (isolation === 'worker' && !opts.container) throw new TypeError("sygnal/sandbox: isolation 'worker' needs a container (renderToHTML renders without one)")
   const limits = limitsOf(opts.limits)
+  if (isolation === 'worker' && !opts.container) throw new TypeError("sygnal/sandbox: isolation 'worker' needs a container (renderToHTML renders without one)")
   const caps = opts.capabilities || {}
   const gate = emitGate(opts.emits, (ev) => opts.onEmit?.(ev))
   let dead = false, failure: SandboxError | null = null

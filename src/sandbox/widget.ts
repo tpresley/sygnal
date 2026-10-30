@@ -20,25 +20,32 @@ export interface SandboxedProps extends Omit<SandboxOptions, 'container' | 'prop
 }
 
 export function sandboxed(defaults: Partial<SandboxedProps> = {}): any {
-  const start = (el: Element, p: SandboxedProps, dispatch: (name: string, detail: any) => void): Sandbox => createSandbox({
-    ...defaults, ...p,
-    capabilities: {...defaults.capabilities, ...p.capabilities},
-    container: el, props: p.input ?? null,
+  // a prop left undefined keeps its default
+  const merged = (p: any): SandboxedProps => {
+    const o: any = {...defaults}
+    for (const k of Object.keys(p)) if (p[k] !== undefined) o[k] = p[k]
+    o.capabilities = {...defaults.capabilities, ...p.capabilities}
+    return o
+  }
+  const start = (el: Element, props: SandboxedProps, dispatch: (name: string, detail: any) => void): Sandbox => createSandbox({
+    ...merged(props),
+    container: el,
     onEmit: (ev) => dispatch('emit', ev),
     onError: (e) => dispatch('sandboxerror', {reason: e.reason, message: e.message}),
+    props: props.input ?? null,
   } as SandboxOptions)
   return defineWidget({
     tag: 'div',
     events: ['emit', 'sandboxerror'],
     mount(el: Element, props: SandboxedProps, dispatch: any) {
-      return {sb: start(el, props, dispatch), source: props.source, kernel: props.kernel, input: props.input, dispatch}
+      return {sb: start(el, props, dispatch), source: props.source, kernel: merged(props).kernel, input: props.input, dispatch}
     },
     update(w: any, props: SandboxedProps, el: Element) {
-      if (props.source !== w.source || props.kernel !== w.kernel) {
+      if (props.source !== w.source || merged(props).kernel !== w.kernel) {
         w.sb.dispose()
         w.sb = start(el, props, w.dispatch)
         w.source = props.source
-        w.kernel = props.kernel
+        w.kernel = merged(props).kernel
         w.input = props.input
       } else if (props.input !== w.input) {
         w.input = props.input
