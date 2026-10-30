@@ -5,6 +5,8 @@ description: Calling Telefunc server functions from Sygnal components through a 
 
 Sygnal has no server-function runtime of its own. With [Vike](/integration/vike/), use [Telefunc](https://telefunc.com): a function exported from a `*.telefunc.js` file runs on the server, and importing it on the client gives a stub that calls it over HTTP. In a Sygnal app, the call goes through a driver, so the component stays pure and the reply arrives as a reply action, like an [HTTP request](/guide/http/).
 
+For a typed API contract shared by the client and the server (oRPC, OpenAPI or Hono), whose calls are requests for the HTTP driver with no driver of their own, see [Typed APIs](/guide/typed-apis/) (dev preview).
+
 Install and set up Telefunc for Vike as its documentation describes; this page only shows the Sygnal side. The Telefunc API shown here (`*.telefunc.js` files, `getContext()`, `Abort()`, `shield()`) follows the Telefunc docs at the time of writing; check them for your version.
 
 ## A server function

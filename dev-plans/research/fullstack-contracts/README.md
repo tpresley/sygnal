@@ -1,6 +1,6 @@
 # Research: front-end / back-end contracts for Sygnal
 
-Status: research + working spike (2026-10-29), branch `claude/explore-fullstack-contracts-6e8952`. Nothing here ships.
+Status: research + working spike (2026-10-29), branch `claude/explore-fullstack-contracts-6e8952`. **Round 2 (§10): built toward a dev preview as `sygnal/api`**, following the maintainer's decisions on the open questions. The spike below is kept as research.
 
 **The question:** how can a Sygnal client and its server share functions, types and schemas without hand-writing and maintaining HTTP/SSE routes on both sides?
 
@@ -274,3 +274,51 @@ A full sync engine (Zero, Electric, Replicache) would be a driver owning a repli
 - No core changes were needed. `invalidates` works without a `queryCache`, `{ invalidate }` is app-wide, and `makeSocketDriver({ fetch })` with `headers` makes SSE work in Node and jsdom. All three features made this possible.
 - `renderComponent(C, { drivers: { HTTP: makeFetchDriver({ fetch }) } })` runs a real backend in a component test without any fake.
 - Vite's esbuild can't start inside a jsdom Vitest environment (a `TextEncoder` invariant), so a test that needs a Vite dev server must start it in `globalSetup`.
+
+## 10. Round 2: `sygnal/api` (dev preview)
+
+The maintainer's decisions (relayed by the coordinator):
+
+- **Q1:** no Sygnal-maintained production server. oRPC is the first-class pairing, then OpenAPI and Hono adapters.
+- **Q2:** contract-first; the function-first plugin stays a spike in `spike/`.
+- **Q3:** the subpath name is mine.
+- **Q4:** send a contract hash and surface skew as a typed error and a diagnostic; don't keep old procedures alive.
+- **Q5:** `Component<…>` with `Output<typeof api.x>` is canonical.
+
+### What was built
+
+| Piece | Where |
+|---|---|
+| The `sygnal/api` subpath (a re-export of the main bundle, like `sygnal/ai`; exports, rollup config, a 182 B ESM entry) | `src/extra/api/index.ts`, `src/api.ts`, `src/api.d.ts`, `package.json`, `rollup.config.mjs` |
+| `orpcClient(contract, { prefix, headers, validate })`: an oRPC contract router → endpoints | same |
+| `openApiClient<paths>()`: openapi-typescript `paths` → `.get/.post/…/.sse(path)` endpoints | same |
+| `honoClient<ExtractSchema<typeof app>>()`: Hono routes → endpoints | same |
+| `contractHash`, `contractSkew` (a Fetch-level server check: 409 CONTRACT_SKEW in oRPC's error shape), `isContractSkew`, `contractFetch` (SYG690 once + `onSkew`) | same; SYG690/SYG691 in `codes.ts`, explanations, `reference/errors.md` |
+| `fixture(endpoint, data)` (checked against the oRPC output schema; takes the server's value, returns the JSON form), `errorFixture(endpoint, code, data)` | same; `src/extra/testing.ts`: an endpoint is a `t.respond` / `t.fail` / `t.push` target (its `match`, never called as a predicate) |
+| Tests against **real oRPC 1.15.6 and Hono 4.13.13 servers**, in-process: wire format, component flows, typed errors, SSE, skew, fixtures | `test/api-orpc.test.js` (14), `test/api-rest.test.js` (4), `test/api-entry.test.js` (1) |
+| Type tests with the real oRPC and Hono types and an openapi-typescript-shaped `paths` | `type-tests/api.tsx` |
+| sygnal-check **SYG691** (implemented, ~110 lines): an `orpcClient` member chain naming no procedure, resolved through imports, with "did you mean" | `sygnal-check/src/rules/syg691-unknown-endpoint.js`, `test/unknown-endpoint.vtest.js`, the C-2 ranges case |
+| The example `examples/typed-api`: TypeScript, an oRPC contract, the OpenAPIHandler in Vite's dev server behind `contractSkew`, a resource, a mutation with a declared error, a delete, a live feed; tests with fakes + fixtures and with the real router in-process; `tsc` and `sygnal-check --strict` clean. Checked in Chromium (add, refetch, SSE event, 409, delete, tag switch reconnecting the feed) | `examples/typed-api/` |
+| Docs: `guide/typed-apis` (a live oRPC demo with a stand-in server in the OpenAPIHandler format; streams, types, server, testing, skew, OpenAPI, Hono, reference), links from HTTP and Server Functions | `docs/src/content/docs/guide/typed-apis.md` |
+
+### Decisions I made myself
+
+- **The subpath is `sygnal/api`.** No path or header is reserved: the prefix and the skew header are options.
+- **oRPC's OpenAPIHandler, not the RPCHandler.** Verified against the real server: the OpenAPI handler is plain JSON, its errors are `{ defined, code, status, message, data }`, and its SSE is `event: message` with plain data. The RPC handler wraps everything in `{ json, meta }` (a rich serialiser) and adds a `done` event, which the socket driver can't unwrap. That is also the serialisation the network-calls research ruled out. `orpcClient` throws early for an event iterator that isn't a GET (EventSource-style reads are GET) and for `inputStructure: 'detailed'`.
+- **GET input uses bracket notation with indices** (`tags[0]=a`). A one-element array then stays an array on the oRPC server, which repeated keys don't guarantee. The OpenAPI adapter uses repeated keys (form, explode) and `key[field]` for objects; Hono passes `query` as-is.
+- **Types are structural.** `src/api.d.ts` imports no oRPC or Hono types, so an app needs only the library it uses. For Hono, the user passes Hono's own `ExtractSchema<typeof app>`, because a Hono instance doesn't carry its schema structurally.
+- **Replies are typed as JSON delivers them** (`Jsonify`: a `Date` → `string`). This was found in the example: a server `z.date()` arrives as a string. `fixture()` takes the server's value (`RawOutput`, a `Date`) and returns the JSON form, so a fixture validates against the real schema and matches what the reducer gets.
+- **No typed-reducer wrappers** (`replies.x(fn)`). Q5 made `Output<typeof api.x>` canonical, and one form is simpler to teach and check.
+- **Skew detection lives at the fetch layer.** `contractFetch` wraps `fetch` for both drivers. It reads the `x-contract-skew` / `x-contract-server` response headers, so it never consumes the body. The reply also reaches the `error` action, where `isContractSkew()` recognises it.
+- **The hash** is cyrb53 (non-cryptographic: it detects change only) over ids, routes, kinds, the input/output JSON Schemas (Standard JSON Schema with `unrepresentable: 'any'`, falling back to the vendor) and the error codes. Any other value is hashed as its stable JSON (an OpenAPI document).
+- **Diagnostic codes SYG690 / SYG691.** They leave room above SYG686 in case parallel sessions add codes.
+- **The example runs oRPC behind a ~20-line Node ↔ Fetch adapter** in Vite's `configureServer`, so it has no Hono dependency. The browser check found that `root: 'src'` broke `ssrLoadModule('/server/…')`; `index.html` now lives at the example root.
+- **Version pins:** oRPC 1.15.6 and Hono 4.13.13 (both more than two weeks old), and zod 4.6.6 in the example (4.6.5 has GHSA-mrhx-c7xc-m3w5; the root still pins `^4.6.5`, a follow-up).
+
+### Not done / follow-ups
+
+- `llms.txt` and the `sygnal-dev` skill don't mention `sygnal/api` yet (it is a dev preview; add it when it stabilises).
+- Not supported yet: oRPC `inputStructure: 'detailed'`, `oc.prefix()` routers whose paths are set by `enhanceRouter`, and the RPC protocol (by design).
+- `contractHash` runs on the client at startup and pulls the contract's schemas into the bundle; a build-time hash (a Vite `define`) would avoid that.
+- The root `zod` devDependency should move to ≥ 4.6.6.
+
