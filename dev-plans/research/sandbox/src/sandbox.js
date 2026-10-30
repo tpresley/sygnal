@@ -155,7 +155,7 @@ export function createSandbox(QJS, opts) {
     if (!f) return deny('no fetch capability')
     if (fetches.size >= limits.maxFetches) return deny('too many requests in flight')
     let u
-    try { u = new URL(url, f.base) } catch { return deny('bad URL') }
+    try { u = f.base ? new URL(url, f.base) : new URL(url) } catch { return deny(`bad URL ${url.slice(0, 80)}`) }
     if (!allowed(u, f.allow || [])) return deny(`${u.origin}${u.pathname} is not allowed`)
     const method = String(init.method || 'GET').toUpperCase()
     if (!(f.methods || ['GET']).includes(method)) return deny(`method ${method}`)

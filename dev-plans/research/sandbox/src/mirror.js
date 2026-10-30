@@ -138,6 +138,8 @@ export function createMirror(container, opts = {}) {
 
 const FORWARD = /^(click|dblclick|input|change|submit|keydown|keyup|focus|blur|focusin|focusout|pointerdown|pointerup|mouseenter|mouseleave)$/
 const NO_BUBBLE = /^(focus|blur|mouseenter|mouseleave)$/
+const STOP = ('click dblclick auxclick contextmenu mousedown mouseup mouseover mouseout pointerdown pointerup pointerover pointerout ' +
+  'input change submit reset keydown keyup keypress beforeinput focusin focusout touchstart touchend wheel select').split(' ')
 const KEYS = ['key', 'code', 'shiftKey', 'ctrlKey', 'altKey', 'metaKey', 'button', 'clientX', 'clientY']
 
 /**
@@ -160,6 +162,11 @@ export function bindEvents(mirror, dispatch, navigate) {
     if (dispatch(id, e.type, init)) e.preventDefault()
   }
   add('$submit', (e) => e.preventDefault())
+  // The guest's elements are not the host app's: its delegated intents (DOM.select('.danger'),
+  // bubbling at the app root) must never see a sandboxed element's events, or a guest could render
+  // a class the host listens to and have the user trigger a host action. The page's own capture
+  // listeners still see them.
+  for (const t of STOP) add('$' + t, (e) => e.stopPropagation())
   const link = (e) => {
     const a = e.target?.closest?.('a[href]')
     if (!a || !root.contains(a)) return
