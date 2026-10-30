@@ -183,6 +183,8 @@ const SRC: ProxyHandler<any> = {
   has: (t, k) => !!tab(t, k) || k in t,
   ownKeys: (t) => Object.keys(table(t)).concat(Reflect.ownKeys(t) as any),
   getOwnPropertyDescriptor: (t, k) => { const g = tab(t, k); return g ? {value: g(t[INST]), enumerable: true, configurable: true} : Reflect.getOwnPropertyDescriptor(t, k) },
+  // a source is read-only, as the getter-only property it was: a write fails (a TypeError in strict code)
+  set: (t, k, v) => !tab(t, k) && ((t[k] = v), true),
 }
 
 /** an intent stream's listener: its action (an object, no closures per stream) */

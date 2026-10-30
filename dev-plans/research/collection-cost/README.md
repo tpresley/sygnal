@@ -59,7 +59,9 @@ Per item of the 1k table (the benchmark's `Row`: reads `context.selected`, two D
 | `dbg()`: one read of `window.SYGNAL_DEBUG` | `debug.ts` | +10 |
 
 **Net: +254 B**: the size gate went from 42,149 B (851 B headroom, `advanced-integration`) to
-42,403 B (597 B headroom).
+42,403 B (597 B headroom). The read-only `set` trap added after review (a write to a source name
+throws a TypeError again, as the getter-only property did) costs about 6 B: 42,413 B with round 3 of
+`advanced-integration` merged (587 B headroom).
 
 ### Tried and dropped (bytes vs benefit)
 

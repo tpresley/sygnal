@@ -22,12 +22,16 @@ describe('intent sources', () => {
       const { DOM, STATE } = sources
       const copy = { ...sources }
       sources.extra = 42
+      let threw
+      try { sources.DOM = null } catch (e) { threw = e }
       seen = {
         keys: Object.keys(sources),
         copyKeys: Object.keys(copy),
         has: ['DOM' in sources, 'STATE' in sources, 'props$' in sources, 'nope' in sources],
         same: copy.DOM === DOM && copy.STATE === STATE,
         extra: sources.extra,
+        threw: threw instanceof TypeError,
+        domKept: sources.DOM === DOM,
         extraKeys: Object.keys(sources).includes('extra'),
         own: Object.getOwnPropertyDescriptor(sources, 'DOM')?.enumerable,
         proto: Object.getPrototypeOf(sources) === Object.prototype || Object.getPrototypeOf(sources) === null,
@@ -44,6 +48,9 @@ describe('intent sources', () => {
     expect(seen.has).toEqual([true, true, true, false])
     expect(seen.same).toBe(true)
     expect(seen.extra).toBe(42)
+    // a source is read-only: the write throws where it happens (ES modules are strict)
+    expect(seen.threw).toBe(true)
+    expect(seen.domKept).toBe(true)
     expect(seen.extraKeys).toBe(true)
     expect(seen.own).toBe(true)
   })

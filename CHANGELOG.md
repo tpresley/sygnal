@@ -41,10 +41,25 @@ behaves as on 7.1.0.
   the variable is now read once, when Sygnal loads (`SYGNAL_DEBUG=true node server.js`, as
   documented); in the browser `window.SYGNAL_DEBUG` is still read on each call.
 
-**Measured impact.** Size: the kanban gate is 42,153 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
-budget 43,000 B, 847 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
-renderer field tags cost about 100 B. The new subpaths add nothing to an app that doesn't import them.
-The perf count gate is within its limits.
+- **Cheaper Collection items:** each item instance holds less, and its intent's sources are no longer
+  built with `Object.defineProperty`. On the benchmark's 1k-row Collection:
+  - Each item keeps 104 JS objects instead of 160 (3.3 KB instead of 5.1 KB).
+  - The core's own time drops by 18–26% for create, append and replace (10k rows: 66.6 → 49.6 ms) and
+    by 19% for selecting a row (1.6 → 1.3 ms).
+  - Two observable changes come with it:
+    - An intent's `sources` object is a Proxy. Its own enumerable properties are still the source names,
+      so spread, `Object.keys`, `in` and destructuring work as before, and writing to a source name still
+      throws a TypeError. `Object.getOwnPropertyDescriptor(sources, 'DOM')` now reports a read-only data
+      property instead of a getter.
+    - An event stream's helpers (`.value()`, `.checked()`, `.data()`, `.target()`, `.key()`,
+      `.detail()`) are now methods shared by every stream. Call them on the stream:
+      `DOM.input('.x').value()`. A helper taken off its stream (`const { value } = DOM.input('.x')`) no
+      longer knows the stream. Nothing in the docs or examples does this.
+
+**Measured impact.** Size: the kanban gate is 42,413 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
+budget 43,000 B, 587 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
+renderer field tags cost about 100 B, and the cheaper Collection items about 260 B. The new subpaths
+add nothing to an app that doesn't import them. The perf count gate is within its limits.
 
 **Companion packages.**
 - **`sygnal-check`:** incremental checking. A check session (`createCheckSession()`,
