@@ -2740,6 +2740,16 @@ A member chain on a client made by `orpcClient(contract)` (sygnal/api) names a p
 
 **Fix:** Use the procedure's name as the contract declares it (the message suggests the closest one), or add the procedure to the contract and implement it on the server. For a `*.server` import, import the server function's name, and move a constant or helper the client needs into a shared module that both sides import.
 
+### SYG692
+
+**Sandbox event dropped**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A sandboxed component (`createSandbox` or `<Sandboxed>` from sygnal/sandbox) sent an `EVENTS` value the page did not accept, so it never reached `onEmit` or the tag's `emit` event. The page accepts only the types declared in `emits`, and only data that passes that type's Standard Schema (zod, valibot, arktype, ...): the guest is untrusted code, so its events are untrusted input, and the host's intent should only ever see validated data. The message says which: a type not declared in `emits` (an inherited name such as `constructor` never counts), invalid data (with the schema's issues), a schema that threw, or no `emits` at all. Reported in development only (diagnostics on); in production the event is dropped silently.
+
+**Fix:** Declare the type with a schema for its data, `emits={{ ANSWER: AnswerSchema }}`, or fix the guest so it sends what the schema expects. If the guest should not send that event, nothing needs fixing: dropping it is the protection.
+
 ## SYG9xx: Internal
 
 ### SYG900

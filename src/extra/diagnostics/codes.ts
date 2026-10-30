@@ -388,6 +388,7 @@ export const CODE_TITLES: Record<string, string> = {
   // sygnal/api (dev preview)
   SYG690: 'API contract skew',
   SYG691: 'Unknown API endpoint',
+  SYG692: 'Sandbox event dropped',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -577,6 +578,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // sygnal/api: contractFetch() (SYG690); static only: sygnal-check (SYG691)
   SYG690: 'warn',
   SYG691: 'warn',
+  // sygnal/sandbox: an EVENTS type not declared in emits, or data its schema rejects (createSandbox, <Sandboxed>)
+  SYG692: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
