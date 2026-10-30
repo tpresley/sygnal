@@ -97,7 +97,8 @@ function grid(ctx: any, cam: Camera, w: number, h: number) {
 
 /** the own Canvas 2D painter (the default backend) */
 export const canvas2d = (): CanvasBackend => (canvas: any) => {
-  const ctx = canvas.getContext?.('2d')
+  // opaque: the canvas is always filled (no blending when it is composited)
+  const ctx = canvas.getContext?.('2d', {alpha: false})
   if (!ctx) return null
   const doc = canvas.ownerDocument
   // the static layer: bitmap, the world region it covers, the zoom it was painted at, its content key
@@ -108,6 +109,19 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   let ov: Cache = {bmp: null, region: null, zoom: 0, key: null}
   let lastCam: Camera | null = null
   const blits: any[] = []
+  // the live layer on a canvas of its own, over the main one (transparent, no pointer events): a
+  // frame whose static layer didn't change touches only it, as Konva's layers do. Without a parent
+  // (a bare canvas) everything goes on the one canvas
+  let live: any = null, lctx = ctx, mainValid = false, liveDirty = false
+  if (canvas.parentNode) {
+    live = doc.createElement('canvas')
+    live.className = 'sygnal-canvas-live'
+    Object.assign(live.style, {position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', pointerEvents: 'none'})
+    live.setAttribute?.('aria-hidden', 'true')
+    canvas.parentNode.insertBefore(live, canvas.nextSibling)
+    lctx = live.getContext('2d') || ctx
+    if (lctx === ctx) live.remove(), live = null
+  }
 
   /** whether the static layer painted for key `a` still has the right nodes for `b` */
   const reusable = (a: any, b: any) => {
@@ -132,7 +146,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     const bmp = c.bmp || doc.createElement('canvas')
     bmp.width = Math.max(1, Math.ceil((region.x1 - region.x0) * z * dpr))
     bmp.height = Math.max(1, Math.ceil((region.y1 - region.y0) * z * dpr))
-    const bc = bmp.getContext('2d'), at = {x: region.x0, y: region.y0, zoom: z}
+    const bc = bmp.getContext('2d', {alpha: false}), at = {x: region.x0, y: region.y0, zoom: z}
     // opaque (the background and the grid in it): a frame that it covers is a plain copy, no blending
     bc.setTransform(dpr, 0, 0, dpr, 0, 0)
     bc.fillStyle = f.background
@@ -189,17 +203,22 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       c.nodes = act; c.cam = cam; d = [0, 0]
     } else s.blits++
     if (off) { d = [d[0] + off[0], d[1] + off[1]]; if (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my) return false }
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.globalAlpha = 1
+    lctx.setTransform(1, 0, 0, 1, 0, 0)
+    lctx.globalAlpha = 1
     // only the part of the bitmap that lands on the canvas (a quarter of it): the copy is the raster cost
     const W = canvas.width, H = canvas.height, sx = Math.round((mx - d[0] * z) * dpr), sy = Math.round((my - d[1] * z) * dpr)
-    ctx.drawImage(c.bmp, sx, sy, W, H, 0, 0, W, H)
+    lctx.drawImage(c.bmp, sx, sy, W, H, 0, 0, W, H)
     return true
   }
 
   return {
     paint(f: Frame, s: PaintStats) {
       const cam = f.camera, w = f.width, h = f.height, dpr = f.dpr, view = viewport(cam, w, h), fo = f.follow
+      if (live) {
+        // a resize clears both canvases
+        if (live.width != canvas.width || live.height != canvas.height) { live.width = canvas.width; live.height = canvas.height; mainValid = false }
+        if (liveDirty) { lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, live.width, live.height); liveDirty = false }
+      } else mainValid = false
       // the canvas's background and grid, where no static bitmap covers it
       const ground = () => {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -212,6 +231,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       const skips = f.layers.map(l => l.outline ? ALL : fo ? new Set([...(l.active || []), ...fo.ids]) : l.active)
       if (f.repaint == 'full') {
         ground()
+        mainValid = false
         f.layers.forEach(l => {
           let items = fo ? l.items.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n) : l.items
           if (l.outline) items = items.map(n => outlined(n, l.outline!))
@@ -223,7 +243,8 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         let grounded = false
         // the same nodes, the camera of the last frame: the bitmap as it is (no per-frame O(n) work:
         // a drag's new array each frame must not cost a pass over every node)
-        if (same && k == 1 && lastCam && sameCam(lastCam, cam)) s.cached++
+        const cachedFrame = same && k == 1 && !!lastCam && sameCam(lastCam, cam)
+        if (cachedFrame) s.cached++
         else {
           // what must be on screen: the visible part of the static content (with room for the
           // frame names drawn above their frames)
@@ -266,10 +287,14 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         }
         // a bitmap that covers the canvas replaces it; else the ground, then the bitmap's part
         // (the overview, when drawn, is the ground already)
-        if (!grounded && !covers(f)) ground()
-        ctx.setTransform(1, 0, 0, 1, 0, 0)
-        ctx.globalAlpha = 1
-        draw(st, f)
+        // (with a live canvas, an unchanged static layer stays on the main canvas as it is)
+        if (!(cachedFrame && mainValid)) {
+          if (!grounded && !covers(f)) ground()
+          ctx.setTransform(1, 0, 0, 1, 0, 0)
+          ctx.globalAlpha = 1
+          draw(st, f)
+          mainValid = !!live
+        }
         // the live layer: active nodes in their layer's order, outline layers whole
         f.layers.forEach((l, i) => {
           const sk = skips[i]
@@ -279,15 +304,17 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
           const whole = !!fo && act.length >= BLIT_MIN && act.every(n => fo.ids.has(n.id))
           if (fo && !whole) act = act.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n)
           if (l.outline) act = act.map(n => outlined(n, l.outline!))
-          if (!blit(f, i, act, s, whole ? [fo!.dx, fo!.dy] : null)) paintWorld(ctx, whole ? act.map(n => moved(n, fo!.dx, fo!.dy)) : act, cam, dpr, view, null, s)
+          if (act.length) liveDirty = true
+          if (!blit(f, i, act, s, whole ? [fo!.dx, fo!.dy] : null)) paintWorld(lctx, whole ? act.map(n => moved(n, fo!.dx, fo!.dy)) : act, cam, dpr, view, null, s)
         })
       }
       // screen-space JSX nodes (handles, guides) on top, in canvas pixels
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      for (const n of f.overlay) paintNode(ctx, n, 1)
-      ctx.globalAlpha = 1
+      lctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      for (const n of f.overlay) paintNode(lctx, n, 1)
+      if (f.overlay.length) liveDirty = true
+      lctx.globalAlpha = 1
       lastCam = cam
     },
-    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0 },
+    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; live?.remove() },
   }
 }

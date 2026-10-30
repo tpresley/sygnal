@@ -85,6 +85,14 @@ export function hitBox(b: Box & {type?: string}, p: Pt, slop = 0): boolean {
   return x >= -slop && x <= b.width + slop && y >= -slop && y <= b.height + slop
 }
 
+const index = new WeakMap<any[], Map<any, any>>()
+/** id → node, once per array (arrays are immutable: identity is the key) */
+export const indexOf = (items: any[]): Map<any, any> => {
+  let m = index.get(items)
+  if (!m) { m = new Map(); for (const n of items) if (n.id != null) m.set(n.id, n); index.set(items, m) }
+  return m
+}
+
 /** an AABB as a box (unrotated) */
 export const boxOf = (a: AABB): Box => ({x: a.x0, y: a.y0, width: a.x1 - a.x0, height: a.y1 - a.y0, rotation: 0})
 
@@ -93,7 +101,14 @@ export const boxOf = (a: AABB): Box => ({x: a.x0, y: a.y0, width: a.x1 - a.x0, h
  * none of `ids` is in `nodes`
  */
 export function selectionBox<T extends Box & {id?: any}>(nodes: T[], ids: Iterable<any>): Box | null {
-  const want = new Set(ids), sel = nodes.filter(n => want.has(n.id))
+  // by the array's index when one exists (the painter's, the hit test's); else one pass that stops
+  // when all are found: no index built per frame for a drag's new array
+  const idx = index.get(nodes), sel: T[] = []
+  if (idx) for (const id of ids) { const n = idx.get(id); if (n) sel.push(n) }
+  else {
+    const want = new Set(ids)
+    for (let i = 0; i < nodes.length && sel.length < want.size; i++) if (want.has(nodes[i].id)) sel.push(nodes[i])
+  }
   if (!sel.length) return null
   return sel.length == 1 ? sel[0] : boxOf(union(sel)!)
 }

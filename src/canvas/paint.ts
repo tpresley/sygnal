@@ -10,7 +10,8 @@
  * - frame: a rect that clips the nodes whose `parent` is its id, with its `name` drawn above it
  * - hidden: not painted, not hit; locked: painted, not hit
  */
-import {aabb, overlaps, hitBox, type AABB, type Camera, type Pt} from './geometry'
+import {aabb, overlaps, hitBox, indexOf, type AABB, type Camera, type Pt} from './geometry'
+export {indexOf}
 
 export type Node = {[k: string]: any, id?: any, type: string}
 
@@ -31,12 +32,6 @@ export function measureText(text: string, n: {fontSize?: number, fontFamily?: st
   return {width: Math.ceil(w), height: Math.ceil(ls.length * size * 1.25)}
 }
 
-const byId = new WeakMap<any[], Map<any, Node>>()
-export const indexOf = (items: Node[]) => {
-  let m = byId.get(items)
-  if (!m) { m = new Map(); for (const n of items) if (n.id != null) m.set(n.id, n); byId.set(items, m) }
-  return m
-}
 
 function shape(ctx: any, n: Node) {
   ctx.beginPath()
