@@ -222,6 +222,7 @@ export default defineConfig({
             { label: 'Effect Handlers', slug: 'advanced/effect' },
             { label: 'Undo and Redo', slug: 'advanced/undo' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },
+            { label: 'Sandboxed Components', slug: 'advanced/sandboxed-components' },
             { label: 'Alternative Forms', slug: 'advanced/alternative-forms' },
           ],
         },

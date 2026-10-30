@@ -128,3 +128,30 @@ World.model = { CAMERA: (s, camera) => ({ ...s, camera }), HIT: (s) => ({ ...s, 
     expect(codes(ds)).toEqual(expect.arrayContaining(['SYG141', 'SYG143']))
   })
 })
+
+describe("sygnal/sandbox's Sandboxed tag", () => {
+  const app = (intent) => ({
+    'Card.jsx': `
+import { Sandboxed } from 'sygnal/sandbox'
+export function Card({ state }) {
+  return <main>
+    <Sandboxed className="gen" kernel={state.kernel} source={state.source} emits={{}} />
+    <p>{state.answer}</p>
+  </main>
+}
+Card.initialState = { kernel: '', source: '', answer: '' }
+Card.intent = ({ DOM }) => (${intent})
+Card.model = { ANSWER: (s, e) => ({ ...s, answer: String(e.data) }), FAILED: (s) => s }
+`,
+  })
+
+  it("its className is the host's (no SYG110); emit and sandboxerror are declared", () => {
+    const ds = check(app(`{ ANSWER: DOM.select('.gen').events('emit').detail(), FAILED: DOM.select('.gen').events('sandboxerror').detail() }`), { strict: true })
+    expect(codes(ds)).toEqual([])
+  })
+
+  it('a near-typo of an event is SYG141', () => {
+    const ds = check(app(`{ ANSWER: DOM.select('.gen').events('emits').detail(), FAILED: DOM.select('.gen').events('sandboxerror').detail() }`))
+    expect(codes(ds)).toContain('SYG141')
+  })
+})
