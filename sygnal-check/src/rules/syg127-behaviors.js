@@ -113,6 +113,7 @@ export default {
   id: 'behaviors',
   codes: ['SYG127', 'SYG226'],
   description: 'Behaviors: unresolvable uses entry, collision, unknown option; undo track/resetOn/coalesce naming an unknown action',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const comp of project.components) {
       if (!comp.uses) continue

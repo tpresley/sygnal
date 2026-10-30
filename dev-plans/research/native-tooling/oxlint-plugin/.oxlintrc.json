@@ -1,0 +1,5 @@
+{
+  "jsPlugins": ["./sygnal-lite.mjs"],
+  "categories": { "correctness": "off" },
+  "rules": { "sygnal-lite/syg101": "error", "sygnal-lite/syg110": "error", "sygnal-lite/syg302": "error" }
+}

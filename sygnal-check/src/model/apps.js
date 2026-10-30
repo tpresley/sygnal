@@ -112,11 +112,28 @@ function reachable(project, ref) {
   return out
 }
 
+// project → apps (three rules ask per build); FileInfo → its run() calls. A file's apps depend only
+// on the file and what it imports, so an incremental build's reused FileInfo keeps them
+// (Project `previous`: a FileInfo is reused only while nothing it imports changed).
+const byProject = new WeakMap()
+const byFile = new WeakMap()
+
 export function findApps(project) {
+  if (byProject.has(project)) return byProject.get(project)
   const apps = []
   for (const p of project.scanned) {
     const file = project.files.get(p)
     if (!file) continue
+    if (!byFile.has(file)) byFile.set(file, fileApps(project, file))
+    apps.push(...byFile.get(file))
+  }
+  byProject.set(project, apps)
+  return apps
+}
+
+function fileApps(project, file) {
+  const apps = []
+  {
     walk(file.ast.program, (n) => {
       if (n.type !== 'CallExpression' || sygnalExport(file, n.callee) !== 'run') return true
       const [root, drivers] = n.arguments

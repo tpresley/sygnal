@@ -67,6 +67,7 @@ export default {
   id: 'a11y-aria',
   codes: ['SYG707'],
   description: 'Unknown aria-* attribute or invalid role',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const info of elementsOf(project)) {
       if (info.kind !== 'html' && info.kind !== 'control') continue

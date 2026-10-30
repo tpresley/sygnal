@@ -2,6 +2,20 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## [Unreleased]
+
+**Companion packages.**
+- **`sygnal-check`:** incremental checking. A check session (`createCheckSession()`,
+  `checkFiles(files, { cache, session })`) reuses the previous check's model for the files a change
+  can't affect and replays the per-file rules' findings for them; the language server and
+  `--graph=html --watch` use one per project root. Same findings as a fresh check (a seeded edit
+  fuzz over the examples and fixtures checks it). On a 20k-line project a one-file edit re-checks in
+  about 40 ms instead of 130 ms; keystroke to diagnostics in the language server is gated at 300 ms
+  (was 400 ms), 150 ms debounce included. Faster in general: identifier lookups use a table per
+  scope, SYG702 no longer scans every element per field (it was quadratic on large apps), the
+  installed Sygnal is looked up once per directory, and the CLI uses Node's compile cache
+  (Node ≥ 22.1). A rule can declare `perFile` (README "Writing a rule").
+
 ## 7.1.0 — 2026-10-20
 
 Fixes and additions from building an app (Temper's Tune UI) on 7.0 ([PLAN-13](dev-plans/PLAN-13.md)):

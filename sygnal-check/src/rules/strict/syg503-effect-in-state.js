@@ -42,6 +42,7 @@ export default {
   id: 'strict-effect-in-state',
   codes: ['SYG503'],
   description: 'Side effect in a STATE reducer that returns ABORT',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   strict: true,
   run(project, report) {
     for (const comp of project.components) {

@@ -59,6 +59,33 @@ function declInStatement(stmt, name) {
   return null
 }
 
+// Per-scope-node table of the declarations a statement list holds: name → the first decl
+// (declInStatement's answer). ASTs never change after parsing (the parse cache relies on it), so
+// the table lives as long as the node. native-tooling experiment E-2.
+const BODY_TABLES = new WeakMap()
+const NONE = new Map()
+
+function bodyTable(scope, body) {
+  let t = BODY_TABLES.get(scope)
+  if (t) return t
+  t = new Map()
+  for (const stmt of body) {
+    for (const n of stmtNames(stmt)) if (!t.has(n)) { const d = declInStatement(stmt, n); if (d) t.set(n, d) }
+  }
+  BODY_TABLES.set(scope, t.size ? t : NONE)
+  return t
+}
+
+// Every name declInStatement could match for this statement.
+function stmtNames(stmt) {
+  if (!stmt) return []
+  if (stmt.type === 'ExportNamedDeclaration' || stmt.type === 'ExportDefaultDeclaration') return stmt.declaration ? stmtNames(stmt.declaration) : []
+  if (stmt.type === 'VariableDeclaration') return stmt.declarations.flatMap(d => patternNames(d.id))
+  if ((stmt.type === 'FunctionDeclaration' || stmt.type === 'ClassDeclaration') && stmt.id?.name) return [stmt.id.name]
+  if (stmt.type === 'ImportDeclaration') return stmt.specifiers.map(s => s.local.name)
+  return []
+}
+
 function declInScope(scope, name) {
   if (isFunction(scope)) {
     for (const p of scope.params) {
@@ -79,11 +106,7 @@ function declInScope(scope, name) {
     ? scope.body
     : scope.type === 'SwitchCase' ? scope.consequent : null
   if (!body) return null
-  for (const stmt of body) {
-    const d = declInStatement(stmt, name)
-    if (d) return d
-  }
-  return null
+  return bodyTable(scope, body).get(name) || null
 }
 
 export function findBinding(fileInfo, name, fromNode) {

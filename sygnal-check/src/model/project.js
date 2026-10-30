@@ -49,7 +49,20 @@
  * `cache` (a ParseCache, ../cache.js; PLAN-7 C-3) shares a file's parse
  * (ast, parents, suppressions) or its parse failure across builds while the
  * text is identical. Everything else (the FileInfo, components, the model,
- * parseErrors) is built per Project.
+ * parseErrors) is built per Project, unless `previous` is given.
+ *
+ * `previous` (a Project built before with the same inputs; native-tooling round 2, incremental
+ * checking): this build reuses the previous one's FileInfo, with its analyzed components and
+ * views, for every file whose text is unchanged and none of whose imports (transitively, through
+ * loadImport) changed. The rest (`project.rebuilt`: the changed files and their importers, up the
+ * import graph) is parsed (cache), discovered and analyzed again; the project-wide parts (events,
+ * injected JSX) are joined again from the per-file parts. The model is the same as a fresh build's
+ * because a component's analysis only reads its file and what it imports (model/*.js reach other
+ * files only through loadImport / resolveExpr). A disk file whose size, mtime and inode are the
+ * ones the previous build read isn't read again (unsaved buffers are compared as text). A
+ * relative import that didn't resolve is retried,
+ * and its importer rebuilt when it now does. The inputs must be the same files in the same order
+ * with the same cwd, replyKeys and tree, else the build is a fresh one (`project.rebuilt` = null).
  *
  * The structure is plain data plus AST node references so later work (the
  * --graph output, strict rules) can serialize or query it without
@@ -95,7 +108,7 @@ function parseSuppressions(ast) {
 }
 
 export class Project {
-  constructor({ cwd = process.cwd(), sources, cache, tree, replyKeys } = {}) {
+  constructor({ cwd = process.cwd(), sources, cache, tree, replyKeys, previous } = {}) {
     this.cwd = cwd
     // PLAN-13 C-4: the config's custom reply keys (all sinks: an array; per sink: an object)
     this.replyKeys = replyKeys || []
@@ -110,26 +123,47 @@ export class Project {
     this._componentFns = new WeakMap() // fn node → ComponentInfo-ish marker
     this._viewCache = new WeakMap()
     this._sygnalVersions = new Map()
+    // incremental builds: what the next build needs to reuse this one's files
+    this.previous = previous || null
+    this.rebuilt = null // Set<absPath> re-analyzed by an incremental build; null: a fresh build
+    this._inputs = null // [absPaths, cwd, replyKeys] of build()
+    this._texts = new Map() // absPath → the text read (undefined: unreadable)
+    this._fileErrors = new Map() // absPath → its parse error (FileInfo null)
+    this._edges = new Map() // absPath → Set<absPath> it imports (loadImport)
+    this._unresolved = new Map() // absPath → Set<spec>: relative imports that didn't resolve
+    this._viewKeys = new Map() // absPath → fn nodes of that file with a viewOf() entry
+    this._reused = new Set() // absPaths taken from `previous`
+    this._stats = new Map() // absPath → size:mtime of the disk file read
   }
 
   /** Installed Sygnal and its timing contract, resolved independently for each package. */
   sygnalFor(file) {
     const p = typeof file === 'string' ? file : file.path
-    const dir = path.dirname(p)
-    if (!this._sygnalVersions.has(dir)) this._sygnalVersions.set(dir, sygnalVersion(p, this))
-    return this._sygnalVersions.get(dir)
+    return this._sygnalOfDir(path.dirname(p))
+  }
+
+  // sygnalVersion's walk up from `dir`, one directory at a time, each answer kept: the files of
+  // one package share their ancestors' lookups (it read every ancestor's manifests once per dir)
+  _sygnalOfDir(dir) {
+    if (this._sygnalVersions.has(dir)) return this._sygnalVersions.get(dir)
+    const parent = path.dirname(dir)
+    const here = sygnalVersion(path.join(dir, '_'), this, { up: false })
+    const v = here || (parent === dir ? sygnalVersion(path.join(dir, '_'), this) : this._sygnalOfDir(parent)) // (at the root: UNKNOWN)
+    this._sygnalVersions.set(dir, v)
+    return v
   }
 
   /** Parse (once) and index a file. Returns FileInfo or null if unreadable/unparseable. */
   loadFile(absPath) {
     if (this.files.has(absPath)) return this.files.get(absPath)
-    let source
-    if (this.sources.has(absPath)) source = this.sources.get(absPath)
-    else if (this.tree) { source = this.tree.read(absPath); if (typeof source !== 'string') { this.files.set(absPath, null); return null } }
-    else try { source = fs.readFileSync(absPath, 'utf8') } catch { this.files.set(absPath, null); return null }
+    const source = this._read(absPath)
+    this._texts.set(absPath, source)
+    if (source === undefined) { this.files.set(absPath, null); return null }
     const parsed = this.cache?.lookup(absPath, source) || this._parse(absPath, source)
     if (parsed.error) {
-      this.parseErrors.push({ file: absPath, ...parsed.error })
+      const e = { file: absPath, ...parsed.error }
+      this.parseErrors.push(e)
+      this._fileErrors.set(absPath, e)
       this.files.set(absPath, null)
       return null
     }
@@ -138,6 +172,29 @@ export class Project {
     this.files.set(absPath, file)
     this._discoverComponents(file)
     return file
+  }
+
+  /** A file's text: an unsaved buffer, else `tree`, else the disk; undefined when unreadable. */
+  _read(absPath) {
+    if (this.sources.has(absPath)) return this.sources.get(absPath)
+    if (this.tree) { const t = this.tree.read(absPath); return typeof t === 'string' ? t : undefined }
+    try {
+      const text = fs.readFileSync(absPath, 'utf8')
+      this._stats.set(absPath, statKey(absPath))
+      return text
+    } catch { return undefined }
+  }
+
+  /**
+   * Whether `absPath` may have changed since `prev` read it as `oldText`: an unsaved buffer is
+   * compared as text; a disk file read last time with the same size and mtime now isn't read again.
+   */
+  _changedSince(prev, absPath, oldText) {
+    if (!this.sources.has(absPath) && !prev.sources.has(absPath) && oldText !== undefined) {
+      const was = prev._stats.get(absPath)
+      if (was && was === statKey(absPath)) { this._stats.set(absPath, was); return false }
+    }
+    return this._read(absPath) !== oldText
   }
 
   /** Parse a text into { text, ast, parents, suppressions } or { text, error } (stored in the cache, if any). */
@@ -157,7 +214,12 @@ export class Project {
 
   loadImport(fromFile, spec) {
     const target = resolveImport(fromFile.path, spec, { isFile: this._isFile })
-    return target ? this.loadFile(target) : null
+    if (!target) {
+      if (typeof spec === 'string' && (spec.startsWith('.') || spec.startsWith('/'))) addTo(this._unresolved, fromFile.path, spec)
+      return null
+    }
+    addTo(this._edges, fromFile.path, target)
+    return this.loadFile(target)
   }
 
   /** Whether a path exists for import resolution: an in-memory source, else a file on disk (or in `tree`). */
@@ -234,6 +296,7 @@ export class Project {
     if (this._viewCache.has(ref.node)) return this._viewCache.get(ref.node)
     const sink = newSink()
     this._viewCache.set(ref.node, sink) // recursion guard
+    if (ref.file?.path) addTo(this._viewKeys, ref.file.path, ref.node, [])
     collectView(this, ref.file, ref.node, sink)
     return sink
   }
@@ -335,6 +398,10 @@ export class Project {
   /** Scan the given files and build the full model. */
   build(absPaths) {
     this.cache?.beginBuild()
+    this._inputs = [absPaths, this.cwd, JSON.stringify(this.replyKeys)]
+    const prev = this.previous
+    this.previous = null // (don't keep a chain of builds alive)
+    if (prev && sameInputs(prev._inputs, this._inputs) && !prev.tree && !this.tree) this._reuse(prev)
     for (const p of absPaths) {
       this.scanned.add(p)
       this.loadFile(p)
@@ -342,11 +409,12 @@ export class Project {
     for (const p of absPaths) {
       const file = this.files.get(p)
       if (!file) continue
+      const reused = this._reused.has(p)
       for (const comp of file.components) {
-        this._analyzeComponent(comp)
+        if (!reused) this._analyzeComponent(comp)
         this.components.push(comp)
       }
-      const ev = scanFileEvents(file)
+      const ev = fileEvents(file)
       this.events.selected.push(...ev.selected)
       this.events.emitted.push(...ev.emitted)
       this.events.dynamicSelected.push(...ev.dynamicSelected)
@@ -359,6 +427,51 @@ export class Project {
       this.events.dynamicEmitted.push(...comp.model.eventsDynamic.map(e => ({ ...e, component: comp.name })))
     }
     return this
+  }
+
+  /**
+   * Take over `prev`'s files that can't have changed (see `previous` above): the files whose text
+   * is the same and that import nothing that changed, transitively. Sets this.rebuilt.
+   */
+  _reuse(prev) {
+    const changed = new Set()
+    for (const [p, oldText] of prev._texts) if (this._changedSince(prev, p, oldText)) changed.add(p)
+    // a relative import that now resolves (a new file) changes its importer
+    for (const [p, specs] of prev._unresolved) {
+      for (const spec of specs) if (resolveImport(p, spec, { isFile: this._isFile })) { changed.add(p); break }
+    }
+    // the changed files and everything that imports them
+    const importers = new Map()
+    for (const [from, tos] of prev._edges) for (const to of tos) addTo(importers, to, from)
+    const rebuilt = new Set()
+    const stack = [...changed]
+    while (stack.length) {
+      const p = stack.pop()
+      if (rebuilt.has(p)) continue
+      rebuilt.add(p)
+      for (const q of importers.get(p) || []) stack.push(q)
+    }
+    this.rebuilt = rebuilt
+    for (const [p, file] of prev.files) {
+      if (rebuilt.has(p)) continue
+      this._reused.add(p)
+      this.files.set(p, file)
+      this._texts.set(p, prev._texts.get(p))
+      if (file) this.cache?.lookup(p, file.source) // keep its parse in the cache (beginBuild evicts unused entries)
+      else if (prev._fileErrors.has(p)) {
+        const e = prev._fileErrors.get(p)
+        this.cache?.lookup(p, prev._texts.get(p))
+        this.parseErrors.push(e)
+        this._fileErrors.set(p, e)
+      }
+      if (prev._edges.has(p)) this._edges.set(p, new Set(prev._edges.get(p)))
+      if (prev._unresolved.has(p)) this._unresolved.set(p, new Set(prev._unresolved.get(p)))
+      for (const comp of file?.components || []) if (comp.view) this._componentFns.set(comp.view, comp)
+      for (const node of prev._viewKeys.get(p) || []) {
+        if (prev._viewCache.has(node)) this._viewCache.set(node, prev._viewCache.get(node))
+        addTo(this._viewKeys, p, node, [])
+      }
+    }
   }
 
   /**
@@ -406,6 +519,28 @@ export class Project {
     }
     return null
   }
+}
+
+function statKey(p) {
+  try { const st = fs.statSync(p); return `${st.size}:${st.mtimeMs}:${st.ino}` } catch { return null }
+}
+
+function addTo(map, key, value, empty) {
+  let c = map.get(key)
+  if (!c) map.set(key, c = empty || new Set())
+  if (Array.isArray(c)) c.push(value)
+  else c.add(value)
+}
+
+function sameInputs(a, b) {
+  return !!a && a[1] === b[1] && a[2] === b[2] && a[0].length === b[0].length && a[0].every((p, i) => p === b[0][i])
+}
+
+// scanFileEvents per FileInfo: a reused FileInfo keeps its scan
+const eventsOf = new WeakMap()
+function fileEvents(file) {
+  if (!eventsOf.has(file)) eventsOf.set(file, scanFileEvents(file))
+  return eventsOf.get(file)
 }
 
 export function buildProject(absPaths, options = {}) {

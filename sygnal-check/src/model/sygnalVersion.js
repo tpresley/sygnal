@@ -17,7 +17,12 @@ const parse = (pkg, manifest) => {
   return { version: pkg.version, major, manifest, timing: major >= 7 ? 'after' : 'before' }
 }
 
-export function sygnalVersion(file, { tree, sources } = {}) {
+/**
+ * The nearest Sygnal for `file`. With `{ up: false }` only `file`'s own directory is looked at,
+ * and null (not UNKNOWN) means "nothing here" (Project.sygnalFor walks up itself, keeping each
+ * directory's answer).
+ */
+export function sygnalVersion(file, { tree, sources } = {}, { up = true } = {}) {
   const read = p => {
     try {
       const text = sources?.get(p) ?? (tree ? tree.read(p) : fs.readFileSync(p, 'utf8'))
@@ -32,6 +37,7 @@ export function sygnalVersion(file, { tree, sources } = {}) {
     const own = path.join(dir, 'package.json')
     const self = parse(read(own), own)
     if (self) return self
+    if (!up) return null
     if (path.dirname(dir) === dir) return UNKNOWN
   }
 }

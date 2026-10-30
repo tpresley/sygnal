@@ -16,6 +16,7 @@ export default {
   id: 'byid-binding',
   codes: ['SYG454'],
   description: 'An unkeyed changing byId selection on Sygnal 6',
+  perFile: (project, file) => project.sygnalFor(file).major, // run.js createRuleMemo: one file at a time, from the file and its imports (and the installed major)
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

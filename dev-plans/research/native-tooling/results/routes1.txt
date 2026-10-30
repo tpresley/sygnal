@@ -1,0 +1,25 @@
+plan5-showcase
+  sygnal-check (all rules)            77 ms (min 76)
+  sygnal-check (4 rules)              69 ms (min 68)
+  lite JS on oxc-parser               32 ms (min 31)
+  oxlint + JS plugin (3 rules)        31 ms (min 30)
+doc-samples
+  sygnal-check (all rules)           409 ms (min 407)
+  sygnal-check (4 rules)             390 ms (min 385)
+  lite JS on oxc-parser              111 ms (min 106)
+  oxlint + JS plugin (3 rules)       362 ms (min 354)
+large20k
+  sygnal-check (all rules)           416 ms (min 405)
+  sygnal-check (4 rules)             398 ms (min 389)
+  lite JS on oxc-parser              111 ms (min 110)
+  oxlint + JS plugin (3 rules)       505 ms (min 490)
+synth2000
+  sygnal-check (all rules)          1230 ms (min 1224)
+  sygnal-check (4 rules)            1170 ms (min 1161)
+  lite JS on oxc-parser              261 ms (min 258)
+  oxlint + JS plugin (3 rules)      1613 ms (min 1607)
+large100k
+  sygnal-check (all rules)          1295 ms (min 1285)
+  sygnal-check (4 rules)            1270 ms (min 1245)
+  lite JS on oxc-parser              312 ms (min 305)
+  oxlint + JS plugin (3 rules)      1843 ms (min 1821)

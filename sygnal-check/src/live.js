@@ -4,7 +4,7 @@
  * liveServer.js), the language server (lsp/core.js) and, later, the LSP graph request (E-1) and the
  * sygnal/vite route (W-2). They share it so they agree on what "the project now" is.
  *
- *   createLiveProject({ root }) → {
+ *   createLiveProject({ root, incremental? }) → {   (incremental: false, every build a fresh one)
  *     root, cache,
  *     prepare({ settings?, sources?, filter? }) → Prepared
  *     build({ settings?, sources?, filter? }) → Build
@@ -22,7 +22,9 @@
  * file, a path reads that one; `defaults`: below the config file, as check()'s), the files
  * expanded from `paths` (with `sources`, the unsaved buffers, counted), less those `filter(abs)` rejects (the LSP's nested roots), then the project
  * built with the last good substitution.
- *   Prepared { options, config, srcs, files, missing, project (null without files), parseErrors, substituted: Map }
+ *   Prepared { options, config, srcs, files, missing, project (null without files), parseErrors, substituted: Map,
+ *              memo (the root's per-file rule memo: pass it to runRules) }
+ * Each build reuses the last one's model for the unchanged files (Project `previous`).
  *
  * build(): prepare() plus the rules and the graph (graph.js buildGraph), as graphFiles() makes it
  * with the config file's findings (`--graph=html` without `--watch` gives the same JSON for the
@@ -45,7 +47,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
-import { runRules, sortDiagnostics } from './run.js'
+import { runRules, sortDiagnostics, createRuleMemo } from './run.js'
 import { resolveOptions, CONFIG_FILE } from './config.js'
 import { expandInputs, toSourceMap } from './files.js'
 import { createParseCache } from './cache.js'
@@ -64,12 +66,16 @@ export function configRoot(dir) {
   }
 }
 
-export function createLiveProject({ root, cache = createParseCache() } = {}) {
+export function createLiveProject({ root, cache = createParseCache(), incremental = true } = {}) {
   root = path.resolve(root || process.cwd())
   let lastGood = new Map() // absPath → cache entry of its last text that parsed cleanly
   let last = null // the last Prepared
   let lastSettings = {}
   let current = { json: null, hash: null, version: 0 }
+  // incremental builds (native-tooling round 2): the last build, reused by the next one for the
+  // unchanged files (Project `previous`), and the per-file rules' memo (run.js createRuleMemo)
+  let lastProject = null
+  const memo = createRuleMemo()
 
   function prepare({ settings = {}, sources, filter } = {}) {
     const { options, config } = resolveOptions({
@@ -80,12 +86,12 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
     const srcs = toSourceMap(sources, root)
     const expanded = expandInputs(options.paths, { cwd: root, includeTests: options.includeTests, sources: srcs })
     const files = filter ? expanded.files.filter(filter) : expanded.files
-    const out = { options, config, srcs, files, missing: expanded.missing, project: null, parseErrors: [], substituted: new Map() }
+    const out = { options, config, srcs, files, missing: expanded.missing, project: null, parseErrors: [], substituted: new Map(), memo: incremental ? memo : null }
     last = out
     if (!files.length) return out
 
-    const buildWith = (s) => buildProject(files, { cwd: options.cwd, sources: s, cache, replyKeys: options.replyKeys })
-    let project = buildWith(srcs)
+    const buildWith = (s, previous) => buildProject(files, { cwd: options.cwd, sources: s, cache, replyKeys: options.replyKeys, previous })
+    let project = buildWith(srcs, incremental ? lastProject : null)
     // last good: files that don't parse now, but did before
     const broken = new Set(project.parseErrors.map(e => e.file))
     for (const f of project.files.values()) if (f?.ast?.errors?.length) broken.add(f.path)
@@ -101,8 +107,9 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
       // (runRules with no rules: only the parse errors' SYG900)
       parseErrors = runRules(project, [])
         .filter(d => !options.ignore?.includes(d.code) && isParseError(d) && substituted.has(path.resolve(root, d.file)))
-      project = buildWith(new Map([...srcs, ...substituted]))
+      project = buildWith(new Map([...srcs, ...substituted]), incremental ? project : null)
     }
+    lastProject = project
     // remember each file's last text that parsed cleanly
     const good = new Map()
     for (const f of project.files.values()) {
@@ -121,7 +128,7 @@ export function createLiveProject({ root, cache = createParseCache() } = {}) {
     const { project, options, config } = prep
     let graph = null, diagnostics = [...config.diagnostics], stamps = null
     if (project) {
-      let diags = runRules(project, selectRules({ strict: options.strict, a11y: options.a11y }))
+      let diags = runRules(project, selectRules({ strict: options.strict, a11y: options.a11y }), { memo: incremental ? memo : null })
       diags = [...config.diagnostics, ...diags, ...prep.parseErrors]
       if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
       diagnostics = sortDiagnostics(diags)

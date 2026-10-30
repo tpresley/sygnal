@@ -137,8 +137,8 @@ export function createCore() {
       info.outside = outsideOf(folder, srcs, files, owned, options.includeTests)
     }
     if (!files.length) return null
-    const { project, parseErrors, config, substituted } = prep
-    return { project, parseErrors, options, config, srcs, substituted }
+    const { project, parseErrors, config, substituted, memo } = prep
+    return { project, parseErrors, options, config, srcs, substituted, memo }
   }
 
   /**
@@ -164,7 +164,7 @@ export function createCore() {
     const selected = selectRules({ strict: options.strict, a11y: options.a11y })
     const { rules, verdicts } = tapVerdicts(selected)
     const first = rules.filter((r, i) => r !== selected[i]) // the tapped two
-    let diags = runRules(project, first, { parseErrors: false })
+    let diags = runRules(project, first, { parseErrors: false, memo: prep.memo })
     const indexNow = () => indexOf(project, substituted, verdicts)
     const completionNow = () => hasComponents ? completionIndex(project, { substituted: new Set(substituted.keys()) }) : null
     // where the index and the completion index go (see "Parts" above)
@@ -194,7 +194,7 @@ export function createCore() {
     // every finding: the rules (those after SYG101 / SYG102), the new texts' parse errors, and the
     // config file's findings, as check() adds them (withConfigDiagnostics in index.js)
     const allDiags = () => {
-      diags.push(...runRules(project, rules.filter(r => !first.includes(r))))
+      diags.push(...runRules(project, rules.filter(r => !first.includes(r)), { memo: prep.memo }))
       if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
       diags = sortDiagnostics(prep.parseErrors.length ? [...diags, ...prep.parseErrors] : diags)
       const configDiags = config.diagnostics.filter(d => !options.ignore?.includes(d.code))
