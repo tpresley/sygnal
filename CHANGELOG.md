@@ -117,6 +117,24 @@ behaves as on 7.1.0.
   - `yjs` and `y-protocols` are optional peer dependencies; Sygnal ships no network code (any Yjs
     provider works). About 5.6 KB gzip, nothing for an app that doesn't import it. Guide:
     "Collaborative State". Research: `dev-plans/research/crdt-state`.
+- **Sandboxed components:** `sygnal/sandbox` runs a component the app didn't write (a model's output,
+  a plugin, a marketplace widget) in QuickJS-in-WASM, with no access to the page. It renders into the
+  real DOM through an allowlist sanitizer, and its events come back as validated data.
+  - `<Sandboxed kernel={kernel} source={cjs} emits={{ ANSWER: Schema }} input={...} />` and
+    `createSandbox(options)`. `emits` is required: only declared `EVENTS` types whose data passes their
+    Standard Schema reach the page (SYG692 in development otherwise).
+  - Two tiers behind one option: `isolation: 'worker'` (the default; a watchdog terminates a stuck
+    worker) and `'thread'` (synchronous events, for model-written code, not hostile code).
+  - Defaults: a WebAssembly instance per sandbox capped at 64 MB (ArrayBuffers included), a 32 MB heap,
+    a 256 KB stack (at most 384 KB), 1 s to boot, 100 ms per event, 50 % CPU.
+  - Capabilities are off by default: `fetch` (an allowlist; no cookies, no redirects), `navigate`, and
+    `focus` (only while focus is already inside the box). Guest classes are kept; `classPrefix`
+    isolates them.
+  - The guest kernel is built from the app's installed packages: `import kernel from
+    'sygnal/sandbox/kernel?raw'` in `sygnal/vite`, or `buildSandboxKernel()` from `sygnal/sandbox/build`.
+    SSR: `renderToHTML()`.
+  - `quickjs-emscripten-core` and `@jitl/quickjs-wasmfile-release-sync` are optional peer dependencies.
+    Guide: "Sandboxed Components".
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma

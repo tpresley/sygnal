@@ -78,8 +78,9 @@ describe('vite-plugin-sygnal', () => {
         // the dev dependency scanner doesn't read `oxc`
         optimizeDeps: {
           rolldownOptions: { transform: { jsx: { runtime: 'automatic', importSource: 'sygnal' } } },
-          // B-020: the Vike client entry shares the pages' core
-          exclude: ['sygnal/vike/onRenderClient'],
+          // B-020: the Vike client entry shares the pages' core; sygnal/sandbox finds its worker
+          // script with new URL(..., import.meta.url), which only works unbundled
+          exclude: ['sygnal/vike/onRenderClient', 'sygnal/sandbox'],
         },
       })
     })
@@ -105,7 +106,7 @@ describe('vite-plugin-sygnal', () => {
       expect(result).toEqual({
         ssr: { noExternal: ['sygnal'] },
         resolve: RESOLVE,
-        optimizeDeps: { exclude: ['sygnal/vike/onRenderClient'] },
+        optimizeDeps: { exclude: ['sygnal/vike/onRenderClient', 'sygnal/sandbox'] },
       })
     })
   })

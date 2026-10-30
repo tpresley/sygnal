@@ -19,7 +19,8 @@
  *   6.0 removed, met at runtime; once per form and component, with a link to the migration
  *   guide), SYG453 (PLAN-9, D470: two children with one identity share one instance), SYG426
  *   (PLAN-9, D471: a lowercase <collection> / <switchable> tag, deprecated in 6.3.0), SYG117
- *   (PLAN-13 N-1: next() to an action the component has no model entry for).
+ *   (PLAN-13 N-1: next() to an action the component has no model entry for), SYG204 (sandbox
+ *   research §6: a root that has no state after it started, so its view never runs).
  *
  * Only while diagnostics are on (the checks' own rule); production builds never load this.
  */
@@ -392,6 +393,30 @@ function vtReport(dup: any[][]): void {
 }
 
 /** The hooks one app gets (installChecks publishes this on the bridge). */
+/**
+ * SYG204 (sandbox research §6): the core calls no view while its instance's state is undefined,
+ * and a root gets state only from initialState (or the state an HMR swap keeps), a model-less root's `true`, or
+ * a reducer. Checked once per app after the start settles: the first flush (INITIALIZE included)
+ * and the flush BOOTSTRAP's reducers cause; a root still without state is reported (0 core bytes:
+ * the runtime API's flushed(), no timers).
+ */
+function statelessRoot(api: any, iv: any, on: () => any) {
+  if (!api?.flushed || iv.state !== undefined) return
+  const settled = () => api.flushed()
+  // the first flush, then BOOTSTRAP (a microtask after it) and the flush it schedules
+  Promise.resolve().then(settled).then(() => new Promise<void>(r => queueMicrotask(r))).then(settled).then(() => {
+    if (iv.disposed || iv.state !== undefined || !on()) return
+    const name = iv.name, h = iv.def.handlers
+    const later = [...h.keys()].filter((k: string) => k != 'INITIALIZE' && k != 'BOOTSTRAP' && h.get(k).some((x: any) => x[0] == 'STATE'))
+    devReport('SYG204', {
+      component: name,
+      message: `${name} is the root component and has no state after it started (no initialState, and no INITIALIZE or BOOTSTRAP reducer set one), so its view is not called and the page stays empty${later.length ? ` until one of its reducers (${later.slice(0, 3).join(', ')}${later.length > 3 ? ', …' : ''}) sets the state` : ''}`,
+      fix: `Give ${name} an initialState (${name}.initialState = {} for a component with no data of its own), or return the first state from an INITIALIZE reducer`,
+      data: {reducers: later},
+    })
+  }).catch(() => { /* a check never breaks the app */ })
+}
+
 export function nextHooks(_api: any): any {
   const core = bridge(), H = core.hooks
   const on = () => H.on()
@@ -420,6 +445,7 @@ export function nextHooks(_api: any): any {
   return {
     onCreate(iv: any) {
       live.set(iv.id, iv)
+      if (iv.isRoot) statelessRoot(_api, iv, on)
       if (!on()) return
       log.onCreate(iv)
       const f = fac(iv)

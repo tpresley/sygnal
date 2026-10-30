@@ -182,6 +182,7 @@ import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMid
 import type { LiveEngine } from './graph'
 import { compileViews } from './compile'
 import { apiPlugin } from './api'
+import { SANDBOX_KERNEL, SANDBOX_KERNEL_ID, sandboxKernelModule } from './sandbox'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -511,7 +512,9 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         const include = result.optimizeDeps?.include || []
         result.optimizeDeps = {
           ...result.optimizeDeps,
-          exclude: [VIKE_CLIENT],
+          // sygnal/sandbox: its worker script is found by `new URL(..., import.meta.url)`, which
+          // only works served unbundled
+          exclude: [VIKE_CLIENT, 'sygnal/sandbox'],
           ...(sygnalInNodeModules(root) ? { include: [...include, 'sygnal'] } : {}),
         }
       }
@@ -543,6 +546,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     resolveId: {
       order: 'pre' as const,
       async handler(this: any, source: string, importer: string | undefined, opts: any) {
+        // sygnal/sandbox: the guest kernel, built from the installed packages (every mode)
+        if (SANDBOX_KERNEL.test(source)) return SANDBOX_KERNEL_ID
         if (!isServe || isVitest) return null
         if (source === DEV_CLIENT) return DEV_CLIENT_ID
         if (source === MCP_CLIENT && mcpOn) return MCP_CLIENT_ID
@@ -564,6 +569,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
 
     load(id: string) {
+      if (id === SANDBOX_KERNEL_ID) return sandboxKernelModule(root)
       if (id === DEV_CLIENT_ID) return devClientModule()
       if (id === MCP_CLIENT_ID && mcpOn) return mcpClientModule(mcpOptions)
       if (id === GRAPH_CLIENT_ID && graphClient) return graphClientModule()
@@ -781,10 +787,12 @@ const ADAPTER_PEERS: Record<string, string[]> = {
   'ui/menu': ['@zag-js/vanilla', '@zag-js/menu'],
   'ui/select': ['@zag-js/vanilla', '@zag-js/select'],
   'ui/combobox': ['@zag-js/vanilla', '@zag-js/combobox'],
+  // sygnal/sandbox: QuickJS and its WASM variant (stock packages, README §9 Q6)
+  sandbox: ['quickjs-emscripten-core', '@jitl/quickjs-wasmfile-release-sync'],
 }
 // G-440: a dynamic import's specifier may be a template literal without substitutions
-const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"`])sygnal\/(react|zag|ui\/(?:menu|select|combobox))\1/g
-const ADAPTER_ID = /^sygnal\/(react|zag|ui\/(?:menu|select|combobox))$/
+const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"`])sygnal\/(react|zag|sandbox|ui\/(?:menu|select|combobox))\1/g
+const ADAPTER_ID = /^sygnal\/(react|zag|sandbox|ui\/(?:menu|select|combobox))$/
 
 /**
  * The adapter entries an app module imports (statically, dynamically or in a re-export), or null.

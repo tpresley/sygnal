@@ -39,6 +39,8 @@ export const GUIDES = [
   'typed-apis',
   // sygnal/yjs (experimental)
   'collaborative-state',
+  // sygnal/sandbox (dev preview)
+  'advanced/sandboxed-components',
   // renderer targets (sygnal/terminal, sygnal/agent-ui, sygnal/host)
   'renderers/overview', 'renderers/write-once', 'renderers/react-native', 'renderers/three', 'renderers/terminal', 'renderers/agent-ui', 'renderers/custom-targets',
 ]

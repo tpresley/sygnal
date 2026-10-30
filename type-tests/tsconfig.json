@@ -35,6 +35,8 @@
       "sygnal/worker/page": ["../src/worker-page.d.ts"],
       "sygnal/yjs": ["../src/yjs.d.ts"],
       "sygnal/yjs/testing": ["../src/yjs-testing.d.ts"],
+      "sygnal/sandbox": ["../src/sandbox.d.ts"],
+      "sygnal/sandbox/build": ["../src/sandbox-build.d.ts"],
       "sygnal/ai": ["../src/ai.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],

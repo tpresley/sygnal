@@ -639,6 +639,16 @@ After:
 ADD: (state, item) => ({ ...state, items: [...state.items, item] })
 ```
 
+### SYG204
+
+**Root component has no state, so its view never renders**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+The core calls a component's view only while its state is defined. A root component gets its first state from `initialState`, from an `INITIALIZE` reducer, or, with no model at all, renders without one. A root that has a model but no `initialState` starts with `undefined` state, so nothing is rendered: no error, an empty page, and a `DOM.click()` intent that can never fire because its element never appears. Generated code that has no data of its own often looks like this. The dev entry checks once per app, after the first render and the `BOOTSTRAP` reducers' flush, and reports a root whose state is still `undefined`, naming the reducers that could set it later. It is runtime-only: the root is whatever `run()` is given, which a static check can't know reliably.
+
+**Fix:** Give the root an `initialState`, `App.initialState = {}` when it has no data of its own, or return the first state from an `INITIALIZE` reducer. To show a loading state before data arrives, start from one (`{ loading: true }`) rather than from no state.
+
 ### SYG206
 
 **Invalid calculated field definition**
@@ -2779,6 +2789,16 @@ Severity: `warn` · Reported by: `sygnal-check`
 A member chain on a client made by `orpcClient(contract)` (sygnal/api) names a procedure or router that the contract doesn't have, such as `api.quotes.lst()` for a contract with `quotes.list`. The client mirrors the contract router: each procedure is an endpoint function, each router an object, so the misspelled name is `undefined`, and calling it throws `TypeError: api.quotes.lst is not a function` when the model entry or resource runs. TypeScript reports this in a typed project; sygnal-check follows the client to its `orpcClient(...)` call and the contract to its object literal, through imports, so plain JavaScript gets it too. It is silent when a level of the contract can't be listed (a spread, a computed key, a router built by a function call). The same code covers function-first modules: in client code (a file that imports `sygnal` or has JSX), a named import from a `*.server` module that uses sygnal/api must be one of its `query`, `mutation` or `stream` exports. sygnal/vite (`api: { functions: true }`) replaces that module in the client by stubs for those exports only, so a misspelled name is undefined everywhere, and another export (a constant, a helper function) is undefined in the client build although it type-checks.
 
 **Fix:** Use the procedure's name as the contract declares it (the message suggests the closest one), or add the procedure to the contract and implement it on the server. For a `*.server` import, import the server function's name, and move a constant or helper the client needs into a shared module that both sides import.
+
+### SYG692
+
+**Sandbox event dropped**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A sandboxed component (`createSandbox` or `<Sandboxed>` from sygnal/sandbox) sent an `EVENTS` value the page did not accept, so it never reached `onEmit` or the tag's `emit` event. The page accepts only the types declared in `emits`, and only data that passes that type's Standard Schema (zod, valibot, arktype, ...): the guest is untrusted code, so its events are untrusted input, and the host's intent should only ever see validated data. The message says which: a type not declared in `emits` (an inherited name such as `constructor` never counts), invalid data (with the schema's issues), a schema that threw, or no `emits` at all. Reported in development only (diagnostics on); in production the event is dropped silently.
+
+**Fix:** Declare the type with a schema for its data, `emits={{ ANSWER: AnswerSchema }}`, or fix the guest so it sends what the schema expects. If the guest should not send that event, nothing needs fixing: dropping it is the protection.
 
 ## SYG9xx: Internal
 

@@ -53,7 +53,7 @@
  *                            and SYG302-399 for new checks
  *   1E (message retrofit)    SYG206-299, SYG402-499, SYG601-699, SYG901-999
  *   2A (strict mode)         SYG500-599
- *   unallocated              SYG100, SYG200, SYG203-205, SYG300, SYG400,
+ *   unallocated              SYG100, SYG200, SYG203, SYG205, SYG300, SYG400,
  *                            SYG600 (coordinator assigns on request)
  * ---------------------------------------------------------------------------
  */
@@ -198,6 +198,8 @@ export const CODE_TITLES: Record<string, string> = {
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
+  // sandbox research §6 (dev entry, checks/next.ts)
+  SYG204: 'Root component has no state, so its view never renders',
   // SYG3xx streams & intent construction (1A)
   SYG301: 'RxJS operator used on an xstream stream',
   // PLAN-13 X-1: static only (sygnal-check)
@@ -394,6 +396,7 @@ export const CODE_TITLES: Record<string, string> = {
   // sygnal/api (dev preview)
   SYG690: 'API contract skew',
   SYG691: 'Unknown API endpoint',
+  SYG692: 'Sandbox event dropped',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -443,6 +446,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG115: 'warn',
   SYG116: 'error',
   SYG117: 'warn',
+  // sandbox research §6: a root that has no state after it starts (checks/next.ts)
+  SYG204: 'warn',
   // PLAN-4 1-D: controls, static (sygnal-check)
   SYG124: 'error',
   SYG125: 'error',
@@ -584,6 +589,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   // sygnal/api: contractFetch() (SYG690); static only: sygnal-check (SYG691)
   SYG690: 'warn',
   SYG691: 'warn',
+  // sygnal/sandbox: an EVENTS type not declared in emits, or data its schema rejects (createSandbox, <Sandboxed>)
+  SYG692: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',

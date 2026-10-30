@@ -56,7 +56,8 @@ export const setupPersist = (c: any, o: any): void => {
   const uses = c.view?.uses || {};
   const only = (s: any) => {
     const out: any = {};
-    for (const k in s) if ((pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc) && uses[k]?.persist !== false) out[k] = s[k];
+    // a stored `__proto__` key (parsed as an own key) is skipped: `out[k] =` would set out's prototype
+    for (const k in s) if (k != '__proto__' && (pick ? pick.includes(k) : !omit?.includes(k)) && !(k in calc) && uses[k]?.persist !== false) out[k] = s[k];
     return out;
   };
   const read = (r: any) => {
