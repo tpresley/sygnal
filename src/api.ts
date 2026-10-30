@@ -5,3 +5,5 @@
 export {orpcClient, openApiClient, honoClient} from './index'
 export {contractHash, contractSkew, isContractSkew, contractFetch} from './index'
 export {fixture, errorFixture} from './index'
+// function-first: *.server.ts modules (sygnal/vite's api.functions); __serverFunction is for generated code
+export {serverQuery as query, serverMutation as mutation, serverStream as stream, serverFunctions, __serverFunction} from './index'

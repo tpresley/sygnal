@@ -173,6 +173,20 @@ export interface SygnalPluginOptions {
    * @default true
    */
   graph?: boolean
+
+  /**
+   * sygnal/api (dev preview): wire the app's API into the dev server and the client build.
+   * - `handler`: a module whose default export is a Fetch handler (Request → Response), served in
+   *   dev at `prefix` (default '/api'); a production server mounts the same module.
+   * - `contracts`: contract modules (oRPC) that client code gets as routes and a build-time
+   *   contractHash only, without their schemas (not under Vitest; leave a module out to validate
+   *   replies on the client).
+   * - `functions`: function-first `*.server.ts` files under `dir` (default 'src'): replaced in
+   *   client code by stubs that build the requests; `header` (default 'x-api-functions') carries
+   *   each file's contract hash. The server mounts them with `serverFunctions()` and oRPC.
+   * With `api` set, the plugin is an array.
+   */
+  api?: { handler?: string; prefix?: string; contracts?: string[]; functions?: boolean | { dir?: string; header?: string } }
 }
 
 export interface McpPluginOptions {
@@ -204,6 +218,7 @@ export interface McpPluginOptions {
  * ```
  */
 export default function sygnal(options: SygnalPluginOptions & { compile: true | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean } }): any[]
+export default function sygnal(options: SygnalPluginOptions & { api: NonNullable<SygnalPluginOptions['api']> }): any[]
 export default function sygnal(options?: SygnalPluginOptions): {
   name: string
   config: (config: any, env: { command: string }) => any
