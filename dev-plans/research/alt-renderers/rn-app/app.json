@@ -1,0 +1,9 @@
+{
+  "expo": {
+    "name": "sygnal-native",
+    "slug": "sygnal-native",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "ios": { "bundleIdentifier": "org.sygnal.research.native" }
+  }
+}

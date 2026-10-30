@@ -37,6 +37,21 @@ The maintainer approved building the kit and two targets (coordinator decisions:
 
 ---
 
+## Round 3 (2026-10-29): React Native, prepared, not yet run on iOS
+
+`rn-app/` is an Expo app written by hand (no generator):
+
+- `src/nativeHost.jsx`: Sygnal → React Native on `sygnal/host`. A host tree is re-rendered as RN host components on each change. Native callbacks (`onPress`, `onChangeText`, `onSubmitEditing`, `onValueChange`) become DOM events through the host's user-agent actions. The neutral tags (`view`, `row`, `txt`, `pressable`, `textinput`, `toggle`, registered with `registerFieldTags`) and common HTML tags map to `View`, `Text`, `Pressable`, `TextInput` and `Switch`.
+- `src/counter.jsx`: an HTML view, so the web's component runs natively unchanged.
+- `src/todos.logic.js` + `src/todos.native.jsx`: shared intent and model (controls), with a native view.
+- `App.js`, `metro.config.js` (sygnal from this repo through the `file:` link), `app.json`, `package.json` (expo ~58.0.21).
+
+Verified so far: `npx vitest run --config dev-plans/research/alt-renderers/rn-app/vitest.config.mjs` runs `nativeHost.jsx` and both components in jsdom, with `react-native` stubbed onto react-dom host components (`test/react-native-stub.jsx`). That's 3 tests: the counter, the todo list (type, Enter, toggle, clear, remove), and the logic under `renderComponent`. Two findings from it: `activate()` gives checkbox semantics only to `<input type=checkbox>`, so a `toggle` fires its click, input and change itself; and a host must stop painting before `dispose()` empties the tree (`host.stop()`).
+
+**Not done: the iOS simulator run and its screenshots.** This session's permission mode refused to run downloaded tooling (`npx create-expo-app` was denied as "code from external"). Running the app needs the user to allow `npm install` and `npx expo install --fix` in `rn-app/`, then `npx expo start --ios`. That last step installs Expo Go into the simulator, because CocoaPods isn't installed, so `expo run:ios` (a native build) would also need `gem install cocoapods`. Generated `ios/`, `android/` and `.expo/` are in `rn-app/.gitignore`.
+
+---
+
 Run it:
 
 ```bash
