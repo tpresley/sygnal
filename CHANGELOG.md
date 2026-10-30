@@ -84,6 +84,16 @@ behaves as on 7.1.0.
   - `value: { write, read?, equals?, strict? }` makes the `value` prop controlled: Sygnal writes only the
     app's own changes, never echoes of the widget's, and `strict` writes back an edit the model refused.
   - Guide: "Imperative Islands" (three.js, canvas 2D, CodeMirror). Research: `dev-plans/research/canvas-three`.
+- **three.js:** `sygnal/three` renders three.js scenes from JSX. `<Scene>` takes meshes, geometries,
+  materials, lights and cameras as children (every three.js class, lowercased; `extend()` for more).
+  - A click or hover on the canvas is a raycast, dispatched as a DOM event on the element hit, with the
+    point it hit: `DOM.click('.cube')` in the cube's own intent.
+  - `animate={{ rotation: (t) => [0, t, 0] }}` moves objects every frame with no action, render or patch.
+  - Keyboard: meshes with a role and `tabIndex` are focusable buttons; Enter clicks them.
+  - A controlled camera (`Orbit`, `camera`), disposal of what it made, `createThreeHost()` for a whole app
+    as a scene on `sygnal/host`, and `sceneOf(el)` for tests in jsdom (headless raycasts, no WebGL).
+  - `three` (0.170 or later) is an optional peer dependency. About 5 KB gzip, nothing for an app that
+    doesn't import it. Guide: "three.js". Example: `examples/three-cubes`.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
