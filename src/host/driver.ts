@@ -19,6 +19,7 @@ import {makeIsolateSink, makeIsolateValue, getScopeObj} from '../cycle/dom/isola
 import {enrichEventStream} from '../cycle/dom/enrichEventStream'
 import {HostDocument, HostElement, HostEvent, HostDelegate, hostApi} from './dom'
 import {matches} from './selector'
+import {scopeKey, preventIf} from './delegation'
 
 type Scope = {type: string, scope: string}
 
@@ -44,6 +45,11 @@ const sameNs = (a: Scope[] | undefined, b: Scope[]) => (a || []).length === b.le
 const scopeRoot = (el: HostElement | null): HostElement | null => {
   for (let e = el; e; e = e.parentNode) if (e.__isolate) return e
   return null
+}
+
+export interface HostEventsOptions {
+  /** cancel the event's default action when this source delivers it: true, a pattern of event fields, or a predicate */
+  preventDefault?: boolean | Record<string, unknown> | ((e: HostEvent) => boolean)
 }
 
 export interface HostDriverOptions {
@@ -128,21 +134,40 @@ export class HostSource {
     return sel ? matches(el, sel, sr ? sr.parentNode : null) : el === (sr || this.doc.body)
   }
 
-  events(type: string, _options?: unknown): any {
+  events(type: string, options?: HostEventsOptions): any {
     const doc = this.doc
     let d: HostDelegate
     const out = xs.create({
       start: (l: any) => {
+        const deliver = (e: HostEvent, el: HostElement) => { e.currentTarget = el; l.next(e) }
         d = Object.assign((e: HostEvent) => {
           for (let el: HostElement | null = e.target; el; el = e.bubbles ? el.parentNode : null) {
-            if (this.accepts(el)) { e.currentTarget = el; l.next(e); return }
+            if (this.accepts(el)) { d.deliver!(e, el); return }
           }
-        }, {type, accepts: (el: HostElement) => !this.global && this.accepts(el), global: this.global})
+        }, {type, accepts: (el: HostElement) => !this.global && this.accepts(el), global: this.global}, this.indexed(deliver, options))
         doc.delegates.add(d)
       },
       stop: () => { doc.delegates.delete(d) },
     })
     return enrichEventStream(out)
+  }
+
+  /**
+   * A delegate's indexed delivery (src/host/delegation.ts: its scope's key, a match at one level of
+   * that scope) and the declarative preventDefault, applied before delivery as the DOM driver does:
+   * `true`, a pattern of event fields (`{ key: 'Tab' }`) or a predicate. A target that makes the
+   * decision elsewhere (sygnal/worker's page) reads `preventDefault` and `selector` off the delegate.
+   */
+  private indexed(deliver: (e: HostEvent, el: HostElement) => void, options?: HostEventsOptions) {
+    const pd = options?.preventDefault || undefined
+    const sel = this.selector, body = this.doc.body
+    const at = this.global
+      ? (el: HostElement) => !sel || matches(el, sel)
+      : (el: HostElement, sr: HostElement | null) => sel ? matches(el, sel, sr ? sr.parentNode : null) : el === (sr || body)
+    return {
+      scope: scopeKey(this.ns), selector: sel, preventDefault: pd, at,
+      deliver: pd ? (e: HostEvent, el: HostElement) => { preventIf(e, pd); deliver(e, el) } : deliver,
+    }
   }
 
   elements(): any {
