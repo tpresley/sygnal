@@ -300,6 +300,30 @@ export default [
 		]
   },
 
+  // 'sygnal/replay' (7.2 dev preview): like 'sygnal/api', a re-export of the main bundle's
+  // src/extra/replay/ from the external 'sygnal'.
+  {
+    input: 'src/replay.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./replay'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./replay'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-replay-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]replay\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // PLAN-5 W-2 (D203, D209): the adapter entries. Their framework / Zag imports stay external
   // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
   // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).

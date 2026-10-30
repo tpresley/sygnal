@@ -11,7 +11,7 @@
  * through, matches the source's selector inside the source's isolation scope (total isolation:
  * a parent's selector never matches a child component's elements).
  */
-import {xs} from '../index'
+import {xs, __deliver as deliver} from '../index'
 import {init} from '../cycle/dom/snabbdom'
 import defaultModules from '../cycle/dom/modules'
 import {flat} from '../cycle/dom/utils'
@@ -135,7 +135,7 @@ export class HostSource {
       start: (l: any) => {
         d = Object.assign((e: HostEvent) => {
           for (let el: HostElement | null = e.target; el; el = e.bubbles ? el.parentNode : null) {
-            if (this.accepts(el)) { e.currentTarget = el; l.next(e); return }
+            if (this.accepts(el)) { e.currentTarget = el; deliver(e, () => l.next(e)); return }
           }
         }, {type, accepts: (el: HostElement) => !this.global && this.accepts(el), global: this.global})
         doc.delegates.add(d)

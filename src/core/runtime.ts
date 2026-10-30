@@ -21,12 +21,13 @@ import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
 import eventBusDriver from '../extra/eventDriver'
 import logDriver from '../extra/logDriver'
-import {NOT_SINK, isAbort} from '../shared'
+import {NOT_SINK, isAbort, delivering} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
 import {CoreDef, defOf, rootDef} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
+import {seen} from './actions'
 import {viewOf} from './view'
 import {ext} from './registry'
 import {stopQueued, SET, SEED} from './teardown'
@@ -57,6 +58,8 @@ export interface StartOptions {
   __state?: any
   /** internal: an HMR swap: the instances its first flush makes get no BOOTSTRAP (as today's `__hmr`) */
   __swap?: boolean
+  /** internal: the handlers' now() / random() / uuid() (renderComponent's fixed clock, seeded random, ids) */
+  __entropy?: {now?: () => number; random?: () => number; uuid?: () => string}
   /** internal: renderComponent's root (test intent, initial state, name) */
   __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
 }
@@ -152,6 +155,8 @@ export class App {
   /** `src`: for a reply, the source that delivered it (the action log's replySink) */
   dispatch(inst: Inst, type: any, data: any, cause: ActionCause = 'intent', src?: string) {
     if (this.disposed) return
+    // 7.2: at enqueue, with the DOM event being delivered (a string type: not setState / a seed)
+    typeof type == 'string' && this.hooks.onDispatch?.(viewOf(inst), type, data, cause, delivering)
     this.queue.push(inst, type, data, cause, src)
     if (!this.draining && !this.rendering) this.drain()
   }
@@ -168,8 +173,9 @@ export class App {
           if (q[i + 1] === SET) {
             const f = q[i + 2], c = inst.cell
             const v = typeof f == 'function' ? f(c.get()) : f
-            // (ABORT: no change, as from a reducer)
-            if (v !== c.get() && !isAbort(v)) c.set(v)
+            // (ABORT: no change, as from a reducer). 7.2: seen by onAction as a 'setState' action
+            // with the new state (false: dropped)
+            if (v !== c.get() && !isAbort(v) && seen(inst, 'setState', v, 'setState')) c.set(v)
           } else if (q[i + 1] === SEED) {
             // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
             const d = q[i + 2], b = d.b
@@ -440,9 +446,8 @@ export class App {
           : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => { const x = b(i, t, s, f) || f; return a(i, t, s, x) || x }
           : k == 'wrapSources' ? (i: any, s: any) => { const x = b(i, s) || s; return a(i, x) || x }
           : k == 'transformDef' ? (src: any, v: any) => { const x = b(src, v) || src; return a(x, v) || x }
-          // onElementCommand: false (not run) from either layer
-          : k == 'onElementCommand' ? (i: any, c: any) => { const x = b(i, c); return a(i, c) === false || x === false ? false : undefined }
-          : (...args: any[]) => { b(...args); a(...args) }
+          // false from either layer: onElementCommand (not run), onAction (dropped)
+          : (...args: any[]) => { const x = b(...args); return a(...args) === false || x === false ? false : undefined }
       }
     }
     // D168's safety net (R4): a view context tracking skipped, offered for a re-run check

@@ -101,6 +101,12 @@ export interface CopyAsTestOptions {
   testName?: string
   /** Adds a `// @vitest-environment <env>` first line */
   environment?: string
+  /**
+   * 7.2: 'steps' (default): explicit simulateAction / respond lines. 'replay': the recording of
+   * sygnal/replay's newest recorder (startRecording() before run()) and a test that replays it
+   * (child instances, timer replies, clock and randomness too)
+   */
+  mode?: 'steps' | 'replay'
 }
 
 export interface CopyAsTestResult {
@@ -112,6 +118,9 @@ export interface CopyAsTestResult {
   warnings: string[]
   /** Actions written as simulateAction / t.respond / t.fail */
   replayed: number
+  /** replay mode: the recording's JSON, to save next to the test as `file` */
+  recording?: string
+  file?: string
 }
 
 /**

@@ -68,7 +68,7 @@ export function devtoolsHooks(dt: any, api: any): any {
     onStateChanged(iv: any, s: any) { dt.connected && dt.onStateChanged(iv.id, iv.name, s) },
     onPropsChanged(iv: any, p: any) { dt.connected && dt.onPropsChanged(iv.id, iv.name, p) },
     onContextChanged(iv: any, c: any) { dt.connected && dt.onContextChanged(iv.id, iv.name, c) },
-    onAction(iv: any, a: any) { dt.connected && dt.onActionDispatched(iv.id, iv.name, a.type, a.data) },
+    onAction(iv: any, a: any) { dt.connected && a.cause != 'setState' && dt.onActionDispatched(iv.id, iv.name, a.type, a.data) },
     onReady(p: any, c: any, ready: boolean) { dt.connected && dt.onReadyChanged(p.id, p.name, c.name, ready) },
     onDispose(iv: any) { dt.onComponentDisposed(iv.id, iv.name) },
   }

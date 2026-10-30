@@ -72,7 +72,8 @@ export function actionHooks(listener: ActionListener, only?: (inst: any) => bool
       addSink(listener, rec, ['STATE'], 'STATE', undefined)
     },
     onAction(inst: any, a: any) {
-      if (only && !only(inst)) return
+      // 7.2: a runtime setState (time travel, HMR, element props) isn't an action of the log
+      if ((only && !only(inst)) || a.cause == 'setState') return
       const type = String(a.type), owned = inst.def.behaviorActions
       const hs = inst.def.handlers.get(type) || [], order = hs.map((h: any) => h[0])
       const opened = type == 'INITIALIZE' && init.get(inst)

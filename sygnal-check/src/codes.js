@@ -57,6 +57,8 @@ export const CODES = {
   // installed Sygnal 7, SYG454 (rules/syg454-byid-binding.js) on an installed Sygnal 6 only
   SYG256: { severity: 'warn', title: 'Output guard rejects the updated state' },
   SYG454: { severity: 'warn', title: 'State binding changed without a new component identity' },
+  // record/replay (rules/syg258-clock-in-reducer.js): left out under --strict, where SYG509 reports it
+  SYG258: { severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
@@ -123,6 +125,7 @@ export const CODES = {
   SYG506: { severity: 'error', title: "Removed in 6.0: CHILD.select() with a component name", strict: true },
   SYG507: { severity: 'info', title: 'Prop drilled through more than 2 component levels', strict: true },
   SYG508: { severity: 'warn', title: 'select()/errors() round trip where reply actions would do', strict: true },
+  SYG509: { severity: 'warn', title: 'Clock or randomness read from a global in a handler', strict: true },
   SYG900: { severity: 'warn', title: 'A diagnostics check threw' },
 }
 

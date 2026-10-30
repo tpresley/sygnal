@@ -8,6 +8,7 @@
  *     codes: ['SYG110', 'SYG104'],     // diagnostic codes it may report
  *     description: '…',
  *     strict: false,                   // true → only runs with --strict
+ *     notStrict: false,                // true → left out with --strict (a strict rule reports it)
  *     run(project, report) { … }
  *   }
  *
@@ -59,6 +60,7 @@ import byIdBinding from './syg454-byid-binding.js'
 import outputGuard from './syg256-output-guard.js'
 import lowercaseMarkers from './syg426-lowercase-markers.js'
 import unknownEndpoint from './syg691-unknown-endpoint.js'
+import clockInReducer from './syg258-clock-in-reducer.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -94,6 +96,7 @@ export const coreRules = [
   webmcpFormAttrs, // SYG153 (PLAN-6 K-1, D269)
   byIdBinding,
   outputGuard,
+  clockInReducer, // SYG258 (record/replay): Date.now()/Math.random()/crypto.randomUUID() in a STATE reducer; SYG509 under --strict
   catalog, // SYG161, SYG162, SYG250, SYG253, SYG254, SYG450, SYG680 (PLAN-9 X-2: defineCatalog)
   ...a11yRules, // SYG701-708, 722, 724, 730, 731 (PLAN-4 GS-3, PLAN-6 K-1): warn, also under --strict; error with a11y: 'error' (D144)
 ]
@@ -115,5 +118,6 @@ export function selectRules({ strict = false, a11y = 'warn' } = {}) {
     const lane = new Set(a11yRules)
     rules = [...coreRules.filter(r => !lane.has(r)), ...errorA11yRules]
   }
-  return strict ? [...rules, ...strictRules] : rules
+  // a core rule with `notStrict` (SYG258) is replaced by a strict one (SYG509) under --strict
+  return strict ? [...rules.filter(r => !r.notStrict), ...strictRules] : rules
 }

@@ -253,13 +253,13 @@ RootComponent.model = {
 
   // the discussion is done: save it (a follow-up updates the same saved session), then title it
   SYNTHESIZED: {
-    STATE: (state, { text }) => {
+    STATE: (state, { text }, next, { now }) => {
       const transcript = [...state.transcript, { ...state.live, content: text, thinking: false }]
       const sessionId = state.sessionId || newSessionId()
       const saved = state.sessions.find((s) => s.id === sessionId)
       const session = {
         id: sessionId,
-        createdAt: saved?.createdAt || new Date().toISOString(),
+        createdAt: saved?.createdAt || new Date(now()).toISOString(),
         title: saved?.title || defaultSessionTitle(state.topic),
         topic: state.topic,
         panel: state.panel,

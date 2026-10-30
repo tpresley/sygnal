@@ -100,7 +100,7 @@ App.model = {
   LOAD: (state) => state,
   INPUT: set((_s, input) => ({ input })),
   ADD: {
-    STATE: (state) => ({ ...state, todos: [...state.todos, { id: Date.now(), title: state.input, done: false }] }),
+    STATE: (state, data, next, { now }) => ({ ...state, todos: [...state.todos, { id: now(), title: state.input, done: false }] }),
     EVENTS: event('SAVED', (state) => state.todos.length),
   },
   FILTER: (state, e) => ({ ...state, filter: e.target.textContent }),

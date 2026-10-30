@@ -75,6 +75,7 @@ export default defineConfig({
             { label: 'Built for Coding Agents', slug: 'ai/coding-agents' },
             { label: 'Building with AI Agents', slug: 'integration/agents' },
             { label: 'Testing', slug: 'integration/testing' },
+            { label: 'Record and Replay', slug: 'guide/record-replay' },
             { label: 'Diagnostics', slug: 'guide/diagnostics' },
             { label: 'Strict Mode', slug: 'guide/strict-mode' },
             { label: 'App Graph', slug: 'guide/app-graph' },

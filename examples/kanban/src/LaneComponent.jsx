@@ -80,13 +80,13 @@ LaneComponent.model = {
   FINISH_EDIT:   set((state, title) => ({ isEditing: false, title: title.trim() || state.title })),
   SHOW_ADD_TASK: set({ isAddingTask: true }),
 
-  ADD_TASK: (state, title) => {
+  ADD_TASK: (state, title, next, { uuid }) => {
     const trimmed = title.trim()
     if (!trimmed) return ABORT
     return {
       ...state,
       isAddingTask: false,
-      tasks: [...state.tasks, { id: `task-${Date.now()}`, title: trimmed, description: '' }],
+      tasks: [...state.tasks, { id: `task-${uuid()}`, title: trimmed, description: '' }],
     }
   },
 

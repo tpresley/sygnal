@@ -213,6 +213,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG506: "Removed in 6.0: CHILD.select() with a component name",
   SYG507: 'Prop drilled through more than 2 component levels',
   SYG508: 'select()/errors() round trip where reply actions would do',
+  SYG509: 'Clock or randomness read from a global in a handler',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -379,6 +380,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG254: 'Catalog descriptions or options overlap',
   SYG256: 'Output guard rejects the updated state',
   SYG257: 'Output reads a field its action changed (7.0 timing audit)',
+  // record/replay: static only (sygnal-check rules/syg258-clock-in-reducer.js; SYG509 under --strict)
+  SYG258: 'Clock or randomness read from a global in a STATE reducer',
   SYG454: 'State binding changed without a new component identity',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
@@ -423,6 +426,7 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG506: 'error',
   SYG507: 'info',
   SYG508: 'warn',
+  SYG509: 'warn',
 }
 
 // PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict
@@ -625,6 +629,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG256: 'warn',
   // 7.0: the opt-in timing audit (checks/next.ts; configureTimingAudit)
   SYG257: 'info',
+  // record/replay: static only (sygnal-check); listed so the entry knows its title
+  SYG258: 'warn',
   // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
 }

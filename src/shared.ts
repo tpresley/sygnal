@@ -58,3 +58,15 @@ export const abort = (reason?: string): typeof ABORT => (abortReason.r = reason,
 
 /** Private semantic binding identity, shared by built-in helpers and the runtime. */
 export const BINDING = /*#__PURE__*/ Symbol.for('sygnal.binding')
+
+/**
+ * 7.2 (record/replay, Q2): the DOM event a DOM driver (the browser driver, sygnal/host's) is
+ * delivering right now; the core hands it to the onDispatch hook. Not globalThis.event: workers
+ * and host targets have none. `deliver(e, f)` runs f with it set (nested deliveries restore)
+ */
+export let delivering: any
+export const deliver = (e: any, f: () => void) => {
+  const w = delivering
+  delivering = e
+  try { f() } finally { delivering = w }
+}

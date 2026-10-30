@@ -1,4 +1,5 @@
 import {Stream, Producer, Listener} from 'xstream';
+import {deliver} from '../../shared';
 
 export type Predicate = (ev: Event) => boolean;
 export type Comparator = Record<string, unknown>;
@@ -14,16 +15,11 @@ export function fromEvent(
   let next: ((e: Event) => void) | null = null;
   return Stream.create<Event>({
     start: function start(listener: Listener<Event>) {
-      if (preventDefault) {
-        next = function _next(event: Event) {
-          preventDefaultConditional(event, preventDefault);
-          listener.next(event);
-        };
-      } else {
-        next = function _next(event: Event) {
-          listener.next(event);
-        };
-      }
+      // (7.2: delivered with the event recorded for the core's onDispatch hook)
+      next = function _next(event: Event) {
+        preventDefaultConditional(event, preventDefault);
+        deliver(event, () => listener.next(event));
+      };
       element.addEventListener(eventName, next, {
         capture: useCapture,
         passive,

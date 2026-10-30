@@ -7,6 +7,7 @@ import {EventsFnOptions} from './DOMSource';
 import {Scope} from './isolate';
 import SymbolTree from './SymbolTree';
 import PriorityQueue from './PriorityQueue';
+import {deliver} from '../../shared';
 import {
   fromEvent,
   preventDefaultConditional,
@@ -382,46 +383,49 @@ export class EventDelegator {
     passive: boolean,
     bubbles = true
   ): void {
-    const cycleEvent = this.patchEvent(event);
-    const target = event.target as Element;
-    const rootElement = this.isolateModule.getRootElement(target);
+    // 7.2: the event is recorded while it is delivered (the core's onDispatch hook)
+    deliver(event, () => {
+      const cycleEvent = this.patchEvent(event);
+      const target = event.target as Element;
+      const rootElement = this.isolateModule.getRootElement(target);
 
-    if (bubbles) {
-      const namespace = this.isolateModule.getNamespace(target);
-      if (!namespace) {
-        return;
-      }
-      const listeners = this.getVirtualListeners(eventType, namespace);
-      const phase = (useCapture: boolean) => this.bubble(
-        eventType,
-        target,
-        rootElement,
-        cycleEvent,
-        listeners,
-        namespace,
-        namespace.length - 1,
-        useCapture,
-        passive
-      );
-      phase(true);
-      phase(false);
-    } else {
-      const phase = (useCapture: boolean) => {
-        this.putNonBubblingListener(eventType, target, useCapture, passive);
-        this.doBubbleStep(
+      if (bubbles) {
+        const namespace = this.isolateModule.getNamespace(target);
+        if (!namespace) {
+          return;
+        }
+        const listeners = this.getVirtualListeners(eventType, namespace);
+        const phase = (useCapture: boolean) => this.bubble(
           eventType,
           target,
           rootElement,
           cycleEvent,
-          this.virtualNonBubblingListener,
+          listeners,
+          namespace,
+          namespace.length - 1,
           useCapture,
           passive
         );
-      };
-      phase(true);
-      phase(false);
-      event.stopPropagation();
-    }
+        phase(true);
+        phase(false);
+      } else {
+        const phase = (useCapture: boolean) => {
+          this.putNonBubblingListener(eventType, target, useCapture, passive);
+          this.doBubbleStep(
+            eventType,
+            target,
+            rootElement,
+            cycleEvent,
+            this.virtualNonBubblingListener,
+            useCapture,
+            passive
+          );
+        };
+        phase(true);
+        phase(false);
+        event.stopPropagation();
+      }
+    });
   }
 
   private bubble(

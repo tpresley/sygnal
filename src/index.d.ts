@@ -102,7 +102,21 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
  * `state` (and as its 1st argument), with the state from before the action as `previousState`
  * (in a STATE reducer both are the old state)
  */
-type ReducerExtras<PROPS, CONTEXT, STATE = any> = PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+/**
+ * 7.2: the clock and randomness on a handler's 4th argument, the canonical form for reading them
+ * (instead of Date.now(), Math.random(), crypto.randomUUID(): SYG258 / SYG509). renderComponent
+ * can fix them (`now`, `random`, `uuid` options) and a replay supplies the recorded values. A
+ * component prop of the same name wins.
+ */
+export interface HandlerEntropy {
+  /** Date.now() */
+  now(): number
+  /** Math.random() */
+  random(): number
+  /** crypto.randomUUID() */
+  uuid(): string
+}
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, keyof PROPS> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -3436,6 +3450,23 @@ export interface RenderOptions {
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
   /**
+   * 7.2: what handlers' `now()` (4th argument) returns: a number fixes the clock at that time (ms
+   * since the epoch, or a Date), a function is called each time. Default: Date.now() (fake timers
+   * apply)
+   */
+  now?: number | Date | (() => number);
+  /**
+   * 7.2: what handlers' `random()` returns: a number seeds a deterministic generator (the same
+   * sequence on every run), a function is called each time. Default: Math.random()
+   */
+  random?: number | (() => number);
+  /**
+   * 7.2: what handlers' `uuid()` returns: `true` gives deterministic UUID-shaped ids in order
+   * (`00000000-0000-4000-8000-000000000001`, `…002`, ...), a function is called each time.
+   * Default: crypto.randomUUID()
+   */
+  uuid?: true | (() => string);
+  /**
    * D214: context from the ancestors the rendered component would have, for testing a child
    * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
    * descendants read it as `context.lang`; the component's own `.context` entries win over a key
@@ -4074,6 +4105,9 @@ declare global {
 }
 
 // PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
+// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './replay.d'
+export type { Recording, RecordedAction, RecordedCause, RecordOptions, Recorder, ReplayOptions, ReplayResult, ReplayDivergence, ReplayTestOptions } from './replay.d'
 export { messageText, withToolResults } from './ai.d'
 export { decide, choice, noul, score } from './ai.d'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'

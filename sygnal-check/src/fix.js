@@ -8,6 +8,8 @@
  *           EVENTS: s => ({ type: 'T', data: x }) → EVENTS: event('T', s => x)
  *   SYG506  CHILD.select('Name')        → CHILD.select(Name)     (Name bound to a component
  *           function/class or import; not component() results)
+ *   SYG509  Date.now() / Math.random() / crypto.randomUUID() in a handler → now() / random() / uuid()
+ *           from its 4th argument (props), the parameter list completed (model/clockReads.js)
  *   SYG612  X.storeCalculatedInState = …, X.DOMSourceName = 'DOM', … (removed statics) → deleted
  *
  * A fix adds `event` to the existing `import { … } from 'sygnal'` when it needs it, and removes

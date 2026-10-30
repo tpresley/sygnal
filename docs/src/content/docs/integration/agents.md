@@ -59,7 +59,7 @@ The commands below use `npx --no-install`, which runs only the copy installed in
 | Command | Does |
 |---|---|
 | `npx --no-install sygnal-check` | Check `./src`; pass files, directories or globs instead (a Vike app: `npx --no-install sygnal-check pages`) |
-| `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-507) |
+| `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-509) |
 | `npx --no-install sygnal-check --fix` | Rewrite SYG504/505/506 into the canonical form in place, then check |
 | `npx --no-install sygnal-check --graph [--json]` | Print the app graph (components, actions, events, selectors, findings) |
 | `npx --no-install sygnal-check --graph --json --base main` | What a branch changed in the app graph, as JSON: components added, removed and changed (with the changed fields), and event types added and removed |

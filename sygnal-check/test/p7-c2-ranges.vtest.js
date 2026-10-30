@@ -50,6 +50,7 @@ function underlined(src, d) {
 // [code, file, line, underlined text] — one per rule code, for the project in cases.json
 const RANGES = [
   ['SYG256', 'App.jsx', 4, "s.status!=='working'"],
+  ['SYG258', 'App.jsx', 4, 'Date.now()'],          // default mode only (SYG509 under --strict)
   ['SYG454', 'App.jsx', 2, "byId('projects', state.selectedId)"],
   ['SYG101', 'App.jsx', 3, 'HYDRATE'],
   ['SYG102', 'T.jsx', 3, 'A'],
@@ -107,6 +108,7 @@ const RANGES = [
   ['SYG506', 'P.jsx', 12, "'Thing'"],
   ['SYG507', 'prop-drilling.jsx', 13, 'theme={theme}'],
   ['SYG508', 'Quote.jsx', 4, "HTTP.select('quote')"],
+  ['SYG509', 'App.jsx', 5, 'Math.random()'],
   ['SYG609', 'src/Chat.jsx', 3, 'WS'],            // the sink key, not the sink function
   ['SYG612', 'App.jsx', 3, 'App.stateSourceName'],
   ['SYG634', 'App.jsx', 8, 'q'],
@@ -128,6 +130,9 @@ const RANGES = [
   ['SYG731', 'Star.jsx', 2, 'className={{ star: true, on: state.on }}'],
 ]
 
+// codes left out under --strict (a strict rule reports them instead): checked without it
+const NOT_STRICT = new Set(['SYG258'])
+
 describe('C-2: a range for every rule code', () => {
   it('covers every code the rules report', () => {
     const codes = new Set([...coreRules, ...strictRules, ...a11yRules].flatMap(r => r.codes))
@@ -137,7 +142,7 @@ describe('C-2: a range for every rule code', () => {
 
   it.each(RANGES)('%s underlines its node (%s:%i)', (code, file, line, text) => {
     const files = CASES[code]
-    const d = project(files).check().find(x => x.code === code && x.file === file && x.line === line)
+    const d = project(files).check(NOT_STRICT.has(code) ? { strict: false } : {}).find(x => x.code === code && x.file === file && x.line === line)
     expect(d, `${code} at ${file}:${line}`).toBeTruthy()
     expect(Number.isInteger(d.endLine) && Number.isInteger(d.endColumn)).toBe(true)
     expect(d.endLine > d.line || (d.endLine === d.line && d.endColumn > d.column)).toBe(true)
@@ -317,7 +322,7 @@ describe('C-2: related locations', () => {
   ])('%s points at the other side', (code, expected) => {
     const [, file, line] = RANGES.find(r => r[0] === code)
     const files = CASES[code]
-    const d = project(files).check().find(x => x.code === code && x.file === file && x.line === line)
+    const d = project(files).check(NOT_STRICT.has(code) ? { strict: false } : {}).find(x => x.code === code && x.file === file && x.line === line)
     expect(rel(d)).toEqual(expected)
     for (const r of d.related) {
       const text = underlined(files[r.file], r)

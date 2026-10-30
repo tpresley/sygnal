@@ -453,3 +453,12 @@ Reviewed on the research decisions page. Unless a line says otherwise, the recom
 - Q6: checkpoints after each patch.
 - Q7: `dropNoops` on by default, with an option to keep them.
 - Q8: recordings carry the Sygnal version and the component and action names. A mismatch warns, and the recording still replays.
+
+## Productized (2026-10-30)
+
+Built as the `sygnal/replay` subpath for the 7.2 dev preview, following the decisions above: the
+code is in `src/extra/replay/` (the spike's design, with the drop hook replacing `() => ABORT`
+muting, `onDispatch` replacing the DOM-source tapping for redaction provenance, `setState` recorded
+as an input, and explicit `now()` / `random()` / `uuid()` on the handlers' props with the global
+patching kept as the fallback). Tests: `test/replay.test.js`, `test/replay-core-hooks.test.js`;
+guide: `docs/src/content/docs/guide/record-replay.md`. The spike under `spike/` is kept as it was.
