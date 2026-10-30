@@ -65,6 +65,15 @@ function isHyperscriptImport(file, ident) {
 
 const isComponentTag =(name) => !!name && (/^[A-Z]/.test(name) || name.includes('.'))
 
+// 'sygnal/primitives' tags render an HTML element where they're written (not a child component)
+const PRIMITIVE_TAGS = { View: 'div', Text: 'span', Pressable: 'button', TextInput: 'input', Switch: 'input', Image: 'img', ScrollView: 'div', List: 'div' }
+/** the HTML tag of a 'sygnal/primitives' JSX tag (`<View>` → 'div'), or null */
+function primitiveTag(file, nameNode) {
+  if (nameNode?.type !== 'JSXIdentifier') return null
+  const b = findBinding(file, nameNode.name, nameNode)
+  return b?.kind === 'import' && /^sygnal\/primitives$/.test(b.source) ? PRIMITIVE_TAGS[b.imported] || null : null
+}
+
 function addDynamic(set) {
   if (!set.patterns.some(p => p.source === '*')) set.patterns.push({ source: '*', re: /^.*$/ })
 }
@@ -293,6 +302,18 @@ function handleElement(project, file, el, sink, visited) {
 
   // A control is an element, not a component: it renders in this scope.
   const control = isComponentTag(name) && !TRANSPARENT.has(name) ? resolveControlJSX(project, file, opening) : null
+  // so is a primitive (<View> from 'sygnal/primitives'): checked as the HTML element it renders
+  const prim = !control && isComponentTag(name) ? primitiveTag(file, opening.name) : null
+  if (prim) {
+    handleHtmlAttrs(project, file, opening, sink)
+    sink.elements.push({ node: el, file, tag: prim })
+    for (const a of opening.attributes) {
+      const v = a.type === 'JSXAttribute' ? jsxAttrExpr(a) : a.argument
+      if (v && v.type !== 'StringLiteral') visitInto(project, file, v, sink, visited)
+    }
+    for (const c of el.children) visitInto(project, file, c, sink, visited)
+    return
+  }
   if (control) {
     if (!sink.controls.has(control)) sink.controls.set(control, [])
     sink.controls.get(control).push(opening)

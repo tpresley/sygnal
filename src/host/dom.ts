@@ -50,6 +50,32 @@ const idOf = new WeakMap<object, number>()
 /** a node's stable id for as long as the node lives (snapshot refs, op logs) */
 export const nodeId = (n: object): number => idOf.get(n) ?? (idOf.set(n, ++ids), ids)
 
+/**
+ * An element's style or dataset object: a write is a change of the element (its attributes). The
+ * dataset reflects to data-* attributes, as the DOM's does (selectors match [data-id="3"])
+ */
+function tracked(el: HostElement, methods: Record<string, any>, data = false): any {
+  const target: any = {}
+  for (const k in methods) Object.defineProperty(target, k, {value: methods[k], enumerable: false})
+  const attr = (k: string | symbol) => 'data-' + String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase())
+  return new Proxy(target, {
+    set(t, k, v) {
+      if (t[k] === v) return true
+      t[k] = v
+      data ? el.attributes.set(attr(k), String(v)) : 0
+      el.ownerDocument.changed(el, true)
+      return true
+    },
+    deleteProperty(t, k) {
+      if (!(k in t)) return true
+      delete t[k]
+      data ? el.attributes.delete(attr(k)) : 0
+      el.ownerDocument.changed(el, true)
+      return true
+    },
+  })
+}
+
 export class HostDocument {
   /** called once per microtask after any change to the tree (a renderer repaints) */
   onChange: (() => void) | null = null
@@ -79,7 +105,17 @@ export class HostDocument {
   globalTypes(): string[] {
     return [...new Set([...this.delegates].filter(d => d.global).map(d => d.type))]
   }
-  changed() {
+  /**
+   * Called by every mutation. `node`: what changed; its `revision` and every ancestor's go up (a
+   * renderer re-renders only a subtree whose revision moved: sygnal/react-native). `attr`: an
+   * attribute, class, style or dataset change (`attrRevision`: a stylesheet's descendant
+   * selectors may now match differently below it)
+   */
+  changed(node?: HostNode, attr = false) {
+    if (node) {
+      if (attr) node.attrRevision++
+      for (let n: HostNode | null = node; n; n = n.parentNode) n.revision++
+    }
     if (this.dirty || !this.onChange) return
     this.dirty = true
     queueMicrotask(() => { this.dirty = false; this.onChange?.() })
@@ -88,6 +124,10 @@ export class HostDocument {
 
 export abstract class HostNode {
   parentNode: HostElement | null = null
+  /** moves on any change to the node or below it (doc.changed) */
+  revision = 0
+  /** moves on a change of the node's own attributes, classes, style or dataset */
+  attrRevision = 0
   abstract nodeType: number
   constructor(public ownerDocument: HostDocument) {}
   get parentElement() { return this.parentNode }
@@ -113,7 +153,7 @@ export class HostText extends HostNode {
   private _data: string
   constructor(doc: HostDocument, data: any) { super(doc); this._data = String(data) }
   get data() { return this._data }
-  set data(v: any) { this._data = String(v); this.ownerDocument.changed() }
+  set data(v: any) { this._data = String(v); this.ownerDocument.changed(this) }
   get textContent() { return this._data }
   set textContent(v: any) { this.data = v ?? '' }
   get nodeValue() { return this._data }
@@ -137,21 +177,25 @@ export class HostElement extends HostNode {
   attributes = new Map<string, string>()
   classList = new ClassList(this)
   /** inline styles (`style={{...}}` through the style module); renderers read display and their own keys */
-  style: Record<string, any> = {}
-  dataset: Record<string, string> = {}
+  style: Record<string, any> = tracked(this, {setProperty(k: string, v: any) { this[k] = v }, removeProperty(k: string) { delete this[k] }, getPropertyValue(k: string) { return this[k] ?? '' }})
+  dataset: Record<string, string> = tracked(this, {}, true)
   /** the isolation scope of a component's root element (set by the driver's scope module) */
   __isolate?: any[]
   private listeners = new Map<string, Set<HostListener>>()
   private _value = ''
   // element state a platform edits (the DOM's properties, not attributes)
-  checked = false
-  selected = false
+  private _checked = false
+  private _selected = false
+  get checked() { return this._checked }
+  set checked(v: boolean) { if (this._checked !== !!v) { this._checked = !!v; this.ownerDocument.changed(this) } }
+  get selected() { return this._selected }
+  set selected(v: boolean) { if (this._selected !== !!v) { this._selected = !!v; this.ownerDocument.changed(this) } }
   constructor(doc: HostDocument, public localName: string) { super(doc) }
 
   get tagName() { return this.localName.toUpperCase() }
   get nodeName() { return this.tagName }
   get value() { return this._value }
-  set value(v: any) { this._value = v == null ? '' : String(v); this.ownerDocument.changed() }
+  set value(v: any) { const x = v == null ? '' : String(v); if (x !== this._value) { this._value = x; this.ownerDocument.changed(this) } }
   get children(): HostElement[] { return this.childNodes.filter((n): n is HostElement => n.nodeType === 1) }
   get firstChild() { return this.childNodes[0] || null }
   get lastChild() { return this.childNodes[this.childNodes.length - 1] || null }
@@ -160,15 +204,15 @@ export class HostElement extends HostNode {
   set textContent(v: any) {
     for (const n of this.childNodes) n.parentNode = null
     this.childNodes = v != null && v !== '' ? [Object.assign(this.ownerDocument.createTextNode(v), {parentNode: this})] : []
-    this.ownerDocument.changed()
+    this.ownerDocument.changed(this)
   }
   /** a <select>'s options */
   get options(): HostElement[] { return this.querySelectorAll('option') }
 
   getAttribute(n: string) { return this.attributes.has(n) ? this.attributes.get(n)! : null }
   hasAttribute(n: string) { return this.attributes.has(n) }
-  setAttribute(n: string, v: any) { this.attributes.set(n, String(v)); this.ownerDocument.changed() }
-  removeAttribute(n: string) { if (this.attributes.delete(n)) this.ownerDocument.changed() }
+  setAttribute(n: string, v: any) { const x = String(v); if (this.attributes.get(n) !== x) { this.attributes.set(n, x); this.ownerDocument.changed(this, true) } }
+  removeAttribute(n: string) { if (this.attributes.delete(n)) this.ownerDocument.changed(this, true) }
   toggleAttribute(n: string, force?: boolean) {
     const on = force ?? !this.hasAttribute(n)
     on ? this.setAttribute(n, '') : this.removeAttribute(n)
@@ -180,7 +224,7 @@ export class HostElement extends HostNode {
     const i = ref ? this.childNodes.indexOf(ref) : -1
     i < 0 ? this.childNodes.push(node) : this.childNodes.splice(i, 0, node)
     node.parentNode = this
-    this.ownerDocument.changed()
+    this.ownerDocument.changed(this)
     return node
   }
   appendChild(node: HostNode) { return this.insertBefore(node, null) }
@@ -191,7 +235,7 @@ export class HostElement extends HostNode {
     node.parentNode = null
     const d = this.ownerDocument, a = d.activeElement
     if (a && !a.isConnected) d.activeElement = null
-    d.changed()
+    d.changed(this)
     return node
   }
   contains(n: HostNode | null): boolean {

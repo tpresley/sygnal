@@ -20,7 +20,7 @@ import {run} from './index'
 import type {HostElement, HostStyleRule} from './host'
 import {
   HostDocument, makeHostDriver, nodeId,
-  activate, doubleClick, pressKey, typeText, fill, chooseOption, isInteractive,
+  activate, doubleClick, pressKey, typeText, fill, chooseOption, isInteractive, isTextField, isCheckable,
 } from './host'
 import {snapshotTree, formatSnapshot, AgentNode} from './agent-ui/snapshot'
 import {serveMcpStream, McpStdio, McpTool} from './agent-ui/mcp'
@@ -103,7 +103,7 @@ export function createAgentUI(options: AgentUIOptions = {}): AgentUI {
     const el = find(ref)
     if (!el) throw new Error(`no element with ref ${JSON.stringify(ref)}: take a new ui_snapshot (refs of elements that left the screen are gone)`)
     if (!el.isConnected) throw new Error(`ref ${ref} is no longer on the screen`)
-    if (!isInteractive(el, rules) && !/^(input|textarea|select)$/.test(el.localName)) throw new Error(`ref ${ref} is not interactive (no ref in the snapshot)`)
+    if (!isInteractive(el, rules) && !/^(input|textarea|select)$/.test(el.localName) && !isTextField(el) && !isCheckable(el)) throw new Error(`ref ${ref} is not interactive (no ref in the snapshot)`)
     if (el.disabled) throw new Error(`ref ${ref} is disabled`)
     return el
   }
@@ -145,7 +145,7 @@ export function createAgentUI(options: AgentUIOptions = {}): AgentUI {
           case 'ui_type': {
             const el = target(args.ref)
             if (typeof args.text != 'string') throw new Error('text must be a string')
-            if (!/^(input|textarea)$/.test(el.localName) || /^(checkbox|radio|button|submit)$/.test(el.type)) throw new Error(`ref ${args.ref} is not a text field`)
+            if (!isTextField(el)) throw new Error(`ref ${args.ref} is not a text field`)
             args.append ? typeText(el, args.text, ua) : fill(el, args.text)
             if (args.submit) pressKey(el, 'Enter', {}, ua)
             break
@@ -167,7 +167,7 @@ export function createAgentUI(options: AgentUIOptions = {}): AgentUI {
           }
           case 'ui_check': {
             const el = target(args.ref)
-            if (!(el.localName == 'input' && /^(checkbox|radio)$/.test(el.type))) throw new Error(`ref ${args.ref} is not a checkbox or radio`)
+            if (!isCheckable(el)) throw new Error(`ref ${args.ref} is not a checkbox, switch or radio`)
             if (el.checked !== !!args.checked) { el.focus(); activate(el, ua) }
             break
           }

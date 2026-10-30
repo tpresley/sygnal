@@ -383,9 +383,13 @@ export default [
     ['host', [[/[\\/]src[\\/]host\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]host[\\/]/, '../index', 'sygnal']]],
     ['terminal', [[/[\\/]src[\\/]terminal\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]terminal\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]terminal[\\/]/, '../host', 'sygnal/host']]],
     ['agent-ui', [[/[\\/]src[\\/]agent-ui\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]agent-ui\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]agent-ui[\\/]/, '../host', 'sygnal/host']]],
+    // 'sygnal/primitives': no imports (the pragma it renders with is passed in)
+    ['primitives', []],
+    // 'sygnal/react-native': react and react-native stay external (optional peerDependencies, D209)
+    ['react-native', [[/[\\/]src[\\/]react-native\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]react-native\.ts$/, './host', 'sygnal/host']]],
   ].map(([entry, rules]) => ({
     input: `src/${entry}.ts`,
-    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id),
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^react(-native)?$/.test(id),
     output: [
       { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }

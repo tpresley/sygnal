@@ -5,7 +5,7 @@
  * (tests, logs, snapshots) and ANSI-styled lines (a TTY).
  */
 import type {HostDocument, HostElement, HostNode, HostStyle} from '../host'
-import {computeStyle, isTextField, optionValue} from '../host'
+import {computeStyle, isTextField, isCheckable, optionValue} from '../host'
 
 export interface TerminalStyle extends HostStyle {
   /** 'none' hides; 'block' / 'inline' override the tag's default */
@@ -132,11 +132,19 @@ export function paint(doc: HostDocument, options: PaintOptions = {}): Frame {
   }
   const label = (el: HostElement) => (el.textContent.trim() || el.getAttribute('value') || el.getAttribute('aria-label') || el.getAttribute('title') || '').replace(/\s+/g, ' ')
 
-  const walk = (n: HostNode, indent: string, sgr: number[], upper: boolean) => {
+  // flex: a column's children each take their own lines, a row's are separated (their gap)
+  const walk = (n: HostNode, indent: string, sgr: number[], upper: boolean, flex: '' | 'column' | 'row' = '') => {
     if (n.nodeType === 3) return push((n as any).data, sgr, upper)
-    const el = n as HostElement, tag = el.localName
-    const st: TerminalStyle = computeStyle(el, rules)
-    if (st.display == 'none') return
+    const el = n as HostElement
+    const st0: TerminalStyle = computeStyle(el, rules)
+    if (st0.display == 'none') return
+    if (flex == 'column') { flush(indent); walkEl(el, indent, sgr, upper, st0); return flush(indent) }
+    walkEl(el, indent, sgr, upper, st0)
+    if (flex == 'row') push(' ', sgr, false)
+  }
+  const walkEl = (el: HostElement, indent: string, sgr: number[], upper: boolean, st: TerminalStyle) => {
+    const tag = el.localName
+    const flexKids: '' | 'column' | 'row' = /flex$/.test(st.display || '') ? (/^column/.test(st.flexDirection || '') ? 'column' : 'row') : ''
     const focused = el.ownerDocument.activeElement === el
     const blockTag = BLOCK.test(tag)
     const block = st.display ? !/^inline/.test(st.display) && st.display != 'contents' : blockTag
@@ -148,7 +156,7 @@ export function paint(doc: HostDocument, options: PaintOptions = {}): Frame {
     if (tag == 'br') return flush(indent, true)
     if (tag == 'hr') { flush(indent); push('─'.repeat(Math.max(3, width - indent.length)), [...s, 2], false); return flush(indent) }
     if (tag == 'img') return widget(`[${el.getAttribute('alt') || 'image'}]`)
-    if (tag == 'input' && (el.type == 'checkbox' || el.type == 'radio')) {
+    if (isCheckable(el)) {
       return widget(el.type == 'radio' ? (el.checked ? '(•)' : '( )') : (el.checked ? '[x]' : '[ ]'))
     }
     if (isTextField(el)) {
@@ -175,7 +183,7 @@ export function paint(doc: HostDocument, options: PaintOptions = {}): Frame {
       push(st.before || '', s, up)
       if (tag == 'pre') {
         for (const line of el.textContent.split('\n')) { push(line.replace(/ /g, '\uE000'), s, up); flush(inner, true) }
-      } else for (const c of el.childNodes) walk(c, inner, s, up)
+      } else for (const c of el.childNodes) walk(c, inner, s, up, flexKids)
       push(st.after || '', s, up)
       flush(inner)
       if (tag == 'li') marker = ''
@@ -183,7 +191,7 @@ export function paint(doc: HostDocument, options: PaintOptions = {}): Frame {
     }
     if (focused) push('▸', s, false)
     push(st.before || '', focused ? mark : s, up)
-    for (const c of el.childNodes) walk(c, indent, focused ? mark : s, up)
+    for (const c of el.childNodes) walk(c, indent, focused ? mark : s, up, flexKids)
     push(st.after || '', s, up)
     // a block tag shown inline (a nav's <li>s in a row) is separated like a box
     if (blockTag) push(' ', s, false)

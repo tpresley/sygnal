@@ -18,7 +18,7 @@
  * exactly which elements are interactive).
  */
 import type {HostDocument, HostElement, HostNode, HostStyleRule} from '../host'
-import {computeStyle, isInteractive, isTextField, labelTarget, nodeId, optionValue} from '../host'
+import {computeStyle, isInteractive, isTextField, isCheckable, labelTarget, nodeId, optionValue} from '../host'
 
 export interface AgentNode {
   role: string
@@ -43,6 +43,9 @@ export function roleOf(el: HostElement): string | null {
   const r = el.getAttribute('role')
   if (r) return r.split(/\s+/)[0]
   const t = el.localName
+  // a target's own field tags (registerFieldTags)
+  if (t != 'input' && t != 'textarea' && isCheckable(el)) return 'checkbox'
+  if (t != 'input' && t != 'textarea' && isTextField(el)) return 'textbox'
   if (t == 'a') return el.hasAttribute('href') ? 'link' : null
   if (t == 'button' || t == 'summary') return 'button'
   if (t == 'input') {
@@ -129,7 +132,8 @@ export function snapshotTree(doc: HostDocument, options: SnapshotOptions = {}): 
     const out: AgentNode[] = []
     let text = ''
     const flushText = () => { const t = squash(text); if (t) out.push({role: 'text', text: t}); text = '' }
-    const visit = (n: HostNode) => {
+    // a flex container's children are separate items (a column's lines, a row's gap): their text doesn't run together
+    const visit = (n: HostNode, inFlex = false) => {
       if (n.nodeType === 3) { text += (n as any).data; return }
       const c = n as HostElement
       const st = computeStyle(c, rules)
@@ -141,12 +145,13 @@ export function snapshotTree(doc: HostDocument, options: SnapshotOptions = {}): 
         for (const x of c.childNodes) if (x.nodeType === 1) visit(x)
         return
       }
-      const block = BLOCK.test(c.localName)
+      const block = inFlex || BLOCK.test(c.localName)
+      const flex = /flex$/.test(st.display || '')
       if (block) flushText()
-      for (const x of c.childNodes) visit(x)
+      for (const x of c.childNodes) visit(x, flex)
       if (block) flushText()
     }
-    for (const c of el.childNodes) visit(c)
+    for (const c of el.childNodes) visit(c, /flex$/.test(computeStyle(el, rules).display || ''))
     flushText()
     return out
   }
@@ -156,7 +161,7 @@ export function snapshotTree(doc: HostDocument, options: SnapshotOptions = {}): 
     const listened = NATIVE.test(el.localName) ? [] : el.ownerDocument.listenedTypes(el).filter(t => !/^(focus|blur|focusin|focusout)$/.test(t))
     if (!role && !(interactive && listened.length)) return null
     const node: AgentNode = {role: role || 'generic'}
-    const leaf = /^(textbox|searchbox|checkbox|radio|slider|spinbutton|combobox|listbox|button|link|img|heading|option|progressbar)$/.test(node.role) || !role
+    const leaf = /^(textbox|searchbox|checkbox|radio|switch|slider|spinbutton|combobox|listbox|button|link|img|heading|option|progressbar)$/.test(node.role) || !role
     // a name from contents only for the roles that take one (ARIA "name from content"); a
     // landmark, list or group is named by aria-label / aria-labelledby / title only
     const name = !role || CONTENT_NAMED.test(node.role) ? nameOf(el, rules) : labelOnly(el, rules)
@@ -164,7 +169,7 @@ export function snapshotTree(doc: HostDocument, options: SnapshotOptions = {}): 
     if (interactive) node.ref = 'e' + nodeId(el)
     if (listened.length) node.on = listened
     const states: string[] = []
-    if (/^(checkbox|radio)$/.test(node.role)) { if (el.localName == 'input' ? el.checked : el.getAttribute('aria-checked') == 'true') states.push('checked') }
+    if (/^(checkbox|radio|switch)$/.test(node.role)) { if (isCheckable(el) ? el.checked : el.getAttribute('aria-checked') == 'true') states.push('checked') }
     if (el.disabled || el.getAttribute('aria-disabled') == 'true') states.push('disabled')
     for (const s of ['expanded', 'pressed', 'selected']) { const v = el.getAttribute('aria-' + s); if (v) states.push(v == 'true' ? s : `${s}=${v}`) }
     if (node.role == 'option' && el.selected) states.push('selected')

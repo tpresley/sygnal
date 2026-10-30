@@ -26,10 +26,16 @@ const keyCode = (key: string) => KEY_CODES[key] ?? (key.length == 1 ? key.toUppe
 
 const fire = (el: HostElement, type: string, init?: Record<string, any>) => el.dispatchEvent(new HostEvent(type, init))
 
+/** a target's own field tags by kind (registerFieldTags): typed into, or toggled as a checkbox */
+export const fieldKinds = new Map<string, 'text' | 'checkbox'>()
+
 /** text-entry fields: typing edits their value */
 export const isTextField = (el: HostElement): boolean =>
-  el.localName == 'textarea' || (el.localName == 'input' && !/^(checkbox|radio|button|submit|reset|hidden|file|image|range|color)$/.test(el.type))
-const isBox = (el: HostElement) => el.localName == 'input' && (el.type == 'checkbox' || el.type == 'radio')
+  el.localName == 'textarea' || fieldKinds.get(el.localName) == 'text' || (el.localName == 'input' && !/^(checkbox|radio|button|submit|reset|hidden|file|image|range|color)$/.test(el.type))
+/** a checkbox or radio: an <input>'s, or a registered checkbox-kind tag (a switch) */
+export const isCheckable = (el: HostElement): boolean =>
+  fieldKinds.get(el.localName) == 'checkbox' || (el.localName == 'input' && (el.type == 'checkbox' || el.type == 'radio'))
+const isBox = isCheckable
 const isButton = (el: HostElement) => el.localName == 'button' || (el.localName == 'input' && /^(button|submit|reset)$/.test(el.type))
 
 /** focusable: form fields, buttons, links with href, [tabindex] ≥ 0; not disabled, not hidden */
@@ -37,7 +43,7 @@ export function isFocusable(el: HostElement, rules?: readonly HostStyleRule[]): 
   if (el.disabled || (el.localName == 'input' && el.type == 'hidden')) return false
   const t = el.getAttribute('tabindex')
   const ok = t != null ? +t >= 0
-    : /^(input|textarea|select|button|summary)$/.test(el.localName) || (el.localName == 'a' && el.hasAttribute('href'))
+    : /^(input|textarea|select|button|summary)$/.test(el.localName) || fieldKinds.has(el.localName) || (el.localName == 'a' && el.hasAttribute('href'))
   return ok && !isHidden(el, rules)
 }
 

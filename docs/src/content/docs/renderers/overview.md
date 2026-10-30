@@ -1,19 +1,20 @@
 ---
 title: Beyond the Browser
-description: Run the same Sygnal components in a terminal or for an LLM agent. Renderer targets, the host tree they share, and the rules that keep an app portable
+description: Run the same Sygnal components on React Native, in a terminal or for an LLM agent. Renderer targets, the host tree they share, and the rules that keep an app portable
 ---
 
 A Sygnal component never touches the DOM. Its view returns vnodes, and its intent asks the DOM driver for events by selector. Its model is pure. Everything platform-specific lives in the driver named `DOM`. Swap that driver, and the same components render somewhere else.
 
-Sygnal ships three **renderer targets**:
+Sygnal ships four **renderer targets**:
 
 | Target | Renders to | Input | Use it for |
 |---|---|---|---|
 | the DOM driver (default) | the browser's DOM | the user's mouse and keyboard | web apps |
+| [`sygnal/react-native`](/renderers/react-native/) | React Native components (iOS, Android) | taps, typing, switches | native apps |
 | [`sygnal/terminal`](/renderers/terminal/) | text in a terminal | key presses | CLI tools, dashboards, agent consoles |
 | [`sygnal/agent-ui`](/renderers/agent-ui/) | an accessibility snapshot an LLM reads | tool calls (MCP, or your own loop) | letting an agent operate your app's UI |
 
-You can write more with [`sygnal/host`](/renderers/custom-targets/), the kit the two new targets are built on.
+You can write more with [`sygnal/host`](/renderers/custom-targets/), the kit the other three are built on. To write one component file for all of them, use the neutral primitives: see [Write Once](/renderers/write-once/).
 
 ```jsx
 // main.js
