@@ -313,14 +313,29 @@ export function labelState(project, file, node, depth = 0) {
 }
 
 /** Is the component `name` rendered (<Name>) inside a <label>, or in an unknown context? */
+// native-tooling experiment E-3: <Name> usages indexed by name, and the answer memoized per
+// (name, depth), per build (it was a scan of every element per field and per level: quadratic)
+const usagesByName = new WeakMap() // project → { byName: Map<name, Element[]>, memo: Map }
 function componentInLabel(project, name, depth) {
+  let u = usagesByName.get(project)
+  if (!u) {
+    u = { byName: new Map(), memo: new Map() }
+    for (const info of elementsOf(project)) {
+      if (info.kind !== 'component') continue
+      if (!u.byName.has(info.name)) u.byName.set(info.name, [])
+      u.byName.get(info.name).push(info)
+    }
+    usagesByName.set(project, u)
+  }
+  const key = `${name}|${depth}`
+  if (u.memo.has(key)) return u.memo.get(key)
   let state = 'none'
-  for (const info of elementsOf(project)) {
-    if (info.kind !== 'component' || info.name !== name) continue
+  for (const info of u.byName.get(name) || []) {
     const s = labelState(project, info.file, info.el, depth + 1)
-    if (s === 'label') return 'label'
+    if (s === 'label') { state = 'label'; break }
     // a usage we can't place is fine: the component's own markup is what we judge
   }
+  u.memo.set(key, state)
   return state
 }
 
