@@ -340,6 +340,122 @@ Revisit a native core **only if** one of these holds after (1)–(3):
 Zig: no maintained JS/TS/JSX parser. Go: viable (esbuild), as the prototype shows, but the same maintenance
 costs, and Go-to-Node napi is awkward (a CLI binary or WASM only).
 
+## Round 2: the JS wins, landed
+
+The coordinator accepted the recommendation. Items 1–3 are now in `sygnal-check` on this branch:
+
+- `a3fbee8d`: E-2 and E-3, with tests;
+- `fa7ac254`: incremental checking and the compile cache.
+
+### What was built
+
+- **Model reuse** (`Project` option `previous`, `model/project.js`).
+  - A build reuses the last build's FileInfo, analyzed components and views for every file whose
+    text is unchanged and that imports nothing that changed (transitively).
+  - The changed files and their importers (`project.rebuilt`) are discovered and analyzed again. The
+    project-wide joins (EVENTS lists, injected JSX) are redone from the per-file parts.
+  - Import edges are recorded in `loadImport`. A relative import that didn't resolve is retried, and
+    its importer is rebuilt once the file appears.
+  - A disk file with the same size, mtime and inode isn't read again.
+  - A different file list, `cwd` or `replyKeys` starts afresh.
+- **Per-file rule memo** (`run.js` `createRuleMemo`, rule flag `perFile`).
+  - A `perFile` rule runs once per changed file on a project narrowed to that file. Its findings for
+    reused files are replayed, so findings are attributed to the file iterated, not to the file
+    reported in.
+  - Rules marked `perFile`, chosen by reading them: byid-binding (keyed by the installed major),
+    removed-forms, webmcp-form-attrs, missing-export, lowercase-markers, xstream-default-import,
+    widgets, behaviors, a11y-aria, strict 503 and 506.
+  - Project-wide rules still run in full on the reused model: context-provider, field-label,
+    controls, agent, sink-driver, timers, persist, SYG105, …
+  - Their per-file parts are memoized by FileInfo: app roots (`findApps`, which three rules
+    recomputed per build), render-graph entries, a11y elements and descriptions, and
+    controlled-input's own listeners and fields.
+- **API.** `createCheckSession()` and `checkFiles(files, { cache, session })`. It is used by live.js
+  (the language server and `--watch`; `createLiveProject({ incremental: false })` opts out), the
+  language server core and the MCP server.
+- **`sygnalFor`** looks the installed Sygnal up once per directory: it re-read every ancestor's
+  manifests for each directory.
+- **CLI:** `module.enableCompileCache()` in the bin, which runs about 10 % faster (98 vs 110 ms on
+  kanban).
+
+### Correctness
+
+- [`test/incremental.vtest.js`](../../../sygnal-check/test/incremental.vtest.js): a seeded edit fuzz,
+  14 tests and about 500 steps.
+  - **Inputs:** 7 examples, 3 fixture sets, and a generated app with cross-file EVENTS, children and a
+    shared helper.
+  - **Edits:** literals renamed, lines deleted, duplicated or moved, imports dropped or added, text
+    cut so it doesn't parse, components added, files restored, new files. Half go through unsaved
+    buffers, half through disk writes.
+  - **Checked after every step:** `checkFiles` with a session equals a fresh `checkFiles`, as JSON.
+    The live project's diagnostics and graph JSON equal those of a twin live project with the same
+    history and `incremental: false`.
+  - **Its power:** breaking the invariant (not rebuilding importers) fails 11 of the 14 tests.
+- **`SYGNAL_CHECK_PERFILE=1`** sends every `runRules` through the per-file split. `npm test` now
+  runs the suite a second time that way (`test/run-perfile.mjs`), so every rule's own tests check
+  its `perFile` marking.
+  - Marking a project-wide rule `perFile` by mistake fails 5 tests (context-provider), 2
+    (field-label) or 3 (agent).
+  - controls passes even when marked, which suggests it would be safe, but it stays project-wide:
+    its tests don't cover the case.
+- **Suites:** sygnal-check passes 1,755 + 4 skipped, both runs; the docs sample checker reports 873
+  clean.
+- **With `SYGNAL_CHECK_LATENCY=1` inside the full parallel suite**, two timing tests failed: the
+  latency gate's cold ≤ 1 s (2.1 s, run in parallel, which its header says not to do) and a watcher
+  debounce test (p10-watch). Run alone, both pass, the latter 3/3, while other sessions loaded the
+  machine.
+
+### Numbers
+
+One-file edit, `--strict`, warm, median of 10–15; findings identical in every row
+([`bench/session-edit.mjs`](bench/session-edit.mjs), [`results/r2-session.jsonl`](results/r2-session.jsonl)):
+
+| input | files rebuilt | parse cache only | with a check session |
+|---|---:|---:|---:|
+| large20k (leaf edit) | 1 | 116 ms | **24 ms** |
+| large20k (root component) | 2 | 116 ms | **26 ms** |
+| large100k | 1–2 | 541–576 ms | **129–132 ms** |
+| synth2000 (2,000 components) | 1–2 | 718–736 ms | **214–219 ms** |
+
+Before round 2, the parse-cache-only path measured 134–145 ms on large20k; E-2/E-3 and the shared
+`findApps` explain the difference.
+
+Latency gate (`test/lsp-latency.vtest.js`, run alone, load ~15):
+
+- one-file edit with a session: 25–26 ms, gated at **≤ 60 ms**;
+- plain path: 118–127 ms (gate unchanged, ≤ 150 ms);
+- language server, didChange → publish: 187–190 ms with the 150 ms debounce, gated at **≤ 300 ms**
+  (was 400 ms);
+- navigation right after a change: 37–38 ms (gate ≤ 150 ms, unchanged).
+
+What is left is the project-wide rules, which stay O(project), about 1.3 ms per 1k lines on the
+large inputs: field-label's label search through usages, context-provider's render graph, controls,
+agent, SYG105. Making those incremental means per-build joins over memoized per-component facts,
+the same pattern as `findApps`. Next candidates, by cost: context-provider (renderGraph), field-label,
+controls.
+
+### Bundling: measured, not done
+
+kanban, medians of 20:
+
+| run | median |
+|---|---:|
+| `src` | 107 ms |
+| `src` + compile cache | 98 ms |
+| esbuild bundle | 88 ms |
+| bundle + compile cache | 79 ms |
+
+The bundle would save another ~19 ms per CLI run, but:
+
+- sygnal-check has no build step today, and the bundle would be a second copy of the CLI that can
+  go stale against `src/` (and the bin is what contributors and agents run);
+- the language server starts its worker from `src/lsp/worker.js` by URL;
+- the VS Code extension copies `bin/` and `src/` and detects features by `src/lsp/completion.js`;
+- `sygnal/vite` and the docs scripts import `src/index.js`.
+
+Lazy-loading the LSP, MCP and graph modules was measured too. The check path alone costs ~41 of the
+CLI's ~51 ms of imports, and `main()` would have to become async, so it isn't worth it.
+
 ## Files
 
 | path | what |
@@ -350,6 +466,7 @@ costs, and Go-to-Node napi is awkward (a CLI binary or WASM only).
 | `bench/ab.sh` | interleaved A/B of two sygnal-check trees |
 | `bench/parsers.mjs` | parser shoot-out |
 | `bench/warm.mjs`, `routes.py`, `one-file.mjs` | in-process routes, end-to-end routes, the incremental floor |
+| `bench/session-edit.mjs`, `session-loop.mjs` | round 2: one-file edits with a check session vs the parse cache only (asserts identical findings); the session loop for `--cpu-prof` with per-rule medians |
 | `js-wins-E2-E3.patch` | scope tables + a11y usage index for `sygnal-check/src` |
 | `lite/` | the 4-rule subset on ESTree, the oxc-parser runner, sygnal-check's findings for the same codes |
 | `oxlint-plugin/` | the per-file rules as an oxlint JS plugin |
