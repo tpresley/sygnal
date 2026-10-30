@@ -68,7 +68,7 @@ export function defineIsland<I = any>(def: IslandDef<I>): any {
       const p = v.data.ip
       if (!same(s.p, p)) { const prev = s.p; s.p = p; def.update?.(s.i, p, prev) }
       // the children's vnodes are cached per component: the same ones as last time, nothing to sync
-      // (the island's own vnode is rebuilt whenever anything in the app patches)
+      // (the island's own vnode is a new copy whenever its owner re-injects any child component)
       const kids = v.children[0].children || []
       if (s.k && kids.length == s.k.length && kids.every((x: any, i: number) => x === s.k[i])) return
       s.k = kids
