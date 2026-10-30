@@ -16,6 +16,10 @@
  * role is focusable, Enter / Space click it (with no intersection on the event), and the focus
  * ring is drawn where the object is (focus()).
  *
+ * Dragging (three/events.ts): `capture` / `setPointerCapture` keep a drag's pointer on its element
+ * (the canvas captures the browser's pointer, so the drag goes on off the canvas), `draggable` the
+ * HTML drag events (processDrag); camera controls sit out a gesture that captures or drags.
+ *
  * Frame loop ('demand', react-three-fiber's term): a frame is drawn after a patch of the island,
  * and continuously while any element has an `animate` prop. A frame runs the `animate`
  * functions and draws; the app's state, views and the DOM patch are not involved.
@@ -59,18 +63,42 @@ export const Scene = defineWidget({
     if (props.background) target.scene.background = new THREE.Color(props.background)
 
     // input: native pointer events on the canvas → raycasts → DOM-shaped events on the elements
-    const router = pointerRouter((x, y) => target.pick(x / w * 2 - 1, -(y / h) * 2 + 1), el.firstChild)
+    const ndc = (x: number, y: number) => [x / w * 2 - 1, -(y / h) * 2 + 1]
+    const router = pointerRouter((x, y, skip) => target.pick(ndc(x, y)[0], ndc(x, y)[1], skip), el.firstChild, {
+      ray: (x, y) => { const n = ndc(x, y); return {...target.ray(n[0], n[1]), ndc: n} },
+      prop: target.prop,
+    })
     // the keyboard focus ring: where the focused child's object is drawn
     const ring = doc.createElement('div')
     Object.assign(ring.style, {position: 'absolute', width: '56px', height: '56px', margin: '-28px 0 0 -28px', border: '2px solid #ffb547', borderRadius: '50%', pointerEvents: 'none', display: 'none'})
     if (!el.style.position) el.style.position = 'relative'
     el.appendChild(ring)
+    // a gesture that captures or drags an object: the canvas holds the browser's pointer (moves off
+    // the canvas still arrive), and the camera controls sit it out
+    let held: any = null
+    const hold = (e: any, end: boolean) => {
+      const busy = !end && !!(router.captured() || router.dragging())
+      if (busy && !held) {
+        held = {orbit: orbit && orbit.enabled}
+        if (orbit) orbit.enabled = false
+        try { e.pointerId != null && canvas.setPointerCapture?.(e.pointerId) } catch (_) {}
+      } else if (!busy && held) {
+        if (orbit && held.orbit) orbit.enabled = true
+        held = null
+      }
+    }
     const on = (type: string, kind: string) => {
-      const f = (e: any) => { router.input(kind, e.offsetX, e.offsetY, e); if (kind != 'leave') invalidate() }
+      const f = (e: any) => {
+        router.input(kind, e.offsetX, e.offsetY, e)
+        // a capture released off the canvas: its pointerleave came while captured
+        if (held && (kind == 'up' || kind == 'cancel') && (e.offsetX < 0 || e.offsetY < 0 || e.offsetX > w || e.offsetY > h)) router.input('leave', e.offsetX, e.offsetY, e)
+        hold(e, kind == 'up' || kind == 'cancel')
+        if (kind != 'leave') invalidate()
+      }
       canvas.addEventListener(type, f)
       return () => canvas.removeEventListener(type, f)
     }
-    const offs = [on('pointermove', 'move'), on('pointerdown', 'down'), on('pointerup', 'up'), on('pointerleave', 'leave'), on('dblclick', 'dblclick'), on('contextmenu', 'contextmenu')]
+    const offs = [on('pointermove', 'move'), on('pointerdown', 'down'), on('pointerup', 'up'), on('pointercancel', 'cancel'), on('pointerleave', 'leave'), on('dblclick', 'dblclick'), on('contextmenu', 'contextmenu')]
 
     // the frame loop
     const raf = doc.defaultView?.requestAnimationFrame?.bind(doc.defaultView) || (globalThis as any).requestAnimationFrame
@@ -132,6 +160,15 @@ export const Scene = defineWidget({
         router.input('move', p[0], p[1], init)
         router.input('down', p[0], p[1], init)
         return router.input('up', p[0], p[1], init)
+      },
+      /** a drag: down on the element, moves (`steps`) to `to` (canvas pixels, or another element's place), up */
+      drag(node: any, to: any, {steps = 5, ...init}: any = {}) {
+        const a = inst.pixelOf(node), b = Array.isArray(to) ? to : inst.pixelOf(to)
+        if (!a || !b) return null
+        router.input('move', a[0], a[1], init)
+        router.input('down', a[0], a[1], init)
+        for (let i = 1; i <= steps; i++) router.input('move', a[0] + (b[0] - a[0]) * i / steps, a[1] + (b[1] - a[1]) * i / steps, init)
+        return router.input('up', b[0], b[1], init)
       },
       resize,
       setFrameloop(f: string) { frameloop = f; invalidate() },

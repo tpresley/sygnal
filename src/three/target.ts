@@ -18,8 +18,13 @@
  * - `animate={{ rotation: (t, dt, obj) => [0, t, 0] }}`: per-frame values, outside state and the
  *   render flush (frame() calls them; no vnode, no patch, no app work per frame).
  * - `hit={false}`: raycasts pass through the object (CSS pointer-events: none).
+ * - `<primitive object={obj}>`: an object of the app's (never disposed by the target);
+ *   `<primitive asset>`: a loaded one (`<Model>` / `<Texture>`, three/assets.ts): the asset's
+ *   clone or value, released (and freed with its last user) when the element goes.
+ * - `capture` / `draggable`: read by the pointer router (`prop(el, k)`), never written.
  * - pick(x, y) (normalized device coordinates) → the topmost hit's element, with plain-data
- *   intersection fields for the event (point, distance, uv, normal, faceIndex) plus `object`.
+ *   intersection fields for the event (point, distance, uv, normal, faceIndex) plus `object`;
+ *   `skip`: an element whose objects the ray passes through (a dragged one, for dragover).
  */
 import * as THREE from 'three'
 
@@ -28,10 +33,13 @@ for (const k of Object.keys(THREE)) {
   const v = (THREE as any)[k]
   if (typeof v == 'function' && /^[A-Z]/.test(k)) catalog.set(k.toLowerCase(), v)
 }
+// <primitive>: the object is given (object=) or loaded (asset=), not constructed
+const PRIMITIVE = function Primitive() {}
+catalog.set('primitive', PRIMITIVE)
 export const extend = (objects: Record<string, any>) => { for (const k in objects) catalog.set(k.toLowerCase(), objects[k]) }
 
 // the target's own props (and the element's), never written to the object
-const OWN = /^(args|attach|animate|dispose|makeDefault|hit|className|class|id|key|hook|style|role|tabIndex|title|hidden|ref)$|^(aria|data)-/
+const OWN = /^(args|attach|animate|dispose|makeDefault|hit|object|asset|capture|draggable|className|class|id|key|hook|style|role|tabIndex|title|hidden|ref)$|^(aria|data)-/
 
 export interface Rec {
   el: any; obj: any; ctor: any; args: any[] | undefined
@@ -45,9 +53,12 @@ const propsOf = (v: any) => {
   const d = v.data || {}, out: any = {}
   // a tag the pragma takes for SVG (<line>) gets its props as attrs, with their values as written
   for (const src of [d.attrs, d.props]) if (src) for (const k in src) if (!OWN.test(k)) out[k] = src[k]
-  if (d.props) for (const k of ['args', 'attach', 'animate', 'dispose', 'makeDefault', 'hit']) if (k in d.props) out[k] = d.props[k]
+  for (const src of [d.attrs, d.props]) if (src) for (const k of TARGET) if (k in src) out[k] = src[k]
   return out
 }
+const TARGET = ['args', 'attach', 'animate', 'dispose', 'makeDefault', 'hit', 'object', 'asset', 'capture', 'draggable']
+// a primitive's identity is its object (or asset): a new one makes a new element object, as new args do
+const argsOf = (ctor: any, p: any) => ctor === PRIMITIVE ? [p.asset || p.object] : p.args
 const sameArr = (a: any, b: any) => a === b || (Array.isArray(a) && Array.isArray(b) && a.length == b.length && a.every((x, i) => x === b[i]))
 
 export function applyProp(obj: any, k: string, v: any) {
@@ -80,15 +91,18 @@ export function createThreeTarget() {
     return defaults.get(ctor)
   }
   const make = (r: Rec, props: any) => {
-    r.obj = new r.ctor(...(props.args || []))
-    r.args = props.args
+    r.obj = r.ctor === PRIMITIVE ? (props.asset ? props.asset.take() : props.object) : new r.ctor(...(props.args || []))
+    if (!r.obj) throw new Error('<primitive> needs an object')
+    r.args = argsOf(r.ctor, props)
     byObj.set(r.obj, r)
     stats.created++
     if (r.obj.isCamera && (props.makeDefault || !camera)) camera = r.obj, fit()
   }
   const dispose = (r: Rec) => {
     const o = r.obj
-    if (r.props.dispose !== null && typeof o.dispose == 'function') o.dispose(), stats.disposed++
+    // the app's object is never disposed; an asset's, by the asset when its last user goes
+    if (r.ctor === PRIMITIVE) r.args?.[0]?.release?.()
+    else if (r.props.dispose !== null && typeof o.dispose == 'function') o.dispose(), stats.disposed++
   }
   const detach = (r: Rec) => {
     const o = r.obj
@@ -108,7 +122,7 @@ export function createThreeTarget() {
     // a key `animate` drove and no longer does: its static prop applies again (or the default)
     const stopped = old.animate ? Object.keys(old.animate).filter(k => !props.animate || !(k in props.animate)) : []
     for (const k of [...Object.keys(old), ...stopped]) if (!(k in props) && !OWN.test(k) && k != 'args') {
-      const d = dflt(r.ctor)
+      const d = dflt(r.ctor === PRIMITIVE ? o.constructor : r.ctor)
       if (d && k in d) { const x = d[k]; x && typeof x.clone == 'function' ? applyProp(o, k, x.clone()) : (o[k] = x) }
       else delete o[k]
     }
@@ -144,7 +158,7 @@ export function createThreeTarget() {
         r = {el: k.elm, obj: null, ctor, args: undefined, props: {}, v: null, seen: 0}
         make(r, props)
         recs.set(k.elm, r)
-      } else if (!sameArr(r.args, props.args)) {
+      } else if (!sameArr(r.args, argsOf(ctor, props))) {
         // new constructor arguments: a new object; its children and attachments move over in the walk below
         const old = r.obj, kids3 = old.isObject3D ? [...old.children] : []
         detach(r)
@@ -158,6 +172,13 @@ export function createThreeTarget() {
       place(r, parent)
       walk(k.children, r)
     }
+  }
+  const cast = (x: number, y: number) => {
+    const cam = camera || fallback
+    scene.updateMatrixWorld()
+    cam.updateMatrixWorld()
+    raycaster.setFromCamera(new THREE.Vector2(x, y), cam)
+    return cam
   }
   const fit = (c: any = camera) => {
     if (c?.isPerspectiveCamera && !('aspect' in (byObj.get(c)?.props || {}))) c.aspect = aspect
@@ -186,15 +207,13 @@ export function createThreeTarget() {
       }
     },
     /** the topmost element under (x, y) in normalized device coordinates (-1..1, y up) */
-    pick(x: number, y: number) {
+    pick(x: number, y: number, skip?: any) {
       stats.picks++
-      const cam = camera || fallback
-      scene.updateMatrixWorld()
-      cam.updateMatrixWorld()
-      raycaster.setFromCamera(new THREE.Vector2(x, y), cam)
+      cast(x, y)
+      const s = skip && recs.get(skip)?.obj
       for (const h of raycaster.intersectObject(scene, true)) {
         let o: any = h.object, r: Rec | undefined, visible = true
-        for (let a: any = o; a; a = a.parent) if (!a.visible) visible = false
+        for (let a: any = o; a; a = a.parent) if (!a.visible || a === s) visible = false
         if (!visible) continue
         while (o && !(r = byObj.get(o))) o = o.parent
         if (!r || r.props.hit === false) continue
@@ -205,6 +224,13 @@ export function createThreeTarget() {
       }
       return null
     },
+    /** the pointer's ray at (x, y), normalized device coordinates, and the camera's direction (drag planes) */
+    ray(x: number, y: number) {
+      const cam = cast(x, y), r = raycaster.ray
+      return {origin: r.origin.toArray(), direction: r.direction.toArray(), forward: cam.getWorldDirection(new THREE.Vector3()).toArray()}
+    },
+    /** a target prop of an element (`capture`, `draggable`), as the view wrote it */
+    prop: (el: any, k: string) => recs.get(el)?.props[k],
     /** where an element's object is on screen, in normalized device coordinates (tests, a11y focus rings) */
     project(el: any): [number, number] | null {
       const r = recs.get(el)

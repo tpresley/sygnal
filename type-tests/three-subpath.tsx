@@ -1,8 +1,8 @@
 /** sygnal/three: the Scene widget's props and events, sceneOf, the target, the host mode (not three.tsx: baseUrl would resolve 'three' to it) */
-import { Collection, run } from 'sygnal'
+import { Collection, Suspense, run } from 'sygnal'
 import type { Component } from 'sygnal'
-import { Scene, sceneOf, createThreeTarget, createThreeHost, extend } from 'sygnal/three'
-import type { SceneCamera, SceneInstance, ThreeEventFields, ThreeTarget } from 'sygnal/three'
+import { Scene, sceneOf, createThreeTarget, createThreeHost, extend, Model, Texture, preload, clear } from 'sygnal/three'
+import type { SceneCamera, SceneInstance, ThreeEventFields, ThreeTarget, CaptureEventFields } from 'sygnal/three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import type { Camera, Object3D } from 'three'
 
@@ -47,4 +47,32 @@ const host = createThreeHost({ width: 640, height: 400 })
 const app = run(App, { DOM: host.driver })
 const fields: ThreeEventFields = { point: [0, 0, 0], distance: 1, ndc: [0, 0], object: null as unknown as Object3D }
 
-export { bad, app, fields }
+// assets: tags with a loader class or instance; Suspense around them
+class OBJLoader { load(url: string, onLoad: (v: any) => void) { onLoad(url) } }
+const Assets: Component<{ dragged: number[] }> = ({ state }) => (
+  <Suspense fallback={<p>Loading…</p>}>
+    <Scene>
+      <Model src="/tree.glb" className="tree" position={[0, 0, 0]} />
+      <Model src="/ship.obj" loader={OBJLoader} />
+      <mesh className="piece" capture="xz" position={state.dragged}>
+        <planeGeometry />
+        <meshStandardMaterial><Texture src="/wood.jpg" /></meshStandardMaterial>
+      </mesh>
+      <mesh className="box" draggable><boxGeometry /></mesh>
+    </Scene>
+  </Suspense>
+)
+Assets.model = {
+  MOVE: (s, e) => ({ ...s, dragged: (e as PointerEvent & CaptureEventFields).point }),
+}
+// @ts-expect-error src is required
+const noSrc = <Model />
+const ready: Promise<void> = Model.preload('/tree.glb')
+preload('/wood.jpg')
+Texture.clear('/wood.jpg')
+clear()
+inst?.drag(document.body, [10, 20], { steps: 3 })
+target.ray(0, 0).direction
+target.pick(0, 0, document.body)
+
+export { bad, app, fields, noSrc, ready }

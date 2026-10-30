@@ -90,10 +90,18 @@ behaves as on 7.1.0.
     point it hit: `DOM.click('.cube')` in the cube's own intent.
   - `animate={{ rotation: (t) => [0, t, 0] }}` moves objects every frame with no action, render or patch.
   - Keyboard: meshes with a role and `tabIndex` are focusable buttons; Enter clicks them.
+  - Loaded assets as tags: `<Model src="/tree.glb" />` (GLTF by default, any loader with `loader`) and
+    `<Texture src="/wood.jpg" />`. A `<Suspense>` boundary shows its fallback until they arrive (inside
+    the Scene: a 3D fallback). Cached per URL and freed with the last element using them; a failed load
+    renders the component's `onError`.
+  - Dragging: `capture="xz"` keeps the pointer on the object from the press to the release, off the
+    object and off the canvas, with each move's point on a drag plane; `el.setPointerCapture()` works
+    too. `draggable` sends the HTML drag events, so `processDrag` works on scene objects.
   - A controlled camera (`Orbit`, `camera`), disposal of what it made, `createThreeHost()` for a whole app
     as a scene on `sygnal/host`, and `sceneOf(el)` for tests in jsdom (headless raycasts, no WebGL).
-  - `three` (0.170 or later) is an optional peer dependency. About 5 KB gzip, nothing for an app that
-    doesn't import it. Guide: "three.js". Example: `examples/three-cubes`.
+  - `three` (0.170 or later) is an optional peer dependency. About 6 KB gzip (GLTFLoader loads when a
+    model first needs it), nothing for an app that doesn't import it. Guide: "three.js". Example:
+    `examples/three-cubes`.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma

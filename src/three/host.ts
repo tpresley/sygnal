@@ -18,7 +18,11 @@ export function createThreeHost({width = 300, height = 150, doc = new HostDocume
   // the root vnode as patched (props as the views wrote them, .elm set)
   const capture = {update: (_: any, v: any) => { if (v.elm === doc.body) rootVnode = v }}
   const driver = makeHostDriver(doc, {modules: [capture], onPatch: () => target.sync(rootVnode)})
-  const router = pointerRouter((x, y) => target.pick(x / width * 2 - 1, -(y / height) * 2 + 1), doc.body)
+  const ndc = (x: number, y: number) => [x / width * 2 - 1, -(y / height) * 2 + 1]
+  const router = pointerRouter((x, y, skip) => target.pick(ndc(x, y)[0], ndc(x, y)[1], skip), doc.body, {
+    ray: (x, y) => { const n = ndc(x, y); return {...target.ray(n[0], n[1]), ndc: n} },
+    prop: target.prop,
+  })
   const pixelOf = (el: any) => { const p = target.project(el); return p && [(p[0] + 1) / 2 * width, (1 - p[1]) / 2 * height] }
   return {
     doc, driver, target, router, pixelOf,
