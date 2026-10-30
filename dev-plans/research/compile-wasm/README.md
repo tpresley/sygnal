@@ -17,6 +17,9 @@ The prototypes above became a real, opt-in compiler on this branch. Plan and sta
 | Compiled SSR (CV-1): HTML parts in `renderToString` | committed | 55 fixture views byte-identical HTML; 2,000-shape differential test of the fast tag writer | table SSR 4.7× (1k rows), 5.5× (10k) |
 | Blocks (CV-3; all client code since round 3, expanded for every vnode reader) | committed | jsdom: same DOM over 14 actions, blocks really made; Chromium: same DOM and same mutation counts per step; 11 example suites compiled | select row 1k 1.9 → 1.05 ms (React 0.9); create/append not faster yet (CV-3b) |
 | Hydration of blocks (CV-4) | committed | server rows keep their elements and text nodes, then patch like a fresh mount | — |
+| CV-3b: the create/append "gap" | explained: load drift | interleaved A/B (`ab.mjs`), timeline trace (`trace.mjs`) | create 1k: JSX 18.9 / blocks 19.5 / hand 17.3 / React 18.2 ms, p25–p75 ±2 ms; half is layout |
+| CV-5 static context keys | skipped | node microbenchmark | ≈40 ns per view, ≈3% of a Collection select |
+| CV-6 docs | committed | docs build + links + code titles; check-live in Chromium, Firefox, WebKit (119 demos); doc samples strict-clean | `integration/compiled-views`, the plugin options table, llms.txt, the skill |
 
 Switchable on first use: deferred to the next major with the D471 lowercase-marker removal
 (coordinator decision).
@@ -293,10 +296,20 @@ guest needed only `global` and a `setTimeout` shim (xstream's deferred stop).
 | `wasm/kernels.ts`, `wasm/kernels.wasm`, `wasm/bench.mjs` | the WASM kernels and their JS twins |
 | `quickjs/` | Sygnal headless + SSR inside QuickJS-in-WASM |
 | `survey/blockable.mjs` | how much of the examples' JSX a block compiler could take |
+| `ab.mjs`, `trace.mjs` | interleaved A/B timing of one op across pages; a timeline trace summed by event (CV-3b) |
+| `test-examples-compiled.mjs` | every example's own suite with `compile: true` |
+| `compiled-views-plan.md` | the plan (CV-0..CV-6) and its status |
+| Library code | `src/vite/compile.ts` (the compiler), `src/pragma/index.ts` `__cv`, `src/pragma/blocks.ts` `__cvb`, `src/extra/ssr.ts` `__cvs`; tests `test/cv-*.test.js` |
 
-Source changes on this branch: `src/extra/widget.ts` (the side-effect fix; mergeable) and
-`src/core/instance.ts` (the block-aware same-output check; prototype only, only matters with
-compiled blocks).
+Source changes on this branch (round 1 left only the widget fix; rounds 2–3 added the compiler):
+the `widget.ts` side-effect fix and the Node `SYGNAL_DEBUG` read (both independent of the
+compiler), and `compile` itself: `src/vite/compile.ts`, `src/vite/plugin.ts` / `plugin.d.ts`, the
+runtimes in `src/pragma/index.ts` (`__cv`, the `put()` refactor of sanitizeData),
+`src/pragma/blocks.ts` and `src/extra/ssr.ts`, and small core hooks (`src/core/registry.ts` `ext`;
+the block-aware same-output check in `instance.ts`; expansion for non-DOM drivers and hooks in
+`runtime.ts` / `instance.ts`; `DOMDriver.blocks` and block adoption in `makeDOMDriver.ts`).
+Uncompiled kanban: 42,975 B at the start, 42,145 B now (the widget fix −920 B; the compiler's
+core hooks and the `put()` refactor +90 B). Dependency added: `magic-string` (plugin only).
 
 To re-run: `npm run build`, `npm ci --prefix benchmarks`, then e.g.
 `CW_OUT=<scratch dir> node dev-plans/research/compile-wasm/bench.mjs` (≈ 15 min; `--pages=`,

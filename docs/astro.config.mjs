@@ -222,6 +222,7 @@ export default defineConfig({
             { label: 'Hot Module Replacement', slug: 'integration/hmr' },
             { label: 'PWA Helpers', slug: 'integration/pwa' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },
+            { label: 'Compiled Views (experimental)', slug: 'integration/compiled-views' },
           ],
         },
         {

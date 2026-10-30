@@ -432,7 +432,7 @@ it('searches once, 300 ms after the last keystroke', async () => {
 
 ## 9. Project setup (Vite)
 `index.html` has `<div id="root"></div>` and `<script type="module" src="/src/main.js">`; `src/App.test.js` sits next to `src/App.jsx`.
-`vite.config.js`: `export default defineConfig({ plugins: [sygnal()] })` (`import sygnal from 'sygnal/vite'`: JSX, HMR, dev diagnostics, Vitest). `src/main.js`: `run(App)` mounts on `#root`; drivers are the 2nd argument.
+`vite.config.js`: `export default defineConfig({ plugins: [sygnal()] })` (`import sygnal from 'sygnal/vite'`: JSX, HMR, dev diagnostics, Vitest). `src/main.js`: `run(App)` mounts on `#root`; drivers are the 2nd argument. Optional, experimental (Vite 8): `sygnal({ compile: true })` compiles JSX views at build time (same DOM; write components as usual): https://sygnal.js.org/integration/compiled-views/
 Conventions: PascalCase component files, ALL_CAPS action names, `$` suffix for streams, class-name selectors, `classes()` for conditional class names.
 
 ## 10. Where to look next
