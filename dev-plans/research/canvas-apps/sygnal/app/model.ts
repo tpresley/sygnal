@@ -26,13 +26,13 @@ export type State = {
   clipboard: Shape[], seq: number,
   dragRow: string | null, drop: {id: string, where: 'before' | 'after' | 'inside'} | null,
   // experiments (README §3, §4): how drags reach the canvas, how it repaints
-  input: 'queue' | 'transient', repaint: 'layers' | 'full',
+  input: 'queue' | 'transient', repaint: 'layers' | 'full', render: 'data' | 'collection',
 }
 
 export const initialState = (shapes: Shape[] = []): State => ({
   shapes, past: [], future: [], selection: [], tool: 'select', camera: CAMERA, size: {width: 800, height: 600},
   gesture: null, guides: [], hover: null, editing: null, editBefore: null, renaming: null,
-  clipboard: [], seq: shapes.length, dragRow: null, drop: null, input: 'queue', repaint: 'layers',
+  clipboard: [], seq: shapes.length, dragRow: null, drop: null, input: 'queue', repaint: 'layers', render: 'data',
 })
 
 // ---------------------------------------------------------------- history

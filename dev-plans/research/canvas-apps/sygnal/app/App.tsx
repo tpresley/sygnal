@@ -2,9 +2,10 @@
  * Figma-lite on Sygnal + the sygnal/canvas prototype (lib/canvas): the root component.
  * State, intents and the model's wiring; the reducers are in model.ts, the document in doc.ts.
  */
-import {ABORT, VirtualCollection, xs} from 'sygnal'
+import {ABORT, Collection, VirtualCollection, xs} from 'sygnal'
 import {Canvas, pointer, toScreen} from '../lib/canvas'
 import {LayerRow} from './LayerRow'
+import {ShapeNode} from './ShapeNode'
 import {byId} from './doc'
 import * as M from './model'
 import type {State} from './model'
@@ -118,7 +119,9 @@ export function App({state: s}: {state: State & {rows: M.Row[]}}) {
       </aside>
       <main className={'stage tool-' + s.tool}>
         <Canvas className="board" camera={s.camera} grid repaint={s.repaint} follow={g?.follow || null}>
-          <shapes className="doc" items={s.shapes} active={active} />
+          {s.render == 'collection'
+            ? <Collection of={ShapeNode} from="shapes" />
+            : <shapes className="doc" items={s.shapes} active={active} />}
           {overlay(s)}
         </Canvas>
         {editor}
@@ -189,6 +192,7 @@ App.intent = ({DOM, CHILD}: any) => {
     INPUT_MODE: DOM.select('.input-mode').events('change').value(),
     REPAINT_MODE: DOM.select('.repaint-mode').events('change').value(),
     LAYER: CHILD.select(LayerRow),
+    SHAPE: CHILD.select(ShapeNode),
   }
 }
 
@@ -217,6 +221,7 @@ App.model = {
   INPUT_MODE: (s: State, input: any) => ({...s, input}),
   REPAINT_MODE: (s: State, repaint: any) => ({...s, repaint}),
   LAYER: M.layer,
+  SHAPE: (s: State, m: {hover: string}) => s.gesture || s.hover === m.hover ? ABORT : {...s, hover: m.hover},
 }
 
 /** the browser's download of a text file (an EFFECT: no driver needed for one-off output) */

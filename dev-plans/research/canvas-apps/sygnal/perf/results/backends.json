@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-30T10:10:15.914Z",
+  "chromium": "153.0.8010.12",
+  "gpu": false,
+  "load": 13.40576171875,
+  "results": [
+    {
+      "name": "own",
+      "n": 1000,
+      "create": 9.8,
+      "frameMove": 1,
+      "frameMoveLayered": 0.3,
+      "framePan": 1,
+      "hit": 0.004,
+      "heapMB": 0.5
+    },
+    {
+      "name": "konva",
+      "n": 1000,
+      "create": 22.1,
+      "frameMove": 2.5,
+      "frameMoveLayered": 0.1,
+      "framePan": 2.4,
+      "hit": 0.002,
+      "hitAfterMove": 2.2,
+      "heapMB": 1.1
+    },
+    {
+      "name": "pixi",
+      "n": 1000,
+      "create": 277.3,
+      "frameMove": 14.3,
+      "frameMoveLayered": null,
+      "framePan": 13.9,
+      "hit": 0.095,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+      "heapMB": 5.7
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-30T10:10:23.101Z",
+  "chromium": "153.0.8010.12",
+  "gpu": true,
+  "load": 13.052734375,
+  "results": [
+    {
+      "name": "own",
+      "n": 1000,
+      "create": 202.4,
+      "frameMove": 1,
+      "frameMoveLayered": 2.1,
+      "framePan": 1,
+      "hit": 0.004,
+      "heapMB": 0.5
+    },
+    {
+      "name": "konva",
+      "n": 1000,
+      "create": 44.5,
+      "frameMove": 3.5,
+      "frameMoveLayered": 0.5,
+      "framePan": 4.1,
+      "hit": 0.003,
+      "hitAfterMove": 2.1,
+      "heapMB": 1.1
+    },
+    {
+      "name": "pixi",
+      "n": 1000,
+      "create": 194.2,
+      "frameMove": 1,
+      "frameMoveLayered": null,
+      "framePan": 0.7,
+      "hit": 0.092,
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Max, Unspecified Version)",
+      "heapMB": 5.7
+    }
+  ]
+}

@@ -43,27 +43,47 @@ import {captureRouter} from './router'
 
 const tagOf = (sel: string) => /^[^#.]*/.exec(sel)![0]
 const NODE = /^(rect|ellipse|text|line|path|frame)$/
-const OWN = /^(className|class|id|key|style|role|tabIndex|title|ref|hook|attrs|data|space)$|^(aria|data)-/
+const OWN = /^(className|class|key|style|role|tabIndex|title|ref|hook|attrs|data|space)$|^(aria|data)-/
 const textOf = (v: any): string => v.text != null ? String(v.text) : (v.children || []).map(textOf).join('')
 
-type Layer = {el: any, items: Node[], active: Set<any> | null}
+type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>}
 type Live = {el: any, node: Node, screen: boolean}
 
-/** the island's children → data layers + JSX nodes */
+// one node object per vnode: an unchanged child (a Collection item that didn't re-render keeps its
+// vnode) keeps its node, so the static layer's cache survives
+const nodes = new WeakMap<any, Node>()
+function nodeOf(v: any, tag: string, p: any): Node {
+  let n = nodes.get(v)
+  if (n) return n
+  n = {type: tag}
+  for (const k in p) if (!OWN.test(k)) n[k.replace(/-(\w)/g, (_: string, c: string) => c.toUpperCase())] = p[k]
+  if (tag == 'text') { n.text = textOf(v); const m = measureText(n.text, n); n.width ??= m.width; n.height ??= m.height }
+  nodes.set(v, n)
+  return n
+}
+
+/**
+ * the island's children → layers + screen-space JSX nodes. A run of world-space JSX nodes is a
+ * layer too (painted, culled and clipped like a data layer; its hits target each node's element)
+ */
 export function readChildren(container: any) {
   const layers: Layer[] = [], live: Live[] = []
+  let jsx: Layer | null = null
   const walk = (kids: any[] | undefined, screen: boolean) => {
     if (kids) for (const v of kids) {
       if (!v?.sel) continue
       const tag = tagOf(v.sel), d = v.data || {}, p = {...d.attrs, ...d.props}
-      if (p.hidden === true || p.display == 'none') continue
-      if (tag == 'shapes') { layers.push({el: v.elm, items: d.props?.items || [], active: p.active?.length ? new Set(p.active) : null}); continue }
+      if (p.display == 'none') continue
+      if (tag == 'shapes') { layers.push({el: v.elm, items: d.props?.items || [], active: p.active?.length ? new Set(p.active) : null}); jsx = null; continue }
       const sc = p.space ? p.space == 'screen' : screen
       if (NODE.test(tag)) {
-        const node: Node = {type: tag}
-        for (const k in p) if (!OWN.test(k)) node[k] = p[k]
-        if (tag == 'text') node.text = textOf(v), node.width ??= measureText(node.text, node).width, node.height ??= measureText(node.text, node).height
-        live.push({el: v.elm, node, screen: sc})
+        const node = nodeOf(v, tag, p)
+        if (sc) { if (!node.hidden) live.push({el: v.elm, node, screen: true}) }
+        else {
+          if (!jsx) layers.push(jsx = {el: null, items: [], active: null, els: new Map()})
+          jsx.items.push(node)
+          jsx.els!.set(node.id ?? node, v.elm)
+        }
       } else walk(v.children, sc)
     }
   }
@@ -93,7 +113,7 @@ export const Canvas = defineWidget({
     const dpr = win?.devicePixelRatio || 1
     let w = props.width || el.clientWidth || 800, h = props.height || el.clientHeight || 600
     const raf = win?.requestAnimationFrame?.bind(win), caf = win?.cancelAnimationFrame?.bind(win)
-    const st = {paints: 0, cached: 0, ms: 0, nodes: 0, culled: 0, events: 0}
+    const st: any = {paints: 0, cached: 0, ms: 0, nodes: 0, culled: 0, events: 0, first: 0}
     const inst: any = {el, canvas, ctx, props, st, layers: [] as Layer[], live: [] as Live[], camera: props.camera || CAMERA, follow: null}
     let pending = 0, camPending = 0
     let staticCanvas: any = null, staticKey: any = null
@@ -155,13 +175,12 @@ export const Canvas = defineWidget({
         bg()
         inst.layers.forEach((l: Layer) => paintWorld(ctx, fids && fd ? l.items.map(n => fids.has(n.id) ? {...n, x: n.x + fd[0], y: n.y + fd[1]} : n) : l.items, cam, dpr, view, null, stat))
       }
-      // JSX nodes: world ones under the camera, screen ones in canvas pixels
-      for (const {node, screen} of inst.live) {
-        if (screen) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        else ctx.setTransform(dpr * cam.zoom, 0, 0, dpr * cam.zoom, -cam.x * cam.zoom * dpr, -cam.y * cam.zoom * dpr)
-        paintNode(ctx, node, screen ? 1 : 1 / cam.zoom)
-      }
+      // screen-space JSX nodes (handles, guides) on top, in canvas pixels
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      for (const {node} of inst.live) paintNode(ctx, node, 1)
       ctx.globalAlpha = 1
+      // the first paint with content (benchmarks: startup)
+      if (!st.first && stat.nodes) st.first = performance.now()
       st.paints++; st.nodes = stat.nodes; st.culled = stat.culled; st.ms = performance.now() - t0
       inst.props.onPaint?.(st)
     }
@@ -178,11 +197,11 @@ export const Canvas = defineWidget({
       inst.pointerWorld = world
       for (let i = inst.live.length - 1; i >= 0; i--) {
         const {el: e, node, screen: sc} = inst.live[i]
-        if (hitNodes([node], sc ? screen : world, sc ? 2 : slop)) return {el: e, hit: null, node, world, screen}
+        if (hitNodes([node], screen, 2)) return {el: e, hit: null, node, world, screen}
       }
       for (let i = inst.layers.length - 1; i >= 0; i--) {
-        const n = hitNodes(inst.layers[i].items, world, slop)
-        if (n) return {el: inst.layers[i].el, hit: n.id, node: n, world, screen}
+        const l = inst.layers[i], n = hitNodes(l.items, world, slop)
+        if (n) return {el: l.els ? l.els.get(n.id ?? n) : l.el, hit: n.id ?? null, node: n, world, screen}
       }
       return {el: el.firstChild, hit: null, node: null, world, screen}
     }

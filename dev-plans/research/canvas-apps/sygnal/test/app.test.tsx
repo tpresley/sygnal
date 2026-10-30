@@ -6,7 +6,8 @@
  */
 import {describe, it, expect} from 'vitest'
 import {renderComponent} from 'sygnal'
-import {App} from '../app/App'
+import {App as Built} from '../app/App'
+import {App as Proposed} from '../app-proposed/App'
 import {initialState} from '../app/model'
 import {make} from '../app/doc'
 import {canvasOf} from '../lib/canvas'
@@ -18,6 +19,7 @@ const doc = () => [
   make('text', 't1', 1, {x: 500, y: 200, text: 'Hi', fontSize: 20}),
 ]
 
+let App: any = Built
 async function open(shapes = doc()) {
   const t = renderComponent(App, {dom: 'real', initialState: initialState(shapes)})
   await t.ready()
@@ -33,7 +35,9 @@ async function open(shapes = doc()) {
   return {t, c, p, drag, key, shape}
 }
 
-describe('Figma-lite in jsdom (headless canvas)', () => {
+// the same suite for the version built (app/) and the rewrite on the proposed API (app-proposed/)
+for (const [label, Impl] of [['built', Built], ['proposed API', Proposed]] as const) describe(`Figma-lite in jsdom (headless canvas): ${label}`, () => {
+  it('mounts', () => { App = Impl })
   it('click selects, shift-click adds, a press on the background clears; handles become JSX nodes', async () => {
     const {t, c, p} = await open()
     await p('down', 50, 50); await p('up', 50, 50)
@@ -218,6 +222,25 @@ describe('Figma-lite in jsdom (headless canvas)', () => {
     const after = t.state.shapes
     expect(after.filter((s: any, i: number) => s !== before[i]).map((s: any) => s.id)).toEqual(['s0'])
     expect(c.layers[0].items).toBe(after)
+    t.dispose()
+  })
+})
+
+describe('one Collection item per shape (?render=collection)', () => {
+  it('the same editor: shapes are elements with their own intents, hits target them', async () => {
+    const s = {...initialState(doc()), render: 'collection' as const}
+    const t = renderComponent(Built, {dom: 'real', initialState: s})
+    await t.ready()
+    const c = canvasOf(t.container.querySelector('.board'))
+    expect(t.container.querySelectorAll('.shape').length).toBe(4)
+    c.pointer('move', 550, 90, {pointerId: 1}); await t.settle()
+    // the hit is the ellipse's own element (event.hit is its id; ShapeNode's pointerover intent reports it too)
+    expect(t.state.hover).toBe('e1')
+    expect(t.state.shapes.length).toBe(4)
+    c.pointer('down', 550, 90, {pointerId: 1}); c.pointer('move', 600, 90, {pointerId: 1}); c.pointer('move', 650, 90, {pointerId: 1}); c.pointer('up', 650, 90, {pointerId: 1})
+    await t.settle()
+    expect(t.state.selection).toEqual(['e1'])
+    expect(t.state.shapes.find((x: any) => x.id == 'e1').x).toBe(600)
     t.dispose()
   })
 })
