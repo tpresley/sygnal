@@ -5,6 +5,38 @@ This is research, not a plan of record. IDs used here (C1–C12 couplings, D-AR-
 
 **Short answer.** Sygnal is unusually well placed for other renderers. The core (`src/core/`) has **no** DOM dependency of its own: it hands one snabbdom-shaped vnode per flush to whatever driver is named `DOM`, and it uses only five methods of that driver's source. The spike runs **examples/todomvc unchanged** (views, intents, models, Collection, Transition, refs, autoFocus, processForm) in a terminal. It changes **0 lines in `src/core`** and **1 line in `src/extra/processForm.ts`**, plus ~610 lines of renderer code (host tree, selectors, driver, terminal). A React host bridge (the shape a React Native target would take) works the same way with ~80 lines on top. The recommended direction is a **host-tree renderer kit** (`sygnal/host`): a tiny DOM-subset tree that snabbdom patches through a custom `DOMAPI`, plus a source that implements selectors and isolation over it. On that kit, add one first-party target, the terminal, and one documented bridge (React Native via React). Don't write a native reconciler.
 
+## Round 2 (2026-10-29): built
+
+The maintainer approved building the kit and two targets (coordinator decisions: Q2 yes, Q3 accept the field-tag registry, Q4 controls required in cross-platform docs only, Q5 DOM event names; Q1 React Native toolchain still pending). What landed on this branch:
+
+| Piece | Where | What |
+|---|---|---|
+| `sygnal/host` | `src/host.ts`, `src/host/` (`dom.ts`, `driver.ts`, `selector.ts`, `style.ts`, `actions.ts`), `src/host.d.ts` | the kit: host tree, `makeHostDriver`, selectors (now with `^= $= *= ~=` and `:not()`), stylesheets, **user-agent actions** (`activate`, `pressKey`, `typeText`, `fill`, `chooseOption`, focus order), `registerFieldTags`, `nodeId`, `doc.listenedTypes(el)` |
+| `sygnal/terminal` | `src/terminal.ts`, `src/terminal/paint.ts`, `src/terminal.d.ts` | `createTerminal`, `runTerminal` (raw TTY, alternate screen, scrolling to focus, resize, Ctrl+C), `paint` (line flow, wrapping, lists, widgets, ANSI), `parseKeys` |
+| `sygnal/agent-ui` | `src/agent-ui.ts`, `src/agent-ui/` (`snapshot.ts`, `mcp.ts`), `src/agent-ui.d.ts` | the accessibility snapshot with refs and `[on=…]`, the `ui_*` tools, `runAgentUI`, `serveMcp` (MCP on stdio, both protocol eras), `agentTools(app)` served alongside, `chatTools()` |
+| C10 fix | `src/pragma/index.ts` (`ce.$t = tags`, +12 B gz) | `registerFieldTags()` writes the pragma's field bit; host driver re-syncs those tags' value/checked |
+| tests | `test/renderers-{host,terminal,agent-ui,entries}.test.js`, `type-tests/renderer-targets.ts` | 36 tests: todomvc unchanged on both targets, isolation, document listeners, patch errors, C10, painter, keys, `runTerminal` on fake streams, MCP both eras over streams, `agentTools` alongside, entry externals, plain-Node ESM + CJS loading |
+| example | `examples/renderer-targets` | one grocery app: web (`npm run dev`), terminal (`npm run terminal`), MCP server (`npm run mcp`); 4 tests; strict-clean |
+| docs | `docs/src/content/docs/renderers/` (overview, terminal, agent-ui, custom-targets), sidebar "Beyond the Browser", shipped in `dist/guide/renderers/` | includes the agent-UI definition and how a third party writes a target |
+
+**"Agent UI" definition (D-AR-4).** A renderer target whose output is meant for a model: the accessibility snapshot format browser agents already read, and tools for a person's actions, turned into the same DOM events. Why this definition: agents already operate UIs this way; it needs no browser (text in and out, deterministic, cheap); Sygnal knows more than a browser (which elements intents listen to, `[on=dblclick]`, and when the app has settled, so every call answers with the post-action snapshot); and it uses the user's path, with no second API. It complements `sygnal/ai`'s agent declarations (semantic tools); one MCP server serves both. WebMCP (semantic tools in the user's tab) and MCP Apps (UI for a person inside a chat) are neighbours, not overlaps.
+
+**Results.**
+- Gates: `size-gate` 42,994 B / 43,000 B (6 B headroom; the `$t` hook costs ~12 B gz, everything else is behind the subpaths). `perf-gate --runs=3`: all metrics within limits (patches 1/1/1, streams 1.0, timers 2, retained 0, heap 0.91–0.92 MB). Full root vitest: 5,208 tests pass (final run); examples renderer-targets, todomvc, kanban pass; the round-1 spike (15 tests) still passes. `tsc` on src and type-tests: clean. `check-doc-samples`: 888 clean. Docs build + link check + code-title check: pass (a stale `docs/.astro` cache from the worktree's earlier use had to be removed first).
+- No live demos were added to the docs (a terminal or an agent snapshot isn't something the live Result panel shows), so `check-live` wasn't needed.
+
+**Decisions made in round 2 (mine).**
+- D-AR-5: the targets render **HTML tags** (they understand form controls, lists, headings, links), so web views run unchanged; the neutral primitives (`View`, `Txt`, `Pressable`) are deferred to the React Native work, where a native vocabulary matters. `registerFieldTags` is there for targets that bring their own tags.
+- D-AR-6: **interactive by intent**: the terminal's focus order and the agent's refs include elements the app's intents listen to clicks on (todomvc's `<label>` with a `dblclick` intent), via `doc.listenedTypes(el)`.
+- D-AR-7: user-agent behaviour (click default actions, typing, Enter submits, label → control) lives in `sygnal/host`, shared by every target, so every target makes identical event sequences.
+- D-AR-8: `makeHostDriver` installs a 16 ms `requestAnimationFrame` only where none exists (C9), rather than a core frame-scheduler change.
+- The subpaths inline Sygnal's snabbdom modules (stateless) and keep `sygnal` / `sygnal/host` external (one core, one kit per app; `test/renderers-entries.test.js`).
+- The MCP server is hand-rolled (as sygnal-check's and sygnal/vite's) to keep `sygnal` dependency-free.
+
+**Still open.** React Native bridge (waiting on the toolchain, Q1); Lynx spike; worker/remote renderer (overlaps the contracts session); Portal on host targets (C8); a richer terminal layout (columns, flex rows) if users ask.
+
+---
+
 Run it:
 
 ```bash

@@ -35,6 +35,8 @@ export const GUIDES = [
   'ai-compose', 'ai-cards',
   // PLAN-12: ship the major-release migration alongside the agent reference.
   'migrating-to-7',
+  // renderer targets (sygnal/terminal, sygnal/agent-ui, sygnal/host)
+  'renderers/overview', 'renderers/terminal', 'renderers/agent-ui', 'renderers/custom-targets',
 ]
 // PLAN-5 4-B (3-R question): the Recipes section, kept as its own list so it can be dropped
 // without touching GUIDES (dist/guide/recipes/*.md).
@@ -44,7 +46,7 @@ export const RECIPES = [
   'recipes/ai-support-inbox', 'recipes/ai-form-fill', 'recipes/ai-summarize',
 ]
 // Sections shipped in a subdirectory of dist/guide (the rest are flat).
-export const SUBDIRS = new Set(['ui', 'recipes'])
+export const SUBDIRS = new Set(['ui', 'recipes', 'renderers'])
 const SITE = 'https://sygnal.js.org'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
