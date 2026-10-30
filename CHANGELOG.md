@@ -17,11 +17,28 @@ behaves as on 7.1.0.
     become DOM events, and `serveMcp`.
   - `registerFieldTags()` lets a target's own form-field tags re-sync their value like `input`.
   - Guides: "Beyond the Browser", with "Writing a Renderer Target". Example: `examples/renderer-targets`.
+- **React Native:** `sygnal/react-native` runs an app on React Native: `<SygnalView app={App} />`.
+  - Native callbacks arrive as DOM events, so intents don't change.
+  - Only the path to a changed element re-renders (a tap in a 100-item list re-renders 2 elements, not 303).
+  - Stylesheets are compiled with `StyleSheet.create`. A `List` with a `Collection` becomes a `FlatList`.
+  - `react` and `react-native` are optional peer dependencies.
+- **Primitives:** `sygnal/primitives` adds `View`, `Text`, `Pressable`, `TextInput`, `Switch`, `Image`,
+  `ScrollView` and `List`. They render as HTML on the web, the terminal and agent-ui, and as native
+  components on React Native.
+  - `registerFieldTags()` takes a kind (`{ tag, kind: 'checkbox' }`).
+  - Guides: "Write Once: Web, Native, Terminal" and "React Native". Example: `examples/write-once`.
 - **Typed APIs:** `sygnal/api` builds typed requests from an API contract for the existing HTTP and
   socket drivers, with no new driver.
   - Clients: `orpcClient`, `openApiClient` and `honoClient`.
   - Version skew: `contractHash` / `contractSkew` / `isContractSkew` / `contractFetch`, reported as SYG690.
   - Testing: `fixture` / `errorFixture` for `renderComponent`.
+  - Function-first: `query` / `mutation` / `stream` in `*.server.ts` files are the API.
+    `serverFunctions()` builds the oRPC router.
+  - `sygnal({ api: { handler, contracts, functions } })` in `sygnal/vite` does three things:
+    - serves the API in dev;
+    - computes the contract hash at build time, so the client ships no schemas
+      (the example: 73.7 → 47.7 kB gzip);
+    - turns `*.server.ts` imports into client stubs. Tests check that no server code reaches the bundle.
   - Guide: "Typed APIs". Example: `examples/typed-api`.
 - **Compiled views:** `sygnal({ compile: true | { views, ssr, blocks, test } })` in `sygnal/vite`
   (Vite 8) compiles view JSX at build time.
