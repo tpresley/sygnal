@@ -1,0 +1,110 @@
+{
+  "node": "v22.22.0",
+  "yjs": "13.6.33",
+  "driver": [
+    {
+      "items": 10,
+      "ops": {
+        "toggle": {
+          "bytes": 29,
+          "ms": 0.0406
+        },
+        "type one character (Y.Text)": {
+          "bytes": 20,
+          "ms": 0.0457
+        },
+        "add": {
+          "bytes": 120,
+          "ms": 0.1001
+        },
+        "move last to first": {
+          "bytes": 52,
+          "ms": 0.0746
+        },
+        "remove": {
+          "bytes": 14,
+          "ms": 0.0722
+        },
+        "rename board": {
+          "bytes": 37,
+          "ms": 0.0303
+        }
+      },
+      "remoteReadReconcileMs": 0.043,
+      "sliceJsonBytes": 549,
+      "docBytesAfterOps": 2499
+    },
+    {
+      "items": 100,
+      "ops": {
+        "toggle": {
+          "bytes": 29,
+          "ms": 0.0652
+        },
+        "type one character (Y.Text)": {
+          "bytes": 20,
+          "ms": 0.0616
+        },
+        "add": {
+          "bytes": 123,
+          "ms": 0.1078
+        },
+        "move last to first": {
+          "bytes": 52,
+          "ms": 0.0766
+        },
+        "remove": {
+          "bytes": 14,
+          "ms": 0.0677
+        },
+        "rename board": {
+          "bytes": 37,
+          "ms": 0.0172
+        }
+      },
+      "remoteReadReconcileMs": 0.155,
+      "sliceJsonBytes": 5018,
+      "docBytesAfterOps": 13615
+    },
+    {
+      "items": 1000,
+      "ops": {
+        "toggle": {
+          "bytes": 32,
+          "ms": 0.2591
+        },
+        "type one character (Y.Text)": {
+          "bytes": 22,
+          "ms": 0.2729
+        },
+        "add": {
+          "bytes": 155,
+          "ms": 0.698
+        },
+        "move last to first": {
+          "bytes": 55,
+          "ms": 0.6039
+        },
+        "remove": {
+          "bytes": 15,
+          "ms": 0.5927
+        },
+        "rename board": {
+          "bytes": 40,
+          "ms": 0.0228
+        }
+      },
+      "remoteReadReconcileMs": 0.969,
+      "sliceJsonBytes": 52634,
+      "docBytesAfterOps": 131150
+    }
+  ],
+  "app": {
+    "actions": 2000,
+    "items": 100,
+    "msPerActionPlain": 0.0167,
+    "msPerActionShared": 0.0467,
+    "yjsTransactions": 2000,
+    "note": "renderComponent (mock DOM), N TOGGLE actions dispatched back to back then one settle(); the shared run includes the LOCAL action, the diff and the Yjs transaction per state change"
+  }
+}
