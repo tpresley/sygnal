@@ -1,3 +1,6 @@
+// REFERENCE / TEST HELPER ONLY (round 2 decision): Sygnal does not ship or maintain a server.
+// The supported pairing is oRPC's OpenAPIHandler with `sygnal/api`'s orpcClient (see
+// ../../README.md §10 and docs guide/typed-apis); this handler stays as the spike's reference.
 // Spike: the server half. `createHandler(contract, impl)` is a Fetch-API handler
 // (Request → Response), so it mounts in Hono, Vite dev middleware, a Worker, or Node's http
 // through any adapter. Security rules from RESEARCH-network-calls Option E:
