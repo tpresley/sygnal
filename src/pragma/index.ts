@@ -6,7 +6,7 @@ import * as is from './is'
 // (and, at the root, the whole walk). The flag is on the prototype, not enumerable, so the
 // vnode's own fields are snabbdom's six. Checked by name (`$p`), not by class (a second copy of
 // the core, e.g. Astro's SSR bundle, makes its own).
-function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
+export function Plain(this: any, sel: any, data: any, children: any, text: any, key: any) {
   this.sel = sel
   this.data = data
   this.children = children

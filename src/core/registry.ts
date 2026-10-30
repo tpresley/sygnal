@@ -27,3 +27,7 @@ export const posts: Record<string, (vnode: any, owner: any) => any> = {}
 export const resolvers: Array<(view: ComponentFn, owner: any) => ComponentFn | undefined> = []
 /** definition time, every app: (src, view) -> src (behaviors, undo, selection, pager, persist, resources) */
 export const defHooks: Array<(src: DefSource, view: ComponentFn) => DefSource | void> = []
+/** CV-3 (compiled blocks, src/pragma/blocks.ts, registered by the first block): xb expands blocks
+ * into plain vnodes for a DOM driver that doesn't patch them (not `DOMDriver.blocks`); sb, the
+ * same-output check for two blocks */
+export const ext: {xb?: (v: any) => any; sb?: (a: any, b: any) => boolean} = {}

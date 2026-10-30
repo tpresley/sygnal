@@ -17,7 +17,8 @@
  * `parse` is Vite 8's parseAst (ESTree + JSX, UTF-16 offsets). The source map maps each rewritten
  * JSX expression to its start (magic-string).
  */
-import MagicString from 'magic-string'
+// the named export: magic-string's CJS build has no plain default for the plugin's CJS output
+import { MagicString } from 'magic-string'
 
 // HTML elements the compiler takes. Not here: the form fields (input, textarea, select, option:
 // the controlled-input module re-syncs them; the pragma never makes them plain), SVG and MathML
@@ -37,13 +38,31 @@ const ENTITY = /&(#\d+|#x[\da-f]+|[a-z][a-z\d]*);/i
 
 type Sub = [number, number, string]
 
-export function compileViews(code: string, id: string, parse: (code: string, opts: any) => any, opts: {ssr?: boolean} = {}): {code: string; map: any} | null {
-  const ssr = !!opts.ssr
+export function compileViews(code: string, id: string, parse: (code: string, opts: any) => any, opts: {ssr?: boolean; blocks?: boolean} = {}): {code: string; map: any} | null {
+  const ssr = !!opts.ssr, blocks = !ssr && !!opts.blocks
+  let nblocks = 0
   if (!/<[a-z]/.test(code)) return null
   let ast: any
   try { ast = parse(code, {lang: /\.tsx$/.test(id) ? 'tsx' : /\.ts$/.test(id) ? 'ts' : 'jsx'}) } catch { return null }
   const hoisted: string[] = []
   let compiled = 0
+  // CV-3: the JSX a component (a capitalized function) returns directly: its view's root
+  const roots = new Set<any>()
+  if (blocks) {
+    const un = (n: any): any => n?.type == 'ParenthesizedExpression' ? un(n.expression) : n
+    const fnRoots = (f: any): void => {
+      if (!f) return
+      if (f.expression) { roots.add(un(f.body)); return }
+      for (const st of f.body?.body || []) if (st.type == 'ReturnStatement') roots.add(un(st.argument))
+    }
+    const scan = (n: any): void => {
+      if (!n || typeof n != 'object') return
+      if (n.type == 'FunctionDeclaration' && /^[A-Z]/.test(n.id?.name || '')) fnRoots(n)
+      if (n.type == 'VariableDeclarator' && /^[A-Z]/.test(n.id?.name || '') && /Function/.test(n.init?.type || '')) fnRoots(n.init)
+      for (const k in n) { if (k == 'start' || k == 'end' || k == 'loc') continue; const v = n[k]; if (Array.isArray(v)) v.forEach(scan); else if (v && typeof v == 'object' && typeof v.type == 'string') scan(v) }
+    }
+    scan(ast)
+  }
 
   const src = (s: number, e: number, subs: Sub[]): string => {
     let out = '', at = s
@@ -86,7 +105,8 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
   // a JSX node in expression position: compiled, or JSX whose children may compile
   // (`vnodes`: inside a static SSR subtree's vnode factory, every element is a client one)
   let vnodes = 0
-  const jsx = (node: any): string => node.type == 'JSXElement' && compilable(node) ? (ssr && !vnodes ? ssrRoot(node) : element(node)) : jsxSource(node)
+  const jsx = (node: any): string => node.type == 'JSXElement' && compilable(node)
+    ? (ssr && !vnodes ? ssrRoot(node) : blocks && !vnodes && roots.has(node) && blockable(node) ? block(node) : element(node)) : jsxSource(node)
   const jsxSource = (node: any): string => {
     const subs: Sub[] = []
     const open = node.openingElement
@@ -145,20 +165,70 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
   // a ?: branch, either side of && || ??, an array element, a .map() arrow's expression body) can
   // only become that element's child, so a compilable one is an HTML chunk; anything else (JSX in a
   // variable, a call's argument, a component prop) stays a vnode
-  const direct = (n: any, subs: Sub[]): void => {
+  // (client builds with blocks: a .map() row there is a block, `row`: inside a .map() body)
+  const direct = (n: any, subs: Sub[], row = false): void => {
     if (!n) return
     const t = n.type
-    if (t == 'JSXElement' && compilable(n)) subs.push([n.start, n.end, ssrInner(n)])
-    else if (t == 'ParenthesizedExpression') direct(n.expression, subs)
-    else if (t == 'ConditionalExpression') { subsIn(n.test, subs); direct(n.consequent, subs); direct(n.alternate, subs) }
-    else if (t == 'LogicalExpression') { direct(n.left, subs); direct(n.right, subs) }
-    else if (t == 'ArrayExpression') { for (const e of n.elements) e && (e.type == 'SpreadElement' ? subsIn(e, subs) : direct(e, subs)) }
+    if (t == 'JSXElement' && compilable(n)) subs.push([n.start, n.end, ssr ? ssrInner(n) : row && blockable(n) ? block(n) : jsx(n)])
+    else if (t == 'ParenthesizedExpression') direct(n.expression, subs, row)
+    else if (t == 'ConditionalExpression') { subsIn(n.test, subs); direct(n.consequent, subs, row); direct(n.alternate, subs, row) }
+    else if (t == 'LogicalExpression') { direct(n.left, subs, row); direct(n.right, subs, row) }
+    else if (t == 'ArrayExpression') { for (const e of n.elements) e && (e.type == 'SpreadElement' ? subsIn(e, subs) : direct(e, subs, row)) }
     else if (t == 'CallExpression' && n.callee.type == 'MemberExpression' && !n.callee.computed && n.callee.property.name == 'map'
       && n.arguments.length == 1 && n.arguments[0].type == 'ArrowFunctionExpression' && n.arguments[0].expression) {
       subsIn(n.callee, subs)
       for (const p of n.arguments[0].params) subsIn(p, subs)
-      direct(n.arguments[0].body, subs)
+      direct(n.arguments[0].body, subs, true)
     } else subsIn(n, subs)
+  }
+  // CV-3: a block: compilable all the way down, at least two elements, children only text, text
+  // holes (an expression with no JSX in it; not `children` / `slots`, which are vnodes) and such
+  // elements
+  const SLOTISH = /^(children|slots)$|\.(children|slots)$/
+  const hasJsx = (n: any): boolean => {
+    if (!n || typeof n != 'object') return false
+    if (n.type == 'JSXElement' || n.type == 'JSXFragment') return true
+    for (const k in n) { if (k == 'start' || k == 'end' || k == 'loc') continue; const v = n[k]; if (Array.isArray(v) ? v.some(hasJsx) : v && typeof v == 'object' && typeof v.type == 'string' && hasJsx(v)) return true }
+    return false
+  }
+  const blockable = (el: any, top = true): boolean => {
+    if (!compilable(el)) return false
+    let n = 0
+    const ok = (e: any): boolean => {
+      if (!compilable(e)) return false
+      n++
+      for (const c of e.children) {
+        if (c.type == 'JSXElement') { if (!ok(c)) return false }
+        else if (c.type == 'JSXExpressionContainer') {
+          if (c.expression.type == 'JSXEmptyExpression') continue
+          if (hasJsx(c.expression) || SLOTISH.test(code.slice(c.expression.start, c.expression.end).trim())) return false
+        } else if (c.type != 'JSXText') return false
+      }
+      return true
+    }
+    return ok(el) && (!top || n >= 2)
+  }
+  const block = (el: any): string => {
+    compiled++; nblocks++
+    const vals: string[] = [], kinds: string[] = []
+    const hole = (k: string, v: string): string => (kinds.push(k), vals.push(v), `h(${vals.length - 1})`)
+    const [rootData, key] = dataOf(el)
+    hole('r', rootData)
+    const bel = (e: any, root: boolean): string => {
+      let d: string
+      if (root) d = 'h(0)'
+      else { const [data, , dynamic] = dataOf(e); d = dynamic ? hole('d', data) : data }
+      const kids: string[] = []
+      for (const c of e.children) {
+        if (c.type == 'JSXText') { const t = cleanText(c.value); if (t) kids.push(JSON.stringify(t)) }
+        else if (c.type == 'JSXExpressionContainer') { if (c.expression.type != 'JSXEmptyExpression') kids.push(hole('t', '(' + expr(c.expression) + ')')) }
+        else kids.push(bel(c, false))
+      }
+      return `__cv.e(${JSON.stringify(tag(e))}, ${d}, ${childArg(kids)})`
+    }
+    const body = bel(el, true)
+    const def = hoist(`__cvb.b((h) => ${body}, ${JSON.stringify(kinds.join(''))})`)
+    return `__cvb.B(${def}, [${vals.join(', ')}]${key == 'undefined' ? '' : ', ' + key})`
   }
   const hoist = (obj: string): string => {
     const i = hoisted.indexOf(obj)
@@ -175,7 +245,7 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
       else if (c.type == 'JSXExpressionContainer') {
         const e = c.expression
         if (e.type == 'JSXEmptyExpression') continue
-        if (html && !vnodes) { const subs: Sub[] = []; direct(e, subs); out.push('(' + src(e.start, e.end, subs) + ')') }
+        if ((html || blocks) && !vnodes) { const subs: Sub[] = []; direct(e, subs); out.push('(' + src(e.start, e.end, subs) + ')') }
         else out.push('(' + expr(e) + ')')
       }
       else if (html && !vnodes && c.type == 'JSXElement' && compilable(c)) out.push(ssrInner(c))
@@ -188,7 +258,7 @@ export function compileViews(code: string, id: string, parse: (code: string, opt
   if (!compiled) return null
   const ms = new MagicString(code)
   for (const [a, b, t] of subs) ms.overwrite(a, b, t)
-  ms.prepend(`import { __cv${ssr ? ', __cvs' : ''} } from 'sygnal';\n` + hoisted.map((h, i) => `const $cv${i} = ${h};\n`).join(''))
+  ms.prepend(`import { __cv${ssr ? ', __cvs' : ''}${nblocks ? ', __cvb' : ''} } from 'sygnal';\n` + hoisted.map((h, i) => `const $cv${i} = ${h};\n`).join(''))
   return {code: ms.toString(), map: ms.generateMap({hires: 'boundary', source: id, includeContent: true})}
 }
 

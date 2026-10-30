@@ -218,6 +218,9 @@ function makeDOMDriver(
     );
   }
 
+  // CV-3: compiled blocks patch themselves with the default modules (src/pragma/blocks.ts); a
+  // driver with other modules gets their plain vnodes
+  (DOMDriver as any).blocks = !options.modules;
   return DOMDriver as any;
 }
 

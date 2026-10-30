@@ -28,6 +28,7 @@ import {CoreDef, defOf, rootDef} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
 import {viewOf} from './view'
+import {ext} from './registry'
 import {stopQueued, INST, SET, SEED} from './teardown'
 import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
@@ -81,6 +82,8 @@ export class App {
   last: any
   /** P46-P: a view ran but kept its last vnode (the flush still emits, as when it changed) */
   ran = false
+  /** CV-3: the DOM driver patches compiled blocks itself (makeDOMDriver's DOMDriver.blocks) */
+  bd = false
   vdomL: any
   vdom$: any
   sources: Record<string, any> = {}
@@ -284,7 +287,8 @@ export class App {
         this.ran = false
         this.last = v
         this.hooks.onPatch?.(v)
-        this.vdomL?.next(v ?? null)
+        // CV-3: compiled blocks are patched only by the browser DOM driver; any other gets their vnodes
+        this.vdomL?.next(ext.xb && !this.bd ? ext.xb(v ?? null) : v ?? null)
       }
       if (this.dq.length) this.stopLater()
     } finally {
@@ -529,6 +533,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   }
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the app's
   // streams imitated (values reach a driver synchronously; the DOM gets one vnode per flush)
+  app.bd = !!all.DOM?.blocks
   for (const n in all) {
     const p = app.proxies[n] = xs.create()
     const src = app.sources[n] = all[n](p, n)

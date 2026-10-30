@@ -130,11 +130,14 @@ export interface SygnalPluginOptions {
    *   ones the JSX runtime makes.
    * - `ssr`: in server builds, compiled elements render to HTML strings inside renderToString (the
    *   same HTML, no vnode per element). Never under Vitest.
+   * - `blocks`: in production client builds (never the dev server or Vitest), a `.map()` row and
+   *   the element a component returns become a block: a template cloned once, then only its
+   *   dynamic parts written.
    * - `test`: compile under Vitest too (`views` only), so tests run what ships.
    * With `compile` on, the plugin is an array of two plugins.
    * @default false
    */
-  compile?: boolean | { views?: boolean; ssr?: boolean; test?: boolean }
+  compile?: boolean | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean }
 
   /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
@@ -200,7 +203,7 @@ export interface McpPluginOptions {
  * sygnal({ diagnostics: { mode: 'error', strict: true }, check: { strict: true } })
  * ```
  */
-export default function sygnal(options: SygnalPluginOptions & { compile: true | { views?: boolean; ssr?: boolean; test?: boolean } }): any[]
+export default function sygnal(options: SygnalPluginOptions & { compile: true | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean } }): any[]
 export default function sygnal(options?: SygnalPluginOptions): {
   name: string
   config: (config: any, env: { command: string }) => any

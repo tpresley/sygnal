@@ -99,6 +99,12 @@ describe('sygnal/vite compile option', () => {
     const server = c.transform.call(ctx(), SRC, '/app/V.jsx', { ssr: true })
     expect(server.code).toMatch(/__cvs\.r\("div"/)
   })
+  it('the CommonJS build compiles too (its magic-string import)', async () => {
+    const { ctx } = await load()
+    const cjs = createRequire(import.meta.url)(path.join(repo, 'dist', 'vite', 'plugin.cjs.js'))
+    const [c] = (cjs.default || cjs)({ compile: true })
+    expect(c.transform.call(ctx(), SRC, '/app/V.jsx').code).toMatch(/__cv\.e\("div"/)
+  })
   it('{ ssr: false } / { views: false } turn one part off', async () => {
     const { sygnal, ctx } = await load()
     const [noSsr] = sygnal({ compile: { ssr: false } })

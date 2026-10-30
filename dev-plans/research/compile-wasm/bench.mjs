@@ -23,8 +23,9 @@ const { HELPERS, OPS } = await import(pathToFileURL(resolve(repo, 'benchmarks/au
 const { serve } = await import(pathToFileURL(resolve(repo, 'benchmarks/audit/lib/server.mjs')).href)
 
 const arg = (k, d) => process.argv.find(a => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? d
-// *-cv: the *-base page's JSX built with sygnal({ compile: true }) (the real compiler, CV-2)
-const ALL = ['table-base', 'table-cv', 'table-a', 'table-b', 'coll-base', 'coll-cv', 'coll-a', 'coll-b', 'react']
+// *-cv: the *-base page's JSX built with sygnal({ compile: true }) (the real compiler: tier A +
+// blocks); *-cva: compile: { blocks: false } (tier A only)
+const ALL = ['table-base', 'table-cva', 'table-cv', 'table-a', 'table-b', 'coll-base', 'coll-cva', 'coll-cv', 'coll-a', 'coll-b', 'react']
 const PAGES = arg('pages', ALL.join(',')).split(',')
 const OPF = arg('ops', 'create 1k rows,replace 1k rows,update every 10th,select row (1k),swap rows,remove row,create 10k,append 1k,clear 1k rows').split(',')
 const ITER = +arg('iter', 10), WARMUP = +arg('warmup', 3)
@@ -32,16 +33,16 @@ const profile = process.argv.includes('--profile')
 const out = resolve(process.env.CW_OUT || resolve(here, 'results'), profile ? 'dist-profile' : 'dist')
 
 const html = (p) => p === 'react' ? resolve(repo, 'benchmarks/audit/apps/react/table.html') : resolve(here, 'apps', `${p}.html`)
-const kind = (p) => p === 'react' ? 'react' : p.endsWith('-cv') ? 'cv' : 'sygnal'
+const kind = (p) => p === 'react' ? 'react' : p.endsWith('-cv') ? 'cv' : p.endsWith('-cva') ? 'cva' : 'sygnal'
 const url = (p) => '/' + relative(repo, html(p)).replace(/\\/g, '/')
 
 if (!process.argv.includes('--no-build')) {
-  for (const fw of ['sygnal', 'cv', 'react']) {
+  for (const fw of ['sygnal', 'cv', 'cva', 'react']) {
     const pages = PAGES.filter(p => kind(p) === fw)
     if (!pages.length) continue
-    await (fw === 'cv' ? build8 : build)({
+    await (fw.startsWith('cv') ? build8 : build)({
       root: repo, configFile: false, logLevel: 'warn', mode: 'production', base: '/',
-      plugins: fw === 'react' ? [react()] : [sygnal({ compile: fw === 'cv' })],
+      plugins: fw === 'react' ? [react()] : [sygnal({ compile: fw === 'cv' ? true : fw === 'cva' ? { blocks: false } : false })],
       define: { 'process.env.NODE_ENV': '"production"' },
       build: { outDir: out, emptyOutDir: false, minify: profile ? false : 'esbuild', sourcemap: profile, rollupOptions: { input: Object.fromEntries(pages.map(p => [p, html(p)])) } },
     })

@@ -1,5 +1,6 @@
 // The compiled variants render the same DOM as their baseline after each step of a sequence of
-// table ops (run, select, update every 10th, swap, remove, append, update last, clear, run).
+// table ops (run, select, update every 10th, swap, remove, append, update last, clear, run), and
+// how many DOM mutation records each step makes (a count, not a timing).
 //   node dev-plans/research/compile-wasm/check-dom.mjs   (after bench.mjs has built the pages)
 import { createRequire } from 'node:module'
 import { resolve, relative } from 'node:path'
@@ -31,24 +32,31 @@ async function trace(page) {
   await p.addInitScript(HELPERS)
   await p.goto(`${server.url}/${relative(repo, resolve(here, 'apps', page + '.html'))}`)
   await p.waitForFunction(() => document.querySelector('#main')?.children.length > 0, null, { timeout: 120000 })
-  const snaps = []
+  const snaps = [], counts = []
   for (const [act, done] of STEPS) {
     // a row's identity: id, class, data-id, texts (attribute order and the isolation attributes left out)
-    snaps.push(await p.evaluate(`(async () => { const h = window.__h; ${act}; await h.waitFor(() => ${done}); await h.settle(100);
-      return [...document.querySelectorAll('.table > *')].map(r => [r.className, r.dataset.id ?? '', r.children.length, ...[...r.children].map(c => c.className + ':' + c.textContent)].join('|')).join('\\n') })()`))
+    const [snap, muts] = await p.evaluate(`(async () => { const h = window.__h; const rec = []; const mo = new MutationObserver(r => rec.push(...r)); mo.observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+      ${act}; await h.waitFor(() => ${done}); await h.settle(100); mo.disconnect();
+      return [[...document.querySelectorAll('.table > *')].map(r => [r.className, r.dataset.id ?? '', r.children.length, ...[...r.children].map(c => c.className + ':' + c.textContent)].join('|')).join('\\n'), rec.length] })()`)
+    snaps.push(snap); counts.push(muts)
   }
   await ctx.close()
-  return { snaps, errors }
+  return { snaps, counts, errors }
 }
 let bad = 0
-for (const [base, variants] of [['table-base', ['table-cv', 'table-a', 'table-b']], ['coll-base', ['coll-cv', 'coll-a', 'coll-b']]]) {
+const COUNTS = []
+for (const [base, variants] of [['table-base', ['table-cva', 'table-cv', 'table-a', 'table-b']], ['coll-base', ['coll-cva', 'coll-cv', 'coll-a', 'coll-b']]]) {
   const want = await trace(base)
+  COUNTS.push([base, want.counts])
   for (const v of variants) {
     const got = await trace(v)
+    COUNTS.push([v, got.counts])
     const diff = got.snaps.findIndex((s, i) => s !== want.snaps[i])
     if (diff >= 0 || got.errors.length) bad++
     console.log(`${v} vs ${base}: ${diff < 0 ? 'same DOM at every step' : `differs at step ${diff + 1} (${STEPS[diff][0]})`}${got.errors.length ? ' errors: ' + got.errors.join(' | ') : ''}`)
   }
 }
+console.log('\nDOM mutation records per step: ' + STEPS.map(s => s[0].replace(/h\.click\('|'\)|h\.q.*&& /g, '')).join(' | '))
+for (const [p, c] of COUNTS) console.log(p.padEnd(12), c.join(' | '))
 await browser.close(); server.close()
 process.exit(bad ? 1 : 0)

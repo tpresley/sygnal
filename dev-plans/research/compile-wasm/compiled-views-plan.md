@@ -208,4 +208,27 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
   HTML. Benchmark table (`ssr/bench.mjs`, the real compiler): **1k rows 1.78 → 0.38 ms (4.7×), 10k
   rows 23.7 → 4.3 ms (5.5×)**; the hand-written template's 16–26× is the ceiling (left: per-row data
   objects and the fast-path tag writer).
-- Not yet: CV-3 (blocks), then the full timing run in a quiet window.
+- **CV-3 v1 done** (blocks, `compile.blocks`, production client builds only). Each block's code is
+  its tier-A vnode code with the holes as parameters (`__cvb.b((h) => …, kinds)`), so calling it
+  with the values IS the JSX runtime's vnode tree. That one function gives the template, which
+  snabbdom renders once with Sygnal's own modules. It also gives the fallback (a text hole holding
+  a vnode or array renders plain vnodes under another key) and the expansion: the core expands
+  blocks for any DOM driver that isn't `makeDOMDriver` with its default modules
+  (`DOMDriver.blocks`), which covers renderComponent's mock DOM and host renderers. Inner dynamic
+  data goes through the same modules' create/update. A static prop that a clone doesn't keep
+  turns the block off. Blocks: `.map()` rows in a direct value position of a compiled element, and
+  the element a capitalized component returns. The core's same-output check knows blocks
+  (`ext.sb`: text holes `===`, data holes `sameData`); the expander and the check register on first
+  use (`src/core/registry.ts` `ext`), and `blocks.ts` has no module-level side effects: uncompiled
+  kanban 42,109 B (+51 B for the core hooks, 891 B headroom). Hydration: a block adopting server
+  markup makes its inside again (a first cut of CV-4).
+- Tests: `test/cv-blocks.test.js` (jsdom): the fixture apps (`.map()` rows, Collection items,
+  text holes switching between text, arrays, null and 0) give the same DOM compiled and not after
+  14 actions; blocks were really made (a counter); a Collection select makes 1 attribute mutation;
+  renderComponent's mock DOM gives the same HTML. In real Chromium (`check-dom.mjs`) the `-cv`
+  (tier A + blocks) and `-cva` (tier A) pages give the same DOM at every step and **the same DOM
+  mutation count per step** as the JSX pages. The CommonJS plugin build is tested (it had a
+  magic-string interop bug, fixed: the named import).
+- Not yet: blocks in dev and under Vitest (the dev checks and devtools would need `expand`); CV-4
+  hydration that adopts without remaking; CV-5; the full timing run in a quiet window (pages
+  `table-cv` / `table-cva` / `coll-cv` / `coll-cva` are ready in `bench.mjs`).

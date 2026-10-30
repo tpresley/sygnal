@@ -292,10 +292,13 @@ export interface SygnalPluginOptions {
    *   vnodes are the ones the JSX runtime makes.
    * - `ssr` (CV-1): in server builds, compiled elements render to HTML strings in renderToString
    *   (same HTML, no vnode per element). Never under Vitest.
+   * - `blocks` (CV-3): in production client builds (`vite build`; never the dev server or Vitest,
+   *   whose checks and devtools read vnodes), a `.map()` row and the element a component returns
+   *   become a block: a template cloned once per row, then only its dynamic parts written.
    * - `test`: compile under Vitest too (`views` only), so tests run what ships.
    * @default false
    */
-  compile?: boolean | { views?: boolean; ssr?: boolean; test?: boolean }
+  compile?: boolean | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean }
 
   /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
@@ -387,7 +390,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   // CV-2: its own plugin, before Vite's JSX transform (this plugin's transform runs after it)
   let warnedCompile = false
   const co = options.compile === true ? {} : options.compile || null
-  const compileOn = (k: 'views' | 'ssr' | 'test') => !!co && (co as any)[k] !== false
+  const compileOn = (k: 'views' | 'ssr' | 'blocks' | 'test') => !!co && (co as any)[k] !== false
   const compilePlugin = co && {
     name: 'vite-plugin-sygnal:compile',
     enforce: 'pre' as const,
@@ -402,7 +405,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         if (!warnedCompile) { warnedCompile = true; this.warn('[sygnal] `compile` needs Vite 8; views are not compiled') }
         return null
       }
-      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr })
+      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr, blocks: !ssr && !isServe && !isVitest && compileOn('blocks') })
     },
   }
   const main = {

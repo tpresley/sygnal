@@ -21,7 +21,7 @@ import type {App} from './runtime'
 import {tearDown, INST, SEED} from './teardown'
 import {CoreDef, defOf, isObj} from './define'
 import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell, pathOf} from './cell'
-import {hosts, posts, pres, resolvers} from './registry'
+import {ext, hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
@@ -127,6 +127,8 @@ let left = 0
 export const sameTree = (a: any, b: any): boolean => (left = SAME_MAX, same(a, b))
 function same(a: any, b: any): boolean {
   if (a === b) return true
+  // CV-3: a compiled block (its inside is its hole values)
+  if (b?.$b) return !!a?.$b && ext.sb!(a, b)
   if (--left < 0 || !a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
