@@ -12,7 +12,7 @@ npm run build          # Rollup → dist/ (25 configs: core UMD + CJS/ESM, sygna
 npm run build:all      # same as build (kept for prepublishOnly)
 npm test               # the full gate, in order:
                        #   vitest run          library tests in test/ (2,583; test/parity/: the core's behaviour contract)
-                       #   test:examples       each example's own suite (14 examples, 223 tests)
+                       #   test:examples       each example's own suite (15 examples,  tests)
                        #   test:types          tsc on type-tests/
                        #   test:browser        browser-tests/ (184; Chromium. Opt-in other engines:
                        #                       BROWSER=firefox|webkit npm --prefix browser-tests test)
