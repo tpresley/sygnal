@@ -37,7 +37,9 @@ const probe = () => {
     const done = new Function('return (' + doneSrc + ')')
     let t0 = null
     addEventListener(type, (e) => { if (t0 == null) t0 = e.timeStamp }, {capture: true, once: true})
-    return new Promise((ok) => {
+    return new Promise((ok, fail) => {
+      // never hang the run: a step that doesn't finish in 30 s fails, naming its condition
+      setTimeout(() => { mo.disconnect(); fail(new Error(`not reached in 30 s (event seen: ${t0 != null}): ${doneSrc}`)) }, 30000)
       const mo = new MutationObserver(async () => {
         if (t0 == null || !done()) return
         mo.disconnect()
@@ -93,6 +95,7 @@ const record = (key, mode, v) => ((results[key] ||= {})[mode] ||= []).push(v)
  * and every flush's vnode, so its timings aren't recorded
  */
 async function session(mode, n, withStats) {
+  if (process.env.TRACE) console.error(`session ${mode} n=${n}${withStats ? ' stats' : ''}`)
   const rec = withStats ? () => {} : (k, v) => record(k, mode, v)
   const msgs = {}
   const {page, loaded} = await open(mode, n, withStats ? '?stats' : '')

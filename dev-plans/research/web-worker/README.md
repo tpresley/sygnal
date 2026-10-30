@@ -172,4 +172,18 @@ SIZE_PLACEHOLDER
 
 ## 7. Open questions
 
-QUESTIONS_PLACEHOLDER
+For the maintainer:
+
+- **Q-WW-1. Ship it as a dev preview?** The proposal is two subpaths (§6), with todomvc-in-a-worker as an example and a docs page "Running off the main thread", building on the existing custom-targets JSON sketch. They'd be marked experimental, like `sygnal/api`. The core fix (§6) is worth taking either way: Sygnal shouldn't throw in a module worker or in an embedded engine (compile-wasm's QuickJS guest hit the same thing).
+- **Q-WW-2. Declarative `preventDefault` in intents.** Should `sygnal/host` keep the `events(type, { preventDefault })` option on its delegates, so a worker app declares sync decisions where it reads the event (`DOM.select('.menu').events('keydown', { preventDefault: (e) => e.key === 'Tab' })`)? A function can't cross threads, so only `true` or an object pattern (`{ key: 'Tab' }`, which `fromEvent.ts` already supports) would work. The change is in the host subpath, not the core.
+
+Technical, for whoever builds it:
+
+- **Q-WW-3. Hold a submit until the field's last edit is acknowledged**, which closes the "word + Enter inside one round trip" race (§2.3). It costs a round trip of latency on Enter only when typing is that fast.
+- **Q-WW-4. Keep the caret through a rebase**: map `selectionStart`/`selectionEnd` through the same edit.
+- **Q-WW-5. Element commands as ops** (`scrollIntoView`, `select`, `showModal` ordered with the patch), and a page → worker attribute sync for state the browser changes by itself (`<dialog open>`, `<details open>`, popovers). This is needed before `sygnal/ui` can run in a worker app.
+- **Q-WW-6. Widgets in worker apps.** `defineWidget`, `fromReact` and `fromZag` mount third-party code on real elements, so they must run on the page. They'd be a page-side registry the bridge mounts on a placeholder element the worker renders, with props as ops and widget events forwarded.
+- **Q-WW-7. Coalesce high-frequency events** (`pointermove`, `scroll`, `wheel`) per frame on the page.
+- **Q-WW-8. Devtools relay and HMR**: the devtools hook layer through the bridge's channel, and `getState()` carried across a worker reload.
+- **Q-WW-9. A dirty-node list in `sygnal/host`** (a `Set` of changed nodes since the last read) would make the flush O(changes) instead of O(children of each dirty parent). Today a one-row change in a 10,000-row list compares 10,000 child ids, about 0.1 ms each flush (§4.2). It only matters for very large lists.
+- **Not recommended:** Partytown-style synchronous access through `Atomics.wait`. It needs cross-origin isolation (COOP/COEP headers, which break many third-party embeds), it blocks the worker on every read, and it doesn't fix `preventDefault` either: the page's dispatch can't wait for the worker.
