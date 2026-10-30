@@ -110,8 +110,10 @@ export function createThreeTarget() {
       if (d && k in d) { const x = d[k]; x && typeof x.clone == 'function' ? applyProp(o, k, x.clone()) : (o[k] = x) }
       else delete o[k]
     }
+    // a key `animate` drove and no longer does: its static prop applies again
+    const stopped = old.animate ? Object.keys(old.animate).filter(k => !props.animate || !(k in props.animate)) : []
     for (const k in props) {
-      if (OWN.test(k) || k == 'args' || sameArr(props[k], old[k])) continue
+      if (OWN.test(k) || k == 'args' || (sameArr(props[k], old[k]) && !stopped.includes(k))) continue
       applyProp(o, k, props[k])
       stats.applied++
     }

@@ -49,8 +49,8 @@ export function displayList(container: any): Item[] {
   return out
 }
 
-function paint(ctx: any, list: Item[], w: number, h: number, background?: string) {
-  ctx.setTransform(1, 0, 0, 1, 0, 0)
+function paint(ctx: any, list: Item[], w: number, h: number, background?: string, dpr = 1) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, w, h)
   if (background) { ctx.fillStyle = background; ctx.fillRect(0, 0, w, h) }
   for (const it of list) {
@@ -127,7 +127,7 @@ export const Canvas2D = defineIsland({
       if (!ctx || pending) return
       pending = raf ? raf(inst.draw) : setTimeout(inst.draw, 0)
     }
-    inst.draw = () => { pending = 0; ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.scale?.(dpr, dpr); paint(ctx, inst.list, w, h, inst.background); inst.paints++ }
+    inst.draw = () => { pending = 0; paint(ctx, inst.list, w, h, inst.background, dpr); inst.paints++ }
     inst.resize = (W: number, H: number) => { w = W; h = H; size(); inst.invalidate() }
     inst.pick = (x: number, y: number) => {
       const it = hitTest(inst.list, x, y, ctx)

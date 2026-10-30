@@ -117,3 +117,26 @@ describe('a controlled camera (OrbitControls ↔ state)', () => {
     t.dispose()
   })
 })
+
+describe('animate', () => {
+  it('runs per frame without app work; when it stops, the static prop applies again', async () => {
+    const t = renderComponent(CubesApp, {dom: 'real'})
+    await t.ready()
+    const s = scene(t), [first] = meshes(t), obj = s.target.objectOf(first)
+    const still = obj.rotation.toArray().slice(0, 3)
+    t.simulateEvent('.spin', 'click')
+    await t.waitForState((st: any) => st.spin)
+    await t.settle()
+    expect(s.target.animated.size).toBe(3)
+    const syncs = s.target.stats.syncs
+    s.tick(1000); s.tick(2000)
+    expect(obj.rotation.y).toBeCloseTo(2 * 0.8)
+    expect(s.target.stats.syncs).toBe(syncs)          // frames don't patch the island
+    t.simulateEvent('.spin', 'click')
+    await t.waitForState((st: any) => !st.spin)
+    await t.settle()
+    expect(s.target.animated.size).toBe(0)
+    expect(obj.rotation.toArray().slice(0, 3)).toEqual(still)
+    t.dispose()
+  })
+})
