@@ -23,6 +23,12 @@
  * `ownsState: false`: the host's initialState keeps state[key] (the first value seeds an empty
  * document); the behavior adds no slice of its own, and sygnal-check's SYG127 reads the marker.
  * `undo()` on the same key reverts other users' changes: SYG260 (dev) points to `{ SHARED: { undo } }`.
+ *
+ * sygnal/canvas's `history(key)` routes here (maintainer decision 7, one API): model entries that
+ * are its `undo` / `redo` become `{ [driver]: { undo: key } }` / `{ redo: key }`, its `commit`
+ * bumps `state[step]` instead of keeping snapshots, and the LOCAL command carries that step, so the
+ * driver closes this user's undo step at each commit (one step per gesture). `after` runs on the
+ * state an undo / redo brings back. The marker is `Symbol.for('sygnal.history')`: no import.
  */
 import {xs, ABORT} from '../index'
 
@@ -40,6 +46,7 @@ export interface SharedOptions {
 }
 
 const BUILT_IN = Symbol.for('sygnal.builtIn')
+const HISTORY = Symbol.for('sygnal.history')
 const builtIn = <F>(f: F): F => ((f as any)[BUILT_IN] = true, f)
 
 // SYG260: an undo() behavior of the host whose `key` is this shared key (reported once per use)
@@ -69,10 +76,22 @@ export const shared = (opts: SharedOptions = {}) => ({
     const D = opts.driver || 'SHARED', S = c.stateSourceName || 'STATE', model = c.model = {...c.model}
     const {shape, seed} = opts
     checkUndo(c, k)
+    // sygnal/canvas history(k): its undo / redo entries go to this user's UndoManager
+    let hist: any = null
+    for (const name in model) {
+      const e = model[name], f = typeof e == 'function' ? e : e?.[S], h = f?.[HISTORY]
+      if (!h || h.field !== k) continue
+      hist = h
+      const cmd = f === h.undo ? {undo: k} : {redo: k}, rest = typeof e == 'function' ? {} : {...e}
+      delete rest[S]
+      model[name] = {...rest, [D]: () => cmd}
+    }
+    if (hist) hist.shared = {history: opts.history}
+    const step = hist?.step
     // the committed slice when the action runs (not the action's data: a REMOTE queued before it may have moved it on)
-    model[k + '.LOCAL'] = {[D]: builtIn((s: any) => ({key: k, value: s?.[k], shape, seed}))}
+    model[k + '.LOCAL'] = {[D]: builtIn((s: any) => step ? {key: k, value: s?.[k], shape, seed, step: s?.[step] ?? 0} : {key: k, value: s?.[k], shape, seed})}
     model[k + '.REMOTE'] = {
-      [S]: builtIn((s: any, d: any) => s?.[k] === d.base ? {...s, [k]: d.value} : ABORT),
+      [S]: builtIn((s: any, d: any) => s?.[k] !== d.base ? ABORT : d.undo && hist ? hist.after({...s, [k]: d.value}) : {...s, [k]: d.value}),
       // the state the REMOTE committed (its value, or the app's own newer one) is the driver's new base
       [D]: builtIn((s: any) => ({key: k, value: s?.[k]})),
     }
@@ -84,17 +103,18 @@ export const shared = (opts: SharedOptions = {}) => ({
       // no Yjs driver (renderComponent without one: a fake source): the reducers still run
       const h = own?.(so) || {}, st = so[S], src = typeof so[D]?.remote == 'function' ? so[D] : null
       // state[key]'s latest value once per flush (a microtask after the first change of a burst)
-      let prev: any, latest: any, queued = false, sub: any
+      let prev: any, latest: any, queued = false, sub: any, prevStep: any, latestStep: any
       const local$ = xs.create({
         start: (l: any) => {
           sub = st.stream.subscribe({
             next: (s: any) => {
               latest = s?.[k]
+              if (step) latestStep = s?.[step]
               if (queued) return
               queued = true
               queueMicrotask(() => {
                 queued = false
-                if (sub && latest !== undefined && latest !== prev) l.next(prev = latest)
+                if (sub && latest !== undefined && (latest !== prev || latestStep !== prevStep)) prevStep = latestStep, l.next(prev = latest)
               })
             },
             error: () => {}, complete: () => {},

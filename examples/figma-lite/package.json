@@ -1,0 +1,20 @@
+{
+  "name": "sygnal-figma-lite",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "sygnal": "file:../.."
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "sygnal-check": "file:../../sygnal-check",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
+  }
+}

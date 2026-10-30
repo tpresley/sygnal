@@ -7,6 +7,8 @@
  * Sink commands (data, from model entries):
  *   { key, value, shape?, seed? }   state[key]'s new value (shared()'s `key.LOCAL`, coalesced per flush)
  *   { undo: key } / { redo: key }   this client's own changes to state[key] (a Y.UndoManager per slice)
+ *   { key, value, step }            (sygnal/canvas history()) a new `step` closes this client's undo
+ *                                   step after the write; while steps come, edits merge by step, not by time
  *   { presence: { ... } }           this client's awareness state (merged)
  *   { connect: boolean }            provider.connect() / provider.disconnect() (go offline and back)
  * Sources: remote(key) ({ value, base }), presence() (the other clients), history(key)
@@ -49,6 +51,8 @@ interface Slice {
   emitted: Set<any>; sent: any; sentBase: any
   shape?: ShapeNode; seed: string
   out: Set<any>
+  // history()'s step (sygnal/canvas): the last one seen
+  step?: any
 }
 
 const report = (code: string, message: string, fix: string, data: any) => {
@@ -126,7 +130,7 @@ export const makeYjsDriver = (o: YjsDriverOptions) => (sink$: any) => {
     for (const s of slices.values()) {
       if (!s.started || !touches(d, s.key)) continue
       s.mirror = read(s.y, s.key, s.mirror, d)
-      if (tr.origin !== local && tr.origin !== seed) emit(s)
+      if (tr.origin !== local && tr.origin !== seed) emit(s, !!s.um && tr.origin === s.um)
     }
   }
   doc.on('afterTransaction', onTransaction)
@@ -146,13 +150,13 @@ export const makeYjsDriver = (o: YjsDriverOptions) => (sink$: any) => {
   const write = (s: Slice, prev: any, next: any, origin: any) =>
     doc.transact(() => { writeMap(s.y, prev, next, opts, s.key, s.shape); scope(s) }, origin)
   // the document's content as a REMOTE action, unless the app already has it (or has it on its way)
-  const emit = (s: Slice) => {
+  const emit = (s: Slice, undo = false) => {
     // the mirror takes the app's objects wherever they are equal (Collection items keep their identity)
     if (s.mirror !== s.sent) s.mirror = reconcile(s.last, s.mirror)
     const value = s.mirror
     if (value === s.last || value === s.sent && s.sentBase === s.last) return
     s.sent = value; s.sentBase = s.last; s.emitted.add(value)
-    for (const l of s.out) l.next({value, base: s.last})
+    for (const l of s.out) l.next(undo ? {value, base: s.last, undo} : {value, base: s.last})
   }
   // bind the slice to the document: seed an empty one from the app's value, or else take its
   // content (with the app's edits since its first value written onto it)
@@ -171,6 +175,14 @@ export const makeYjsDriver = (o: YjsDriverOptions) => (sink$: any) => {
    * else the app's own newer value). So the driver always diffs from a value the app really had.
    */
   const onLocal = (c: any) => {
+    onValue(c)
+    // history() (sygnal/canvas): one undo step per commit, however long the gesture took
+    if (c.step === undefined) return
+    const s = slice(c.key)
+    if (s.um) s.um.captureTimeout = Infinity
+    if (c.step !== s.step) { if (s.step !== undefined) s.um?.stopCapturing(); s.step = c.step }
+  }
+  const onValue = (c: any) => {
     const s = slice(c.key), v = c.value
     if (v === undefined) return
     if (!s.started) {

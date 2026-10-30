@@ -734,6 +734,22 @@ export interface Widget<P = {}, I = unknown, EV extends string = string, TAG ext
 export function defineWidget<P = {}, I = unknown, const EV extends string = string, const TAG extends string = 'div'>(definition: WidgetDefinition<P, I, EV, TAG>): Widget<P, I, EV, TAG>
 
 /**
+ * Keyboard shortcuts as named action streams (7.2):
+ *
+ *   App.intent = ({ DOM }) => ({ ...keymap(DOM, { 'mod+z': 'UNDO', 'shift+mod+z': 'REDO', delete: 'DELETE', left: ['NUDGE', { dx: -1 }] }) })
+ *
+ * A combo is modifiers (`mod` = ⌘ or Ctrl, `ctrl`, `meta`, `shift`, `alt`) then a key (`e.key`
+ * lower-cased; `left` `right` `up` `down` `del` `esc` `space` aliases; digits by `e.code`), and
+ * matches only its own modifiers. A value is an action name (its stream emits `undefined`) or
+ * `[name, data]`. Matched keys are default-prevented; nothing fires while typing in a field.
+ */
+export function keymap<const T extends Record<string, string | readonly [string, any]>>(
+  DOM: { select(selector: string): any },
+  table: T,
+  options?: { on?: string },
+): { [K in T[keyof T] extends infer V ? V extends readonly [infer N extends string, any] ? N : V extends string ? V : never : never]: Stream<any> }
+
+/**
  * The target of an element command: a control, or a selector. It is looked up in the view of the
  * component instance that sends the command (a child's elements are isolated from its parent; a
  * Collection item reaches only its own).

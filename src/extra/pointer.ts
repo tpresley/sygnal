@@ -1,5 +1,6 @@
 /**
- * DOM-shaped events for picked scene nodes (three.js raycasts, canvas 2D hit tests).
+ * DOM-shaped events for picked scene nodes: the one pointer router of sygnal/three (raycasts) and
+ * sygnal/canvas (2D hit tests). No core imports: each subpath bundles it.
  *
  * A scene node is an element: a real DOM element (an island inside a DOM app) or a sygnal/host
  * HostElement (a whole app on a host target). `fire()` makes the event the way that element's
@@ -29,6 +30,12 @@
  * a DataTransfer-shaped `dataTransfer` (one per drag) and the hit's fields. No pointer events and no
  * click during the drag, unless the element also captures (then it gets pointermove too: it can
  * follow the pointer while the drop target sees dragover).
+ *
+ * sygnal/canvas adds three options: `capture(hit)` captures a press implicitly (the DOM's touch
+ * semantics: a canvas editor captures every press, `<Canvas capture="all">`), `fields(x, y)` gives
+ * captured events their coordinates where there is no drag plane (`world`, `screen`, `delta`), and
+ * a pick may return `root` itself (the background): it is then a target like any element, and a
+ * click whose down and up targets have no other common ancestor goes to it.
  */
 
 export type Hit = {el: any, [k: string]: any}
@@ -40,6 +47,10 @@ export interface RouterOptions {
   ray?(x: number, y: number): Ray | null
   /** an element's target prop (`capture`, `draggable`) */
   prop?(el: any, key: string): any
+  /** a press's implicit capture: a capture kind (true, 'xz', …) captures the pressed element, else the `capture` prop decides */
+  capture?(hit: Hit): any
+  /** a captured event's fields at (x, y), after the drag plane's (a 2D scene: world, screen, delta) */
+  fields?(x: number, y: number): Record<string, any> | null
 }
 
 /** how far (px) a pointer moves before a press is a drag */
@@ -115,6 +126,8 @@ export function pointerRouter(pick: Pick, root: any, opts: RouterOptions = {}): 
   let drag: {src: any, on: boolean, over: any, ok: boolean, dt: any} | null = null
   const prop = (el: any, k: string) => { const v = opts.prop?.(el, k); return v === false || v == null ? undefined : v }
   const closest = (el: any, k: string) => chain(el, root).find(e => prop(e, k) !== undefined)
+  // the nearest common ancestor of a press's and a release's targets (the background when one was it)
+  const common = (a: any, b: any) => { const cb = chain(b, root); return chain(a, root).find(e => cb.includes(e)) || (a === root || b === root ? root : undefined) }
   const hover = (hit: Hit | null, init: any) => {
     const a = over?.el, b = hit?.el
     if (a === b) { over = hit; return }
@@ -158,7 +171,7 @@ export function pointerRouter(pick: Pick, root: any, opts: RouterOptions = {}): 
     c.moved = Math.max(c.moved, Math.hypot(x - at[0], y - at[1]))
     const p = r && c.n && c.p && onPlane(r, c.n, c.p) || c.last
     c.last = p
-    return {...(p && {point: p, delta: c.p ? sub(p, c.p) : [0, 0, 0]}), ...(r && {ray: {origin: r.origin, direction: r.direction}, ndc: r.ndc}), captured: true, pointerId: init.pointerId ?? c.id}
+    return {...(p && {point: p, delta: c.p ? sub(p, c.p) : [0, 0, 0]}), ...(r && {ray: {origin: r.origin, direction: r.direction}, ndc: r.ndc}), ...opts.fields?.(x, y), captured: true, pointerId: init.pointerId ?? c.id}
   }
   // the HTML drag's step; true: the input is the drag's (no pointer events for it)
   const dragStep = (type: string, x: number, y: number, init: any): boolean => {
@@ -211,7 +224,7 @@ export function pointerRouter(pick: Pick, root: any, opts: RouterOptions = {}): 
         const h = type == 'up' ? pick(x, y) : null
         // the click: on the common ancestor of the down target and the captured one, unless it was a drag
         if (h && down && c.moved <= SLOP && !wasDrag) {
-          const cu = chain(c.el, root), target = chain(down, root).find(e => cu.includes(e))
+          const target = common(down, c.el)
           if (target) fire(target, 'click', init, h.el == c.el ? h : ex)
         }
         down = null
@@ -227,15 +240,18 @@ export function pointerRouter(pick: Pick, root: any, opts: RouterOptions = {}): 
         at = [x, y], grab = hit, down = el
         patch(el)
         fire(el, 'pointerdown', init, hit)
-        // a `capture` prop (unless a handler captured it already)
-        if (!cap) { const c = closest(el, 'capture'); if (c) capture(c, init.pointerId ?? 1) }
+        // implicit capture, else a `capture` prop (unless a handler captured it already)
+        if (!cap) {
+          const k = opts.capture?.(hit), c = k != null && k !== false ? el : closest(el, 'capture')
+          if (c) capture(c, init.pointerId ?? 1, k != null && k !== false && k !== true ? k : undefined)
+        }
         const d = closest(el, 'draggable')
         drag = d ? {src: d, on: false, over: null, ok: false, dt: null} : null
       } else if (type == 'up') {
         fire(el, 'pointerup', init, hit)
         // click goes to the nearest common ancestor of the down and up targets
         if (down && !wasDrag) {
-          const cu = chain(el, root), target = chain(down, root).find(e => cu.includes(e))
+          const target = common(down, el)
           if (target) fire(target, 'click', init, hit)
         }
         down = null

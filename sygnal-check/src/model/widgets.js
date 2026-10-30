@@ -3,7 +3,7 @@
  * (W-2) the adapters' widgets: `fromZag(zag, render, { events, commands })` from 'sygnal/zag',
  * `fromReact(Comp, { events, commands })` from 'sygnal/react', and the Menu / Select / Combobox
  * tags of 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' (D211; one subpath per part),
- * and 'sygnal/three''s Scene, and 'sygnal/sandbox''s Sandboxed.
+ * 'sygnal/three''s Scene, 'sygnal/canvas''s Canvas, and 'sygnal/sandbox''s Sandboxed.
  *
  * A widget tag (`<DatePicker className="due" />`) renders its host element in the scope of the
  * view that uses it (it is not a child component), so its className/id count for SYG110/SYG640
@@ -59,6 +59,8 @@ export function uiZagPart(b) {
 // canvas-three: other library widget tags (div hosts): their module, events and commands
 const LIB_WIDGETS = {
   Scene: ['sygnal/three', ['camerachange'], []],
+  // sygnal/canvas: an island like Scene (its <shapes> layers and node tags render in the using view)
+  Canvas: ['sygnal/canvas', ['camerachange', 'canvasresize'], []],
   // sygnal/sandbox (dev preview): a sandboxed component as a tag
   Sandboxed: ['sygnal/sandbox', ['emit', 'sandboxerror'], []],
 }

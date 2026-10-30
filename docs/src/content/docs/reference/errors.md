@@ -1309,6 +1309,16 @@ Without a `shape`, `shared()` infers how each field of the slice is stored in th
 
 **Fix:** Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.
 
+### SYG262
+
+**Canvas data layer rebuilt with equal nodes**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A `<shapes items={…}>` data layer of `sygnal/canvas` got a new array in which at least half of its nodes (64 or more) are new objects with exactly the fields of the nodes they replace: a reducer rebuilt every shape (`shapes.map(s => ({ ...s }))`, a JSON round trip, a fresh copy from a store) while changing few or none. The canvas keys its static layer, its translation blits and its camera cache on node identity (as `sygnal/yjs` keys its diff on it), so a layer whose nodes all change identity repaints everything on every frame, silently: the app still works, at a full repaint's cost. Reported once per layer, in dev, by the Canvas when it syncs its children.
+
+**Fix:** Replace only the nodes that change and keep the others: `shapes.map(s => s.id === id ? { ...s, x } : s)`, or patch by index. For a selection, look the ids up in a `Set` and return the untouched objects as they are.
+
 ## SYG3xx: Streams
 
 ### SYG301

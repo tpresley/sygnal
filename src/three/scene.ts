@@ -16,7 +16,7 @@
  * role is focusable, Enter / Space click it (with no intersection on the event), and the focus
  * ring is drawn where the object is (focus()).
  *
- * Dragging (three/events.ts): `capture` / `setPointerCapture` keep a drag's pointer on its element
+ * Dragging (extra/pointer.ts): `capture` / `setPointerCapture` keep a drag's pointer on its element
  * (the canvas captures the browser's pointer, so the drag goes on off the canvas), `draggable` the
  * HTML drag events (processDrag); camera controls sit out a gesture that captures or drags.
  *
@@ -28,7 +28,7 @@ import * as THREE from 'three'
 import {defineWidget} from '../index'
 import {controlled} from '../extra/controlled'
 import {createThreeTarget} from './target'
-import {pointerRouter} from './events'
+import {pointerRouter} from '../extra/pointer'
 
 const isHeadless = (el: any) => {
   const win = el.ownerDocument?.defaultView
