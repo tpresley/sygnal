@@ -639,6 +639,16 @@ After:
 ADD: (state, item) => ({ ...state, items: [...state.items, item] })
 ```
 
+### SYG204
+
+**Root component has no state, so its view never renders**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+The core calls a component's view only while its state is defined. A root component gets its first state from `initialState`, from an `INITIALIZE` reducer, or, with no model at all, renders without one. A root that has a model but no `initialState` starts with `undefined` state, so nothing is rendered: no error, an empty page, and a `DOM.click()` intent that can never fire because its element never appears. Generated code that has no data of its own often looks like this. The dev entry checks once per app, after the first render and the `BOOTSTRAP` reducers' flush, and reports a root whose state is still `undefined`, naming the reducers that could set it later. It is runtime-only: the root is whatever `run()` is given, which a static check can't know reliably.
+
+**Fix:** Give the root an `initialState`, `App.initialState = {}` when it has no data of its own, or return the first state from an `INITIALIZE` reducer. To show a loading state before data arrives, start from one (`{ loading: true }`) rather than from no state.
+
 ### SYG206
 
 **Invalid calculated field definition**
