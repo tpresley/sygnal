@@ -348,7 +348,70 @@ plus the machine and browser) and a `.md` table next to it.
 
 ### Results in the cloud container
 
-RESULTS_PLACEHOLDER
+These come from one run of each configuration on the session's cloud container:
+4-core Xeon at 2.8 GHz with no GPU, so canvas rasterizes in software, and Chromium 153 headless.
+The full reports are in `perf/baseline-cloud/` (`react-konva-cached.*` is the
+default; `react-konva-nocache.*` was run with `--url .../?nocache`). Absolute numbers
+will be lower on a laptop with a GPU. Compare frameworks on the same machine only.
+
+All values are **busy ms per input step, as the median (p95)**. The loop's own cost is about 2.5 ms.
+
+**Drag** (frame time while dragging):
+
+| shapes | dragged | default (cached) | `?nocache` |
+|---:|---:|---:|---:|
+| 1k | 1 | 10.8 (14.0) | 11.4 (13.9) |
+| 1k | 100 | 11.5 (14.0) | 11.4 (13.4) |
+| 1k | all | 11.9 (16.1) | 25.0 (34.6) |
+| 5k | 1 | 10.8 (13.4) | 11.7 (16.8) |
+| 5k | 100 | 10.8 (13.6) | 11.8 (16.4) |
+| 5k | all | 15.0 (20.6) | 72.7 (103.4) |
+| 10k | 1 | 10.8 (14.1) | 11.4 (12.8) |
+| 10k | 100 | 11.6 (14.8) | 12.6 (15.5) |
+| 10k | all | 22.1 (31.5) | 143.7 (257.8) |
+
+**Drop** (mouse up until settled): about 60–180 ms for 1 or 100 shapes, and
+148 / 378 / 996 ms for all of 1k / 5k / 10k. At 10k, a 1-shape drop still costs
+about 180 ms, because the static layer redraws all 10k shapes once and every
+node subscription re-runs.
+
+**Pan and zoom** (frame time per wheel step):
+
+| shapes | pan (cached) | pan `?nocache` | zoom (cached) | zoom `?nocache` |
+|---:|---:|---:|---:|---:|
+| 1k | 10.1 (13.2) | 22.6 (34.0) | 14.3 (18.4) | 20.9 (29.7) |
+| 5k | 9.7 (12.3) | 58.9 (88.2) | 15.0 (69.1) | 55.4 (85.4) |
+| 10k | 9.8 (12.1) | 134.2 (239.9) | 14.1 (19.6) | 96.6 (157.5) |
+
+**Startup:**
+- bench ready + first frame: 365 ms median of 5 loads; FCP 232 ms;
+- production JS bundle: 629 kB, 196 kB gzip (React + Konva + app).
+
+**JS heap after GC:** 3.2 MB initially; 6.7 / 23.9 / 50.1 MB at 1k / 5k / 10k.
+
+**Generate + first paint:** 130 / 360 / 727 ms.
+
+How to read the numbers:
+
+- **Small drags cost about 11 ms at every size, and that is mostly the browser.**
+  A profile shows under 1 ms of JS per frame. The rest is Chromium redrawing and
+  compositing two full-size layer canvases in software. The static layer is
+  never touched, which is the payoff of the drag layer.
+- **Large selections and camera moves are where React + Konva is strong,
+  thanks to Konva's caching.** Without the bitmap cache, frame cost grows
+  linearly with the shapes drawn: 144 ms per frame for all of 10k, 134 ms per
+  pan step. With it, the cost is flat.
+
+  The cache is a few lines because Konva has `node.cache()`. A renderer without
+  scene-graph caching would have to build the equivalent itself. The Sygnal
+  comparison should report against both columns.
+- **Where React + Konva is weak: commits that touch many nodes.**
+  - The 10k select-all drop takes about 1 s: per-node prop updates through the
+    reconciler, plus the Transformer attaching to 10k nodes.
+  - Generating 10k shapes takes about 0.7 s.
+  - Any commit pays a full static-layer redraw (about 100+ ms at 10k here), and
+    every one of the 10k per-node subscriptions re-runs its selector on each
+    store change.
 
 ## Simplifications versus Figma
 
