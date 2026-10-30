@@ -49,6 +49,20 @@ export const EXPLANATIONS = {
     explanation: "A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The reducer then gives a different state each time the same action runs, so replaying recorded actions (record/replay, a test with `renderComponent`) does not reproduce the state. Model handlers receive `now()`, `random()` and `uuid()` on their 4th argument (props); record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply them, so the reducer stays deterministic. Calls in nested functions, views and intents are not reported. The global still works: replay patches it as a fallback, so this is a warning, not an error. Under `sygnal-check --strict` the same reads are reported as SYG509 instead (which also covers EFFECT and other sink handlers). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ \"ignore\": [\"SYG258\"] }`) or put `// sygnal-ignore SYG258` above the line.",
     fix: "Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.",
   },
+  SYG260: {
+    title: "undo() or undoable() on a key shared() syncs",
+    severity: "warn",
+    reportedBy: ["runtime", "static"],
+    explanation: "`shared()` from `sygnal/yjs` keeps `state[key]` in a Yjs document that other clients edit too. Sygnal's `undo({ key })` behavior and `undoable(model, { key })` record snapshots of the whole slice and restore one on UNDO: the restored snapshot is then written to the document like any local edit, so it reverts every change other users made since that snapshot, not only this user's. The Yjs driver has a per-user undo instead: a `Y.UndoManager` per shared key that tracks only this client's own transactions, so a remote change made after this user's edit survives the undo. Reported by `shared()` when the component is first created (dev, `renderComponent`) for an `undo()` in the same `uses`, and by sygnal-check for `undo({ key })` and `undoable(model, { key })` with a literal key.",
+    fix: "Remove the snapshot undo for that key and send the commands to the driver: `UNDO: { SHARED: { undo: 'board' } }`, `REDO: { SHARED: { redo: 'board' } }`; `shared({ history: 'history' })` puts `{ canUndo, canRedo }` in `state.history` for the buttons. `undo()` on keys that aren't shared keeps working next to it.",
+  },
+  SYG261: {
+    title: "shared() inferred the kind of an empty array",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "Without a `shape`, `shared()` infers how each field of the slice is stored in the Yjs document from its value: an array of objects that all have an `id` becomes an id-keyed collection (concurrent adds, edits, moves and removes of different items merge), any other array a `Y.Array` of plain values. An empty array fits both, so the driver guesses a collection; if the field later holds plain values (strings, numbers), it is switched to a list then, and a concurrent edit by another client can be lost in the switch. Reported once per field path, in dev, when the slice is first written to the document.",
+    fix: "Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.",
+  },
   SYG454: {
     title: "State binding changed without a new component identity",
     severity: "warn",

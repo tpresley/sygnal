@@ -26,7 +26,8 @@ export default defineConfig({
     resolve: {
       // sygnal is linked (file:..), so its own imports of these would resolve from the repo root:
       // one copy each, the docs' (a Zag machine and the sygnal/zag runtime must match, as React must)
-      dedupe: ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox', 'react', 'react-dom'],
+      // (Yjs too: a second copy breaks its instanceof checks and warns "Yjs was already imported")
+      dedupe: ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox', 'react', 'react-dom', 'yjs', 'y-protocols', 'lib0'],
     },
   },
   integrations: [
@@ -131,6 +132,7 @@ export default defineConfig({
             { label: 'Resources and Caching', slug: 'guide/resources' },
             { label: 'Persistence', slug: 'guide/persistence' },
             { label: 'Sockets', slug: 'guide/sockets' },
+            { label: 'Collaborative State (experimental)', slug: 'guide/collaborative-state' },
             { label: 'Typed APIs', slug: 'guide/typed-apis' },
             { label: 'Timers', slug: 'guide/timers' },
             { label: 'Browser Sources', slug: 'guide/browser-sources' },

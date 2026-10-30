@@ -42,6 +42,7 @@ import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
 import controls from './syg124-controls.js'
 import behaviors from './syg127-behaviors.js'
+import sharedUndo from './syg260-shared-undo.js'
 import elementCommands from './syg640-element-commands.js'
 import timers from './syg422-timers.js'
 import persist from './syg223-persist.js'
@@ -78,6 +79,7 @@ export const coreRules = [
   latestComputedKey,
   controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
   behaviors, // SYG127, SYG226 (PLAN-4 GS-1, GS-8)
+  sharedUndo, // SYG260 (sygnal/yjs): undo() / undoable() on a shared() key
   elementCommands, // SYG640, SYG641 (PLAN-4 GS-2)
   timers, // SYG422, SYG643 (PLAN-4 GS-7)
   persist, // SYG223, SYG224 (PLAN-4 GS-5)

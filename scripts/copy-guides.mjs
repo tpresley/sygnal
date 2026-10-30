@@ -37,6 +37,8 @@ export const GUIDES = [
   'migrating-to-7',
   // sygnal/api (dev preview)
   'typed-apis',
+  // sygnal/yjs (experimental)
+  'collaborative-state',
   // renderer targets (sygnal/terminal, sygnal/agent-ui, sygnal/host)
   'renderers/overview', 'renderers/write-once', 'renderers/react-native', 'renderers/three', 'renderers/terminal', 'renderers/agent-ui', 'renderers/custom-targets',
 ]

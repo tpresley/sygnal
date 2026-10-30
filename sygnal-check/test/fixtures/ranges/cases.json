@@ -89,6 +89,9 @@
   "SYG226": {
     "C.jsx": "import { controls, undo, pager } from 'sygnal'\nconst { Undo, Newer } = controls({ Undo: 'button', Newer: 'button' })\nexport function C({ state }) { return <div><Undo>Undo</Undo><Newer>Newer</Newer>{state.doc.n}</div> }\nC.initialState = { doc: { n: 0 } }\nC.model = { SET: (s, n) => ({ ...s, doc: { n } }) }\nC.uses = { pager: pager({ next: Newer }), history: undo({ key: 'doc', undo: Undo, track: ['SET', 'pager.NEXT', 'SETT'] }) }\n"
   },
+  "SYG260": {
+    "C.jsx": "import { undo } from 'sygnal'\nimport { shared } from 'sygnal/yjs'\nexport function C({ state }) { return <p>{state.board.n}</p> }\nC.initialState = { board: { n: 0 } }\nC.uses = { board: shared(), h: undo({ key: 'board' }) }\n"
+  },
   "SYG240": {
     "Counter.jsx": "\nexport default function Counter({ state }) {\n  return <p>{state.count}</p>\n}\nCounter.initialState = { count: 0 }\nCounter.model = {\n  INCREMENT: (state) => ({ ...state, count: state.count + 1 }),\n  SET: (state, n) => ({ ...state, count: n }),\n}\nCounter.agent = { actions: { SET: { description: 'Set', input: { type: 'integer' } } } }\n"
   },

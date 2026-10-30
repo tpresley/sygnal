@@ -71,6 +71,8 @@ export const CODES = {
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
   SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
+  // sygnal/yjs (rules/syg260-shared-undo.js; the runtime reports it too, and SYG261)
+  SYG260: { severity: 'warn', title: 'undo() or undoable() on a key shared() syncs' },
   // PLAN-6 K-1 (rules/syg150-agent.js): static counterparts of the agent layer's codes (G-611, G-591)
   SYG240: { severity: 'error', title: 'Agent action or query input has no JSON Schema form' },
   SYG243: { severity: 'warn', title: 'Agent action or query input schema converted with losses' },

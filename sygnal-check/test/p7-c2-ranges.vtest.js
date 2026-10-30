@@ -89,6 +89,7 @@ const RANGES = [
   ['SYG680', 'c.jsx', 3, 'heading'],
   ['SYG224', 'TodoApp.jsx', 10, 'TodoApp.persist'],
   ['SYG226', 'C.jsx', 6, "'SETT'"],
+  ['SYG260', 'C.jsx', 5, "'board'"],
   ['SYG240', 'Counter.jsx', 10, "{ type: 'integer' }"],
   ['SYG243', 'Counter.jsx', 10, 'z.date()'],
   ['SYG246', 'Stats.jsx', 5, 'async (state) => state.n'],

@@ -439,6 +439,28 @@ export default [
 		]
   })),
 
+  // 'sygnal/yjs' (research: dev-plans/research/crdt-state) and 'sygnal/yjs/testing': yjs and
+  // y-protocols stay external (optional peerDependencies, D209), as does fractional-indexing (a
+  // regular dependency); the core import ('../index': xs, ABORT) is the external 'sygnal'.
+  ...[['yjs', 'src/yjs.ts'], ['yjs/testing', 'src/yjs-testing.ts']].map(([entry, input]) => ({
+    input,
+    external: (id) => isExternal(id) || id === 'sygnal' || /^(yjs|y-protocols|fractional-indexing)(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-yjs-core-external',
+				resolveId(source, importer) {
+					return source === '../index' && importer && /[\\/]src[\\/]yjs[\\/]/.test(importer) ? { id: 'sygnal', external: true } : null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {

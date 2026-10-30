@@ -33,6 +33,8 @@
       "sygnal/three": ["../src/three.d.ts"],
       "sygnal/worker": ["../src/worker.d.ts"],
       "sygnal/worker/page": ["../src/worker-page.d.ts"],
+      "sygnal/yjs": ["../src/yjs.d.ts"],
+      "sygnal/yjs/testing": ["../src/yjs-testing.d.ts"],
       "sygnal/ai": ["../src/ai.d.ts"],
       "sygnal/astro": ["../src/astro/index.d.ts"],
       "xstream": ["../node_modules/xstream"],

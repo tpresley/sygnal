@@ -1279,6 +1279,26 @@ A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random
 
 **Fix:** Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.
 
+### SYG260
+
+**undo() or undoable() on a key shared() syncs**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+`shared()` from `sygnal/yjs` keeps `state[key]` in a Yjs document that other clients edit too. Sygnal's `undo({ key })` behavior and `undoable(model, { key })` record snapshots of the whole slice and restore one on UNDO: the restored snapshot is then written to the document like any local edit, so it reverts every change other users made since that snapshot, not only this user's. The Yjs driver has a per-user undo instead: a `Y.UndoManager` per shared key that tracks only this client's own transactions, so a remote change made after this user's edit survives the undo. Reported by `shared()` when the component is first created (dev, `renderComponent`) for an `undo()` in the same `uses`, and by sygnal-check for `undo({ key })` and `undoable(model, { key })` with a literal key.
+
+**Fix:** Remove the snapshot undo for that key and send the commands to the driver: `UNDO: { SHARED: { undo: 'board' } }`, `REDO: { SHARED: { redo: 'board' } }`; `shared({ history: 'history' })` puts `{ canUndo, canRedo }` in `state.history` for the buttons. `undo()` on keys that aren't shared keeps working next to it.
+
+### SYG261
+
+**shared() inferred the kind of an empty array**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+Without a `shape`, `shared()` infers how each field of the slice is stored in the Yjs document from its value: an array of objects that all have an `id` becomes an id-keyed collection (concurrent adds, edits, moves and removes of different items merge), any other array a `Y.Array` of plain values. An empty array fits both, so the driver guesses a collection; if the field later holds plain values (strings, numbers), it is switched to a list then, and a concurrent edit by another client can be lost in the switch. Reported once per field path, in dev, when the slice is first written to the document.
+
+**Fix:** Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.
+
 ## SYG3xx: Streams
 
 ### SYG301

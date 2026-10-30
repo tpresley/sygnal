@@ -382,6 +382,9 @@ export const CODE_TITLES: Record<string, string> = {
   SYG257: 'Output reads a field its action changed (7.0 timing audit)',
   // record/replay: static only (sygnal-check rules/syg258-clock-in-reducer.js; SYG509 under --strict)
   SYG258: 'Clock or randomness read from a global in a STATE reducer',
+  // sygnal/yjs (research: dev-plans/research/crdt-state): shared() reports them (dev), SYG260 statically too
+  SYG260: 'undo() or undoable() on a key shared() syncs',
+  SYG261: 'shared() inferred the kind of an empty array',
   SYG454: 'State binding changed without a new component identity',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
@@ -631,6 +634,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG257: 'info',
   // record/replay: static only (sygnal-check); listed so the entry knows its title
   SYG258: 'warn',
+  // sygnal/yjs: reported with the severity passed (shared() in dev; sygnal-check: SYG260)
+  SYG260: 'warn',
+  SYG261: 'warn',
   // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
 }
