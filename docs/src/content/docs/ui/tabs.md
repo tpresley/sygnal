@@ -59,7 +59,7 @@ Disabled tabs (`disabled`) are skipped.
 
 ## State, actions and attributes
 
-`state.tabs` is `{ id, selected, orientation }`. Actions: `tabs.SELECT` (a value; a click on a tab sends its own) and `tabs.MOVE` (a value: focus that tab, and select it unless manual). Select a tab from the model with `next('tabs.SELECT', 'billing')`, or from your intent with `'tabs.SELECT': DOM.click('.go-billing').mapTo('billing')`.
+`state.tabs` is `{ id, selected, orientation }`. Actions: `tabs.SELECT` (a value; a click on a tab sends its own) and `tabs.MOVE` (a value: focus that tab, and select it unless manual). Select a tab from the model with `next('tabs.SELECT', 'billing')`, or write the slice in your own reducer: `GO_BILLING: (state) => ({ ...state, tabs: { ...state.tabs, selected: 'billing' } })`. (An intent action named `'tabs.SELECT'` would replace the behavior's own trigger: clicks on the tabs would stop selecting them.)
 
 `tabsAttrs(state.tabs, uid)` returns:
 

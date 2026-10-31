@@ -410,7 +410,7 @@ export async function uiTestsP5U() {
   await runTest('Tooltip: anchor positioning (above its trigger, centred, follows it); focus shows it, Escape hides it at once', async () => {
     const { id, app, $ } = await mount(Toolbar)
     try {
-      await window.__pw('focus', `${id} .save-btn`)
+      await window.__pw('press', `${id} .other-btn`, SHIFT_TAB) // ui-sweep: keyboard focus (:focus-visible)
       await until(() => isOpen($('.tip')), 'not shown on focus', 2000)
       let b = $('.save-btn').getBoundingClientRect(), t = $('.tip').getBoundingClientRect()
       assert(Math.abs(t.bottom + 6 - b.top) <= 2, `tip bottom ${t.bottom} + 6 vs anchor top ${b.top}`)
@@ -449,7 +449,7 @@ export async function uiTestsP5U() {
   await runTest('Tooltip: Tab away hides it', async () => {
     const { id, app, $ } = await mount(Toolbar)
     try {
-      await window.__pw('focus', `${id} .save-btn`)
+      await window.__pw('press', `${id} .other-btn`, SHIFT_TAB) // ui-sweep: keyboard focus (:focus-visible)
       await until(() => isOpen($('.tip')), 'not shown on focus', 2000)
       await key(TAB)
       await until(() => !isOpen($('.tip')), 'not hidden on blur', 2000)
@@ -468,7 +468,7 @@ export async function uiTestsP5U() {
     const app = run(Toolbar, { TIMER: makeTimerDriver() }, { mountPoint: '#probe-flow' })
     try {
       await until(() => host.querySelector('.save-btn'), 'mounted')
-      await window.__pw('focus', '#probe-flow .save-btn')
+      await window.__pw('press', '#probe-flow .other-btn', SHIFT_TAB)
       await until(() => isOpen(host.querySelector('.tip')), 'shown', 2000)
       const b = host.querySelector('.save-btn').getBoundingClientRect(), t = host.querySelector('.tip').getBoundingClientRect()
       assert(Math.abs(t.bottom + 6 - b.top) <= 2, `in-flow: tip bottom ${t.bottom} + 6 vs anchor top ${b.top} (scrollY ${window.scrollY})`)
@@ -479,7 +479,7 @@ export async function uiTestsP5U() {
       const { id, app: app2, $ } = await mount(Toolbar)
       try {
         window.scrollTo(0, 2900)
-        await window.__pw('focus', `${id} .save-btn`)
+        await window.__pw('press', `${id} .other-btn`, SHIFT_TAB) // ui-sweep: keyboard focus (:focus-visible)
         await until(() => isOpen($('.tip')), 'shown in the fixed bar', 2000)
         const b = $('.save-btn').getBoundingClientRect(), t = $('.tip').getBoundingClientRect()
         assert(Math.abs(t.bottom + 6 - b.top) <= 2, `fixed bar: tip bottom ${t.bottom} + 6 vs anchor top ${b.top} (scrollY ${window.scrollY})`)

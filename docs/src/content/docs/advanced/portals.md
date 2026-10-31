@@ -5,6 +5,10 @@ description: "Rendering outside the component tree"
 
 Render children into a DOM container outside the component's own tree. Essential for modals, tooltips, and dropdown menus that need to escape `overflow: hidden` or z-index stacking contexts.
 
+:::tip[Dialogs, popovers and tooltips don't need a portal]
+A native `<dialog>` opened with `showModal()` and an element with the `popover` attribute are drawn in the browser's top layer, above every `overflow: hidden` and z-index. Use the [`sygnal/ui`](/ui/overview/) parts for them and render their elements in place: `dialog()`, `popover()` and `tooltip()` look for their element in the component's own DOM, so inside a `<Portal>` they don't find it (the dialog never opens, and its state goes back to closed). Reach for a portal for a custom overlay that isn't one of those elements.
+:::
+
 ```jsx
 import { Portal } from 'sygnal'
 

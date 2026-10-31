@@ -16,10 +16,11 @@
  * pending: null | 'show' | 'hide', hover, focus }. Actions: ENTER / LEAVE ({ via: 'hover' |
  * 'focus', id }), SHOW / HIDE (the timers), ESCAPE, TOGGLED ({ id, open }). Timers
  * '<key>.show' / '<key>.hide' as tooltip()'s. Needs makeTimerDriver() (tests: fake timers).
- * Same rules as tooltip(): pointer and focus tracked apart, touch ignored, hovering the tip keeps
+ * Same rules as tooltip(): pointer and focus tracked apart (keyboard focus only), touch ignored, hovering the tip keeps
  * it open (WCAG 1.4.13), Escape listened for only while a tip is shown or about to be.
  */
 import {ABORT, defineBehavior, dropRepeats, xs} from '../index'
+import {visible} from './shared'
 
 const mouse = (e: any) => e?.pointerType != 'touch'
 const el = (e: any) => e?.ownerTarget || e?.currentTarget || e?.target
@@ -38,7 +39,7 @@ const base = /*#__PURE__*/ defineBehavior({
     ENTER: xs.merge(
       DOM.pointerenter(trigger).filter(mouse).map((e: any) => ({via: 'hover', id: tipOf(e)})),
       DOM.pointerenter(tip).filter(mouse).map((e: any) => ({via: 'hover', id: idOf(e)})),
-      DOM.focus(trigger).map((e: any) => ({via: 'focus', id: tipOf(e)})),
+      DOM.focus(trigger).filter(visible).map((e: any) => ({via: 'focus', id: tipOf(e)})),
     ).filter((x: any) => !!x.id),
     LEAVE: xs.merge(
       DOM.pointerleave(trigger).filter(mouse).map((e: any) => ({via: 'hover', id: tipOf(e)})),

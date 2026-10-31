@@ -61,9 +61,11 @@ The browser returns the focus to the element that had it before the dialog opene
 | `profile.CLOSED` | the return value | The dialog closed, whichever way: sets `open: false` and `returnValue` |
 | `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (for example with `commandfor`) sets `open: true` |
 | `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`). The `cancel` event; with `cancelable: false`, the Escape `keydown` in the dialog (`closedby="none"` stops the `cancel` event) |
-| `profile.SYNC` | `false` | The dialog left the page while open (a page change, a conditional render), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
+| `profile.SYNC` | `false`, or `true` when `showModal()` threw | The dialog left the page while open (a page change, a conditional render), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
 
 `OPEN` and `CLOSE` check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one. A dialog removed while open opens again when it is back.
+
+`state.profile.open` follows the dialog; it doesn't drive it. A reducer that writes `open: true` opens nothing: dispatch `profile.OPEN` instead (`next('profile.OPEN')` from a model entry). Render the `<dialog>` in the component itself, not in a [`<Portal>`](/advanced/portals/): the top layer already puts it above the page, and the behavior finds its element in the component's own DOM.
 
 React to a close in your own model with an entry for the namespaced action. It runs after the behavior's, on the full state:
 
@@ -73,14 +75,14 @@ Profile.model = {
 }
 ```
 
-Open the dialog from another place with an intent action of the same name, `'profile.OPEN': DOM.click('.avatar')`, or from a model entry that sends `{ showModal: '.profile' }` to `ELEMENT`.
+Open the dialog from another button by listing it in the option, `trigger: '.edit-profile, .avatar'`, or from a model entry with `next('profile.OPEN')`. An intent action of the same name, `'profile.OPEN': DOM.click('.avatar')`, replaces the `trigger` option's clicks instead of adding to them. (A `{ showModal: '.profile' }` command to `ELEMENT` opens it too, but skips what `OPEN` adds: the `returnFocus` opener, `cancelable: false`'s `closedby`, and clearing the last close's return value.)
 
 ## Accessibility
 
 - Name the dialog: `aria-labelledby` pointing at its heading, as above, or `aria-label`.
 - Put a close button inside. Escape closes a modal dialog, but not everyone has a keyboard.
 - The dialog element has `role="dialog"`; a modal one is also `aria-modal` to assistive technology.
-- A form inside the dialog with `method="dialog"` closes it on submit, with the submit button's `value` as the return value; `CLOSED` sees it.
+- A form inside the dialog with `method="dialog"` closes it on submit, with the submit button's `value` as the return value; `CLOSED` sees it. Enter in a field submits with the form's first submit button, so put the confirming button first and make Cancel `type="button"` (the `close` option), or Enter cancels. `OPEN` clears the element's old return value, so an Escape after an earlier `'ok'` reads as `''` in every browser.
 
 ## Styling
 

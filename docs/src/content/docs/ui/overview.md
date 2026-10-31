@@ -47,7 +47,7 @@ function Settings({ state, uid }) {
 Settings.uses = { settings: dialog({ dialog: '.settings', trigger: '.open-settings', close: '.close-settings' }) }
 ```
 
-`state.settings` is `{ open, returnValue }`, and the actions are `settings.OPEN`, `settings.CLOSE` and so on. Your own intent and model can trigger them and react to them, as with any behavior: an intent action `'settings.OPEN': DOM.click('.edit')` adds a trigger, and a model entry `'settings.CLOSED': (state) => …` runs after the behavior's.
+`state.settings` is `{ open, returnValue }`, and the actions are `settings.OPEN`, `settings.CLOSE` and so on. Your own intent and model can trigger them and react to them, as with any behavior: a model entry `'settings.CLOSED': (state) => …` runs after the behavior's, and `next('settings.OPEN')` dispatches one from your model. An intent action of the same name, `'settings.OPEN': DOM.click('.edit')`, *replaces* the behavior's trigger for that action, so the `.open-settings` clicks stop opening it; to add a second opener, list both in the option: `trigger: '.open-settings, .edit'`.
 
 Tabs, Accordion and Disclosure have no markup of their own either. A helper gives you the attributes to spread on your elements, computed from the slice: roles, ARIA states, ids that link the buttons and panels, and the roving `tabindex`. It takes the view's `uid`, so each instance of the component gets its own ids:
 

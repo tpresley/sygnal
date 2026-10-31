@@ -29,7 +29,7 @@ export interface DialogOptions {
    */
   returnFocus?: boolean | BehaviorTarget
 }
-export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; SYNC: false }
+export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean }
 /**
  * A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`
  * gives `state.help = { open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
