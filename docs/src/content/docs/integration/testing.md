@@ -91,7 +91,7 @@ t.simulateEvent('document', 'keydown', { key: 'Escape' })   // DOM.select('docum
 How it works:
 
 - It targets the **first rendered element** that matches `selector`, and bubbles within that element's component scope, like a real event. Events inside a child component (or Collection item) reach the child's intent, not the parent's.
-- `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; any other property is copied onto the event.
+- `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.files`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; `init.target` sets any other target property; any other property is copied onto the event.
 - If nothing matches yet, the event waits (up to `eventWaitMs`, default 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
 - If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
 - If the selector only matches inside a child component, Sygnal reports [SYG104](/reference/errors/#syg104): the parent's intent can never see that event.
@@ -105,6 +105,31 @@ expect(t.query('.skeleton')).not.toBeNull()   // the view the click caused
 ```
 
 The promise never rejects: a selector that matches nothing still fails the next wait, as above. Awaiting it under fake timers moves the clock like the other waits; a call you don't await never moves it. A `t.next(pred)` after `await t.simulateEvent(...)` waits for a further state, so read `t.state` there instead.
+
+#### File inputs
+
+Pass the files with `{ files }`: the input gets them as a `FileList` (`length`, `item(i)`, iterable), as if the user had picked them, and the intent reads `e.target.files` as it does in the browser. With `dom: 'real'` it is a real `FileList` where the environment has `DataTransfer` (browsers); jsdom has none, so the list is set on the element instead.
+
+```jsx title="Start.test.jsx"
+const file = new File(['name,model\nTriage,gpt'], 'agents.csv', { type: 'text/csv' })
+await t.simulateEvent('.infer-file', 'change', { files: [file] })
+expect(t.state.fileName).toBe('agents.csv')
+```
+
+A file field of a [`form`](/guide/forms/) is picked the same way, on its `input` event. The submit then sends the file as `multipart`, and `t.progress` and `t.respond` drive the upload:
+
+```jsx title="Avatar.test.jsx"
+const avatar = new File(['…'], 'me.png', { type: 'image/png' })
+await t.simulateEvent('[name="avatar"]', 'input', { files: [avatar] })
+await t.simulateEvent('form', 'submit')
+expect(t.requests('HTTP').at(-1).multipart.avatar).toBe(avatar)   // the File itself
+await t.progress('HTTP', { loaded: 50, total: 100 }, 'form.PROGRESS')
+expect(t.state.form.progress.fraction).toBe(0.5)
+await t.respond('HTTP', { id: 7 }, 'form.DONE')
+expect(t.state.form.submitting).toBe(false)
+```
+
+`t.requests` shows the request as the model sent it, so the test doesn't depend on how a browser would carry it (fetch, or XMLHttpRequest for progress). With `dom: 'real'`, a target property the DOM refuses (`files` in jsdom, a read-only property) is defined on the element instead; if that fails too, the test fails naming the property.
 
 #### Supported selectors
 
@@ -133,6 +158,15 @@ Anything else, such as `:has()`, `:hover` or pseudo-elements, throws an "Unsuppo
 t.simulateAction('SET_NAME', 'Alice')
 t.simulateAction('SUBMIT', { email: 'a@example.com' })
 ```
+
+It reaches one instance: the component you rendered, like `next()`, never its parent or its children. To act on a child, name it with `{ component }`: the first rendered instance of that component (or of the component with that name) gets the action. Add `within` to pick one Collection item, as with `simulateEvent`:
+
+```jsx
+t.simulateAction('INFER_FILE', file, { component: Start })
+t.simulateAction('RENAME', 'Groceries', { component: Row, within: '[data-id="2"]' })
+```
+
+A name the target has no model entry for (nor a behavior action such as `'form.RESET'`, nor a built-in such as `BOOTSTRAP`) fails the test, and the error names the rendered components that do handle it. Before Sygnal 7.2 such an action was dropped silently.
 
 Prefer `simulateEvent`: it also tests the intent wiring (the selector, the event type, the value extraction). Use `simulateAction` for actions that don't come from the DOM, such as driver responses.
 
@@ -681,7 +715,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | Property | Type | Description |
 |----------|------|-------------|
 | `simulateEvent` | `(selector, type, init?) => Promise<void>` | Dispatch a DOM event through the mock DOM; resolves once it is delivered and rendered |
-| `simulateAction` | `(name, data?) => void` | Push an action under its real name |
+| `simulateAction` | `(name, data?, { component, within }?) => void` | Push an action under its real name, into the rendered component or the named child |
 | `ready` | `() => Promise<void>` | Resolves once subscribed and buffered calls are delivered; the next `next()` starts there |
 | `next` | `(predicate?, timeout?) => Promise<state>` | Next matching state after the call |
 | `waitForState` | `(predicate, timeout?) => Promise<state>` | First matching state, history included |

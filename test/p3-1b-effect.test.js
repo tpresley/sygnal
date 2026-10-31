@@ -49,7 +49,8 @@ describe('1-B: async EFFECT', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     function App(p) { return view(p) }
     App.initialState = { n: 0 }
-    App.model = { 'POKE | EFFECT': async () => 'ignored result' }
+    // (the canonical form: the removed 'POKE | EFFECT' key had no entry, so the action did nothing)
+    App.model = { POKE: { EFFECT: async () => 'ignored result' } }
     t = renderComponent(App)
     t.simulateAction('POKE')
     await t.settle()

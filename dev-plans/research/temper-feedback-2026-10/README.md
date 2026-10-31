@@ -149,3 +149,20 @@ preview is close; otherwise ship it with them.
 3. **Swallowed `target` assignment errors on the real DOM: fall back to `defineProperty`, or fail?**
    *Recommendation:* fall back to `defineProperty` for own data properties (files, and the read-only ones jsdom
    rejects), and fail only if that throws too. Tests then read what they set, as on the mock DOM.
+
+**Decided (2026-10-30, the maintainer accepted all three recommendations), and implemented on `claude/temper-fixes`:**
+1. `simulateAction` with a name its target doesn't handle **fails the test** (at the call when nothing is queued,
+   else through the next wait), naming the rendered components that handle it. Built-ins (`INITIALIZE`, `BOOTSTRAP`,
+   `DISPOSE`, `HYDRATE`) and behavior actions count as handled. CHANGELOG: a behaviour change.
+2. A child is targeted with a **third argument `{ component, within }`** (a component or its name; `within` as in
+   `simulateEvent`). No `t.child()`.
+3. A real-DOM `target` assignment that throws falls back to **`defineProperty`**; the test fails naming the
+   property only when that throws too. `files` (shorthand and `target.files`) becomes a real `FileList` via
+   `DataTransfer` where it exists, else a FileList-like array with `item()`.
+
+Three of Sygnal's own tests relied on the silent drop and were fixed: `p5-4h2-skill-rules` (a "control" test whose
+`form.RESET` went to the App and never ran; it now names `AddPage`), `p3-1b-effect` (a removed `'POKE | EFFECT'`
+key, so the action had no entry; now the canonical `POKE: { EFFECT }`), and `p3-g189` (an unknown name used as "an
+action that sends nothing"; now a real no-op entry). The examples, the create-sygnal-app templates, the recipes and
+the docs' snippets send only actions their component handles. llms.txt's core budget was raised from 64,500 B to
+65,000 B for the two testing clauses (`dev-plans/research/llms-context/README.md` records it).

@@ -3356,6 +3356,14 @@ export interface InstallPrompt {
 
 export function createInstallPrompt(): InstallPrompt
 
+/** Which instance t.simulateAction() sends to (default: the rendered component) */
+export interface SimulateActionOptions {
+  /** The first rendered instance of this component (or its name) */
+  component?: AnyComponent | string;
+  /** Only an instance rendered inside the first element matching this selector or control (a Collection item) */
+  within?: string | AnyControl;
+}
+
 export interface SimulatedEventInit {
   /** Merged into `event.target` (value, checked, dataset, ...) */
   target?: Record<string, any>;
@@ -3369,6 +3377,12 @@ export interface SimulatedEventInit {
   data?: Record<string, any>;
   /** Keyboard key (e.key) */
   key?: string;
+  /**
+   * Shorthand for target.files: the files a file input holds. The target gets them as a FileList
+   * (with `dom: 'real'` a real one where the environment has DataTransfer, else defined on the
+   * element): `t.simulateEvent('[name="avatar"]', 'input', { files: [new File(['…'], 'me.png')] })`
+   */
+  files?: ArrayLike<File> | File[];
   /**
    * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
    * drop the event with SYG103 (info). Not copied onto the event.
@@ -3702,8 +3716,15 @@ export interface RenderResult<STATE = any> {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action into the intent→model pipeline under its real name (all sinks of the entry run) */
-  simulateAction: (actionName: string, data?: any) => void;
+  /**
+   * Push an action into the intent→model pipeline under its real name (all sinks of the entry run),
+   * like the component's intent emitting it. It reaches one instance: the rendered component, or
+   * with `{ component: Child }` the first rendered instance of `Child` (`within`: inside the first
+   * element matching a selector or control, e.g. one Collection item). A name that instance has no
+   * model entry for (nor a behavior action or a built-in) fails the test, naming the components
+   * that handle it: `t.simulateAction('INFER_FILE', file, { component: Start })`
+   */
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => void;
   /**
    * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
    * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
