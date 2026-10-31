@@ -4,7 +4,9 @@
 
 **Answer in brief.** Split the agent context into a **core** that every agent reads in full and **topic files** it reads when needed. The core keeps everything an ordinary app uses. The topic files hold the rarely used subpaths. The core gets a short index of the topic files at the top and a pointer at each place where material was removed.
 
-The skill's `references/` folder holds the same topic files, generated from one source. The cap is now bytes, not lines. Don't fork the context by model class, with one optional exception (see "Forks").
+The skill's `references/` folder holds the same topic files, generated from one source. The cap is now bytes, not lines.
+
+**Measured** (Sonnet, no skill, 75 trials per arm): pass rate 64/75 against 66/75 for the old single file, within noise (−2.7 pp, 95% CI −13.9 to +8.5). Billed tokens fell 11%, wall time 13% and learn time 25%. 36 of 40 topic-task trials read the right topic file. Don't fork the context by model class, with one optional exception (see "Forks").
 
 ## Evidence
 
@@ -174,7 +176,59 @@ Before the split, the AI section alone was 11% of `llms.txt`. The material that 
   - Wall time and context are single trials. The subagent's own system prompt (about 80k tokens) swamps the difference of about 5,700 tokens.
   - The wall times lean toward the new arm (3 of 4 faster), but n = 1 per cell. Measuring this properly is the paid plan's job.
 
-### Paid eval plan (not run; needs the maintainer's approval)
+### Paid eval: Sonnet no-skill pair (run 2026-10-30)
+
+The maintainer approved the Sonnet pilot and the Sonnet no-skill pair, not the Opus pair, and ran them from their own terminal: the auto-mode classifier in this session refused paid commands even with an allow rule. Same build, same 15 tasks, 5 trials per task per arm, `claude-sonnet-5-5`, no skill, so the layout of `llms.txt` is the only difference. Runs: `llms-ctx-old-noskill-sonnet` (pre-split single file), `llms-ctx-new-noskill-sonnet` (core plus topic files); pilots `llms-ctx-pilot-{old,new}-noskill-sonnet` (tasks 34 and 46, 2 trials each: 4/4 in both arms, $0.78 and $0.66).
+
+**Pass rate on the hidden tests (Wilson 95% intervals):**
+
+| | Old: one file, 84 KB | New: core 64 KB + topics | New − old (Newcombe 95%) |
+|---|---|---|---|
+| All 15 tasks | 66/75 = 88.0% [78.7, 93.6] | 64/75 = 85.3% [75.6, 91.6] | −2.7 pp [−13.9, +8.5] |
+| Topic tasks (31, 33, 34, 44–46, 48, 49) | 36/40 = 90.0% [76.9, 96.0] | 35/40 = 87.5% [73.9, 94.5] | −2.5 pp [−17.4, +12.3] |
+| Core tasks (10, 11, 13, 23–25, 30) | 30/35 = 85.7% [70.6, 93.7] | 29/35 = 82.9% [67.3, 91.9] | −2.9 pp [−20.3, +14.7] |
+
+The difference is two trials, well inside the noise. Per task, 13 of 15 tasks scored the same in both arms. The two that differ are 25 router-spa (4/5 → 3/5) and 45 packing-assistant (5/5 → 4/5), one trial each. The new arm's failures are the old arm's failure modes:
+- 30 checkout-form, 1/5 in both arms: the order is never POSTed.
+- 49 session-card, 2/5 in both: no card button.
+- 25: "Leave" doesn't complete the navigation.
+- 33: a form submission isn't prevented.
+
+So 30 and 49 are task or doc gaps independent of the layout; they are worth their own look.
+
+**Cost and effort (means per trial):**
+
+| | Old | New | Change |
+|---|---|---|---|
+| Cost | $0.170 | $0.165 | −3% |
+| Billed tokens | 237.8k | 211.1k | −11% |
+| Peak context | 32.1k | 31.7k | −1% |
+| Output tokens | 4,896 | 4,731 | −3% |
+| Assistant turns | 9.9 | 9.0 | −9% |
+| Tool calls | 9.7 | 8.5 | −12% |
+| Wall time | 50.4 s | 43.9 s | −13% |
+| Learn time | 10.5 s | 7.9 s | −25% |
+| `sygnal-check` clean on the final code | 70/75 | 70/75 | same |
+
+The core tasks gained the most: billed tokens −17%, turns 9.7 → 8.1, learn time 8.4 → 5.9 s. Peak context barely moved, because agents don't load `llms.txt` whole.
+
+**Did agents find the topic files?** Counted from the transcripts. Agents mostly read the context with `cat`, `grep` and `sed` in Bash, not with the Read tool. The counter is a scratch script for now; it should move into `lib/transcript.mjs` (follow-up).
+- Every trial in both arms opened `llms.txt`. It was read whole in 19/75 old trials and 30/75 new: the smaller file gets read whole more often.
+- **New arm:** 36 of 40 topic-task trials read the matching topic file (`ui.md` for 31/33/34, `ai.md` for 44–49). No core-task trial opened a topic file. All 4 that didn't read the topic file passed anyway.
+- **Old arm:** 4 of 40 topic-task trials found `llms/*.md` by listing the package. The control variant swaps only `llms.txt`, so the packed topic files were still there. This slightly favours the control.
+
+**Real cost:** $26.56 in total (pilots $1.44, old arm $12.77, new arm $12.35), against the ≈ $32 estimate and the $45 limit.
+
+**Verdict:** under the proposed rule:
+- Topic tasks: 35 vs 36, within one trial.
+- Core tasks: −1 trial overall, not more than one per task.
+- Cost: down 3% per trial, and billed tokens down 11%.
+
+The split passes the rule. It isn't a measurable quality gain on Sonnet; the gain is efficiency: fewer tokens, turns and seconds at the same pass rate.
+
+**The Opus pair (≈ $87) is not worth running for this decision.** Sonnet already resolves the topic files 36/40 times, and both arms fail on the same tasks for reasons unrelated to the layout. A pass-rate difference of a few points would need several hundred trials per arm to detect. The open signal is cost and time, which Sonnet already shows. A Haiku or local-model run would answer the remaining question better, whether small models need an `llms-small.txt` (question 3), and is cheaper to pilot.
+
+### Paid eval plan (as written before the run)
 
 The harness supports this as is. There are four variant specs in `evals/agent-ergonomics/variants/`; `tests/variant.unit.mjs` validates them.
 
@@ -239,8 +293,8 @@ Open question 3 is about this.
 
 ## Open questions for the maintainer
 
-1. **Run the paid eval?** The minimum is the no-skill pair on Opus (≈ $87); Sonnet adds ≈ $30.
-   *Recommendation:* run the Sonnet pilot first (≈ $5), then the Sonnet no-skill pair (≈ $30). Run the Opus pair only if Sonnet shows a difference. The subagent check above found no regression.
+1. **Run the Opus pair?** The Sonnet pilot and no-skill pair ran ($26.56): same pass rate within noise, 11% fewer billed tokens, 13% less wall time.
+   *Recommendation:* no. Sonnet showed no pass-rate difference, and this decision doesn't need Opus to confirm efficiency. If anything, pilot Haiku for question 3. Separately, look into tasks 30 and 49, which fail in both arms.
 2. **Is the core budget right?** It is 64,500 B, a 24% cut.
    *Recommendation:* keep it for 7.2. The next cut is worth measuring, not guessing. Candidates:
    - the 7.0 timing paragraph (§2, 2 KB, mostly upgrade guidance) → `llms/upgrading-6-to-7.md`;
