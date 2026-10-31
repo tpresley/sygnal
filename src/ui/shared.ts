@@ -67,6 +67,16 @@ export const keyed = (b: any): any => {
   return b
 }
 
+/**
+ * ui-sweep: a focus a tooltip shows for: `:focus-visible` (the keyboard; a focus returned after a
+ * keyboard close). Not a mouse click's (Chromium and Firefox focus a clicked button: the tip
+ * stayed shown after the pointer left, until the focus moved). A focus event on an element
+ * that doesn't have the focus (a test's simulated one), or without `matches` (the mock DOM), counts
+ */
+export const visible = (e: any): boolean => {
+  try { const el = e.target; return el.getRootNode().activeElement !== el || el.matches(':focus-visible') } catch (_) { return true }
+}
+
 const mod = (e: any) => e.altKey || e.ctrlKey || e.metaKey
 
 /**

@@ -17,18 +17,25 @@
  * an array), `loop` (true), `id` (the ids' prefix; default: the key in `uses`).
  * State: { id, expanded: string[], collapsible }. Actions: TOGGLE, EXPAND, COLLAPSE (a value, or
  * a click), MOVE (a value: focus that trigger).
+ * ui-sweep: values compare as strings, also in an `expanded` a host reducer wrote (numbers, or one
+ * value instead of an array); `collapsible` is a calculated field like `id`, so a host reducer
+ * that replaces the slice without it keeps the option's value.
  */
 import {ABORT, defineBehavior} from '../index'
 import {idsOf, keyNav, keyed, lit} from './shared'
 
+// ui-sweep: the open values as strings, however a host reducer wrote them (numbers, one value)
+const open = (s: any): string[] => (s?.expanded == null ? [] : [].concat(s.expanded).map(String))
 const expand = (s: any, v: any, o: any) => {
+  const ex = open(s)
   v = String(v)
-  return s.expanded.includes(v) ? ABORT : {...s, expanded: o.multiple ? [...s.expanded, v] : [v]}
+  return ex.includes(v) ? ABORT : {...s, expanded: o.multiple ? [...ex, v] : [v]}
 }
 const collapse = (s: any, v: any) => {
+  const ex = open(s)
   v = String(v)
-  return !s.expanded.includes(v) || (s.collapsible === false && s.expanded.length == 1) ? ABORT
-    : {...s, expanded: s.expanded.filter((x: string) => x !== v)}
+  return !ex.includes(v) || (s.collapsible === false && ex.length == 1) ? ABORT
+    : {...s, expanded: ex.filter((x: string) => x !== v)}
 }
 
 const base = /*#__PURE__*/ defineBehavior({
@@ -38,7 +45,7 @@ const base = /*#__PURE__*/ defineBehavior({
     MOVE: keyNav(DOM, trigger, ['ArrowDown'], ['ArrowUp'], loop),
   }),
   model: {
-    TOGGLE: (s: any, v: any, _n: any, _p: any, o: any) => (v == null ? ABORT : s.expanded.includes(String(v)) ? collapse(s, v) : expand(s, v, o)),
+    TOGGLE: (s: any, v: any, _n: any, _p: any, o: any) => (v == null ? ABORT : open(s).includes(String(v)) ? collapse(s, v) : expand(s, v, o)),
     EXPAND: (s: any, v: any, _n: any, _p: any, o: any) => (v == null ? ABORT : expand(s, v, o)),
     COLLAPSE: (s: any, v: any) => (v == null ? ABORT : collapse(s, v)),
     MOVE: {ELEMENT: (_s: any, v: string, _n: any, _p: any, o: any) => ({focus: o.trigger + '[data-value=' + lit(v) + ']'})},
@@ -46,12 +53,17 @@ const base = /*#__PURE__*/ defineBehavior({
 })
 
 /** An accordion as a behavior over the host's markup: `uses = { faq: accordion({ trigger: '.faq-trigger' }) }`; render with `accordionAttrs`. */
-export const accordion = (options: any = {}): any =>
-  keyed(base({...options, ...(options.expanded != null && {expanded: ([] as any[]).concat(options.expanded).map(String)})}))
+export const accordion = (options: any = {}): any => {
+  const b = keyed(base({...options, ...(options.expanded != null && {expanded: ([] as any[]).concat(options.expanded).map(String)})}))
+  // ui-sweep: like `id`, `collapsible` comes back when a host reducer replaces the slice without it
+  const c = options.collapsible !== false
+  b.calculated = {...b.calculated, collapsible: (s: any) => s.collapsible ?? c}
+  return b
+}
 
 /** The attributes of an accordion, from its slice: `trigger(value)` and `panel(value)`. */
 export const accordionAttrs = (s: any, uid: any): any => {
-  const id = idsOf(s, uid, 'accordion'), ex: string[] = s?.expanded || []
+  const id = idsOf(s, uid, 'accordion'), ex = open(s)
   const on = (v: any) => ex.includes(String(v)), state = (v: any) => (on(v) ? 'open' : 'closed')
   const only = s?.collapsible === false && ex.length == 1
   return {

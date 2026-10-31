@@ -11,7 +11,8 @@
  * Options: `trigger`, `tip` (required), `showDelay` (500 ms), `hideDelay` (100 ms).
  * State: { open, pending: null | 'show' | 'hide', hover, focus }. Actions: ENTER / LEAVE (data
  * 'hover' | 'focus': the pointer on the trigger or the tip (it stays open while hovered, WCAG
- * 1.4.13), or the focus on the trigger), SHOW / HIDE (the timers), ESCAPE (hides it at once),
+ * 1.4.13), or the keyboard focus on the trigger: ui-sweep, a :focus-visible one, not the focus a
+ * mouse click gives), SHOW / HIDE (the timers), ESCAPE (hides it at once),
  * TOGGLED. Timers (joined to the host's `timers`): '<key>.show' / '<key>.hide'; one whose state
  * goes away is cancelled, so leaving before the delay never shows the tip. Needs
  * makeTimerDriver() (tests: fake timers).
@@ -21,6 +22,7 @@
  * while the tip is shown or about to be, so a page of tooltips has at most the open one's.
  */
 import {ABORT, defineBehavior, dropRepeats, xs} from '../index'
+import {visible} from './shared'
 
 const mouse = (e: any) => e?.pointerType != 'touch'
 const which = (k: any) => (k == 'focus' ? 'focus' : 'hover')
@@ -32,7 +34,7 @@ const base = /*#__PURE__*/ defineBehavior({
     hide: s?.pending == 'hide' && {after: o.hideDelay ?? 100, action: 'HIDE'},
   }),
   intent: ({DOM, STATE}: any, {trigger, tip}: any) => ({
-    ENTER: xs.merge(xs.merge(DOM.pointerenter(trigger), DOM.pointerenter(tip)).filter(mouse).mapTo('hover'), DOM.focus(trigger).mapTo('focus')),
+    ENTER: xs.merge(xs.merge(DOM.pointerenter(trigger), DOM.pointerenter(tip)).filter(mouse).mapTo('hover'), DOM.focus(trigger).filter(visible).mapTo('focus')),
     LEAVE: xs.merge(xs.merge(DOM.pointerleave(trigger), DOM.pointerleave(tip)).filter(mouse).mapTo('hover'), DOM.blur(trigger).mapTo('focus')),
     ESCAPE: (STATE ? STATE.stream.map((s: any) => !!(s?.open || s?.pending)).compose(dropRepeats()) : xs.of(true))
       .map((on: boolean) => (on ? DOM.keydown('document').key().filter((k: string) => k == 'Escape') : xs.never()))

@@ -82,6 +82,9 @@ const base = /*#__PURE__*/ defineBehavior({
         const m = o.modal === false ? 'show' : 'showModal', by = d?.ownerTarget
         return {[m]: on(o.dialog, m, (el: any) => {
           if (el.open) return
+          // ui-sweep: the element keeps the last close's returnValue, and Firefox and WebKit report
+          // it again for an Escape (no new value): an earlier 'ok' would read as this close's
+          el.returnValue = ''
           // G-407: who opened it: the clicked trigger, else the element with the focus
           const a = document.activeElement, op: any = by?.nodeType == 1 ? by : a != document.body ? a : null
           const cb = o.cancelable === false && !el.hasAttribute('closedby')

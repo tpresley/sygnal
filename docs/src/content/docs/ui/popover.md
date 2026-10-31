@@ -52,6 +52,8 @@ There is no `trigger` option: open it with a `popovertarget` button. A button th
 
 `OPEN` and `CLOSE` check the popover itself (`:popover-open`), not `state.filters.open`, which follows the `toggle` event a moment later: `OPEN` then `CLOSE` in one go leaves it closed, and `showPopover()` is never called on an open popover.
 
+`state.filters.open` follows the popover; writing `open: true` in a reducer shows nothing: dispatch `filters.OPEN`. Render the popover in the component itself, not in a [`<Portal>`](/advanced/portals/) (the top layer already puts it above the page; the behavior looks for it in the component's own DOM).
+
 Open it from somewhere else, for example a keyboard shortcut, with an intent action of the same name: `'filters.OPEN': DOM.keydown('document').filter((e) => e.key === 'f' && e.altKey)`.
 
 ## `auto` or `manual`
