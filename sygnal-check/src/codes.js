@@ -28,7 +28,8 @@ export const CODES = {
   // PLAN-13 F-3 (rules/syg429-switchable-state-map.js; the dev entry reports it at run time too)
   SYG429: { severity: 'warn', title: 'Switchable state map names no page' },
   // PLAN-13 X-1 (rules/syg302-xstream-default-import.js)
-  SYG302: { severity: 'info', title: "Default import from 'xstream'" },
+  SYG302: { severity: 'info', title: "Default import from 'xstream' or 'xstream/extra/*'" },
+  SYG303: { severity: 'info', title: 'STATE.stream with dropRepeats() in an intent' },
   // PLAN-4 CT-1 controls (model/controls.js)
   SYG124: { severity: 'error', title: 'Component used as a control or selector' },
   SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },

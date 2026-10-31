@@ -83,8 +83,17 @@ const notACommand = (component: any, name: string, cmd: any) => send('SYG641', {
   data: {command: cmd},
 })
 
-/** SYG640 (no `el`) or SYG641 (an element, but no command of that name) for `cmd` sent by `component` */
-export function reportElementCommand(component: any, cmd: any, el?: any): void {
+/** does the page have an element matching `target` (a selector or a control) anywhere? */
+const onPage = (target: any): boolean => {
+  try { return !!(globalThis as any).document?.querySelector(String(target)) } catch (_) { return false }
+}
+
+/**
+ * SYG640 (no `el`) or SYG641 (an element, but no command of that name) for `cmd` sent by
+ * `component`. `elsewhere`: the target matches outside the sender's own view (renderComponent
+ * passes it from the rendered tree; otherwise the page is asked)
+ */
+export function reportElementCommand(component: any, cmd: any, el?: any, elsewhere?: boolean): void {
   // a disposed instance's pending commands are dropped silently
   if (component && component._disposed) return
   const name = (component && component.name) || 'component'
@@ -96,15 +105,18 @@ export function reportElementCommand(component: any, cmd: any, el?: any): void {
   const data: any = {method, command: cmd, ...(control ? {control} : {selector: target == null ? target : String(target)})}
   if (!el) {
     const missing = target == null || target === ''
+    // Temper 2026-10: say when the element is on the page, only not in the sender's view
+    const outside = !missing && (elsewhere ?? onPage(target))
     return send('SYG640', {
       component,
       message: missing
         ? `${what} in ${name} has no target (${String(target)}), so the command was dropped`
-        : `${what} in ${name} matched no element: nothing in ${name}'s own view matches ${control ? `the control ${control}` : `'${String(target)}'`} (waited 1 s), so the command was dropped`,
+        : `${what} in ${name} matched no element: nothing in ${name}'s own view matches ${control ? `the control ${control}` : `'${String(target)}'`} (waited 1 s), so the command was dropped` +
+          (outside ? `. A matching element is rendered outside ${name}'s view (by an ancestor, a child component or another part of the page), and a command reaches only its sender's own elements` : ''),
       fix: missing
         ? `Give the method a control or a selector: { ${method}: Email }`
-        : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own)`,
-      data,
+        : `Render the element in ${name}'s view, or send the command from the component that renders it: a child component's elements are isolated from its parent, and a command reaches only its sender's own elements (in a Collection, each item sends its own). For an element an ancestor renders, hand it off: emit EVENTS: event('FOCUS_NAME') from ${name} (or send PARENT) and send ELEMENT: { ${method}: … } from the ancestor's entry for it; for one inside a child, the parent can use { ${method}: focusWithin('…') }`,
+      data: outside ? {...data, outside: true} : data,
     })
   }
   // PLAN-5 W-1: the matched element is a widget's host (selector or control target): SYG142 names

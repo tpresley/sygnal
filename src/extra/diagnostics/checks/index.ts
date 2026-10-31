@@ -30,7 +30,7 @@
  * | SYG143 | widget tag used as a selector                          | widgets.ts     |
  * | SYG144 | declared widget event the host also fires (info)       | widgets.ts     |
  * | SYG660 | widget mount / update / unmount threw (660/661/662)    | widgets.ts     |
- * | SYG430 | VirtualCollection: no bounded height; SYG431 items without ids; SYG432 item not one element; SYG433 scroll target not in the list; SYG434 bad estimateSize / overscan | virtual.ts |
+ * | SYG430 | VirtualCollection: no bounded height; SYG431 items without ids; SYG432 item not one element; SYG433 scroll target not in the list; SYG434 bad estimateSize / overscan; SYG436 estimateSize far from the measured heights | virtual.ts |
  * | SYG125 | control given component statics / bad spec vnode()     | controls.ts    |
  * | SYG127 | behavior key in initialState / unresolvable uses entry | behaviors.ts   |
  * | SYG230 | form: field name not in values; SYG231 not a Standard Schema; SYG232 submit dropped (info); SYG233 value missing from the schema output | forms.ts |

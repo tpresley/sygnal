@@ -61,6 +61,7 @@ const RANGES = [
   ['SYG112', 'App.jsx', 3, "'RECIEVED'"],
   ['SYG117', 'App.jsx', 4, "'MOVED'"],
   ['SYG302', 'App.jsx', 1, "import xs from 'xstream'"],
+  ['SYG303', 'App.jsx', 4, 'STATE.stream.map(s => s.tab).compose(dropRepeats())'],
   ['SYG429', 'App.jsx', 3, 'bb'],
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],

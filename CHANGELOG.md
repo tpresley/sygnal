@@ -203,12 +203,43 @@ behaves as on 7.1.0.
   `globalThis`), so an app can run in a module worker on `sygnal/host` (research:
   `dev-plans/research/web-worker/`).
 
+**From Temper's feedback (2026-10).** Friction points from building an app with Sygnal; assessment
+and decisions in `dev-plans/research/temper-feedback-2026-10/`.
+- **`simulateEvent` returns a promise.** `await t.simulateEvent('.retry', 'click')` resolves once the
+  event is delivered and the tree has rendered what it caused, so `t.query()` after it sees the new
+  view (right after the call it still shows the old one). It never rejects, and the fake clock moves
+  only while it is awaited. The type changes from `void` to `Promise<void>`.
+- **Test DOM selectors:** the `+` and `~` combinators, and `nextElementSibling` /
+  `previousElementSibling` on mock elements. `t.queryAll('.a, .b')` lists in document order, which
+  the testing guide now shows for order checks.
+- **SYG112** (a reply action with no model entry) names the ancestor that has the entry: a reply goes
+  only to its sender. The HTTP guide and the explanation show two ways to share a loader (a tagged
+  resource re-requested with `{ invalidate: tag }`, or handing the request to the owner via `EVENTS`).
+- **SYG640** (an element command matched nothing) says when a matching element is rendered outside
+  the sender's view, and its fix, the explanation and the element-commands guide show the hand-off to
+  an ancestor (`EVENTS: event('NAME_FIRST')`, the ancestor sends `ELEMENT`).
+- **New SYG436** (dev): a numeric `<VirtualCollection estimateSize>` more than 1.3× away from the
+  median of the first 10 measured rows. Too low an estimate leaves blank space at the end of a fast
+  scroll; the guide says so.
+- **Switchable:** the guide's new "Pages with entry side effects" section. Every page in `of` is
+  created at mount and runs `BOOTSTRAP` then (7.1's per-page `state` map doesn't change that), so a
+  page whose start does something (a logout page) belongs in a Switchable that holds only the current
+  page, keyed by it: `<Switchable key={page} of={{ [page]: PAGES[page] }} current={page} />`. No new
+  prop (D172 stands).
+- Size: 0 B in the kanban gate (the changes are in the test harness, the dev diagnostics and
+  `<VirtualCollection>`'s dev hook, which kanban doesn't import).
+
 **Measured impact.** Size: the kanban gate is 42,472 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
 budget 43,000 B, 528 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
 renderer field tags cost about 100 B, and the cheaper Collection items about 260 B. The new subpaths
 add nothing to an app that doesn't import them. The perf count gate is within its limits.
 
 **Companion packages.**
+- **`sygnal-check`:** SYG302 also reports a default import from `xstream/extra/<name>` (the module
+  object under Node ESM and Vite 8: `dropRepeats()` "is not a function" after `tsc` and the checker
+  passed); `--fix` rewrites the eight extras `sygnal` exports (`import { dropRepeats } from 'sygnal'`).
+  New **SYG303**: an intent that composes `STATE.stream` with `dropRepeats()` (info; a warning under
+  `--strict`), pointing at `STATE.watch(fn)`.
 - **`sygnal-check`:** incremental checking. A check session (`createCheckSession()`,
   `checkFiles(files, { cache, session })`) reuses the previous check's model for the files a change
   can't affect and replays the per-file rules' findings for them; the language server and
