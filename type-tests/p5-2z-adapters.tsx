@@ -45,6 +45,8 @@ fromZag(menu, 'x')
 // ── Menu / Select / Combobox ─────────────────────────────────────────────────────────────────
 const m = <Menu className="actions" label="Actions" items={['edit', { value: 'del', label: 'Delete', disabled: true }, { separator: true }]} />
 const s = <Select className="size" label="Size" items={['S', 'M']} value={null} placeholder="Pick" name="size" />
+// UI sweep (dev-plans/research/ui-sweep/zag.md): an icon trigger named by aria-label, no label
+const mi = <Menu className="more" aria-label="More" items={['edit']} />
 const sm = <Select className="tags" label="Tags" items={['a']} multiple value={['a']} />
 const c = <Combobox className="city" label="City" items={['Paris']} filter={(item, text) => item.label.startsWith(text)} />
 const c2 = <Combobox className="city" label="City" items={['Paris']} filter={false} inputBehavior="autohighlight" />
@@ -52,7 +54,7 @@ const c2 = <Combobox className="city" label="City" items={['Paris']} filter={fal
 const bad = <Select className="size" label="Size" />
 // @ts-expect-error: not an inputBehavior
 const bad2 = <Combobox className="c" items={[]} inputBehavior="nope" />
-void m; void s; void sm; void c; void c2; void bad; void bad2
+void m; void mi; void s; void sm; void c; void c2; void bad; void bad2
 expectType<Equal<typeof Menu, Widget<import('sygnal/ui/menu').MenuProps, ZagInstance, 'select' | 'open-change'>>>()
 const { Size } = controls({ Size: Select })
 void Size

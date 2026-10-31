@@ -7,7 +7,9 @@
  *
  * Renders a label, a trigger button (role="combobox", named by the label) showing the selected
  * label or the placeholder, the listbox (items role="option", aria-selected, a ✓ indicator Zag
- * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`).
+ * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`). A
+ * pick is that field's `input` event and leaving the select its `focusout` (ZS-1, ZS-5: the form
+ * behavior, processForm); a form reset puts the first value back (Zag's).
  * Keyboard and typeahead are Zag's. Styling hooks: `data-scope="select"` + `data-part` (root,
  * label, control, trigger, value-text, indicator, positioner, content, item, item-text,
  * item-indicator), `data-state`, `data-highlighted`, `data-placeholder-shown`.
@@ -22,14 +24,14 @@
 import * as select from '@zag-js/select'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, announce, leaving, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
 
 export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: any) => {
   const hidden = api.getHiddenSelectProps(), v = api.value
   // multiple: the options' selected props carry the value (a select's value prop is one string)
   if (x.multiple) delete hidden.props.value
   if (p.label == null) delete hidden.attrs['aria-labelledby']
-  return h('div', api.getRootProps(),
+  return h('div', leaving(api.getRootProps(), x, p),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
       h('button', named(api.getTriggerProps(), p, 1),
@@ -38,7 +40,9 @@ export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: a
     h('div', api.getPositionerProps(), h('div', named(api.getContentProps(), p), options(h, api))),
     h('select', hidden,
       h('option', {value: ''}),
-      x.items.map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
+      // ZS-2: a selected item the items no longer have (Zag keeps showing it) is still submitted
+      [...x.items, ...api.selectedItems.filter((i: any) => !x.items.some((j: any) => j.value === i.value))]
+        .map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
 }, {
   name: 'Select',
   $own: 1,
@@ -46,7 +50,14 @@ export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: a
   props: ({items, label, placeholder, value, defaultValue, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.items = norm(items)
     x.multiple = !!p.multiple
-    return {...p, collection: collectionOf(select, x.items), value: arr(value), defaultValue: arr(defaultValue)}
+    return {
+      ...placed(p, x),
+      collection: collectionOf(select, x.items),
+      value: arr(value),
+      defaultValue: arr(defaultValue),
+      // ZS-1: the pick as the hidden field's input event (the form behavior, processForm)
+      onValueChange: (d: any) => { p.onValueChange?.(d); announce(x, p, d.value) },
+    }
   },
   events: {'value-change': ['onValueChange', valueOut], 'open-change': ['onOpenChange', (d: any) => d.open]},
   commands: {open: (api: any) => api.setOpen(true), close: (api: any) => api.setOpen(false), clear: (api: any) => api.clearValue(), focus: (api: any) => api.focus()},

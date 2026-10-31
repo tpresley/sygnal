@@ -3,7 +3,8 @@
 // Playwright's trusted pointer and keyboard (window.__pw / __pwInput): roles and accessible
 // names, keyboard navigation, typeahead, selection, filtering (Combobox), Escape / outside
 // click, focus return, controlled values, and Zag's positioning.
-import { run } from 'sygnal'
+import { run, form, ABORT } from 'sygnal'
+import { dialog } from 'sygnal/ui'
 import { Menu } from 'sygnal/ui/menu'
 import { Select } from 'sygnal/ui/select'
 import { Combobox } from 'sygnal/ui/combobox'
@@ -128,6 +129,53 @@ function Review({ state }) {
 Review.initialState = { rating: 2, show: true }
 Review.intent = ({ DOM }) => ({ RATE: DOM.select('.rating').events('rate').detail(), HIDE: DOM.click('.hide') })
 Review.model = { RATE: (state, rating) => ({ ...state, rating }), HIDE: (state) => ({ ...state, show: false }) }
+
+// UI sweep ZS-1/ZS-5 (dev-plans/research/ui-sweep/zag.md): the form behavior hears the parts
+const ANY = { '~standard': { version: 1, vendor: 'test', validate: (value) => ({ value }) } }
+function Booking({ state }) {
+  return (
+    <form className="booking">
+      <Select className="size" label="Size" name="size" items={SIZES} value={state.form.values.size} />
+      <Combobox className="city" label="City" name="city" items={CITIES} value={state.form.values.city} />
+      <input name="note" className="note" />
+      <p className="out">{JSON.stringify(state.form.values)}|{Object.keys(state.form.touched).sort().join()}</p>
+    </form>
+  )
+}
+Booking.uses = { form: form(ANY, { values: { size: '', city: '', note: '' } }) }
+
+// ZS-6: a Select in a sygnal/ui dialog
+function Edit({ state }) {
+  return (
+    <div>
+      <button className="edit">Edit</button>
+      <dialog className="dlg">
+        <Select className="size" label="Size" items={SIZES} value={state.size} />
+        <p className="out">{String(state.size)}</p>
+      </dialog>
+    </div>
+  )
+}
+Edit.initialState = { size: null }
+Edit.uses = { dlg: dialog({ dialog: '.dlg', trigger: '.edit' }) }
+Edit.intent = ({ DOM }) => ({ SIZE: DOM.select('.size').events('value-change').detail() })
+Edit.model = { SIZE: (state, size) => ({ ...state, size }) }
+
+// ZS-3: a refused pick; items that arrive after the value; ZS-4: a native reset
+function Picky({ state }) {
+  return (
+    <form className="picky">
+      <Combobox className="city" label="City" name="city" items={state.items} value={state.city} />
+      <Combobox className="free" label="Free" name="free" items={CITIES} defaultValue="Paris" />
+      <button type="button" className="load">Load</button>
+      <button type="reset" className="reset">Reset</button>
+      <p className="out">{String(state.city)}</p>
+    </form>
+  )
+}
+Picky.initialState = { city: 'Lisbon', items: [] }
+Picky.intent = ({ DOM }) => ({ CITY: DOM.select('.city').events('value-change').detail(), LOAD: DOM.click('.load') })
+Picky.model = { CITY: (state, city) => (city === 'Prague' ? ABORT : { ...state, city }), LOAD: (state) => ({ ...state, items: CITIES }) }
 
 export async function uiZagTestsP5Z() {
   // ── Menu ─────────────────────────────────────────────────────────────
@@ -304,4 +352,77 @@ export async function uiZagTestsP5Z() {
       await until(() => !$('.rating'), 'host removed')
     } finally { app.dispose() }
   })
+
+  // ── UI sweep (dev-plans/research/ui-sweep/zag.md) ────────────────────
+  await runTest('ZS-1/ZS-5: the form behavior hears Select and Combobox picks (keyboard and pointer) and their blur', async () => {
+    const { id, app, $ } = await mount(Booking)
+    try {
+      await window.__pw('focus', `${id} .size [data-part=trigger]`)
+      await key('ArrowDown')
+      await until(() => !$('.size [data-part=content]').hidden, 'open')
+      await until(() => $('.size [data-highlighted]')?.dataset.value === 's' && document.activeElement === $('.size [data-part=content]'), 'highlighted, focus in the list')
+      await key('ArrowDown')
+      await until(() => $('.size [data-highlighted]')?.dataset.value === 'm', () => `highlighted ${$('.size [data-highlighted]')?.dataset.value}`)
+      await key('Enter')
+      await until(() => $('.out').textContent.startsWith('{"size":"m"'), () => $('.out').textContent)
+      await until(() => $('.size [data-part=content]').hidden && document.activeElement === $('.size [data-part=trigger]'), 'select closed')
+      await window.__pw('type', `${id} .city input[role=combobox]`, 'pa')
+      await until(() => !$('.city [data-part=content]').hidden && $('.city [role=option][data-value=Paris]'), () => `combobox open: ${$('.city input[role=combobox]').value}`, 4000)
+      await window.__pw('click', `${id} .city [role=option][data-value=Paris]`)
+      await until(() => $('.out').textContent.includes('"city":"Paris"'), () => $('.out').textContent)
+      await until(() => $('.city input[role=combobox]').value === 'Paris', () => `input ${$('.city input[role=combobox]').value}`)
+      await window.__pw('click', `${id} .note`)
+      await until(() => $('.out').textContent.endsWith('|city,size'), () => `touched ${$('.out').textContent}`)
+      assert(new FormData($('.booking')).get('size') === 'm' && new FormData($('.booking')).get('city') === 'Paris', 'FormData')
+    } finally { app.dispose() }
+  })
+
+  await runTest('ZS-3/ZS-4: a refused pick and late items show the state value; a reset button resets the combobox', async () => {
+    const { id, app, $ } = await mount(Picky)
+    try {
+      await window.__pw('click', `${id} .load`)
+      await until(() => $('.city input[role=combobox]').value === 'Lisbon', () => `after load: ${$('.city input[role=combobox]').value}`)
+      await window.__pw('fill', `${id} .city input[role=combobox]`, '')
+      await window.__pw('type', `${id} .city input[role=combobox]`, 'pra')
+      await until(() => $('.city [role=option][data-value=Prague]') && !$('.city [data-part=content]').hidden, 'Prague shown')
+      await key('ArrowDown')
+      await until(() => $('.city [data-highlighted]')?.dataset.value === 'Prague', 'Prague highlighted')
+      await key('Enter')
+      await until(() => $('.city [data-part=content]').hidden, 'closed')
+      await until(() => $('.city input[role=combobox]').value === 'Lisbon', () => `refused pick shows ${$('.city input[role=combobox]').value}`)
+      assert($('.out').textContent === 'Lisbon', $('.out').textContent)
+      await window.__pw('fill', `${id} .free input[role=combobox]`, '')
+      await window.__pw('type', `${id} .free input[role=combobox]`, 'ber')
+      await window.__pw('click', `${id} .free [role=option][data-value=Berlin]`)
+      await until(() => new FormData($('.picky')).get('free') === 'Berlin', 'picked Berlin')
+      await window.__pw('click', `${id} .reset`)
+      await until(() => $('.free input[role=combobox]').value === 'Paris' && new FormData($('.picky')).get('free') === 'Paris', () => `after reset: ${$('.free input[role=combobox]').value} / ${new FormData($('.picky')).get('free')}`)
+    } finally { app.dispose() }
+  })
+
+  {
+    // ZS-6: positioned below the trigger in a dialog (Firefox and WebKit flipped it off-screen)
+    await runTest('UI sweep ZS-6: a Select in a sygnal/ui dialog: Escape closes the listbox, not the dialog; positioned below; a pick works', async () => {
+      const { id, app, $ } = await mount(Edit)
+      try {
+        await window.__pw('click', `${id} .edit`)
+        await until(() => $('.dlg').open, 'dialog open')
+        await window.__pw('focus', `${id} .size [data-part=trigger]`)
+        await key('ArrowDown')
+        await until(() => !$('.size [data-part=content]').hidden && document.activeElement === $('.size [data-part=content]'), 'listbox open')
+        await key('Escape')
+        await until(() => $('.size [data-part=content]').hidden, 'listbox closed')
+        await wait(50)
+        assert($('.dlg').open, 'Escape closed the dialog too')
+        await window.__pw('click', `${id} .size [data-part=trigger]`)
+        await until(() => !$('.size [data-part=content]').hidden, 'reopened')
+        await wait(50)
+        const r = $('.size [data-part=content]').getBoundingClientRect(), tr = $('.size [data-part=trigger]').getBoundingClientRect()
+        assert(r.top >= tr.bottom - 1 && r.top - tr.bottom < 40, `positioned: trigger bottom ${tr.bottom}, list top ${r.top}; dialog ${JSON.stringify($('.dlg').getBoundingClientRect())}, overflow ${getComputedStyle($('.dlg')).overflow}`)
+        await window.__pw('click', `${id} .size [role=option][data-value=m]`)
+        await until(() => $('.out').textContent === 'm', () => $('.out').textContent)
+        assert($('.dlg').open, 'the pick closed the dialog')
+      } finally { app.dispose() }
+    })
+  }
 }

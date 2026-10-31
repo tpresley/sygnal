@@ -76,7 +76,7 @@ Search.model = {
 | `label` | | The visible label, linked to the input (its accessible name). Give every combobox one |
 | `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the input when there is no visible `label` (or in addition to it); they go on the input, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects |
-| `value` | | Controlled: the value (an array with `multiple`); `null` for none |
+| `value` | | Controlled: the value (an array with `multiple`); `null` for none. While nothing is typed, the input shows its label: also when the items arrive after the value, and when the model refuses a pick (the input goes back to the state's value) |
 | `defaultValue` | | The start value when `value` is left out |
 | `placeholder` | | The input's placeholder |
 | `filter` | contains | A function `(item, text) => boolean`, or `false` |
@@ -86,8 +86,9 @@ Search.model = {
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
 | `closeOnSelect` | `true` | With `multiple`: `false` |
 | `loopFocus` | `true` | The arrow keys wrap |
-| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows. `form` (a form's id) goes on those hidden inputs |
-| `multiple`, `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
+| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows. `form` (a form's id) goes on those hidden inputs. A pick is a field `input` event, so the [`form` behavior](/guide/forms/) hears it (`value={state.form.values.city}`), and a form reset puts the first value back |
+| `multiple` | `false` | Several values. The input clears after each pick and the combobox shows no list of what is picked: render the chosen values yourself (chips with a remove button that sets the value) |
+| `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
 
 ## Events and commands
 
@@ -121,7 +122,7 @@ Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"la
 
 ## Positioning
 
-The listbox renders inside the widget's host, next to the input, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the input when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
+The listbox renders inside the widget's host, next to the input, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the input when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`. Inside a `<dialog>` (its own style is `overflow: auto`), `'fixed'` is the default.
 
 ## Testing
 

@@ -52,7 +52,7 @@ Without them, `sygnal/vite` stops with [SYG666](/reference/errors/#syg666), whic
 
 | Prop | | |
 |---|---|---|
-| `label` | (required) | The trigger's text: its accessible name |
+| `label` | | The trigger's content: its text, and its accessible name. For an icon trigger, pass the icon as `label` and name it with `aria-label` |
 | `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the trigger when there is no visible `label` (or in addition to it); they go on the trigger, not the host |
 | `items` | (required) | Strings, or `{ value, label, disabled }` objects; `{ separator: true }` draws a separator |
 | `open` | | Controlled open state; follow the `open-change` event |
@@ -100,7 +100,7 @@ The parts carry Zag's data attributes: `[data-scope="menu"]` with `[data-part="t
 
 ## Positioning
 
-The menu renders inside the widget's host, next to the trigger, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open menu is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the trigger when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
+The menu renders inside the widget's host, next to the trigger, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open menu is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the trigger when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`. Inside a `<dialog>` (its own style is `overflow: auto`), `'fixed'` is the default.
 
 ## Testing
 

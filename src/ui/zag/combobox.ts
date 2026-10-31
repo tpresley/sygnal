@@ -20,6 +20,8 @@
  * With `allowCustomValue` (single), the selected value is submitted unless the user typed since
  * the last selection; then the typed text (an item's exact label submits that item's value; G-435,
  * G-468).
+ * A pick is a field `input` event and leaving the combobox a `focusout` (ZS-1, ZS-5: the form
+ * behavior, processForm); a form reset puts the first value back (ZS-4).
  *
  * Props: `label`, `items` (strings or { value, label?, disabled? }), `value` (controlled: a
  * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`, and
@@ -32,7 +34,7 @@
 import * as combobox from '@zag-js/combobox'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, announce, leaving, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
 
 const shown = (all: any[], f: any, q: string) => {
   if (f === false || !q) return all
@@ -64,14 +66,48 @@ const hidden = (api: any, p: any, x: any) => {
   return vs.map((value: string, i: number) => h('input', {key: 'h' + i, type: 'hidden', name: p.name, attrs, disabled: !!p.disabled, value}))
 }
 
+// ZS-3: the input shows the value's label while nothing is typed and the list is closed. Zag
+// writes it only when the value changes: not when the items arrive after the value (async
+// loading) or relabel it, and it writes the picked label even when a controlled value refuses the
+// pick. Single, selectionBehavior 'replace' (the default) only; checked again once the app's flush
+// has run (an accepted pick's value arrives then)
+const label = (api: any) => api.collection.stringifyMany(api.value)
+const sync = (api: any, p: any, x: any) => {
+  const off = (a: any) => x.multiple || x.t || a.open || (p.selectionBehavior ?? 'replace') != 'replace' || a.inputValue === label(a)
+  off(api) || queueMicrotask(() => { const a = x.el.isConnected && x.api(); a && !off(a) && a.syncSelectedItems() })
+}
+
+// ZS-4: a form reset puts the initial value back (as Zag's Select does: the controlled value's
+// first, or defaultValue) and the input shows its label; after the browser's own reset, which
+// empties the visible input
+const onReset = (x: any, input: any) => (e: any) => e.defaultPrevented || setTimeout(() => {
+  if (!input.isConnected) return
+  const c = x.machine.service.context, v = c.initial('value') || []
+  c.set('value', v)
+  x.t = 0
+  setText(x, '')
+  const a = x.api(), text = x.multiple ? '' : a.collection.stringifyMany(v)
+  a.setInputValue(text)
+  input.value = text
+})
+
 export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, x: any) => {
   const input = named(api.getInputProps(), p, 1)
   delete input.attrs.name
   delete input.attrs.form
-  return h('div', api.getRootProps(),
+  sync(api, p, x)
+  // ZS-4: the reset listener on the input's form (its ancestor, or the `form` attribute's)
+  const hook = {
+    insert: (v: any) => {
+      const f = x.form = p.form != null ? v.elm.ownerDocument.getElementById(p.form) : v.elm.closest('form')
+      f?.addEventListener('reset', x.reset = onReset(x, v.elm))
+    },
+    destroy: () => x.form?.removeEventListener('reset', x.reset),
+  }
+  return h('div', leaving(api.getRootProps(), x, p),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
-      h('input', {...input, placeholder: p.placeholder}),
+      h('input', {...input, placeholder: p.placeholder, hook}),
       h('button', api.getTriggerProps(), '▾')),
     h('div', api.getPositionerProps(), h('div', named(api.getContentProps(), p), options(h, api))),
     hidden(api, p, x))
@@ -88,7 +124,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     const v = arr(value), k = v && JSON.stringify(v)
     if (k !== x.v) x.v = k, v?.length && (x.t = 0)
     return {
-      ...p,
+      ...placed(p, x),
       collection: collectionOf(combobox, shown(x.items, filter, x.q || '')),
       value: v,
       defaultValue: arr(defaultValue),
@@ -96,7 +132,8 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
       // G-414: the app's own callbacks (p.onInputValueChange / p.onOpenChange) run first
       onInputValueChange: (d: any) => { p.onInputValueChange?.(d); if (d.reason == 'input-change') x.t = 1, setText(x, d.inputValue), x.dispatch('input-change', d.inputValue) },
       onSelect: (d: any) => { x.t = 0; p.onSelect?.(d) },
-      onValueChange: (d: any) => { x.t = 0; p.onValueChange?.(d) },
+      // ZS-1: the pick as a form field's input event (the form behavior, processForm)
+      onValueChange: (d: any) => { x.t = 0; p.onValueChange?.(d); announce(x, p, d.value) },
       onOpenChange: (d: any) => { p.onOpenChange?.(d); d.open || setText(x, '') },
     }
   },
