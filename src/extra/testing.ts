@@ -3222,7 +3222,15 @@ export function renderComponent(
       if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
       return r;
     };
-    const dispatch = (name: string, detail?: any) => simulateEvent(target, name, {detail} as any);
+    // the widget field contract (extra/field.ts): the field's event is also the host's input,
+    // which the form behavior hears as a change of the named field (the mock DOM: by its target)
+    const dispatch = (name: string, detail?: any) => {
+      const r = real ? undefined : host(), def = r && (query(sel) as any)?._v?.data?.ww?.def, f = def?.field;
+      const ev = f && (f.event || def.value?.event || 'change');
+      const out = simulateEvent(target, name, {detail} as any);
+      if (ev == name) simulateEvent(target, 'input', {target: {name: r.p.name ?? '', value: detail}} as any);
+      return out;
+    };
     return {
       get props() { return host().p; },
       get instance() { return host().i; },
@@ -3328,7 +3336,8 @@ export function renderComponent(
         tagName: el?.sel.split(/[.#]/)[0].toUpperCase(),
         // D199 (spike 0-S2): name/id/type/getAttribute, so listeners that delegate by name
         // (`e.target.name`, a form-level input listener) work on the mock DOM as on the real one
-        ...(el && {name: attrOf(el, 'name') ?? '', id: attrOf(el, 'id') ?? '', type: attrOf(el, 'type') ?? '', getAttribute: (n: string) => attrOf(el, n)}),
+        // a field widget's host (extra/field.ts): named by its `name` prop
+        ...(el && {name: attrOf(el, 'name') ?? (d.ww?.def?.field && d.wp?.name) ?? '', id: attrOf(el, 'id') ?? '', type: attrOf(el, 'type') ?? '', getAttribute: (n: string) => attrOf(el, n)}),
         value: vval == null ? vval : String(vval),
         checked: p.checked ?? d.attrs?.checked,
         ...('value' in init && {value}),

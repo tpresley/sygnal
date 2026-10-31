@@ -51,6 +51,8 @@ export interface FromZagOptions<P = any> {
   hostProps?: string[]
   /** Prop names that stay off the host (the render applies them, e.g. `aria-label` on the trigger) */
   ownProps?: string[]
+  /** The widget is a form field (defineWidget's `field`): `event`, and `read(instance)` for its value between events */
+  field?: true | { event?: string; read?(instance: ZagInstance, el: HTMLElement): any }
 }
 
 /**

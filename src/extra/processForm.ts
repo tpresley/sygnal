@@ -44,6 +44,12 @@ export default function processForm(
     for (const [name, value] of formData.entries()) {
       entries[name] = value;
     }
+    // the widget field contract (extra/field.ts): a field widget's value over its own named
+    // fields' (they follow its value prop, which may not have caught up with a pick)
+    formEl.querySelectorAll?.('*').forEach((el: any) => {
+      const f = el.__sw?.f?.();
+      if (f?.name && !f.disabled) entries[f.name] = f.value;
+    });
     return entries;
   });
 }

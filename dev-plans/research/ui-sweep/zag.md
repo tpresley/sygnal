@@ -154,3 +154,225 @@ Next to Zag's ~33 KB per part, this is noise.
 - `node scripts/check-doc-samples.mjs`: 973 clean.
 - `npm --prefix docs run build`: ok.
 - `check-live`: 126 demos ok on Chromium, Firefox and WebKit.
+
+## Round 2 (2026-10-31): the maintainer's decisions, built
+
+Merged `claude/advanced-integration` (aa63f44f) first. The rules were:
+- the proper fix, not the cheap one;
+- when in doubt, match Radix / React Aria;
+- size only measured and reported, never a reason to cut.
+
+### 1. The widget field contract (open question 1, ZS-1, recommendation 5)
+
+`src/extra/field.ts`: a widget that declares `field: true | { event, read }` (defineWidget, and fromZag through its options) is one form field,
+named by its `name` prop.
+
+- When it dispatches the field's event (`field.event`, else `value.event`, else `'change'`), `widget.ts` also fires a bubbling `input` from
+  the host, marked with `Symbol.for('sygnal.field')`. While that event is dispatched, the field's value is the event's detail, because the
+  value prop may not have caught up yet. The host record (`__sw`) gets `f()` (`{ name, value, disabled }`) and `h` (the host).
+- `src/extra/form.ts`:
+  - CHANGE reads a marked host `input` as a change of the field.
+  - Other `input` events on or inside a field host don't count, unless their target has a `name` of its own. This also stops the nameless
+    visible input of a Combobox sending `CHANGE { name: '' }` on every keystroke.
+  - BLUR maps a focusout inside a field host to the field's name, and only when the focus leaves the host.
+- `src/extra/processForm.ts`: a field widget's value is written over FormData's entry for it. Its own named fields follow its value prop,
+  which may lag behind a pick. A `multiple` field gives an array: FormData would give only the last value.
+- Mock DOM (`src/extra/testing.ts`):
+  - `t.widget(sel).dispatch(fieldEvent, detail)` also simulates the `input` with `{ name, value }`, so the form behavior hears it.
+  - A simulated `focusout` on a field host carries its `name`.
+- Select and Combobox declare `field: { event: 'value-change', read }`. Their hidden named fields stay for native FormData and submission.
+  Round 1's stand-in field (`announce`) and focusout re-dispatch (`leaving`) are gone.
+- Types: `WidgetDefinition.field` (`src/index.d.ts`) and `FromZagOptions.field`.
+- Docs: a new widgets-guide section, "Form fields", with a date-picker example. The forms guide's field-types table now lists Select,
+  Combobox and widget fields, with the blur rule. `llms.txt` has one sentence on it (still within the budget test).
+- Tests: `test/widget-field.test.js`:
+  - a defineWidget date-picker-like field in the real and the mock DOM;
+  - touched;
+  - processForm, also during dispatch;
+  - disabled;
+  - the inner nameless input ignored;
+  - a Select in the mock DOM.
+
+  All round-1 ZS-1/ZS-5 tests pass on the contract.
+
+### 2. Custom values committed on blur (open question 2, F-7)
+
+As React Aria's `allowsCustomValue`: with `allowCustomValue` (single), the typed text is committed when the focus leaves the combobox, or on
+Enter with no active option.
+
+- Text equal to an item's label picks that item.
+- Other text becomes the value itself. It is a machine value that no item has, reported with `value-change`, given to the controlled value
+  and the form behavior.
+- An empty input clears the value.
+- Leaving also closes the list. Zag closes it only on a pointer or focus outside, so a programmatic blur in jsdom would have left it open.
+
+Zag wipes the input of a value it can't find, both in `syncSelectedItems` and when the controlled value arrives. ZS-3's check now shows such a
+value as its own text, and it runs on Zag's own input writes too (`onInputValueChange` with a non-typing reason, and on close), not only on
+renders.
+
+A refused commit (`ABORT`) puts the input back to the state's value. While the user is still typing, the hidden input submits the typed text
+(G-435 / G-468 / G-494 unchanged).
+
+I tried a shadow `cv` state with muted events first and dropped it: Zag calls `onValueChange` after its current transition, so muting by a
+flag was unreliable. A plain value with no item turned out simpler and correct.
+
+### 3. `position: fixed` by default (open question 3)
+
+`placed()` in `shared.ts` merges `{ strategy: 'fixed' }` under the `positioning` prop, for all three parts and Menu's submenus, as Radix's
+Popper does.
+
+- The positioning sections of the three pages now explain:
+  - the default;
+  - the containing-block caveat (an ancestor with a `transform`, `filter`, `perspective` or `contain`);
+  - the `strategy: 'absolute'` override, and that other options merge over the default.
+- `UiPositioning` now types `strategy`.
+- `test/p5-2t-g416-positioning.test.js` was updated to the new default.
+- Browser test: a grouped Select inside a 40 px `overflow: hidden` box opens fully and is hit-testable below the box, in all three engines.
+
+### 4. ZS-3's per-render check (open question 4)
+
+Kept, and extended to Zag's own writes. Keying it on the items' identity would miss the other mismatch sources:
+- a refused pick;
+- Zag's microtask writes after a value change, which happen outside a render;
+- a custom value.
+
+### 5. F-1: SYG141 on the parts
+
+`sygnal-check/src/rules/syg140-widgets.js`: `events('change' | 'input')` (or the `DOM.change` shorthand) on a selector that resolves only to
+Menu / Select / Combobox is reported.
+
+- The message: "listens for the native 'change' on '.size' (Select): the part reports its value with 'value-change' … did you mean
+  'value-change'?". Menu suggests `'select'`.
+- It comes with the rename as a quick fix.
+- No new code: the native session owns new codes this round.
+- The explanation and the generated error reference were updated.
+- `model/widgets.js` marks the first-party parts (`part`) and lists Menu's `checked-change` and Combobox's `remove`.
+- Tests: `sygnal-check/test/ui-zag-habit.vtest.js`.
+
+### 6. F-2: chips for a multiple Combobox
+
+- Each value is a `[data-part="item-chip"]` (`role="listitem"`), with `item-chip-text` and an `item-chip-remove` button, in an
+  `[data-part="item-chips"]` `role="list"` named by the label (`chipsLabel`).
+- The remove button:
+  - is named by `removeLabel`, a prefix or `(label) => name`, so it can be translated (default "Remove Paris");
+  - calls Zag's `clearValue(value)`;
+  - is out of the tab order, and preventDefaults `mousedown` so the input keeps the focus;
+  - is disabled with `disabled` / `readOnly`.
+- Backspace in the empty input removes the last chip. A Backspace that deletes text doesn't.
+- The `remove` command: `{ remove: '.tags', value }` (without a value: the last).
+- `chips={false}` renders no chips.
+- Docs: a "Several values (chips)" section with a styled live demo.
+
+### 7. F-3: groups, Menu item kinds, submenus
+
+- **Groups** (Select, Combobox):
+  - `items: [{ group, items }]` flattens into items with `group`. The collection gets `groupBy`, and Zag orders navigation by group.
+  - Each group renders as `getItemGroupProps` (`role="group"`, `aria-labelledby`) with a `getItemGroupLabelProps` label.
+  - Combobox filtering drops the groups with no matches.
+  - The hidden native `<select>` lists every item.
+  - Docs: a Select "Groups" section with a live demo.
+- **Menu item kinds**:
+  - `{ type: 'checkbox' | 'radio', value, label, checked }` uses Zag's option items (role `menuitemcheckbox` / `menuitemradio`,
+    `aria-checked`, a `✓` indicator). A pick reports `checked-change` `{ value, checked, type }`, plus `select`. The app keeps `checked` in
+    state, as Radix's controlled `checked`.
+  - `{ href, value, label, target, rel }` renders an `<a>` menu item.
+- **Submenus**: `{ value, label, items }`, nestable.
+  - Each submenu is its own VanillaMachine, kept on the instance by path.
+  - Its props come from the Menu's (`dir`, `loopFocus`, `typeahead`, `closeOnSelect`, the strategy); `placement` is `right-start`
+    (`left-start` with rtl).
+  - The machines are linked with `setChild` / `setParent` once both run. The item is `getTriggerItemProps(childApi)` with a `›` indicator.
+  - The submenu's positioner renders next to the Menu's, outside its `role="menu"`.
+  - A submenu pick is the Menu's `select` and closes every level.
+  - Keyboard (Zag's, as Radix's Sub): ArrowRight / Enter / hover opens it; ArrowLeft / Escape closes it and returns to the item.
+- `fromZag` gained, for parts with machines of their own:
+  - `x.draw` and `x.normalize`;
+  - `x.off`, run on stop: the submenus' machines stop with the Menu.
+- Bugs found on the way:
+  - **Zag's connect spreads one prop getter's result over another's** (`getOptionItemProps` over `getItemProps`, the `mergeProps` in
+    `getTriggerItemProps`). Our nested snabbdom bags (`{ attrs, on, … }`) don't survive that: the second `attrs` replaced the first and lost
+    `id` / `data-ownedby`, so the items weren't navigable. Menu's item rows now use a flat (identity) normaliser and convert with `zagProps`
+    at the end. Select and Combobox don't call these getters.
+  - **Zag's menu item indicator has no `aria-hidden`**, so a checked item's accessible name became "✓ Grid". The Menu now sets it; found by
+    the real-browser role query.
+- Types: `MenuItem` (a union of the kinds), `MenuCheckedChange`, Menu's events now include `'checked-change'`, `UiGroup`. Type tests cover each
+  kind, groups, chips, `empty` and a bad strategy.
+- Docs: an "Item kinds" section with a live demo and CSS; the keyboard and styling tables.
+
+### 8. F-4: Combobox `empty`
+
+`empty="No results"`:
+- a `[data-part="empty"]` row after the listbox, inside the positioner, `hidden` unless the list is open with no items;
+- the same text in a visually hidden `role="status"` region, which screen readers announce.
+
+Docs: a "No results" section; the chips demo uses it.
+
+### Tests (round 2)
+
+- `test/ui-zag-round2.test.js` (17):
+  - Q2: blur, Enter, label match, clear, refused, uncontrolled with the form behavior, without `allowCustomValue`;
+  - Q3;
+  - chips: list and labels, click remove, Backspace, the `remove` command, `chips={false}`, `removeLabel`, disabled;
+  - empty;
+  - Select groups (roles, labels, keyboard across groups, the hidden select) and Combobox groups (filtering);
+  - Menu checkbox / radio, link, submenu keyboard and pick, the indicator's aria-hidden.
+- `test/widget-field.test.js` (6).
+- Updated: `test/ui-sweep-zag.test.js` (ZS-6 is now everywhere; the custom-text test commits) and `test/p5-2t-g416-positioning.test.js`.
+- `browser-tests/src/tests/ui-zag-p5z.jsx`, 4 new tests, all 17 Zag tests passing in Chromium, Firefox and WebKit:
+  - Q2: Tab and Enter commit;
+  - F-2/F-4: chip remove by pointer, Backspace, the empty row and status;
+  - F-3/Q3: a grouped Select in a clipping box, keyboard across groups;
+  - F-3: Menu checkbox by Enter, the link item, submenu ArrowRight / ArrowLeft / pick.
+
+  The submenu test waits for focus to move between levels. Without those waits, real input raced Zag's focus moves.
+- `sygnal-check/test/ui-zag-habit.vtest.js` (2).
+- `type-tests/p5-2z-adapters.tsx`.
+
+### Size (round 2)
+
+The core is unchanged: none of `src/core/**` and nothing the kanban size-gate app uses changed. The size gate's figure is under the gate
+results below.
+
+Each module is minified with esbuild, with its local helpers bundled (`shared.ts` for the parts, `field.ts` for the form modules) and
+everything else external. Gzip bytes:
+
+| Module | Before the sweep (18a73b35) | Round 1 (f1d7eb33) | Round 2 | Round 2 − round 1 |
+|---|---|---|---|---|
+| `sygnal/ui/menu` (menu.ts + shared) | 620 | 669 | 1,530 | +861 (item kinds, submenus, flat normaliser) |
+| `sygnal/ui/select` (select.ts + shared) | 978 | 1,422 | 1,253 | −169 (stand-in gone; groups added) |
+| `sygnal/ui/combobox` (combobox.ts + shared) | 1,303 | 2,012 | 2,644 | +632 (commit, chips, empty, groups) |
+| `sygnal/zag` (zag.ts) | 1,947 | 1,947 | 1,979 | +32 (`draw`, `normalize`, `off`) |
+| main bundle `form` behavior (form.ts + field.ts) | 3,048 | 3,048 | 3,191 | +143, only for apps that use `form` |
+| main bundle `processForm` (+ field.ts) | 415 | 415 | 476 | +61, only for apps that use it |
+| main bundle `defineWidget` (widget.ts + field.ts) | 2,255 | 2,255 | 2,412 | +157, only for apps that use widgets |
+
+Next to Zag's ~33 KB per part, the parts' growth is small.
+
+### Left for the maintainer
+
+- `processForm` gives an array for a `multiple` widget field, where FormData's last-wins gives a native `<select multiple>` only its last value.
+  Arrays are more correct, but the two field kinds now disagree. The types already say `[key: string]: any`.
+- A controlled `allowCustomValue` combobox whose value arrives before its items shows the raw value as text until the items load ("par", then
+  "Paris"): the value is no item's yet, so it counts as custom.
+- The chip remove buttons are out of the tab order (the input + Backspace pattern). React Aria's TagGroup also makes the chips arrow-navigable.
+  That would need its own focus model; say if you want it.
+- Removing a chip isn't announced. A screen reader hears the list change only when it revisits the list. A status message ("Paris removed")
+  would need a translatable string, like `removeLabel`.
+- Docs budget: the forms guide's agent-size test (`test/p5-4d-forms-recipe.test.js`) allowed 18,500 B, and the page was already 16 B under. The
+  field-types row for Select, Combobox and widget fields adds 137 B (18,621 B), so the limit is now 18,700 B, with a comment. Please confirm,
+  or say which text to drop instead.
+
+### Gate (round 2)
+
+- `npm run build`: ok.
+- `npm test`: every stage passes.
+  - vitest: 5,753 passed.
+  - test:examples: ok (with `TEST_EXAMPLES_INSTALL=1`).
+  - test:types: ok.
+  - test:browser: 412 passed on Chromium.
+  - test:perf-gate: within limits.
+- `node scripts/size-gate.mjs`: 42,647 B (353 B headroom). The core is unchanged.
+- `npm --prefix sygnal-check test`: 1,850 passed in both runs (plain and per-file).
+- The Zag browser suite: 17/17 on Chromium, Firefox and WebKit.
+- `npm --prefix docs run build`: ok.
+- `check-live`: 130 demos ok on Chromium, Firefox and WebKit (4 of them new).
+- `check-doc-samples`: 977 clean.

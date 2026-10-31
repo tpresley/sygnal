@@ -84,10 +84,11 @@ describe('adapter entries packaging (D209)', () => {
     expect(zag).not.toMatch(/class VanillaMachine/)
     for (const part of ['menu', 'select', 'combobox']) {
       const ui = read(`ui-${part}.esm.js`)
-      expect(ui).toMatch(/^import \{ fromZag \} from 'sygnal\/zag';$/m)
+      // Menu also takes zagProps (its item rows) and VanillaMachine (submenus: UI sweep round 2)
+      expect(ui).toMatch(/^import \{ fromZag(, zagProps)? \} from 'sygnal\/zag';$/m)
       expect(ui).toMatch(new RegExp(`from '@zag-js/${part}'`))
       for (const other of ['menu', 'select', 'combobox']) if (other !== part) expect(ui, `${part}: ${other}`).not.toMatch(new RegExp(`@zag-js/${other}`))
-      expect(ui).not.toMatch(/function fromZag|VanillaMachine/)
+      expect(ui).not.toMatch(/function fromZag|class VanillaMachine/)
     }
     expect(react).toMatch(/^import \{ createRoot \} from 'react-dom\/client';$/m)
     expect(react).not.toMatch(/__SECRET_INTERNALS|ReactCurrentOwner/)

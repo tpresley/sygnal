@@ -668,6 +668,18 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
     strict?: boolean;
   };
   /**
+   * The widget is a form field named by its `name` prop (the widget field contract): when it
+   * dispatches `event` (default: `value.event`, else `'change'`), its host also fires a bubbling
+   * `input` event, which the `form` behavior reads as the field's new value (the event's detail);
+   * the focus leaving the host marks the field touched; processForm entries get `read()` (default:
+   * the last value dispatched, else the `value` prop). Its own nameless controls' `input` events
+   * don't count. `true`: the defaults.
+   */
+  field?: true | {
+    event?: NoInfer<EV>;
+    read?(instance: I, el: WidgetElementOf<TAG>): any;
+  };
+  /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
    * `error(e)` reports a later failure the widget catches itself (a library's own re-render): it
