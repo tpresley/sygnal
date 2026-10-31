@@ -71,7 +71,7 @@ function readingSource(component: any, sink: string, source: any) {
   return wrapped
 }
 
-export function checkRequest(component: any, sink: string, req: any, modelActions: string[]) {
+export function checkRequest(component: any, sink: string, req: any, modelActions: string[], handledAbove?: (action: string) => string | undefined) {
   if (!req || typeof req !== 'object') return
   const name = nameOf(component)
   let replies = false
@@ -81,17 +81,21 @@ export function checkRequest(component: any, sink: string, req: any, modelAction
     if (!seen) replySeen.set(component, seen = new Set())
     seen.add(action)
     if (modelActions.includes(action) || !once(`SYG112:${name}:${action}`)) continue
-    const near = suggest(action, modelActions.filter(a => !a.startsWith('__')))
+    // Temper 2026-10: a reply goes only to its sender; an ancestor's entry of that name never runs
+    const up = handledAbove?.(action)
+    const near = up ? undefined : suggest(action, modelActions.filter(a => !a.startsWith('__')))
     devReport('SYG112', {
       component,
       message: (connection
         ? `${sink} connection '${connection}' names '${action}' as its ${key} reply action, but ${name} has no model entry '${action}', so those events are dropped`
         : `A ${sink} request names '${action}' as its ${key} reply action, but ${name} has no model entry '${action}', so the reply is dropped`) +
-        (near ? ` (did you mean '${near}'?)` : ''),
-      fix: near
-        ? `Use the existing entry: ${key.startsWith('events.') ? `events: { '${key.slice(7)}': '${near}' }` : `${key}: '${near}'`}`
-        : `Add '${action}' to ${name}.model, e.g. ${action}: (state, data) => ({ ...state, ... }), or fix the name`,
-      data: {action, key, sink, ...(connection ? {connection} : {}), ...(near ? {suggestion: near} : {}), modelActions},
+        (up ? `: replies go only to the component that sent the request, never to ${up}, which handles '${action}'` : near ? ` (did you mean '${near}'?)` : ''),
+      fix: up
+        ? `Let ${up} send it: emit EVENTS: event('...') from ${name} and send the request from ${up}'s entry for it, so the reply comes back to ${up}. For data several components load, declare it once as a resource in ${up} (resources: { name: (state) => ({ url, tags: ['name'] }) }) and re-request with ${sink}: { invalidate: 'name' } from anywhere. Or handle the reply here: add '${action}' to ${name}.model`
+        : near
+          ? `Use the existing entry: ${key.startsWith('events.') ? `events: { '${key.slice(7)}': '${near}' }` : `${key}: '${near}'`}`
+          : `Add '${action}' to ${name}.model, e.g. ${action}: (state, data) => ({ ...state, ... }), or fix the name`,
+      data: {action, key, sink, ...(connection ? {connection} : {}), ...(up ? {handledBy: up} : {}), ...(near ? {suggestion: near} : {}), modelActions},
     })
   }
 

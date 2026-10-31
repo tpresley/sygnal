@@ -442,6 +442,12 @@ export function nextHooks(_api: any): any {
   const vtCheck = vtChecker(() => vtp.size && on())
   // SYG428: the live instances by id, to read a child's parent state
   const live = new Map<any, any>()
+  // SYG117, SYG112: the nearest ancestor whose model has an entry `type`
+  const handlerAbove = (iv: any, type: string) => {
+    let up: any = live.get(iv.parentId)
+    while (up && !up.def.handlers.has(type)) up = live.get(up.parentId)
+    return up
+  }
   return {
     onCreate(iv: any) {
       live.set(iv.id, iv)
@@ -508,7 +514,7 @@ export function nextHooks(_api: any): any {
       const f = fac(iv), src = iv.sources[sink]
       try {
         if (sink == 'EVENTS') eventEmitted(f, v)
-        if (src && src.__sygnalReplies === true) checkRequest(f, sink, v, Object.keys(f.modelMap))
+        if (src && src.__sygnalReplies === true) checkRequest(f, sink, v, Object.keys(f.modelMap), (a: string) => handlerAbove(iv, a)?.name)
         if (src && src.__sygnalStatic === 'resources') checkFetch(f, sink, v)
       } catch (_) { /* a check never breaks the app */ }
     },
@@ -518,8 +524,7 @@ export function nextHooks(_api: any): any {
       if (!on() || iv.def.handlers.has(type)) return
       const name = iv.name
       if (!once(`SYG117:${name}:${type}`)) return
-      let up: any = live.get(iv.parentId)
-      while (up && !up.def.handlers.has(type)) up = live.get(up.parentId)
+      const up = handlerAbove(iv, type)
       devReport('SYG117', {
         component: name,
         message: `${name} calls next('${type}'), but ${name} has no model entry '${type}', so the action does nothing${up ? `: next() never reaches ${up.name}, which handles '${type}'` : ''}${didYouMean(type, iv.def.handlers.keys())}`,

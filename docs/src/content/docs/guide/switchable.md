@@ -67,7 +67,7 @@ Give each page its own slice with a map from page names to bindings. Each entry 
 ```
 
 - Each page follows its own binding with a tag child's [lifetime rules](/guide/state/#changing-the-selected-record): when an entry points at another record (another key, another id), only that page is disposed and made again; the others keep their instances. When its record is deleted, the page is disposed with its last state (its DISPOSE sees it; nothing is written back), and a new one renders once the record is there again.
-- Every page still starts at mount and keeps working while hidden, on its own slice.
+- Every page still starts at mount and keeps working while hidden, on its own slice: its `BOOTSTRAP` runs at mount too ([Pages with entry side effects](#pages-with-entry-side-effects)).
 - A map key that is not one of the `of` pages binds nothing, so the page it was meant for shares the owner's state: the dev checks and `sygnal-check` report it as [SYG429](/reference/errors/#syg429).
 - A routed page needs no copy of the route in its slice: provide `route` as [context](/guide/router/) and read it in the page's view and statics.
 
@@ -107,6 +107,42 @@ App.initialState = { page: 'list', taskId: null }
 - A hidden page is re-created when it's shown again with another key than the one it last had (it was hidden while the key changed). A page that was never shown takes the key it's first shown with.
 - With a router, use the path: `instance={state.route.path}`. Going from `/tasks/1` to `/tasks/2` re-creates the task page; going back to a page with the path it had keeps it.
 - The page sees the new state once before it is re-created (state reaches it before the Switchable re-renders with the new key), so in that moment it may start a request or open a connection for the new values; disposing the old instance aborts or closes it right away.
+
+## Pages with entry side effects
+
+Every page in `of` is created when the Switchable mounts, and its `BOOTSTRAP` action runs then, whether or not it is the current page. That suits pages whose start is harmless (a tab that loads its data, which pauses while hidden). It doesn't suit pages whose start *does* something: a logout page whose `BOOTSTRAP` signs the user out, a wizard that redirects on entry. Mount them all and the logout runs on page load.
+
+For those, give the Switchable only the current page, and key it by the page so that another page makes a new Switchable:
+
+```jsx title="App.jsx"
+import { Switchable } from 'sygnal'
+
+const PAGES = { projects: Projects, wizard: Wizard, logout: Logout }
+const PAGE_STATE = { projects: 'pages.projects', wizard: 'pages.wizard' }
+
+function App({ state }) {
+  const page = state.route.name
+  return (
+    <main>
+      <Switchable
+        key={page}
+        of={{ [page]: PAGES[page] }}
+        current={page}
+        state={PAGE_STATE[page] ? { [page]: PAGE_STATE[page] } : undefined}
+        instance={state.route.path}
+      />
+    </main>
+  )
+}
+
+App.initialState = { route: { name: 'projects', path: '/' }, pages: { projects: {}, wizard: {} } }
+```
+
+- Only the shown page exists, so a page's `BOOTSTRAP` runs when it is first shown, every time it is shown.
+- Going back to a page creates it again: what it keeps in its own slice of the owner's state (`pages.projects` here) is still there, its resources refetch (from the cache, if the fetch driver has one), and its local state starts over.
+- A router already re-creates a page for a new path with `instance={state.route.path}`; the key adds the same for every switch between pages.
+
+This changes page lifetimes compared with a Switchable over every page, so moving lens-hosted pages to one Switchable with a per-page `state` map needs this pattern for any page with entry side effects.
 
 ## Scrolling to the top on a page change
 

@@ -95,6 +95,16 @@ How it works:
 - If nothing matches yet, the event waits (up to `eventWaitMs`, default 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
 - If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
 - If the selector only matches inside a child component, Sygnal reports [SYG104](/reference/errors/#syg104): the parent's intent can never see that event.
+- The event is delivered **later**, not during the call, so `t.query()` and `t.html()` right after it still show the old view (below).
+
+**Awaiting the event.** `simulateEvent` returns a promise that resolves once the event is delivered and the tree has rendered what it caused. Await it before you read the output:
+
+```jsx
+await t.simulateEvent('.retry', 'click')
+expect(t.query('.skeleton')).not.toBeNull()   // the view the click caused
+```
+
+The promise never rejects: a selector that matches nothing still fails the next wait, as above. Awaiting it under fake timers moves the clock like the other waits; a call you don't await never moves it. A `t.next(pred)` after `await t.simulateEvent(...)` waits for a further state, so read `t.state` there instead.
 
 #### Supported selectors
 
@@ -110,9 +120,10 @@ Selectors are matched against the rendered vnode tree with the same rules as the
 | `:not(...)` (no combinators inside) | `.item:not(.done)` |
 | `:checked`, `:disabled`, `:enabled` (as the view rendered them) | `input[name="plan"]:checked` |
 | Descendant (space) and child (`>`) combinators | `.board > .list:nth-child(2) .card:first-child .next` |
+| Next-sibling (`+`) and later-sibling (`~`) combinators | `.filters + .empty`, `h2 ~ p` |
 | Selector lists (`,`) | `.save, .submit` |
 
-Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
+Anything else, such as `:has()`, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
 
 ### simulateAction
 
@@ -306,7 +317,7 @@ expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 
-**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
+**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `nextElementSibling`, `previousElementSibling`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
 
 ```jsx
 t.simulateEvent('input[name="email"]', 'input', { value: 'ada@example.com' })
@@ -316,6 +327,14 @@ expect(t.query('input[name="plan"]:checked').value).toBe('free')
 expect(t.query('.next').disabled).toBe(false)
 expect(t.queryAll('.row').map(e => e.dataset.id)).toEqual(['1', '2'])
 expect(t.query('.missing')).toBeNull()
+```
+
+`t.queryAll()` lists its elements in document order, also for a selector list, so an order check needs no index arithmetic on `t.html()`:
+
+```jsx
+// the filters come before the empty state
+expect(t.queryAll('.empty, .filters').map(e => e.className)).toEqual(['filters', 'empty'])
+expect(t.query('.filters + .empty')).not.toBeNull()   // or: directly before it
 ```
 
 A custom sink with no driver (for example `API` when you don't pass an `API` driver) gets a recording no-op driver, for the rendered component and for every child, grandchild and Collection item, so its output is still visible through `sinkValues`:
@@ -661,7 +680,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `simulateEvent` | `(selector, type, init?) => void` | Dispatch a DOM event through the mock DOM |
+| `simulateEvent` | `(selector, type, init?) => Promise<void>` | Dispatch a DOM event through the mock DOM; resolves once it is delivered and rendered |
 | `simulateAction` | `(name, data?) => void` | Push an action under its real name |
 | `ready` | `() => Promise<void>` | Resolves once subscribed and buffered calls are delivered; the next `next()` starts there |
 | `next` | `(predicate?, timeout?) => Promise<state>` | Next matching state after the call |

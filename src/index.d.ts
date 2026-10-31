@@ -3710,8 +3710,9 @@ export interface RenderResult<STATE = any> {
    * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
    * Selectors match the rendered tree like the real DOM: tag, .class, #id, [attr], [attr="v"]
    * (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even),
-   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ' and child '>'
-   * combinators, ',' lists. Other syntax (:has(), '+', '~', pseudo-elements...) throws.
+   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ', child '>',
+   * next-sibling '+' and later-sibling '~' combinators, ',' lists. Other syntax (:has(),
+   * pseudo-elements...) throws.
    * If nothing matches yet, the event waits (up to 300ms, re-checked on every render) for a
    * matching element, then targets the first one. If none renders, the test fails with an
    * error naming the selector: it rejects the pending next()/waitForState()/settle(), or is
@@ -3722,8 +3723,15 @@ export interface RenderResult<STATE = any> {
    * `'document'` / `'body'` go to the DOM.select('document' | 'body') listeners.
    * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the
    * calls after it. Reports SYG104 (selector only matches inside a child component).
+   *
+   * The event is delivered later, not during the call, so `t.query()` / `t.html()` right after it
+   * still show the old view. The returned promise resolves once the event is delivered and the
+   * tree has rendered what it caused (the real DOM: patched): `await t.simulateEvent('.retry',
+   * 'click')`, then `t.query('.skeleton')`. It never rejects (a selector that matches nothing still
+   * fails the next wait), and awaiting it moves fake timers like the other waits; an un-awaited
+   * call doesn't. A `t.next(pred)` after it waits for a further state.
    */
-  simulateEvent: (selector: string | AnyControl, eventType: string, eventInit?: SimulatedEventInit) => void;
+  simulateEvent: (selector: string | AnyControl, eventType: string, eventInit?: SimulatedEventInit) => Promise<void>;
   /**
    * Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed).
    * Also a cursor: the first next() after `await t.ready()` also matches the states the replayed
@@ -3942,16 +3950,21 @@ export interface RenderResult<STATE = any> {
    * null: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`. With `dom: 'real'`
    * a real element (any CSS selector); with the mock DOM a read-only snapshot of what the view
    * rendered (simulateEvent's selectors plus `:checked`/`:disabled`/`:enabled`; textContent,
-   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest...; no
-   * focus()). Throws before the first render (`await t.ready()` first). Right after
-   * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
+   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest,
+   * next/previousElementSibling...; no focus()). Throws before the first render (`await t.ready()`
+   * first). Right after `await t.next(pred)` / `waitForState` / `settle()` / `ready()` /
+   * `simulateEvent()` it shows the state the wait resolved with.
    */
   query: {
     <E extends Element = Element>(selector: string): E | null;
     /** A control's element (`t.query(Draft)` is an HTMLInputElement for an 'input' control), or null */
     <CONTROL extends AnyControl>(control: CONTROL): ControlElementOf<CONTROL> | null;
   };
-  /** Every element matching a selector (or a control) in the rendered tree (Portals included), as query() */
+  /**
+   * Every element matching a selector (or a control) in the rendered tree (Portals included), as
+   * query(), in document order, also for a ',' list: `t.queryAll('.empty, .filters')` lists
+   * whichever comes first first (an order check)
+   */
   queryAll: {
     <E extends Element = Element>(selector: string): E[];
     <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;

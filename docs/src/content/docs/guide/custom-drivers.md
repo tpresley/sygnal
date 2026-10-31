@@ -129,7 +129,7 @@ function makeClockDriver() {
 // model:   START: { CLOCK: () => ({ start: true, ms: 1000 }) }
 ```
 
-Import `xs` from `'sygnal'`, not `import xs from 'xstream'`: xstream is CommonJS, and under Node's ESM loader or Vite 8 (in a `"type": "module"` package) its default import is the module object, so `xs.create` is undefined when the driver starts. Sygnal's `xs` is the same xstream with that default resolved; `sygnal-check` reports the default import as [SYG302](/reference/errors/#syg302) (info) and `--fix` rewrites it.
+Import `xs` from `'sygnal'`, not `import xs from 'xstream'`: xstream is CommonJS, and under Node's ESM loader or Vite 8 (in a `"type": "module"` package) its default import is the module object, so `xs.create` is undefined when the driver starts. Sygnal's `xs` is the same xstream with that default resolved; `sygnal-check` reports the default import as [SYG302](/reference/errors/#syg302) (info) and `--fix` rewrites it. The same goes for the extras: `import dropRepeats from 'xstream/extra/dropRepeats'` is the module object there too ("dropRepeats is not a function"), so take them from `'sygnal'`: `import { dropRepeats, debounce } from 'sygnal'`.
 
 - The intent reads the source as `CLOCK.select(…)`. Return whatever API suits the driver; `select()` is the convention.
 - A `dispose()` on the source is called when the app is disposed (or hot-reloaded).

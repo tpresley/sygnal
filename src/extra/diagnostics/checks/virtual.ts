@@ -9,6 +9,8 @@
  *   432  an item renders a fragment or text, not one element (once per host)
  *   433  scrollToIndex / scrollToId for an index or id not in the (filtered) list
  *   434  estimateSize / overscan not a positive number (or a function, for estimateSize)
+ *   436  a numeric estimateSize far from the measured row heights (the median of the first 10
+ *        measurements is off by more than 1.3×; once per host)
  */
 import {devReport, nameOf} from './shared'
 
@@ -59,6 +61,15 @@ export function reportVirtual(code: number, owner: any, x: any = {}): any {
       component,
       message: `${tag(owner)}: ${x.prop}={${typeof x.value == 'string' ? JSON.stringify(x.value) : String(x.value)}} is not ${x.prop == 'overscan' ? 'a number ≥ 0; 5 is used' : 'a positive number or a function; 32 is used'}`,
       fix: x.prop == 'overscan' ? 'Pass overscan={5} (rows rendered beyond each edge)' : 'Pass estimateSize={32} (about a row\'s height in px), or (item, index) => px',
+      data: x,
+    })
+  }
+  if (code == 436) {
+    const low = x.measured > x.estimate
+    return devReport('SYG436', {
+      component,
+      message: `${tag(owner)}: estimateSize={${x.estimate}}, but its rows measure about ${x.measured} px (the median of the first 10 measured)${low ? ', so the rows not rendered yet count as too short: a fast scroll to the end shows blank space until they are measured, and the scrollbar jumps' : ', so the scrollbar shrinks and jumps as rows are measured'}`,
+      fix: `Pass estimateSize={${x.measured}} (the rows' real height; when unsure, err high), or (item, index) => px when rows differ predictably`,
       data: x,
     })
   }

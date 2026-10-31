@@ -47,8 +47,8 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  *   goes to the listeners with exactly that selector. Selectors match the
  *   rendered vnode tree like the real DOM: tag, .class, #id, [attr], [attr=v]
  *   (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b),
- *   :nth-last-child, :*-of-type, :not(), ' ' and '>' combinators, ',' lists
- *   (G-070); other syntax (:has(), '+', '~', ...) throws at the call. If no
+ *   :nth-last-child, :*-of-type, :not(), ' ', '>', '+' and '~' combinators,
+ *   ',' lists (G-070); other syntax (:has(), ...) throws at the call. If no
  *   rendered element matches yet, the event waits (up to 300ms, re-tried on
  *   every render) for one, then targets the first match. If none appears, the
  *   test fails (G-070): the error rejects the pending next()/waitForState()/
@@ -97,7 +97,7 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  * Implementation notes:
  * - parse() turns a selector into compounds + combinators (cached; unsupported
  *   syntax throws); index() records each vnode's parent and element siblings
- *   on every render (for '>' and :nth-*); is(v, compound) matches one vnode;
+ *   on every render (for '>', '+', '~' and :nth-*); is(v, compound) matches one vnode;
  *   matches(sel, chain) matches the last vnode of an ancestor chain; find()
  *   returns the root → element chain of the first match.
  * - port(): producer-backed stream; emitting with no listener is a silent drop.
@@ -402,8 +402,12 @@ export interface RenderResult {
   sources: Record<string, any>;
   /** Push an action into the intent→model pipeline (all sinks of the entry run) */
   simulateAction: (actionName: string, data?: any) => void;
-  /** Dispatch a synthetic DOM event through the mock DOM source */
-  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  /**
+   * Dispatch a synthetic DOM event through the mock DOM source. Delivered later, in call order:
+   * `await` it (resolves once the event is delivered and the tree has rendered what it caused)
+   * before t.query() / t.html()
+   */
+  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => Promise<void>;
   /**
    * Resolves once the component is subscribed and rendered (earlier calls are buffered and
    * replayed). Also a cursor (G-065): the first next() after `await t.ready()` also matches the
@@ -631,7 +635,7 @@ type Pseudo = {k: string; a: number; b: number; last?: boolean; type?: boolean; 
 type Compound = {tag?: string; id?: string; cls: string[]; attrs: [string, string, string?][]; ps: Pseudo[]};
 type Complex = {parts: Compound[]; combs: string[]};
 type Sel = Complex[];
-const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' ') and child ('>') combinators, ',' lists";
+const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' '), child ('>'), next-sibling ('+') and later-sibling ('~') combinators, ',' lists (matches come back in document order)";
 const IDENT = /^(?:[\w-]|\\.)+/;
 const STATES = ['checked', 'disabled', 'enabled'];
 const FORM = ['button', 'input', 'select', 'textarea', 'option', 'optgroup', 'fieldset'];
@@ -732,8 +736,7 @@ function parseSel(src: string): Sel {
       const space = ws();
       const ch = src[i];
       if (i >= src.length || ch == ',') break;
-      if (ch == '+' || ch == '~') bad(`the '${ch}' combinator`);
-      if (ch == '>') { i++; ws(); cx.combs.push('>'); }
+      if (ch == '>' || ch == '+' || ch == '~') { i++; ws(); cx.combs.push(ch); }
       else if (space) cx.combs.push(' ');
       else bad(`unexpected '${ch}'`);
       cx.parts.push(compound());
@@ -813,17 +816,28 @@ function is(v: any, c: Compound): boolean {
 }
 /** does the last of `els` (an ancestor chain, root first, maybe scope-filtered) match `sel`? */
 function matches(sel: Sel, els: any[]): boolean {
-  const at = (cx: Complex, j: number, i: number): boolean => {
+  // does els[i] match part j (and the parts before it)? `els` is the chain to els[i]: '+' and '~'
+  // go on with a chain that ends at an earlier sibling instead
+  const at = (cx: Complex, j: number, els: any[], i: number): boolean => {
     if (i < 0 || !is(els[i], cx.parts[j])) return false;
     if (j == 0) return true;
-    if (cx.combs[j - 1] == '>') {
+    const comb = cx.combs[j - 1];
+    if (comb == '>') {
       const m = meta.get(els[i]);
-      return i > 0 && (!m || els[i - 1] === m.p) && at(cx, j - 1, i - 1);
+      return i > 0 && (!m || els[i - 1] === m.p) && at(cx, j - 1, els, i - 1);
     }
-    for (let k = i - 1; k >= 0; k--) if (at(cx, j - 1, k)) return true;
+    if (comb == '+' || comb == '~') {
+      const sibs = meta.get(els[i])?.sibs || [];
+      for (let k = sibs.indexOf(els[i]) - 1; k >= 0; k--) {
+        if (at(cx, j - 1, els.slice(0, i).concat(sibs[k]), i)) return true;
+        if (comb == '+') break;
+      }
+      return false;
+    }
+    for (let k = i - 1; k >= 0; k--) if (at(cx, j - 1, els, k)) return true;
     return false;
   };
-  return sel.some(cx => at(cx, cx.parts.length - 1, els.length - 1));
+  return sel.some(cx => at(cx, cx.parts.length - 1, els, els.length - 1));
 }
 /** root → element chain of the first element (document order) matching `sel` */
 function find(v: any, sel: Sel, chain: any[] = []): any[] | undefined {
@@ -961,6 +975,13 @@ class MockElement {
   get childElementCount() { return this.children.length; }
   get firstElementChild() { return this.children[0] ?? null; }
   get lastElementChild() { const c = this.children; return c[c.length - 1] ?? null; }
+  get nextElementSibling() { return this.sib(1); }
+  get previousElementSibling() { return this.sib(-1); }
+  /** the element sibling `d` places away (index() records the siblings), or null */
+  private sib(d: number): MockElement | null {
+    const sibs = meta.get(this._v)?.sibs, s = sibs?.[sibs.indexOf(this._v) + d];
+    return s ? mockOf([...(this._p ? this._p.chain() : []), s], this._html) : null;
+  }
   matches(selector: string) { return matches(parse(norm(selector)), this.chain()); }
   closest(selector: string): MockElement | null {
     const sel = parse(norm(selector));
@@ -1325,6 +1346,21 @@ const brief = (v: any) => {
   try { s = typeof v == 'string' ? `'${v}'` : JSON.stringify(v); } catch (_) { s = String(v); }
   return s && s.length > 80 ? s.slice(0, 80) + '…' : s;
 };
+/**
+ * A promise that runs `start()` the first time it is awaited (then/catch/finally) and settles with
+ * what start() returns; its derived promises are plain Promises
+ */
+class Lazy<T> extends Promise<T> {
+  static get [Symbol.species]() { return Promise; }
+  declare private _go: () => Promise<T>;
+  constructor(executor: (resolve: (v: T) => void, reject: (e: any) => void) => void, start?: () => Promise<T>) {
+    super(executor);
+    Object.defineProperty(this, '_go', {value: start});
+  }
+  then<A = T, B = never>(ok?: ((v: T) => A | PromiseLike<A>) | null, fail?: ((e: any) => B | PromiseLike<B>) | null): Promise<A | B> {
+    return this._go ? this._go().then(ok, fail) : super.then(ok, fail);
+  }
+}
 const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
   const clock = fakeClock();
   if (!clock) return p;
@@ -1689,7 +1725,7 @@ export function renderComponent(
       commandTimers.delete(id);
       if (disposed || (sel && !tryParse(sel))) return;
       const p = sel && vtree && probe(sel, scopeOf(c) || undefined);
-      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd);
+      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd, undefined, !!(p?.child || find(vtree, tryParse(sel)!)));
     }, 1e3);
     commandTimers.add(id);
   };
@@ -2339,7 +2375,7 @@ export function renderComponent(
   // (re-tried on every render), at most eventWaitMs; then it is delivered to the live listeners
   // (or, with no matching element, fails the test, G-070; with allowMissing it is dropped
   // with SYG103).
-  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, at?: number, missing?: () => Error | undefined};
+  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, at?: number, missing?: () => Error | undefined, done?: () => void};
   const inputs: Input[] = [];
   let isReady = false, retryTimer: any;
   const pump = () => {
@@ -2362,6 +2398,7 @@ export function renderComponent(
       if (!head.go(clockNow() >= head.until)) return retry(5);
       inputs.shift();
       bump();
+      head.done?.();
     }
   };
   const retry = (ms: number) => {
@@ -2413,7 +2450,7 @@ export function renderComponent(
     }), () => disposed);
   };
   const readyWaiters = new Set<(e: Error) => void>();
-  const later = (go: Input['go'], missing?: Input['missing']) => {
+  const later = (go: Input['go'], missing?: Input['missing'], done?: Input['done']) => {
     const was = fromInput && cursor !== undefined ? cursor : undefined;
     cursor = shown = undefined;
     // D165: an input's STATE reducer is applied synchronously, so the state it causes can be
@@ -2425,9 +2462,29 @@ export function renderComponent(
     // G-326: like ready()'s, the cursor expires at the next macrotask unless a next() used it,
     // so a test that moves the clock (or waits) before next() gets the state after the call
     expire(++arming);
-    inputs.push({go, missing});
+    inputs.push({go, missing, done});
     pump();
   };
+  /**
+   * Temper 2026-10: what simulateEvent returns. Resolves (never rejects: a failure surfaces through
+   * the next wait, as before) once the input is delivered and the tree has rendered what it caused
+   * (real DOM: patched). The fake clock is driven only once the promise is awaited (Lazy), so a
+   * call that isn't awaited never moves a test's fake timers.
+   */
+  const delivered = (queue: (done: () => void) => void): Promise<void> => {
+    let done!: () => void;
+    const inner = new Promise<void>(r => { done = r; }).then(async () => {
+      if (disposed) return;
+      const n = states.length;
+      await (real ? patchedTree(n) : treeRendered(n));
+    }).catch(noop);
+    whenDisposed.add(done);
+    inner.then(() => whenDisposed.delete(done));
+    queue(done);
+    let driving: Promise<void> | undefined;
+    return new Lazy<void>(r => r(undefined as any), () => (driving = driving || drive(inner, () => disposed)));
+  };
+  const whenDisposed = new Set<() => void>();
 
   let vtree: any;
   let timer: any;
@@ -3107,7 +3164,7 @@ export function renderComponent(
         clockNow() - lastActivity >= settleMs && !has()) {
       throw noMatch(selector, type, false);
     }
-    later(last => {
+    return delivered(done => later(last => {
       const rel = real ? realEl() : undefined;
       const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
       const el = real ? rel : chain?.[chain.length - 1];
@@ -3213,7 +3270,7 @@ export function renderComponent(
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;
-    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
+    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)), done));
   };
 
   // first state at index >= from matching predicate; resolves after the full tree rendered it
@@ -3397,6 +3454,7 @@ export function renderComponent(
     const head = inputs[0];
     if (head && head.until && head.missing && !failure) failure = head.missing();
     inputs.length = 0;
+    whenDisposed.forEach(f => f());
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });

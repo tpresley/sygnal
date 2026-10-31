@@ -292,6 +292,23 @@ describe('mock DOM: t.commands records the commands sent', () => {
     const d = t.diagnostics.find(d => d.code == 'SYG640')
     expect(d && d.severity).toBe('warn')
     expect(d.message).toMatch(/matched no element: nothing in Broken's own view matches the control Missing/)
+    expect(d.message).not.toMatch(/outside/)
+  })
+
+  it("SYG640: a target an ancestor renders is named as outside the sender's view, with the hand-off (Temper 2026-10)", async () => {
+    const Footer = () => h('button', { className: 'next' }, 'Continue')
+    Footer.intent = ({ DOM }) => ({ NEXT: DOM.click('.next') })
+    Footer.model = { NEXT: { ELEMENT: { focus: '#project-name' } } }
+    const Start = () => h('div', null, h('input', { id: 'project-name' }), h(Footer, null))
+    Start.initialState = {}
+    t = renderComponent(Start)
+    await t.ready()
+    t.simulateEvent('.next', 'click')
+    await vi.waitFor(() => expect(codes()).toContain('SYG640'), { timeout: 5000, interval: 20 })
+    const d = t.diagnostics.find(d => d.code == 'SYG640')
+    expect(d.message).toMatch(/A matching element is rendered outside Footer's view/)
+    expect(d.fix).toMatch(/emit EVENTS: event\('FOCUS_NAME'\) from Footer/)
+    expect(d.data.outside).toBe(true)
   })
 
   it('SYG641: a spec control with no such command names the commands it declares', async () => {

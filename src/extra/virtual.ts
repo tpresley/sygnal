@@ -122,6 +122,8 @@ export class VirtualHost extends CollectionHost {
   /** the element in the list with the focus before a patch (G-424) */
   declare fa: any
   declare warned: number
+  /** the first measured heights (SYG436) */
+  declare ms: number[]
   declare un: (() => void) | undefined
 
   setProps(props: Record<string, any>, children: any[], marker?: any, id?: string) {
@@ -166,14 +168,29 @@ export class VirtualHost extends CollectionHost {
       observeElementRect: (v: any, cb: any) => observeElementRect(v, (r: any) => cb(this.bound(r))),
       // the height unrounded (rows are in normal flow: rounded sizes would drift from where the
       // browser puts them, by up to half a pixel a row); 0 (no layout: jsdom) is no measurement
-      measureElement: (e: any, entry: any, v: any) =>
-        entry?.borderBoxSize?.[0]?.blockSize || e.getBoundingClientRect().height || e.offsetHeight || v.options.estimateSize(v.indexFromElement(e)),
+      measureElement: (e: any, entry: any, v: any) => {
+        const h = entry?.borderBoxSize?.[0]?.blockSize || e.getBoundingClientRect().height || e.offsetHeight
+        if (h) this.seen(h)
+        return h || v.options.estimateSize(v.indexFromElement(e))
+      },
       onChange: () => this.disposed || this.owner.app.commit(),
     }
     if (this.v) {
       this.v.setOptions(opts)
       if (remeasure) this.v.measure()
     } else this.v = new Virtualizer(opts)
+  }
+
+  /**
+   * SYG436 (dev): a numeric estimateSize far (1.3×) from the median of the first 10 measured
+   * heights: an estimate below the real height leaves blank space at the end of a fast scroll
+   */
+  seen(h: number) {
+    const e = this.vp.estimateSize, m = this.ms ||= []
+    if (this.warned & 16 || typeof e != 'number' || !(globalThis as any).__SYGNAL_DIAGNOSTICS__?.virtual || m.push(h) < 10) return
+    this.warned |= 16
+    const med = m.sort((a, b) => a - b)[5]
+    if (med > e * 1.3 || med * 1.3 < e) dev(436, this.owner, {estimate: e, measured: Math.round(med)})
   }
 
   /**

@@ -190,6 +190,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
   // PLAN-5 3-H (G-449): sortable over a list shown in another order (checks/sortable.ts)
   SYG435: 'Sortable list shown filtered or in another order',
+  // Temper feedback 2026-10: VirtualCollection (checks/virtual.ts, through the core bridge)
+  SYG436: 'VirtualCollection estimateSize far from the measured row heights',
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'Two agent declarations with the same name',
   SYG441: 'Agent Collection items without unique ids',
@@ -203,7 +205,9 @@ export const CODE_TITLES: Record<string, string> = {
   // SYG3xx streams & intent construction (1A)
   SYG301: 'RxJS operator used on an xstream stream',
   // PLAN-13 X-1: static only (sygnal-check)
-  SYG302: "Default import from 'xstream'",
+  SYG302: "Default import from 'xstream' or 'xstream/extra/*'",
+  // Temper feedback 2026-10: static only (sygnal-check; warn under --strict)
+  SYG303: 'STATE.stream with dropRepeats() in an intent',
   // SYG4xx collections / switchable / sub-components / context (1A)
   SYG401: "Collection 'from' field is missing or not an array",
   // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
@@ -463,6 +467,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG170: 'warn',
   // PLAN-13 X-1: static only (sygnal-check)
   SYG302: 'info',
+  // Temper feedback 2026-10: static only (sygnal-check); its strict copy reports it at warn
+  SYG303: 'info',
   // PLAN-13 F-3 (checks/next.ts)
   SYG429: 'warn',
   SYG171: 'warn',
@@ -601,6 +607,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG434: 'warn',
   // PLAN-5 3-H (G-449): sortable (checks/sortable.ts)
   SYG435: 'warn',
+  // Temper feedback 2026-10: VirtualCollection (checks/virtual.ts)
+  SYG436: 'warn',
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'warn',
   SYG441: 'warn',

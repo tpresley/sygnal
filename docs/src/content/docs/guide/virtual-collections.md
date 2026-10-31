@@ -118,6 +118,8 @@ Rows can have any height, and each can differ. Until a row has been rendered, it
 
 An inline function like this one is a new function at every render; that's fine, it is taken as the same estimate and the measured heights are kept. A numeric `estimateSize` that changes, or a switch between a number and a function, measures the rows again.
 
+The estimate matters most when it is too low. Rows that haven't been rendered count at `estimateSize`, so with rows taller than the estimate the list's total height is too short until the last rows have been measured: a fast scroll to the end shows blank space where they belong, and the scrollbar jumps as the total grows. Use the rows' real height, and when unsure, err high. In development, [SYG436](/reference/errors/#syg436) reports a numeric estimate more than 1.3× away from the median of the first 10 measured rows, with that median.
+
 A row must render one element, which is what is measured ([SYG432](/reference/errors/#syg432) for a fragment).
 
 ## Accessibility
@@ -183,3 +185,4 @@ It doesn't do (yet): horizontal lists, grids, sticky group headers, or scrolling
 | [SYG432](/reference/errors/#syg432) | An item renders a fragment or text, not one element |
 | [SYG433](/reference/errors/#syg433) | `scrollToIndex` / `scrollToId` for a row not in the list |
 | [SYG434](/reference/errors/#syg434) | `estimateSize` or `overscan` isn't a valid number |
+| [SYG436](/reference/errors/#syg436) | A numeric `estimateSize` is far from the measured row heights (blank space at the end of a fast scroll) |
