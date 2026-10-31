@@ -96,8 +96,8 @@ Same method, machine and runner as §3 (`perf/run.mjs`, production builds, headl
 outside this session used 1.5–4 cores (load average 5–8 during the runs, as in round 1); the
 three runs agree within ±3 %. Round 1's Sygnal numbers are *with* its 12-line workaround for B2
 (one paint per frame); without it the library painted at 30 fps. The round-2 game also has a
-parallax layer the round-1 game didn't (the plain-JS baseline paints it too). Raw results:
-`perf/results/r2-*.json`, `r2-perf.log`.
+parallax layer the round-1 game didn't (the plain-JS baseline paints it too). Summary:
+`perf/results/r2-perf.log` (the raw JSON is in commit 93f6fcdf; `perf/run.mjs` writes new runs there, git-ignored).
 
 **Busy main-thread ms per frame** (60 fps and 0 dropped frames in every unthrottled run):
 
@@ -130,7 +130,7 @@ level it is the browser's work for two canvases and two cached bitmaps drawn eve
 camera scrolls (`(program)` 0.56 against 0.33 ms; R14).
 
 **Found while measuring, fixed:** the first round-2 run had stress100 / stress300 0.4 ms *worse*
-than round 1 (1.56 / 2.66 ms, `r2-both-3runs-before-toplayer-fix.json`): a parallax layer switched
+than round 1 (1.56 / 2.66 ms; raw JSON in commit 93f6fcdf): a parallax layer switched
 the game to the ordered strategy, which redrew the main canvas every frame even with the camera
 still. Now the live layers above the last static one go on the live canvas, and the main canvas
 is left as it is while its nodes and the camera don't change (a test in `test/canvas-game.test.js`).
@@ -430,9 +430,8 @@ work outside JavaScript, which the trace (`perf/trace.mjs`) shows is mostly
 Scenarios: `level` (the meadow with an autopilot: → and sprint held, a jump every 0.9 s; it dies
 in a pit now and then, like a player), `stressN` (the one-screen arena with N enemies, all in view,
 all moving; ≈ 3 nodes each). The machine was **not quiet**: a VM outside this session used ≈ 3 cores
-throughout (load average 5–7 on this 10-core Mac); the three runs agree within ±5 %. Raw results:
-`perf/results/` (`both-3runs.json`, `both-cpu4.json`, `sygnal-paint-lazy.json`,
-`sygnal-dev-server.json`, `perf-full.log` with the traces).
+throughout (load average 5–7 on this 10-core Mac); the three runs agree within ±5 %. Summary:
+`perf/results/perf-full.log` with the traces (the raw JSON runs are in commit 93f6fcdf).
 
 ### Frame time and dropped frames
 
@@ -493,8 +492,8 @@ What this says:
   - *stress1000 and up* (B4): at ≥ 1,000 live nodes the backend tries a translation blit
     (`BLIT_MIN`); nodes that move independently never translate, so each frame it repaints them
     into a bitmap twice the viewport in each dimension, resized (reallocated) every frame, and
-    copies it back: `drawImage` alone is 4.0 ms a frame at 1,000 enemies (`both-3runs.json`, top
-    functions). Paint p50 goes 0.5 → 5.6 ms between 300 and 1,000 enemies; that is what makes
+    copies it back: `drawImage` alone is 4.0 ms a frame at 1,000 enemies (round-1 3-run JSON in commit
+    93f6fcdf, top functions). Paint p50 goes 0.5 → 5.6 ms between 300 and 1,000 enemies; that is what makes
     Sygnal drop to 32 fps throttled where the baseline holds 43.
 - **GC** is 1–2 % of the busy time; the per-step immutable updates allocate (heap grows
   ≈ 0.3–0.6 MB/s between collections against ≈ 0.1 MB/s for the baseline) but minor GCs are cheap.
