@@ -32,6 +32,8 @@ export const isSelected = (slice: any, id: any): boolean => !!slice?.selected?.i
 
 const def = (multi: boolean, attr: string, item: any) => ({
   initialState: {selected: [] as string[]},
+  // SYG118 (dev): the option each action's trigger is built from
+  triggers: {SELECT: 'item', TOGGLE_ALL: 'all', CLEAR: 'clear'},
   intent: ({DOM}: any, {item, all, clear}: any) => ({
     ...(item && {SELECT: DOM.click(item)}),
     ...(all && {TOGGLE_ALL: DOM.click(all)}),

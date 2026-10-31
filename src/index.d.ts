@@ -882,6 +882,11 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * name is sent to the host as written. They join the host's own `timers`.
    */
   timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
+  /**
+   * ui-sweep R1: the option each action's trigger is built from (`{ TOGGLE: 'toggle' }`). Dev
+   * only: SYG118 when a host intent action of that name replaces it while the host passes the option.
+   */
+  triggers?: { [A in keyof ACTIONS]?: keyof OPTIONS & string };
   /** `false`: the slice is UI state (sortable's drag): a root's `persist()` neither saves nor restores it (the root's own `uses` only: a sub-component's or Collection item's slice is saved with its data) */
   persist?: false;
   /**

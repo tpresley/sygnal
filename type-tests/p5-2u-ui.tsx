@@ -66,6 +66,14 @@ describe('2-U: sygnal/ui', () => {
 // PLAN-11 T-1: tooltips() for many triggers
 import { tooltips } from 'sygnal/ui'
 export const tipsUses = { tips: tooltips({ trigger: '.term', tip: '.term-tip', showDelay: 300 }) }
-export const tipsState: import('sygnal/ui').TooltipsState = { id: null, open: 'tip-a', pending: null, hover: false, focus: true }
+export const tipsState: import('sygnal/ui').TooltipsState = { id: null, open: 'tip-a', pending: null, hover: false, focus: true, pressed: false }
 // @ts-expect-error trigger and tip are required
 tooltips({ trigger: '.term' })
+
+// ui-sweep round 2: a controlled open (R2: the `open` option, APPLY), the tooltip's PRESS (R3)
+import { dialog as dialog2, popover as popover2, tooltip as tooltip2 } from 'sygnal/ui'
+export const controlledUses = { d: dialog2({ dialog: '.d', open: true }), p: popover2({ popover: '.p', open: false }), t: tooltip2({ trigger: '.a', tip: '.b' }) }
+export const applied: import('sygnal/ui').DialogActions['APPLY'] = true
+export const pressed: import('sygnal/ui').TooltipState['pressed'] = false
+// @ts-expect-error open is a boolean
+dialog2({ dialog: '.d', open: 'yes' })

@@ -260,5 +260,11 @@
   },
   "SYG509": {
     "App.jsx": "function App({ state }) { return <p>{state.at}</p> }\nApp.initialState = { at: 0 }\nApp.model = {\n  INITIALIZE: (s) => ({ ...s, at: Date.now() }),\n  SAVE: { EFFECT: () => { console.log(Math.random()) } },\n}\n"
+  },
+  "SYG116": {
+    "App.jsx": "import { event } from 'sygnal'\nfunction A() { return <button className=\"go\">go</button> }\nA.intent = ({ DOM }) => ({ GO: DOM.click('.go') })\nA.model = { GO: { EVENTS: (s) => event('MOVED', 1) } }\n"
+  },
+  "SYG118": {
+    "App.jsx": "import { pager } from 'sygnal'\nfunction A() { return <div><button className=\"newer\">n</button><button className=\"key\">k</button></div> }\nA.uses = { pager: pager({ next: '.newer' }) }\nA.intent = ({ DOM }) => ({ 'pager.NEXT': DOM.click('.key') })\n"
   }
 }

@@ -48,17 +48,21 @@ describe('dialog', () => {
     t.expectNoDiagnostics()
   })
 
-  it('the close option closes with an empty returnValue; Escape (cancel, then close) closes too', async () => {
+  it('the close option closes with an empty returnValue; Escape (cancel) closes through the state (ui-sweep R2)', async () => {
     t = renderComponent(Help)
     await t.ready()
     t.simulateAction('help.OPEN')
     await t.next((s) => s.help.open)
     t.simulateEvent('.close-help', 'click')
-    await t.settle()
-    expect(cmds().at(-1)).toEqual({ close: '.help', returnValue: '' })
-    t.simulateEvent('.help', 'cancel')
-    t.simulateEvent('.help', 'close', { target: { returnValue: '' } })
     await t.next((s) => !s.help.open)
+    expect(cmds().at(-1)).toEqual({ close: '.help', returnValue: '' })
+    t.simulateEvent('.help', 'close', { target: { returnValue: '' } })
+    t.simulateAction('help.OPEN')
+    await t.next((s) => s.help.open)
+    // R2: the cancel event is prevented; CANCEL closes the slice and sends the close command
+    t.simulateEvent('.help', 'cancel')
+    await t.next((s) => !s.help.open)
+    expect(cmds().at(-1)).toEqual({ close: '.help', returnValue: '' })
     expect(t.actions.some((a) => a.type == 'help.CANCEL')).toBe(true)
     // CLOSE on a closed dialog: a command that checks the dialog (2-S G-400: close only an open
     // one; real DOM: p5-2s-ui), and no state change
@@ -107,15 +111,19 @@ describe('dialog', () => {
     expect(cmd).toBeTruthy()
     t.simulateAction('d.OPEN')
     await t.next((s) => s.d.open)
+    await t.settle(); await tick()
     t.query('.elsewhere').focus()
-    t.simulateEvent('.d', 'close')
+    // (R2: a close event comes from a dialog that closed: renderComponent's fake close() sends it)
+    t.query('.d').close()
     await t.next((s) => !s.d.open)
     await t.settle(); await tick()
     expect(document.activeElement).toBe(t.query('.elsewhere'))
-    t.simulateAction('d.OPEN')
+    // opened by its trigger (the opener), closed with the focus lost: the opener gets it
+    t.query('.open').click()
     await t.next((s) => s.d.open)
+    await t.settle(); await tick()
     document.activeElement.blur()
-    t.simulateEvent('.d', 'close')
+    t.query('.d').close()
     await t.next((s) => !s.d.open)
     await t.settle(); await tick()
     expect(document.activeElement).toBe(t.query('.open'))
@@ -124,6 +132,8 @@ describe('dialog', () => {
   it('a dialog opened natively (commandfor, toggle event) updates the state; cancelable: false prevents Escape', async () => {
     t = renderComponent(dialogHost({ cancelable: false }), { dom: 'real' })
     await t.ready()
+    // (R2: a toggle event that says what the dialog is: it opened)
+    t.query('.d').open = true
     t.simulateEvent('.d', 'toggle', { newState: 'open', oldState: 'closed' })
     await t.next((s) => s.d.open)
     // toggle 'closed' is left to the close event (it carries the returnValue)
@@ -136,24 +146,26 @@ describe('dialog', () => {
     expect(ev.defaultPrevented).toBe(true)
   })
 
-  it('the factory ignores an `open` option (the browser owns it)', () => {
-    expect(dialog({ dialog: '.d', open: true }).state).toEqual({ open: false, returnValue: '' })
+  it('the factory takes an `open` option: the start (ui-sweep R2, Radix defaultOpen)', () => {
+    expect(dialog({ dialog: '.d', open: true }).state).toEqual({ open: true, returnValue: '' })
+    expect(dialog({ dialog: '.d' }).state).toEqual({ open: false, returnValue: '' })
   })
 })
 
 describe('popover', () => {
-  it('mirrors toggle; CLOSE / OPEN through ELEMENT; popovertarget is an attribute', async () => {
+  it('follows toggle; CLOSE / OPEN set the state and send the commands; popovertarget is an attribute', async () => {
     t = renderComponent(Filters, { strict: true })
     await t.ready()
     expect(t.state.filters).toEqual({ open: false })
     expect(t.html()).toMatch(/<button class="filters-btn" popovertarget="[^"]+-filters">/)
     t.simulateEvent('.filters', 'toggle', { newState: 'open', oldState: 'closed' })
     await t.next((s) => s.filters.open)
+    // R2: CLOSE closes the slice and sends the command; the toggle event that follows changes nothing
     t.simulateEvent('.filters-done', 'click')
-    await t.settle()
+    await t.next((s) => !s.filters.open)
     expect(cmds()).toEqual([{ hidePopover: '.filters' }])
     t.simulateEvent('.filters', 'toggle', { newState: 'closed', oldState: 'open' })
-    await t.next((s) => !s.filters.open)
+    await t.settle()
     // the host's own trigger for the behavior action
     t.simulateEvent('.open-filters', 'click')
     await t.settle()
@@ -445,8 +457,8 @@ describe('disclosure', () => {
 })
 
 describe('popover factory', () => {
-  it('ignores an `open` option', () => {
-    expect(popover({ popover: '.p', open: true }).state).toEqual({ open: false })
-    expect(tooltip({ trigger: '.a', tip: '.b', open: true, pending: 'show' }).state).toEqual({ open: false, pending: null, hover: false, focus: false })
+  it('takes an `open` option (the start, ui-sweep R2); tooltip ignores it', () => {
+    expect(popover({ popover: '.p', open: true }).state).toEqual({ open: true })
+    expect(tooltip({ trigger: '.a', tip: '.b', open: true, pending: 'show' }).state).toEqual({ open: false, pending: null, hover: false, focus: false, pressed: false })
   })
 })

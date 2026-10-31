@@ -3,8 +3,8 @@
 // accordion panel, a tooltip on a dialog's trigger, a form in a dialog, a dialog in every
 // Collection item and in an isolated child, two instances of one component, and an accordion
 // whose open panels the host's own state sets (numbers).
-import { run, makeTimerDriver, Collection } from 'sygnal'
-import { dialog, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
+import { run, makeTimerDriver, Collection, Portal } from 'sygnal'
+import { dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
 
 const CAT = 'UI parts, composed (ui-sweep)'
@@ -173,7 +173,201 @@ Orders.uses = { acc: accordion({ trigger: '.ord' }) }
 Orders.intent = ({ DOM }) => ({ LATEST: DOM.click('.latest') })
 Orders.model = { LATEST: (s) => ({ ...s, acc: { ...s.acc, expanded: [s.orders.at(-1).id] } }) }
 
+
+// ── round 2 (R2): a controlled open ───────────────────────────────────
+function Editor({ state }) {
+  return (
+    <div>
+      <button className="edit" data-name="edit">Edit</button>
+      <button className="remote-open">Open from the model</button>
+      <dialog className="ed" aria-label="Editor" id="ui-sweep-ed">
+        <form method="dialog">
+          <input className="field" data-name="field" aria-label="Text" />
+          <button className="ok" value="ok">OK</button>
+        </form>
+        <button className="dirty">Make dirty</button>
+        <button className="remote-close">Close from the model</button>
+      </dialog>
+      <button className="cmd-open" commandfor="ui-sweep-ed" command="show-modal">Open by command</button>
+      <p className="out">{String(state.ed.open)}|{state.ed.returnValue}|{String(state.dirty)}</p>
+    </div>
+  )
+}
+Editor.initialState = { dirty: false }
+Editor.uses = { ed: dialog({ dialog: '.ed', trigger: '.edit' }) }
+Editor.intent = ({ DOM }) => ({ OPEN_IT: DOM.click('.remote-open'), CLOSE_IT: DOM.click('.remote-close'), DIRTY: DOM.click('.dirty') })
+Editor.model = {
+  OPEN_IT: (s) => ({ ...s, ed: { ...s.ed, open: true } }),
+  CLOSE_IT: (s) => ({ ...s, dirty: false, ed: { ...s.ed, open: false, returnValue: 'model' } }),
+  DIRTY: (s) => ({ ...s, dirty: true }),
+  // a dirty editor refuses Escape and the form submit (Radix: onOpenChange(false) ignored)
+  'ed.CANCEL': (s, _e, _n, { previousState }) => (s.dirty ? previousState : s),
+  'ed.CLOSE': (s, _rv, _n, { previousState }) => (s.dirty ? previousState : s),
+}
+
+function Picker({ state, uid }) {
+  return (
+    <div>
+      <button className="pk-btn" popovertarget={uid('pk')}>Pick</button>
+      <button className="pk-set">Toggle from the model</button>
+      <button className="pk-pin">Pin</button>
+      <div className="pk" id={uid('pk')} popover="auto" aria-label="Picker">Choices</div>
+      <p className="out">{String(state.pk.open)}|{String(state.pinned)}</p>
+    </div>
+  )
+}
+Picker.initialState = { pinned: false }
+Picker.uses = { pk: popover({ popover: '.pk' }) }
+Picker.intent = ({ DOM }) => ({ SET: DOM.click('.pk-set'), PIN: DOM.click('.pk-pin') })
+Picker.model = {
+  SET: (s) => ({ ...s, pk: { open: !s.pk.open } }),
+  PIN: (s) => ({ ...s, pinned: true }),
+  // pinned: a light dismiss is refused (it opens again)
+  'pk.TOGGLED': (s, open) => (s.pinned && !open ? { ...s, pk: { open: true } } : s),
+}
+
+// ── round 2 (R4): parts inside a <Portal> ─────────────────────────────
+function Portaled({ state, uid }) {
+  const anchor = '--' + uid('tt')
+  return (
+    <div>
+      <button className="pt-open" data-name="pt-open">Open</button>
+      <button className="pt-pop" popovertarget={uid('pt-pop')}>Menu</button>
+      <button className="pt-tt" data-name="pt-tt" aria-describedby={uid('pt-tip')} style={{ anchorName: anchor }}>Info</button>
+      <Portal target="#ui-sweep-portal">
+        <dialog className="pt-d" aria-label="In a portal">
+          <button className="pt-close" data-name="pt-close">Close</button>
+        </dialog>
+        <div className="pt-menu" id={uid('pt-pop')} popover="auto" aria-label="Portal menu"><button className="pt-done">Done</button></div>
+        <div className="tip" id={uid('pt-tip')} role="tooltip" popover="manual" style={{ positionAnchor: anchor }}>More info</div>
+      </Portal>
+      <p className="out">{String(state.d.open)}|{String(state.m.open)}|{String(state.t.open)}</p>
+    </div>
+  )
+}
+Portaled.uses = {
+  d: dialog({ dialog: '.pt-d', trigger: '.pt-open', close: '.pt-close' }),
+  m: popover({ popover: '.pt-menu', close: '.pt-done' }),
+  t: tooltip({ trigger: '.pt-tt', tip: '.tip', showDelay: 100 }),
+}
+
 export async function uiSweepNativeTests() {
+
+  // ── round 2 ─────────────────────────────────────────────────────────
+  await runTest('R2 dialog: a reducer writing open opens and closes it; Escape closes through the state, focus back on the opener', async () => {
+    const { id, app, $ } = await mount(Editor)
+    try {
+      await window.__pw('click', `${id} .remote-open`)
+      await until(() => $('.ed').open && $('.ed').matches(':modal') && $('.out').textContent === 'true||false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .remote-close`)
+      await until(() => !$('.ed').open && $('.out').textContent === 'false|model|false', () => $('.out').textContent)
+      await window.__pw('press', `${id} .edit`, 'Enter')
+      await until(() => $('.ed').open, 'open by the trigger')
+      await key('Escape')
+      await until(() => !$('.ed').open && $('.out').textContent === 'false||false', () => $('.out').textContent)
+      await until(() => activeName() === 'edit', activeName)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R2 dialog: a host entry refusing Escape and the form submit keeps it open (twice: no CloseWatcher close)', async () => {
+    const { id, app, $ } = await mount(Editor)
+    try {
+      await window.__pw('click', `${id} .edit`)
+      await until(() => $('.ed').open, 'open')
+      await window.__pw('click', `${id} .dirty`)
+      await until(() => $('.out').textContent === 'true||true', () => $('.out').textContent)
+      await window.__pw('focus', `${id} .field`)
+      await key('Escape')
+      await wait(80)
+      await key('Escape')
+      await wait(80)
+      assert($('.ed').open && $('.out').textContent === 'true||true', `Escape closed it: ${$('.ed').open} ${$('.out').textContent}`)
+      assert(activeName() === 'field', `focus moved: ${activeName()}`)
+      await window.__pw('press', `${id} .field`, 'Enter')
+      await wait(80)
+      assert($('.ed').open, 'the form submit closed it')
+      await window.__pw('click', `${id} .remote-close`)
+      await until(() => !$('.ed').open && $('.out').textContent === 'false|model|false', () => $('.out').textContent)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R2 dialog: the form submit closes with the submitter\'s value; commandfor show-modal opens it through the model', async () => {
+    const { id, app, $ } = await mount(Editor)
+    try {
+      await window.__pw('click', `${id} .cmd-open`)
+      await until(() => $('.ed').open && $('.out').textContent === 'true||false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .ok`)
+      await until(() => !$('.ed').open && $('.out').textContent === 'false|ok|false', () => $('.out').textContent)
+      assert($('.ed').returnValue === 'ok', `returnValue ${$('.ed').returnValue}`)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R2 popover: a reducer shows and hides it; a refused light dismiss opens it again', async () => {
+    const { id, app, $ } = await mount(Picker)
+    const shown = () => $('.pk').matches(':popover-open')
+    try {
+      await window.__pw('click', `${id} .pk-set`)
+      await until(() => shown() && $('.out').textContent === 'true|false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .pk-set`)
+      await until(() => !shown() && $('.out').textContent === 'false|false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .pk-pin`)
+      await window.__pw('click', `${id} .pk-btn`)
+      await until(() => shown(), 'opened by popovertarget')
+      await key('Escape')
+      await until(() => shown() && $('.out').textContent === 'true|true', () => `${shown()} ${$('.out').textContent}`)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R3 tooltip: a press on the trigger hides the tip at once; it comes back only after the pointer leaves and returns', async () => {
+    const { id, app, $ } = await mount(Tb)
+    try {
+      await window.__pw('hover', `${id} .act`)
+      await until(() => $('.out').textContent === 'tip', () => $('.out').textContent)
+      await window.__pwInput([['down']])
+      await until(() => $('.out').textContent === 'notip', () => $('.out').textContent, 500)
+      await window.__pwInput([['up']])
+      await wait(300)
+      assert($('.out').textContent === 'notip', 'shown again while still hovered')
+      await window.__pw('mouse-away')
+      await window.__pw('hover', `${id} .act`)
+      await until(() => $('.out').textContent === 'tip', () => $('.out').textContent)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R3 a tooltip on a dialog trigger: closed by the click that opens the modal (WebKit too)', async () => {
+    const { id, app, $ } = await mount(Bar)
+    try {
+      await window.__pw('hover', `${id} .open`)
+      await until(() => $('.out').textContent === 'closed|tip', () => $('.out').textContent)
+      await window.__pw('click', `${id} .open`)
+      await until(() => $('.d').open && $('.out').textContent === 'open|notip', () => $('.out').textContent)
+    } finally { app.dispose() }
+  })
+
+  await runTest('R4 a dialog, a popover and a tooltip inside a <Portal>: open, state, Escape, close button, focus return', async () => {
+    const root = document.createElement('div')
+    root.id = 'ui-sweep-portal'
+    document.body.appendChild(root)
+    const { id, app, $ } = await mount(Portaled)
+    const q = (s) => root.querySelector(s)
+    try {
+      await window.__pw('click', `${id} .pt-open`)
+      await until(() => q('.pt-d')?.open && $('.out').textContent === 'true|false|false', () => `${q('.pt-d')?.open} ${$('.out').textContent}`)
+      await key('Escape')
+      await until(() => !q('.pt-d').open && $('.out').textContent === 'false|false|false', () => `${$('.out').textContent} open=${q('.pt-d').open} closedBy=${q('.pt-d').closedBy} active=${document.activeElement?.className} inBox=${!!document.activeElement?.closest('#ui-sweep-portal')}`)
+      await until(() => activeName() === 'pt-open', activeName)
+      await window.__pw('click', `${id} .pt-open`)
+      await until(() => q('.pt-d').open, 'reopen')
+      await window.__pw('click', '#ui-sweep-portal .pt-close')
+      await until(() => !q('.pt-d').open && $('.out').textContent === 'false|false|false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .pt-pop`)
+      await until(() => q('.pt-menu').matches(':popover-open') && $('.out').textContent === 'false|true|false', () => $('.out').textContent)
+      await window.__pw('click', '#ui-sweep-portal .pt-done')
+      await until(() => !q('.pt-menu').matches(':popover-open') && $('.out').textContent === 'false|false|false', () => $('.out').textContent)
+      await window.__pw('hover', `${id} .pt-tt`)
+      await until(() => q('.tip').matches(':popover-open') && $('.out').textContent === 'false|false|true', () => $('.out').textContent)
+    } finally { app.dispose(); root.remove() }
+  })
   await runTest('Tooltip: a mouse click on the trigger (Chromium, Firefox focus it) leaves no tip once the pointer leaves; Tab still shows it', async () => {
     const { id, app, $ } = await mount(Tb)
     try {
@@ -247,7 +441,7 @@ export async function uiSweepNativeTests() {
       await window.__pw('fill', `${id} .name`, 'Typo')
       await key('Escape')
       await until(() => $('.out').textContent === 'New|closed|', () => $('.out').textContent)
-      assert($('.name').value === 'New', `draft after Escape: ${$('.name').value}`)
+      await until(() => $('.name').value === 'New', () => `draft after Escape: ${$('.name').value} out=${$('.out').textContent}`, 1000)
     } finally { app.dispose() }
   })
 

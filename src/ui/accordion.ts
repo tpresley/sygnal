@@ -40,6 +40,8 @@ const collapse = (s: any, v: any) => {
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {id: null as null | string, expanded: [] as string[], collapsible: true},
+  // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
+  triggers: {TOGGLE: 'trigger', MOVE: 'trigger'},
   intent: ({DOM}: any, {trigger, loop}: any) => ({
     TOGGLE: DOM.click(trigger).data('value'),
     MOVE: keyNav(DOM, trigger, ['ArrowDown'], ['ArrowUp'], loop),

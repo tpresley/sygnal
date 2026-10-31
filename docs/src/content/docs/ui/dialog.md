@@ -3,7 +3,7 @@ title: Dialog
 description: A modal dialog on the native <dialog> element, with its open state and return value in state
 ---
 
-`dialog()` is a [behavior](/guide/behaviors/) for a native `<dialog>`. It opens the dialog with `showModal()`, so the browser does the hard parts: it traps the focus inside the dialog, makes the rest of the page inert, closes it on Escape and returns the focus when it closes. The behavior keeps `open` and `returnValue` in state, whichever way the dialog closed.
+`dialog()` is a [behavior](/guide/behaviors/) for a native `<dialog>`. It opens the dialog with `showModal()`, so the browser does the hard parts: it traps the focus inside the dialog, makes the rest of the page inert, closes it on Escape and returns the focus when it closes. The behavior keeps `open` and `returnValue` in state, and `open` drives the dialog: a reducer that writes it opens or closes it.
 
 ```jsx live
 import { dialog } from 'sygnal/ui'
@@ -45,27 +45,52 @@ A click on `.edit-profile` opens the dialog and a click on `.cancel` closes it. 
 | `trigger` | | Its clicks open the dialog |
 | `close` | | Its clicks close the dialog, with the return value `''` |
 | `modal` | `true` | `false` opens it with `show()`: not modal, the page stays usable |
-| `cancelable` | `true` | `false` keeps Escape from closing it: the `cancel` event is prevented, and opening it sets `closedby="none"` (Chromium closes a dialog on a second Escape otherwise; the attribute goes again when it closes). `CANCEL` still runs on each Escape. In a browser without `closedby`, a second Escape can still close it; the `CLOSED` action tells you |
+| `cancelable` | `true` | `false`: Escape doesn't close it. `CANCEL` still runs on each Escape, and the state stays open |
+| `open` | `false` | Open at the start (Radix's `defaultOpen`) |
 | `returnFocus` | `true` | When the dialog closes and the focus was lost, focus the element that opened it (the clicked trigger, when several match `trigger`), else the trigger. A selector names another element; `false` leaves the focus to the browser |
 
 The browser returns the focus to the element that had it before the dialog opened. Safari doesn't focus a button when it is clicked, so after a mouse click the focus would go back to the page itself; `returnFocus` focuses the trigger instead. It does nothing when the browser already moved the focus somewhere. It works for a dialog the host renders only while it is open, too.
 
 ## State and actions
 
-`state.profile` is `{ open, returnValue }`.
+`state.profile` is `{ open, returnValue }`; `open` drives the dialog (see [Controlled open](#controlled-open)).
 
 | Action | Data | |
 |---|---|---|
-| `profile.OPEN` | | Opens the dialog (no change when it is open) |
-| `profile.CLOSE` | the return value | Closes it with that return value |
-| `profile.CLOSED` | the return value | The dialog closed, whichever way: sets `open: false` and `returnValue` |
-| `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (for example with `commandfor`) sets `open: true` |
-| `profile.CANCEL` | the event | Escape was pressed (the dialog closes next, unless `cancelable: false`). The `cancel` event; with `cancelable: false`, the Escape `keydown` in the dialog (`closedby="none"` stops the `cancel` event) |
+| `profile.OPEN` | | Sets `open: true` and opens the dialog: the trigger, a `commandfor` button with `command="show-modal"` |
+| `profile.CLOSE` | the return value | Sets `open: false` with that return value and closes it: the `close` button, a `method="dialog"` form's submit (the submit button's `value`), a `commandfor` button with `command="close"` |
+| `profile.CANCEL` | the event | Escape, a light dismiss (`closedby="any"`), or `command="request-close"`: sets `open: false` with the return value `''`, unless `cancelable: false` |
+| `profile.CLOSED` | the return value | The dialog's `close` event: sets `open: false` and `returnValue` when it closed some other way |
+| `profile.TOGGLED` | `true` / `false` | The dialog's `toggle` event: a dialog opened without the model (`showModal()` called elsewhere) sets `open: true` |
 | `profile.SYNC` | `false`, or `true` when `showModal()` threw | The dialog left the page while open (a page change, a conditional render), or OPEN's `showModal()` threw (a disconnected dialog, a popover open on it): sets `open: false`, as no close event comes (your `close` listeners don't run for a dialog that never opened) |
 
-`OPEN` and `CLOSE` check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one. A dialog removed while open opens again when it is back.
+| `profile.APPLY` | `true` / `false` | `open` changed outside these actions (your reducer wrote it): the dialog is opened or closed to match |
 
-`state.profile.open` follows the dialog; it doesn't drive it. A reducer that writes `open: true` opens nothing: dispatch `profile.OPEN` instead (`next('profile.OPEN')` from a model entry). Render the `<dialog>` in the component itself, not in a [`<Portal>`](/advanced/portals/): the top layer already puts it above the page, and the behavior finds its element in the component's own DOM.
+The commands check the dialog itself before they act: `showModal()` only on a closed dialog, `close()` only on an open one.
+
+## Controlled open
+
+`state.profile.open` is the source of truth, as Radix's controlled `open` is. Write it in any reducer and the dialog opens or closes to match:
+
+```jsx
+Profile.model = {
+  EDIT_FROM_LINK: (state) => ({ ...state, profile: { ...state.profile, open: true } }),
+}
+```
+
+Everything that would close the dialog arrives as an action first: Escape and a light dismiss as `CANCEL`, the close button, a `method="dialog"` form and `commandfor` as `CLOSE`. The behavior prevents the browser's own close and sets `open: false`; a host entry for the same action runs after it and decides. To keep the dialog open, return the state from before the action, as Radix's `onOpenChange(false)` does when you ignore it:
+
+```jsx
+Profile.model = {
+  // unsaved changes: Escape and the form don't close it
+  'profile.CANCEL': (state, event, next, { previousState }) => (state.dirty ? previousState : state),
+  'profile.CLOSE': (state, returnValue, next, { previousState }) => (state.dirty && returnValue !== 'discard' ? previousState : state),
+}
+```
+
+The dialog never closes in between, so the focus stays where it was. For Escape the behavior gives a modal dialog `closedby="none"` while it is open (unless you set `closedby` yourself) and reads the key, so a second Escape can't close it behind the state's back. A close the browser makes on its own (your own code calling `close()`) arrives as `CLOSED`; a host entry that keeps `open: true` there opens the dialog again.
+
+The dialog works inside a [`<Portal>`](/advanced/portals/) too: the behavior finds its element, its events and its commands in the portal's content. The top layer already draws a modal dialog above the page, so a portal is rarely needed.
 
 React to a close in your own model with an entry for the namespaced action. It runs after the behavior's, on the full state:
 
@@ -75,14 +100,14 @@ Profile.model = {
 }
 ```
 
-Open the dialog from another button by listing it in the option, `trigger: '.edit-profile, .avatar'`, or from a model entry with `next('profile.OPEN')`. An intent action of the same name, `'profile.OPEN': DOM.click('.avatar')`, replaces the `trigger` option's clicks instead of adding to them. (A `{ showModal: '.profile' }` command to `ELEMENT` opens it too, but skips what `OPEN` adds: the `returnFocus` opener, `cancelable: false`'s `closedby`, and clearing the last close's return value.)
+Open the dialog from another button by listing it in the option, `trigger: '.edit-profile, .avatar'`, from a model entry with `next('profile.OPEN')`, or by writing `open: true`. An intent action of the same name, `'profile.OPEN': DOM.click('.avatar')`, replaces the `trigger` option's clicks instead of adding to them ([SYG118](/reference/errors/#syg118)). (A `{ showModal: '.profile' }` command to `ELEMENT` opens it too, but skips what `OPEN` adds: the `returnFocus` opener, the `closedby` that routes Escape to `CANCEL`, and clearing the last close's return value.)
 
 ## Accessibility
 
 - Name the dialog: `aria-labelledby` pointing at its heading, as above, or `aria-label`.
 - Put a close button inside. Escape closes a modal dialog, but not everyone has a keyboard.
 - The dialog element has `role="dialog"`; a modal one is also `aria-modal` to assistive technology.
-- A form inside the dialog with `method="dialog"` closes it on submit, with the submit button's `value` as the return value; `CLOSED` sees it. Enter in a field submits with the form's first submit button, so put the confirming button first and make Cancel `type="button"` (the `close` option), or Enter cancels. `OPEN` clears the element's old return value, so an Escape after an earlier `'ok'` reads as `''` in every browser.
+- A form inside the dialog with `method="dialog"` closes it on submit, with the submit button's `value` as the return value (the `CLOSE` action's data). Enter in a field submits with the form's first submit button, so put the confirming button first and make Cancel `type="button"` (the `close` option), or Enter cancels. `OPEN` clears the element's old return value, so an Escape after an earlier `'ok'` reads as `''` in every browser.
 
 ## Styling
 
@@ -125,4 +150,4 @@ it('opens the dialog and keeps the return value', async () => {
 })
 ```
 
-With `dom: 'real'`, the commands run on the jsdom elements; focus trapping and the backdrop need a real browser.
+With `dom: 'real'`, the commands run on the jsdom elements; focus trapping and the backdrop need a real browser. A reducer that writes `open` is applied by `APPLY`, which compares the state with the element: test it with `dom: 'real'` (renderComponent fakes jsdom's missing dialog methods) or in a browser; on the mock DOM, check `t.state`.

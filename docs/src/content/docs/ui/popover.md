@@ -35,24 +35,27 @@ Filters.model = { ONLY_OPEN: (state, onlyOpen) => ({ ...state, onlyOpen }) }
 |---|---|---|
 | `popover` | (required) | The popover element: a selector or a [control](/guide/controls/) |
 | `close` | | A button inside: its clicks close the popover |
+| `open` | `false` | Open at the start |
 
 There is no `trigger` option: open it with a `popovertarget` button. A button that toggled an `auto` popover through the model would open it again right after closing it, because the press outside the popover light-dismisses it first; the browser exempts `popovertarget` buttons from that.
 
 ## State and actions
 
-`state.filters` is `{ open }`. It follows the popover's `toggle` event, whatever opened or closed it.
+`state.filters` is `{ open }`, the source of truth: a reducer that writes it shows or hides the popover, and the popover's `toggle` event writes it back, whatever opened or closed it.
 
 | Action | Data | |
 |---|---|---|
-| `filters.OPEN` | | Shows the popover (`showPopover`) |
-| `filters.CLOSE` | | Hides it (`hidePopover`) |
-| `filters.TOGGLE` | | Toggles it (`togglePopover`) |
-| `filters.TOGGLED` | `true` / `false` | The `toggle` event: sets `open` |
+| `filters.OPEN` | | Sets `open: true` and shows the popover (`showPopover`) |
+| `filters.CLOSE` | | Sets `open: false` and hides it (`hidePopover`) |
+| `filters.TOGGLE` | | Flips `open` and shows or hides it |
+| `filters.TOGGLED` | `true` / `false` | The `toggle` event (a `popovertarget` button, a light dismiss, Escape): sets `open` |
 | `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render): sets `open: false`, as no `toggle` event comes |
 
-`OPEN` and `CLOSE` check the popover itself (`:popover-open`), not `state.filters.open`, which follows the `toggle` event a moment later: `OPEN` then `CLOSE` in one go leaves it closed, and `showPopover()` is never called on an open popover.
+| `filters.APPLY` | `true` / `false` | `open` changed outside these actions (your reducer wrote it): the popover is shown or hidden to match |
 
-`state.filters.open` follows the popover; writing `open: true` in a reducer shows nothing: dispatch `filters.OPEN`. Render the popover in the component itself, not in a [`<Portal>`](/advanced/portals/) (the top layer already puts it above the page; the behavior looks for it in the component's own DOM).
+The commands check the popover itself (`:popover-open`): `OPEN` then `CLOSE` in one go leaves it closed, and `showPopover()` is never called on an open popover.
+
+A host entry for `filters.TOGGLED` that keeps `open: true` after a light dismiss shows the popover again (the browser closes an `auto` popover before any event can stop it, so it may disappear for a frame); `'filters.TOGGLED': (state, open) => (state.pinned && !open ? { ...state, filters: { open: true } } : state)`. The popover works inside a [`<Portal>`](/advanced/portals/) too.
 
 Open it from somewhere else, for example a keyboard shortcut, with an intent action of the same name: `'filters.OPEN': DOM.keydown('document').filter((e) => e.key === 'f' && e.altKey)`.
 

@@ -61,13 +61,13 @@ describe('G-429: CANCEL with cancelable: false', () => {
     expect(d.hasAttribute('closedby')).toBe(false)
   })
 
-  it('cancelable (default): CANCEL is the cancel event, not prevented', async () => {
+  it('cancelable (default): CANCEL is the cancel event, prevented: the state closes it (ui-sweep R2)', async () => {
     t = renderComponent(strict(undefined), { dom: 'real' })
     await t.ready()
     const c = new Event('cancel', { cancelable: true })
     t.query('.strict').dispatchEvent(c)
     await t.settle()
-    expect(c.defaultPrevented).toBe(false)
+    expect(c.defaultPrevented).toBe(true)
     expect(t.query('.n').textContent).toBe('1')
   })
 })
