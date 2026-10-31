@@ -230,4 +230,27 @@ export async function testingUtilityTests() {
       t.dispose()
     }
   })
+
+  // Temper 2026-10, item 9: { files } on the real DOM gives the input a real FileList (DataTransfer)
+  await runTest(CAT, 'dom: real: simulateEvent { files } sets a real FileList on a file input', async () => {
+    function Picker({ state }) {
+      return <div><input type="file" className="pick" multiple /><p className="got">{state.names}</p></div>
+    }
+    Picker.initialState = { names: '' }
+    Picker.intent = ({ DOM }) => ({ PICK: DOM.select('.pick').events('change').map((e) => [...e.target.files].map((f) => f.name).join(',')) })
+    Picker.model = { PICK: (state, names) => ({ ...state, names }) }
+    const t = renderComponent(Picker, { dom: 'real' })
+    try {
+      await t.ready()
+      await t.simulateEvent('.pick', 'change', { files: [new File(['a'], 'a.csv'), new File(['b'], 'b.csv')] })
+      const el = t.container.querySelector('.pick')
+      assert(el.files instanceof FileList, 'files should be a real FileList, got ' + Object.prototype.toString.call(el.files))
+      assert(el.files.length === 2 && el.files.item(1).name === 'b.csv', 'the FileList should hold both files')
+      assert(!Object.prototype.hasOwnProperty.call(el, 'files'), 'the native files property is used, not a fallback')
+      assert(t.state.names === 'a.csv,b.csv', 'the intent should read them, got ' + t.state.names)
+      assert(t.query('.got').textContent === 'a.csv,b.csv', 'and the view show them')
+    } finally {
+      t.dispose()
+    }
+  })
 }

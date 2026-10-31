@@ -164,6 +164,8 @@ export interface SimulatedEventInit {
   data?: Record<string, any>;
   /** Keyboard key (e.key) */
   key?: string;
+  /** Shorthand for target.files: the File objects a file input holds (a FileList on the target) */
+  files?: ArrayLike<File> | File[];
   /**
    * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
    * drop the event with SYG103 (info). Not copied onto the event.
@@ -171,6 +173,14 @@ export interface SimulatedEventInit {
   allowMissing?: boolean;
   /** Any other event properties are copied onto the event */
   [prop: string]: any;
+}
+
+/** Temper 2026-10: which instance simulateAction sends to (default: the rendered component) */
+export interface SimulateActionOptions {
+  /** The first rendered instance of this component (or component name) */
+  component?: any;
+  /** Only an instance rendered inside the first element matching this selector or control (a Collection item) */
+  within?: any;
 }
 
 /**
@@ -400,8 +410,12 @@ export interface RenderResult {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action into the intent→model pipeline (all sinks of the entry run) */
-  simulateAction: (actionName: string, data?: any) => void;
+  /**
+   * Push an action into the intent→model pipeline (all sinks of the entry run) of the rendered
+   * component, or of the first instance of `component` (inside `within`). A name that instance
+   * has no model entry for fails the test, naming the components that handle it
+   */
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => void;
   /**
    * Dispatch a synthetic DOM event through the mock DOM source. Delivered later, in call order:
    * `await` it (resolves once the event is delivered and the tree has rendered what it caused)
@@ -1064,12 +1078,41 @@ function trackSource(inner: any, path: string[], hub$: any, on: (path: string[],
 }
 // events the browser fires without bubbling (cf. eventTypesThatDontBubble; submit/reset do bubble)
 const NO_BUBBLE = /^(blur|focus|mouseenter|mouseleave|pointerenter|pointerleave|load|unload|scroll|scrollend|invalid|close|cancel|toggle|beforetoggle|error|abort)$/;
+/**
+ * Temper 2026-10: `files` as an input has them: a FileList. A real one through DataTransfer where
+ * the environment has it (browsers); otherwise (the mock DOM, jsdom) an array with item(i)
+ */
+function fileList(files: any, W: any = globalThis): any {
+  if (files == null || (typeof files.item == 'function' && !Array.isArray(files))) return files;
+  const all = Array.from(files as ArrayLike<any>);
+  if (typeof W.DataTransfer == 'function') {
+    try {
+      const dt = new W.DataTransfer();
+      for (const f of all) dt.items.add(f);
+      return dt.files;
+    } catch (_) {}
+  }
+  return Object.assign(all, {item: (i: number) => all[i] ?? null});
+}
+/**
+ * Temper 2026-10: set an element property for a simulated event. An assignment the DOM rejects
+ * (jsdom's `files` takes only a FileList; a read-only property) is defined on the element
+ * instead; when that throws too, the test fails naming the property
+ */
+function setProp(el: any, k: string, v: any) {
+  try { el[k] = v; return; } catch (_) {}
+  try { Object.defineProperty(el, k, {value: v, configurable: true, writable: true}); } catch (e: any) {
+    throw new Error(`[Sygnal] simulateEvent: can't set ${k} on the <${String(el.tagName || 'element').toLowerCase()}> (${e?.message || e}). Set another property, or dispatch the event yourself on t.query(...)`);
+  }
+}
 /** dispatch a real DOM event, like a user would cause it (E4) */
 function fire(el: any, type: string, init: SimulatedEventInit) {
-  const {target: t = {}, value, checked, dataset, data, key, ...rest} = init;
+  const {target: t = {}, value, checked, dataset, data, key, files, ...rest} = init;
+  const W0: any = (el.ownerDocument || el).defaultView || globalThis;
   if ('value' in init) el.value = value;
   if ('checked' in init) el.checked = checked;
-  for (const k in t) if (k != 'dataset') try { el[k] = t[k]; } catch (_) {}
+  for (const k in t) if (k != 'dataset') setProp(el, k, k == 'files' ? fileList(t[k], W0) : t[k]);
+  if ('files' in init) setProp(el, 'files', fileList(files, W0));
   const ds = {...dataset, ...data, ...t.dataset};
   if (el.dataset) for (const k in ds) el.dataset[k] = String(ds[k]);
   const doc = el.ownerDocument || el;
@@ -2596,10 +2639,53 @@ export function renderComponent(
     sendDue = true;
     Promise.resolve().then(noop).then(noop).then(noop).then(() => { if (n == dueSeq) sendDue = false; });
   };
-  const simulateAction = (type: string, data?: any) => {
+  // Temper 2026-10: simulateAction's target (the root, or the first live instance of
+  // `component`, inside `within`), or the error that fails the test: no such instance, or a name
+  // it doesn't handle (an action no model entry has did nothing, silently)
+  const BUILT_IN = ['INITIALIZE', 'BOOTSTRAP', 'DISPOSE', 'HYDRATE'];
+  const instances = (): any[] => {
+    const out: any[] = [];
+    const walk = (v: any) => { if (v && !v.disposed) { out.push(v); v.children().forEach(walk); } };
+    walk(api?.root);
+    return out;
+  };
+  const nameOfC = (c: any) => typeof c == 'string' ? c : c?.componentName || c?.name || 'component';
+  const actionTarget = (type: string, o: SimulateActionOptions): any => {
+    const call = `simulateAction('${type}'${o.component ? `, …, { component: ${nameOfC(o.component)} }` : ''})`;
+    let all = instances(), inst = all[0];
+    if (o.component) {
+      const c = o.component, is = (v: any) => typeof c == 'string' ? v.name === c : v.def.view === c;
+      let box: Set<string> | undefined;
+      if (o.within != null) {
+        const w = tryParse(norm(String(selOf(o.within)))), chain = w && vtree && find(vtree, w);
+        if (!chain) return new Error(`[Sygnal] t.${call}: nothing rendered matches within '${String(selOf(o.within))}'`);
+        box = new Set();
+        const under = (v: any): void => { if (!v || typeof v != 'object') return; if (v.sel) { const sc = scopeOfV(v); if (sc) box!.add(sc); } [].concat(v.children || []).forEach(under); };
+        under(chain[chain.length - 1]);
+      }
+      inst = all.find(v => is(v) && (!box || box.has(scopeOf(v))));
+      if (!inst) return new Error(`[Sygnal] t.${call}: no rendered instance of ${nameOfC(c)}${o.within != null ? ` within '${String(selOf(o.within))}'` : ''}. Rendered: ${[...new Set(all.map(v => v.name))].join(', ') || 'nothing yet'}`);
+    }
+    if (!inst || inst.def.handlers.has(type) || BUILT_IN.includes(type)) return inst;
+    const by = [...new Set(all.filter(v => v !== inst && v.def.handlers.has(type)).map(v => v.name))];
+    return new Error(`[Sygnal] t.${call}: ${inst.name} has no model entry '${type}', so the action would do nothing` +
+      (by.length ? `. ${by.join(', ')} ${by.length > 1 ? 'handle' : 'handles'} it: t.simulateAction('${type}', data, { component: ${by[0]} })` : '. No rendered component handles it: check the name') +
+      `. simulateAction reaches one instance (the rendered component unless { component } says another), like next(), never its parent or children`);
+  };
+  const simulateAction = (type: string, data?: any, options: SimulateActionOptions = {}) => {
     simAt = states.length; due();
     throwFailure();
-    later(() => (api.dispatch('root', type, data, 'simulateAction'), true));
+    // nothing queued and ready: a wrong name or component fails at the call, like simulateEvent
+    if (isReady && !inputs.length && api) {
+      const r = actionTarget(type, options);
+      if (r instanceof Error) throw r;
+    }
+    later(() => {
+      const r = actionTarget(type, options);
+      if (r instanceof Error) failWith(r);
+      else if (r) api.dispatch(r, type, data, 'simulateAction');
+      return true;
+    });
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -3214,12 +3300,12 @@ export function renderComponent(
       }
       if (real) {
         if (chain?.length) check104(chain[chain.length - 1]);
-        fire(el, type, evInit);
+        try { fire(el, type, evInit); } catch (e: any) { failWith(e); }
         return true;
       }
       if (el) check104(el);
       const d = el?.data || {}, p = d.props || {};
-      const {target: t = {}, value, checked, dataset, data, ...rest} = evInit;
+      const {target: t = {}, value, checked, dataset, data, files, ...rest} = evInit;
       const vval = p.value ?? d.attrs?.value;
       const target: any = {
         tagName: el?.sel.split(/[.#]/)[0].toUpperCase(),
@@ -3230,7 +3316,9 @@ export function renderComponent(
         checked: p.checked ?? d.attrs?.checked,
         ...('value' in init && {value}),
         ...('checked' in init && {checked}),
+        ...('files' in init && {files: fileList(files)}),
         ...t,
+        ...(t.files && {files: fileList(t.files)}),
       };
       target.dataset = str({...d.dataset, ...dataset, ...data, ...t.dataset});
       // 3E/R2: element.closest(sel) over the rendered ancestor chain, so helpers that look

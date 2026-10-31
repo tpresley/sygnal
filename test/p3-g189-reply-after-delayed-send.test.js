@@ -19,6 +19,7 @@ Editor.resources = { item: () => '/api/items/1' }
 Editor.model = {
   SAVE: { HTTP: (state, title) => ({ url: '/api/items/1', method: 'PUT', send: { title }, ok: 'SAVED' }) },
   SAVED: (state, reply) => ({ ...state, saved: reply.title }),
+  NOTHING: (state) => state,
 }
 
 describe('G-189: t.respond right after a simulate* on a sink with resources', () => {

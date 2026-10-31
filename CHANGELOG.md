@@ -226,6 +226,22 @@ and decisions in `dev-plans/research/temper-feedback-2026-10/`.
   page whose start does something (a logout page) belongs in a Switchable that holds only the current
   page, keyed by it: `<Switchable key={page} of={{ [page]: PAGES[page] }} current={page} />`. No new
   prop (D172 stands).
+- **Behaviour change: `t.simulateAction` fails on a name its target doesn't handle.** It reaches one
+  instance, the rendered component, like `next()`. A name with no model entry there (nor a behavior
+  action or a built-in) used to be dropped silently, and a test aimed at a child's action passed
+  without running it. It now fails the test (at the call when nothing is queued, else through the
+  next wait), naming the rendered components that handle it. To reach a child, pass
+  `{ component: Child }` (the first rendered instance; `within` picks a Collection item). Three of
+  Sygnal's own tests relied on the silent drop and were fixed: one form test that never reset its
+  form, one effect test written in a removed 6.0 key form, and one that used an unknown name as "an
+  action that sends nothing".
+- **File inputs in tests:** `t.simulateEvent(sel, 'change', { files: [file] })` gives the target a
+  FileList (with `dom: 'real'`, a real one where `DataTransfer` exists, else defined on the element),
+  so a `form()` file field or an intent's `e.target.files` sees the file. With `dom: 'real'`, a
+  `target` property the DOM rejects (jsdom's `files`, a read-only property) used to be dropped
+  silently; it is now defined on the element, and the test fails naming the property only if that
+  fails too. The testing guide's new "File inputs" section shows the form upload flow
+  (`t.requests` → `multipart`, `t.progress`, `t.respond`).
 - Size: 0 B in the kanban gate (the changes are in the test harness, the dev diagnostics and
   `<VirtualCollection>`'s dev hook, which kanban doesn't import).
 

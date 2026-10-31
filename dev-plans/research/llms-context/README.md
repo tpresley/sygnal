@@ -143,6 +143,11 @@ Before the split, the AI section alone was 11% of `llms.txt`. The material that 
   - Bytes, not tokens, so the budget needs no tokenizer dependency. Bytes track tokens closely here: about 3.6 B per token in every file.
   - Not lines, because lines can be made arbitrarily long.
   - The core budget leaves about 0.5 KB of headroom on purpose. The next feature has to earn its core bytes or go in a topic file.
+  - **Raised to 65,000 B (+500 B), 2026-10-30, with the maintainer's approval.** The Temper feedback fixes (round 3)
+    used the last headroom (the core reached 64,495 B), and item 9 needed 146 B more in the testing lines: the
+    `{ files: [file] }` init and `simulateAction`'s scope (the rendered component only; `{ component: Child }`; an
+    unknown name fails the test). Rule for raises: only by what the addition needs, rounded up to the next 500 B,
+    with no trimming of other content to make room. The core is 64,646 B after it.
 
 ## Effectiveness
 
