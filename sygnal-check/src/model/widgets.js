@@ -47,9 +47,9 @@ export function isDefineWidgetCall(file, node) {
 
 // PLAN-5 2-Z: the widget tags of the Zag UI parts (div hosts): their subpath (D211), events and commands
 export const UI_ZAG = {
-  Menu: ['sygnal/ui/menu', ['select', 'open-change'], ['open', 'close']],
+  Menu: ['sygnal/ui/menu', ['select', 'checked-change', 'open-change'], ['open', 'close']],
   Select: ['sygnal/ui/select', ['value-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
-  Combobox: ['sygnal/ui/combobox', ['value-change', 'input-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
+  Combobox: ['sygnal/ui/combobox', ['value-change', 'input-change', 'open-change'], ['open', 'close', 'clear', 'focus', 'remove']],
 }
 /** the part ('Menu', 'Select', 'Combobox') a binding imported from its ui subpath names, or null */
 export function uiZagPart(b) {
@@ -68,7 +68,8 @@ const LIB_WIDGETS = {
 function uiZagWidget(b, name) {
   const part = uiZagPart(b), lib = !part && b?.kind === 'import' && Object.hasOwn(LIB_WIDGETS, b.imported) && LIB_WIDGETS[b.imported]
   const w = part ? UI_ZAG[part].slice(1) : lib && b.source === lib[0] ? lib.slice(1) : null
-  return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null } : null
+  // part: a first-party Zag part (SYG141 reports a native change / input listener on it)
+  return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null, part } : null
 }
 
 // names of an object literal's keys, or of an array literal's strings; null when not literal

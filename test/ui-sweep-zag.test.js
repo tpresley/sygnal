@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // UI sweep (dev-plans/research/ui-sweep/zag.md): Menu, Select and Combobox fixes.
-// - ZS-1: a pick is the hidden field's `input` event: the form behavior and processForm hear it
-//   (single and multiple), and a refused pick leaves the submitted value alone
+// - ZS-1: the form behavior and processForm hear a pick (single and multiple), and a refused pick
+//   leaves the submitted value alone (round 2: through the widget field contract, extra/field.ts)
 // - ZS-2: Select still submits a selected value the items no longer have (the trigger shows it)
 // - ZS-3: Combobox's input shows the value's label when the items arrive after the value, and goes
 //   back to the state's value when the model refuses a pick
 // - ZS-4: a native form reset resets Combobox (the input and the hidden input)
-// - ZS-5: the focus leaving a Select / Combobox marks its form-behavior field touched
+// - ZS-5: the focus leaving a Select / Combobox marks its form-behavior field touched (the contract)
 // - ZS-6: inside a <dialog> the positioning strategy is 'fixed' (Firefox and WebKit flipped the list
 //   off-screen: browser-tests/src/tests/ui-zag-p5z.jsx)
 import { describe, it, expect, afterEach } from 'vitest'
@@ -140,9 +140,11 @@ describe('ZS-3: the Combobox input shows the state value', () => {
     expect(input('.c').value).toBe('New York')
   })
 
-  it('leaves the typed text alone (typing, allowCustomValue, selectionBehavior preserve)', async () => {
+  it('leaves the typed text alone while typing; allowCustomValue: the committed text stays (Round 2)', async () => {
     function A({ state }) { return h('div', null, h(Combobox, { className: 'c', label: 'City', items: ITEMS, value: state.v, allowCustomValue: true })) }
     A.initialState = { v: 'nyc' }
+    A.intent = ({ DOM }) => ({ V: DOM.select('.c').events('value-change').detail() })
+    A.model = { V: (s, v) => ({ ...s, v }) }
     await real(A)
     input('.c').focus()
     type(input('.c'), 'Lis')
@@ -150,6 +152,7 @@ describe('ZS-3: the Combobox input shows the state value', () => {
     expect(input('.c').value).toBe('Lis')
     input('.c').blur()
     await settle()
+    expect(t.state.v).toBe('Lis')
     expect(input('.c').value).toBe('Lis')
   })
 })
@@ -222,7 +225,7 @@ it('ZS-5: the focus leaving Select / Combobox marks the field touched (not movin
   expect(t.state.form.touched).toEqual({ size: true, city: true })
 })
 
-it("ZS-6: inside a <dialog>, the parts' positioning strategy is 'fixed' unless the prop says otherwise", async () => {
+it("ZS-6: inside a <dialog> (and since Round 2 everywhere), the parts' positioning strategy is 'fixed' unless the prop says otherwise", async () => {
   const { Menu } = await import('../src/ui-menu.ts')
   function A() {
     return h('div', null,
@@ -237,5 +240,6 @@ it("ZS-6: inside a <dialog>, the parts' positioning strategy is 'fixed' unless t
   expect(pos('.m').strategy).toBe('fixed')
   expect(pos('.s')).toMatchObject({ strategy: 'fixed', placement: 'top' })
   expect(pos('.c').strategy).toBe('absolute')
-  expect(pos('.out')?.strategy).not.toBe('fixed')
+  // Round 2 (Q3): 'fixed' everywhere
+  expect(pos('.out').strategy).toBe('fixed')
 })

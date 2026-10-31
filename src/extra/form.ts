@@ -84,6 +84,7 @@ import xs from './xstreamCompat'
 import {defineBehavior, was} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
+import {FIELD, fieldOf} from './field'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
 
 // PLAN-11 F-3: a submit's data goes as multipart when a top-level value is a file (or files)
@@ -100,6 +101,15 @@ const drop = (o: any, p: string) => {
   for (const k in o) if (k != p && !k.startsWith(p + '.')) r[k] = o[k]
   return r
 }
+
+// G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a form-associated
+// custom checkbox / switch) gives `checked` and its value as `item`; a <select multiple> the
+// selected values; PLAN-11 F-2: a file input its File (`multiple`: an array of them; none: null);
+// others give `value`
+const native = (t: any) =>
+  t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
+  : t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
+  : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
@@ -288,15 +298,17 @@ export const form = (schema: any, o: any = {}): any => {
         // D239: resetOnShow also starts over each time the form element appears again (a
         // Switchable page shown again: hidden pages stay alive; a form rendered again)
         VALIDATE: again ? xs.merge(xs.of(0), f.elements().filter((e: any) => { const r = e.length && !on; on = e.length; return r })) : xs.of(0),
-        // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
-        // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
-        // <select multiple> the selected values; PLAN-11 F-2: a file input its File (`multiple`:
-        // an array of them; none: null); others give `value`
-        CHANGE: f.events('input').map(({target: t}: any) =>
-          t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
-          : t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
-          : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
-        BLUR: f.events('focusout').map((e: any) => e.target.name),
+        // the widget field contract (extra/field.ts): a field widget's host fires a FIELD input for
+        // its value; other input events on or inside the host (its own nameless controls) don't count
+        CHANGE: f.events('input').map((e: any) => {
+          const t = e.target, w = fieldOf(t)
+          return !w ? native(t) : t.__sw == w ? e[FIELD] && {name: w.f().name, value: w.f().value} : t.name && native(t)
+        }).filter((c: any) => c),
+        // a field widget is touched when the focus leaves its host (not when it moves inside it)
+        BLUR: f.events('focusout').map((e: any) => {
+          const w = fieldOf(e.target)
+          return !w ? e.target.name : w.h.contains(e.relatedTarget) ? null : w.f().name
+        }).filter((n: any) => n !== null),
         SUBMIT: f.events('submit', {preventDefault: true}),
       }
     },

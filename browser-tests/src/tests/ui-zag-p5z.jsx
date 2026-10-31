@@ -144,6 +144,41 @@ function Booking({ state }) {
 }
 Booking.uses = { form: form(ANY, { values: { size: '', city: '', note: '' } }) }
 
+// UI sweep round 2 (dev-plans/research/ui-sweep/zag.md)
+function Round2({ state }) {
+  return (
+    <form className="r2">
+      <Combobox className="free" label="Free" name="free" items={CITIES} allowCustomValue value={state.free} />
+      <Combobox className="tags" label="Tags" name="tags" multiple items={CITIES} value={state.tags} empty="No results" />
+      <div className="clip" style={{ overflow: 'hidden', height: '40px' }}>
+        <Select className="food" label="Food" items={[{ group: 'Fruit', items: ['Apple', 'Banana'] }, { group: 'Veg', items: ['Kale'] }]} value={state.food} />
+      </div>
+      <Menu className="view" label="View" items={[
+        { type: 'checkbox', value: 'grid', label: 'Grid', checked: state.grid },
+        { value: 'share', label: 'Share', items: [{ value: 'mail', label: 'Mail' }, { value: 'link', label: 'Copy link' }] },
+        { href: '#zag-help', value: 'help', label: 'Help' },
+      ]} />
+      <button type="button" className="after">After</button>
+      <p className="out">{JSON.stringify({ free: state.free, tags: state.tags, food: state.food, grid: state.grid, last: state.last })}</p>
+    </form>
+  )
+}
+Round2.initialState = { free: null, tags: ['Paris', 'Lisbon'], food: null, grid: false, last: '' }
+Round2.intent = ({ DOM }) => ({
+  FREE: DOM.select('.free').events('value-change').detail(),
+  TAGS: DOM.select('.tags').events('value-change').detail(),
+  FOOD: DOM.select('.food').events('value-change').detail(),
+  CHECK: DOM.select('.view').events('checked-change').detail(),
+  PICK: DOM.select('.view').events('select').detail(),
+})
+Round2.model = {
+  FREE: (state, free) => ({ ...state, free }),
+  TAGS: (state, tags) => ({ ...state, tags }),
+  FOOD: (state, food) => ({ ...state, food }),
+  CHECK: (state, d) => ({ ...state, grid: d.checked }),
+  PICK: (state, last) => ({ ...state, last }),
+}
+
 // ZS-6: a Select in a sygnal/ui dialog
 function Edit({ state }) {
   return (
@@ -393,10 +428,108 @@ export async function uiZagTestsP5Z() {
       assert($('.out').textContent === 'Lisbon', $('.out').textContent)
       await window.__pw('fill', `${id} .free input[role=combobox]`, '')
       await window.__pw('type', `${id} .free input[role=combobox]`, 'ber')
+      await until(() => $('.free [role=option][data-value=Berlin]') && !$('.free [data-part=content]').hidden, () => `Berlin not shown: input '${$('.free input[role=combobox]').value}', open ${!$('.free [data-part=content]').hidden}, options ${[...$('.free [data-part=content]').children].map((o) => o.dataset.value)}`)
       await window.__pw('click', `${id} .free [role=option][data-value=Berlin]`)
       await until(() => new FormData($('.picky')).get('free') === 'Berlin', 'picked Berlin')
       await window.__pw('click', `${id} .reset`)
       await until(() => $('.free input[role=combobox]').value === 'Paris' && new FormData($('.picky')).get('free') === 'Paris', () => `after reset: ${$('.free input[role=combobox]').value} / ${new FormData($('.picky')).get('free')}`)
+    } finally { app.dispose() }
+  })
+
+
+  // ── Round 2 ──────────────────────────────────────────────────────────
+  const out = ($) => JSON.parse($('.out').textContent)
+  await runTest('Round 2 Q2: allowCustomValue commits the typed text on Tab (and Enter)', async () => {
+    const { id, app, $ } = await mount(Round2)
+    try {
+      await window.__pw('type', `${id} .free input[role=combobox]`, 'Oslo')
+      await key('Tab')
+      await until(() => out($).free === 'Oslo', () => $('.out').textContent)
+      await until(() => $('.free input[role=combobox]').value === 'Oslo' && $('.free [data-part=content]').hidden, () => `input ${$('.free input[role=combobox]').value}`)
+      assert(new FormData($('.r2')).get('free') === 'Oslo', 'FormData')
+      await window.__pw('fill', `${id} .free input[role=combobox]`, '')
+      await window.__pw('type', `${id} .free input[role=combobox]`, 'Rome')
+      await window.__pw('press', `${id} .free input[role=combobox]`, 'Enter')
+      await until(() => out($).free === 'Rome', () => $('.out').textContent)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 2 F-2/F-4: chips (click remove, Backspace), the empty row', async () => {
+    const { id, app, $, $$ } = await mount(Round2)
+    try {
+      const chips = () => $$('.tags [data-part=item-chip]').map((c) => c.dataset.value).join()
+      assert(chips() === 'Paris,Lisbon', chips())
+      assert(await role(id, { role: 'button', name: 'Remove Paris' }) === 1, 'no "Remove Paris" button')
+      await window.__pw('click', `${id} .tags [data-value=Paris] [data-part=item-chip-remove]`)
+      await until(() => chips() === 'Lisbon', chips)
+      await window.__pw('focus', `${id} .tags input[role=combobox]`)
+      await key('Backspace')
+      await until(() => chips() === '' && out($).tags.length === 0, () => `${chips()} ${$('.out').textContent}`)
+      await window.__pw('type', `${id} .tags input[role=combobox]`, 'zzz')
+      await until(() => !$('.tags [data-part=empty]').hidden, 'empty row shown')
+      assert($('.tags [role=status]').textContent === 'No results', 'status')
+      await window.__pw('fill', `${id} .tags input[role=combobox]`, '')
+      await window.__pw('type', `${id} .tags input[role=combobox]`, 'ber')
+      await until(() => $('.tags [data-part=empty]').hidden && $('.tags [role=option][data-value=Berlin]'), 'Berlin shown')
+      await key('ArrowDown', 'Enter')
+      await until(() => chips() === 'Berlin', chips)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 2 F-3/Q3: grouped Select in a clipping container: groups named, keyboard across groups, the list not clipped', async () => {
+    const { id, app, $ } = await mount(Round2)
+    try {
+      await window.__pw('focus', `${id} .food [data-part=trigger]`)
+      await key('ArrowDown')
+      await until(() => !$('.food [data-part=content]').hidden && document.activeElement === $('.food [data-part=content]'), 'open')
+      assert(await role(id, { role: 'group', name: 'Veg' }) === 1, 'no group "Veg"')
+      await wait(50)
+      const r = $('.food [data-part=content]').getBoundingClientRect(), c = $('.clip').getBoundingClientRect()
+      assert(r.bottom > c.bottom, `the list is inside the clip box: list bottom ${r.bottom}, clip bottom ${c.bottom}`)
+      assert(document.elementFromPoint(r.left + 5, r.bottom - 5)?.closest('.food [data-part=content]'), 'the list is clipped (not hit-testable at its bottom)')
+      await key('ArrowDown', 'ArrowDown')
+      await until(() => $('.food [data-highlighted]')?.dataset.value === 'Kale', () => `highlighted ${$('.food [data-highlighted]')?.dataset.value}`)
+      await key('Enter')
+      await until(() => out($).food === 'Kale', () => $('.out').textContent)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 2 F-3: Menu checkbox item, link item, submenu (ArrowRight / ArrowLeft, a pick)', async () => {
+    const { id, app, $, $$ } = await mount(Round2)
+    try {
+      // the pointer off the menus (hovering an item highlights it)
+      await window.__pw('mouse-away')
+      await window.__pw('focus', `${id} .view [data-part=trigger]`)
+      await key('ArrowDown')
+      await until(() => $('.view [data-highlighted]')?.dataset.value === 'grid' && document.activeElement === $$('.view [data-part=content]')[0], 'grid highlighted, focus in the menu')
+      assert(await role(id, { role: 'menuitemcheckbox', name: 'Grid', checked: false }) === 1, 'no unchecked "Grid"')
+      await key('Enter')
+      await until(() => out($).grid === true, () => `${$('.out').textContent} focus ${document.activeElement?.dataset?.part} hl ${$('.view [data-highlighted]')?.dataset.value} closed ${$$('.view [data-part=content]')[0].hidden}`)
+      await window.__pw('click', `${id} .view [data-part=trigger]`)
+      await until(() => !$$('.view [data-part=content]')[0].hidden, 'reopened')
+      await until(() => $('.view [data-value=grid]').getAttribute('aria-checked') === 'true', () => `aria-checked ${$('.view [data-value=grid]').getAttribute('aria-checked')} ${$('.out').textContent}`)
+      assert(await role(id, { role: 'menuitemcheckbox', name: 'Grid', checked: true }) === 1, 'Grid not checked (role)')
+      assert($('.view [data-value=help]').tagName === 'A' && $('.view [data-value=help]').getAttribute('href') === '#zag-help', 'link item')
+      // a pointer open highlights nothing: Down to Grid, Down to Share
+      await until(() => document.activeElement === $$('.view [data-part=content]')[0], 'focus in the menu')
+      for (let i = 0; i < 3 && !$('.view [data-part=trigger-item][data-highlighted]'); i++) { await key('ArrowDown'); await wait(30) }
+      await until(() => $('.view [data-part=trigger-item][data-highlighted]'), () => `highlighted ${$('.view [data-highlighted]')?.textContent}`)
+      await key('ArrowRight')
+      await until(() => !$$('.view [data-part=content]')[1].hidden, 'submenu open')
+      await until(() => $$('.view [data-part=content]')[1].querySelector('[data-highlighted]'), 'submenu item highlighted')
+      await until(() => document.activeElement === $$('.view [data-part=content]')[1], () => `focus not in the submenu: ${document.activeElement?.tagName}.${document.activeElement?.dataset?.part} ${document.activeElement?.id}`)
+      await key('ArrowLeft')
+      await until(() => $$('.view [data-part=content]')[1].hidden, 'submenu closed')
+      // the focus back on the parent menu, its trigger item highlighted
+      await until(() => document.activeElement === $$('.view [data-part=content]')[0] && $('.view [data-part=trigger-item][data-highlighted]'), () => `after ArrowLeft: focus ${document.activeElement?.dataset?.part}, highlighted ${$('.view [data-highlighted]')?.textContent}`)
+      await key('ArrowRight')
+      const sub = () => $$('.view [data-part=content]')[1]
+      await until(() => !sub().hidden && document.activeElement === sub() && sub().querySelector('[data-highlighted]')?.dataset.value === 'mail', () => `submenu reopened: hidden ${sub().hidden}, focus ${document.activeElement === sub()}, highlighted ${sub().querySelector('[data-highlighted]')?.dataset.value}`)
+      await key('ArrowDown')
+      await until(() => sub().querySelector('[data-highlighted]')?.dataset.value === 'link', 'link highlighted')
+      await key('Enter')
+      await until(() => out($).last === 'link', () => $('.out').textContent)
+      await until(() => $$('.view [data-part=content]').every((c) => c.hidden), 'all closed after the pick')
     } finally { app.dispose() }
   })
 

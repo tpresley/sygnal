@@ -69,26 +69,106 @@ Search.model = {
 }
 ```
 
+## Custom values
+
+With `allowCustomValue`, the user can enter text that is no item, as React Aria's ComboBox `allowsCustomValue` does. The text is committed when the focus leaves the combobox (Tab, a click elsewhere), or on Enter with no active option:
+
+- text equal to an item's label picks that item;
+- other text becomes the value itself, reported with `value-change` like a pick, and the input keeps showing it;
+- an empty input clears the value (`null`).
+
+The controlled `value` and the [`form` behavior](/guide/forms/) get the committed text. A model that refuses it (`ABORT`) puts the input back to the state's value. While the user is still typing, a native form submission sends the typed text.
+
+```jsx live live-height=240
+import { Combobox } from 'sygnal/ui/combobox'
+
+const COLORS = ['Red', 'Green', 'Blue']
+
+function Paint({ state }) {
+  return (
+    <div className="paint">
+      <Combobox className="color" label="Color" items={COLORS} value={state.color} allowCustomValue placeholder="A color, or your own" />
+      <p>{state.color ? `Color: ${state.color}` : ''}</p>
+    </div>
+  )
+}
+
+Paint.initialState = { color: null }
+Paint.intent = ({ DOM }) => ({
+  COLOR: DOM.select('.color').events('value-change').detail(),
+})
+Paint.model = {
+  COLOR: (state, color) => ({ ...state, color }),
+}
+```
+
+## Several values (chips)
+
+With `multiple`, each value is a chip before the input (`[data-part="item-chip"]` in a `role="list"` named by the label), with a remove button (`[data-part="item-chip-remove"]`, named "Remove Paris"). The input keeps the focus: the remove buttons are out of the tab order, and Backspace in the empty input removes the last chip, as in React Aria and most comboboxes. The model can remove one with the `remove` command: `ELEMENT: (state, value) => ({ remove: '.tags', value })`.
+
+```jsx live live-height=260
+import { Combobox } from 'sygnal/ui/combobox'
+
+const CITIES = ['Amsterdam', 'Berlin', 'Lisbon', 'London', 'Paris', 'Prague']
+
+function Trip({ state }) {
+  return (
+    <div className="trip">
+      <Combobox className="stops" label="Stops" items={CITIES} multiple value={state.stops} empty="No such city" placeholder="Add a city" />
+      <p>{state.stops.length ? state.stops.join(' → ') : 'No stops yet'}</p>
+    </div>
+  )
+}
+
+Trip.initialState = { stops: ['Lisbon', 'Paris'] }
+Trip.intent = ({ DOM }) => ({
+  STOPS: DOM.select('.stops').events('value-change').detail(),
+})
+Trip.model = {
+  STOPS: (state, stops) => ({ ...state, stops }),
+}
+```
+
+```css live
+.stops [data-part='control'] { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px solid #ccc; border-radius: 6px; padding: 4px; }
+.stops [data-part='item-chips'] { display: contents; }
+.stops [data-part='item-chip'] { display: inline-flex; gap: 4px; align-items: center; background: rgb(99 102 241 / 0.15); border-radius: 999px; padding: 0 4px 0 8px; }
+.stops [data-part='item-chip-remove'] { border: 0; background: none; cursor: pointer; padding: 0 4px; }
+.stops [data-part='input'] { flex: 1; min-width: 6rem; border: 0; outline: none; }
+.stops [data-part='content'], .stops [data-part='empty'] { background: Canvas; border: 1px solid #ddd; padding: 4px 8px; }
+.stops [data-part='item'][data-highlighted] { background: rgb(99 102 241 / 0.25); }
+```
+
+`chips={false}` renders no chips, for a list of your own (keep the values in state and set `value` from its remove buttons).
+
+## No results
+
+`empty="No results"` shows a row (`[data-part="empty"]`, after the listbox) while the list is open with no items, and puts the same text in a `role="status"` region, so a screen reader announces it. Without `empty`, an open list with no items is just an empty box. The demo above has one: type a city that isn't there.
+
 ## Props
 
 | Prop | | |
 |---|---|---|
 | `label` | | The visible label, linked to the input (its accessible name). Give every combobox one |
 | `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the input when there is no visible `label` (or in addition to it); they go on the input, not the host |
-| `items` | (required) | Strings, or `{ value, label, disabled }` objects |
+| `items` | (required) | Strings, or `{ value, label, disabled }` objects, or groups of them (`{ group, items }`, as for [Select](/ui/select/#groups)): filtering keeps the groups that still have items |
 | `value` | | Controlled: the value (an array with `multiple`); `null` for none. While nothing is typed, the input shows its label: also when the items arrive after the value, and when the model refuses a pick (the input goes back to the state's value) |
 | `defaultValue` | | The start value when `value` is left out |
 | `placeholder` | | The input's placeholder |
 | `filter` | contains | A function `(item, text) => boolean`, or `false` |
-| `allowCustomValue` | `false` | Keep text that matches no item when the input loses focus. With `name` (single), the form submits the selected item's value, or, when the user typed since the last selection, the typed text (text equal to an item's label submits the item's value). A new controlled `value` ends the typing, except an empty one (an app that clears its value on `input-change`) |
+| `allowCustomValue` | `false` | The typed text can be the value: see [Custom values](#custom-values) |
 | `openOnClick` | `false` | Open the list when the input is clicked |
 | `inputBehavior` | `'none'` | `'autohighlight'` highlights the first match; `'autocomplete'` also completes the text |
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |
 | `closeOnSelect` | `true` | With `multiple`: `false` |
 | `loopFocus` | `true` | The arrow keys wrap |
-| `name` | | The form field: hidden inputs submit the value (one per value with `multiple`), not the label the input shows. `form` (a form's id) goes on those hidden inputs. A pick is a field `input` event, so the [`form` behavior](/guide/forms/) hears it (`value={state.form.values.city}`), and a form reset puts the first value back |
-| `multiple` | `false` | Several values. The input clears after each pick and the combobox shows no list of what is picked: render the chosen values yourself (chips with a remove button that sets the value) |
-| `form`, `disabled`, `readOnly`, `required`, `invalid`, `positioning`, `open` | | As in Zag's combobox |
+| `name` | | The form field: the [`form` behavior](/guide/forms/) reads its value (`value={state.form.values.city}`) and touched state ([form fields](/guide/widgets/#form-fields)); hidden inputs submit the value natively (one per value with `multiple`), not the label the input shows. `form` (a form's id) goes on those hidden inputs. A form reset puts the first value back |
+| `multiple` | `false` | Several values, shown as [chips](#several-values-chips) before the input |
+| `chips` | `true` | With `multiple`: `false` renders no chips (render the values yourself) |
+| `removeLabel` | `'Remove'` | A chip's remove button's name: a prefix (`'Remove'` → "Remove Paris") or `(label) => name` |
+| `empty` | | Shown while the list is open with no items: [No results](#no-results) |
+| `positioning` | `{ strategy: 'fixed' }` | Zag's positioning options ([Positioning](#positioning)) |
+| `form`, `disabled`, `readOnly`, `required`, `invalid`, `open` | | As in Zag's combobox |
 
 ## Events and commands
 
@@ -98,7 +178,7 @@ Search.model = {
 | `input-change` | The text the user typed (not the label a pick writes) |
 | `open-change` | `true` / `false` |
 
-Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the input).
+Commands for `ELEMENT`: `open`, `close`, `clear`, `focus` (the input), and `remove` (`{ remove: '.tags', value }`: one value of a `multiple` combobox; without `value`, the last).
 
 ## Keyboard
 
@@ -109,10 +189,12 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the input).
 | Enter | Pick the active option |
 | Escape | Close the list |
 | Home / End | Move the caret in the input |
+| Backspace | In the empty input of a `multiple` combobox: remove the last chip |
+| Tab, a click elsewhere | Close; with `allowCustomValue`, commit the typed text |
 
 ## Styling
 
-Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"` and `"item-indicator"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
+Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"`, `"item-indicator"`, `"item-group"`, `"item-group-label"`, and `"item-chips"`, `"item-chip"`, `"item-chip-text"`, `"item-chip-remove"`, `"empty"` (round 2); `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
 
 ```css live
 .city { max-width: 16rem; }
@@ -122,7 +204,7 @@ Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"la
 
 ## Positioning
 
-The listbox renders inside the widget's host, next to the input, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the input when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`. Inside a `<dialog>` (its own style is `overflow: auto`), `'fixed'` is the default.
+The list renders inside the widget's host, next to its input, and Zag places it with `position: fixed` by default (as Radix's Popper does; the `--x` / `--y` variables on the positioner). So a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell, a `<dialog>`) doesn't cut it off, and it still follows the input when the page scrolls. The caveat: an ancestor with a `transform`, `filter`, `perspective` or `contain` becomes the containing block of a fixed element, so inside one (an animated drawer, a scaled canvas) the list is placed and clipped relative to that ancestor. There, or to keep the list in the document flow, pass `positioning={{ strategy: 'absolute' }}`. Other options go in the same object and merge over the default: `positioning={{ placement: 'bottom-end', gutter: 4 }}`.
 
 ## Testing
 

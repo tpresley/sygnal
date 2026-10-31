@@ -83,6 +83,7 @@
 import {pres} from '../core/registry'
 import {chainHooks, createElement} from '../pragma/index'
 import {controlled} from './controlled'
+import {FIELD} from './field'
 
 const W = '__sw'
 
@@ -131,7 +132,9 @@ function sync(v: any, s: any) {
 }
 
 function mount(v: any) {
-  const el = v.elm, {ww: w, wp: p, wo: o} = v.data, def = w.def, val = def.value
+  const el = v.elm, {ww: w, wp: p, wo: o} = v.data, def = w.def, val = def.value, fd = def.field
+  // the widget field contract (extra/field.ts): the event whose detail is the field's value
+  const fe = fd && (fd.event || val?.event || 'change')
   let s: any
   const d = (n: string, detail?: any) => {
     dev(140, w, o, n)
@@ -140,7 +143,15 @@ function mount(v: any) {
       s.c.local(detail)
       if (s.p.strict ?? val.strict) setTimeout(() => el[W] === s && s.c.settle(s.p.value))
     }
-    el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true}))
+    if (n != fe || !s) return void el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true}))
+    // a field: the event, then the host's input (FIELD), with the detail as the value meanwhile
+    s.v = [detail]
+    try {
+      el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true}))
+      const e: any = new Event('input', {bubbles: true})
+      e[FIELD] = 1
+      el.dispatchEvent(e)
+    } finally { s.v = 0; s.l = [detail] }
   }
   let i: any
   dev(144, w, o, el)
@@ -150,6 +161,8 @@ function mount(v: any) {
   const err = (x: any) => { el[W] && fail(o, w, v.key, 661, x, 1) }
   try { i = def.mount(el, p, d, err) } catch (x) { return fail(o, w, v.key, 660, x) }
   Object.defineProperty(el, W, {value: s = {w, p, i, e: d}, configurable: true})
+  // the field: { name, value, disabled } (the value being dispatched, read(), the last one dispatched, the value prop)
+  if (fd) s.h = el, s.f = () => ({name: s.p.name, disabled: !!s.p.disabled, value: s.v ? s.v[0] : fd.read ? fd.read(s.i, el) : s.l ? s.l[0] : s.p.value})
   // the tag form's commands: a host method for each one the element doesn't have (D190)
   for (const m in def.commands) m in el || (el[m] = (x: any) => el[W]?.w.commands[m]?.(el, x))
   if (val) {

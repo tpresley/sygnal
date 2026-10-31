@@ -193,6 +193,34 @@ export const Editor = defineWidget({
 
 `write` must not report back: apply it the way the library marks a programmatic change (CodeMirror: a transaction annotation the update listener skips; Leaflet: a flag around `setView`). This API may change before it is stable.
 
+## Form fields
+
+A widget that edits one value (a date picker, a color picker, a rich select) can be a form field: declare `field`, and give the tag a `name`. The [`form` behavior](/guide/forms/) then reads its value and its touched state from it, as it does for a native input, and [`processForm`](/guide/forms-reference/#processform) entries get its value:
+
+<!-- docs-check: skip -->
+```jsx
+export const DatePicker = defineWidget({
+  tag: 'div',
+  events: ['pick'],
+  field: { event: 'pick', read: (fp) => fp.selectedDates[0] ?? null },
+  mount: (el, props, dispatch) => flatpickr(el, { inline: true, defaultDate: props.value, onChange: ([d]) => dispatch('pick', d ?? null) }),
+  update: (fp, props) => fp.setDate(props.value ?? null, false),
+  unmount: (fp) => fp.destroy(),
+})
+
+// <form><DatePicker className="due" name="due" value={state.form.values.due} /></form>
+```
+
+- When the widget dispatches the field's event (`field.event`; default: `value.event`, else `'change'`), its host also fires a bubbling `input` event: the form behavior's change of the field `name`, with the event's detail as the value. An intent listening for the widget's own event still gets it.
+- The library's own controls inside the host (flatpickr's text input) don't count: their `input` events are not changes of the form's fields, unless they have a `name` of their own.
+- The field is touched when the focus leaves the host; moving between the widget's own parts doesn't count.
+- `read(instance, host)` is the field's value between events: what processForm entries get (default: the last value dispatched, else the `value` prop). FormData has what the widget's own named elements hold (a hidden `<input name>` it renders for native submission).
+- A widget with a `disabled` prop of `true` has no entry.
+- `field: true` takes the defaults.
+- In tests, `t.widget('.due').dispatch('pick', date)` reaches the form behavior in the mock DOM too.
+
+The [Select](/ui/select/) and [Combobox](/ui/combobox/) parts are fields this way.
+
 ## Accessibility
 
 The host is a real element in your markup, so the usual rules apply to it. An `input`-hosted widget needs a label, like any input: wrap it in a `<label>`, or give it an `aria-label` (sygnal-check reports an unlabelled one, [SYG702](/reference/errors/#syg702)). For a `div`-hosted widget, give the host a `role` and an accessible name when the library doesn't: `<Chart className="sales" role="img" aria-label="Sales by month" />`.

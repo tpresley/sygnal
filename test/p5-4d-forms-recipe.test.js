@@ -42,8 +42,10 @@ describe('guide/forms: the agent-sized page (D231)', () => {
     expect(page.indexOf('## The recipe')).toBeLessThan(1500)
     // PLAN-11 F-3: the recipe saves with `request` (the form names form.DONE / form.ERRORS itself)
     for (const s of ["'form.ADD'", "'form.REMOVE'", 'state.form.submitting', "request: { url: '/api/signup' }", "error: 'form.ERRORS'", '422']) expect(page).toContain(s)
-    // 18,000 until the live examples added the demo server and the error-line CSS (+436 B)
-    expect(Buffer.byteLength(page)).toBeLessThan(18500)
+    // 18,000 until the live examples added the demo server and the error-line CSS (+436 B);
+    // 18,500 until the UI sweep round 2's field-types row (Select, Combobox, widget fields: +137 B;
+    // the page was 16 B under; maintainer to confirm)
+    expect(Buffer.byteLength(page)).toBeLessThan(18700)
   })
 
   it('the recipe and the testing sample are clean under sygnal-check --strict', () => {

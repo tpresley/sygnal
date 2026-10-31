@@ -187,6 +187,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
 | A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
 | `<input type="file">` | Its `File` (`multiple`: an array), or `null` | Don't bind `value`: [file fields](/guide/forms-reference/#file-fields) |
+| [Select](/ui/select/), [Combobox](/ui/combobox/), a [widget field](/guide/widgets/#form-fields) | Its value | `value={f.size.value}` |
 
 ## Options
 

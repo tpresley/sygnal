@@ -7,9 +7,9 @@
  *
  * Renders a label, a trigger button (role="combobox", named by the label) showing the selected
  * label or the placeholder, the listbox (items role="option", aria-selected, a ✓ indicator Zag
- * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`). A
- * pick is that field's `input` event and leaving the select its `focusout` (ZS-1, ZS-5: the form
- * behavior, processForm); a form reset puts the first value back (Zag's).
+ * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`). It is
+ * a widget field (extra/field.ts): the form behavior and processForm read its value; a form reset
+ * puts the first value back (Zag's).
  * Keyboard and typeahead are Zag's. Styling hooks: `data-scope="select"` + `data-part` (root,
  * label, control, trigger, value-text, indicator, positioner, content, item, item-text,
  * item-indicator), `data-state`, `data-highlighted`, `data-placeholder-shown`.
@@ -24,14 +24,14 @@
 import * as select from '@zag-js/select'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, announce, leaving, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, field, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
 
 export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: any) => {
   const hidden = api.getHiddenSelectProps(), v = api.value
   // multiple: the options' selected props carry the value (a select's value prop is one string)
   if (x.multiple) delete hidden.props.value
   if (p.label == null) delete hidden.attrs['aria-labelledby']
-  return h('div', leaving(api.getRootProps(), x, p),
+  return h('div', api.getRootProps(),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
       h('button', named(api.getTriggerProps(), p, 1),
@@ -46,17 +46,16 @@ export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: a
 }, {
   name: 'Select',
   $own: 1,
+  field,
   ownProps: [...NAMING, 'name'],
   props: ({items, label, placeholder, value, defaultValue, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.items = norm(items)
     x.multiple = !!p.multiple
     return {
-      ...placed(p, x),
+      ...placed(p),
       collection: collectionOf(select, x.items),
       value: arr(value),
       defaultValue: arr(defaultValue),
-      // ZS-1: the pick as the hidden field's input event (the form behavior, processForm)
-      onValueChange: (d: any) => { p.onValueChange?.(d); announce(x, p, d.value) },
     }
   },
   events: {'value-change': ['onValueChange', valueOut], 'open-change': ['onOpenChange', (d: any) => d.open]},
