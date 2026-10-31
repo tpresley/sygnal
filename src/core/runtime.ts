@@ -469,7 +469,7 @@ export class App {
 }
 
 // (one handler for every instance's DOM source)
-const DOMH: ProxyHandler<any> = {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any) => t.select(sel).events(p))}
+const DOMH: ProxyHandler<any> = {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any, o?: any) => t.select(sel).events(p, o))}
 const wrapDOM = (dom: any) => new Proxy(dom, DOMH)
 /** props$ / children$: a memory stream with the current value, fed by setProps */
 function seeded(i: any, k: string, v: any) {

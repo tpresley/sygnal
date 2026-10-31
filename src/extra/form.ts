@@ -16,7 +16,8 @@
  * form starts), `submit` (host action), `request` (PLAN-11 F-3: the form sends the valid submit
  * itself on the `http` sink: a request, or `(data, hostState) => request`, completed with the
  * body (`multipart: data` when a top-level value is a File / Blob or an array of them, else
- * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` (unless set)
+ * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` for a multipart
+ * submit or `progress: true` (a JSON submit stays on fetch: progress goes over XMLHttpRequest)
  * and its own `ok: '<key>.DONE'`, `error: '<key>.ERRORS'`; with `submit` too, that host action is
  * still dispatched (for state), and should send no request), `check` (async per-field checks through a driver: a
  * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
@@ -238,8 +239,9 @@ export const form = (schema: any, o: any = {}): any => {
   const send = (vals: any, h: any, k: string) => {
     const data = v(vals).value, q = typeof rq == 'function' ? rq(data, h) : rq
     if (!q || q === ABORT) return ABORT
-    const own = 'json' in q || 'multipart' in q || 'body' in q
-    return {...(!own && (hasFile(data) ? {multipart: data} : {json: data})), progress: `${k}.PROGRESS`, ...q, ok: `${k}.DONE`, error: `${k}.ERRORS`}
+    // progress (over XMLHttpRequest) only for an upload or when asked (`progress: true`): a JSON submit stays on fetch
+    const own = 'json' in q || 'multipart' in q || 'body' in q, up = own ? 'multipart' in q : hasFile(data)
+    return {...(!own && (up ? {multipart: data} : {json: data})), ...up && {progress: `${k}.PROGRESS`}, ...q, ...q.progress === true && {progress: `${k}.PROGRESS`}, ok: `${k}.DONE`, error: `${k}.ERRORS`}
   }
 
   const model: any = {}

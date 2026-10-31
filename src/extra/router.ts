@@ -27,7 +27,8 @@ import {SET} from '../core/teardown';
  *   navigation: `{ ...proceed, block: false }` clears the block and makes it.
  * - Block: while a component has `{ block: 'ACTION' }`, an attempted navigation (link click,
  *   command, back/forward) is not made; the last blocker gets ACTION with `{ to, route,
- *   proceed }` (`proceed` is the command that makes it anyway). A back/forward is undone with
+ *   proceed }` (`proceed` is the command that makes it anyway; sending it, from any component,
+ *   clears that blocker's block: a block belongs to the component that set it). A back/forward is undone with
  *   history.go(-delta) first. beforeunload is prevented while any block is set.
  * - Links: document-level click interception of same-origin `<a href>` (HTML and SVG,
  *   inside shadow roots via composedPath(), resolved against <base>), except modified or
@@ -121,7 +122,7 @@ export function makeRouter(options: any = {}) {
     const blocks = new Map<any, string>();
     const pos = new Map<string, number[]>();
     let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0, hops = 0, warned = 0;
-    let cur: any = null, cancel: any = null, pendingKind = '';
+    let cur: any = null, cancel: any = null, pendingKind = '', asked: any;
 
     const newKey = () => Date.now().toString(36) + (n++);
     const stamp = (i: number) => ({key: (key = newKey()), i: (idx = i)});
@@ -185,7 +186,7 @@ export function makeRouter(options: any = {}) {
 
     const blocked = (data: any) => {
       const b = [...blocks].pop();
-      return b && (reply(b[0], b[1], data), 1);
+      return b && (asked = b[0], reply(b[0], b[1], data), 1);
     };
 
     const go = (url: string, replace?: boolean, scroll?: boolean, f?: any) => {
@@ -292,6 +293,9 @@ export function makeRouter(options: any = {}) {
         }
         // `block` combines with a navigation: { ...proceed, block: false } clears it and goes
         const nav = v.back || v.forward || v.go || v.to != null || v.url != null;
+        // a forced navigation (a `proceed`) settles the block that was asked, whoever sends it: a
+        // hidden page's stale block would catch the next link (other components' blocks stay)
+        if (nav && v.force && blocks.delete(asked)) syncUnload();
         if ('block' in v) {
           v.block ? blocks.set(s, v.block) : blocks.delete(s);
           syncUnload();

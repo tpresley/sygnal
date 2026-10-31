@@ -51,8 +51,10 @@ const conversation = () => textOf(t.container.querySelector('.messages') ?? t.co
 
 /** the buttons whose text is a session's title */
 const sessionButtons = () => [...t.container.querySelectorAll('button')].filter((b) => Object.values(SESSIONS).includes(textOf(b).trim()) || Object.values(SESSIONS).some((s) => textOf(b).includes(s)))
+/** the open card's button for a session: an answered card may drop its buttons or disable them (both meet
+ * "can't be answered again"; changed after the llms-context A/B, which counted removal as a failure) */
 const buttonFor = (title) => {
-  const all = sessionButtons().filter((b) => textOf(b).includes(title))
+  const all = sessionButtons().filter((b) => textOf(b).includes(title) && !b.disabled)
   if (all.length !== 1) throw new Error(`expected one button for "${title}", found ${all.length}`)
   return all[0]
 }
@@ -138,8 +140,8 @@ describe('session card in the assistant', () => {
     await until(() => chatReqs().length === 2, 'the answer to be sent')
     await t.stream('LLM', ['Noted.'])
     await until(() => conversation().includes('Noted.'), 'the reply')
-    const other = buttonFor(SESSIONS.s4)
-    other.click()
+    // whatever is left of the answered card: clicking it (an inert or disabled button) answers nothing
+    for (const b of sessionButtons().filter((x) => textOf(x).includes(SESSIONS.s4))) b.click()
     await t.settle()
     await t.settle()
     expect(chatReqs()).toHaveLength(2)
@@ -158,10 +160,10 @@ describe('session card in the assistant', () => {
     await say('Actually, let me pick another one')
     expect(chatReqs()).toHaveLength(3)
     await ask('c2', 'Pick another session')
-    // two cards now: the new one is the later one in the conversation
-    const s4 = sessionButtons().filter((b) => textOf(b).includes(SESSIONS.s4))
-    expect(s4).toHaveLength(2)
-    s4[1].click()
+    // the new card is the later one in the conversation (the answered one may be gone or disabled)
+    const s4 = sessionButtons().filter((b) => textOf(b).includes(SESSIONS.s4) && !b.disabled)
+    expect(s4.length).toBeGreaterThan(0)
+    s4[s4.length - 1].click()
     await until(() => chatReqs().length === 4, 'the second answer')
     expect(mentions(askPart(chatReqs()[3], 'c2').output, 's4')).toBe(true)
     expect(mentions(askPart(chatReqs()[3], 'c1').output, 's1')).toBe(true)
