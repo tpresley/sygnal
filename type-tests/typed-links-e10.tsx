@@ -248,8 +248,12 @@ expectType<Equal<DomActions['CUSTOM'], Event>>()
 const sameIntent = ({ DOM }: IntentSources<EditorState>) => ({
   A: DOM.keydown('.x'),
   B: DOM.select('.x').events('keydown'),
+  // the events() options pass through the shorthand (llms-context A/B, task 33)
+  C: DOM.submit('form', { preventDefault: true }),
+  D: DOM.select('form').events('submit', { preventDefault: true }),
 })
 expectType<Equal<ActionsOf<typeof sameIntent>['A'], ActionsOf<typeof sameIntent>['B']>>()
+expectType<Equal<ActionsOf<typeof sameIntent>['C'], ActionsOf<typeof sameIntent>['D']>>()
 
 const badDomIntent = ({ DOM }: IntentSources<EditorState>) => ({
   // @ts-expect-error — a MouseEvent has no 'key'

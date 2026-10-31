@@ -228,6 +228,18 @@ The split passes the rule. It isn't a measurable quality gain on Sonnet; the gai
 
 **The Opus pair (≈ $87) is not worth running for this decision.** Sonnet already resolves the topic files 36/40 times, and both arms fail on the same tasks for reasons unrelated to the layout. A pass-rate difference of a few points would need several hundred trials per arm to detect. The open signal is cost and time, which Sonnet already shows. A Haiku or local-model run would answer the remaining question better, whether small models need an `llms-small.txt` (question 3), and is cheaper to pilot.
 
+### Failure root causes and fixes (after the A/B)
+
+Every failure was diagnosed against the trial's final code and the hidden test. None came from the layout of `llms.txt`. The maintainer approved these fixes:
+
+| Task | Failures | Cause | Fix |
+|---|---|---|---|
+| 30 checkout-form | 8/10 | `form({ request })` added `progress: 'form.PROGRESS'` to every submit, and a progress request goes over XMLHttpRequest, so the test's stubbed `fetch` saw nothing. The app worked in a browser. | A JSON submit stays on `fetch`; progress is added only for a multipart submit or `progress: true` (`src/extra/form.ts`). |
+| 49 session-card | 6/10 | The hidden test required an answered card to keep its buttons; removing them also meets the prompt ("can't be answered again"). | The hidden test now accepts removed or disabled buttons and clicks in the newest card. All 10 A/B trials pass it; `verify.mjs` is ALL OK. **So later runs of task 49 aren't directly comparable with these A/B numbers.** |
+| 25 router-spa | 3/10 | The block was set in the hidden `EditPage` and the proceed sent from `App`; a block is keyed by its sender, so it outlived the proceed and caught the next link. | A forced navigation (a `proceed`) clears the block it overrode (`src/extra/router.ts`); docs: a block belongs to the component that set it. |
+| 33 virtual-list | 2/10 | `DOM.submit(sel, { preventDefault: true })`: the shorthand dropped its second argument. | The shorthand passes options to `events()` (`src/core/runtime.ts`, types in `src/index.d.ts`). |
+| 45 packing-assistant | 1/10 | `input: z.object({ packed })` with `(state, packed) => …` stored an object. Model slip. | One line in `llms/ai.md`: a tool reducer's data is the parsed input. |
+
 ### Paid eval plan (as written before the run)
 
 The harness supports this as is. There are four variant specs in `evals/agent-ergonomics/variants/`; `tests/variant.unit.mjs` validates them.

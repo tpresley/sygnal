@@ -1,5 +1,6 @@
 // PLAN-11 F-3: form(schema, { request }) sends a valid submit itself on the `http` sink, with
-// the body (json, or multipart when the data has a File), progress: 'form.PROGRESS' and its own
+// the body (json, or multipart when the data has a File; progress: 'form.PROGRESS' only for multipart
+// or `progress: true`: a progress request goes over XMLHttpRequest) and its own
 // ok: 'form.DONE' / error: 'form.ERRORS'. No host model entry needed; `submit` stays optional.
 import { describe, it, expect, afterEach } from 'vitest'
 import { z } from 'zod'
@@ -36,7 +37,8 @@ describe('form request option', () => {
     await type('  Hello ')
     await submit()
     const [req] = t.requests('HTTP')
-    expect(req).toMatchObject({ url: '/api/items', json: { title: 'Hello', photo: null }, progress: 'form.PROGRESS', ok: 'form.DONE', error: 'form.ERRORS' })
+    expect(req).toMatchObject({ url: '/api/items', json: { title: 'Hello', photo: null }, ok: 'form.DONE', error: 'form.ERRORS' })
+    expect(req.progress).toBe(undefined)
     expect(t.state.form.submitting).toBe(true)
     await t.respond('HTTP', { id: 1 }, 'form.DONE')
     expect(t.state.form).toMatchObject({ submitting: false, submitted: true })
@@ -54,6 +56,7 @@ describe('form request option', () => {
     const [req] = t.requests('HTTP')
     expect(req.json).toBe(undefined)
     expect(req.multipart).toEqual({ title: 'Pic', photo: file })
+    expect(req.progress).toBe('form.PROGRESS')
     await t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')
     expect(t.state.form.progress.fraction).toBe(0.5)
     await t.fail('HTTP', 422, { body: { errors: { title: 'Taken' } } })

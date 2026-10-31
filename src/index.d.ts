@@ -372,7 +372,8 @@ type ChildSource = {
 /**
  * `DOM.<event>(selector)` shorthands for the standard DOM events, typed like
  * `DOM.select(selector).events('<event>')`: `DOM.keydown('.x')` is a stream of KeyboardEvent,
- * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on.
+ * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on. A second argument
+ * is the events() options: `DOM.submit('form', { preventDefault: true })`.
  */
 export type DOMEventShorthands = {
   [EVENT in Exclude<keyof HTMLElementEventMap, keyof MainDOMSource>]: DOMEventShorthand<HTMLElementEventMap[EVENT]>
@@ -383,9 +384,9 @@ export type DOMEventShorthands = {
  * the event with `currentTarget` (and `ownerTarget`) typed as the control's element.
  */
 export interface DOMEventShorthand<EVENT> {
-  <CONTROL extends AnyControl>(control: CONTROL): EnrichedEventStream<ControlEvent<EVENT, ControlElementOf<CONTROL>>>
+  <CONTROL extends AnyControl>(control: CONTROL, options?: EventsFnOptions): EnrichedEventStream<ControlEvent<EVENT, ControlElementOf<CONTROL>>>
   // last, so ReturnType<SygnalDOMSource['click']> stays the selector form
-  (selector: string): EnrichedEventStream<EVENT>
+  (selector: string, options?: EventsFnOptions): EnrichedEventStream<EVENT>
 }
 
 /**
@@ -1099,7 +1100,8 @@ export interface FormOptions<V = any, OUT = any> {
    * function of the schema's output and the host's state (`(data, state) => ({ url: '/api/items/' + state.id, method: 'PUT' })`;
    * `ABORT` / falsy sends nothing and leaves the submit pending). The form adds the body
    * (`multipart: data` when a top-level value is a File or files, else `json: data`, unless the
-   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` (unless set) and its own
+   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` for a multipart submit or
+   * `progress: true` (a JSON submit stays on fetch: progress goes over XMLHttpRequest) and its own
    * `ok: 'form.DONE'`, `error: 'form.ERRORS'`
    */
   request?: FormRequest<OUT>;

@@ -217,6 +217,45 @@ describe('router fake', () => {
 })
 
 describe('HEAD fake', () => {
+  it('a proceed sent by another component clears the block it overrode (llms-context A/B, task 25)', async () => {
+    // the page sets the block, the root shows the confirmation and sends the proceed: the hidden
+    // page (Switchable keeps it alive) must not keep blocking the next navigation
+    function Edit() { return h('button', { className: 'edit' }, 'edit') }
+    Edit.intent = ({ DOM }) => ({ EDIT: DOM.click('.edit') })
+    Edit.model = {
+      EDIT: { ROUTER: () => ({ block: 'CONFIRM_LEAVE' }) },
+      CONFIRM_LEAVE: (state, { proceed }) => ({ ...state, leaving: proceed }),
+    }
+    const Home = () => h('p', null, 'home')
+    function Site({ state }) {
+      return h('main', null,
+        h(Switchable, { of: { home: Home, task: Edit, login: Home }, current: state.route.name }),
+        state.leaving ? h('p', { className: 'confirm' }, 'Discard?') : null)
+    }
+    Site.route = 'ROUTE'
+    Site.initialState = { route: router.current('/tasks/1'), leaving: null }
+    Site.model = {
+      ROUTE: (state, route) => ({ ...state, route, leaving: null }),
+      LEAVE: {
+        STATE: (state) => ({ ...state, leaving: null }),
+        ROUTER: (state, data, next, { previousState }) => ({ ...previousState.leaving, block: false }),
+      },
+    }
+    t = renderComponent(Site, { router, url: '/tasks/1' })
+    await t.ready()
+    t.simulateEvent('.edit', 'click')
+    await t.settle()
+    await t.navigate('/')
+    await t.waitForState((s) => !!s.leaving)
+    expect(t.location.path).toBe('/tasks/1')
+    t.simulateAction('LEAVE')
+    await t.waitForState((s) => s.route.path === '/')
+    // the page's block went with the proceed: the next link isn't caught
+    await t.navigate('/login')
+    await t.waitForState((s) => s.route.path === '/login')
+    expect(t.state.leaving).toBe(null)
+  })
+
   it('t.head(): the merged title, meta and links; a page title per route', async () => {
     const TITLES = { home: () => 'All tasks', task: (route) => `Task ${route.params.id}` }
     function TaskPage() { return h('h1', null, 'task') }
