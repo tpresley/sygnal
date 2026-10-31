@@ -3192,11 +3192,16 @@ export function makeHeadDriver(options?: { titleTemplate?: string; document?: an
  * `after`: once, after ms (0 or more); `frame`: every animation frame (requestAnimationFrame,
  * else every 16 ms). `background: true` keeps it running while its Switchable page is hidden.
  * An invalid spec is not started (SYG422 in dev).
+ *
+ * A `frame` timer for a game (canvas-game R2): `keys` samples the keyboard with each frame
+ * (`{ left: ['ArrowLeft', 'KeyA'], jump: 'Space' }`, KeyboardEvent codes or keys; the data gets
+ * `held`, `pressed`, `released`: TimerFrameInput), and `step` (ms) makes it a fixed timestep: one
+ * action per whole step the frame time owes, at most `max` (default 5) a frame.
  */
 export type TimerSpec<ACTION extends string = string> =
   | { every: number; action: ACTION; background?: boolean; after?: never; frame?: never }
   | { after: number; action: ACTION; background?: boolean; every?: never; frame?: never }
-  | { frame: ACTION; background?: boolean; every?: never; after?: never; action?: never }
+  | { frame: ACTION; keys?: Record<string, string | readonly string[]>; step?: number; max?: number; background?: boolean; every?: never; after?: never; action?: never }
 
 /** A component's whole set of timers, by name: a falsy entry (`state.running && { ... }`) is stopped */
 export type Timers<ACTION extends string = string> = { [name: string]: TimerSpec<ACTION> | false | null | undefined | 0 | '' }
@@ -3205,8 +3210,21 @@ export type Timers<ACTION extends string = string> = { [name: string]: TimerSpec
 export interface TimerTick { n: number; t: number }
 /** The data of an `after` timer's action: Date.now() */
 export interface TimerAfter { t: number }
-/** The data of a `frame` timer's action: Date.now() and the ms since the previous frame (0 on the first) */
-export interface TimerFrame { t: number; dt: number }
+/**
+ * The data of a `frame` timer's action: Date.now() and the ms since the previous frame (0 on the
+ * first); with `step`, `dt` is the step and `steps` / `i` say how many steps this frame sends and
+ * which one this is; with `keys`, the input (TimerFrameInput)
+ */
+export interface TimerFrame<BUTTON extends string = string> extends Partial<TimerFrameInput<BUTTON>> { t: number; dt: number; steps?: number; i?: number }
+/**
+ * A `frame` timer's sampled keys: `held` (every button, true while one of its keys is down; the
+ * same object while nothing changed), `pressed` / `released` (the buttons that went down / up since
+ * the last frame, so a tap shorter than a frame counts; with `step`, on the frame's first step).
+ * Listened for on the document while the timer runs: the keys are default-prevented (repeats
+ * ignored), not while a text field has the focus; the window losing focus or the page hiding
+ * releases every button.
+ */
+export interface TimerFrameInput<BUTTON extends string = string> { held: Record<BUTTON, boolean>; pressed: BUTTON[]; released: BUTTON[] }
 
 /**
  * PLAN-4 GS-7: runs the components' `timers` statics: `run(App, { TIMER: makeTimerDriver() })`.
@@ -3722,9 +3740,17 @@ export interface RenderResult<STATE = any> {
    * with `{ component: Child }` the first rendered instance of `Child` (`within`: inside the first
    * element matching a selector or control, e.g. one Collection item). A name that instance has no
    * model entry for (nor a behavior action or a built-in) fails the test, naming the components
-   * that handle it: `t.simulateAction('INFER_FILE', file, { component: Start })`
+   * that handle it: `t.simulateAction('INFER_FILE', file, { component: Start })`. Awaitable:
+   * resolves once the action is delivered and the tree has rendered it
    */
-  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => void;
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => Promise<void>;
+  /**
+   * Wait for `n` frames (default 1) of the running `frame` timers: their actions reduced, the tree
+   * rendered. Under fake timers it moves the clock frame by frame (deterministic: the same input,
+   * the same frames); with real timers it waits for them. Rejects when no frame timer runs.
+   * `settle()` doesn't wait on a frame loop: what a frame timer causes isn't activity.
+   */
+  frames: (n?: number) => Promise<void>;
   /**
    * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
    * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).

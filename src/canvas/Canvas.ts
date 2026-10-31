@@ -12,6 +12,9 @@
  *   layer's element with `event.hit` = the node's id (`event.node` its data). `active={ids}`:
  *   nodes that change every frame (a drag): painted live, so the rest stays cached.
  *   `outline={color}`: a layer that paints its nodes' outlines (1 screen px) and is never hit.
+ *   `live`: every node changes every frame (a game's actors): painted live, no ids, no projection
+ *   by default. `parallax={f}` (or `[fx, fy]`): the layer scrolls at f times the camera (a
+ *   background far away). Layers paint in their order whatever is live (canvas-game R4).
  * - Any other node tag (`rect ellipse text line path frame`, a `g` to group): one element per
  *   node, for handles, guides, a marquee, a few interactive things with intents of their own.
  *   World coordinates, or `space="screen"` (canvas pixels: handles keep their size at any zoom).
@@ -54,16 +57,17 @@
 import {defineWidget} from '../index'
 import {controlled} from '../extra/controlled'
 import {pointerRouter, fire} from '../extra/pointer'
-import {CAMERA, toWorld, toScreen, viewport, zoomAt, panBy, aabb, overlaps, centre, type Camera} from './geometry'
+import {CAMERA, toWorld, toScreen, viewport, zoomAt, panBy, aabb, overlaps, centre, layerCamera, type Camera} from './geometry'
 import {hitNodes, measureText, type Node} from './paint'
 import {canvas2d, type PaintLayer, type PaintStats} from './backend'
+import {atFrameEnd} from '../extra/frame'
 
 const tagOf = (sel: string) => /^[^#.]*/.exec(sel)![0]
 const NODE = /^(rect|ellipse|text|line|path|frame)$/
 const OWN = /^(className|class|key|style|role|tabIndex|title|ref|hook|attrs|data|space)$|^(aria|data)-/
 const textOf = (v: any): string => v.text != null ? String(v.text) : (v.children || []).map(textOf).join('')
 
-type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>, outline?: string, label?: string, a11y?: number}
+type Layer = {el: any, items: Node[], active: Set<any> | null, els?: Map<any, any>, outline?: string, label?: string, a11y?: number, live?: boolean, parallax?: [number, number] | null}
 type Live = {el: any, node: Node}
 
 // one Set per `active` array (a drag's ids are the same array each frame: the Set, and the painter's
@@ -97,7 +101,9 @@ export function readChildren(container: any) {
       const tag = tagOf(v.sel), d = v.data || {}, p = {...d.attrs, ...d.props}
       if (p.display == 'none') continue
       if (tag == 'shapes') {
-        layers.push({el: v.elm, items: d.props?.items || p.items || [], active: p.active?.length ? setOf(p.active) : null, outline: p.outline, label: p['aria-label'], a11y: p.a11y})
+        const live = !!p.live && p.live !== 'false', px = p.parallax
+        layers.push({el: v.elm, items: d.props?.items || p.items || [], active: !live && p.active?.length ? setOf(p.active) : null, outline: p.outline, label: p['aria-label'],
+          a11y: p.a11y ?? (live ? 0 : undefined), live, parallax: px == null || px === 1 ? null : typeof px == 'number' ? [px, px] : px})
         jsx = null
         continue
       }
@@ -133,14 +139,16 @@ const shallowEqual = (a: any, b: any) => {
   return n == 0
 }
 const prevItems = new WeakMap<any, Node[]>(), reported = new WeakSet<any>()
-function checkRebuild(el: any, items: Node[]) {
+function checkRebuild(el: any, items: Node[], active: Set<any> | null) {
   const d = (globalThis as any).__SYGNAL_DIAGNOSTICS__, prev = el && prevItems.get(el)
   if (el) prevItems.set(el, items)
   // (dev only: diagnostics on; a production build makes no pass over the layer)
   if (!d?.hooks?.on?.() || !prev || prev === items || items.length < 64 || prev.length != items.length || reported.has(el)) return
+  // (B3: nodes in `active` repaint every frame by design: only the static ones count)
   let same = 0
-  const need = items.length / 2
-  for (let i = 0; i < items.length && same < need; i++) if (items[i] !== prev[i] && shallowEqual(items[i], prev[i])) same++
+  const need = (items.length - (active ? active.size : 0)) / 2
+  if (need < 32) return
+  for (let i = 0; i < items.length && same < need; i++) if (items[i] !== prev[i] && !active?.has(items[i].id) && shallowEqual(items[i], prev[i])) same++
   if (same < need) return
   reported.add(el)
   try {
@@ -157,7 +165,7 @@ function sameDisplay(la: Layer[], va: Live[], lb: Layer[], vb: Live[]) {
   if (la.length != lb.length || va.length != vb.length) return false
   for (let i = 0; i < la.length; i++) {
     const a = la[i], b = lb[i]
-    if (a.el !== b.el || a.outline !== b.outline || a.label !== b.label || a.a11y !== b.a11y || !sameActive(a.active, b.active)) return false
+    if (a.el !== b.el || a.outline !== b.outline || a.label !== b.label || a.a11y !== b.a11y || a.live !== b.live || String(a.parallax) !== String(b.parallax) || !sameActive(a.active, b.active)) return false
     if (a.items !== b.items && (!a.els || a.items.length != b.items.length || a.items.some((n, j) => n !== b.items[j]))) return false
   }
   for (let i = 0; i < va.length; i++) if (va[i].node !== vb[i].node || va[i].el !== vb[i].el) return false
@@ -193,8 +201,9 @@ export const Canvas = defineWidget({
     }
     size(w, h)
 
+    // inside a frame timer's frame (a game's step): paint at its end, in this frame (B2); else the next frame
     const invalidate = inst.invalidate = () => {
-      if (backend && !pending && raf) pending = raf(() => { pending = 0; draw() })
+      if (backend && !atFrameEnd(inst.paintNow) && !pending && raf) pending = raf(() => { pending = 0; draw() })
       scheduleA11y()
     }
     const followDelta = () => {
@@ -213,7 +222,7 @@ export const Canvas = defineWidget({
       backend.paint({
         camera: cam, width: w, height: h, dpr, background: inst.props.background || '#f5f5f5', grid: !!inst.props.grid,
         repaint: inst.props.repaint == 'full' ? 'full' : 'layers', moving,
-        layers: inst.layers.map((l: Layer): PaintLayer => ({items: l.items, active: l.active, outline: l.outline})),
+        layers: inst.layers.map((l: Layer): PaintLayer => ({items: l.items, active: l.active, outline: l.outline, live: l.live, parallax: l.parallax})),
         overlay, follow: followDelta(),
       }, s)
       // the first paint with content (benchmarks: startup)
@@ -235,9 +244,10 @@ export const Canvas = defineWidget({
         if (e !== skip && hitNodes([node], screen, 2)) return {el: e, hit: null, node, world, screen}
       }
       for (let i = inst.layers.length - 1; i >= 0; i--) {
-        const l = inst.layers[i], n = l.outline ? null : hitNodes(l.items, world, slop)
+        const l = inst.layers[i], at = l.parallax ? toWorld(layerCamera(inst.camera, l.parallax), sx, sy) : world
+        const n = l.outline ? null : hitNodes(l.items, at, slop)
         const t = n && (l.els ? l.els.get(n.id ?? n) : l.el)
-        if (n && t !== skip) return {el: t, hit: n.id ?? null, node: n, world, screen}
+        if (n && t !== skip) return {el: t, hit: n.id ?? null, node: n, world: at, screen}
       }
       return {el: el.firstChild, hit: null, node: null, world, screen}
     }
@@ -305,6 +315,8 @@ export const Canvas = defineWidget({
     const scheduleA11y = () => {
       // not during a drag or a camera gesture: at its end
       if (a11yQueued || moving || router?.captured?.()) return
+      // nothing projected and nothing to project (a11y={0}, live layers): no work per frame
+      if (!proj.size && inst.layers.every((l: Layer) => !l.el || l.outline || (l.a11y ?? inst.props.a11y ?? 100) == 0)) return
       a11yQueued = true
       queueMicrotask(() => { a11yQueued = false; project() })
     }
@@ -313,7 +325,7 @@ export const Canvas = defineWidget({
       const view = viewport(inst.camera, w, h), seen = new Set<any>()
       for (const l of inst.layers as Layer[]) {
         if (!l.el || l.outline) continue
-        const max = l.a11y ?? 100
+        const max = l.a11y ?? inst.props.a11y ?? 100
         seen.add(l.el)
         let p = proj.get(l.el)
         if (!max) { if (p) { p.list.remove(); proj.delete(l.el) } continue }
@@ -493,11 +505,12 @@ export const Canvas = defineWidget({
     // a camera the app changed is written (and painted); the canvas's own camera coming back is not
     if (props.camera !== prev.camera && props.camera) inst.setCamera(props.camera)
     if (props.follow !== prev.follow) inst.follow = props.follow || null
+    if (props.a11y !== prev.a11y) inst.project()
     if (props.follow !== prev.follow || props.background !== prev.background || props.grid !== prev.grid || props.repaint !== prev.repaint || props.backend !== prev.backend) inst.invalidate()
   },
   sync(inst: any, children: any) {
     const {layers, live, props} = readChildren(children)
-    for (const l of layers) if (!l.els) checkRebuild(l.el, l.items)
+    for (const l of layers) if (!l.els && !l.live && !l.outline) checkRebuild(l.el, l.items, l.active)
     // an app render that changed nothing the canvas shows (its camera echo, a panel's state): no paint
     const same = sameDisplay(inst.layers, inst.live, layers, live)
     inst.layers = layers

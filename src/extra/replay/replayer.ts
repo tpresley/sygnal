@@ -27,7 +27,12 @@ import {CAUSE, CAUSE_NAME, INPUT} from './recorder'
 import {inertDriver} from './inert'
 import {VERSION} from './version'
 
-const tick = () => new Promise(r => setTimeout(r, 0))
+// a macrotask turn; under fake timers (a test's vi.useFakeTimers()) the fake clock's, which a real
+// setTimeout(0) would wait on forever (canvas-game R5)
+const tick = (): Promise<unknown> => {
+  const c = (setTimeout as any).clock
+  return c && typeof c.tickAsync == 'function' ? c.tickAsync(0) : new Promise(r => setTimeout(r, 0))
+}
 
 export interface ReplayOptions {
   /** drivers to use instead of the inert ones (by source name) */

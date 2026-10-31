@@ -10,7 +10,8 @@
  *          report nothing" gap. (`route` and `head` are left out: renderComponent asks for the
  *          router itself, and `head` is also collected by renderToString without a driver.)
  * SYG422 — a timer spec makeTimerDriver() can't run (non-positive `every`, negative `after`,
- *          `every` with `after`, no action, `frame` that isn't an action name): it isn't started.
+ *          `every` with `after`, no action, `frame` that isn't an action name, a frame's `step` that
+ *          isn't a positive number or `keys` that isn't an object): it isn't started.
  *          The driver calls `__SYGNAL_DIAGNOSTICS__.timerSpec(name, spec, componentName)`, which
  *          installTimerHooks() sets.
  */
@@ -30,7 +31,12 @@ const brief = (v: any) => { try { return JSON.stringify(v) } catch (_) { return 
 /** why a timer spec can't run ('' when it can; mirrors timers.ts's valid()) */
 export function timerSpecProblem(s: any): string {
   if (!s || typeof s != 'object') return 'is not an object ({ every, action }, { after, action } or { frame: action })'
-  if ('frame' in s && s.frame) return typeof s.frame == 'string' ? '' : 'frame must be the action name (a string)'
+  if ('frame' in s && s.frame) {
+    if (typeof s.frame != 'string') return 'frame must be the action name (a string)'
+    if (s.step != null && !(s.step > 0)) return `step must be a positive number of ms (got ${brief(s.step)})`
+    if (s.keys != null && typeof s.keys != 'object') return `keys must be an object of button: key codes (got ${brief(s.keys)})`
+    return ''
+  }
   if (!s.action || typeof s.action != 'string') return 'has no action (a string)'
   if (s.every == null && s.after == null) return 'has neither every nor after'
   if (s.every != null && s.after != null) return 'has both every and after'

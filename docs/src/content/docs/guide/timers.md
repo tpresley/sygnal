@@ -40,7 +40,7 @@ Game.timers = (state) => ({
 |---|---|---|
 | `{ every: ms, action }` | Every `ms` milliseconds (a positive number) | `{ n, t }`: the tick number from 1, and `Date.now()` |
 | `{ after: ms, action }` | Once, `ms` milliseconds (0 or more) after it is declared | `{ t }`: `Date.now()` |
-| `{ frame: 'ACTION' }` | Every animation frame (`requestAnimationFrame`; every 16 ms where there is none) | `{ t, dt }`: `Date.now()`, and the milliseconds since the previous frame (0 on the first) |
+| `{ frame: 'ACTION' }` | Every animation frame (`requestAnimationFrame`; every 16 ms where there is none) | `{ t, dt }`: `Date.now()`, and the milliseconds since the previous frame (0 on the first). With `step` and `keys`: [a game loop](#a-game-loop-a-fixed-step-and-the-keyboard) |
 
 Any spec can add `background: true` (see [hidden pages](#hidden-pages)). The action is one of the component's own actions: it goes to the instance that declared the timer, and every sink of its model entry runs, as for an intent action.
 
@@ -111,6 +111,32 @@ Stopwatch.model = {
 }
 ```
 
+## A game loop: a fixed step and the keyboard
+
+A game's world steps every frame. Two options on a `frame` timer give it what it needs, with no code of its own:
+
+<!-- docs-check: skip -->
+```jsx
+Game.timers = (state) => ({
+  loop: state.mode === 'playing' && {
+    frame: 'STEP',
+    step: 1000 / 60,                       // a fixed timestep: one STEP per 1/60 s the frame time owes
+    keys: { left: ['ArrowLeft', 'KeyA'], right: ['ArrowRight', 'KeyD'], jump: 'Space' },
+  },
+})
+Game.model = {
+  STEP: (state, { held, pressed }) => step(state, held, pressed),
+}
+```
+
+- **`step: ms`** makes it a fixed timestep: the timer adds up the frame time and sends one action per whole step it owes (at most `max` a frame, default 5, so a tab that comes back doesn't simulate the time it was away), carrying the remainder to the next frame. The physics is then the same at 30, 60 or 144 Hz, which a variable `dt` isn't. A frame within 5 % of the step counts as exactly one step, so the jitter of real frames doesn't turn into a stutter of 0 and 2 steps. Each action's data is `{ t, dt: step, steps, i }`: how many steps this frame sends, and which one this is.
+- **`keys: { button: codes }`** samples the keyboard with each frame. The names are yours, the values `KeyboardEvent.code` names (or `key` names), one or several. The data gets `held` (every button: `true` while one of its keys is down; the same object while nothing changed), `pressed` and `released` (the buttons that went down or up since the last frame), so a tap shorter than a frame still counts once. With `step`, `pressed` and `released` come with the frame's first step only.
+- While the timer runs, it listens on the document: the listed keys are default-prevented (no page scroll on Space or the arrows), repeats are ignored, nothing is sampled while a text field has the focus, and the window losing focus or the page being hidden releases every key, so no key stays held after an alt-tab. When the timer stops (the game is paused, the component removed), the listeners go too.
+
+Keys that should work while the loop is off (Enter to start, P to unpause) are presses: [`keymap`](/renderers/canvas/#keyboard-shortcuts).
+
+The frame's actions are reduced, rendered and patched inside the frame, and a [canvas](/renderers/canvas/) or a [three.js scene](/renderers/three/) they change paints in that same frame, once.
+
 ## Hidden pages
 
 A component on a hidden [Switchable](/guide/switchable/) page keeps its state, but its timers stop while the page is hidden. When the page is shown again they start from scratch: an `every` timer counts from 1 again, and an `after` timer waits its whole delay. A timer that should go on in the background says so:
@@ -166,7 +192,8 @@ it('ticks while running and stops when paused', async () => {
 - The fake is registered as the `TIMER` sink (`timerSink: 'CLOCK'` gives it another name, when a test needs `TIMER` for something else). If the test passes its own `makeTimerDriver()` in `drivers`, the fake stands down, so no timer runs twice; `t.timers()` then lists nothing, and throws when that driver is under the fake's name.
 - `t.actions` lists each tick with its data (`t.actions.filter(a => a.type === 'TICK')`), so a test can check the `{ n, t }` values.
 - `vi.getTimerCount()` is 0 after `t.dispose()`: removing a component stops its timers.
-- A `frame` timer uses `requestAnimationFrame` when the environment has one, and a 16 ms timeout otherwise (as in jsdom), so fake timers drive it too.
+- A `frame` timer uses `requestAnimationFrame` when the environment has one, and a 16 ms timeout otherwise, so fake timers drive it too. `await t.frames(n)` runs `n` frames of the running frame timers on the fake clock (16 ms apart) and resolves once they are reduced and rendered: the same input gives the same frames, every run. Dispatch real key events for a `keys` timer: `document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' }))`, then `await t.frames(10)`.
+- What a frame timer causes isn't activity for `t.settle()`: it resolves while a game loop runs, once everything else is quiet.
 
 See [Fake timers](/integration/testing/#fake-timers) for how the waits (`next()`, `settle()`) behave on a fake clock.
 

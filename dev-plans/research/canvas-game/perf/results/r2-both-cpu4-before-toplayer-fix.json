@@ -1,0 +1,935 @@
+[
+ {
+  "app": "sygnal:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "level",
+  "frames": {
+   "n": 483,
+   "mean": 16.734989648033125,
+   "p50": 16.699999999999818,
+   "p95": 16.799999999999272,
+   "p99": 16.80000000000109,
+   "max": 49.90000000000009
+  },
+  "dropped": 1,
+  "fps": 59.75504144500804,
+  "paint": {
+   "n": 484,
+   "mean": 0.34235537101414576,
+   "p50": 0.10000014305114746,
+   "p95": 0.8999998569488525,
+   "p99": 3.799999952316284,
+   "max": 6.099999904632568
+  },
+  "simMsPerFrame": 0.06252587952228807,
+  "stepsPerFrame": 1.0041407867494825,
+  "busyMsPerFrame": 4.327265010351967,
+  "wallMs": 8073.579,
+  "mode": "dying",
+  "perFrame": {
+   "idle": 12.388,
+   "program": 3.196,
+   "sygnal core": 0.467,
+   "native (Canvas 2D, DOM)": 0.239,
+   "sygnal/canvas": 0.211,
+   "game: sim": 0.06,
+   "snabbdom": 0.049,
+   "GC": 0.033,
+   "xstream": 0.026,
+   "game: nodes": 0.025,
+   "game: view / loop": 0.014,
+   "bench probe": 0.007
+  },
+  "heapDeltaKB": 2844,
+  "heapKB": [
+   3521,
+   3624,
+   4342,
+   4516,
+   5001,
+   5787,
+   5859,
+   5215
+  ],
+  "top": [
+   [
+    "idle | (idle) ()",
+    5983.39
+   ],
+   [
+    "program | (program) ()",
+    1543.52
+   ],
+   [
+    "native (Canvas 2D, DOM) | drawImage ()",
+    29.787
+   ],
+   [
+    "native (Canvas 2D, DOM) | setTransform ()",
+    15.905000000000001
+   ],
+   [
+    "GC | (garbage collector) ()",
+    15.738
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    14.843
+   ],
+   [
+    "native (Canvas 2D, DOM) | postMessage ()",
+    13.578
+   ],
+   [
+    "sygnal core | update (dist/index.esm.js)",
+    13.298
+   ],
+   [
+    "sygnal core | Ai (dist/index.esm.js)",
+    13.261
+   ],
+   [
+    "sygnal/canvas | (anonymous) (dist/canvas.esm.js)",
+    11.920000000000002
+   ],
+   [
+    "sygnal/canvas | paintNode (dist/canvas.esm.js)",
+    10.479999999999999
+   ],
+   [
+    "sygnal core | sanitizeData (dist/index.esm.js)",
+    10.460999999999999
+   ],
+   [
+    "sygnal core | put (dist/index.esm.js)",
+    9.991999999999999
+   ],
+   [
+    "sygnal core | host (dist/index.esm.js)",
+    9.582
+   ],
+   [
+    "sygnal core | render (dist/index.esm.js)",
+    8.408
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    8.363000000000001
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    7.555
+   ],
+   [
+    "sygnal core | mc.mc.port1.onmessage (dist/index.esm.js)",
+    7.456
+   ],
+   [
+    "sygnal core | (anonymous) (dist/index.esm.js)",
+    7.410000000000001
+   ],
+   [
+    "sygnal/canvas | paintWorld (dist/canvas.esm.js)",
+    7.199999999999999
+   ],
+   [
+    "xstream | e._n (../../../../node_modules/xstream/index.js)",
+    6.839999999999999
+   ],
+   [
+    "sygnal/canvas | as (dist/canvas.esm.js)",
+    6.832
+   ],
+   [
+    "sygnal core | ca (dist/index.esm.js)",
+    6.760000000000001
+   ],
+   [
+    "game: sim | step (src/sim.ts)",
+    6.691
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    6.667
+   ]
+  ],
+  "errors": []
+ },
+ {
+  "app": "sygnal:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "stress300",
+  "frames": {
+   "n": 484,
+   "mean": 16.769214876033057,
+   "p50": 16.699999999999818,
+   "p95": 16.799999999999272,
+   "p99": 16.800000000000182,
+   "max": 66.59999999999991
+  },
+  "dropped": 1,
+  "fps": 59.63308404075748,
+  "paint": {
+   "n": 485,
+   "mean": 1.975257739824118,
+   "p50": 2,
+   "p95": 2.5,
+   "p99": 2.700000047683716,
+   "max": 3.799999952316284
+  },
+  "simMsPerFrame": 0.11735537081710563,
+  "stepsPerFrame": 1.0082644628099173,
+  "busyMsPerFrame": 11.095469008264462,
+  "wallMs": 8095.644,
+  "mode": "playing",
+  "perFrame": {
+   "program": 8.118,
+   "idle": 5.631,
+   "native (Canvas 2D, DOM)": 1.189,
+   "sygnal/canvas": 0.866,
+   "sygnal core": 0.496,
+   "game: nodes": 0.112,
+   "game: sim": 0.109,
+   "GC": 0.1,
+   "snabbdom": 0.043,
+   "xstream": 0.03,
+   "game: view / loop": 0.024,
+   "bench probe": 0.008
+  },
+  "heapDeltaKB": 8338,
+  "heapKB": [
+   5819,
+   9561,
+   10032,
+   9196,
+   8517,
+   12266,
+   10636,
+   10442
+  ],
+  "top": [
+   [
+    "program | (program) ()",
+    3928.918
+   ],
+   [
+    "idle | (idle) ()",
+    2725.265
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    315
+   ],
+   [
+    "sygnal/canvas | as (dist/canvas.esm.js)",
+    179.491
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    102.97
+   ],
+   [
+    "sygnal/canvas | paintNode (dist/canvas.esm.js)",
+    94.33
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    76.71
+   ],
+   [
+    "GC | (garbage collector) ()",
+    48.612
+   ],
+   [
+    "sygnal/canvas | shape (dist/canvas.esm.js)",
+    41.022
+   ],
+   [
+    "game: nodes | enemyNodes (src/nodes.ts)",
+    35.765
+   ],
+   [
+    "sygnal/canvas | (anonymous) (dist/canvas.esm.js)",
+    30.942999999999998
+   ],
+   [
+    "native (Canvas 2D, DOM) | drawImage ()",
+    23.799
+   ],
+   [
+    "game: sim | stepEnemy (src/sim.ts)",
+    23.369
+   ],
+   [
+    "sygnal/canvas | paintWorld (dist/canvas.esm.js)",
+    18.215000000000003
+   ],
+   [
+    "native (Canvas 2D, DOM) | stroke ()",
+    16.964
+   ],
+   [
+    "game: nodes | actorsOf (src/nodes.ts)",
+    16.417
+   ],
+   [
+    "sygnal core | update (dist/index.esm.js)",
+    11.901
+   ],
+   [
+    "sygnal core | host (dist/index.esm.js)",
+    11.741
+   ],
+   [
+    "native (Canvas 2D, DOM) | postMessage ()",
+    11.354
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    10.995
+   ],
+   [
+    "sygnal core | walk (dist/index.esm.js)",
+    10.712
+   ],
+   [
+    "sygnal core | sanitizeData (dist/index.esm.js)",
+    10.287
+   ],
+   [
+    "game: view / loop | yl (src/Game.tsx)",
+    9.989
+   ],
+   [
+    "xstream | e._n (../../../../node_modules/xstream/index.js)",
+    9.908
+   ],
+   [
+    "sygnal core | ca (dist/index.esm.js)",
+    9.533000000000001
+   ]
+  ],
+  "errors": []
+ },
+ {
+  "app": "sygnal:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "stress1000",
+  "frames": {
+   "n": 298,
+   "mean": 27.51577181208054,
+   "p50": 33.29999999999973,
+   "p95": 33.400000000000546,
+   "p99": 33.400000000001455,
+   "max": 83.40000000000009
+  },
+  "dropped": 191,
+  "fps": 36.34279302901326,
+  "paint": {
+   "n": 299,
+   "mean": 5.94347826055061,
+   "p50": 5.8999998569488525,
+   "p95": 6.700000047683716,
+   "p99": 10.699999809265137,
+   "max": 12.099999904632568
+  },
+  "simMsPerFrame": 0.6577181128047457,
+  "stepsPerFrame": 1.651006711409396,
+  "busyMsPerFrame": 27.372580536912754,
+  "wallMs": 8168.325,
+  "mode": "playing",
+  "perFrame": {
+   "program": 19.603,
+   "native (Canvas 2D, DOM)": 3.482,
+   "sygnal/canvas": 2.434,
+   "game: sim": 0.639,
+   "sygnal core": 0.539,
+   "game: nodes": 0.399,
+   "GC": 0.18,
+   "idle": 0.035,
+   "snabbdom": 0.033,
+   "game: view / loop": 0.028,
+   "xstream": 0.022,
+   "bench probe": 0.014
+  },
+  "heapDeltaKB": 47580,
+  "heapKB": [
+   10243,
+   21576,
+   16343,
+   20750,
+   37721,
+   27366,
+   36544,
+   49124
+  ],
+  "top": [
+   [
+    "program | (program) ()",
+    5841.812
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    594.945
+   ],
+   [
+    "sygnal/canvas | as (dist/canvas.esm.js)",
+    327.831
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    194.849
+   ],
+   [
+    "sygnal/canvas | paintNode (dist/canvas.esm.js)",
+    180.815
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    159.048
+   ],
+   [
+    "game: sim | stepEnemy (src/sim.ts)",
+    115.177
+   ],
+   [
+    "game: nodes | enemyNodes (src/nodes.ts)",
+    81.81299999999999
+   ],
+   [
+    "sygnal/canvas | shape (dist/canvas.esm.js)",
+    68.03
+   ],
+   [
+    "sygnal/canvas | (anonymous) (dist/canvas.esm.js)",
+    65.95100000000001
+   ],
+   [
+    "GC | (garbage collector) ()",
+    53.591
+   ],
+   [
+    "native (Canvas 2D, DOM) | stroke ()",
+    40.383
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    36.322
+   ],
+   [
+    "game: nodes | actorsOf (src/nodes.ts)",
+    34.461
+   ],
+   [
+    "sygnal/canvas | paintWorld (dist/canvas.esm.js)",
+    28.377
+   ],
+   [
+    "game: sim | moveX (src/sim.ts)",
+    25.884
+   ],
+   [
+    "native (Canvas 2D, DOM) | drawImage ()",
+    13.024
+   ],
+   [
+    "native (Canvas 2D, DOM) | beginPath ()",
+    12.905
+   ],
+   [
+    "sygnal/canvas | aabb (dist/canvas.esm.js)",
+    12.695
+   ],
+   [
+    "idle | (idle) ()",
+    10.556
+   ],
+   [
+    "sygnal core | handle (dist/index.esm.js)",
+    9.993000000000002
+   ],
+   [
+    "game: sim | step (src/sim.ts)",
+    8.306
+   ],
+   [
+    "sygnal core | ca (dist/index.esm.js)",
+    7.3260000000000005
+   ],
+   [
+    "sygnal core | put (dist/index.esm.js)",
+    7.1209999999999996
+   ],
+   [
+    "sygnal core | inst_props (dist/index.esm.js)",
+    7.013
+   ]
+  ],
+  "errors": []
+ },
+ {
+  "app": "baseline:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "level",
+  "frames": {
+   "n": 483,
+   "mean": 16.666045548654246,
+   "p50": 16.699999999999818,
+   "p95": 16.799999999999272,
+   "p99": 16.800000000000182,
+   "max": 16.80000000000109
+  },
+  "dropped": 0,
+  "fps": 60.00223610817793,
+  "paint": {
+   "n": 483,
+   "mean": 0.22670807749588298,
+   "p50": 0.10000014305114746,
+   "p95": 0.7000000476837158,
+   "p99": 0.9000000953674316,
+   "max": 2.5999999046325684
+  },
+  "simMsPerFrame": 0.07536231656992658,
+  "stepsPerFrame": 1,
+  "busyMsPerFrame": 1.7042215320910972,
+  "wallMs": 8032.216,
+  "mode": "dying",
+  "perFrame": {
+   "idle": 14.925,
+   "program": 1.358,
+   "game: view / loop": 0.126,
+   "native (Canvas 2D, DOM)": 0.12,
+   "game: sim": 0.073,
+   "game: nodes": 0.022,
+   "GC": 0.006
+  },
+  "heapDeltaKB": 534,
+  "heapKB": [
+   2253,
+   2102,
+   2018,
+   2268,
+   1930,
+   1829,
+   1841,
+   2533
+  ],
+  "top": [
+   [
+    "idle | (idle) ()",
+    7208.996
+   ],
+   [
+    "program | (program) ()",
+    655.712
+   ],
+   [
+    "game: view / loop | paint (../../main.ts)",
+    31.393
+   ],
+   [
+    "game: view / loop | frame (../../main.ts)",
+    17.336
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    12.811
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    10.303
+   ],
+   [
+    "native (Canvas 2D, DOM) | fillText ()",
+    9.879
+   ],
+   [
+    "game: view / loop | node (../../main.ts)",
+    9.447000000000001
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    9.382
+   ],
+   [
+    "native (Canvas 2D, DOM) | fillRect ()",
+    8.674
+   ],
+   [
+    "game: nodes | actorsOf (src/nodes.ts)",
+    6.654
+   ],
+   [
+    "game: sim | step (src/sim.ts)",
+    5.795
+   ],
+   [
+    "native (Canvas 2D, DOM) | setTransform ()",
+    5.732
+   ],
+   [
+    "game: sim | stepEnemy (src/sim.ts)",
+    4.493
+   ],
+   [
+    "native (Canvas 2D, DOM) | requestAnimationFrame ()",
+    4.35
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    3.412
+   ],
+   [
+    "game: sim | solid (src/sim.ts)",
+    2.949
+   ],
+   [
+    "GC | (garbage collector) ()",
+    2.889
+   ],
+   [
+    "game: nodes | inView (src/nodes.ts)",
+    2.14
+   ],
+   [
+    "game: view / loop | advance (../../main.ts)",
+    1.935
+   ],
+   [
+    "game: sim | moveY (src/sim.ts)",
+    1.838
+   ],
+   [
+    "native (Canvas 2D, DOM) | translate ()",
+    1.675
+   ],
+   [
+    "game: sim | clampCam (src/sim.ts)",
+    1.591
+   ],
+   [
+    "game: sim | stepDying (src/sim.ts)",
+    1.53
+   ],
+   [
+    "game: sim | stepFx (src/sim.ts)",
+    1.2510000000000001
+   ]
+  ],
+  "errors": []
+ },
+ {
+  "app": "baseline:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "stress300",
+  "frames": {
+   "n": 484,
+   "mean": 16.665909090909093,
+   "p50": 16.699999999999818,
+   "p95": 16.700000000000728,
+   "p99": 16.800000000000182,
+   "max": 16.80000000000109
+  },
+  "dropped": 0,
+  "fps": 60.00272739669985,
+  "paint": {
+   "n": 484,
+   "mean": 1.6698347133053235,
+   "p50": 1.7000000476837158,
+   "p95": 2.0999999046325684,
+   "p99": 2.299999952316284,
+   "max": 2.5
+  },
+  "simMsPerFrame": 0.08223139944155354,
+  "stepsPerFrame": 1,
+  "busyMsPerFrame": 8.00600826446281,
+  "wallMs": 8044.204,
+  "mode": "playing",
+  "perFrame": {
+   "idle": 8.613,
+   "program": 6.165,
+   "native (Canvas 2D, DOM)": 1.17,
+   "game: view / loop": 0.46,
+   "game: nodes": 0.085,
+   "game: sim": 0.073,
+   "GC": 0.053
+  },
+  "heapDeltaKB": 1278,
+  "heapKB": [
+   2132,
+   3174,
+   3047,
+   2119,
+   2901,
+   2671,
+   1746,
+   2655
+  ],
+  "top": [
+   [
+    "idle | (idle) ()",
+    4168.778
+   ],
+   [
+    "program | (program) ()",
+    2983.909
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    314.695
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    118.533
+   ],
+   [
+    "game: view / loop | paint (../../main.ts)",
+    106.326
+   ],
+   [
+    "game: view / loop | node (../../main.ts)",
+    99.547
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    81.811
+   ],
+   [
+    "GC | (garbage collector) ()",
+    25.746
+   ],
+   [
+    "native (Canvas 2D, DOM) | stroke ()",
+    20.772
+   ],
+   [
+    "game: nodes | actorsOf (src/nodes.ts)",
+    16.613
+   ],
+   [
+    "game: nodes | enemyNodes (src/nodes.ts)",
+    16.575
+   ],
+   [
+    "game: view / loop | frame (../../main.ts)",
+    15.385
+   ],
+   [
+    "game: sim | stepEnemy (src/sim.ts)",
+    12.905
+   ],
+   [
+    "native (Canvas 2D, DOM) | fillRect ()",
+    11.995
+   ],
+   [
+    "game: nodes | playerNodes (src/nodes.ts)",
+    7.885
+   ],
+   [
+    "game: sim | moveY (src/sim.ts)",
+    6.885
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    5.749
+   ],
+   [
+    "native (Canvas 2D, DOM) | requestAnimationFrame ()",
+    5.647
+   ],
+   [
+    "native (Canvas 2D, DOM) | beginPath ()",
+    4.964
+   ],
+   [
+    "native (Canvas 2D, DOM) | strokeRect ()",
+    4.922
+   ],
+   [
+    "game: sim | step (src/sim.ts)",
+    3.931
+   ],
+   [
+    "game: sim | moveX (src/sim.ts)",
+    3.559
+   ],
+   [
+    "native (Canvas 2D, DOM) | now ()",
+    1.728
+   ],
+   [
+    "native (Canvas 2D, DOM) | setTransform ()",
+    1.264
+   ],
+   [
+    "game: sim | k (src/sim.ts)",
+    0.99
+   ]
+  ],
+  "errors": []
+ },
+ {
+  "app": "baseline:r2cpu4",
+  "query": "",
+  "cpu": 4,
+  "run": 0,
+  "scenario": "stress1000",
+  "frames": {
+   "n": 351,
+   "mean": 23.313105413105408,
+   "p50": 16.700000000000728,
+   "p95": 33.399999999999636,
+   "p99": 33.400000000001455,
+   "max": 49.90000000000009
+  },
+  "dropped": 139,
+  "fps": 42.89432841657604,
+  "paint": {
+   "n": 351,
+   "mean": 5.034188032829523,
+   "p50": 5,
+   "p95": 5.799999952316284,
+   "p99": 6.400000095367432,
+   "max": 9.299999952316284
+  },
+  "simMsPerFrame": 0.5715099719175246,
+  "stepsPerFrame": 1.398860398860399,
+  "busyMsPerFrame": 23.17749857549857,
+  "wallMs": 8145.685,
+  "mode": "playing",
+  "perFrame": {
+   "program": 17.543,
+   "native (Canvas 2D, DOM)": 3.242,
+   "game: view / loop": 1.474,
+   "game: sim": 0.568,
+   "game: nodes": 0.266,
+   "GC": 0.085,
+   "idle": 0.029
+  },
+  "heapDeltaKB": 755,
+  "heapKB": [
+   5325,
+   2825,
+   9040,
+   9390,
+   9161,
+   9053,
+   9177,
+   9168
+  ],
+  "top": [
+   [
+    "program | (program) ()",
+    6157.584
+   ],
+   [
+    "native (Canvas 2D, DOM) | fill ()",
+    650.627
+   ],
+   [
+    "game: view / loop | node (../../main.ts)",
+    305.49899999999997
+   ],
+   [
+    "native (Canvas 2D, DOM) | roundRect ()",
+    241.653
+   ],
+   [
+    "game: view / loop | paint (../../main.ts)",
+    197.093
+   ],
+   [
+    "native (Canvas 2D, DOM) | ellipse ()",
+    174.837
+   ],
+   [
+    "game: sim | stepEnemy (src/sim.ts)",
+    124.418
+   ],
+   [
+    "game: nodes | enemyNodes (src/nodes.ts)",
+    54.049
+   ],
+   [
+    "native (Canvas 2D, DOM) | stroke ()",
+    38.554
+   ],
+   [
+    "game: nodes | actorsOf (src/nodes.ts)",
+    38.085
+   ],
+   [
+    "GC | (garbage collector) ()",
+    29.865
+   ],
+   [
+    "game: sim | stepOnce (src/sim.ts)",
+    28.748
+   ],
+   [
+    "game: sim | moveX (src/sim.ts)",
+    18.796000000000003
+   ],
+   [
+    "game: view / loop | frame (../../main.ts)",
+    13.716
+   ],
+   [
+    "native (Canvas 2D, DOM) | beginPath ()",
+    12.49
+   ],
+   [
+    "native (Canvas 2D, DOM) | fillRect ()",
+    11.522
+   ],
+   [
+    "idle | (idle) ()",
+    10.196
+   ],
+   [
+    "game: sim | overlaps (src/sim.ts)",
+    9.066
+   ],
+   [
+    "game: sim | step (src/sim.ts)",
+    8.738
+   ],
+   [
+    "native (Canvas 2D, DOM) | requestAnimationFrame ()",
+    4.189
+   ],
+   [
+    "game: sim | solid (src/sim.ts)",
+    3.716
+   ],
+   [
+    "game: sim | k (src/sim.ts)",
+    3.526
+   ],
+   [
+    "game: sim | moveY (src/sim.ts)",
+    2.307
+   ],
+   [
+    "native (Canvas 2D, DOM) | strokeRect ()",
+    1.713
+   ],
+   [
+    "native (Canvas 2D, DOM) | setTransform ()",
+    1.184
+   ]
+  ],
+  "errors": []
+ }
+]

@@ -27,6 +27,7 @@
 import * as THREE from 'three'
 import {defineWidget} from '../index'
 import {controlled} from '../extra/controlled'
+import {atFrameEnd} from '../extra/frame'
 import {createThreeTarget} from './target'
 import {pointerRouter} from '../extra/pointer'
 
@@ -115,7 +116,9 @@ export const Scene = defineWidget({
       stats.renders++
       if (target.animated.size || frameloop == 'always') invalidate()
     }
-    const invalidate = () => { if (!pending && frameloop != 'never' && raf) pending = raf(tick) }
+    // inside a frame timer's frame (canvas-game B2): render at its end, in this frame; else the next frame
+    const now = () => { if (pending) caf?.(pending); pending = 0; tick(doc.defaultView?.performance?.now?.() ?? (globalThis as any).performance.now()) }
+    const invalidate = () => { if (frameloop != 'never' && !atFrameEnd(now) && !pending && raf) pending = raf(tick) }
 
     // a controlled camera (OrbitControls moves it; the app may set it): controlled.ts
     let orbit: any = null, cam: any = null
