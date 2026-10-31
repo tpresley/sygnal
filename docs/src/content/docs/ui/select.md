@@ -44,7 +44,7 @@ Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/selec
 |---|---|---|
 | `label` | | The visible label, linked to the trigger (its accessible name). Give every select one |
 | `aria-label`, `aria-labelledby`, `aria-describedby` | | Name or describe the trigger when there is no visible `label` (or in addition to it); they go on the trigger, not the host |
-| `items` | (required) | Strings, or `{ value, label, disabled }` objects. Values are strings |
+| `items` | (required) | Strings, or `{ value, label, disabled }` objects. Values are strings: a number value comes back as a string in `value-change` |
 | `value` | | Controlled: the value (an array with `multiple`); `null` for none |
 | `defaultValue` | | The start value when `value` is left out |
 | `placeholder` | | Shown while nothing is selected |
@@ -56,6 +56,16 @@ Install Zag's packages first: `npm install @zag-js/vanilla@~1.45.0 @zag-js/selec
 | `loopFocus` | `false` | |
 | `positioning` | | Zag's positioning options: `{ placement: 'bottom-start', sameWidth: true }` |
 | `open` | | Controlled open state; follow `open-change` |
+
+## Forms
+
+With `name`, a hidden native `<select>` carries the value: `FormData`, [`processForm`](/guide/forms/) and a plain form submission get it. A pick is that field's `input` event, so the [`form` behavior](/guide/forms/) hears it like a native field's, and the focus leaving the select marks the field touched:
+
+```jsx
+<Select className="size" label="Size" name="size" items={SIZES} value={state.form.values.size} />
+```
+
+A form reset puts back the first value (`defaultValue`, or the controlled `value` the select started with); a controlled select reports it with `value-change`.
 
 ## Events and commands
 
@@ -90,7 +100,7 @@ Zag's data attributes: `[data-scope="select"]` with `[data-part="root"]`, `"labe
 
 ## Positioning
 
-The listbox renders inside the widget's host, next to the trigger, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the trigger when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`.
+The listbox renders inside the widget's host, next to the trigger, and Zag positions it with `position: absolute` (the `--x` / `--y` variables on the positioner). Inside a container that clips its content (`overflow: hidden` or `auto`: a card, a scrolling panel, a table cell), the open listbox is cut off at the container's edge. Pass `positioning={{ strategy: 'fixed' }}` there: the positioner is then placed relative to the viewport and escapes the clipping (it still follows the trigger when the page scrolls; an ancestor with a `transform`, `filter` or `contain` still clips it). Other options go in the same object: `positioning={{ placement: 'bottom-end', gutter: 4, strategy: 'fixed' }}`. Inside a `<dialog>` (its own style is `overflow: auto`), `'fixed'` is the default.
 
 ## Testing
 

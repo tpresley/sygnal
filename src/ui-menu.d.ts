@@ -6,8 +6,8 @@ import type { UiItem, UiPositioning, UiNaming } from './ui-zag-types'
 export type { UiItem, UiPositioning, UiNaming } from './ui-zag-types'
 
 export interface MenuProps extends UiNaming {
-  /** The trigger button's text (its accessible name) */
-  label: any
+  /** The trigger button's content and accessible name; without it (an icon trigger), name it with `aria-label` */
+  label?: any
   /** The items; `{ separator: true }` renders a separator */
   items: Array<UiItem | { separator: true }>
   /** Controlled open state (follow `open-change`) */

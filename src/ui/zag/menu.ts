@@ -20,7 +20,7 @@
 import * as menu from '@zag-js/menu'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, named, norm} from './shared'
+import {NAMING, named, norm, placed} from './shared'
 
 export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any) => [
   h('button', named(api.getTriggerProps(), {...p, label: 1}, 1), p.label),
@@ -33,7 +33,7 @@ export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any) => [
   name: 'Menu',
   $own: 1,
   ownProps: NAMING,
-  props: ({items, label, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any) => p,
+  props: ({items, label, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => placed(p, x),
   events: {select: ['onSelect', (d: any) => d.value], 'open-change': ['onOpenChange', (d: any) => d.open]},
   commands: {open: (api: any) => api.setOpen(true), close: (api: any) => api.setOpen(false)},
   fallback: (p: any, hh: any) => hh('button', {type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': false}, p.label),

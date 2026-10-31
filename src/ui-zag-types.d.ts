@@ -18,12 +18,12 @@ export interface ListboxProps extends UiNaming {
   /** The visible label (the control's accessible name) */
   label?: any
   items: UiItem[]
-  /** Controlled value: a string (an array when `multiple`); null for none */
+  /** Controlled value: a string (an array when `multiple`); null for none. Values are strings: a numeric item value comes back as a string in `value-change` */
   value?: string | string[] | null
   defaultValue?: string | string[] | null
   placeholder?: string
   multiple?: boolean
-  /** The form field name (a hidden native select for Select, the input for Combobox) */
+  /** The form field name: a hidden native select (Select) or hidden inputs (Combobox) carry the value, and a pick is their `input` event (the form behavior, processForm) */
   name?: string
   form?: string
   disabled?: boolean

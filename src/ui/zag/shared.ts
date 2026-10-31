@@ -41,3 +41,50 @@ export const options = (h: any, api: any) =>
     h('div', {key: item.value, ...api.getItemProps({item})},
       h('span', api.getItemTextProps({item}), item.label),
       h('span', api.getItemIndicatorProps({item}), '✓')))
+
+/**
+ * UI sweep ZS-1 (dev-plans/research/ui-sweep/zag.md): a pick is heard as a form field's `input`
+ * event, which the `form` behavior and processForm listen for (Zag changes the part's hidden
+ * fields without one, and Select's `change` comes only once a controlled value has changed). A
+ * stand-in field with the part's `name` and the picked value(s) (a <select multiple> when
+ * `multiple`) is in the host while the event is dispatched; the part's own fields lose the name
+ * meanwhile, so FormData has the pick once. They keep what the value prop says: the app may
+ * refuse the pick.
+ */
+export const announce = (x: any, p: any, values: string[], type = 'input') => {
+  const el = x.el, n = p.name
+  if (n == null || !el.isConnected) return
+  const d = el.ownerDocument, own = [...el.querySelectorAll('[name]')].filter((e: any) => e.name === n)
+  const f = d.createElement(x.multiple ? 'select' : 'input')
+  if (x.multiple) {
+    f.multiple = true
+    for (const v of values) { const o = d.createElement('option'); o.value = v; o.selected = true; f.appendChild(o) }
+  } else f.type = 'hidden', f.value = values[0] ?? ''
+  f.name = n
+  f.hidden = true
+  if (p.form != null) f.setAttribute('form', p.form)
+  own.forEach((e: any) => e.removeAttribute('name'))
+  el.appendChild(f)
+  try { f.dispatchEvent(new Event(type, {bubbles: true})) } finally { f.remove(); own.forEach((e: any) => e.setAttribute('name', n)) }
+}
+
+/**
+ * ZS-5: the focus leaving the part is a `focusout` of its named field (the form behavior marks the
+ * field touched, so `show: 'blur'` errors appear): the root's focusout, when the focus goes
+ * outside the host (not into the listbox)
+ */
+export const leaving = (bag: any, x: any, p: any) => {
+  const own = bag.on.focusout
+  bag.on.focusout = (e: any) => {
+    own?.(e)
+    x.el.contains(e.relatedTarget) || announce(x, p, x.api().value, 'focusout')
+  }
+  return bag
+}
+
+/**
+ * ZS-6: inside a <dialog>, whose UA style is `overflow: auto`, an absolute positioner is clipped,
+ * and Firefox and WebKit flip it off-screen: there the positioning strategy is 'fixed' unless the
+ * `positioning` prop says otherwise
+ */
+export const placed = (p: any, x: any) => (x.el.closest('dialog') ? {...p, positioning: {strategy: 'fixed', ...p.positioning}} : p)
