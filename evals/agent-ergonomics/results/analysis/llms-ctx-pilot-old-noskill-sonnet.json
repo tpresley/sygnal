@@ -1,0 +1,1288 @@
+{
+  "meta": {
+    "run": "llms-ctx-pilot-old-noskill-sonnet",
+    "generatedAt": "2026-10-30T20:39:26.153Z",
+    "trialsInMap": 4,
+    "trialsAnalyzed": 4,
+    "trialsScored": 4,
+    "skillDir": "/Users/troy/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/llms-txt-spike-132b82/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-sonnet-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "34-sortable-playlist",
+      "46-ticket-triage"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "34-sortable-playlist": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 28,
+            "median": 28
+          },
+          "peakContext": {
+            "mean": 31446.5,
+            "median": 31446.5
+          },
+          "cacheCreation": {
+            "mean": 24414.5,
+            "median": 24414.5
+          },
+          "cacheRead": {
+            "mean": 93991,
+            "median": 93991
+          },
+          "messages": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "costUsd": {
+            "mean": 0.133,
+            "median": 0.133
+          },
+          "billedTokens": {
+            "mean": 120999.5,
+            "median": 120999.5
+          },
+          "outputTokens": {
+            "mean": 2583,
+            "median": 2583
+          },
+          "durationSeconds": {
+            "mean": 28,
+            "median": 28
+          },
+          "iterations": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "effectiveIterations": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "editRounds": {
+            "mean": 1,
+            "median": 1
+          },
+          "toolCalls": {
+            "mean": 5,
+            "median": 5
+          },
+          "failedRuns": {
+            "mean": 0,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 46,
+            "median": 46
+          },
+          "locRemoved": {
+            "mean": 4,
+            "median": 4
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 1.9,
+            "learn": 7.4,
+            "implement": 8.1,
+            "test-authoring": 1.7,
+            "verify": 3.8,
+            "debug": 0,
+            "tooling-friction": 0,
+            "think": 5.4,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "skill-load": 0.4,
+            "framework-source": 7
+          }
+        }
+      },
+      "46-ticket-triage": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 77,
+            "median": 77
+          },
+          "peakContext": {
+            "mean": 41682.5,
+            "median": 41682.5
+          },
+          "cacheCreation": {
+            "mean": 34663.5,
+            "median": 34663.5
+          },
+          "cacheRead": {
+            "mean": 456252.5,
+            "median": 456252.5
+          },
+          "messages": {
+            "mean": 16.5,
+            "median": 16.5
+          },
+          "costUsd": {
+            "mean": 0.255,
+            "median": 0.255
+          },
+          "billedTokens": {
+            "mean": 498042.5,
+            "median": 498042.5
+          },
+          "outputTokens": {
+            "mean": 7093.5,
+            "median": 7093.5
+          },
+          "durationSeconds": {
+            "mean": 77,
+            "median": 77
+          },
+          "iterations": {
+            "mean": 7,
+            "median": 7
+          },
+          "effectiveIterations": {
+            "mean": 7,
+            "median": 7
+          },
+          "editRounds": {
+            "mean": 6.5,
+            "median": 6.5
+          },
+          "toolCalls": {
+            "mean": 17,
+            "median": 17
+          },
+          "failedRuns": {
+            "mean": 3,
+            "median": 3
+          },
+          "episodes": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "locAdded": {
+            "mean": 118.5,
+            "median": 118.5
+          },
+          "locRemoved": {
+            "mean": 3.5,
+            "median": 3.5
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 5.4,
+            "learn": 15.4,
+            "implement": 14.6,
+            "test-authoring": 8.7,
+            "verify": 5.4,
+            "debug": 22.9,
+            "tooling-friction": 0,
+            "think": 4.6,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 15.1,
+            "skill-load": 0.4
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 4,
+        "pass": 4,
+        "scored": 4,
+        "wall": {
+          "mean": 52.5,
+          "median": 52.5
+        },
+        "peakContext": {
+          "mean": 36564.5,
+          "median": 35664.5
+        },
+        "cacheCreation": {
+          "mean": 29539,
+          "median": 28550
+        },
+        "cacheRead": {
+          "mean": 275121.8,
+          "median": 272030
+        },
+        "messages": {
+          "mean": 11,
+          "median": 11
+        },
+        "costUsd": {
+          "mean": 0.194,
+          "median": 0.19
+        },
+        "billedTokens": {
+          "mean": 309521,
+          "median": 305475.5
+        },
+        "outputTokens": {
+          "mean": 4838.3,
+          "median": 4804
+        },
+        "durationSeconds": {
+          "mean": 52.5,
+          "median": 52.5
+        },
+        "iterations": {
+          "mean": 4.3,
+          "median": 4
+        },
+        "effectiveIterations": {
+          "mean": 4.3,
+          "median": 4
+        },
+        "editRounds": {
+          "mean": 3.8,
+          "median": 3.5
+        },
+        "toolCalls": {
+          "mean": 11,
+          "median": 11
+        },
+        "failedRuns": {
+          "mean": 1.5,
+          "median": 1.5
+        },
+        "episodes": {
+          "mean": 0.8,
+          "median": 0.5
+        },
+        "locAdded": {
+          "mean": 82.3,
+          "median": 79
+        },
+        "locRemoved": {
+          "mean": 3.8,
+          "median": 4
+        },
+        "wroteTest": 4,
+        "keptTest": 4,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 3.7,
+          "learn": 11.4,
+          "implement": 11.3,
+          "test-authoring": 5.2,
+          "verify": 4.6,
+          "debug": 11.5,
+          "tooling-friction": 0,
+          "think": 5,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "skill-load": 0.4,
+          "framework-source": 11
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 2,
+        "sygnal": "2/4",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 2,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-34-t1",
+          "sygnal-34-t2"
+        ]
+      },
+      {
+        "id": "G-016",
+        "title": "First event/action right after `renderComponent()` is silently lost",
+        "kind": "suspect",
+        "status": "fixed",
+        "trialsAffected": 1,
+        "sygnal": "1/4",
+        "react": "—",
+        "inResults": 1,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-46-t1"
+        ]
+      },
+      {
+        "id": "G-015",
+        "title": "`simulateAction` does not drive EVENTS / custom driver sinks",
+        "kind": "suspect",
+        "status": "fixed",
+        "trialsAffected": 1,
+        "sygnal": "1/4",
+        "react": "—",
+        "inResults": 1,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 0,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-46-t1"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 4,
+      "skillInvoked": 2,
+      "skillBytes": {
+        "mean": 0,
+        "median": 0
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 4,
+            "files": {
+              "dist/guide/drag-and-drop.md": 2,
+              "llms.txt": 4,
+              "(dir)": 3,
+              "llms": 2,
+              "dist": 1,
+              "dist/guide": 2,
+              "llms/ai.md": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 44462.8,
+          "median": 44461
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 4,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 4,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 4,
+          "trials": 2
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 3,
+          "trials": 2
+        },
+        {
+          "arm": "sygnal",
+          "signature": "Error: waitForState timed out after Nms.",
+          "cause": "agent-mistake",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected +0 to be 4 // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        },
+        {
+          "arm": "sygnal",
+          "signature": "AssertionError: expected 5 to be 1 // Object.is equality",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 3,
+            "seconds": 45.8,
+            "iterations": 6,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    },
+    "failureCategories": {
+      "sygnal": {},
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-34-t1",
+      "run": "llms-ctx-pilot-old-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 33,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 10,
+        "output": 689,
+        "cacheRead": 78689,
+        "cacheCreation": 24408,
+        "messages": 5,
+        "peakContext": 31526,
+        "total": 103796
+      },
+      "usage": {
+        "tokens": 105739,
+        "outputTokens": 2632,
+        "costUsd": 0.1318409,
+        "durationMs": 31574,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 4
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 31.5,
+      "phases": {
+        "orient": 1.3,
+        "learn": 9.9,
+        "implement": 10.1,
+        "test-authoring": 1.4,
+        "verify": 2.7,
+        "think": 6.2
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 1
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.8,
+        "framework-source": 9.1
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "dist/guide/drag-and-drop.md",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 44564
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 8.9,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-old-noskill-sonnet/sygnal-34-t1",
+      "diff": {
+        "added": 46,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 28,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 16,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1725
+    },
+    {
+      "trial": "sygnal-34-t2",
+      "run": "llms-ctx-pilot-old-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 26,
+        "iterations": 2,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 12,
+        "output": 566,
+        "cacheRead": 109293,
+        "cacheCreation": 24421,
+        "messages": 6,
+        "peakContext": 31367,
+        "total": 134292
+      },
+      "usage": {
+        "tokens": 136260,
+        "outputTokens": 2534,
+        "costUsd": 0.13397730000000002,
+        "durationMs": 24510,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Bash": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 24.5,
+      "phases": {
+        "orient": 2.5,
+        "learn": 4.8,
+        "implement": 6,
+        "test-authoring": 1.9,
+        "verify": 4.8,
+        "think": 4.5
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 3
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 4.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/drag-and-drop.md",
+            "llms",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 44358
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 9.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-old-noskill-sonnet/sygnal-34-t2",
+      "diff": {
+        "added": 46,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 25,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 19,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1307
+    },
+    {
+      "trial": "sygnal-46-t1",
+      "run": "llms-ctx-pilot-old-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "46-ticket-triage",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 5,
+        "testsTotal": 5,
+        "wallSeconds": 81,
+        "iterations": 8,
+        "editRounds": 7,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 32,
+        "output": 655,
+        "cacheRead": 477738,
+        "cacheCreation": 36648,
+        "messages": 16,
+        "peakContext": 43562,
+        "total": 515073
+      },
+      "usage": {
+        "tokens": 521394,
+        "outputTokens": 6976,
+        "costUsd": 0.2641898,
+        "durationMs": 80573,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Bash": 15,
+          "Edit": 2
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 80.5,
+      "phases": {
+        "orient": 2.1,
+        "learn": 16.2,
+        "implement": 12.6,
+        "test-authoring": 12.5,
+        "verify": 5.9,
+        "debug": 26.9,
+        "think": 4.2
+      },
+      "attributedShare": 1,
+      "iterations": 8,
+      "effectiveIterations": 8,
+      "edits": 7,
+      "editRounds": 7,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 42
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 48
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "Error: waitForState timed out after Nms.",
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 55
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 26.9,
+          "iterations": 3,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+            "Error: waitForState timed out after Nms."
+          ],
+          "catalog": [
+            "G-016",
+            "G-015"
+          ],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 42
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 16.2
+      },
+      "catalog": {
+        "result": [
+          "G-016",
+          "G-015"
+        ],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist",
+            "dist/guide",
+            "llms",
+            "llms.txt",
+            "llms/ai.md"
+          ]
+        },
+        "libraryBytes": 52729
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 48.3,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-old-noskill-sonnet/sygnal-46-t1",
+      "diff": {
+        "added": 125,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 36,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/Ticket.jsx": {
+            "added": 65,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 6,
+            "removed": 2,
+            "status": "modified"
+          },
+          "src/questions.js": {
+            "added": 14,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1162
+    },
+    {
+      "trial": "sygnal-46-t2",
+      "run": "llms-ctx-pilot-old-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "46-ticket-triage",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 5,
+        "testsTotal": 5,
+        "wallSeconds": 75,
+        "iterations": 6,
+        "editRounds": 6,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 34,
+        "output": 932,
+        "cacheRead": 434767,
+        "cacheCreation": 32679,
+        "messages": 17,
+        "peakContext": 39803,
+        "total": 468412
+      },
+      "usage": {
+        "tokens": 474691,
+        "outputTokens": 7211,
+        "costUsd": 0.24637070000000005,
+        "durationMs": 73473,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 17,
+        "byTool": {
+          "Skill": 1,
+          "Bash": 16
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 73.4,
+      "phases": {
+        "orient": 8.7,
+        "learn": 14.6,
+        "implement": 16.6,
+        "test-authoring": 4.8,
+        "verify": 4.8,
+        "debug": 18.9,
+        "think": 5
+      },
+      "attributedShare": 1,
+      "iterations": 6,
+      "effectiveIterations": 6,
+      "edits": 6,
+      "editRounds": 6,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Skill",
+          "signature": "<tool_use_error>Unknown skill: sygnal-dev</tool_use_error>",
+          "catalog": [],
+          "cause": "other",
+          "t": 2
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected +0 to be 4 // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 43
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 50
+        },
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "AssertionError: expected 5 to be 1 // Object.is equality",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 62
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 12.2,
+          "iterations": 2,
+          "signature": "AssertionError: expected +0 to be 4 // Object.is equality",
+          "signatures": [
+            "AssertionError: expected +0 to be 4 // Object.is equality",
+            "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 43
+        },
+        {
+          "seconds": 6.7,
+          "iterations": 1,
+          "signature": "AssertionError: expected 5 to be 1 // Object.is equality",
+          "signatures": [
+            "AssertionError: expected 5 to be 1 // Object.is equality"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 62
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "skill-load": 0.7,
+        "framework-source": 13.9
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": true,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 36200
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 32.7,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-old-noskill-sonnet/sygnal-46-t2",
+      "diff": {
+        "added": 112,
+        "removed": 3,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 3,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 36,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/Ticket.jsx": {
+            "added": 65,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 6,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1717
+    }
+  ]
+}

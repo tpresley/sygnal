@@ -1,0 +1,1119 @@
+{
+  "meta": {
+    "run": "llms-ctx-pilot-new-noskill-sonnet",
+    "generatedAt": "2026-10-30T20:43:39.735Z",
+    "trialsInMap": 4,
+    "trialsAnalyzed": 4,
+    "trialsScored": 4,
+    "skillDir": "/Users/troy/.claude/skills/sygnal-dev",
+    "llms": "/Users/troy/Documents/Displera/sygnal/.claude/worktrees/llms-txt-spike-132b82/llms.txt",
+    "sygnalCheck": true,
+    "methods": [
+      "headless"
+    ],
+    "models": [
+      "claude-sonnet-5-5"
+    ]
+  },
+  "aggregates": {
+    "tasks": [
+      "34-sortable-playlist",
+      "46-ticket-triage"
+    ],
+    "sharedTasks": [],
+    "byTask": {
+      "34-sortable-playlist": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 26.8,
+            "median": 26.8
+          },
+          "peakContext": {
+            "mean": 24094.5,
+            "median": 24094.5
+          },
+          "cacheCreation": {
+            "mean": 17344.5,
+            "median": 17344.5
+          },
+          "cacheRead": {
+            "mean": 92532,
+            "median": 92532
+          },
+          "messages": {
+            "mean": 6.5,
+            "median": 6.5
+          },
+          "costUsd": {
+            "mean": 0.106,
+            "median": 0.106
+          },
+          "billedTokens": {
+            "mean": 112621,
+            "median": 112621
+          },
+          "outputTokens": {
+            "mean": 2731.5,
+            "median": 2731.5
+          },
+          "durationSeconds": {
+            "mean": 26.8,
+            "median": 26.8
+          },
+          "iterations": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "effectiveIterations": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "editRounds": {
+            "mean": 1.5,
+            "median": 1.5
+          },
+          "toolCalls": {
+            "mean": 5.5,
+            "median": 5.5
+          },
+          "failedRuns": {
+            "mean": 0,
+            "median": 0
+          },
+          "episodes": {
+            "mean": 0,
+            "median": 0
+          },
+          "locAdded": {
+            "mean": 53.5,
+            "median": 53.5
+          },
+          "locRemoved": {
+            "mean": 4,
+            "median": 4
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 1.9,
+            "learn": 5.6,
+            "implement": 7.4,
+            "test-authoring": 3.4,
+            "verify": 3,
+            "debug": 0,
+            "tooling-friction": 0,
+            "think": 5.6,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 5.6
+          }
+        }
+      },
+      "46-ticket-triage": {
+        "sygnal": {
+          "n": 2,
+          "pass": 2,
+          "scored": 2,
+          "wall": {
+            "mean": 51.8,
+            "median": 51.8
+          },
+          "peakContext": {
+            "mean": 42123,
+            "median": 42123
+          },
+          "cacheCreation": {
+            "mean": 35010,
+            "median": 35010
+          },
+          "cacheRead": {
+            "mean": 272779.5,
+            "median": 272779.5
+          },
+          "messages": {
+            "mean": 11.5,
+            "median": 11.5
+          },
+          "costUsd": {
+            "mean": 0.223,
+            "median": 0.223
+          },
+          "billedTokens": {
+            "mean": 313366,
+            "median": 313366
+          },
+          "outputTokens": {
+            "mean": 5553.5,
+            "median": 5553.5
+          },
+          "durationSeconds": {
+            "mean": 51.8,
+            "median": 51.8
+          },
+          "iterations": {
+            "mean": 3,
+            "median": 3
+          },
+          "effectiveIterations": {
+            "mean": 3,
+            "median": 3
+          },
+          "editRounds": {
+            "mean": 2.5,
+            "median": 2.5
+          },
+          "toolCalls": {
+            "mean": 10.5,
+            "median": 10.5
+          },
+          "failedRuns": {
+            "mean": 0.5,
+            "median": 0.5
+          },
+          "episodes": {
+            "mean": 0.5,
+            "median": 0.5
+          },
+          "locAdded": {
+            "mean": 127,
+            "median": 127
+          },
+          "locRemoved": {
+            "mean": 3,
+            "median": 3
+          },
+          "wroteTest": 2,
+          "keptTest": 2,
+          "attributedShareMin": 1,
+          "attributedShareMean": 1,
+          "phases": {
+            "orient": 2.4,
+            "learn": 17,
+            "implement": 13.2,
+            "test-authoring": 6.5,
+            "verify": 5.1,
+            "debug": 2.4,
+            "tooling-friction": 0,
+            "think": 5.3,
+            "report": 0,
+            "other": 0
+          },
+          "friction": {},
+          "learn": {
+            "framework-source": 17
+          }
+        }
+      }
+    },
+    "overall": {
+      "sygnal": {
+        "n": 4,
+        "pass": 4,
+        "scored": 4,
+        "wall": {
+          "mean": 39.3,
+          "median": 39.5
+        },
+        "peakContext": {
+          "mean": 33108.8,
+          "median": 34016
+        },
+        "cacheCreation": {
+          "mean": 26177.3,
+          "median": 26996.5
+        },
+        "cacheRead": {
+          "mean": 182655.8,
+          "median": 163620
+        },
+        "messages": {
+          "mean": 9,
+          "median": 8.5
+        },
+        "costUsd": {
+          "mean": 0.164,
+          "median": 0.167
+        },
+        "billedTokens": {
+          "mean": 212993.5,
+          "median": 195068
+        },
+        "outputTokens": {
+          "mean": 4142.5,
+          "median": 4194.5
+        },
+        "durationSeconds": {
+          "mean": 39.3,
+          "median": 39.5
+        },
+        "iterations": {
+          "mean": 2.3,
+          "median": 2
+        },
+        "effectiveIterations": {
+          "mean": 2.3,
+          "median": 2
+        },
+        "editRounds": {
+          "mean": 2,
+          "median": 2
+        },
+        "toolCalls": {
+          "mean": 8,
+          "median": 7.5
+        },
+        "failedRuns": {
+          "mean": 0.3,
+          "median": 0
+        },
+        "episodes": {
+          "mean": 0.3,
+          "median": 0
+        },
+        "locAdded": {
+          "mean": 90.3,
+          "median": 86.5
+        },
+        "locRemoved": {
+          "mean": 3.5,
+          "median": 3.5
+        },
+        "wroteTest": 4,
+        "keptTest": 4,
+        "attributedShareMin": 1,
+        "attributedShareMean": 1,
+        "phases": {
+          "orient": 2.2,
+          "learn": 11.3,
+          "implement": 10.3,
+          "test-authoring": 4.9,
+          "verify": 4,
+          "debug": 1.2,
+          "tooling-friction": 0,
+          "think": 5.4,
+          "report": 0,
+          "other": 0
+        },
+        "friction": {},
+        "learn": {
+          "framework-source": 11.3
+        }
+      }
+    },
+    "overallShared": {},
+    "delta": {
+      "tasks": [],
+      "wallDelta": null,
+      "items": []
+    },
+    "catalog": [
+      {
+        "id": "G-125",
+        "title": "Guessed `t.state` on a `renderComponent()` handle (it has `t.states`, `t.next()`, `t.waitForState()`; no `state`)",
+        "kind": "docs",
+        "status": "fixed",
+        "trialsAffected": 2,
+        "sygnal": "2/4",
+        "react": "—",
+        "inResults": 0,
+        "inReports": 0,
+        "workarounds": 0,
+        "inInputs": 2,
+        "frictionTrials": 0,
+        "frictionSecondsTotal": 0,
+        "frictionSecondsPerAffected": null,
+        "frictionSecondsPerSygnalTrial": 0,
+        "frictionSecondsPerReactTrial": 0,
+        "trials": [
+          "sygnal-34-t1",
+          "sygnal-34-t2"
+        ]
+      }
+    ],
+    "skill": {
+      "sygnalTrials": 4,
+      "skillInvoked": 0,
+      "skillBytes": {
+        "mean": 0,
+        "median": 0
+      },
+      "files": {},
+      "sections": [],
+      "library": {
+        "sygnal": {
+          "sygnal": {
+            "trials": 4,
+            "files": {
+              "(dir)": 4,
+              "dist/guide/drag-and-drop.md": 2,
+              "llms": 3,
+              "llms.txt": 4,
+              "llms/ui.md": 2,
+              "dist/guide": 1
+            }
+          }
+        },
+        "react": {}
+      },
+      "libraryBytes": {
+        "sygnal": {
+          "mean": 42996.3,
+          "median": 44203
+        },
+        "react": {
+          "mean": null,
+          "median": null
+        }
+      },
+      "libraryReaders": {
+        "sygnal": 4,
+        "react": 0
+      }
+    },
+    "canonical": {
+      "trials": 4,
+      "forms": {
+        "shorthandKeys": {
+          "total": 0,
+          "trials": 0
+        },
+        "emitCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "eventCalls": {
+          "total": 0,
+          "trials": 0
+        },
+        "rawEventsObjects": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectString": {
+          "total": 0,
+          "trials": 0
+        },
+        "childSelectFn": {
+          "total": 0,
+          "trials": 0
+        },
+        "positionalView": {
+          "total": 0,
+          "trials": 0
+        },
+        "abortReturns": {
+          "total": 6,
+          "trials": 2
+        },
+        "effectSinks": {
+          "total": 0,
+          "trials": 0
+        }
+      },
+      "sygnalCheck": {},
+      "checkErrors": []
+    },
+    "failures": {
+      "signatures": [
+        {
+          "arm": "sygnal",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "cause": "agent-mistake",
+          "catalog": [],
+          "count": 1,
+          "trials": 1
+        }
+      ],
+      "episodes": {
+        "sygnal": {
+          "agent-mistake": {
+            "episodes": 1,
+            "seconds": 4.7,
+            "iterations": 1,
+            "unresolved": 0
+          }
+        },
+        "react": {}
+      }
+    },
+    "failureCategories": {
+      "sygnal": {},
+      "react": {}
+    },
+    "otherSkills": {
+      "sygnal": {},
+      "react": {}
+    }
+  },
+  "trials": [
+    {
+      "trial": "sygnal-34-t1",
+      "run": "llms-ctx-pilot-new-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 32,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 14,
+        "output": 650,
+        "cacheRead": 109893,
+        "cacheCreation": 19223,
+        "messages": 7,
+        "peakContext": 26252,
+        "total": 129780
+      },
+      "usage": {
+        "tokens": 132088,
+        "outputTokens": 2958,
+        "costUsd": 0.1174893,
+        "durationMs": 31103,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 6,
+        "byTool": {
+          "Bash": 6
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 31.1,
+      "phases": {
+        "orient": 1.8,
+        "learn": 5.8,
+        "implement": 9,
+        "verify": 3.8,
+        "test-authoring": 4.9,
+        "think": 5.8
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 5
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 5.8
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/drag-and-drop.md",
+            "llms",
+            "llms.txt",
+            "llms/ui.md"
+          ]
+        },
+        "libraryBytes": 30871
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 7.6,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-new-noskill-sonnet/sygnal-34-t1",
+      "diff": {
+        "added": 57,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 24,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 31,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1544
+    },
+    {
+      "trial": "sygnal-34-t2",
+      "run": "llms-ctx-pilot-new-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "34-sortable-playlist",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 6,
+        "testsTotal": 6,
+        "wallSeconds": 24,
+        "iterations": 1,
+        "editRounds": 1,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 12,
+        "output": 86,
+        "cacheRead": 75171,
+        "cacheCreation": 15466,
+        "messages": 6,
+        "peakContext": 21937,
+        "total": 90735
+      },
+      "usage": {
+        "tokens": 93154,
+        "outputTokens": 2505,
+        "costUsd": 0.0944551,
+        "durationMs": 22503,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 5,
+        "byTool": {
+          "Bash": 5
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 22.5,
+      "phases": {
+        "orient": 2,
+        "learn": 5.4,
+        "implement": 5.8,
+        "test-authoring": 1.9,
+        "verify": 2.1,
+        "think": 5.3
+      },
+      "attributedShare": 1,
+      "iterations": 1,
+      "effectiveIterations": 1,
+      "edits": 1,
+      "editRounds": 1,
+      "failures": [
+        {
+          "kind": "command",
+          "tool": "Bash",
+          "signature": "Exit code 1",
+          "catalog": [],
+          "cause": "other",
+          "t": 2
+        }
+      ],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 5.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": [
+          "G-125"
+        ]
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide/drag-and-drop.md",
+            "llms",
+            "llms.txt",
+            "llms/ui.md"
+          ]
+        },
+        "libraryBytes": 23102
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 7.4,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-new-noskill-sonnet/sygnal-34-t2",
+      "diff": {
+        "added": 50,
+        "removed": 4,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 24,
+            "removed": 3,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 24,
+            "removed": 0,
+            "status": "new"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 0,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1366
+    },
+    {
+      "trial": "sygnal-46-t1",
+      "run": "llms-ctx-pilot-new-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "46-ticket-triage",
+      "trialNo": 1,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 5,
+        "testsTotal": 5,
+        "wallSeconds": 57,
+        "iterations": 4,
+        "editRounds": 3,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 26,
+        "output": 734,
+        "cacheRead": 328212,
+        "cacheCreation": 34770,
+        "messages": 13,
+        "peakContext": 41780,
+        "total": 363742
+      },
+      "usage": {
+        "tokens": 368684,
+        "outputTokens": 5676,
+        "costUsd": 0.22871319999999998,
+        "durationMs": 55629,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 12,
+        "byTool": {
+          "Bash": 12
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 55.6,
+      "phases": {
+        "orient": 2.5,
+        "learn": 16.7,
+        "implement": 13.9,
+        "test-authoring": 6.8,
+        "verify": 6,
+        "debug": 4.7,
+        "think": 4.9
+      },
+      "attributedShare": 1,
+      "iterations": 4,
+      "effectiveIterations": 4,
+      "edits": 3,
+      "editRounds": 3,
+      "failures": [
+        {
+          "kind": "verify",
+          "tool": "Bash",
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "t": 43
+        }
+      ],
+      "episodes": [
+        {
+          "seconds": 4.7,
+          "iterations": 1,
+          "signature": "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')",
+          "signatures": [
+            "TypeError: Cannot read properties of undefined (reading 'querySelectorAll')"
+          ],
+          "catalog": [],
+          "friction": [],
+          "cause": "agent-mistake",
+          "resolved": true,
+          "t": 43
+        }
+      ],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 16.7
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 57535
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 24,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-new-noskill-sonnet/sygnal-46-t1",
+      "diff": {
+        "added": 116,
+        "removed": 3,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 37,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/Ticket.jsx": {
+            "added": 70,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/main.js": {
+            "added": 6,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 2,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 1507
+    },
+    {
+      "trial": "sygnal-46-t2",
+      "run": "llms-ctx-pilot-new-noskill-sonnet",
+      "arm": "sygnal",
+      "task": "46-ticket-triage",
+      "trialNo": 2,
+      "agentId": "headless",
+      "flags": [],
+      "scored": {
+        "pass": true,
+        "testsPassed": 5,
+        "testsTotal": 5,
+        "wallSeconds": 49,
+        "iterations": 2,
+        "editRounds": 2,
+        "failureCategory": "none"
+      },
+      "method": "headless",
+      "tokens": {
+        "input": 20,
+        "output": 828,
+        "cacheRead": 217347,
+        "cacheCreation": 35250,
+        "messages": 10,
+        "peakContext": 42466,
+        "total": 253445
+      },
+      "usage": {
+        "tokens": 258048,
+        "outputTokens": 5431,
+        "costUsd": 0.2170847,
+        "durationMs": 47941,
+        "model": "claude-sonnet-5-5"
+      },
+      "toolCalls": {
+        "total": 9,
+        "byTool": {
+          "Bash": 9
+        }
+      },
+      "processKills": [],
+      "processGuard": 1,
+      "skillGuard": 1,
+      "wallSeconds": 47.9,
+      "phases": {
+        "orient": 2.3,
+        "learn": 17.4,
+        "implement": 12.5,
+        "test-authoring": 6.1,
+        "verify": 4.1,
+        "think": 5.6
+      },
+      "attributedShare": 1,
+      "iterations": 2,
+      "effectiveIterations": 2,
+      "edits": 2,
+      "editRounds": 2,
+      "failures": [],
+      "episodes": [],
+      "frictionSeconds": {},
+      "learnSeconds": {
+        "framework-source": 17.4
+      },
+      "catalog": {
+        "result": [],
+        "report": [],
+        "workaround": [],
+        "input": []
+      },
+      "usedActionLog": false,
+      "skill": {
+        "skillInvoked": false,
+        "otherSkills": [],
+        "skillBytes": 0,
+        "files": {},
+        "sections": [],
+        "library": {
+          "sygnal": [
+            "(dir)",
+            "dist/guide",
+            "llms",
+            "llms.txt"
+          ]
+        },
+        "libraryBytes": 60477
+      },
+      "selfReported": [],
+      "wroteTest": true,
+      "testWindow": 13,
+      "trialDir": "/private/tmp/sygnal-evals/trials/llms-ctx-pilot-new-noskill-sonnet/sygnal-46-t2",
+      "diff": {
+        "added": 138,
+        "removed": 3,
+        "files": {
+          "package.json": {
+            "added": 2,
+            "removed": 1,
+            "status": "modified"
+          },
+          "src/App.jsx": {
+            "added": 1,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/App.test.jsx": {
+            "added": 15,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/Ticket.jsx": {
+            "added": 79,
+            "removed": 0,
+            "status": "modified"
+          },
+          "src/Ticket.test.jsx": {
+            "added": 35,
+            "removed": 0,
+            "status": "new"
+          },
+          "src/main.js": {
+            "added": 6,
+            "removed": 2,
+            "status": "modified"
+          }
+        }
+      },
+      "keptTests": [
+        "src/App.test.jsx",
+        "src/Ticket.test.jsx"
+      ],
+      "testApproach": [
+        "renderComponent"
+      ],
+      "canonical": {
+        "shorthandKeys": 0,
+        "emitCalls": 0,
+        "eventCalls": 0,
+        "rawEventsObjects": 0,
+        "childSelectString": 0,
+        "childSelectFn": 0,
+        "positionalView": 0,
+        "abortReturns": 4,
+        "effectSinks": 0
+      },
+      "sygnalCheck": {
+        "diagnostics": []
+      },
+      "a11yFinal": 0,
+      "wiring": {
+        "hitCalls": 0,
+        "hitsByCode": {
+          "SYG104": 0,
+          "SYG110": 0,
+          "SYG124": 0
+        },
+        "finalCodes": [],
+        "failure": false,
+        "failureSource": null,
+        "finalChecked": true
+      },
+      "failureAuto": null,
+      "finalReportChars": 2025
+    }
+  ]
+}
