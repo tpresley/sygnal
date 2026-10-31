@@ -1,0 +1,95 @@
+22:25  up 22 days,  4:02, 2 users, load averages: 7.25 7.24 8.81
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.07 ms/frame  sim 0.022  paint p50 0.10  heapΔ 4047 KB  mode playing
+         program 0.717, sygnal core 0.12, native (Canvas 2D, DOM) 0.09, sygnal/canvas 0.071, game: sim 0.02, game: view / loop 0.01, GC 0.01, snabbdom 0.01, xstream 0.008, game: nodes 0.008, bench probe 0.001
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.00 ms/frame  sim 0.014  paint p50 0.10  heapΔ 3752 KB  mode playing
+         program 0.692, sygnal core 0.102, native (Canvas 2D, DOM) 0.086, sygnal/canvas 0.068, game: sim 0.016, game: view / loop 0.011, GC 0.01, snabbdom 0.007, game: nodes 0.006, xstream 0.006, bench probe 0.001
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.04 ms/frame  sim 0.017  paint p50 0.10  heapΔ 3859 KB  mode playing
+         program 0.719, sygnal core 0.105, native (Canvas 2D, DOM) 0.087, sygnal/canvas 0.07, game: sim 0.016, GC 0.011, game: view / loop 0.011, snabbdom 0.009, game: nodes 0.008, xstream 0.007, bench probe 0.001
+sygnal   stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.16 ms/frame  sim 0.022  paint p50 0.20  heapΔ 6703 KB  mode playing
+         program 0.697, sygnal/canvas 0.167, native (Canvas 2D, DOM) 0.127, sygnal core 0.089, GC 0.024, game: sim 0.018, game: nodes 0.014, game: view / loop 0.013, snabbdom 0.008, xstream 0.005, bench probe 0.001
+sygnal   stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.19 ms/frame  sim 0.020  paint p50 0.20  heapΔ 6701 KB  mode playing
+         program 0.705, sygnal/canvas 0.168, native (Canvas 2D, DOM) 0.135, sygnal core 0.095, GC 0.024, game: sim 0.016, game: nodes 0.013, game: view / loop 0.012, snabbdom 0.01, xstream 0.008, bench probe 0
+sygnal   stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.16 ms/frame  sim 0.020  paint p50 0.20  heapΔ 6432 KB  mode playing
+         program 0.691, sygnal/canvas 0.16, native (Canvas 2D, DOM) 0.129, sygnal core 0.095, game: sim 0.022, GC 0.022, game: nodes 0.015, game: view / loop 0.009, snabbdom 0.009, xstream 0.007, bench probe 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 2.38 ms/frame  sim 0.036  paint p50 0.50  heapΔ 2659 KB  mode playing
+         program 1.484, sygnal/canvas 0.366, native (Canvas 2D, DOM) 0.295, sygnal core 0.1, GC 0.04, game: nodes 0.037, game: sim 0.034, snabbdom 0.01, game: view / loop 0.009, xstream 0.005, bench probe 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 2.34 ms/frame  sim 0.039  paint p50 0.50  heapΔ 3096 KB  mode playing
+         program 1.448, sygnal/canvas 0.356, native (Canvas 2D, DOM) 0.292, sygnal core 0.097, GC 0.042, game: nodes 0.038, game: sim 0.036, snabbdom 0.011, game: view / loop 0.008, xstream 0.007, bench probe 0
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 2.32 ms/frame  sim 0.034  paint p50 0.50  heapΔ 4590 KB  mode playing
+         program 1.444, sygnal/canvas 0.352, native (Canvas 2D, DOM) 0.29, sygnal core 0.097, GC 0.043, game: nodes 0.038, game: sim 0.031, game: view / loop 0.01, snabbdom 0.009, xstream 0.005, bench probe 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 6.82 ms/frame  sim 0.091  paint p50 5.60  heapΔ 4375 KB  mode playing
+         native (Canvas 2D, DOM) 4.864, sygnal/canvas 1.06, program 0.492, GC 0.097, game: nodes 0.094, sygnal core 0.093, game: sim 0.09, game: view / loop 0.011, snabbdom 0.008, xstream 0.007, bench probe 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 6.85 ms/frame  sim 0.087  paint p50 5.60  heapΔ 2856 KB  mode playing
+         native (Canvas 2D, DOM) 4.855, sygnal/canvas 1.093, program 0.496, GC 0.102, sygnal core 0.098, game: nodes 0.096, game: sim 0.09, snabbdom 0.009, game: view / loop 0.007, xstream 0.003, bench probe 0
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 6.83 ms/frame  sim 0.092  paint p50 5.60  heapΔ 26084 KB  mode playing
+         native (Canvas 2D, DOM) 4.848, sygnal/canvas 1.075, program 0.496, sygnal core 0.1, GC 0.1, game: nodes 0.096, game: sim 0.094, snabbdom 0.008, game: view / loop 0.007, xstream 0.005, bench probe 0.001
+sygnal   stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/605  busy 12.69 ms/frame  sim 0.171  paint p50 11.00  heapΔ 12501 KB  mode playing
+         native (Canvas 2D, DOM) 9.489, sygnal/canvas 2.011, program 0.563, game: nodes 0.175, game: sim 0.172, GC 0.151, sygnal core 0.106, snabbdom 0.007, game: view / loop 0.006, xstream 0.006, bench probe 0.001
+sygnal   stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/605  busy 12.58 ms/frame  sim 0.169  paint p50 10.90  heapΔ 19737 KB  mode playing
+         native (Canvas 2D, DOM) 9.418, sygnal/canvas 1.979, program 0.548, game: nodes 0.173, game: sim 0.168, GC 0.163, sygnal core 0.103, game: view / loop 0.009, xstream 0.008, snabbdom 0.007, bench probe 0.001
+sygnal   stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/604  busy 12.67 ms/frame  sim 0.175  paint p50 10.90  heapΔ 17971 KB  mode playing
+         native (Canvas 2D, DOM) 9.493, sygnal/canvas 1.988, program 0.557, game: sim 0.171, game: nodes 0.17, GC 0.148, sygnal core 0.116, snabbdom 0.012, game: view / loop 0.008, xstream 0.007, bench probe 0.001
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 0.40 ms/frame  sim 0.021  paint p50 0.10  heapΔ 1114 KB  mode playing
+         program 0.298, native (Canvas 2D, DOM) 0.036, game: view / loop 0.035, game: sim 0.021, game: nodes 0.007, GC 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.40 ms/frame  sim 0.023  paint p50 0.10  heapΔ 1125 KB  mode playing
+         program 0.299, game: view / loop 0.041, native (Canvas 2D, DOM) 0.035, game: sim 0.021, game: nodes 0.005, GC 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.43 ms/frame  sim 0.019  paint p50 0.10  heapΔ 1128 KB  mode playing
+         program 0.32, game: view / loop 0.039, native (Canvas 2D, DOM) 0.037, game: sim 0.028, game: nodes 0.004, GC 0.002
+baseline stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.89 ms/frame  sim 0.020  paint p50 0.20  heapΔ 426 KB  mode playing
+         program 0.674, native (Canvas 2D, DOM) 0.118, game: view / loop 0.057, game: sim 0.029, game: nodes 0.007, GC 0.004
+baseline stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.94 ms/frame  sim 0.022  paint p50 0.20  heapΔ 1292 KB  mode playing
+         program 0.715, native (Canvas 2D, DOM) 0.118, game: view / loop 0.06, game: sim 0.027, game: nodes 0.009, GC 0.006
+baseline stress100  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.90 ms/frame  sim 0.025  paint p50 0.20  heapΔ 1314 KB  mode playing
+         program 0.688, native (Canvas 2D, DOM) 0.111, game: view / loop 0.06, game: sim 0.026, game: nodes 0.01, GC 0.005
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.88 ms/frame  sim 0.037  paint p50 0.40  heapΔ 1080 KB  mode playing
+         program 1.43, native (Canvas 2D, DOM) 0.266, game: view / loop 0.112, game: sim 0.038, game: nodes 0.026, GC 0.012
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.91 ms/frame  sim 0.037  paint p50 0.40  heapΔ 1111 KB  mode playing
+         program 1.45, native (Canvas 2D, DOM) 0.265, game: view / loop 0.12, game: sim 0.04, game: nodes 0.025, GC 0.014
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.88 ms/frame  sim 0.035  paint p50 0.40  heapΔ 935 KB  mode playing
+         program 1.425, native (Canvas 2D, DOM) 0.255, game: view / loop 0.12, game: sim 0.039, game: nodes 0.029, GC 0.013
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 5.33 ms/frame  sim 0.095  paint p50 1.20  heapΔ 4266 KB  mode playing
+         program 4.033, native (Canvas 2D, DOM) 0.789, game: view / loop 0.33, game: sim 0.095, game: nodes 0.058, GC 0.025
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 5.20 ms/frame  sim 0.093  paint p50 1.10  heapΔ 4265 KB  mode playing
+         program 3.915, native (Canvas 2D, DOM) 0.777, game: view / loop 0.312, game: sim 0.1, game: nodes 0.066, GC 0.025
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 5.26 ms/frame  sim 0.095  paint p50 1.20  heapΔ 4265 KB  mode playing
+         program 3.968, native (Canvas 2D, DOM) 0.796, game: view / loop 0.314, game: sim 0.1, game: nodes 0.061, GC 0.024
+baseline stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/604  busy 9.98 ms/frame  sim 0.175  paint p50 2.20  heapΔ 7447 KB  mode playing
+         program 7.535, native (Canvas 2D, DOM) 1.515, game: view / loop 0.594, game: sim 0.18, game: nodes 0.112, GC 0.042
+baseline stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 9.99 ms/frame  sim 0.173  paint p50 2.20  heapΔ 6292 KB  mode playing
+         program 7.556, native (Canvas 2D, DOM) 1.502, game: view / loop 0.602, game: sim 0.173, game: nodes 0.116, GC 0.04
+baseline stress2000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 10.03 ms/frame  sim 0.178  paint p50 2.20  heapΔ 4361 KB  mode playing
+         program 7.583, native (Canvas 2D, DOM) 1.499, game: view / loop 0.615, game: sim 0.18, game: nodes 0.11, GC 0.041
+→ dev-plans/research/canvas-game/perf/results/2026-10-31-08-31.json
+22:31  up 22 days,  4:08, 2 users, load averages: 4.33 5.66 7.50
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.69 ms/frame  sim 0.020  paint p50 0.10  heapΔ 2344 KB  mode playing
+         program 0.431, sygnal core 0.1, native (Canvas 2D, DOM) 0.069, sygnal/canvas 0.038, game: sim 0.018, GC 0.01, snabbdom 0.008, game: nodes 0.007, xstream 0.007, bench probe 0.005, game: view / loop 0.002
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.71 ms/frame  sim 0.018  paint p50 0.10  heapΔ 2055 KB  mode playing
+         program 0.432, sygnal core 0.103, native (Canvas 2D, DOM) 0.072, sygnal/canvas 0.039, game: sim 0.02, GC 0.011, snabbdom 0.01, game: nodes 0.007, bench probe 0.007, game: view / loop 0.006, xstream 0.005
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.41 ms/frame  sim 0.036  paint p50 0.50  heapΔ 15314 KB  mode playing
+         program 0.797, sygnal/canvas 0.242, native (Canvas 2D, DOM) 0.151, sygnal core 0.088, game: nodes 0.042, game: sim 0.035, GC 0.034, snabbdom 0.007, xstream 0.006, game: view / loop 0.006, bench probe 0.005
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.40 ms/frame  sim 0.039  paint p50 0.50  heapΔ 15806 KB  mode playing
+         program 0.785, sygnal/canvas 0.223, native (Canvas 2D, DOM) 0.158, sygnal core 0.098, game: sim 0.045, game: nodes 0.033, GC 0.029, snabbdom 0.008, game: view / loop 0.007, xstream 0.007, bench probe 0.006
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.90 ms/frame  sim 0.097  paint p50 5.70  heapΔ 8345 KB  mode playing
+         native (Canvas 2D, DOM) 2.479, sygnal/canvas 0.692, program 0.338, sygnal core 0.111, game: nodes 0.093, game: sim 0.092, GC 0.073, snabbdom 0.008, xstream 0.005, game: view / loop 0.004, bench probe 0.004
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.87 ms/frame  sim 0.095  paint p50 5.70  heapΔ 26356 KB  mode playing
+         native (Canvas 2D, DOM) 2.46, sygnal/canvas 0.692, program 0.328, sygnal core 0.099, game: nodes 0.096, game: sim 0.096, GC 0.072, snabbdom 0.01, xstream 0.007, game: view / loop 0.006, bench probe 0.003
+→ dev-plans/research/canvas-game/perf/results/2026-10-31-08-32.json
+22:32  up 22 days,  4:09, 2 users, load averages: 5.00 5.57 7.32
+sygnal level: ms per frame (3 s = 180 frames)
+  main thread: {"LayerTreeHost::DoUpdateLayers":0.472,"FunctionCall":0.436,"ProxyMain::BeginMainFrame":0.061,"PrePaint":0.038,"ThreadControllerImpl::RunTask":0.032,"Commit":0.032,"v8.callFunction":0.025,"RunTask":0.023,"LocalFrameView::ScheduleAnimation":0.019,"FireAnimationFrame":0.019,"SimpleWatcher::OnHandleReady":0.019}
+  threads: {"CrRendererMain":1.221,"VizCompositorThread":0.799,"Compositor":0.361,"ThreadPoolForegroundWorker":0.117}
+sygnal stress300: ms per frame (3 s = 180 frames)
+  main thread: {"LayerTreeHost::DoUpdateLayers":1.558,"FunctionCall":1.188,"ProxyMain::BeginMainFrame":0.049,"ThreadControllerImpl::RunTask":0.031,"PrePaint":0.031,"Commit":0.027,"v8.callFunction":0.022,"RunTask":0.019,"LocalFrameView::ScheduleAnimation":0.018,"SimpleWatcher::OnHandleReady":0.015,"FireAnimationFrame":0.015}
+  threads: {"CrRendererMain":3.039,"VizCompositorThread":0.676,"ThreadPoolForegroundWorker":0.357,"Compositor":0.293}
+sygnal stress1000: ms per frame (3 s = 180 frames)
+  main thread: {"FunctionCall":6.106,"LayerTreeHost::DoUpdateLayers":0.317,"ProxyMain::BeginMainFrame":0.046,"ThreadControllerImpl::RunTask":0.029,"V8.GC_SCAVENGER_SCAVENGE_PARALLEL_PHASE":0.025,"PrePaint":0.024,"Commit":0.023,"v8.callFunction":0.018,"RunTask":0.016,"V8.GC_SCAVENGER_SCAVENGE_PARALLEL":0.016,"FireAnimationFrame":0.015,"SimpleWatcher::OnHandleReady":0.012,"LocalFrameView::ScheduleAnimation":0.012}
+  threads: {"CrRendererMain":6.725,"VizCompositorThread":0.579,"ThreadPoolForegroundWorker":0.463,"Compositor":0.257}
+baseline level: ms per frame (3 s = 180 frames)
+  main thread: {"LayerTreeHost::DoUpdateLayers":0.417,"FunctionCall":0.213,"ProxyMain::BeginMainFrame":0.081,"PrePaint":0.051,"Commit":0.05,"ThreadControllerImpl::RunTask":0.044,"RunTask":0.04,"LocalFrameView::ScheduleAnimation":0.022,"FireAnimationFrame":0.02,"v8.callFunction":0.015}
+  threads: {"CrRendererMain":1.005,"VizCompositorThread":0.726,"Compositor":0.557,"ThreadPoolForegroundWorker":0.079,"PerfettoTrace":0.011}
+baseline stress300: ms per frame (3 s = 180 frames)
+  main thread: {"LayerTreeHost::DoUpdateLayers":1.77,"FunctionCall":0.64,"ProxyMain::BeginMainFrame":0.055,"PrePaint":0.034,"Commit":0.031,"ThreadControllerImpl::RunTask":0.027,"RunTask":0.019,"FireAnimationFrame":0.014,"LocalFrameView::ScheduleAnimation":0.013}
+  threads: {"CrRendererMain":2.656,"VizCompositorThread":0.422,"Compositor":0.315,"ThreadPoolForegroundWorker":0.136}
+baseline stress1000: ms per frame (3 s = 180 frames)
+  main thread: {"LayerTreeHost::DoUpdateLayers":4.073,"FunctionCall":1.359,"ProxyMain::BeginMainFrame":0.041,"Commit":0.027,"PrePaint":0.025,"ThreadControllerImpl::RunTask":0.023,"RunTask":0.016,"FireAnimationFrame":0.01}
+  threads: {"CrRendererMain":5.637,"VizCompositorThread":0.348,"Compositor":0.26,"ThreadPoolForegroundWorker":0.103}

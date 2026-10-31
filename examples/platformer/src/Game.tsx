@@ -16,6 +16,7 @@ import {tilesOf, coinsOf, sceneryOf, actorsOf, idsOf, cameraOf, VIEW} from './no
 
 export type State = World & {camera: {x: number, y: number, zoom: number}}
 
+// (numbers as text: a number child next to text crashes sygnal/replay's view hashing: canvas-game README, B1)
 const pad = (n: number, w: number) => String(n).padStart(w, '0')
 
 function Screen({mode, score, name}: {mode: World['mode'], score: number, name: string}) {
@@ -28,8 +29,8 @@ function Screen({mode, score, name}: {mode: World['mode'], score: number, name: 
     </div>
   )
   if (mode == 'paused') return <div className="screen dim"><h2>Paused</h2><p>Press P to resume</p></div>
-  if (mode == 'over') return <div className="screen"><h2>Game over</h2><p>Score {score}</p><p className="blink">Press Enter to try again</p></div>
-  if (mode == 'won') return <div className="screen"><h2>Course clear!</h2><p>Score {score}</p><p className="blink">Press Enter to play again</p></div>
+  if (mode == 'over') return <div className="screen"><h2>Game over</h2><p>{`Score ${score}`}</p><p className="blink">Press Enter to try again</p></div>
+  if (mode == 'won') return <div className="screen"><h2>Course clear!</h2><p>{`Score ${score}`}</p><p className="blink">Press Enter to play again</p></div>
   return null
 }
 
@@ -46,7 +47,7 @@ export const Game: Component<State> = function Game({state}) {
       <div className="hud" aria-live="off">
         <span>SCORE {pad(state.score, 6)}</span>
         <span>● ×{pad(state.coinCount, 2)}</span>
-        <span>♥ ×{state.lives}</span>
+        <span>{`♥ ×${state.lives}`}</span>
         <span>TIME {pad(timeLeft(state), 3)}</span>
       </div>
       <Screen mode={state.mode} score={state.score} name={state.level.name} />
