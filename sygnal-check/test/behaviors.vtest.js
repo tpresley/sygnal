@@ -145,8 +145,9 @@ List.uses = { pager: pager({ next: Newer, prev: Older }) }
   })
 
   it("host intent actions: 'pager.NEXT' (an override) needs no host model entry; 'pager.FOO' is SYG101", () => {
+    // no SYG101; ui-sweep R1: with the `next` option passed, the override replaces its trigger (SYG118)
     const ok = project({ 'List.jsx': LIST(undefined, "List.intent = ({ DOM }) => ({ 'pager.NEXT': DOM.select('document').events('keydown') })") }).check()
-    expect(ok).toEqual([])
+    expect(codes(ok)).toEqual(['SYG118 warn'])
     const d = project({ 'List.jsx': LIST(undefined, "List.intent = ({ DOM }) => ({ 'pager.FOO': DOM.select('document').events('keydown') })") }).check()
     expect(codes(d)).toEqual(['SYG101 warn'])
   })

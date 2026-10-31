@@ -60,6 +60,8 @@ const RANGES = [
   ['SYG111', 'C.jsx', 3, 'value={null}'],
   ['SYG112', 'App.jsx', 3, "'RECIEVED'"],
   ['SYG117', 'App.jsx', 4, "'MOVED'"],
+  ['SYG116', 'App.jsx', 4, "event('MOVED', 1)"],
+  ['SYG118', 'App.jsx', 4, "'pager.NEXT'"],
   ['SYG302', 'App.jsx', 1, "import xs from 'xstream'"],
   ['SYG303', 'App.jsx', 4, 'STATE.stream.map(s => s.tab).compose(dropRepeats())'],
   ['SYG429', 'App.jsx', 3, 'bb'],

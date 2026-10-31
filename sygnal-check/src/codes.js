@@ -23,8 +23,12 @@ export const CODES = {
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },
+  // ui-sweep R5 (rules/syg116-event-returned.js; the dev entry reports the value on the bus)
+  SYG116: { severity: 'error', title: 'EVENTS value has no string type' },
   // PLAN-13 N-1 (rules/syg117-next-without-entry.js; the dev entry reports it at run time too)
   SYG117: { severity: 'warn', title: 'next() names an action with no model entry' },
+  // ui-sweep R1 (rules/syg118-trigger-replaced.js; the dev entry reports it at run time too)
+  SYG118: { severity: 'warn', title: 'Host intent replaces a behavior trigger' },
   // PLAN-13 F-3 (rules/syg429-switchable-state-map.js; the dev entry reports it at run time too)
   SYG429: { severity: 'warn', title: 'Switchable state map names no page' },
   // PLAN-13 X-1 (rules/syg302-xstream-default-import.js)

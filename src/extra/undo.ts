@@ -237,6 +237,8 @@ export const undo = (options: UndoOptions & { undo?: any, redo?: any }): any => 
   keyed(options)
   const b = defineBehavior({
     initialState: {past: [], future: []},
+    // SYG118 (dev): the option each action's trigger is built from
+    triggers: {UNDO: 'undo', REDO: 'redo'},
     intent: ({DOM}: any, {undo, redo}: any) => ({
       ...(undo && {UNDO: DOM.click(undo)}),
       ...(redo && {REDO: DOM.click(redo)}),

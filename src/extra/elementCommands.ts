@@ -29,25 +29,41 @@
  * instance's pending commands are dropped. Without a DOM source nothing runs (SSR renders views
  * without instances); a null command is skipped (ABORT is the way to send nothing).
  *
+ * ui-sweep R2: a spec command whose target has `spec.optional` is dropped without SYG640 when
+ * nothing matches (sygnal/ui closing a dialog the host stopped rendering).
+ * ui-sweep R4: a target not in the component's own DOM is looked for in the content of the
+ * <Portal>s it renders (a dialog rendered into a portal target).
+ *
  * Failures (no match: SYG640; neither a spec command nor an element method: SYG641) go to the
  * 'sygnal/diagnostics' dev entry through the core bridge (`elementCommand`), which words them;
  * the core carries no message text. In production a failed command does nothing.
  */
+// ui-sweep R4: the first element matching `t` in the content of a <Portal> the component renders
+// (its placeholder's `__portal`, core/markers/portal.ts), for a target not in its own DOM
+const portaled = (roots: any, t: string): any => {
+  for (const r of roots || []) for (const p of r.querySelectorAll?.('[data-sygnal-portal]') || []) {
+    const e = p.__portal?.querySelector(t);
+    if (e) return e;
+  }
+};
+
 export function runElementCommands(c: any, cmds: any): void {
   const dom = c.sources[c.DOMSourceName];
   if (dom) for (const cmd of ([] as any[]).concat(cmds)) if (cmd) {
-    const m = Object.keys(cmd)[0], {[m]: t, ...o} = cmd, s = dom.select('' + t).elements();
-    let els: any, n = 0, k = 0, l: any;
+    const m = Object.keys(cmd)[0], {[m]: t, ...o} = cmd, s = dom.select('' + t).elements(), r = dom.elements?.();
+    let els: any, roots: any, n = 0, k = 0, l: any, rl: any;
     const run = (last?: any) => {
-      const e = !c._disposed && els?.[0], f = t?.spec?.commands?.[m] || e?.__sw?.w.commands[m];
+      const e = !c._disposed && (els?.[0] || portaled(roots, '' + t)), f = t?.spec?.commands?.[m] || e?.__sw?.w.commands[m];
       if (!l || !e && !last) return;
       s.removeListener(l);
+      r?.removeListener(rl);
       clearInterval(i);
       l = 0;
       e && (f || e[m]) ? f ? f(e, o) : e[m](m == 'close' ? o.returnValue : m == 'togglePopover' ? o.force : o)
-        : (globalThis as any).__SYGNAL_DIAGNOSTICS__?.elementCommand?.(c, cmd, e);
+        : e || !t?.spec?.optional ? (globalThis as any).__SYGNAL_DIAGNOSTICS__?.elementCommand?.(c, cmd, e) : 0;
     }, i = setInterval(() => run(++k > 62), 16);
     // the first value (the DOM as it is now) is skipped; the next ones follow a patch
     s.addListener(l = {next: (x: any) => { els = x; n++ && queueMicrotask(run); }});
+    r?.addListener(rl = {next: (x: any) => { roots = x; }});
   }
 }

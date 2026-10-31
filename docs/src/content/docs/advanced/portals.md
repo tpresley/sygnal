@@ -5,8 +5,8 @@ description: "Rendering outside the component tree"
 
 Render children into a DOM container outside the component's own tree. Essential for modals, tooltips, and dropdown menus that need to escape `overflow: hidden` or z-index stacking contexts.
 
-:::tip[Dialogs, popovers and tooltips don't need a portal]
-A native `<dialog>` opened with `showModal()` and an element with the `popover` attribute are drawn in the browser's top layer, above every `overflow: hidden` and z-index. Use the [`sygnal/ui`](/ui/overview/) parts for them and render their elements in place: `dialog()`, `popover()` and `tooltip()` look for their element in the component's own DOM, so inside a `<Portal>` they don't find it (the dialog never opens, and its state goes back to closed). Reach for a portal for a custom overlay that isn't one of those elements.
+:::tip[Dialogs, popovers and tooltips]
+A native `<dialog>` opened with `showModal()` and an element with the `popover` attribute are drawn in the browser's top layer, above every `overflow: hidden` and z-index, so they rarely need a portal. The [`sygnal/ui`](/ui/overview/) parts work inside one all the same: `dialog()`, `popover()` and `tooltip()` find their elements, events and commands in the content of the portals the component renders.
 :::
 
 ```jsx
@@ -52,6 +52,8 @@ ModalExample.intent = ({ DOM }) => ({
 
 If the portal target is a container **within** the component's own DOM subtree, normal `DOM.select()` will still work for portal content. The document-level approach is only necessary when the target is outside the component's isolation boundary (which is the typical use case for portals — rendering to `body`, `#modal-root`, etc.).
 
+[`ELEMENT` commands](/guide/element-commands/) (`{ focus: '.title' }`, `{ showModal: '.dialog' }`) reach the portal's content: a target that isn't in the component's own DOM is looked for in the content of the `<Portal>`s it renders.
+
 ## Moving an element with a hook
 
 A `Portal` mounts separate content. Sometimes a component's own element has to move instead, for example a notification region that goes into the topmost open modal `<dialog>` so it stays clickable above it, and back when the dialog closes. A snabbdom `insert` hook can move the element; Sygnal keeps patching it wherever it is. Set `__sygnalHome` on the moved element to the element it came from, so its events still belong to the component:
@@ -77,7 +79,7 @@ function Notices({ state }) {
 }
 ```
 
-With `__sygnalHome`, `DOM.click('.clear')` hears the moved button, and the event bubbles through the home to the component's parents (not to the dialog's listeners). Without it, child components inside the moved element (Collection items) still hear their own events, but the component's listeners on its own moved elements don't fire, and an element moved out of the app's root is outside the app. `DOM.select(…).elements()` and `ELEMENT` commands look inside the component's own DOM, so they don't find moved elements; give the moved element a child component for those.
+With `__sygnalHome`, `DOM.click('.clear')` hears the moved button, and the event bubbles through the home to the component's parents (not to the dialog's listeners). Without it, child components inside the moved element (Collection items) still hear their own events, but the component's listeners on its own moved elements don't fire, and an element moved out of the app's root is outside the app. `DOM.select(…).elements()` and `ELEMENT` commands look inside the component's own DOM, so they don't find moved elements; give the moved element a child component for those. (An `ELEMENT` command whose target isn't in the component's own DOM is also looked for in the content of the `<Portal>`s it renders.)
 
 ## Chained Document Selectors
 

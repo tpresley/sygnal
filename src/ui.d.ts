@@ -6,7 +6,11 @@ export type Uid = (name?: string) => string
 
 // ── Dialog ────────────────────────────────────────────────────────────
 export interface DialogState {
-  /** True from OPEN (or a native open) until the dialog's close event */
+  /**
+   * Whether the dialog is open: the source of truth (Radix's controlled `open`). A reducer that
+   * writes it opens or closes the dialog; the dialog's own changes (Escape, a form submit,
+   * commandfor) come back as actions, and a host entry that keeps `true` keeps it open.
+   */
   open: boolean
   /** The close event's returnValue ('' when closed without one) */
   returnValue: string
@@ -28,8 +32,10 @@ export interface DialogOptions {
    * leave it to the browser.
    */
   returnFocus?: boolean | BehaviorTarget
+  /** Open at the start (default false; Radix's defaultOpen) */
+  open?: boolean
 }
-export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean }
+export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean; /** The slice's `open` changed outside the behavior's entries: the dialog is made to match it */ APPLY: boolean }
 /**
  * A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`
  * gives `state.help = { open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
@@ -38,14 +44,17 @@ export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: s
 export function dialog(options: DialogOptions): Behavior<DialogState, DialogActions, {}, DialogOptions>
 
 // ── Popover ───────────────────────────────────────────────────────────
+/** `open`: the source of truth, as the dialog's (a reducer that writes it shows or hides the popover) */
 export interface PopoverState { open: boolean }
 export interface PopoverOptions {
   /** The popover element (popover="auto" or "manual") */
   popover: BehaviorTarget
   /** A button inside: its clicks dispatch CLOSE */
   close?: BehaviorTarget
+  /** Open at the start (default false) */
+  open?: boolean
 }
-export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; SYNC: false }
+export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; SYNC: false; APPLY: boolean }
 /**
  * A popover (Popover API) as a behavior: `uses = { filters: popover({ popover: '.filters' }) }`, opened by a
  * `popovertarget` button or 'filters.OPEN' / 'filters.TOGGLE'; `state.filters.open` follows its toggle event.
@@ -58,8 +67,10 @@ export interface TooltipState {
   pending: null | 'show' | 'hide'
   /** The pointer is on the trigger or the tip */
   hover: boolean
-  /** The trigger has the focus */
+  /** The trigger has the keyboard focus */
   focus: boolean
+  /** The trigger was pressed: the pointer shows the tip again only after leaving and coming back */
+  pressed: boolean
 }
 export interface TooltipOptions {
   /** What it describes (pointer and focus) */
@@ -71,7 +82,7 @@ export interface TooltipOptions {
   /** ms before it hides (default 100) */
   hideDelay?: number
 }
-export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: 'hover' | 'focus' | undefined; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean }
+export interface TooltipActions { ENTER: 'hover' | 'focus' | undefined; LEAVE: 'hover' | 'focus' | undefined; SHOW: any; HIDE: any; ESCAPE: string; TOGGLED: boolean; /** A pointerdown on the trigger: hides the tip */ PRESS: PointerEvent }
 /** A tooltip: `uses = { tip: tooltip({ trigger: '.save', tip: '.save-tip' }) }`. Needs makeTimerDriver(). */
 export function tooltip(options: TooltipOptions): Behavior<TooltipState, TooltipActions, {}, TooltipOptions>
 
@@ -84,6 +95,7 @@ export interface TooltipsState {
   pending: null | 'show' | 'hide'
   hover: boolean
   focus: boolean
+  pressed: boolean
 }
 export interface TooltipsOptions {
   /** Every trigger (a selector matching them all); each names its tip with aria-describedby */
@@ -102,6 +114,7 @@ export interface TooltipsActions {
   HIDE: any
   ESCAPE: string
   TOGGLED: { id: string; open: boolean }
+  PRESS: { id: string }
 }
 /**
  * PLAN-11 (6.7): every tooltip of a component as one behavior (one state slice, two timers):

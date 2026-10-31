@@ -28,6 +28,8 @@ const to = (p: any, page: number) => {
  */
 export const pager = /*#__PURE__*/ defineBehavior({
   initialState: {page: 0, pageSize: 20, total: null},
+  // SYG118 (dev): the option each action's trigger is built from
+  triggers: {NEXT: 'next', PREV: 'prev'},
   intent: ({DOM}: any, {next, prev}: any) => ({
     ...(next && {NEXT: DOM.click(next)}),
     ...(prev && {PREV: DOM.click(prev)}),

@@ -6,7 +6,7 @@ instances, Collection / isolated child / Portal, keyboard and focus, forms in di
 `renderComponent` (mock DOM and `dom: 'real'`), the three browser engines, the docs' own examples,
 `sygnal-check --strict` and the types. Menu / Select / Combobox (Zag) are a sibling sweep.
 
-Branch `claude/ui-sweep-native-3bf603` (off `claude/advanced-integration` at 18a73b35), 2026-10-31.
+Branch `claude/ui-sweep-native-3bf603` (off `claude/advanced-integration` at 18a73b35), 2026-10-31. Round 2 (below) on aa63f44f.
 
 ## The accordion lead
 
@@ -184,3 +184,160 @@ core is unchanged (`sygnal/ui` is its own entry); size-gate result in the gate s
 - `node scripts/size-gate.mjs`: OK, kanban 42,647 B (353 B headroom; core unchanged).
 - `npm --prefix docs run build`: OK; `node docs/scripts/check-live.mjs` on chromium, firefox and
   webkit: OK. `node scripts/check-doc-samples.mjs`: 973 clean.
+
+## Round 2 (the maintainer's decisions)
+
+Built on `claude/advanced-integration` at aa63f44f (round 1 and the Zag sweep merged). The rules:
+proper fixes, match Radix / React Aria, report size rather than trim for it.
+
+A correction to round 1: R2 there called "the browser owns the open state" D202. D202 is the
+packaging decision (the parts as a `sygnal` subpath). The "open mirrors the element" design was
+the parts' own (their file headers, the docs); those are what round 2 supersedes.
+
+### R1: a warning when a host intent replaces an option-built trigger (SYG118)
+
+- New code **SYG118** (warn, "Host intent replaces a behavior trigger"), reported by the dev entry
+  and `sygnal-check`, with its explanation and the regenerated error reference.
+- Dev (`checks/behaviors.ts` `onIntent`, once per component name): a behavior declares
+  `triggers: { ACTION: 'option' }` (new optional `defineBehavior` field, typed); the intent
+  combine already removes a host-replaced action from `_behaviorActions`, so after the intent ran
+  the check knows which ones the host took. Declared on every `sygnal/ui` part and on `pager`,
+  `selection` and `undo`.
+- Static (`rules/syg118-trigger-replaced.js`): a host intent action `<key>.<ACTION>` when the
+  `uses` entry passes the option the behavior's `listens` ties to that action: the first-party
+  table, and `defineBehavior()` calls it follows (it already worked out `listens` from their
+  intents). `tooltips` was missing from the first-party table (its uses entries were opaque);
+  added.
+- Docs that taught "adds": round 1 fixed overview / dialog / tabs; round 2 also the behaviors
+  guide's override table, `llms.txt` (the shortcut line now says the option's clicks stop and what
+  to do) and an agent-doc sample in `test/p4-4a1-agent-doc-samples.test.js`, which combined
+  `toggle: '.more'` with a `'more.TOGGLE'` keyboard override (so the button didn't toggle); it now
+  uses its own `SHORTCUT` action whose `EFFECT` calls `next('more.TOGGLE')`.
+
+### R2: a controlled `open` (dialog, popover)
+
+`state.<key>.open` is the source of truth. Mechanism (`src/ui/dialog.ts`, `popover.ts`,
+`shared.ts`):
+
+- Every behavior entry that can change `open` (OPEN, CLOSE, CANCEL, CLOSED, TOGGLED) sends the
+  commands for the slice it **ends with**: 7.0 outputs get the committed state, the host's entry
+  for the same action included. So a host entry that keeps `open: true` keeps the element open.
+- Everything that would close a dialog asks the model first, prevented: Escape (OPEN gives a modal
+  dialog `closedby="none"` unless the host set `closedby`; the keydown becomes CANCEL, which also
+  stops Chromium's CloseWatcher closing it on a second Escape), a light dismiss with the host's
+  own `closedby` (the cancel event, prevented), the close button and a `method="dialog"` form's
+  submit (the submitter's value) as CLOSE, `commandfor` `show-modal` / `close` / `request-close`
+  as OPEN / CLOSE / CANCEL (the `command` event, prevented; all three engines have it). The
+  dialog never closes in between, so the focus stays (Radix's `onOpenChange(false)` ignored).
+- A host reducer that writes `open` (any action, a parent's write, `setState`): `watch()` (the
+  new APPLY trigger) compares the slice with the element when the slice changes or the element is
+  new, after that change's own commands could run (two microtasks after the next patch, or 20 ms
+  when no patch comes; no timer while they match), and APPLY makes the element match. The
+  behavior's own actions match by then, so APPLY appears only for host writes (`t.actions`:
+  `SET_OPEN`, `d.APPLY`).
+- What the browser does on its own still flows back: CLOSED (a close the model didn't make; a host
+  entry that keeps it open opens it again), TOGGLED (an open without the model; a refusing host
+  closes it again; popover light dismiss / Escape, which can't be prevented, so a refused one
+  reopens, possibly after one frame). Stale events are dropped: a close event that arrives after
+  the model opened it again, a toggle that no longer says what the element is.
+- `open` option (Radix `defaultOpen`) on dialog and popover; G-400's "first look" no longer closes
+  a state that says open (the dialog opens instead); an element that leaves while open still
+  sets `open: false` (SYNC).
+- A dialog the host renders only while open (G-430): CLOSE removes it before any close event, so
+  `show()` now watches for its removal (a MutationObserver only while open) and returns the focus
+  to the opener, as Radix's focus scope does on unmount; the closing command's target is marked
+  `optional` (a new `spec.optional` on ELEMENT spec commands: no SYG640 when nothing matches).
+- Types: `DialogOptions.open`, `PopoverOptions.open`, `APPLY` actions, the controlled wording.
+  Docs: dialog (Controlled open section with the refusal recipe; the actions table rewritten),
+  popover, overview, `llms/ui.md`; round 1's "open mirrors, writing it does nothing" text is gone.
+- Testing note: APPLY reads the element, so a host write is applied with `dom: 'real'` or in a
+  browser; on the mock DOM, tests check the state (documented).
+
+Behaviour changes to note: Escape on a modal dialog is now handled by the behavior (keydown), not
+the browser, while the dialog has `closedby="none"`; an Android back gesture no longer closes it
+unless the host sets `closedby`. The cancel event is always prevented (the state decides).
+`CLOSE` now sets the state at once (before, only the close event did).
+
+### R3: the tooltip closes on the trigger's pointerdown
+
+`tooltip()` and `tooltips()` get PRESS (pointerdown on a trigger): the tip hides at once and a
+pending show is cancelled; `pressed` stays set until the pointer leaves, so hovering on doesn't
+reopen it (Radix's behaviour). This also fixes WebKit's stale tip under a modal the click opened
+(finding 12). State gains `pressed`; types and docs updated.
+
+### R4: dialog, popover and tooltip inside a `<Portal>`
+
+They work; no part had to be left out.
+
+- Core (`core/markers/portal.ts`): the placeholder element names its content (`__portal`).
+- Core (`extra/elementCommands.ts`): an ELEMENT command whose target isn't in the component's own
+  DOM is looked for in the content of the portals it renders (found from `DOM.elements()`, the
+  component's roots, so the dev selector checks see nothing new). Useful beyond `sygnal/ui`:
+  `{ focus: '.title' }` now reaches a portal's content (Portals and element-commands guides).
+- `sygnal/ui` (`shared.ts`): `find()` (the part's elements: own DOM, else its portals) for SYNC /
+  APPLY, and `ev()` (events on the part's elements in its own DOM plus a document capture
+  listener for its portals, `ownerTarget` and `preventDefault` applied as the DOM driver does) for
+  every listener of dialog, popover, tooltip and tooltips. Tabs, accordion and disclosure in a
+  portal are not covered (not asked; their triggers' clicks are DOM.click).
+- Docs: the Portals page's tip now says the parts work in a portal (rarely needed for top-layer
+  elements); dialog / popover / tooltip pages; `llms/ui.md` no longer says "never in a Portal".
+
+### R5: `EVENTS: (…) => event(…)`
+
+The dev entry already reported it (SYG116, when the function reaches the EVENTS bus). New static
+rule `rules/syg116-event-returned.js`: a non-STATE sink entry that is a function returning
+`event()` / `emit()` from 'sygnal' is SYG116 (error); SYG116's `reportedBy` now includes static.
+
+### Tests (round 2)
+
+- `test/ui-native-sweep.test.js`: controlled dialog (host write open / close, `open` option, Escape
+  refused and not, a refused browser close, form submit and its refusal, `commandfor`), controlled
+  popover (host write, refused light dismiss), tooltip / tooltips PRESS.
+- `test/ui-sweep-diagnostics.test.js`: SYG118 dev (reported; not without the option; not for
+  simulateAction), SYG116 dev for the function form.
+- `sygnal-check/test/ui-sweep-round2.vtest.js`: SYG118 (first-party parts, a local behavior, no
+  report without the option), SYG116 static (and not for the canonical form).
+- `browser-tests/src/tests/ui-sweep-native.jsx`, three engines: R2 dialog (host write, Escape,
+  focus return; a dirty editor refusing Escape twice and Enter; form submit value; `commandfor`),
+  R2 popover (host write; a refused light dismiss), R3 (press hides, no reopen while hovered;
+  the dialog-trigger tip), R4 (dialog, popover, tooltip in a portal: open, state, Escape, close
+  button, focus return).
+- Existing tests updated to the controlled contract where they encoded the old one: mock-DOM
+  simulations of a `close` / `toggle` event the element didn't actually do (a real close event
+  only comes from a closed dialog: they now call the faked `close()` or set `open`), the cancel
+  event now prevented, the `open` option now honoured, `pressed` in exact-state checks.
+
+### Size (round 2)
+
+- Core, kanban gzip with `nativeGlobalThis: false`: **42,647 → 42,734 B (+87 B; headroom 353 →
+  266 B)**: the portal fallback and `spec.optional` in `elementCommands.ts`. (The Zag merge didn't
+  touch the core.)
+- `sygnal/ui` (esbuild, minified + gzip, the core external): dialog 1,269 → 2,239 B, popover 551 →
+  1,292 B, tooltip 787 → 1,222 B, tooltips 1,081 → 1,528 B, accordion 1,202 → 1,219 B, tabs 1,172 →
+  1,191 B, disclosure 585 → 601 B; dialog + popover + tooltip together 1,940 → 3,097 B (+1,157 B;
+  the shared `find` / `ev` / `watch` once).
+
+### Open questions (round 2)
+
+1. Escape on a modal dialog now goes through the behavior (`closedby="none"` + keydown), so the
+   Android back gesture / CloseWatcher no longer closes a behavior-opened dialog unless the host
+   sets `closedby`. Radix doesn't handle the back gesture either; OK, or should the behavior
+   listen to the CloseWatcher path (a `closedby="closerequest"` dialog's cancel event, which is
+   only cancelable once per user activation)?
+2. A refused popover light dismiss reopens (the browser closes an auto popover before any event);
+   acceptable, or should controlled popovers use `popover="manual"` plus the behavior's own
+   outside-click / Escape handling (as Radix does) so a refusal never flickers?
+3. `triggers` is opt-in for user behaviors (the dev SYG118); `sygnal-check` infers it. Should
+   `defineBehavior` infer it at run time instead (it would need to see which option each intent
+   stream came from)?
+
+### Gate (round 2)
+
+2026-10-31, this branch: `npm run build` OK; `TEST_EXAMPLES_INSTALL=1 npm test` OK (vitest 525 files /
+5,748 tests; examples; types; the Chromium browser suite; perf gate); the UI browser suites
+(`uisweep` 14, `uitestsp5u` 37, `uizag` 13) on chromium, firefox and webkit: all passed;
+`node scripts/size-gate.mjs` OK (42,734 B, 266 B headroom); `npm --prefix sygnal-check test` OK
+(1,858 tests, plain and per-file; two existing tests updated: the range-coverage list gains SYG116 /
+SYG118, and a pager fixture that overrides `pager.NEXT` while passing `next` now expects SYG118);
+`node scripts/gen-error-docs.mjs --check` OK; `node scripts/check-doc-samples.mjs` 976 clean;
+`npm --prefix docs run build` OK; `node docs/scripts/check-live.mjs` on chromium, firefox and webkit OK.

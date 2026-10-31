@@ -150,8 +150,8 @@ export const EXPLANATIONS = {
   SYG116: {
     title: "EVENTS value has no string type",
     severity: "error",
-    reportedBy: ["dev-entry"],
-    explanation: "A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too. `sygnal-check` reports a sink entry that is a function returning `event(...)` (or `emit(...)`) from 'sygnal' (ui-sweep R5).",
     fix: "Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.",
   },
   SYG117: {
@@ -160,6 +160,13 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry", "static"],
     explanation: "`next('X')` in a model handler dispatches `X` to the same component, and only there. When that component has no model entry `X`, nothing happens: no error, no state change. The usual cause is a child calling `next()` for an action its parent handles (a card's `next('ENTER')` when only the page has `ENTER`), which looks like a hang; a typo is the other. The dev entry reports the first `next()` of each name a component sends with no entry, and names the nearest ancestor that has one. `sygnal-check` reports a literal `next('X')` in the model (the module-level reducers it references, and the helpers it passes `next` to, imported ones included, 3 calls deep) when the same component has no entry `X`, not counting a behavior's own actions.",
     fix: "To reach the parent, send the action up: give the entry a `PARENT` sink (`PARENT: (state) => ({ … })`) and read it in the parent's intent with `ENTER: CHILD.select(Card)`, or emit `EVENTS: event('ENTER', …)` and select it there. For a typo, use the existing entry's name; otherwise add the entry to this component's model.",
+  },
+  SYG118: {
+    title: "Host intent replaces a behavior trigger",
+    severity: "warn",
+    reportedBy: ["dev-entry", "static"],
+    explanation: "An intent action named like a behavior action (`'tabs.SELECT'`, `'profile.OPEN'`) replaces the trigger the behavior builds for it; it doesn't add one. When that trigger comes from an option you passed (`tabs({ tab: '.tab' })` makes `tabs.SELECT` from clicks on `.tab`; `dialog({ trigger: '.edit' })` makes `profile.OPEN` from clicks on `.edit`), the elements the option names stop working: tab clicks no longer select, the trigger no longer opens the dialog. `sygnal-check` reports a host intent action `<key>.<ACTION>` when the `uses` entry passes the option the behavior listens to for that action (the first-party behaviors, and `defineBehavior()` calls it can follow); the dev entry reports it once per component, for behaviors that declare `triggers: { ACTION: 'option' }` (the `sygnal/ui` parts and the first-party behaviors do).",
+    fix: "To add another element, list both in the option (`trigger: '.edit, .avatar'`, `tab: '.tab, .go-billing'`), or give the other element its own action that dispatches the behavior's with `next('profile.OPEN')`, or write the slice in a reducer (`{ ...state, tabs: { ...state.tabs, selected: 'billing' } }`). To replace the trigger on purpose, leave the option out.",
   },
   SYG302: {
     title: "Default import from 'xstream' or 'xstream/extra/*'",

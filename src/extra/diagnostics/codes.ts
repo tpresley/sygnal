@@ -148,6 +148,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG116: 'EVENTS value has no string type',
   // PLAN-13 N-1: dev entry (checks/next.ts onNext) and sygnal-check
   SYG117: 'next() names an action with no model entry',
+  // ui-sweep R1: dev entry (checks/behaviors.ts onIntent) and sygnal-check
+  SYG118: 'Host intent replaces a behavior trigger',
   SYG124: 'Component used as a control or selector',
   SYG125: 'Control given .intent, .model or .initialState',
   SYG126: 'Control rendered but never listened to',
@@ -452,6 +454,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG115: 'warn',
   SYG116: 'error',
   SYG117: 'warn',
+  SYG118: 'warn',
   // sandbox research §6: a root that has no state after it starts (checks/next.ts)
   SYG204: 'warn',
   // PLAN-4 1-D: controls, static (sygnal-check)

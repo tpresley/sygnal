@@ -76,7 +76,7 @@ Methods that change the DOM Sygnal renders (`remove`, `append`, `setAttribute` a
 
 ## Which element
 
-The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command.
+The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command. A target that isn't in the component's own view is also looked for in the content of the [`<Portal>`](/advanced/portals/)s it renders.
 
 ### Focusing an ancestor's element: hand it off
 

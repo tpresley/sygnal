@@ -29,6 +29,8 @@ import {idsOf, keyNav, keyed, lit} from './shared'
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {id: null as null | string, selected: null as null | string, orientation: 'horizontal'},
+  // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
+  triggers: {SELECT: 'tab', MOVE: 'tab'},
   intent: ({DOM}: any, {tab, orientation, loop}: any) => {
     const v = orientation == 'vertical'
     return {

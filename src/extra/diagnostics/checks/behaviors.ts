@@ -10,6 +10,8 @@
  *   not a collision.
  * Mechanism: onModel (every instance gets one, with or without a model) reads the static
  * `view.uses` and `view.initialState`.
+ * SYG118 (warn, ui-sweep R1), once per component name: a host intent action that replaces a
+ * behavior trigger built from an option the host passed (onIntent, below).
  */
 import type {DiagnosticCheck} from '../index'
 import {devReport, nameOf, once} from './shared'
@@ -22,6 +24,29 @@ const what = (v: any): string =>
 
 export const behaviorsCheck: DiagnosticCheck = {
   id: 'behaviors',
+
+  // SYG118 (ui-sweep R1): a host intent action named like a behavior action replaces the trigger
+  // the behavior built from an option the host passed (`triggers: { ACTION: 'option' }` on the
+  // definition). The intent combine (extra/behaviors.ts) removes a host-replaced action from
+  // `_behaviorActions`, so after the intent ran that map tells which ones the host took
+  onIntent(component, names) {
+    const view = component?.view, uses = view?.uses
+    if (!uses || typeof uses != 'object' || !once('SYG118:' + nameOf(component))) return
+    const owned = component._behaviorActions || {}
+    for (const key of Object.keys(uses)) {
+      const b = uses[key], tr = b?.triggers
+      for (const a in tr) {
+        const opt = tr[a], name = key + '.' + a
+        if (b.options?.[opt] == null || !names.includes(name) || name in owned) continue
+        devReport('SYG118', {
+          component,
+          message: `${nameOf(component)}'s intent action '${name}' replaces the trigger the behavior builds from its '${opt}' option, so the elements '${opt}' names no longer dispatch '${name}'`,
+          fix: `List every element in the option instead (${opt}: '${String(b.options[opt])}, .other'), dispatch it from another action with next('${name}'), or leave the '${opt}' option out to replace the trigger on purpose`,
+          data: {key, action: a, option: opt},
+        })
+      }
+    }
+  },
 
   onModel(component) {
     const view = component?.view, uses = view?.uses

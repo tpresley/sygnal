@@ -160,6 +160,7 @@ export const disclosure = defineBehavior({
 - The `model` reducers receive the slice, not the host's state, and return the new slice. `ABORT` (or the slice itself) means no change. `next('CLOSE')` inside the behavior names its own action.
 - `calculated` fields are computed on the slice and stored on it (`state.more.label`).
 - A behavior's entries can use every sink a component can: `EVENTS`, `PARENT`, `EFFECT`, drivers.
+- `triggers` (optional) names the option each action's trigger is built from, `triggers: { TOGGLE: 'toggle' }`. The dev checks then report [SYG118](/reference/errors/#syg118) when a host intent action replaces that trigger while the host passes the option. `sygnal-check` works this out from the intent on its own.
 
 A host uses it like a first-party behavior:
 
@@ -274,7 +275,7 @@ The merge rules:
 
 | Host adds | Effect |
 |---|---|
-| An intent action with a behavior's name (`'answer.CLOSE'`) | Triggers that action. If the behavior has its own trigger for it, the host's replaces it (see [keyboard shortcuts for undo](/advanced/undo/#keyboard-shortcuts)). |
+| An intent action with a behavior's name (`'answer.CLOSE'`) | Triggers that action. If the behavior has its own trigger for it, the host's *replaces* it (see [keyboard shortcuts for undo](/advanced/undo/#keyboard-shortcuts)): when that trigger comes from an option you passed, the elements the option names stop dispatching it ([SYG118](/reference/errors/#syg118)). To add an element, list it in the option (`trigger: '.edit, .avatar'`). |
 | A STATE reducer for a behavior action (`'answer.TOGGLE'`) | Runs after the behavior's, on the full state with the behavior's update applied. Its `ABORT` keeps that update. |
 | An `EFFECT` for a behavior action | Runs after the behavior's `EFFECT`. |
 | A value sink (`EVENTS`, `PARENT`, a driver) for a behavior action | Replaces the behavior's value for that sink. |
