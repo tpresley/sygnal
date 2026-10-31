@@ -68,3 +68,84 @@ warning by `--strict`.
 - xstream extra: Node ESM in a `"type": "module"` folder, `import dropRepeats from 'xstream/extra/dropRepeats.js'`
   → `object [ 'DropRepeatsOperator', 'default' ]`. `import { dropRepeats } from 'sygnal'` (dist ESM) → `function`.
   `node sygnal-check/bin/sygnal-check.js --strict --verbose` on the component → `0 warnings` (no info either).
+
+## Round 3, item 9: testing a child's file input
+
+**The point (one line).** In a test, `t.simulateEvent('.infer-file', 'change', { files: [file] })` leaves
+`e.target.files` undefined. The fallback, `t.simulateAction('INFER_FILE', …)`, goes to the root (the Wizard), not to
+the child (Start) that owns the action, and is dropped silently. Asks: let `simulateEvent` set `files` (and other
+target props), and let `simulateAction` name a child or report an action the root doesn't have.
+
+Checked against `claude/advanced-integration` at 2c987dc6. That commit includes the form transport change: a
+JSON submit goes over fetch, and a multipart submit or `progress: true` goes over XMLHttpRequest. The repro
+(`item9-repro.test.js`, kept in the session scratchpad, not committed) runs a Wizard with a Start child that has
+a file input, and a `form()` with a file field, on the mock DOM and on `dom: 'real'` (jsdom):
+
+| Case | Mock DOM | `dom: 'real'` |
+|---|---|---|
+| `simulateEvent(sel, 'change', { files: [f] })` (Temper's call) | `e.target.files` undefined: a top-level key the harness doesn't know is copied onto the **event** (`e.files`), not the target | undefined: the same, on a real `Event` |
+| `simulateEvent(sel, 'change', { target: { files: [f] } })` | works (`init.target` is spread onto the mock target) | **silently fails**: `fire()` (`testing.ts:1072`) assigns `el.files = [f]`, jsdom's setter only takes a `FileList` and throws, and the `try {} catch {}` swallows it. The intent sees an empty `files` |
+| `form()` file field: `{ target: { files } }` on `[name="avatar"]`, then submit | the File reaches `state.form.values.avatar`, the request has `multipart: { avatar: File }` and `progress: 'form.PROGRESS'`, `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` gives `state.form.progress = { phase: 'upload', fraction: 0.5, … }`, and `t.respond` ends the submit (progress back to `null`) | value stays `null`, so the form sends **JSON** `{ avatar: null }` (no multipart, no progress) and `t.progress` throws "no pending HTTP request matching 'form.PROGRESS'". The file never got in, so the transport change has nothing to act on |
+| `simulateAction('INFER_FILE', f)` where only the child has the entry | dropped: `api.dispatch('root', …)`, no state change, **no diagnostic** (`t.diagnostics` empty) | same |
+
+**The form transport change doesn't affect tests.** `renderComponent`'s HTTP fake is the real `makeFetchDriver`.
+A multipart or `progress` request shows up in `t.requests('HTTP')` with its `multipart` parts (the File itself),
+and `t.progress` / `t.respond` drive it whichever transport a browser would use. Upload testing works end to end
+on the mock DOM. The two gaps are getting the File into the input, and `simulateAction`'s scope.
+
+**Already documented, but in one place only.** `guide/forms-reference.md:77` shows the working mock-DOM form:
+`t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`. The testing
+guide, llms.txt (line 315 lists `{ value }`, `{ checked }`, `{ key }`, `{ data }` only) and the skill don't mention
+`target` or files. The testing guide says `simulateAction` "pushes an action into the component", which doesn't
+make clear that this means the rendered (root) component only.
+
+**Classification.**
+- (a) `{ files }` at the top level: **real friction worth a small API change.** `value` and `checked` are already
+  shorthands for `target.*`, and `files` is the same kind of thing: the user asked for an element property.
+- (b) `{ target: { files } }` on `dom: 'real'`: **still a real bug.** It's silent: the swallowed setter error leaves
+  the input empty, and a form then submits JSON without the file.
+- (c) `simulateAction` with an action only a child handles: **real friction worth a diagnostic change** (silent no-op;
+  the same class of trap as SYG117 for `next()`), plus a small API addition.
+- (d) Docs: `target` / files are missing from the testing guide and llms.txt: **docs / llms.txt gap.**
+
+**Recommended action.**
+1. **`files` shorthand** (`init.files`, like `value`/`checked`): the mock target gets `files` as a FileList-like
+   array (`length`, `item(i)`, iterable). On the real DOM it's set with a real `FileList`: built through
+   `DataTransfer` where it exists (browsers), else defined on the element (`Object.defineProperty(el, 'files',
+   { value, configurable: true })`; jsdom has no `DataTransfer`). The same path fixes `{ target: { files } }` on the
+   real DOM. More generally, a `target` key whose assignment throws should fall back to `defineProperty` instead
+   of being swallowed, or fail the test naming the property. Files: `src/extra/testing.ts` (`fire()`, the mock
+   target, `SimulatedEventInit` in `src/index.d.ts`), tests in `test/` (mock + jsdom, a file input in a child and
+   a `form()` file field through submit, `t.progress` and `t.respond`), and one case in `browser-tests/` (real
+   `FileList` via `DataTransfer`). **S.**
+2. **`simulateAction` scope:** fail the test (the way an unmatched `simulateEvent` selector does, rejecting the next
+   wait) when the target instance has no model entry, behavior action or built-in with that name. Name the
+   components in the tree that do have it ("only Start handles 'INFER_FILE'"). Add a way to target one: a third
+   argument `{ component: Start }` (the first live instance of that component; with `within` for a Collection
+   item, like `simulateEvent`). The runtime API's `dispatch` already takes an instance, so this is the harness
+   finding the instance by component. Files: `src/extra/testing.ts` (`simulateAction`), `src/index.d.ts`, tests,
+   docs. **S–M.** Watch one compatibility point: today an unknown name is a silent no-op, so a test suite that
+   relied on that would start failing. That's the intent, but it's a behaviour change: put it in the CHANGELOG.
+3. **Docs:** in the testing guide's `simulateEvent` section, a "File inputs" example (`{ files: [new File(...)] }`
+   after item 1) and the `form()` upload flow (`t.requests` → `multipart`, `t.progress`, `t.respond`). One clause
+   in llms.txt line 315 (`{ files: [file] }` in the init list; mind the 64,500 B budget, 5 B headroom now, so trim
+   something), and the skill's matching line. `simulateAction`: say it targets the rendered component, and give
+   the new option. **S.**
+
+**Priority:** items 1 and 3 before the 7.2 preview. They're small, and the real-DOM silent failure (b) is a bug
+users will hit as soon as they test an upload with `dom: 'real'`. Item 2 can go into the next release if the
+preview is close; otherwise ship it with them.
+
+**Overlap:** none with open work. The form change is already merged, and nothing here touches `form.ts`. The
+`files` path only feeds what `form.ts:296` already reads (`t.files`).
+
+**Decisions for the maintainer.**
+1. **`simulateAction` on a name the target doesn't handle: fail the test, or report an info diagnostic?**
+   *Recommendation:* fail, like an unmatched selector. A silent no-op in a test only ever hides a mistake, and
+   the message names the component that does handle it.
+2. **How to target a child: `{ component: Start }` on `simulateAction`, or a separate `t.child(Start).simulateAction(…)`?**
+   *Recommendation:* the option object (`{ component, within }`). It mirrors `simulateEvent`'s `within` and adds
+   no new surface to the result object.
+3. **Swallowed `target` assignment errors on the real DOM: fall back to `defineProperty`, or fail?**
+   *Recommendation:* fall back to `defineProperty` for own data properties (files, and the read-only ones jsdom
+   rejects), and fail only if that throws too. Tests then read what they set, as on the mock DOM.
