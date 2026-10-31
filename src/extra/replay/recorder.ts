@@ -48,7 +48,7 @@ export interface RecordOptions {
    * `{ keep, also }`: by provenance, the strings of intent actions dispatched while a text-entry
    * DOM event is delivered (an input / keydown in a text field, a form submit; the DOM drivers
    * report the event to the core's onDispatch hook), of later actions of a type once dispatched
-   * that way, of reply actions (server data), of setState values, and of the types in `also` are
+   * that way, of reply actions (server data; not a timer's: its tick, a frame's sampled keys), of setState values, and of the types in `also` are
    * pseudonymized (same shape, equal strings stay equal); never those in `keep`, nor next() data
    * (the code's own). Checkpoints are stored and compared on masked values. A redacted string the
    * model branches on (a route name) makes the replay diverge at that action: add it to `keep`.
@@ -166,7 +166,10 @@ export function startRecording(options: RecordOptions = {}): Recorder {
           else {
             let d = encode(action.data)
             if (typed) textTypes.add(action.type)
-            if (redact && !keep.has(action.type) && (c == 'r' || c == 'S' || textTypes.has(action.type))) d = redactInput(d, salt)
+            // (a timer's reply is the app's own data, not a server's: its tick, a frame's sampled
+            // buttons, which the app named; canvas-game)
+            const server = c == 'r' && log.sources?.[action.source] !== 'timers'
+            if (redact && !keep.has(action.type) && (server || c == 'S' || textTypes.has(action.type))) d = redactInput(d, salt)
             entry.d = d
           }
         }

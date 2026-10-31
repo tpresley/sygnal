@@ -1,25 +1,24 @@
 # A real-time game on `sygnal/canvas`: a platformer, and what games need from Sygnal
 
 Research spike, branch `claude/platformer-spike-3612c1` (on `claude/advanced-integration` at
-`827ca5fd`). Nothing here touches `src/`: the game is `examples/platformer` ("Sprout Run"), the
-plain-JS baseline is `baseline/`, the measurements are `perf/`. Decisions stay with the maintainer
-(§6 lists the questions).
+`827ca5fd`). Round 1 (§1–§6) changed no `src/`: it built the game, `examples/platformer`
+("Sprout Run"), the plain-JS baseline (`baseline/`) and the measurements (`perf/`), and reported.
+Round 2 (§0) builds what the maintainer approved from it: the fixes for B1–B4 and R1–R5.
 
 ```bash
 npm --prefix examples/platformer run dev          # the game (Enter, ←/→, Space, Shift, P)
-npm --prefix examples/platformer test             # 29 tests: the sim alone, the component, replay
+npm --prefix examples/platformer test             # 28 tests: the sim alone, the component, replay
 npm --prefix examples/platformer run build
 node examples/platformer/node_modules/vite/bin/vite.js build --config dev-plans/research/canvas-game/baseline/vite.config.js
 node dev-plans/research/canvas-game/perf/run.mjs --runs=3            # §3: both apps, 5 scenarios
-node dev-plans/research/canvas-game/perf/run.mjs --only=sygnal --query=paint=lazy --label=lazy   # B2 measured
 node dev-plans/research/canvas-game/perf/run.mjs --url=http://localhost:5173/ --label=dev     # the dev server (diagnostics + DevTools)
 node dev-plans/research/canvas-game/perf/trace.mjs                   # §3: where "(program)" goes
 ```
 
 URL switches: `?stress=N` (a one-screen arena with N moving enemies, already running),
-`?bench` (window.__bench), `?paint=lazy` (without the B2 workaround).
+`?bench` (window.__bench). (Round 1's `?paint=lazy` measured B2; B2 is fixed and the switch is gone.)
 
-## Summary
+## Summary (round 1)
 
 - **A real-time game works on Sygnal with the simulation in state**, and Sygnal's own cost per frame
   is small and flat: **≈ 0.1 ms** (one FRAME action, the reducer, the flush, the render, the patch,
@@ -49,6 +48,124 @@ URL switches: `?stress=N` (a one-screen arena with N moving enemies, already run
 
 ---
 
+## 0. Round 2: built
+
+The maintainer approved recommendations R1–R5 and the four bug fixes; they are built on this
+branch (§1–§6 below are the round-1 findings they answer, kept as they were). The example is
+rewritten on the new APIs.
+
+| | what | where |
+|---|---|---|
+| **B2 / R1** | **The frame phase.** The timer driver brackets a frame's actions (`frameBegin` / `frameEnd`); a widget that would ask for the next animation frame asks `atFrameEnd(paint)` first, and inside a frame its paint runs at the end of that frame's microtasks, after the flush: one paint per frame, the frame the state changed in. The state is on a global symbol, so the timer driver (main bundle), `sygnal/canvas` and `sygnal/three` share it with no export. Chosen over a core frame phase: the same effect, 0 B in the core. `sygnal/three` had the bug too (measured: 10 renders in 20 frames before, 20 after) | `src/extra/frame.ts`, `src/extra/timers.ts`, `src/canvas/Canvas.ts`, `src/three/scene.ts` |
+| **R2** | **A game loop on the frame timer.** `{ frame: 'STEP', step: 1000 / 60, max: 5, keys: { left: ['ArrowLeft', 'KeyA'], jump: 'Space' } }`: one action per fixed step the frame time owes (the accumulator in the driver; a frame within 5 % of the step is exactly one step, so rAF jitter doesn't alternate 0 and 2 steps), with the keys sampled for the frame: `held` (the same object while nothing changed), `pressed` / `released` since the last frame (on the frame's first step). Document listeners only while the timer runs; game keys default-prevented, repeats ignored, nothing while a text field has the focus; window `blur` and a hidden page release every key. Deterministic under fake timers, and recorded as the action's data (the recorder no longer redacts a timer's replies: they are the app's data, not a server's). Dev SYG422 and `sygnal-check` SYG422 check `step` and `keys` | `src/extra/timers.ts`, `src/extra/replay/recorder.ts`, `src/extra/diagnostics/checks/timers.ts`, `sygnal-check/src/model/timers.js`, types `TimerSpec`, `TimerFrame<B>`, `TimerFrameInput<B>` |
+| **B4 / R3** | **The blit for nodes that move on their own.** After a frame whose ≥ 1,000 live nodes didn't translate, they are painted directly (no bitmap) until a frame translates again; the blit bitmap is resized only when its size changes | `src/canvas/backend.ts` |
+| **R4** | **`<shapes live>`** (the whole layer live, no ids, no projection by default), **layer order that holds with live layers** (the ordered strategy: one transparent cached bitmap per run of static layers, live nodes painted between them; used only when a live layer lies under a static one, or a layer has parallax), **`parallax={f}` / `[fx, fy]`** (the layer's camera is `x · f`; hit testing through it; cached like any static layer), **`<Canvas a11y={0}>`** (every layer's default; no projection work per frame when nothing is projected). An editor's layers (one document layer, outline layers above) keep the two-canvas strategy | `src/canvas/Canvas.ts`, `src/canvas/backend.ts`, `src/canvas/geometry.ts` (`layerCamera`), `src/canvas.d.ts` |
+| **B3** | SYG262 skips `live` and outline layers and counts only the nodes outside `active` | `src/canvas/Canvas.ts` |
+| **R5** | **`t.frames(n)`** (n frames of the running frame timers: on the fake clock frame by frame, or waited for; rejects with no frame timer), **`settle()` ignores the frame loop** (what a frame causes isn't activity), **`simulateAction` is awaitable** (as `simulateEvent`; an un-awaited call starts no render wait, so it leaves no timer), **`replay()` under fake timers** (its macrotask turn is the fake clock's) | `src/extra/testing.ts`, `src/extra/replay/replayer.ts`, `src/index.d.ts` |
+| **B1** | `String()` on a text vnode's text in the replay's view hash | `src/extra/replay/format.ts` |
+| **F13** | **DevTools keeps states for the newest 500 actions** (was 5,000): older actions keep type, data and sinks (`statesDropped`); a connected panel got their states when they ran, and Copy as test never used them | `src/extra/devtoolsActions.ts` |
+
+Tests: `test/canvas-game.test.js` (19 tests: a recording `requestAnimationFrame` with a microtask
+checkpoint per callback; the B2 tests fail without the fix, 10 paints in 20 frames, canvas and
+three), the B1 and B3 tests from the scratchpad as real tests, `type-tests/canvas-game.tsx`,
+SYG422 cases in `sygnal-check`, and a real-browser test in `browser-tests/src/tests/canvas-7-2.jsx`
+(one paint per frame under a frame timer; real held keys).
+
+**Size:** the kanban gate is 42,647 B (353 B headroom; 351 B before): 0 B in the core (±2 B of
+gzip noise). The frame phase lives in the timer driver and the subpaths, and kanban uses neither.
+
+### Lines saved in the example (non-blank lines)
+
+| pattern | round 1 | round 2 | saved | how |
+|---|---:|---:|---:|---|
+| Fixed timestep (accumulator, cap, the FRAME reducer, `acc` in state) | 12 | 2 | 10 | `step`, `max` on the timer; `STEP: (s, { held, pressed }) => step(s, …)` |
+| Held keys (map, keydown/keyup intents, repeat filter, preventDefault, `keys` + `jumpQueued` in state, `press`/`release`/`releaseAll`, the KEY_* and VISIBILITY reducers, the `browser` static) | ≈ 50 | 16 | ≈ 34 | `keys` on the timer (6 lines of buttons); the menu keys are `keymap(DOM, MENU)` and two reducers that would exist anyway |
+| The 30 fps workaround (`paintEveryFrame` in `main.tsx`) | 12 | 0 | 12 | B2 fixed |
+| The actors layer's ids and the four `a11y={0}` | 6 | 2 | 4 | `live`; `<Canvas a11y={0}>` |
+| Test workarounds (`advanceTimersByTimeAsync(0)` after each key, no `settle()`, `useRealTimers()` before `replay()`, numbers as template strings) | ≈ 12 | 0 | ≈ 12 | `t.frames(n)`, `settle()`, `replay()` on the fake clock, B1 |
+| **App code** (`sim`, `Game`, `keys`, `main`, `nodes`) | 634 | 587 | 47 | and it gained the parallax hills (+16 lines in `nodes.ts`) |
+| **Tests** | 384 | 355 | 29 | |
+
+The plain-JS baseline grew from 105 to 133 lines: the accumulator and the key handling that the
+example no longer has moved there (it is the comparison's "no framework" side).
+
+### Performance, before and after
+
+Same method, machine and runner as §3 (`perf/run.mjs`, production builds, headless Chromium
+1243, 10 s × 3 runs, medians). The machine was **not quiet** this time either: the same VM
+outside this session used 1.5–4 cores (load average 5–8 during the runs, as in round 1); the
+three runs agree within ±3 %. Round 1's Sygnal numbers are *with* its 12-line workaround for B2
+(one paint per frame); without it the library painted at 30 fps. The round-2 game also has a
+parallax layer the round-1 game didn't (the plain-JS baseline paints it too). Raw results:
+`perf/results/r2-*.json`, `r2-perf.log`.
+
+**Busy main-thread ms per frame** (60 fps and 0 dropped frames in every unthrottled run):
+
+| scenario | Sygnal round 1 | Sygnal round 2 | plain JS (round 2) | Sygnal / plain JS, round 1 → 2 |
+|---|---:|---:|---:|---|
+| level | 1.04 | **0.82** | 0.44 | 2.6× → 1.9× |
+| stress100 | 1.16 | **1.10** | 0.93 | 1.3× → 1.18× |
+| stress300 | 2.34 | **2.15** | 1.97 | 1.24× → 1.09× |
+| stress1000 | 6.83 | **5.68** | 5.36 | 1.30× → 1.06× |
+| stress2000 | 12.67 | **10.78** | 10.12 | 1.27× → 1.07× |
+
+**The canvas's paint (p50)** at 1,000 / 2,000 enemies: 5.6 / 10.9 ms → 1.3 / 2.6 ms (B4: the blit
+bitmap is gone from frames whose nodes don't translate; plain JS: 1.2 / 2.2 ms).
+
+**CPU throttled ×4:**
+
+| scenario | Sygnal round 1 | Sygnal round 2 | plain JS |
+|---|---|---|---|
+| level | 4.49 ms, 1 dropped | 3.54 ms, 1 dropped | 1.70 ms, 0 |
+| stress300 | 9.59 ms, 1 dropped | 8.99 ms, 1 dropped | 8.01 ms, 0 |
+| stress1000 | 32.4 fps (222 of 267 dropped) | **40.4 fps** (157 of 332) | 42.9 fps (139 of 351) |
+
+**Where the time goes now** (ms per frame, unthrottled): Sygnal core 0.11 at every size (round 1:
+0.10); sygnal/canvas JS 0.05 / 0.21 / 0.57 / 1.03 (round 1: 0.07 / 0.36 / 1.08 / 1.99, for level /
+300 / 1,000 / 2,000: no `Set` of ids per frame for a `live` layer, no blit work); native canvas
+calls 0.06 / 0.27 / 0.81 / 1.54 (round 1: … / 4.86 / 9.49 at 1,000 / 2,000, the blit's
+`drawImage`); xstream + snabbdom 0.015. What is left between Sygnal and plain JS at 300+
+enemies is ≈ 0.1 ms of core plus the canvas's JS per node (its vocabulary, `paintNode`); on the
+level it is the browser's work for two canvases and two cached bitmaps drawn every frame while the
+camera scrolls (`(program)` 0.56 against 0.33 ms; R14).
+
+**Found while measuring, fixed:** the first round-2 run had stress100 / stress300 0.4 ms *worse*
+than round 1 (1.56 / 2.66 ms, `r2-both-3runs-before-toplayer-fix.json`): a parallax layer switched
+the game to the ordered strategy, which redrew the main canvas every frame even with the camera
+still. Now the live layers above the last static one go on the live canvas, and the main canvas
+is left as it is while its nodes and the camera don't change (a test in `test/canvas-game.test.js`).
+
+**The dev server** (diagnostics + DevTools, 300 enemies, 30 s): busy 2.26 ms a frame (round 1:
+2.43). The heap levels off at 30–35 MB about 8 s in, once 500 actions hold states (round 1: 17 → 74 MB
+in 30 s and still growing to the 5,000-action cap).
+
+**A recording** of the example's replay test: 207 STEP actions, 1.9 KB a step (round 1: 1.6 KB
+a FRAME): each action now carries its keys, and the checkpoints are still 85 % of it (R8's other
+half, a follow-up).
+
+### Gates
+
+`npm run build`; `npm test`: vitest 5,713 passed (33 skipped; in two earlier full runs under load,
+two timing tests, `p10-vite-graph-e2e` webkit and `renderers-agent-ui` todomvc-in-a-terminal,
+failed once each and passed alone; the last full vitest run was clean), `test:examples` 21
+examples / 294 tests, `test:types`,
+`test:browser` 398 / 398 on Chromium, `test:perf-gate` within limits; `npm --prefix sygnal-check
+test` 1,848 passed (both passes); the size gate (above); `check-doc-samples` 972 clean; the docs
+build with links and code titles; `check-live` 126 demos on Chromium, Firefox and WebKit; the canvas
+browser suite (`BROWSER_TESTS_ONLY=canvas`) on all three engines.
+
+### Follow-ups (not built)
+
+- **Recordings are still ≈ 1.9 KB a step** (round 1: 1.6 KB a frame; each STEP now also carries
+  its keys): 90 % is the checkpoints' state diffs. A checkpoint policy
+  (`startRecording({ checkpoints: 'hash' })`, or a diff every Nth) is R8's other half.
+- **DevTools** collapses nothing in its UI: 60 STEP rows a second are still 60 rows (R8).
+- R9 (image / sprite nodes, a `Path2D` cache by `d`), R10 (`follow` for a camera), R11's recipe
+  beyond the canvas guide's Games section, R12 is B3 (done), R13 (`sygnal/game`), R14 (a
+  scrolling camera without the full-bitmap copy, which the level still pays: §0 perf).
+
+---
+
 ## The game
 
 An original run-and-jump platformer: a red-capped sprout runs through a nine-screen meadow
@@ -69,16 +186,16 @@ An original run-and-jump platformer: a red-capped sprout runs through a nine-scr
 - **View**: drawn shapes on four data layers (scenery, tiles, coins, actors); the HUD and the
   screens are HTML over the canvas.
 
-| file | lines | |
+| file | lines (round 1 → 2) | |
 |---|---:|---|
-| `src/sim.ts` | 385 | the simulation: plain data in, plain data out, no Sygnal import |
+| `src/sim.ts` | 385 → 368 | the simulation: plain data in, plain data out, no Sygnal import |
 | `src/level.ts` | 140 | levels as data, built from sections; the stress arena; `fromStrings` for tests |
-| `src/nodes.ts` | 163 | the world as `sygnal/canvas` nodes, with identity kept for the cached layers |
-| `src/Game.tsx` | 100 | the component: view, timers, browser static, intent, model |
-| `src/keys.ts` | 9 | key codes → buttons (shared with the baseline) |
-| `src/main.tsx` | 32 | `run()`, plus the B2 workaround |
+| `src/nodes.ts` | 163 → 173 | the world as `sygnal/canvas` nodes, with identity kept for the cached layers (round 2: the parallax hills) |
+| `src/Game.tsx` | 100 → 77 | the component: view, the frame timer (`step`, `keys`), the menu keys, model |
+| `src/keys.ts` | 9 → 10 | the buttons and their keys; the menu keys |
+| `src/main.tsx` | 32 → 12 | `run()` (round 1: plus the B2 workaround) |
 | `src/bench.ts` | 28 | `window.__bench` for the perf runner |
-| tests | 422 | `sim.test.ts` (20), `Game.test.tsx` (8), `replay.test.tsx` (1) |
+| tests | 422 → 392 | `sim.test.ts` (19), `Game.test.tsx` (8), `replay.test.tsx` (1) |
 
 `sygnal-check --strict` is clean; `test:examples` picks the example up by itself.
 
@@ -477,6 +594,9 @@ are noise: collapse runs of one high-frequency action, keep the states of every 
 
 ## 5. Recommendations
 
+(Round 2 built R1–R5, R7, R12 and F13's cap: §0. Open: R6's checkpoint policy half of R8, R9–R11's
+recipe beyond the Games section, R13, R14.)
+
 Ranked by what it costs a game author now against what the change costs. Effort: S (≤ a day), M
 (a few days), L (a week or more).
 
@@ -513,6 +633,9 @@ shared notes folder as `canvas-game-bugs.test.tsx`); they run from `examples/pla
 ---
 
 ## 6. Questions for the maintainer
+
+(Round 2: questions 1 and 2 were decided as built: the frame phase is shared through the timer
+driver and the widgets, not a core phase; input sampling is the timer driver's `keys`.)
 
 1. **R1's shape**: fix B2 inside `sygnal/canvas` (paint at the end of a flush that ran inside a
    rAF callback), or add a frame phase to the core that frame timers and widgets share (update →

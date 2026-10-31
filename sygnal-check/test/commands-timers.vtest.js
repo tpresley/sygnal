@@ -358,6 +358,9 @@ T.model = { A: (s) => s }
     ['{ action: "A" }', 'has neither every nor after'],
     ['{ frame: true }', 'frame must be the action name (a string)'],
     ['{ frame: 1 }', 'frame must be the action name (a string)'],
+    ['{ frame: "A", step: 0 }', 'step must be a positive number of ms (got 0)'],
+    ['{ frame: "A", step: "16" }', 'step must be a positive number of ms (got "16")'],
+    ['{ frame: "A", keys: "Space" }', 'keys must be an object of button: key codes'],
     ['100', 'is not an object'],
   ])('%s: error', (s, problem) => {
     const d = spec(s)
@@ -369,6 +372,8 @@ T.model = { A: (s) => s }
     '{ every: 100, action: "A" }',
     '{ after: 0, action: "A" }',
     '{ frame: "A" }',
+    '{ frame: "A", step: 1000 / 60, max: 5, keys: { left: ["ArrowLeft", "KeyA"], jump: "Space" } }',
+    '{ frame: "A", step: state.step, keys: state.keys }',
     '{ every: state.ms, action: "A" }',
     '{ every: 100, action: state.name }',
     '{ every: 100, after: state.after, action: "A" }',

@@ -1,8 +1,9 @@
 // sygnal/canvas (7.2 dev preview; dev-plans/research/canvas-apps) with real input (window.__pwInput,
 // __pw): a captured drag that leaves the canvas and comes back, wheel pan, ctrl-wheel zoom toward
 // the cursor, a two-finger pinch (CDP touch: Chromium), text editing in a positioned textarea, the
-// accessibility projection in the engine's tree, painting on a real 2D context. BROWSER=chromium|firefox|webkit.
-import { run, ABORT } from 'sygnal'
+// accessibility projection in the engine's tree, painting on a real 2D context; a game loop (canvas-game:
+// one paint per frame under a frame timer, keys held through real input). BROWSER=chromium|firefox|webkit.
+import { run, ABORT, makeTimerDriver } from 'sygnal'
 import { Canvas, canvasOf, pointer, toScreen, toWorld } from 'sygnal/canvas'
 import { mountOnScreen, clearStage, assert, runTest, wait, waitFor } from '../harness.js'
 
@@ -166,5 +167,40 @@ export async function canvasTests7_2() {
       await input([['key', 'Enter'], ['wait', 60]])
       await waitFor(() => out().clicks === 1)
     } finally { done() }
+  }, 8000)
+
+  await runTest(CAT, 'a game loop: a frame timer steps the world, the canvas paints every frame (not every other), real held keys move the player', async () => {
+    const { id, el } = mountOnScreen()
+    function Runner({ state }) {
+      return (
+        <Canvas className="game" width={300} height={120} navigate={false} a11y={0}>
+          <shapes className="ground" items={[{ id: 'g', type: 'rect', x: 0, y: 100, width: 2000, height: 20, fill: '#a0612e' }]} />
+          <shapes className="actors" items={[{ id: 'p', type: 'rect', x: state.x, y: 80, width: 20, height: 20, fill: '#e8603c' }]} live />
+        </Canvas>
+      )
+    }
+    Runner.initialState = { x: 0, steps: 0 }
+    // (no `step`: an action every frame, whatever the engine's frame rate; Firefox headless runs at 120 Hz)
+    Runner.timers = () => ({ loop: { frame: 'STEP', keys: { right: 'ArrowRight' } } })
+    Runner.model = { STEP: (s, { held }) => ({ ...s, steps: s.steps + 1, x: s.x + (held.right ? 2 : 0) }) }
+    const app = run(Runner, { TIMER: makeTimerDriver() }, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.game canvas.sygnal-canvas'), 4000)
+      const c = canvasOf(el.querySelector('.game'))
+      await wait(100)
+      // count the page's frames and the canvas's paints over ~40 frames
+      let frames = 0, on = true
+      const loop = () => { if (!on) return; frames++; requestAnimationFrame(loop) }
+      const p0 = c.st.paints
+      requestAnimationFrame(loop)
+      await wait(700)
+      on = false
+      const paints = c.st.paints - p0
+      assert(frames > 10 && paints >= frames * 0.85, `one paint per frame: ${paints} paints in ${frames} frames`)
+      const x0 = app.__runtime.getState().x
+      await input([['keyDown', 'ArrowRight'], ['wait', 300], ['keyUp', 'ArrowRight'], ['wait', 50]])
+      const x1 = app.__runtime.getState().x
+      assert(x1 - x0 > 20, 'held → moved the player: ' + (x1 - x0))
+    } finally { app.dispose(); clearStage() }
   }, 8000)
 }

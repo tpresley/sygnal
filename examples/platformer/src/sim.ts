@@ -1,9 +1,9 @@
 /**
- * The simulation: plain data in, plain data out. `step(world, rand)` advances one fixed step
- * (1/60 s); `advance(world, dt, rand)` runs as many steps as `dt` milliseconds of frame time owe
- * (a fixed timestep with an accumulator). Nothing here knows about Sygnal: the component's model
- * calls `advance` from its FRAME reducer, and the plain-JS baseline
- * (dev-plans/research/canvas-game/baseline) calls it from its own requestAnimationFrame loop.
+ * The simulation: plain data in, plain data out. `step(world, input, rand)` advances one fixed
+ * step (1/60 s) with the buttons held and pressed since the last step. Nothing here knows about
+ * Sygnal: the component's STEP reducer calls it (the frame timer runs the fixed step and samples
+ * the keys), and the plain-JS baseline (dev-plans/research/canvas-game/baseline) calls it from its
+ * own requestAnimationFrame loop, with its own accumulator and key handling.
  *
  * Units: pixels and steps. Speeds are pixels per step.
  */
@@ -16,6 +16,8 @@ export const MAX_STEPS = 5
 export type Mode = 'title' | 'playing' | 'paused' | 'dying' | 'clear' | 'won' | 'over'
 export type Button = 'left' | 'right' | 'jump' | 'run'
 export type Keys = Record<Button, boolean>
+/** what a step sees of the keyboard: the buttons held, and those pressed since the last step */
+export type Input = {held: Keys, pressed: readonly Button[]}
 export type Body = {x: number, y: number, vx: number, vy: number, w: number, h: number}
 export type Player = Body & {ground: boolean, facing: 1 | -1, coyote: number, buffer: number, walk: number, combo: number}
 export type Enemy = Body & {id: number, kind: Kind, dead: number, flipped: boolean, t: number, home: number, ground: boolean}
@@ -29,9 +31,6 @@ export type World = {
   coins: {id: number, x: number, y: number}[]
   fx: Fx[]
   bumps: {col: number, row: number, t: number}[]
-  keys: Keys
-  /** a jump press not yet seen by a step (a press and release inside one frame still jumps) */
-  jumpQueued: boolean
   score: number
   coinCount: number
   lives: number
@@ -40,8 +39,6 @@ export type World = {
   modeT: number
   checkpoint: boolean
   camX: number
-  /** the frame time not yet simulated (ms) */
-  acc: number
   nextId: number
 }
 
@@ -116,7 +113,8 @@ const standing = (b: Body, rows: string[]) => {
 }
 
 // ------------------------------------------------------------------------------------- setup
-const NO_KEYS: Keys = {left: false, right: false, jump: false, run: false}
+export const NO_KEYS: Keys = {left: false, right: false, jump: false, run: false}
+export const NO_INPUT: Input = {held: NO_KEYS, pressed: []}
 
 function spawnPlayer(col: number, row: number): Player {
   return {x: col * TILE + 5, y: (row + 1) * TILE - 28, vx: 0, vy: 0, w: 22, h: 28, ground: true, facing: 1, coyote: 0, buffer: 0, walk: 0, combo: 0}
@@ -137,9 +135,9 @@ export function newWorld(level: Level, mode: Mode = 'title'): World {
   return {
     mode, level, rows: level.rows, player, enemies: spawnEnemies(level),
     coins: level.coins.map(c => ({id: c.id, x: c.col * TILE + 8, y: c.row * TILE + 6})),
-    fx: [], bumps: [], keys: NO_KEYS, jumpQueued: false,
+    fx: [], bumps: [],
     score: 0, coinCount: 0, lives: 3, tick: 0, modeT: 0, checkpoint: false,
-    camX: cameraFor(level, player), acc: 0, nextId: 1e6,
+    camX: cameraFor(level, player), nextId: 1e6,
   }
 }
 
@@ -147,55 +145,40 @@ export function newWorld(level: Level, mode: Mode = 'title'): World {
 function respawn(w: World): World {
   const L = w.level, at = w.checkpoint && L.checkpoint != null ? {col: L.checkpoint, row: 12} : L.start
   const player = spawnPlayer(at.col, at.row)
-  return {...w, mode: 'playing', modeT: 0, player, enemies: spawnEnemies(L), fx: [], bumps: [], tick: 0, camX: cameraFor(L, player), acc: 0, jumpQueued: false}
+  return {...w, mode: 'playing', modeT: 0, player, enemies: spawnEnemies(L), fx: [], bumps: [], tick: 0, camX: cameraFor(L, player)}
 }
 
-// ------------------------------------------------------------------------------------- input
-/** a button pressed; returns the same world when nothing changes */
-export function press(w: World, b: Button): World {
-  if (w.keys[b]) return w
-  const keys = {...w.keys, [b]: true}
-  return {...w, keys, jumpQueued: b == 'jump' ? true : w.jumpQueued}
-}
-export function release(w: World, b: Button): World {
-  return w.keys[b] ? {...w, keys: {...w.keys, [b]: false}} : w
-}
-/** all buttons up (the page lost focus: no key stays held) */
-export const releaseAll = (w: World): World => (Object.values(w.keys).some(Boolean) ? {...w, keys: NO_KEYS} : w)
-
+// ------------------------------------------------------------------------------------- menus
 /** start / pause: the menu buttons */
 export function menu(w: World, cmd: 'start' | 'pause'): World {
   if (cmd == 'pause') {
-    if (w.mode == 'playing') return {...w, mode: 'paused', keys: NO_KEYS}
-    if (w.mode == 'paused') return {...w, mode: 'playing', acc: 0}
+    if (w.mode == 'playing') return {...w, mode: 'paused'}
+    if (w.mode == 'paused') return {...w, mode: 'playing'}
     return w
   }
-  if (w.mode == 'title' || w.mode == 'over' || w.mode == 'won') return {...newWorld(w.level, 'playing'), keys: w.keys}
+  if (w.mode == 'title' || w.mode == 'over' || w.mode == 'won') return newWorld(w.level, 'playing')
   return w
 }
 
 // ------------------------------------------------------------------------------------- step
 export const RUNNING: Mode[] = ['playing', 'dying', 'clear']
 
-/** benchmark counters (bench.ts): the time spent simulating, and the steps run */
+/** benchmark counters (bench.ts): the time spent in step(), and the steps run */
 export const perf = {on: false, ms: 0, steps: 0}
 
-/** the frame's `dt` ms of simulation: whole steps, the remainder kept for the next frame */
-export function advance(w: World, dt: number, rand: () => number = Math.random): World {
-  if (!RUNNING.includes(w.mode)) return w
-  const t0 = perf.on ? performance.now() : 0
-  let acc = w.acc + Math.min(dt, STEP * MAX_STEPS + 1), n = 0
-  while (acc >= STEP && n < MAX_STEPS) { w = step(w, rand); acc -= STEP; n++ }
-  if (perf.on) { perf.ms += performance.now() - t0; perf.steps += n }
-  return {...w, acc: n == MAX_STEPS ? 0 : acc}
+/** one fixed step */
+export function step(w: World, input: Input = NO_INPUT, rand: () => number = Math.random): World {
+  if (!perf.on) return stepOnce(w, input, rand)
+  const t0 = performance.now(), r = stepOnce(w, input, rand)
+  perf.ms += performance.now() - t0; perf.steps++
+  return r
 }
 
-/** one fixed step */
-export function step(w: World, rand: () => number = Math.random): World {
+function stepOnce(w: World, input: Input, rand: () => number): World {
   if (w.mode == 'dying') return stepDying(w)
   if (w.mode == 'clear') return stepClear(w)
   if (w.mode != 'playing') return w
-  const L = w.level, k = w.keys
+  const L = w.level, k = input.held
   const p: Player = {...w.player}
   let rows = w.rows, score = w.score, coinCount = w.coinCount, lives = w.lives, nextId = w.nextId
   let fx = w.fx.length ? stepFx(w.fx) : w.fx
@@ -217,7 +200,7 @@ export function step(w: World, rand: () => number = Math.random): World {
   }
 
   // jump: buffered presses, coyote time; holding the button lowers gravity while rising (variable height)
-  if (w.jumpQueued) p.buffer = BUFFER
+  if (input.pressed.includes('jump')) p.buffer = BUFFER
   if (p.buffer > 0 && (p.ground || p.coyote > 0)) {
     p.vy = -(JUMP + Math.abs(p.vx) * JUMP_RUN_BONUS)
     p.ground = false; p.coyote = 0; p.buffer = 0
@@ -281,7 +264,7 @@ export function step(w: World, rand: () => number = Math.random): World {
   const fell = p.y > ROWS * TILE + 64
   const timeUp = w.tick >= TIME_LIMIT * 60
   if ((fell && !L.harmless) || died || timeUp) {
-    return {...w, mode: 'dying', modeT: 0, rows, score, coinCount, lives, enemies, coins, fx, bumps, nextId, jumpQueued: false, player: {...p, vx: 0, vy: fell ? 0 : -9}}
+    return {...w, mode: 'dying', modeT: 0, rows, score, coinCount, lives, enemies, coins, fx, bumps, nextId, player: {...p, vx: 0, vy: fell ? 0 : -9}}
   }
   if (fell) { p.y = 0; p.vy = 0 }
 
@@ -295,7 +278,7 @@ export function step(w: World, rand: () => number = Math.random): World {
   const cx = p.x + p.w / 2
   const camX = clampCam(L, cx > right ? w.camX + (cx - right) : cx < left ? w.camX - (left - cx) : w.camX)
 
-  return {...w, mode, modeT: 0, rows, player: p, enemies, coins, fx, bumps, score, coinCount, lives, tick: w.tick + 1, checkpoint, camX, nextId, jumpQueued: false}
+  return {...w, mode, modeT: 0, rows, player: p, enemies, coins, fx, bumps, score, coinCount, lives, tick: w.tick + 1, checkpoint, camX, nextId}
 }
 
 function stepEnemy(e0: Enemy, rows: string[], p: Player, bumped: [number, number] | null): Enemy | null {

@@ -14,12 +14,18 @@
  *   copy of the bitmap at an offset while the region covers what is visible; a zoom while the
  *   camera is in a gesture (`frame.moving`) scales it, and the crisp repaint follows at rest.
  * - **Live layer**: active nodes, outline layers and the screen-space overlay repaint every frame;
- *   1,000 or more live nodes that only translated since they were painted are one bitmap blit.
+ *   1,000 or more live nodes that only translated since they were painted are one bitmap blit
+ *   (tried again only after a frame that did translate: nodes that move each on their own, a
+ *   game's, are painted directly, B4).
+ * - **Ordered** (canvas-game R4): when a layer with live nodes (`live`, `active`) lies under a
+ *   static one, or a layer has `parallax`, everything is painted on the main canvas in layer order:
+ *   each run of static layers (same parallax) is its own cached bitmap (transparent; a pan shifts
+ *   it), the live nodes are painted between them. No camera-gesture scaling or overview there.
  */
-import {aabb, overlaps, viewport, toScreen, positionsOf, type AABB, type Camera} from './geometry'
+import {aabb, overlaps, viewport, toScreen, positionsOf, layerCamera, type AABB, type Camera} from './geometry'
 import {paintWorld, paintNode, type Node} from './paint'
 
-export type PaintLayer = {items: Node[], active: Set<any> | null, outline?: string}
+export type PaintLayer = {items: Node[], active: Set<any> | null, outline?: string, live?: boolean, parallax?: [number, number] | null}
 export interface Frame {
   camera: Camera
   /** canvas size in CSS pixels, and the device pixel ratio */
@@ -114,7 +120,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   if (!ctx) return null
   const doc = canvas.ownerDocument
   // the static layer: bitmap, the world region it covers, the zoom it was painted at, its content key
-  type Cache = {bmp: any, region: AABB | null, zoom: number, key: any}
+  type Cache = {bmp: any, region: AABB | null, zoom: number, key: any, transparent?: boolean}
   let st: Cache = {bmp: null, region: null, zoom: 0, key: null}
   // the overview: the whole static content at a low resolution, painted when a zoom gesture first
   // shows more than the static bitmap has (what a zoom-out uncovers, until the crisp repaint at rest)
@@ -153,25 +159,29 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   }
 
   // paint the static layer for `f` into a bitmap covering `region` at zoom `z`
-  const paintInto = (c: Cache, f: Frame, key: any, skips: any[], region: AABB, z: number, s: PaintStats): Cache => {
+  const paintInto = (c: Cache, f: Frame, key: any, skips: any[], region: AABB, z: number, s: PaintStats, transparent = false): Cache => {
     const dpr = f.dpr
-    const bmp = c.bmp || doc.createElement('canvas')
-    bmp.width = Math.max(1, Math.ceil((region.x1 - region.x0) * z * dpr))
-    bmp.height = Math.max(1, Math.ceil((region.y1 - region.y0) * z * dpr))
-    const bc = bmp.getContext('2d', {alpha: false}), at = {x: region.x0, y: region.y0, zoom: z}
-    // opaque (the background and the grid in it): a frame that it covers is a plain copy, no blending
+    // (an ordered run's bitmap is transparent: it goes over what is under it)
+    const bmp = c.bmp && !!c.transparent == transparent ? c.bmp : doc.createElement('canvas')
+    const W = Math.max(1, Math.ceil((region.x1 - region.x0) * z * dpr)), H = Math.max(1, Math.ceil((region.y1 - region.y0) * z * dpr))
+    if (bmp.width != W || bmp.height != H) { bmp.width = W; bmp.height = H }
+    const bc = bmp.getContext('2d', {alpha: transparent}), at = {x: region.x0, y: region.y0, zoom: z}
     bc.setTransform(dpr, 0, 0, dpr, 0, 0)
-    bc.fillStyle = f.background
-    bc.fillRect(0, 0, bmp.width / dpr, bmp.height / dpr)
-    if (f.grid && z >= 4) grid(bc, at, bmp.width / dpr, bmp.height / dpr)
+    if (transparent) { bc.globalAlpha = 1; bc.clearRect(0, 0, W / dpr, H / dpr) }
+    else {
+      // opaque (the background and the grid in it): a frame that it covers is a plain copy, no blending
+      bc.fillStyle = f.background
+      bc.fillRect(0, 0, bmp.width / dpr, bmp.height / dpr)
+      if (f.grid && z >= 4) grid(bc, at, bmp.width / dpr, bmp.height / dpr)
+    }
     f.layers.forEach((l, i) => skips[i] !== ALL && paintWorld(bc, l.items, at, dpr, region, skips[i], s))
     s.statics++
-    return {bmp, region, zoom: z, key}
+    return {bmp, region, zoom: z, key, transparent}
   }
 
   // a cached bitmap onto the canvas at camera `cam` (shifted, or scaled during a zoom gesture)
-  const draw = (c: Cache, f: Frame): boolean => {
-    const {region, zoom, bmp} = c, cam = f.camera, dpr = f.dpr, k = cam.zoom / zoom
+  const draw = (c: Cache, f: Frame, cam: Camera = f.camera): boolean => {
+    const {region, zoom, bmp} = c, dpr = f.dpr, k = cam.zoom / zoom
     if (!region) return false
     const p = toScreen(cam, region.x0, region.y0)
     let dx = p.x * dpr, dy = p.y * dpr
@@ -181,12 +191,12 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     const x0 = Math.max(0, dx), y0 = Math.max(0, dy), x1 = Math.min(W, dx + bw), y1 = Math.min(H, dy + bh)
     if (x1 <= x0 || y1 <= y0) return false
     const all = x0 <= 0 && y0 <= 0 && x1 >= W && y1 >= H
-    if (all) ctx.globalCompositeOperation = 'copy'
+    if (all && !c.transparent) ctx.globalCompositeOperation = 'copy'
     // scaled during a gesture: no smoothing (the filter is the raster cost; the crisp repaint follows at rest)
     if (k != 1) ctx.imageSmoothingEnabled = false
     ctx.drawImage(bmp, (x0 - dx) / k, (y0 - dy) / k, (x1 - x0) / k, (y1 - y0) / k, x0, y0, x1 - x0, y1 - y0)
     if (k != 1) ctx.imageSmoothingEnabled = true
-    if (all) ctx.globalCompositeOperation = 'source-over'
+    if (all && !c.transparent) ctx.globalCompositeOperation = 'source-over'
     return all
   }
 
@@ -200,20 +210,28 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   // the live layer's moving nodes as a bitmap: a big set that only translated since it was painted
   // (every node the same dx, dy, nothing else changed: a drag) is one drawImage, not a repaint.
   // The bitmap is the canvas plus a half-canvas margin on each side, so what moves in is there.
-  const blit = (f: Frame, i: number, act: Node[], s: PaintStats, off: number[] | null) => {
+  const blit = (f: Frame, i: number, act: Node[], s: PaintStats, off: number[] | null, cam: Camera = f.camera) => {
     if (act.length < BLIT_MIN) return false
-    const cam = f.camera, w = f.width, h = f.height, dpr = f.dpr
+    const w = f.width, h = f.height, dpr = f.dpr
     let c = blits[i]
     const z = cam.zoom, mx = w / 2, my = h / 2
     let d = c && sameCam(c.cam, cam) && c.nodes.length == act.length ? translation(c.nodes, act) : null
     if (d && (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my)) d = null
-    if (!d) {
+    if (!d || !c.valid) {
+      // B4: a second frame in a row whose nodes didn't translate (they move each on their own): paint
+      // them directly, keep them as the reference for the next frame, no bitmap
+      const missed = !d && c?.missed
       c = blits[i] = c || {bmp: doc.createElement('canvas')}
-      c.bmp.width = Math.round(w * 2 * dpr); c.bmp.height = Math.round(h * 2 * dpr)
-      const bc = c.bmp.getContext('2d'), wide = {...cam, x: cam.x - mx / z, y: cam.y - my / z}
+      c.nodes = act; c.cam = cam; c.missed = !d; c.valid = false
+      if (missed) return false
+      const W2 = Math.round(w * 2 * dpr), H2 = Math.round(h * 2 * dpr), bc = c.bmp.getContext('2d')
+      // (a canvas resized is reallocated: only when the size changed)
+      if (c.bmp.width != W2 || c.bmp.height != H2) { c.bmp.width = W2; c.bmp.height = H2 }
+      else { bc.setTransform(1, 0, 0, 1, 0, 0); bc.clearRect(0, 0, W2, H2) }
+      const wide = {...cam, x: cam.x - mx / z, y: cam.y - my / z}
       paintWorld(bc, act, wide, dpr, viewport(wide, w * 2, h * 2), null, s)
-      c.nodes = act; c.cam = cam; d = [0, 0]
-    } else s.blits++
+      c.valid = true; d = [0, 0]
+    } else { c.missed = false; s.blits++ }
     if (off) { d = [d[0] + off[0], d[1] + off[1]]; if (Math.abs(d[0] * z) > mx || Math.abs(d[1] * z) > my) return false }
     lctx.setTransform(1, 0, 0, 1, 0, 0)
     lctx.globalAlpha = 1
@@ -228,6 +246,96 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     const x1 = fin ? Math.min(W, Math.ceil(q.x * dpr) + pad) : W, y1 = fin ? Math.min(H, Math.ceil(q.y * dpr) + pad) : H
     if (x1 > x0 && y1 > y0) lctx.drawImage(c.bmp, sx + x0, sy + y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0)
     return true
+  }
+
+  // R4: the ordered strategy. Each run of static layers (one parallax) is a transparent bitmap of
+  // its own covering the view with a margin (a pan shifts it); live nodes are painted between the
+  // runs, all on the main canvas, in layer order
+  const runs: Cache[] = []
+  // the main canvas of the last ordered frame: its camera and, per layer under `top`, items and skip
+  let below: {cam: Camera, dpr: number, layers: any[]} | null = null
+  const paintOrdered = (f: Frame, s: PaintStats, skips: any[]) => {
+    const dpr = f.dpr, w = f.width, h = f.height, fo = f.follow
+    const hasStatic = (l: PaintLayer, i: number) => skips[i] !== ALL && l.items.length > (skips[i] ? skips[i].size : 0)
+    const hasLive = (l: PaintLayer, i: number) => skips[i] === ALL ? l.items.length > 0 : !!skips[i]?.size
+    // the layers over the last static one (a game's actors) go on the live canvas, so the main canvas
+    // (everything under them) stays as it is while its nodes and the camera don't change
+    let top = 0
+    for (let i = f.layers.length - 1; i >= 0; i--) if (hasStatic(f.layers[i], i)) { top = i + 1; break }
+    if (!live) top = f.layers.length
+    const key = {cam: f.camera, dpr, layers: f.layers.slice(0, top).map((l, i) => [l.items, skips[i]])}
+    const belowLive = f.layers.some((l, i) => i < top && hasLive(l, i))
+    const same = !belowLive && mainValid && !!below && below.dpr == dpr && sameCam(below.cam, f.camera) && below.layers.length == key.layers.length &&
+      below.layers.every(([items, sk], i) => items === key.layers[i][0] && sameSet(sk, key.layers[i][1]))
+    below = key
+    // the live layers on top: on the live canvas (or, without one, after the rest on the main one)
+    const paintTop = () => {
+      for (let i = top; i < f.layers.length; i++) {
+        const l = f.layers[i], sk = skips[i]
+        if (!sk) continue
+        const cam = layerCamera(f.camera, l.parallax)
+        let act = sk === ALL ? l.items : activeOf(l.items, sk, lastItems[i])
+        if (fo) act = act.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n)
+        if (l.outline) act = act.map(n => outlined(n, l.outline!))
+        if (act.length && lctx !== ctx) liveDirty = true
+        if (!blit(f, i, act, s, null, cam)) paintWorld(lctx, act, cam, dpr, viewport(cam, w, h), null, s)
+      }
+    }
+    if (same) { s.cached++; paintTop(); return }
+    mainValid = !!live && !belowLive
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.globalAlpha = 1
+    ctx.fillStyle = f.background
+    ctx.fillRect(0, 0, w, h)
+    if (f.grid && f.camera.zoom >= 4) grid(ctx, f.camera, w, h)
+    let run: number[] = [], px: [number, number] | null = null, r = 0
+    const flush = () => {
+      if (!run.length) return
+      const cam = layerCamera(f.camera, px), view = viewport(cam, w, h)
+      const sk = f.layers.map((_, i) => run.includes(i) ? skips[i] : ALL)
+      const key = {dpr, layers: f.layers.map((l, i) => sk[i] === ALL ? {items: [], skip: ALL} : {items: l.items, skip: sk[i]})}
+      let content: AABB | null = null
+      for (const i of run) {
+        const b = contentOf(f.layers[i].items)
+        content = content ? {x0: Math.min(content.x0, b.x0), y0: Math.min(content.y0, b.y0), x1: Math.max(content.x1, b.x1), y1: Math.max(content.y1, b.y1)} : b
+      }
+      const pad = 20 / cam.zoom
+      content = {x0: content!.x0 - pad, y0: content!.y0 - pad, x1: content!.x1 + pad, y1: content!.y1 + pad}
+      const need = intersect(view, content)
+      let c = runs[r] || {bmp: null, region: null, zoom: 0, key: null}
+      if (need) {
+        if (reusable(c.key, key) && c.zoom == cam.zoom && c.region && inside(need, c.region)) s.shifted++
+        else {
+          const mw = w / 2 / cam.zoom, mh = h / 2 / cam.zoom
+          const around = intersect({x0: view.x0 - mw, y0: view.y0 - mh, x1: view.x1 + mw, y1: view.y1 + mh}, content) || view
+          let region = {x0: Math.min(view.x0, around.x0), y0: Math.min(view.y0, around.y0), x1: Math.max(view.x1, around.x1), y1: Math.max(view.y1, around.y1)}
+          if ((region.x1 - region.x0) * (region.y1 - region.y0) * (cam.zoom * dpr) ** 2 > MAX_PIXELS) region = view
+          c = paintInto(c, f, key, sk, region, cam.zoom, s, true)
+        }
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        ctx.globalAlpha = 1
+        draw(c, f, cam)
+      }
+      runs[r++] = c
+      run = []
+    }
+    f.layers.forEach((l, i) => {
+      if (i >= top) return
+      const sk = skips[i], lp = l.parallax || null
+      if (run.length && String(lp) !== String(px)) flush()
+      if (sk !== ALL && l.items.length > (sk ? sk.size : 0)) { if (!run.length) px = lp; run.push(i) }
+      if (!sk) return
+      // this layer's live nodes: over its own static nodes and those under it, under the ones above
+      flush()
+      const cam = layerCamera(f.camera, lp)
+      let act = sk === ALL ? l.items : activeOf(l.items, sk, lastItems[i])
+      if (fo) act = act.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n)
+      if (l.outline) act = act.map(n => outlined(n, l.outline!))
+      paintWorld(ctx, act, cam, dpr, viewport(cam, w, h), null, s)
+    })
+    flush()
+    runs.length = r
+    paintTop()
   }
 
   return {
@@ -247,16 +355,29 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         if (f.grid && cam.zoom >= 4) grid(ctx, cam, w, h)
       }
       // the active (or following) nodes of each layer, painted live
-      const skips = f.layers.map(l => l.outline ? ALL : fo ? new Set([...(l.active || []), ...fo.ids]) : l.active)
+      const skips = f.layers.map(l => l.outline || l.live ? ALL : fo ? new Set([...(l.active || []), ...fo.ids]) : l.active)
+      // R4: a layer with live nodes under one with static nodes, or a parallax layer: paint in order
+      let ordered = f.layers.some(l => l.parallax), under = false
+      if (!ordered) f.layers.forEach((l, i) => {
+        if (under && skips[i] !== ALL && l.items.length > (skips[i]?.size ?? 0)) ordered = true
+        if (skips[i] === ALL ? l.items.length : skips[i]?.size) under = true
+      })
       if (f.repaint == 'full') {
         ground()
         mainValid = false
         f.layers.forEach(l => {
           let items = fo ? l.items.map(n => fo.ids.has(n.id) ? moved(n, fo.dx, fo.dy) : n) : l.items
           if (l.outline) items = items.map(n => outlined(n, l.outline!))
-          paintWorld(ctx, items, cam, dpr, view, null, s)
+          const lc = layerCamera(cam, l.parallax)
+          paintWorld(ctx, items, lc, dpr, l.parallax ? viewport(lc, w, h) : view, null, s)
         })
+      } else if (ordered) {
+        paintOrdered(f, s, skips)
+        st = {bmp: st.bmp, region: null, zoom: 0, key: null}
       } else {
+        runs.length = 0
+        // (back from the ordered strategy: the main canvas is repainted)
+        if (below) { below = null; mainValid = false }
         const key = {dpr, layers: f.layers.map((l, i) => skips[i] === ALL ? {items: [], skip: ALL} : {items: l.items, skip: skips[i]})}
         const same = reusable(st.key, key), k = st.zoom ? cam.zoom / st.zoom : 0
         let grounded = false
@@ -335,6 +456,6 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       lastCam = cam
       lastItems = f.layers.map(l => l.items)
     },
-    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; live?.remove() },
+    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; runs.length = 0; live?.remove() },
   }
 }

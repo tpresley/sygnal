@@ -86,7 +86,14 @@ export function specCheck(file, node) {
   const bad = (problem, k) => ({ problem, at: props.get(k) || null })
   const frame = get('frame')
   if (!frame.known) return ok(null)
-  if (frame.value) return typeof frame.value === 'string' ? ok('') : bad('frame must be the action name (a string)', 'frame')
+  if (frame.value) {
+    if (typeof frame.value !== 'string') return bad('frame must be the action name (a string)', 'frame')
+    // canvas-game R2: a fixed step (ms) and the keys a frame samples
+    const step = get('step'), keys = get('keys')
+    if (step.known && step.value != null && !(typeof step.value === 'number' && step.value > 0)) return bad(`step must be a positive number of ms (got ${text(props.get('step').value)})`, 'step')
+    if (props.has('keys') && props.get('keys').value.type !== 'ObjectExpression' && keys.known && keys.value != null && typeof keys.value !== 'object') return bad(`keys must be an object of button: key codes (got ${text(props.get('keys').value)})`, 'keys')
+    return ok('')
+  }
   const action = get('action')
   if (!action.known) return ok(null)
   if (!action.value || typeof action.value !== 'string') return bad('has no action (a string)', 'action')

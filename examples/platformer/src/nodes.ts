@@ -4,8 +4,9 @@
  * The canvas caches what keeps its identity: a data layer whose items are the same objects is a
  * copy of a bitmap, and a camera pan shifts that bitmap. So the tiles, the coins and the scenery
  * are built once and rebuilt only when they change (a brick breaks, a coin is taken), and a tile
- * that didn't change keeps its node object. The actors (player, enemies, effects) change every
- * step: a new array each frame, painted live (`active`).
+ * that didn't change keeps its node object. The far scenery (hills, clouds) is a `parallax`
+ * layer: its coordinates are its own (it scrolls at half the camera). The actors (player, enemies,
+ * effects) change every step: a new array each frame, a `live` layer.
  *
  * The plain-JS baseline paints these same actor nodes, so both pay the same allocation.
  */
@@ -69,18 +70,30 @@ export function coinsOf(coins: World['coins']): Node[] {
 }
 
 // ------------------------------------------------------------------------------------- scenery
+export const FAR = 0.5
+const farCache = new WeakMap<object, Node[]>()
+/** hills and clouds far away: a `parallax={FAR}` layer, in its own coordinates (it scrolls at half the camera) */
+export function farOf(level: World['level']): Node[] {
+  let out = farCache.get(level)
+  if (out) return out
+  out = []
+  const width = level.rows[0].length * TILE * FAR + VIEW_W, ground = 13 * TILE
+  for (let x = -40, i = 0; x < width; x += 170 + (i * 67) % 120, i++) {
+    const w = 160 + (i * 53) % 140, h = 70 + (i * 31) % 80
+    out.push({id: `hill${i}`, type: 'ellipse', x, y: ground - h, width: w, height: h * 2, fill: i % 2 ? '#7ccf6a' : '#93db7e'})
+    if (i % 2 == 0) out.push({id: `cloud${i}`, type: 'ellipse', x: x + 60, y: 40 + (i * 37) % 90, width: 90 + (i * 13) % 50, height: 34, fill: '#ffffff', opacity: 0.9})
+  }
+  farCache.set(level, out)
+  return out
+}
+
 const sceneryCache = new WeakMap<object, Node[]>()
-/** hills, bushes, clouds, the checkpoint and the goal: built once per level */
+/** the checkpoint and the goal */
 export function sceneryOf(level: World['level']): Node[] {
   let out = sceneryCache.get(level)
   if (out) return out
   out = []
-  const cols = level.rows[0].length, ground = 13 * TILE
-  for (let c = 0, i = 0; c < cols; c += 9 + (i * 7) % 6, i++) {
-    const w = 140 + (i * 53) % 120, h = 60 + (i * 31) % 70
-    out.push({id: `hill${i}`, type: 'ellipse', x: c * TILE - w / 4, y: ground - h, width: w, height: h * 2, fill: i % 2 ? '#7ccf6a' : '#93db7e'})
-    out.push({id: `cloud${i}`, type: 'ellipse', x: c * TILE + 60, y: 40 + (i * 37) % 90, width: 90 + (i * 13) % 50, height: 34, fill: '#ffffff', opacity: 0.9})
-  }
+  const ground = 13 * TILE
   if (level.checkpoint != null) {
     const x = level.checkpoint * TILE
     out.push({id: 'cp-pole', type: 'rect', x: x + 14, y: ground - 96, width: 4, height: 96, fill: '#555'})
@@ -154,9 +167,6 @@ function playerNodes(w: World, out: Node[]) {
   out.push({id: 'p-cap', type: 'rect', x: x + (f > 0 ? 2 : -4), y, width: p.w + 2, height: 8, fill: '#2d3a8c', radius: 3})
   out.push({id: 'p-eye', type: 'rect', x: x + (f > 0 ? 13 : 4), y: y + 9, width: 5, height: 6, fill: '#fff', radius: 1})
 }
-
-/** the ids of `nodes` (the actors layer's `active`) */
-export const idsOf = (nodes: Node[]) => nodes.map(n => n.id)
 
 /** what the camera shows (the canvas's controlled camera) */
 export const cameraOf = (camX: number) => ({x: Math.round(camX), y: 0, zoom: 1})

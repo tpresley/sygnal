@@ -131,7 +131,7 @@ Code that still calls `Date.now()`, `new Date()`, `Math.random()`, `performance.
 
 Recordings are made to be shared, so **redaction is on by default**:
 
-- Text the user typed is pseudonymized: the strings of an action dispatched while a text-entry event was delivered (an `input` or `keydown` in a text field, a form `submit`), and of later actions of the same type. Server replies and `setState` values are pseudonymized too.
+- Text the user typed is pseudonymized: the strings of an action dispatched while a text-entry event was delivered (an `input` or `keydown` in a text field, a form `submit`), and of later actions of the same type. Server replies and `setState` values are pseudonymized too. A timer's actions are the app's own data and are kept: a tick, and a game loop's sampled buttons (`pressed: ['jump']`), so a recorded game replays exactly.
 - A pseudonym keeps the shape of the string (letter case, digits, spaces and punctuation in place), and equal strings get equal pseudonyms within one recording, so `trim()`, `=== ''` and an id that appears in a reply and in a click still behave the same. The salt isn't stored.
 - Checkpoints are compared on masked values, so state differences and view hashes hold no text either.
 - Event types, keys (`Enter`), element datasets (ids your app rendered) and `next()` data (your code's own) are kept.

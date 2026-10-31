@@ -44,8 +44,10 @@ export interface CanvasProps {
   grid?: boolean;
   /** `'layers'` (default): a static layer + a live layer, blits, the camera cache; `'full'`: repaint everything every frame */
   repaint?: 'layers' | 'full';
-  /** built-in pan and zoom (wheel, ctrl/⌘-wheel and pinch, space-drag, middle-drag, two-finger touch); default true */
+  /** built-in pan and zoom (wheel, ctrl/⌘-wheel and pinch, space-drag, middle-drag, two-finger touch); default true. A game passes false (Space is its jump) */
   navigate?: boolean;
+  /** the accessibility projection's default for every layer (a layer's own `a11y` wins); `0` turns it off for the canvas (a game) */
+  a11y?: number;
   /** `'all'` (default): every press captures the pointer; `'explicit'`: only a `capture` prop or `setPointerCapture()` in a pointerdown listener */
   capture?: 'all' | 'explicit';
   /**
@@ -93,6 +95,18 @@ export interface ShapesProps<N extends Node = Node> {
   items: readonly N[];
   /** ids of nodes that change every frame (a drag): painted live, so the rest stays cached */
   active?: readonly (string | number)[] | null;
+  /**
+   * every node changes every frame (a game's actors, particles): the whole layer is painted live
+   * (no ids needed), has no accessibility projection unless `a11y` says so, and isn't checked for
+   * SYG262. Layers paint in their order: a live layer under a static one stays under it
+   */
+  live?: boolean;
+  /**
+   * the layer scrolls at `f` times the camera (`[fx, fy]` per axis): a background far away (0.5),
+   * a foreground near (1.5). Hit testing sees it where it is drawn; a static parallax layer is
+   * cached like any other
+   */
+  parallax?: number | [number, number];
   /** paint every node's outline (1 screen px) in this colour; never hit (selection outlines, peers) */
   outline?: string;
   /** the accessible name of the layer's projection (default 'Shapes') */
@@ -129,7 +143,7 @@ export function readChildren(container: VNode | any): { layers: any[]; live: any
 
 // ---------------------------------------------------------------- backends
 
-export interface PaintLayer { items: readonly Node[]; active: Set<any> | null; outline?: string }
+export interface PaintLayer { items: readonly Node[]; active: Set<any> | null; outline?: string; live?: boolean; parallax?: [number, number] | null }
 export interface Frame {
   camera: Camera; width: number; height: number; dpr: number;
   background: string; grid: boolean; repaint: 'layers' | 'full';

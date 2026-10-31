@@ -27,6 +27,7 @@ import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
 import {actionHooks} from './diagnostics/checks/actionLog';
+import {inFrame, frameCount, onFrameEnd} from './frame';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
 
@@ -415,7 +416,18 @@ export interface RenderResult {
    * component, or of the first instance of `component` (inside `within`). A name that instance
    * has no model entry for fails the test, naming the components that handle it
    */
-  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => void;
+  /**
+   * Dispatch `actionName` to the component (or `options.component`). Returns a promise that
+   * resolves once the action is delivered and the tree has rendered it (canvas-game R5); a call
+   * that isn't awaited is still delivered, in order with the other simulate* calls.
+   */
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => Promise<void>;
+  /**
+   * canvas-game R5: wait for `n` animation frames of the running `frame` timers (their actions
+   * reduced, the tree rendered). Under fake timers it moves the clock frame by frame; with real
+   * timers it waits for them. Throws when no frame timer runs.
+   */
+  frames: (n?: number) => Promise<void>;
   /**
    * Dispatch a synthetic DOM event through the mock DOM source. Delivered later, in call order:
    * `await` it (resolves once the event is delivered and the tree has rendered what it caused)
@@ -1700,7 +1712,9 @@ export function renderComponent(
   // G-047: activity anywhere in the tree (any component's render/reducer, state, input), for
   // the "the full tree has rendered" / settle() quiet windows
   let activity = 0, lastActivity = clockNow();
-  const bump = () => { activity++; lastActivity = clockNow(); };
+  // canvas-game R5: what a frame timer's frame causes isn't activity: settle() waits for the
+  // app to be quiet apart from its frame loop (t.frames(n) waits for frames)
+  const bump = () => { if (inFrame()) return; activity++; lastActivity = clockNow(); };
   // 4-A1 (real DOM): states recorded when a view in the tree last ran (see onModel)
   let viewTag = 0;
   const recorded = () => states.length;
@@ -2515,17 +2529,18 @@ export function renderComponent(
    * call that isn't awaited never moves a test's fake timers.
    */
   const delivered = (queue: (done: () => void) => void): Promise<void> => {
-    let done!: () => void;
-    const inner = new Promise<void>(r => { done = r; }).then(async () => {
+    let done!: () => void, n = 0;
+    const got = new Promise<void>(r => { done = () => { n = states.length; r(); }; });
+    whenDisposed.add(done);
+    got.then(() => whenDisposed.delete(done));
+    queue(done);
+    // (the render wait starts only when awaited: a call that isn't awaited leaves no timer behind)
+    const inner = () => got.then(async () => {
       if (disposed) return;
-      const n = states.length;
       await (real ? patchedTree(n) : treeRendered(n));
     }).catch(noop);
-    whenDisposed.add(done);
-    inner.then(() => whenDisposed.delete(done));
-    queue(done);
     let driving: Promise<void> | undefined;
-    return new Lazy<void>(r => r(undefined as any), () => (driving = driving || drive(inner, () => disposed)));
+    return new Lazy<void>(r => r(undefined as any), () => (driving = driving || drive(inner(), () => disposed)));
   };
   const whenDisposed = new Set<() => void>();
 
@@ -2680,12 +2695,14 @@ export function renderComponent(
       const r = actionTarget(type, options);
       if (r instanceof Error) throw r;
     }
-    later(() => {
+    // canvas-game R5: awaitable, as simulateEvent (delivered and rendered); a call that isn't
+    // awaited never moves a test's fake timers
+    return delivered(done => later(() => {
       const r = actionTarget(type, options);
       if (r instanceof Error) failWith(r);
       else if (r) api.dispatch(r, type, data, 'simulateAction');
       return true;
-    });
+    }, undefined, done));
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -3580,6 +3597,15 @@ export function renderComponent(
     sinks,
     sources,
     simulateAction,
+    frames: (n = 1) => {
+      throwFailure();
+      const running = tm ? [...tm.values()].some((r: any) => Object.values(r.on).some((e: any) => e.ok && e.s.frame)) : false;
+      if (!running) return Promise.reject(new Error(`[Sygnal] t.frames(${n}): no frame timer is running (declare one: C.timers = (state) => ({ loop: running && { frame: 'FRAME' } }))`));
+      const target = frameCount() + n;
+      let off = noop;
+      const p = new Promise<void>(r => { off = onFrameEnd(() => { if (frameCount() >= target) { off(); r(); } }); });
+      return drive(p, () => disposed).finally(() => off());
+    },
     simulateEvent,
     ready,
     waitForState,

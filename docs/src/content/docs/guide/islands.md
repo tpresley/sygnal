@@ -126,13 +126,15 @@ Raycast events follow the DOM's rules: only the topmost hit is the event's targe
 
 A value that changes 60 times a second doesn't belong in state: every change is an action, a render and a patch. Compute such values in the widget's own frame loop from its props: the state says *how* something moves (its speed), and the widget works out *where* it is each frame. `sygnal/three`'s [`animate` props](/renderers/three/#the-frame-loop) do this. Measured with 20 spinning cubes in Chromium, over 2 seconds: 240 frames drawn, 0 actions, 0 renders, 0 patches. With the angle in state, every frame was a patch and a render of every cube.
 
-When per-frame values really are state (a game's simulation step, a timer on screen), declare a `frame` [timer](/guide/timers/). It sends an action with `{ t, dt }` every animation frame, only while the declaration is on:
+When per-frame values really are state (a game's simulation, a timer on screen), declare a `frame` [timer](/guide/timers/). It sends an action every animation frame, only while the declaration is on. For a game, give it a fixed `step` (physics that integrates a variable `dt` behaves differently at 30 and 144 Hz) and the `keys` it samples:
 
 <!-- docs-check: skip -->
 ```jsx
-Game.timers = (state) => ({ tick: state.running && { frame: 'TICK' } })
-Game.model = { TICK: (state, { dt }) => step(state, dt / 1000) }
+Game.timers = (state) => ({ loop: state.running && { frame: 'STEP', step: 1000 / 60, keys: { left: 'ArrowLeft', right: 'ArrowRight', jump: 'Space' } } })
+Game.model = { STEP: (state, { held, pressed }) => step(state, held, pressed) }
 ```
+
+The simulation stays plain functions over plain data, testable step by step, and the whole game is deterministic under `renderComponent` with fake timers (`await t.frames(60)`) and replayable. The island the frame changes paints in that frame, once. [`examples/platformer`](https://github.com/tpresley/sygnal/tree/main/examples/platformer) is a whole game this way: about 0.1 ms of Sygnal per frame.
 
 Sygnal re-renders only what changed, so a timer kept in a small component of its own renders that component and not the island: the island's `sync` doesn't run for a patch that didn't change its children.
 

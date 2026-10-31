@@ -132,3 +132,6 @@ export function selectionBox<T extends Box & {id?: any}>(nodes: T[], ids: Iterab
   if (!sel.length) return null
   return sel.length == 1 ? sel[0] : boxOf(union(sel)!)
 }
+
+/** the camera a `parallax={[fx, fy]}` layer is seen through: it scrolls at f times the camera */
+export const layerCamera = (c: Camera, f: [number, number] | null | undefined): Camera => f ? {x: c.x * f[0], y: c.y * f[1], zoom: c.zoom} : c

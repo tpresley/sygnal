@@ -4,13 +4,17 @@
  * calls: what a developer writes with no framework. Same inputs (keydown / keyup on the document),
  * same fixed timestep, the same `window.__bench` fields as the Sygnal app's bench.ts.
  *
- * Painting per frame: sky, the visible tiles straight from the rows (no cache), the coins and
- * scenery in view, then the actors. The HUD is one textContent write when its text changes.
+ * The fixed step (an accumulator) and the held keys are this file's own: what the Sygnal app gets
+ * from its frame timer (`step`, `keys`).
+ *
+ * Painting per frame: sky, the far hills at half the camera, the visible tiles straight from the
+ * rows (no cache), the coins and scenery in view, then the actors. The HUD is one textContent
+ * write when its text changes.
  */
-import {advance, menu, press, release, newWorld, timeLeft, perf, RUNNING, type World} from '../../../../examples/platformer/src/sim'
+import {step, menu, newWorld, timeLeft, perf, RUNNING, STEP, MAX_STEPS, type World, type Button} from '../../../../examples/platformer/src/sim'
 import {meadow, arena, TILE, VIEW_W, VIEW_H} from '../../../../examples/platformer/src/level'
-import {actorsOf, sceneryOf, coinsOf, type Node} from '../../../../examples/platformer/src/nodes'
-import {KEYS} from '../../../../examples/platformer/src/keys'
+import {actorsOf, sceneryOf, farOf, coinsOf, FAR, type Node} from '../../../../examples/platformer/src/nodes'
+import {BUTTONS} from '../../../../examples/platformer/src/keys'
 
 const q = new URLSearchParams(location.search)
 const n = Number(q.get('stress') || 0)
@@ -22,18 +26,41 @@ canvas.width = VIEW_W * dpr; canvas.height = VIEW_H * dpr
 canvas.style.width = VIEW_W + 'px'; canvas.style.height = VIEW_H + 'px'
 const ctx = canvas.getContext('2d', {alpha: false})!
 
+// held keys: code → button, the codes down, the buttons pressed since the last step
+const CODES = new Map<string, Button>()
+for (const [b, codes] of Object.entries(BUTTONS)) for (const c of codes) CODES.set(c, b as Button)
+const down = new Set<string>()
+let held = {left: false, right: false, jump: false, run: false}, pressed: Button[] = []
+const sync = () => {
+  const next = {left: false, right: false, jump: false, run: false}
+  for (const c of down) next[CODES.get(c)!] = true
+  held = next
+}
 document.addEventListener('keydown', e => {
-  const b = KEYS[e.code]
+  if (e.code == 'Enter' || (e.code == 'Space' && !RUNNING.includes(w.mode) && w.mode != 'paused')) { w = menu(w, 'start'); e.preventDefault(); return }
+  if (e.code == 'KeyP' || e.code == 'Escape') { w = menu(w, 'pause'); return }
+  const b = CODES.get(e.code)
   if (!b) return
   e.preventDefault()
-  if (e.repeat) return
-  if (b == 'start' || (b == 'jump' && !RUNNING.includes(w.mode) && w.mode != 'paused')) w = menu(w, 'start')
-  else w = b == 'pause' ? menu(w, 'pause') : press(w, b)
+  if (e.repeat || down.has(e.code)) return
+  if (!held[b]) pressed.push(b)
+  down.add(e.code)
+  sync()
 })
-document.addEventListener('keyup', e => {
-  const b = KEYS[e.code]
-  if (b && b != 'start' && b != 'pause') w = release(w, b)
-})
+document.addEventListener('keyup', e => { if (down.delete(e.code)) sync() })
+addEventListener('blur', () => { down.clear(); sync() })
+
+// the fixed step: whole steps for the frame time, the remainder carried
+let acc = 0
+function advance(dt: number) {
+  if (!RUNNING.includes(w.mode)) { acc = 0; return }
+  acc = Math.min(acc + dt, STEP * MAX_STEPS)
+  while (acc >= STEP) {
+    w = step(w, {held, pressed})
+    pressed = []
+    acc -= STEP
+  }
+}
 
 const COLORS: Record<string, string> = {'#': '#a0612e', X: '#8a8f99', B: '#c4552d', '?': '#f2b632', U: '#a7835a', '=': '#6b4a2b'}
 function node(n: Node) {
@@ -63,7 +90,9 @@ function paint() {
   ctx.globalAlpha = 1
   ctx.fillStyle = '#8fd3ff'
   ctx.fillRect(0, 0, VIEW_W, VIEW_H)
-  ctx.translate(-cx, 0)
+  ctx.translate(-Math.round(cx * FAR), 0)
+  for (const s of farOf(w.level)) if (visible(s, cx * FAR)) node(s)
+  ctx.setTransform(dpr, 0, 0, dpr, -cx * dpr, 0)
   for (const s of sceneryOf(w.level)) if (visible(s, cx)) node(s)
   ctx.globalAlpha = 1
   const c0 = Math.floor(cx / TILE), c1 = Math.ceil((cx + VIEW_W) / TILE)
@@ -94,7 +123,7 @@ function frame(t: number) {
   const dt = last ? t - last : 0
   if (last) frames.push(dt)
   last = t
-  w = advance(w, dt)
+  advance(dt)
   paint()
   paints.push(paintMs)
   const text = `SCORE ${pad(w.score, 6)}  ● ×${pad(w.coinCount, 2)}  ♥ ×${w.lives}  TIME ${pad(timeLeft(w), 3)}  ${w.mode == 'title' ? '(Enter)' : ''}`

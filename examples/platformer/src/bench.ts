@@ -2,7 +2,7 @@
  * window.__bench (with ?bench): what dev-plans/research/canvas-game/perf/run.mjs reads. The same
  * fields as the plain-JS baseline's (baseline/main.ts), so one runner measures both.
  * - frames: every requestAnimationFrame interval (ms) since reset()
- * - sim: the time inside advance() (the simulation steps) and the steps run
+ * - sim: the time inside step() (the simulation) and the steps run
  * - paint: the canvas's own paint time per paint (sygnal/canvas `st.ms`) and the paints made
  */
 import {canvasOf} from 'sygnal/canvas'

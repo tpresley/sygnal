@@ -183,7 +183,7 @@ for (const [app, dir] of given ? [[arg('label', 'url'), given]] : Object.entries
   srv.close()
 }
 await browser.close()
-const out = path.join(here, 'results', `${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-')}.json`)
+const out = path.join(here, 'results', `${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`)
 fs.mkdirSync(path.dirname(out), {recursive: true})
 fs.writeFileSync(out, JSON.stringify(results, null, 1))
 console.log('→', path.relative(repo, out))

@@ -3,15 +3,18 @@
  * the rules are tested step by step, with no timers and no DOM.
  */
 import {describe, it, expect} from 'vitest'
-import {newWorld, step, advance, press, release, menu, STEP, MAX_STEPS, type World, type Button} from './sim'
+import {newWorld, step, menu, NO_KEYS, type World, type Button} from './sim'
 import {fromStrings, meadow, arena, TILE, ROWS} from './level'
 
 const rand = () => 0.5
-const room = (...lines: string[]) => newWorld(fromStrings(lines), 'playing')
-/** `n` steps with `held` buttons down (pressed before the first step) */
+let before: Button[] = []
+const room = (...lines: string[]) => { before = []; return newWorld(fromStrings(lines), 'playing') }
+/** `n` steps with `held` buttons down (those not held before are pressed on the first step) */
 function steps(w: World, n: number, ...held: Button[]) {
-  for (const b of ['left', 'right', 'jump', 'run'] as Button[]) w = held.includes(b) ? press(w, b) : release(w, b)
-  for (let i = 0; i < n; i++) w = step(w, rand)
+  const keys = {...NO_KEYS}
+  for (const b of held) keys[b] = true
+  for (let i = 0; i < n; i++) w = step(w, {held: keys, pressed: i ? [] : held.filter(b => !before.includes(b))}, rand)
+  before = held
   return w
 }
 const FLOOR = '#'.repeat(40)
@@ -54,10 +57,8 @@ describe('jumping', () => {
     expect(held.w.player.ground).toBe(true)
   })
 
-  it('a press and release between two steps still jumps (the press is queued)', () => {
-    let w = press(flat(), 'jump')
-    w = release(w, 'jump')
-    w = step(w, rand)
+  it('a press and release between two steps still jumps (the frame timer reports the press)', () => {
+    const w = step(flat(), {held: NO_KEYS, pressed: ['jump']}, rand)
     expect(w.player.vy).toBeLessThan(0)
   })
 
@@ -112,7 +113,7 @@ describe('enemies', () => {
   it('a walker patrols and turns at a ledge', () => {
     let w = room('P...........', '......w.....', '....#####...', '############')
     const xs: number[] = []
-    for (let i = 0; i < 300; i++) { w = step(w, rand); xs.push(w.enemies[0].x) }
+    for (let i = 0; i < 300; i++) { w = steps(w, 1); xs.push(w.enemies[0].x) }
     expect(Math.min(...xs)).toBeGreaterThanOrEqual(4 * TILE - 1)
     expect(Math.max(...xs) + w.enemies[0].w).toBeLessThanOrEqual(9 * TILE + 1)
   })
@@ -132,7 +133,7 @@ describe('enemies', () => {
     let w = room('.P.....w....', FLOOR.slice(0, 12), FLOOR.slice(0, 12))
     for (let i = 0; i < 120 && w.mode == 'playing'; i++) w = steps(w, 1, 'right')
     expect(w.mode).toBe('dying')
-    for (let i = 0; i < 100; i++) w = step(w, rand)
+    w = steps(w, 100)
     expect(w.mode).toBe('playing')
     expect(w.lives).toBe(2)
     expect(w.player.x).toBe(newWorld(w.level).player.x)
@@ -140,7 +141,7 @@ describe('enemies', () => {
 
   it('the last life lost is game over; Enter starts again', () => {
     let w = {...room('.P..', '....', '....'), lives: 1}
-    for (let i = 0; i < 200; i++) w = step(w, rand)
+    w = steps(w, 200)
     expect(w.mode).toBe('over')
     expect(menu(w, 'start').mode).toBe('playing')
     expect(menu(w, 'start').lives).toBe(3)
@@ -150,7 +151,7 @@ describe('enemies', () => {
     let w = room('P...........f..', '...............', '...............', '........h......', '#'.repeat(15))
     const y0 = w.enemies.find(e => e.kind == 'flyer')!.y
     let jumped = false
-    for (let i = 0; i < 160; i++) { w = step(w, rand); if (w.enemies.find(e => e.kind == 'hopper')!.vy < 0) jumped = true }
+    for (let i = 0; i < 160; i++) { w = steps(w, 1); if (w.enemies.find(e => e.kind == 'hopper')!.vy < 0) jumped = true }
     expect(jumped).toBe(true)
     expect(w.enemies.find(e => e.kind == 'hopper')!.x).toBeLessThan(8 * TILE)
     expect(Math.abs(w.enemies.find(e => e.kind == 'flyer')!.y - y0)).toBeLessThan(40)
@@ -170,7 +171,7 @@ describe('the course', () => {
     w = steps(w, 40, 'right')
     expect(w.checkpoint).toBe(true)
     w = {...w, mode: 'dying', modeT: 99}
-    w = step(w, rand)
+    w = steps(w, 1)
     expect(Math.floor(w.player.x / TILE)).toBe(4)
   })
 
@@ -193,19 +194,11 @@ describe('the course', () => {
   })
 })
 
-describe('the fixed timestep', () => {
-  it('runs whole steps for the frame time and keeps the remainder', () => {
-    const w = room('.P......', FLOOR.slice(0, 8))
-    expect(advance(w, STEP * 2.5, rand).tick).toBe(2)
-    expect(advance(w, STEP * 2.5, rand).acc).toBeCloseTo(STEP * 0.5)
-    expect(advance(advance(w, STEP * 0.6, rand), STEP * 0.6, rand).tick).toBe(1)
-    // a long frame (the tab was away): at most MAX_STEPS
-    expect(advance(w, 5000, rand).tick).toBe(MAX_STEPS)
-  })
-
-  it('does nothing outside play', () => {
+describe('outside play', () => {
+  it('a step changes nothing on the title screen or while paused', () => {
     const w = newWorld(meadow())
-    expect(advance(w, 100, rand)).toBe(w)
-    expect(advance(menu(menu(w, 'start'), 'pause'), 100, rand).tick).toBe(0)
+    expect(step(w)).toBe(w)
+    const paused = menu(menu(w, 'start'), 'pause')
+    expect(step(paused)).toBe(paused)
   })
 })

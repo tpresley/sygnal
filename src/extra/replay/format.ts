@@ -179,7 +179,8 @@ export function vnodeString(v: any, text: (s: string) => string = same): string 
 
 function markup(v: any, text: (s: string) => string): string {
   // a fragment (a Collection's items, a component's injected children): its children in place
-  if (v.sel === undefined) return v.children ? v.children.map((c: any) => vnodeString(c, text)).join('') : text(v.text ?? '')
+  // (a text vnode's text may be a number: `n = {state.n}`, B1)
+  if (v.sel === undefined) return v.children ? v.children.map((c: any) => vnodeString(c, text)).join('') : text(String(v.text ?? ''))
   const d = v.data || {}
   const parts: string[] = []
   // (no keys: the real DOM driver's isolation writes scope keys onto cached vnodes, the mock DOM
@@ -193,7 +194,7 @@ function markup(v: any, text: (s: string) => string): string {
       parts.push(`${bucket[0]}:${k}=${JSON.stringify(typeof x == 'string' ? text(x) : x)}`)
     }
   }
-  const kids = v.children ? v.children.map((c: any) => vnodeString(c, text)).join('') : v.text != null ? text(v.text) : ''
+  const kids = v.children ? v.children.map((c: any) => vnodeString(c, text)).join('') : v.text != null ? text(String(v.text)) : ''
   // the isolation scope classes (div.___s4) depend on creation order, not on what is shown
   return `<${v.sel.replace(/\.___[\w-]+/g, '')}${parts.length ? ' ' + parts.join(' ') : ''}>${kids}</>`
 }
