@@ -38,6 +38,7 @@ Tab move · Ctrl+C quit
 | `onNavigate(href, el)` | a link's default action: route with your router driver |
 | `footer` | the line under the app. Default: what the keys do on the focused element. A string, a function of the terminal, or `false` for none |
 | `mouse` | clicks, double clicks and the wheel (default `false`, so the terminal keeps its own text selection) |
+| `emojiWidth` | how many cells the terminal draws an emoji in. `'auto'` (default) asks the terminal at start: xterm.js-based terminals (VS Code's) draw 🐛 in one cell, most others in two |
 | `console` | `'buffer'` (default on a TTY: `console.log` output is kept, counted in the footer and written after the terminal is restored) or `'pass'` |
 | `color`, `alternateScreen` | default: on when stdout is a TTY |
 | `stdin`, `stdout` | default `process.stdin` / `process.stdout` |
@@ -177,7 +178,7 @@ export const todoStyles = [
 
 Selectors support what intents use: tag, `#id`, `.class`, `[attr]`, `[attr="v"]` (and `^=` `$=` `*=` `~=`), `:not(…)`, descendant and `>` combinators, and `a, b` lists. The state pseudo-classes are `:focus`, `:focus-within`, `:checked`, `:disabled`, `:open`, `:modal` and `:popover-open`.
 
-The layout is a line flow. Block elements start lines, inline content flows and wraps at the terminal's width, lists indent with bullets or numbers, and `<pre>` keeps its spaces. Form controls are drawn as `[text_]`, `[x]`, `(•)`, `[option ▾]`, `[Button]` and `[████░░] 60%` (a `<progress>`). A `<textarea>` is a box of its `rows`. The focused element shows inverse (or with `▸` in plain text), and a focused box's border turns heavy. Widths count terminal cells, so CJK text and emoji take two and combining marks none.
+The layout is a line flow. Block elements start lines, inline content flows and wraps at the terminal's width, lists indent with bullets or numbers, and `<pre>` keeps its spaces. Form controls are drawn as `[text_]`, `[x]`, `(•)`, `[option ▾]`, `[Button]` and `[████░░] 60%` (a `<progress>`). A `<textarea>` is a box of its `rows`. The focused element shows inverse (or with `▸` in plain text), and a focused box's border turns heavy. Widths count terminal cells: CJK text takes two, combining marks none, and an emoji what the terminal uses (`emojiWidth`).
 
 ### Full-screen layouts
 
@@ -206,7 +207,7 @@ Filter [title, label, person] Show [open ▾]
 │• ▸#14 M Search ignores accents ││ │ [Close] [Delete]                         │
 │  (2)                           ││ │                                          │
 ╰─────────────────────────────────╯ ╰──────────────────────────────────────────╯
-Synced 32 shown / 40
+Synced 32 shown / 40 ↑↓ issues · → detail · 3 help
 ```
 
 The box keys come from the terminal stylesheet only, in cells: an inline web style (`style={{ flex: 1, padding: 8 }}`) doesn't make a box. `scrollIntoView()` (an `ELEMENT` command) scrolls an element's boxes to it.

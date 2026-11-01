@@ -22,4 +22,5 @@ export const terminalStyles = [
   ['.new-issue', { overflow: 'auto', flex: 1 }],
   ['.status-bar', { inverse: true }],
   ['.status-bar span', { after: '  ' }],
+  ['.status-bar .hint', { dim: true }],
 ]

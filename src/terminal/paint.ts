@@ -80,30 +80,46 @@ const sgrOf = (st: TerminalStyle): number[] => {
 
 // ── cells: graphemes and their widths ────────────────────────────────
 const segmenter: any = typeof Intl != 'undefined' && (Intl as any).Segmenter ? new (Intl as any).Segmenter() : null
+// text whose every UTF-16 unit is one grapheme of one cell: ASCII, Latin-1 and Latin Extended,
+// general punctuation, arrows, box drawing, blocks, geometric shapes (not the emoji ones). Most of
+// a frame is this (borders, bullets, padding); it needs no segmenter (TUI spike: that was 95% of a paint)
+const SIMPLE = /^[\x20-\x7e -˿‐-‧‰-⁞←-⇿─-◻]*$/
 /** a string's graphemes (user-perceived characters) */
-export const graphemes = (s: string): string[] => segmenter ? Array.from(segmenter.segment(s), (g: any) => g.segment) : [...s]
+export const graphemes = (s: string): string[] => SIMPLE.test(s) ? s.split('') : segmenter ? Array.from(segmenter.segment(s), (g: any) => g.segment) : [...s]
 const WIDE: [number, number][] = [
   [0x1100, 0x115f], [0x2e80, 0x303e], [0x3041, 0x33ff], [0x3400, 0x4dbf], [0x4e00, 0x9fff], [0xa000, 0xa4cf],
   [0xa960, 0xa97f], [0xac00, 0xd7a3], [0xf900, 0xfaff], [0xfe10, 0xfe19], [0xfe30, 0xfe6f], [0xff00, 0xff60],
-  [0xffe0, 0xffe6], [0x1f300, 0x1f64f], [0x1f900, 0x1f9ff], [0x20000, 0x2fffd], [0x30000, 0x3fffd],
+  [0xffe0, 0xffe6], [0x20000, 0x2fffd], [0x30000, 0x3fffd],
 ]
 const ZERO = /^[\p{Mn}\p{Me}\p{Cf}​⁠﻿]+$/u
 const EMOJI = /\p{Emoji_Presentation}|\p{Extended_Pictographic}️|\p{Regional_Indicator}/u
-/** a grapheme's width in terminal cells: 0 (combining, controls), 1, or 2 (CJK, fullwidth, emoji) */
-export function charWidth(g: string): number {
+// how wide the terminal draws an emoji: 2 by Unicode 9+ (most terminals), 1 in a terminal on the
+// older tables (xterm.js by default: VS Code's, the Claude app's). runTerminal asks the terminal
+// (emojiWidth: 'auto'); paint({ emojiWidth }) sets it for a paint
+let emojiCells = 2
+const widths = [new Map<string, number>(), new Map<string, number>()]
+/** a grapheme's width in terminal cells: 0 (combining, controls), 1, or 2 (CJK, fullwidth, emoji: `emojiWidth`, default 2) */
+export function charWidth(g: string, emojiWidth = emojiCells): number {
   const c = g.codePointAt(0) || 0
-  if (c < 32 || (c >= 0x7f && c < 0xa0) || ZERO.test(g)) return 0
+  if (c < 32 || (c >= 0x7f && c < 0xa0)) return 0
+  if (g.length == 1 && c < 0x300) return 1
+  if (ZERO.test(g)) return 0
+  if (EMOJI.test(g)) return emojiWidth
   if (c < 0x1100) return 1
-  if (EMOJI.test(g)) return 2
   for (const [a, b] of WIDE) if (c >= a && c <= b) return 2
   return 1
 }
-/** a string's width in terminal cells */
-export const stringWidth = (s: string): number => {
-  // (ASCII: one cell a character)
-  if (/^[\x20-\x7e]*$/.test(s)) return s.length
-  let n = 0
-  for (const g of graphemes(s)) n += charWidth(g)
+/** a string's width in terminal cells (`emojiWidth`: as charWidth) */
+export const stringWidth = (s: string, emojiWidth = emojiCells): number => {
+  if (SIMPLE.test(s)) return s.length
+  const cache = widths[emojiWidth == 1 ? 1 : 0]
+  let n = cache.get(s)
+  if (n === undefined) {
+    n = 0
+    for (const g of graphemes(s)) n += charWidth(g, emojiWidth)
+    if (cache.size > 5000) cache.clear()
+    cache.set(s, n)
+  }
   return n
 }
 
@@ -125,6 +141,7 @@ function cut(line: Line, from: number, to = Infinity): Line {
     const w = stringWidth(s.text)
     if (col + w <= from || col >= to) { col += w; continue }
     if (col >= from && col + w <= to) { out.push(s); col += w; continue }
+    if (SIMPLE.test(s.text)) { out.push({...s, text: s.text.slice(Math.max(0, from - col), to - col)}); col += w; continue }
     let t = ''
     for (const g of graphemes(s.text)) {
       const gw = charWidth(g)
@@ -225,6 +242,8 @@ export interface PaintOptions {
   width?: number
   /** the screen's rows: the root's height for percentages, flex columns and centering a modal dialog */
   height?: number
+  /** how many cells the terminal draws an emoji in: 2 (default; Unicode 9+) or 1 (older width tables: xterm.js by default) */
+  emojiWidth?: 1 | 2
 }
 /** the innermost element drawn at a cell (the top layer first), else null */
 export function hitTest(frame: Frame, line: number, col: number): HostElement | null {
@@ -644,6 +663,7 @@ const anchorOf = (doc: HostDocument, p: HostElement): HostElement | null => {
 
 /** paint a host document */
 export function paint(doc: HostDocument, options: PaintOptions = {}): Frame {
+  emojiCells = options.emojiWidth == 1 ? 1 : 2
   const rules = [...defaultTerminalStyles, ...(options.rules || [])]
   const width = options.width ?? 80, height = options.height
   const ctx: Ctx = {rules, doc, focus: doc.activeElement, sheet: new Map()}

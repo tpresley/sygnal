@@ -24,17 +24,30 @@ export const visible = (state) => state.issues.filter(SHOW[state.show]).filter(m
 // ── one row of the list ──────────────────────────────────────────────
 export function IssueRow({ state, context }) {
   const selected = context.selectedId === state.id
+  // a roving tabindex: the list is one Tab stop (its selected row, else its first), so Tab goes on to the detail pane
   return (
-    <li className={'issue' + (selected ? ' selected' : '') + (state.closed ? ' closed' : '')} role="option" tabIndex={0} data-id={state.id} aria-selected={selected}>
+    <li className={'issue' + (selected ? ' selected' : '') + (state.closed ? ' closed' : '')} role="option" tabIndex={context.tabStop === state.id ? 0 : -1} data-id={state.id} aria-selected={selected}>
       <span className="id">#{state.id}</span> <span className={'prio prio-' + state.priority}>{state.priority[0].toUpperCase()}</span> {state.title}
     </li>
   )
 }
 
-// the selection follows the focus (a listbox): a click, Tab or j / k focuses a row. The row is the
-// item's own element (isolation), so the item tells its parent
-IssueRow.intent = ({ DOM }) => ({ PICK: DOM.focus('.issue') })
-IssueRow.model = { PICK: { PARENT: (state) => state.id } }
+// the selection follows the focus (a listbox): a click, Tab, ↑ / ↓ or j / k focuses a row; → goes to
+// the detail pane. The row is the item's own element (isolation), so the item tells its parent
+const NAV = { ArrowDown: 1, ArrowUp: -1, Home: -Infinity, End: Infinity, PageDown: 10, PageUp: -10 }
+IssueRow.intent = ({ DOM }) => {
+  const keys = DOM.select('.issue').events('keydown', { preventDefault: (e) => e.key in NAV || e.key === 'ArrowRight' })
+  return {
+    PICK: DOM.focus('.issue'),
+    MOVE: keys.filter((e) => e.key in NAV).map((e) => NAV[e.key]),
+    DETAIL: keys.filter((e) => e.key === 'ArrowRight'),
+  }
+}
+IssueRow.model = {
+  PICK: { PARENT: (state) => ({ pick: state.id }) },
+  MOVE: { PARENT: (state, step) => ({ step }) },
+  DETAIL: { PARENT: () => ({ detail: true }) },
+}
 
 // ── the new-issue form (the form behavior) ───────────────────────────
 const issueSchema = {
@@ -158,7 +171,8 @@ export default function Tracker({ state, uid }) {
         <h2>Keys</h2>
         <ul>
           <li><kbd>/</kbd> search · <kbd>n</kbd> new issue · <kbd>r</kbd> reload</li>
-          <li><kbd>j</kbd> / <kbd>k</kbd> next / previous issue · <kbd>x</kbd> close or reopen · <kbd>d</kbd> delete</li>
+          <li><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>j</kbd> <kbd>k</kbd> next / previous issue · <kbd>→</kbd> / <kbd>Tab</kbd> to the detail pane, <kbd>←</kbd> / <kbd>Shift+Tab</kbd> back</li>
+          <li><kbd>x</kbd> close or reopen · <kbd>d</kbd> delete</li>
           <li><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> switch tabs · <kbd>q</kbd> quit</li>
         </ul>
       </section>
@@ -172,6 +186,7 @@ export default function Tracker({ state, uid }) {
         <span className="sync">{state.loading ? 'Syncing…' : state.error ? 'Offline: ' + state.error : 'Synced'}</span>
         <span className="counts">{list.length} shown / {state.issues.length}</span>
         <span className="message">{state.message}</span>
+        <span className="hint">↑↓ issues · → detail · 3 help</span>
       </footer>
     </main>
   )
@@ -192,18 +207,29 @@ Tracker.uses = {
   view: tabs({ tab: '.tab', selected: 'issues' }),
   more: disclosure({ trigger: '.more-toggle' }),
 }
-Tracker.context = { selectedId: (state) => state.selectedId }
+Tracker.context = {
+  selectedId: (state) => state.selectedId,
+  tabStop: (state) => {
+    const list = visible(state)
+    return list.some((x) => x.id === state.selectedId) ? state.selectedId : list[0]?.id
+  },
+}
 
 Tracker.intent = ({ DOM, CHILD }) => {
   const keys = keymap(DOM, {
     '/': 'SEARCH', n: 'NEW', r: 'RELOAD', j: ['STEP', 1], k: ['STEP', -1],
     x: 'TOGGLE_CLOSED', d: 'ASK_DELETE', 1: ['TAB', 'issues'], 2: ['TAB', 'new'], 3: ['TAB', 'help'], q: 'QUIT',
   })
+  const rows = CHILD.select(IssueRow)
+  const back = DOM.select('.detail').events('keydown', { preventDefault: (e) => e.key === 'ArrowLeft' })
   return {
     ...keys,
     QUERY: DOM.input(Query).value(),
     SHOW: DOM.change(Show).value(),
-    SELECT: CHILD.select(IssueRow),
+    SELECT: rows.filter((m) => m.pick != null).map((m) => m.pick),
+    STEP: xs.merge(keys.STEP, rows.filter((m) => m.step != null).map((m) => m.step)),
+    TO_DETAIL: rows.filter((m) => m.detail),
+    TO_LIST: back.filter((e) => e.key === 'ArrowLeft'),
     TOGGLE_CLOSED: xs.merge(keys.TOGGLE_CLOSED, DOM.click('.toggle-closed')),
     ASK_DELETE: xs.merge(keys.ASK_DELETE, DOM.click('.delete')),
     DELETE: DOM.click('.confirm-ok'),
@@ -244,6 +270,8 @@ Tracker.model = {
     // (the row is a Collection item's element: focusWithin reaches into children)
     ELEMENT: (state) => ({ focus: focusWithin(`.issue[data-id="${state.selectedId}"]`) }),
   },
+  TO_DETAIL: { ELEMENT: { focus: '.detail button' } },
+  TO_LIST: { ELEMENT: (state) => ({ focus: focusWithin(`.issue[data-id="${state.selectedId}"]`) }) },
   TOGGLE_CLOSED: {
     STATE: (state) => (state.selectedId == null ? ABORT : patch(state, state.selectedId, (x) => ({ ...x, closed: !x.closed }))),
     HTTP: (state) => {

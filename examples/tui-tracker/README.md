@@ -18,7 +18,7 @@ Filter [title, label, person] Show [open ▾]
 │• ▸#14 M Search ignores accents ││ │ [Close] [Delete]                         │
 │  (2)                           ││ │                                          │
 ╰─────────────────────────────────╯ ╰──────────────────────────────────────────╯
-Synced 32 shown / 40
+Synced 32 shown / 40 ↑↓ issues · → detail · 3 help
 Enter activate · Tab next · Ctrl+C quit
 ```
 

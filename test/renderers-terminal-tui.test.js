@@ -270,6 +270,12 @@ describe('sygnal/terminal: cells, overlays, the caret', () => {
     expect(f.plain).toEqual(['┌──────────┐', '│🐛 bug    │', '│日本語のテ│', '│キスト    │', '└──────────┘'])
   })
 
+  it('emojiWidth: 1 for a terminal on the older width tables (xterm.js by default): the borders still line up', () => {
+    expect([stringWidth('🐛', 1), stringWidth('日本', 1)]).toEqual([1, 4]) // CJK stays 2
+    const f = paint(tree(['div', { class: 'b' }, '🐛 bug']), { width: 9, emojiWidth: 1, rules: [['.b', { border: true }]] })
+    expect(f.plain).toEqual(['┌───────┐', '│🐛 bug  │', '└───────┘'])
+  })
+
   it('a modal dialog is drawn centered over the page (dimmed in ANSI); the open <select> list under its select', () => {
     const doc = tree(['p', {}, 'Page text'], ['select', { value: 'b' }, ['option', { value: 'a' }, 'Alpha'], ['option', { value: 'b' }, 'Beta']], ['dialog', { 'aria-label': 'Ask' }, 'Sure?'])
     const s = doc.querySelector('select')
@@ -434,6 +440,20 @@ describe('runTerminal', () => {
     stop()
     expect(out.at(-1)).toBe('\x1b[?1006l\x1b[?1002l\x1b[?1000l\x1b[?2004l\x1b[?25h\x1b[?1049l')
     expect(stdin.raw).toBe(false)
+  })
+
+  it("asks the terminal how wide it draws an emoji (a cursor position report), and repaints with it", async () => {
+    const { stdin, stdout, out } = tty(20, 4)
+    const { terminal, stop } = runTerminal(() => h('p', null, '🐛 x'), { stdin, stdout, color: false, footer: false })
+    expect(out).toContain('\x1b[H\u{1F41B}\x1b[6n')
+    expect(terminal.emojiWidth).toBe(2)
+    await tick()
+    stdin.emit('data', '\x1b[1;2R') // the cursor is in column 2: one cell
+    expect(terminal.emojiWidth).toBe(1)
+    stop()
+    const fixed = tty()
+    runTerminal(() => h('p', null, 'x'), { ...fixed, emojiWidth: 1 }).stop()
+    expect(fixed.out.some((x) => x.includes('\x1b[6n'))).toBe(false)
   })
 
   it("a fixed layout fills the screen: the app's rows, then the key hint", async () => {

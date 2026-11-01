@@ -37,7 +37,7 @@ describe('the issue list', () => {
     expect(l).toHaveLength(24)
     expect(l[3]).toMatch(/^╭─ Issues ─+╮ ╭─+╮$/)
     expect(l[4]).toMatch(/^│• #1 L Crash when the config +█│ │ Select an issue \(j \/ k\)\. +│$/)
-    expect(l.at(-1)).toBe('Synced 32 shown / 40')
+    expect(l.at(-1)).toBe('Synced 32 shown / 40 ↑↓ issues · → detail · 3 help')
   })
 
   it('j / k move the selection; the list scrolls to keep it in view; the detail follows', async () => {
@@ -54,6 +54,26 @@ describe('the issue list', () => {
     expect(l[4]).toMatch(/│ │ #24/)
     expect(l[4]).not.toMatch(/█│ │/)
     expect(l[4]).toMatch(/│ │ #24 Search ignores accents \(3\)/)
+  })
+
+  it('the list is one Tab stop: ↑ / ↓ move in it, → or Tab go to the detail pane, ← comes back', async () => {
+    const { term } = tracker()
+    await until(term, 'Synced')
+    expect(term.focusables().filter((e) => e.classList.contains('issue')).map((e) => e.dataset.id)).toEqual(['1'])
+    term.focus('.issue')
+    term.press('ArrowDown')
+    term.press('ArrowDown')
+    await until(term, '│ #3 Typo in the README')
+    expect(term.doc.activeElement.dataset.id).toBe('3')
+    term.press('ArrowRight')
+    await until(term, '▸[Show description]')
+    term.press('ArrowLeft')
+    await tick(40)
+    expect(term.doc.activeElement.dataset.id).toBe('3')
+    term.press('Tab') // past the other rows: the detail's first button
+    expect(term.doc.activeElement.className).toBe('more-toggle')
+    term.press('Tab', { shiftKey: true })
+    expect(term.doc.activeElement.dataset.id).toBe('3')
   })
 
   it('/ focuses the filter; typing narrows the list; the status bar counts', async () => {

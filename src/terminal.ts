@@ -36,6 +36,8 @@ export interface TerminalOptions {
   width?: number
   /** rows: percentages, flex columns and a centered dialog use it (default: none, the content's height; runTerminal: the TTY's) */
   height?: number
+  /** the cells the terminal draws an emoji in: 2 (default) or 1 (older width tables: xterm.js by default); runTerminal asks the terminal */
+  emojiWidth?: 1 | 2
   /** a link's default action: an <a href> activated and not prevented (a router driver's go) */
   onNavigate?: (href: string, el: HostElement) => void
   /** after each change, with the new frame */
@@ -79,6 +81,8 @@ export interface Terminal {
   width: number
   /** rows (undefined: the content's height) */
   height: number | undefined
+  /** the cells an emoji takes (1 or 2) */
+  emojiWidth: 1 | 2
 }
 
 // the readline / Textual Input keys in a text field (the keydown goes out first: an app's keymap can take them)
@@ -96,7 +100,8 @@ export function createTerminal(options: TerminalOptions = {}): Terminal {
   const commands: TerminalCommand[] = []
   let last: Frame | null = null
   const interactive = (el: HostElement | null): HostElement | null => {
-    for (let e = el; e && e !== doc.body; e = e.parentNode) if (isInteractive(e, rules) || e.localName == 'option') return e
+    // (a click reaches a tabindex="-1" element too: focusable, only not a Tab stop, as in a browser)
+    for (let e = el; e && e !== doc.body; e = e.parentNode) if (isInteractive(e, rules) || e.localName == 'option' || (e.hasAttribute('tabindex') && !e.disabled)) return e
     return null
   }
   const term: Terminal = {
@@ -108,7 +113,8 @@ export function createTerminal(options: TerminalOptions = {}): Terminal {
     commands,
     width: options.width ?? 80,
     height: options.height,
-    render: () => (last = paint(doc, {rules, width: term.width, height: term.height})),
+    emojiWidth: options.emojiWidth ?? 2,
+    render: () => (last = paint(doc, {rules, width: term.width, height: term.height, emojiWidth: term.emojiWidth})),
     frame: () => term.render().plain.join('\n'),
     focusables: () => focusableElements(doc, rules, listened),
     focus(sel) {
@@ -286,7 +292,7 @@ export function parseKeys(chunk: string): TerminalKey[] {
   return out
 }
 
-export interface RunTerminalOptions extends Omit<TerminalOptions, 'onFrame' | 'width' | 'height' | 'document' | 'onCommand'> {
+export interface RunTerminalOptions extends Omit<TerminalOptions, 'onFrame' | 'width' | 'height' | 'document' | 'onCommand' | 'emojiWidth'> {
   /** the app's other drivers (DOM is the terminal's; TERMINAL too unless given) */
   drivers?: Record<string, any>
   /** run() options (onError, diagnostics, …) */
@@ -302,6 +308,11 @@ export interface RunTerminalOptions extends Omit<TerminalOptions, 'onFrame' | 'w
   alternateScreen?: boolean
   /** mouse input: clicks, double clicks, the wheel (default false: the terminal keeps its own text selection) */
   mouse?: boolean
+  /**
+   * the cells the terminal draws an emoji in: 'auto' (default on a TTY: an emoji is printed and the
+   * terminal asked where its cursor went, a cursor position report), 1 or 2
+   */
+  emojiWidth?: 1 | 2 | 'auto'
   /**
    * console output while the app runs: 'buffer' (default on a TTY: kept, and written after the
    * terminal is restored; the footer counts it) or 'pass' (written at once, over the frame)
@@ -366,6 +377,7 @@ export function runTerminal(App: any, options: RunTerminalOptions = {}): Running
   }
   const term = createTerminal({
     ...options, width: stdout.columns || 80, height: tty ? Math.max(3, (stdout.rows || 24) - footerRows) : undefined,
+    emojiWidth: options.emojiWidth == 1 ? 1 : 2,
     onFrame: draw,
     onCommand: (c) => {
       if (c == 'exit' || (typeof c == 'object' && c.exit != null)) return queueMicrotask(() => stop(typeof c == 'object' && typeof c.exit == 'number' ? c.exit : 0))
@@ -375,9 +387,20 @@ export function runTerminal(App: any, options: RunTerminalOptions = {}): Running
     },
   })
   let partial = '', lastClick = {t: 0, x: -1, y: -1}
+  // the emoji probe's answer: ESC [ row ; col R (read before the keys: Shift+F3 has the same shape)
+  let probing = false
   const onData = (chunk: any) => {
     let s = partial + String(chunk)
     partial = ''
+    if (probing) {
+      const m = /\x1b\[\d+;(\d+)R/.exec(s)
+      if (m) {
+        probing = false
+        s = s.slice(0, m.index) + s.slice(m.index + m[0].length)
+        const w = +m[1] - 1 == 1 ? 1 : 2
+        if (w !== term.emojiWidth) { term.emojiWidth = w; shown = ''; draw(term.render()) }
+      }
+    }
     // a paste split across chunks: wait for its end
     const ps = s.lastIndexOf(PASTE_START)
     if (ps >= 0 && s.indexOf(PASTE_END, ps) < 0) { partial = s.slice(ps); s = s.slice(0, ps) }
@@ -454,6 +477,14 @@ export function runTerminal(App: any, options: RunTerminalOptions = {}): Running
   stdin.on('data', onData)
   stdin.resume?.()
   stdout.on?.('resize', onResize)
+  // how wide does this terminal draw an emoji? print one at the top left, ask where the cursor is
+  // (the first frame draws over it; no answer in 1 s: the default)
+  if (tty && stdin.isTTY && (options.emojiWidth ?? 'auto') == 'auto') {
+    probing = true
+    stdout.write('\x1b[H\u{1F41B}\x1b[6n')
+    const t = setTimeout(() => { probing = false }, 1000)
+    ;(t as any).unref?.()
+  }
   // (process-wide handlers only for the real process streams, not a test's fakes)
   if (proc?.on && stdin === proc.stdin) {
     proc.on('uncaughtException', onCrash)
