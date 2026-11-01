@@ -492,6 +492,6 @@ processForm(DOM.select('.my-form'), { events: 'submit', preventDefault: true })
 ### Return Value
 
 The stream emits an object with:
-- All form field values keyed by their `name` attribute
+- All form field values keyed by their `name` attribute: a string (a file input: its `File`); a `<select multiple>` an array of its selected values (`[]` when none; since 7.2, before that its last selected value), and so does a `multiple` [Select or Combobox](/guide/widgets/#form-fields). Several checkboxes with one name give the last checked box's value (none checked: no entry); give each its own name, or use the [`form` behavior](/guide/forms/), whose array fields collect them
 - `event` — The raw DOM event
 - `eventType` — The event type string (e.g., `'submit'`, `'input'`)

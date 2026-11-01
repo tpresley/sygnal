@@ -104,7 +104,15 @@ Paint.model = {
 
 ## Several values (chips)
 
-With `multiple`, each value is a chip before the input (`[data-part="item-chip"]` in a `role="list"` named by the label), with a remove button (`[data-part="item-chip-remove"]`, named "Remove Paris"). The input keeps the focus: the remove buttons are out of the tab order, and Backspace in the empty input removes the last chip, as in React Aria and most comboboxes. The model can remove one with the `remove` command: `ELEMENT: (state, value) => ({ remove: '.tags', value })`.
+With `multiple`, each value is a chip before the input, with a remove button (`[data-part="item-chip-remove"]`, named "Remove Paris"). The chips work like React Aria's TagGroup:
+
+- They are a grid (`[data-part="item-chips"]`, `role="grid"`, named by the label) of rows (`[data-part="item-chip"]`, `role="row"`, named by the item's label), described by "Press Delete to remove." (`removeHint`).
+- They are one tab stop: the chip focused last, else the first. The remove buttons are out of the tab order (a click on one keeps the focus where it is).
+- ArrowLeft at the start of the input focuses the last chip. ArrowLeft / ArrowRight move between the chips (swapped with `dir="rtl"`), ArrowRight past the last returns to the input, Home / End go to the first / last chip.
+- Delete or Backspace on a chip removes it and focuses the next chip (else the previous, else the input). Backspace in the empty input removes the last chip.
+- A removal is announced in a polite `role="status"` region: "Paris removed" (`removedMessage={(label) => …}` localizes it, `false` turns it off). It is announced once the value is gone: a model that refuses the removal announces nothing. An addition is not announced: the option's selection already is (React Aria announces added tags only while the focus is in the group, which a pick in the list never is).
+
+The model can remove one with the `remove` command: `ELEMENT: (state, value) => ({ remove: '.tags', value })`.
 
 ```jsx live live-height=260
 import { Combobox } from 'sygnal/ui/combobox'
@@ -131,8 +139,9 @@ Trip.model = {
 
 ```css live
 .stops [data-part='control'] { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; border: 1px solid #ccc; border-radius: 6px; padding: 4px; }
-.stops [data-part='item-chips'] { display: contents; }
+.stops [data-part='item-chips'] { display: flex; flex-wrap: wrap; gap: 4px; }
 .stops [data-part='item-chip'] { display: inline-flex; gap: 4px; align-items: center; background: rgb(99 102 241 / 0.15); border-radius: 999px; padding: 0 4px 0 8px; }
+.stops [data-part='item-chip']:focus-visible { outline: 2px solid rgb(99 102 241); outline-offset: 1px; }
 .stops [data-part='item-chip-remove'] { border: 0; background: none; cursor: pointer; padding: 0 4px; }
 .stops [data-part='input'] { flex: 1; min-width: 6rem; border: 0; outline: none; }
 .stops [data-part='content'], .stops [data-part='empty'] { background: Canvas; border: 1px solid #ddd; padding: 4px 8px; }
@@ -166,6 +175,9 @@ Trip.model = {
 | `multiple` | `false` | Several values, shown as [chips](#several-values-chips) before the input |
 | `chips` | `true` | With `multiple`: `false` renders no chips (render the values yourself) |
 | `removeLabel` | `'Remove'` | A chip's remove button's name: a prefix (`'Remove'` → "Remove Paris") or `(label) => name` |
+| `removedMessage` | `'Paris removed'` | `(label) => text`: what the status region says when a chip is removed; `false`: nothing |
+| `removeHint` | `'Press Delete to remove.'` | The chips' description; `false`: none |
+| `chipsLabel` | the `label` | The chips grid's name |
 | `empty` | | Shown while the list is open with no items: [No results](#no-results) |
 | `positioning` | `{ strategy: 'fixed' }` | Zag's positioning options ([Positioning](#positioning)) |
 | `form`, `disabled`, `readOnly`, `required`, `invalid`, `open` | | As in Zag's combobox |
@@ -190,11 +202,15 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, `focus` (the input), and `remo
 | Escape | Close the list |
 | Home / End | Move the caret in the input |
 | Backspace | In the empty input of a `multiple` combobox: remove the last chip |
+| Left (Right with `dir="rtl"`) | At the start of the input of a `multiple` combobox: focus the last chip |
+| On a chip: Left / Right | The previous / next chip; Right on the last: the input |
+| On a chip: Home / End | The first / last chip |
+| On a chip: Delete, Backspace | Remove it; focus the next chip (else the previous, else the input) |
 | Tab, a click elsewhere | Close; with `allowCustomValue`, commit the typed text |
 
 ## Styling
 
-Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"`, `"item-indicator"`, `"item-group"`, `"item-group-label"`, and `"item-chips"`, `"item-chip"`, `"item-chip-text"`, `"item-chip-remove"`, `"empty"` (round 2); `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
+Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"`, `"item-indicator"`, `"item-group"`, `"item-group-label"`, and `"item-chips"`, `"item-chip"`, `"item-chip-cell"`, `"item-chip-text"`, `"item-chip-remove"`, `"empty"`, `"status"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).
 
 ```css live
 .city { max-width: 16rem; }

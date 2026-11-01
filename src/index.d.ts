@@ -2225,7 +2225,11 @@ export type FormSource = {
   events(eventName: string, ...args: any[]): Stream<any>
 }
 
-export type FormData<FIELDS extends Record<string, string> = Record<string, string>> = FIELDS & {
+/**
+ * processForm's entries: a field's string (a file input: its File), a `<select multiple>` (7.2) and
+ * a multiple widget field an array of their values; declare those in FIELDS: `{ tags: string[] }`
+ */
+export type FormData<FIELDS extends Record<string, any> = Record<string, string>> = FIELDS & {
   event: globalThis.Event;
   eventType: string;
 }
@@ -2249,7 +2253,7 @@ export type ProcessFormOptions = {
  * // form$ is Stream<FormData<{ username: string; email: string }>>
  * // form$.username is typed as string ✓
  */
-export function processForm<FIELDS extends Record<string, string> = Record<string, string>>(
+export function processForm<FIELDS extends Record<string, any> = Record<string, string>>(
   target: FormSource,
   options?: ProcessFormOptions
 ): Stream<FormData<FIELDS>>

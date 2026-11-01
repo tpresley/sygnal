@@ -108,29 +108,70 @@ const onReset = (x: any, input: any) => (e: any) => e.defaultPrevented || setTim
 
 // Round 2 (F-2): a multiple combobox's values as chips before the input (chips={false}: none),
 // each with a remove button (Zag's clearValue(value)); Backspace in the empty input removes the
-// last one, the `remove` command one by value. The buttons are out of the tab order (the input
-// keeps the focus, as in React Aria's and most comboboxes) and named by `removeLabel`.
+// last one, the `remove` command one by value. The buttons are out of the tab order and named by
+// `removeLabel`.
+// Round 3 (React Aria's TagGroup): the chips are a grid of rows, one tab stop (roving tabindex:
+// the last focused chip, else the first). ArrowLeft at the start of the input focuses the last
+// chip; ArrowLeft / ArrowRight move between chips (swapped when dir="rtl"), ArrowRight past the
+// last returns to the input, Home / End the first / last; Delete / Backspace remove the focused
+// chip and focus the next one (else the previous, else the input). A removal is announced in the
+// status region (`removedMessage`); an addition is not: the option's aria-selected already is,
+// and React Aria announces added tags only while the focus is in the group.
 const labelOf = (x: any, v: string) => x.items.find((i: any) => i.value === v)?.label ?? v
 const remove = (x: any, v?: any) => {
   const a = x.api(), p = x.p
   if (p.disabled || p.readOnly || !a.value.length) return
-  a.clearValue(v ?? a.value[a.value.length - 1])
+  a.clearValue(x.rq = v ?? a.value[a.value.length - 1])
+}
+const rows = (x: any): any[] => [...x.el.querySelectorAll('[data-part=item-chip]')]
+const chipKey = (x: any, v: string) => (e: any) => {
+  const r = rows(x), i = r.findIndex((c) => c.dataset.value === v), rtl = x.p.dir == 'rtl'
+  const k = e.key == 'ArrowLeft' ? (rtl ? 1 : -1) : e.key == 'ArrowRight' ? (rtl ? -1 : 1) : 0
+  const go = (j: number) => (j >= r.length ? x.api().focus() : r[Math.max(j, 0)].focus(), e.preventDefault())
+  if (k) go(i + k)
+  else if (e.key == 'Home') go(0)
+  else if (e.key == 'End') go(r.length - 1)
+  else if ((e.key == 'Delete' || e.key == 'Backspace') && !x.p.disabled && !x.p.readOnly) {
+    e.preventDefault()
+    const n = r[i + 1] || r[i - 1]
+    remove(x, v)
+    // the neighbour's row is kept (keyed), whether the removal is in yet (a controlled value: after
+    // the app's flush)
+    n?.isConnected ? n.focus() : x.api().focus()
+  }
 }
 const chips = (api: any, p: any, x: any) => {
   if (!x.multiple || p.chips === false || !api.value.length) return null
   const say = p.removeLabel ?? ((l: string) => 'Remove ' + l), off = !!(p.disabled || p.readOnly)
-  return h('div', {attrs: {'data-scope': 'combobox', 'data-part': 'item-chips', role: 'list', 'aria-label': p.chipsLabel ?? (p.label != null ? String(p.label) : 'Selected')}},
+  // the tab stop: the focused (or last focused) chip while it is a value, else the first
+  const stop = api.value.includes(x.cf) ? x.cf : api.value[0], d = x.hint && {'aria-describedby': x.hint}
+  return h('div', {attrs: {'data-scope': 'combobox', 'data-part': 'item-chips', role: 'grid', 'aria-label': p.chipsLabel ?? (p.label != null ? String(p.label) : 'Selected')}},
     api.value.map((v: string) => {
       const l = labelOf(x, v)
-      return h('span', {key: v, attrs: {'data-scope': 'combobox', 'data-part': 'item-chip', 'data-value': v, role: 'listitem', 'data-disabled': off ? '' : undefined}},
+      return h('div', {
+        key: v,
+        attrs: {'data-scope': 'combobox', 'data-part': 'item-chip', 'data-value': v, role: 'row', 'aria-label': l, tabindex: !p.disabled && v === stop ? '0' : '-1', 'data-disabled': off ? '' : undefined, ...(!off && d)},
+        on: {keydown: chipKey(x, v), focus: () => { x.cf !== v && (x.cf = v, x.draw()) }},
+      }, h('div', {attrs: {role: 'gridcell', 'data-scope': 'combobox', 'data-part': 'item-chip-cell'}},
         h('span', {attrs: {'data-scope': 'combobox', 'data-part': 'item-chip-text'}}, l),
         h('button', {
           attrs: {type: 'button', tabindex: '-1', 'data-scope': 'combobox', 'data-part': 'item-chip-remove', 'aria-label': typeof say == 'function' ? say(l) : say + ' ' + l},
           props: {disabled: off},
-          // the input keeps the focus
+          // the focus stays where it is (the input, or the chip)
           on: {mousedown: (e: any) => e.preventDefault(), click: () => remove(x, v)},
-        }, '×'))
+        }, '×')))
     }))
+}
+// the status region's text: a removal once its value is gone (announced; a zero-width space after
+// every other one, so the same text twice is announced twice); `empty` while it shows
+const status = (api: any, p: any, x: any, none: any) => {
+  if (x.rq != null && !api.value.includes(x.rq)) {
+    const m = p.removedMessage, l = labelOf(x, x.rq)
+    x.rq = null
+    if (m !== false) x.say = (typeof m == 'function' ? m(l) : l + ' removed') + ((x.n = !x.n) ? '' : '\u200b')
+  }
+  // shown text is not announced again when it comes back
+  return none ? (x.say = '', p.empty) : x.say || ''
 }
 // visually hidden, in the accessibility tree (the empty row's status region)
 const SR = {position: 'absolute', width: '1px', height: '1px', margin: '-1px', padding: '0', border: '0', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap'}
@@ -149,6 +190,11 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     if (e.key == 'Enter' && none) commit(x)
     // F-2: Backspace in the empty input removes the last chip
     else if (e.key == 'Backspace' && empty && x.multiple && p.chips !== false) remove(x)
+    // Round 3: ArrowLeft (ArrowRight when rtl) at the start of the input: the last chip
+    else if (e.key == (p.dir == 'rtl' ? 'ArrowRight' : 'ArrowLeft') && !e.defaultPrevented && e.target.selectionStart === 0 && e.target.selectionEnd === 0) {
+      const r = x.multiple && rows(x)
+      r?.length && (e.preventDefault(), r[r.length - 1].focus())
+    }
   }
   x.p = p
   sync(api, p, x)
@@ -163,6 +209,9 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
   // F-4: `empty` while the list is open with no items: a row after the listbox, and the status
   // region's text (announced)
   const none = api.open && !api.collection.items.length && p.empty != null
+  // Round 3: one "Press Delete to remove" description the chips point at (removeHint={false}: none)
+  const tags = x.multiple && p.chips !== false
+  x.hint = tags && p.removeHint !== false ? x.machine.service.prop('id') + '-chip-hint' : 0
   return h('div', api.getRootProps(),
     p.label != null && h('label', api.getLabelProps(), p.label),
     h('div', api.getControlProps(),
@@ -172,14 +221,15 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
     h('div', api.getPositionerProps(),
       h('div', named(api.getContentProps(), p), options(h, api)),
       p.empty != null && h('div', {attrs: {'data-scope': 'combobox', 'data-part': 'empty', hidden: !none}}, p.empty)),
-    p.empty != null && h('div', {attrs: {role: 'status', 'data-scope': 'combobox', 'data-part': 'status'}, style: SR}, none ? p.empty : ''),
+    (p.empty != null || tags) && h('div', {attrs: {role: 'status', 'data-scope': 'combobox', 'data-part': 'status'}, style: SR}, status(api, p, x, none)),
+    x.hint && h('span', {attrs: {id: x.hint, hidden: true}}, p.removeHint ?? 'Press Delete to remove.'),
     hidden(api, p, x))
 }, {
   name: 'Combobox',
   $own: 1,
   field,
   ownProps: [...NAMING, 'name'],
-  props: ({items, label, placeholder, value, defaultValue, filter, empty, chips: _c, removeLabel, chipsLabel, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
+  props: ({items, label, placeholder, value, defaultValue, filter, empty, chips: _c, removeLabel, chipsLabel, removedMessage, removeHint, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.multiple = !!p.multiple
     x.custom = !!p.allowCustomValue
     x.items = norm(items)

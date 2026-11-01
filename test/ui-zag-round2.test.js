@@ -145,13 +145,13 @@ describe('F-2: chips for a multiple Combobox', () => {
   Tags.model = { V: (s, v) => ({ ...s, v }), RM: { ELEMENT: { remove: '.c', value: 'nyc' } } }
   const chips = () => t.queryAll('.c [data-part=item-chip]').map((c) => c.dataset.value)
 
-  it('a chip per value, in a labelled list; a remove button per chip, named, out of the tab order', async () => {
+  it('a chip per value, in a labelled grid (round 3); a remove button per chip, named, out of the tab order', async () => {
     await real(Tags)
     const list = t.query('.c [data-part=item-chips]')
-    expect(list.getAttribute('role')).toBe('list')
+    expect(list.getAttribute('role')).toBe('grid')
     expect(list.getAttribute('aria-label')).toBe('Cities')
     expect(chips()).toEqual(['nyc', 'par'])
-    expect(t.query('.c [data-part=item-chip]').getAttribute('role')).toBe('listitem')
+    expect(t.query('.c [data-part=item-chip]').getAttribute('role')).toBe('row')
     const b = t.query('.c [data-value=par] [data-part=item-chip-remove]')
     expect(b.getAttribute('aria-label')).toBe('Remove Paris')
     expect(b.getAttribute('tabindex')).toBe('-1')

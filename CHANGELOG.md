@@ -5,8 +5,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 ## 7.2.0-preview.0 — dev preview
 
 A dev preview (`npm install sygnal@next sygnal-check@next`). Its new subpaths and the `compile` option are
-experimental, and their APIs may change before 7.2.0. Everything is additive: an app that uses none of it
-behaves as on 7.1.0.
+experimental, and their APIs may change before 7.2.0. Everything is additive but one change to
+`processForm()` (below): an app that uses none of it behaves as on 7.1.0.
 
 **New (experimental).**
 - **Renderer targets:** the same components on other hosts than the browser DOM.
@@ -186,6 +186,15 @@ behaves as on 7.1.0.
   - `createSandbox({ onReject })` and `emitGate(emits, deliver, reject)` report dropped events.
   - Text params take `format: 'code'`: the prompt calls them source code, and `asked_for` items keep
     their own length.
+
+**Changed.**
+- `processForm()` gives a `<select multiple>` as an array of its selected values (`[]` when none),
+  as the `form` behavior's `CHANGE` and a `multiple` Select or Combobox already do. It gave the last
+  selected value, and no entry at all when none was selected. To keep the old value, take the
+  array's last item: `data.tags.at(-1)`. Type the field as an array:
+  `processForm<{ tags: string[] }>(DOM.select('form'))` (`FormData`'s fields may now be any type).
+  Checkbox groups that share a name are unchanged: the last checked box's value, and no entry when
+  none is checked.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
