@@ -82,3 +82,11 @@ dialog2({ dialog: '.d', open: 'yes' })
 export const dismissed: import('sygnal/ui').PopoverActions['DISMISS'] = new Event('pointerdown')
 // @ts-expect-error DISMISS carries the event
 export const notDismissed: import('sygnal/ui').PopoverActions['DISMISS'] = 'outside'
+
+// ui-sweep round 4: the popover trigger and popoverAttrs
+import { popover as popover4, popoverAttrs } from 'sygnal/ui'
+import type { PopoverState, PopoverAttrs } from 'sygnal/ui'
+export const withTrigger = popover4({ popover: '.p', trigger: '.t', id: 'menu', open: false })
+declare const pstate: PopoverState
+export const pattrs: PopoverAttrs = popoverAttrs(pstate, (s?: string) => s ?? '')
+export const toggleTo: import('sygnal/ui').PopoverActions['TOGGLE'] = false

@@ -30,7 +30,7 @@ import * as menu from '@zag-js/menu'
 import {VanillaMachine} from '@zag-js/vanilla'
 import {fromZag, zagProps} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, named, norm, placed} from './shared'
+import {NAMING, layered, named, norm, placed} from './shared'
 
 // a submenu's machine (one per submenu item, kept on the instance by path) and its api: started
 // with the parent's props (dir, loopFocus, typeahead, closeOnSelect), placed beside its trigger
@@ -103,6 +103,7 @@ const items = (service: any, list: any, x: any, path: string, out: any[]): any[]
 
 export const Menu: any = /*#__PURE__*/ fromZag(menu, (api: any, p: any, x: any) => {
   const subs: any[] = [], content = items(x.machine.service, p.items, x, '', subs)
+  layered(x, api.open)
   return [
     h('button', named(api.getTriggerProps(), {...p, label: 1}, 1), p.label),
     h('div', api.getPositionerProps(), h('div', api.getContentProps(), content)),

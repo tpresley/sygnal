@@ -24,10 +24,11 @@
 import * as select from '@zag-js/select'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, field, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, field, placed, arr, collectionOf, layered, named, norm, options, valueOut} from './shared'
 
 export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: any) => {
   const hidden = api.getHiddenSelectProps(), v = api.value
+  layered(x, api.open)
   // multiple: the options' selected props carry the value (a select's value prop is one string)
   if (x.multiple) delete hidden.props.value
   if (p.label == null) delete hidden.attrs['aria-labelledby']

@@ -137,6 +137,8 @@ Toolbar.model = {
 
 A click outside closes it too.
 
+Inside a [controlled popover](/ui/popover/#controlled-dismissal) or [dialog](/ui/dialog/#controlled-dismissal), the open list is the top layer: Escape and a press outside close it first, a press in it isn't outside the popover or dialog, and the next Escape closes that one.
+
 ## Styling
 
 The parts carry Zag's data attributes: `[data-scope="menu"]` with `[data-part="trigger"]`, `"positioner"`, `"content"`, `"item"`, `"separator"`, and for the item kinds `"item-indicator"`, `"item-text"`, `"trigger-item"` and `"submenu-indicator"`; the content and trigger have `data-state="open" | "closed"`, an item `data-highlighted` and `data-disabled`, a checkbox or radio item `data-type` and `data-state="checked" | "unchecked"`. The content is `hidden` while closed, and the positioner places it with `position` and CSS variables (`--x`, `--y`).

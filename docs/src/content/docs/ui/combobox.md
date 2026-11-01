@@ -208,6 +208,8 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, `focus` (the input), and `remo
 | On a chip: Delete, Backspace | Remove it; focus the next chip (else the previous, else the input) |
 | Tab, a click elsewhere | Close; with `allowCustomValue`, commit the typed text |
 
+Inside a [controlled popover](/ui/popover/#controlled-dismissal) or [dialog](/ui/dialog/#controlled-dismissal), the open list is the top layer: Escape and a press outside close it first, a press in it isn't outside the popover or dialog, and the next Escape closes that one.
+
 ## Styling
 
 Zag's data attributes: `[data-scope="combobox"]` with `[data-part="root"]`, `"label"`, `"control"`, `"input"`, `"trigger"`, `"positioner"`, `"content"`, `"item"`, `"item-text"`, `"item-indicator"`, `"item-group"`, `"item-group-label"`, and `"item-chips"`, `"item-chip"`, `"item-chip-cell"`, `"item-chip-text"`, `"item-chip-remove"`, `"empty"`, `"status"`; `data-state`, `data-highlighted` and `data-disabled` as for [Select](/ui/select/#styling).

@@ -167,11 +167,11 @@ export const FIRST_PARTY = {
     intent: ['TOGGLED', 'CLOSED', 'CANCEL', 'SYNC', 'APPLY'],
   },
   popover: {
-    stateKeys: ['open'],
+    stateKeys: ['id', 'open'],
     calculated: [],
     model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED', 'DISMISS', 'SYNC', 'APPLY'],
-    options: ['popover', 'close', 'open'],
-    listens: [['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
+    options: ['popover', 'trigger', 'close', 'open', 'id'],
+    listens: [['trigger', 'TOGGLE'], ['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
   },
   tooltip: {
     stateKeys: ['open', 'pending', 'hover', 'focus', 'pressed'],

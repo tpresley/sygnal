@@ -49,12 +49,20 @@ export function dialog(options: DialogOptions): Behavior<DialogState, DialogActi
 
 // ── Popover ───────────────────────────────────────────────────────────
 /** `open`: the source of truth, as the dialog's (a reducer that writes it shows or hides the popover) */
-export interface PopoverState { open: boolean }
+export interface PopoverState { /** The ids' prefix (popoverAttrs): the `id` option, else the key in `uses` */ id: string | null; open: boolean }
 export interface PopoverOptions {
   /** The popover element (popover="auto" or "manual") */
   popover: BehaviorTarget
+  /**
+   * Round 4 (Radix's Popover.Trigger): its clicks toggle the popover through the model (TOGGLE,
+   * data: the value to go to), and a press on it isn't outside a controlled one; spread
+   * popoverAttrs' `trigger` on it for aria-haspopup / aria-expanded / aria-controls
+   */
+  trigger?: BehaviorTarget
   /** A button inside: its clicks dispatch CLOSE */
   close?: BehaviorTarget
+  /** The ids' prefix for popoverAttrs (default: the key in `uses`) */
+  id?: string
   /**
    * Open at the start (default false). Given at all, even false: controlled (Radix's `open`): a
    * manual popover the browser never dismisses; Escape, a press and a focus outside come as
@@ -62,12 +70,20 @@ export interface PopoverOptions {
    */
   open?: boolean
 }
-export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; /** Controlled only: Escape, a press or a focus outside (the keydown / pointerdown / focusin) */ DISMISS: Event; SYNC: false; APPLY: boolean }
+export interface PopoverActions { OPEN: any; CLOSE: any; /** No data: flip; true / false (the trigger's): go to that value */ TOGGLE: boolean | undefined; TOGGLED: boolean; /** Controlled only: Escape, a press or a focus outside (the keydown / pointerdown / focusin) */ DISMISS: Event; SYNC: false; APPLY: boolean }
 /**
  * A popover (Popover API) as a behavior: `uses = { filters: popover({ popover: '.filters' }) }`, opened by a
  * `popovertarget` button or 'filters.OPEN' / 'filters.TOGGLE'; `state.filters.open` follows its toggle event.
  */
 export function popover(options: PopoverOptions): Behavior<PopoverState, PopoverActions, {}, PopoverOptions>
+export interface PopoverAttrs {
+  /** The trigger: type="button", aria-haspopup="dialog", aria-expanded, aria-controls, data-state */
+  trigger: PartAttrs
+  /** The popover: id, data-state */
+  popover: PartAttrs
+}
+/** Round 4: the attributes of a popover with a `trigger`, from its slice (Radix's Popover.Trigger / Content). */
+export function popoverAttrs(slice: PopoverState | undefined, uid: Uid): PopoverAttrs
 
 // ── Tooltip ───────────────────────────────────────────────────────────
 export interface TooltipState {

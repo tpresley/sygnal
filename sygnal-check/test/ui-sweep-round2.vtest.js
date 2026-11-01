@@ -48,6 +48,19 @@ S.intent = ({ DOM }) => ({ 'd.OPEN': DOM.click('.go'), 'p.OPEN': DOM.click('.go'
     expect(d).toEqual([])
   })
 
+  it('round 4: a host intent replacing popover TOGGLE with trigger passed; not without trigger', () => {
+    const d = only(check(`import { popover, popoverAttrs } from 'sygnal/ui'
+export function S({ state, uid }) {
+  const a = popoverAttrs(state.p, uid), b = popoverAttrs(state.q, uid)
+  return <div><button className="go">Go</button><button className="t" {...a.trigger}>T</button><div className="p" {...a.popover} popover="auto" /><div className="q" {...b.popover} popover="auto" /></div>
+}
+S.uses = { p: popover({ popover: '.p', trigger: '.t' }), q: popover({ popover: '.q' }) }
+S.intent = ({ DOM }) => ({ 'p.TOGGLE': DOM.click('.go'), 'q.TOGGLE': DOM.click('.go') })
+`), 'SYG118')
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toContain("'p.TOGGLE'")
+  })
+
   it('a local defineBehavior whose trigger comes from an option', () => {
     const d = only(check(`import { defineBehavior } from 'sygnal'
 const toggler = defineBehavior({

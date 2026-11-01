@@ -12,7 +12,7 @@ import { dialog, tabs, tabsAttrs, Toaster } from 'sygnal/ui'
 | Part | What it is | Built on |
 |---|---|---|
 | [Dialog](/ui/dialog/) | A behavior for `uses` | `<dialog>`, `showModal()` |
-| [Popover](/ui/popover/) | A behavior for `uses` | The Popover API (`popover`, `popovertarget`) |
+| [Popover](/ui/popover/) | A behavior for `uses` (+ `popoverAttrs` for a `trigger`) | The Popover API (`popover`, `popovertarget`) |
 | [Tooltip](/ui/tooltip/) | A behavior for `uses` | A manual popover placed by CSS anchor positioning, with show and hide delays |
 | [Tabs](/ui/tabs/) | A behavior + `tabsAttrs` | Your buttons and panels; roving focus |
 | [Accordion](/ui/accordion/) | A behavior + `accordionAttrs` | Your buttons and panels |
