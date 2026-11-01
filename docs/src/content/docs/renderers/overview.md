@@ -11,7 +11,7 @@ Sygnal ships four **renderer targets**:
 |---|---|---|---|
 | the DOM driver (default) | the browser's DOM | the user's mouse and keyboard | web apps |
 | [`sygnal/react-native`](/renderers/react-native/) | React Native components (iOS, Android) | taps, typing, switches | native apps |
-| [`sygnal/terminal`](/renderers/terminal/) | text in a terminal | key presses | CLI tools, dashboards, agent consoles |
+| [`sygnal/terminal`](/renderers/terminal/) | text in a terminal | key presses, pastes, the mouse | CLI tools, dashboards, full-screen TUIs, agent consoles |
 | [`sygnal/agent-ui`](/renderers/agent-ui/) | an accessibility snapshot an LLM reads | tool calls (MCP, or your own loop) | letting an agent operate your app's UI |
 
 To keep a web app's work off the main thread, run the whole app in a Web Worker with [`sygnal/worker`](/renderers/off-main-thread/) (experimental): the page only applies its changes to the DOM. You can write more with [`sygnal/host`](/renderers/custom-targets/), the kit the other three are built on. To write one component file for all of them, use the neutral primitives: see [Write Once](/renderers/write-once/).

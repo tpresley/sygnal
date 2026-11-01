@@ -18,12 +18,12 @@ import {fieldKinds} from './host/actions'
 export {HostDocument, HostElement, HostText, HostNode, HostEvent, hostApi, nodeId} from './host/dom'
 export {makeHostDriver, HostSource} from './host/driver'
 export {matches, querySelectorAll} from './host/selector'
-export {computeStyle, isHidden} from './host/style'
+export {computeStyle, isHidden, isInert, closedByHost} from './host/style'
 export type {HostStyle, HostStyleRule} from './host/style'
 export type {HostListener, HostDelegate} from './host/dom'
 export type {HostDriverOptions, HostEventsOptions} from './host/driver'
 export type {UserAgentOptions, KeyInit} from './host/actions'
-export {activate, doubleClick, pressKey, typeText, fill, chooseOption, submit, isFocusable, isInteractive, isTextField, isCheckable, focusableElements, moveFocus, labelTarget, optionValue} from './host/actions'
+export {activate, doubleClick, pressKey, typeText, fill, paste, editText, moveCaret, chooseOption, submit, isFocusable, isInteractive, isTextField, isCheckable, focusableElements, moveFocus, labelTarget, optionValue} from './host/actions'
 
 /**
  * Form-field tags of a target's own vocabulary (`textinput`, `toggle`, …), beyond input, textarea

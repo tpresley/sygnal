@@ -60,6 +60,14 @@ export class HostDocument {
   createElement(tag: string): HostElement
   createTextNode(text: unknown): HostText
   getElementById(id: string): HostElement | null
+  /** the open modal dialogs (showModal()), the topmost last: everything outside it is inert */
+  modals: HostElement[]
+  /** the open popovers (showPopover()), in the order they opened */
+  popovers: HostElement[]
+  /** the topmost open modal dialog */
+  readonly topModal: HostElement | null
+  /** what scrollIntoView() asked to show; a renderer brings it into view and clears it */
+  scrollTarget: HostElement | null
   querySelector(selector: string): HostElement | null
   querySelectorAll(selector: string): HostElement[]
   /** the event types the app's intents listen for on `el` */
@@ -112,10 +120,49 @@ export class HostElement extends HostNode {
   checked: boolean
   selected: boolean
   readonly options: HostElement[]
+  /** a text field's caret / selection (UTF-16 offsets); a new value puts the caret at its end */
+  selectionStart: number
+  selectionEnd: number
+  selectionDirection: 'forward' | 'backward' | 'none'
+  setSelectionRange(start: number, end: number, direction?: 'forward' | 'backward' | 'none'): void
+  /** select the whole value */
+  select(): void
+  /** a <select>'s selected option */
+  selectedIndex: number
+  /** a <select>'s open option list: the highlighted option's index; null while closed */
+  picker: number | null
+  /** open a <select>'s option list */
+  showPicker(): void
+  /** rows scrolled out of view at the top of a renderer's scrolling box */
+  scrollTop: number
+  /** ask the renderer to bring this element into view */
+  scrollIntoView(options?: unknown): void
+  /** the document */
+  getRootNode(): HostDocument
+  /** <dialog> and <details>: the open attribute */
+  open: boolean
+  /** a dialog opened with showModal(), while open */
+  readonly modal: boolean
+  /** a dialog's close(value) */
+  returnValue: string
+  show(): void
+  /** a modal dialog: focus moves in (its [autofocus] or first focusable element) and stays in; the rest is inert */
+  showModal(): void
+  /** removes `open`, sets returnValue, focus back to the opener, then a close event (a microtask later) */
+  close(returnValue?: string): void
+  /** a cancel event (cancelable), then close() */
+  requestClose(returnValue?: string): void
+  /** the Popover API: 'auto' | 'manual' | 'hint' | null */
+  popover: string | null
+  readonly popoverOpen: boolean
+  showPopover(): void
+  hidePopover(): void
+  togglePopover(force?: boolean | { force?: boolean }): boolean
   // reflected to attributes, as the DOM's
   id: string; className: string; type: string; name: string; placeholder: string; href: string
   title: string; src: string; alt: string; role: string; htmlFor: string; tabIndex: number
   disabled: boolean; hidden: boolean; required: boolean; readOnly: boolean; multiple: boolean
+  inert: boolean; autofocus: boolean
   getAttribute(name: string): string | null
   hasAttribute(name: string): boolean
   setAttribute(name: string, value: unknown): void
@@ -133,8 +180,9 @@ export class HostElement extends HostNode {
   focus(): void
   blur(): void
   click(): void
-  addEventListener(type: string, listener: HostListener): void
-  removeEventListener(type: string, listener: HostListener): void
+  /** `once` is honored; capture listeners run with the others (there is no capture phase) */
+  addEventListener(type: string, listener: HostListener, options?: boolean | { once?: boolean, capture?: boolean }): void
+  removeEventListener(type: string, listener: HostListener, options?: boolean | { capture?: boolean }): void
   /** root delegates, then the target and (bubbling) its ancestors; false when prevented */
   dispatchEvent(event: HostEvent | { type: string, bubbles?: boolean }): boolean
   /** a form's named, enabled fields (processForm reads it) */
@@ -193,8 +241,12 @@ export interface HostStyle {
 export type HostStyleRule = [selector: string, style: HostStyle]
 /** matching rules in order, then the inline style; `hidden` → display none */
 export function computeStyle(el: HostElement, rules?: readonly HostStyleRule[]): HostStyle
-/** hidden by itself or an ancestor (display none, hidden, aria-hidden="true") */
+/** hidden by itself or an ancestor (display none, hidden, aria-hidden="true", closedByHost) */
 export function isHidden(el: HostElement, rules?: readonly HostStyleRule[]): boolean
+/** not rendered by the user agent: a closed <dialog>, a [popover] not showing, a closed <details>' content but its <summary> */
+export function closedByHost(el: HostElement): boolean
+/** inside an [inert] element, or outside the topmost open modal dialog */
+export function isInert(el: HostElement): boolean
 
 export interface UserAgentOptions {
   /** a link's default action: an <a href> clicked and not prevented */
@@ -205,12 +257,27 @@ export interface KeyInit { shiftKey?: boolean, ctrlKey?: boolean, altKey?: boole
 export function activate(el: HostElement, options?: UserAgentOptions): boolean
 /** two clicks, then dblclick */
 export function doubleClick(el: HostElement, options?: UserAgentOptions): void
-/** keydown, its default action (typing, Enter submits, Space / Enter activate, ← → on a select), keyup */
+/**
+ * keydown, its default action, keyup: a text field edits at the caret (arrows, Home / End, Shift
+ * selects, Alt / Ctrl by word, Backspace / Delete); a <select> opens its option list (Enter, Space,
+ * Alt+↓, F4), moves the highlight, chooses (Enter / Space) or closes (Escape, Tab), and ← → or a
+ * letter change it while closed; a radio's arrows check the next one; Enter / Space activate;
+ * Escape closes a modal dialog (cancel, close) or an auto popover. False when prevented
+ */
 export function pressKey(target: HostElement, key: string, init?: KeyInit, options?: UserAgentOptions): boolean
 /** a key press per character */
 export function typeText(el: HostElement, text: string, options?: UserAgentOptions): void
 /** replace a field's value: input, then change */
 export function fill(el: HostElement, value: string): void
+/** a paste event (cancelable), then the text inserted at the caret (insertFromPaste; an <input> gets its line breaks as spaces) */
+export function paste(el: HostElement, text: string): boolean
+/**
+ * an edit by Input Events inputType: insertText / insertFromPaste (with `data`), insertLineBreak,
+ * deleteContentBackward / Forward, deleteWordBackward / Forward, deleteSoftLineBackward / Forward
+ */
+export function editText(el: HostElement, inputType: string, data?: string): boolean
+/** move the caret: left right wordLeft wordRight lineStart lineEnd start end up down; `extend` selects */
+export function moveCaret(el: HostElement, to: string, extend?: boolean): void
 /** pick a <select> option by value or label: input, then change */
 export function chooseOption(select: HostElement, valueOrLabel: string): boolean
 export function submit(form: HostElement): boolean
@@ -220,6 +287,7 @@ export function isInteractive(el: HostElement, rules?: readonly HostStyleRule[])
 export function isTextField(el: HostElement): boolean
 /** a checkbox or radio <input>, or a registered checkbox-kind tag */
 export function isCheckable(el: HostElement): boolean
+/** tab order; inside the topmost modal dialog while one is open; a radio group is one stop */
 export function focusableElements(doc: HostDocument, rules?: readonly HostStyleRule[], options?: { listened?: boolean }): HostElement[]
 export function moveFocus(doc: HostDocument, step: 1 | -1, rules?: readonly HostStyleRule[], options?: { listened?: boolean }): HostElement | null
 export function labelTarget(label: HostElement): HostElement | null

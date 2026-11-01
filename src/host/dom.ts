@@ -72,6 +72,8 @@ function tracked(el: HostElement, methods: Record<string, any>, data = false): a
   const attr = (k: string | symbol) => 'data-' + String(k).replace(/[A-Z]/g, c => '-' + c.toLowerCase())
   return new Proxy(target, {
     set(t, k, v) {
+      // (a dataset's values are strings, as the DOM's)
+      if (data) v = String(v)
       if (t[k] === v) return true
       t[k] = v
       data ? el.attributes.set(attr(k), String(v)) : 0
@@ -92,6 +94,12 @@ export class HostDocument {
   /** called once per microtask after any change to the tree (a renderer repaints) */
   onChange: (() => void) | null = null
   activeElement: HostElement | null = null
+  /** the open modal dialogs, the topmost last (showModal(); everything outside the last is inert) */
+  modals: HostElement[] = []
+  /** the open popovers, in the order they opened */
+  popovers: HostElement[] = []
+  /** an element scrollIntoView() asked to show (a renderer brings it into view, then clears it) */
+  scrollTarget: HostElement | null = null
   /** the renderer driver's root delegates: they see every dispatched event first (indexed by type and scope) */
   delegates: Set<HostDelegate> = new DelegateSet()
   /** pokeDOM (Transition, Portal) builds its event from defaultView.Event */
@@ -105,6 +113,8 @@ export class HostDocument {
   createElement(tag: string) { return new HostElement(this, tag) }
   createTextNode(text: any) { return new HostText(this, text) }
   getElementById(id: string) { return this.body.querySelector('#' + id) }
+  /** the topmost open modal dialog (null: none) */
+  get topModal(): HostElement | null { return this.modals[this.modals.length - 1] || null }
   querySelector(sel: string) { return this.body.querySelector(sel) }
   querySelectorAll(sel: string) { return this.body.querySelectorAll(sel) }
   /** the event types the app listens for on `el` (through its intents' selectors) */
@@ -193,8 +203,21 @@ export class HostElement extends HostNode {
   dataset: Record<string, string> = tracked(this, {}, true)
   /** the isolation scope of a component's root element (set by the driver's scope module) */
   __isolate?: any[]
-  private listeners = new Map<string, Set<HostListener>>()
+  private listeners = new Map<string, Map<HostListener, {once: boolean}>>()
   private _value = ''
+  // a text field's caret / selection (the DOM's selectionStart, selectionEnd, selectionDirection)
+  private _selStart = 0
+  private _selEnd = 0
+  selectionDirection: 'forward' | 'backward' | 'none' = 'none'
+  /** a <dialog>'s return value (close(value)) */
+  returnValue = ''
+  /** rows scrolled out of view at the top (a renderer's scrolling box; scrollIntoView) */
+  private _scrollTop = 0
+  private _modal = false
+  private _popoverOpen = false
+  private _opener: HostElement | null = null
+  /** a <select>'s open option list (showPicker()): the highlighted option's index; null: closed */
+  private _picker: number | null = null
   // element state a platform edits (the DOM's properties, not attributes)
   private _checked = false
   private _selected = false
@@ -207,7 +230,113 @@ export class HostElement extends HostNode {
   get tagName() { return this.localName.toUpperCase() }
   get nodeName() { return this.tagName }
   get value() { return this._value }
-  set value(v: any) { const x = v == null ? '' : String(v); if (x !== this._value) { this._value = x; this.ownerDocument.changed(this) } }
+  /** a new value puts the caret at its end, as the DOM's (an edit then places it: setSelectionRange) */
+  set value(v: any) {
+    const x = v == null ? '' : String(v)
+    if (x === this._value) return
+    this._value = x
+    this._selStart = this._selEnd = x.length
+    this.ownerDocument.changed(this)
+  }
+  get selectionStart() { return Math.min(this._selStart, this._value.length) }
+  set selectionStart(n: number) { this.setSelectionRange(n, Math.max(n, this.selectionEnd)) }
+  get selectionEnd() { return Math.min(this._selEnd, this._value.length) }
+  set selectionEnd(n: number) { this.setSelectionRange(Math.min(this.selectionStart, n), n) }
+  /** the caret (start == end) or a selection, in UTF-16 offsets of the value, as the DOM's */
+  setSelectionRange(start: number, end: number, direction: 'forward' | 'backward' | 'none' = 'none') {
+    const n = this._value.length, s = Math.max(0, Math.min(n, start | 0)), e = Math.max(s, Math.min(n, end | 0))
+    if (s === this._selStart && e === this._selEnd && direction === this.selectionDirection) return
+    this._selStart = s; this._selEnd = e; this.selectionDirection = direction
+    this.ownerDocument.changed(this)
+  }
+  /** select the whole value */
+  select() { this.setSelectionRange(0, this._value.length, 'forward') }
+  get scrollTop() { return this._scrollTop }
+  set scrollTop(v: number) { const x = Math.max(0, Math.round(+v || 0)); if (x !== this._scrollTop) { this._scrollTop = x; this.ownerDocument.changed(this) } }
+  /** ask the renderer to bring this element into view (its scrolling boxes and the screen) */
+  scrollIntoView() { this.ownerDocument.scrollTarget = this; this.ownerDocument.changed(this) }
+  /** the document: the tree's root for code that reads `el.getRootNode().activeElement` */
+  getRootNode(): any { return this.ownerDocument }
+
+  /** a <select>'s selected option index (-1: none) */
+  get selectedIndex(): number { return this.options.findIndex(o => optionValue(o) === this._value) }
+  set selectedIndex(i: number) { const o = this.options[i]; this.value = o ? optionValue(o) : '' }
+  /** a <select>'s open option list: the highlighted option's index, or null when closed */
+  get picker(): number | null { return this._picker }
+  set picker(i: number | null) { if (i !== this._picker) { this._picker = i; this.ownerDocument.changed(this) } }
+  /** open a <select>'s option list (the DOM's showPicker), the selected option highlighted */
+  showPicker() {
+    if (this.localName != 'select' || this.disabled) return
+    this.picker = Math.max(0, this.selectedIndex)
+  }
+
+  // <dialog>: show(), showModal(), close(), requestClose() and `open`, as the DOM's
+  get open() { return this.hasAttribute('open') }
+  set open(v: boolean) { this.toggleAttribute('open', !!v) }
+  /** a modal dialog (showModal()) while it is open */
+  get modal() { return this._modal && this.open }
+  show() { this.openDialog(false) }
+  showModal() {
+    if (this.open && this._modal) return
+    if (this.open || !this.isConnected) throw new Error(`InvalidStateError: showModal() on ${this.open ? 'an open' : 'a disconnected'} dialog`)
+    this.openDialog(true)
+  }
+  private openDialog(modal: boolean) {
+    if (this.open) return
+    const d = this.ownerDocument
+    this._modal = modal
+    this._opener = d.activeElement
+    this.setAttribute('open', '')
+    if (modal) d.modals.push(this)
+    // the dialog focusing steps: its [autofocus] element, else its first focusable one, else itself
+    const to = this.querySelector('[autofocus]') || this.querySelectorAll('*').find(e => focusableHere(e)) || this
+    to.focus()
+  }
+  /** close an open dialog: `returnValue`, then a close event (a microtask later); the focus goes back to its opener */
+  close(returnValue?: string) {
+    if (!this.open) return
+    const d = this.ownerDocument
+    if (returnValue !== undefined) this.returnValue = String(returnValue)
+    this.removeAttribute('open')
+    d.modals = d.modals.filter(m => m !== this)
+    this._modal = false
+    const op = this._opener
+    this._opener = null
+    const a = d.activeElement
+    if (op?.isConnected && (!a || this.contains(a))) op.focus()
+    else if (a && this.contains(a)) a.blur()
+    queueMicrotask(() => this.dispatchEvent(new HostEvent('close', {bubbles: false})))
+  }
+  /** Escape on a modal dialog, or a close request: a cancelable cancel event, then close() */
+  requestClose(returnValue?: string) {
+    if (!this.open) return
+    if (this.dispatchEvent(new HostEvent('cancel', {bubbles: false, cancelable: true}))) this.close(returnValue)
+  }
+
+  // the Popover API: [popover] elements are hidden until showPopover()
+  get popover(): string | null { const p = this.getAttribute('popover'); return p == null ? null : /^(manual|hint)$/i.test(p) ? p.toLowerCase() : 'auto' }
+  set popover(v: string | null) { v == null ? this.removeAttribute('popover') : this.setAttribute('popover', v) }
+  get popoverOpen() { return this._popoverOpen }
+  showPopover() { this.togglePopover(true) }
+  hidePopover() { this.togglePopover(false) }
+  togglePopover(force?: boolean | {force?: boolean}) {
+    const want = typeof force == 'object' ? force.force ?? !this._popoverOpen : force ?? !this._popoverOpen
+    if (want === this._popoverOpen || this.popover == null) return this._popoverOpen
+    const d = this.ownerDocument, states = {oldState: want ? 'closed' : 'open', newState: want ? 'open' : 'closed'}
+    if (!this.dispatchEvent(new HostEvent('beforetoggle', {bubbles: false, cancelable: want, ...states})) && want) return false
+    this._popoverOpen = want
+    d.popovers = want ? [...d.popovers, this] : d.popovers.filter(p => p !== this)
+    // hidden with the focus inside: back to what had it before it showed
+    if (want) this._opener = d.activeElement
+    else {
+      const op = this._opener, a = d.activeElement
+      this._opener = null
+      if (a && this.contains(a)) op?.isConnected ? op.focus() : a.blur()
+    }
+    d.changed(this, true)
+    queueMicrotask(() => this.dispatchEvent(new HostEvent('toggle', {bubbles: false, ...states})))
+    return want
+  }
   get children(): HostElement[] { return this.childNodes.filter((n): n is HostElement => n.nodeType === 1) }
   get firstChild() { return this.childNodes[0] || null }
   get lastChild() { return this.childNodes[this.childNodes.length - 1] || null }
@@ -247,6 +376,8 @@ export class HostElement extends HostNode {
     node.parentNode = null
     const d = this.ownerDocument, a = d.activeElement
     if (a && !a.isConnected) d.activeElement = null
+    if (d.modals.length) d.modals = d.modals.filter(m => m.isConnected)
+    if (d.popovers.length) d.popovers = d.popovers.filter(p => p.isConnected)
     d.changed(this)
     return node
   }
@@ -268,6 +399,8 @@ export class HostElement extends HostNode {
     const d = this.ownerDocument, prev = d.activeElement
     if (prev === this || !this.isConnected) return
     d.activeElement = this
+    // a <select>'s option list closes when the focus leaves it
+    if (prev) prev.picker = null
     if (prev) { prev.dispatchEvent(new HostEvent('blur', {bubbles: false})); prev.dispatchEvent(new HostEvent('focusout')) }
     this.dispatchEvent(new HostEvent('focus', {bubbles: false}))
     this.dispatchEvent(new HostEvent('focusin'))
@@ -277,19 +410,20 @@ export class HostElement extends HostNode {
     const d = this.ownerDocument
     if (d.activeElement !== this) return
     d.activeElement = null
+    this.picker = null
     this.dispatchEvent(new HostEvent('blur', {bubbles: false}))
     this.dispatchEvent(new HostEvent('focusout'))
     d.changed()
   }
-  select() {}
   click() { this.dispatchEvent(new HostEvent('click')) }
 
-  addEventListener(t: string, f: HostListener) {
+  /** options: `once` (removed after its first call); capture listeners run with the others (no capture phase) */
+  addEventListener(t: string, f: HostListener, options?: boolean | {once?: boolean, capture?: boolean}) {
     let s = this.listeners.get(t)
-    if (!s) this.listeners.set(t, s = new Set())
-    s.add(f)
+    if (!s) this.listeners.set(t, s = new Map())
+    if (!s.has(f)) s.set(f, {once: typeof options == 'object' && !!options.once})
   }
-  removeEventListener(t: string, f: HostListener) { this.listeners.get(t)?.delete(f) }
+  removeEventListener(t: string, f: HostListener, _options?: boolean | {capture?: boolean}) { this.listeners.get(t)?.delete(f) }
   /**
    * The root delegates first (the renderer driver's sources, as the DOM driver's delegation at
    * the root), then the target and, when it bubbles, its ancestors. Returns false when prevented.
@@ -303,7 +437,7 @@ export class HostElement extends HostNode {
     for (let n: HostElement | null = this; n && !ev.cancelBubble; n = ev.bubbles ? n.parentNode : null) {
       ev.currentTarget = n
       const s = n.listeners.get(ev.type)
-      if (s) for (const f of [...s]) f(ev)
+      if (s) for (const [f, o] of [...s]) { if (o.once) s.delete(f); f(ev) }
     }
     ev.currentTarget = null
     return !ev.defaultPrevented
@@ -325,8 +459,14 @@ export class HostElement extends HostNode {
   declare placeholder: string; declare href: string; declare title: string; declare src: string
   declare alt: string; declare role: string; declare htmlFor: string; declare tabIndex: number
   declare disabled: boolean; declare hidden: boolean; declare required: boolean; declare readOnly: boolean
-  declare multiple: boolean
+  declare multiple: boolean; declare inert: boolean; declare autofocus: boolean
 }
+
+/** focusable for a dialog's focusing steps (actions.ts has the full rule, with stylesheets) */
+const focusableHere = (e: HostElement) => !e.disabled && (e.getAttribute('tabindex') != null ? +e.getAttribute('tabindex')! >= 0
+  : /^(input|textarea|select|button)$/.test(e.localName) && e.type != 'hidden' || (e.localName == 'a' && e.hasAttribute('href')))
+/** an <option>'s value: its value property or attribute, else its text */
+export const optionValue = (o: HostElement): string => o.value || (o.getAttribute('value') ?? o.textContent.trim())
 
 // properties that reflect to attributes, as the DOM's do: the props module writes `type`, `href`,
 // `className`; selectors read [type=checkbox], [href], .class
@@ -344,7 +484,7 @@ Object.defineProperty(P, 'tabIndex', {
   set(this: HostElement, v: any) { v == null ? this.removeAttribute('tabindex') : this.setAttribute('tabindex', v) },
   configurable: true,
 })
-for (const [k, a] of [['disabled', 'disabled'], ['hidden', 'hidden'], ['required', 'required'], ['readOnly', 'readonly'], ['multiple', 'multiple']]) {
+for (const [k, a] of [['disabled', 'disabled'], ['hidden', 'hidden'], ['required', 'required'], ['readOnly', 'readonly'], ['multiple', 'multiple'], ['inert', 'inert'], ['autofocus', 'autofocus']]) {
   Object.defineProperty(P, k, {
     get(this: HostElement) { return this.hasAttribute(a) },
     set(this: HostElement, v: any) { this.toggleAttribute(a, !!v) },

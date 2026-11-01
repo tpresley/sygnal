@@ -1,19 +1,20 @@
 /**
  * sygnal/host: the CSS selector subset intents use, on host elements. Selector lists (`a, b`),
  * the descendant and child (`>`) combinators, and compounds of `*`, tag, #id, .class, [attr],
- * [attr=v] (also ^= $= *= ~=), :focus and :not(<compound>). Controls stringify to
+ * [attr=v] (also ^= $= *= ~=), the state pseudo-classes :focus, :focus-visible, :focus-within,
+ * :checked, :disabled, :enabled, :open, :modal and :popover-open, and :not(<compound>). Controls stringify to
  * `[data-control="X"]`. Anything else throws, so a gap shows as an error rather than as a stream
  * that never fires.
  */
 type Attr = [name: string, op: string, value: string | undefined]
-type Simple = {tag?: string, id?: string, classes: string[], attrs: Attr[], focus?: boolean, not: Simple[]}
+type Simple = {tag?: string, id?: string, classes: string[], attrs: Attr[], pseudo: string[], not: Simple[]}
 type Step = {comb: ' ' | '>', simple: Simple}
 
 const cache = new Map<string, Step[][]>()
-const COMPOUND = /([a-zA-Z][\w-]*|\*)|#([\w-]+)|\.([\w-]+)|\[\s*([\w-]+)\s*(?:([~^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*))\s*)?\]|:(focus)|:not\(([^)]*)\)/y
+const COMPOUND = /([a-zA-Z][\w-]*|\*)|#([\w-]+)|\.([\w-]+)|\[\s*([\w-]+)\s*(?:([~^$*]?=)\s*(?:"([^"]*)"|'([^']*)'|([^\]\s]*))\s*)?\]|:(focus-visible|focus-within|focus|checked|disabled|enabled|open|modal|popover-open)|:not\(([^)]*)\)/y
 
 function compound(s: string, sel: string): Simple {
-  const out: Simple = {classes: [], attrs: [], not: []}
+  const out: Simple = {classes: [], attrs: [], pseudo: [], not: []}
   let i = 0
   while (i < s.length) {
     COMPOUND.lastIndex = i
@@ -26,7 +27,7 @@ function compound(s: string, sel: string): Simple {
     else if (m[2]) out.id = m[2]
     else if (m[3]) out.classes.push(m[3])
     else if (m[4]) out.attrs.push([m[4], m[5] || '', m[6] ?? m[7] ?? m[8]])
-    else if (m[9]) out.focus = true
+    else if (m[9]) out.pseudo.push(m[9])
     else if (m[10] !== undefined) out.not.push(compound(m[10].trim(), sel))
     i = next
   }
@@ -70,9 +71,23 @@ function simpleOk(el: any, s: Simple): boolean {
   if (s.id && el.getAttribute('id') !== s.id) return false
   for (const c of s.classes) if (!el.classList.contains(c)) return false
   for (const a of s.attrs) if (!attrOk(el, a)) return false
-  if (s.focus && el.ownerDocument.activeElement !== el) return false
+  for (const p of s.pseudo) if (!pseudoOk(el, p)) return false
   for (const n of s.not) if (simpleOk(el, n)) return false
   return true
+}
+
+function pseudoOk(el: any, p: string): boolean {
+  const a = el.ownerDocument.activeElement
+  switch (p) {
+    case 'focus': case 'focus-visible': return a === el
+    case 'focus-within': return !!a && el.contains(a)
+    case 'checked': return el.localName == 'option' ? !!el.selected || el.parentNode?.value === (el.value || el.getAttribute('value') || el.textContent.trim()) : !!el.checked
+    case 'disabled': return !!el.disabled
+    case 'enabled': return !el.disabled
+    case 'open': return el.localName == 'select' ? el.picker != null : !!el.open || !!el.popoverOpen
+    case 'modal': return !!el.modal
+    default: return !!el.popoverOpen
+  }
 }
 
 /** right to left; `stop`: an ancestor the match may not reach (an isolation scope's boundary) */
