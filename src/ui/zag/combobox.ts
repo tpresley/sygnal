@@ -34,7 +34,7 @@
 import * as combobox from '@zag-js/combobox'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, field, placed, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, field, placed, arr, collectionOf, layered, named, norm, options, valueOut} from './shared'
 
 const shown = (all: any[], f: any, q: string) => {
   if (f === false || !q) return all
@@ -178,6 +178,7 @@ const SR = {position: 'absolute', width: '1px', height: '1px', margin: '-1px', p
 
 export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, x: any) => {
   const input = named(api.getInputProps(), p, 1)
+  layered(x, api.open)
   delete input.attrs.name
   delete input.attrs.form
   // Round 2: commit the typed text (allowCustomValue) when the focus leaves the combobox, or on

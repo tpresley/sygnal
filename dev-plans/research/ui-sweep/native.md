@@ -453,3 +453,139 @@ scripts/size-gate.mjs` OK (**42,734 B, 266 B headroom: core unchanged**); `npm -
 sygnal-check test` OK (1,860, plain and per-file); `node scripts/gen-error-docs.mjs --check` OK;
 `node scripts/check-doc-samples.mjs` 980 clean; `npm --prefix docs run build` OK; `node
 docs/scripts/check-live.mjs` on chromium, firefox and webkit OK (130 demos each).
+
+## Round 4: the popover trigger, one dismissal per interaction, Zag layers
+
+The maintainer's answers to round 3's four questions. Merged `claude/advanced-integration`
+(aaf2b964) first.
+
+### What changed
+
+1. **`popover({ trigger })`** (Radix's `Popover.Trigger`):
+   - Its clicks are prevented and dispatch `TOGGLE` with the value to go to. That value is read
+     from the state at the press, not flipped at the click: an `auto` popover's light dismiss
+     runs at the pointerup, between the press and the click, so a flip at the click would open it
+     again (the reason round 2 had no `trigger` option). Keyboard clicks have no press and read
+     the state at the click.
+   - `TOGGLE` now takes optional data (`true` / `false`: go to that value; none: flip).
+   - A press on the trigger isn't outside a controlled popover (its layer carries the selector, as
+     the dialog's does).
+   - ARIA: **`popoverAttrs(state, uid)`**, a new attribute helper like `disclosureAttrs`, gives
+     the trigger `type="button"`, `aria-haspopup="dialog"`, `aria-expanded`, `aria-controls`,
+     `data-state` and the popover its `id` and `data-state` (Radix's Trigger / Content). The
+     popover is now `keyed` like disclosure and tabs, so its slice is `{ id, open }` (`id`
+     option). A helper, not attributes the behavior writes on the element: the parts never set
+     host attributes behind the view (the vnode would overwrite them on its next change).
+   - Correction to the brief: the dialog's `trigger` sets no ARIA today (no `dialogAttrs`). Radix's
+     `Dialog.Trigger` does (`aria-haspopup="dialog"`, `aria-expanded`, `aria-controls`). Left as a
+     follow-up, not done here.
+   - `popovertarget` buttons work as before. SYG118's `triggers` gains `TOGGLE: 'trigger'`
+     (checked: a host `'p.TOGGLE'` intent with `trigger` given warns); sygnal-check's first-party
+     table gains the `trigger` / `id` options, the `id` state key and `listens ['trigger', 'TOGGLE']`.
+2. **One dismissal per interaction**: from a pointerdown until that press ends (its click, a
+   pointercancel, the next keydown), focusin isn't a dismissal. A press outside that moves the
+   focus outside dispatches one `DISMISS` / `CANCEL`, with the pointerdown as its data (what Radix
+   reports first). A touch press dismisses at its click, and the focus it moves before the click is
+   covered too. Escape was already one.
+3. **Zag layers on the stack**. Two designs were possible:
+   - (a) the stack recognises Zag's own layers (read `@zag-js/dismissable`'s `layerStack`);
+   - (b) the Zag parts register their open content on our stack.
+
+   Picked (b):
+   - (a) would reach into a private module of a peer dependency (`layerStack` isn't public API,
+     and a second copy of `@zag-js/dismissable` would be a second stack). It would also add
+     nothing for placement: Zag's layers know their node, not where they belong in the page.
+   - (b) is three lines per part on code this repo owns: `layered(x, api.open)` in each part's
+     render (`src/ui/zag/shared.ts`) adds the content element to the stack when the machine opens
+     and removes it when it closes.
+   - The entry is a layer the stack doesn't dismiss (`ctl` false): Zag still dismisses its part,
+     through its own dismissable layer. The entry's **anchor** is the widget's host element.
+   - The stack's "inside" test is now Radix's tree test. A target is inside layer L if it is in
+     L's element (DOM, shadow root, `<Portal>`), or in a layer above L whose anchor is inside L. So
+     a press in a Zag list counts as inside the popover or dialog its host is in, wherever the
+     list renders.
+   - The open Zag layer is on top, so Escape is Zag's (the stack does nothing when the top layer
+     isn't controlled; Zag's own capture-phase handler closes it and prevents the event). The next
+     Escape reaches the popover.
+   - A press outside both: Zag closes its part, and the stack dismisses the popover (Radix's nested
+     layers both dismiss).
+   - An uncontrolled dialog's own Escape also skips while a Zag layer anchored in it is open
+     (`covered()`).
+
+   Size: the Zag bundles each carry their own copy of the stack. So the entries live in a separate
+   module (`src/ui/stack.ts`: the global, `add`, `pull`) and the listeners stay in `layers.ts`,
+   which only `sygnal/ui` loads. A Zag part never needs the listeners: on its own it isn't
+   dismissed by the stack, and a controlled layer comes from `sygnal/ui`, which installs them. The
+   listeners are installed once per page, by the first `sygnal/ui` copy that opens a layer, and
+   stay (three document listeners), instead of being removed when the stack empties (with two
+   copies, one copy's removal could take the other's listeners).
+4. **No change**: a modal dialog not rendered inside a controlled popover dismisses it when it takes
+   the focus, as in Radix. Documented in ui/popover with the two ways to keep it open (render the
+   dialog inside the popover, or refuse `DISMISS` while it is open).
+
+### Tests
+
+- `test/ui-native-sweep.test.js`, 6 new:
+  - the trigger: prevented, `TOGGLE` with data, the popoverAttrs ARIA;
+  - an uncontrolled light dismiss between the press and the click doesn't reopen it;
+  - a controlled popover: a press on the trigger isn't outside;
+  - one `DISMISS` for a press plus the focus it moves (data: pointerdown), then a later focus
+    outside is one;
+  - a layer anchored inside the popover but rendered elsewhere counts as inside, and Escape is
+    its own while it is on top;
+  - a real Zag `Menu` in a controlled popover: a press in the menu isn't outside, Escape closes
+    the menu only, the next Escape closes the popover.
+- `browser-tests/src/tests/ui-sweep-native.jsx`, chromium / firefox / webkit, real input, 2 new:
+  - the trigger on an auto popover (opens, then closes with no reopen after the light dismiss),
+    on a controlled one, with the ARIA; one DISMISS for a click outside that moves the focus;
+  - a Zag `Menu` in a controlled popover: Escape and a pick close the menu only, the next Escape
+    the popover, a press outside both closes both.
+- SYG118 for a host `'p.TOGGLE'` intent with `trigger` given: a dev test (`test/ui-sweep-diagnostics.test.js`) and a sygnal-check one (`ui-sweep-round2.vtest.js`).
+- Updated: two `p5-2u-ui` expectations of the popover slice (now with `id`); type tests for
+  `trigger`, `id`, `popoverAttrs` and `TOGGLE`'s data.
+
+### Size (round 4)
+
+- Core: unchanged (no core file touched); size gate below.
+- Parts (esbuild, minified + gzip; the core, `sygnal/zag` and `@zag-js/*` external), round 3 →
+  round 4:
+
+| | Round 3 | Round 4 | |
+|---|---|---|---|
+| dialog | 3,090 B | 3,227 B | +137 (the stack's anchor, press handling) |
+| popover | 2,441 B | 2,826 B | +385 (trigger, keyed) |
+| popover + popoverAttrs | | 3,020 B | |
+| dialog + popover + tooltip | 4,244 B | 4,634 B | +390 |
+| Menu | 1,527 B | 1,732 B | +205 (stack entries) |
+| Select | 1,250 B | 1,465 B | +215 |
+| Combobox | 3,224 B | 3,416 B | +192 |
+
+  (The round-3 numbers here are measured from aaf2b964 with the same script, which externalises
+  `sygnal/zag` and `@zag-js/*`; round 3's own table used a narrower external list, hence
+  3,039 → 3,090 for the dialog.)
+
+### Open questions (round 4)
+
+1. `dialogAttrs(state, uid)` for the dialog's trigger (`aria-haspopup="dialog"`,
+   `aria-expanded`, `aria-controls`), matching Radix's `Dialog.Trigger`: add it the same way?
+2. A Zag part opened over a controlled layer but rendered outside it (not nested) is on top for
+   Escape: the first Escape closes it, the second the popover. That is Radix's order; only noting
+   it.
+
+### Gate (round 4)
+
+2026-10-31, this branch, on a loaded machine (load average ~36, other sessions running):
+- `npm run build` OK; `node scripts/size-gate.mjs` OK (**42,734 B, 266 B headroom: core
+  unchanged**); `node scripts/gen-error-docs.mjs --check` OK; `node scripts/check-doc-samples.mjs`
+  981 clean; `npm --prefix docs run build` OK; `node docs/scripts/check-live.mjs` on chromium,
+  firefox and webkit OK (130 demos each); UI browser suites on firefox and webkit
+  (`uiSweepNative` 18, `uiTestsP5U` 37, `uiZag` 18) all passed, and `uiSweepNative` 18/18 on
+  chromium too.
+- `npm test`, first run: 5,800 passed, 1 failed (`p45-a2-vnode-identity`, a Suspense timing test
+  that doesn't load `sygnal/ui`; 3/3 green alone). Second run: different timing failures
+  (`compose-generated-*`, `api-plugin`: the sandbox / Vite-build tests round 1 already saw as
+  load flakes), all green alone.
+- `npm --prefix sygnal-check test`: 1,857–1,858 of 1,865 passed; the failures are
+  `lsp-completion`, `lsp-parts`, `lsp-rename`, `p10-watch` (LSP / watcher timing), green alone
+  (`lsp-parts` 4/4). The same four files fail on aaf2b964 (round 3's base) in a worktree run, so
+  this round didn't cause them.

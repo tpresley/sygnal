@@ -105,6 +105,8 @@ A refused `CANCEL` leaves the dialog open with no close in between, whatever dis
 
 Dialogs and [controlled popovers](/ui/popover/#controlled-dismissal) stack as layers. Escape dismisses the top layer only, so a controlled popover open in a dialog closes first and the next Escape closes the dialog. A press on the dialog outside the popover dismisses the popover only, and a press outside both dismisses both, each through its own action. A layer opened in another one counts as inside it, also when it renders through a `<Portal>`.
 
+One interaction is one `CANCEL`: a press on the backdrop that also moves the focus reports the `pointerdown`. An open [Menu](/ui/menu/), [Select](/ui/select/) or [Combobox](/ui/combobox/) in the dialog is a layer above it: Escape and a press outside close it first, and a press in its list isn't outside the dialog.
+
 The dialog works inside a [`<Portal>`](/advanced/portals/) too: the behavior finds its element, its events and its commands in the portal's content. The top layer already draws a modal dialog above the page, so a portal is rarely needed.
 
 React to a close in your own model with an entry for the namespaced action. It runs after the behavior's, on the full state:

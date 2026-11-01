@@ -5,7 +5,9 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { renderComponent } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { accordion, accordionAttrs, dialog, popover, tooltip, tooltips } from '../src/ui.ts'
+import { accordion, accordionAttrs, dialog, popover, popoverAttrs, tooltip, tooltips } from '../src/ui.ts'
+import { Menu } from '../src/ui-menu.ts'
+import { push } from '../src/ui/layers.ts'
 
 let t
 afterEach(() => {
@@ -569,5 +571,146 @@ describe('controlled dialog: dismissed through the state (round 3)', () => {
     esc(t.query('.in'))
     await step()
     expect(t.state.d.open).toBe(false)
+  })
+})
+
+// ── ui-sweep round 4: the popover trigger, one dismissal per press, Zag layers on the stack ────
+describe('popover trigger (round 4, Radix Popover.Trigger)', () => {
+  const host = (opts = {}, extra = {}) => {
+    function P({ state, uid }) {
+      const a = popoverAttrs(state.p, uid)
+      return h('div', null,
+        h('button', { className: 'trig', ...a.trigger }, 'Open'),
+        h('button', { className: 'outside' }, 'Out'),
+        h('div', { className: 'p', ...a.popover, attrs: { popover: 'auto' } }, h('button', { className: 'in' }, 'In')))
+    }
+    P.uses = { p: popover({ popover: '.p', trigger: '.trig', ...opts }) }
+    P.model = { ...extra }
+    return P
+  }
+  const types = () => t.actions.map((a) => a.type).filter((a) => !a.endsWith('.APPLY'))
+  const step = async () => { await t.settle(); await tick() }
+  const lastToggle = () => t.actions.filter((a) => a.type == 'p.TOGGLE').at(-1)
+  const press = (el, type = 'mouse') => el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerType: type }))
+
+  it('its clicks toggle through the model (prevented), with the value to go to; popoverAttrs gives the ARIA', async () => {
+    t = renderComponent(host(), { dom: 'real' })
+    await t.ready()
+    const tr = t.query('.trig')
+    expect([tr.getAttribute('aria-haspopup'), tr.getAttribute('aria-expanded'), tr.getAttribute('aria-controls')]).toEqual(['dialog', 'false', t.query('.p').id])
+    expect(t.query('.p').id).toMatch(/p-popover/)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    press(tr)
+    tr.dispatchEvent(click)
+    await step()
+    expect(click.defaultPrevented).toBe(true)
+    expect(lastToggle()).toMatchObject({ type: 'p.TOGGLE', data: true })
+    expect([t.state.p.open, tr.getAttribute('aria-expanded'), tr.dataset.state]).toEqual([true, 'true', 'open'])
+    tr.click()
+    await step()
+    expect(lastToggle()).toMatchObject({ type: 'p.TOGGLE', data: false })
+    expect(t.state.p.open).toBe(false)
+  })
+
+  it('uncontrolled: a light dismiss between the press and the click doesn\'t open it again', async () => {
+    t = renderComponent(host(), { dom: 'real' })
+    await t.ready()
+    t.query('.trig').click()
+    await step()
+    expect(t.state.p.open).toBe(true)
+    press(t.query('.trig'))
+    // (the browser's light dismiss: the press is outside the auto popover)
+    t.simulateEvent('.p', 'toggle', { newState: 'closed', oldState: 'open' })
+    await step()
+    expect(t.state.p.open).toBe(false)
+    t.query('.trig').click()
+    await step()
+    expect(lastToggle()).toMatchObject({ type: 'p.TOGGLE', data: false })
+    expect(t.state.p.open).toBe(false)
+  })
+
+  it('controlled: a press on the trigger isn\'t outside (no DISMISS); the click closes it', async () => {
+    t = renderComponent(host({ open: false }), { dom: 'real' })
+    await t.ready()
+    t.query('.trig').click()
+    await step()
+    press(t.query('.trig'))
+    t.query('.trig').click()
+    await step()
+    expect(types()).toEqual(['INITIALIZE', 'p.TOGGLE', 'p.TOGGLE'])
+    expect(t.state.p.open).toBe(false)
+  })
+
+  it('one dismissal per press: the focus a press moves outside is not a second DISMISS; a later focus outside is one', async () => {
+    t = renderComponent(host({ open: false }), { dom: 'real' })
+    await t.ready()
+    t.query('.trig').click()
+    await step()
+    const out = t.query('.outside')
+    press(out)
+    out.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    out.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await step()
+    expect(types().filter((a) => a == 'p.DISMISS')).toHaveLength(1)
+    expect(t.actions.find((a) => a.type == 'p.DISMISS').data.type).toBe('pointerdown')
+    t.query('.trig').click()
+    await step()
+    out.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    await step()
+    expect(types().filter((a) => a == 'p.DISMISS')).toHaveLength(2)
+    expect(t.actions.at(-1).data.type).toBe('focusin')
+  })
+
+  it('a layer anchored inside the popover (a Zag part\'s content rendered elsewhere) is inside it', async () => {
+    t = renderComponent(host({ open: false }), { dom: 'real' })
+    await t.ready()
+    t.query('.trig').click()
+    await step()
+    const far = document.body.appendChild(document.createElement('div'))
+    push(far, { anchor: t.query('.in') })
+    press(far)
+    await step()
+    expect(t.state.p.open).toBe(true)
+    // (and Escape is that layer's while it is on top)
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await step()
+    expect(t.state.p.open).toBe(true)
+    far.remove()
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await step()
+    expect(t.state.p.open).toBe(false)
+  })
+})
+
+describe('a Zag Menu inside a controlled popover (round 4)', () => {
+  function P({ state }) {
+    return h('div', null,
+      h('button', { className: 'btn', attrs: { popovertarget: 'zp' } }, 'Open'),
+      h('button', { className: 'outside' }, 'Out'),
+      h('div', { className: 'p', id: 'zp', attrs: { popover: 'auto' } },
+        h(Menu, { className: 'm', label: 'Actions', items: ['edit', 'copy'] })),
+      h('p', null, String(state.p.open)))
+  }
+  P.uses = { p: popover({ popover: '.p', open: false }) }
+  const step = async () => { await t.settle(); await tick() }
+
+  it('the open menu is the top layer: Escape and a press in it are the menu\'s, the next Escape the popover\'s', async () => {
+    t = renderComponent(P, { dom: 'real' })
+    await t.ready()
+    t.query('.btn').click()
+    await step()
+    t.query('.m [data-part=trigger]').click()
+    await step()
+    const content = t.query('.m [data-part=content]')
+    expect(content.hidden).toBe(false)
+    content.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }))
+    await step()
+    expect(t.state.p.open).toBe(true)
+    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await step()
+    expect([t.query('.m [data-part=content]').hidden, t.state.p.open]).toEqual([true, true])
+    t.query('.p').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+    await step()
+    expect(t.state.p.open).toBe(false)
   })
 })

@@ -48,6 +48,17 @@ describe('SYG118 (dev)', () => {
     expect(diagnostics('SYG118')).toHaveLength(0)
   })
 
+  it('round 4: a host intent replacing popover TOGGLE when trigger is passed', async () => {
+    function P() { return h('div', null, h('button', { className: 'go' }), h('button', { className: 't' }), h('div', { className: 'p', attrs: { popover: 'auto' } })) }
+    P.uses = { p: popover({ popover: '.p', trigger: '.t' }) }
+    P.intent = ({ DOM }) => ({ 'p.TOGGLE': DOM.click('.go') })
+    t = renderComponent(P)
+    await t.ready()
+    const d = diagnostics('SYG118')
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toContain("'p.TOGGLE'")
+  })
+
   it('not without a host intent of that name, nor for simulateAction', async () => {
     t = renderComponent(settings())
     await t.ready()

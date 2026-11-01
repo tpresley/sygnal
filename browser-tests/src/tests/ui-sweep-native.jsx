@@ -4,7 +4,8 @@
 // Collection item and in an isolated child, two instances of one component, and an accordion
 // whose open panels the host's own state sets (numbers).
 import { run, makeTimerDriver, Collection, Portal } from 'sygnal'
-import { dialog, popover, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
+import { dialog, popover, popoverAttrs, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
+import { Menu } from 'sygnal/ui/menu'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
 
 const CAT = 'UI parts, composed (ui-sweep)'
@@ -19,7 +20,7 @@ const css = () => {
     .ui-sweep dialog, .ui-sweep [popover] { margin: auto; padding: 12px; }
     .ui-sweep .tip { inset: auto; margin: 0 0 6px 0; position-area: top; padding: 2px 6px; border: 1px solid; }
     .ui-sweep .bar { padding: 60px 0 0 200px; }
-    .ui-sweep .cp, .ui-sweep .ly-p { inset: auto 12px 12px auto; margin: 0; }
+    .ui-sweep .cp, .ui-sweep .ly-p, .ui-sweep .tg-p, .ui-sweep .zm-p { inset: auto 12px 12px auto; margin: 0; }
   `
   document.head.appendChild(style)
 }
@@ -288,6 +289,42 @@ function Layered({ state, uid }) {
 }
 Layered.uses = { d: dialog({ dialog: '.ly-d', trigger: '.ly-open', open: false }), p: popover({ popover: '.ly-p', open: false }) }
 
+// ── round 4: the popover trigger, one dismissal per press, a Zag Menu in a controlled popover ──
+function Trig({ state, uid }) {
+  const a = popoverAttrs(state.p, uid), b = popoverAttrs(state.q, uid)
+  return (
+    <div>
+      <button className="tg-btn" data-name="tg-btn" {...a.trigger}>Auto</button>
+      <button className="tq-btn" {...b.trigger}>Controlled</button>
+      <button className="tg-out" data-name="tg-out">Elsewhere</button>
+      <div className="tg-p" {...a.popover} popover="auto" aria-label="Auto">auto</div>
+      <div className="tg-p tq" {...b.popover} popover="auto" aria-label="Controlled"><button className="tq-in">In</button></div>
+      <p className="out">{String(state.p.open)}|{String(state.q.open)}|{state.dismissed}</p>
+    </div>
+  )
+}
+Trig.initialState = { dismissed: 0 }
+Trig.uses = { p: popover({ popover: '.tg-p:not(.tq)', trigger: '.tg-btn' }), q: popover({ popover: '.tq', trigger: '.tq-btn', open: false }) }
+Trig.model = { 'q.DISMISS': (s) => ({ ...s, dismissed: s.dismissed + 1 }) }
+
+function ZagIn({ state, uid }) {
+  const a = popoverAttrs(state.p, uid)
+  return (
+    <div>
+      <button className="zm-btn" {...a.trigger}>Tools</button>
+      <button className="zm-out">Elsewhere</button>
+      <div className="zm-p" {...a.popover} popover="auto" aria-label="Tools">
+        <Menu className="zm" label="Actions" items={['edit', 'copy']} />
+      </div>
+      <p className="out">{String(state.p.open)}|{state.picked}</p>
+    </div>
+  )
+}
+ZagIn.initialState = { picked: '' }
+ZagIn.uses = { p: popover({ popover: '.zm-p', trigger: '.zm-btn', open: false }) }
+ZagIn.intent = ({ DOM }) => ({ PICK: DOM.select('.zm').events('select').detail() })
+ZagIn.model = { PICK: (s, picked) => ({ ...s, picked }) }
+
 // every animation frame and every toggle of `el` while `fn` runs: the frames it was hidden in, its
 // beforetoggle / toggle events (a hide sends beforetoggle:closed synchronously)
 async function watchFrames(el, fn) {
@@ -303,6 +340,62 @@ async function watchFrames(el, fn) {
 }
 
 export async function uiSweepNativeTests() {
+
+  // ── round 4 ─────────────────────────────────────────────────────────
+  await runTest('Round 4 popover trigger: toggles an auto popover (no reopen after the light dismiss) and a controlled one; ARIA from popoverAttrs; one DISMISS per press', async () => {
+    const { id, app, $ } = await mount(Trig)
+    const shown = (s) => $(s).matches(':popover-open')
+    try {
+      await window.__pw('click', `${id} .tg-btn`)
+      await until(() => shown('.tg-p:not(.tq)') && $('.out').textContent === 'true|false|0', () => $('.out').textContent)
+      assert($('.tg-btn').getAttribute('aria-expanded') === 'true' && $('.tg-btn').getAttribute('aria-haspopup') === 'dialog' && $('.tg-btn').getAttribute('aria-controls') === $('.tg-p').id, 'trigger ARIA')
+      await window.__pw('click', `${id} .tg-btn`)
+      await wait(150)
+      assert(!shown('.tg-p:not(.tq)') && $('.out').textContent === 'false|false|0', `the auto popover opened again: ${$('.out').textContent}`)
+      await window.__pw('click', `${id} .tq-btn`)
+      await until(() => shown('.tq') && $('.out').textContent === 'false|true|0', () => $('.out').textContent)
+      await window.__pw('click', `${id} .tq-btn`)
+      await until(() => !shown('.tq') && $('.out').textContent === 'false|false|0', () => $('.out').textContent)
+      // a press outside on a focusable button: one DISMISS (the press's), not a second for the focus
+      await window.__pw('click', `${id} .tq-btn`)
+      await until(() => shown('.tq'), 'open')
+      await window.__pw('focus', `${id} .tq-in`)
+      await window.__pw('click', `${id} .tg-out`)
+      await until(() => !shown('.tq') && $('.out').textContent === 'false|false|1', () => $('.out').textContent)
+      await wait(100)
+      assert($('.out').textContent === 'false|false|1', `dismissed twice: ${$('.out').textContent}`)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 4 a Zag Menu in a controlled popover: Escape and a pick close the menu only; the next Escape the popover; a press outside both closes both', async () => {
+    const { id, app, $ } = await mount(ZagIn)
+    const shown = () => $('.zm-p').matches(':popover-open')
+    const menuOpen = () => $('.zm [data-part=content]')?.getAttribute('data-state') === 'open'
+    try {
+      await window.__pw('click', `${id} .zm-btn`)
+      await until(() => shown(), 'popover open')
+      await window.__pw('click', `${id} .zm [data-part=trigger]`)
+      await until(menuOpen, 'menu open')
+      await key('Escape')
+      await until(() => !menuOpen(), 'menu closed by Escape')
+      await wait(80)
+      assert(shown() && $('.out').textContent === 'true|', `the popover closed with the menu: ${$('.out').textContent}`)
+      await window.__pw('click', `${id} .zm [data-part=trigger]`)
+      await until(menuOpen, 'menu open again')
+      await window.__pw('click', `${id} .zm [data-value=copy]`)
+      await until(() => !menuOpen() && $('.out').textContent === 'true|copy', () => $('.out').textContent)
+      assert(shown(), 'a pick in the menu closed the popover')
+      await window.__pw('focus', `${id} .zm [data-part=trigger]`)
+      await key('Escape')
+      await until(() => !shown() && $('.out').textContent === 'false|copy', () => $('.out').textContent)
+      await window.__pw('click', `${id} .zm-btn`)
+      await until(() => shown(), 'popover open')
+      await window.__pw('click', `${id} .zm [data-part=trigger]`)
+      await until(menuOpen, 'menu open')
+      await window.__pw('click', `${id} .zm-out`)
+      await until(() => !menuOpen() && !shown() && $('.out').textContent === 'false|copy', () => `${menuOpen()} ${shown()} ${$('.out').textContent}`)
+    } finally { app.dispose() }
+  })
 
   // ── round 3 ─────────────────────────────────────────────────────────
   await runTest('Round 3 controlled popover: a refused Escape, press outside and focus outside never hide it (no frame, no toggle)', async () => {

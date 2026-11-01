@@ -124,6 +124,8 @@ Commands for `ELEMENT`: `open`, `close`, `clear`, and `focus` (the trigger): `CL
 | Enter | Select the highlighted option and close; the focus returns to the trigger |
 | Escape, Tab | Close |
 
+Inside a [controlled popover](/ui/popover/#controlled-dismissal) or [dialog](/ui/dialog/#controlled-dismissal), the open list is the top layer: Escape and a press outside close it first, a press in it isn't outside the popover or dialog, and the next Escape closes that one.
+
 ## Styling
 
 Zag's data attributes: `[data-scope="select"]` with `[data-part="root"]`, `"label"`, `"control"`, `"trigger"`, `"value-text"`, `"indicator"`, `"positioner"`, `"content"`, `"item"`, `"item-text"`, `"item-indicator"`, and for [groups](#groups) `"item-group"` and `"item-group-label"`. The trigger and content have `data-state`, options `data-highlighted`, `data-state="checked"` and `data-disabled`, and the value text `data-placeholder-shown` while empty. The item indicator (`✓`) is `hidden` on unselected options.

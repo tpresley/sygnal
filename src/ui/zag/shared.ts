@@ -2,6 +2,7 @@
  * PLAN-5 2-Z: helpers the Zag-based parts (Menu, Select, Combobox) share. '../../zag' becomes the
  * external 'sygnal/zag' and '../../index' the external 'sygnal' in the 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' builds.
  */
+import {add, pull} from '../stack'
 
 /** G-413: the naming props a part applies to its control (not the host) */
 export const NAMING = ['aria-label', 'aria-labelledby', 'aria-describedby']
@@ -73,3 +74,22 @@ export const field = {event: 'value-change', read: (x: any) => valueOut({value: 
  * its containing block; `positioning={{ strategy: 'absolute' }}` (merged over the default) goes back
  */
 export const placed = (p: any) => ({...p, positioning: {strategy: 'fixed', ...p.positioning}})
+
+/**
+ * UI sweep round 4: an open part's content is a layer on sygnal/ui's layer stack (src/ui/stack.ts,
+ * shared through a global, so this bundle's copy and sygnal/ui's are one stack; layers.ts reads it). Zag dismisses it
+ * itself (its own @zag-js/dismissable layer: Escape, a press or a focus outside); on the stack it
+ * is a layer the stack doesn't dismiss (`ctl` false), anchored at the widget's host: so a
+ * controlled popover or dialog it opened in counts a press in it as inside, wherever the content
+ * renders (Radix's nested DismissableLayer), and Escape is the Zag part's while it is on top. Called
+ * from the render; the content exists after the patch, so the stack is updated in a microtask.
+ */
+export const layered = (x: any, open: boolean) => {
+  if (!!x.layer == open) return
+  x.layer = open || null
+  queueMicrotask(() => {
+    const c = open && x.el?.querySelector?.('[data-part="content"]')
+    if (c && x.layer) add(x.lc = c, {anchor: x.el})
+    else if (!x.layer && x.lc) pull(x.lc), x.lc = null
+  })
+}

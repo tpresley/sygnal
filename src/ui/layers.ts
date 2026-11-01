@@ -13,19 +13,29 @@
  *   opened in it (in its DOM, or in a <Portal> rendered in it) is inside. Layers under a modal
  *   dialog get none (the page under it is inert); a press on a layer's own popovertarget /
  *   commandfor button is not outside (its click opens or closes it through the model)
- * - focus outside: as pointerdown, without the modal floor (Radix's onFocusOutside)
+ * - focus outside: as pointerdown, without the modal floor (Radix's onFocusOutside); round 4: not
+ *   the focus a press moves (one dismissal per interaction: the pointerdown's)
+ * - round 4: an open Zag part (Menu, Select, Combobox: zag/shared.ts layered()) is a layer the
+ *   stack doesn't dismiss (Zag does), anchored at its widget's host: a press in it is inside the
+ *   layers its host is in, and Escape is its own while it is on top
  *
  * Every dialog a dialog behavior opens is a layer too (uncontrolled: `ctl` false), so Escape and
  * pointers know what is on top; an uncontrolled dialog keeps its own Escape (covered() below).
  */
+import {add, pull, S} from './stack'
+
+export {pull}
 export const DISMISS = 'sygnaldismiss'
 
 // a layer: its element, whether the stack dismisses it (ctl), on Escape (esc), on a press or a
-// focus outside (out), whether it is modal, and the selector of a trigger whose press isn't outside
-type Layer = {el: any; ctl?: boolean; esc?: boolean; out?: boolean; modal?: boolean; trigger?: any}
+// focus outside (out), whether it is modal, the selector of a trigger whose press isn't outside,
+// and (round 4) its anchor: the element that places it in the page when its element is elsewhere
+// (a Zag part's content: the widget's host), so it is inside the layers its anchor is inside
+type Layer = {el: any; ctl?: boolean; esc?: boolean; out?: boolean; modal?: boolean; trigger?: any; anchor?: any}
 
-// (one stack per page, shared by every copy of sygnal/ui)
-const G: any = globalThis, stack: Layer[] = (G[Symbol.for('sygnal.layers')] ||= [])
+// (one stack per page: stack.ts; the listeners are installed once, by the first sygnal/ui copy
+// that opens a layer, and stay)
+const stack: Layer[] = S.stack
 
 // G-579: an open popover Escape closes before the layer it is in: an auto or hint one (the
 // `popover` property: an engine without hint reads it as manual; the attribute where there is
@@ -43,68 +53,74 @@ export const within = (a: any, n: any, m = owners()): boolean => {
   for (; n; n = m.get(n) || n.parentElement || n.parentNode?.host) if (n === a) return true
   return false
 }
+// `n` is in the layer at `i`: in its element, or in a layer above it whose anchor is in it (Radix:
+// a nested layer is inside its parent wherever it renders)
+const inside = (i: number, n: any, m: any): boolean => {
+  if (within(stack[i].el, n, m)) return true
+  for (let j = i + 1; j < stack.length; j++) { const l = stack[j]; if (l.anchor && within(l.el, n, m) && inside(i, l.anchor, m)) return true }
+  return false
+}
 
-const on = (f: boolean) => {
-  const x = f ? 'addEventListener' : 'removeEventListener'
-  document[x]('pointerdown', down, true)
-  document[x]('focusin', focus, true)
-  document[x]('keydown', key)
-}
 // (a layer the page no longer has is dropped; its close event never came)
-const prune = () => {
-  for (let i = stack.length; i--;) stack[i].el.isConnected || stack.splice(i, 1)
-  stack.length || on(false)
-}
+const prune = () => { for (let i = stack.length; i--;) stack[i].el.isConnected || stack.splice(i, 1) }
 /** `el` opened: on top of the stack (again) */
 export const push = (el: any, l: Omit<Layer, 'el'>) => {
-  pull(el)
-  stack.push({el, ...l}) == 1 && on(true)
-}
-/** `el` closed */
-export const pull = (el: any) => {
-  const i = stack.findIndex((l) => l.el === el)
-  i < 0 || (stack.splice(i, 1), stack.length || on(false))
+  add(el, l)
+  if (S.on) return
+  S.on = 1
+  const d = document, end = () => { S.press = 0 }
+  d.addEventListener('pointerdown', down, true)
+  d.addEventListener('focusin', focus, true)
+  d.addEventListener('keydown', key)
+  // the end of a press (round 4: the focus a press moves is that press's, not a second dismissal)
+  for (const t of ['click', 'pointercancel', 'keydown']) d.addEventListener(t, end, true)
 }
 
 /** a layer opened over `el` and inside it is open (its Escape is that layer's) */
 export const covered = (el: any) => {
   prune()
-  const m = owners()
-  return stack.slice(stack.findIndex((l) => l.el === el) + 1).some((l) => l.el !== el && within(el, l.el, m))
+  const m = owners(), i = stack.findIndex((l) => l.el === el)
+  return stack.slice(i + 1).some((l) => l.el !== el && (within(el, l.el, m) || (l.anchor && within(el, l.anchor, m))))
 }
 
 const fire = (l: Layer, e: Event) => l.el.dispatchEvent(new CustomEvent(DISMISS, {detail: e, bubbles: true}))
 
-// the target is outside the layer: not in it, nor its own trigger; a modal dialog's ::backdrop
-// (a press on the dialog outside its box) is outside
-const outside = (l: Layer, t: any, e: any, m: any) => {
-  const b = t?.closest?.('[popovertarget],[commandfor]'), id = b && (b.getAttribute('popovertarget') || b.getAttribute('commandfor'))
+// the target is outside the layer at `i`: not in it, nor its own trigger; a modal dialog's
+// ::backdrop (a press on the dialog outside its box) is outside
+const outside = (i: number, t: any, e: any, m: any) => {
+  const l = stack[i], b = t?.closest?.('[popovertarget],[commandfor]'), id = b && (b.getAttribute('popovertarget') || b.getAttribute('commandfor'))
   if ((id && id === l.el.id) || (l.trigger && t?.closest?.('' + l.trigger))) return false
   if (t === l.el && l.el.localName == 'dialog') {
     const r = t.getBoundingClientRect()
     return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom
   }
-  return !within(l.el, t, m)
+  return !inside(i, t, m)
 }
 const away = (e: any, floor: number) => {
   prune()
-  const t = e.composedPath?.()[0] ?? e.target, m = owners(), ls = stack.slice(floor)
-  for (let i = ls.length; i--;) ls[i].ctl && ls[i].out && outside(ls[i], t, e, m) && fire(ls[i], e)
+  const t = e.composedPath?.()[0] ?? e.target, m = owners(), out: Layer[] = []
+  // (decided for every layer before any is dismissed: a dismissal may change the stack)
+  for (let i = stack.length; i-- > floor;) stack[i].ctl && stack[i].out && outside(i, t, e, m) && out.push(stack[i])
+  out.forEach((l) => fire(l, e))
 }
 // (Radix: a touch press dismisses on the click that follows it, so a scroll gesture that starts
 // outside doesn't; the next press drops a click that never came)
-let tap: any
 function down(e: any) {
   let f = 0
   stack.forEach((l, i) => { l.modal && (f = i) })
-  document.removeEventListener('click', tap, true)
-  tap = () => away(e, f)
-  e.pointerType == 'touch' ? document.addEventListener('click', tap, {capture: true, once: true}) : tap()
+  S.press = 1
+  document.removeEventListener('click', S.tap, true)
+  S.tap = () => away(e, f)
+  e.pointerType == 'touch' ? document.addEventListener('click', S.tap, {capture: true, once: true}) : S.tap()
 }
-function focus(e: any) { away(e, 0) }
+// a focus outside, not one a press moved (round 4: one dismissal per interaction, the press's,
+// as Radix reports pointerdownoutside first)
+function focus(e: any) { S.press || away(e, 0) }
 function key(e: any) {
   if (e.key != 'Escape' || e.defaultPrevented || e.isComposing || e.keyCode == 229) return
   prune()
+  // (the top layer only: a Zag part's, which Zag closes itself, or an uncontrolled dialog's, which
+  // has its own Escape, takes it)
   const l = stack[stack.length - 1], m = owners()
   l?.ctl && l.esc && ![...(document.querySelectorAll('[popover]') as any)].some((p) => first(p) && within(l.el, p, m)) && fire(l, e)
 }

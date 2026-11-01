@@ -34,20 +34,48 @@ Filters.model = { ONLY_OPEN: (state, onlyOpen) => ({ ...state, onlyOpen }) }
 | Option | | |
 |---|---|---|
 | `popover` | (required) | The popover element: a selector or a [control](/guide/controls/) |
+| `trigger` | | A button whose clicks open and close the popover through the model (`TOGGLE`), as Radix's `Popover.Trigger`; see [A trigger button](#a-trigger-button) |
 | `close` | | A button inside: its clicks close the popover |
+| `id` | the key in `uses` | The prefix of the ids `popoverAttrs` makes |
 | `open` | | Open at the start. Given at all, even `open: false`, it makes the popover controlled (see [Controlled dismissal](#controlled-dismissal)) |
 
-There is no `trigger` option: open it with a `popovertarget` button. A button that toggled an `auto` popover through the model would open it again right after closing it, because the press outside the popover light-dismisses it first; the browser exempts `popovertarget` buttons from that.
+## A trigger button
+
+A `popovertarget` button needs no option. To open and close the popover through the model instead, as Radix's `Popover.Trigger` does, name the button in `trigger` and spread `popoverAttrs` on both elements:
+
+```jsx live
+import { popover, popoverAttrs } from 'sygnal/ui'
+
+function Share({ state, uid }) {
+  const a = popoverAttrs(state.share, uid)
+  return (
+    <div>
+      <button className="share-button" {...a.trigger}>Share</button>
+      <div className="share" {...a.popover} popover="auto" aria-label="Share">
+        <button>Copy link</button>
+        <button>Email</button>
+      </div>
+      <p>{state.share.open ? 'Sharing…' : ''}</p>
+    </div>
+  )
+}
+
+Share.uses = { share: popover({ popover: '.share', trigger: '.share-button' }) }
+```
+
+- A click on the trigger dispatches `share.TOGGLE` with the value to go to, `true` or `false`. The behavior reads it from the state at the press, because a press on the trigger light-dismisses an `auto` popover before the click comes: a plain flip would open it again.
+- `popoverAttrs(state.share, uid)` gives the trigger `aria-haspopup="dialog"`, `aria-expanded`, `aria-controls` and `data-state`, and the popover its `id` and `data-state`.
+- A press on the trigger isn't outside a [controlled](#controlled-dismissal) popover.
 
 ## State and actions
 
-`state.filters` is `{ open }`, the source of truth: a reducer that writes it shows or hides the popover, and the popover's `toggle` event writes it back, whatever opened or closed it.
+`state.filters` is `{ id, open }` (`id`: the prefix of `popoverAttrs`' ids), and `open` is the source of truth: a reducer that writes it shows or hides the popover, and the popover's `toggle` event writes it back, whatever opened or closed it.
 
 | Action | Data | |
 |---|---|---|
 | `filters.OPEN` | | Sets `open: true` and shows the popover (`showPopover`) |
 | `filters.CLOSE` | | Sets `open: false` and hides it (`hidePopover`) |
-| `filters.TOGGLE` | | Flips `open` and shows or hides it |
+| `filters.TOGGLE` | none, or `true` / `false` | Flips `open` (with data: sets it) and shows or hides it: the `trigger` |
 | `filters.TOGGLED` | `true` / `false` | The `toggle` event (a `popovertarget` button, a light dismiss, Escape): sets `open` |
 | `filters.DISMISS` | the event | Controlled only: Escape, a press outside, the focus moving outside (the `keydown`, `pointerdown` or `focusin` event): sets `open: false` and hides it |
 | `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render): sets `open: false`, as no `toggle` event comes |
@@ -65,7 +93,7 @@ Without the `open` option the browser light-dismisses an `auto` popover, and the
 To decide before anything is hidden, pass the `open` option, even `open: false`. The popover is then controlled, as Radix's `open` / `onOpenChange` is:
 
 - It is a `manual` popover (the behavior sets `popover="manual"` before it shows it), so the browser never dismisses it.
-- The behavior dismisses it itself, as Radix's `DismissableLayer` does: Escape, a press outside and the focus moving outside arrive as `filters.DISMISS`, with the event as the data. A press on its own `popovertarget` button isn't outside.
+- The behavior dismisses it itself, as Radix's `DismissableLayer` does: Escape, a press outside and the focus moving outside arrive as `filters.DISMISS`, with the event as the data. One interaction is one `DISMISS`: a press outside that also moves the focus outside reports the `pointerdown`. A press on its `trigger` or its own `popovertarget` button isn't outside.
 - Its `popovertarget` buttons and `commandfor` commands go through the model too: the behavior prevents the browser's own toggle and dispatches `TOGGLE`, `OPEN` or `CLOSE` (from `popovertargetaction`).
 
 A host entry that keeps `open: true` keeps it shown, with no frame where it is hidden:
@@ -79,6 +107,10 @@ Filters.model = {
 ```
 
 Controlled popovers and [dialogs](/ui/dialog/#controlled-dismissal) stack as layers. Escape dismisses the top layer only (not while an `auto` popover inside it is open, which the browser closes first), and an Escape that an element inside handled (`preventDefault()`) dismisses nothing. A press on a parent layer outside a child dismisses the child only, and a press outside both dismisses both. A layer opened in another one counts as inside it, also when it renders through a `<Portal>`. Under a modal dialog, presses can't reach the page, so the layers under it aren't dismissed by them.
+
+The [Menu](/ui/menu/), [Select](/ui/select/) and [Combobox](/ui/combobox/) parts are layers too. One open inside a controlled popover or dialog is the top layer: Escape and a press outside it close it first, and a press in it (in its list as well) isn't outside the popover. The next Escape closes the popover, and a press outside both closes both.
+
+A modal dialog that isn't rendered inside the popover moves the focus out of it when it opens, so it dismisses the popover, as in Radix. Keep the popover open by rendering the dialog inside it, or with a `DISMISS` entry that refuses while the dialog is open.
 
 Open it from somewhere else, for example a keyboard shortcut, with an intent action of the same name: `'filters.OPEN': DOM.keydown('document').filter((e) => e.key === 'f' && e.altKey)`.
 

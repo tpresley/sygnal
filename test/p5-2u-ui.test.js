@@ -156,7 +156,7 @@ describe('popover', () => {
   it('follows toggle; CLOSE / OPEN set the state and send the commands; popovertarget is an attribute', async () => {
     t = renderComponent(Filters, { strict: true })
     await t.ready()
-    expect(t.state.filters).toEqual({ open: false })
+    expect(t.state.filters).toEqual({ id: 'filters', open: false })
     expect(t.html()).toMatch(/<button class="filters-btn" popovertarget="[^"]+-filters">/)
     t.simulateEvent('.filters', 'toggle', { newState: 'open', oldState: 'closed' })
     await t.next((s) => s.filters.open)
@@ -458,7 +458,7 @@ describe('disclosure', () => {
 
 describe('popover factory', () => {
   it('takes an `open` option (the start, ui-sweep R2); tooltip ignores it', () => {
-    expect(popover({ popover: '.p', open: true }).state).toEqual({ open: true })
+    expect(popover({ popover: '.p', open: true }).state).toEqual({ id: null, open: true })
     expect(tooltip({ trigger: '.a', tip: '.b', open: true, pending: 'show' }).state).toEqual({ open: false, pending: null, hover: false, focus: false, pressed: false })
   })
 })
