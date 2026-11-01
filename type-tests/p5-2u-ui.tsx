@@ -77,3 +77,8 @@ export const applied: import('sygnal/ui').DialogActions['APPLY'] = true
 export const pressed: import('sygnal/ui').TooltipState['pressed'] = false
 // @ts-expect-error open is a boolean
 dialog2({ dialog: '.d', open: 'yes' })
+
+// ui-sweep round 3: a controlled popover's close request
+export const dismissed: import('sygnal/ui').PopoverActions['DISMISS'] = new Event('pointerdown')
+// @ts-expect-error DISMISS carries the event
+export const notDismissed: import('sygnal/ui').PopoverActions['DISMISS'] = 'outside'

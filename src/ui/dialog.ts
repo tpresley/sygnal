@@ -11,7 +11,10 @@
  * dismiss as CANCEL, the close button, a method="dialog" form and commandfor "close" as CLOSE, so
  * a host entry that keeps `open: true` keeps it open without it ever closing. A close the browser
  * makes on its own comes as CLOSED (a host entry keeping it open opens it again); an open
- * without the model as TOGGLED. R4: the dialog may be in a <Portal> the host renders.
+ * without the model as TOGGLED. R4: the dialog may be in a <Portal> the host renders. Round 3:
+ * with the `open` option given (controlled) the browser never dismisses it (closedby="none" while
+ * open, whatever the host set): the layer stack (layers.ts) does, by what the host's closedby
+ * names (Escape; "any": a press or a focus outside too), as CANCEL, top layer first.
  *
  * Options: `dialog` (required; 3-W G-536: it must match only this dialog, not one nested in it,
  * whose close / toggle / FAIL events it would take too), `trigger` and `close` (clicks dispatch OPEN / CLOSE), `modal`
@@ -33,14 +36,12 @@
  * open one), so a state that is out of step can't block them.
  */
 import {ABORT, defineBehavior, xs} from '../index'
+import {covered, DISMISS, first, pull, push} from './layers'
 import {ev, find, gone, on, watch} from './shared'
 
-// G-579: an open popover Escape closes before the dialog: an auto or hint one (the `popover`
-// property: an engine without hint reads it as manual; the attribute where there is none). Not a
-// manual one (a Toaster region moved into the modal, D198; a tooltip): Escape cancels the dialog
-const first = (p: any) => { try { return /^(auto|hint|)$/i.test(p.popover ?? p.getAttribute('popover')) && p.matches(':popover-open') } catch (_) { return false } }
 // G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it
-// that Escape closes first, G-579). G-457: not one an element inside handled (a Zag combobox or
+// that Escape closes first, G-579 (layers.ts first()), nor with a controlled layer open inside it,
+// round 3: Escape is that layer's). G-457: not one an element inside handled (a Zag combobox or
 // menu closing its list prevents it: the browser sends no cancel then either), nor one that ends
 // an IME composition (Safari sends keyCode 229 with isComposing false). R2: only while the dialog
 // has closedby="none" (OPEN sets it; with the host's own closedby the cancel event comes instead)
@@ -48,7 +49,7 @@ const first = (p: any) => { try { return /^(auto|hint|)$/i.test(p.popover ?? p.g
 const none = (d: any) => /^none$/i.test(d?.getAttribute?.('closedby') || '')
 const esc = (e: any) => e.key == 'Escape' && !e.defaultPrevented && !e.isComposing && e.keyCode != 229 &&
   e.target?.closest?.('dialog') == e.ownerTarget && none(e.ownerTarget) &&
-  ![...(e.ownerTarget?.querySelectorAll?.('[popover]') ?? [])].some(first)
+  ![...(e.ownerTarget?.querySelectorAll?.('[popover]') ?? [])].some(first) && !covered(e.ownerTarget)
 
 // the focus went nowhere: body, a detached element, or inside a dialog that just closed
 const lost = () => {
@@ -82,23 +83,32 @@ const show = (el: any, o: any, by?: any) => {
   const a = document.activeElement, op: any = by?.nodeType == 1 ? by : a != document.body ? a : null
   // R2: a modal dialog gets closedby="none" (unless the host set closedby): Escape reaches the
   // model as CANCEL (a keydown), which closes it through the state, so a host entry can keep it
-  // open (G-405: Chromium's CloseWatcher would close on a second Escape otherwise)
-  const cb = m == 'showModal' && !el.hasAttribute('closedby')
+  // open (G-405: Chromium's CloseWatcher would close on a second Escape otherwise). Round 3: a
+  // controlled one always (the host's closedby says what the layer stack dismisses it on: "any"
+  // a press or a focus outside too, "none" nothing; none given: Escape when modal), back on close
+  const hc = el.getAttribute('closedby'), cb = o.controlled ? hc != 'none' : m == 'showModal' && hc == null
+  const back = () => { hc == null ? el.removeAttribute('closedby') : el.setAttribute('closedby', hc) }
   if (cb) el.setAttribute('closedby', 'none')
   // G-461: a showModal() that throws (a disconnected dialog, a popover open on it) leaves no
   // closedby and arms no listener (a later close would focus this opener). G-488: and the state
   // goes back to closed, so the next OPEN can open it; G-524: through SYNC (an internal FAIL
   // event), not a close event: the host's close listeners don't run for a dialog that never
   // opened, and no previous returnValue comes again. The error is the command's (thrown once)
-  try { el[m]() } catch (e) { cb && el.removeAttribute('closedby'); el.dispatchEvent(new Event(FAIL, {bubbles: true})); throw e }
-  // on close: G-429 the closedby it set goes (it is the behavior's, not the host's); G-430 the
+  try { el[m]() } catch (e) { cb && back(); el.dispatchEvent(new Event(FAIL, {bubbles: true})); throw e }
+  // round 3: a layer (layers.ts): on top for Escape and presses outside; dismissed by the stack
+  // when controlled (by what the host's closedby names)
+  const c = (hc || (m == 'showModal' ? 'closerequest' : 'none')).toLowerCase()
+  push(el, {ctl: !!o.controlled, esc: c != 'none', out: c == 'any', modal: m == 'showModal', trigger: o.trigger})
+  // on close: G-429 the closedby it set goes (it is the behavior's: the host's comes back), it
+  // leaves the layer stack (round 3); G-430 the
   // element that opened it gets the focus back when it was lost, here rather than by a command (a
   // dialog the host renders only while open is gone by then), and nothing keeps the opener after
   // that. Capture: at the target it runs before the DOM driver's listener, so before CLOSED (whose
   // trigger fallback would take the focus first)
   const done = () => {
     mo?.disconnect()
-    cb && el.removeAttribute('closedby')
+    pull(el)
+    cb && back()
     if ((o.returnFocus ?? true) === true && op?.isConnected && lost()) op.focus()
   }
   el.addEventListener('close', done, {once: true, capture: true})
@@ -120,7 +130,7 @@ const base = /*#__PURE__*/ defineBehavior({
   initialState: {open: false, returnValue: ''},
   // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
   triggers: {OPEN: 'trigger', CLOSE: 'close'},
-  intent: ({DOM, STATE}: any, {dialog: d, trigger, close, modal}: any) => {
+  intent: ({DOM, STATE}: any, {dialog: d, trigger, close, modal, controlled}: any) => {
     const cmd = ev(DOM, d, 'command', {preventDefault: ownCommand}, false).filter(ownCommand)
     const els = find(DOM, d)
     return {
@@ -140,7 +150,9 @@ const base = /*#__PURE__*/ defineBehavior({
       // closedby (light dismiss) or of a non-modal one, commandfor "request-close": prevented, so
       // the state decides. G-457: a non-modal dialog gets no keydown CANCEL (Escape doesn't close one)
       CANCEL: xs.merge(
-        modal === false ? xs.never() : ev(DOM, d, 'keydown').filter(esc),
+        // (round 3: a controlled one's Escape, press and focus outside come from the layer stack)
+        controlled ? ev(DOM, d, DISMISS, {}, false).filter((e: any) => e.target === e.ownerTarget).map((e: any) => e.detail)
+          : modal === false ? xs.never() : ev(DOM, d, 'keydown').filter(esc),
         ev(DOM, d, 'cancel', {preventDefault: true}, false).filter((e: any) => e.target === e.ownerTarget && !none(e.ownerTarget)),
         cmd.filter((e: any) => e.command == 'request-close'),
       ),
@@ -194,4 +206,4 @@ const base = /*#__PURE__*/ defineBehavior({
 })
 
 /** A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`. */
-export const dialog = (options: any = {}): any => base({...options, open: !!options.open, returnValue: ''})
+export const dialog = (options: any = {}): any => base({...options, open: !!options.open, returnValue: '', controlled: options.open !== undefined})

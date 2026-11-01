@@ -169,7 +169,7 @@ export const FIRST_PARTY = {
   popover: {
     stateKeys: ['open'],
     calculated: [],
-    model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED', 'SYNC', 'APPLY'],
+    model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED', 'DISMISS', 'SYNC', 'APPLY'],
     options: ['popover', 'close', 'open'],
     listens: [['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
   },
