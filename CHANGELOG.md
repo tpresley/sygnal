@@ -5,8 +5,10 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 ## 7.2.0-preview.0 — dev preview
 
 A dev preview (`npm install sygnal@next sygnal-check@next`). Its new subpaths and the `compile` option are
-experimental, and their APIs may change before 7.2.0. Everything is additive but one change to
-`processForm()` (below): an app that uses none of it behaves as on 7.1.0.
+experimental, and their APIs may change before 7.2.0. Everything is additive except the entries under
+**Changed**: `processForm()` arrays, the `form` behavior's checkbox-group order, and `sygnal/ui`'s
+dialog, popover and tooltip behaviour (each marked **Behaviour change** or state-visible). An app that
+uses none of these behaves as on 7.1.0.
 
 **New (experimental).**
 - **Renderer targets:** the same components on other hosts than the browser DOM.
@@ -187,17 +189,202 @@ experimental, and their APIs may change before 7.2.0. Everything is additive but
   - Text params take `format: 'code'`: the prompt calls them source code, and `asked_for` items keep
     their own length.
 
+- **Record and replay:** `sygnal/replay` records a session and replays it as a test. Research and the
+  maintainer's decisions: `dev-plans/research/record-replay/`.
+  - `startRecording({ redact, dropNoops, vnodes })` records the next app: its inputs (DOM events,
+    driver replies, timers), a checkpoint per patch, the Sygnal version and the component and action
+    names (format version 1, `RECORDING_SCHEMA`). Redaction is on by default and follows where a value
+    came from: typed text and field values are masked unless `redact` lets them through.
+  - `replay(Component, log, options)` (also on the main entry) runs the log under `renderComponent`,
+    drops the code's own inputs, compares every checkpoint and reports the first divergence. Version
+    and name mismatches are warnings.
+  - `replayTest`, `bugReport`, `timeline` and `finalState` turn a recording into a test, a report or a
+    state. DevTools' Copy as test has a `{ mode: 'replay' }`.
+  - **Handlers get `now()`, `random()` and `uuid()`** in their 4th argument; renderComponent's `now`,
+    `random` and `uuid` options fix them (a fixed clock, a seeded random, ordered ids), and a replay
+    feeds them from the log. This is the canonical form: `sygnal-check` warns about `Date.now()`,
+    `new Date()`, `Math.random()` and `crypto.randomUUID()` in a STATE reducer (SYG258) and, under
+    `--strict`, in any handler (SYG509), with `--fix`. Docs and examples use it.
+  - Core hooks: an `onAction` layer that returns `false` drops the action (any `false` wins);
+    `onDispatch(inst, type, data, cause, event)` runs at enqueue with the DOM event being delivered;
+    the runtime API's `setState` reaches `onAction` as a `'setState'` action. About 140 B in the
+    kanban gate. Guide: "Record and Replay".
+- **Off the main thread:** `sygnal/worker` and `sygnal/worker/page` run a whole app in a module Web
+  Worker with its code unchanged. Research: `dev-plans/research/web-worker/`.
+  - `createWorkerTarget(port)` runs the app on a `sygnal/host` tree in the worker and sends one message
+    of patch ops per flush, frame-coalesced. `remote(name, methods)` is a driver that stays on the page
+    (`localStorage`, the router).
+  - `startBridge(worker, mount, { drivers, preventDefault, coalesce })` applies the ops and sends input
+    back. An intent's declared `preventDefault` is applied at once on the page. A field's value from
+    the worker that is about older text is rebased on the user's edits since (the caret is kept), and a
+    submit waits until the form's last edit is acknowledged. Pointer moves, scroll and wheel go once a
+    frame.
+  - A click costs about one frame more; the page stays at 60 fps while the app works (10,000 todos: a
+    key pressed while toggling them paints in 16 ms instead of 128). Not yet: element commands,
+    browser-owned attributes, widgets, DevTools and HMR. Guide: "Running off the Main Thread".
+    Example: `examples/todomvc-worker` (`examples/todomvc`'s files).
+- **Terminal apps (`sygnal/terminal`, on `sygnal/host`):** from building a full-screen TUI
+  (`examples/tui-tracker`, an issue tracker: list and detail panes, tabs, a keymap, a modal confirm, a
+  validated form with every control, async data). Research: `dev-plans/research/tui-spike/`.
+  - **Full-screen layouts:** the terminal stylesheet takes `display: 'flex'`, `width` / `height` (cells
+    or `%`), `flex`, `gap`, `padding`, `border` (`'round'`, `'single'`, `'double'`, `'heavy'`, `true`;
+    titled by `aria-label`, heavy when focused), `overflow: 'auto'` (a scrolling box with a scrollbar
+    that keeps the focus in view) and colours. Box properties come only from the stylesheet, so a web
+    view's inline styles don't change the terminal layout. `createTerminal({ height })`.
+  - **Controls:** a native `<select>` opens an option list (Enter, Space, Alt+↓, F4; letters jump).
+    `<dialog>` (`show`, `showModal`, `close`, `requestClose`, `closedby`) and the Popover API
+    (`popover="auto"` light dismiss, `popovertarget`, `commandfor` / `command` invokers): a modal traps
+    focus, Escape is its close request, the focus goes back to the opener; the terminal draws modals
+    centered over a dimmed page and popovers anchored.
+  - **Text editing:** a caret and selection (`selectionStart` / `selectionEnd` / `setSelectionRange()` /
+    `select()`), typing at the caret, word deletes, Shift selection, `<textarea>` lines, cancelable
+    `beforeinput` and `input` with their `inputType`. Readline keys in a field (Ctrl+A E B F D K U W,
+    Alt+B F D; the keydown goes out first, so `keymap()` can take a key). Bracketed paste is one
+    `paste` event and one insertion.
+  - **Mouse** (`runTerminal({ mouse: true })`): click, double click, wheel scrolling of the box under
+    the pointer, the caret placed in a field.
+  - The `TERMINAL` sink (`'exit'`, `{ title }`, `'bell'`), a key-hint footer (`footer`), and emoji
+    width asked from the terminal at startup (`emojiWidth: 'auto'`, the default; `1` or `2` fixes it).
+  - **Tests:** `term.run(App, drivers, runOptions)` runs the app with the terminal's `DOM` and
+    `TERMINAL` drivers; `await term.settle({ timeout, quiet })` waits until the runtime has flushed and
+    the tree has been unchanged for `quiet` ms (20), advancing fake timers, and rejects after `timeout`
+    (2 s) with the frame. `term.paste()`, `term.click()`, `term.wheel()`, `hitTest()`, `term.keyHint()`,
+    `term.commands`; `Frame` has `focusLine`, `focus`, `caret`, `hits`.
+  - `sygnal/host`: `:focus-visible`, `:focus-within`, `:checked`, `:disabled`, `:enabled`, `:open`,
+    `:modal`, `:popover-open`; `scrollTop` / `scrollIntoView()`; `getRootNode()`; listener `{ once }`;
+    `inert` and `autofocus`; `showPicker()`, `selectedIndex`. `HostDocument.addEventListener` and a
+    real capture phase (document capture → root delegates → target → bubbling), with
+    `stopPropagation` / `stopImmediatePropagation`; `defaultView.CustomEvent`; the host driver's events
+    carry `ownerTarget`, as the DOM driver's do.
+- **Games on `sygnal/canvas`:** from building a platformer (`examples/platformer`). Research:
+  `dev-plans/research/canvas-game/`.
+  - A frame timer's `step` (a fixed timestep, `max` steps per frame, vsync snapping) and `keys`
+    (sampled with the frame as `held` / `pressed` / `released`, released on blur, not in text
+    fields): `{ frame: 'STEP', step: 1000 / 60, max: 5, keys: { left: 'ArrowLeft' } }`. SYG422 covers
+    the new fields.
+  - `<shapes live>` (every node repaints each frame, no projection), layer order that holds with live
+    layers, `parallax={f}`, `<Canvas a11y={0}>`.
+  - **Images and sprites:** an `image` node (`src` or a loaded `image`, a crop `sx sy sw sh`, `fit`,
+    `flipX` / `flipY`, `smoothing: false`, `alt`), loaded once per URL and shared by every canvas, painted
+    when it arrives (`imageload` / `imageerror`), in hit testing, the projection and `exportSVG`.
+    `<Image src>` inside `<Canvas>` makes `<Suspense>` wait and sends a failed load to `onError`.
+    `preloadImage`, `clearImages`, and sprite sheets with `frameOf(sheet, index)` and
+    `frameAt(frames, t, every, loop)`.
+  - **`follow(camera, target, { deadzone, offset, lerp, dt, bounds, round })`:** a pure follow camera,
+    as Phaser's and Godot's behave; it returns the same camera when nothing moves.
+  - **A scrolling camera without a full-bitmap copy:** in a game scene (a `live` or `parallax`
+    layer) each run of static layers is its own canvas element that the browser shifts; only newly
+    exposed strips are painted, and after 30 still frames they fold back onto the main canvas. The
+    platformer level goes from 0.68 to 0.46 ms per frame (plain JS: 0.47). `PaintStats` gains
+    `scrolled` / `strips`; a backend may implement `refresh()`.
+  - **Text wrapping:** text wraps to its `width` (`wrap: 'word' | 'char' | 'none'`, `\n`, `maxLines`
+    with an ellipsis, `align`, `lineHeight`), a missing height is its lines' height, and
+    `layoutText(text, options)` returns the lines and size. Hit boxes and `exportSVG` follow it.
+  - `t.frames(n)` in `renderComponent`; `settle()` ignores the frame loop; `replay()` works under fake
+    timers.
+  - The canvas bundle is 22.4 KB min+gzip (was 17.3 KB); nothing for an app that doesn't import it.
+- **`sygnal/ui`: a controlled `open`.** `state.<key>.open` decides whether a dialog or popover is open.
+  - A host reducer that writes `open` (any action, a parent, `setState`) opens or closes the element,
+    through the new `APPLY` action. A host entry for `OPEN` / `CLOSE` / `CANCEL` / `CLOSED` / `TOGGLED`
+    that keeps the old value keeps the element as it was. The `open` option is the start value
+    (Radix's `defaultOpen`).
+  - A dialog rendered only while open gives the focus back to its opener when it is removed.
+- **`sygnal/ui`: dismissal through the state,** as Radix's `DismissableLayer`. Giving the `open`
+  option (even `false`) makes a dialog or popover controlled.
+  - Escape, a press outside and focus leaving become close requests (a popover's new `DISMISS`, a
+    dialog's `CANCEL`, with the event as data), one per interaction. A host entry that returns
+    `previousState` keeps it open, with no frame where it is hidden.
+  - One layer stack per page: Escape goes to the top layer only; layers under a modal get no presses;
+    a touch dismisses at its click, so a scroll that starts outside doesn't; a layer opened inside
+    another (or in a `<Portal>` rendered in it) counts as inside it; a press on a layer's own trigger
+    is not outside. Open Menus, Selects and Comboboxes are layers too: the first Escape closes the Zag
+    part, the next the popover.
+  - A controlled dialog's `closedby` says what dismisses it; uncontrolled popovers keep the browser's
+    light dismiss.
+- **`sygnal/ui` additions:**
+  - `popover({ trigger })` (Radix's `Popover.Trigger`): the trigger's clicks toggle the popover
+    through the model. `TOGGLE` takes `true` / `false`, or no data to flip it.
+  - `popoverAttrs(state, uid)` (`trigger`, `popover`) and `dialogAttrs(state, uid)` (`trigger`,
+    `dialog`, `title`, `description`, `close`) give Radix's ARIA and `data-state`. The dialog guide's
+    "Alert dialogs" section shows `role="alertdialog"`.
+  - `dialog`, `popover`, `tooltip` and `tooltips` work inside a `<Portal>`. In the core, an `ELEMENT`
+    command whose target isn't in the component's own DOM is looked for in its portals' content, and
+    a spec command can be marked `optional` (no SYG640).
+  - The parts use their element's own document, root and window, so they work in shadow roots,
+    iframes and on `sygnal/host`: every part runs in `sygnal/terminal`, the dialog and `<Toaster />`
+    included.
+  - `defineBehavior({ triggers })` declares which option an action's built-in trigger comes from
+    (`{ OPEN: 'trigger' }`); the `sygnal/ui` parts, `pager`, `selection` and `undo` declare it. **SYG118**
+    (warning; dev and `sygnal-check`): a host intent for `<key>.<ACTION>` replaces such a trigger, so
+    the option's clicks stop working. (An intent action with the same name replaces the built-in
+    trigger; the docs used to say it adds one.)
+- **Menu, Select, Combobox:**
+  - Widget form fields: a widget that declares `field: true | { event, read }` (`defineWidget`, and
+    `fromZag` through its options) is one form field named by its `name` prop, for the `form` behavior
+    (value, touched on blur) and `processForm()` (an array when `multiple`). Select and Combobox are
+    form fields.
+  - Combobox `multiple` shows chips before the input, as React Aria's TagGroup: one tab stop (a grid
+    with a roving tabindex), Left / Right / Home / End between chips, Delete / Backspace remove and
+    move the focus, removals announced (`removedMessage`), `removeHint`, `removeLabel`, `chipsLabel`,
+    `chips={false}`, and the `remove` command.
+  - Combobox `allowCustomValue` commits the typed text on blur or on Enter with no active option (an
+    item's label picks the item, an empty input clears), as React Aria's `allowsCustomValue`.
+    `loading` while the items load: a value no item has yet shows nothing, the listbox is `aria-busy`
+    and `empty` waits. `empty="No results"` shows and announces a row.
+  - Groups in Select and Combobox: `items={[{ group: 'Fruit', items: ['Apple', 'Pear'] }]}`.
+  - Menu checkbox and radio items (`checked-change`), link items and submenus (ArrowRight / Enter /
+    hover open, ArrowLeft / Escape close; a pick in one is the Menu's `select`).
 **Changed.**
 - `processForm()` gives a `<select multiple>` as an array of its selected values (`[]` when none),
-  as the `form` behavior's `CHANGE` and a `multiple` Select or Combobox already do. Checkboxes that
-  share a name (more than one in the form, disabled ones included) give an array of the checked,
-  enabled boxes' values in document order (`[]` when none is checked), like `FormData.getAll()`, on
-  the DOM and on a `sygnal/host` form; a lone checkbox and radios are unchanged. Both gave the last
-  selected or checked value, and no entry at all when none was. To keep the old value, take the
-  array's last item: `data.tags.at(-1)`. Type the field as an array:
-  `processForm<{ tags: string[] }>(DOM.select('form'))` (`FormData`'s fields may now be any type).
-  A group that sometimes renders one box gives a string then: read it as
-  `[].concat(data.tags ?? [])`, or use the `form` behavior, whose array fields stay arrays.
+  as the `form` behavior's `CHANGE` and a `multiple` Select or Combobox already do, leaving out
+  disabled options as FormData does. Checkboxes that share a name (more than one in the form, disabled
+  ones included) give an array of the checked, enabled boxes' values in document order (`[]` when none
+  is checked), like `FormData.getAll()`. Both hold on the DOM and on a `sygnal/host` form (terminal,
+  worker, agent-ui); a lone checkbox and radios are unchanged. Both gave the last selected or checked
+  value, and no entry at all when none was. To keep the old value, take the array's last item:
+  `data.tags.at(-1)`. Type the field as an array: `processForm<{ tags: string[] }>(DOM.select('form'))`
+  (`FormData`'s fields may now be any type). A group that sometimes renders one box gives a string
+  then: read it as `[].concat(data.tags ?? [])`, or use the `form` behavior, whose array fields stay
+  arrays.
+- **The `form` behavior keeps a checkbox group's array in document order,** as FormData and
+  `processForm()` do, instead of the order the boxes were checked in (checking c then b gives
+  `['a', 'b', 'c']`). Values no rendered box has keep their places. A checkbox's `form.CHANGE` carries
+  `order`, the group's values as rendered. Unchecking and rechecking a box now returns the form-level
+  `dirty` to false.
+- **`sygnal/ui` slice shapes (state-visible):** `dialog()` and `popover()` are keyed like `tabs` and
+  `disclosure`: the slices are `{ id, open, returnValue }` and `{ id, open }`, and the `id` option sets
+  the id prefix (default: the key in `uses`). A reducer that drops `id` gets it back.
+- **Behaviour change: dialog Escape and cancel.** While a modal dialog behavior is open, the dialog has
+  `closedby="none"`: Escape becomes `CANCEL` through the model, an Android back gesture no longer
+  closes it unless the host sets `closedby`, and its `cancel` event is always prevented, so the state
+  decides. `CLOSE` sets the state at once (before, only the close event did).
+- **Behaviour change: tooltips.** `tooltip()` / `tooltips()` show on focus only when it is
+  `:focus-visible` (React Aria's rule), so a mouse click or tap no longer shows the tip. A pointerdown
+  on the trigger hides the tip and cancels a pending show, and it stays hidden while the pointer is
+  still over the trigger (Radix); the state gains `pressed`. `DialogActions.SYNC` is typed `boolean`.
+- **Behaviour change: `sygnal/host` capture listeners** run in a capture phase before the others
+  (before, they ran with them).
+- Menu, Select and Combobox lists are `position: fixed` by default, as in Radix, so an
+  `overflow: hidden` or scrolling ancestor no longer clips them. Inside a `transform`, `filter` or
+  `contain` ancestor, use `positioning={{ strategy: 'absolute' }}`.
+- **`sygnal/terminal` defaults** (each documented with how to change it): the mouse is off (the
+  terminal keeps its own text selection; `mouse: true`); Ctrl+D in a field deletes forward and Ctrl+A
+  goes to the line start, as in readline (Ctrl+C or a `TERMINAL` `'exit'` quits); console output is
+  buffered on a TTY and written after the terminal is restored (`console: 'pass'`); the screen redraws
+  in place in one synchronized update. Cell widths come from Sygnal's own tables (CJK two cells,
+  combining marks none, emoji per `emojiWidth`).
+- **`sygnal/host` focus and keys:** a radio group, a roving `tabindex` list and a tab list are one Tab
+  stop. Enter / Space on a non-native `[tabindex]` element click it only when no component listens to
+  `keydown` on it or an ancestor (app-wide `DOM.select('document')` and `keymap()` listeners don't
+  count), so an app that handles those keys gets one action, as on the web. A `tabindex="-1"` element
+  is no longer added to the focus order. `select()` selects, setting `value` puts the caret at the end,
+  `dataset` values are strings, closed `<dialog>` / hidden `[popover]` / closed `<details>` content
+  counts as hidden, and while a modal is open only its contents are focusable.
+- **`sygnal/canvas` text:** a `text` node with a `width` now wraps instead of overflowing on one line.
+  A JSX `<text>` without width and height no longer has its measured size written into its node
+  (`event.node.width` is undefined for it). `measureText` is the natural, unwrapped size.
+- DevTools keeps before / after states for the newest 500 actions (was 5,000: the memory of a 60 fps
+  game).
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
@@ -214,6 +401,33 @@ experimental, and their APIs may change before 7.2.0. Everything is additive but
 - **Runs in a Web Worker:** `run()` no longer reads the `window` global (`src/cycle/run/adapt.ts` uses
   `globalThis`), so an app can run in a module worker on `sygnal/host` (research:
   `dev-plans/research/web-worker/`).
+- `sygnal/canvas`: a canvas sized by CSS painted nothing until its first change (the first
+  ResizeObserver report cleared the bitmap and the backend kept its cached paint). `check-live` now
+  fails on a canvas demo that is one flat colour.
+- `sygnal/canvas` and `sygnal/three` painted every other frame under a frame timer: a frame's paint
+  now runs at the end of that frame, after its flush (`atFrameEnd`, 0 B in the core). Also: no blit
+  bitmap reallocated every frame for ≥ 1,000 live nodes that don't translate; SYG262 skips `live`
+  layers and `active` nodes.
+- `sygnal/replay` crashed on a checkpoint when a view had a number next to text.
+- `accordion()` driven from state: numbers in a host-written `expanded` never opened (and a click
+  added a duplicate), a string `expanded: '12'` opened panels `1`, `2` and `12`, and
+  `collapsible: false` was lost when a host reducer replaced the slice.
+- `dialog()` in Firefox and WebKit: Escape after an earlier `'ok'` close reported `returnValue: 'ok'`
+  again, so the app committed the cancelled edit. `OPEN` now clears `returnValue`.
+- Tooltips: in Chromium and Firefox a clicked trigger kept its tip after the pointer left; in WebKit a
+  tip on a dialog trigger stayed open under the modal.
+- Select and Combobox in a form: the `form` behavior saw their picks, a picked value is submitted
+  exactly once, and a form reset puts their first value back. A Combobox shows its value's label when
+  the items arrive after the value, after a refused pick and after Zag's own input writes; its
+  nameless input no longer sends `form.CHANGE { name: '' }` per keystroke. Select's hidden `<select>`
+  keeps an option for a selected value no longer in `items`. A checked Menu item's name no longer
+  includes its `✓`, and Menu's `label` is optional (an icon-only trigger named by `aria-label`).
+- `sygnal/terminal`: a crash, `SIGTERM` or `SIGHUP` restores the terminal (raw mode, cursor, alternate
+  screen, mouse and paste modes) before the error is printed. Painting is about 16× faster (a 120×50
+  frame: 46 → 2.9 ms; an arrow key with the app's render: 40 → 5.9 ms), so held keys no longer lag.
+  Emoji no longer break box borders in xterm.js terminals (VS Code); wrapped lines no longer start
+  with the space they broke at; nothing redraws after `stop()`; `<textarea>` `rows` / `cols` set as
+  properties are read.
 
 **From Temper's feedback (2026-10).** Friction points from building an app with Sygnal; assessment
 and decisions in `dev-plans/research/temper-feedback-2026-10/`.
@@ -257,10 +471,12 @@ and decisions in `dev-plans/research/temper-feedback-2026-10/`.
 - Size: 0 B in the kanban gate (the changes are in the test harness, the dev diagnostics and
   `<VirtualCollection>`'s dev hook, which kanban doesn't import).
 
-**Measured impact.** Size: the kanban gate is 42,472 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
-budget 43,000 B, 528 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
-renderer field tags cost about 100 B, and the cheaper Collection items about 260 B. The new subpaths
-add nothing to an app that doesn't import them. The perf count gate is within its limits.
+**Measured impact.** Size: the kanban gate is 42,731 B with `nativeGlobalThis: false` (7.1.0: 42,982 B;
+budget 43,000 B, 269 B headroom). The widget fix saves 902 B. The core hooks for compiled views and
+renderer field tags cost about 100 B, the cheaper Collection items about 260 B, and the record/replay hooks
+with the handlers' `now()` / `random()` / `uuid()` about 140 B.
+The new subpaths add nothing to an app that doesn't import them. The perf count gate is within its
+limits.
 
 **Companion packages.**
 - **`sygnal-check`:** SYG302 also reports a default import from `xstream/extra/<name>` (the module
@@ -281,6 +497,16 @@ add nothing to an app that doesn't import them. The perf count gate is within it
   isn't in an `orpcClient` contract, with a "did you mean". `shared()` from `sygnal/yjs` is a known
   behavior: its key in `initialState` is not SYG127 (the behavior marker `ownsState: false`, also read
   from a hand-written factory), and SYG260 reports `undo()` / `undoable()` on a shared key.
+- **`sygnal-check`:** **SYG258** (warning): `Date.now()`, `new Date()`, `Math.random()` or
+  `crypto.randomUUID()` in a STATE reducer; **SYG509** (`--strict`) the same in any handler. `--fix`
+  rewrites them to the handler's `now()` / `random()` / `uuid()`. **SYG118**: a host intent that
+  replaces a trigger a behavior built from an option (the first-party parts, and `defineBehavior()`
+  calls it can follow). **SYG116** is also static: a non-STATE sink entry that is a function returning
+  `event()` (`EVENTS: (s) => event('TOAST', …)` sends nothing; write `event('TOAST', (s) => …)`).
+  **SYG141** also flags `events('change')` / `events('input')` on a Menu, Select or Combobox, with the
+  right event name as a quick fix. SYG422 checks a frame timer's `step` and `keys`. The first-party
+  behavior table knows the popover's `trigger` and `id` options and `DISMISS`, the dialog's `id`, and
+  `tooltips`.
 
 ## 7.1.0 — 2026-10-20
 
