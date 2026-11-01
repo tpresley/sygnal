@@ -2226,8 +2226,9 @@ export type FormSource = {
 }
 
 /**
- * processForm's entries: a field's string (a file input: its File), a `<select multiple>` (7.2) and
- * a multiple widget field an array of their values; declare those in FIELDS: `{ tags: string[] }`
+ * processForm's entries: a field's string (a file input: its File); a `<select multiple>`, checkboxes
+ * sharing a name (7.2) and a multiple widget field an array of their values; declare those in
+ * FIELDS: `{ tags: string[] }`
  */
 export type FormData<FIELDS extends Record<string, any> = Record<string, string>> = FIELDS & {
   event: globalThis.Event;

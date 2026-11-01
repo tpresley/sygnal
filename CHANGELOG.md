@@ -189,12 +189,15 @@ experimental, and their APIs may change before 7.2.0. Everything is additive but
 
 **Changed.**
 - `processForm()` gives a `<select multiple>` as an array of its selected values (`[]` when none),
-  as the `form` behavior's `CHANGE` and a `multiple` Select or Combobox already do. It gave the last
-  selected value, and no entry at all when none was selected. To keep the old value, take the
+  as the `form` behavior's `CHANGE` and a `multiple` Select or Combobox already do. Checkboxes that
+  share a name (more than one in the form, disabled ones included) give an array of the checked,
+  enabled boxes' values in document order (`[]` when none is checked), like `FormData.getAll()`, on
+  the DOM and on a `sygnal/host` form; a lone checkbox and radios are unchanged. Both gave the last
+  selected or checked value, and no entry at all when none was. To keep the old value, take the
   array's last item: `data.tags.at(-1)`. Type the field as an array:
   `processForm<{ tags: string[] }>(DOM.select('form'))` (`FormData`'s fields may now be any type).
-  Checkbox groups that share a name are unchanged: the last checked box's value, and no entry when
-  none is checked.
+  A group that sometimes renders one box gives a string then: read it as
+  `[].concat(data.tags ?? [])`, or use the `form` behavior, whose array fields stay arrays.
 
 **Fixed.**
 - A component or `<Collection>` written directly inside a literal `<svg>` lost its props (the pragma
