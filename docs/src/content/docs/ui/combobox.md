@@ -79,6 +79,8 @@ With `allowCustomValue`, the user can enter text that is no item, as React Aria'
 
 The controlled `value` and the [`form` behavior](/guide/forms/) get the committed text. A model that refuses it (`ABORT`) puts the input back to the state's value. While the user is still typing, a native form submission sends the typed text.
 
+A value that no item has is shown as custom text. When the items load after the value (from the server), pass `loading` while they load: the input shows nothing until the value's item arrives, then its label, as React Aria's ComboBox does, instead of showing the raw value first. The listbox is `aria-busy` and the `empty` row waits. A value the loaded items don't have is custom text again.
+
 ```jsx live live-height=240
 import { Combobox } from 'sygnal/ui/combobox'
 
@@ -166,6 +168,7 @@ Trip.model = {
 | `placeholder` | | The input's placeholder |
 | `filter` | contains | A function `(item, text) => boolean`, or `false` |
 | `allowCustomValue` | `false` | The typed text can be the value: see [Custom values](#custom-values) |
+| `loading` | `false` | The items are loading: a value no item has yet shows nothing (not as custom text); the listbox is `aria-busy` and `empty` waits |
 | `openOnClick` | `false` | Open the list when the input is clicked |
 | `inputBehavior` | `'none'` | `'autohighlight'` highlights the first match; `'autocomplete'` also completes the text |
 | `selectionBehavior` | `'replace'` | What the input shows after a pick: `'replace'` (the label), `'clear'`, or `'preserve'` (the typed text). With `multiple`: `'clear'` |

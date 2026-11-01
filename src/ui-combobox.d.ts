@@ -24,6 +24,8 @@ export interface ComboboxProps extends ListboxProps {
   removeHint?: false | string
   /** Shown (a `data-part="empty"` row, and announced in a status region) while the list is open with no items */
   empty?: any
+  /** The items are loading (7.2): a value no item has yet shows nothing (not as custom text) until its item arrives; the listbox is aria-busy and `empty` waits */
+  loading?: boolean
 }
 /**
  * An editable combobox (Zag combobox). Events: `value-change`, `input-change` (the typed text),

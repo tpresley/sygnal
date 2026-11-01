@@ -181,7 +181,7 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `<input type="number">`, `range`, `date`, `time` | The text as the browser gives it (`'42'`, `'2026-10-05'`; `''` when empty) | `value={f.age.value}`; convert in the schema: `z.coerce.number()`, `v.pipe(v.string(), v.transform(Number), v.number())` |
 | `<input type="radio">` (same `name`) | The checked radio's `value` | `checked={f.size.value === 'm'}` |
 | `<input type="checkbox">` on a boolean | `checked` | `checked={f.agree.value}` |
-| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
+| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s in document order (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
 | `<select>` | The selected option's `value` | `value={f.country.value}` |
 | `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |

@@ -24,7 +24,8 @@
  * reset puts the first value back (ZS-4).
  *
  * Props: `label`, `items` (strings or { value, label?, disabled? }), `value` (controlled: a
- * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`, and
+ * string, an array when `multiple`, null for none), `defaultValue`, `placeholder`, `filter`,
+ * `loading` (7.2: the items are loading; a value no item has yet isn't custom text), and
  * Zag's combobox props (`multiple`, `name`, `form`, `disabled`, `readOnly`, `required`,
  * `invalid`, `allowCustomValue`, `openOnClick`, `inputBehavior`, `selectionBehavior`,
  * `closeOnSelect`, `loopFocus`, `positioning`, `open`, `id`). Events: `value-change` (the value,
@@ -85,12 +86,17 @@ const hidden = (api: any, p: any, x: any) => {
 // label even when a controlled value refuses the pick ('' for a custom value). Single,
 // selectionBehavior 'replace' (the default) only; checked after each render and each of Zag's
 // own writes, once the app's flush has run (an accepted pick's value arrives then)
+// 7.2: while `loading`, a value no item has yet isn't custom text: it shows nothing until its item
+// arrives (React Aria: the input shows the selected item's text, '' while it isn't in the collection)
 const shows = (a: any, x: any) =>
-  a.value.map((v: string) => x.items.find((i: any) => i.value === v)?.label ?? (x.custom ? v : '')).filter((l: string) => l).join(', ')
+  a.value.map((v: string) => x.items.find((i: any) => i.value === v)?.label ?? (x.custom && !x.loading ? v : '')).filter((l: string) => l).join(', ')
 const sync = (api: any, p: any, x: any) => {
   const off = (a: any) => x.multiple || x.t || a.open || (p.selectionBehavior ?? 'replace') != 'replace' || a.inputValue === shows(a, x)
   api && off(api) || x.sq || (x.sq = 1, queueMicrotask(() => { x.sq = 0; const a = x.el.isConnected && x.api(); a && !off(a) && a.setInputValue(shows(a, x)) }))
 }
+
+// 7.2: the listbox is aria-busy while the items load (React Spectrum's loadingState)
+const busy = (bag: any, x: any) => (x.loading && (bag.attrs['aria-busy'] = 'true'), bag)
 
 // ZS-4: a form reset puts the first value back (as Zag's Select does: the controlled value's
 // first, or defaultValue: value-change reports it) and the input shows its label; after the
@@ -209,7 +215,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
   }
   // F-4: `empty` while the list is open with no items: a row after the listbox, and the status
   // region's text (announced)
-  const none = api.open && !api.collection.items.length && p.empty != null
+  const none = api.open && !api.collection.items.length && p.empty != null && !x.loading
   // Round 3: one "Press Delete to remove" description the chips point at (removeHint={false}: none)
   const tags = x.multiple && p.chips !== false
   x.hint = tags && p.removeHint !== false ? x.machine.service.prop('id') + '-chip-hint' : 0
@@ -220,7 +226,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
       h('input', {...input, placeholder: p.placeholder, hook}),
       h('button', api.getTriggerProps(), '▾')),
     h('div', api.getPositionerProps(),
-      h('div', named(api.getContentProps(), p), options(h, api)),
+      h('div', busy(named(api.getContentProps(), p), x), options(h, api)),
       p.empty != null && h('div', {attrs: {'data-scope': 'combobox', 'data-part': 'empty', hidden: !none}}, p.empty)),
     (p.empty != null || tags) && h('div', {attrs: {role: 'status', 'data-scope': 'combobox', 'data-part': 'status'}, style: SR}, status(api, p, x, none)),
     x.hint && h('span', {attrs: {id: x.hint, hidden: true}}, p.removeHint ?? 'Press Delete to remove.'),
@@ -230,9 +236,10 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
   $own: 1,
   field,
   ownProps: [...NAMING, 'name'],
-  props: ({items, label, placeholder, value, defaultValue, filter, empty, chips: _c, removeLabel, chipsLabel, removedMessage, removeHint, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
+  props: ({items, label, placeholder, value, defaultValue, filter, empty, loading, chips: _c, removeLabel, chipsLabel, removedMessage, removeHint, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.multiple = !!p.multiple
     x.custom = !!p.allowCustomValue
+    x.loading = !!loading
     x.items = norm(items)
     // G-468: a new controlled value ends the typing. G-494: not an empty one (an app that clears
     // its value on input-change: the typed text is still what is submitted)

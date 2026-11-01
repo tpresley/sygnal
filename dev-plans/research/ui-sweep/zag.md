@@ -547,3 +547,79 @@ The machine was shared with other sessions' gates (load average up to 141).
 - sygnal-check: the failing LSP / graph files passed on their own (109). Otherwise 1,856 passed.
 - `npm --prefix docs run build`: ok. `check-live`: 130 demos ok on Chromium, Firefox and WebKit.
 - `check-doc-samples`: 980 clean.
+
+## 7.2.0-preview.0 batch
+
+### 1. processForm on sygnal/host: `<select multiple>` is an array
+
+- Host elements have no `selectedOptions`, so processForm now reads what both DOMs have: the select's `options` and each option's `selected`.
+- It recognises the select by `localName == 'select'` and `multiple`, not by `type == 'select-multiple'`, because a host select has no
+  `type`.
+- An option with no value property (the host's) gives its `value` attribute, else its text, as the DOM's `option.value` does. The host's
+  `optionValue` does the same.
+- Disabled options are now left out, their own or an optgroup's (`:disabled`; on the host, the `disabled` property), as FormData does.
+  Round 3's `selectedOptions` included a selected disabled option, which FormData doesn't send.
+- On a host form, processForm reads the form's `input, select` descendants. Nothing in `src/host/` changed: the host already had everything
+  needed (`options`, `selected`, `multiple`, `disabled`, `getAttribute`, `textContent`).
+- Test: `test/processform-host.test.js` runs a terminal app (`createTerminal()`, Enter submits) and checks:
+  - `[]` when nothing is selected, then the selected options' values;
+  - an option without a value attribute gives its text;
+  - a disabled option and a disabled select are left out;
+  - a checkbox group in the same form.
+
+### 2. The `form` behavior's checkbox groups in document order
+
+The maintainer chose document order, as FormData does. The `form` behavior used to append each value in the order the boxes were checked.
+
+- A checkbox's CHANGE now carries `order`: its group's values in document order. These come from the form's controls (`form.elements`, so
+  `form="id"` boxes count), or from the closest form's descendants on a host.
+- The step sorts the array by `order`. Values no rendered box has (a filtered list, values from elsewhere) keep their places; only the
+  rendered values are reordered among the slots they hold.
+- A CHANGE an app dispatches itself without `order` appends, as before.
+
+What is observable:
+- `state.form.values.<group>` is in document order: checking c then b gives `['a', 'b', 'c']`, not `['a', 'c', 'b']`.
+- An initial value in another order (`['c', 'a']`) is sorted at the first change in its group. RESET still restores `initial` as given.
+- The form-level `dirty` compares JSON, so unchecking and rechecking a box now gives the initial array back, and `dirty` is false again.
+  Before, the value went to the end and the form stayed dirty. The per-field `dirty` compares by reference, which is unchanged: any change
+  makes a new array.
+- The `form.CHANGE` action data has a new field, `order`. It is in the type
+  (`order?: ReadonlyArray<string>`); the pinned type test in `type-tests/p5-f1-form.tsx` is updated.
+- The action log and recordings show `order` in CHANGE data.
+- Docs: the forms guide's field-types row and the forms reference's CHANGE row.
+
+Tests (`test/p5-1s-forms.test.js`):
+- document order whatever the click order, equal to `new FormData(form).getAll()`;
+- an unrendered value keeps its place;
+- an app's own CHANGE without `order` appends.
+
+Now the `form` behavior and processForm agree on the order. They still differ in one case: a group that renders one box gives an array in
+the `form` behavior (an array field) and a string in processForm.
+
+### 3. Controlled Combobox, `allowCustomValue`, value before items: `loading`
+
+A controlled `allowCustomValue` combobox whose value arrives before its items showed the raw value ("par"), then "Paris". The value is no
+item's yet, so it counted as custom text.
+
+- **React Aria:** the input shows the selected item's `textValue`, `''` while the key isn't in the collection, and updates when the item's
+  text appears. It never shows a raw key. A custom value there is the `inputValue`, not the selected key.
+- **Here:** a single `value` carries both an item's value and custom text, so Sygnal can't tell "not loaded yet" from "custom".
+- **Guessing from empty `items` was rejected.** A search-as-you-type combobox has no items until the user types, and a saved custom value
+  would then never show.
+- **The fix is an explicit `loading` prop**, React Spectrum's `loadingState`. While it is on:
+  - a value no item has shows nothing, as in React Aria;
+  - the listbox has `aria-busy="true"`;
+  - the `empty` row and its status announcement wait, since a list that is loading isn't empty.
+  When `loading` goes off, the input shows the item's label, or the custom text if the loaded items don't have the value. Without `loading`,
+  nothing changes.
+- **Docs:** the Custom values section, the props table, `llms/ui.md`, and the types (`src/ui-combobox.d.ts`).
+- **Tests:** `test/ui-zag-loading.test.js` (5), and a type test in `type-tests/p5-2z-adapters.tsx` (including a non-boolean that must fail).
+- **Not changed:** a `multiple` combobox's chips still show a value's raw text until its item loads (`labelOf`). A follow-up could hide such
+  chips while `loading`.
+
+### Size (preview batch, gzip, esbuild minified, deltas against round 4)
+
+- `processForm`: +47 B (655 → 702).
+- The `form` behavior: +155 B.
+- `sygnal/ui/combobox`: +48 B.
+- The size gate's figure is in the report; the core is unchanged.

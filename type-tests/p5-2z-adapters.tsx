@@ -53,11 +53,14 @@ const sg = <Select className="food" label="Food" items={[{ group: 'Fruit', items
 const cc = <Combobox className="tags" label="Tags" items={['a']} multiple chips removeLabel={(l) => `Remove ${l}`} empty="No results" />
 // round 3: the chips' announcement and description
 const cr = <Combobox className="tags" label="Tags" items={['a']} multiple removedMessage={(l) => `${l} entfernt`} removeHint={false} />
+const cl = <Combobox className="city" label="City" items={[]} value="par" allowCustomValue loading />
+// @ts-expect-error loading is a boolean
+const cl2 = <Combobox className="city" label="City" items={[]} loading="yes" />
 // @ts-expect-error a string removedMessage (a function or false)
 const cs = <Combobox className="tags" label="Tags" items={['a']} multiple removedMessage="removed" />
 // @ts-expect-error: not a strategy
 const bad3 = <Select className="s" items={['a']} positioning={{ strategy: 'sticky' }} />
-void mk; void sg; void cc; void cr; void cs; void bad3
+void mk; void sg; void cc; void cr; void cs; void bad3; void cl; void cl2
 const sm = <Select className="tags" label="Tags" items={['a']} multiple value={['a']} />
 const c = <Combobox className="city" label="City" items={['Paris']} filter={(item, text) => item.label.startsWith(text)} />
 const c2 = <Combobox className="city" label="City" items={['Paris']} filter={false} inputBehavior="autohighlight" />
