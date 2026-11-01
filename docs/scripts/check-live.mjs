@@ -88,6 +88,15 @@ const inspect = (el) => {
     pending: Number(el.dataset.livePending || 0),
     nodes: el.querySelector('.live-mount')?.querySelectorAll('*').length ?? 0,
     label: el.querySelector('.live-result')?.getAttribute('aria-label') || '',
+    // a sygnal/canvas whose main canvas is one flat colour painted nothing (it starts with its
+    // background and its static layers; the live layer has a canvas of its own)
+    blank: [...el.querySelectorAll('.live-mount canvas.sygnal-canvas')].filter((c) => {
+      if (!c.width || !c.height) return false
+      const d = c.getContext('2d')?.getImageData(0, 0, c.width, c.height).data
+      if (!d) return false
+      for (let i = 4; i < d.length; i += 4) if (d[i] !== d[0] || d[i + 1] !== d[1] || d[i + 2] !== d[2] || d[i + 3] !== d[3]) return false
+      return true
+    }).length,
   }
 }
 /** what is wrong with a panel ('' when nothing) */
@@ -96,7 +105,8 @@ const problemOf = (r) =>
     : r.bad.length ? `demo server: ${r.bad[0]}${r.bad.length > 1 ? ` (+${r.bad.length - 1} more)` : ''} (live-expect=404 / throw if intended)`
       : r.state !== 'running' ? `state ${r.state}`
         : !r.nodes ? 'rendered no DOM'
-          : ''
+          : r.blank ? `${r.blank} sygnal/canvas canvas(es) painted nothing (one flat colour)`
+            : ''
 
 const browser = await browserType.launch()
 let failed = 0

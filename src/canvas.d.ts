@@ -155,7 +155,7 @@ export interface Frame {
   moving: boolean;
 }
 export interface PaintStats { nodes: number; culled: number; ms: number; blits: number; cached: number; shifted: number; scaled: number; statics: number }
-export interface BackendInstance { paint(frame: Frame, stats: PaintStats): void; dispose?(): void }
+export interface BackendInstance { paint(frame: Frame, stats: PaintStats): void; /** the canvas's bitmap was resized (and so cleared) */ resized?(): void; dispose?(): void }
 /** A painter: `(canvas) => instance`, or null without a context (the canvas then runs headless) */
 export type CanvasBackend = (canvas: HTMLCanvasElement) => BackendInstance | null
 /** The own Canvas 2D painter (the default) */

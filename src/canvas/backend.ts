@@ -44,6 +44,8 @@ export interface Frame {
 export type PaintStats = {nodes: number, culled: number, ms: number, blits: number, cached: number, shifted: number, scaled: number, statics: number}
 export interface BackendInstance {
   paint(frame: Frame, stats: PaintStats): void
+  /** the canvas's bitmap was resized (and so cleared): the next paint must not reuse it */
+  resized?(): void
   dispose?(): void
 }
 export type CanvasBackend = (canvas: any) => BackendInstance | null
@@ -456,6 +458,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       lastCam = cam
       lastItems = f.layers.map(l => l.items)
     },
+    resized() { mainValid = false },
     dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; runs.length = 0; live?.remove() },
   }
 }

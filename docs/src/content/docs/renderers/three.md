@@ -52,7 +52,7 @@ Cubes.initialState = {
 }
 ```
 
-![The three-cubes example: a cube selected by a raycast click, one hovered](https://raw.githubusercontent.com/tpresley/sygnal/main/examples/three-cubes/screenshot.png)
+![The three-cubes example: a cube selected by a raycast click, one hovered](/images/renderers/three-cubes.png)
 
 The [three-cubes example](https://github.com/tpresley/sygnal/tree/main/examples/three-cubes) adds hover, removal, spinning, dragging, a loaded model, an orbit camera and tests.
 

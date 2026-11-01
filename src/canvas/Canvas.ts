@@ -195,9 +195,12 @@ export const Canvas = defineWidget({
     const inst: any = {el, canvas, backend, props, st, headless, layers: [] as Layer[], live: [] as Live[], nodeProps: new Map(), camera: props.camera || CAMERA, follow: null, focused: null}
     let pending = 0, camPending = 0, rest: any = 0, moving = false
 
+    // only a real change touches the bitmap: assigning width clears the canvas (an opaque one to black),
+    // and the backend would see the same frame and keep its cached paint (the first ResizeObserver report)
     const size = (W: number, H: number) => {
       w = W, h = H
-      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr)
+      const cw = Math.round(w * dpr), ch = Math.round(h * dpr)
+      if (canvas.width != cw || canvas.height != ch) { canvas.width = cw; canvas.height = ch; backend?.resized?.() }
     }
     size(w, h)
 

@@ -203,4 +203,26 @@ export async function canvasTests7_2() {
       assert(x1 - x0 > 20, 'held → moved the player: ' + (x1 - x0))
     } finally { app.dispose(); clearStage() }
   }, 8000)
+
+  await runTest(CAT, 'a canvas sized by CSS shows its content at once: the first ResizeObserver report (the same size) does not clear it', async () => {
+    const { id, el } = mountOnScreen()
+    function Sized() {
+      return (
+        <Canvas className="sized" background="#fafafa" style={{ width: '300px', height: '150px' }}>
+          <shapes className="doc" items={[{ id: 'a', type: 'rect', x: 20, y: 20, width: 100, height: 60, fill: '#0d99ff' }]} />
+        </Canvas>
+      )
+    }
+    const app = run(Sized, {}, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.sized canvas.sygnal-canvas'), 4000)
+      const c = canvasOf(el.querySelector('.sized'))
+      // past the ResizeObserver's first report and its paint
+      await wait(150)
+      const px = (x, y) => [...c.canvas.getContext('2d').getImageData(Math.round(x * c.canvas.width / 300), Math.round(y * c.canvas.width / 300), 1, 1).data]
+      const bg = px(250, 120), shape = px(60, 50)
+      assert(bg[0] > 240 && bg[1] > 240 && bg[2] > 240, 'the background, not a cleared (black) canvas: ' + bg)
+      assert(shape[0] < 40 && shape[2] > 200, 'the shape: ' + shape)
+    } finally { app.dispose(); clearStage() }
+  }, 8000)
 }
