@@ -173,8 +173,9 @@ export function submit(form: HostElement): boolean { return fire(form, 'submit')
  *   / Home / End / PageUp / PageDown move the highlight, a letter jumps to an option, Enter /
  *   Space choose (input + change), Escape and Tab close it; closed, ← / → and a letter change it;
  * - a radio: the arrows check the next / previous radio of its group and focus it;
- * - Enter or Space activates a button / link / checkbox / [tabindex] element (Space toggles a
- *   checkbox);
+ * - Enter or Space activates a button / link / checkbox (Space toggles a checkbox), and a
+ *   [tabindex] element unless a component listens to keydown on it or an ancestor (the app's own
+ *   key handling, as in a browser, where such an element has no key action);
  * - Escape: a modal dialog's close request (cancel, then close) unless it has closedby="none",
  *   else the last open auto popover hides.
  * Returns false when the keydown was prevented.
@@ -193,7 +194,7 @@ export function pressKey(target: HostElement, key: string, init: KeyInit = {}, o
     const g = radioGroup(target).filter(r => !r.disabled && !isInert(r)), i = g.indexOf(target)
     const to = g[(i + (key == 'ArrowDown' || key == 'ArrowRight' ? 1 : -1) + g.length) % g.length]
     if (to && to !== target) { to.focus(); if (!to.checked) activate(to, options) }
-  } else if (plain && (key == 'Enter' && !isBox(target) || key == ' ') && (isButton(target) || isBox(target) || target.localName == 'a' || target.localName == 'summary' || target.hasAttribute('tabindex'))) {
+  } else if (plain && (key == 'Enter' && !isBox(target) || key == ' ') && (isButton(target) || isBox(target) || target.localName == 'a' || target.localName == 'summary' || target.hasAttribute('tabindex') && !handlesKeys(target))) {
     if (!(key == ' ' && target.localName == 'a')) activate(target, options)
   } else if (key == 'Escape') {
     const d = target.ownerDocument, m = d.topModal, pop = [...d.popovers].reverse().find(p => p.popover == 'auto')
@@ -202,6 +203,18 @@ export function pressKey(target: HostElement, key: string, init: KeyInit = {}, o
   }
   fire(target, 'keyup', ev)
   return true
+}
+
+/**
+ * Whether the app handles keydown on `el` itself: a component's (non-global) keydown delegate
+ * accepts it or an ancestor the event bubbles to. A browser gives a [tabindex] element no
+ * Enter / Space action, so an app written for the web clicks it from its own keydown; the
+ * click this user agent adds is only for the apps that don't (one action, not two).
+ */
+function handlesKeys(el: HostElement): boolean {
+  const ds = [...el.ownerDocument.delegates].filter(d => d.type == 'keydown' && !d.global)
+  if (ds.length) for (let e: HostElement | null = el; e; e = e.parentNode) if (ds.some(d => d.accepts(e!))) return true
+  return false
 }
 
 // ── text fields ──────────────────────────────────────────────────────

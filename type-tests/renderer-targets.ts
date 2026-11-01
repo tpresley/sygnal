@@ -63,3 +63,10 @@ term.press(13)
 const bad: string = ui.call('ui_snapshot')
 
 export { ok, display, id, lines, keys, stop, app, tree, frame, bad, caret, changed, rv, highlighted, inert, clicked, scrolled, hint }
+
+// F20: run() returns the app, settle() a promise
+const ranApp = boxes.run(() => null, {}, {})
+ranApp.dispose()
+const settled: Promise<void> = boxes.settle({ timeout: 500, quiet: 10 })
+const emoji: 1 | 2 = boxes.emojiWidth
+void settled; void emoji

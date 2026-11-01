@@ -46,6 +46,15 @@ Tab move · Ctrl+C quit
 
 It returns `{ app, terminal, stop }`.
 
+### Defaults
+
+| Default | Why | To change it |
+|---|---|---|
+| The mouse is off | the terminal keeps its own text selection (copying from the screen) | `mouse: true` |
+| Ctrl+D deletes forward and Ctrl+A goes to the line start in a text field | the readline keys of shells, Textual and prompt_toolkit, not EOF or select all | the `keydown` goes out first: a [`keymap()`](/guide/inputs/) shortcut (or a `keydown` intent that prevents the default) takes the key instead |
+| Cell widths come from Sygnal's own tables | no dependency: CJK and fullwidth text take two cells, combining marks and zero-width joiners none | `emojiWidth: 1` or `2` instead of asking the terminal |
+| `console` output is buffered on a TTY | a `console.log` drawn over the screen would scroll it | `console: 'pass'` |
+
 ## Keys
 
 | Key | What it does |
@@ -57,6 +66,7 @@ It returns `{ app, terminal, stop }`.
 | Ctrl+A E B F D K U W, Alt+B F D | the readline keys in a text field: line start / end, back / forward, delete forward, kill to the end / start, delete a word |
 | Enter | in an `<input>`: submit its form; on a button, link, or clicked element: click it |
 | Space | toggle a checkbox, click a button |
+| Enter / Space on a `[tabindex]` element | click it, unless a component listens to `keydown` on it or an ancestor: an app that handles those keys itself (as it must in a browser, where such an element has no key action) gets one action, not two. App-wide listeners (`DOM.select('document')`, `keymap()`) don't count |
 | ← / → on a radio | check the next radio of its group |
 | F2 | a double click (a terminal has none) |
 | Escape | close the modal dialog, or the open popover |
@@ -263,24 +273,23 @@ Render `<Toaster />` once and pass `makeTimerDriver()` in `drivers` (`runTermina
 ```js
 // Groceries.terminal.test.js
 import { it, expect } from 'vitest'
-import { run } from 'sygnal'
 import { createTerminal } from 'sygnal/terminal'
 import Groceries, { Name } from './Groceries.jsx'
 
-const tick = () => new Promise((resolve) => setTimeout(resolve))
-
 it('adds an item from the keyboard', async () => {
   const term = createTerminal({ width: 60 })
-  const app = run(Groceries, { DOM: term.driver })
-  await tick()
+  const app = term.run(Groceries)
+  await term.settle()
   term.focus(Name)
   term.type('Eggs')
   term.press('Enter')
-  await tick()
+  await term.settle()
   expect(term.frame()).toContain('[ ] Eggs')
   app.dispose()
 })
 ```
+
+`term.run(App, drivers, runOptions)` is `run()` with the terminal's `DOM` and `TERMINAL` drivers added; it returns the app. `await term.settle()` waits until the app is quiet: nothing scheduled in its runtime and no change to the tree for 20 ms, so element commands (`ELEMENT: { focus }`), delayed actions and a fake server with a short latency are done. It rejects after 2 s with the frame in the message; `term.settle({ timeout, quiet })` changes both. Under `vi.useFakeTimers()` it advances the clock.
 
 | | |
 |---|---|
@@ -289,7 +298,8 @@ it('adds an item from the keyboard', async () => {
 | `term.click(line, col, { detail })`, `term.wheel(line, col, rows)` | the mouse, at a cell of the current frame |
 | `term.frame()`, `term.render()` | the frame as text; `{ plain, ansi, focusLine, focus, caret, hits }` |
 | `term.focusables()`, `term.keyHint()` | the Tab order; the footer's key hint |
-| `run(App, { DOM: term.driver, TERMINAL: term.control })`, `term.commands` | what the app sent its `TERMINAL` sink |
+| `term.run(App, drivers)`, `await term.settle()` | run the app; wait for it to go quiet |
+| `term.commands` | what the app sent its `TERMINAL` sink |
 
 `createTerminal({ width: 80, height: 24 })` gives the frame a screen's height, for full-screen layouts. Test the logic itself once with [`renderComponent`](/integration/testing/): it covers every target.
 

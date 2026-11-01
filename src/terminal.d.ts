@@ -114,6 +114,16 @@ export interface Terminal {
   keyHint(): string
   width: number
   height: number | undefined
+  /** the cells an emoji takes (1 or 2) */
+  emojiWidth: 1 | 2
+  /** run(App, { DOM, TERMINAL, ...drivers }) on this terminal; returns the app (dispose() it) */
+  run(App: any, drivers?: Record<string, any>, runOptions?: Record<string, any>): any
+  /**
+   * Resolves once the app run with run() is quiet: nothing scheduled in its runtime and no change
+   * to the tree for `quiet` ms (default 20); drives fake timers. Rejects after `timeout` ms
+   * (default 2000) with the frame in the message
+   */
+  settle(options?: { timeout?: number; quiet?: number }): Promise<void>
 }
 export function createTerminal(options?: TerminalOptions): Terminal
 
