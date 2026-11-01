@@ -45,7 +45,7 @@ const sub = (x: any, path: string, parent: any): any => {
       return {
         id, dir, loopFocus, typeahead, closeOnSelect,
         positioning: {placement: dir == 'rtl' ? 'left-start' : 'right-start', gutter: 0, strategy: positioning?.strategy ?? 'fixed'},
-        getRootNode: () => (x.el.isConnected ? x.el.getRootNode() : document),
+        getRootNode: () => (x.el.isConnected ? x.el.getRootNode() : x.el.ownerDocument),
         onSelect: (d: any) => x.dispatch('select', d.value),
       }
     })

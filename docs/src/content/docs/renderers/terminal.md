@@ -225,7 +225,36 @@ IssueRow.model = { PICK: { PARENT: (state) => state.id } }
 
 ## sygnal/ui in a terminal
 
-[Tabs](/ui/tabs/), [accordion](/ui/accordion/), [disclosure](/ui/disclosure/), [popover](/ui/popover/) and [tooltip](/ui/tooltip/), shown on focus under its trigger, work in a terminal. The arrow keys move between tabs and between accordion triggers. The [dialog](/ui/dialog/) behavior and the [Toaster](/ui/toaster/) don't work yet: they read the browser's global `document`. Use a native `<dialog>` with `ELEMENT` commands, as above, and a status line for messages.
+Every [`sygnal/ui`](/ui/overview/) part on native HTML works in a terminal: [dialog](/ui/dialog/), [popover](/ui/popover/), [tooltip](/ui/tooltip/) (shown on focus under its trigger), [tabs](/ui/tabs/), [accordion](/ui/accordion/), [disclosure](/ui/disclosure/) and the [Toaster](/ui/toaster/). They read the document of the element they act on, so the same code runs on the terminal's tree, in a browser, and in a shadow root. The arrow keys move between tabs and between accordion triggers.
+
+The `dialog` behavior gives the confirm above its state, its trigger's ARIA and a refusable close:
+
+```jsx
+// Item.jsx
+import { dialog, dialogAttrs } from 'sygnal/ui'
+
+export function Item({ state, uid }) {
+  const a = dialogAttrs(state.ask, uid)
+  return (
+    <div>
+      <button className="delete" {...a.trigger}>Delete</button>
+      <dialog className="ask" {...a.dialog} role="alertdialog" aria-label="Confirm" aria-labelledby={undefined}>
+        <p {...a.description}>Delete it? This can't be undone.</p>
+        <button className="ok">Delete</button> <button className="cancel">Cancel</button>
+      </dialog>
+    </div>
+  )
+}
+
+Item.initialState = { deleted: false }
+Item.uses = { ask: dialog({ dialog: '.ask', trigger: '.delete', close: '.cancel' }) }
+Item.intent = ({ DOM }) => ({ DELETE: DOM.click('.ok') })
+Item.model = { DELETE: (state) => ({ ...state, deleted: true, ask: { ...state.ask, open: false } }) }
+```
+
+The box's title comes from `aria-label`, so the dialog keeps one here instead of a title element. Escape is the dialog's `CANCEL`, and the focus goes back to the trigger.
+
+Render `<Toaster />` once and pass `makeTimerDriver()` in `drivers` (`runTerminal(App, { drivers: { TIMER: makeTimerDriver() } })`). A toast is drawn at the top right and times out. The terminal has no `MutationObserver`, so the toast region doesn't move into an open modal dialog as it does in a browser: a toast that comes while a modal is open is drawn over it and still times out, but its Dismiss button can't take the focus until the dialog closes.
 
 ## Testing
 

@@ -700,3 +700,99 @@ same goes for a missing title / description: SYG707 (a11y) already handles expli
   page 4/4, `test:perf-gate` OK.
 - `npm --prefix sygnal-check test`: plain 1,861 passed; the per-file run had one `lsp-parts`
   timeout (the round-4 flake), 11/11 green alone.
+
+## Round 6: the parts read the element's own document
+
+Maintainer-approved, from the TUI spike's F13 (`dev-plans/research/tui-spike/README.md`): the
+dialog behavior and `<Toaster />` read the global `document` / `Event`, so they didn't run on a
+`sygnal/host` tree (the terminal), and a global read is wrong in a shadow root or an iframe too.
+Merged `claude/advanced-integration` (6be8223b, with the TUI spike) first.
+
+### What changed
+
+- **`src/ui/dom.ts`** (new, a few helpers every part shares):
+  - `docOf(n)`: the node's document, else the global one;
+  - `focused(n)`: the focus in its root (a shadow root's `activeElement`), else in its document;
+  - `evt(n, type, init, C)`: an event from its window (`defaultView[C]`, else `Event`);
+  - `all(n, sel)`: matches in its document and in its own root;
+  - `observer(n)`: its window's `MutationObserver` (a host tree has none: a browser's can't observe it).
+- **dialog**:
+  - `lost(el)` and the opener in `show()` read `focused(el)` and `docOf(el).body`;
+  - the `FAIL` event comes from `evt()`;
+  - the removal observer is `observer(el)`.
+- **layers**:
+  - the listeners are installed once per document (`S.docs`, a WeakSet, in place of the `S.on` flag), on the layer element's document;
+  - `owners()` and Escape's popover check search the layer's document and root;
+  - `DISMISS` is that window's `CustomEvent`;
+  - the touch deferral listens on the pressed element's document;
+  - a press on a dialog element itself is inside it where there are no boxes (no `getBoundingClientRect`).
+- **popover**: the `popovertarget` fallback looks the id up in the button's root (a shadow root, the host document), else its document.
+- **Toaster**:
+  - the placement reads the region's document and root (`all(el, 'dialog')`);
+  - `act` is `focused` (G-426: still the root's first; now the document's when the focus is outside the root);
+  - the focusout it sends comes from `evt()`;
+  - it observes `doc.body` with `observer(el)`.
+- **Zag Menu**: `getRootNode`'s fallback for a disconnected host is its `ownerDocument`.
+- Swept the rest: tabs, accordion, disclosure, tooltip, tooltips, stack.ts and the Zag parts' layer registration read no globals. `DOM.select('document')` is a driver source, and the host driver has it.
+- **`sygnal/host`**, three small DOM-correct additions, each with a test:
+  1. **Document listeners and a capture phase.** `HostDocument.addEventListener` / `removeEventListener`. A connected element's events reach the document: capture listeners run from the document down to the target's parent, then the root delegates, then the target's own (capture first), then bubbling up to the document. There is one registration per listener and capture flag, as in the DOM. `stopPropagation` ends the dispatch after the current node; `stopImmediatePropagation` also stops the rest of that node's listeners. The layer stack's `pointerdown` / `focusin` capture listeners and its `keydown` need these. Before, capture listeners ran with the others and the document had none.
+  2. **`defaultView.CustomEvent`** (a `HostEvent`, which keeps `detail`). Node's own `CustomEvent` would reach a host element as a plain event without `detail`.
+  3. **`ownerTarget` on the host driver's events.** The DOM driver always sets it, and the parts' filters read it: the dialog's Escape (`e.target.closest('dialog') == e.ownerTarget`), `CANCEL`, the Toaster's focusout. Without it, Escape on a dialog behavior did nothing in a terminal.
+- **`examples/tui-tracker`**:
+  - the confirm is a `dialog()`: `d` writes `open: true`; Cancel and Escape close it through the behavior; the focus goes back to the row;
+  - `dialogAttrs` is on the Delete button and the dialog, which keeps `aria-label` because the terminal titles a box from it;
+  - "#2 deleted", "#41 created" and "#3 closed" are toasts (`<Toaster />`, `makeTimerDriver()` in `terminal.jsx` and the tests);
+  - the spike's F13 row reads fixed.
+- **Docs**:
+  - the terminal page's `sygnal/ui` section (every part works, a dialog example, the Toaster's `TIMER` and its modal limit);
+  - the UI overview (shadow roots, iframes, host trees);
+  - `llms/renderers.md` (regenerated; `llms.txt` unchanged at 65,041 B).
+
+### What the host still lacks (not changed here)
+
+- **`MutationObserver`.** The Toaster moves its region into an open modal dialog with one (D198). On a host tree it doesn't, so a toast that comes while a modal is open is drawn over the dialog (the terminal paints popovers on top) and times out, but its Dismiss button is inert until the dialog closes. A minimal observer on `HostDocument.changed()` (`childList` / `attributes` with a filter) would fix it. That is a bigger addition than this round's, so it is a follow-up for `sygnal/host`.
+- **A box title from `aria-labelledby`.** The terminal titles a dialog's border from `aria-label` / `title` only, so a `dialogAttrs` dialog (named by `aria-labelledby`) has no title there. A `src/terminal/paint.ts` follow-up: read the referenced element's text.
+
+### Tests
+
+- `test/renderers-terminal-tui.test.js`, a round-6 block under `createTerminal()`:
+  - dialog: the trigger opens it modal with `dialogAttrs`; Escape closes it through `CANCEL`; the focus returns; the close button closes it;
+  - a refused `CANCEL` keeps an uncontrolled and a controlled dialog open (the controlled one's Escape comes from the layer stack's listener on the host document);
+  - a controlled popover with a trigger: the trigger toggles it, Escape is a `DISMISS`;
+  - tabs (← / →);
+  - `<Toaster />`: a toast appears at the top right and times out; an error toast is dismissed by Enter;
+  - host: the capture → target → bubble order across the document; registration, removal and `once` by capture flag; `stopPropagation`; a detached element's events don't reach the document; `defaultView.CustomEvent`'s `detail`; the driver's `ownerTarget`.
+  - The spike's disclosure / accordion / popover / tooltip tests stay.
+- `examples/tui-tracker`: its 11 tests with the `dialog()` confirm and the toasts.
+- `browser-tests/src/tests/ui-sweep-native.jsx`, "Round 6: in a shadow root": a dialog opened and closed by mouse clicks returns the focus to its trigger (the root's `activeElement`; WebKit doesn't focus a clicked button); a controlled popover isn't dismissed by a press inside and is by a press outside (`composedPath()` into the shadow root). Chromium, Firefox and WebKit. (This passes on round 5's code too: the browser returns the focus itself here, and `pointerdown` reaches the document from a shadow root. It guards the shadow-root path; the terminal tests are the ones that failed before.)
+
+### Size (round 6)
+
+- Core: unchanged (no core file touched); size gate below.
+- Parts (the round-4 script), round 5 (824a65a1) → round 6:
+
+| | Round 5 | Round 6 | |
+|---|---|---|---|
+| dialog | 3,342 B | 3,513 B | +171 (dom.ts, the per-document listeners) |
+| dialog + dialogAttrs | 3,587 B | 3,756 B | +169 |
+| popover | 2,826 B | 3,000 B | +174 (layers via dom.ts, `tgt`) |
+| popover + popoverAttrs | 3,020 B | 3,194 B | +174 |
+| dialog + popover + tooltip | 4,631 B | 4,836 B | +205 |
+| Toaster | 1,975 B | 2,113 B | +138 |
+| tabs, tooltip, Select, Combobox | 856 / 1,218 / 1,465 / 3,416 B | unchanged | |
+| Menu | 1,732 B | 1,739 B | +7 |
+| `sygnal/host` (all of it) | 15,339 B | 15,602 B | +263 (listeners, phases) |
+
+### Gate (round 6)
+
+2026-10-31, this branch (merged 6be8223b first):
+- `npm run build` OK; `node scripts/size-gate.mjs` OK (**42,734 B, 266 B headroom: core
+  unchanged**); `node scripts/gen-error-docs.mjs --check` OK; `node scripts/check-doc-samples.mjs`
+  987 clean; `npm --prefix docs run build` OK; `node docs/scripts/check-live.mjs` on chromium,
+  firefox and webkit OK.
+- `npm test`: vitest 5,843 passed; `test:examples` OK (tui-tracker 11); `test:types` caught an
+  implicit `any` in the Toaster's observer callback (fixed, then OK); `test:browser` 426/426 on
+  chromium, sygnal/sandbox page 4/4; `test:perf-gate` OK.
+- UI browser suites on firefox and webkit: `uiSweepNative` 20, `uiTestsP5U` 37, `uiZag` 18,
+  `uiZagTestsP5Z` 18, all passed.
+- `npm --prefix sygnal-check test`: 1,865 passed in both runs (plain and per-file).

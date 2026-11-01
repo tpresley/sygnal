@@ -39,6 +39,7 @@
  * ARIA and ids of Radix's Dialog.Trigger / Content / Title / Description / Close.
  */
 import {ABORT, defineBehavior, xs} from '../index'
+import {docOf, evt, focused, observer} from './dom'
 import {covered, DISMISS, first, pull, push} from './layers'
 import {ev, find, gone, idsOf, keyed, on, watch} from './shared'
 
@@ -54,13 +55,14 @@ const esc = (e: any) => e.key == 'Escape' && !e.defaultPrevented && !e.isComposi
   e.target?.closest?.('dialog') == e.ownerTarget && none(e.ownerTarget) &&
   ![...(e.ownerTarget?.querySelectorAll?.('[popover]') ?? [])].some(first) && !covered(e.ownerTarget)
 
-// the focus went nowhere: body, a detached element, or inside a dialog that just closed
-const lost = () => {
-  const a: any = document.activeElement
-  return !a || a == document.body || !a.isConnected || !!a.closest?.('dialog:not([open])')
+// the focus went nowhere where `el` is: body, a detached element, or inside a dialog that just
+// closed (round 6: `el`'s document and root, so a host tree, an iframe, a shadow root)
+const lost = (el: any) => {
+  const a: any = focused(el)
+  return !a || a == docOf(el)?.body || !a.isConnected || !!a.closest?.('dialog:not([open])')
 }
 // an ELEMENT target (D102 spec command): focus `sel` only when the focus was lost
-const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost() && el.focus(o) })
+const refocus = (sel: any) => on(sel, 'focus', (el: any, o: any) => { lost(el) && el.focus(o) })
 
 // G-524: OPEN's showModal() threw (bubbles: the DOM driver listens at its root)
 const FAIL = 'sygnaldialogfail'
@@ -83,7 +85,7 @@ const show = (el: any, o: any, by?: any) => {
   // ui-sweep: the element keeps the last close's returnValue, and an Escape (no new value) would
   // report it again: an earlier 'ok' would read as this close's
   el.returnValue = ''
-  const a = document.activeElement, op: any = by?.nodeType == 1 ? by : a != document.body ? a : null
+  const a = focused(el), op: any = by?.nodeType == 1 ? by : a != docOf(el)?.body ? a : null
   // R2: a modal dialog gets closedby="none" (unless the host set closedby): Escape reaches the
   // model as CANCEL (a keydown), which closes it through the state, so a host entry can keep it
   // open (G-405: Chromium's CloseWatcher would close on a second Escape otherwise). Round 3: a
@@ -97,7 +99,7 @@ const show = (el: any, o: any, by?: any) => {
   // goes back to closed, so the next OPEN can open it; G-524: through SYNC (an internal FAIL
   // event), not a close event: the host's close listeners don't run for a dialog that never
   // opened, and no previous returnValue comes again. The error is the command's (thrown once)
-  try { el[m]() } catch (e) { cb && back(); el.dispatchEvent(new Event(FAIL, {bubbles: true})); throw e }
+  try { el[m]() } catch (e) { cb && back(); el.dispatchEvent(evt(el, FAIL, {bubbles: true})); throw e }
   // round 3: a layer (layers.ts): on top for Escape and presses outside; dismissed by the stack
   // when controlled (by what the host's closedby names)
   const c = (hc || (m == 'showModal' ? 'closerequest' : 'none')).toLowerCase()
@@ -112,14 +114,15 @@ const show = (el: any, o: any, by?: any) => {
     mo?.disconnect()
     pull(el)
     cb && back()
-    if ((o.returnFocus ?? true) === true && op?.isConnected && lost()) op.focus()
+    if ((o.returnFocus ?? true) === true && op?.isConnected && lost(el)) op.focus()
   }
   el.addEventListener('close', done, {once: true, capture: true})
   // R2: a host that renders the dialog only while open removes it when `open` goes false, before
   // any close event: the opener gets the focus back then too (Radix's focus scope on unmount)
-  const root = el.getRootNode(), mo = typeof MutationObserver == 'undefined' ? null : new MutationObserver(() => {
+  // (round 6: the element's window's MutationObserver: a host tree has none)
+  const root = el.getRootNode(), MO = observer(el), mo = MO ? new MO(() => {
     if (!el.isConnected) el.removeEventListener('close', done, {capture: true}), done()
-  })
+  }) : null
   mo?.observe(root.nodeType == 9 ? root.body : root, {childList: true, subtree: true})
 }
 // the commands that make the dialog match an open / closed slice (each checks the dialog itself,

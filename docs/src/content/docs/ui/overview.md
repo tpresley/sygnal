@@ -78,6 +78,8 @@ The browser also exposes the open state: `dialog[open]`, `:modal`, `:popover-ope
 
 The parts target current evergreen browsers: Chromium (Chrome, Edge), Firefox and Safari. They rely on `<dialog>`, the Popover API (including `popovertarget` and `toggle` events), the `:modal` pseudo-class and, for the Tooltip, CSS anchor positioning (`anchor-name`, `position-anchor`, `position-area`). Sygnal's browser suite runs every part in Chromium, Firefox and WebKit.
 
+The parts read the document of the element they act on, not the global one, so they also work in a shadow root (a [custom element](/guide/web-components/)), in an iframe, and on [`sygnal/host`](/renderers/custom-targets/) trees such as the [terminal](/renderers/terminal/#sygnalui-in-a-terminal).
+
 The package has no JavaScript positioning fallback. To support a browser without CSS anchor positioning, position the tooltip with [Floating UI](#floating-ui-for-older-browsers) instead.
 
 ### Floating UI for older browsers

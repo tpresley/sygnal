@@ -33,7 +33,7 @@ export class HostEvent {
   get srcElement() { return this.target }
   preventDefault() { this.defaultPrevented = true }
   stopPropagation() { this.cancelBubble = true }
-  stopImmediatePropagation() { this.cancelBubble = true }
+  stopImmediatePropagation() { this.cancelBubble = true; this._immediate = true }
 }
 
 /** A root delegate (a renderer driver's source listening for one event type) */
@@ -55,6 +55,40 @@ export interface HostDelegate {
   scope?: string
   at?(el: HostElement, sr: HostElement | null): boolean
   deliver?(e: HostEvent, el: HostElement): void
+}
+
+type Entry = {f: HostListener, once: boolean, capture: boolean}
+type ListenerOptions = boolean | {once?: boolean, capture?: boolean}
+const isCapture = (o?: ListenerOptions) => typeof o == 'object' ? !!o.capture : !!o
+/**
+ * An element's or the document's listeners. As the DOM's: one registration per listener and
+ * capture flag, `once` removes it after its first call, capture listeners run on the way down
+ * (dispatchEvent below)
+ */
+class Listeners {
+  private m = new Map<string, Entry[]>()
+  add(t: string, f: HostListener, o?: ListenerOptions) {
+    const l = this.m.get(t) || (this.m.set(t, []), this.m.get(t)!), capture = isCapture(o)
+    if (!l.some(x => x.f === f && x.capture === capture)) l.push({f, capture, once: typeof o == 'object' && !!o.once})
+  }
+  remove(t: string, f: HostListener, o?: ListenerOptions) {
+    const l = this.m.get(t), capture = isCapture(o), i = l ? l.findIndex(x => x.f === f && x.capture === capture) : -1
+    if (i > -1) l!.splice(i, 1)
+  }
+  /** the listeners for this phase: capture (true), bubble (false), at the target (null: capture first) */
+  run(ev: HostEvent, phase: boolean | null) {
+    const l = this.m.get(ev.type)
+    if (!l) return
+    // (stopPropagation lets the rest of this node's listeners run; stopImmediatePropagation doesn't)
+    const fire = (x: Entry) => {
+      if (ev._immediate) return
+      if (x.once) this.remove(ev.type, x.f, x)
+      x.f(ev)
+    }
+    const all = [...l]
+    if (phase !== false) for (const x of all) x.capture && fire(x)
+    if (phase !== true) for (const x of all) x.capture || fire(x)
+  }
 }
 
 let ids = 0
@@ -102,8 +136,12 @@ export class HostDocument {
   scrollTarget: HostElement | null = null
   /** the renderer driver's root delegates: they see every dispatched event first (indexed by type and scope) */
   delegates: Set<HostDelegate> = new DelegateSet()
-  /** pokeDOM (Transition, Portal) builds its event from defaultView.Event */
-  defaultView = {Event: HostEvent}
+  /** pokeDOM (Transition, Portal) builds its event from defaultView.Event; sygnal/ui its CustomEvent too */
+  defaultView = {Event: HostEvent, CustomEvent: HostEvent}
+  /** document listeners: a connected element's events reach them (capture first, bubbling last) */
+  listeners = new Listeners()
+  addEventListener(t: string, f: HostListener, options?: ListenerOptions) { this.listeners.add(t, f, options) }
+  removeEventListener(t: string, f: HostListener, options?: ListenerOptions) { this.listeners.remove(t, f, options) }
   body: HostElement
   documentElement: HostElement
   private dirty = false
@@ -203,7 +241,7 @@ export class HostElement extends HostNode {
   dataset: Record<string, string> = tracked(this, {}, true)
   /** the isolation scope of a component's root element (set by the driver's scope module) */
   __isolate?: any[]
-  private listeners = new Map<string, Map<HostListener, {once: boolean}>>()
+  private listeners = new Listeners()
   private _value = ''
   // a text field's caret / selection (the DOM's selectionStart, selectionEnd, selectionDirection)
   private _selStart = 0
@@ -417,28 +455,30 @@ export class HostElement extends HostNode {
   }
   click() { this.dispatchEvent(new HostEvent('click')) }
 
-  /** options: `once` (removed after its first call); capture listeners run with the others (no capture phase) */
-  addEventListener(t: string, f: HostListener, options?: boolean | {once?: boolean, capture?: boolean}) {
-    let s = this.listeners.get(t)
-    if (!s) this.listeners.set(t, s = new Map())
-    if (!s.has(f)) s.set(f, {once: typeof options == 'object' && !!options.once})
-  }
-  removeEventListener(t: string, f: HostListener, _options?: boolean | {capture?: boolean}) { this.listeners.get(t)?.delete(f) }
+  /** options: `once` (removed after its first call), `capture` (runs on the way down: dispatchEvent) */
+  addEventListener(t: string, f: HostListener, options?: ListenerOptions) { this.listeners.add(t, f, options) }
+  removeEventListener(t: string, f: HostListener, options?: ListenerOptions) { this.listeners.remove(t, f, options) }
   /**
-   * The root delegates first (the renderer driver's sources, as the DOM driver's delegation at
-   * the root), then the target and, when it bubbles, its ancestors. Returns false when prevented.
+   * As the DOM's phases: the capture listeners from the document down to the target's parent, the
+   * root delegates (the renderer driver's sources, as the DOM driver's delegation at the root),
+   * the target's own (capture ones first), then, when it bubbles, its ancestors' and the
+   * document's. stopPropagation() ends it after the current node. Returns false when prevented.
    */
   dispatchEvent(e: any): boolean {
     const ev: HostEvent = e instanceof HostEvent ? e : new HostEvent(e.type, {bubbles: e.bubbles})
     ev.target = this
-    const ds = this.ownerDocument.delegates
-    if (ds instanceof DelegateSet) ds.dispatch(ev)
-    else for (const d of [...ds]) if (d.type === ev.type) d(ev)
-    for (let n: HostElement | null = this; n && !ev.cancelBubble; n = ev.bubbles ? n.parentNode : null) {
-      ev.currentTarget = n
-      const s = n.listeners.get(ev.type)
-      if (s) for (const [f, o] of [...s]) { if (o.once) s.delete(f); f(ev) }
+    const d = this.ownerDocument, path: any[] = []
+    for (let n: HostElement | null = this; n; n = n.parentNode) path.push(n)
+    if (this.isConnected) path.push(d)
+    const at = (n: any, phase: boolean | null) => { ev.currentTarget = n; n.listeners.run(ev, phase) }
+    for (let i = path.length; --i > 0 && !ev.cancelBubble;) at(path[i], true)
+    if (!ev.cancelBubble) {
+      const ds = d.delegates
+      if (ds instanceof DelegateSet) ds.dispatch(ev)
+      else for (const x of [...ds]) if (x.type === ev.type) x(ev)
     }
+    if (!ev.cancelBubble) at(this, null)
+    if (ev.bubbles) for (let i = 1; i < path.length && !ev.cancelBubble; i++) at(path[i], false)
     ev.currentTarget = null
     return !ev.defaultPrevented
   }

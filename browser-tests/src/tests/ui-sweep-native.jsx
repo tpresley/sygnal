@@ -341,6 +341,24 @@ function Confirm({ state, uid }) {
 }
 Confirm.uses = { c: dialog({ dialog: '.cf-d', trigger: '.cf-open', close: '.cf-no' }) }
 
+// ── round 6: in a shadow root (the parts read the element's own root and document) ──
+function Shadowed({ state, uid }) {
+  const a = dialogAttrs(state.d, uid), b = popoverAttrs(state.p, uid)
+  return (
+    <div>
+      <button className="sh-open" data-name="sh-open" {...a.trigger}>Settings</button>
+      <dialog className="sh-d" {...a.dialog}><h2 {...a.title}>Settings</h2><button className="sh-x" {...a.close}>Close</button></dialog>
+      <button className="sh-t" {...b.trigger}>Share</button>
+      <div className="sh-p" {...b.popover} popover="auto" aria-label="Share"><button className="sh-in">Copy</button></div>
+      <button className="sh-out">Elsewhere</button>
+      <p className="out">{String(state.d.open)}|{String(state.p.open)}|{state.n}</p>
+    </div>
+  )
+}
+Shadowed.initialState = { n: 0 }
+Shadowed.uses = { d: dialog({ dialog: '.sh-d', trigger: '.sh-open', close: '.sh-x' }), p: popover({ popover: '.sh-p', trigger: '.sh-t', open: false }) }
+Shadowed.model = { 'p.DISMISS': (s) => ({ ...s, n: s.n + 1 }) }
+
 // every animation frame and every toggle of `el` while `fn` runs: the frames it was hidden in, its
 // beforetoggle / toggle events (a hide sends beforetoggle:closed synchronously)
 async function watchFrames(el, fn) {
@@ -681,6 +699,38 @@ export async function uiSweepNativeTests() {
       }
       await key('Escape')
       await until(() => !$('.cf-d').open && $('.cf-open').getAttribute('aria-expanded') === 'false' && $('.cf-d').dataset.state === 'closed', 'closed')
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 6: in a shadow root, a dialog returns the focus to its trigger after a mouse click; a controlled popover is dismissed by a press outside', async () => {
+    const { id, el } = mountOnScreen()
+    el.className = 'ui-sweep'
+    const host = document.createElement('div')
+    el.appendChild(host)
+    const root = host.attachShadow({ mode: 'open' })
+    const sheet = document.createElement('style')
+    sheet.textContent = 'dialog { margin: auto; padding: 12px; } [popover] { inset: auto 12px 12px auto; margin: 0; }'
+    const point = document.createElement('div')
+    root.append(sheet, point)
+    const app = run(Shadowed, { TIMER: makeTimerDriver() }, { mountPoint: point })
+    const $ = (s) => root.querySelector(s)
+    const name = () => { const a = root.activeElement; return a ? a.getAttribute('data-name') || a.className : 'none' }
+    try {
+      await until(() => $('.sh-open'), 'mounted')
+      await window.__pw('click', `${id} .sh-open`)
+      await until(() => $('.sh-d').open && $('.out').textContent === 'true|false|0', () => $('.out').textContent)
+      assert($('.sh-open').getAttribute('aria-controls') === $('.sh-d').id, 'trigger ARIA in the shadow root')
+      await window.__pw('click', `${id} .sh-x`)
+      await until(() => !$('.sh-d').open && $('.out').textContent === 'false|false|0', () => $('.out').textContent)
+      // (WebKit doesn't focus a clicked button: the focus was lost, and the root's activeElement says so)
+      await until(() => name() === 'sh-open', name)
+      await window.__pw('click', `${id} .sh-t`)
+      await until(() => $('.sh-p').matches(':popover-open') && $('.out').textContent === 'false|true|0', () => $('.out').textContent)
+      await window.__pw('click', `${id} .sh-in`)
+      await wait(50)
+      assert($('.out').textContent === 'false|true|0', `a press inside dismissed it: ${$('.out').textContent}`)
+      await window.__pw('click', `${id} .sh-out`)
+      await until(() => !$('.sh-p').matches(':popover-open') && $('.out').textContent === 'false|false|1', () => $('.out').textContent)
     } finally { app.dispose() }
   })
 

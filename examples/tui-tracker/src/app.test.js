@@ -2,7 +2,7 @@
 // clicks go in, frames (plain text) come out. runTerminal is tested on fake TTY streams.
 import { describe, it, expect, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { run, makeFetchDriver } from 'sygnal'
+import { run, makeFetchDriver, makeTimerDriver } from 'sygnal'
 import { createTerminal, runTerminal } from 'sygnal/terminal'
 import Tracker, { Query } from './app.jsx'
 import { fakeApi } from './api.js'
@@ -21,7 +21,7 @@ afterEach(() => apps.splice(0).forEach((a) => a.dispose()))
 function tracker({ width = 80, height = 24, latency = 5 } = {}) {
   const term = createTerminal({ styles: terminalStyles, width, height })
   const api = fakeApi({ latency })
-  apps.push(run(Tracker, { DOM: term.driver, HTTP: makeFetchDriver({ fetch: api }), TERMINAL: term.control }))
+  apps.push(run(Tracker, { DOM: term.driver, HTTP: makeFetchDriver({ fetch: api }), TERMINAL: term.control, TIMER: makeTimerDriver() }))
   return { term, api }
 }
 const lines = (term) => term.frame().split('\n')
@@ -259,7 +259,7 @@ describe('runTerminal', () => {
     let exited = null
     const { terminal } = runTerminal(Tracker, {
       styles: terminalStyles, stdin, stdout, color: false,
-      drivers: { HTTP: makeFetchDriver({ fetch: fakeApi({ latency: 5 }) }) },
+      drivers: { HTTP: makeFetchDriver({ fetch: fakeApi({ latency: 5 }) }), TIMER: makeTimerDriver() },
       onExit: (code) => { exited = code },
     })
     expect(out[0]).toBe('\x1b[?1049h\x1b[?25l\x1b[?2004h')
