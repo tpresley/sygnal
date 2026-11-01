@@ -553,7 +553,7 @@ describe('processForm type', () => {
     expectTypeOf<MyForm['event']>().toEqualTypeOf<globalThis.Event>()
   })
 
-  it('FormData fields may be arrays (a <select multiple>, 7.2)', () => {
+  it('FormData fields may be arrays (a <select multiple>, a checkbox group, 7.2)', () => {
     type Tagged = FormData<{ title: string; tags: string[] }>
     expectTypeOf<Tagged['tags']>().toEqualTypeOf<string[]>()
   })

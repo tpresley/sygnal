@@ -479,3 +479,71 @@ Menu, Select, `sygnal/zag`, `form` and `defineWidget` are unchanged.
 - The Zag browser suite: 18/18 on Chromium, Firefox and WebKit.
 - `npm --prefix docs run build`: ok. `check-live`: 130 demos ok on Chromium, Firefox and WebKit.
 - `check-doc-samples`: 979 clean.
+
+## Round 4: processForm arrays for checkbox groups
+
+The maintainer chose the first option from round 3: checkboxes sharing a name are a group when more than one is in the form.
+
+### The rule (`src/extra/processForm.ts`)
+
+- The form's controls (`elements`: `form="id"` boxes in, boxes outside the form out) are read when the event happens. A name with more than
+  one `type=checkbox` control is a group, and its entry is the checked, enabled boxes' values in document order, `[]` when none is checked:
+  `FormData.getAll(name)`. A box without a `value` gives `"on"`, as FormData does.
+- Disabled boxes (their own `disabled` or a disabled fieldset, `:disabled`) count toward the group but give no value, so disabling one box
+  never changes the field's type. A group whose boxes are all disabled has no entry, as a disabled `<select multiple>` and FormData.
+- A lone checkbox is unchanged: its value when checked, no entry when not (`FormData.get`). Radios are unchanged: a radio group has at most
+  one value, and FormData gives one entry.
+- A `sygnal/host` form (no `elements`: terminal, worker, agent-ui) gets the same rule from its `input` elements and their `disabled`
+  property. Before, it had the old last-wins value from `toFormData()`. The host's `<select multiple>` is still not an array: host
+  elements have no `selectedOptions` (follow-up).
+
+### A group that renders one box
+
+A list of options that is filtered, or loaded, down to one box gives a string for that box (and no entry when it is unchecked), because
+processForm sees only what is rendered. The forms reference and the changelog say to read such a field as `[].concat(data.tags ?? [])`,
+or to use the `form` behavior, whose array fields stay arrays whatever renders. An app can also keep two boxes rendered.
+
+### The form behavior and processForm
+
+They don't decide "group" the same way, and can't: the `form` behavior has a declared shape and processForm has only the DOM.
+
+- The `form` behavior (`src/extra/form.ts`, G-376): a checkbox on a field whose value is an array is one of a group. Checking adds its
+  value, unchecking removes it, however many boxes render. A checkbox on any other field gives `checked` (a boolean).
+- processForm: more than one box with the name in the form.
+
+With two or more boxes on an array field both give arrays of the same values, with two differences:
+
+- **A group that renders one box**: the `form` behavior gives an array, processForm a string.
+- **Order**: the `form` behavior appends in the order the boxes were checked (`[...rest, item]`), processForm and FormData in document
+  order. Not changed: `src/extra/form.ts` is outside this round's scope. Sorting the form behavior's array into document order would need
+  the DOM in a state step. Keeping it as it is seems right (it is state the app owns). An option to change it is a maintainer call.
+
+An app that uses the `form` behavior doesn't call processForm on the same form, so the two only meet in docs and in migrations.
+
+### Tests (round 4)
+
+- `test/processform-arrays.test.js` (renamed from `processform-select-multiple.test.js`; 5 tests). Covers:
+  - a group: `[]`, the checked values in document order, an unchecked box removed;
+  - a disabled box counted with no value, and an all-disabled group with no entry;
+  - a `form="id"` box in, and boxes outside the form out;
+  - a lone checkbox (`"on"` and a value) and radios unchanged;
+  - a `sygnal/host` form.
+- `type-tests/public-api.ts`: the array-field test's name.
+
+### Size (round 4)
+
+- Size gate: 42,734 B, unchanged from round 3 (266 B headroom); kanban doesn't use `processForm`.
+- `processForm` in the main bundle (esbuild, minified, gzip, xstream external): 539 → 655 B (+116), only for apps that use it.
+
+### Gate (round 4)
+
+The machine was shared with other sessions' gates (load average up to 141).
+
+- `npm run build`: ok.
+- vitest: the first full runs had load timeouts in sandbox, compose-generated, LSP, MCP and sortable suites, none of them form code. Each
+  failing file then passed on its own: 102 + 7 tests.
+- test:examples, test:types, test:browser (Chromium) and test:perf-gate: ok.
+- Size gate: ok.
+- sygnal-check: the failing LSP / graph files passed on their own (109). Otherwise 1,856 passed.
+- `npm --prefix docs run build`: ok. `check-live`: 130 demos ok on Chromium, Firefox and WebKit.
+- `check-doc-samples`: 980 clean.
