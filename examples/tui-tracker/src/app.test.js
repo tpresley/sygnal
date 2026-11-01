@@ -2,26 +2,21 @@
 // clicks go in, frames (plain text) come out. runTerminal is tested on fake TTY streams.
 import { describe, it, expect, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { run, makeFetchDriver, makeTimerDriver } from 'sygnal'
+import { makeFetchDriver, makeTimerDriver } from 'sygnal'
 import { createTerminal, runTerminal } from 'sygnal/terminal'
 import Tracker, { Query } from './app.jsx'
 import { fakeApi } from './api.js'
 import { terminalStyles } from './styles.js'
 
 const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms))
-/** wait until the frame (or a function of it) passes */
-async function until(term, test, ms = 1000) {
-  const ok = () => (typeof test == 'function' ? test(term.frame()) : term.frame().includes(test))
-  for (const end = Date.now() + ms; Date.now() < end; await tick(5)) if (ok()) return
-  throw new Error('timed out; the frame:\n' + term.frame())
-}
 const apps = []
 afterEach(() => apps.splice(0).forEach((a) => a.dispose()))
 
 function tracker({ width = 80, height = 24, latency = 5 } = {}) {
   const term = createTerminal({ styles: terminalStyles, width, height })
   const api = fakeApi({ latency })
-  apps.push(run(Tracker, { DOM: term.driver, HTTP: makeFetchDriver({ fetch: api }), TERMINAL: term.control, TIMER: makeTimerDriver() }))
+  // term.run adds DOM and TERMINAL; term.settle() waits for the app (and the 5 ms fake API) to go quiet
+  apps.push(term.run(Tracker, { HTTP: makeFetchDriver({ fetch: api }), TIMER: makeTimerDriver() }))
   return { term, api }
 }
 const lines = (term) => term.frame().split('\n')
@@ -32,7 +27,8 @@ describe('the issue list', () => {
     await tick()
     expect(term.frame()).toContain('Loading issues…')
     expect(lines(term).at(-1)).toMatch(/^Syncing…/)
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     const l = lines(term)
     expect(l).toHaveLength(24)
     expect(l[3]).toMatch(/^╭─ Issues ─+╮ ╭─+╮$/)
@@ -42,9 +38,11 @@ describe('the issue list', () => {
 
   it('j / k move the selection; the list scrolls to keep it in view; the detail follows', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     for (let i = 0; i < 20; i++) term.press('j')
-    await until(term, '#24 Search ignores accents (3)')
+    await term.settle()
+    expect(term.frame()).toContain('#24 Search ignores accents (3)')
     const l = lines(term)
     const row = l.findIndex((x) => x.includes('▸#24'))
     expect(row).toBeGreaterThan(3)
@@ -58,17 +56,20 @@ describe('the issue list', () => {
 
   it('the list is one Tab stop: ↑ / ↓ move in it, → or Tab go to the detail pane, ← comes back', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     expect(term.focusables().filter((e) => e.classList.contains('issue')).map((e) => e.dataset.id)).toEqual(['1'])
     term.focus('.issue')
     term.press('ArrowDown')
     term.press('ArrowDown')
-    await until(term, '│ #3 Typo in the README')
+    await term.settle()
+    expect(term.frame()).toContain('│ #3 Typo in the README')
     expect(term.doc.activeElement.dataset.id).toBe('3')
     term.press('ArrowRight')
-    await until(term, '▸[Show description]')
+    await term.settle()
+    expect(term.frame()).toContain('▸[Show description]')
     term.press('ArrowLeft')
-    await tick(40)
+    await term.settle()
     expect(term.doc.activeElement.dataset.id).toBe('3')
     term.press('Tab') // past the other rows: the detail's first button
     expect(term.doc.activeElement.className).toBe('more-toggle')
@@ -78,14 +79,16 @@ describe('the issue list', () => {
 
   it('/ focuses the filter; typing narrows the list; the status bar counts', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.press('/')
-    await tick()
+    await term.settle()
     expect(term.doc.activeElement).toBe(term.doc.querySelector(String(Query)))
     expect(term.keyHint()).toBe('type · Tab next · Ctrl+C quit')
     // shortcuts don't fire while typing: 'n' and 'j' are letters here
     term.type('dark mode')
-    await until(term, 'Synced 4 shown / 40')
+    await term.settle()
+    expect(term.frame()).toContain('Synced 4 shown / 40')
     expect(term.frame()).toContain('Filter ▸[dark mode_]')
     term.press('Backspace')
     term.press('Backspace')
@@ -102,11 +105,12 @@ describe('the issue list', () => {
 
   it('the Show dropdown: Enter opens it, ↑ ↓ highlight, Enter chooses, Escape closes without a change', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.focus('select')
     expect(term.keyHint()).toBe('Enter open list · ←/→ change · Ctrl+C quit')
     term.press('Enter')
-    await tick()
+    await term.settle()
     expect(term.keyHint()).toBe('↑↓ highlight · Enter choose · Esc close · Ctrl+C quit')
     let l = lines(term)
     // the list opens under the select, over what is there
@@ -115,31 +119,36 @@ describe('the issue list', () => {
     expect(l[4].slice(at)).toMatch(/^│▸open +✓│/)
     expect(l[5].slice(at)).toMatch(/^│ closed +│/)
     term.press('ArrowDown')
-    await tick()
+    await term.settle()
     expect(lines(term)[5].slice(at)).toMatch(/^│▸closed +│/)
     term.press('Escape')
-    await tick()
+    await term.settle()
     expect(term.frame()).toContain('Show ▸[open ▾]')
     expect(term.frame()).not.toContain('│▸closed')
     term.press(' ')
     term.press('End')
     term.press('Enter')
-    await until(term, 'Synced 40 shown / 40')
+    await term.settle()
+    expect(term.frame()).toContain('Synced 40 shown / 40')
     expect(term.frame()).toContain('Show ▸[all ▾]')
     // closed: ← / → and a letter change it at once
     term.press('ArrowLeft')
-    await until(term, 'Synced 8 shown / 40')
+    await term.settle()
+    expect(term.frame()).toContain('Synced 8 shown / 40')
     term.press('o')
-    await until(term, 'Synced 32 shown / 40')
+    await term.settle()
+    expect(term.frame()).toContain('Synced 32 shown / 40')
   })
 
   it('d asks in a modal dialog: the focus stays in it, Escape cancels, Delete deletes', async () => {
     const { term, api } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.press('j')
     term.press('j')
     term.press('d')
-    await until(term, 'Delete #2?')
+    await term.settle()
+    expect(term.frame()).toContain('Delete #2?')
     // centered over the page
     const l = lines(term), y = l.findIndex((x) => x.includes('╭─ Confirm ─'))
     const x = l[y].indexOf('╭')
@@ -151,24 +160,29 @@ describe('the issue list', () => {
     term.press('Tab')
     expect(term.doc.activeElement.className).toBe('confirm-ok')
     term.press('Escape')
-    await until(term, (f) => !f.includes('Delete #2?'))
+    await term.settle()
+    expect(term.frame()).not.toContain('Delete #2?')
     // the focus is back on the row that opened it
     expect(term.doc.activeElement.dataset.id).toBe('2')
     term.press('d')
-    await until(term, 'Delete #2?')
+    await term.settle()
+    expect(term.frame()).toContain('Delete #2?')
     term.press('Enter')
-    await until(term, '#2 deleted')
+    await term.settle()
+    expect(term.frame()).toContain('#2 deleted')
     expect(term.frame()).not.toContain('#2 M Dark mode')
     expect(api.db.some((x) => x.id === 2)).toBe(false)
   })
 
   it('a mouse click selects an issue; the wheel scrolls the list', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     const l = lines(term)
     const y = l.findIndex((x) => x.includes('#3 H Typo'))
     term.click(y, l[y].indexOf('Typo'))
-    await until(term, '│ #3 Typo in the README')
+    await term.settle()
+    expect(term.frame()).toContain('│ #3 Typo in the README')
     expect(term.doc.activeElement.dataset.id).toBe('3')
     expect(term.wheel(10, 5, 3)).toBe(true)
     expect(term.frame()).not.toContain('#1 L Crash')
@@ -176,9 +190,10 @@ describe('the issue list', () => {
 
   it('q quits through the TERMINAL sink', async () => {
     const { term } = tracker()
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.press('q')
-    await tick()
+    await term.settle()
     expect(term.commands).toEqual(['exit'])
   })
 })
@@ -186,12 +201,15 @@ describe('the issue list', () => {
 describe('the new-issue form', () => {
   it('validates, edits text with a caret, checks boxes and radios, picks from a <select>, creates', async () => {
     const { term, api } = tracker({ height: 26 })
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.press('2')
-    await until(term, 'Title [What')
+    await term.settle()
+    expect(term.frame()).toContain('Title [What')
     term.focus('[name="title"]')
     term.press('Enter') // an empty submit: every error, the first invalid field focused
-    await until(term, 'At least 3 characters')
+    await term.settle()
+    expect(term.frame()).toContain('At least 3 characters')
     expect(term.frame()).toContain('Pick at least one label')
     expect(term.frame()).toContain('Choose someone')
     expect(term.doc.activeElement.name).toBe('title')
@@ -200,13 +218,15 @@ describe('the new-issue form', () => {
     term.press('ArrowLeft', { altKey: true }) // a word back
     term.press('ArrowLeft', { altKey: true })
     term.type('badly ')
-    await until(term, 'Crash badly on save')
+    await term.settle()
+    expect(term.frame()).toContain('Crash badly on save')
     term.press('Tab')
     term.type('Steps:\n1. open\n2. save')
     term.press('ArrowUp')
     term.press('End')
     term.type(' a file')
-    await until(term, '┃1. open a file')
+    await term.settle()
+    expect(term.frame()).toContain('┃1. open a file')
     expect(lines(term).filter((x) => /^┏━+┓$/.test(x))).toHaveLength(1) // the focused textarea's border
     term.press('Tab')
     term.press(' ') // bug
@@ -215,24 +235,29 @@ describe('the new-issue form', () => {
     term.press('Tab') // the priority radios: one stop, the checked one
     expect(term.doc.activeElement.value).toBe('medium')
     term.press('ArrowRight')
-    await until(term, '( ) low ( ) medium ▸(•) high')
+    await term.settle()
+    expect(term.frame()).toContain('( ) low ( ) medium ▸(•) high')
     term.press('Tab')
     term.press('Enter') // open the assignee list
     term.press('c') // type-ahead: chen
     term.press('Enter')
-    await until(term, 'Assignee ▸[chen ▾]')
+    await term.settle()
+    expect(term.frame()).toContain('Assignee ▸[chen ▾]')
     term.press('Tab')
     term.press('Enter') // Create issue
-    await until(term, '#41 created')
+    await term.settle()
+    expect(term.frame()).toContain('#41 created')
     expect(api.db.at(-1)).toEqual({ id: 41, title: 'Crash badly on save', body: 'Steps:\n1. open a file\n2. save', labels: ['bug'], priority: 'high', assignee: 'chen', closed: false })
     expect(term.frame()).toContain('│ #41 Crash badly on save')
   })
 
   it("shows the server's 422 on its field", async () => {
     const { term } = tracker({ height: 26 })
-    await until(term, 'Synced')
+    await term.settle()
+    expect(term.frame()).toContain('Synced')
     term.press('2')
-    await until(term, 'Title [What')
+    await term.settle()
+    expect(term.frame()).toContain('Title [What')
     term.focus('[name="title"]')
     term.paste('Typo in the README')
     term.focus('[name="docs"]')
@@ -243,7 +268,8 @@ describe('the new-issue form', () => {
     term.press('Escape') // …and Escape closes it
     term.focus('button[type="submit"]')
     term.press('Enter')
-    await until(term, 'An issue with this title exists')
+    await term.settle()
+    expect(term.frame()).toContain('An issue with this title exists')
   })
 })
 
@@ -263,8 +289,7 @@ describe('runTerminal', () => {
       onExit: (code) => { exited = code },
     })
     expect(out[0]).toBe('\x1b[?1049h\x1b[?25l\x1b[?2004h')
-    await until(terminal, 'Synced')
-    await tick()
+    await terminal.settle()
     const screen = out.at(-1)
     expect(screen.startsWith('\x1b[?2026h\x1b[H')).toBe(true)
     expect(screen.split('\r\n')).toHaveLength(16)

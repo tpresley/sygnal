@@ -32,6 +32,6 @@ What it uses ([src/app.jsx](src/app.jsx)):
 - **A form with validation** (the `form` behavior): a text input, a textarea, checkboxes, a radio group and a native `<select>`, with errors after blur or submit and the server's 422 on its field.
 - **Async data**: a fake API ([src/api.js](src/api.js)) behind `makeFetchDriver({ fetch })`, with latency, so it shows a loading state.
 
-Tests ([src/app.test.js](src/app.test.js)) drive it with `createTerminal()`: keys, typing, pastes, mouse clicks and the wheel go in, and plain-text frames come out. `runTerminal` is tested on fake TTY streams: `npm test`.
+Tests ([src/app.test.js](src/app.test.js)) drive it with `createTerminal()` (`term.run(Tracker, drivers)`, `await term.settle()`): keys, typing, pastes, mouse clicks and the wheel go in, and plain-text frames come out. `runTerminal` is tested on fake TTY streams: `npm test`.
 
 Guide: [Terminal apps](https://sygnal.js.org/renderers/terminal). The friction log of the spike that built it: [dev-plans/research/tui-spike](../../dev-plans/research/tui-spike/README.md).

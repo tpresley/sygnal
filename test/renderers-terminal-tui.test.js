@@ -4,7 +4,7 @@
 // mouse, paste, the TERMINAL sink and runTerminal's restore.
 import { describe, it, expect, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { run, createElement as h, controls, makeTimerDriver, event } from 'sygnal'
+import { run, createElement as h, controls, makeTimerDriver, event, xs } from 'sygnal'
 import { tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, popover, popoverAttrs, tooltip, dialog, dialogAttrs, Toaster } from 'sygnal/ui'
 import { createTerminal, runTerminal, parseKeys, paint, stringWidth, hitTest } from 'sygnal/terminal'
 import { HostDocument, HostEvent, pressKey, paste, focusableElements, isInert } from 'sygnal/host'
@@ -625,5 +625,104 @@ describe('runTerminal', () => {
     await tick()
     expect(out.at(-1)).toBe('\x1b[?2026h\x1b[Htop\x1b[K\r\n\x1b[K\r\n\x1b[K\r\nbar\x1b[K\r\nTab move · Ctrl+C quit\x1b[K\x1b[J\x1b[?2026l')
     stop()
+  })
+})
+
+describe('sygnal/host: Enter / Space on a [tabindex] element (F21)', () => {
+  const app = (keydownOn) => {
+    function C({ state }) {
+      return h('ul', { className: 'list' }, h('li', { className: 'item', tabIndex: 0 }, `clicks ${state.clicks} keys ${state.keys}`))
+    }
+    C.initialState = { clicks: 0, keys: 0 }
+    C.intent = ({ DOM }) => ({
+      CLICK: DOM.select('.item').events('click'),
+      ...(keydownOn ? { KEY: DOM.select(keydownOn).events('keydown').filter((e) => e.key == 'Enter' || e.key == ' ') } : {}),
+    })
+    C.model = { CLICK: (s) => ({ ...s, clicks: s.clicks + 1 }), KEY: (s) => ({ ...s, keys: s.keys + 1 }) }
+    return C
+  }
+
+  it('clicks it when the app handles no keydown there', async () => {
+    const term = createTerminal()
+    apps.push(term.run(app()))
+    await term.settle()
+    term.focus('.item')
+    term.press('Enter')
+    term.press(' ')
+    await term.settle()
+    expect(term.frame()).toContain('clicks 2 keys 0')
+  })
+
+  it("doesn't when a component listens to keydown on it or an ancestor: the app's own key handling is the one action", async () => {
+    for (const on of ['.item', '.list']) {
+      const term = createTerminal()
+      apps.push(term.run(app(on)))
+      await term.settle()
+      term.focus('.item')
+      term.press('Enter')
+      term.press(' ')
+      await term.settle()
+      expect(term.frame()).toContain('clicks 0 keys 2')
+    }
+  })
+
+  it("an app-wide keydown (DOM.select('document')) doesn't count: a shortcut handler isn't the element's", async () => {
+    const term = createTerminal()
+    apps.push(term.run(app('document')))
+    await term.settle()
+    term.focus('.item')
+    term.press('Enter')
+    await term.settle()
+    expect(term.frame()).toContain('clicks 1 keys 1')
+  })
+})
+
+describe('sygnal/terminal: createTerminal().run() and settle() (F20)', () => {
+  function Later({ state }) {
+    return h('div', null, h('p', null, state.text), h('button', { className: 'go' }, 'go'), h('input', { className: 'name' }))
+  }
+  Later.initialState = { text: 'waiting' }
+  Later.intent = ({ DOM }) => ({ GO: DOM.select('.go').events('click') })
+  Later.model = {
+    GO: { STATE: (s) => ({ ...s, text: 'working' }), ELEMENT: () => ({ focus: '.name' }), EFFECT: (s, d, next) => next('DONE', null, 10) },
+    DONE: (s) => ({ ...s, text: 'done' }),
+  }
+
+  it('run() adds DOM and TERMINAL; settle() waits for the flush, element commands and delayed actions', async () => {
+    const term = createTerminal()
+    const a = term.run(Later)
+    apps.push(a)
+    expect(typeof a.dispose).toBe('function')
+    await term.settle()
+    expect(term.frame()).toContain('waiting')
+    term.focus('.go')
+    term.press('Enter')
+    await term.settle()
+    expect(term.frame()).toContain('done')
+    expect(term.doc.activeElement.className).toBe('name')
+  })
+
+  it('drives fake timers', async () => {
+    const { vi } = await import('vitest')
+    vi.useFakeTimers()
+    try {
+      const term = createTerminal()
+      apps.push(term.run(Later))
+      await term.settle()
+      term.focus('.go')
+      term.press('Enter')
+      await term.settle()
+      expect(term.frame()).toContain('done')
+    } finally { vi.useRealTimers() }
+  })
+
+  it('rejects with the frame when the app never goes quiet', async () => {
+    function Clock({ state }) { return h('p', null, `tick ${state.n}`) }
+    Clock.initialState = { n: 0 }
+    Clock.intent = () => ({ TICK: xs.periodic(5) })
+    Clock.model = { TICK: (s) => ({ n: s.n + 1 }) }
+    const term = createTerminal()
+    apps.push(term.run(Clock))
+    await expect(term.settle({ timeout: 100 })).rejects.toThrow(/still changing after 100 ms[^]*tick \d+/)
   })
 })

@@ -83,6 +83,18 @@ export interface Terminal {
   height: number | undefined
   /** the cells an emoji takes (1 or 2) */
   emojiWidth: 1 | 2
+  /**
+   * run(App, { DOM, TERMINAL, ...drivers }) on this terminal; returns the app (dispose() it).
+   * settle() waits for it
+   */
+  run(App: any, drivers?: Record<string, any>, runOptions?: Record<string, any>): any
+  /**
+   * Resolves once the app is quiet: nothing scheduled in its runtime (flushed()) and no change to
+   * the tree for `quiet` ms (default 20: an element command runs at most 16 ms after its action,
+   * a fetch with a short latency answers). Under fake timers (vi.useFakeTimers()) it advances
+   * the clock. Rejects after `timeout` ms (default 2000) with the frame in the message.
+   */
+  settle(options?: {timeout?: number, quiet?: number}): Promise<void>
 }
 
 // the readline / Textual Input keys in a text field (the keydown goes out first: an app's keymap can take them)
@@ -193,8 +205,26 @@ export function createTerminal(options: TerminalOptions = {}): Terminal {
       return false
     },
     keyHint: () => keyHint(doc, rules),
+    run(App, drivers = {}, runOptions) {
+      return app = run(App, {TERMINAL: term.control, ...drivers, DOM: term.driver}, runOptions)
+    },
+    async settle({timeout = 2000, quiet = 20} = {}) {
+      // vi.useFakeTimers() (@sinonjs/fake-timers) puts its clock on the faked setTimeout: the wait drives it
+      const clock = () => (setTimeout as any).clock, now = () => clock()?.now ?? Date.now()
+      const end = now() + timeout
+      let seen = -1, since = 0
+      for (;;) {
+        if (app) await app.__runtime?.flushed?.()
+        if (changes !== seen) { seen = changes; since = now() }
+        else if (now() - since >= quiet) return
+        if (now() >= end) throw new Error(`[Sygnal] terminal settle(): the app was still changing after ${timeout} ms. The frame:\n${term.frame()}`)
+        const c = clock()
+        await (c ? c.tickAsync(4) : new Promise(r => setTimeout(r, 4)))
+      }
+    },
   }
-  doc.onChange = () => { last = null; if (options.onFrame) options.onFrame(term.render()) }
+  let app: any = null, changes = 0
+  doc.onChange = () => { changes++; last = null; if (options.onFrame) options.onFrame(term.render()) }
   return term
 }
 const isNative = (el: HostElement) => /^(input|textarea|select|button|a|summary|option)$/.test(el.localName)
@@ -494,7 +524,7 @@ export function runTerminal(App: any, options: RunTerminalOptions = {}): Running
   }
   let app: any
   try {
-    app = run(App, {TERMINAL: term.control, ...options.drivers, DOM: term.driver}, options.runOptions)
+    app = term.run(App, options.drivers, options.runOptions)
   } catch (e) { stopped = true; detach(); restore(); throw e }
   return {app, terminal: term, stop}
 }
