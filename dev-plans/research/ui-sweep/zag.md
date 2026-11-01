@@ -376,3 +376,106 @@ Next to Zag's ~33 KB per part, the parts' growth is small.
 - `npm --prefix docs run build`: ok.
 - `check-live`: 130 demos ok on Chromium, Firefox and WebKit (4 of them new).
 - `check-doc-samples`: 977 clean.
+
+## Round 3 (2026-10-31): chip keyboard and announcements, processForm arrays
+
+The maintainer approved two items from round 2's list: chips you can reach and remove with the keyboard, with removals announced, and
+`processForm()` arrays for a native `<select multiple>`. Merged `claude/advanced-integration` (60cd4b5f) first.
+
+### 1. Combobox chips as React Aria's TagGroup
+
+Read from React Aria's source (`packages/react-aria/src/tag/useTag.ts`, `useTagGroup.ts`, main, 2026-10-31):
+
+- The group is `role="grid"` (`group` when empty) with `role="row"` tags holding a `gridcell`, on a horizontal `ListKeyboardDelegate`
+  (Left / Right swapped in RTL, Home / End to the first / last, `shouldFocusWrap: true`).
+- One tab stop: the focused tag has `tabIndex=0`, the others −1; before any focus, the first enabled tag.
+- Delete and Backspace on a tag call `onRemove`; the list state then focuses the tag in the removed one's place (the next), else the
+  previous; with none left, the group's container.
+- The remove button is named "Remove" plus the tag (`aria-labelledby` button + row); tags are described by "Press Delete to remove tag." in
+  keyboard modality.
+- Announcements: the grid is `aria-live="polite"`, `aria-relevant="additions"`, only while the focus is inside it. So added tags are
+  announced while the user is in the group, and removals are not announced at all.
+
+What Sygnal does now (`src/ui/zag/combobox.ts`):
+
+- `[data-part=item-chips]` is `role="grid"` (named by `chipsLabel`, default the label); each chip `role="row"`, named by its label, with a
+  `role="gridcell"` (`data-part=item-chip-cell`) holding the text and the remove button. The remove button stays `tabindex="-1"`, and its
+  mousedown is prevented, so a click keeps the focus where it is.
+- Roving tabindex: the chip focused last while it is still a value, else the first, is the one tab stop; none when `disabled`.
+- Keys, as in the request and React Aria, with the multi-select-combobox convention (Downshift's `useMultipleSelection`, MUI) for the input:
+  - ArrowLeft with the caret at the start of the input (no selection) focuses the last chip; ArrowRight with `dir="rtl"`.
+  - On a chip: ArrowLeft / ArrowRight move (swapped in RTL); ArrowLeft on the first stays; ArrowRight on the last returns to the input.
+    React Aria wraps instead; inside a combobox the input is "after" the chips, so going there is the expected move. Home / End: first / last.
+  - Delete / Backspace remove the focused chip and focus the next (else the previous, else the input), as React Aria. The neighbour's row is
+    keyed, so it keeps its element whether the removal is in yet (a controlled value only changes after the app's flush) and keeps the focus.
+  - `readOnly`: the chips navigate but don't remove.
+- Description: one hidden `Press Delete to remove.` element the chips point at with `aria-describedby` (`removeHint`, `false` for none).
+  React Aria adds it in keyboard modality only; ours is always there (a describedby on a focusable row is read when it is focused).
+- Announcements: a polite `role="status"` region (the one `empty` already had, now also rendered for chips) says "Paris removed" once the
+  value is gone, whatever removed it: a chip key, a remove button, Backspace in the input, the `remove` command. A removal the model refuses
+  says nothing. `removedMessage={(label) => …}` localizes it; `false` turns it off. Every other message gets a trailing zero-width space,
+  so removing the same city twice is announced twice. The text is cleared when `empty` takes the region, so it is not read again after.
+  This goes past React Aria, which doesn't announce removals; the request asked for it, and it is what the round-2 report flagged.
+- Additions are not announced. React Aria announces new tags only while the focus is in the group, and in a combobox a tag is added by a
+  pick in the list, where the focus is in the input. The pick itself is announced (the option's `aria-selected`); a second message would
+  repeat it.
+
+Behaviour change from round 2 (unreleased): the chips were `role="list"` / `listitem`.
+
+### 2. processForm: `<select multiple>` is an array
+
+`processForm()` copied FormData's entries into an object, so a `<select multiple>` gave its last selected value, and no entry at all when
+nothing was selected. It now gives every selected value as an array, `[]` when none (`src/extra/processForm.ts`: the form's `elements`, so a
+`form="id"` control outside the form counts, as FormData does; one that is disabled, itself or by a fieldset, is left out, as FormData does).
+
+- The `form` behavior already did this (its `CHANGE`, `native()`, G-376), and its values come from state, so it has nothing to change. No
+  `formHelpers` export reads the DOM's selects (`focusInvalid` only builds a selector).
+- A `multiple` Select or Combobox already gave an array (round 2's field contract).
+- Types: `FormData<FIELDS>` and `processForm<FIELDS>` take `Record<string, any>` (were `Record<string, string>`), so
+  `processForm<{ tags: string[] }>(…)` types. The default stays `Record<string, string>`, so untyped code doesn't change.
+- A `sygnal/host` form (`toFormData()`) has no `elements`, so the host path is unchanged. Its select has no `selectedOptions`; a renderer
+  target's multiple select would need both.
+- Changelog: a **Changed.** entry under 7.2.0-preview.0, and the header's "everything is additive" line now names it. There is no 7.2
+  migration page (`guide/migrating-to-7` is about 7.0), so the migration line (`data.tags.at(-1)` for the old value) is in the changelog
+  entry and the forms reference.
+
+Checkbox groups (several checkboxes with one name) have the same issue in `processForm()`: the last checked box's value, and no entry when
+none is checked (a test pins this). Not changed, as asked. A fix would give an array when more than one box shares the name. A group with
+a single box is the hard case: it can't be told apart from a single checkbox, which should stay a string. Options: always an array for a
+name that more than one checkbox has (a group that renders one box changes type); or an array only on `name="tags[]"`, the PHP/Rails
+convention. The `form` behavior already collects them into an array field (`item`), so `processForm()` is the only reader with the issue.
+
+### Tests (round 3)
+
+- `test/ui-zag-round3.test.js` (11, jsdom, real DOM): roles and names, the tab stop, the description, `disabled`; the input's ArrowLeft,
+  arrows, Home / End, Right past the last, RTL; Delete / Backspace and the focus after them, the last chip, `readOnly`; announcements from
+  each removal path, an addition not announced, the same text twice, `removedMessage` and `false`, a refused removal.
+- `test/ui-zag-round2.test.js`: the chip roles (grid / row).
+- `test/processform-select-multiple.test.js` (2): arrays, `[]`, a disabled select and a disabled fieldset left out, `form="id"` in, a
+  single select unchanged; checkbox groups unchanged.
+- `type-tests/public-api.ts` (array fields), `type-tests/p5-2z-adapters.tsx` (`removedMessage`, `removeHint`).
+- `browser-tests/src/tests/ui-zag-p5z.jsx`: "Round 3" with Playwright's trusted keyboard: the grid / row / button roles by name, Tab and
+  Shift+Tab (one stop, then the last focused chip), ArrowLeft from the input, the arrows, Home / End, Right back to the input, Delete and
+  Backspace with the focus after them, the three status messages, and no message for an addition. 18/18 on Chromium, Firefox and WebKit.
+
+### Size (round 3)
+
+The core is unchanged (nothing under `src/core/**` or in the kanban app's path); the size gate's figure is below. Measured as in round 2:
+
+| Module | Round 2 | Round 3 | Change |
+|---|---|---|---|
+| `sygnal/ui/combobox` (combobox.ts + shared) | 2,644 | 3,227 | +583 (chip keys, roving tabindex, status messages, hint) |
+| main bundle `processForm` (+ field.ts) | 476 | 539 | +63, only for apps that use it |
+
+Menu, Select, `sygnal/zag`, `form` and `defineWidget` are unchanged.
+
+### Gate (round 3)
+
+- `npm run build`: ok.
+- `npm test`: every stage passes: vitest 5,784 passed; test:examples ok; test:types ok; test:browser ok on Chromium; test:perf-gate within limits.
+- `node scripts/size-gate.mjs`: 42,734 B (266 B headroom). Round 3 adds 0 B: the figure is the same with HEAD's `processForm.ts`
+  (kanban doesn't use it). The 87 B over round 2's 42,647 B came in with the merge of `claude/advanced-integration` (60cd4b5f).
+- `npm --prefix sygnal-check test`: 1,860 passed in both runs.
+- The Zag browser suite: 18/18 on Chromium, Firefox and WebKit.
+- `npm --prefix docs run build`: ok. `check-live`: 130 demos ok on Chromium, Firefox and WebKit.
+- `check-doc-samples`: 979 clean.

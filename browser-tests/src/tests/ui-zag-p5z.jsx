@@ -179,6 +179,20 @@ Round2.model = {
   PICK: (state, last) => ({ ...state, last }),
 }
 
+// UI sweep round 3: a multiple Combobox's chips (React Aria's TagGroup keyboard, announcements)
+function Round3({ state }) {
+  return (
+    <div>
+      <button type="button" className="before">Before</button>
+      <Combobox className="tags" label="Tags" multiple items={CITIES} value={state.tags} />
+      <p className="out">{JSON.stringify({ tags: state.tags })}</p>
+    </div>
+  )
+}
+Round3.initialState = { tags: ['Paris', 'Lisbon', 'Berlin'] }
+Round3.intent = ({ DOM }) => ({ TAGS: DOM.select('.tags').events('value-change').detail() })
+Round3.model = { TAGS: (state, tags) => ({ ...state, tags }) }
+
 // ZS-6: a Select in a sygnal/ui dialog
 function Edit({ state }) {
   return (
@@ -473,6 +487,61 @@ export async function uiZagTestsP5Z() {
       await until(() => $('.tags [data-part=empty]').hidden && $('.tags [role=option][data-value=Berlin]'), 'Berlin shown')
       await key('ArrowDown', 'Enter')
       await until(() => chips() === 'Berlin', chips)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 3: chips are one tab stop; arrows, Home / End, Delete / Backspace move and remove; removals announced', async () => {
+    const { id, app, $, $$ } = await mount(Round3)
+    try {
+      const chips = () => $$('.tags [data-part=item-chip]').map((c) => c.dataset.value).join()
+      const at = () => document.activeElement?.dataset?.value ?? (document.activeElement === $('.tags input[role=combobox]') ? 'input' : document.activeElement?.className || document.activeElement?.tagName)
+      const status = () => $('.tags [role=status]').textContent.replace(/\u200b/g, '')
+      assert(await role(id, { role: 'grid', name: 'Tags' }) === 1, 'no grid "Tags"')
+      assert(await role(id, { role: 'row', name: 'Lisbon' }) === 1, 'no row "Lisbon"')
+      assert(await role(id, { role: 'button', name: 'Remove Lisbon' }) === 1, 'no "Remove Lisbon" button')
+      // Tab: the first chip (one stop), then the input; Shift+Tab back to the chips
+      await window.__pw('focus', `${id} .before`)
+      await key('Tab')
+      await until(() => at() === 'Paris', at)
+      await key('Tab')
+      await until(() => at() === 'input', at)
+      await key('Shift+Tab')
+      await until(() => at() === 'Paris', at)
+      // ArrowLeft at the start of the input: the last chip; the arrows; Right past the last: the input
+      await window.__pw('focus', `${id} .tags input[role=combobox]`)
+      await key('ArrowLeft')
+      await until(() => at() === 'Berlin', at)
+      await key('ArrowLeft', 'ArrowLeft')
+      await until(() => at() === 'Paris', at)
+      await key('End')
+      await until(() => at() === 'Berlin', at)
+      await key('Home')
+      await until(() => at() === 'Paris', at)
+      await key('ArrowRight', 'ArrowRight', 'ArrowRight')
+      await until(() => at() === 'input', at)
+      // the tab stop follows the focus: Shift+Tab from the input lands on the last focused chip
+      await key('ArrowLeft', 'ArrowLeft')
+      await until(() => at() === 'Lisbon', at)
+      await window.__pw('focus', `${id} .tags input[role=combobox]`)
+      await key('Shift+Tab')
+      await until(() => at() === 'Lisbon', at)
+      // Delete: removed, focus on the next, announced
+      await key('Delete')
+      await until(() => chips() === 'Paris,Berlin' && at() === 'Berlin', () => `${chips()} at ${at()}`)
+      await until(() => status() === 'Lisbon removed', status)
+      // Backspace on the last: the previous; then the last one: the input
+      await key('Backspace')
+      await until(() => chips() === 'Paris' && at() === 'Paris', () => `${chips()} at ${at()}`)
+      await until(() => status() === 'Berlin removed', status)
+      await key('Delete')
+      await until(() => chips() === '' && at() === 'input' && out($).tags.length === 0, () => `${chips()} at ${at()} ${$('.out').textContent}`)
+      await until(() => status() === 'Paris removed', status)
+      // an addition is not announced (the option's selection is)
+      await window.__pw('type', `${id} .tags input[role=combobox]`, 'ber')
+      await until(() => $('.tags [role=option][data-value=Berlin]'), 'Berlin shown')
+      await key('ArrowDown', 'Enter')
+      await until(() => chips() === 'Berlin', chips)
+      assert(status() === 'Paris removed', status())
     } finally { app.dispose() }
   })
 

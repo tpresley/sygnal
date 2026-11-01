@@ -16,8 +16,12 @@ export interface ComboboxProps extends ListboxProps {
   chips?: boolean
   /** A chip's remove button's name: a prefix ('Remove' → "Remove Paris") or (label) => name */
   removeLabel?: string | ((label: string) => string)
-  /** The chips list's name (default: the label) */
+  /** The chips grid's name (default: the label) */
   chipsLabel?: string
+  /** What the status region announces when a chip is removed (default: "Paris removed"); false: nothing */
+  removedMessage?: false | ((label: string) => string)
+  /** The chips' description (default: "Press Delete to remove."); false: none */
+  removeHint?: false | string
   /** Shown (a `data-part="empty"` row, and announced in a status region) while the list is open with no items */
   empty?: any
 }
