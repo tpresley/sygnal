@@ -295,4 +295,4 @@ CV-1 can ship before CV-3: it changes no client code, and it has the largest rat
   view) costs ≈40 ns per view (node microbenchmark), ≈0.04 ms of the 1.4 ms Collection select at 1k
   rows (≈3%, within noise). The Collection's per-instance cost is elsewhere (context(), cell reads,
   the isolation copy).
-- Not yet: CV-6 (docs).
+- CV-6 (docs): done, `integration/compiled-views`.
