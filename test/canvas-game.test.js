@@ -216,10 +216,24 @@ function fakeCanvas(w = 800, h = 600) {
     get: (o, k) => k in o ? o[k] : (k == 'calls' ? calls : (...a) => { calls.push([k, ...a]) }),
     set: (o, k, v) => { o[k] = v; return true },
   })
-  const made = []
-  const doc = { createElement: () => { const c = fakeCanvas(1, 1).canvas; made.push(c); return c } }
+  const made = [], divs = []
+  // (a div: the scroll canvases' container, a list of children in order)
+  const div = () => {
+    const d = { style: {}, children: [], parentNode: null, setAttribute() {}, remove() { d.parentNode = null },
+      insertBefore(c, at) { const i = d.children.indexOf(c); if (i >= 0) d.children.splice(i, 1); const j = at ? d.children.indexOf(at) : -1; d.children.splice(j < 0 ? d.children.length : j, 0, c); c.parentNode = d; c.remove = () => { d.children.splice(d.children.indexOf(c), 1); c.parentNode = null } } }
+    divs.push(d)
+    return d
+  }
+  const doc = { createElement: (tag) => { if (tag == 'div') return div(); const c = fakeCanvas(1, 1).canvas; made.push(c); return c } }
   const canvas = { width: w, height: h, ownerDocument: doc, getContext: () => ctx, style: {}, setAttribute() {}, remove() {} }
-  return { canvas, ctx, calls, made }
+  return { canvas, ctx, calls, made, divs }
+}
+// a canvas in a parent element: the live canvas and the scroll canvases go next to it
+function withParent(f) {
+  const kids = [f.canvas]
+  f.canvas.parentNode = { insertBefore(c, at) { const i = kids.indexOf(c); if (i >= 0) kids.splice(i, 1); const j = at ? kids.indexOf(at) : -1; kids.splice(j < 0 ? kids.length : j, 0, c); c.parentNode = this; c.nextSibling = undefined; kids.forEach((k, n) => { k.nextSibling = kids[n + 1] || null }) } }
+  f.kids = kids
+  return f
 }
 const frame = (layers, camera = CAMERA, more = {}) => ({ camera, width: 800, height: 600, dpr: 1, background: '#fff', grid: false, repaint: 'layers', layers, overlay: [], follow: null, moving: false, ...more })
 const stats = () => ({ nodes: 0, culled: 0, ms: 0, blits: 0, cached: 0, shifted: 0, scaled: 0, statics: 0 })
@@ -288,8 +302,7 @@ describe('canvas2d(): live layers, layer order, parallax, the blit for nodes tha
   })
 
   it('with parallax, the live layers on top go on the live canvas: a still camera leaves the main canvas as it is', () => {
-    const { canvas, calls, made } = fakeCanvas()
-    canvas.parentNode = { insertBefore: () => {} }
+    const { canvas, calls, made } = withParent(fakeCanvas())
     const b = canvas2d()(canvas)
     const liveCalls = made[0].getContext('2d').calls
     const hills = [box('hill', 100, 300)], tiles = Array.from({ length: 30 }, (_, i) => box('t' + i, i * 30, 550))
@@ -301,11 +314,91 @@ describe('canvas2d(): live layers, layer order, parallax, the blit for nodes tha
     expect(s.cached).toBe(1)
     expect(calls.filter((c) => c[0] == 'drawImage' || c[0] == 'fillRect')).toHaveLength(0)
     expect(liveCalls.some((c) => c[0] == 'rect' && c[1] == 1)).toBe(true)
-    // the camera moves: both static runs drawn again (shifted), the player still on the live canvas
-    calls.length = 0
-    const s2 = stats(); b.paint(frame(layers(2), { x: 10, y: 0, zoom: 1 }), s2)
-    expect(s2).toMatchObject({ shifted: 2, statics: 0 })
-    expect(calls.filter((c) => c[0] == 'drawImage')).toHaveLength(2)
+  })
+
+  it('R14: a scrolling camera moves the run canvases (a CSS transform, no pixels); at the edge of what they have, only the new strip is painted', () => {
+    const f = withParent(fakeCanvas()), b = canvas2d()(f.canvas)
+    const tiles = Array.from({ length: 400 }, (_, i) => box('t' + i, i * 40, 500, { width: 40 }))
+    const layers = (x) => [{ items: tiles, active: null }, { items: [box('p', x + 100, 480)], active: null, live: true }]
+    // a still camera: the main canvas (no scroll canvases for a scene that doesn't scroll)
+    b.paint(frame(layers(0)), stats())
+    expect(f.divs).toHaveLength(0)
+    // the camera moves: the static layer goes on a scroll canvas (painted once)
+    const s0 = stats(); b.paint(frame(layers(0), { x: 0.5, y: 0, zoom: 1 }), s0)
+    expect(s0.statics).toBe(1)
+    b.paint(frame(layers(0)), stats())
+    const [box_] = f.divs, run = box_.children[0], rc = run.getContext('2d').calls
+    // the order: main canvas, the scroll canvases' container, the live canvas
+    expect(f.kids.map((k) => k.className ?? 'main')).toEqual(['main', 'sygnal-canvas-scroll', 'sygnal-canvas-live'])
+    // the region: the view and half a view each way, clipped to the content (and its 20 px pad)
+    expect([run.width, run.height]).toEqual([1221, 50])
+    for (let x = 10; x <= 300; x += 10) {
+      f.calls.length = 0; rc.length = 0
+      const s = stats(); b.paint(frame(layers(x), { x, y: 0, zoom: 1 }), s)
+      expect(s).toMatchObject({ statics: 0, scrolled: 1 })
+      expect(f.calls).toHaveLength(0)
+      expect(rc).toHaveLength(0)
+      expect(run.style.transform).toBe(`translate(${-20 - x}px, 480px)`)
+    }
+    // past the region: a new one around the view (a size change: painted whole), then one the same size: the overlap shifted, one strip painted
+    const s1 = stats(); b.paint(frame(layers(500), { x: 500, y: 0, zoom: 1 }), s1)
+    expect(s1.statics).toBe(1)
+    rc.length = 0
+    const s2 = stats(); b.paint(frame(layers(1000), { x: 1000, y: 0, zoom: 1 }), s2)
+    expect(s2).toMatchObject({ statics: 0, strips: 1 })
+    const copy = rc.findIndex((c) => c[0] == 'drawImage')
+    expect(rc[copy]).toEqual(['drawImage', run, -500, 0])
+    const painted = rc.filter((c) => c[0] == 'rect' && c[4] == 10).map((c) => c[1])
+    // only the tiles in the strip x 1700 … 2200 (clipped to it: one overlaps its left edge, one touches its right)
+    expect(Math.min(...painted)).toBe(1680)
+    expect(Math.max(...painted)).toBe(2200)
+    expect(painted).toHaveLength(14)
+    expect(run.style.transform).toBe('translate(-400px, 480px)')
+  })
+
+  it('R14: a static run that changes is repainted; a zoom repaints; a live layer under a static one goes back to the main canvas', () => {
+    const f = withParent(fakeCanvas()), b = canvas2d()(f.canvas)
+    const tiles = Array.from({ length: 50 }, (_, i) => box('t' + i, i * 40, 500))
+    const actor = [box('p', 0, 0)], at = (x) => ({ x, y: 0, zoom: 1 })
+    b.paint(frame([{ items: tiles, active: null }, { items: actor, active: null, live: true }]), stats())
+    b.paint(frame([{ items: tiles, active: null }, { items: actor, active: null, live: true }], at(1)), stats())
+    const s = stats(); b.paint(frame([{ items: tiles.slice(1), active: null }, { items: actor, active: null, live: true }], at(2)), s)
+    expect(s).toMatchObject({ statics: 1 })
+    const s2 = stats(); b.paint(frame([{ items: tiles.slice(1), active: null }, { items: actor, active: null, live: true }], { x: 0, y: 300, zoom: 2 }), s2)
+    expect(s2.statics).toBe(1)
+    // a live background under the tiles: everything on the main canvas again, the scroll canvases hidden
+    f.calls.length = 0
+    b.paint(frame([{ items: [box('sky', 0, 0)], active: null, live: true }, { items: tiles, active: null }, { items: actor, active: null, live: true }]), stats())
+    expect(f.divs[0].style.display).toBe('none')
+    expect(f.calls.some((c) => c[0] == 'drawImage')).toBe(true)    // refresh() (an image arrived): the next frame repaints what was cached
+    const layers = [{ items: tiles, active: null }, { items: actor, active: null, live: true }]
+    b.paint(frame(layers, at(5)), stats())
+    const same = stats(); b.paint(frame(layers, at(6)), same)
+    expect(same).toMatchObject({ statics: 0, scrolled: 1 })
+    b.refresh()
+    const after = stats(); b.paint(frame(layers, at(7)), after)
+    expect(after.statics).toBe(1)
+  })
+
+  it('R14: a camera still for 30 frames folds the scroll canvases back onto the main canvas: a copy of their pixels, no repaint', () => {
+    const f = withParent(fakeCanvas()), b = canvas2d()(f.canvas)
+    const tiles = Array.from({ length: 50 }, (_, i) => box('t' + i, i * 40, 500)), cam = { x: 10, y: 0, zoom: 1 }
+    const layers = [{ items: tiles, active: null }, { items: [box('p', 0, 0)], active: null, live: true }]
+    b.paint(frame(layers), stats())
+    b.paint(frame(layers, cam), stats())
+    const run = f.divs[0].children[0]
+    for (let i = 0; i < 29; i++) { const s = stats(); b.paint(frame(layers, cam), s); expect(s.scrolled).toBe(1) }
+    f.calls.length = 0
+    const s = stats(); b.paint(frame(layers, cam), s)
+    expect(f.divs[0].style.display).toBe('none')
+    expect(s).toMatchObject({ statics: 0, shifted: 1 })
+    expect(f.calls.find((c) => c[0] == 'drawImage')[1]).toBe(run)
+    // still: cached; the camera moves again: back on the scroll canvas, as it was (no repaint)
+    const s2 = stats(); b.paint(frame(layers, cam), s2)
+    expect(s2.cached).toBe(1)
+    const s3 = stats(); b.paint(frame(layers, { x: 20, y: 0, zoom: 1 }), s3)
+    expect(s3).toMatchObject({ statics: 0, scrolled: 1 })
+    expect(f.divs[0].style.display).toBe('')
   })
 
   it('an editor (one document layer, a dragged node in it, outline layers above) keeps the two-canvas strategy', () => {

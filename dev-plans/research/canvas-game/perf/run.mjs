@@ -41,7 +41,7 @@ const QUERY = arg('query', ''), LABEL = arg('label', '')
 const CPU = Number(arg('cpu', 1))
 
 // ---------------------------------------------------------------- static servers
-const TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.map': 'application/json'}
+const TYPES = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.map': 'application/json', '.png': 'image/png'}
 function serve(dir) {
   return new Promise(res => {
     const s = http.createServer((req, rsp) => {

@@ -23,7 +23,7 @@
  *   it), the live nodes are painted between them. No camera-gesture scaling or overview there.
  */
 import {aabb, overlaps, viewport, toScreen, positionsOf, layerCamera, type AABB, type Camera} from './geometry'
-import {paintWorld, paintNode, type Node} from './paint'
+import {paintWorld, paintNode, sized, type Node} from './paint'
 
 export type PaintLayer = {items: Node[], active: Set<any> | null, outline?: string, live?: boolean, parallax?: [number, number] | null}
 export interface Frame {
@@ -41,11 +41,13 @@ export interface Frame {
   /** the camera is in a gesture (wheel, pinch, pan drag): a zoom may scale the cached bitmap */
   moving: boolean
 }
-export type PaintStats = {nodes: number, culled: number, ms: number, blits: number, cached: number, shifted: number, scaled: number, statics: number}
+export type PaintStats = {nodes: number, culled: number, ms: number, blits: number, cached: number, shifted: number, scaled: number, statics: number, scrolled?: number, strips?: number}
 export interface BackendInstance {
   paint(frame: Frame, stats: PaintStats): void
   /** the canvas's bitmap was resized (and so cleared): the next paint must not reuse it */
   resized?(): void
+  /** what nodes show changed without the nodes changing (an image arrived): the next paint repaints what it cached */
+  refresh?(): void
   dispose?(): void
 }
 export type CanvasBackend = (canvas: any) => BackendInstance | null
@@ -58,6 +60,8 @@ const BLIT_MIN = 1000
 const MAX_PIXELS = 16e6
 // the overview's budget (4 M device pixels)
 const OVERVIEW_PIXELS = 4e6
+// frames of a still camera after which the scroll canvases fold back onto the main canvas
+const STILL = 30
 const sameCam = (a: Camera, b: Camera) => a.x == b.x && a.y == b.y && a.zoom == b.zoom
 const sameSet = (a: Set<any> | null, b: Set<any> | null) => a === b || (!!a && !!b && a.size == b.size && [...a].every(x => b.has(x)))
 const intersect = (a: AABB, b: AABB): AABB | null => { const r = {x0: Math.max(a.x0, b.x0), y0: Math.max(a.y0, b.y0), x1: Math.min(a.x1, b.x1), y1: Math.min(a.y1, b.y1)}; return r.x0 < r.x1 && r.y0 < r.y1 ? r : null }
@@ -89,14 +93,14 @@ function activeOf(items: Node[], ids: Set<any>, prev?: Node[]): Node[] {
 }
 
 // the world AABB of a layer's nodes (lines and paths count as unbounded: they are never culled)
-const bounds = new WeakMap<Node[], AABB>()
+let bounds = new WeakMap<Node[], AABB>()
 function contentOf(items: Node[]): AABB {
   let b = bounds.get(items)
   if (b) return b
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const n of items) {
     if (n.type == 'line' || n.type == 'path') { x0 = y0 = -Infinity; x1 = y1 = Infinity; break }
-    const a = aabb(n as any)
+    const a = aabb(sized(n) as any)
     if (a.x0 < x0) x0 = a.x0; if (a.y0 < y0) y0 = a.y0; if (a.x1 > x1) x1 = a.x1; if (a.y1 > y1) y1 = a.y1
   }
   bounds.set(items, b = {x0, y0, x1, y1})
@@ -122,7 +126,8 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   if (!ctx) return null
   const doc = canvas.ownerDocument
   // the static layer: bitmap, the world region it covers, the zoom it was painted at, its content key
-  type Cache = {bmp: any, region: AABB | null, zoom: number, key: any, transparent?: boolean}
+  // (`borrowed`: a scroll canvas's pixels lent to an ordered run: drawn from, never painted into)
+  type Cache = {bmp: any, region: AABB | null, zoom: number, key: any, transparent?: boolean, borrowed?: boolean}
   let st: Cache = {bmp: null, region: null, zoom: 0, key: null}
   // the overview: the whole static content at a low resolution, painted when a zoom gesture first
   // shows more than the static bitmap has (what a zoom-out uncovers, until the crisp repaint at rest)
@@ -164,7 +169,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
   const paintInto = (c: Cache, f: Frame, key: any, skips: any[], region: AABB, z: number, s: PaintStats, transparent = false): Cache => {
     const dpr = f.dpr
     // (an ordered run's bitmap is transparent: it goes over what is under it)
-    const bmp = c.bmp && !!c.transparent == transparent ? c.bmp : doc.createElement('canvas')
+    const bmp = c.bmp && !c.borrowed && !!c.transparent == transparent ? c.bmp : doc.createElement('canvas')
     const W = Math.max(1, Math.ceil((region.x1 - region.x0) * z * dpr)), H = Math.max(1, Math.ceil((region.y1 - region.y0) * z * dpr))
     if (bmp.width != W || bmp.height != H) { bmp.width = W; bmp.height = H }
     const bc = bmp.getContext('2d', {alpha: transparent}), at = {x: region.x0, y: region.y0, zoom: z}
@@ -250,6 +255,139 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     return true
   }
 
+
+  // R14, the scrolling camera: each run of static layers (one parallax) is a canvas element of its
+  // own, over the main canvas (the background alone) and under the live one, covering the view and
+  // a margin; the camera moving moves the element (a CSS transform: the compositor's work, no
+  // pixels copied), and when the view reaches the edge of what it has, the overlap is shifted once
+  // and only the newly exposed strips are painted. A frame costs what came into view, not a copy of
+  // the view. Used when the layers under the live canvas are all static (a game: scenery and tiles
+  // under its actors); a live layer under a static one keeps the main-canvas strategy. Only while
+  // the camera moves: more canvases cost the compositor every frame, so a camera still for
+  // STILL frames folds the runs back onto the main canvas (copies of the scroll canvases' pixels)
+  type Scroll = {el: any, ctx: any, key: any, region: AABB | null, zoom: number, dpr: number, tx: number, ty: number}
+  const scrolls: Scroll[] = []
+  let box: any = null, scrolling = false, groundKey = '', still = 0
+  const unscroll = () => {
+    if (!scrolling) return
+    scrolling = false
+    mainValid = false
+    box.style.display = 'none'
+  }
+  const scrolled = (f: Frame, s: PaintStats, skips: any[], top: number) => {
+    const dpr = f.dpr, w = f.width, h = f.height
+    if (!box) {
+      box = doc.createElement('div')
+      box.className = 'sygnal-canvas-scroll'
+      Object.assign(box.style, {position: 'absolute', left: '0', top: '0', width: '100%', height: '100%', overflow: 'hidden', pointerEvents: 'none'})
+      box.setAttribute?.('aria-hidden', 'true')
+    }
+    if (box.parentNode !== canvas.parentNode || box.nextSibling !== live) canvas.parentNode.insertBefore(box, live)
+    if (!scrolling) box.style.display = '', scrolling = true
+    // the main canvas: the background alone, painted when it changes
+    const g = `${f.background} ${w} ${h} ${dpr}`
+    if (!mainValid || g != groundKey) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.globalAlpha = 1
+      ctx.fillStyle = f.background
+      ctx.fillRect(0, 0, w, h)
+      mainValid = true; groundKey = g
+    }
+    const groups: {px: [number, number] | null, idx: number[]}[] = []
+    for (let i = 0; i < top; i++) {
+      const l = f.layers[i]
+      if (skips[i] === ALL || l.items.length <= (skips[i] ? skips[i].size : 0)) continue
+      const px = l.parallax || null, last = groups[groups.length - 1]
+      if (last && String(last.px) === String(px)) last.idx.push(i)
+      else groups.push({px, idx: [i]})
+    }
+    groups.forEach(({px, idx}, r) => {
+      const cam = layerCamera(f.camera, px), z = cam.zoom, k = z * dpr, view = viewport(cam, w, h)
+      const sk = f.layers.map((_, i) => idx.includes(i) ? skips[i] : ALL)
+      const key = {dpr, layers: f.layers.map((l, i) => sk[i] === ALL ? {items: [], skip: ALL} : {items: l.items, skip: sk[i]})}
+      let content: AABB | null = null
+      for (const i of idx) {
+        const b = contentOf(f.layers[i].items)
+        content = content ? {x0: Math.min(content.x0, b.x0), y0: Math.min(content.y0, b.y0), x1: Math.max(content.x1, b.x1), y1: Math.max(content.y1, b.y1)} : b
+      }
+      const pad = 20 / z
+      content = {x0: content!.x0 - pad, y0: content!.y0 - pad, x1: content!.x1 + pad, y1: content!.y1 + pad}
+      let sc = scrolls[r]
+      if (!sc) {
+        const el = doc.createElement('canvas')
+        el.className = 'sygnal-canvas-run'
+        Object.assign(el.style, {position: 'absolute', left: '0', top: '0', transformOrigin: '0 0', willChange: 'transform'})
+        sc = scrolls[r] = {el, ctx: el.getContext('2d'), key: null, region: null, zoom: 0, dpr: 0, tx: NaN, ty: NaN}
+      }
+      if (box.children?.[r] !== sc.el) box.insertBefore(sc.el, box.children?.[r] || null)
+      const need = intersect(view, content)
+      if (!need) { sc.el.style.display = 'none'; return }
+      sc.el.style.display = ''
+      // the view with half a view of margin each way, clipped to the content, on the device-pixel grid
+      const around = (): AABB => {
+        const mw = w / 2 / z, mh = h / 2 / z
+        let R = intersect({x0: view.x0 - mw, y0: view.y0 - mh, x1: view.x1 + mw, y1: view.y1 + mh}, content!) || need
+        if ((R.x1 - R.x0) * (R.y1 - R.y0) * k * k > MAX_PIXELS) R = need
+        return {x0: Math.floor(R.x0 * k) / k, y0: Math.floor(R.y0 * k) / k, x1: Math.ceil(R.x1 * k) / k, y1: Math.ceil(R.y1 * k) / k}
+      }
+      const bc = sc.ctx, at = (R: AABB) => ({x: R.x0, y: R.y0, zoom: z})
+      // paint `area` (world) of the run into the element whose region is R
+      const paintArea = (R: AABB, area: AABB) => {
+        bc.save()
+        bc.setTransform(1, 0, 0, 1, 0, 0)
+        const x = Math.round((area.x0 - R.x0) * k), y = Math.round((area.y0 - R.y0) * k)
+        const x1 = Math.round((area.x1 - R.x0) * k), y1 = Math.round((area.y1 - R.y0) * k)
+        bc.globalCompositeOperation = 'source-over'
+        bc.clearRect(x, y, x1 - x, y1 - y)
+        bc.beginPath(); bc.rect(x, y, x1 - x, y1 - y); bc.clip()
+        f.layers.forEach((l, i) => sk[i] !== ALL && paintWorld(bc, l.items, at(R), dpr, area, sk[i], s))
+        bc.restore()
+      }
+      let R = sc.region
+      if (!R || sc.zoom != z || sc.dpr != dpr || !reusable(sc.key, key)) {
+        R = around()
+        const W = Math.max(1, Math.round((R.x1 - R.x0) * k)), H = Math.max(1, Math.round((R.y1 - R.y0) * k))
+        if (sc.el.width != W || sc.el.height != H) { sc.el.width = W; sc.el.height = H; sc.el.style.width = W / dpr + 'px'; sc.el.style.height = H / dpr + 'px' }
+        paintArea(R, R)
+        s.statics++
+      } else if (!inside(need, R)) {
+        const old = R
+        R = around()
+        const W = Math.round((R.x1 - R.x0) * k), H = Math.round((R.y1 - R.y0) * k)
+        if (sc.el.width != W || sc.el.height != H) {
+          sc.el.width = W; sc.el.height = H; sc.el.style.width = W / dpr + 'px'; sc.el.style.height = H / dpr + 'px'
+          paintArea(R, R)
+          s.statics++
+        } else {
+          // what both regions have, shifted in place (the element onto itself; `copy` clears the rest),
+          // then only the strips the old one lacked
+          bc.save()
+          bc.setTransform(1, 0, 0, 1, 0, 0)
+          bc.globalAlpha = 1
+          bc.globalCompositeOperation = 'copy'
+          bc.drawImage(sc.el, Math.round((old.x0 - R.x0) * k), Math.round((old.y0 - R.y0) * k))
+          bc.restore()
+          const o = intersect(old, R)
+          if (!o) paintArea(R, R)
+          else {
+            // up to four strips around the overlap: full-height left / right, then top / bottom between them
+            if (o.x0 > R.x0) paintArea(R, {x0: R.x0, y0: R.y0, x1: o.x0, y1: R.y1})
+            if (o.x1 < R.x1) paintArea(R, {x0: o.x1, y0: R.y0, x1: R.x1, y1: R.y1})
+            if (o.y0 > R.y0) paintArea(R, {x0: o.x0, y0: R.y0, x1: o.x1, y1: o.y0})
+            if (o.y1 < R.y1) paintArea(R, {x0: o.x0, y0: o.y1, x1: o.x1, y1: R.y1})
+          }
+          s.strips = (s.strips || 0) + 1
+        }
+      } else s.scrolled = (s.scrolled || 0) + 1
+      sc.region = R; sc.key = key; sc.zoom = z; sc.dpr = dpr
+      // the element where the camera puts its region, in whole device pixels
+      const tx = Math.round((R.x0 - cam.x) * k), ty = Math.round((R.y0 - cam.y) * k)
+      if (tx != sc.tx || ty != sc.ty) { sc.el.style.transform = `translate(${tx / dpr}px, ${ty / dpr}px)`; sc.tx = tx; sc.ty = ty }
+    })
+    for (let r = groups.length; r < scrolls.length; r++) scrolls[r].el.remove()
+    scrolls.length = groups.length
+  }
+
   // R4: the ordered strategy. Each run of static layers (one parallax) is a transparent bitmap of
   // its own covering the view with a margin (a pan shifts it); live nodes are painted between the
   // runs, all on the main canvas, in layer order
@@ -267,6 +405,9 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
     if (!live) top = f.layers.length
     const key = {cam: f.camera, dpr, layers: f.layers.slice(0, top).map((l, i) => [l.items, skips[i]])}
     const belowLive = f.layers.some((l, i) => i < top && hasLive(l, i))
+    const panned = !!lastCam && !sameCam(lastCam, f.camera)
+    still = panned ? 0 : still + 1
+    const scroll = !!live && !belowLive && top > 0 && !(f.grid && f.camera.zoom >= 4) && (panned || scrolling && still < STILL)
     const same = !belowLive && mainValid && !!below && below.dpr == dpr && sameCam(below.cam, f.camera) && below.layers.length == key.layers.length &&
       below.layers.every(([items, sk], i) => items === key.layers[i][0] && sameSet(sk, key.layers[i][1]))
     below = key
@@ -282,6 +423,18 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         if (act.length && lctx !== ctx) liveDirty = true
         if (!blit(f, i, act, s, null, cam)) paintWorld(lctx, act, cam, dpr, viewport(cam, w, h), null, s)
       }
+    }
+    if (scroll) {
+      below = null
+      scrolled(f, s, skips, top)
+      paintTop()
+      return
+    }
+    if (scrolling) {
+      // back on the main canvas: the runs are the scroll canvases' pixels (a copy each, no repaint)
+      scrolls.forEach((sc, r) => { if (sc.region) runs[r] = {bmp: sc.el, region: sc.region, zoom: sc.zoom, key: sc.key, transparent: true, borrowed: true} })
+      runs.length = scrolls.length
+      unscroll()
     }
     if (same) { s.cached++; paintTop(); return }
     mainValid = !!live && !belowLive
@@ -359,12 +512,14 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       // the active (or following) nodes of each layer, painted live
       const skips = f.layers.map(l => l.outline || l.live ? ALL : fo ? new Set([...(l.active || []), ...fo.ids]) : l.active)
       // R4: a layer with live nodes under one with static nodes, or a parallax layer: paint in order
-      let ordered = f.layers.some(l => l.parallax), under = false
+      // (a game's `live` layer over static ones, with a live canvas: the scroll canvases)
+      let ordered = f.layers.some(l => l.parallax) || !!live && f.layers.some(l => l.live), under = false
       if (!ordered) f.layers.forEach((l, i) => {
         if (under && skips[i] !== ALL && l.items.length > (skips[i]?.size ?? 0)) ordered = true
         if (skips[i] === ALL ? l.items.length : skips[i]?.size) under = true
       })
       if (f.repaint == 'full') {
+        unscroll()
         ground()
         mainValid = false
         f.layers.forEach(l => {
@@ -377,6 +532,7 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
         paintOrdered(f, s, skips)
         st = {bmp: st.bmp, region: null, zoom: 0, key: null}
       } else {
+        unscroll()
         runs.length = 0
         // (back from the ordered strategy: the main canvas is repainted)
         if (below) { below = null; mainValid = false }
@@ -459,6 +615,13 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       lastItems = f.layers.map(l => l.items)
     },
     resized() { mainValid = false },
-    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; runs.length = 0; live?.remove() },
+    refresh() {
+      st = {...st, key: null}; ov = {...ov, key: null}
+      runs.forEach(c => c.key = null)
+      scrolls.forEach(c => c.region = null)
+      blits.length = 0; below = null; mainValid = false
+      bounds = new WeakMap()
+    },
+    dispose() { st = ov = {bmp: null, region: null, zoom: 0, key: null}; blits.length = 0; runs.length = 0; scrolls.length = 0; box?.remove(); live?.remove() },
   }
 }

@@ -4,7 +4,8 @@
  */
 import {describe, it, expect} from 'vitest'
 import {newWorld, step, menu, NO_KEYS, type World, type Button} from './sim'
-import {fromStrings, meadow, arena, TILE, ROWS} from './level'
+import {fromStrings, meadow, arena, TILE, ROWS, VIEW_W} from './level'
+import {track} from './camera'
 
 const rand = () => 0.5
 let before: Button[] = []
@@ -175,13 +176,25 @@ describe('the course', () => {
     expect(Math.floor(w.player.x / TILE)).toBe(4)
   })
 
-  it('the camera follows the player and stays inside the level', () => {
+  it('the camera (follow) keeps the player in its dead zone, eases, stays inside the level, in whole pixels', () => {
     let w = newWorld(meadow(), 'playing')
-    expect(w.camX).toBe(0)
-    for (let i = 0; i < 200; i++) w = steps(w, 1, 'right', 'run', i % 40 < 20 ? 'jump' : 'run')
-    expect(w.camX).toBeGreaterThan(0)
-    expect(w.player.x - w.camX).toBeGreaterThan(200)
-    expect(w.player.x - w.camX).toBeLessThan(500)
+    expect(w.camera).toEqual({x: 0, y: 0, zoom: 1})
+    // standing at the start: the camera stays put (and is the same object)
+    const still = track(steps(w, 1))
+    expect(track(still).camera).toBe(still.camera)
+    const xs: number[] = []
+    for (let i = 0; i < 200; i++) { w = track(steps(w, 1, 'right', 'run', i % 40 < 20 ? 'jump' : 'run')); xs.push(w.camera.x) }
+    expect(w.camera.x).toBeGreaterThan(0)
+    expect(w.camera.y).toBe(0)
+    expect(xs.every(Number.isInteger)).toBe(true)
+    // running right: the player a little left of centre (the look-ahead), the lag of the easing within reach
+    const at = w.player.x + w.player.w / 2 - w.camera.x
+    expect(at).toBeGreaterThan(VIEW_W * 0.25)
+    expect(at).toBeLessThan(VIEW_W * 0.55)
+    // the level's right end: the camera stops at it
+    w = {...w, player: {...w.player, x: w.rows[0].length * TILE - 40}}
+    for (let i = 0; i < 120; i++) w = track(w)
+    expect(w.camera.x).toBe(w.rows[0].length * TILE - VIEW_W)
   })
 
   it('the meadow level is well formed', () => {

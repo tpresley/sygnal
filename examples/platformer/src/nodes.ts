@@ -1,17 +1,28 @@
 /**
- * The world as sygnal/canvas nodes (its box vocabulary: rect, ellipse, text, frame, line, path).
+ * The world as sygnal/canvas nodes (its box vocabulary: rect, ellipse, text, frame, line, path, image).
  *
  * The canvas caches what keeps its identity: a data layer whose items are the same objects is a
  * copy of a bitmap, and a camera pan shifts that bitmap. So the tiles, the coins and the scenery
  * are built once and rebuilt only when they change (a brick breaks, a coin is taken), and a tile
  * that didn't change keeps its node object. The far scenery (hills, clouds) is a `parallax`
  * layer: its coordinates are its own (it scrolls at half the camera). The actors (player, enemies,
- * effects) change every step: a new array each frame, a `live` layer.
+ * effects) change every step: a new array each frame, a `live` layer. The player and the enemies
+ * are sprites: `image` nodes cropped from one sheet (`sprites.png`, 16 × 16 pixel art drawn at 2×,
+ * `scripts/sprites.mjs`) with `frameOf`, animated with `frameAt`, mirrored with `flipX` / `flipY`.
  *
  * The plain-JS baseline paints these same actor nodes, so both pay the same allocation.
  */
+import {frameOf, frameAt} from 'sygnal/canvas'
 import {TILE, ROWS, VIEW_W, VIEW_H} from './level'
 import type {World, Enemy} from './sim'
+import SPRITES from './sprites.png'
+
+/** the sprite sheet (scripts/sprites.mjs): 16 × 16 frames, 8 to a row */
+export const SHEET = {src: SPRITES, frameWidth: 16, frameHeight: 16, columns: 8}
+const F = {stand: 0, run: [1, 2], jump: 3, walker: [4, 5], squashed: 6, hopper: 7, flat: 8, flyer: [9, 10]}
+// a sprite: frame `f` drawn at 2× (32 × 32) with its feet on the body box's bottom, centred on it
+const sprite = (id: string, f: number, b: {x: number, y: number, w: number, h: number}, more: Record<string, any> = {}): Node =>
+  ({id, type: 'image', x: b.x + b.w / 2 - 16, y: b.y + b.h - 32, width: 32, height: 32, ...frameOf(SHEET, f), smoothing: false, ...more})
 
 export type Node = {id: string, type: string, x: number, y: number, width: number, height: number, [k: string]: any}
 
@@ -116,30 +127,16 @@ const MARGIN = 64
 const inView = (camX: number, x: number, w: number) => x + w > camX - MARGIN && x < camX + VIEW_W + MARGIN
 
 function enemyNodes(e: Enemy, out: Node[]) {
-  const id = `e${e.id}`, {x, y, w, h} = e
-  const flip = e.flipped
-  if (e.kind == 'walker') {
-    if (e.dead && !flip) { out.push({id, type: 'ellipse', x, y: y + h - 8, width: w, height: 8, fill: '#7d4fb5'}); return }
-    const step = Math.floor(e.t / 8) % 2
-    out.push({id: id + 'f1', type: 'rect', x: x + 2 + step * 3, y: flip ? y : y + h - 6, width: 9, height: 6, fill: '#3a2357', radius: 2})
-    out.push({id: id + 'f2', type: 'rect', x: x + w - 14 + step * 3, y: flip ? y : y + h - 6, width: 9, height: 6, fill: '#3a2357', radius: 2})
-    out.push({id, type: 'ellipse', x, y: y + (flip ? 4 : 0), width: w, height: h - 4, fill: '#9b6ad6'})
-    out.push({id: id + 'eye', type: 'rect', x: x + (e.vx < 0 ? 5 : w - 13), y: y + (flip ? h - 14 : 6), width: 8, height: 8, fill: '#fff', radius: 2})
-  } else if (e.kind == 'hopper') {
-    const squash = e.dead && !flip
-    out.push({id, type: 'rect', x, y: squash ? y + h - 8 : y, width: w, height: squash ? 8 : h, fill: '#2fae6b', radius: 8})
-    if (!squash) out.push({id: id + 'eye', type: 'ellipse', x: x + 8, y: y + (flip ? h - 14 : 5), width: 10, height: 10, fill: '#fff', stroke: '#11402a', strokeWidth: 2})
-  } else {
-    const flap = Math.floor(e.t / 6) % 2
-    out.push({id: id + 'w', type: 'ellipse', x: x + 4, y: y - (flap ? 10 : 2), width: 18, height: 12, fill: '#d6ecff', stroke: '#6a9cc8', strokeWidth: 1})
-    out.push({id, type: 'ellipse', x, y: e.dead ? y + 6 : y, width: w, height: e.dead ? 10 : h, fill: '#3d8fe0'})
-    if (!e.dead) out.push({id: id + 'eye', type: 'ellipse', x: x + (e.vx < 0 ? 4 : w - 12), y: y + 5, width: 8, height: 8, fill: '#fff'})
-  }
+  const id = `e${e.id}`, flipY = e.flipped
+  // (the art faces left)
+  if (e.kind == 'walker') out.push(sprite(id, e.dead && !flipY ? F.squashed : frameAt(F.walker, e.t, 8), e, {flipX: e.vx > 0, flipY}))
+  else if (e.kind == 'hopper') out.push(sprite(id, e.dead && !flipY ? F.flat : F.hopper, e, {flipY}))
+  else out.push(sprite(id, frameAt(F.flyer, e.t, 6), e, {flipX: e.vx > 0, flipY: !!e.dead}))
 }
 
 /** the player, enemies in view and effects: new objects each step */
 export function actorsOf(w: World): Node[] {
-  const out: Node[] = [], camX = w.camX
+  const out: Node[] = [], camX = w.camera.x
   for (const e of w.enemies) if (inView(camX, e.x, e.w)) enemyNodes(e, out)
   for (const f of w.fx) {
     if (!inView(camX, f.x, 32)) continue
@@ -159,15 +156,8 @@ export function actorsOf(w: World): Node[] {
 function playerNodes(w: World, out: Node[]) {
   const p = w.player
   if (w.mode == 'dying' && w.modeT < 30 && w.modeT % 4 < 2) return
-  const {x, y} = p, f = p.facing, air = !p.ground && w.mode != 'dying'
-  const stride = air ? 4 : Math.sin(p.walk / 7) * 4
-  out.push({id: 'p-leg1', type: 'rect', x: x + 3 + stride, y: y + 20, width: 7, height: 8, fill: '#2d3a8c', radius: 2})
-  out.push({id: 'p-leg2', type: 'rect', x: x + 12 - stride, y: y + 20, width: 7, height: 8, fill: '#2d3a8c', radius: 2})
-  out.push({id: 'p-body', type: 'rect', x, y: y + 6, width: p.w, height: 17, fill: '#e8603c', radius: 6})
-  out.push({id: 'p-cap', type: 'rect', x: x + (f > 0 ? 2 : -4), y, width: p.w + 2, height: 8, fill: '#2d3a8c', radius: 3})
-  out.push({id: 'p-eye', type: 'rect', x: x + (f > 0 ? 13 : 4), y: y + 9, width: 5, height: 6, fill: '#fff', radius: 1})
+  const f = !p.ground && w.mode != 'dying' ? F.jump : Math.abs(p.vx) > 0.3 ? frameAt(F.run, p.walk, 7) : F.stand
+  out.push(sprite('player', f, p, {flipX: p.facing < 0, alt: 'Sprout'}))
 }
 
-/** what the camera shows (the canvas's controlled camera) */
-export const cameraOf = (camX: number) => ({x: Math.round(camX), y: 0, zoom: 1})
 export const VIEW = {width: VIEW_W, height: VIEW_H, rows: ROWS}

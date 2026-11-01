@@ -4,7 +4,7 @@
 // raw input at canvas pixels through canvasOf(el).pointer(kind, x, y, init); the canvas2d backend
 // against a recording 2D context (the static layer, the camera cache, blits); the kit; keymap on
 // the main entry; history() alone and routed to sygnal/yjs's per-user UndoManager.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import * as Y from 'yjs'
 import { createElement as h } from '../src/pragma/index.js'
 import { renderComponent } from '../src/extra/testing.js'
@@ -12,8 +12,9 @@ import { keymap, xs } from '../src/index.ts'
 import {
   Canvas, canvasOf, canvas2d, pointer, history, handles, selectionBox, resize, rotation, turn, scaleInto,
   gesture, snap, snapTargets, fit, union, zoomAt, toScreen, toWorld, panBy, exportSVG, CAMERA, aabb, hitNodes, positionsOf,
-  keymap as canvasKeymap,
+  keymap as canvasKeymap, follow, layoutText, measureText, paintNode, Image as CanvasImage, preloadImage, clearImages, frameOf, frameAt,
 } from '../src/canvas.ts'
+import { Suspense } from '../src/suspense.ts'
 import { shared } from '../src/yjs.ts'
 import { makeYjsDriver } from '../src/yjs.ts'
 import { createNetwork } from '../src/yjs-testing.ts'
@@ -528,5 +529,273 @@ describe('history()', () => {
     expect(other.doc.getMap('doc').toJSON().shapes ?? other.doc.getMap('doc').toJSON()).toBeDefined()
     t.dispose()
     void Y
+  })
+})
+
+// ---------------------------------------------------------------- text wrapping
+// (jsdom has no 2D context: measureText estimates 0.55 × fontSize a character, so a 10 px font is 5.5 a character)
+describe('text: wrapping to the box', () => {
+  const T = { fontSize: 10 }
+  it('word wrap at spaces and after hyphens; a longer word overflows (the DOM); \n breaks; leading spaces stay', () => {
+    expect(layoutText('one two three four', { ...T, width: 40 }).lines).toEqual(['one two', 'three', 'four'])
+    expect(layoutText('a well-known fact', { ...T, width: 45 }).lines).toEqual(['a well-', 'known', 'fact'])
+    expect(layoutText('extraordinarily ok', { ...T, width: 30 }).lines).toEqual(['extraordinarily', 'ok'])
+    expect(layoutText('top\n  indented line', { ...T, width: 200 }).lines).toEqual(['top', '  indented line'])
+    // 'char': anywhere
+    expect(layoutText('abcdefghij', { ...T, width: 23, wrap: 'char' }).lines).toEqual(['abcd', 'efgh', 'ij'])
+    // no width (or wrap: 'none'): one line per \n, as before
+    expect(layoutText('one two three', T).lines).toEqual(['one two three'])
+    expect(layoutText('one two three', { ...T, width: 20, wrap: 'none' }).lines).toEqual(['one two three'])
+  })
+
+  it('maxLines cuts with an ellipsis that fits the width; ellipsis: false cuts plainly; wrap none + ellipsis true truncates', () => {
+    expect(layoutText('one two three four five', { ...T, width: 40, maxLines: 2 }).lines).toEqual(['one two', 'three…'])
+    expect(layoutText('one twoxx three', { ...T, width: 30, maxLines: 2 }).lines).toEqual(['one', 'twox…'])
+    expect(layoutText('one two three four five', { ...T, width: 40, maxLines: 2, ellipsis: false }).lines).toEqual(['one two', 'three'])
+    expect(layoutText('a long label here', { ...T, width: 40, wrap: 'none', ellipsis: true }).lines).toEqual(['a long…'])
+  })
+
+  it('lineHeight sets the line box; the size is the widest line and the lines', () => {
+    expect(layoutText('one two three', { ...T, width: 40 })).toMatchObject({ width: 39, height: 25, lineHeight: 12.5 })
+    expect(layoutText('one two three', { ...T, width: 40, lineHeight: 2 })).toMatchObject({ height: 40, lineHeight: 20 })
+    // measureText: the natural size, unwrapped, whatever width the node has (an auto-width text box: figma-lite's fitText)
+    expect(measureText('one two three', { ...T, width: 40 })).toEqual({ width: 72, height: 13 })
+  })
+
+  it('paints each line aligned in the box, glyphs centred in the line box; hit box and SVG follow the lines', () => {
+    const { ctx, calls } = fakeCanvas()
+    const n = { id: 't', type: 'text', x: 10, y: 20, width: 40, text: 'one two three', fontSize: 10, align: 'center', lineHeight: 2 }
+    paintNode(ctx, n)
+    expect(ctx.textAlign).toBe('center')
+    const texts = calls.filter((c) => c[0] == 'fillText')
+    // x: the box's centre; y: line i at i × 20, plus the half leading ((2 − 1.25) / 2 × 10) and 1.2
+    expect(texts).toEqual([['fillText', 'one two', 30, 20 + 1.2 + 3.75], ['fillText', 'three', 30, 40 + 1.2 + 3.75]])
+    // no height: the hit box is the lines'
+    expect(hitNodes([n], { x: 15, y: 55 })?.id).toBe('t')
+    expect(hitNodes([n], { x: 15, y: 61 })).toBe(null)
+    const svg = exportSVG([n])
+    expect(svg).toContain('text-anchor="middle"')
+    expect(svg).toContain('<tspan x="30" dy="0">one two</tspan><tspan x="30" dy="20">three</tspan>')
+    // right-aligned without a width: in the widest line's box
+    const { ctx: c2, calls: k2 } = fakeCanvas()
+    paintNode(c2, { type: 'text', x: 0, y: 0, text: 'ab\nabcd', fontSize: 10, align: 'right' })
+    expect(k2.filter((c) => c[0] == 'fillText').map((c) => c[2])).toEqual([22, 22])
+  })
+
+  it('a JSX <text> without a width stays one line (its box measured); with a width it wraps', async () => {
+    function T2() {
+      return h(Canvas, { className: 'c', width: 400, height: 300 },
+        h('text', { className: 'one', x: 0, y: 0, fontSize: 10, id: 'one' }, 'one two three'),
+        h('text', { className: 'wrapped', x: 0, y: 100, fontSize: 10, width: 40, id: 'w' }, 'one two three'))
+    }
+    const t = renderComponent(T2, { dom: 'real' })
+    await t.ready()
+    const c = canvasOf(t.container.querySelector('.c'))
+    expect(c.layers[0].items.map((n) => layoutText(n.text, n).lines)).toEqual([['one two three'], ['one two', 'three']])
+    // the wrapped node is hit on its second line
+    expect(c.pointer('down', 5, 115).node?.id).toBe('w')
+    t.dispose()
+  })
+})
+
+// ---------------------------------------------------------------- follow
+describe('follow(camera, target, options): a camera that follows', () => {
+  const V = { width: 800, height: 600 }
+  it('no dead zone: the target at the view\'s centre (plus offset); the same camera object when it stays', () => {
+    const c = follow(CAMERA, { x: 1000, y: 500 }, V)
+    expect(c).toEqual({ x: 600, y: 200, zoom: 1 })
+    expect(follow(c, { x: 1000, y: 500 }, V)).toBe(c)
+    expect(follow(CAMERA, { x: 1000, y: 500 }, { ...V, offset: { x: -100, y: 50 } })).toEqual({ x: 700, y: 150, zoom: 1 })
+    // a box: its centre; zoom 2: the view is half as wide in world units
+    expect(follow({ x: 0, y: 0, zoom: 2 }, { x: 990, y: 490, width: 20, height: 20 }, V)).toEqual({ x: 800, y: 350, zoom: 2 })
+  })
+
+  it('a dead zone: still inside it, then the camera moves just enough to keep the target at its edge', () => {
+    const o = { ...V, deadzone: { width: 200, height: 100 } }
+    const c0 = { x: 0, y: 0, zoom: 1 }
+    expect(follow(c0, { x: 450, y: 320 }, o)).toBe(c0)
+    expect(follow(c0, { x: 520, y: 300 }, o)).toEqual({ x: 20, y: 0, zoom: 1 })
+    expect(follow(c0, { x: 250, y: 200 }, o)).toEqual({ x: -50, y: -50, zoom: 1 })
+  })
+
+  it('lerp eases toward it (per axis); dt makes it frame-rate independent', () => {
+    expect(follow(CAMERA, { x: 1400, y: 300 }, { ...V, lerp: 0.25 })).toEqual({ x: 250, y: 0, zoom: 1 })
+    expect(follow(CAMERA, { x: 1400, y: 1300 }, { ...V, lerp: [0.5, 1] })).toEqual({ x: 500, y: 1000, zoom: 1 })
+    // two calls at 60 Hz ≈ one at 30 Hz with dt 33.3
+    const two = follow(follow(CAMERA, { x: 1400, y: 300 }, { ...V, lerp: 0.25, dt: 1000 / 60 }), { x: 1400, y: 300 }, { ...V, lerp: 0.25, dt: 1000 / 60 })
+    const one = follow(CAMERA, { x: 1400, y: 300 }, { ...V, lerp: 0.25, dt: 2000 / 60 })
+    expect(one.x).toBeCloseTo(two.x, 9)
+  })
+
+  it('bounds clamp; a world smaller than the view is centred', () => {
+    const b = { x0: 0, y0: 0, x1: 2000, y1: 600 }
+    expect(follow(CAMERA, { x: 100, y: 100 }, { ...V, bounds: b })).toEqual(CAMERA)
+    expect(follow(CAMERA, { x: 1990, y: 900 }, { ...V, bounds: b })).toEqual({ x: 1200, y: 0, zoom: 1 })
+    expect(follow(CAMERA, { x: 50, y: 50 }, { ...V, bounds: { x0: 0, y0: 0, x1: 400, y1: 300 } })).toEqual({ x: -200, y: -150, zoom: 1 })
+  })
+
+  it('round: whole screen pixels, never stalling short of the target (deterministic: a replay is the same run)', () => {
+    let c = { x: 0, y: 0, zoom: 1 }
+    const xs = []
+    for (let i = 0; i < 60; i++) { c = follow(c, { x: 410.3, y: 300 }, { ...V, lerp: 0.1, round: true }); xs.push(c.x) }
+    expect(xs.every(Number.isInteger)).toBe(true)
+    // the target is 10.3 px right of centre: the camera ends on the nearest pixel, 10, and stays put
+    expect(c.x).toBe(10)
+    expect(xs.slice(0, 4)).toEqual([1, 2, 3, 4])
+    expect(follow(c, { x: 410.3, y: 300 }, { ...V, lerp: 0.1, round: true })).toBe(c)
+  })
+})
+
+// ---------------------------------------------------------------- images
+// a stand-in for the DOM's Image: loads settle when the test says (images[src].load(w, h) / .fail())
+const images = {}
+class FakeImage {
+  constructor() { this.complete = false; this.naturalWidth = 0; this.naturalHeight = 0 }
+  set src(v) {
+    this._src = v
+    images[v] = { img: this, load: (w = 64, hh = 32) => { this.naturalWidth = w; this.naturalHeight = hh; this.complete = true; this.onload() }, fail: () => this.onerror() }
+  }
+  get src() { return this._src }
+  decode() { return Promise.resolve() }
+}
+const settle = () => new Promise((r) => setTimeout(r, 0))
+describe('image nodes, sprite sheets, <Image>', () => {
+  const saved = globalThis.Image
+  afterEach(() => { globalThis.Image = saved; clearImages(); for (const k in images) delete images[k] })
+  const loaded = (w, hh) => ({ naturalWidth: w, naturalHeight: hh, complete: true })
+
+  it('paints the crop fitted into the box (CSS object-fit), mirrored with flipX, without smoothing for pixel art', () => {
+    const { ctx, calls } = fakeCanvas(), img = loaded(200, 100)
+    const draw = (n) => { calls.length = 0; paintNode(ctx, { type: 'image', image: img, x: 0, y: 0, width: 100, height: 100, ...n }); return calls.find((c) => c[0] == 'drawImage')?.slice(2) }
+    expect(draw({})).toEqual([0, 0, 200, 100, 0, 0, 100, 100])
+    expect(draw({ fit: 'contain' })).toEqual([0, 0, 200, 100, 0, 25, 100, 50])
+    expect(draw({ fit: 'cover' })).toEqual([50, 0, 100, 100, 0, 0, 100, 100])
+    expect(draw({ fit: 'none' })).toEqual([50, 0, 100, 100, 0, 0, 100, 100])
+    expect(draw({ fit: 'scale-down', width: 400, height: 400 })).toEqual([0, 0, 200, 100, 100, 150, 200, 100])
+    expect(draw({ sx: 16, sy: 0, sw: 16, sh: 16 })).toEqual([16, 0, 16, 16, 0, 0, 100, 100])
+    // no size: the crop's natural size; one side given: the aspect ratio kept
+    expect(draw({ width: undefined, height: undefined })).toEqual([0, 0, 200, 100, 0, 0, 200, 100])
+    expect(draw({ width: 50, height: undefined })).toEqual([0, 0, 200, 100, 0, 0, 50, 25])
+    calls.length = 0
+    paintNode(ctx, { type: 'image', image: img, x: 10, y: 0, width: 20, height: 10, flipX: true, smoothing: false })
+    expect(calls.filter((c) => c[0] == 'scale' || c[0] == 'translate')).toEqual([['translate', 20, 5], ['scale', -1, 1], ['translate', -20, -5]])
+    expect(ctx.imageSmoothingEnabled).toBe(true)
+    // an <img> still loading paints nothing
+    calls.length = 0
+    paintNode(ctx, { type: 'image', image: { complete: false }, x: 0, y: 0, width: 10, height: 10 })
+    expect(calls.some((c) => c[0] == 'drawImage')).toBe(false)
+  })
+
+  it('frameOf: a sheet\'s frame as the node\'s crop; frameAt: an animation\'s frame at t', () => {
+    const sheet = { src: '/s.png', frameWidth: 16, frameHeight: 16, columns: 8, margin: 1, spacing: 2 }
+    expect(frameOf(sheet, 0)).toEqual({ src: '/s.png', sx: 1, sy: 1, sw: 16, sh: 16 })
+    expect(frameOf(sheet, 9)).toEqual({ src: '/s.png', sx: 19, sy: 19, sw: 16, sh: 16 })
+    expect([0, 7, 8, 15, 16, 24].map((t) => frameAt([4, 5], t, 8))).toEqual([4, 4, 5, 5, 4, 5])
+    expect(frameAt([1, 2, 3], 99, 1, false)).toBe(3)
+  })
+
+  it('hit box, the accessibility name (alt), exportSVG with the crop', () => {
+    const img = loaded(128, 32)
+    const n = { id: 'hero', type: 'image', image: img, x: 0, y: 0, width: 32, height: 32, sx: 16, sy: 0, sw: 16, sh: 16, alt: 'Hero', flipX: true, smoothing: false }
+    expect(hitNodes([n], { x: 30, y: 30 })?.id).toBe('hero')
+    img.src = '/sheet.png'
+    const svg = exportSVG([n])
+    expect(svg).toContain('<g transform="matrix(-1 0 0 1 32 0)"><svg x="0" y="0" width="32" height="32" viewBox="16 0 16 16" preserveAspectRatio="none"><image href="/sheet.png" width="128" height="32" style="image-rendering:pixelated"/></svg></g>')
+    // not loaded yet (a src): SVG's own fit
+    expect(exportSVG([{ type: 'image', src: '/later.png', x: 0, y: 0, width: 10, height: 10, fit: 'contain' }])).toContain('<image href="/later.png" x="0" y="0" width="10" height="10" preserveAspectRatio="xMidYMid meet"/>')
+  })
+
+  // a backend that records what it was asked to paint, and its refreshes
+  function Gallery({ state }) {
+    return h('div', {},
+      h(Canvas, { className: 'g', width: 400, height: 300, headless: false, backend: state.backend },
+        h('shapes', { className: 'pics', items: state.items, 'aria-label': 'Pictures' })))
+  }
+  Gallery.intent = ({ DOM }) => ({ LOADED: DOM.select('.g').events('imageload').detail(), FAILED: DOM.select('.g').events('imageerror').detail() })
+  Gallery.model = { LOADED: (s, d) => ({ ...s, log: [...s.log, 'load ' + d.src] }), FAILED: (s, d) => ({ ...s, log: [...s.log, 'error ' + d.src + ' ' + d.error.message] }), SET: (s, d) => ({ ...s, ...d }) }
+  const recording = () => {
+    const r = { paints: 0, refreshes: 0, drawn: [] }
+    r.backend = () => ({
+      paint(f) {
+        r.paints++
+        const { ctx, calls } = fakeCanvas()
+        for (const l of f.layers) for (const n of l.items) paintNode(ctx, n)
+        r.drawn = calls.filter((c) => c[0] == 'drawImage').map((c) => c[1].src)
+      },
+      refresh() { r.refreshes++ },
+    })
+    return r
+  }
+
+  it('a data layer\'s image loads once per URL, paints when it arrives (the caches refreshed), and is reported', async () => {
+    globalThis.Image = FakeImage
+    const r = recording()
+    const items = [{ id: 'a', type: 'image', src: '/a.png', x: 0, y: 0, width: 50, height: 50, alt: 'A' }, { id: 'b', type: 'image', src: '/a.png', x: 60, y: 0, width: 50, height: 50 }]
+    const t = renderComponent(Gallery, { dom: 'real', initialState: { items, backend: r.backend, log: [] } })
+    await t.ready(); await settle()
+    const c = canvasOf(t.container.querySelector('.g'))
+    c.paintNow()
+    expect(Object.keys(images)).toEqual(['/a.png'])
+    expect(r.drawn).toEqual([])
+    images['/a.png'].load()
+    await settle(); await t.settle()
+    expect(r.refreshes).toBe(1)
+    expect(t.state.log).toEqual(['load /a.png'])
+    c.paintNow()
+    expect(r.drawn).toEqual(['/a.png', '/a.png'])
+    // the projection names it by its alt
+    c.project()
+    expect(t.container.querySelector('[data-node="a"]').getAttribute('aria-label')).toBe('A')
+    t.dispose()
+  })
+
+  it('a failed load paints nothing and is reported; the last canvas using an image frees it', async () => {
+    globalThis.Image = FakeImage
+    const r = recording()
+    const t = renderComponent(Gallery, { dom: 'real', initialState: { items: [{ id: 'x', type: 'image', src: '/x.png', x: 0, y: 0, width: 10, height: 10 }], backend: r.backend, log: [] } })
+    await t.ready(); await settle()
+    images['/x.png'].fail()
+    await settle(); await t.settle()
+    expect(t.state.log).toEqual(['error /x.png could not load /x.png: the image did not load'])
+    // the layer drops it: it leaves the cache (shown again later: loaded again)
+    await t.simulateAction('SET', { items: [] })
+    await settle()
+    delete images['/x.png']
+    await t.simulateAction('SET', { items: [{ id: 'x', type: 'image', src: '/x.png', x: 0, y: 0, width: 10, height: 10 }] })
+    await settle()
+    expect(images['/x.png']).toBeDefined()
+    t.dispose()
+  })
+
+  it('<Image>: Suspense shows its fallback until it has loaded; a failed one is the view\'s error (onError)', async () => {
+    globalThis.Image = FakeImage
+    function Map_({ state }) {
+      return h('main', null, h(Suspense, { fallback: h('p', { className: 'loading' }, 'Loading…') },
+        h(Canvas, { className: 'map', width: 400, height: 300 },
+          h(CanvasImage, { className: 'tiles', src: state.src, x: 0, y: 0, width: 100, height: 100, alt: 'Map', id: 'map' }))))
+    }
+    Map_.initialState = { src: '/map.png' }
+    Map_.onError = (e) => h('p', { className: 'error' }, e.message)
+    const t = renderComponent(Map_, { dom: 'real' })
+    await t.ready()
+    expect(t.container.querySelector('.loading')).not.toBe(null)
+    expect(t.container.querySelector('.map')).toBe(null)
+    images['/map.png'].load(100, 100)
+    await settle(); await t.settle()
+    expect(t.container.querySelector('.loading')).toBe(null)
+    const c = canvasOf(t.container.querySelector('.map'))
+    expect(c.layers[0].items[0]).toMatchObject({ type: 'image', src: '/map.png', alt: 'Map' })
+    expect(c.pointer('down', 50, 50).node?.id).toBe('map')
+    t.dispose()
+
+    function Broken() { return h(Canvas, { width: 100, height: 100 }, h(CanvasImage, { src: '/broken.png', x: 0, y: 0 })) }
+    Broken.onError = (e) => h('p', { className: 'error' }, e.message)
+    const t2 = renderComponent(Broken, { dom: 'real' })
+    await t2.ready()
+    images['/broken.png'].fail()
+    await settle(); await t2.settle()
+    expect(t2.container.querySelector('.error').textContent).toBe('could not load /broken.png: the image did not load')
+    t2.dispose()
+    expect(typeof preloadImage).toBe('function')
   })
 })
