@@ -27,7 +27,7 @@ describe('dialog', () => {
   it('opens as a modal through ELEMENT and mirrors the close event', async () => {
     t = renderComponent(Help, { strict: true })
     await t.ready()
-    expect(t.state.help).toEqual({ open: false, returnValue: '' })
+    expect(t.state.help).toEqual({ id: 'help', open: false, returnValue: '' })
     t.simulateEvent('.open-help', 'click')
     await t.next((s) => s.help.open)
     await t.settle()
@@ -42,7 +42,7 @@ describe('dialog', () => {
     expect(cmds().at(-1)).toEqual({ close: '.help', returnValue: 'saved' })
     t.simulateEvent('.help', 'close', { target: { returnValue: 'saved' } })
     await t.next((s) => !s.help.open)
-    expect(t.state.help).toEqual({ open: false, returnValue: 'saved' })
+    expect(t.state.help).toEqual({ id: 'help', open: false, returnValue: 'saved' })
     expect(t.html()).toContain('closed:saved')
     expect(t.actions.map((a) => a.type)).toEqual(expect.arrayContaining(['help.OPEN', 'SAVE', 'help.CLOSED']))
     t.expectNoDiagnostics()
@@ -147,8 +147,8 @@ describe('dialog', () => {
   })
 
   it('the factory takes an `open` option: the start (ui-sweep R2, Radix defaultOpen)', () => {
-    expect(dialog({ dialog: '.d', open: true }).state).toEqual({ open: true, returnValue: '' })
-    expect(dialog({ dialog: '.d' }).state).toEqual({ open: false, returnValue: '' })
+    expect(dialog({ dialog: '.d', open: true }).state).toEqual({ id: null, open: true, returnValue: '' })
+    expect(dialog({ dialog: '.d' }).state).toEqual({ id: null, open: false, returnValue: '' })
   })
 })
 

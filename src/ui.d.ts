@@ -6,6 +6,8 @@ export type Uid = (name?: string) => string
 
 // ── Dialog ────────────────────────────────────────────────────────────
 export interface DialogState {
+  /** The ids' prefix (dialogAttrs): the `id` option, else the key in `uses` */
+  id: string | null
   /**
    * Whether the dialog is open: the source of truth (Radix's controlled `open`). A reducer that
    * writes it opens or closes the dialog; the dialog's own changes (Escape, a form submit,
@@ -32,6 +34,8 @@ export interface DialogOptions {
    * leave it to the browser.
    */
   returnFocus?: boolean | BehaviorTarget
+  /** The ids' prefix for dialogAttrs (default: the key in `uses`) */
+  id?: string
   /**
    * Open at the start (default false). Given at all, even false: controlled (Radix's `open`): the
    * dialog keeps closedby="none" and the behavior dismisses it (Escape; with closedby="any" also a
@@ -42,10 +46,24 @@ export interface DialogOptions {
 export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; /** Escape, a light dismiss, request-close (controlled: the keydown / pointerdown / focusin) */ CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean; /** The slice's `open` changed outside the behavior's entries: the dialog is made to match it */ APPLY: boolean }
 /**
  * A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`
- * gives `state.help = { open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
+ * gives `state.help = { id, open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
  * 'help.CLOSED' / 'help.CANCEL'.
  */
 export function dialog(options: DialogOptions): Behavior<DialogState, DialogActions, {}, DialogOptions>
+export interface DialogAttrs {
+  /** The trigger: type="button", aria-haspopup="dialog", aria-expanded, aria-controls, data-state */
+  trigger: PartAttrs
+  /** The <dialog>: id, aria-labelledby (the title), aria-describedby (the description), data-state */
+  dialog: PartAttrs
+  /** Its heading: id */
+  title: PartAttrs
+  /** Its description: id (none: `aria-describedby={undefined}` on the dialog after the spread) */
+  description: PartAttrs
+  /** A close button: type="button" */
+  close: PartAttrs
+}
+/** Round 5: the attributes of a dialog's elements, from its slice (Radix's Dialog.Trigger / Content / Title / Description / Close). */
+export function dialogAttrs(slice: DialogState | undefined, uid: Uid): DialogAttrs
 
 // ── Popover ───────────────────────────────────────────────────────────
 /** `open`: the source of truth, as the dialog's (a reducer that writes it shows or hides the popover) */

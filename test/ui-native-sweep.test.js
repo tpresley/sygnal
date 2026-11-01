@@ -5,7 +5,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { renderComponent } from '../src/index.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { accordion, accordionAttrs, dialog, popover, popoverAttrs, tooltip, tooltips } from '../src/ui.ts'
+import { accordion, accordionAttrs, dialog, dialogAttrs, popover, popoverAttrs, tooltip, tooltips } from '../src/ui.ts'
 import { Menu } from '../src/ui-menu.ts'
 import { push } from '../src/ui/layers.ts'
 
@@ -142,7 +142,7 @@ describe('dialog: a controlled open (R2)', () => {
     await t.settle(); await tick()
     expect(dlg().open).toBe(false)
     expect(dlg().returnValue).toBe('by-host')
-    expect(t.state.d).toEqual({ open: false, returnValue: 'by-host' })
+    expect(t.state.d).toEqual({ id: 'd', open: false, returnValue: 'by-host' })
   })
 
   it('the open option opens it at the start', async () => {
@@ -175,7 +175,7 @@ describe('dialog: a controlled open (R2)', () => {
     escape()
     await t.settle(); await tick()
     expect(dlg().open).toBe(false)
-    expect(t.state.d).toEqual({ open: false, returnValue: '' })
+    expect(t.state.d).toEqual({ id: 'd', open: false, returnValue: '' })
     expect(dlg().hasAttribute('closedby')).toBe(false)
   })
 
@@ -199,7 +199,7 @@ describe('dialog: a controlled open (R2)', () => {
     await t.settle(); await tick()
     expect(t.actions.map((a) => a.type)).toContain('d.CLOSE')
     expect(dlg().open).toBe(false)
-    expect(t.state.d).toEqual({ open: false, returnValue: 'ok' })
+    expect(t.state.d).toEqual({ id: 'd', open: false, returnValue: 'ok' })
     expect(dlg().returnValue).toBe('ok')
   })
 
@@ -228,7 +228,7 @@ describe('dialog: a controlled open (R2)', () => {
     expect(dlg().open).toBe(true)
     command('close', 'done')
     await t.settle(); await tick()
-    expect(t.state.d).toEqual({ open: false, returnValue: 'done' })
+    expect(t.state.d).toEqual({ id: 'd', open: false, returnValue: 'done' })
     command('show-modal')
     await t.settle(); await tick()
     command('request-close')
@@ -712,5 +712,86 @@ describe('a Zag Menu inside a controlled popover (round 4)', () => {
     t.query('.p').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
     await step()
     expect(t.state.p.open).toBe(false)
+  })
+})
+
+describe('dialogAttrs (round 5, Radix Dialog.Trigger / Content / Title / Description / Close)', () => {
+  const Confirm = (options = {}) => {
+    function C({ state, uid }) {
+      const a = dialogAttrs(state.confirm, uid)
+      return h('div', null,
+        h('button', { className: 'open', ...a.trigger }, 'Delete'),
+        h('dialog', { className: 'd', ...a.dialog, role: 'alertdialog' },
+          h('h2', a.title, 'Delete the file?'),
+          h('p', a.description, 'It cannot be undone.'),
+          h('button', { className: 'no', ...a.close }, 'Cancel')))
+    }
+    C.uses = { confirm: dialog({ dialog: '.d', trigger: '.open', close: '.no', ...options }) }
+    return C
+  }
+
+  it('the trigger gets aria-haspopup / aria-expanded / aria-controls / data-state; the dialog its id, name and description', async () => {
+    t = renderComponent(Confirm(), { dom: 'real' })
+    await t.ready()
+    const b = t.query('.open'), d = t.query('.d')
+    expect(t.state.confirm.id).toBe('confirm')
+    expect(b.getAttribute('type')).toBe('button')
+    expect(b.getAttribute('aria-haspopup')).toBe('dialog')
+    expect(b.getAttribute('aria-expanded')).toBe('false')
+    expect(b.getAttribute('data-state')).toBe('closed')
+    expect(b.getAttribute('aria-controls')).toBe(d.id)
+    expect(d.id).toMatch(/confirm-dialog/)
+    expect(document.getElementById(d.getAttribute('aria-labelledby')).textContent).toBe('Delete the file?')
+    expect(document.getElementById(d.getAttribute('aria-describedby')).textContent).toBe('It cannot be undone.')
+    expect(d.getAttribute('role')).toBe('alertdialog')
+    expect(t.query('.no').getAttribute('type')).toBe('button')
+
+    b.click()
+    await t.settle()
+    expect(t.state.confirm.open).toBe(true)
+    expect(b.getAttribute('aria-expanded')).toBe('true')
+    expect(b.getAttribute('data-state')).toBe('open')
+    expect(d.getAttribute('data-state')).toBe('open')
+    t.query('.no').click()
+    await t.settle()
+    expect(b.getAttribute('aria-expanded')).toBe('false')
+    expect(d.getAttribute('data-state')).toBe('closed')
+  })
+
+  it('the `id` option names the ids; two instances get their own (uid)', async () => {
+    const One = Confirm({ id: 'del' })
+    function Two() { return h('div', null, h(One, { state: 'a' }), h(One, { state: 'b' })) }
+    Two.initialState = { a: {}, b: {} }
+    t = renderComponent(Two, { dom: 'real' })
+    await t.ready()
+    const ids = t.queryAll('.d').map((d) => d.id)
+    expect(ids[0]).toMatch(/del-dialog/)
+    expect(new Set(ids).size).toBe(2)
+    t.queryAll('.open').forEach((b, i) => expect(b.getAttribute('aria-controls')).toBe(ids[i]))
+  })
+
+  it('a dialog without a description: aria-describedby={undefined} after the spread leaves none', async () => {
+    function C({ state, uid }) {
+      const a = dialogAttrs(state.c, uid)
+      return h('div', null, h('dialog', { className: 'd', ...a.dialog, 'aria-describedby': undefined }, h('h2', a.title, 'T')))
+    }
+    C.uses = { c: dialog({ dialog: '.d' }) }
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    expect(t.query('.d').hasAttribute('aria-describedby')).toBe(false)
+    expect(t.query('.d').getAttribute('aria-labelledby')).toBe(t.query('h2').id)
+  })
+
+  it('a host reducer that replaces the slice without `id` keeps the ids', async () => {
+    const C = Confirm()
+    C.intent = ({ DOM }) => ({ RESET: DOM.click('.no') })
+    C.model = { RESET: (s) => ({ ...s, confirm: { open: false, returnValue: '' } }) }
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    const before = t.query('.d').id
+    t.query('.no').click()
+    await t.settle()
+    expect(t.state.confirm.id).toBe('confirm')
+    expect(t.query('.d').id).toBe(before)
   })
 })
