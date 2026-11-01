@@ -240,14 +240,13 @@ describe('G-070 b: a selector that matches nothing fails the test', () => {
 describe('G-070 c: unsupported selector syntax throws', () => {
   it.each([
     ['.list:has(.card)', ':has'],
-    ['.card + .card', "'+' combinator"],
-    ['.card ~ .card', "'~' combinator"],
     ['.card::before', 'pseudo-elements'],
     ['button:hover', ':hover'],
     ['li:nth-child(2 of .item)', 'of S'],
     ['li:nth-child(x)', 'not an+b'],
     ['[lang|=en]', '|='],
     ['.a:not(.b .c)', 'combinators inside'],
+    ['.a:not(.b + .c)', 'combinators inside'],
   ])('%s', async (selector, what) => {
     t = renderComponent(List)
     await t.ready()
@@ -261,5 +260,40 @@ describe('G-070 c: unsupported selector syntax throws', () => {
   it('throws even before the component is ready (at the call)', () => {
     t = renderComponent(List)
     expect(() => t.simulateEvent('.a:has(.b)', 'click')).toThrow(/Unsupported selector syntax/)
+  })
+})
+
+// ─── Temper feedback 2026-10: sibling combinators, sibling reads, document order ────────────
+
+describe("the '+' and '~' combinators", () => {
+  it('match the next sibling and any later sibling, in simulateEvent, query and matches()', async () => {
+    t = renderComponent(List)
+    expect(await hitWith('li[data-id="2"] + li .hit')).toBe(3)
+    expect(await hitWith('li[data-id="2"] ~ li:last-child .hit')).toBe(5)
+    expect(await hitWith('h1 ~ ul > li:nth-child(4) + li > .hit')).toBe(5)
+    expect(t.query('h1 + ul').className).toBe('items')
+    expect(t.query('h1 + p')).toBeNull()
+    expect(t.query('ul ~ p').className).toBe('last')
+    expect(t.queryAll('ul ~ p').map(e => e.className)).toEqual(['last', 'other'])
+    expect(t.queryAll('.item + .item').map(e => e.dataset.id)).toEqual(['2', '3', '4', '5'])
+    expect(t.query('.last + .other').textContent).toBe('p2')
+    expect(t.query('.other').matches('h1 ~ .other')).toBe(true)
+    expect(t.query('.other').matches('.other + .last')).toBe(false)
+    expect(t.query('.items').querySelector('li:first-child ~ li:nth-child(2) .label').textContent).toBe('item 2')
+    t.expectNoDiagnostics()
+  })
+
+  it('next/previousElementSibling and document order for a comma list', async () => {
+    t = renderComponent(List)
+    await t.ready()
+    const h1 = t.query('h1')
+    expect(h1.previousElementSibling).toBeNull()
+    expect(h1.nextElementSibling.className).toBe('items')
+    expect(h1.nextElementSibling.nextElementSibling.className).toBe('last')
+    expect(t.query('.other').nextElementSibling).toBeNull()
+    expect(t.query('li[data-id="3"]').previousElementSibling.dataset.id).toBe('2')
+    expect(t.query('li[data-id="3"]').nextElementSibling.parentElement.className).toBe('items')
+    expect(t.query('.app').previousElementSibling).toBeNull()
+    expect(t.queryAll('.other, h1, .last').map(e => e.localName + '.' + e.className)).toEqual(['h1.', 'p.last', 'p.other'])
   })
 })

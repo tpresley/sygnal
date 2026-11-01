@@ -8,12 +8,16 @@ import {composeBehavior} from './behavior'
 import {decisions} from './decisions'
 import {llm} from './llm'
 import {composeAction, composeSummary} from './agent'
+import {generated} from './generated'
 
 /** a result part's PARENT value: `{ scope, node, value }` (the answer for the card it is in) */
 export const answer = (props: any, value: any) => ({scope: props?.scope, node: props?.node, value})
 
-/** compose(catalog, { backend, form?, prompt?, key? }) + `.decisions()`, `.llm()`, `.answer()`, `.action()` / `.summary()` (C-2) */
-export const compose = /*#__PURE__*/ Object.assign((catalog: any, options?: any) => composeBehavior(catalog, options), {decisions, llm, answer, action: composeAction, summary: composeSummary})
+/**
+ * compose(catalog, { backend, form?, prompt?, key? }) + `.decisions()`, `.llm()`, `.answer()`, `.action()` / `.summary()` (C-2),
+ * `.generated(runtime, { data, emits })` (experimental: model-written parts in sygnal/sandbox)
+ */
+export const compose = /*#__PURE__*/ Object.assign((catalog: any, options?: any) => composeBehavior(catalog, options), {decisions, llm, answer, action: composeAction, summary: composeSummary, generated})
 
 export {defineCatalog} from './catalog'
 export {fromTree, toTree, removeNode} from './layout'

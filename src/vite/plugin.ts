@@ -180,6 +180,9 @@ import { attachMcp, mcpClientModule } from './mcp'
 import type { McpPluginOptions } from './mcp'
 import { GRAPH_CLIENT, createEngine, graphAvailable, graphClientModule, graphMiddleware, printGraphUrl, stampTail } from './graph'
 import type { LiveEngine } from './graph'
+import { compileViews } from './compile'
+import { apiPlugin } from './api'
+import { SANDBOX_KERNEL, SANDBOX_KERNEL_ID, sandboxKernelModule } from './sandbox'
 
 export type { McpPluginOptions } from './mcp'
 
@@ -282,6 +285,25 @@ export interface SygnalPluginOptions {
   nativeGlobalThis?: boolean
 
   /**
+   * Experimental (dev-plans/research/compile-wasm/compiled-views-plan.md): compile JSX views at
+   * build time. Vite 8 only (it uses Vite's JSX parser); a no-op with a warning below. Files under
+   * node_modules are never compiled. `true`: every part that has shipped. An object turns parts
+   * off (each defaults to true):
+   * - `views` (CV-2): an HTML element (not a form field, custom element or SVG tag) becomes a
+   *   direct vnode call; its data is made once at module load when its attributes are static. The
+   *   vnodes are the ones the JSX runtime makes.
+   * - `ssr` (CV-1): in server builds, compiled elements render to HTML strings in renderToString
+   *   (same HTML, no vnode per element). Never under Vitest.
+   * - `blocks` (CV-3): in client code, a `.map()` row and the element a component returns become a
+   *   block: a template cloned once per row, then only its dynamic parts written. Whatever reads
+   *   vnodes (the dev checks, devtools, renderComponent, a driver other than the browser DOM's) gets
+   *   the block's plain vnodes.
+   * - `test`: compile under Vitest too (`views` and `blocks`), so tests run what ships.
+   * @default false
+   */
+  compile?: boolean | { views?: boolean; ssr?: boolean; blocks?: boolean; test?: boolean }
+
+  /**
    * In dev (`vite`, never `vite build` or Vitest), import 'sygnal/devtools' in the
    * same files as the diagnostics snippet, which installs the DevTools bridge for
    * the browser extension. Production builds never contain it. false: not injected.
@@ -313,6 +335,20 @@ export interface SygnalPluginOptions {
    * @default true
    */
   graph?: boolean
+
+  /**
+   * sygnal/api (dev preview): wire the app's API into the dev server and the client build.
+   * - `handler`: a module whose default export is a Fetch handler (Request → Response), served in
+   *   dev at `prefix` (default '/api'); a production server mounts the same module.
+   * - `contracts`: contract modules (oRPC) that client code gets as routes and a build-time
+   *   contractHash only, without their schemas (not under Vitest; leave a module out to validate
+   *   replies on the client).
+   * - `functions`: function-first `*.server.ts` files under `dir` (default 'src'): replaced in
+   *   client code by stubs that build the requests; `header` (default 'x-api-functions') carries
+   *   each file's contract hash. The server mounts them with `serverFunctions()` and oRPC.
+   * With `api` set, the plugin is an array.
+   */
+  api?: { handler?: string; prefix?: string; contracts?: string[]; functions?: boolean | { dir?: string; header?: string } }
 }
 
 // Virtual modules (dev server only)
@@ -368,7 +404,35 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
   const devInject = devOn || devtoolsOn
   let astroClient: Set<string> | undefined
 
-  return {
+  // CV-2: its own plugin, before Vite's JSX transform (this plugin's transform runs after it)
+  let warnedCompile = false
+  const co = options.compile === true ? {} : options.compile || null
+  const compileOn = (k: 'views' | 'ssr' | 'blocks' | 'test') => !!co && (co as any)[k] !== false
+  // (its own Vitest flag: it may be used without the main plugin, e.g. added to a config that already
+  // has sygnal())
+  let cVitest = false
+  const compilePlugin = co && {
+    name: 'vite-plugin-sygnal:compile',
+    enforce: 'pre' as const,
+    config() {
+      cVitest = !!nodeProcess?.env?.VITEST
+    },
+    transform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
+      const isVitest = cVitest
+      const file = id.split('?')[0]
+      if (!/\.[jt]sx$/.test(file) || file.includes('/node_modules/') || id.startsWith('\0')) return null
+      if (isVitest && !compileOn('test')) return null
+      // server code renders to strings (never under Vitest: renderComponent's mock DOM needs vnodes)
+      const ssr = !!opts?.ssr && !isVitest && compileOn('ssr')
+      if (!ssr && !compileOn('views')) return null
+      if (viteMajor(this, root) < 8) {
+        if (!warnedCompile) { warnedCompile = true; this.warn('[sygnal] `compile` needs Vite 8; views are not compiled') }
+        return null
+      }
+      return compileViews(code, file, (c, o) => this.parse(c, o), { ssr, blocks: !ssr && compileOn('blocks') })
+    },
+  }
+  const main = {
     name: 'vite-plugin-sygnal',
 
     config(this: any, config: any, env: { command: string }) {
@@ -448,7 +512,9 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
         const include = result.optimizeDeps?.include || []
         result.optimizeDeps = {
           ...result.optimizeDeps,
-          exclude: [VIKE_CLIENT],
+          // sygnal/sandbox: its worker script is found by `new URL(..., import.meta.url)`, which
+          // only works served unbundled
+          exclude: [VIKE_CLIENT, 'sygnal/sandbox'],
           ...(sygnalInNodeModules(root) ? { include: [...include, 'sygnal'] } : {}),
         }
       }
@@ -480,6 +546,8 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     resolveId: {
       order: 'pre' as const,
       async handler(this: any, source: string, importer: string | undefined, opts: any) {
+        // sygnal/sandbox: the guest kernel, built from the installed packages (every mode)
+        if (SANDBOX_KERNEL.test(source)) return SANDBOX_KERNEL_ID
         if (!isServe || isVitest) return null
         if (source === DEV_CLIENT) return DEV_CLIENT_ID
         if (source === MCP_CLIENT && mcpOn) return MCP_CLIENT_ID
@@ -501,6 +569,7 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
     },
 
     load(id: string) {
+      if (id === SANDBOX_KERNEL_ID) return sandboxKernelModule(root)
       if (id === DEV_CLIENT_ID) return devClientModule()
       if (id === MCP_CLIENT_ID && mcpOn) return mcpClientModule(mcpOptions)
       if (id === GRAPH_CLIENT_ID && graphClient) return graphClientModule()
@@ -561,6 +630,9 @@ export default function sygnal(options: SygnalPluginOptions = {}) {
       })
     },
   }
+  const api = options.api ? apiPlugin(options.api) : null
+  const plugins = [compilePlugin, main, api].filter(Boolean)
+  return plugins.length > 1 ? plugins : main
 
   function devTransform(this: any, code: string, id: string, opts?: { ssr?: boolean }) {
       if (!isServe) return null
@@ -715,10 +787,12 @@ const ADAPTER_PEERS: Record<string, string[]> = {
   'ui/menu': ['@zag-js/vanilla', '@zag-js/menu'],
   'ui/select': ['@zag-js/vanilla', '@zag-js/select'],
   'ui/combobox': ['@zag-js/vanilla', '@zag-js/combobox'],
+  // sygnal/sandbox: QuickJS and its WASM variant (stock packages, README §9 Q6)
+  sandbox: ['quickjs-emscripten-core', '@jitl/quickjs-wasmfile-release-sync'],
 }
 // G-440: a dynamic import's specifier may be a template literal without substitutions
-const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"`])sygnal\/(react|zag|ui\/(?:menu|select|combobox))\1/g
-const ADAPTER_ID = /^sygnal\/(react|zag|ui\/(?:menu|select|combobox))$/
+const ADAPTER_RE = /(?:\bfrom|\bimport)\s*\(?\s*(['"`])sygnal\/(react|zag|sandbox|ui\/(?:menu|select|combobox))\1/g
+const ADAPTER_ID = /^sygnal\/(react|zag|sandbox|ui\/(?:menu|select|combobox))$/
 
 /**
  * The adapter entries an app module imports (statically, dynamically or in a re-export), or null.

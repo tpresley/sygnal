@@ -208,16 +208,17 @@ describe('vite plugin — Vitest setup file (deliverable 2)', () => {
 describe('vite plugin — dependency scan', () => {
   it('gives the dev dependency scanner the sygnal JSX settings (serve only)', () => {
     const jsx = { runtime: 'automatic', importSource: 'sygnal' }
-    const exclude = ['sygnal/vike/onRenderClient']
+    const exclude = ['sygnal/vike/onRenderClient', 'sygnal/sandbox']
     expect(configure(sygnal()).optimizeDeps).toEqual({ rolldownOptions: { transform: { jsx } }, exclude })
     expect(configure(sygnal({ disableJsx: true })).optimizeDeps).toEqual({ exclude })
   })
 
   // B-020: Vike puts its client entry in optimizeDeps.include; pre-bundled with
   // a linked sygnal it inlined a second core next to the pages' source 'sygnal'.
-  it("excludes the Vike client entry from pre-bundling in dev (B-020)", () => {
-    expect(configure(sygnal()).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient'])
-    expect(configure(sygnal({ diagnostics: 'off' })).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient'])
+  // sygnal/sandbox: its worker script is found by new URL(..., import.meta.url) (unbundled only)
+  it("excludes the Vike client entry (B-020) and sygnal/sandbox from pre-bundling in dev", () => {
+    expect(configure(sygnal()).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient', 'sygnal/sandbox'])
+    expect(configure(sygnal({ diagnostics: 'off' })).optimizeDeps.exclude).toEqual(['sygnal/vike/onRenderClient', 'sygnal/sandbox'])
     // not in a build, and not under Vitest
     expect(configure(sygnal(), { command: 'build' }).optimizeDeps).toBeUndefined()
     expect(configure(sygnal(), { vitest: true }).optimizeDeps).toBeUndefined()

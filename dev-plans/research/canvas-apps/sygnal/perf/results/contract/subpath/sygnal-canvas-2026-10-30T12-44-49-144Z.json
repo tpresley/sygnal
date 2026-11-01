@@ -1,0 +1,381 @@
+{
+  "date": "2026-10-30T12:44:49.144Z",
+  "url": "http://localhost:4801/",
+  "machine": {
+    "platform": "darwin 24.6.0",
+    "cpu": "Apple M3 Max",
+    "cores": 16,
+    "memGB": 128
+  },
+  "browser": "Chromium 153.0.8010.12",
+  "settings": {
+    "viewport": "1440x900",
+    "dpr": 1,
+    "cpuThrottle": 1,
+    "steps": 120,
+    "warmup": 10
+  },
+  "framework": "sygnal-canvas",
+  "overheadMs": {
+    "busy": {
+      "n": 120,
+      "median": 1.01,
+      "p95": 1.73,
+      "max": 1.83,
+      "mean": 1.08
+    },
+    "wall": {
+      "n": 120,
+      "median": 48.6,
+      "p95": 49.9,
+      "max": 50.98,
+      "mean": 48.38
+    }
+  },
+  "startup": {
+    "readyMs": {
+      "n": 5,
+      "median": 70.3,
+      "p95": 87.6,
+      "max": 87.6,
+      "mean": 73.92
+    },
+    "domContentLoadedMs": {
+      "n": 5,
+      "median": 37.6,
+      "p95": 39.5,
+      "max": 39.5,
+      "mean": 37.7
+    },
+    "fcpMs": {
+      "n": 5,
+      "median": 52,
+      "p95": 52,
+      "max": 52,
+      "mean": 50.4
+    }
+  },
+  "heap": [
+    {
+      "shapes": "initial",
+      "usedMB": 2.3,
+      "totalMB": 2.8,
+      "nodes": 145
+    },
+    {
+      "shapes": 1000,
+      "usedMB": 3.3,
+      "totalMB": 3.8,
+      "nodes": 518
+    },
+    {
+      "shapes": 5000,
+      "usedMB": 6.1,
+      "totalMB": 6.8,
+      "nodes": 521
+    },
+    {
+      "shapes": 10000,
+      "usedMB": 10.2,
+      "totalMB": 11,
+      "nodes": 521
+    }
+  ],
+  "generate": [
+    {
+      "shapes": 1000,
+      "count": 1000,
+      "ms": 56.4
+    },
+    {
+      "shapes": 5000,
+      "count": 5000,
+      "ms": 62.8
+    },
+    {
+      "shapes": 10000,
+      "count": 10000,
+      "ms": 63.7
+    }
+  ],
+  "drag": [
+    {
+      "shapes": 1000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.26,
+        "p95": 6.31,
+        "max": 9.11,
+        "mean": 4.28
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.6,
+        "p95": 50.42,
+        "max": 51.32,
+        "mean": 48.46
+      },
+      "dropMs": 33.2
+    },
+    {
+      "shapes": 1000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 5.24,
+        "p95": 8.23,
+        "max": 9.96,
+        "mean": 5.27
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.56,
+        "p95": 50.54,
+        "max": 51.02,
+        "mean": 48.49
+      },
+      "dropMs": 37.1
+    },
+    {
+      "shapes": 1000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 8.29,
+        "p95": 11.13,
+        "max": 13.03,
+        "mean": 7.79
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.74,
+        "p95": 51.03,
+        "max": 51.24,
+        "mean": 48.74
+      },
+      "dropMs": 32.4
+    },
+    {
+      "shapes": 5000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 5.94,
+        "p95": 7.82,
+        "max": 10.63,
+        "mean": 5.85
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.51,
+        "p95": 50.4,
+        "max": 50.87,
+        "mean": 48.47
+      },
+      "dropMs": 32.8
+    },
+    {
+      "shapes": 5000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 8.58,
+        "p95": 11.79,
+        "max": 15.34,
+        "mean": 8.74
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.73,
+        "p95": 50.44,
+        "max": 51.26,
+        "mean": 48.69
+      },
+      "dropMs": 32.4
+    },
+    {
+      "shapes": 5000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 13.05,
+        "p95": 18.92,
+        "max": 25.68,
+        "mean": 13.26
+      },
+      "wall": {
+        "n": 120,
+        "median": 49.56,
+        "p95": 67,
+        "max": 68.01,
+        "mean": 53.22
+      },
+      "dropMs": 32.6
+    },
+    {
+      "shapes": 10000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 7.28,
+        "p95": 9.75,
+        "max": 12.69,
+        "mean": 7.52
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.65,
+        "p95": 50.55,
+        "max": 51.03,
+        "mean": 48.67
+      },
+      "dropMs": 31.3
+    },
+    {
+      "shapes": 10000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 10.14,
+        "p95": 11.77,
+        "max": 11.98,
+        "mean": 9.67
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.93,
+        "p95": 50.72,
+        "max": 51.7,
+        "mean": 48.87
+      },
+      "dropMs": 32.2
+    },
+    {
+      "shapes": 10000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 21.3,
+        "p95": 28.37,
+        "max": 35.99,
+        "mean": 21.64
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.81,
+        "p95": 67.73,
+        "max": 68.08,
+        "mean": 64.45
+      },
+      "dropMs": 45
+    }
+  ],
+  "pan": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 3.45,
+        "p95": 4.94,
+        "max": 11.15,
+        "mean": 3.43
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.74,
+        "p95": 66.81,
+        "max": 68.5,
+        "mean": 64.81
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 3.25,
+        "p95": 5.35,
+        "max": 7.96,
+        "mean": 3.42
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.04,
+        "p95": 67.31,
+        "max": 74.02,
+        "mean": 65.02
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 3.45,
+        "p95": 5.24,
+        "max": 6.87,
+        "mean": 3.42
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.05,
+        "p95": 66.89,
+        "max": 67.4,
+        "mean": 65.01
+      }
+    }
+  ],
+  "zoom": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 6.72,
+        "p95": 9.88,
+        "max": 12.26,
+        "mean": 6.7
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.21,
+        "p95": 67.21,
+        "max": 67.34,
+        "mean": 65.12
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 7.4,
+        "p95": 11.5,
+        "max": 28.04,
+        "mean": 7.39
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.06,
+        "p95": 66.98,
+        "max": 82.39,
+        "mean": 65.17
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 7.19,
+        "p95": 11.92,
+        "max": 31.01,
+        "mean": 7.48
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.14,
+        "p95": 66.85,
+        "max": 82.08,
+        "mean": 65.19
+      }
+    }
+  ],
+  "errors": []
+}

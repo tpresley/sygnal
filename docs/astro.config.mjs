@@ -26,7 +26,8 @@ export default defineConfig({
     resolve: {
       // sygnal is linked (file:..), so its own imports of these would resolve from the repo root:
       // one copy each, the docs' (a Zag machine and the sygnal/zag runtime must match, as React must)
-      dedupe: ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox', 'react', 'react-dom'],
+      // (Yjs too: a second copy breaks its instanceof checks and warns "Yjs was already imported")
+      dedupe: ['@zag-js/vanilla', '@zag-js/menu', '@zag-js/select', '@zag-js/combobox', 'react', 'react-dom', 'yjs', 'y-protocols', 'lib0'],
     },
   },
   integrations: [
@@ -75,6 +76,7 @@ export default defineConfig({
             { label: 'Built for Coding Agents', slug: 'ai/coding-agents' },
             { label: 'Building with AI Agents', slug: 'integration/agents' },
             { label: 'Testing', slug: 'integration/testing' },
+            { label: 'Record and Replay', slug: 'guide/record-replay' },
             { label: 'Diagnostics', slug: 'guide/diagnostics' },
             { label: 'Strict Mode', slug: 'guide/strict-mode' },
             { label: 'App Graph', slug: 'guide/app-graph' },
@@ -130,6 +132,8 @@ export default defineConfig({
             { label: 'Resources and Caching', slug: 'guide/resources' },
             { label: 'Persistence', slug: 'guide/persistence' },
             { label: 'Sockets', slug: 'guide/sockets' },
+            { label: 'Collaborative State (experimental)', slug: 'guide/collaborative-state' },
+            { label: 'Typed APIs', slug: 'guide/typed-apis' },
             { label: 'Timers', slug: 'guide/timers' },
             { label: 'Browser Sources', slug: 'guide/browser-sources' },
             { label: 'Custom Drivers', slug: 'guide/custom-drivers' },
@@ -150,6 +154,7 @@ export default defineConfig({
             { label: 'Element Commands', slug: 'guide/element-commands' },
             { label: 'Controls', slug: 'guide/controls' },
             { label: 'Widgets', slug: 'guide/widgets' },
+            { label: 'Imperative Islands', slug: 'guide/islands' },
             { label: 'Web Components', slug: 'guide/web-components' },
             { label: 'Adapters', slug: 'guide/adapters' },
             { label: 'Accessibility', slug: 'guide/accessibility' },
@@ -172,6 +177,21 @@ export default defineConfig({
             { label: 'Menu', slug: 'ui/menu' },
             { label: 'Select', slug: 'ui/select' },
             { label: 'Combobox', slug: 'ui/combobox' },
+          ],
+        },
+        {
+          label: 'Beyond the Browser',
+          collapsed: true,
+          items: [
+            { label: 'Overview', slug: 'renderers/overview' },
+            { label: 'Write Once: Web, Native, Terminal', slug: 'renderers/write-once' },
+            { label: 'React Native', slug: 'renderers/react-native' },
+            { label: 'three.js', slug: 'renderers/three' },
+            { label: 'Canvas', slug: 'renderers/canvas' },
+            { label: 'Terminal Apps', slug: 'renderers/terminal' },
+            { label: 'Agent UI', slug: 'renderers/agent-ui' },
+            { label: 'Off the Main Thread', slug: 'renderers/off-main-thread' },
+            { label: 'Writing a Renderer Target', slug: 'renderers/custom-targets' },
           ],
         },
         {
@@ -207,6 +227,7 @@ export default defineConfig({
             { label: 'Effect Handlers', slug: 'advanced/effect' },
             { label: 'Undo and Redo', slug: 'advanced/undo' },
             { label: 'Disposal Hooks', slug: 'advanced/disposal' },
+            { label: 'Sandboxed Components', slug: 'advanced/sandboxed-components' },
             { label: 'Alternative Forms', slug: 'advanced/alternative-forms' },
           ],
         },
@@ -222,6 +243,7 @@ export default defineConfig({
             { label: 'Hot Module Replacement', slug: 'integration/hmr' },
             { label: 'PWA Helpers', slug: 'integration/pwa' },
             { label: 'Bundler Configuration', slug: 'integration/bundler-config' },
+            { label: 'Compiled Views (experimental)', slug: 'integration/compiled-views' },
           ],
         },
         {

@@ -9,13 +9,20 @@
 //     (was 2 s);
 //   - a re-check after a one-file edit through `sources`, with the warm cache (3 untimed edits
 //     first): median of 15 <= 150 ms (was 300 ms; lowered after G-660, about 2x the measured
-//     time, for slower and noisier machines).
+//     time, for slower and noisier machines);
+//   - the same edits with a check session (incremental checking, native-tooling round 2: the
+//     model and the per-file rules' findings reused for the files the edit can't affect), the
+//     language server's path: median of 15 <= 60 ms, and its findings = the plain check's.
+//     Measured 2026-10-29 (M3 Max, Node 24.14.0, machine shared, load ~15): 25-26 ms vs
+//     118-127 ms plain (76 ms at load 83). The language server, same day: didChange → publish
+//     187-190 ms (150 ms debounce included), navigation right after a change 37-38 ms.
 // The limits only go down.
 //
 // The language server (PLAN-7 L-1), on the same project, checks in its worker thread with the
 // default 150 ms debounce and --strict:
 //   - an unsaved edit (didChange, no save) that adds a finding → its publishDiagnostics:
-//     median of 10 <= 400 ms (debounce included; was 500 ms, lowered after G-660: D313);
+//     median of 10 <= 300 ms (debounce included; was 500 ms, lowered after G-660: D313, then
+//     400 ms; 300 ms with incremental checking: 187-190 ms measured 2026-10-29);
 //   - a hover sent right after a didSave (the check starts at once) is answered from the last
 //     results while the check runs: <= 50 ms, before the check's publish.
 //   - definition / references (PLAN-7 N-2): from the last check's index <= 50 ms (max of 10);
@@ -57,7 +64,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { checkFiles, createParseCache } from '../src/index.js'
+import { checkFiles, createParseCache, createCheckSession } from '../src/index.js'
 import { expandInputs } from '../src/files.js'
 import { buildProject } from '../src/model/project.js'
 import { completionIndex } from '../src/lsp/completionIndex.js'
@@ -101,7 +108,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
   })
   afterAll(() => { if (dir) fs.rmSync(dir, { recursive: true, force: true }) })
 
-  it('20k lines: cold <= 1 s, a one-file edit re-checks in <= 150 ms warm with the parse cache', () => {
+  it('20k lines: cold <= 1 s, a one-file edit re-checks in <= 150 ms warm with the parse cache, <= 60 ms with a check session', () => {
     expect(lines).toBeGreaterThanOrEqual(20000)
     const cache = createParseCache()
     const opts = { cwd: dir, strict: true, cache }
@@ -114,13 +121,25 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
     const edits = []
     for (let i = 0; i < 15; i++) edits.push(edit(i))
     const warmEdit = median(edits)
-    console.log(`latency gate: ${files.length} files, ${lines} lines: cold ${Math.round(cold)} ms, warm one-file edit ${Math.round(warmEdit)} ms (median of ${edits.length})`)
+    // incremental: a check session (and its own cache), the same edits
+    const session = createCheckSession()
+    const iopts = { cwd: dir, strict: true, cache: createParseCache(), session }
+    let incrFindings
+    const iedit = (i) => time(() => { incrFindings = checkFiles(files, { ...iopts, sources: new Map([[edited, original + `\n// edit ${i}\n`]]) }) })
+    checkFiles(files, iopts)
+    for (let i = 0; i < 3; i++) iedit(-1 - i)
+    const iedits = []
+    for (let i = 0; i < 15; i++) iedits.push(iedit(i))
+    const incrEdit = median(iedits)
+    console.log(`latency gate: ${files.length} files, ${lines} lines: cold ${Math.round(cold)} ms, warm one-file edit ${Math.round(warmEdit)} ms, with a check session ${Math.round(incrEdit)} ms (medians of ${edits.length}; rebuilt ${session.previous.rebuilt.size} file(s))`)
     expect(cache.stats.parses - parses).toBe(edits.length) // one parse per edit
     expect(cold).toBeLessThanOrEqual(1000)
     expect(warmEdit).toBeLessThanOrEqual(150)
+    expect(incrEdit).toBeLessThanOrEqual(60)
+    expect(JSON.stringify(incrFindings)).toBe(JSON.stringify(checkFiles(files, { cwd: dir, strict: true, sources: new Map([[edited, original + '\n// edit 14\n']]) })))
   }, 60_000)
 
-  it('language server: didChange → publish <= 400 ms with the debounce; hover <= 50 ms during a check (worker)', async () => {
+  it('language server: didChange → publish <= 300 ms with the debounce; hover <= 50 ms during a check (worker)', async () => {
     fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": "latency", "private": true }')
     const client = startServer({ server: { worker: true, debounce: 150 } })
     try {
@@ -166,7 +185,7 @@ describe.skipIf(!enabled)('latency gate (PLAN-7 §3)', () => {
       }
       const hover = Math.max(...hovers)
       console.log(`lsp latency: ${files.length} files, ${lines} lines: initialize + first publish ${Math.round(cold)} ms; didChange → publish ${Math.round(publish)} ms (median of ${times.length}, ${Math.round(Math.min(...times))}-${Math.round(Math.max(...times))}, 150 ms debounce included); hover during a check ${hover.toFixed(1)} ms (max of ${hovers.length})`)
-      expect(publish).toBeLessThanOrEqual(400)
+      expect(publish).toBeLessThanOrEqual(300)
       expect(hover).toBeLessThanOrEqual(50)
     } finally {
       client.server.dispose()

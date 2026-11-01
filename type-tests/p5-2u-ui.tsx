@@ -66,6 +66,38 @@ describe('2-U: sygnal/ui', () => {
 // PLAN-11 T-1: tooltips() for many triggers
 import { tooltips } from 'sygnal/ui'
 export const tipsUses = { tips: tooltips({ trigger: '.term', tip: '.term-tip', showDelay: 300 }) }
-export const tipsState: import('sygnal/ui').TooltipsState = { id: null, open: 'tip-a', pending: null, hover: false, focus: true }
+export const tipsState: import('sygnal/ui').TooltipsState = { id: null, open: 'tip-a', pending: null, hover: false, focus: true, pressed: false }
 // @ts-expect-error trigger and tip are required
 tooltips({ trigger: '.term' })
+
+// ui-sweep round 2: a controlled open (R2: the `open` option, APPLY), the tooltip's PRESS (R3)
+import { dialog as dialog2, popover as popover2, tooltip as tooltip2 } from 'sygnal/ui'
+export const controlledUses = { d: dialog2({ dialog: '.d', open: true }), p: popover2({ popover: '.p', open: false }), t: tooltip2({ trigger: '.a', tip: '.b' }) }
+export const applied: import('sygnal/ui').DialogActions['APPLY'] = true
+export const pressed: import('sygnal/ui').TooltipState['pressed'] = false
+// @ts-expect-error open is a boolean
+dialog2({ dialog: '.d', open: 'yes' })
+
+// ui-sweep round 3: a controlled popover's close request
+export const dismissed: import('sygnal/ui').PopoverActions['DISMISS'] = new Event('pointerdown')
+// @ts-expect-error DISMISS carries the event
+export const notDismissed: import('sygnal/ui').PopoverActions['DISMISS'] = 'outside'
+
+// ui-sweep round 4: the popover trigger and popoverAttrs
+import { popover as popover4, popoverAttrs } from 'sygnal/ui'
+import type { PopoverState, PopoverAttrs } from 'sygnal/ui'
+export const withTrigger = popover4({ popover: '.p', trigger: '.t', id: 'menu', open: false })
+declare const pstate: PopoverState
+export const pattrs: PopoverAttrs = popoverAttrs(pstate, (s?: string) => s ?? '')
+export const toggleTo: import('sygnal/ui').PopoverActions['TOGGLE'] = false
+
+// ui-sweep round 5: dialogAttrs
+import { dialog as dialog5, dialogAttrs } from 'sygnal/ui'
+import type { DialogAttrs } from 'sygnal/ui'
+export const withIds = dialog5({ dialog: '.d', trigger: '.t', id: 'confirm' })
+declare const dstate: DialogState
+export const dattrs: DialogAttrs = dialogAttrs(dstate, (s?: string) => s ?? '')
+export const dId: string | null = dstate.id
+export const titleId = dattrs.title.id
+// @ts-expect-error a slice, not options
+dialogAttrs({ dialog: '.d' }, (s?: string) => s ?? '')

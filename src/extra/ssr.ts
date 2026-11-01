@@ -7,6 +7,7 @@
 import {uidPart, vtStyle} from '../shared'
 import {sortFn} from '../core/hosts/collection'
 import {keyOf} from '../core/cell'
+import {ext} from '../core/registry'
 
 // Void elements that must not have closing tags
 const VOID_ELEMENTS = new Set([
@@ -31,6 +32,92 @@ const isSlot = (v: any): boolean => v?.data?.m && v.sel === 'slot'
 
 function escapeHtml(str: string, attr?: boolean): string {
   return String(str).replace(innerHtmlMode ? (attr ? /[&"]/g : /[&<>]/g) : /[&<>"']/g, (ch) => ESC_MAP[ch])
+}
+
+// CV-1 (compiled SSR, sygnal/vite `compile`, src/vite/compile.ts): a compiled element's inside is
+// HTML parts made while the view runs: strings, and [child path, vnode] for what wasn't compiled
+// (a component, a marker, a field, ...), rendered by the walk at the path the JSX runtime's tree
+// would give it. Html sits as the only child of the outermost compiled element (a vnode); Chunk is a
+// compiled element inside it. Open tags and static subtrees are serialized by vnodeToHtml (so the
+// HTML is renderToString's), once per escaping mode
+class Html { p: any[]; constructor(p: any[]) { this.p = p } }
+class Chunk { p: any[]; constructor(p: any[]) { this.p = p } }
+const isVn = (v: any): boolean => v !== null && typeof v == 'object' && 'sel' in v && 'data' in v && 'children' in v && 'text' in v
+const isTxt = (v: any): boolean => typeof v == 'string' || typeof v == 'number'
+// an element's children (as the JSX runtime passes them) into parts, indexed as the pragma's
+// child list (arrays flattened in place; a child that isn't a vnode or text renders nothing).
+// Adjacent strings are joined as they come (`out`'s last item is a string while one is being
+// built), so a chunk with nothing deferred is one string and a parent copies it in one step
+const add = (out: any[], h: string): void => { const n = out.length; if (n && typeof out[n - 1] == 'string') out[n - 1] += h; else out.push(h) }
+// escapeHtml, skipped for a string with nothing to escape (in either mode)
+const ESC = /[&<>"']/
+const esc = (v: any, attr?: boolean): string => { const t = String(v); return ESC.test(t) ? escapeHtml(t, attr) : t }
+function cvKids(c: any, out: any[]): any[] {
+  const children = c === undefined ? [] : Array.isArray(c) ? c : [c]
+  if (children.length == 1 && isTxt(children[0])) { add(out, esc(children[0])); return out }
+  let i = 0
+  const walk = (list: any[]): void => {
+    for (const x of list) {
+      if (Array.isArray(x)) { walk(x); continue }
+      const at = '.' + i++
+      if (x instanceof Chunk) { for (const p of x.p) typeof p == 'string' ? add(out, p) : out.push([at + p[0], p[1]]) }
+      else if (isVn(x)) out.push([at, x])
+      else if (isTxt(x)) add(out, esc(x))
+    }
+  }
+  walk(children)
+  return out
+}
+// an element's open and close tags, as vnodeToHtml writes them
+function cvTags(sel: string, data: any): [string, string] {
+  const html = vnodeToHtml({sel, data, children: undefined, text: undefined})
+  const tag = parseSelector(sel).tag, end = `</${tag}>`
+  return !VOID_ELEMENTS.has(tag) && html.endsWith(end) ? [html.slice(0, -end.length), end] : [html, '']
+}
+// The same tags, fast, for the data a compiled element with dynamic attributes usually has: a plain
+// tag, `props` with string / number / boolean / nullish values and a string `dataset`; anything
+// else is cvTags. buildAttributes' order: class, then the other props, then data-* (G-365's
+// camelCase rules are for custom elements, which are never compiled)
+const FAST_KEYS = /^(props|dataset)$/
+const kebabs: Record<string, string> = Object.create(null)
+function cvTagsFast(sel: string, data: any): [string, string] {
+  for (const k in data) if (!FAST_KEYS.test(k)) return cvTags(sel, data)
+  if (!/^[a-z][a-z0-9]*$/.test(sel)) return cvTags(sel, data)
+  let cls = '', rest = ''
+  const props = data.props
+  for (const k in props) {
+    const v = props[k]
+    if (k == 'className') { if (typeof v == 'string' && v) cls = v; continue }
+    if (k == 'innerHTML') return cvTags(sel, data)
+    if (k == 'textContent') continue
+    if (v === true) rest += ' ' + (k == 'htmlFor' ? 'for' : k)
+    else if (v === false || v == null) continue
+    else if (typeof v == 'string' || typeof v == 'number') rest += ` ${k == 'htmlFor' ? 'for' : k}="${esc(v, true)}"`
+    else return cvTags(sel, data)
+  }
+  for (const k in data.dataset) {
+    const v = data.dataset[k]
+    if (v == null) continue
+    if (typeof v != 'string' && typeof v != 'number') return cvTags(sel, data)
+    rest += ` data-${kebabs[k] ??= camelToKebab(k)}="${esc(v, true)}"`
+  }
+  // a class made of one string is unique already unless it repeats a name (buildAttributes dedupes
+  // the list of class strings, not names: one string is kept as is)
+  const open = `<${sel}${cls ? ` class="${esc(cls, true)}"` : ''}${rest}>`
+  return VOID_ELEMENTS.has(sel) ? [open, ''] : [open, `</${sel}>`]
+}
+// made once per escaping mode (t.html()'s innerHTML mode escapes less)
+const perMode = (make: () => any): (() => any) => { const h: any[] = []; return () => h[+innerHtmlMode] ??= make() }
+/** @internal compiled SSR (sygnal/vite `compile`): see src/vite/compile.ts */
+export const __cvs = {
+  r: (sel: string, data: any, c: any, key?: any): any => ({sel, data, children: [new Html(cvKids(c, []))], text: undefined, elm: undefined, key}),
+  f: (open: any, c: any): any => { const [o, cl] = typeof open == 'function' ? open() : open, p = cvKids(c, [o]); add(p, cl); return new Chunk(p) },
+  s: (get: () => string): any => new Chunk([get()]),
+  S: (vnode: () => any): (() => string) => perMode(() => vnodeToHtml(vnode())),
+  O: (sel: string, data: any): (() => [string, string]) => perMode(() => cvTags(sel, data)),
+  od: cvTagsFast,
+  /** tests: the fast and the general tag writer */
+  $t: [cvTagsFast, cvTags],
 }
 
 /** @internal renderToString serialised like innerHTML (for renderComponent's t.html()) */
@@ -320,6 +407,14 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
  */
 function processSSRTree(vnode: any, context: Record<string, any>, parentState: any, uid: string, path: string): any {
   if (!vnode) return vnode
+  // CV-3: a compiled block (client code rendered on a server: tests, t.html()) as its vnodes
+  if (vnode.$b) vnode = ext.xb!(vnode)
+  // CV-1: the parts of a compiled element (its only child: the element's path is `path` less `.0`)
+  if (vnode instanceof Html) {
+    const at = path.slice(0, path.lastIndexOf('.'))
+    for (const p of vnode.p) if (typeof p != 'string') p[1] = processSSRTree(p[1], context, parentState, uid, at + p[0])
+    return vnode
+  }
   if (typeof vnode === 'string' || vnode.text != null) return vnode
 
   const sel = vnode.sel
@@ -395,7 +490,8 @@ function processSSRTree(vnode: any, context: Record<string, any>, parentState: a
   // any children); the client patch replaces the fallback and mounts the widget (extra/widget.ts)
   if (sel === 'widget' && vnode.data?.ww) {
     const {ww, wp, h} = vnode.data, fb = ww.def.fallback, host = ww.$ssr(vnode)
-    if (fb != null) host.children = [].concat(typeof fb == 'function' ? fb(wp, h) : fb).map((c: any) => typeof c == 'object' ? c : {text: String(c)})
+    // (a widget with children: its children container first, server-rendered too)
+    if (fb != null) host.children = [...(host.children || []), ...[].concat(typeof fb == 'function' ? fb(wp, h) : fb).map((c: any) => typeof c == 'object' ? c : {text: String(c)})]
     return processSSRTree(host, context, parentState, uid, path)
   }
 
@@ -756,6 +852,7 @@ const textOf = (v: any): string => v == null ? '' : typeof v != 'object' ? Strin
  */
 function vnodeToHtml(vnode: any, sv?: SV): string {
   if (vnode == null) return ''
+  if (vnode instanceof Html) { let h = ''; for (const p of vnode.p) h += typeof p == 'string' ? p : vnodeToHtml(p[1], sv); return h }
 
   // Text node
   if (typeof vnode === 'string') return escapeHtml(vnode)

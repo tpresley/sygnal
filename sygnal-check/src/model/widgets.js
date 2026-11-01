@@ -2,7 +2,8 @@
  * Widgets (PLAN-5 W-1): `defineWidget({ tag, mount, update, unmount, events, commands })`, and
  * (W-2) the adapters' widgets: `fromZag(zag, render, { events, commands })` from 'sygnal/zag',
  * `fromReact(Comp, { events, commands })` from 'sygnal/react', and the Menu / Select / Combobox
- * tags of 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' (D211; one subpath per part).
+ * tags of 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' (D211; one subpath per part),
+ * 'sygnal/three''s Scene, 'sygnal/canvas''s Canvas, and 'sygnal/sandbox''s Sandboxed.
  *
  * A widget tag (`<DatePicker className="due" />`) renders its host element in the scope of the
  * view that uses it (it is not a child component), so its className/id count for SYG110/SYG640
@@ -46,19 +47,29 @@ export function isDefineWidgetCall(file, node) {
 
 // PLAN-5 2-Z: the widget tags of the Zag UI parts (div hosts): their subpath (D211), events and commands
 export const UI_ZAG = {
-  Menu: ['sygnal/ui/menu', ['select', 'open-change'], ['open', 'close']],
+  Menu: ['sygnal/ui/menu', ['select', 'checked-change', 'open-change'], ['open', 'close']],
   Select: ['sygnal/ui/select', ['value-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
-  Combobox: ['sygnal/ui/combobox', ['value-change', 'input-change', 'open-change'], ['open', 'close', 'clear', 'focus']],
+  Combobox: ['sygnal/ui/combobox', ['value-change', 'input-change', 'open-change'], ['open', 'close', 'clear', 'focus', 'remove']],
 }
 /** the part ('Menu', 'Select', 'Combobox') a binding imported from its ui subpath names, or null */
 export function uiZagPart(b) {
   const w = b && b.kind === 'import' && Object.hasOwn(UI_ZAG, b.imported) && UI_ZAG[b.imported]
   return w && b.source === w[0] ? b.imported : null
 }
-/** the Widget a binding imported from a Zag part's ui subpath names, or null */
+// canvas-three: other library widget tags (div hosts): their module, events and commands
+const LIB_WIDGETS = {
+  Scene: ['sygnal/three', ['camerachange'], []],
+  // sygnal/canvas: an island like Scene (its <shapes> layers and node tags render in the using view)
+  Canvas: ['sygnal/canvas', ['camerachange', 'canvasresize'], []],
+  // sygnal/sandbox (dev preview): a sandboxed component as a tag
+  Sandboxed: ['sygnal/sandbox', ['emit', 'sandboxerror'], []],
+}
+/** the Widget a binding imported from a Zag part's ui subpath (or a library widget's module) names, or null */
 function uiZagWidget(b, name) {
-  const part = uiZagPart(b), w = part && UI_ZAG[part].slice(1)
-  return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null } : null
+  const part = uiZagPart(b), lib = !part && b?.kind === 'import' && Object.hasOwn(LIB_WIDGETS, b.imported) && LIB_WIDGETS[b.imported]
+  const w = part ? UI_ZAG[part].slice(1) : lib && b.source === lib[0] ? lib.slice(1) : null
+  // part: a first-party Zag part (SYG141 reports a native change / input listener on it)
+  return w ? { name, element: 'div', kind: 'widget', events: w[0], commands: w[1], file: null, call: null, def: null, part } : null
 }
 
 // names of an object literal's keys, or of an array literal's strings; null when not literal

@@ -5,6 +5,7 @@
 // compiled with the automatic JSX runtime, imported against the built package (dist: `npm run
 // build` first) and exercised; every sample is checked with `sygnal-check --strict`.
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest'
+import { llmsText, skillText } from './helpers/agent-context.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -231,8 +232,8 @@ Editor.model = {
 
 // ---- 4-G1 item 2: the facts added to llms.txt and SKILL.md (REPORT-v4 rec 2) ----
 const AGENT = {
-  llms: fs.readFileSync(path.join(here, '..', 'llms.txt'), 'utf8'),
-  skill: fs.readFileSync(path.join(here, '..', 'skills/sygnal-dev/SKILL.md'), 'utf8'),
+  llms: llmsText(),   // llms.txt + its topic files
+  skill: skillText(),  // SKILL.md + its references
 }
 const FACTS = {
   submit: "DOM.select('form').events('submit', { preventDefault: true })",

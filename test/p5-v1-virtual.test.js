@@ -324,6 +324,28 @@ describe('jsdom with a fake layout: the window follows the scroll', () => {
     expect(ids().length).toBe(29)
   })
 
+  it('SYG436: a numeric estimateSize far from the measured row heights (Temper 2026-10)', async () => {
+    const at = (estimateSize) => { function E() { return h(VirtualCollection, { of: Row, from: 'rows', className: 'rows', estimateSize }) }; E.initialState = { rows: rows(200) }; return E }
+    L.box = 1400; L.row = 71
+    setupChecks()
+    await mount(at(52), { diagnostics: 'collect' })
+    await settle(60)
+    const [d, ...rest] = diagnostics('SYG436')
+    expect(rest).toEqual([])
+    expect(d.severity).toBe('warn')
+    expect(d.data).toEqual({ estimate: 52, measured: 71 })
+    expect(d.message).toMatch(/estimateSize=\{52\}, but its rows measure about 71 px.*blank space/)
+    expect(d.fix).toMatch(/estimateSize=\{71\}/)
+    // close enough, or a function: nothing
+    for (const est of [64, () => 52]) {
+      app.dispose(); app = null
+      setupChecks()
+      await mount(at(est), { diagnostics: 'collect' })
+      await settle(60)
+      expect(diagnostics('SYG436')).toEqual([])
+    }
+  })
+
   it('SYG430: a laid-out container 0 px tall; none without layout (jsdom as is)', async () => {
     setupChecks()
     L.mode = 'zero'
@@ -372,8 +394,8 @@ describe('jsdom with a fake layout: the window follows the scroll', () => {
 })
 
 describe('codes', () => {
-  it('SYG430–434 are dev-entry codes with titles (not in the core table)', () => {
-    for (const c of ['SYG430', 'SYG431', 'SYG432', 'SYG433', 'SYG434']) {
+  it('SYG430–434 and SYG436 are dev-entry codes with titles (not in the core table)', () => {
+    for (const c of ['SYG430', 'SYG431', 'SYG432', 'SYG433', 'SYG434', 'SYG436']) {
       expect(DEV_CODE_SEVERITY[c], c).toBe('warn')
       expect(CODE_TITLES[c], c).toMatch(/VirtualCollection/)
     }

@@ -1,0 +1,21 @@
+{
+  "name": "sygnal-renderer-targets",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:node": "vite build --config vite.node.config.js",
+    "terminal": "npm run build:node && node dist-node/terminal.js",
+    "mcp": "npm run build:node && node dist-node/mcp.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "sygnal": "file:../.."
+  },
+  "devDependencies": {
+    "sygnal-check": "file:../../sygnal-check",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
+  }
+}

@@ -1,10 +1,23 @@
 {
   "name": "sygnal",
-  "version": "7.1.0",
+  "version": "7.2.0-preview.0",
   "description": "An intuitive framework for building fast and small components or applications based on Cycle.js",
   "main": "./dist/index.cjs.js",
   "types": "./dist/index.d.ts",
   "module": "./dist/index.esm.js",
+  "sideEffects": [
+    "./dist/index.esm.js",
+    "./dist/index.cjs.js",
+    "./dist/diagnostics.esm.js",
+    "./dist/diagnostics.cjs.js",
+    "./dist/devtools.esm.js",
+    "./dist/devtools.cjs.js",
+    "./dist/shims/globalthis.cjs",
+    "./dist/sandbox-worker.esm.js",
+    "./dist/sandbox-worker.cjs.js",
+    "./dist/sandbox-kernel.esm.js",
+    "./dist/sygnal.min.js"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -71,10 +84,92 @@
       "import": "./dist/ai.esm.js",
       "require": "./dist/ai.cjs.js"
     },
+    "./api": {
+      "types": "./src/api.d.ts",
+      "import": "./dist/api.esm.js",
+      "require": "./dist/api.cjs.js"
+    },
+    "./replay": {
+      "types": "./src/replay.d.ts",
+      "import": "./dist/replay.esm.js",
+      "require": "./dist/replay.cjs.js"
+    },
     "./react": {
       "types": "./src/react.d.ts",
       "import": "./dist/react.esm.js",
       "require": "./dist/react.cjs.js"
+    },
+    "./host": {
+      "types": "./src/host.d.ts",
+      "import": "./dist/host.esm.js",
+      "require": "./dist/host.cjs.js"
+    },
+    "./worker": {
+      "types": "./src/worker.d.ts",
+      "import": "./dist/worker.esm.js",
+      "require": "./dist/worker.cjs.js"
+    },
+    "./worker/page": {
+      "types": "./src/worker-page.d.ts",
+      "import": "./dist/worker-page.esm.js",
+      "require": "./dist/worker-page.cjs.js"
+    },
+    "./terminal": {
+      "types": "./src/terminal.d.ts",
+      "import": "./dist/terminal.esm.js",
+      "require": "./dist/terminal.cjs.js"
+    },
+    "./agent-ui": {
+      "types": "./src/agent-ui.d.ts",
+      "import": "./dist/agent-ui.esm.js",
+      "require": "./dist/agent-ui.cjs.js"
+    },
+    "./primitives": {
+      "types": "./src/primitives.d.ts",
+      "import": "./dist/primitives.esm.js",
+      "require": "./dist/primitives.cjs.js"
+    },
+    "./react-native": {
+      "types": "./src/react-native.d.ts",
+      "import": "./dist/react-native.esm.js",
+      "require": "./dist/react-native.cjs.js"
+    },
+    "./three": {
+      "types": "./src/three.d.ts",
+      "import": "./dist/three.esm.js",
+      "require": "./dist/three.cjs.js"
+    },
+    "./canvas": {
+      "types": "./src/canvas.d.ts",
+      "import": "./dist/canvas.esm.js",
+      "require": "./dist/canvas.cjs.js"
+    },
+    "./yjs": {
+      "types": "./src/yjs.d.ts",
+      "import": "./dist/yjs.esm.js",
+      "require": "./dist/yjs.cjs.js"
+    },
+    "./yjs/testing": {
+      "types": "./src/yjs-testing.d.ts",
+      "import": "./dist/yjs-testing.esm.js",
+      "require": "./dist/yjs-testing.cjs.js"
+    },
+    "./sandbox": {
+      "types": "./src/sandbox.d.ts",
+      "import": "./dist/sandbox.esm.js",
+      "require": "./dist/sandbox.cjs.js"
+    },
+    "./sandbox/build": {
+      "types": "./src/sandbox-build.d.ts",
+      "import": "./dist/sandbox-build.esm.js",
+      "require": "./dist/sandbox-build.cjs.js"
+    },
+    "./sandbox/worker": {
+      "import": "./dist/sandbox-worker.esm.js",
+      "require": "./dist/sandbox-worker.cjs.js"
+    },
+    "./sandbox/kernel-entry": {
+      "import": "./dist/sandbox-kernel.esm.js"
     },
     "./shims/globalthis": "./dist/shims/globalthis.cjs",
     "./vite": {
@@ -130,6 +225,8 @@
     "dist",
     "src",
     "llms.txt",
+    "llms",
+    "llms-full.txt",
     "CHANGELOG.md"
   ],
   "scripts": {
@@ -172,18 +269,29 @@
   "homepage": "https://github.com/tpresley/sygnal#readme",
   "dependencies": {
     "@tanstack/virtual-core": "^3.17.11",
+    "fractional-indexing": "^4.0.0",
+    "magic-string": "^1.4.3",
     "snabbdom": "^3.6.3",
     "xstream": "^11.14.0"
   },
   "peerDependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "~0.32.0",
     "@zag-js/combobox": "~1.45.0",
     "@zag-js/menu": "~1.45.0",
     "@zag-js/select": "~1.45.0",
     "@zag-js/vanilla": "~1.45.0",
+    "quickjs-emscripten-core": "~0.32.0",
     "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react-dom": ">=18.0.0",
+    "react-native": ">=0.76.0",
+    "three": ">=0.170.0",
+    "y-protocols": "^1.0.6",
+    "yjs": "^13.6.0"
   },
   "peerDependenciesMeta": {
+    "@jitl/quickjs-wasmfile-release-sync": {
+      "optional": true
+    },
     "@zag-js/combobox": {
       "optional": true
     },
@@ -196,10 +304,25 @@
     "@zag-js/vanilla": {
       "optional": true
     },
+    "quickjs-emscripten-core": {
+      "optional": true
+    },
     "react": {
       "optional": true
     },
     "react-dom": {
+      "optional": true
+    },
+    "react-native": {
+      "optional": true
+    },
+    "three": {
+      "optional": true
+    },
+    "y-protocols": {
+      "optional": true
+    },
+    "yjs": {
       "optional": true
     }
   },
@@ -207,12 +330,17 @@
     "@ag-ui/core": "1.0.2",
     "@ag-ui/encoder": "1.0.2",
     "@anthropic-ai/sdk": "0.131.0",
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
     "@modelcontextprotocol/client": "2.3.1",
     "@modelcontextprotocol/ext-apps": "2.0.3",
+    "@orpc/contract": "1.15.6",
+    "@orpc/openapi": "1.15.6",
+    "@orpc/server": "1.15.6",
     "@rollup/plugin-commonjs": "^25.0.4",
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-terser": "^0.4.3",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@types/three": "0.186.0",
     "@valibot/to-json-schema": "1.8.0",
     "@zag-js/combobox": "1.45.0",
     "@zag-js/dialog": "1.45.0",
@@ -222,17 +350,25 @@
     "ai": "7.0.137",
     "arktype": "2.2.8",
     "flatpickr": "4.6.13",
+    "hono": "4.13.13",
     "jsdom": "^29.1.1",
     "preact": "11.0.0",
+    "quickjs-emscripten-core": "0.32.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rollup": "^3.28.1",
     "rollup-plugin-dts": "^6.1.1",
+    "sucrase": "^3.35.1",
+    "three": "0.186.1",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5",
     "valibot": "^1.5.0",
     "vitest": "^4.0.18",
-    "zod": "^4.6.5"
+    "ws": "8.22.0",
+    "y-protocols": "1.0.7",
+    "y-websocket": "3.1.0",
+    "yjs": "13.6.33",
+    "zod": "^4.6.7"
   },
   "overrides": {
     "vite": "^7.3.6"

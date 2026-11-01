@@ -32,23 +32,22 @@
  * data-paused on .toaster.
  */
 import {ABORT, Collection, Transition, createElement as h, xs} from '../index'
+import {all, docOf, evt, focused, observer} from './dom'
 
 // ── the region's placement (D198) ────────────────────────────────────
 // the open modal dialogs, in the order they became modal (the last one is on top)
 const order: any[] = []
 const modal = (d: any) => { try { return d.matches(':modal') } catch (_) { return false } }
-// G-404: the dialogs of the document and of the region's own root (a shadow root: sygnal/element)
-const topModal = (root: any) => {
-  const all = [...document.querySelectorAll('dialog')]
-  if (root !== document && root?.querySelectorAll) all.push(...root.querySelectorAll('dialog'))
-  const open = all.filter(modal)
+// G-404: the dialogs of the region's document and of its own root (a shadow root: sygnal/element)
+const topModal = (el: any) => {
+  const open = all(el, 'dialog').filter(modal)
   for (let i = order.length; i--;) if (!open.includes(order[i])) order.splice(i, 1)
   for (const d of open) if (!order.includes(d)) order.push(d)
   return order[order.length - 1]
 }
 const show = (el: any) => { try { el.matches(':popover-open') || el.showPopover() } catch (_) {} }
-// the element with the focus in `el`'s root
-const act = (el: any) => (el.getRootNode?.() || document).activeElement
+// the element with the focus in `el`'s root (G-426; round 6: else its document's)
+const act = focused
 // G-428: a focusout that leaves `t`: not to an element inside it, and with no relatedTarget not
 // while the focus is still inside (the window lost the focus: it comes back to the same element)
 const left = (t: any, e: any) => !(t && t.contains?.(e.relatedTarget || act(t)))
@@ -57,7 +56,7 @@ const leaving = (b: any) => /-leave-/.test(b.closest?.('.toast')?.className || '
 
 const placement = {
   insert: (v: any) => {
-    const el = v.elm, home = el.parentNode, root = el.getRootNode?.() || document
+    const el = v.elm, home = el.parentNode, doc = docOf(el), root = el.getRootNode?.() || doc
     el.__sygnalHome = home
     show(el)
     // G-399: the focus in the region, and where it came from (where it goes back to). G-432: a
@@ -89,9 +88,11 @@ const placement = {
       const to: any = bs[i + 1] || bs[i - 1] || (el._from?.isConnected && !el.contains(el._from) && el._from)
       to ? to.focus() : b.blur()
     })
-    if (typeof MutationObserver == 'undefined') return
+    // (round 6: the region's window's MutationObserver: a host tree has none, and stays put)
+    const MO = observer(el)
+    if (!MO) return
     const place = () => {
-      const to = topModal(root) || home
+      const to = topModal(el.isConnected ? el : home) || home
       if (el.parentNode !== to) {
         // a move blurs a focused Dismiss button: give the focus back
         const a = act(el), f: any = el.contains(a) && a
@@ -102,16 +103,16 @@ const placement = {
       show(el)
     }
     // `open` flips on showModal / close; a dialog removed while open takes the region with it
-    const mo = el._mo = new MutationObserver((rs) => {
+    const mo = el._mo = new MO((rs: any) => {
       // G-399: the focused element was removed (a toast dismissed some other way): no focusout
       // in Chromium, so the region would stay paused; send one
-      if (el._f && !el.contains(act(el))) { el._f = 0; el.dispatchEvent(new FocusEvent('focusout', {bubbles: true})) }
-      if (home.isConnected && (!el.isConnected || (el.parentNode !== home && !modal(el.parentNode)) || rs.some((r) => r.type == 'attributes'))) place()
+      if (el._f && !el.contains(act(el))) { el._f = 0; el.dispatchEvent(evt(el, 'focusout', {bubbles: true}, 'FocusEvent')) }
+      if (home.isConnected && (!el.isConnected || (el.parentNode !== home && !modal(el.parentNode)) || rs.some((r: any) => r.type == 'attributes'))) place()
     })
     const opts = {subtree: true, childList: true, attributes: true, attributeFilter: ['open']}
-    mo.observe(document.body, opts)
+    mo.observe(doc.body, opts)
     // G-404: a region in a shadow root sees that root's dialogs open and close too
-    if (root !== document && root.nodeType == 11) mo.observe(root, opts)
+    if (root !== doc && root.nodeType == 11) mo.observe(root, opts)
     place()
   },
   // removed with its wrapper while in a dialog: take it out of the dialog too

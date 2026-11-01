@@ -23,12 +23,17 @@ export const CODES = {
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },
+  // ui-sweep R5 (rules/syg116-event-returned.js; the dev entry reports the value on the bus)
+  SYG116: { severity: 'error', title: 'EVENTS value has no string type' },
   // PLAN-13 N-1 (rules/syg117-next-without-entry.js; the dev entry reports it at run time too)
   SYG117: { severity: 'warn', title: 'next() names an action with no model entry' },
+  // ui-sweep R1 (rules/syg118-trigger-replaced.js; the dev entry reports it at run time too)
+  SYG118: { severity: 'warn', title: 'Host intent replaces a behavior trigger' },
   // PLAN-13 F-3 (rules/syg429-switchable-state-map.js; the dev entry reports it at run time too)
   SYG429: { severity: 'warn', title: 'Switchable state map names no page' },
   // PLAN-13 X-1 (rules/syg302-xstream-default-import.js)
-  SYG302: { severity: 'info', title: "Default import from 'xstream'" },
+  SYG302: { severity: 'info', title: "Default import from 'xstream' or 'xstream/extra/*'" },
+  SYG303: { severity: 'info', title: 'STATE.stream with dropRepeats() in an intent' },
   // PLAN-4 CT-1 controls (model/controls.js)
   SYG124: { severity: 'error', title: 'Component used as a control or selector' },
   SYG125: { severity: 'error', title: 'Control given .intent, .model or .initialState' },
@@ -57,6 +62,8 @@ export const CODES = {
   // installed Sygnal 7, SYG454 (rules/syg454-byid-binding.js) on an installed Sygnal 6 only
   SYG256: { severity: 'warn', title: 'Output guard rejects the updated state' },
   SYG454: { severity: 'warn', title: 'State binding changed without a new component identity' },
+  // record/replay (rules/syg258-clock-in-reducer.js): left out under --strict, where SYG509 reports it
+  SYG258: { severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)
   SYG127: { severity: 'error', title: 'Behavior collision or unresolvable uses entry' },
   SYG128: { severity: 'error', title: 'Duplicate control key' },
@@ -69,6 +76,8 @@ export const CODES = {
   SYG223: { severity: 'warn', title: 'persist pick or omit names a key that is not in initialState' },
   SYG224: { severity: 'error', title: 'persist on a component that is not the root' },
   SYG226: { severity: 'warn', title: 'Undo track, resetOn or coalesce names an unknown action' },
+  // sygnal/yjs (rules/syg260-shared-undo.js; the runtime reports it too, and SYG261)
+  SYG260: { severity: 'warn', title: 'undo() or undoable() on a key shared() syncs' },
   // PLAN-6 K-1 (rules/syg150-agent.js): static counterparts of the agent layer's codes (G-611, G-591)
   SYG240: { severity: 'error', title: 'Agent action or query input has no JSON Schema form' },
   SYG243: { severity: 'warn', title: 'Agent action or query input schema converted with losses' },
@@ -86,6 +95,8 @@ export const CODES = {
   // PLAN-9 D471 (rules/syg426-lowercase-markers.js): deprecated in 6.3.0
   SYG426: { severity: 'warn', title: 'Deprecated lowercase marker tag' },
   SYG427: { severity: 'error', title: 'CHILD.select() of something that is not a component' },
+  // sygnal/api (rules/syg691-unknown-endpoint.js)
+  SYG691: { severity: 'warn', title: 'Unknown API endpoint' },
   // PLAN-4 4-G2 (rules/syg609-sink-driver.js): the run() call registers no driver for a model sink
   SYG609: { severity: 'warn', title: 'Sink or source has no driver' },
   // PLAN-4.6 R5 (rules/syg612-removed-forms.js): a form 6.0 removed
@@ -121,6 +132,7 @@ export const CODES = {
   SYG506: { severity: 'error', title: "Removed in 6.0: CHILD.select() with a component name", strict: true },
   SYG507: { severity: 'info', title: 'Prop drilled through more than 2 component levels', strict: true },
   SYG508: { severity: 'warn', title: 'select()/errors() round trip where reply actions would do', strict: true },
+  SYG509: { severity: 'warn', title: 'Clock or randomness read from a global in a handler', strict: true },
   SYG900: { severity: 'warn', title: 'A diagnostics check threw' },
 }
 

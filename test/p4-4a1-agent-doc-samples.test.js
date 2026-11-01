@@ -9,6 +9,7 @@
 // actions driven by simulateAction), so the agent docs
 // stay strict-clean and a11y-clean (scripts/check-doc-samples.mjs checks the code blocks too).
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest'
+import { llmsText, skillText } from './helpers/agent-context.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -20,8 +21,8 @@ import { checkFiles } from '../sygnal-check/src/index.js'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..')
 const FILES = {
-  llms: fs.readFileSync(path.join(repo, 'llms.txt'), 'utf8'),
-  skill: fs.readFileSync(path.join(repo, 'skills/sygnal-dev/SKILL.md'), 'utf8'),
+  llms: llmsText(),   // llms.txt + its topic files
+  skill: skillText(),  // SKILL.md + its references
 }
 const BOTH = ['llms', 'skill']
 
@@ -161,8 +162,12 @@ export function Product({ state }) {
 }
 Product.initialState = { text: 'Warm light.', opened: 0 }
 Product.${F.disclosureUses}
-Product.intent = ({ DOM }) => ({ 'more.TOGGLE': DOM.keydown('document').key().filter(key => key === 'Enter') })
-Product.model = { 'more.TOGGLE': (state) => (state.more.open ? { ...state, opened: state.opened + 1 } : ABORT) }
+Product.intent = ({ DOM }) => ({ SHORTCUT: DOM.keydown('document').key().filter(key => key === 'Enter') })
+Product.model = {
+  // (ui-sweep R1: an intent action named 'more.TOGGLE' would replace the toggle option's clicks, SYG118)
+  SHORTCUT: { EFFECT: (state, key, next) => next('more.TOGGLE') },
+  'more.TOGGLE': (state) => (state.more.open ? { ...state, opened: state.opened + 1 } : ABORT),
+}
 `,
   element: `import { ABORT } from 'sygnal'
 const validate = (s) => (s.email.includes('@') ? {} : { email: 'Enter an email address' })
@@ -397,14 +402,15 @@ describe('behaviors', () => {
     t = renderComponent(Product)
     await t.ready()
     expect(t.state.more).toEqual({ open: false })
-    const states = t.states.length
-    t.simulateEvent('.more', 'click'); await t.settle()                 // the host's intent replaced this trigger
-    expect(t.states.length).toBe(states)
-    t.simulateEvent('document', 'keydown', { key: 'Enter' }); await t.next(s => s.more.open)   // the host's trigger
+    // ui-sweep R1: the shortcut is its own action (next('more.TOGGLE')), so the button's trigger stays
+    t.simulateEvent('.more', 'click'); await t.next(s => s.more.open)  // the behavior's trigger
     expect(t.state.opened).toBe(1)                                      // the host entry ran after the behavior's
-    t.simulateEvent('document', 'keydown', { key: 'Enter' }); await t.next(s => !s.more.open)
-    run(F.simulateMore, { t }); await t.next(s => s.more.open)
+    t.simulateEvent('document', 'keydown', { key: 'Enter' }); await t.next(s => !s.more.open)   // the shortcut
+    t.simulateEvent('document', 'keydown', { key: 'Enter' }); await t.next(s => s.more.open)
     expect(t.state.opened).toBe(2)
+    t.simulateEvent('.more', 'click'); await t.next(s => !s.more.open)
+    run(F.simulateMore, { t }); await t.next(s => s.more.open)
+    expect(t.state.opened).toBe(3)
     expect(t.actions.at(-1)).toMatchObject({ type: 'more.TOGGLE', cause: 'simulateAction' })
     t.expectNoDiagnostics()
   })

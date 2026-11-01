@@ -56,6 +56,7 @@ export default {
   id: 'removed-forms',
   codes: ['SYG612'],
   description: 'A form Sygnal 6.0 removed',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

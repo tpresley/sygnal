@@ -57,6 +57,7 @@ export default {
   id: 'lowercase-markers',
   codes: ['SYG426'],
   description: 'A lowercase marker tag (deprecated in 6.3.0)',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const p of project.scanned) {
       const file = project.files.get(p)

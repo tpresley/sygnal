@@ -5,7 +5,7 @@ description: Keep every component in Sygnal's canonical forms
 
 Sygnal often accepts more than one way to write the same thing. An event can be emitted with `event()`, `emit()` or a hand-built `{ type, data }` object, a side effect can hide in a STATE reducer, and so on. All of these keep working. Strict mode flags every form except the canonical one, so a codebase (and any agent working on it) reads the same everywhere.
 
-Strict mode is off by default. Its rules are SYG501 to SYG508; SYG502 is retired in 6.0 and never reported. SYG501, SYG504 and SYG506 now flag forms Sygnal 6.0 **removed** (positional views, `'ACTION | SINK'` keys, `CHILD.select('Name')`): they are errors, and at run time the dev checks report the same forms as [SYG612](/reference/errors/#syg612) whether or not strict mode is on. See [Migrating to 6.0](/guide/migrating-to-6/).
+Strict mode is off by default. Its rules are SYG501 to SYG509; SYG502 is retired in 6.0 and never reported. SYG501, SYG504 and SYG506 now flag forms Sygnal 6.0 **removed** (positional views, `'ACTION | SINK'` keys, `CHILD.select('Name')`): they are errors, and at run time the dev checks report the same forms as [SYG612](/reference/errors/#syg612) whether or not strict mode is on. See [Migrating to 6.0](/guide/migrating-to-6/).
 
 ## The rules
 
@@ -19,6 +19,7 @@ Strict mode is off by default. Its rules are SYG501 to SYG508; SYG502 is retired
 | [SYG506](/reference/errors/#syg506) | `CHILD.select(ChildFn)` | `CHILD.select('ChildName')` (removed in 6.0) | yes | SYG612 | yes, when the name is in scope |
 | [SYG507](/reference/errors/#syg507) | `.context` for data that crosses levels | a prop passed on unchanged through 3 component levels | yes (info) | no | no |
 | [SYG508](/reference/errors/#syg508) | reply actions `{ url, ok: 'LOADED', error: 'FAILED' }` | `HTTP.select('c')` / `HTTP.errors('c')` reading back the component's own `category: 'c'` request | yes | yes | no |
+| [SYG509](/reference/errors/#syg509) | `(state, data, next, { now, random, uuid }) => …` | `Date.now()`, `new Date()`, `Math.random()`, `crypto.randomUUID()` in a model handler (7.2) | yes | no | yes |
 
 Strict findings are warnings, except SYG501, SYG504 and SYG506, which are errors (the forms no longer work), and SYG507, which is info.
 
@@ -121,6 +122,20 @@ Quote.model = {
 
 See [HTTP](/guide/http/).
 
+### SYG509: read the clock and randomness from the handler's props
+
+```jsx
+// Flagged: id: crypto.randomUUID(), at: Date.now()
+Board.model = {
+  ADD_TASK: (state, title, next, { now, uuid }) => ({
+    ...state,
+    tasks: [...state.tasks, { id: uuid(), title, at: now() }],
+  }),
+}
+```
+
+The values are the same; the difference is that tests ([`renderComponent`'s `now`, `random`, `uuid`](/integration/testing/#a-fixed-clock-and-ids)) and [replays](/guide/record-replay/) can supply them. Without `--strict`, the same call in a STATE reducer is the warning [SYG258](/reference/errors/#syg258). See [The Clock and Randomness](/guide/model/#the-clock-and-randomness).
+
 The [Alternative Forms](/advanced/alternative-forms/) page lists every non-canonical form with its canonical equivalent.
 
 ## Enabling strict mode
@@ -128,7 +143,7 @@ The [Alternative Forms](/advanced/alternative-forms/) page lists every non-canon
 ### In the static checker
 
 ```bash
-npx --no-install sygnal-check --strict   # report SYG501-508 with the regular rules
+npx --no-install sygnal-check --strict   # report SYG501-509 with the regular rules
 npx --no-install sygnal-check --fix      # rewrite SYG504/505/506 in place, then check (implies --strict)
 ```
 

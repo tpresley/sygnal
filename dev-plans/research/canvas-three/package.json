@@ -1,0 +1,14 @@
+{
+  "name": "sygnal-canvas-three-research",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --config vitest.config.mjs",
+    "dev": "vite --config vite.config.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1",
+    "@codemirror/state": "6.5.4",
+    "@codemirror/view": "6.38.6"
+  }
+}

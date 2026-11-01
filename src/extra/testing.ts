@@ -1,4 +1,5 @@
 import {start as startNext} from '../core/runtime';
+import {ext} from '../core/registry';
 import {mockDOMSource} from '../cycle/dom/mockDOMSource';
 import {makeDOMDriver} from '../cycle/dom/makeDOMDriver';
 import {enrichEventStream} from '../cycle/dom/enrichEventStream';
@@ -26,6 +27,7 @@ import type {Stream} from 'xstream';
 import type {Diagnostic, DiagnosticsMode} from './diagnostics/index';
 import type {InspectGraph, InspectOptions} from './diagnostics/checks/public';
 import {actionHooks} from './diagnostics/checks/actionLog';
+import {inFrame, frameCount, onFrameEnd} from './frame';
 import type {ActionCause, ActionListener, ActionRecord} from './diagnostics/checks/actionLog';
 import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './diagnostics/checks/elementCommands';
 
@@ -46,8 +48,8 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  *   goes to the listeners with exactly that selector. Selectors match the
  *   rendered vnode tree like the real DOM: tag, .class, #id, [attr], [attr=v]
  *   (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b),
- *   :nth-last-child, :*-of-type, :not(), ' ' and '>' combinators, ',' lists
- *   (G-070); other syntax (:has(), '+', '~', ...) throws at the call. If no
+ *   :nth-last-child, :*-of-type, :not(), ' ', '>', '+' and '~' combinators,
+ *   ',' lists (G-070); other syntax (:has(), ...) throws at the call. If no
  *   rendered element matches yet, the event waits (up to 300ms, re-tried on
  *   every render) for one, then targets the first match. If none appears, the
  *   test fails (G-070): the error rejects the pending next()/waitForState()/
@@ -96,7 +98,7 @@ import {reportElementCommand, checkSentCommand, NATIVE_COMMAND_NAMES} from './di
  * Implementation notes:
  * - parse() turns a selector into compounds + combinators (cached; unsupported
  *   syntax throws); index() records each vnode's parent and element siblings
- *   on every render (for '>' and :nth-*); is(v, compound) matches one vnode;
+ *   on every render (for '>', '+', '~' and :nth-*); is(v, compound) matches one vnode;
  *   matches(sel, chain) matches the last vnode of an ancestor chain; find()
  *   returns the root → element chain of the first match.
  * - port(): producer-backed stream; emitting with no listener is a silent drop.
@@ -163,6 +165,8 @@ export interface SimulatedEventInit {
   data?: Record<string, any>;
   /** Keyboard key (e.key) */
   key?: string;
+  /** Shorthand for target.files: the File objects a file input holds (a FileList on the target) */
+  files?: ArrayLike<File> | File[];
   /**
    * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
    * drop the event with SYG103 (info). Not copied onto the event.
@@ -170,6 +174,14 @@ export interface SimulatedEventInit {
   allowMissing?: boolean;
   /** Any other event properties are copied onto the event */
   [prop: string]: any;
+}
+
+/** Temper 2026-10: which instance simulateAction sends to (default: the rendered component) */
+export interface SimulateActionOptions {
+  /** The first rendered instance of this component (or component name) */
+  component?: any;
+  /** Only an instance rendered inside the first element matching this selector or control (a Collection item) */
+  within?: any;
 }
 
 /**
@@ -228,6 +240,23 @@ export type FakeConnectionTarget = string | Record<string, any> | ((connection: 
 export interface RenderOptions {
   /** Override or provide initial state (defaults to component's .initialState) */
   initialState?: any;
+  /**
+   * 7.2: what handlers' `now()` (4th argument) returns: a number fixes the clock at that time (ms
+   * since the epoch, or a Date), a function is called each time. Default: Date.now() (fake timers
+   * apply)
+   */
+  now?: number | Date | (() => number);
+  /**
+   * 7.2: what handlers' `random()` returns: a number seeds a deterministic generator (the same
+   * sequence on every run), a function is called each time. Default: Math.random()
+   */
+  random?: number | (() => number);
+  /**
+   * 7.2: what handlers' `uuid()` returns: `true` gives deterministic UUID-shaped ids in order
+   * (`00000000-0000-4000-8000-000000000001`, `…002`, ...), a function is called each time.
+   * Default: crypto.randomUUID()
+   */
+  uuid?: true | (() => string);
   /**
    * D214: context from the ancestors the rendered component would have, for testing a child
    * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
@@ -382,10 +411,29 @@ export interface RenderResult {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action into the intent→model pipeline (all sinks of the entry run) */
-  simulateAction: (actionName: string, data?: any) => void;
-  /** Dispatch a synthetic DOM event through the mock DOM source */
-  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => void;
+  /**
+   * Push an action into the intent→model pipeline (all sinks of the entry run) of the rendered
+   * component, or of the first instance of `component` (inside `within`). A name that instance
+   * has no model entry for fails the test, naming the components that handle it
+   */
+  /**
+   * Dispatch `actionName` to the component (or `options.component`). Returns a promise that
+   * resolves once the action is delivered and the tree has rendered it (canvas-game R5); a call
+   * that isn't awaited is still delivered, in order with the other simulate* calls.
+   */
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => Promise<void>;
+  /**
+   * canvas-game R5: wait for `n` animation frames of the running `frame` timers (their actions
+   * reduced, the tree rendered). Under fake timers it moves the clock frame by frame; with real
+   * timers it waits for them. Throws when no frame timer runs.
+   */
+  frames: (n?: number) => Promise<void>;
+  /**
+   * Dispatch a synthetic DOM event through the mock DOM source. Delivered later, in call order:
+   * `await` it (resolves once the event is delivered and the tree has rendered what it caused)
+   * before t.query() / t.html()
+   */
+  simulateEvent: (selector: string, eventType: string, eventInit?: SimulatedEventInit) => Promise<void>;
   /**
    * Resolves once the component is subscribed and rendered (earlier calls are buffered and
    * replayed). Also a cursor (G-065): the first next() after `await t.ready()` also matches the
@@ -613,7 +661,7 @@ type Pseudo = {k: string; a: number; b: number; last?: boolean; type?: boolean; 
 type Compound = {tag?: string; id?: string; cls: string[]; attrs: [string, string, string?][]; ps: Pseudo[]};
 type Complex = {parts: Compound[]; combs: string[]};
 type Sel = Complex[];
-const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' ') and child ('>') combinators, ',' lists";
+const SUPPORTED = "tag, *, .class, #id, [attr], [attr=\"v\"] (also ^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even), :nth-last-child(), :first-of-type, :last-of-type, :only-of-type, :nth-of-type(), :nth-last-of-type(), :not(...), :checked, :disabled, :enabled, the descendant (' '), child ('>'), next-sibling ('+') and later-sibling ('~') combinators, ',' lists (matches come back in document order)";
 const IDENT = /^(?:[\w-]|\\.)+/;
 const STATES = ['checked', 'disabled', 'enabled'];
 const FORM = ['button', 'input', 'select', 'textarea', 'option', 'optgroup', 'fieldset'];
@@ -714,8 +762,7 @@ function parseSel(src: string): Sel {
       const space = ws();
       const ch = src[i];
       if (i >= src.length || ch == ',') break;
-      if (ch == '+' || ch == '~') bad(`the '${ch}' combinator`);
-      if (ch == '>') { i++; ws(); cx.combs.push('>'); }
+      if (ch == '>' || ch == '+' || ch == '~') { i++; ws(); cx.combs.push(ch); }
       else if (space) cx.combs.push(' ');
       else bad(`unexpected '${ch}'`);
       cx.parts.push(compound());
@@ -795,17 +842,28 @@ function is(v: any, c: Compound): boolean {
 }
 /** does the last of `els` (an ancestor chain, root first, maybe scope-filtered) match `sel`? */
 function matches(sel: Sel, els: any[]): boolean {
-  const at = (cx: Complex, j: number, i: number): boolean => {
+  // does els[i] match part j (and the parts before it)? `els` is the chain to els[i]: '+' and '~'
+  // go on with a chain that ends at an earlier sibling instead
+  const at = (cx: Complex, j: number, els: any[], i: number): boolean => {
     if (i < 0 || !is(els[i], cx.parts[j])) return false;
     if (j == 0) return true;
-    if (cx.combs[j - 1] == '>') {
+    const comb = cx.combs[j - 1];
+    if (comb == '>') {
       const m = meta.get(els[i]);
-      return i > 0 && (!m || els[i - 1] === m.p) && at(cx, j - 1, i - 1);
+      return i > 0 && (!m || els[i - 1] === m.p) && at(cx, j - 1, els, i - 1);
     }
-    for (let k = i - 1; k >= 0; k--) if (at(cx, j - 1, k)) return true;
+    if (comb == '+' || comb == '~') {
+      const sibs = meta.get(els[i])?.sibs || [];
+      for (let k = sibs.indexOf(els[i]) - 1; k >= 0; k--) {
+        if (at(cx, j - 1, els.slice(0, i).concat(sibs[k]), i)) return true;
+        if (comb == '+') break;
+      }
+      return false;
+    }
+    for (let k = i - 1; k >= 0; k--) if (at(cx, j - 1, els, k)) return true;
     return false;
   };
-  return sel.some(cx => at(cx, cx.parts.length - 1, els.length - 1));
+  return sel.some(cx => at(cx, cx.parts.length - 1, els, els.length - 1));
 }
 /** root → element chain of the first element (document order) matching `sel` */
 function find(v: any, sel: Sel, chain: any[] = []): any[] | undefined {
@@ -943,6 +1001,13 @@ class MockElement {
   get childElementCount() { return this.children.length; }
   get firstElementChild() { return this.children[0] ?? null; }
   get lastElementChild() { const c = this.children; return c[c.length - 1] ?? null; }
+  get nextElementSibling() { return this.sib(1); }
+  get previousElementSibling() { return this.sib(-1); }
+  /** the element sibling `d` places away (index() records the siblings), or null */
+  private sib(d: number): MockElement | null {
+    const sibs = meta.get(this._v)?.sibs, s = sibs?.[sibs.indexOf(this._v) + d];
+    return s ? mockOf([...(this._p ? this._p.chain() : []), s], this._html) : null;
+  }
   matches(selector: string) { return matches(parse(norm(selector)), this.chain()); }
   closest(selector: string): MockElement | null {
     const sel = parse(norm(selector));
@@ -1025,12 +1090,41 @@ function trackSource(inner: any, path: string[], hub$: any, on: (path: string[],
 }
 // events the browser fires without bubbling (cf. eventTypesThatDontBubble; submit/reset do bubble)
 const NO_BUBBLE = /^(blur|focus|mouseenter|mouseleave|pointerenter|pointerleave|load|unload|scroll|scrollend|invalid|close|cancel|toggle|beforetoggle|error|abort)$/;
+/**
+ * Temper 2026-10: `files` as an input has them: a FileList. A real one through DataTransfer where
+ * the environment has it (browsers); otherwise (the mock DOM, jsdom) an array with item(i)
+ */
+function fileList(files: any, W: any = globalThis): any {
+  if (files == null || (typeof files.item == 'function' && !Array.isArray(files))) return files;
+  const all = Array.from(files as ArrayLike<any>);
+  if (typeof W.DataTransfer == 'function') {
+    try {
+      const dt = new W.DataTransfer();
+      for (const f of all) dt.items.add(f);
+      return dt.files;
+    } catch (_) {}
+  }
+  return Object.assign(all, {item: (i: number) => all[i] ?? null});
+}
+/**
+ * Temper 2026-10: set an element property for a simulated event. An assignment the DOM rejects
+ * (jsdom's `files` takes only a FileList; a read-only property) is defined on the element
+ * instead; when that throws too, the test fails naming the property
+ */
+function setProp(el: any, k: string, v: any) {
+  try { el[k] = v; return; } catch (_) {}
+  try { Object.defineProperty(el, k, {value: v, configurable: true, writable: true}); } catch (e: any) {
+    throw new Error(`[Sygnal] simulateEvent: can't set ${k} on the <${String(el.tagName || 'element').toLowerCase()}> (${e?.message || e}). Set another property, or dispatch the event yourself on t.query(...)`);
+  }
+}
 /** dispatch a real DOM event, like a user would cause it (E4) */
 function fire(el: any, type: string, init: SimulatedEventInit) {
-  const {target: t = {}, value, checked, dataset, data, key, ...rest} = init;
+  const {target: t = {}, value, checked, dataset, data, key, files, ...rest} = init;
+  const W0: any = (el.ownerDocument || el).defaultView || globalThis;
   if ('value' in init) el.value = value;
   if ('checked' in init) el.checked = checked;
-  for (const k in t) if (k != 'dataset') try { el[k] = t[k]; } catch (_) {}
+  for (const k in t) if (k != 'dataset') setProp(el, k, k == 'files' ? fileList(t[k], W0) : t[k]);
+  if ('files' in init) setProp(el, 'files', fileList(files, W0));
   const ds = {...dataset, ...data, ...t.dataset};
   if (el.dataset) for (const k in ds) el.dataset[k] = String(ds[k]);
   const doc = el.ownerDocument || el;
@@ -1307,6 +1401,21 @@ const brief = (v: any) => {
   try { s = typeof v == 'string' ? `'${v}'` : JSON.stringify(v); } catch (_) { s = String(v); }
   return s && s.length > 80 ? s.slice(0, 80) + '…' : s;
 };
+/**
+ * A promise that runs `start()` the first time it is awaited (then/catch/finally) and settles with
+ * what start() returns; its derived promises are plain Promises
+ */
+class Lazy<T> extends Promise<T> {
+  static get [Symbol.species]() { return Promise; }
+  declare private _go: () => Promise<T>;
+  constructor(executor: (resolve: (v: T) => void, reject: (e: any) => void) => void, start?: () => Promise<T>) {
+    super(executor);
+    Object.defineProperty(this, '_go', {value: start});
+  }
+  then<A = T, B = never>(ok?: ((v: T) => A | PromiseLike<A>) | null, fail?: ((e: any) => B | PromiseLike<B>) | null): Promise<A | B> {
+    return this._go ? this._go().then(ok, fail) : super.then(ok, fail);
+  }
+}
 const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
   const clock = fakeClock();
   if (!clock) return p;
@@ -1496,6 +1605,30 @@ function fakeElementMethods(W: any): () => void {
   return () => added.forEach(([proto, name, own]) => { delete proto[name]; if (own) Object.defineProperty(proto, name, own); });
 }
 
+/** 7.2: renderComponent's now / random / uuid options as the handlers' entropy functions */
+export function entropyOf(o: {now?: any; random?: any; uuid?: any}) {
+  const e: {now?: () => number; random?: () => number; uuid?: () => string} = {}
+  const {now, random, uuid} = o
+  if (now != null) e.now = typeof now == 'function' ? now : () => +now
+  if (typeof random == 'function') e.random = random
+  else if (typeof random == 'number') {
+    // mulberry32: a small seeded generator, the same sequence for the same seed
+    let a = random >>> 0
+    e.random = () => {
+      a = (a + 0x6d2b79f5) >>> 0
+      let t = Math.imul(a ^ (a >>> 15), 1 | a)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+  }
+  if (typeof uuid == 'function') e.uuid = uuid
+  else if (uuid === true) {
+    let n = 0
+    e.uuid = () => '00000000-0000-4000-8000-' + (++n).toString(16).padStart(12, '0')
+  }
+  return e
+}
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
@@ -1579,7 +1712,9 @@ export function renderComponent(
   // G-047: activity anywhere in the tree (any component's render/reducer, state, input), for
   // the "the full tree has rendered" / settle() quiet windows
   let activity = 0, lastActivity = clockNow();
-  const bump = () => { activity++; lastActivity = clockNow(); };
+  // canvas-game R5: what a frame timer's frame causes isn't activity: settle() waits for the
+  // app to be quiet apart from its frame loop (t.frames(n) waits for frames)
+  const bump = () => { if (inFrame()) return; activity++; lastActivity = clockNow(); };
   // 4-A1 (real DOM): states recorded when a view in the tree last ran (see onModel)
   let viewTag = 0;
   const recorded = () => states.length;
@@ -1647,7 +1782,7 @@ export function renderComponent(
       commandTimers.delete(id);
       if (disposed || (sel && !tryParse(sel))) return;
       const p = sel && vtree && probe(sel, scopeOf(c) || undefined);
-      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd);
+      if (!p || !(p.own || (within != null && p.child))) reportElementCommand(c, cmd, undefined, !!(p?.child || find(vtree, tryParse(sel)!)));
     }, 1e3);
     commandTimers.add(id);
   };
@@ -2244,6 +2379,7 @@ export function renderComponent(
     const p = startNext(componentDef, allDrivers, {
       useDefaultDrivers: false, onError: options.onError,
       __hooks: nextHooks(),
+      __entropy: entropyOf(options),
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
       __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
@@ -2296,7 +2432,7 @@ export function renderComponent(
   // (re-tried on every render), at most eventWaitMs; then it is delivered to the live listeners
   // (or, with no matching element, fails the test, G-070; with allowMissing it is dropped
   // with SYG103).
-  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, at?: number, missing?: () => Error | undefined};
+  type Input = {go: (last: boolean) => boolean, until?: number, wait?: number, at?: number, missing?: () => Error | undefined, done?: () => void};
   const inputs: Input[] = [];
   let isReady = false, retryTimer: any;
   const pump = () => {
@@ -2319,6 +2455,7 @@ export function renderComponent(
       if (!head.go(clockNow() >= head.until)) return retry(5);
       inputs.shift();
       bump();
+      head.done?.();
     }
   };
   const retry = (ms: number) => {
@@ -2370,7 +2507,7 @@ export function renderComponent(
     }), () => disposed);
   };
   const readyWaiters = new Set<(e: Error) => void>();
-  const later = (go: Input['go'], missing?: Input['missing']) => {
+  const later = (go: Input['go'], missing?: Input['missing'], done?: Input['done']) => {
     const was = fromInput && cursor !== undefined ? cursor : undefined;
     cursor = shown = undefined;
     // D165: an input's STATE reducer is applied synchronously, so the state it causes can be
@@ -2382,9 +2519,30 @@ export function renderComponent(
     // G-326: like ready()'s, the cursor expires at the next macrotask unless a next() used it,
     // so a test that moves the clock (or waits) before next() gets the state after the call
     expire(++arming);
-    inputs.push({go, missing});
+    inputs.push({go, missing, done});
     pump();
   };
+  /**
+   * Temper 2026-10: what simulateEvent returns. Resolves (never rejects: a failure surfaces through
+   * the next wait, as before) once the input is delivered and the tree has rendered what it caused
+   * (real DOM: patched). The fake clock is driven only once the promise is awaited (Lazy), so a
+   * call that isn't awaited never moves a test's fake timers.
+   */
+  const delivered = (queue: (done: () => void) => void): Promise<void> => {
+    let done!: () => void, n = 0;
+    const got = new Promise<void>(r => { done = () => { n = states.length; r(); }; });
+    whenDisposed.add(done);
+    got.then(() => whenDisposed.delete(done));
+    queue(done);
+    // (the render wait starts only when awaited: a call that isn't awaited leaves no timer behind)
+    const inner = () => got.then(async () => {
+      if (disposed) return;
+      await (real ? patchedTree(n) : treeRendered(n));
+    }).catch(noop);
+    let driving: Promise<void> | undefined;
+    return new Lazy<void>(r => r(undefined as any), () => (driving = driving || drive(inner(), () => disposed)));
+  };
+  const whenDisposed = new Set<() => void>();
 
   let vtree: any;
   let timer: any;
@@ -2496,10 +2654,55 @@ export function renderComponent(
     sendDue = true;
     Promise.resolve().then(noop).then(noop).then(noop).then(() => { if (n == dueSeq) sendDue = false; });
   };
-  const simulateAction = (type: string, data?: any) => {
+  // Temper 2026-10: simulateAction's target (the root, or the first live instance of
+  // `component`, inside `within`), or the error that fails the test: no such instance, or a name
+  // it doesn't handle (an action no model entry has did nothing, silently)
+  const BUILT_IN = ['INITIALIZE', 'BOOTSTRAP', 'DISPOSE', 'HYDRATE'];
+  const instances = (): any[] => {
+    const out: any[] = [];
+    const walk = (v: any) => { if (v && !v.disposed) { out.push(v); v.children().forEach(walk); } };
+    walk(api?.root);
+    return out;
+  };
+  const nameOfC = (c: any) => typeof c == 'string' ? c : c?.componentName || c?.name || 'component';
+  const actionTarget = (type: string, o: SimulateActionOptions): any => {
+    const call = `simulateAction('${type}'${o.component ? `, …, { component: ${nameOfC(o.component)} }` : ''})`;
+    let all = instances(), inst = all[0];
+    if (o.component) {
+      const c = o.component, is = (v: any) => typeof c == 'string' ? v.name === c : v.def.view === c;
+      let box: Set<string> | undefined;
+      if (o.within != null) {
+        const w = tryParse(norm(String(selOf(o.within)))), chain = w && vtree && find(vtree, w);
+        if (!chain) return new Error(`[Sygnal] t.${call}: nothing rendered matches within '${String(selOf(o.within))}'`);
+        box = new Set();
+        const under = (v: any): void => { if (!v || typeof v != 'object') return; if (v.sel) { const sc = scopeOfV(v); if (sc) box!.add(sc); } [].concat(v.children || []).forEach(under); };
+        under(chain[chain.length - 1]);
+      }
+      inst = all.find(v => is(v) && (!box || box.has(scopeOf(v))));
+      if (!inst) return new Error(`[Sygnal] t.${call}: no rendered instance of ${nameOfC(c)}${o.within != null ? ` within '${String(selOf(o.within))}'` : ''}. Rendered: ${[...new Set(all.map(v => v.name))].join(', ') || 'nothing yet'}`);
+    }
+    if (!inst || inst.def.handlers.has(type) || BUILT_IN.includes(type)) return inst;
+    const by = [...new Set(all.filter(v => v !== inst && v.def.handlers.has(type)).map(v => v.name))];
+    return new Error(`[Sygnal] t.${call}: ${inst.name} has no model entry '${type}', so the action would do nothing` +
+      (by.length ? `. ${by.join(', ')} ${by.length > 1 ? 'handle' : 'handles'} it: t.simulateAction('${type}', data, { component: ${by[0]} })` : '. No rendered component handles it: check the name') +
+      `. simulateAction reaches one instance (the rendered component unless { component } says another), like next(), never its parent or children`);
+  };
+  const simulateAction = (type: string, data?: any, options: SimulateActionOptions = {}) => {
     simAt = states.length; due();
     throwFailure();
-    later(() => (api.dispatch('root', type, data, 'simulateAction'), true));
+    // nothing queued and ready: a wrong name or component fails at the call, like simulateEvent
+    if (isReady && !inputs.length && api) {
+      const r = actionTarget(type, options);
+      if (r instanceof Error) throw r;
+    }
+    // canvas-game R5: awaitable, as simulateEvent (delivered and rendered); a call that isn't
+    // awaited never moves a test's fake timers
+    return delivered(done => later(() => {
+      const r = actionTarget(type, options);
+      if (r instanceof Error) failWith(r);
+      else if (r) api.dispatch(r, type, data, 'simulateAction');
+      return true;
+    }, undefined, done));
   };
 
   // E2: t.respond / t.fail. PLAN-3 1-C: the request is chosen by content (G-140, E2 13-t4):
@@ -2533,7 +2736,10 @@ export function renderComponent(
       return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.progress, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
     if (typeof tg == 'function') {
-      return {match: r => { try { return cat(r) && !!tg(r.value); } catch (_) { return false; } }, desc: ` matching the predicate${catDesc}`, o};
+      // a sygnal/api endpoint: its own match (called as a predicate it would build a request)
+      const ep = typeof tg.id == 'string' && typeof tg.match == 'function';
+      const f = ep ? tg.match : tg;
+      return {match: r => { try { return cat(r) && !!f(r.value); } catch (_) { return false; } }, desc: ep ? ` of endpoint ${tg.id}${catDesc}` : ` matching the predicate${catDesc}`, o};
     }
     if (tg && typeof tg == 'object') {
       const keys = Object.keys(tg);
@@ -2837,6 +3043,10 @@ export function renderComponent(
   const connTarget = (tg: any): [(c: Conn) => boolean, string] => {
     if (tg === undefined) return [() => true, ''];
     if (typeof tg == 'string') return [c => c.name === tg || c.url === tg || (c.sse ? c.spec.sse : c.spec.socket) === tg, ` matching '${tg}'`];
+    if (typeof tg == 'function' && typeof tg.id == 'string' && typeof tg.match == 'function') {
+      // a sygnal/api stream endpoint: the connections it declared
+      return [c => (c.spec as any)?.endpoint === tg.id, ` of endpoint ${tg.id}`];
+    }
     if (typeof tg == 'function') return [c => { try { return !!tg(sockView(c)); } catch (_) { return false; } }, ' matching the predicate'];
     if (tg && typeof tg == 'object') {
       return [c => { const v: any = sockView(c); return Object.keys(tg).every(k => same(tg[k], v[k])); }, ` matching ${brief(tg)}`];
@@ -3012,7 +3222,15 @@ export function renderComponent(
       if (!r) throw new Error(`[Sygnal] t.widget('${sel}'): no ${el ? `mounted widget is the matched <${el.localName}>` : 'element matches it'}. Give the widget a className and pass its selector (t.widget('.due')), or pass its control`);
       return r;
     };
-    const dispatch = (name: string, detail?: any) => simulateEvent(target, name, {detail} as any);
+    // the widget field contract (extra/field.ts): the field's event is also the host's input,
+    // which the form behavior hears as a change of the named field (the mock DOM: by its target)
+    const dispatch = (name: string, detail?: any) => {
+      const r = real ? undefined : host(), def = r && (query(sel) as any)?._v?.data?.ww?.def, f = def?.field;
+      const ev = f && (f.event || def.value?.event || 'change');
+      const out = simulateEvent(target, name, {detail} as any);
+      if (ev == name) simulateEvent(target, 'input', {target: {name: r.p.name ?? '', value: detail}} as any);
+      return out;
+    };
     return {
       get props() { return host().p; },
       get instance() { return host().i; },
@@ -3057,9 +3275,9 @@ export function renderComponent(
         clockNow() - lastActivity >= settleMs && !has()) {
       throw noMatch(selector, type, false);
     }
-    later(last => {
+    return delivered(done => later(last => {
       const rel = real ? realEl() : undefined;
-      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(vtree, rel) || []) : findChain();
+      const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
       const el = real ? rel : chain?.[chain.length - 1];
       if (!page && !el) {
         if (!last) return false;
@@ -3107,23 +3325,26 @@ export function renderComponent(
       }
       if (real) {
         if (chain?.length) check104(chain[chain.length - 1]);
-        fire(el, type, evInit);
+        try { fire(el, type, evInit); } catch (e: any) { failWith(e); }
         return true;
       }
       if (el) check104(el);
       const d = el?.data || {}, p = d.props || {};
-      const {target: t = {}, value, checked, dataset, data, ...rest} = evInit;
+      const {target: t = {}, value, checked, dataset, data, files, ...rest} = evInit;
       const vval = p.value ?? d.attrs?.value;
       const target: any = {
         tagName: el?.sel.split(/[.#]/)[0].toUpperCase(),
         // D199 (spike 0-S2): name/id/type/getAttribute, so listeners that delegate by name
         // (`e.target.name`, a form-level input listener) work on the mock DOM as on the real one
-        ...(el && {name: attrOf(el, 'name') ?? '', id: attrOf(el, 'id') ?? '', type: attrOf(el, 'type') ?? '', getAttribute: (n: string) => attrOf(el, n)}),
+        // a field widget's host (extra/field.ts): named by its `name` prop
+        ...(el && {name: attrOf(el, 'name') ?? (d.ww?.def?.field && d.wp?.name) ?? '', id: attrOf(el, 'id') ?? '', type: attrOf(el, 'type') ?? '', getAttribute: (n: string) => attrOf(el, n)}),
         value: vval == null ? vval : String(vval),
         checked: p.checked ?? d.attrs?.checked,
         ...('value' in init && {value}),
         ...('checked' in init && {checked}),
+        ...('files' in init && {files: fileList(files)}),
         ...t,
+        ...(t.files && {files: fileList(t.files)}),
       };
       target.dataset = str({...d.dataset, ...dataset, ...data, ...t.dataset});
       // 3E/R2: element.closest(sel) over the rendered ancestor chain, so helpers that look
@@ -3163,7 +3384,7 @@ export function renderComponent(
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;
-    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)));
+    }, page || allowMissing ? undefined : () => (has() ? undefined : noMatch(selector, type, false)), done));
   };
 
   // first state at index >= from matching predicate; resolves after the full tree rendered it
@@ -3347,6 +3568,7 @@ export function renderComponent(
     const head = inputs[0];
     if (head && head.until && head.missing && !failure) failure = head.missing();
     inputs.length = 0;
+    whenDisposed.forEach(f => f());
     subs.forEach(([s, l]) => {
       try { s.removeListener(l); } catch (_) {}
     });
@@ -3384,6 +3606,15 @@ export function renderComponent(
     sinks,
     sources,
     simulateAction,
+    frames: (n = 1) => {
+      throwFailure();
+      const running = tm ? [...tm.values()].some((r: any) => Object.values(r.on).some((e: any) => e.ok && e.s.frame)) : false;
+      if (!running) return Promise.reject(new Error(`[Sygnal] t.frames(${n}): no frame timer is running (declare one: C.timers = (state) => ({ loop: running && { frame: 'FRAME' } }))`));
+      const target = frameCount() + n;
+      let off = noop;
+      const p = new Promise<void>(r => { off = onFrameEnd(() => { if (frameCount() >= target) { off(); r(); } }); });
+      return drive(p, () => disposed).finally(() => off());
+    },
     simulateEvent,
     ready,
     waitForState,

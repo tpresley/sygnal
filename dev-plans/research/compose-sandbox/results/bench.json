@@ -1,0 +1,124 @@
+{
+  "env": {
+    "node": "v22.22.0",
+    "runs": 5,
+    "date": "2026-10-30"
+  },
+  "cold": {
+    "worker:1": {
+      "allMs": 177.2149629999999,
+      "firstMs": 177.2098900000001,
+      "perPartReadyMs": 151.29095700000016,
+      "perPartReadyP95": 175.7050489999997,
+      "rssMB": 21.55078125,
+      "rssPerPartMB": 21.55078125
+    },
+    "worker:3": {
+      "allMs": 213.95394099999976,
+      "firstMs": 194.5460720000001,
+      "perPartReadyMs": 184.85347999999976,
+      "perPartReadyP95": 210.51107899999988,
+      "rssMB": 43.7265625,
+      "rssPerPartMB": 14.575520833333334
+    },
+    "worker:10": {
+      "allMs": 533.9419239999997,
+      "firstMs": 389.58764900000006,
+      "perPartReadyMs": 427.2278210000004,
+      "perPartReadyP95": 468.5999890000003,
+      "rssMB": 141.3671875,
+      "rssPerPartMB": 14.13671875
+    },
+    "thread:1": {
+      "allMs": 65.77156299999842,
+      "firstMs": 65.76735000000008,
+      "perPartReadyMs": 44.91512800000055,
+      "perPartReadyP95": 105.81355600000097,
+      "rssMB": 2.75,
+      "rssPerPartMB": 2.75
+    },
+    "thread:3": {
+      "allMs": 156.93843899999956,
+      "firstMs": 156.9336660000008,
+      "perPartReadyMs": 91.15056399999958,
+      "perPartReadyP95": 135.11321800000042,
+      "rssMB": 5.1640625,
+      "rssPerPartMB": 1.7213541666666667
+    },
+    "thread:10": {
+      "allMs": 470.8617720000002,
+      "firstMs": 470.8562069999989,
+      "perPartReadyMs": 252.65511900000092,
+      "perPartReadyP95": 430.4530539999996,
+      "rssMB": 21.625,
+      "rssPerPartMB": 2.1625
+    }
+  },
+  "event": {
+    "worker": {
+      "hostMedian": 1.4838439999984985,
+      "hostP95": 1.9865869999994175,
+      "boxMedian": 2.0719030000000203,
+      "boxP95": 2.9564599999994243
+    },
+    "thread": {
+      "hostMedian": 1.234325000001263,
+      "hostP95": 1.8869979999981297,
+      "boxMedian": 1.813358999999764,
+      "boxP95": 2.7412870000007388
+    }
+  },
+  "stream": {
+    "1": {
+      "replyChars": 959,
+      "tokens": 274,
+      "model100tps": 2.74,
+      "model50tps": 5.48,
+      "firstPartAt": 0.9979144942648592,
+      "deltaEndMs": 0.09838000000308966,
+      "deltaTotalMs": 8.116350000254897,
+      "frames": 165
+    },
+    "3": {
+      "replyChars": 2740,
+      "tokens": 783,
+      "model100tps": 7.828571428571429,
+      "model50tps": 15.657142857142858,
+      "firstPartAt": 0.35985401459854016,
+      "deltaEndMs": 0.24583200000051875,
+      "deltaTotalMs": 57.770520000121905,
+      "frames": 470
+    },
+    "10": {
+      "replyChars": 9344,
+      "tokens": 2670,
+      "model100tps": 26.697142857142858,
+      "model50tps": 53.394285714285715,
+      "firstPartAt": 0.11590325342465753,
+      "deltaEndMs": 0.2713080000030459,
+      "deltaTotalMs": 217.31770800243976,
+      "frames": 1602
+    }
+  },
+  "sizes": {
+    "compose": {
+      "instructions": 4004,
+      "schema": 1429
+    },
+    "edit1": {
+      "instructions": 4380,
+      "message": 951
+    },
+    "edit3": {
+      "instructions": 4380,
+      "message": 2659
+    },
+    "edit10": {
+      "instructions": 4380,
+      "message": 9013
+    },
+    "withoutGenerated": {
+      "instructions": 2136
+    }
+  }
+}

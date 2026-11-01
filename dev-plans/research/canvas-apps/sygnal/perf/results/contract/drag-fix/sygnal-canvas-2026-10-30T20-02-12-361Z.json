@@ -1,0 +1,334 @@
+{
+  "date": "2026-10-30T20:02:12.361Z",
+  "url": "http://localhost:4802/",
+  "machine": {
+    "platform": "darwin 24.6.0",
+    "cpu": "Apple M3 Max",
+    "cores": 16,
+    "memGB": 128
+  },
+  "browser": "Chromium 153.0.8010.12",
+  "settings": {
+    "viewport": "1440x900",
+    "dpr": 1,
+    "cpuThrottle": 1,
+    "steps": 120,
+    "warmup": 10
+  },
+  "framework": "sygnal-canvas",
+  "overheadMs": {
+    "busy": {
+      "n": 120,
+      "median": 1.4,
+      "p95": 1.93,
+      "max": 2,
+      "mean": 1.4
+    },
+    "wall": {
+      "n": 120,
+      "median": 48.01,
+      "p95": 49.82,
+      "max": 50.85,
+      "mean": 48.04
+    }
+  },
+  "startup": null,
+  "heap": [],
+  "generate": [
+    {
+      "shapes": 1000,
+      "count": 1000,
+      "ms": 78.9
+    },
+    {
+      "shapes": 5000,
+      "count": 5000,
+      "ms": 63.4
+    },
+    {
+      "shapes": 10000,
+      "count": 10000,
+      "ms": 63.3
+    }
+  ],
+  "drag": [
+    {
+      "shapes": 1000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.07,
+        "p95": 5.73,
+        "max": 8.07,
+        "mean": 4.24
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.2,
+        "p95": 49.88,
+        "max": 50.96,
+        "mean": 48.19
+      },
+      "dropMs": 29.7
+    },
+    {
+      "shapes": 1000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 3.68,
+        "p95": 5.27,
+        "max": 9,
+        "mean": 3.79
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.24,
+        "p95": 50.5,
+        "max": 51.56,
+        "mean": 48.25
+      },
+      "dropMs": 32.2
+    },
+    {
+      "shapes": 1000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 5,
+        "p95": 7.33,
+        "max": 11.07,
+        "mean": 5.16
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.15,
+        "p95": 50.16,
+        "max": 51,
+        "mean": 48.19
+      },
+      "dropMs": 32.6
+    },
+    {
+      "shapes": 5000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.26,
+        "p95": 6.04,
+        "max": 7.52,
+        "mean": 4.29
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.01,
+        "p95": 49.71,
+        "max": 51.94,
+        "mean": 48.04
+      },
+      "dropMs": 31.3
+    },
+    {
+      "shapes": 5000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 5.3,
+        "p95": 7.68,
+        "max": 9.8,
+        "mean": 5.47
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.33,
+        "p95": 49.23,
+        "max": 50.03,
+        "mean": 48.3
+      },
+      "dropMs": 32.7
+    },
+    {
+      "shapes": 5000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 7.17,
+        "p95": 12.13,
+        "max": 15.08,
+        "mean": 7.28
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.31,
+        "p95": 49.66,
+        "max": 55.49,
+        "mean": 48.34
+      },
+      "dropMs": 31.3
+    },
+    {
+      "shapes": 10000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.19,
+        "p95": 6.22,
+        "max": 8.09,
+        "mean": 4.4
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.2,
+        "p95": 50.18,
+        "max": 50.62,
+        "mean": 48.14
+      },
+      "dropMs": 38.6
+    },
+    {
+      "shapes": 10000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 6.05,
+        "p95": 7.79,
+        "max": 14.96,
+        "mean": 6.03
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.29,
+        "p95": 50.09,
+        "max": 50.42,
+        "mean": 48.23
+      },
+      "dropMs": 38
+    },
+    {
+      "shapes": 10000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 8.71,
+        "p95": 13.1,
+        "max": 14.38,
+        "mean": 9.09
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.75,
+        "p95": 50.59,
+        "max": 52.33,
+        "mean": 48.66
+      },
+      "dropMs": 32
+    }
+  ],
+  "pan": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 3.69,
+        "p95": 5.2,
+        "max": 13.44,
+        "mean": 3.78
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.76,
+        "p95": 66.55,
+        "max": 68.94,
+        "mean": 64.77
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 3.52,
+        "p95": 4.72,
+        "max": 15.96,
+        "mean": 3.58
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.89,
+        "p95": 66.14,
+        "max": 71.03,
+        "mean": 64.89
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 3.3,
+        "p95": 5.17,
+        "max": 17.46,
+        "mean": 3.62
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.73,
+        "p95": 67.06,
+        "max": 71.44,
+        "mean": 64.77
+      }
+    }
+  ],
+  "zoom": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 7.16,
+        "p95": 9.57,
+        "max": 14.97,
+        "mean": 6.83
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.14,
+        "p95": 66.13,
+        "max": 66.35,
+        "mean": 65.12
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 7.2,
+        "p95": 9.29,
+        "max": 19.84,
+        "mean": 6.8
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.05,
+        "p95": 65.82,
+        "max": 80.25,
+        "mean": 65.11
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 7.26,
+        "p95": 10.5,
+        "max": 34.89,
+        "mean": 7.38
+      },
+      "wall": {
+        "n": 120,
+        "median": 65,
+        "p95": 67.32,
+        "max": 82.26,
+        "mean": 65.07
+      }
+    }
+  ],
+  "errors": []
+}

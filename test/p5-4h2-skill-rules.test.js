@@ -158,12 +158,14 @@ describe('a form on a Switchable page keeps its values across visits', () => {
   })
 
   it('(control) form.RESET without values after a submit goes back to the submitted values', async () => {
-    t = renderComponent(formApp(addPage(false)))
+    const AddPage = addPage(false)
+    t = renderComponent(formApp(AddPage))
     await t.ready()
     await visitAndType('Lunch')
     t.simulateEvent('.f', 'submit')
     await t.settle()
-    t.simulateAction('form.RESET')
+    // (the form's actions are AddPage's: before Temper 2026-10 this went to App and did nothing)
+    t.simulateAction('form.RESET', undefined, { component: AddPage })
     await t.settle()
     expect(t.state.form.values.title).toBe('Lunch')
   })

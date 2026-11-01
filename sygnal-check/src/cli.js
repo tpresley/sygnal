@@ -76,7 +76,7 @@ Options:
                          warn (default) | error | never
   --verbose              also print info-level diagnostics in text output
   --include-tests        include *.test.* / *.spec.* files
-  --strict               also check canonical forms (SYG501-508, see
+  --strict               also check canonical forms (SYG501-509, see
                          https://sygnal.js.org/reference/errors#syg501);
                          the a11y lane (SYG701-708) stays at warn
   --a11y=<level>         severity of the a11y lane: warn (default) | error

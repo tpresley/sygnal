@@ -117,7 +117,7 @@ const placeOk = (it: any, place: string) => placesOf(it).some((e: string) => e =
  * plan into the text it writes, so a shorter cap cut a 120-character question at 60 under a
  * grammar that enforces maxLength (Ollama)
  */
-const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text').map((p: any) => p.d.maxLength ?? 40)))
+const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text' && p.d.format != 'code').map((p: any) => p.d.maxLength ?? 40)))
 
 // ---------------------------------------------------------------- prompt (research wording, exact)
 function paramText(p: any) {
@@ -135,6 +135,7 @@ function paramText(p: any) {
     return `${name}: ${label ? label + '. ' : ''}a number${range}${bins}${def}`
   }
   if (kind == 'list') return `${name}${label ? `: ${label}` : ''}; a list of ${d.min ? `${d.min} to ` : 'at most '}${d.max ?? 6} short texts`
+  if (d.format == 'code') return `${name}${label ? `: ${label}` : ''}; source code, at most ${d.maxLength ?? 40} characters${d.required ? '; always set it' : ''}`
   return `${name}${label ? `: ${label}` : ''}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
 }
 
@@ -453,7 +454,8 @@ export function repairTree(ctx: Ctx, kids: Array<TNode | null>, issues: Issue[] 
 const stripDefaults = (it: any, params?: Record<string, any>) => {
   if (!params) return undefined
   const out: any = {}
-  for (const k in params) if (params[k] !== it.params.find((p: any) => p.name == k)?.d.default) out[k] = params[k]
+  // a model's `"__proto__"` param (an own key after JSON.parse) is no param: `out[k] =` would set out's prototype
+  for (const k in params) if (k != '__proto__' && params[k] !== it.params.find((p: any) => p.name == k)?.d.default) out[k] = params[k]
   return Object.keys(out).length ? out : undefined
 }
 
@@ -535,7 +537,9 @@ export function parsePartialJSON(text: string): any {
         i++
         const v = value()
         if (v === INCOMPLETE) return markPartial(o)
-        o[k] = v
+        // as JSON.parse: a "__proto__" key is own data (`o[k] =` would set o's prototype)
+        if (k == '__proto__') Object.defineProperty(o, k, {value: v, enumerable: true, writable: true, configurable: true})
+        else o[k] = v
         if (v && typeof v == 'object' && v[PARTIAL]) return markPartial(o)
       }
     }

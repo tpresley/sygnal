@@ -16,7 +16,8 @@
  * form starts), `submit` (host action), `request` (PLAN-11 F-3: the form sends the valid submit
  * itself on the `http` sink: a request, or `(data, hostState) => request`, completed with the
  * body (`multipart: data` when a top-level value is a File / Blob or an array of them, else
- * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` (unless set)
+ * `json: data`, unless it sets json / multipart / body), `progress: '<key>.PROGRESS'` for a multipart
+ * submit or `progress: true` (a JSON submit stays on fetch: progress goes over XMLHttpRequest)
  * and its own `ok: '<key>.DONE'`, `error: '<key>.ERRORS'`; with `submit` too, that host action is
  * still dispatched (for state), and should send no request), `check` (async per-field checks through a driver: a
  * request with a reply action, `latest`), `show` ('blur' default: a schema error shows once its
@@ -46,8 +47,9 @@
  * dirty, pending }; `error` is what to show), valid (G-382: the last answer's, kept while an async
  * schema re-validates), dirty, error (form-level message).
  *
- * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
- * value, which toggles membership when the field is an array; <select multiple> an array of the
+ * Actions: form.CHANGE ({ name, value, item?, order? }: G-376: a checkbox gives `checked`, and `item`, its
+ * value, which toggles membership when the field is an array (7.2: kept in document order, `order`
+ * being the group's values as rendered); <select multiple> an array of the
  * selected values; PLAN-11 F-2: a file input its File, `multiple` an array of them, none null),
  * form.SET ({ values }: G-647, field name -> value, several
  * fields changed at once as if typed: one validation, `touched` as for CHANGE, unknown names
@@ -83,6 +85,7 @@ import xs from './xstreamCompat'
 import {defineBehavior, was} from './behaviors'
 import {ABORT} from '../shared'
 import {isStandardSchema} from './standardSchema'
+import {FIELD, fieldOf} from './field'
 import {checkForm, fieldNames, getField, hasField, setField, replyErrors, focusInvalid, isFile} from './formHelpers'
 
 // PLAN-11 F-3: a submit's data goes as multipart when a top-level value is a file (or files)
@@ -99,6 +102,20 @@ const drop = (o: any, p: string) => {
   for (const k in o) if (k != p && !k.startsWith(p + '.')) r[k] = o[k]
   return r
 }
+
+// G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a form-associated
+// custom checkbox / switch) gives `checked` and its value as `item`; a <select multiple> the
+// selected values; PLAN-11 F-2: a file input its File (`multiple`: an array of them; none: null);
+// others give `value`
+const box = (t: any) => t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean'
+// 7.2: a checkbox's `order` is its group's values in document order (its form's controls, so
+// form="id" ones too; a host form's descendants), so an array field keeps FormData's order
+const order = (t: any) => [...(t.form?.elements || t.closest?.('form')?.querySelectorAll?.('*') || [t])]
+  .filter((b: any) => b.name == t.name && box(b)).map((b: any) => b.value)
+const native = (t: any) =>
+  t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
+  : box(t) ? {name: t.name, value: t.checked, item: t.value, order: order(t)}
+  : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}
 
 export const form = (schema: any, o: any = {}): any => {
   isStandardSchema(schema) || dev(231, schema)
@@ -159,10 +176,16 @@ export const form = (schema: any, o: any = {}): any => {
   // a start over (RESET, resetOnShow): `resets` counts them, so a file input keyed by it is made anew
   const fresh = (vals: any, s?: any) => edit(base(vals, s ? (s.resets || 0) + 1 : 0), vals)
   const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}, progress: null})
+  // 7.2: the group's values in document order (`order`, from the DOM), as FormData and
+  // processForm; values no rendered box has (a filtered list) keep their places
   const group = (cur: any, d: any) => {
     if (!Array.isArray(cur) || !('item' in d)) return d.value
-    const r = cur.filter(x => x !== d.item)
-    return d.value ? [...r, d.item] : r
+    const r = cur.filter(x => x !== d.item), a = d.value ? [...r, d.item] : r, o = d.order
+    if (!Array.isArray(o)) return a
+    const at = (x: any) => o.indexOf(x), slots = a.map((x, i) => at(x) < 0 ? -1 : i).filter(i => i >= 0)
+    const sorted = slots.map(i => a[i]).sort((x, y) => at(x) - at(y))
+    slots.forEach((i, j) => { a[i] = sorted[j] })
+    return a
   }
 
   // fields changed as typed ones ([name, value] pairs; unknown names skipped, SYG230): their
@@ -238,8 +261,9 @@ export const form = (schema: any, o: any = {}): any => {
   const send = (vals: any, h: any, k: string) => {
     const data = v(vals).value, q = typeof rq == 'function' ? rq(data, h) : rq
     if (!q || q === ABORT) return ABORT
-    const own = 'json' in q || 'multipart' in q || 'body' in q
-    return {...(!own && (hasFile(data) ? {multipart: data} : {json: data})), progress: `${k}.PROGRESS`, ...q, ok: `${k}.DONE`, error: `${k}.ERRORS`}
+    // progress (over XMLHttpRequest) only for an upload or when asked (`progress: true`): a JSON submit stays on fetch
+    const own = 'json' in q || 'multipart' in q || 'body' in q, up = own ? 'multipart' in q : hasFile(data)
+    return {...(!own && (up ? {multipart: data} : {json: data})), ...up && {progress: `${k}.PROGRESS`}, ...q, ...q.progress === true && {progress: `${k}.PROGRESS`}, ok: `${k}.DONE`, error: `${k}.ERRORS`}
   }
 
   const model: any = {}
@@ -286,15 +310,17 @@ export const form = (schema: any, o: any = {}): any => {
         // D239: resetOnShow also starts over each time the form element appears again (a
         // Switchable page shown again: hidden pages stay alive; a form rendered again)
         VALIDATE: again ? xs.merge(xs.of(0), f.elements().filter((e: any) => { const r = e.length && !on; on = e.length; return r })) : xs.of(0),
-        // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a
-        // form-associated custom checkbox / switch) gives `checked` and its value as `item`; a
-        // <select multiple> the selected values; PLAN-11 F-2: a file input its File (`multiple`:
-        // an array of them; none: null); others give `value`
-        CHANGE: f.events('input').map(({target: t}: any) =>
-          t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
-          : t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
-          : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}),
-        BLUR: f.events('focusout').map((e: any) => e.target.name),
+        // the widget field contract (extra/field.ts): a field widget's host fires a FIELD input for
+        // its value; other input events on or inside the host (its own nameless controls) don't count
+        CHANGE: f.events('input').map((e: any) => {
+          const t = e.target, w = fieldOf(t)
+          return !w ? native(t) : t.__sw == w ? e[FIELD] && {name: w.f().name, value: w.f().value} : t.name && native(t)
+        }).filter((c: any) => c),
+        // a field widget is touched when the focus leaves its host (not when it moves inside it)
+        BLUR: f.events('focusout').map((e: any) => {
+          const w = fieldOf(e.target)
+          return !w ? e.target.name : w.h.contains(e.relatedTarget) ? null : w.f().name
+        }).filter((n: any) => n !== null),
         SUBMIT: f.events('submit', {preventDefault: true}),
       }
     },

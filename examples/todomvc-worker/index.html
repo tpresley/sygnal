@@ -1,0 +1,21 @@
+<!doctype html>
+<html data-framework="sygnal">
+	<head>
+		<meta charset="utf-8">
+		<title>Sygnal • TodoMVC (in a Web Worker)</title>
+		<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+		<link rel="stylesheet" href="./base.css" />
+		<link rel="stylesheet" href="./index.css" />
+		<!-- the page: the bridge and the two drivers that need the page; the app runs in worker.ts -->
+		<script type="module" src="./page.ts"></script>
+	</head>
+	<body>
+		<div id="root"></div>
+		<footer class="info">
+			<p>Double-click to edit a todo</p>
+			<p>The app runs in a Web Worker (<code>sygnal/worker</code>)</p>
+			<p>Part of <a href="http://todomvc.com">TodoMVC</a></p>
+		</footer>
+		<script src="/base.js"></script>
+	</body>
+</html>

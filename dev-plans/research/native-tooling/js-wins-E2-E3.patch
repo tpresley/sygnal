@@ -1,0 +1,88 @@
+diff --git a/sygnal-check/src/rules/a11y/shared.js b/sygnal-check/src/rules/a11y/shared.js
+index 5cd88667..7e8d1cb6 100644
+--- a/sygnal-check/src/rules/a11y/shared.js
++++ b/sygnal-check/src/rules/a11y/shared.js
+@@ -313,14 +313,29 @@ export function labelState(project, file, node, depth = 0) {
+ }
+ 
+ /** Is the component `name` rendered (<Name>) inside a <label>, or in an unknown context? */
++// native-tooling experiment E-3: <Name> usages indexed by name, and the answer memoized per
++// (name, depth), per build (it was a scan of every element per field and per level: quadratic)
++const usagesByName = new WeakMap() // project → { byName: Map<name, Element[]>, memo: Map }
+ function componentInLabel(project, name, depth) {
++  let u = usagesByName.get(project)
++  if (!u) {
++    u = { byName: new Map(), memo: new Map() }
++    for (const info of elementsOf(project)) {
++      if (info.kind !== 'component') continue
++      if (!u.byName.has(info.name)) u.byName.set(info.name, [])
++      u.byName.get(info.name).push(info)
++    }
++    usagesByName.set(project, u)
++  }
++  const key = `${name}|${depth}`
++  if (u.memo.has(key)) return u.memo.get(key)
+   let state = 'none'
+-  for (const info of elementsOf(project)) {
+-    if (info.kind !== 'component' || info.name !== name) continue
++  for (const info of u.byName.get(name) || []) {
+     const s = labelState(project, info.file, info.el, depth + 1)
+-    if (s === 'label') return 'label'
++    if (s === 'label') { state = 'label'; break }
+     // a usage we can't place is fine: the component's own markup is what we judge
+   }
++  u.memo.set(key, state)
+   return state
+ }
+ 
+diff --git a/sygnal-check/src/scope.js b/sygnal-check/src/scope.js
+index 88d8fddd..66d82b7c 100644
+--- a/sygnal-check/src/scope.js
++++ b/sygnal-check/src/scope.js
+@@ -59,6 +59,33 @@ function declInStatement(stmt, name) {
+   return null
+ }
+ 
++// Per-scope-node table of the declarations a statement list holds: name → the first decl
++// (declInStatement's answer). ASTs never change after parsing (the parse cache relies on it), so
++// the table lives as long as the node. native-tooling experiment E-2.
++const BODY_TABLES = new WeakMap()
++const NONE = new Map()
++
++function bodyTable(scope, body) {
++  let t = BODY_TABLES.get(scope)
++  if (t) return t
++  t = new Map()
++  for (const stmt of body) {
++    for (const n of stmtNames(stmt)) if (!t.has(n)) { const d = declInStatement(stmt, n); if (d) t.set(n, d) }
++  }
++  BODY_TABLES.set(scope, t.size ? t : NONE)
++  return t
++}
++
++// Every name declInStatement could match for this statement.
++function stmtNames(stmt) {
++  if (!stmt) return []
++  if (stmt.type === 'ExportNamedDeclaration' || stmt.type === 'ExportDefaultDeclaration') return stmt.declaration ? stmtNames(stmt.declaration) : []
++  if (stmt.type === 'VariableDeclaration') return stmt.declarations.flatMap(d => patternNames(d.id))
++  if ((stmt.type === 'FunctionDeclaration' || stmt.type === 'ClassDeclaration') && stmt.id?.name) return [stmt.id.name]
++  if (stmt.type === 'ImportDeclaration') return stmt.specifiers.map(s => s.local.name)
++  return []
++}
++
+ function declInScope(scope, name) {
+   if (isFunction(scope)) {
+     for (const p of scope.params) {
+@@ -79,11 +106,7 @@ function declInScope(scope, name) {
+     ? scope.body
+     : scope.type === 'SwitchCase' ? scope.consequent : null
+   if (!body) return null
+-  for (const stmt of body) {
+-    const d = declInStatement(stmt, name)
+-    if (d) return d
+-  }
+-  return null
++  return bodyTable(scope, body).get(name) || null
+ }
+ 
+ export function findBinding(fileInfo, name, fromNode) {

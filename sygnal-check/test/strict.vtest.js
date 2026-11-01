@@ -41,7 +41,8 @@ const find = (diags, code, re) => diags.find(d => d.code === code && (!re || re.
 
 describe('strict rule registry', () => {
   it('has one rule per canonical-form row, all strict', () => {
-    expect(strictRules.flatMap(r => r.codes).sort()).toEqual(['SYG501', 'SYG503', 'SYG504', 'SYG505', 'SYG506', 'SYG507', 'SYG508'])
+    // SYG303 (Temper 2026-10) is not a canonical-form row: its strict copy raises the default-mode info to a warning
+    expect(strictRules.flatMap(r => r.codes).sort()).toEqual(['SYG303', 'SYG501', 'SYG503', 'SYG504', 'SYG505', 'SYG506', 'SYG507', 'SYG508', 'SYG509'])
     expect(strictRules.every(r => r.strict === true)).toBe(true)
     expect(CODES.SYG507.severity).toBe('info')
   })

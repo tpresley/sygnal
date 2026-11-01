@@ -35,6 +35,9 @@
  *                                      // options, in the intent selector shape (+ file, behavior, option)
  *     actions: Map<ACTION, { intent: boolean, sinks: string[] }>   // un-namespaced
  *   }
+ *   UsesEntry.ownsState: false when the behavior keeps the host's initialState value for its key
+ *     (its factory's result has `ownsState: false`: sygnal/yjs shared(), or a hand-written
+ *     factory returning an object literal with it); SYG127 then accepts the key in initialState
  *   BehaviorDef {
  *     name, firstParty, file, node,
  *     stateKeys: string[] | null, calculated: string[],
@@ -156,27 +159,36 @@ export const FIRST_PARTY = {
   // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
   // element events of a required option, its timers' actions)
   dialog: {
-    stateKeys: ['open', 'returnValue'],
+    stateKeys: ['id', 'open', 'returnValue'],
     calculated: [],
-    model: ['OPEN', 'CLOSE', 'TOGGLED', 'CLOSED', 'CANCEL'],
-    options: ['dialog', 'trigger', 'close', 'modal', 'cancelable', 'returnFocus'],
+    model: ['OPEN', 'CLOSE', 'TOGGLED', 'CLOSED', 'CANCEL', 'SYNC', 'APPLY'],
+    options: ['dialog', 'trigger', 'close', 'modal', 'cancelable', 'returnFocus', 'open', 'id'],
     listens: [['trigger', 'OPEN'], ['close', 'CLOSE'], ['dialog', null, 'select']],
-    intent: ['TOGGLED', 'CLOSED', 'CANCEL'],
+    intent: ['TOGGLED', 'CLOSED', 'CANCEL', 'SYNC', 'APPLY'],
   },
   popover: {
-    stateKeys: ['open'],
+    stateKeys: ['id', 'open'],
     calculated: [],
-    model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED'],
-    options: ['popover', 'close'],
-    listens: [['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
+    model: ['OPEN', 'CLOSE', 'TOGGLE', 'TOGGLED', 'DISMISS', 'SYNC', 'APPLY'],
+    options: ['popover', 'trigger', 'close', 'open', 'id'],
+    listens: [['trigger', 'TOGGLE'], ['close', 'CLOSE'], ['popover', 'TOGGLED', 'select']],
   },
   tooltip: {
-    stateKeys: ['open', 'pending'],
+    stateKeys: ['open', 'pending', 'hover', 'focus', 'pressed'],
     calculated: [],
-    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED'],
+    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS'],
     options: ['trigger', 'tip', 'showDelay', 'hideDelay'],
     listens: [['trigger', 'ENTER', 'select'], ['tip', 'TOGGLED', 'select']],
-    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE'],
+    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS'],
+  },
+  // PLAN-11 T-1 (ui-sweep: it was missing, so its uses entries were opaque)
+  tooltips: {
+    stateKeys: ['id', 'open', 'pending', 'hover', 'focus', 'pressed'],
+    calculated: [],
+    model: ['ENTER', 'LEAVE', 'SHOW', 'HIDE', 'ESCAPE', 'TOGGLED', 'PRESS'],
+    options: ['trigger', 'tip', 'showDelay', 'hideDelay'],
+    listens: [['trigger', 'ENTER', 'select'], ['tip', 'TOGGLED', 'select']],
+    intent: ['LEAVE', 'ESCAPE', 'SHOW', 'HIDE', 'PRESS'],
   },
   tabs: {
     stateKeys: ['id', 'selected', 'orientation'],
@@ -201,6 +213,21 @@ export const FIRST_PARTY = {
     options: ['trigger', 'open', 'id'],
     listens: [['trigger', 'TOGGLE']],
   },
+  // sygnal/yjs (research: dev-plans/research/crdt-state): shared({ driver, presence, history,
+  // shape, seed }). Its actions come from the driver (LOCAL from the state, REMOTE / PRESENCE /
+  // HISTORY from the Yjs driver's sources); `ownsState: false`: state[key] is the host's own
+  // (initialState seeds the document), so SYG127 doesn't apply to its key. `module`: only the
+  // export of that subpath
+  shared: {
+    module: 'sygnal/yjs',
+    ownsState: false,
+    stateKeys: [],
+    calculated: [],
+    model: ['LOCAL', 'REMOTE', 'PRESENCE', 'HISTORY'],
+    options: ['driver', 'presence', 'history', 'shape', 'seed'],
+    listens: [],
+    intent: ['LOCAL', 'REMOTE', 'PRESENCE', 'HISTORY'],
+  },
 }
 
 /** The 'sygnal' export an identifier is bound to (any local name), or null. */
@@ -209,6 +236,32 @@ export function sygnalImport(file, ident) {
   if (ident?.type !== 'Identifier') return null
   const b = findBinding(file, ident.name, ident)
   return b && b.kind === 'import' && SYGNAL_MODULE.test(b.source) ? b.imported : null
+}
+
+/** A first-party behavior's name for an identifier bound to it (FIRST_PARTY, from its module), or null. */
+function firstPartyImport(file, ident) {
+  const name = sygnalImport(file, ident)
+  if (!name || !FIRST_PARTY[name]) return null
+  const m = FIRST_PARTY[name].module
+  if (m && findBinding(file, unwrap(ident).name, unwrap(ident))?.source !== m) return null
+  return name
+}
+
+/**
+ * `ownsState: false` in the object a factory function returns (a hand-written behavior that keeps
+ * the host's value for its key), else null.
+ */
+function ownsStateOf(project, file, callee) {
+  const r = resolveExpr(project, file, callee)
+  if (!r || !isFunction(r.node)) return null
+  for (const ret of returnedExpressions(r.node)) {
+    const o = unwrap(ret)
+    if (o?.type !== 'ObjectExpression') continue
+    for (const p of o.properties) {
+      if (p.type === 'ObjectProperty' && propName(p) === 'ownsState' && unwrap(p.value)?.type === 'BooleanLiteral' && unwrap(p.value).value === false) return false
+    }
+  }
+  return null
 }
 
 const isDefineBehaviorCall = (file, node) =>
@@ -223,7 +276,7 @@ const isDefineBehaviorCall = (file, node) =>
 function firstPartyDef(name) {
   const fp = FIRST_PARTY[name]
   return {
-    name, firstParty: true, file: null, node: null,
+    name, firstParty: true, file: null, node: null, ownsState: fp.ownsState !== false,
     stateKeys: fp.stateKeys, calculated: fp.calculated,
     model: fp.model ? new Map(fp.model.map(a => [a, ['STATE']])) : null,
     intentActions: fp.intent || [],
@@ -416,8 +469,8 @@ function resolveEntry(project, file, value, depth = 0) {
   if (!v) return { status: 'invalid', reason: 'empty' }
   if (v.type === 'CallExpression') {
     const callee = unwrap(v.callee)
-    const imp = sygnalImport(file, callee)
-    if (imp && FIRST_PARTY[imp]) return { status: 'resolved', def: firstPartyDef(imp), call: v, file }
+    const imp = sygnalImport(file, callee), fp = firstPartyImport(file, callee)
+    if (fp) return { status: 'resolved', def: firstPartyDef(fp), call: v, file }
     if (imp === 'defineBehavior') return { status: 'invalid', reason: 'factory', name: 'defineBehavior(...)' }
     // defineBehavior({ ... })(options) inline, or a factory bound to a name
     const r = isDefineBehaviorCall(file, callee) ? { file, node: callee } : resolveExpr(project, file, callee)
@@ -434,14 +487,14 @@ function resolveEntry(project, file, value, depth = 0) {
     }
     // a first-party behavior re-exported through a relative module
     if (r?.node?.type === 'Identifier' && r.file !== file) {
-      const imp2 = sygnalImport(r.file, r.node)
-      if (imp2 && FIRST_PARTY[imp2]) return { status: 'resolved', def: firstPartyDef(imp2), call: v, file }
+      const imp2 = firstPartyImport(r.file, r.node)
+      if (imp2) return { status: 'resolved', def: firstPartyDef(imp2), call: v, file }
     }
-    return { status: 'opaque', call: v, file }
+    return { status: 'opaque', call: v, file, ownsState: ownsStateOf(project, file, callee) }
   }
   if (v.type === 'Identifier' || v.type === 'MemberExpression') {
-    const imp = sygnalImport(file, v)
-    if (imp && FIRST_PARTY[imp]) return { status: 'invalid', reason: 'factory', name: imp }
+    const imp = firstPartyImport(file, v)
+    if (imp) return { status: 'invalid', reason: 'factory', name: imp }
     const r = resolveExpr(project, file, v)
     if (!r || r.node === v) return { status: 'opaque' }
     if (isDefineBehaviorCall(r.file, r.node)) return { status: 'invalid', reason: 'factory', name: calleeName(v) }
@@ -501,6 +554,7 @@ export function analyzeUses(project, comp) {
       key, keyNode: p.key, node: unwrap(p.value), file: r.file,
       status: res.status, reason: res.reason, factoryName: res.name || null,
       def: res.def || null, options: new Map(), optionsKnown: true, selectors: [], actions: new Map(),
+      ownsState: res.def ? res.def.ownsState !== false : res.ownsState !== false,
     }
     // options: the call's first argument (an object literal, or a const bound to one)
     const call = res.call

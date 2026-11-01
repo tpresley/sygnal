@@ -93,6 +93,27 @@ describe('SYG112: reply action with no model entry', () => {
     expect(document.querySelector('.out').textContent).toBe('idle')   // the reply was dropped
   })
 
+  it("names the ancestor that handles it: a reply goes only to its sender (Temper 2026-10)", async () => {
+    const Retry = () => h('button', { className: 'again' }, 'Try again')
+    Retry.intent = ({ DOM }) => ({ AGAIN: DOM.click('.again') })
+    Retry.model = { AGAIN: { HTTP: () => ({ url: '/templates', ok: 'TEMPLATES' }) } }
+    const Wizard = ({ state }) => h('div', null, h('p', { className: 'out' }, String(state.n)), h(Retry, null))
+    Wizard.initialState = { n: 0 }
+    Wizard.model = { TEMPLATES: (s, body) => ({ ...s, n: body.length }) }
+    start(Wizard, { HTTP: makeFetchDriver({ fetch: () => json([1, 2]) }) })
+    await click('.again')
+    await until(() => expect(diagnostics('SYG112')).toHaveLength(1))
+    const [d] = diagnostics('SYG112')
+    expect(d.component).toBe('Retry')
+    expect(d.data).toMatchObject({ action: 'TEMPLATES', handledBy: 'Wizard' })
+    expect(d.data.suggestion).toBeUndefined()
+    expect(d.message).toContain('replies go only to the component that sent the request, never to Wizard')
+    expect(d.fix).toContain("EVENTS: event('...')")
+    expect(d.fix).toContain("{ invalidate: 'name' }")
+    await settle(30)
+    expect(document.querySelector('.out').textContent).toBe('0')
+  })
+
   it('reports once per component and name, and not for names the model has', async () => {
     start(make(() => ({ url: '/q', ok: 'LOADED', error: 'OOPS_NOT_HANDLED' })), { HTTP: makeFetchDriver({ fetch: () => json({ text: 'hi' }) }) })
     await settle(20)

@@ -68,6 +68,12 @@ export const MODULES: Record<string, () => Promise<any>> = {
   'sygnal/element': () => import('sygnal/element'),
   // the LLM driver of the live runtime (runtime.ts) comes from this entry too
   'sygnal/ai': () => import('sygnal/ai'),
+  'sygnal/api': () => import('sygnal/api'),
+  'sygnal/canvas': () => import('sygnal/canvas'),
+  // the SHARED driver of the live runtime (runtime.ts) comes from these two
+  'sygnal/yjs': () => import('sygnal/yjs'),
+  'sygnal/yjs/testing': () => import('sygnal/yjs/testing'),
+  'yjs': () => import('yjs'),
 
   // Recipes (versions: dev-plans/research/p5-recipes/package.json)
   'chart.js': () => import('chart.js'),
@@ -106,6 +112,7 @@ export const MODULES: Record<string, () => Promise<any>> = {
 
   // Other guide pages
   'zod': () => import('zod'),
+  '@orpc/contract': () => import('@orpc/contract'),
   'immer': () => import('immer'),
   'motion': () => import('motion'),
   '@formkit/auto-animate': () => import('@formkit/auto-animate'),

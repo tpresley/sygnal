@@ -1,0 +1,175 @@
+# round 3 (scroll canvases), summaries of perf/run.mjs; 'noscroll' = the scroll path switched off by a temporary URL switch
+
+## session 0: before any change (shapes as actors, round-2 code)
+22:56  up 23 days,  4:32, 2 users, load averages: 4.02 4.26 3.78
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.76 ms/frame  sim 0.019  paint p50 0.00  heapΔ 3157 KB  mode playing
+         program 0.524, sygnal core 0.1, native (Canvas 2D, DOM) 0.045, sygnal/canvas 0.036, game: sim 0.02, GC 0.009, snabbdom 0.008, xstream 0.005, game: view / loop 0.005, bench probe 0.005, game: nodes 0.004
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 0.81 ms/frame  sim 0.016  paint p50 0.10  heapΔ 3149 KB  mode playing
+         program 0.548, sygnal core 0.102, native (Canvas 2D, DOM) 0.059, sygnal/canvas 0.045, game: sim 0.019, GC 0.009, snabbdom 0.007, game: nodes 0.006, game: view / loop 0.006, xstream 0.005, bench probe 0.004
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 0.79 ms/frame  sim 0.017  paint p50 0.00  heapΔ 3207 KB  mode playing
+         program 0.538, sygnal core 0.1, native (Canvas 2D, DOM) 0.056, sygnal/canvas 0.04, game: sim 0.021, GC 0.009, snabbdom 0.008, game: nodes 0.007, bench probe 0.006, xstream 0.005, game: view / loop 0.005
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 2.08 ms/frame  sim 0.040  paint p50 0.40  heapΔ 7300 KB  mode playing
+         program 1.388, native (Canvas 2D, DOM) 0.262, sygnal/canvas 0.202, sygnal core 0.098, game: sim 0.042, GC 0.036, game: nodes 0.028, snabbdom 0.008, xstream 0.006, game: view / loop 0.004, bench probe 0.002
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 2.13 ms/frame  sim 0.036  paint p50 0.50  heapΔ 8189 KB  mode playing
+         program 1.412, native (Canvas 2D, DOM) 0.285, sygnal/canvas 0.202, sygnal core 0.109, game: sim 0.037, GC 0.035, game: nodes 0.029, xstream 0.008, snabbdom 0.007, game: view / loop 0.005, bench probe 0.003
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 2.09 ms/frame  sim 0.033  paint p50 0.40  heapΔ 8204 KB  mode playing
+         program 1.393, native (Canvas 2D, DOM) 0.264, sygnal/canvas 0.202, sygnal core 0.103, game: sim 0.037, GC 0.036, game: nodes 0.027, snabbdom 0.011, xstream 0.006, game: view / loop 0.005, bench probe 0.003
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.45 ms/frame  sim 0.023  paint p50 0.10  heapΔ 1179 KB  mode playing
+         program 0.341, game: view / loop 0.041, native (Canvas 2D, DOM) 0.041, game: sim 0.022, game: nodes 0.006, GC 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.45 ms/frame  sim 0.021  paint p50 0.10  heapΔ 1168 KB  mode playing
+         program 0.335, native (Canvas 2D, DOM) 0.038, game: view / loop 0.038, game: sim 0.027, game: nodes 0.006, GC 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.42 ms/frame  sim 0.020  paint p50 0.10  heapΔ 1177 KB  mode playing
+         program 0.31, native (Canvas 2D, DOM) 0.04, game: view / loop 0.037, game: sim 0.022, game: nodes 0.005, GC 0.002
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.89 ms/frame  sim 0.034  paint p50 0.40  heapΔ 933 KB  mode playing
+         program 1.428, native (Canvas 2D, DOM) 0.27, game: view / loop 0.107, game: sim 0.044, game: nodes 0.028, GC 0.012
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.81 ms/frame  sim 0.038  paint p50 0.40  heapΔ 933 KB  mode playing
+         program 1.375, native (Canvas 2D, DOM) 0.245, game: view / loop 0.123, game: sim 0.041, game: nodes 0.018, GC 0.012
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.80 ms/frame  sim 0.033  paint p50 0.40  heapΔ 937 KB  mode playing
+         program 1.37, native (Canvas 2D, DOM) 0.249, game: view / loop 0.112, game: sim 0.041, game: nodes 0.02, GC 0.011
+
+## session 1: scroll canvases without the hysteresis (sprites)
+23:31  up 23 days,  5:08, 2 users, load averages: 4.84 4.06 4.86
+== scroll
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.67 ms/frame  sim 0.014  paint p50 0.00  heapΔ 3724 KB  mode playing
+         program 0.428, sygnal core 0.076, sygnal/canvas 0.065, native (Canvas 2D, DOM) 0.045, game: sim 0.019, GC 0.014, snabbdom 0.007, bench probe 0.006, game: nodes 0.005, xstream 0.004, game: view / loop 0.004, other: ../../src/camera.ts 0.001
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.68 ms/frame  sim 0.018  paint p50 0.00  heapΔ 2224 KB  mode playing
+         program 0.431, sygnal core 0.085, sygnal/canvas 0.07, native (Canvas 2D, DOM) 0.034, game: sim 0.016, GC 0.012, snabbdom 0.009, bench probe 0.006, game: nodes 0.006, game: view / loop 0.004, xstream 0.003, other: ../../src/camera.ts 0.002
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.68 ms/frame  sim 0.017  paint p50 0.10  heapΔ 1994 KB  mode playing
+         program 0.43, sygnal core 0.091, sygnal/canvas 0.072, native (Canvas 2D, DOM) 0.03, game: sim 0.014, GC 0.011, snabbdom 0.009, game: nodes 0.007, bench probe 0.006, game: view / loop 0.005, xstream 0.005, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.59 ms/frame  sim 0.040  paint p50 0.30  heapΔ 12018 KB  mode playing
+         program 0.946, sygnal/canvas 0.224, native (Canvas 2D, DOM) 0.132, sygnal core 0.105, game: nodes 0.065, GC 0.053, game: sim 0.041, snabbdom 0.007, bench probe 0.005, xstream 0.005, game: view / loop 0.004, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.54 ms/frame  sim 0.035  paint p50 0.30  heapΔ 9661 KB  mode playing
+         program 0.925, sygnal/canvas 0.214, native (Canvas 2D, DOM) 0.13, sygnal core 0.102, game: nodes 0.058, GC 0.053, game: sim 0.035, snabbdom 0.008, xstream 0.006, bench probe 0.004, game: view / loop 0.004, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.62 ms/frame  sim 0.039  paint p50 0.30  heapΔ 10473 KB  mode playing
+         program 0.974, sygnal/canvas 0.227, native (Canvas 2D, DOM) 0.134, sygnal core 0.106, game: nodes 0.058, GC 0.052, game: sim 0.036, snabbdom 0.011, game: view / loop 0.006, bench probe 0.006, xstream 0.005, other: ../../src/camera.ts 0.002
+== noscroll
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.81 ms/frame  sim 0.014  paint p50 0.00  heapΔ 3488 KB  mode playing
+         program 0.567, sygnal core 0.087, sygnal/canvas 0.053, native (Canvas 2D, DOM) 0.046, game: sim 0.017, GC 0.009, snabbdom 0.007, bench probe 0.006, game: nodes 0.006, xstream 0.005, game: view / loop 0.003, other: ../../src/camera.ts 0.002
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 0.84 ms/frame  sim 0.017  paint p50 0.00  heapΔ 3783 KB  mode playing
+         program 0.585, sygnal core 0.088, sygnal/canvas 0.056, native (Canvas 2D, DOM) 0.05, game: sim 0.017, GC 0.01, game: nodes 0.008, snabbdom 0.008, xstream 0.006, game: view / loop 0.006, bench probe 0.004, other: ../../src/camera.ts 0.003
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.89 ms/frame  sim 0.018  paint p50 0.10  heapΔ 3582 KB  mode playing
+         program 0.609, sygnal core 0.099, sygnal/canvas 0.061, native (Canvas 2D, DOM) 0.053, game: sim 0.021, GC 0.01, game: nodes 0.008, snabbdom 0.007, xstream 0.007, game: view / loop 0.006, bench probe 0.003, other: ../../src/camera.ts 0.002
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.39 ms/frame  sim 0.034  paint p50 0.20  heapΔ 14108 KB  mode playing
+         program 0.815, sygnal/canvas 0.198, native (Canvas 2D, DOM) 0.126, sygnal core 0.086, game: nodes 0.057, GC 0.053, game: sim 0.037, snabbdom 0.007, xstream 0.005, game: view / loop 0.005, bench probe 0.003, other: ../../src/camera.ts 0.002
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.40 ms/frame  sim 0.035  paint p50 0.20  heapΔ 3800 KB  mode playing
+         program 0.813, sygnal/canvas 0.196, native (Canvas 2D, DOM) 0.129, sygnal core 0.093, game: nodes 0.057, GC 0.056, game: sim 0.036, snabbdom 0.007, game: view / loop 0.005, bench probe 0.004, xstream 0.004, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.31 ms/frame  sim 0.034  paint p50 0.20  heapΔ 3818 KB  mode playing
+         program 0.789, sygnal/canvas 0.183, native (Canvas 2D, DOM) 0.117, sygnal core 0.071, game: nodes 0.054, GC 0.049, game: sim 0.032, snabbdom 0.007, game: view / loop 0.004, xstream 0.003, bench probe 0.003, other: ../../src/camera.ts 0.001
+== baseline
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.35 ms/frame  sim 0.014  paint p50 0.00  heapΔ 610 KB  mode playing
+         program 0.271, game: view / loop 0.033, native (Canvas 2D, DOM) 0.025, game: sim 0.017, game: nodes 0.004, sygnal/canvas 0.002, GC 0.001, other: ../../../../../../examples/platformer/src/camera.ts 0
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.36 ms/frame  sim 0.015  paint p50 0.00  heapΔ 610 KB  mode playing
+         program 0.278, game: view / loop 0.033, native (Canvas 2D, DOM) 0.028, game: sim 0.017, game: nodes 0.004, GC 0.002, other: ../../../../../../examples/platformer/src/camera.ts 0.001, sygnal/canvas 0.001
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 0.33 ms/frame  sim 0.013  paint p50 0.00  heapΔ 599 KB  mode playing
+         program 0.262, game: view / loop 0.026, native (Canvas 2D, DOM) 0.02, game: sim 0.012, game: nodes 0.005, sygnal/canvas 0.002, GC 0.001, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.14 ms/frame  sim 0.036  paint p50 0.20  heapΔ 1065 KB  mode playing
+         program 0.848, native (Canvas 2D, DOM) 0.133, game: nodes 0.051, game: sim 0.04, game: view / loop 0.04, GC 0.018, sygnal/canvas 0.003, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.08 ms/frame  sim 0.035  paint p50 0.20  heapΔ 594 KB  mode playing
+         program 0.815, native (Canvas 2D, DOM) 0.124, game: nodes 0.048, game: view / loop 0.039, game: sim 0.034, GC 0.018, sygnal/canvas 0.002, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.06 ms/frame  sim 0.033  paint p50 0.20  heapΔ 451 KB  mode playing
+         program 0.785, native (Canvas 2D, DOM) 0.121, game: nodes 0.046, game: sim 0.042, game: view / loop 0.041, GC 0.018, sygnal/canvas 0.003, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+== cpu4 scroll
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 50.0  dropped 1/602  busy 1.91 ms/frame  sim 0.029  paint p50 0.00  heapΔ 3190 KB  mode playing
+         program 1.38, sygnal/canvas 0.183, sygnal core 0.15, native (Canvas 2D, DOM) 0.09, GC 0.03, game: sim 0.022, game: nodes 0.022, snabbdom 0.015, game: view / loop 0.007, xstream 0.005, bench probe 0.004, other: ../../src/camera.ts 0.001
+sygnal   level      fps 59.9  frame p50 16.7 p99 16.8 max 33.3  dropped 1/604  busy 1.68 ms/frame  sim 0.020  paint p50 0.00  heapΔ 2787 KB  mode playing
+         program 1.265, sygnal/canvas 0.14, sygnal core 0.122, native (Canvas 2D, DOM) 0.068, GC 0.032, game: sim 0.018, xstream 0.01, bench probe 0.006, game: nodes 0.006, snabbdom 0.005, game: view / loop 0.004, other: ../../src/camera.ts 0.001
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 49.9  dropped 1/602  busy 1.68 ms/frame  sim 0.022  paint p50 0.00  heapΔ 3292 KB  mode playing
+         program 1.264, sygnal/canvas 0.143, sygnal core 0.125, native (Canvas 2D, DOM) 0.048, GC 0.03, game: sim 0.021, snabbdom 0.016, game: nodes 0.011, xstream 0.009, game: view / loop 0.006, bench probe 0.005, other: ../../src/camera.ts 0.002
+== cpu4 noscroll
+sygnal   level      fps 59.9  frame p50 16.7 p99 16.8 max 33.3  dropped 1/603  busy 2.31 ms/frame  sim 0.018  paint p50 0.00  heapΔ 2665 KB  mode playing
+         program 1.871, sygnal core 0.148, sygnal/canvas 0.114, native (Canvas 2D, DOM) 0.089, GC 0.033, snabbdom 0.015, game: sim 0.014, game: view / loop 0.009, xstream 0.009, game: nodes 0.008, bench probe 0.002, other: ../../src/camera.ts 0.001
+sygnal   level      fps 59.9  frame p50 16.7 p99 16.8 max 33.3  dropped 1/603  busy 2.50 ms/frame  sim 0.023  paint p50 0.00  heapΔ 3975 KB  mode playing
+         program 1.989, sygnal core 0.18, sygnal/canvas 0.123, native (Canvas 2D, DOM) 0.101, GC 0.035, game: sim 0.021, snabbdom 0.02, xstream 0.011, game: nodes 0.011, game: view / loop 0.007, bench probe 0.003, other: ../../src/camera.ts 0.003
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 50.0  dropped 1/603  busy 2.14 ms/frame  sim 0.017  paint p50 0.00  heapΔ 1141 KB  mode playing
+         program 1.819, sygnal core 0.093, sygnal/canvas 0.088, native (Canvas 2D, DOM) 0.071, GC 0.03, game: sim 0.013, snabbdom 0.012, game: view / loop 0.006, game: nodes 0.006, other: ../../src/camera.ts 0.001, xstream 0.001, bench probe 0.001
+== cpu4 baseline
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.79 ms/frame  sim 0.024  paint p50 0.00  heapΔ 620 KB  mode playing
+         program 0.698, game: view / loop 0.034, native (Canvas 2D, DOM) 0.031, game: sim 0.019, game: nodes 0.005, GC 0.004, other: ../../../../../../examples/platformer/src/camera.ts 0.002, sygnal/canvas 0.001
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.76 ms/frame  sim 0.018  paint p50 0.00  heapΔ 625 KB  mode playing
+         program 0.654, game: view / loop 0.043, native (Canvas 2D, DOM) 0.03, game: sim 0.012, GC 0.011, game: nodes 0.008, sygnal/canvas 0.003, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.71 ms/frame  sim 0.013  paint p50 0.00  heapΔ 629 KB  mode playing
+         program 0.635, game: view / loop 0.034, native (Canvas 2D, DOM) 0.022, game: sim 0.01, game: nodes 0.005, GC 0.004, sygnal/canvas 0.001, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+23:37  up 23 days,  5:14, 2 users, load averages: 4.00 3.63 4.31
+
+## session 2: with the hysteresis (as committed)
+23:37  up 23 days,  5:14, 2 users, load averages: 4.23 3.70 4.33
+== scroll
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.46 ms/frame  sim 0.008  paint p50 0.00  heapΔ 3984 KB  mode playing
+         program 0.315, sygnal core 0.047, sygnal/canvas 0.042, native (Canvas 2D, DOM) 0.018, game: sim 0.01, GC 0.009, snabbdom 0.005, bench probe 0.005, game: view / loop 0.003, xstream 0.003, game: nodes 0.002, other: ../../src/camera.ts 0
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.45 ms/frame  sim 0.011  paint p50 0.00  heapΔ 3944 KB  mode playing
+         program 0.312, sygnal core 0.048, sygnal/canvas 0.037, native (Canvas 2D, DOM) 0.019, game: sim 0.012, GC 0.01, bench probe 0.004, snabbdom 0.004, game: nodes 0.003, game: view / loop 0.002, xstream 0.002, other: ../../src/camera.ts 0.001
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.56 ms/frame  sim 0.011  paint p50 0.00  heapΔ 4052 KB  mode playing
+         program 0.354, sygnal core 0.066, sygnal/canvas 0.056, native (Canvas 2D, DOM) 0.026, game: sim 0.017, GC 0.011, snabbdom 0.009, bench probe 0.007, game: nodes 0.005, xstream 0.005, game: view / loop 0.004, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.37 ms/frame  sim 0.033  paint p50 0.20  heapΔ 8862 KB  mode playing
+         program 0.795, sygnal/canvas 0.2, native (Canvas 2D, DOM) 0.117, sygnal core 0.088, game: nodes 0.054, GC 0.049, game: sim 0.038, game: view / loop 0.009, xstream 0.006, snabbdom 0.006, bench probe 0.004, other: ../../src/camera.ts 0.002
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.19 ms/frame  sim 0.035  paint p50 0.20  heapΔ 13332 KB  mode playing
+         program 0.725, sygnal/canvas 0.162, native (Canvas 2D, DOM) 0.105, sygnal core 0.068, GC 0.047, game: nodes 0.045, game: sim 0.026, snabbdom 0.004, xstream 0.004, bench probe 0.003, game: view / loop 0.002, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.24 ms/frame  sim 0.035  paint p50 0.20  heapΔ 5289 KB  mode playing
+         program 0.73, sygnal/canvas 0.18, native (Canvas 2D, DOM) 0.107, sygnal core 0.064, game: nodes 0.057, GC 0.048, game: sim 0.034, snabbdom 0.005, bench probe 0.003, xstream 0.003, game: view / loop 0.003, other: ../../src/camera.ts 0.002
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.14 ms/frame  sim 0.095  paint p50 0.60  heapΔ 12310 KB  mode playing
+         program 1.908, sygnal/canvas 0.515, native (Canvas 2D, DOM) 0.297, game: nodes 0.162, GC 0.098, game: sim 0.084, sygnal core 0.065, xstream 0.005, snabbdom 0.005, game: view / loop 0.003, bench probe 0.002, other: ../../src/camera.ts 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.09 ms/frame  sim 0.092  paint p50 0.60  heapΔ 13065 KB  mode playing
+         program 1.871, sygnal/canvas 0.509, native (Canvas 2D, DOM) 0.29, game: nodes 0.164, GC 0.094, game: sim 0.092, sygnal core 0.054, snabbdom 0.006, game: view / loop 0.005, xstream 0.003, bench probe 0.001, other: ../../src/camera.ts 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.22 ms/frame  sim 0.089  paint p50 0.70  heapΔ 14677 KB  mode playing
+         program 1.949, sygnal/canvas 0.528, native (Canvas 2D, DOM) 0.302, game: nodes 0.163, game: sim 0.099, GC 0.095, sygnal core 0.071, snabbdom 0.006, xstream 0.004, game: view / loop 0.004, bench probe 0.002, other: ../../src/camera.ts 0.002
+== noscroll
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.64 ms/frame  sim 0.009  paint p50 0.00  heapΔ 3615 KB  mode playing
+         program 0.485, sygnal core 0.053, sygnal/canvas 0.03, native (Canvas 2D, DOM) 0.029, game: sim 0.015, GC 0.009, xstream 0.006, snabbdom 0.006, game: nodes 0.005, bench probe 0.004, game: view / loop 0.002, other: ../../src/camera.ts 0.001
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.72 ms/frame  sim 0.013  paint p50 0.00  heapΔ 3131 KB  mode playing
+         program 0.521, sygnal core 0.068, sygnal/canvas 0.048, native (Canvas 2D, DOM) 0.034, game: sim 0.017, GC 0.009, snabbdom 0.005, xstream 0.004, bench probe 0.003, game: view / loop 0.003, game: nodes 0.003, other: ../../src/camera.ts 0.002
+sygnal   level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.68 ms/frame  sim 0.013  paint p50 0.00  heapΔ 3631 KB  mode playing
+         program 0.511, sygnal core 0.06, sygnal/canvas 0.039, native (Canvas 2D, DOM) 0.03, game: sim 0.012, GC 0.009, snabbdom 0.005, game: nodes 0.004, bench probe 0.003, game: view / loop 0.003, xstream 0.003, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.17 ms/frame  sim 0.032  paint p50 0.20  heapΔ 13344 KB  mode playing
+         program 0.702, sygnal/canvas 0.171, native (Canvas 2D, DOM) 0.1, sygnal core 0.06, GC 0.051, game: nodes 0.042, game: sim 0.032, snabbdom 0.005, bench probe 0.003, game: view / loop 0.003, xstream 0.002, other: ../../src/camera.ts 0.001
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/601  busy 1.21 ms/frame  sim 0.034  paint p50 0.20  heapΔ 2386 KB  mode playing
+         program 0.716, sygnal/canvas 0.168, native (Canvas 2D, DOM) 0.111, sygnal core 0.065, GC 0.05, game: nodes 0.048, game: sim 0.035, snabbdom 0.007, bench probe 0.003, xstream 0.003, game: view / loop 0.003, other: ../../src/camera.ts 0.002
+sygnal   stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.17 ms/frame  sim 0.027  paint p50 0.20  heapΔ 6665 KB  mode playing
+         program 0.704, sygnal/canvas 0.161, native (Canvas 2D, DOM) 0.106, sygnal core 0.058, game: nodes 0.05, GC 0.048, game: sim 0.028, snabbdom 0.007, xstream 0.004, bench probe 0.003, game: view / loop 0.002, other: ../../src/camera.ts 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.21 ms/frame  sim 0.089  paint p50 0.70  heapΔ 15429 KB  mode playing
+         program 1.941, sygnal/canvas 0.513, native (Canvas 2D, DOM) 0.316, game: nodes 0.167, game: sim 0.093, GC 0.091, sygnal core 0.072, snabbdom 0.006, xstream 0.004, game: view / loop 0.003, bench probe 0.002, other: ../../src/camera.ts 0.001
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 3.47 ms/frame  sim 0.089  paint p50 0.70  heapΔ 9981 KB  mode playing
+         program 2.092, sygnal/canvas 0.573, native (Canvas 2D, DOM) 0.334, game: nodes 0.165, sygnal core 0.101, GC 0.099, game: sim 0.083, snabbdom 0.009, bench probe 0.005, xstream 0.005, game: view / loop 0.004, other: ../../src/camera.ts 0.002
+sygnal   stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 3.42 ms/frame  sim 0.090  paint p50 0.70  heapΔ 19391 KB  mode playing
+         program 2.07, sygnal/canvas 0.559, native (Canvas 2D, DOM) 0.321, game: nodes 0.163, GC 0.109, sygnal core 0.094, game: sim 0.087, snabbdom 0.008, xstream 0.005, game: view / loop 0.004, bench probe 0.002, other: ../../src/camera.ts 0.001
+== baseline
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 2.83 ms/frame  sim 0.088  paint p50 0.60  heapΔ 2146 KB  mode playing
+         program 2.098, native (Canvas 2D, DOM) 0.345, game: nodes 0.15, game: sim 0.089, game: view / loop 0.084, GC 0.053, sygnal/canvas 0.004, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 2.84 ms/frame  sim 0.090  paint p50 0.60  heapΔ 3981 KB  mode playing
+         program 2.119, native (Canvas 2D, DOM) 0.349, game: nodes 0.148, game: view / loop 0.084, game: sim 0.084, GC 0.051, sygnal/canvas 0.006, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+baseline stress1000 fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 2.98 ms/frame  sim 0.095  paint p50 0.60  heapΔ 3980 KB  mode playing
+         program 2.213, native (Canvas 2D, DOM) 0.366, game: nodes 0.155, game: sim 0.095, game: view / loop 0.089, GC 0.053, sygnal/canvas 0.007, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+== cpu4 scroll
+sygnal   level      fps 59.7  frame p50 16.7 p99 16.8 max 66.8  dropped 1/604  busy 3.13 ms/frame  sim 0.056  paint p50 0.10  heapΔ 2739 KB  mode playing
+         program 1.971, sygnal core 0.391, sygnal/canvas 0.388, native (Canvas 2D, DOM) 0.142, game: sim 0.057, xstream 0.048, GC 0.043, snabbdom 0.036, game: view / loop 0.022, game: nodes 0.021, bench probe 0.009, other: ../../src/camera.ts 0.006
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 49.9  dropped 1/603  busy 2.91 ms/frame  sim 0.042  paint p50 0.10  heapΔ 2662 KB  mode playing
+         program 1.829, sygnal/canvas 0.38, sygnal core 0.356, native (Canvas 2D, DOM) 0.136, snabbdom 0.043, GC 0.038, game: sim 0.036, xstream 0.029, game: view / loop 0.027, game: nodes 0.023, bench probe 0.007, other: ../../src/camera.ts 0.005
+sygnal   level      fps 59.9  frame p50 16.7 p99 16.8 max 33.4  dropped 1/603  busy 3.02 ms/frame  sim 0.050  paint p50 0.10  heapΔ 3917 KB  mode playing
+         program 1.885, sygnal/canvas 0.401, sygnal core 0.374, native (Canvas 2D, DOM) 0.144, game: sim 0.051, snabbdom 0.048, GC 0.037, xstream 0.03, game: nodes 0.021, game: view / loop 0.019, bench probe 0.008, other: ../../src/camera.ts 0.002
+== cpu4 noscroll
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 50.0  dropped 1/603  busy 3.65 ms/frame  sim 0.052  paint p50 0.10  heapΔ 2043 KB  mode playing
+         program 2.568, sygnal core 0.389, sygnal/canvas 0.294, native (Canvas 2D, DOM) 0.2, game: sim 0.049, GC 0.041, snabbdom 0.04, xstream 0.029, game: nodes 0.018, game: view / loop 0.017, other: ../../src/camera.ts 0.004, bench probe 0.002
+sygnal   level      fps 59.7  frame p50 16.7 p99 16.8 max 66.7  dropped 1/603  busy 3.75 ms/frame  sim 0.056  paint p50 0.10  heapΔ 1448 KB  mode playing
+         program 2.673, sygnal core 0.382, sygnal/canvas 0.288, native (Canvas 2D, DOM) 0.199, game: sim 0.049, GC 0.043, snabbdom 0.042, game: nodes 0.027, xstream 0.024, game: view / loop 0.016, bench probe 0.006, other: ../../src/camera.ts 0.005
+sygnal   level      fps 59.8  frame p50 16.7 p99 16.8 max 50.0  dropped 1/604  busy 3.67 ms/frame  sim 0.048  paint p50 0.10  heapΔ 1478 KB  mode playing
+         program 2.607, sygnal core 0.377, sygnal/canvas 0.257, native (Canvas 2D, DOM) 0.201, GC 0.051, game: sim 0.044, snabbdom 0.044, xstream 0.028, game: view / loop 0.022, game: nodes 0.022, other: ../../src/camera.ts 0.006, bench probe 0.005
+23:43  up 23 days,  5:20, 2 users, load averages: 5.14 4.39 4.41
+23:43  up 23 days,  5:20, 2 users, load averages: 4.50 4.29 4.38
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.45 ms/frame  sim 0.020  paint p50 0.10  heapΔ 598 KB  mode playing
+         program 0.338, game: view / loop 0.041, native (Canvas 2D, DOM) 0.038, game: sim 0.023, sygnal/canvas 0.005, game: nodes 0.004, GC 0.001, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 0.51 ms/frame  sim 0.020  paint p50 0.10  heapΔ 594 KB  mode playing
+         program 0.38, game: view / loop 0.052, native (Canvas 2D, DOM) 0.042, game: sim 0.025, game: nodes 0.009, GC 0.002, other: ../../../../../../examples/platformer/src/camera.ts 0.002, sygnal/canvas 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 0.47 ms/frame  sim 0.022  paint p50 0.10  heapΔ 596 KB  mode playing
+         program 0.346, game: view / loop 0.042, native (Canvas 2D, DOM) 0.041, game: sim 0.026, game: nodes 0.006, sygnal/canvas 0.001, GC 0.001, other: ../../../../../../examples/platformer/src/camera.ts 0.001
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.20 ms/frame  sim 0.035  paint p50 0.20  heapΔ 525 KB  mode playing
+         program 0.894, native (Canvas 2D, DOM) 0.145, game: nodes 0.052, game: sim 0.046, game: view / loop 0.038, GC 0.02, sygnal/canvas 0.003, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/603  busy 1.31 ms/frame  sim 0.041  paint p50 0.20  heapΔ 1078 KB  mode playing
+         program 0.976, native (Canvas 2D, DOM) 0.151, game: nodes 0.057, game: view / loop 0.051, game: sim 0.047, GC 0.021, sygnal/canvas 0.005, other: ../../../../../../examples/platformer/src/camera.ts 0.003
+baseline stress300  fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/602  busy 1.22 ms/frame  sim 0.039  paint p50 0.20  heapΔ 1035 KB  mode playing
+         program 0.913, native (Canvas 2D, DOM) 0.137, game: nodes 0.054, game: view / loop 0.044, game: sim 0.042, GC 0.021, sygnal/canvas 0.004, other: ../../../../../../examples/platformer/src/camera.ts 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/604  busy 1.93 ms/frame  sim 0.058  paint p50 0.10  heapΔ 572 KB  mode playing
+         program 1.557, game: view / loop 0.144, native (Canvas 2D, DOM) 0.131, game: sim 0.057, game: nodes 0.025, other: ../../../../../../examples/platformer/src/camera.ts 0.005, GC 0.005, sygnal/canvas 0.002
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/604  busy 1.75 ms/frame  sim 0.047  paint p50 0.10  heapΔ 570 KB  mode playing
+         program 1.422, game: view / loop 0.134, native (Canvas 2D, DOM) 0.107, game: sim 0.038, game: nodes 0.032, GC 0.006, other: ../../../../../../examples/platformer/src/camera.ts 0.005, sygnal/canvas 0.005
+baseline level      fps 60.0  frame p50 16.7 p99 16.8 max 16.8  dropped 0/604  busy 1.74 ms/frame  sim 0.044  paint p50 0.10  heapΔ 575 KB  mode playing
+         program 1.428, native (Canvas 2D, DOM) 0.126, game: view / loop 0.093, game: sim 0.043, game: nodes 0.03, GC 0.009, sygnal/canvas 0.005, other: ../../../../../../examples/platformer/src/camera.ts 0.004
+23:45  up 23 days,  5:22, 2 users, load averages: 5.91 4.84 4.58

@@ -1,0 +1,21 @@
+{
+  "_": "Scripted model output (no LLM call): two turns of a model asked to 'show a tip calculator for the bill and tell me what the user picked'. Turn 1 reaches for document (not in the sandbox); turn 2 is the repair after the error was fed back. Shaped as a render_component tool call, the way a sygnal/ai client tool would receive it.",
+  "turns": [
+    {
+      "tool": "render_component",
+      "arguments": {
+        "title": "Tip calculator",
+        "props": {"bill": 84.5, "currency": "EUR"},
+        "code": "export default function Tip({ state }) {\n  const tip = state.bill * state.pct / 100\n  document.title = 'Tip'\n  return <div className=\"tip\"><p className=\"bill\">{state.bill}</p></div>\n}\nTip.initialState = { bill: 0, pct: 15 }\nTip.intent = ({ PROPS }) => ({ BILL: PROPS.get('bill') })\nTip.model = { BILL: (s, bill) => ({ ...s, bill }) }\n"
+      }
+    },
+    {
+      "tool": "render_component",
+      "arguments": {
+        "title": "Tip calculator",
+        "props": {"bill": 84.5, "currency": "EUR"},
+        "code": "import { ABORT } from 'sygnal'\n\nconst PCTS = [10, 15, 20]\nconst money = (n, c) => c + ' ' + n.toFixed(2)\n\nexport default function Tip({ state }) {\n  const tip = state.bill * state.pct / 100\n  return <div className=\"tip\">\n    <p>Bill: <strong className=\"bill\">{money(state.bill, state.currency)}</strong></p>\n    <div className=\"pcts\" role=\"radiogroup\">\n      {PCTS.map(p => <button className={p === state.pct ? 'pct on' : 'pct'} data-pct={p} aria-pressed={String(p === state.pct)}>{p}%</button>)}\n    </div>\n    <label>Split between <input className=\"people\" type=\"number\" min=\"1\" value={state.people} /></label>\n    <p className=\"each\">Each pays {money((state.bill + tip) / state.people, state.currency)}</p>\n    <button className=\"done\">Use this</button>\n  </div>\n}\nTip.initialState = { bill: 0, currency: '', pct: 15, people: 1 }\nTip.intent = ({ DOM, PROPS }) => ({\n  PROPS: PROPS.stream,\n  PCT: DOM.select('.pct').events('click').map(e => +e.target.dataset.pct),\n  PEOPLE: DOM.select('.people').events('input').map(e => parseInt(e.target.value, 10)),\n  DONE: DOM.select('.done').events('click'),\n})\nTip.model = {\n  PROPS: (s, p) => ({ ...s, bill: p.bill, currency: p.currency }),\n  PCT: (s, pct) => ({ ...s, pct }),\n  PEOPLE: (s, n) => n >= 1 ? { ...s, people: n } : ABORT,\n  DONE: { EVENTS: (s) => ({ type: 'ANSWER', data: { pct: s.pct, people: s.people, each: +((s.bill * (1 + s.pct / 100)) / s.people).toFixed(2) } }) },\n}\n"
+      }
+    }
+  ]
+}

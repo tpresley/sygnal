@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sygnal islands: three.js, canvas, CodeMirror</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0b0e14; --panel: #151a23; --ink: #e6e9ef; --dim: #9aa4b2; --accent: #4f8cff; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, sans-serif; }
+    h1 { font-size: 18px; margin: 0 0 6px; } h2 { font-size: 15px; margin: 0 0 10px; }
+    .grid { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start; }
+    .cubes-app { display: grid; grid-template-columns: 200px 640px; gap: 16px; grid-column: 1 / -1; }
+    .panel, .chart-panel, .notes { background: var(--panel); border-radius: 10px; padding: 14px; }
+    .panel p { margin: 4px 0; color: var(--dim); }
+    .panel ul { padding-left: 18px; margin: 8px 0 0; } .panel li.on { font-weight: 600; }
+    button { background: #232b38; color: var(--ink); border: 1px solid #2f3a4b; border-radius: 6px; padding: 5px 10px; margin: 6px 6px 0 0; cursor: pointer; }
+    .viewport, .chart { border-radius: 10px; overflow: hidden; line-height: 0; }
+    .viewport canvas { display: block; cursor: pointer; }
+    .tip, .count { color: var(--dim); margin: 8px 0 0; }
+    .code { background: #0f131a; border: 1px solid #2f3a4b; border-radius: 6px; min-height: 60px; }
+    .notes { width: 360px; }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div id="three"></div>
+    <div id="chart"></div>
+    <div class="notes"><h2>CodeMirror (controlled)</h2><div id="notes"></div></div>
+  </div>
+  <script type="module" src="./app/main.tsx"></script>
+</body>
+</html>

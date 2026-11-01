@@ -12,9 +12,24 @@ export interface ComboboxProps extends ListboxProps {
   openOnClick?: boolean
   inputBehavior?: 'autohighlight' | 'autocomplete' | 'none'
   selectionBehavior?: 'clear' | 'replace' | 'preserve'
+  /** With `multiple`: the values as chips with remove buttons before the input (default true) */
+  chips?: boolean
+  /** A chip's remove button's name: a prefix ('Remove' → "Remove Paris") or (label) => name */
+  removeLabel?: string | ((label: string) => string)
+  /** The chips grid's name (default: the label) */
+  chipsLabel?: string
+  /** What the status region announces when a chip is removed (default: "Paris removed"); false: nothing */
+  removedMessage?: false | ((label: string) => string)
+  /** The chips' description (default: "Press Delete to remove."); false: none */
+  removeHint?: false | string
+  /** Shown (a `data-part="empty"` row, and announced in a status region) while the list is open with no items */
+  empty?: any
+  /** The items are loading (7.2): a value no item has yet shows nothing (not as custom text) until its item arrives; the listbox is aria-busy and `empty` waits */
+  loading?: boolean
 }
 /**
  * An editable combobox (Zag combobox). Events: `value-change`, `input-change` (the typed text),
- * `open-change`. Commands: `open`, `close`, `clear`, `focus`.
+ * `open-change`. Commands: `open`, `close`, `clear`, `focus`, `remove` (`{ remove: '.c', value }`:
+ * one value of a multiple combobox; without `value`, the last).
  */
 export const Combobox: Widget<ComboboxProps, ZagInstance, 'value-change' | 'input-change' | 'open-change'>

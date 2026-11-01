@@ -15,6 +15,8 @@
  * PLAN-10 W-1), the VS Code panel's page (graph-vscode.mjs, PLAN-10 E-2) and the `--base` diff page
  * (graph-view-diff.mjs, PLAN-10 V-6). BROWSER_TESTS_ONLY=graphview runs only
  * those; BROWSER_TESTS_GRAPHVIEW=0 skips them.
+ * sygnal/sandbox: a production build of test/fixtures/sandbox-app, both tiers (sandbox.mjs).
+ * BROWSER_TESTS_ONLY=sandbox runs only that; BROWSER_TESTS_SANDBOX=0 skips it.
  */
 
 import { createServer as createNetServer } from 'node:net';
@@ -26,6 +28,7 @@ import { runGraphLive } from './graph-live.mjs';
 import { runGraphLarge } from './graph-view-large.mjs';
 import { runGraphVscode } from './graph-vscode.mjs';
 import { runGraphDiff } from './graph-view-diff.mjs';
+import { runSandbox } from './sandbox.mjs';
 
 const ENGINE = process.env.BROWSER || 'chromium';
 if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) {
@@ -147,6 +150,7 @@ async function run() {
       const timeout = 4000;
       switch (action) {
         case 'click': return void await loc.click({ timeout, ...arg });
+        case 'dblclick': return void await loc.dblclick({ timeout, ...arg });
         case 'hover': return void await loc.hover({ timeout, ...arg });
         case 'focus': return void await loc.focus({ timeout });
         case 'press': return void await loc.press(arg, { timeout });
@@ -179,19 +183,28 @@ async function run() {
     });
     // D199 (spike 0-S5): a scripted sequence of trusted pointer/key input at page coordinates:
     // steps [['move', x, y, steps?] | ['down'] | ['up'] | ['key', name] | ['wait', ms] |
-    // ['touchStart' | 'touchMove', x, y] | ['touchEnd']]. Touch goes through CDP
-    // (Input.dispatchTouchEvent): Chromium only; elsewhere a touch step throws.
+    // ['touchStart' | 'touchMove', x, y] | ['touchEnd'] | ['touches', type, [[x, y], …]] |
+    // ['wheel', dx, dy] | ['keyDown' | 'keyUp', name]]. Touch goes through CDP
+    // (Input.dispatchTouchEvent): Chromium only; elsewhere a touch step throws. 'touches': several
+    // fingers at once (sygnal/canvas's pinch), ids by position.
     await page.exposeFunction('__pwInput', async (steps) => {
       for (const [op, a, b, n] of steps) {
         if (op === 'move') await page.mouse.move(a, b, { steps: n || 1 });
         else if (op === 'down') await page.mouse.down();
         else if (op === 'up') await page.mouse.up();
         else if (op === 'key') await page.keyboard.press(a);
+        else if (op === 'keyDown') await page.keyboard.down(a);
+        else if (op === 'keyUp') await page.keyboard.up(a);
+        else if (op === 'wheel') await page.mouse.wheel(a, b);
         else if (op === 'wait') await new Promise(r => setTimeout(r, a));
         else if (op === 'touchStart' || op === 'touchMove' || op === 'touchEnd') {
           if (ENGINE !== 'chromium') throw new Error(`__pwInput: touch input needs Chromium (CDP), not ${ENGINE}`);
           cdp ||= await page.context().newCDPSession(page);
           await cdp.send('Input.dispatchTouchEvent', { type: op, touchPoints: op === 'touchEnd' ? [] : [{ x: a, y: b }] });
+        } else if (op === 'touches') {
+          if (ENGINE !== 'chromium') throw new Error(`__pwInput: touch input needs Chromium (CDP), not ${ENGINE}`);
+          cdp ||= await page.context().newCDPSession(page);
+          await cdp.send('Input.dispatchTouchEvent', { type: a, touchPoints: b.map(([x, y], id) => ({ x, y, id })) });
         } else throw new Error(`__pwInput: unknown step '${op}'`);
       }
     });
@@ -240,6 +253,9 @@ async function run() {
     const onlyGraphView = only?.toLowerCase() === 'graphview';
     const withGraphView = process.env.BROWSER_TESTS_GRAPHVIEW !== '0' && (!only || onlyGraphView);
     if (onlyGraphView) process.exit((await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) + (await runGraphDiff(browser, ENGINE)) ? 1 : 0);
+    const onlySandbox = only?.toLowerCase() === 'sandbox';
+    const withSandbox = process.env.BROWSER_TESTS_SANDBOX !== '0' && (!only || onlySandbox);
+    if (onlySandbox) process.exit(await runSandbox(browser, ENGINE) ? 1 : 0);
     await page.goto(only ? `${url}?only=${encodeURIComponent(only)}` : url);
 
     // Wait for tests to complete
@@ -313,7 +329,8 @@ async function run() {
 
     const webMcpFailed = withWebMcp ? await runWebMcp(browser, url) : 0;
     const graphViewFailed = withGraphView ? (await runGraphView(browser, ENGINE, url)) + (await runGraphLive(browser, ENGINE)) + (await runGraphVscode(browser, ENGINE)) + (await runGraphLarge(browser, ENGINE)) + (await runGraphDiff(browser, ENGINE)) : 0;
-    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed ? 1 : 0);
+    const sandboxFailed = withSandbox ? await runSandbox(browser, ENGINE) : 0;
+    process.exit(failed > 0 || consoleMsgs.length > 0 || webMcpFailed || graphViewFailed || sandboxFailed ? 1 : 0);
   } finally {
     if (browser) await browser.close();
     await server.close();

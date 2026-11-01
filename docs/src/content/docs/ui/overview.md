@@ -11,8 +11,8 @@ import { dialog, tabs, tabsAttrs, Toaster } from 'sygnal/ui'
 
 | Part | What it is | Built on |
 |---|---|---|
-| [Dialog](/ui/dialog/) | A behavior for `uses` | `<dialog>`, `showModal()` |
-| [Popover](/ui/popover/) | A behavior for `uses` | The Popover API (`popover`, `popovertarget`) |
+| [Dialog](/ui/dialog/) | A behavior for `uses` (+ `dialogAttrs`) | `<dialog>`, `showModal()` |
+| [Popover](/ui/popover/) | A behavior for `uses` (+ `popoverAttrs` for a `trigger`) | The Popover API (`popover`, `popovertarget`) |
 | [Tooltip](/ui/tooltip/) | A behavior for `uses` | A manual popover placed by CSS anchor positioning, with show and hide delays |
 | [Tabs](/ui/tabs/) | A behavior + `tabsAttrs` | Your buttons and panels; roving focus |
 | [Accordion](/ui/accordion/) | A behavior + `accordionAttrs` | Your buttons and panels |
@@ -47,7 +47,7 @@ function Settings({ state, uid }) {
 Settings.uses = { settings: dialog({ dialog: '.settings', trigger: '.open-settings', close: '.close-settings' }) }
 ```
 
-`state.settings` is `{ open, returnValue }`, and the actions are `settings.OPEN`, `settings.CLOSE` and so on. Your own intent and model can trigger them and react to them, as with any behavior: an intent action `'settings.OPEN': DOM.click('.edit')` adds a trigger, and a model entry `'settings.CLOSED': (state) => …` runs after the behavior's.
+`state.settings` is `{ id, open, returnValue }`, and the actions are `settings.OPEN`, `settings.CLOSE` and so on. Every slice is the source of truth, as Radix's controlled props are: a reducer that writes `open: true` opens the dialog, and one that keeps `open: true` when the user presses Escape keeps it open ([Controlled open](/ui/dialog/#controlled-open)). Give a dialog or popover its `open` option, even `open: false`, and the browser never dismisses it: the behavior turns Escape, a press outside and the focus moving outside into the close request, top layer first, so a refused one never hides it for a frame ([Controlled dismissal](/ui/popover/#controlled-dismissal)). The parts also work inside a [`<Portal>`](/advanced/portals/). Your own intent and model can trigger them and react to them, as with any behavior: a model entry `'settings.CLOSED': (state) => …` runs after the behavior's, and `next('settings.OPEN')` dispatches one from your model. An intent action of the same name, `'settings.OPEN': DOM.click('.edit')`, *replaces* the behavior's trigger for that action, so the `.open-settings` clicks stop opening it; to add a second opener, list both in the option: `trigger: '.open-settings, .edit'`.
 
 Tabs, Accordion and Disclosure have no markup of their own either. A helper gives you the attributes to spread on your elements, computed from the slice: roles, ARIA states, ids that link the buttons and panels, and the roving `tabindex`. It takes the view's `uid`, so each instance of the component gets its own ids:
 
@@ -55,6 +55,8 @@ Tabs, Accordion and Disclosure have no markup of their own either. A helper give
 const a = tabsAttrs(state.tabs, uid)
 // <div {...a.list} aria-label="Settings"> <button className="tab" {...a.tab('general')}>General</button> …
 ```
+
+Dialog and Popover have helpers too, `dialogAttrs` and `popoverAttrs`, for their trigger's `aria-expanded` and `aria-controls` and, for a dialog, its name and description.
 
 The Toaster renders its own markup, so it is a component: render `<Toaster />` once and send `event('TOAST', { text })` from any component.
 
@@ -65,7 +67,7 @@ Style the parts with your own classes, the ones you pass in the options. The par
 | Attribute | On | Values |
 |---|---|---|
 | `data-state` | tabs and tab panels | `active`, `inactive` |
-| `data-state` | accordion and disclosure buttons and panels | `open`, `closed` |
+| `data-state` | accordion and disclosure buttons and panels; dialog and popover triggers and elements (from the helpers) | `open`, `closed` |
 | `data-value` | tabs, accordion buttons | the value you passed |
 | `data-kind` | each toast | `info`, `success`, `warning`, `error` |
 | `data-paused` | the toast region | present while paused |
@@ -75,6 +77,8 @@ The browser also exposes the open state: `dialog[open]`, `:modal`, `:popover-ope
 ## Browser support
 
 The parts target current evergreen browsers: Chromium (Chrome, Edge), Firefox and Safari. They rely on `<dialog>`, the Popover API (including `popovertarget` and `toggle` events), the `:modal` pseudo-class and, for the Tooltip, CSS anchor positioning (`anchor-name`, `position-anchor`, `position-area`). Sygnal's browser suite runs every part in Chromium, Firefox and WebKit.
+
+The parts read the document of the element they act on, not the global one, so they also work in a shadow root (a [custom element](/guide/web-components/)), in an iframe, and on [`sygnal/host`](/renderers/custom-targets/) trees such as the [terminal](/renderers/terminal/#sygnalui-in-a-terminal).
 
 The package has no JavaScript positioning fallback. To support a browser without CSS anchor positioning, position the tooltip with [Floating UI](#floating-ui-for-older-browsers) instead.
 

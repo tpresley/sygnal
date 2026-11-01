@@ -14,6 +14,8 @@ import {idsOf, keyed} from './shared'
 
 const base = /*#__PURE__*/ defineBehavior({
   initialState: {id: null as null | string, open: false},
+  // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
+  triggers: {TOGGLE: 'trigger'},
   intent: ({DOM}: any, {trigger}: any) => ({TOGGLE: DOM.click(trigger)}),
   model: {
     TOGGLE: (s: any) => ({...s, open: !s.open}),

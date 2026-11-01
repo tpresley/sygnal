@@ -195,8 +195,13 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
     stop: () => {
       const was = on
       on = 0
+      // a part's own machines and listeners (Menu's submenus)
+      try { x.off?.() } catch (_) {}
       try { was && m.stop() } finally { free() }
     },
+    // for a part's own machines (Menu's submenus): a redraw when they change, and the normaliser
+    draw,
+    normalize,
   })
   m.subscribe(draw)
   draw()
@@ -213,7 +218,7 @@ function start(zag: any, render: any, o: any, el: any, p0: any, dispatch: any, e
  * renders its parts with the prop getters spread (`<button {...api.getTriggerProps()}>`).
  * Options: `events` (dispatched name → Zag callback, or [callback, details → detail]), `props`
  * ((widgetProps, x) → machine props), `commands` ((api, options, x) → …), and defineWidget's
- * `tag`, `name`, `fallback`, `hostProps`, `ownProps`.
+ * `tag`, `name`, `fallback`, `hostProps`, `ownProps`, `field` (`read(x, host)`).
  */
 export function fromZag(zag: any, render: any, options: any = {}): any {
   if (!zag || !zag.machine || typeof zag.connect != 'function') fail('fromZag(zag, render): the first argument is not a Zag machine package (import * as menu from \'@zag-js/menu\')')
@@ -227,6 +232,8 @@ export function fromZag(zag: any, render: any, options: any = {}): any {
     fallback: o.fallback,
     hostProps: o.hostProps,
     ownProps: o.ownProps,
+    // the widget field contract (extra/field.ts): `field: { event, read }`, read gets the instance
+    field: o.field,
     // D211: a first-party part (sygnal/ui/menu…): its event names are documented, no SYG144
     $own: o.$own,
     events: Object.keys(o.events || {}),

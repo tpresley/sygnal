@@ -3,7 +3,8 @@
  *
  *   SYG127 (error)  a `uses` entry the core skips (not a defineBehavior()
  *                   result: an object literal, an uncalled factory), a `uses`
- *                   key the component's initialState already has, or an
+ *                   key the component's initialState already has (unless the
+ *                   behavior's factory says `ownsState: false`), or an
  *                   option the behavior never reads (a typo: `pager({ nxt:
  *                   Newer })`, where pager reads `next`)
  *   SYG226 (warn)   undoable(model, { track, resetOn, coalesce }) or undo({ track,
@@ -41,7 +42,8 @@ function reportUses(project, report, comp) {
       })
       continue
     }
-    if (comp.initialState?.keys.has(e.key)) {
+    // a behavior that keeps the host's value (`ownsState: false`: sygnal/yjs shared()) needs it there
+    if (comp.initialState?.keys.has(e.key) && e.ownsState !== false) {
       report({
         code: 'SYG127',
         component: comp.name,
@@ -113,6 +115,7 @@ export default {
   id: 'behaviors',
   codes: ['SYG127', 'SYG226'],
   description: 'Behaviors: unresolvable uses entry, collision, unknown option; undo track/resetOn/coalesce naming an unknown action',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const comp of project.components) {
       if (!comp.uses) continue

@@ -42,13 +42,29 @@ const ENTRY_VIA = { run: 'run', defineElement: 'element' }
 // Vike's plus files whose default export is a component (+Wrapper: sygnal/vike's own cumulative config)
 const VIKE_PLUS = /(^|[\\/])\+(Page|Layout|Wrapper)\.[cm]?[jt]sx?$/
 
+// FileInfo → its entries ({ refs, unknown }): they depend only on the file (and its path) and what
+// it imports, so an incremental build's reused FileInfo keeps them (Project `previous`)
+const fileEntries = new WeakMap()
+
 export function findEntries(project) {
   const refs = []
   let unknown = false
-  const add = (r, via, extra) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node, via, ...extra }); else unknown = true }
   for (const p of project.scanned) {
     const file = project.files.get(p)
     if (!file) continue
+    if (!fileEntries.has(file)) fileEntries.set(file, entriesOf(project, file, p))
+    const e = fileEntries.get(file)
+    refs.push(...e.refs)
+    if (e.unknown) unknown = true
+  }
+  return { refs, unknown }
+}
+
+function entriesOf(project, file, p) {
+  const refs = []
+  let unknown = false
+  const add = (r, via, extra) => { if (r?.node && isFunction(r.node)) refs.push({ file: r.file, node: r.node, via, ...extra }); else unknown = true }
+  {
     walk(file.ast.program, (n) => {
       if (n.type !== 'CallExpression') return true
       const callee = unwrap(n.callee)

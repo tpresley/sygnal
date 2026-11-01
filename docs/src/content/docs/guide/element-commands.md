@@ -76,7 +76,41 @@ Methods that change the DOM Sygnal renders (`remove`, `append`, `setAttribute` a
 
 ## Which element
 
-The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command.
+The target is looked up in the view of the **component instance that sent the command**, the same scope its intent's `DOM` has. An element inside a child component is isolated from its parent, and each item of a [Collection](/guide/collections/) reaches only its own elements. To focus or scroll something a child renders, send the command from the child's own model. If more than one element matches, the first one gets the command. A target that isn't in the component's own view is also looked for in the content of the [`<Portal>`](/advanced/portals/)s it renders.
+
+### Focusing an ancestor's element: hand it off
+
+A child can't reach an element its parent (or any ancestor) renders. Hand the command to the component that renders it: the child emits an event, and the ancestor's entry for it sends the command. A wizard's footer button that sends the user back to the page's name field:
+
+```jsx title="Start.jsx"
+import { event } from 'sygnal'
+
+function Footer({ name }) {
+  return <button className="next">{name ? 'Continue' : 'Name the project to continue'}</button>
+}
+Footer.intent = ({ DOM }) => ({ NEXT: DOM.click('.next') })
+Footer.model = { NEXT: { EVENTS: event('NAME_FIRST') } }
+
+function Start({ state }) {
+  return (
+    <div>
+      <label>Project name <input id="project-name" value={state.name} /></label>
+      <Footer name={state.name} />
+    </div>
+  )
+}
+Start.initialState = { name: '' }
+Start.intent = ({ DOM, EVENTS }) => ({
+  NAME: DOM.input('#project-name').value(),
+  NAME_FIRST: EVENTS.select('NAME_FIRST'),
+})
+Start.model = {
+  NAME: (state, name) => ({ ...state, name }),
+  NAME_FIRST: { ELEMENT: { focus: '#project-name' } },
+}
+```
+
+`PARENT` with `CHILD.select(Footer)` works the same way. Sending the command from the child is reported as [SYG640](/reference/errors/#syg640), whose message says that a matching element is rendered outside the child's view.
 
 ### Focusing inside children: `focusWithin`
 
@@ -304,7 +338,7 @@ it('moves the focus there (real DOM)', async () => {
 
 | Code | When |
 |---|---|
-| [SYG640](/reference/errors/#syg640) (warning) | Nothing in the sending instance's view matched the target within about 1 s, or the command has no target. `sygnal-check` reports a literal command whose class the view never renders |
+| [SYG640](/reference/errors/#syg640) (warning) | Nothing in the sending instance's view matched the target within about 1 s, or the command has no target. The message says when a matching element is rendered outside the sender's view (by an ancestor: [hand it off](#focusing-an-ancestors-element-hand-it-off)). `sygnal-check` reports a literal command whose class the view never renders |
 | [SYG641](/reference/errors/#syg641) (error) | The element has no method of that name (a typo such as `fokus`, `showModal` on a `<div>`; for a [widget control](/guide/controls/#widget-controls-for-library-authors), its spec has no such command either), the value isn't a command object, or the method changes the DOM Sygnal renders. `sygnal-check` reports a misspelled documented method or spec command |
 
 Both come from the development checks (`sygnal/diagnostics`, loaded by the Vite plugin in dev) and from `sygnal-check`. In production a command that can't run does nothing.

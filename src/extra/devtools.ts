@@ -2,7 +2,7 @@ import {getDiagnostics} from './diagnostics/index';
 import type {Diagnostic} from './diagnostics/index';
 import {recordActions, clearActions, getActions, onAction, getSession, preview} from './devtoolsActions';
 import type {DevtoolsAction, SessionRecording} from './devtoolsActions';
-import {sessionToTest} from './copyAsTest';
+import {sessionToTest, replayFile} from './copyAsTest';
 import type {CopyAsTestOptions, CopyAsTestResult} from './copyAsTest';
 
 import {addLayer, devtoolsHooks} from './devtoolsNext';
@@ -126,7 +126,7 @@ export class SygnalDevTools {
         clearActions();
         break;
       case 'COPY_AS_TEST':
-        this._post('COPY_AS_TEST_RESULT', this._copyAsTest(msg.payload?.instance));
+        this._post('COPY_AS_TEST_RESULT', this._copyAsTest(msg.payload?.instance, msg.payload?.mode));
         break;
       case 'DISCONNECT':
         this._connected = false;
@@ -347,8 +347,10 @@ export class SygnalDevTools {
   }
 
   /** "Copy as test" for the panel: the session of `instance` (default: the root) */
-  _copyAsTest(instance?: string | number): CopyAsTestResult | {error: string} {
+  _copyAsTest(instance?: string | number, mode?: 'steps' | 'replay'): CopyAsTestResult | {error: string} {
     try {
+      // 7.2: the panel asks for the replay mode with { mode: 'replay' }
+      if (mode == 'replay') return replayFile(this._copyOptions);
       return sessionToTest(getSession(instance ?? undefined), this._copyOptions);
     } catch (e: any) {
       return {error: String(e?.message || e)};

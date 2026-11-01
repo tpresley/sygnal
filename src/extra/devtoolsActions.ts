@@ -40,6 +40,8 @@ export interface DevtoolsAction {
   replyKind?: 'fetch' | 'other'
   /** an intent action whose data is the instance's own state (an intent over STATE.stream) */
   echo?: true
+  /** canvas-game: its before / after were dropped (only the newest 500 actions keep their states) */
+  statesDropped?: true
 }
 
 export interface SessionAction {
@@ -98,6 +100,10 @@ interface Inst {
 }
 
 const MAX = 5000
+// canvas-game: the states are what grows (a 60 fps game keeps a whole world per frame: +2-3 MB/s at
+// 300 entities): only the newest STATES actions keep before / after (a connected panel got them
+// when they ran); older ones keep their type, data and sinks
+const STATES = 500
 const STANDARD = /^(DOM|EVENTS|LOG|CHILD|PARENT|READY|props\$|children\$|dispose\$)$/
 
 let actions: DevtoolsAction[] = []
@@ -152,6 +158,8 @@ const listener: ActionListener = {
     byRec.set(r, a)
     actions.push(a)
     if (actions.length > MAX) { actions.shift(); truncated = true }
+    const old = actions[actions.length - 1 - STATES]
+    if (old && 'after' in old) { delete old.before; delete old.after; old.statesDropped = true }
     notify(a, 'add')
   },
   sink(r, sink) {

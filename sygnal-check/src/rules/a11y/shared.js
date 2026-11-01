@@ -56,29 +56,40 @@ function collectAttrs(opening) {
   return { attrs, spread }
 }
 
+// FileInfo → its Elements: a file's elements (tags, attributes, controls resolved through its
+// imports) depend only on the file and what it imports, so an incremental build's reused FileInfo
+// keeps them (Project `previous`)
+const fileElements = new WeakMap()
+
 export function elementsOf(project) {
   if (cache.has(project)) return cache.get(project)
   const out = []
   for (const p of project.scanned) {
     const file = project.files.get(p)
     if (!file) continue
-    walk(file.ast.program, (n) => {
-      if (n.type !== 'JSXElement') return true
-      out.push(describe(project, file, n))
-      return true
-    })
+    if (!fileElements.has(file)) {
+      const list = []
+      walk(file.ast.program, (n) => {
+        if (n.type !== 'JSXElement') return true
+        list.push(describe(project, file, n))
+        return true
+      })
+      fileElements.set(file, list)
+    }
+    out.push(...fileElements.get(file))
   }
   cache.set(project, out)
   return out
 }
 
-// project → (JSXElement → Element): per build, since the AST can be shared across builds through
-// a ParseCache while the Element holds this build's FileInfo and control resolution
+// FileInfo → (JSXElement → Element): per FileInfo, so per build (the AST can be shared across
+// builds through a ParseCache, while the Element holds this build's FileInfo and control
+// resolution); an incremental build's reused FileInfo keeps its Elements (Project `previous`)
 const described = new WeakMap()
 
 export function describe(project, file, el) {
-  let byEl = described.get(project)
-  if (!byEl) described.set(project, byEl = new WeakMap())
+  let byEl = described.get(file)
+  if (!byEl) described.set(file, byEl = new WeakMap())
   if (byEl.has(el)) return byEl.get(el)
   const opening = el.openingElement
   const name = jsxName(opening.name)
@@ -313,14 +324,29 @@ export function labelState(project, file, node, depth = 0) {
 }
 
 /** Is the component `name` rendered (<Name>) inside a <label>, or in an unknown context? */
+// native-tooling experiment E-3: <Name> usages indexed by name, and the answer memoized per
+// (name, depth), per build (it was a scan of every element per field and per level: quadratic)
+const usagesByName = new WeakMap() // project → { byName: Map<name, Element[]>, memo: Map }
 function componentInLabel(project, name, depth) {
+  let u = usagesByName.get(project)
+  if (!u) {
+    u = { byName: new Map(), memo: new Map() }
+    for (const info of elementsOf(project)) {
+      if (info.kind !== 'component') continue
+      if (!u.byName.has(info.name)) u.byName.set(info.name, [])
+      u.byName.get(info.name).push(info)
+    }
+    usagesByName.set(project, u)
+  }
+  const key = `${name}|${depth}`
+  if (u.memo.has(key)) return u.memo.get(key)
   let state = 'none'
-  for (const info of elementsOf(project)) {
-    if (info.kind !== 'component' || info.name !== name) continue
+  for (const info of u.byName.get(name) || []) {
     const s = labelState(project, info.file, info.el, depth + 1)
-    if (s === 'label') return 'label'
+    if (s === 'label') { state = 'label'; break }
     // a usage we can't place is fine: the component's own markup is what we judge
   }
+  u.memo.set(key, state)
   return state
 }
 

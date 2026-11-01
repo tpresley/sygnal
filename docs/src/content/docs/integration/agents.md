@@ -7,7 +7,7 @@ Sygnal ships tooling for coding agents (Claude Code, Cursor, Codex and others). 
 
 | Tool | What it gives the agent |
 |---|---|
-| [`llms.txt`](#llmstxt) | A compact reference of the canonical forms, in one file |
+| [`llms.txt`](#llmstxt) | A compact reference of the canonical forms, plus topic files it points to |
 | [`sygnal-dev` skill](#the-sygnal-dev-skill) | The same knowledge as a Claude Code skill, with a workflow; installed by the Sygnal plugin |
 | [`sygnal-check`](#sygnal-check) | Static wiring checks, strict mode, `--fix`, the app graph, `explain` |
 | [MCP server](#mcp-server) | `check`, `graph` and `explain` as tools |
@@ -18,7 +18,7 @@ This page is about agents that **build** your app. For agents that **operate** i
 
 ## llms.txt
 
-[`/llms.txt`](/llms.txt) is a single plain-text reference written for language models: the mental model, the anatomy of a component, one canonical example per concept, the wiring rules, an RxJS-to-xstream cheat sheet, how to read diagnostics, and how to test a change. It only uses the [canonical forms](/guide/strict-mode/), so code an agent copies from it passes `sygnal-check --strict`.
+[`/llms.txt`](/llms.txt) is a plain-text reference written for language models: the mental model, the anatomy of a component, one canonical example per concept, the wiring rules, an RxJS-to-xstream cheat sheet, how to read diagnostics, and how to test a change. Features fewer apps use (`sygnal/ai`, the `sygnal/ui` parts, three.js and canvas islands, typed APIs, collaborative state, other renderers, the sandbox, record and replay) are in topic files it lists at the top, such as [`/llms/ai.md`](/llms/ai.md), which an agent reads when it needs one. [`/llms-full.txt`](/llms-full.txt) is all of it in one file, for tools that load a whole file. It only uses the [canonical forms](/guide/strict-mode/), so code an agent copies from it passes `sygnal-check --strict`.
 
 Point your agent at it, for example in your project's `AGENTS.md` or `CLAUDE.md`:
 
@@ -27,7 +27,7 @@ This project uses Sygnal. Read https://sygnal.js.org/llms.txt before writing com
 Run `npx --no-install sygnal-check --strict` after every change and fix every warning.
 ```
 
-The same file ships in the npm package (`node_modules/sygnal/llms.txt`), so agents can read it offline, and is in the root of the Sygnal repository.
+The same files ship in the npm package (`node_modules/sygnal/llms.txt`, `node_modules/sygnal/llms/`), so agents can read them offline, and is in the root of the Sygnal repository.
 
 Projects created with `create-sygnal-app` (without prompts: `npm create sygnal-app@latest my-app -- --template vite --js --install`) already include an `AGENTS.md` (and a `CLAUDE.md` that imports it) with these instructions, the test and check commands, and the testing recipe.
 
@@ -59,7 +59,7 @@ The commands below use `npx --no-install`, which runs only the copy installed in
 | Command | Does |
 |---|---|
 | `npx --no-install sygnal-check` | Check `./src`; pass files, directories or globs instead (a Vike app: `npx --no-install sygnal-check pages`) |
-| `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-507) |
+| `npx --no-install sygnal-check --strict` | Also run the [strict-mode](/guide/strict-mode/) rules (SYG501-509) |
 | `npx --no-install sygnal-check --fix` | Rewrite SYG504/505/506 into the canonical form in place, then check |
 | `npx --no-install sygnal-check --graph [--json]` | Print the app graph (components, actions, events, selectors, findings) |
 | `npx --no-install sygnal-check --graph --json --base main` | What a branch changed in the app graph, as JSON: components added, removed and changed (with the changed fields), and event types added and removed |

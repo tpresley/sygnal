@@ -53,7 +53,7 @@
  *                            and SYG302-399 for new checks
  *   1E (message retrofit)    SYG206-299, SYG402-499, SYG601-699, SYG901-999
  *   2A (strict mode)         SYG500-599
- *   unallocated              SYG100, SYG200, SYG203-205, SYG300, SYG400,
+ *   unallocated              SYG100, SYG200, SYG203, SYG205, SYG300, SYG400,
  *                            SYG600 (coordinator assigns on request)
  * ---------------------------------------------------------------------------
  */
@@ -148,6 +148,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG116: 'EVENTS value has no string type',
   // PLAN-13 N-1: dev entry (checks/next.ts onNext) and sygnal-check
   SYG117: 'next() names an action with no model entry',
+  // ui-sweep R1: dev entry (checks/behaviors.ts onIntent) and sygnal-check
+  SYG118: 'Host intent replaces a behavior trigger',
   SYG124: 'Component used as a control or selector',
   SYG125: 'Control given .intent, .model or .initialState',
   SYG126: 'Control rendered but never listened to',
@@ -190,6 +192,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG434: 'Invalid VirtualCollection estimateSize or overscan',
   // PLAN-5 3-H (G-449): sortable over a list shown in another order (checks/sortable.ts)
   SYG435: 'Sortable list shown filtered or in another order',
+  // Temper feedback 2026-10: VirtualCollection (checks/virtual.ts, through the core bridge)
+  SYG436: 'VirtualCollection estimateSize far from the measured row heights',
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'Two agent declarations with the same name',
   SYG441: 'Agent Collection items without unique ids',
@@ -198,10 +202,14 @@ export const CODE_TITLES: Record<string, string> = {
   // SYG2xx state & reducers (1A)
   SYG201: 'STATE reducer dropped keys from the previous state',
   SYG202: 'STATE reducer returned undefined',
+  // sandbox research §6 (dev entry, checks/next.ts)
+  SYG204: 'Root component has no state, so its view never renders',
   // SYG3xx streams & intent construction (1A)
   SYG301: 'RxJS operator used on an xstream stream',
   // PLAN-13 X-1: static only (sygnal-check)
-  SYG302: "Default import from 'xstream'",
+  SYG302: "Default import from 'xstream' or 'xstream/extra/*'",
+  // Temper feedback 2026-10: static only (sygnal-check; warn under --strict)
+  SYG303: 'STATE.stream with dropRepeats() in an intent',
   // SYG4xx collections / switchable / sub-components / context (1A)
   SYG401: "Collection 'from' field is missing or not an array",
   // SYG5xx strict mode / canonical forms (2A; dev-plans/PLAN-1-canonical-forms.md)
@@ -213,6 +221,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG506: "Removed in 6.0: CHILD.select() with a component name",
   SYG507: 'Prop drilled through more than 2 component levels',
   SYG508: 'select()/errors() round trip where reply actions would do',
+  SYG509: 'Clock or randomness read from a global in a handler',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -379,12 +388,23 @@ export const CODE_TITLES: Record<string, string> = {
   SYG254: 'Catalog descriptions or options overlap',
   SYG256: 'Output guard rejects the updated state',
   SYG257: 'Output reads a field its action changed (7.0 timing audit)',
+  // record/replay: static only (sygnal-check rules/syg258-clock-in-reducer.js; SYG509 under --strict)
+  SYG258: 'Clock or randomness read from a global in a STATE reducer',
+  // sygnal/yjs (research: dev-plans/research/crdt-state): shared() reports them (dev), SYG260 statically too
+  SYG260: 'undo() or undoable() on a key shared() syncs',
+  SYG261: 'shared() inferred the kind of an empty array',
+  // sygnal/canvas (research: dev-plans/research/canvas-apps): the Canvas reports it (dev)
+  SYG262: 'Canvas data layer rebuilt with equal nodes',
   SYG454: 'State binding changed without a new component identity',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
   SYG685: 'Answer for a tool call that is not open',
   SYG686: 'Ask catalog without a result part',
+  // sygnal/api (dev preview)
+  SYG690: 'API contract skew',
+  SYG691: 'Unknown API endpoint',
+  SYG692: 'Sandbox event dropped',
   // PLAN-4 GS-3: a11y lane (static only, sygnal-check)
   SYG701: 'Click listener on a non-interactive element',
   SYG702: 'Form field without an accessible label',
@@ -420,6 +440,7 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG506: 'error',
   SYG507: 'info',
   SYG508: 'warn',
+  SYG509: 'warn',
 }
 
 // PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict
@@ -433,6 +454,9 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG115: 'warn',
   SYG116: 'error',
   SYG117: 'warn',
+  SYG118: 'warn',
+  // sandbox research §6: a root that has no state after it starts (checks/next.ts)
+  SYG204: 'warn',
   // PLAN-4 1-D: controls, static (sygnal-check)
   SYG124: 'error',
   SYG125: 'error',
@@ -446,6 +470,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG170: 'warn',
   // PLAN-13 X-1: static only (sygnal-check)
   SYG302: 'info',
+  // Temper feedback 2026-10: static only (sygnal-check); its strict copy reports it at warn
+  SYG303: 'info',
   // PLAN-13 F-3 (checks/next.ts)
   SYG429: 'warn',
   SYG171: 'warn',
@@ -571,6 +597,11 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG684: 'warn',
   SYG685: 'warn',
   SYG686: 'warn',
+  // sygnal/api: contractFetch() (SYG690); static only: sygnal-check (SYG691)
+  SYG690: 'warn',
+  SYG691: 'warn',
+  // sygnal/sandbox: an EVENTS type not declared in emits, or data its schema rejects (createSandbox, <Sandboxed>)
+  SYG692: 'warn',
   // PLAN-5 V-1: VirtualCollection (checks/virtual.ts, through the core bridge)
   SYG430: 'warn',
   SYG431: 'warn',
@@ -579,6 +610,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG434: 'warn',
   // PLAN-5 3-H (G-449): sortable (checks/sortable.ts)
   SYG435: 'warn',
+  // Temper feedback 2026-10: VirtualCollection (checks/virtual.ts)
+  SYG436: 'warn',
   // PLAN-6 A-1 (sygnal/ai agent layer)
   SYG440: 'warn',
   SYG441: 'warn',
@@ -619,6 +652,12 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG256: 'warn',
   // 7.0: the opt-in timing audit (checks/next.ts; configureTimingAudit)
   SYG257: 'info',
+  // record/replay: static only (sygnal-check); listed so the entry knows its title
+  SYG258: 'warn',
+  // sygnal/yjs: reported with the severity passed (shared() in dev; sygnal-check: SYG260)
+  SYG260: 'warn',
+  SYG261: 'warn',
+  SYG262: 'warn',
   // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
 }

@@ -63,6 +63,11 @@
  *                                  one that streams on load, so check-live parses a real stream
  *                                  (D275). Decisions need nothing new: decide({ url:
  *                                  '/v1/systemone', ... }) goes through HTTP to a demo route
+ *   SHARED: makeYjsDriver({ doc: peer.doc, provider: peer })  (sygnal/yjs) on a page where any
+ *                                  block imports sygnal/yjs: `peer` joins one in-memory network
+ *                                  per page (createNetwork() from sygnal/yjs/testing), so the
+ *                                  page's demos are users of one document (two panels of the same
+ *                                  component are two windows); Restart leaves and joins again
  * There is no `export const drivers` and no scripted transport (D274): a demo's "model" is a
  * visible demo-server route speaking the real wire format.
  * Not included (they need a real server or change the page): WS, SW, HEAD, the router.

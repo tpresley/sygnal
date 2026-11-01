@@ -227,9 +227,9 @@ After:
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values (and an HTTP request's `progress`) returned by non-STATE sinks, the `message`/`open`/`close`/`error` names in a `connections` static, and the action names in a `timers` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data.
+A request sent to a driver with reply actions (`makeFetchDriver`, `driverFromAsync`, the socket driver) names its reply actions, as in `{ url, ok: 'LOADED', error: 'FAILED' }`, and the driver delivers the reply to the sending component as that action. When the component's model has no entry with that name, the reply is dropped, usually because of a typo, or because the entry is in another component: a reply goes only to the instance that sent the request (two instances, every Collection item), never to a parent that has an entry of that name. The dev entry checks each request with reply actions as it is sent; `sygnal-check` checks string literal `ok`/`error` values (and an HTTP request's `progress`) returned by non-STATE sinks, the `message`/`open`/`close`/`error` names in a `connections` static, and the action names in a `timers` static. Statically, only names that look like actions (UPPER_SNAKE_CASE) or are close to a model key are reported, because the checker cannot see which driver a sink goes to, and a custom driver may use an `error` field for data. The dev entry's message names the nearest ancestor that has an entry of that name, when one does.
 
-**Fix:** Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`.
+**Fix:** Use the name of an existing model entry (the message names the closest one), or add the entry: `LOADED: (state, body) => ({ ...state, data: body })`. When an ancestor handles the reply, send the request from the ancestor: the child emits `EVENTS: event('RETRY_TEMPLATES')`, the ancestor selects it in its intent and sends the request from that entry, so the reply comes back to it. For data several components load or retry (a shared loader), declare it once as a resource where it is shown, `resources: { templates: () => ({ url: '/api/templates', tags: ['templates'] }) }`, and re-request it from any component with `HTTP: { invalidate: 'templates' }`: every mounted resource with that tag refetches, and no reply action is needed.
 
 Before:
 
@@ -275,9 +275,9 @@ Modal.intent = ({ DOM }) => ({
 
 **EVENTS value has no string type**
 
-Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
+Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too.
+A model sent a value without a string `type` to the `EVENTS` sink, so no `EVENTS.select(type)` can receive it and it is dropped. The usual cause is a function: a model entry that returns `event(...)` (for example `{ EVENTS: () => event('SAVED', data) }`) instead of being `event(...)`, or any other reducer that returns a function. Each emitted value is copied into a new object, so a function arrives on the bus as `{}`. A reducer that returns `undefined` or `null` (see SYG217) causes it too. `sygnal-check` reports a sink entry that is a function returning `event(...)` (or `emit(...)`) from 'sygnal' (ui-sweep R5).
 
 **Fix:** Make `event()` the sink entry itself: `SAVE: { EVENTS: event('SAVED', (state, data) => payload) }`; return `ABORT` from a reducer to send nothing.
 
@@ -302,6 +302,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-
 `next('X')` in a model handler dispatches `X` to the same component, and only there. When that component has no model entry `X`, nothing happens: no error, no state change. The usual cause is a child calling `next()` for an action its parent handles (a card's `next('ENTER')` when only the page has `ENTER`), which looks like a hang; a typo is the other. The dev entry reports the first `next()` of each name a component sends with no entry, and names the nearest ancestor that has one. `sygnal-check` reports a literal `next('X')` in the model (the module-level reducers it references, and the helpers it passes `next` to, imported ones included, 3 calls deep) when the same component has no entry `X`, not counting a behavior's own actions.
 
 **Fix:** To reach the parent, send the action up: give the entry a `PARENT` sink (`PARENT: (state) => ({ … })`) and read it in the parent's intent with `ENTER: CHILD.select(Card)`, or emit `EVENTS: event('ENTER', …)` and select it there. For a typo, use the existing entry's name; otherwise add the entry to this component's model.
+
+### SYG118
+
+**Host intent replaces a behavior trigger**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+An intent action named like a behavior action (`'tabs.SELECT'`, `'profile.OPEN'`) replaces the trigger the behavior builds for it; it doesn't add one. When that trigger comes from an option you passed (`tabs({ tab: '.tab' })` makes `tabs.SELECT` from clicks on `.tab`; `dialog({ trigger: '.edit' })` makes `profile.OPEN` from clicks on `.edit`), the elements the option names stop working: tab clicks no longer select, the trigger no longer opens the dialog. `sygnal-check` reports a host intent action `<key>.<ACTION>` when the `uses` entry passes the option the behavior listens to for that action (the first-party behaviors, and `defineBehavior()` calls it can follow); the dev entry reports it once per component, for behaviors that declare `triggers: { ACTION: 'option' }` (the `sygnal/ui` parts and the first-party behaviors do).
+
+**Fix:** To add another element, list both in the option (`trigger: '.edit, .avatar'`, `tab: '.tab, .go-billing'`), or give the other element its own action that dispatches the behavior's with `next('profile.OPEN')`, or write the slice in a reducer (`{ ...state, tabs: { ...state.tabs, selected: 'billing' } }`). To replace the trigger on purpose, leave the option out.
 
 ### SYG124
 
@@ -419,9 +429,9 @@ A widget made with `defineWidget()` called `dispatch(name, detail)` (the third p
 
 Severity: `warn` · Reported by: `sygnal-check`
 
-The intent listens for an event on a widget's host (`DOM.select('.due').events('pikc')`, or a widget control: `DOM.select(Due).events('pikc')`) that the widget doesn't list in its `events`, that no element fires natively, and that is a near-typo of a declared event, so the action most likely never fires. sygnal-check resolves the selector through the static `className` and `id` of the elements the component's own view renders: it reports only when every element with that class or id is a widget host and the widgets' `events` are literal lists. Native event names (`click`, `focus`, `change`...) are never reported, since the host or its content fires them; neither is a name that isn't close to a declared one (a library such as Choices.js fires its own events on the host element), nor any name on a custom element host (`tag: 'my-editor'`), which may fire it itself. The runtime can't tell which listener a selector serves, so this code is static only.
+The intent listens for an event on a widget's host (`DOM.select('.due').events('pikc')`, or a widget control: `DOM.select(Due).events('pikc')`) that the widget doesn't list in its `events`, that no element fires natively, and that is a near-typo of a declared event, so the action most likely never fires. sygnal-check resolves the selector through the static `className` and `id` of the elements the component's own view renders: it reports only when every element with that class or id is a widget host and the widgets' `events` are literal lists. Native event names (`click`, `focus`, `change`...) are not reported, since the host or its content fires them, with one exception: `change` or `input` on a selector that resolves only to Menu, Select or Combobox (`sygnal/ui/menu`, `select`, `combobox`), a native `<select>`'s habit. Those parts report their value with `value-change` (Menu: the picked item with `select`), and a native `change` / `input` bubbling out of them carries no detail; neither is a name that isn't close to a declared one (a library such as Choices.js fires its own events on the host element), nor any name on a custom element host (`tag: 'my-editor'`), which may fire it itself. The runtime can't tell which listener a selector serves, so this code is static only.
 
-**Fix:** Listen for the declared event the name is close to (`DOM.select('.due').events('pick').detail()`), or add the name to the widget's `events` and dispatch it from `mount()`.
+**Fix:** Listen for the declared event the name is close to (`DOM.select('.due').events('pick').detail()`), or add the name to the widget's `events` and dispatch it from `mount()`. On a Select or Combobox: `DOM.select('.size').events('value-change').detail()`; on a Menu: `events('select')`.
 
 ### SYG142
 
@@ -638,6 +648,16 @@ After:
 ```jsx
 ADD: (state, item) => ({ ...state, items: [...state.items, item] })
 ```
+
+### SYG204
+
+**Root component has no state, so its view never renders**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+The core calls a component's view only while its state is defined. A root component gets its first state from `initialState`, from an `INITIALIZE` reducer, or, with no model at all, renders without one. A root that has a model but no `initialState` starts with `undefined` state, so nothing is rendered: no error, an empty page, and a `DOM.click()` intent that can never fire because its element never appears. Generated code that has no data of its own often looks like this. The dev entry checks once per app, after the first render and the `BOOTSTRAP` reducers' flush, and reports a root whose state is still `undefined`, naming the reducers that could set it later. It is runtime-only: the root is whatever `run()` is given, which a static check can't know reliably.
+
+**Fix:** Give the root an `initialState`, `App.initialState = {}` when it has no data of its own, or return the first state from an `INITIALIZE` reducer. To show a loading state before data arrives, start from one (`{ loading: true }`) rather than from no state.
 
 ### SYG206
 
@@ -1269,6 +1289,46 @@ An opt-in migration audit for the 7.0 reducer timing: an output sink (EFFECT, HT
 
 **Fix:** If the output meant the value from before the action (an admission guard, a 'was' value), read it from the fourth argument: (state, data, next, { previousState }) => previousState.status ... Otherwise nothing needs to change: the output now sees what STATE wrote.
 
+### SYG258
+
+**Clock or randomness read from a global in a STATE reducer**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A STATE reducer calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The reducer then gives a different state each time the same action runs, so replaying recorded actions (record/replay, a test with `renderComponent`) does not reproduce the state. Model handlers receive `now()`, `random()` and `uuid()` on their 4th argument (props); record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply them, so the reducer stays deterministic. Calls in nested functions, views and intents are not reported. The global still works: replay patches it as a fallback, so this is a warning, not an error. Under `sygnal-check --strict` the same reads are reported as SYG509 instead (which also covers EFFECT and other sink handlers). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ "ignore": ["SYG258"] }`) or put `// sygnal-ignore SYG258` above the line.
+
+**Fix:** Take the value from the reducer's 4th argument: `ADD_TASK: (state, title, next, { now, uuid }) => ({ ...state, tasks: [...state.tasks, { id: uuid(), title, created: now() }] })` instead of `crypto.randomUUID()` and `Date.now()`; `new Date()` becomes `new Date(now())`. A component prop with the same name shadows them.
+
+### SYG260
+
+**undo() or undoable() on a key shared() syncs**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+`shared()` from `sygnal/yjs` keeps `state[key]` in a Yjs document that other clients edit too. Sygnal's `undo({ key })` behavior and `undoable(model, { key })` record snapshots of the whole slice and restore one on UNDO: the restored snapshot is then written to the document like any local edit, so it reverts every change other users made since that snapshot, not only this user's. The Yjs driver has a per-user undo instead: a `Y.UndoManager` per shared key that tracks only this client's own transactions, so a remote change made after this user's edit survives the undo. Reported by `shared()` when the component is first created (dev, `renderComponent`) for an `undo()` in the same `uses`, and by sygnal-check for `undo({ key })` and `undoable(model, { key })` with a literal key.
+
+**Fix:** Remove the snapshot undo for that key and send the commands to the driver: `UNDO: { SHARED: { undo: 'board' } }`, `REDO: { SHARED: { redo: 'board' } }`; `shared({ history: 'history' })` puts `{ canUndo, canRedo }` in `state.history` for the buttons. `undo()` on keys that aren't shared keeps working next to it.
+
+### SYG261
+
+**shared() inferred the kind of an empty array**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+Without a `shape`, `shared()` infers how each field of the slice is stored in the Yjs document from its value: an array of objects that all have an `id` becomes an id-keyed collection (concurrent adds, edits, moves and removes of different items merge), any other array a `Y.Array` of plain values. An empty array fits both, so the driver guesses a collection; if the field later holds plain values (strings, numbers), it is switched to a list then, and a concurrent edit by another client can be lost in the switch. Reported once per field path, in dev, when the slice is first written to the document.
+
+**Fix:** Declare the field's kind: `shared({ shape: { tags: 'list' } })` for plain values, `shared({ shape: { items: collection() } })` (from `sygnal/yjs`) for items with an `id`. Fields the shape leaves out are still inferred.
+
+### SYG262
+
+**Canvas data layer rebuilt with equal nodes**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A `<shapes items={…}>` data layer of `sygnal/canvas` got a new array in which at least half of its nodes (64 or more) are new objects with exactly the fields of the nodes they replace: a reducer rebuilt every shape (`shapes.map(s => ({ ...s }))`, a JSON round trip, a fresh copy from a store) while changing few or none. The canvas keys its static layer, its translation blits and its camera cache on node identity (as `sygnal/yjs` keys its diff on it), so a layer whose nodes all change identity repaints everything on every frame, silently: the app still works, at a full repaint's cost. Reported once per layer, in dev, by the Canvas when it syncs its children.
+
+**Fix:** Replace only the nodes that change and keep the others: `shapes.map(s => s.id === id ? { ...s, x } : s)`, or patch by index. For a selection, look the ids up in a `Set` and return the untouched objects as they are.
+
 ## SYG3xx: Streams
 
 ### SYG301
@@ -1297,13 +1357,23 @@ RESULTS: DOM.input('.q').value().compose(debounce(300))
 
 ### SYG302
 
-**Default import from 'xstream'**
+**Default import from 'xstream' or 'xstream/extra/*'**
 
 Severity: `info` · Reported by: `sygnal-check`
 
-xstream is published as CommonJS with an `exports.default`. Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `"type": "module"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there and a driver or test fails when it runs. Sygnal resolves that default once and re-exports it, so drivers, intents and tests can use the same `xs` everywhere. `sygnal-check` reports a default import from `'xstream'` in the scanned files.
+xstream is published as CommonJS with an `exports.default`, and so is each of its extras (`xstream/extra/dropRepeats`, `debounce`, ...). Bundlers that apply interop give `import xs from 'xstream'` the stream factory, but Node's ESM loader and Vite 8 (in a package with `"type": "module"`) give the module object, so `xs.create`, `xs.merge` and `xs.of` are undefined there, `dropRepeats()` is "not a function", and a driver, intent or test fails when it runs, after `tsc` and the checker passed. Sygnal resolves the default once and re-exports `xs`, and exports ESM versions of the extras `concat`, `debounce`, `throttle`, `delay`, `dropRepeats`, `sampleCombine`, `flattenConcurrently` and `flattenSequentially`, so the same import works everywhere. `sygnal-check` reports a default import from `'xstream'` or `'xstream/extra/<name>'` in the scanned files.
 
-**Fix:** Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name). `sygnal-check --fix` rewrites an import whose only specifier is the default one. Types stay importable from xstream: `import type { Stream } from 'xstream'`.
+**Fix:** Import it from Sygnal: `import { xs } from 'sygnal'` (`import { xs as stream } from 'sygnal'` for another name), `import { dropRepeats, debounce } from 'sygnal'`. `sygnal-check --fix` rewrites an import whose only specifier is the default one. For an extra Sygnal doesn't export, resolve the default yourself: `import pairwiseModule from 'xstream/extra/pairwise'` then `const pairwise = pairwiseModule.default ?? pairwiseModule`. To react to a state change, `STATE.watch(fn)` needs no extra at all (SYG303). Types stay importable from xstream: `import type { Stream } from 'xstream'`.
+
+### SYG303
+
+**STATE.stream with dropRepeats() in an intent**
+
+Severity: `info` · Reported by: `sygnal-check`
+
+An intent builds an action from `STATE.stream` composed with `dropRepeats()`, as in `CHANGED: STATE.stream.map(s => s.tab).compose(dropRepeats())`: the hand-written way to act when part of the state changes. `STATE.watch(fn)` is the canonical form: it emits the selected value each time it changes, compares values structurally (a new array with the same items is no change), works the same in a Collection item (its own state), and needs no xstream extra (a default import of one fails at run time under Node ESM and Vite 8, SYG302). `sygnal-check` reports a `.compose(dropRepeats())` whose operator chain starts at the intent's `STATE.stream`, when `dropRepeats` comes from `'sygnal'` or `'xstream/extra/dropRepeats'`. It is an info; `--strict` reports it as a warning. There is no automatic fix: `STATE.stream` emits the current state at once and `dropRepeats` compares with `===`, so a rewrite can change when the action first fires.
+
+**Fix:** Use `STATE.watch(fn)`: `CHANGED: STATE.watch(state => state.tab)`, followed by the same operators (`STATE.watch(s => s.text).compose(debounce(1000))`). Add `{ immediate: true }` (`STATE.watch(fn, { immediate: true })`) when the action must also fire for the current value, as `STATE.stream` did.
 
 ## SYG4xx: Collections, Switchable, sub-components and context
 
@@ -1722,7 +1792,7 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
 Two or more items in a `<Collection>`'s array have the same `id`. A Collection keys its items by `id` (an item without one by its index in the array), so only the first item with that id renders, and the item component's writes go to that first item. The others are not shown.
 
-**Fix:** Give every item a unique `id` when it is created, for example from a counter in state or `crypto.randomUUID()`. Items with no `id` at all are keyed by their index.
+**Fix:** Give every item a unique `id` when it is created, for example from a counter in state or `uuid()` from the reducer's 4th argument (`(state, data, next, { uuid }) => …`). Items with no `id` at all are keyed by their index.
 
 ### SYG425
 
@@ -1833,6 +1903,16 @@ Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 `sortable` moves entries of `state[from]`: the arrow keys swap the item with its neighbour in the array, Home / End move it to the array's ends, the announced positions count the array, and a pointer drop lands next to the entry it is dropped on. When the list is rendered from a `<Collection>` with `sort` (or `filter` that hides entries between shown ones), the shown order isn't the array's: under a sort a move changes nothing visible (the Collection sorts it back), and under a filter a keyboard step can pass hidden entries and the positions count entries nobody sees. At a keyboard pick-up or a pointer press the dev entry compares the host's own rendered items with the array and reports this once per list.
 
 **Fix:** Reorder only a list that is shown as it is stored: drop the Collection's `sort` for a reorderable list (sort the array itself, once, if it needs an initial order), and while a filter hides entries hide the drag handles (or render the full list) so a move can't pass hidden ones.
+
+### SYG436
+
+**VirtualCollection estimateSize far from the measured row heights**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
+
+`<VirtualCollection estimateSize={n}>` counts every row that hasn't been rendered yet as `n` px tall; a rendered row is measured. When the real rows are taller than the estimate, the list's total height is too short until the rows near the end have been rendered and measured, so a fast scroll to the end shows blank space where the last rows belong and the scrollbar jumps as the total grows; when they are much shorter, the scrollbar shrinks and jumps instead. The dev entry compares a numeric `estimateSize` with the median of the first 10 measured rows and reports it once per list when they differ by more than 1.3×. A function estimate is not checked. Without layout (jsdom, the mock DOM of `renderComponent`, SSR) nothing is measured, so nothing is reported.
+
+**Fix:** Pass the rows' real height, `estimateSize={71}` (the message gives the measured median); when unsure, err high. When rows differ predictably, pass a function: `estimateSize={(item) => (item.image ? 240 : 56)}`.
 
 ### SYG440
 
@@ -2122,6 +2202,16 @@ Quote.model = {
 }
 ```
 
+### SYG509
+
+**Clock or randomness read from a global in a handler**
+
+Severity: `warn` · Reported by: `sygnal-check` · Strict mode only
+
+Strict mode only (`sygnal-check --strict`). A model handler (a STATE reducer, an EFFECT handler, another sink's handler or the payload function of `event()`) calls `Date.now()`, `new Date()` with no arguments, `Math.random()` or `crypto.randomUUID()` (also through `globalThis.`, `window.` or `self.`) directly in its body. The canonical form takes `now()`, `random()` and `uuid()` from the handler's 4th argument (props), which record/replay and `renderComponent` (fixed clock, seeded random, deterministic ids) supply, so replaying the actions gives the same result. Calls in nested functions, views and intents are not reported. The global still works (replay patches it as a fallback). In strict mode it replaces SYG258, so a read in a STATE reducer is reported once. `--fix` rewrites the reads and the parameter list when that is safe (a plain JavaScript handler whose 4th parameter is missing, a name or a destructuring pattern). To turn it off, add it to `ignore` in `sygnal-check.config.json` (`{ "ignore": ["SYG509"] }`) or put `// sygnal-ignore SYG509` above the line.
+
+**Fix:** Use the handler's 4th argument: `SAVE: { EFFECT: (state, data, next, { now }) => { localStorage.setItem('savedAt', String(now())) } }`, or `(state, data, next, props) => … props.uuid() …`; `new Date()` becomes `new Date(now())`.
+
 ## SYG6xx: Drivers, sources and component setup
 
 ### SYG601
@@ -2406,9 +2496,9 @@ A request sets `progress` (a reply action such as `progress: 'UPLOADING'`, or `t
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-A model entry sent an element command on the built-in `ELEMENT` sink, such as `{ focus: Email }` or `{ showModal: HelpDialog }`, and nothing matched its target. The target, a control or a selector, is looked up only in the view of the component instance that sent the command: an element inside a child component is isolated from its parent, and a Collection item reaches only its own elements. The command waits for the next render to reach the page (so it reaches an element the same action renders) and keeps looking for about 1 s, then it is dropped. A command with no target (`{ focus: undefined }`) is reported the same way. sygnal-check reports it before the app runs when a literal command targets a control (or a static class or id selector) that the sending component's view never renders, or renders only inside a child component; a dynamic target, a `document`/`body` selector and a class a dynamic `className` might produce are left to the runtime.
+A model entry sent an element command on the built-in `ELEMENT` sink, such as `{ focus: Email }` or `{ showModal: HelpDialog }`, and nothing matched its target. The target, a control or a selector, is looked up only in the view of the component instance that sent the command: an element inside a child component is isolated from its parent, and a Collection item reaches only its own elements. The dev entry's message says when a matching element is on the page but outside the sender's view (rendered by an ancestor, a child component or another part of the page). The command waits for the next render to reach the page (so it reaches an element the same action renders) and keeps looking for about 1 s, then it is dropped. A command with no target (`{ focus: undefined }`) is reported the same way. sygnal-check reports it before the app runs when a literal command targets a control (or a static class or id selector) that the sending component's view never renders, or renders only inside a child component; a dynamic target, a `document`/`body` selector and a class a dynamic `className` might produce are left to the runtime.
 
-**Fix:** Render the element in the sending component's view, or send the command from the component that renders it: in a Collection, each item sends its own (for example on BOOTSTRAP for a new row). Check the control or selector: `ELEMENT: { focus: Email }` with `const { Email } = controls({ Email: 'input' })` rendered as `<Email />`.
+**Fix:** Render the element in the sending component's view, or send the command from the component that renders it: in a Collection, each item sends its own (for example on BOOTSTRAP for a new row). For an element an ancestor renders (a wizard's footer button focusing the page's name field), hand it off: the child emits `EVENTS: event('NAME_FIRST')` (or sends `PARENT`), the ancestor selects it in its intent (`NAME_FIRST: EVENTS.select('NAME_FIRST')`) and its entry sends `ELEMENT: { focus: '#project-name' }`. For an element inside a child, the parent can send `{ focus: focusWithin('.title') }`. Check the control or selector: `ELEMENT: { focus: Email }` with `const { Email } = controls({ Email: 'input' })` rendered as `<Email />`.
 
 ### SYG641
 
@@ -2719,6 +2809,36 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 `chat({ ask: { catalog } })` (sygnal/ai) gives the model the `ask_user` tool: a card is composed from the catalog's parts, and the call waits until a result part (`result: true`) answers it with `compose.answer(props, value)`. This catalog has no part with `result: true`, so no card it can build is answerable: every `ask_user` call stays open until the user presses Stop or sends a new message. Reported once per `chat()` call, also in production.
 
 **Fix:** Mark the parts the user answers with `result: true` (a choice, a picker, a form, a yes/no) and send `compose.answer(props, value)` to PARENT from their model, for example `PICK: { PARENT: (_s, value, _n, props) => compose.answer(props, value) }`.
+
+### SYG690
+
+**API contract skew**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`contractFetch()` (sygnal/api) wraps the `fetch` of `makeFetchDriver` and `makeSocketDriver` and watches for the answer `contractSkew()` gives on the server: a 409 `CONTRACT_SKEW` with an `x-contract-skew` header. It means the app sends a contract hash (`contractHash(contract)` in a header, through the client's `headers` option) that differs from the server's: the tab was loaded before a deploy changed the API, so its requests may no longer match the server's inputs or outputs. Each such request fails with `isContractSkew(failure)` true in its `error` action (a resource has `status: 'error'`). Reported once per `contractFetch()`, also in production; `onSkew` is called for every skew answer.
+
+**Fix:** Offer a reload from `onSkew` (`contractFetch({ onSkew: () => showReloadBanner() })`) or from the `error` action (`isContractSkew(failure)`). Deploy the client and the server together, and send the hash of the contract the client was built with.
+
+### SYG691
+
+**Unknown API endpoint**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+A member chain on a client made by `orpcClient(contract)` (sygnal/api) names a procedure or router that the contract doesn't have, such as `api.quotes.lst()` for a contract with `quotes.list`. The client mirrors the contract router: each procedure is an endpoint function, each router an object, so the misspelled name is `undefined`, and calling it throws `TypeError: api.quotes.lst is not a function` when the model entry or resource runs. TypeScript reports this in a typed project; sygnal-check follows the client to its `orpcClient(...)` call and the contract to its object literal, through imports, so plain JavaScript gets it too. It is silent when a level of the contract can't be listed (a spread, a computed key, a router built by a function call). The same code covers function-first modules: in client code (a file that imports `sygnal` or has JSX), a named import from a `*.server` module that uses sygnal/api must be one of its `query`, `mutation` or `stream` exports. sygnal/vite (`api: { functions: true }`) replaces that module in the client by stubs for those exports only, so a misspelled name is undefined everywhere, and another export (a constant, a helper function) is undefined in the client build although it type-checks.
+
+**Fix:** Use the procedure's name as the contract declares it (the message suggests the closest one), or add the procedure to the contract and implement it on the server. For a `*.server` import, import the server function's name, and move a constant or helper the client needs into a shared module that both sides import.
+
+### SYG692
+
+**Sandbox event dropped**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+A sandboxed component (`createSandbox` or `<Sandboxed>` from sygnal/sandbox) sent an `EVENTS` value the page did not accept, so it never reached `onEmit` or the tag's `emit` event. The page accepts only the types declared in `emits`, and only data that passes that type's Standard Schema (zod, valibot, arktype, ...): the guest is untrusted code, so its events are untrusted input, and the host's intent should only ever see validated data. The message says which: a type not declared in `emits` (an inherited name such as `constructor` never counts), invalid data (with the schema's issues), a schema that threw, or no `emits` at all. Reported in development only (diagnostics on); in production the event is dropped silently.
+
+**Fix:** Declare the type with a schema for its data, `emits={{ ANSWER: AnswerSchema }}`, or fix the guest so it sends what the schema expects. If the guest should not send that event, nothing needs fixing: dropping it is the protection.
 
 ## SYG9xx: Internal
 

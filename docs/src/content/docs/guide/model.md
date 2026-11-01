@@ -23,13 +23,31 @@ Every reducer receives four arguments:
 1. `state`: the current component state (including [calculated fields](/guide/calculated-fields/))
 2. `data`: the value emitted by the action's stream in intent
 3. `next`: a function that dispatches another action (see [Chaining Actions](#chaining-actions-with-next))
-4. `props`: the props the parent passed, plus `context`, `children`, `slots` and [`uid`](/guide/inputs/#labels-and-ids-uid)
+4. `props`: the props the parent passed, plus `context`, `children`, `slots`, [`uid`](/guide/inputs/#labels-and-ids-uid), `previousState`, and [`now()`, `random()` and `uuid()`](#the-clock-and-randomness)
 
 ```jsx
 Item.model = {
   SELECT: (state, data, next, props) => ({ ...state, selected: props.selectedId === state.id }),
 }
 ```
+
+### The Clock and Randomness
+
+A handler that needs the time, a random number or a fresh id reads it from its 4th argument, not from a global:
+
+```jsx
+Board.model = {
+  ADD_TASK: (state, title, next, { now, uuid }) => ({
+    ...state,
+    tasks: [...state.tasks, { id: uuid(), title, created: now() }],
+  }),
+  SHUFFLE: (state, data, next, { random }) => ({ ...state, seed: random() }),
+}
+```
+
+`now()` is `Date.now()`, `random()` is `Math.random()` and `uuid()` is `crypto.randomUUID()`, so the app behaves the same. The difference is that they are inputs Sygnal can supply: a test fixes them with [`renderComponent`'s `now`, `random` and `uuid` options](/integration/testing/#a-fixed-clock-and-ids), and a [replay](/guide/record-replay/) gives each handler the values it read when the session was recorded, so reducers stay pure functions of their arguments. `EFFECT` handlers get them too, and keep them after an `await`.
+
+A `Date.now()`, `new Date()`, `Math.random()` or `crypto.randomUUID()` call in a STATE reducer is reported by `sygnal-check` as [SYG258](/reference/errors/#syg258) (a warning); in strict mode, [SYG509](/reference/errors/#syg509) covers every handler. `sygnal-check --fix` rewrites them. The globals still work: a replay patches them while a handler runs, but not after an `await`. A component prop named `now`, `random` or `uuid` takes the place of the function.
 
 The `set()` and `toggle()` helpers build common STATE reducers:
 
@@ -281,7 +299,7 @@ MyComponent.model = {
     LOG:    () => 'Component mounted!',
     EFFECT: (state, data, next) => next('LOAD_DATA'),
   },
-  INITIALIZE: (state) => ({ ...state, startedAt: Date.now() }),
+  INITIALIZE: (state, data, next, { now }) => ({ ...state, startedAt: now() }),
   DISPOSE: {
     EFFECT: () => console.log('Component unmounting'),
   },

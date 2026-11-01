@@ -202,7 +202,7 @@ export default Editor
 
 - Back and forward have already happened when the router hears of them; a blocked one is undone with `history.go()`, and its `proceed` is `{ go: n, force: true }`.
 - While any block is set, closing the tab or reloading shows the browser's own "Leave site?" prompt (`beforeunload`).
-- `{ block: false }` clears it, also as part of a navigation (`{ ...attempt.proceed, block: false }`); a disposed component's block goes with it. Clear the block when the changes are saved or discarded: a page kept alive by `Switchable` is not disposed when it is hidden. With several blocks, the last one set gets the attempt.
+- **A block belongs to the component that set it**: its `{ block: false }` clears it, and another component's doesn't, so put `CONFIRM_LEAVE` and the Leave action next to the `block`. `{ block: false }` also works as part of a navigation (`{ ...attempt.proceed, block: false }`), and sending a `proceed` clears the block it overrode, whichever component sends it; a disposed component's block goes with it. Clear the block when the changes are saved or discarded: a page kept alive by `Switchable` is not disposed when it is hidden. With several blocks, the last one set gets the attempt.
 
 ## Scroll and Focus
 

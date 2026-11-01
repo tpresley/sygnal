@@ -6,6 +6,7 @@
 // (dist: `npm run build` first) and run with the LLM / HTTP fakes. Every module is also checked
 // with `sygnal-check --strict`. No network.
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
+import { llmsText, skillText } from './helpers/agent-context.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -18,8 +19,8 @@ import { checkFiles } from '../sygnal-check/src/index.js'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..')
 const FILES = {
-  llms: fs.readFileSync(path.join(repo, 'llms.txt'), 'utf8'),
-  skill: fs.readFileSync(path.join(repo, 'skills/sygnal-dev/SKILL.md'), 'utf8'),
+  llms: llmsText(),   // llms.txt + its topic files
+  skill: skillText(),  // SKILL.md + its references
 }
 
 // text → the files that contain it verbatim

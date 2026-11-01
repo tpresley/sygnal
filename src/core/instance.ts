@@ -21,7 +21,7 @@ import type {App} from './runtime'
 import {tearDown, INST, SEED} from './teardown'
 import {CoreDef, defOf, isObj} from './define'
 import {Cell, CalcCell, calcCell, keyCell, lensCell, localCell, pathOf} from './cell'
-import {hosts, posts, pres, resolvers} from './registry'
+import {ext, hosts, posts, pres, resolvers} from './registry'
 import {handle} from './actions'
 import {viewOf} from './view'
 import {makeCommandSource} from '../extra/command'
@@ -127,6 +127,8 @@ let left = 0
 export const sameTree = (a: any, b: any): boolean => (left = SAME_MAX, same(a, b))
 function same(a: any, b: any): boolean {
   if (a === b) return true
+  // CV-3: a compiled block (its inside is its hole values)
+  if (b?.$b) return !!a?.$b && ext.sb!(a, b)
   if (--left < 0 || !a || !b || a.sel !== b.sel || a.key !== b.key || a.text !== b.text || b.data?.hook || !sameData(a.data, b.data)) return false
   const x = a.children, y = b.children
   if (x === y) return true
@@ -138,8 +140,23 @@ function same(a: any, b: any): boolean {
 const EMPTY_CTX: any = Object.freeze({})
 /** a view read every key (spread, Object.keys): any context change re-renders it */
 const ALL = '\u0000all'
+// D168 read-tracking: one handler for every view; each render's Proxy targets a holder of that
+// render's context (c) and the instance's key set (k), so a read after the view returned (a
+// closure the view made) still sees its own render's context
+const track = (h: any, k: any) => (typeof k == 'string' && h.k.add(k), k)
+const TRACK: ProxyHandler<any> = {
+  get: (h, k) => h.c[track(h, k)],
+  has: (h, k) => track(h, k) in h.c,
+  ownKeys: (h) => (h.k.add(ALL), Reflect.ownKeys(h.c)),
+  getOwnPropertyDescriptor: (h, k) => Reflect.getOwnPropertyDescriptor(h.c, k),
+}
 
 let IDS = 0
+// shared defaults (one per module, not per instance): the first render's "last state", no
+// slots, no tag children (reconcile() makes an instance its own Map on its first child)
+const UNSET = {}
+const NOSLOTS: Record<string, any[]> = Object.freeze({}) as any
+const NOKIDS = new Map<string, any>()
 
 /**
  * a child that failed to instantiate: renders the owner's error fallback (SYG408). It keeps its
@@ -151,6 +168,31 @@ class Failed {
   render() { return this.outv }
   setProps(p: any) { this.props = p }
   dispose() {}
+}
+
+/**
+ * The intent's sources: a Proxy whose own properties are the source names, in the table's order
+ * (spread, Object.keys, `in`, destructuring as on a plain object), each made when read; one
+ * handler for every instance (a property defined with Object.defineProperty per instance was
+ * ~1 µs of its creation). Its target holds the instance and what the intent adds
+ */
+const table = (t: any) => t[INST].app.srcDesc(!!t[INST].parent)
+const tab = (t: any, k: any): any => typeof k == 'string' && table(t)[k]
+const SRC: ProxyHandler<any> = {
+  get: (t, k) => { const g = tab(t, k); return g ? g(t[INST]) : t[k] },
+  has: (t, k) => !!tab(t, k) || k in t,
+  ownKeys: (t) => Object.keys(table(t)).concat(Reflect.ownKeys(t) as any),
+  getOwnPropertyDescriptor: (t, k) => { const g = tab(t, k); return g ? {value: g(t[INST]), enumerable: true, configurable: true} : Reflect.getOwnPropertyDescriptor(t, k) },
+  // a source is read-only, as the getter-only property it was: a write fails (a TypeError in strict code)
+  set: (t, k, v) => !tab(t, k) && ((t[k] = v), true),
+}
+
+/** an intent stream's listener: its action (an object, no closures per stream) */
+class Listener {
+  constructor(public i: Inst, public t: string) {}
+  next(d: any) { const i = this.i; i.dying ? handle(i, this.t, d, 'intent') : i.app.dispatch(i, this.t, d, 'intent') }
+  // (no code of its own yet: R4's diagnostics may add one)
+  error(e: any) { const i = this.i; console.error(`[Sygnal] ${i.def.name}: intent stream '${this.t}' errored; it stops emitting`, e); i.app.appError(i, e, 'intent', this.t) }
 }
 
 export class Inst {
@@ -168,41 +210,47 @@ export class Inst {
   children!: any[]
   /** the children as the parent passed them (slots included) */
   raw!: any[]
-  slots: Record<string, any[]> = {}
-  kids = new Map<string, any>()
+  slots = NOSLOTS
+  kids = NOKIDS
   /** the children with a string / byId binding: the presence scan's (notify) */
   bound?: Set<any>
   uidBase: string
+  // (the fields most instances set are initialized here, so they are the object's own slots;
+  // the ones few instances use are left out until used)
   /** the parent's view of this instance's output (last vnode / READY it injected) */
   last: any; lr = true
   outv: any
   // the last render's inputs: state, props, children, context, the context keys its view read
-  ls: any = {}; lp: any; lc: any; lctx: any; keys: Set<string> | null = null; tmpl: any; forced = true
+  ls: any = UNSET; lp: any; lc: any; lctx: any; keys: Set<string> | null = null; tmpl: any; forced = true
   postSels: string[] | null = null
   // context memo: the app's write version it was computed at, the value
   cver = -1; cv: any
   subs: any[] = []
-  srcs: Record<string, any> | null = null
-  fb: Record<string, any> | null = null
-  ac: AbortController | null = null
+  /** a Collection item's key; the isolate memo (runtime scopeValue) */
+  k: any; $iso: any
+  /** canvas-three F2: a template node's last injected copy, by the node (its children array, `.r` the copy) */
+  ic?: WeakMap<any, any>
+  srcs?: Record<string, any>
+  fb?: Record<string, any>
+  ac?: AbortController | null
   disp$: any
   st$: any; stLast: any; stateSrc: any
   props$: any; children$: any
   /** CHILD.select listeners (the children's PARENT values) */
-  hub: Set<(e: any) => void> | null = null
+  hub?: Set<(e: any) => void> | null
   wd: any; so: any; el: any
   iv: any
   cmds: any
   /** the app's render epoch it last rendered at (G-311) */
   ep = 0
   /** pending next() timers (G-300) */
-  timers: Set<any> | null = null
+  timers?: Set<any> | null
   // statics.ts: the [sink, static] pairs it declares, the last values sent, the state / shown
   // flag they were computed from; its reply streams
-  st: Array<[string, string]> | null = null
-  sv: Record<string, any> | null = null
+  st?: Array<[string, string]> | null
+  sv?: Record<string, any> | null
   sS: any; sH: any; sC: any
-  rep: any[] | null = null
+  rep?: any[] | null
 
   constructor(
     public app: App, public def: CoreDef, public parent: Inst | null, public base: Cell,
@@ -213,7 +261,8 @@ export class Inst {
     this.setChildren(children)
     this.uidBase = uidBase
     this.ready = !def.ready
-    this.cell = def.calculated || def.idle ? calcCell(base, def) : {get: () => base.get(), set: (v) => base.set(v), raw: () => base.get()}
+    // (no calculated fields: the base cell itself)
+    this.cell = def.calculated || def.idle ? calcCell(base, def) : base as CalcCell
     const H = app.hooks
     // the initial state, synchronously (INITIALIZE at construction, D165): a root (or the state an
     // HMR swap keeps), an isolated child's local state. D174: an isolated child bound to a slice
@@ -235,7 +284,7 @@ export class Inst {
         if (reset || (!has && def.model)) app.dispatch(this, SEED, {v: init, r: reset, b}, 'built-in')
         else if (has) H.onStateSeed?.(viewOf(this), b.get(), init)
       }
-    } else if (def.idle && isObj(this.cell.raw()) && !parent) this.cell.set(this.cell.raw())
+    } else if (def.idle && isObj(this.rawState()) && !parent) this.cell.set(this.rawState())
     H.onCreate?.(viewOf(this))
     dbg(this, () => 'Instantiated')
     if (def.handlers.has('INITIALIZE')) app.dispatch(this, 'INITIALIZE', init, 'built-in')
@@ -254,6 +303,8 @@ export class Inst {
   }
 
   get name() { return this.def.name }
+  /** the state with calculated fields only as stored (STATE.stream) */
+  rawState() { return this.cell === this.base ? this.base.get() : this.cell.raw() }
 
   // ---------------------------------------------------------------- sources (the stream edge)
   subscribe() {
@@ -273,11 +324,7 @@ export class Inst {
         const s = actions[type]
         if (s == null) continue
         if (typeof s.subscribe != 'function') fail('SYG603', this, `intent entry '${type}' is not a stream`, 'Return { ACTION: stream$ }')
-        this.subs.push(s.subscribe({
-          next: (d: any) => this.dying ? handle(this, type, d, 'intent') : app.dispatch(this, type, d, 'intent'),
-          // (no code of its own yet: R4's diagnostics may add one)
-          error: (e: any) => { console.error(`[Sygnal] ${def.name}: intent stream '${type}' errored; it stops emitting`, e); app.appError(this, e, 'intent', type) },
-        }))
+        this.subs.push(s.subscribe(new Listener(this, type)))
       }
     } catch (e) {
       // a failed instance keeps no subscription (its parent renders the error fallback)
@@ -289,10 +336,7 @@ export class Inst {
   }
 
   sources() {
-    if (this.so) return this.so
-    const so = this.so = Object.defineProperties({}, this.app.srcDesc(!!this.parent))
-    Object.defineProperty(so, INST, {value: this})
-    return so
+    return this.so ||= new Proxy({[INST]: this}, SRC)
   }
   /** a driver source isolated to this instance (the parent's, isolated to this scope; cached) */
   src(n: string): any {
@@ -306,7 +350,7 @@ export class Inst {
   stateSource() {
     if (this.stateSrc) return this.stateSrc
     this.st$ = xs.createWithMemory()
-    const v = this.stLast = this.cell.raw()
+    const v = this.stLast = this.rawState()
     if (v !== undefined) this.st$.shamefullySendNext(v)
     this.app.watchers.add(this)
     return (this.stateSrc = new StateSource(this.st$, 'STATE', this.dispose$(), 1))
@@ -330,7 +374,7 @@ export class Inst {
       }
     }
     if (this.st$) {
-      const v = this.cell.raw()
+      const v = this.rawState()
       if (v !== this.stLast && v !== undefined) { this.stLast = v; this.st$.shamefullySendNext(v) }
     }
   }
@@ -351,9 +395,8 @@ export class Inst {
   setChildren(children: any[]) {
     // G-294: the raw children (before the slots are split out) decide whether the view re-runs
     this.raw = children
-    const [kids, slots] = children.length ? extractSlots(children) : [children, {}]
-    this.children = kids
-    this.slots = slots
+    if (children.length) [this.children, this.slots] = extractSlots(children)
+    else this.children = children, this.slots = NOSLOTS
   }
   setProps(props: Record<string, any>, children: any[]) {
     this.props = props
@@ -467,10 +510,11 @@ export class Inst {
       if (v !== k.last || k.ready !== k.lr) { k.last = v; k.lr = k.ready; kidsDirty = true }
     }
     if (!viewDirty && !kidsDirty) return this.outv
-    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), this.tmpl); return this.outv }
+    // CV-3: hooks (dev checks, devtools, testing) see a compiled block's vnodes (ext.xb)
+    if (same && !kidsDirty) { this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(this.tmpl) : this.tmpl); return this.outv }
     let v = this.kids.size ? this.inject(this.tmpl, 'r') : this.tmpl
     if (this.postSels) for (const s of this.postSels) v = posts[s](v, this)
-    this.app.hooks.onRender?.(viewOf(this), v)
+    this.app.hooks.onRender?.(viewOf(this), ext.xb ? ext.xb(v) : v)
     return (this.outv = this.parent ? this.app.scopeValue(this.parent, 'DOM', v, this) : v)
   }
 
@@ -487,12 +531,10 @@ export class Inst {
     const def = this.def
     let keys: Set<string> | null = null, context = ctx
     if (ctx !== EMPTY_CTX) {
-      const ks = keys = new Set<string>()
-      context = new Proxy(ctx, {
-        get: (t, k) => (typeof k == 'string' && ks.add(k), t[k as any]),
-        has: (t, k) => (typeof k == 'string' && ks.add(k), k in t),
-        ownKeys: (t) => (ks.add(ALL), Reflect.ownKeys(t)),
-      })
+      // (the last render's set, read by ctxChanged before this call)
+      keys = this.keys || new Set<string>()
+      keys.clear()
+      context = new Proxy({c: ctx, k: keys}, TRACK)
     }
     try {
       this.tmpl = def.view({...this.props, state, children: this.children, slots: this.slots, context, uid: this.uid})
@@ -545,7 +587,7 @@ export class Inst {
         const binding = host && sel != 'switchable' ? 'from' : 'state'
         if (k && (k.disposed || (view && k.def && k.def.view !== view) || bindingChanged(k.props?.[binding], props[binding]))) { k.dispose(); this.kids.delete(id); k = undefined }
         if (k) k.setProps(props, children, n, id)
-        else this.kids.set(id, k = host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
+        else (this.kids === NOKIDS ? this.kids = new Map() : this.kids).set(id, k = host ? this.host(host, props, children, id, n) : this.child(view, props, children, id, !!data.props?.resetState))
         if (known(props[binding])) watch(this, k)
         return
       }
@@ -609,7 +651,13 @@ export class Inst {
       const v = this.inject(c[i], path + '.' + i)
       if (v !== c[i]) (out ||= c.slice())[i] = v
     }
-    return out ? {...n, children: out} : n
+    if (!out) return n
+    // canvas-three F2: the same children as this node's last injection: its last copy, so snabbdom
+    // skips an element (and its hooks: a widget's postpatch) above components that didn't change
+    const p = (this.ic ||= new WeakMap()).get(n)
+    if (p && p.length == out.length && p.every((x: any, i: number) => x === out[i])) return p.r
+    this.ic.set(n, out)
+    return out.r = {...n, children: out}
   }
 
   // ---------------------------------------------------------------- actions

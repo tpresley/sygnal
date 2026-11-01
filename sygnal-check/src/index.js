@@ -30,6 +30,11 @@
  *                    unchanged isn't parsed again, a cached parse failure reports the same SYG900;
  *                    a check drops the entries the previous check didn't use (PLAN-7 C-3; also for
  *                    buildProject(), graph(), graphFiles())
+ *     session?:      a check session (createCheckSession()) kept across checks of the same files
+ *                    (checkFiles): each check reuses the last one's model for the files that are
+ *                    unchanged and import nothing that changed, and the per-file rules' findings
+ *                    for them (Project `previous`, run.js createRuleMemo); same findings as a
+ *                    fresh check. Use it with a `cache`
  *   }
  *
  * checkFiles(files, options) → Diagnostic[]
@@ -52,7 +57,7 @@ import { expandInputs } from './files.js'
 import { buildProject } from './model/project.js'
 import { selectRules } from './rules/index.js'
 import { SEVERITY_RANK } from './diagnostic.js'
-import { runRules, sortDiagnostics } from './run.js'
+import { runRules, sortDiagnostics, createRuleMemo } from './run.js'
 import { resolveOptions } from './config.js'
 
 export { CODES, listCodes, getCodeInfo, docsUrlFor } from './codes.js'
@@ -64,7 +69,7 @@ export { formatDiagnostics } from './format.js'
 export { fixFiles } from './fix.js'
 export { controlFixes } from './fixControls.js'
 export { applyEdits } from './edits.js'
-export { runRules, sortDiagnostics }
+export { runRules, sortDiagnostics, createRuleMemo }
 export { graph, graphFiles, buildGraph, componentStamps } from './graph.js'
 export { graphHtml } from './graphView/html.js'
 export { createLiveProject } from './live.js'
@@ -90,11 +95,18 @@ export function withConfigDiagnostics(diags, configDiags, ignore) {
 /** check() for an already expanded list of absolute file paths (see expandInputs). */
 export function checkFiles(files, options = {}) {
   const cwd = options.cwd ? path.resolve(options.cwd) : process.cwd()
-  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache, replyKeys: options.replyKeys })
+  const session = options.session || null
+  const project = buildProject(files, { cwd, sources: options.sources, cache: options.cache, replyKeys: options.replyKeys, previous: session?.previous })
+  if (session) session.previous = project
   const rules = options.rules || selectRules({ strict: options.strict, a11y: options.a11y })
-  let diags = runRules(project, rules)
+  let diags = runRules(project, rules, { memo: session?.memo })
   if (options.ignore?.length) diags = diags.filter(d => !options.ignore.includes(d.code))
   return sortDiagnostics(diags)
+}
+
+/** A check session for checkFiles({ session }): the last build and the per-file rule memo. */
+export function createCheckSession() {
+  return { previous: null, memo: createRuleMemo() }
 }
 
 /** Highest severity present (or null). */

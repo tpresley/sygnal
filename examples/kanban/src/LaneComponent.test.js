@@ -87,41 +87,45 @@ describe('LaneComponent', () => {
   })
 
   describe('ADD_TASK', () => {
+    // the reducer reads uuid() from its 4th argument (renderComponent's `uuid` option fixes it)
+    const noop = () => {}
+    const props = { uuid: () => 'abc' }
+
     it('adds a new task and hides input', () => {
       const state = makeLaneState({ isAddingTask: true })
-      const result = model.ADD_TASK(state, 'New Task')
+      const result = model.ADD_TASK(state, 'New Task', noop, props)
       expect(result.tasks).toHaveLength(3)
       expect(result.tasks[2].title).toBe('New Task')
       expect(result.isAddingTask).toBe(false)
     })
 
     it('trims whitespace from task title', () => {
-      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), '  Trimmed Task  ')
+      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), '  Trimmed Task  ', noop, props)
       expect(result.tasks[2].title).toBe('Trimmed Task')
     })
 
     it('returns ABORT for empty title', () => {
-      const result = model.ADD_TASK(makeLaneState(), '')
+      const result = model.ADD_TASK(makeLaneState(), '', noop, props)
       expect(result).toBe(ABORT)
     })
 
     it('returns ABORT for whitespace-only title', () => {
-      const result = model.ADD_TASK(makeLaneState(), '   ')
+      const result = model.ADD_TASK(makeLaneState(), '   ', noop, props)
       expect(result).toBe(ABORT)
     })
 
-    it('generates a task id starting with task-', () => {
-      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'Task A')
-      expect(result.tasks[2].id).toMatch(/^task-/)
+    it('builds the task id from uuid()', () => {
+      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'Task A', noop, props)
+      expect(result.tasks[2].id).toBe('task-abc')
     })
 
     it('new task has empty description', () => {
-      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'Task A')
+      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'Task A', noop, props)
       expect(result.tasks[2].description).toBe('')
     })
 
     it('appends new task at the end', () => {
-      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'New Task')
+      const result = model.ADD_TASK(makeLaneState({ isAddingTask: true }), 'New Task', noop, props)
       expect(result.tasks[0].id).toBe('task-1')
       expect(result.tasks[1].id).toBe('task-2')
       expect(result.tasks[2].title).toBe('New Task')

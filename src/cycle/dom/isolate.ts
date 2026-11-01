@@ -21,21 +21,28 @@ export function makeIsolateSink<T extends VNode>(
 
 /**
  * PLAN-4.6: the value-level isolateSink (the core scopes each instance's vnode without a
- * stream per instance): the same mapping, applied to one vnode
+ * stream per instance): the same mapping, applied to one vnode. `memo` (the instance the core
+ * scopes) keeps the scope's namespace and its key string across renders
  */
-export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: string) => any {
-  return (node, scope) => {
+export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: string, memo?: any) => any {
+  return (node, scope, memo) => {
     if (scope === ':root' || !node) {
       return node;
     }
-    const isolate = namespace.concat([getScopeObj(scope)]);
-    const newNode = scoped(node, isolate);
+    // [the isolate array, its key]
+    let m = memo && memo.$iso;
+    if (!m) {
+      const isolate = namespace.concat([getScopeObj(scope)]);
+      m = [isolate, JSON.stringify(isolate)];
+      if (memo) memo.$iso = m;
+    }
+    const newNode = scoped(node, m[0]), i = newNode.data && newNode.data.isolate;
     return {
       ...newNode,
       key:
         newNode.key !== undefined
           ? newNode.key
-          : JSON.stringify((newNode.data && newNode.data.isolate) || isolate),
+          : i && i !== m[0] ? JSON.stringify(i) : m[1],
     };
   };
 }

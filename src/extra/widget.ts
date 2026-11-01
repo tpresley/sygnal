@@ -62,13 +62,28 @@
  * - SSR (extra/ssr.ts): the host, with `fallback` inside it; the client patch replaces it with
  *   the keyed host and mounts.
  *
+ * - canvas-three (dev-plans/research/canvas-three): `children: true | 'hidden'` makes the widget an
+ *   island: its JSX children go (in the marker's `children`, walked by the core like any) into a
+ *   container in the host, rendered by the app's DOM driver, so components, Collection, isolation
+ *   and intents work inside. `sync(instance, container vnode, host)` runs after mount and after a
+ *   patch whose children vnodes changed (by identity: a patch elsewhere doesn't sync). `true`: the
+ *   container is visually hidden but accessible (Q4): Enter / Space on a focused child is its
+ *   click, and `focus(instance, child | null, host)` hears focus moving. `tags` clears the
+ *   pragma's SVG bit for the widget's own vocabulary (F3).
+ * - `value` (experimental, Q3): the `value` prop is controlled (extra/controlled.ts): `write` only
+ *   for the app's changes, never for echoes of what the widget dispatched as `value.event`
+ *   ('change'); `strict` writes back an edit the model didn't take; `read` defines the host's
+ *   `value`. `update` isn't called for a change of `value` alone.
+ *
  * Dev text lives in the 'sygnal/diagnostics' entry (checks/widgets.ts), reached through the core
  * bridge as `widget(code, widgetTag, owner, extra)`: SYG140 (dispatch of an undeclared event),
  * SYG143, SYG144 (a declared event the host fires natively), SYG660–662. Without the entry, a
  * thrown mount/update/unmount is logged as `[Sygnal SYG66x]` with the error.
  */
 import {pres} from '../core/registry'
-import {chainHooks} from '../pragma/index'
+import {chainHooks, createElement} from '../pragma/index'
+import {controlled} from './controlled'
+import {FIELD} from './field'
 
 const W = '__sw'
 
@@ -98,25 +113,87 @@ function fail(o: any, w: any, k: any, code: number, e: any, r?: any) {
   if (code < 662 && !o.disposed) (o.$wf ||= new Map()).set(k, [e]), o.refresh()
 }
 
+// visually hidden, still in the accessibility tree (canvas-three Q4): a widget's children
+const SR = {position: 'absolute', width: '1px', height: '1px', margin: '-1px', padding: '0', border: '0', overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap'}
+// what Enter / Space already activates natively
+const NATIVE = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|SUMMARY)$/
+
+// without the value prop: whether the widget's own props changed (a `value` widget's value is controlled())
+const rest = (p: any, v: any) => { if (!v) return p; const {value, ...r} = p; return r }
+
+/** children widgets: sync(instance, children vnode, host) when the children's vnodes changed (canvas-three D-CT-2) */
+function sync(v: any, s: any) {
+  const c = v.children?.[0], f = s.w.def.sync
+  if (!f || !c) return
+  const k = c.children || [], o = s.k
+  if (o && o.length == k.length && k.every((x: any, i: number) => x === o[i])) return
+  s.k = k
+  try { f(s.i, c, v.elm) } catch (x) { fail(v.data.wo, s.w, v.key, 661, x) }
+}
+
 function mount(v: any) {
-  const el = v.elm, {ww: w, wp: p, wo: o} = v.data
-  const d = (n: string, detail?: any) => { dev(140, w, o, n); el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true})) }
+  const el = v.elm, {ww: w, wp: p, wo: o} = v.data, def = w.def, val = def.value, fd = def.field
+  // the widget field contract (extra/field.ts): the event whose detail is the field's value
+  const fe = fd && (fd.event || val?.event || 'change')
+  let s: any
+  const d = (n: string, detail?: any) => {
+    dev(140, w, o, n)
+    // a value widget's own change: recorded before the event, so its echo is known (controlled())
+    if (val && n == (val.event || 'change') && s?.c) {
+      s.c.local(detail)
+      if (s.p.strict ?? val.strict) setTimeout(() => el[W] === s && s.c.settle(s.p.value))
+    }
+    if (n != fe || !s) return void el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true}))
+    // a field: the event, then the host's input (FIELD), with the detail as the value meanwhile
+    s.v = [detail]
+    try {
+      el.dispatchEvent(new CustomEvent(n, {detail, bubbles: true}))
+      const e: any = new Event('input', {bubbles: true})
+      e[FIELD] = 1
+      el.dispatchEvent(e)
+    } finally { s.v = 0; s.l = [detail] }
+  }
   let i: any
   dev(144, w, o, el)
   // G-409: mount's fourth parameter reports a later failure (an adapter's own redraw): SYG661,
   // the owner's onError fallback in this instance's place, as for a throwing update (G-580: the
   // dev text says error(e) reported it)
   const err = (x: any) => { el[W] && fail(o, w, v.key, 661, x, 1) }
-  try { i = w.def.mount(el, p, d, err) } catch (x) { return fail(o, w, v.key, 660, x) }
-  Object.defineProperty(el, W, {value: {w, p, i, e: d}, configurable: true})
+  try { i = def.mount(el, p, d, err) } catch (x) { return fail(o, w, v.key, 660, x) }
+  Object.defineProperty(el, W, {value: s = {w, p, i, e: d}, configurable: true})
+  // the field: { name, value, disabled } (the value being dispatched, read(), the last one dispatched, the value prop)
+  if (fd) s.h = el, s.f = () => ({name: s.p.name, disabled: !!s.p.disabled, value: s.v ? s.v[0] : fd.read ? fd.read(s.i, el) : s.l ? s.l[0] : s.p.value})
   // the tag form's commands: a host method for each one the element doesn't have (D190)
-  for (const m in w.def.commands) m in el || (el[m] = (x: any) => el[W]?.w.commands[m]?.(el, x))
+  for (const m in def.commands) m in el || (el[m] = (x: any) => el[W]?.w.commands[m]?.(el, x))
+  if (val) {
+    s.c = controlled((x: any) => val.write(s.i, x, el), val.equals)
+    s.c.prop(p.value)
+    if (val.read) Object.defineProperty(el, 'value', {get: () => val.read(s.i, el), configurable: true})
+  }
+  const c = v.children?.[0]?.elm
+  if (c && def.children != 'hidden') {
+    // the children are in the accessibility tree: Enter / Space on a focused child is its click,
+    // and the widget draws focus where the child is (def.focus(instance, child | null))
+    const k = (e: any) => {
+      const t = e.target
+      if (t == c || NATIVE.test(t.tagName) || e.key != 'Enter' && e.key != ' ') return
+      e.preventDefault()
+      t.click ? t.click() : t.dispatchEvent(new (t.ownerDocument.defaultView.MouseEvent)('click', {bubbles: true, cancelable: true}))
+    }
+    const f = (e: any) => def.focus?.(s.i, e.type == 'focusin' ? e.target : null, el)
+    c.addEventListener('keydown', k)
+    c.addEventListener('focusin', f)
+    c.addEventListener('focusout', f)
+    s.x = () => { c.removeEventListener('keydown', k); c.removeEventListener('focusin', f); c.removeEventListener('focusout', f) }
+  }
+  sync(v, s)
 }
 
 function destroy(v: any) {
   const el = v.elm, s = el[W]
   if (s) {
     delete el[W]
+    s.x?.()
     try { s.w.def.unmount?.(s.i, el) } catch (x) { fail(v.data.wo, s.w, v.key, 662, x) }
   }
 }
@@ -127,11 +204,15 @@ const hooks: any = {
     const el = v.elm, p = v.data.wp, s = el[W]
     // SSR hydration (the element was patched in place, never inserted): mount now
     if (!s) return mount(v)
-    const u = s.w.def.update
-    if (same(s.p, p)) return
-    // G-367: without update, a change remounts
-    if (!u) return destroy(v), mount(v)
-    try { u(s.i, p, el); s.p = p } catch (x) { fail(v.data.wo, s.w, v.key, 661, x) }
+    const def = s.w.def, u = def.update, val = def.value
+    if (val) s.c.prop(p.value)
+    if (!same(rest(s.p, val), rest(p, val))) {
+      // G-367: without update, a change remounts
+      if (!u) return destroy(v), mount(v)
+      try { u(s.i, p, el) } catch (x) { fail(v.data.wo, s.w, v.key, 661, x) }
+    }
+    s.p = p
+    sync(v, s)
   },
   destroy,
 }
@@ -141,11 +222,14 @@ function host(n: any, o?: any, k?: any): any {
   const {ww: w, wp: p, h, attrs, r} = n.data, def = w.def, hp: any = {ref: r}
   for (const x in p) if ((HOST.test(x) || def.hostProps?.includes(x)) && !def.ownProps?.includes(x)) hp[x] = p[x]
   if (hp.className) hp.class = [hp.class, hp.className], delete hp.className
-  const v = h(def.tag || 'div', hp), d = v.data
+  // canvas-three: a widget's JSX children render (by the app's DOM driver) into a container in the
+  // host: visually hidden but accessible, or `hidden` (children: 'hidden'); sync() reads them
+  const C = def.children, v = C ? h(def.tag || 'div', hp, h('div', C == 'hidden' ? {hidden: true, 'data-widget-children': ''} : {style: SR, 'data-widget-children': ''}, ...(n.children || []))) : h(def.tag || 'div', hp), d = v.data
   if (attrs) d.attrs = {...d.attrs, ...attrs}
   if (o) {
     v.key = k
-    d.ww = w; d.wp = p; d.wo = o; v.children = undefined
+    d.ww = w; d.wp = p; d.wo = o
+    if (!C) v.children = undefined
     // a hook object per host: a ref's hooks (from h), the widget's, then a Transition's (marker)
     chainHooks(d, hooks)
     n.data.hook && chainHooks(d, n.data.hook)
@@ -175,10 +259,15 @@ function rewrite(n: any, o: any, path: string): any {
  * Portal's rewrite calls (core/markers/portal.ts; G-751: either may be registered first) */
 const inPortal = (c: any[], o: any, x: string): any[] =>
   c.map((n, i) => n?.sel == 'widget' ? rewrite(n, o, x + '.' + i) : n?.children ? {...n, children: inPortal(n.children, o, x + '.' + i)} : n)
-;(rewrite as any).$k = inPortal
 
 export function defineWidget(def: any): any {
-  pres.widget ||= rewrite
+  // (compile-wasm: set here, not at module level: a top-level assignment kept this module, ~2 KB
+  // min, in every app's bundle, used or not)
+  pres.widget ||= ((rewrite as any).$k = inPortal, rewrite)
+  // canvas-three F3: the widget's own children vocabulary is HTML-namespace, never SVG's (a map's
+  // <marker>, a scene's <line>): the pragma's tag bits (src/pragma), bit 2 cleared app-wide
+  const t = (createElement as any).$t
+  for (const x of def.tags || []) t[x] = /-/.test(x) ? 8 : 0
   const w: any = () => {}, commands: any = {}
   // D200: any name, `close` and `togglePopover` too (the core passes a widget command the options)
   for (const m in def.commands) commands[m] = (el: any, o: any) => el[W] && def.commands[m](el[W].i, o || {}, el)
@@ -190,9 +279,9 @@ export function defineWidget(def: any): any {
     commands,
     // D101/D116: the control spec's vnode(props, children, h): one (marker) element vnode; also
     // the tag form's pragma render hook (no data-control stamp)
-    vnode: w.__sygnalControl = (props: any, _: any, h: any) => {
+    vnode: w.__sygnalControl = (props: any, children: any, h: any) => {
       const {key, ref, ...p} = props || {}
-      return {sel: 'widget', data: {ww: w, wp: p, h, r: ref}, children: undefined, text: undefined, key}
+      return {sel: 'widget', data: {ww: w, wp: p, h, r: ref}, children: def.children ? children : undefined, text: undefined, key}
     },
     $ssr: host,
     // D190/D199: a widget tag is not a selector (SYG143 in dev): select its className or a control

@@ -64,7 +64,33 @@ Click First, then Second before quote 1 arrives: with `latest: true` the first r
 - The **`error` action** gets `{ error, status, body, request }`. For a non-2xx response, `status` and the parsed `body` are set and `error.message` reads like `'HTTP 404 Not Found: /api/quotes/9'`. For a network error, a body that doesn't parse, a timeout (`error.name === 'TimeoutError'`) or no `fetch`, `status` is `undefined`. `request` is the request as the model sent it.
 - The reply goes to **exactly the component instance that sent the request**. Two `<Quote>` components, or every item of a Collection, can use the same action names without seeing each other's replies, and need no request ids.
 - If the instance is removed (a Collection item deleted, a page left), its requests are aborted and nothing arrives.
-- A name with no model entry is reported as [SYG112](/reference/errors/#syg112), with the closest model key. A request with a `then` or `catch` key is not sent ([SYG610](/reference/errors/#syg610)): use `ok` and `error`.
+- A name with no model entry is reported as [SYG112](/reference/errors/#syg112), with the closest model key (or the ancestor that has an entry of that name). A request with a `then` or `catch` key is not sent ([SYG610](/reference/errors/#syg610)): use `ok` and `error`.
+
+### When another component loads the data
+
+Because a reply only goes to its sender, a child can't reuse its parent's reply actions: a "Try again" button that sends the parent's request with `ok: 'TEMPLATES'` gets SYG112, since the button's own model has no `TEMPLATES` entry. Two ways to share a loader:
+
+- **Declare it once as a resource** where the data is shown, tagged, and re-request it from any component with `{ invalidate: tag }`: every mounted resource with that tag refetches, and nobody needs reply actions.
+- **Hand the request to the owner.** The child emits `EVENTS: event('RETRY_TEMPLATES')`; the owner selects it in its intent and sends the request from that entry, so the reply comes back to the owner.
+
+```jsx title="Start.jsx"
+function Retry() {
+  return <button className="retry">Try again</button>
+}
+Retry.intent = ({ DOM }) => ({ RETRY: DOM.click('.retry') })
+Retry.model = { RETRY: { HTTP: () => ({ invalidate: 'templates' }) } }
+
+function Start({ state }) {
+  const { status, data } = state.templates
+  return (
+    <div>
+      {status === 'error' ? <Retry /> : <ul>{(data || []).map((t) => <li key={t.id}>{t.name}</li>)}</ul>}
+    </div>
+  )
+}
+Start.initialState = {}
+Start.resources = { templates: () => ({ url: '/api/templates', tags: ['templates'] }) }
+```
 
 ### Build the request from (state, data)
 
@@ -368,6 +394,7 @@ For reads, see the [pagination and infinite list recipes](/guide/resources/#reci
 
 - [Resources and Caching](/guide/resources/): declarative reads, the query cache, invalidation, retries, validation
 - [Sockets](/guide/sockets/): WebSocket and server-sent events with `makeSocketDriver()`
+- [Typed APIs](/guide/typed-apis/): requests built from an API contract (oRPC, OpenAPI, Hono), with typed replies and errors (dev preview)
 - [Custom Drivers](/guide/custom-drivers/): `driverFromAsync()` for any promise-returning function, and hand-written drivers
 - [Server Functions](/integration/server-functions/): calling Telefunc functions through a driver with reply actions
 - [AI Chat](/guide/ai-chat/): the chat driver, whose requests and reply actions work like these, with streamed text

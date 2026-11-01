@@ -6,6 +6,7 @@
 // the built package (dist: `npm run build` first) and run with the driver fakes. Every module is
 // also checked with `sygnal-check --strict`. The skill's own code blocks run as they are. No network.
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
+import { llmsText, skillText } from './helpers/agent-context.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -18,8 +19,8 @@ import { checkFiles } from '../sygnal-check/src/index.js'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const repo = path.resolve(here, '..')
 const FILES = {
-  llms: fs.readFileSync(path.join(repo, 'llms.txt'), 'utf8'),
-  skill: fs.readFileSync(path.join(repo, 'skills/sygnal-dev/SKILL.md'), 'utf8'),
+  llms: llmsText(),   // llms.txt + its topic files
+  skill: skillText(),  // SKILL.md + its references
 }
 
 // text → the files that contain it verbatim
@@ -277,8 +278,8 @@ describe('chat({ ask }) cards (llms.txt)', () => {
 
 // ── the skill's code blocks run as they are ─────────────────────────────────
 
-describe('the skill: composed UI section', () => {
-  const section = FILES.skill.split('### Composed UI and chat cards (`sygnal/ai`)')[1]?.split('\n### ')[0] ?? ''
+describe('the topic file llms/ai.md (the skill\'s references/ai.md): the composed page, end to end', () => {
+  const section = FILES.skill.split('## A composed page, end to end')[1]?.split('\n#')[0] ?? ''
   const blocks = [...section.matchAll(/```(\w+)\n([\s\S]*?)```/g)].map((m) => m[2])
 
   it('has the Dashboard module and its test', () => {

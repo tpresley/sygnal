@@ -93,7 +93,8 @@ const adopt = (e: any, v: any): any => {
     t == 3 && c[j + 1]?.text != null && !c[j + 1].sel && w?.text && x.data.startsWith(w.text) && x.splitText(w.text.length);
     y = x.nextSibling;
     if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
-    else if (t == 1 && x.localName == w?.sel && !(k && (k.create || k.init || k.u || k.insert && !(k.postpatch && k.insert.s)))) {
+    // (CV-4: a compiled block's element is adopted, `$a`; the block takes its inside, blocks.ts)
+    else if (t == 1 && x.localName == w?.sel && (w.$b || !(k && (k.create || k.init || k.u || k.insert && !(k.postpatch && k.insert.s))))) {
       const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;
       o.class = 'className';
       for (const m in p) o[m == 'htmlFor' ? 'for' : m.toLowerCase()] = m;
@@ -109,7 +110,7 @@ const adopt = (e: any, v: any): any => {
       // G-484: a textarea's value no longer follows its text, which goes
       x.localName == 'textarea' && (x.value = x.value);
       const s = w.text != null && f?.nodeType == 3 && !f.nextSibling;
-      n = {sel: w.sel, key: w.key, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x};
+      n = {sel: w.sel, key: w.key, data: {dataset: {...x.dataset}, attrs: at, props: pr}, children: s || w.$b ? undefined : adopt(x, w), text: s ? f.data : undefined, elm: x, $a: w.$b && 1};
     } else if (t != 1 && (t != 3 || !/\S/.test(x.data))) {
       x.remove();
       continue;
@@ -218,6 +219,9 @@ function makeDOMDriver(
     );
   }
 
+  // CV-3: compiled blocks patch themselves with the default modules (src/pragma/blocks.ts); a
+  // driver with other modules gets their plain vnodes
+  (DOMDriver as any).blocks = !options.modules;
   return DOMDriver as any;
 }
 

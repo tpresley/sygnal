@@ -276,6 +276,54 @@ export default [
 		]
   },
 
+  // 'sygnal/api' (dev preview): like 'sygnal/ai', a re-export of the main bundle's src/extra/api/
+  // from the external 'sygnal' (its SYG690 warning uses the app's one diagnostics module).
+  {
+    input: 'src/api.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./api'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./api'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-api-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]api\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
+  // 'sygnal/replay' (7.2 dev preview): like 'sygnal/api', a re-export of the main bundle's
+  // src/extra/replay/ from the external 'sygnal'.
+  {
+    input: 'src/replay.ts',
+    external: (id) => isExternal(id) || id === 'sygnal',
+    output: [
+      { file: pkg.exports['./replay'].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports['./replay'].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-replay-core-external',
+				resolveId(source, importer) {
+					if (source === './index' && importer && /[\\/]src[\\/]replay\.ts$/.test(importer)) {
+						return { id: 'sygnal', external: true }
+					}
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  },
+
   // PLAN-5 W-2 (D203, D209): the adapter entries. Their framework / Zag imports stay external
   // (optional peerDependencies: an app that doesn't import the entry never needs them), and their
   // core import becomes the external 'sygnal' (0 B in the core bundle, one core per app).
@@ -350,6 +398,101 @@ export default [
 		]
   },
 
+  // Renderer targets (research: dev-plans/research/alt-renderers). 'sygnal/host': the kit (a host
+  // tree, the host driver, the user-agent actions), with Sygnal's snabbdom modules inlined (they are
+  // stateless per patch; snabbdom stays external) and its core import ('./index', '../index') the
+  // external 'sygnal' (its xs, its pragma: one core per app). 'sygnal/terminal' and
+  // 'sygnal/agent-ui' are targets on the kit: 'sygnal' and 'sygnal/host' stay external.
+  ...[
+    ['host', [[/[\\/]src[\\/]host\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]host[\\/]/, '../index', 'sygnal']]],
+    ['terminal', [[/[\\/]src[\\/]terminal\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]terminal\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]terminal[\\/]/, '../host', 'sygnal/host']]],
+    ['agent-ui', [[/[\\/]src[\\/]agent-ui\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]agent-ui\.ts$/, './host', 'sygnal/host'], [/[\\/]src[\\/]agent-ui[\\/]/, '../host', 'sygnal/host']]],
+    // 'sygnal/primitives': no imports (the pragma it renders with is passed in)
+    ['primitives', []],
+    // 'sygnal/react-native': react and react-native stay external (optional peerDependencies, D209)
+    ['react-native', [[/[\\/]src[\\/]react-native\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]react-native\.ts$/, './host', 'sygnal/host']]],
+    // 'sygnal/three' (research: dev-plans/research/canvas-three): three stays external (an optional
+    // peerDependency, D209), as 'sygnal' and 'sygnal/host' (its host mode) do
+    ['three', [[/[\\/]src[\\/]three[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]three[\\/]/, '../host', 'sygnal/host']]],
+    // 'sygnal/canvas' (research: dev-plans/research/canvas-apps): no dependencies; the pointer router
+    // and controlled() (src/extra, no core imports) are bundled, 'sygnal' stays external
+    ['canvas', [[/[\\/]src[\\/]canvas\.ts$/, './index', 'sygnal'], [/[\\/]src[\\/]canvas[\\/]/, '../index', 'sygnal']]],
+    // 'sygnal/worker' (research: dev-plans/research/web-worker): the worker half, on the external
+    // 'sygnal' and 'sygnal/host'; 'sygnal/worker/page': the page half, no core (xstream, and the
+    // kit's selector matching inlined)
+    ['worker', [[/[\\/]src[\\/]worker[\\/]/, '../index', 'sygnal'], [/[\\/]src[\\/]worker[\\/]/, '../host', 'sygnal/host']]],
+    ['worker-page', []],
+  ].map(([entry, rules]) => ({
+    input: `src/${entry}.ts`,
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^react(-native)?$/.test(id) || /^three(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports[entry === 'worker-page' ? './worker/page' : `./${entry}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[entry === 'worker-page' ? './worker/page' : `./${entry}`].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: `sygnal-${entry}-externals`,
+				resolveId(source, importer) {
+					for (const [re, from, id] of rules) if (source === from && importer && re.test(importer)) return { id, external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
+  // 'sygnal/yjs' (research: dev-plans/research/crdt-state) and 'sygnal/yjs/testing': yjs and
+  // y-protocols stay external (optional peerDependencies, D209), as does fractional-indexing (a
+  // regular dependency); the core import ('../index': xs, ABORT) is the external 'sygnal'.
+  ...[['yjs', 'src/yjs.ts'], ['yjs/testing', 'src/yjs-testing.ts']].map(([entry, input]) => ({
+    input,
+    external: (id) => isExternal(id) || id === 'sygnal' || /^(yjs|y-protocols|fractional-indexing)(\/|$)/.test(id),
+    output: [
+      { file: pkg.exports[`./${entry}`].require, format: 'cjs', ...sourcemapOptions },
+      { file: pkg.exports[`./${entry}`].import, format: 'es', ...sourcemapOptions }
+    ],
+		plugins: [
+			{
+				name: 'sygnal-yjs-core-external',
+				resolveId(source, importer) {
+					return source === '../index' && importer && /[\\/]src[\\/]yjs[\\/]/.test(importer) ? { id: 'sygnal', external: true } : null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
+  // 'sygnal/sandbox' (dev preview; research: dev-plans/research/sandbox): the page side ('sygnal'
+  // external: one core; quickjs-emscripten-core and its variant external: optional peers, D209),
+  // the worker script (the peers only), the guest kernel's entry (ESM only, 'sygnal' and
+  // 'sygnal/host' external: sygnal/vite or buildSandboxKernel() bundles it with the app's installed
+  // packages, never shipped prebuilt) and 'sygnal/sandbox/build' (Node: buildSandboxKernel).
+  ...[
+    ['sandbox', 'src/sandbox.ts', ['cjs', 'es']],
+    ['sandbox-worker', 'src/sandbox/worker-entry.ts', ['cjs', 'es']],
+    ['sandbox-kernel', 'src/sandbox/kernel.ts', ['es']],
+    ['sandbox-build', 'src/sandbox-build.ts', ['cjs', 'es']],
+  ].map(([name, input, formats]) => ({
+    input,
+    external: (id) => isExternal(id) || /^sygnal(\/host)?$/.test(id) || /^(quickjs-emscripten-core|@jitl\/)/.test(id),
+    output: formats.map((format) => ({ file: `dist/${name}.${format == 'es' ? 'esm' : 'cjs'}.js`, format, ...sourcemapOptions })),
+		plugins: [
+			{
+				name: `sygnal-${name}-externals`,
+				resolveId(source, importer) {
+					if (!importer || !/[\\/]src[\\/]sandbox[\\/]/.test(importer)) return null
+					if (source === '../index') return { id: 'sygnal', external: true }
+					if (source === '../host') return { id: 'sygnal/host', external: true }
+					return null
+				},
+			},
+			typescript({ tsconfig: './tsconfig.json' }),
+			resolve({ extensions: ['.mjs', '.js', '.ts', '.json'] }),
+		]
+  })),
+
   // sygnal/vite aliases xstream's `globalthis` dependency to this stub (G-099).
   // CommonJS: xstream require()s it. `exports: 'default'` → module.exports = fn.
   {
@@ -360,7 +503,9 @@ export default [
 
   {
     input: 'src/vite/plugin.ts',
-    external: [],
+    // CV (Q-2): magic-string (compiled views' source maps) is a regular dependency, kept external
+    // (D209); only the plugin imports it, never an app bundle
+    external: ['magic-string'],
     output: [
       { file: pkg.exports['./vite'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./vite'].import, format: 'es', ...sourcemapOptions }
@@ -374,7 +519,8 @@ export default [
 
   {
     input: 'src/astro/index.ts',
-    external: [],
+    // the Vite plugin inside it imports magic-string: external, as in sygnal/vite (D209)
+    external: ['magic-string'],
     output: [
       { file: pkg.exports['./astro'].require, format: 'cjs', ...sourcemapOptions },
       { file: pkg.exports['./astro'].import, format: 'es', ...sourcemapOptions }

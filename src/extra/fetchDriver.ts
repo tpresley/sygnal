@@ -181,7 +181,7 @@ const pickInit = (init: any) => {
 
 /** headers merged case-insensitively (R4-5); plain objects and Headers instances */
 const mergeHeaders = (...all: any[]) => {
-  if (typeof Headers != 'function') return Object.assign({}, ...all);
+  if (typeof Headers != 'function') return all.reduce((o, x) => ({...o, ...x}), {});
   const h = new Headers();
   all.forEach(x => x && new Headers(x).forEach((v, k) => h.set(k, v)));
   const out: Record<string, string> = {};

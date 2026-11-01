@@ -44,6 +44,7 @@ import { browserSourceTestsP5_2B } from './tests/browser-sources-p5-2b.jsx'
 import { fixesTestsP5_1S } from './tests/fixes-p5-1s.jsx'
 import { virtualTestsP5V1 } from './tests/virtual-p5v1.jsx'
 import { uiTestsP5U } from './tests/ui-p5u.jsx'
+import { uiSweepNativeTests } from './tests/ui-sweep-native.jsx'
 import { collectionViewTransitionTestsP5_2A } from './tests/collection-vt-p5-2a.jsx'
 import { uiZagTestsP5Z } from './tests/ui-zag-p5z.jsx'
 import { fixesTestsP5_2R, fixesTestsP5_2R_after } from './tests/fixes-p5-2r.jsx'
@@ -58,6 +59,9 @@ import { collectionTestsP5_4H } from './tests/collection-4h.jsx'
 import { aiChatTestsP6_1L } from './tests/ai-chat-p6-1l.jsx'
 import { mcpAppTestsP6_3X } from './tests/mcp-app-p6-3x.jsx'
 import { moveParentTestsP9G750 } from './tests/move-parent-p9-g750.jsx'
+import { workerTests7_2 } from './tests/worker-7-2.jsx'
+import { threeTestsCT } from './tests/three-ct.jsx'
+import { canvasTests7_2 } from './tests/canvas-7-2.jsx'
 import { getResults } from './harness.js'
 
 async function runAll() {
@@ -108,6 +112,7 @@ async function runAll() {
     fixesTestsP5_1S,
     virtualTestsP5V1,
     uiTestsP5U,
+    uiSweepNativeTests,
     collectionViewTransitionTestsP5_2A,
     uiZagTestsP5Z,
     fixesTestsP5_2R,
@@ -126,6 +131,9 @@ async function runAll() {
     aiChatTestsP6_1L,
     mcpAppTestsP6_3X,
     moveParentTestsP9G750,
+    workerTests7_2,
+    threeTestsCT,
+    canvasTests7_2,
   ]
   for (const suite of suites) {
     if (only && !suite.name.toLowerCase().includes(only.toLowerCase())) continue

@@ -43,13 +43,15 @@ The delays need the timer driver in `run()`. Tests don't: [fake timers](/guide/t
 
 ## Behavior
 
-- Hovering or focusing the trigger shows the tip after `showDelay`; leaving before that never shows it.
+- Hovering the trigger or giving it the keyboard focus shows the tip after `showDelay`; leaving before that never shows it.
+- Only a focus the browser draws a focus ring for (`:focus-visible`) shows it. A mouse click focuses a button in Chromium and Firefox, so a tip that showed it would stay after the pointer left; a clicked trigger's tip goes with the pointer instead. When a dialog closes and the focus returns to its trigger, the browser decides: after a keyboard close the tip usually shows, after a mouse close it doesn't.
 - Leaving hides it after `hideDelay`. Moving the pointer from the trigger onto the tip keeps it open, so the tip can be read and selected ([WCAG 1.4.13](https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus)).
 - The pointer and the focus count apart: it hides once both have left, so the mouse moving away doesn't hide a tip the keyboard focus still shows.
-- Touch is left out: a tap focuses the trigger, which shows the tip as focus does.
+- Touch is left out: touch pointer events are ignored, and the focus a tap gives isn't `:focus-visible`, so a tap shows no tip.
+- A press on the trigger (pointerdown) hides it at once, and the pointer shows it again only after leaving and coming back, as Radix does: clicking a button doesn't leave its tip over what the click opened.
 - Escape hides it at once, without moving the focus. (The behavior listens for it on the document only while the tip is shown or about to be.)
 
-`state.saveTip` is `{ open, pending, hover, focus }`: `pending` is `'show'` or `'hide'` while a delay runs; `hover` and `focus` say where the pointer and the focus are. The actions are `saveTip.ENTER` and `saveTip.LEAVE` (data: `'hover'` or `'focus'`), `saveTip.SHOW`, `saveTip.HIDE` (the timers), `saveTip.ESCAPE` and `saveTip.TOGGLED`. The timers are declared under the names `saveTip.show` and `saveTip.hide`, next to the component's own [`timers`](/guide/timers/).
+`state.saveTip` is `{ open, pending, hover, focus, pressed }`: `pending` is `'show'` or `'hide'` while a delay runs; `hover` and `focus` say where the pointer and the focus are. The actions are `saveTip.ENTER` and `saveTip.LEAVE` (data: `'hover'` or `'focus'`), `saveTip.SHOW`, `saveTip.HIDE` (the timers), `saveTip.PRESS` (a pointerdown on the trigger), `saveTip.ESCAPE` and `saveTip.TOGGLED`. The trigger and the tip can be inside a [`<Portal>`](/advanced/portals/). The timers are declared under the names `saveTip.show` and `saveTip.hide`, next to the component's own [`timers`](/guide/timers/).
 
 ## Many tooltips: `tooltips()`
 
@@ -73,7 +75,7 @@ function Glossary({ uid }) {
 Glossary.uses = { tips: tooltips({ trigger: '.term', tip: '.tip' }) }
 ```
 
-The options are those of `tooltip()`, with `trigger` and `tip` matching every trigger and every tip. Moving from one term to another while a tip is shown switches at once, without a second delay. `state.tips` is `{ id, open, pending, hover, focus }`: `id` is the tip of the trigger last entered and `open` the id of the tip shown. The actions carry the tip's id: `tips.ENTER` and `tips.LEAVE` (`{ via: 'hover' | 'focus', id }`), `tips.TOGGLED` (`{ id, open }`), plus `tips.SHOW`, `tips.HIDE` and `tips.ESCAPE`.
+The options are those of `tooltip()`, with `trigger` and `tip` matching every trigger and every tip. Moving from one term to another while a tip is shown switches at once, without a second delay. `state.tips` is `{ id, open, pending, hover, focus, pressed }`: `id` is the tip of the trigger last entered and `open` the id of the tip shown. The actions carry the tip's id: `tips.ENTER` and `tips.LEAVE` (`{ via: 'hover' | 'focus', id }`), `tips.TOGGLED` (`{ id, open }`), plus `tips.SHOW`, `tips.HIDE`, `tips.PRESS` (`{ id }`) and `tips.ESCAPE`.
 
 ## Positioning
 
@@ -102,7 +104,7 @@ Safari 26 places the tip wrongly when the trigger is inside a `position: fixed` 
 
 - `aria-describedby` on the trigger points at the tip, so screen readers read the tip as the trigger's description. The trigger still needs its own name (its text or `aria-label`).
 - Keep the tip short and plain text; it can't take the focus. For anything interactive, use a [popover](/ui/popover/).
-- Don't rely on a tooltip for touch users: there is no hover, and a tap focuses the trigger only briefly.
+- Don't rely on a tooltip for touch users: there is no hover, and a tap shows no tip.
 
 ## Testing
 

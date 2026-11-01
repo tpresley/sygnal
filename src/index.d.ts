@@ -102,7 +102,21 @@ type NextFunction<ACTIONS = any> = ACTIONS extends object
  * `state` (and as its 1st argument), with the state from before the action as `previousState`
  * (in a STATE reducer both are the old state)
  */
-type ReducerExtras<PROPS, CONTEXT, STATE = any> = PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+/**
+ * 7.2: the clock and randomness on a handler's 4th argument, the canonical form for reading them
+ * (instead of Date.now(), Math.random(), crypto.randomUUID(): SYG258 / SYG509). renderComponent
+ * can fix them (`now`, `random`, `uuid` options) and a replay supplies the recorded values. A
+ * component prop of the same name wins.
+ */
+export interface HandlerEntropy {
+  /** Date.now() */
+  now(): number
+  /** Math.random() */
+  random(): number
+  /** crypto.randomUUID() */
+  uuid(): string
+}
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, keyof PROPS> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -358,7 +372,8 @@ type ChildSource = {
 /**
  * `DOM.<event>(selector)` shorthands for the standard DOM events, typed like
  * `DOM.select(selector).events('<event>')`: `DOM.keydown('.x')` is a stream of KeyboardEvent,
- * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on.
+ * `DOM.click('.x')` of MouseEvent (PointerEvent in newer DOM typings), and so on. A second argument
+ * is the events() options: `DOM.submit('form', { preventDefault: true })`.
  */
 export type DOMEventShorthands = {
   [EVENT in Exclude<keyof HTMLElementEventMap, keyof MainDOMSource>]: DOMEventShorthand<HTMLElementEventMap[EVENT]>
@@ -369,9 +384,9 @@ export type DOMEventShorthands = {
  * the event with `currentTarget` (and `ownerTarget`) typed as the control's element.
  */
 export interface DOMEventShorthand<EVENT> {
-  <CONTROL extends AnyControl>(control: CONTROL): EnrichedEventStream<ControlEvent<EVENT, ControlElementOf<CONTROL>>>
+  <CONTROL extends AnyControl>(control: CONTROL, options?: EventsFnOptions): EnrichedEventStream<ControlEvent<EVENT, ControlElementOf<CONTROL>>>
   // last, so ReturnType<SygnalDOMSource['click']> stays the selector form
-  (selector: string): EnrichedEventStream<EVENT>
+  (selector: string, options?: EventsFnOptions): EnrichedEventStream<EVENT>
 }
 
 /**
@@ -610,8 +625,60 @@ export type WidgetEmit<EV extends string = string> = WidgetDispatch<EV>
 export interface WidgetDefinition<P = {}, I = unknown, EV extends string = string, TAG extends string = 'div'> {
   /** A name for diagnostics and inspect() (`'DatePicker'`); the host tag stands in without one */
   name?: string;
-  /** The host element (default `'div'`). It has no children of its own: the widget owns its content. */
+  /** The host element (default `'div'`). Without `children`, it has no children of its own: the widget owns its content. */
   tag?: TAG;
+  /**
+   * Declarative children (an "island": a WebGL scene's objects, a map's markers, a chart's
+   * series). The tag's JSX children are rendered by the app's DOM driver into a container in
+   * the host (`[data-widget-children]`), as ordinary elements: components, `<Collection>`,
+   * isolation and intents work inside. `sync` gets them; the widget paints them its own way and
+   * dispatches DOM events on them. `true`: the container is visually hidden but in the
+   * accessibility tree (Enter / Space on a focused child is its `click`; `focus` is told);
+   * `'hidden'`: hidden from everything.
+   */
+  children?: true | 'hidden';
+  /**
+   * With `children`: called after mount and after each patch in which the children's vnodes
+   * changed, with the children container's patched vnode (each child's props as the view wrote
+   * them, in `data.props` / `data.attrs`, and its element in `.elm`).
+   */
+  sync?(instance: I, children: VNode, el: WidgetElementOf<TAG>): void;
+  /** With `children`: a child got keyboard focus (`null`: none has it); draw a focus ring where it is */
+  focus?(instance: I, child: Element | null, el: WidgetElementOf<TAG>): void;
+  /**
+   * Tags of the widget's children vocabulary that are SVG tags to the JSX pragma (`marker`,
+   * `line`, `text`): they become plain elements app-wide (props stay props). Children of a
+   * literal `<svg>` in the same template are still SVG.
+   */
+  tags?: readonly string[];
+  /**
+   * Experimental (7.2): the widget carries a value both the app and the user change (an
+   * editor's text, a camera, a map's viewport). The `value` prop is controlled: `write` is
+   * called only when the app changed it to something the widget didn't report itself (no echo
+   * loops, no stale writes); the widget reports its own changes with `dispatch(event, value)`
+   * (`event` default `'change'`). With `strict` (here, or the `strict` prop), an edit the model
+   * didn't take (the prop never moved) is written back after the app's turn. `read` makes the
+   * host's `value` the widget's (`.value()` in intents). `update` is not called for `value` alone.
+   */
+  value?: {
+    write(instance: I, value: any, el: WidgetElementOf<TAG>): void;
+    read?(instance: I, el: WidgetElementOf<TAG>): any;
+    equals?(a: any, b: any): boolean;
+    event?: NoInfer<EV>;
+    strict?: boolean;
+  };
+  /**
+   * The widget is a form field named by its `name` prop (the widget field contract): when it
+   * dispatches `event` (default: `value.event`, else `'change'`), its host also fires a bubbling
+   * `input` event, which the `form` behavior reads as the field's new value (the event's detail);
+   * the focus leaving the host marks the field touched; processForm entries get `read()` (default:
+   * the last value dispatched, else the `value` prop). Its own nameless controls' `input` events
+   * don't count. `true`: the defaults.
+   */
+  field?: true | {
+    event?: NoInfer<EV>;
+    read?(instance: I, el: WidgetElementOf<TAG>): any;
+  };
   /**
    * Called once the host is in the document (or on the first client patch after SSR) with the
    * props the view passed. Returns the instance that `update`, `unmount` and `commands` get.
@@ -645,7 +712,8 @@ export interface WidgetDefinition<P = {}, I = unknown, EV extends string = strin
  * (`controls({ Due: DatePicker })`, the alternative form).
  */
 export interface Widget<P = {}, I = unknown, EV extends string = string, TAG extends string = string> extends ControlSpecObject<P & WidgetHostProps> {
-  (props: P & WidgetHostProps): JSX.Element;
+  /** (JSX children: rendered for a widget with `children`, ignored otherwise) */
+  (props: P & WidgetHostProps & { children?: unknown }): JSX.Element;
   readonly kind: 'widget';
   /** The declared events */
   readonly events: readonly EV[];
@@ -677,6 +745,22 @@ export interface Widget<P = {}, I = unknown, EV extends string = string, TAG ext
  * owner's `onError` fallback renders in its place.
  */
 export function defineWidget<P = {}, I = unknown, const EV extends string = string, const TAG extends string = 'div'>(definition: WidgetDefinition<P, I, EV, TAG>): Widget<P, I, EV, TAG>
+
+/**
+ * Keyboard shortcuts as named action streams (7.2):
+ *
+ *   App.intent = ({ DOM }) => ({ ...keymap(DOM, { 'mod+z': 'UNDO', 'shift+mod+z': 'REDO', delete: 'DELETE', left: ['NUDGE', { dx: -1 }] }) })
+ *
+ * A combo is modifiers (`mod` = ⌘ or Ctrl, `ctrl`, `meta`, `shift`, `alt`) then a key (`e.key`
+ * lower-cased; `left` `right` `up` `down` `del` `esc` `space` aliases; digits by `e.code`), and
+ * matches only its own modifiers. A value is an action name (its stream emits `undefined`) or
+ * `[name, data]`. Matched keys are default-prevented; nothing fires while typing in a field.
+ */
+export function keymap<const T extends Record<string, string | readonly [string, any]>>(
+  DOM: { select(selector: string): any },
+  table: T,
+  options?: { on?: string },
+): { [K in T[keyof T] extends infer V ? V extends readonly [infer N extends string, any] ? N : V extends string ? V : never : never]: Stream<any> }
 
 /**
  * The target of an element command: a control, or a selector. It is looked up in the view of the
@@ -810,6 +894,11 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * name is sent to the host as written. They join the host's own `timers`.
    */
   timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
+  /**
+   * ui-sweep R1: the option each action's trigger is built from (`{ TOGGLE: 'toggle' }`). Dev
+   * only: SYG118 when a host intent action of that name replaces it while the host passes the option.
+   */
+  triggers?: { [A in keyof ACTIONS]?: keyof OPTIONS & string };
   /** `false`: the slice is UI state (sortable's drag): a root's `persist()` neither saves nor restores it (the root's own `uses` only: a sub-component's or Collection item's slice is saved with its data) */
   persist?: false;
   /**
@@ -1028,7 +1117,8 @@ export interface FormOptions<V = any, OUT = any> {
    * function of the schema's output and the host's state (`(data, state) => ({ url: '/api/items/' + state.id, method: 'PUT' })`;
    * `ABORT` / falsy sends nothing and leaves the submit pending). The form adds the body
    * (`multipart: data` when a top-level value is a File or files, else `json: data`, unless the
-   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` (unless set) and its own
+   * request sets `json`, `multipart` or `body`), `progress: 'form.PROGRESS'` for a multipart submit or
+   * `progress: true` (a JSON submit stays on fetch: progress goes over XMLHttpRequest) and its own
    * `ok: 'form.DONE'`, `error: 'form.ERRORS'`
    */
   request?: FormRequest<OUT>;
@@ -1072,8 +1162,8 @@ export type FormServerErrors =
   | { status?: number; body?: any; error?: any; request?: any }
 
 export interface FormActions<V = any> {
-  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed); a file input its File (`multiple`: File[]; none: null) */
-  CHANGE: { name: string; value: any; item?: any; file?: boolean };
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed, kept in document order: 7.2) and as `order` its group's values as rendered; a file input its File (`multiple`: File[]; none: null) */
+  CHANGE: { name: string; value: any; item?: any; order?: ReadonlyArray<string>; file?: boolean };
   /**
    * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
    * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
@@ -2135,7 +2225,12 @@ export type FormSource = {
   events(eventName: string, ...args: any[]): Stream<any>
 }
 
-export type FormData<FIELDS extends Record<string, string> = Record<string, string>> = FIELDS & {
+/**
+ * processForm's entries: a field's string (a file input: its File); a `<select multiple>`, checkboxes
+ * sharing a name (7.2) and a multiple widget field an array of their values; declare those in
+ * FIELDS: `{ tags: string[] }`
+ */
+export type FormData<FIELDS extends Record<string, any> = Record<string, string>> = FIELDS & {
   event: globalThis.Event;
   eventType: string;
 }
@@ -2159,7 +2254,7 @@ export type ProcessFormOptions = {
  * // form$ is Stream<FormData<{ username: string; email: string }>>
  * // form$.username is typed as string ✓
  */
-export function processForm<FIELDS extends Record<string, string> = Record<string, string>>(
+export function processForm<FIELDS extends Record<string, any> = Record<string, string>>(
   target: FormSource,
   options?: ProcessFormOptions
 ): Stream<FormData<FIELDS>>
@@ -3119,11 +3214,16 @@ export function makeHeadDriver(options?: { titleTemplate?: string; document?: an
  * `after`: once, after ms (0 or more); `frame`: every animation frame (requestAnimationFrame,
  * else every 16 ms). `background: true` keeps it running while its Switchable page is hidden.
  * An invalid spec is not started (SYG422 in dev).
+ *
+ * A `frame` timer for a game (canvas-game R2): `keys` samples the keyboard with each frame
+ * (`{ left: ['ArrowLeft', 'KeyA'], jump: 'Space' }`, KeyboardEvent codes or keys; the data gets
+ * `held`, `pressed`, `released`: TimerFrameInput), and `step` (ms) makes it a fixed timestep: one
+ * action per whole step the frame time owes, at most `max` (default 5) a frame.
  */
 export type TimerSpec<ACTION extends string = string> =
   | { every: number; action: ACTION; background?: boolean; after?: never; frame?: never }
   | { after: number; action: ACTION; background?: boolean; every?: never; frame?: never }
-  | { frame: ACTION; background?: boolean; every?: never; after?: never; action?: never }
+  | { frame: ACTION; keys?: Record<string, string | readonly string[]>; step?: number; max?: number; background?: boolean; every?: never; after?: never; action?: never }
 
 /** A component's whole set of timers, by name: a falsy entry (`state.running && { ... }`) is stopped */
 export type Timers<ACTION extends string = string> = { [name: string]: TimerSpec<ACTION> | false | null | undefined | 0 | '' }
@@ -3132,8 +3232,21 @@ export type Timers<ACTION extends string = string> = { [name: string]: TimerSpec
 export interface TimerTick { n: number; t: number }
 /** The data of an `after` timer's action: Date.now() */
 export interface TimerAfter { t: number }
-/** The data of a `frame` timer's action: Date.now() and the ms since the previous frame (0 on the first) */
-export interface TimerFrame { t: number; dt: number }
+/**
+ * The data of a `frame` timer's action: Date.now() and the ms since the previous frame (0 on the
+ * first); with `step`, `dt` is the step and `steps` / `i` say how many steps this frame sends and
+ * which one this is; with `keys`, the input (TimerFrameInput)
+ */
+export interface TimerFrame<BUTTON extends string = string> extends Partial<TimerFrameInput<BUTTON>> { t: number; dt: number; steps?: number; i?: number }
+/**
+ * A `frame` timer's sampled keys: `held` (every button, true while one of its keys is down; the
+ * same object while nothing changed), `pressed` / `released` (the buttons that went down / up since
+ * the last frame, so a tap shorter than a frame counts; with `step`, on the frame's first step).
+ * Listened for on the document while the timer runs: the keys are default-prevented (repeats
+ * ignored), not while a text field has the focus; the window losing focus or the page hiding
+ * releases every button.
+ */
+export interface TimerFrameInput<BUTTON extends string = string> { held: Record<BUTTON, boolean>; pressed: BUTTON[]; released: BUTTON[] }
 
 /**
  * PLAN-4 GS-7: runs the components' `timers` statics: `run(App, { TIMER: makeTimerDriver() })`.
@@ -3283,6 +3396,14 @@ export interface InstallPrompt {
 
 export function createInstallPrompt(): InstallPrompt
 
+/** Which instance t.simulateAction() sends to (default: the rendered component) */
+export interface SimulateActionOptions {
+  /** The first rendered instance of this component (or its name) */
+  component?: AnyComponent | string;
+  /** Only an instance rendered inside the first element matching this selector or control (a Collection item) */
+  within?: string | AnyControl;
+}
+
 export interface SimulatedEventInit {
   /** Merged into `event.target` (value, checked, dataset, ...) */
   target?: Record<string, any>;
@@ -3296,6 +3417,12 @@ export interface SimulatedEventInit {
   data?: Record<string, any>;
   /** Keyboard key (e.key) */
   key?: string;
+  /**
+   * Shorthand for target.files: the files a file input holds. The target gets them as a FileList
+   * (with `dom: 'real'` a real one where the environment has DataTransfer, else defined on the
+   * element): `t.simulateEvent('[name="avatar"]', 'input', { files: [new File(['…'], 'me.png')] })`
+   */
+  files?: ArrayLike<File> | File[];
   /**
    * Don't fail when the selector matches no rendered element: wait up to 300ms for it, then
    * drop the event with SYG103 (info). Not copied onto the event.
@@ -3394,6 +3521,23 @@ export interface RenderOptions {
   timingAudit?: boolean;
   /** Override initial state (defaults to component's .initialState) */
   initialState?: any;
+  /**
+   * 7.2: what handlers' `now()` (4th argument) returns: a number fixes the clock at that time (ms
+   * since the epoch, or a Date), a function is called each time. Default: Date.now() (fake timers
+   * apply)
+   */
+  now?: number | Date | (() => number);
+  /**
+   * 7.2: what handlers' `random()` returns: a number seeds a deterministic generator (the same
+   * sequence on every run), a function is called each time. Default: Math.random()
+   */
+  random?: number | (() => number);
+  /**
+   * 7.2: what handlers' `uuid()` returns: `true` gives deterministic UUID-shaped ids in order
+   * (`00000000-0000-4000-8000-000000000001`, `…002`, ...), a function is called each time.
+   * Default: crypto.randomUUID()
+   */
+  uuid?: true | (() => string);
   /**
    * D214: context from the ancestors the rendered component would have, for testing a child
    * alone: `renderComponent(Greeting, { context: { lang: 'fr' } })`. The view, reducers and
@@ -3612,16 +3756,32 @@ export interface RenderResult<STATE = any> {
   sinks: Record<string, any>;
   /** All source objects by driver name */
   sources: Record<string, any>;
-  /** Push an action into the intent→model pipeline under its real name (all sinks of the entry run) */
-  simulateAction: (actionName: string, data?: any) => void;
+  /**
+   * Push an action into the intent→model pipeline under its real name (all sinks of the entry run),
+   * like the component's intent emitting it. It reaches one instance: the rendered component, or
+   * with `{ component: Child }` the first rendered instance of `Child` (`within`: inside the first
+   * element matching a selector or control, e.g. one Collection item). A name that instance has no
+   * model entry for (nor a behavior action or a built-in) fails the test, naming the components
+   * that handle it: `t.simulateAction('INFER_FILE', file, { component: Start })`. Awaitable:
+   * resolves once the action is delivered and the tree has rendered it
+   */
+  simulateAction: (actionName: string, data?: any, options?: SimulateActionOptions) => Promise<void>;
+  /**
+   * Wait for `n` frames (default 1) of the running `frame` timers: their actions reduced, the tree
+   * rendered. Under fake timers it moves the clock frame by frame (deterministic: the same input,
+   * the same frames); with real timers it waits for them. Rejects when no frame timer runs.
+   * `settle()` doesn't wait on a frame loop: what a frame timer causes isn't activity.
+   */
+  frames: (n?: number) => Promise<void>;
   /**
    * Dispatch a synthetic DOM event through the mock DOM source so the component's real intent
    * streams fire (DOM.click('.x'), DOM.select('.x').events('click'), .value(), .data()).
    * Targets the first rendered element matching `selector` and bubbles within its isolation scope.
    * Selectors match the rendered tree like the real DOM: tag, .class, #id, [attr], [attr="v"]
    * (^= $= *= ~=), :first-child, :last-child, :only-child, :nth-child(an+b|odd|even),
-   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ' and child '>'
-   * combinators, ',' lists. Other syntax (:has(), '+', '~', pseudo-elements...) throws.
+   * :nth-last-child(), :first/last/only/nth-of-type, :not(), descendant ' ', child '>',
+   * next-sibling '+' and later-sibling '~' combinators, ',' lists. Other syntax (:has(),
+   * pseudo-elements...) throws.
    * If nothing matches yet, the event waits (up to 300ms, re-checked on every render) for a
    * matching element, then targets the first one. If none renders, the test fails with an
    * error naming the selector: it rejects the pending next()/waitForState()/settle(), or is
@@ -3632,8 +3792,15 @@ export interface RenderResult<STATE = any> {
    * `'document'` / `'body'` go to the DOM.select('document' | 'body') listeners.
    * simulateAction/simulateEvent calls are delivered in call order; a waiting event holds the
    * calls after it. Reports SYG104 (selector only matches inside a child component).
+   *
+   * The event is delivered later, not during the call, so `t.query()` / `t.html()` right after it
+   * still show the old view. The returned promise resolves once the event is delivered and the
+   * tree has rendered what it caused (the real DOM: patched): `await t.simulateEvent('.retry',
+   * 'click')`, then `t.query('.skeleton')`. It never rejects (a selector that matches nothing still
+   * fails the next wait), and awaiting it moves fake timers like the other waits; an un-awaited
+   * call doesn't. A `t.next(pred)` after it waits for a further state.
    */
-  simulateEvent: (selector: string | AnyControl, eventType: string, eventInit?: SimulatedEventInit) => void;
+  simulateEvent: (selector: string | AnyControl, eventType: string, eventInit?: SimulatedEventInit) => Promise<void>;
   /**
    * Resolves once the component is subscribed (earlier simulate* calls are buffered and replayed).
    * Also a cursor: the first next() after `await t.ready()` also matches the states the replayed
@@ -3852,16 +4019,21 @@ export interface RenderResult<STATE = any> {
    * null: `expect(t.query('input[name="plan"]:checked').value).toBe('team')`. With `dom: 'real'`
    * a real element (any CSS selector); with the mock DOM a read-only snapshot of what the view
    * rendered (simulateEvent's selectors plus `:checked`/`:disabled`/`:enabled`; textContent,
-   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest...; no
-   * focus()). Throws before the first render (`await t.ready()` first). Right after
-   * `await t.next(pred)` / `waitForState` / `settle()` / `ready()` it shows the state the wait resolved with.
+   * value, checked, disabled, getAttribute, classList, dataset, querySelector, closest,
+   * next/previousElementSibling...; no focus()). Throws before the first render (`await t.ready()`
+   * first). Right after `await t.next(pred)` / `waitForState` / `settle()` / `ready()` /
+   * `simulateEvent()` it shows the state the wait resolved with.
    */
   query: {
     <E extends Element = Element>(selector: string): E | null;
     /** A control's element (`t.query(Draft)` is an HTMLInputElement for an 'input' control), or null */
     <CONTROL extends AnyControl>(control: CONTROL): ControlElementOf<CONTROL> | null;
   };
-  /** Every element matching a selector (or a control) in the rendered tree (Portals included), as query() */
+  /**
+   * Every element matching a selector (or a control) in the rendered tree (Portals included), as
+   * query(), in document order, also for a ',' list: `t.queryAll('.empty, .filters')` lists
+   * whichever comes first first (an order check)
+   */
   queryAll: {
     <E extends Element = Element>(selector: string): E[];
     <CONTROL extends AnyControl>(control: CONTROL): Array<ControlElementOf<CONTROL>>;
@@ -4033,6 +4205,9 @@ declare global {
 }
 
 // PLAN-6 (D253): implemented in the main package; documented import 'sygnal/ai'
+// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './replay.d'
+export type { Recording, RecordedAction, RecordedCause, RecordOptions, Recorder, ReplayOptions, ReplayResult, ReplayDivergence, ReplayTestOptions } from './replay.d'
 export { messageText, withToolResults } from './ai.d'
 export { decide, choice, noul, score } from './ai.d'
 export { agentTools, toJsonSchema, parseInput, jsonSchema } from './ai.d'
@@ -4064,6 +4239,8 @@ export { openToolCalls, askCard } from './ai.d'
 export { Composed } from './ai.d'
 export type { ChatClientTool, ChatAskOptions, ChatCard, ChatCardStatus, ChatToolPart, ComposedProps } from './ai.d'
 export type { Catalog, CatalogDecl, CatalogPartDecl, CatalogContainerDecl, CatalogParam, CatalogParamValue, CatalogParamsOf, CatalogRecord, CatalogPart, CatalogContainer, CatalogOption, CatalogTree, CatalogTreeNode, ComposeTree, ContainerView, Layout, LayoutNode, ComposeRenderOptions, ComposeRenderable, ComposeBackend, ComposeNames, ComposeState, ComposeStatus, ComposeActions, ComposeOptions, ComposeAnswer } from './ai.d'
+// compose.generated (experimental, outside semver)
+export type { ComposeGenerated, ComposeGeneratedOptions, GeneratedData, GeneratedEmit, GeneratedEvent, GeneratedRepairState } from './ai.d'
 
 /**
  * PLAN-9 (D463): a `{ get, set }` lens to the element of the array `state[field]` whose `idKey`

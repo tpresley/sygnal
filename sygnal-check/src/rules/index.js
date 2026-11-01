@@ -8,6 +8,7 @@
  *     codes: ['SYG110', 'SYG104'],     // diagnostic codes it may report
  *     description: '…',
  *     strict: false,                   // true → only runs with --strict
+ *     notStrict: false,                // true → left out with --strict (a strict rule reports it)
  *     run(project, report) { … }
  *   }
  *
@@ -31,6 +32,7 @@ import intentWithoutModel from './syg101-intent-without-model.js'
 import unreachableModel from './syg102-unreachable-model.js'
 import unknownReplyAction from './syg112-unknown-reply-action.js'
 import nextWithoutEntry from './syg117-next-without-entry.js'
+import stateStreamDropRepeats from './syg303-state-stream-drop-repeats.js'
 import xstreamDefaultImport from './syg302-xstream-default-import.js'
 import switchableStateMap from './syg429-switchable-state-map.js'
 import selectorInView from './syg110-selector-in-view.js'
@@ -41,6 +43,9 @@ import controlledInput from './syg111-controlled-input.js'
 import latestComputedKey from './syg634-latest-computed-key.js'
 import controls from './syg124-controls.js'
 import behaviors from './syg127-behaviors.js'
+import triggerReplaced from './syg118-trigger-replaced.js'
+import eventReturned from './syg116-event-returned.js'
+import sharedUndo from './syg260-shared-undo.js'
 import elementCommands from './syg640-element-commands.js'
 import timers from './syg422-timers.js'
 import persist from './syg223-persist.js'
@@ -58,6 +63,8 @@ import catalog from './syg253-catalog.js'
 import byIdBinding from './syg454-byid-binding.js'
 import outputGuard from './syg256-output-guard.js'
 import lowercaseMarkers from './syg426-lowercase-markers.js'
+import unknownEndpoint from './syg691-unknown-endpoint.js'
+import clockInReducer from './syg258-clock-in-reducer.js'
 import { strictRules } from './strict/index.js'
 import { a11yRules, errorA11yRules } from './a11y/index.js'
 
@@ -66,7 +73,8 @@ export const coreRules = [
   unreachableModel,
   unknownReplyAction,
   nextWithoutEntry, // SYG117 (PLAN-13 N-1): next('X') with no entry X in the same component
-  xstreamDefaultImport, // SYG302 (PLAN-13 X-1): import xs from 'xstream' (info, --fix)
+  xstreamDefaultImport, // SYG302 (PLAN-13 X-1): import xs from 'xstream' (info, --fix); also 'xstream/extra/*'
+  stateStreamDropRepeats, // SYG303 (Temper 2026-10): STATE.stream + dropRepeats() in an intent (info; warn under --strict)
   switchableStateMap, // SYG429 (PLAN-13 F-3): a Switchable state map key that names no page
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
@@ -75,6 +83,9 @@ export const coreRules = [
   latestComputedKey,
   controls, // SYG124, SYG125, SYG126, SYG128 (PLAN-4 CT-1)
   behaviors, // SYG127, SYG226 (PLAN-4 GS-1, GS-8)
+  triggerReplaced, // SYG118 (ui-sweep R1)
+  eventReturned, // SYG116 static (ui-sweep R5)
+  sharedUndo, // SYG260 (sygnal/yjs): undo() / undoable() on a shared() key
   elementCommands, // SYG640, SYG641 (PLAN-4 GS-2)
   timers, // SYG422, SYG643 (PLAN-4 GS-7)
   persist, // SYG223, SYG224 (PLAN-4 GS-5)
@@ -86,12 +97,14 @@ export const coreRules = [
   sinkDriver, // SYG609 statically (PLAN-4 4-G2)
   widgets, // SYG140-SYG144 (PLAN-5 W-1)
   removedForms, // SYG612 statically (PLAN-4.6 R5): forms 6.0 removed
+  unknownEndpoint, // SYG691 (sygnal/api dev preview): an orpcClient chain naming no procedure
   lowercaseMarkers, // SYG426 (PLAN-9, D471): lowercase marker tags, deprecated in 6.3.0 (with --fix)
   agent, // SYG150, SYG151, SYG240, SYG243, SYG440, SYG441 (PLAN-6 K-1: the agent static)
   llmRequest, // SYG152 (PLAN-6 K-1)
   webmcpFormAttrs, // SYG153 (PLAN-6 K-1, D269)
   byIdBinding,
   outputGuard,
+  clockInReducer, // SYG258 (record/replay): Date.now()/Math.random()/crypto.randomUUID() in a STATE reducer; SYG509 under --strict
   catalog, // SYG161, SYG162, SYG250, SYG253, SYG254, SYG450, SYG680 (PLAN-9 X-2: defineCatalog)
   ...a11yRules, // SYG701-708, 722, 724, 730, 731 (PLAN-4 GS-3, PLAN-6 K-1): warn, also under --strict; error with a11y: 'error' (D144)
 ]
@@ -113,5 +126,6 @@ export function selectRules({ strict = false, a11y = 'warn' } = {}) {
     const lane = new Set(a11yRules)
     rules = [...coreRules.filter(r => !lane.has(r)), ...errorA11yRules]
   }
-  return strict ? [...rules, ...strictRules] : rules
+  // a core rule with `notStrict` (SYG258) is replaced by a strict one (SYG509) under --strict
+  return strict ? [...rules.filter(r => !r.notStrict), ...strictRules] : rules
 }

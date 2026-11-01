@@ -92,7 +92,7 @@ Signup.model = {
 - **`state.form.fields[name]`** is what the view needs for each field: `value`, `error` (the message to show, `''` for none), `invalid` (`!!error`, for `aria-invalid`), `touched`, `dirty` and `pending` (an [async check](/guide/forms-reference/#async-checks) is running), plus `name`.
 - **When errors show**: every change is validated, but a field's schema error shows once the field has lost focus (`show: 'blur'`, the default), or while typing (`show: 'input'`), or only after a submit (`show: 'submit'`). After the first submit every error shows, and each follows the typing. Server errors show at once.
 - **An invalid submit** shows every error, focuses the first invalid field in page order (rows included) and sends nothing.
-- **A valid submit** sends the `request` with the schema's output as its body: the trimmed, transformed values (`email` lower-cased here; the rows without their `id`, because `z.object` strips keys it doesn't declare), not the raw ones. The form adds `json: data` (`multipart` when a value is a [file](/guide/forms-reference/#file-fields)), `progress: 'form.PROGRESS'` and its reply actions `ok: 'form.DONE'`, `error: 'form.ERRORS'`. Other request fields (`method`, `headers`) are sent as written.
+- **A valid submit** sends the `request` with the schema's output as its body: the trimmed, transformed values (`email` lower-cased here; the rows without their `id`, because `z.object` strips keys it doesn't declare), not the raw ones. The form adds `json: data` (`multipart` and `progress: 'form.PROGRESS'` when a value is a [file](/guide/forms-reference/#file-fields)) and its reply actions `ok: 'form.DONE'`, `error: 'form.ERRORS'`. Other request fields (`method`, `headers`) are sent as written.
 - **Pending**: `state.form.submitting` is `true` from the valid submit until `form.DONE` or `form.ERRORS` arrives. Use it for the button's text and `disabled`. A second submit meanwhile is dropped, so a double click sends once.
 - **`form.DONE`** marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become the new start values (`dirty` is `false` again). A host model entry with the same name runs after the form's and gets the reply body: `'form.DONE': (state, account) => …` above shows the new account's id.
 - **Labels and errors**: each field has a label and its error text is linked with `aria-describedby`, with ids from [`uid()`](/guide/inputs/#labels-and-ids-uid) (a row's ids include its `id`, so they stay unique), so the form passes the [accessibility checks](/guide/accessibility/). `aria-invalid={f.email.invalid}` renders `"true"` or `"false"`.
@@ -181,12 +181,13 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `<input type="number">`, `range`, `date`, `time` | The text as the browser gives it (`'42'`, `'2026-10-05'`; `''` when empty) | `value={f.age.value}`; convert in the schema: `z.coerce.number()`, `v.pipe(v.string(), v.transform(Number), v.number())` |
 | `<input type="radio">` (same `name`) | The checked radio's `value` | `checked={f.size.value === 'm'}` |
 | `<input type="checkbox">` on a boolean | `checked` | `checked={f.agree.value}` |
-| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
+| Checkboxes sharing a `name` on an array | The array of the checked boxes' `value`s in document order (checking adds it, unchecking removes it) | `values: { tags: [] }`, `<input type="checkbox" name="tags" value="news" checked={f.tags.value.includes('news')} />` |
 | `<select>` | The selected option's `value` | `value={f.country.value}` |
 | `<select multiple>` | The array of selected `value`s | `selected={f.colors.value.includes('red')}` on each `<option>` |
 | A form-associated custom element (`<wa-input>`, `<wa-select>`) | Its `value` | `value={f.nick.value}` |
 | A form-associated custom checkbox or switch (`<wa-checkbox>`, `<wa-switch>`: a hyphenated tag with a boolean `checked`) | `checked` (as a group on an array, like checkboxes) | `checked={f.news.value}` |
 | `<input type="file">` | Its `File` (`multiple`: an array), or `null` | Don't bind `value`: [file fields](/guide/forms-reference/#file-fields) |
+| [Select](/ui/select/), [Combobox](/ui/combobox/), a [widget field](/guide/widgets/#form-fields) | Its value | `value={f.size.value}` |
 
 ## Options
 

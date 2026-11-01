@@ -1,0 +1,10 @@
+{"dir":"plan5-showcase","files":51,"sygnal-check all (strict)":29.2,"sygnal-check 4 rules":11.2,"lite JS on oxc-parser":6}
+  go warm: {"files":51,"jobs":16,"checkMs":2.9,"totalMs":25.7} / 1 core: {"files":51,"jobs":1,"checkMs":4.1,"totalMs":36.8}
+{"dir":"doc-samples","files":873,"sygnal-check all (strict)":210.4,"sygnal-check 4 rules":109.5,"lite JS on oxc-parser":42.3}
+  go warm: {"files":873,"jobs":16,"checkMs":9.2,"totalMs":87.3} / 1 core: {"files":873,"jobs":1,"checkMs":36.4,"totalMs":328.4}
+{"dir":"large20k","files":380,"sygnal-check all (strict)":221.7,"sygnal-check 4 rules":127.3,"lite JS on oxc-parser":43.7}
+  go warm: {"files":380,"jobs":16,"checkMs":8.9,"totalMs":92.6} / 1 core: {"files":380,"jobs":1,"checkMs":34.8,"totalMs":323.3}
+{"dir":"synth2000","files":2001,"sygnal-check all (strict)":1044.4,"sygnal-check 4 rules":560.2,"lite JS on oxc-parser":174.4}
+  go warm: {"files":2001,"jobs":16,"checkMs":30.3,"totalMs":276.7} / 1 core: {"files":2001,"jobs":1,"checkMs":132.3,"totalMs":1200.0}
+{"dir":"large100k","files":1745,"sygnal-check all (strict)":1140.1,"sygnal-check 4 rules":611.5,"lite JS on oxc-parser":277.5}
+  go warm: {"files":1745,"jobs":16,"checkMs":48.2,"totalMs":524.7} / 1 core: {"files":1745,"jobs":1,"checkMs":197.8,"totalMs":1897.1}

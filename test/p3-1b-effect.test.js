@@ -27,7 +27,6 @@ afterEach(() => {
   t?.dispose()
   t = undefined
   process.off('unhandledRejection', onUnhandled)
-  delete process.env.SYGNAL_DEBUG
   vi.restoreAllMocks()
 })
 
@@ -50,7 +49,8 @@ describe('1-B: async EFFECT', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     function App(p) { return view(p) }
     App.initialState = { n: 0 }
-    App.model = { 'POKE | EFFECT': async () => 'ignored result' }
+    // (the canonical form: the removed 'POKE | EFFECT' key had no entry, so the action did nothing)
+    App.model = { POKE: { EFFECT: async () => 'ignored result' } }
     t = renderComponent(App)
     t.simulateAction('POKE')
     await t.settle()
@@ -129,7 +129,8 @@ describe('1-B: async EFFECT', () => {
     t.dispose()
     t = undefined
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
-    process.env.SYGNAL_DEBUG = 'true'
+    // debug logging on after the dispose (the component's own flag: SYGNAL_DEBUG is read at load in Node)
+    App.debug = true
     gate.resolve()
     await wait(50)
     expect(done).toBe(0)

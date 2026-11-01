@@ -32,7 +32,7 @@ describe('tooltips (one behavior for many triggers)', () => {
     vi.useFakeTimers()
     t = renderComponent(Glossary, { dom: 'real', strict: true })
     await t.ready()
-    expect(t.state.tips).toEqual({ id: null, open: null, pending: null, hover: false, focus: false })
+    expect(t.state.tips).toEqual({ id: null, open: null, pending: null, hover: false, focus: false, pressed: false })
     t.simulateEvent(term('Driver'), 'pointerenter')
     await t.waitForState((s) => s.tips.pending == 'show')
     expect(t.state.tips.id).toBe('tip-Driver')

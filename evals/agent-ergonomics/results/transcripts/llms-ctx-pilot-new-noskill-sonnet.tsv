@@ -1,0 +1,5 @@
+# llms-ctx-pilot-new-noskill-sonnet: headless trials (orchestrate.mjs); transcripts are <trials-root>/llms-ctx-pilot-new-noskill-sonnet/<trial>.transcript.jsonl
+sygnal-34-t1	headless
+sygnal-34-t2	headless
+sygnal-46-t1	headless
+sygnal-46-t2	headless

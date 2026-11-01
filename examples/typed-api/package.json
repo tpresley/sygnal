@@ -1,0 +1,27 @@
+{
+  "name": "sygnal-typed-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "sygnal/api (dev preview): a Sygnal client typed by an oRPC contract, served by oRPC's OpenAPIHandler",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "test": "tsc && vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@orpc/contract": "1.15.6",
+    "sygnal": "file:../..",
+    "zod": "4.6.6"
+  },
+  "devDependencies": {
+    "@orpc/openapi": "1.15.6",
+    "@orpc/server": "1.15.6",
+    "@types/node": "24.9.2",
+    "sygnal-check": "file:../../sygnal-check",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.2"
+  }
+}

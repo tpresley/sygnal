@@ -1,0 +1,30 @@
+kanban
+  sygnal-check (all rules)           155 ms (min 149)
+  sygnal-check (default rules)       140 ms (min 121)
+  lite JS on oxc-parser               54 ms (min 49)
+  oxlint + JS plugin (3 rules)        45 ms (min 40)
+  native Go (4 rules, all cores)       8 ms (min 5)
+plan5-showcase
+  sygnal-check (all rules)           270 ms (min 226)
+  sygnal-check (default rules)       227 ms (min 218)
+  lite JS on oxc-parser               82 ms (min 72)
+  oxlint + JS plugin (3 rules)        54 ms (min 46)
+  native Go (4 rules, all cores)      11 ms (min 9)
+doc-samples
+  sygnal-check (all rules)           503 ms (min 414)
+  sygnal-check (default rules)       403 ms (min 395)
+  lite JS on oxc-parser              116 ms (min 115)
+  oxlint + JS plugin (3 rules)       376 ms (min 357)
+  native Go (4 rules, all cores)      20 ms (min 17)
+large20k
+  sygnal-check (all rules)           426 ms (min 409)
+  sygnal-check (default rules)       407 ms (min 396)
+  lite JS on oxc-parser              113 ms (min 107)
+  oxlint + JS plugin (3 rules)       513 ms (min 502)
+  native Go (4 rules, all cores)      19 ms (min 18)
+large100k
+  sygnal-check (all rules)          1547 ms (min 1484)
+  sygnal-check (default rules)      1557 ms (min 1479)
+  lite JS on oxc-parser              369 ms (min 338)
+  oxlint + JS plugin (3 rules)      2192 ms (min 1974)
+  native Go (4 rules, all cores)      90 ms (min 71)

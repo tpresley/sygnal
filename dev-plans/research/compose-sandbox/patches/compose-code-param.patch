@@ -1,0 +1,56 @@
+diff --git a/src/extra/ai/compose/catalog.ts b/src/extra/ai/compose/catalog.ts
+index 4aa5db0..36279f6 100644
+--- a/src/extra/ai/compose/catalog.ts
++++ b/src/extra/ai/compose/catalog.ts
+@@ -48,7 +48,8 @@ function param(part: string, name: string, p: any): Param {
+     if (p.default !== undefined && typeof p.default != 'number') fail(`${where}: the default is not a number`)
+     return {kind: 'number', min: p.min, max: p.max, default: p.default, bins: p.bins, label: p.label}
+   }
+-  if (p.type == 'text') return {kind: 'text', maxLength: p.maxLength, default: p.default, required: !!p.required, label: p.label}
++  // format: 'code' (a generated part's source): printed as code, not as "short text"; asked_for ignores its length
++  if (p.type == 'text') return {kind: 'text', maxLength: p.maxLength, default: p.default, required: !!p.required, label: p.label, ...(p.format == 'code' && {format: 'code' as const})}
+   if (p.type == 'list') return {kind: 'list', items: p.items, min: p.min, max: p.max, required: !!p.required, default: p.default, label: p.label}
+   return fail(`${where} needs \`options\`, \`from\`, or \`type: 'number' | 'text' | 'list'\``)
+ }
+diff --git a/src/extra/ai/compose/llm.ts b/src/extra/ai/compose/llm.ts
+index 259eb63..6675da6 100644
+--- a/src/extra/ai/compose/llm.ts
++++ b/src/extra/ai/compose/llm.ts
+@@ -117,7 +117,7 @@ const placeOk = (it: any, place: string) => placesOf(it).some((e: string) => e =
+  * plan into the text it writes, so a shorter cap cut a 120-character question at 60 under a
+  * grammar that enforces maxLength (Ollama)
+  */
+-const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text').map((p: any) => p.d.maxLength ?? 40)))
++const askedMax = (ctx: Ctx) => Math.max(60, ...ctx.items.flatMap((it: any) => it.params.filter((p: any) => p.kind == 'text' && p.d.format != 'code').map((p: any) => p.d.maxLength ?? 40)))
+ 
+ // ---------------------------------------------------------------- prompt (research wording, exact)
+ function paramText(p: any) {
+@@ -135,6 +135,7 @@ function paramText(p: any) {
+     return `${name}: ${label ? label + '. ' : ''}a number${range}${bins}${def}`
+   }
+   if (kind == 'list') return `${name}${label ? `: ${label}` : ''}; a list of ${d.min ? `${d.min} to ` : 'at most '}${d.max ?? 6} short texts`
++  if (d.format == 'code') return `${name}${label ? `: ${label}` : ''}; source code, at most ${d.maxLength ?? 40} characters${d.required ? '; always set it' : ''}`
+   return `${name}${label ? `: ${label}` : ''}; short text, at most ${d.maxLength ?? 40} characters${d.default !== undefined ? `; "${d.default}" when the request does not say` : d.required ? '; always set it' : ''}`
+ }
+ 
+diff --git a/src/extra/ai/compose/types.ts b/src/extra/ai/compose/types.ts
+index 56027c2..00001fc 100644
+--- a/src/extra/ai/compose/types.ts
++++ b/src/extra/ai/compose/types.ts
+@@ -13,14 +13,14 @@
+  *
+  *   options: { kind: 'options', options: { value: description }, default, label?, ask? }
+  *   number:  { kind: 'number', min?, max?, default?, bins?: { number: description }, label? }
+- *   text:    { kind: 'text', maxLength?, default?, required, label? }
++ *   text:    { kind: 'text', maxLength?, default?, required, label?, format?: 'code' }
+  *   list:    { kind: 'list', items?: { maxLength? }, min?, max?, required, default?, label? }
+  *   record:  { kind: 'record', from: (state) => [{ value, name?, aliases?, description? }], label? }
+  */
+ export type Param =
+   | {kind: 'options'; options: Record<string, string>; default?: any; label?: string; ask?: string}
+   | {kind: 'number'; min?: number; max?: number; default?: number; bins?: Record<string, string>; label?: string}
+-  | {kind: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string}
++  | {kind: 'text'; maxLength?: number; default?: string; required?: boolean; label?: string; format?: 'code'}
+   | {kind: 'list'; items?: {maxLength?: number}; min?: number; max?: number; required?: boolean; default?: string[]; label?: string}
+   | {kind: 'record'; from: (state: any) => any[]; label?: string; default?: undefined}
+ 

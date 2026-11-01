@@ -465,7 +465,7 @@ Component.model = {
 | `state` | `STATE` | Component state after the action's STATE reducer (with calculated fields) |
 | `data` | `any` | Data from the triggering action |
 | `next` | `(action, data?, delay?) => void` | Dispatch a follow-up action |
-| `props` | `object` | Current props, children, slots, context, `state`, `previousState` (the state from before the action, 7.0) and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
+| `props` | `object` | Current props, children, slots, context, `state`, `previousState` (the state from before the action, 7.0), `now()`, `random()`, `uuid()` (the clock and randomness, 7.2: [Model](/guide/model/#the-clock-and-randomness)) and `signal`: an `AbortSignal` aborted on unmount (EFFECT only) |
 
 Every non-STATE sink gets these arguments: STATE runs first, so `state` is what it committed ([Model](/guide/model/#what-state-each-sink-sees)).
 
@@ -607,6 +607,9 @@ function renderComponent(
 | `browserSink` | `string` | `'BROWSER'` | The sink of the browser fake (the real browser driver over fake sources, driven by `t.browser`), unless a driver is passed under that name |
 | `browser` | `BrowserFakeOptions` | (see guide) | The browser fake's environment at the start: `{ media, storage, sessionStorage, visible, online, clipboard, position, deny }` ([Browser Sources](/guide/browser-sources/#testing)) |
 | `storage` | `Record<string, entry \| string>` | `{}` | The fake storage of a root's [`persist()`](/guide/persistence/#testing) (`'local'` and `'session'` alike): key to `{ version, state }` (with `format: 'plain'`, the stored keys) or a raw string. Used as is: writes land in it, and calls given the same object share it |
+| `now` | `number \| Date \| () => number` | `Date.now()` | What handlers' `now()` returns: a fixed time or a function ([Testing](/integration/testing/#a-fixed-clock-and-ids)) |
+| `random` | `number \| () => number` | `Math.random()` | What handlers' `random()` returns: a number seeds a deterministic generator |
+| `uuid` | `true \| () => string` | `crypto.randomUUID()` | What handlers' `uuid()` returns: `true` gives ordered UUID-shaped ids |
 
 The [Testing guide's options table](/integration/testing/#options) lists the rest (timing, HTTP, router and head fakes).
 
@@ -661,6 +664,17 @@ t.dispose()
 ```
 
 See [Testing guide](/integration/testing/) for full usage patterns.
+
+---
+
+## replay()
+
+```ts
+import { replay } from 'sygnal'            // or 'sygnal/replay'
+function replay(Component, recording: Recording | string, options?: ReplayOptions): Promise<ReplayResult>
+```
+
+Replays a recording made with `startRecording()` from `sygnal/replay` in `renderComponent`, and compares each action and screen update with it: `{ ok, divergence, view, effects, unhandled, unresolved, warnings, final, t }`. Options: `drivers`, `render`, `stopAt`, `entropy`, `warn`. `sygnal/replay` also exports `startRecording({ redact, dropNoops, vnodes })`, `replayTest(recording)`, `bugReport(recording, result)`, `timeline()`, `finalState()`, `RECORDING_SCHEMA` and `inertDriver()`. Dev preview: see [Record and Replay](/guide/record-replay/).
 
 ---
 
@@ -854,7 +868,7 @@ const DatePicker = defineWidget({
 
 | Field | Description |
 |-------|-------------|
-| `tag` | The host element (default `'div'`); it has no children of its own |
+| `tag` | The host element (default `'div'`); without `children`, it has no children of its own |
 | `mount(el, props, dispatch, error)` | Called once the host is in the page; returns the instance. `dispatch(name, detail)` sends an event; `error(e)` reports a later failure the widget caught itself (a library's own redraw), handled like a throwing `update` (SYG661) |
 | `update(instance, props, el)` | Called with the newest props when they change (shallow; `style`/`attrs` objects by their entries); without it, a change remounts |
 | `unmount(instance, el)` | Called when the host leaves the page |
@@ -864,6 +878,11 @@ const DatePicker = defineWidget({
 | `hostProps` | More prop names to put on the host (besides `id`, `className`, `style`, `title`, `name`, `placeholder`, `role`, `tabindex`, `hidden`, `lang`, `dir`, `attrs`, `aria-*`, `data-*`) |
 | `ownProps` | Prop names that stay off the host (the widget applies them itself) |
 | `name` | A name for diagnostics |
+| `children` | `true`: the tag's JSX children render into a visually hidden, accessible container in the host (Enter / Space click a focused child); `'hidden'`: hidden from everything ([islands](/guide/islands/)) |
+| `sync(instance, children, el)` | With `children`: after mount and after each patch that changed the children; `children` is the container's patched vnode (props as written, `.elm` per child) |
+| `focus(instance, child, el)` | With `children`: a child got keyboard focus (`null`: none) |
+| `tags` | Tag names of the children's vocabulary the pragma would take for SVG (`marker`, `line`): plain elements app-wide |
+| `value` | Experimental: `{ write(instance, value, el), read?, equals?, event?, strict? }`, a [controlled value](/guide/widgets/#controlled-values-experimental): `write` only for the app's own changes to the `value` prop, never for echoes of what the widget dispatched |
 
 A `ref` on the tag gets the host element; `key` and `ref` are not passed to the widget. A `mount`/`update` that throws, or a call to `mount`'s `error(e)`, is reported to `onError` with the phase `'widget'` and the owning component's `onError` fallback renders in that widget's place ([SYG660–662](/reference/errors/#syg660)):
 

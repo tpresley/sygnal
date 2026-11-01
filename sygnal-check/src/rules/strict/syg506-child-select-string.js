@@ -40,6 +40,7 @@ export default {
   id: 'strict-child-select-string',
   codes: ['SYG506'],
   description: 'CHILD.select() with a string component name',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   strict: true,
   run(project, report) {
     const done = new Set()

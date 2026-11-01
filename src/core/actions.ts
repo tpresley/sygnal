@@ -25,10 +25,14 @@ import {checkStatics} from './statics'
 import {objIsEqual} from '../cycle/state/objIsEqual'
 import {dbg} from './debug'
 
+/** onAction (7.2: false from a layer drops the action; a replay mutes the inputs the code makes itself) */
+export const seen = (inst: Inst, type: string, data: any, cause: any, source?: string) =>
+  inst.app.hooks.onAction?.(viewOf(inst), {type, data, cause, target: viewOf(inst), source}) !== false
+
 export function handle(inst: Inst, type: string, data: any, cause: any, src?: string) {
   const hs = inst.def.handlers.get(type), app = inst.app, H = app.hooks
   // (an action with no model entry is seen too: the action log lists it with no sinks)
-  if (H.onAction) H.onAction(viewOf(inst), {type, data, cause, target: viewOf(inst), source: src})
+  if (!seen(inst, type, data, cause, src)) return
   dbg(inst, () => `<${type}> Action triggered`)
   if (!hs) return
   const def = inst.def
@@ -110,9 +114,16 @@ function handlerFailed(inst: Inst, type: string, sink: string, e: any) {
   inst.app.caught(inst, effect ? 'SYG214' : 'SYG216', effect ? `EFFECT handler '${type}' threw` : `Reducer for '${type}' threw; ${sink == 'STATE' ? 'state unchanged' : 'nothing sent'}`, e, effect ? 'effect' : 'reducer', type)
 }
 
-/** the handlers' 4th argument: the props, children, slots, context, uid, the state and the pre-action state */
+// 7.2 (record/replay, Q4): the clock and randomness a handler reads, as data the app can supply
+// (renderComponent's fixed clock and ids, a replay's recorded values); globals read at call time,
+// so fake timers and spies apply
+const now = () => Date.now(), random = () => Math.random(), uuid = () => crypto.randomUUID()
+/**
+ * the handlers' 4th argument: now() / random() / uuid() (a prop of the same name wins), the props,
+ * children, slots, context, uid, the state and the pre-action state
+ */
 function inst_props(inst: Inst, state: any, previousState: any) {
-  return {...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state, previousState}
+  return {now, random, uuid, ...inst.app.opts.__entropy, ...inst.props, children: inst.children, slots: inst.slots, context: inst.context(), uid: inst.uid, state, previousState}
 }
 
 /**

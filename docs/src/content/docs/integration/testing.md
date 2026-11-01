@@ -91,10 +91,45 @@ t.simulateEvent('document', 'keydown', { key: 'Escape' })   // DOM.select('docum
 How it works:
 
 - It targets the **first rendered element** that matches `selector`, and bubbles within that element's component scope, like a real event. Events inside a child component (or Collection item) reach the child's intent, not the parent's.
-- `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; any other property is copied onto the event.
+- `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.files`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; `init.target` sets any other target property; any other property is copied onto the event.
 - If nothing matches yet, the event waits (up to `eventWaitMs`, default 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
 - If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
 - If the selector only matches inside a child component, Sygnal reports [SYG104](/reference/errors/#syg104): the parent's intent can never see that event.
+- The event is delivered **later**, not during the call, so `t.query()` and `t.html()` right after it still show the old view (below).
+
+**Awaiting the event.** `simulateEvent` returns a promise that resolves once the event is delivered and the tree has rendered what it caused. Await it before you read the output:
+
+```jsx
+await t.simulateEvent('.retry', 'click')
+expect(t.query('.skeleton')).not.toBeNull()   // the view the click caused
+```
+
+The promise never rejects: a selector that matches nothing still fails the next wait, as above. Awaiting it under fake timers moves the clock like the other waits; a call you don't await never moves it. A `t.next(pred)` after `await t.simulateEvent(...)` waits for a further state, so read `t.state` there instead.
+
+#### File inputs
+
+Pass the files with `{ files }`: the input gets them as a `FileList` (`length`, `item(i)`, iterable), as if the user had picked them, and the intent reads `e.target.files` as it does in the browser. With `dom: 'real'` it is a real `FileList` where the environment has `DataTransfer` (browsers); jsdom has none, so the list is set on the element instead.
+
+```jsx title="Start.test.jsx"
+const file = new File(['name,model\nTriage,gpt'], 'agents.csv', { type: 'text/csv' })
+await t.simulateEvent('.infer-file', 'change', { files: [file] })
+expect(t.state.fileName).toBe('agents.csv')
+```
+
+A file field of a [`form`](/guide/forms/) is picked the same way, on its `input` event. The submit then sends the file as `multipart`, and `t.progress` and `t.respond` drive the upload:
+
+```jsx title="Avatar.test.jsx"
+const avatar = new File(['…'], 'me.png', { type: 'image/png' })
+await t.simulateEvent('[name="avatar"]', 'input', { files: [avatar] })
+await t.simulateEvent('form', 'submit')
+expect(t.requests('HTTP').at(-1).multipart.avatar).toBe(avatar)   // the File itself
+await t.progress('HTTP', { loaded: 50, total: 100 }, 'form.PROGRESS')
+expect(t.state.form.progress.fraction).toBe(0.5)
+await t.respond('HTTP', { id: 7 }, 'form.DONE')
+expect(t.state.form.submitting).toBe(false)
+```
+
+`t.requests` shows the request as the model sent it, so the test doesn't depend on how a browser would carry it (fetch, or XMLHttpRequest for progress). With `dom: 'real'`, a target property the DOM refuses (`files` in jsdom, a read-only property) is defined on the element instead; if that fails too, the test fails naming the property.
 
 #### Supported selectors
 
@@ -110,9 +145,10 @@ Selectors are matched against the rendered vnode tree with the same rules as the
 | `:not(...)` (no combinators inside) | `.item:not(.done)` |
 | `:checked`, `:disabled`, `:enabled` (as the view rendered them) | `input[name="plan"]:checked` |
 | Descendant (space) and child (`>`) combinators | `.board > .list:nth-child(2) .card:first-child .next` |
+| Next-sibling (`+`) and later-sibling (`~`) combinators | `.filters + .empty`, `h2 ~ p` |
 | Selector lists (`,`) | `.save, .submit` |
 
-Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
+Anything else, such as `:has()`, `:hover` or pseudo-elements, throws an "Unsupported selector syntax" error when you call `simulateEvent` (or `t.query`). It is never silently ignored. Positional selectors follow the rendered DOM, so `:nth-child` counts every element sibling, including headings and other elements around a Collection's items. If the position is hard to pin down, give the element an attribute and select that instead, e.g. `[data-id="3"]`.
 
 ### simulateAction
 
@@ -122,6 +158,15 @@ Anything else, such as `:has()`, the `+` and `~` combinators, `:hover` or pseudo
 t.simulateAction('SET_NAME', 'Alice')
 t.simulateAction('SUBMIT', { email: 'a@example.com' })
 ```
+
+It reaches one instance: the component you rendered, like `next()`, never its parent or its children. To act on a child, name it with `{ component }`: the first rendered instance of that component (or of the component with that name) gets the action. Add `within` to pick one Collection item, as with `simulateEvent`:
+
+```jsx
+t.simulateAction('INFER_FILE', file, { component: Start })
+t.simulateAction('RENAME', 'Groceries', { component: Row, within: '[data-id="2"]' })
+```
+
+A name the target has no model entry for (nor a behavior action such as `'form.RESET'`, nor a built-in such as `BOOTSTRAP`) fails the test, and the error names the rendered components that do handle it. Before Sygnal 7.2 such an action was dropped silently.
 
 Prefer `simulateEvent`: it also tests the intent wiring (the selector, the event type, the value extraction). Use `simulateAction` for actions that don't come from the DOM, such as driver responses.
 
@@ -245,9 +290,35 @@ it('updates the query at once and searches 300 ms after the last keystroke', asy
 - While fake timers are installed, `ready()`, `next()`, `waitForState()` and `settle()` advance the fake clock themselves, timer by timer, until they resolve, so they never wait in real time. They advance it only as far as they would take in real time: to the timer that produces the state, plus the few milliseconds of the render quiet window.
 - Use `vi.advanceTimersByTimeAsync(ms)` (the async form, so promises run between timers) to move the clock by hand, e.g. to check that nothing happened yet. A reducer applies when its action runs, and the view renders a microtask later (a new component in the same render; startup uses no timers), so read `t.html()` after a `t.next()`/`t.settle()`, not straight after advancing the clock. A `t.next()` called in the same tick as a `simulate*` call starts at the state that input causes; after the clock has moved (`await vi.advanceTimersByTimeAsync(5)`), it waits for the next state.
 - `await t.ready()` before timing-sensitive input: the component mounts in about 15 ms of clock time, and input sent before that is delivered when it is ready.
+- A game loop (a [`frame` timer](/guide/timers/#a-game-loop-a-fixed-step-and-the-keyboard)): `await t.frames(n)` runs `n` frames on the fake clock and resolves once they are reduced and rendered. What the frame timer causes isn't activity for `settle()`, which resolves while the loop runs. `simulateAction` and `simulateEvent` are awaitable between frames: `await t.simulateAction('PAUSE')`.
 - Timeouts are clock time too: a wait that never matches fails at once in real time with the usual timeout error. The default is 2000 ms, so a state that a longer timer brings (a model `next('X', data, 5000)`, a `delay(5000)`, a TIMER driver timer) needs `t.next(pred, 6000)` (or the `timeoutMs` option), as with real timers. When a wait times out while a timer is still pending, the error says when that timer fires.
 - Without `renderComponent` (an app started with `run()` in a test), the app needs no clock to start or render: `INITIALIZE` runs at construction, the intent is subscribed at creation, a render follows a state change in a microtask, and `BOOTSTRAP` runs a microtask after the first render. `await Promise.resolve()` (a few times for nested work) lets them happen. Only your own timers (a model `next('X', data, ms)`, `debounce`, `xs.periodic`) need the clock moved.
 - Keep the defaults for what is faked: faking `queueMicrotask` or `nextTick` stops the state pipeline. Waits that need real I/O (a real request, a dynamic `import()`) don't progress on a fake clock; test those with real timers.
+
+### A fixed clock and ids
+
+Handlers that read [`now()`, `random()` or `uuid()`](/guide/model/#the-clock-and-randomness) from their 4th argument get values the test can fix, so a state with ids and timestamps is the same on every run:
+
+```jsx
+import { it, expect } from 'vitest'
+import { renderComponent } from 'sygnal'
+import Board from './Board.jsx'
+
+it('adds a task with an id and a creation time', async () => {
+  const t = renderComponent(Board, { now: new Date('2026-01-01T00:00:00Z'), uuid: true })
+  await t.ready()
+  t.simulateAction('ADD_TASK', 'Write the report')
+  await t.settle()
+  expect(t.state.tasks.at(-1)).toEqual({ id: '00000000-0000-4000-8000-000000000001', title: 'Write the report', created: Date.parse('2026-01-01T00:00:00Z') })
+  t.dispose()
+})
+```
+
+- `now`: a number (ms since the epoch) or a `Date` fixes the clock; a function is called each time. Without it, `now()` is `Date.now()`, so `vi.useFakeTimers()` / `vi.setSystemTime()` move it.
+- `random`: a number seeds a deterministic generator (the same sequence on every run); a function is called each time.
+- `uuid`: `true` gives UUID-shaped ids in order (`…000000000001`, `…000000000002`); a function is called each time.
+
+To test a whole recorded session instead of writing the steps, see [Record and Replay](/guide/record-replay/).
 
 ## Reading Output
 
@@ -281,7 +352,7 @@ expect(t.emitted).toEqual([{ type: 'COUNTER_RESET', data: 1 }])
 expect(t.html()).toContain('<span class="count">0</span>')
 ```
 
-**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
+**Elements on the mock DOM.** `t.query()` and `t.queryAll()` take the selectors `simulateEvent` takes, and return snapshot elements with the usual reads: `textContent`, `value`, `checked`, `disabled`, `selected`, `tagName`, `id`, `className`, `classList.contains()`, `dataset`, `getAttribute()`, `hasAttribute()`, `name`, `type`, `href` (as written), `children`, `parentElement`, `nextElementSibling`, `previousElementSibling`, `querySelector()`, `querySelectorAll()`, `closest()`, `matches()`, `innerHTML` and `outerHTML`. They show what the view rendered: an input's `value` is its `value` prop and a checkbox is `checked` when the view says so, so a `simulateEvent` with `{ value }` shows up only once the model puts it in state and the view renders it. Query again after each wait. There is no focus or layout: `focus()`, `click()` and the like throw and point to `simulateEvent` or `dom: 'real'`.
 
 ```jsx
 t.simulateEvent('input[name="email"]', 'input', { value: 'ada@example.com' })
@@ -291,6 +362,14 @@ expect(t.query('input[name="plan"]:checked').value).toBe('free')
 expect(t.query('.next').disabled).toBe(false)
 expect(t.queryAll('.row').map(e => e.dataset.id)).toEqual(['1', '2'])
 expect(t.query('.missing')).toBeNull()
+```
+
+`t.queryAll()` lists its elements in document order, also for a selector list, so an order check needs no index arithmetic on `t.html()`:
+
+```jsx
+// the filters come before the empty state
+expect(t.queryAll('.empty, .filters').map(e => e.className)).toEqual(['filters', 'empty'])
+expect(t.query('.filters + .empty')).not.toBeNull()   // or: directly before it
 ```
 
 A custom sink with no driver (for example `API` when you don't pass an `API` driver) gets a recording no-op driver, for the rendered component and for every child, grandchild and Collection item, so its output is still visible through `sinkValues`:
@@ -626,6 +705,9 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `browser` | `object` | none | The browser fake's environment at the start (`media`, `storage`, `sessionStorage`, `visible`, `online`, `clipboard`, `position`, `deny`) |
 | `storage` | `object` | `{}` | The fake storage of a root's `persist()`: key to `{ version, state }` (or a raw string), read back with `t.storage(key)`; `t.settle()` makes the pending writes. Used as is, so two calls given the same object share it ([Persistence](/guide/persistence/#testing)) |
 | `titleTemplate` | `string` | none | The HEAD fake's title template (`'%s · App'`) |
+| `now` | `number \| Date \| () => number` | `Date.now()` | What handlers' `now()` returns: a fixed time, or a function ([A fixed clock and ids](#a-fixed-clock-and-ids)) |
+| `random` | `number \| () => number` | `Math.random()` | What handlers' `random()` returns: a number seeds a deterministic generator |
+| `uuid` | `true \| () => string` | `crypto.randomUUID()` | What handlers' `uuid()` returns: `true` gives ordered UUID-shaped ids |
 
 The timing options (and a timeout passed to `next()`, `waitForState()` or `settle()`) must be finite numbers of milliseconds from 0 to 2147483647 (`setTimeout`'s limit); anything else throws.
 
@@ -633,8 +715,8 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `simulateEvent` | `(selector, type, init?) => void` | Dispatch a DOM event through the mock DOM |
-| `simulateAction` | `(name, data?) => void` | Push an action under its real name |
+| `simulateEvent` | `(selector, type, init?) => Promise<void>` | Dispatch a DOM event through the mock DOM; resolves once it is delivered and rendered |
+| `simulateAction` | `(name, data?, { component, within }?) => void` | Push an action under its real name, into the rendered component or the named child |
 | `ready` | `() => Promise<void>` | Resolves once subscribed and buffered calls are delivered; the next `next()` starts there |
 | `next` | `(predicate?, timeout?) => Promise<state>` | Next matching state after the call |
 | `waitForState` | `(predicate, timeout?) => Promise<state>` | First matching state, history included |

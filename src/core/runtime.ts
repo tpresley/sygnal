@@ -21,14 +21,16 @@ import xs from '../extra/xstreamCompat'
 import {makeDOMDriver} from '../cycle/dom/index'
 import eventBusDriver from '../extra/eventDriver'
 import logDriver from '../extra/logDriver'
-import {NOT_SINK, isAbort} from '../shared'
+import {NOT_SINK, isAbort, delivering} from '../shared'
 import {error as logError, callHook} from '../extra/diagnostics/legacy'
 import type {ComponentFn, DefSource, Hooks, RuntimeAPI, ActionCause} from './hooks'
 import {CoreDef, defOf, rootDef} from './define'
 import {rootCell} from './cell'
 import {Inst} from './instance'
+import {seen} from './actions'
 import {viewOf} from './view'
-import {stopQueued, INST, SET, SEED} from './teardown'
+import {ext} from './registry'
+import {stopQueued, SET, SEED} from './teardown'
 import {scanSources} from './statics'
 // the public ClientOnly is a separate bundle (sygnal/vike/ClientOnly) with no core of its own, so
 // its marker handler registers with the core (the other markers register from their modules)
@@ -56,6 +58,8 @@ export interface StartOptions {
   __state?: any
   /** internal: an HMR swap: the instances its first flush makes get no BOOTSTRAP (as today's `__hmr`) */
   __swap?: boolean
+  /** internal: the handlers' now() / random() / uuid() (renderComponent's fixed clock, seeded random, ids) */
+  __entropy?: {now?: () => number; random?: () => number; uuid?: () => string}
   /** internal: renderComponent's root (test intent, initial state, name) */
   __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
 }
@@ -81,6 +85,8 @@ export class App {
   last: any
   /** P46-P: a view ran but kept its last vnode (the flush still emits, as when it changed) */
   ran = false
+  /** CV-3: the DOM driver patches compiled blocks itself (makeDOMDriver's DOMDriver.blocks) */
+  bd = false
   vdomL: any
   vdom$: any
   sources: Record<string, any> = {}
@@ -149,6 +155,8 @@ export class App {
   /** `src`: for a reply, the source that delivered it (the action log's replySink) */
   dispatch(inst: Inst, type: any, data: any, cause: ActionCause = 'intent', src?: string) {
     if (this.disposed) return
+    // 7.2: at enqueue, with the DOM event being delivered (a string type: not setState / a seed)
+    typeof type == 'string' && this.hooks.onDispatch?.(viewOf(inst), type, data, cause, delivering)
     this.queue.push(inst, type, data, cause, src)
     if (!this.draining && !this.rendering) this.drain()
   }
@@ -165,8 +173,9 @@ export class App {
           if (q[i + 1] === SET) {
             const f = q[i + 2], c = inst.cell
             const v = typeof f == 'function' ? f(c.get()) : f
-            // (ABORT: no change, as from a reducer)
-            if (v !== c.get() && !isAbort(v)) c.set(v)
+            // (ABORT: no change, as from a reducer). 7.2: seen by onAction as a 'setState' action
+            // with the new state (false: dropped)
+            if (v !== c.get() && !isAbort(v) && seen(inst, 'setState', v, 'setState')) c.set(v)
           } else if (q[i + 1] === SEED) {
             // G-309: decided when it is applied: a parent write queued before it keeps the slice (D174)
             const d = q[i + 2], b = d.b
@@ -283,8 +292,9 @@ export class App {
       if (v !== this.last || this.ran) {
         this.ran = false
         this.last = v
-        this.hooks.onPatch?.(v)
-        this.vdomL?.next(v ?? null)
+        this.hooks.onPatch?.(ext.xb ? ext.xb(v) : v)
+        // CV-3: compiled blocks are patched only by the browser DOM driver; any other gets their vnodes
+        this.vdomL?.next(ext.xb && !this.bd ? ext.xb(v ?? null) : v ?? null)
       }
       if (this.dq.length) this.stopLater()
     } finally {
@@ -350,7 +360,7 @@ export class App {
   scopeValue(parent: Inst, _: string, v: any, inst: Inst) {
     const d = parent.dom
     if (!d || inst.scope === undefined) return v
-    if (typeof d.isolateValue == 'function') return d.isolateValue(v, inst.scope)
+    if (typeof d.isolateValue == 'function') return d.isolateValue(v, inst.scope, inst)
     let r: any
     this.pipe(inst, '\u0000DOM', v, (s$) => d.isolateSink(s$, inst.scope), (x) => { r = x })
     return r
@@ -376,22 +386,21 @@ export class App {
   }
 
   // ---------------------------------------------------------------- intent sources
-  /** the getters of an instance's intent sources (one descriptor map per app and kind) */
-  srcDesc(child: boolean) {
+  /** an instance's intent sources by name, each a getter of its instance (one table per app and kind; Inst SRC) */
+  srcDesc(child: boolean): Record<string, (i: Inst) => any> {
     const k = +child
     if (this.desc[k]) return this.desc[k]
-    const d: any = {}
-    const get = (f: (i: Inst) => any) => ({get(this: any) { return f(this[INST]) }, enumerable: true, configurable: true})
-    for (const n in this.sources) if (n !== 'DOM') d[n] = get(i => i.src(n))
-    d.DOM = get(i => i.dom && (i.wd ||= wrapDOM(i.dom)))
-    d.STATE = get(i => i.stateSource())
-    d.CHILD = get(i => i.childSource())
-    d.dispose$ = get(i => i.dispose$())
+    const d: any = Object.create(null)
+    for (const n in this.sources) if (n !== 'DOM') d[n] = (i: Inst) => i.src(n)
+    d.DOM = (i: Inst) => i.dom && (i.wd ||= wrapDOM(i.dom))
+    d.STATE = (i: Inst) => i.stateSource()
+    d.CHILD = (i: Inst) => i.childSource()
+    d.dispose$ = (i: Inst) => i.dispose$()
     if (child) {
-      d.props$ = get(i => i.props$ || seeded(i, 'props$', i.props))
-      d.children$ = get(i => i.children$ || seeded(i, 'children$', i.children))
+      d.props$ = (i: Inst) => i.props$ || seeded(i, 'props$', i.props)
+      d.children$ = (i: Inst) => i.children$ || seeded(i, 'children$', i.children)
       // a Command passed as a prop (createCommand): its messages, as today's `commands$`
-      d.commands$ = get(i => i.commands())
+      d.commands$ = (i: Inst) => i.commands()
     }
     return (this.desc[k] = d)
   }
@@ -437,9 +446,8 @@ export class App {
           : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => { const x = b(i, t, s, f) || f; return a(i, t, s, x) || x }
           : k == 'wrapSources' ? (i: any, s: any) => { const x = b(i, s) || s; return a(i, x) || x }
           : k == 'transformDef' ? (src: any, v: any) => { const x = b(src, v) || src; return a(x, v) || x }
-          // onElementCommand: false (not run) from either layer
-          : k == 'onElementCommand' ? (i: any, c: any) => { const x = b(i, c); return a(i, c) === false || x === false ? false : undefined }
-          : (...args: any[]) => { b(...args); a(...args) }
+          // false from either layer: onElementCommand (not run), onAction (dropped)
+          : (...args: any[]) => { const x = b(...args); return a(...args) === false || x === false ? false : undefined }
       }
     }
     // D168's safety net (R4): a view context tracking skipped, offered for a re-run check
@@ -460,9 +468,9 @@ export class App {
   }
 }
 
-function wrapDOM(dom: any) {
-  return new Proxy(dom, {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any) => t.select(sel).events(p))})
-}
+// (one handler for every instance's DOM source)
+const DOMH: ProxyHandler<any> = {get: (t, p, r) => (typeof p == 'symbol' || p in t ? Reflect.get(t, p, r) : (sel: any, o?: any) => t.select(sel).events(p, o))}
+const wrapDOM = (dom: any) => new Proxy(dom, DOMH)
 /** props$ / children$: a memory stream with the current value, fed by setProps */
 function seeded(i: any, k: string, v: any) {
   const s = xs.createWithMemory()
@@ -529,6 +537,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
   }
   // the Cycle run loop, reduced: a proxy sink per driver, the driver's source, then the app's
   // streams imitated (values reach a driver synchronously; the DOM gets one vnode per flush)
+  app.bd = !!all.DOM?.blocks
   for (const n in all) {
     const p = app.proxies[n] = xs.create()
     const src = app.sources[n] = all[n](p, n)

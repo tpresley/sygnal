@@ -13,6 +13,6 @@ Gauge.initialState = { level: 40, loadedAt: '' }
 Gauge.isolatedState = true
 Gauge.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump') })
 Gauge.model = {
-  INITIALIZE: (state) => ({ ...state, loadedAt: new Date().toLocaleTimeString() }),
+  INITIALIZE: (state, data, next, { now }) => ({ ...state, loadedAt: new Date(now()).toLocaleTimeString() }),
   BUMP: (state) => ({ ...state, level: Math.min(100, state.level + 10) }),
 }

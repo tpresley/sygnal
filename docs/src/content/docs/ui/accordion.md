@@ -56,6 +56,17 @@ Wrap each button in a heading of the level that fits the page, so the headers ar
 
 `state.faq` is `{ id, expanded, collapsible }`: `expanded` lists the open panels' values. Actions: `faq.TOGGLE`, `faq.EXPAND` and `faq.COLLAPSE` take a value (a click on a header toggles its own), `faq.MOVE` focuses a header. Open a panel from your model with `next('faq.EXPAND', 'returns')`.
 
+The slice drives the view, so your own reducers can write it too: `{ ...state, faq: { ...state.faq, expanded: [order.id] } }` opens that panel. Values are compared as strings (`7` and `'7'` are one panel); `expanded` is stored as strings after the behavior's next update. Set the panels open at the start with the `expanded` option, not in `initialState` (the behavior's slice replaces a `faq` key there, [SYG127](/reference/errors/#syg127)). Values no longer rendered (a removed item) stay in `expanded`: filter them out in the reducer that removes the item if it could come back.
+
+A host entry for `faq.TOGGLE` runs after the behavior's, on the state with the toggle applied, and its `ABORT` keeps that update. To refuse a toggle, return the state from before the action:
+
+```jsx
+Faq.model = {
+  // the 'terms' panel stays as it is
+  'faq.TOGGLE': (state, value, next, { previousState }) => (value === 'terms' ? previousState : state),
+}
+```
+
 `accordionAttrs(state.faq, uid)` returns:
 
 | | Attributes |

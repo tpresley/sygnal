@@ -33,6 +33,9 @@ function mount(st: PortalState, target: string): boolean {
   container.appendChild(anchor)
   st.pv = st.v.data._portalVnode = (patch ||= snabbdomInit(defaultModules))(anchor, box(st.kids))
   st.c = st.v.data._portalContainer = container
+  // ui-sweep R4: the placeholder names its content, so ELEMENT commands and sygnal/ui parts find
+  // elements the component renders into the portal (extra/elementCommands.ts, ui/shared.ts)
+  if (st.v.elm) st.v.elm.__portal = st.pv.elm
   return true
 }
 
@@ -74,6 +77,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
           if (!st.pv) return
           st.pv = newVnode.data._portalVnode = patch(st.pv, box(st.kids))
           newVnode.data._portalContainer = st.c
+          if (newVnode.elm) newVnode.elm.__portal = st.pv.elm
         },
         destroy: (vnode: any) => {
           const st: PortalState | undefined = vnode.data?._p

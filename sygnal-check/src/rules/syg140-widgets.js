@@ -6,7 +6,9 @@
  *   SYG141 (warn)   the intent listens for an event that the widget it targets doesn't declare,
  *                   that no element fires natively, and that is a near-typo of a declared one:
  *                   DOM.select('.due').events('pikc'), where every element the view renders with
- *                   class `due` is a widget host; or a widget control: DOM.select(Due).events('pikc')
+ *                   class `due` is a widget host; or a widget control: DOM.select(Due).events('pikc').
+ *                   UI sweep round 2: also 'change' / 'input' on a selector that resolves only to
+ *                   Menu / Select / Combobox (a native <select>'s habit): their own event instead
  *   SYG142          an ELEMENT command whose method the targeted widget doesn't declare and its host
  *                   element doesn't have: an error for a near-typo of a declared command
  *                   ({ opne: '.due' }), info otherwise (a library may add the method to the host)
@@ -170,10 +172,31 @@ function checkListeners(project, comp, report) {
     }
     if (sel.global || sel.dynamic || sel.behavior) continue
     const event = sel.method === 'select' ? events.get(sel.node) : sel.method
-    if (event == null || NATIVE_EVENTS.has(event)) continue
+    // UI sweep round 2 (F-1): of the native names, change / input are reported on the
+    // first-party parts (a native <select>'s habit): their value comes in their own event
+    const habit = event === 'change' || event === 'input'
+    if (event == null || NATIVE_EVENTS.has(event) && !habit) continue
     let widgets
     if (sel.control) widgets = sel.control.kind === 'widget' && sel.controls.length === 1 ? [sel.control] : null
     else widgets = view ? widgetsFor(view, sel.selector) : null
+    if (NATIVE_EVENTS.has(event)) {
+      const parts = widgets?.length && widgets.every(w => w.part) && [...new Set(widgets.map(w => w.part))]
+      if (!parts) continue
+      const hint = parts.every(x => x === 'Menu') ? 'select' : parts.every(x => x !== 'Menu') ? 'value-change' : null
+      if (!hint) continue
+      const what = sel.control ? `the widget control ${sel.control.key}` : `'${sel.selector}' (${parts.join(', ')})`
+      report({
+        code: 'SYG141',
+        component: comp.name,
+        file: sel.file || intent.file,
+        node: sel.node,
+        message: `${comp.name}'s intent listens for the native '${event}' on ${what}: the part reports ${hint === 'select' ? 'the picked item' : 'its value'} with '${hint}' (a native '${event}' from inside it carries no detail): did you mean '${hint}'?`,
+        fix: `listen for '${hint}'`,
+        fixes: renameFix(`Listen for '${hint}'`, listenerEdit(sel.file || intent.file, sel, events, hint)),
+        data: { event, events: [...new Set(widgets.flatMap(w => w.events))], ...(sel.control ? { control: sel.control.key } : { selector: sel.selector }) },
+      })
+      continue
+    }
     if (!widgets || widgets.some(w => !w.events || custom(w)) || widgets.some(w => w.events.includes(event))) continue
     const declared = [...new Set(widgets.flatMap(w => w.events))]
     const hint = closest(event, declared)
@@ -251,6 +274,7 @@ export default {
   id: 'widgets',
   codes: ['SYG140', 'SYG141', 'SYG142', 'SYG143', 'SYG144'],
   description: 'Widgets: undeclared dispatch / listener / command, the tag as a selector, native event names',
+  perFile: true, // run.js createRuleMemo: one file at a time, from the file and its imports
   run(project, report) {
     for (const path of project.scanned) {
       const file = project.files.get(path)

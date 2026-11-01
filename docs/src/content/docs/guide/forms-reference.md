@@ -26,7 +26,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 
 | Action | Data |
 |---|---|
-| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, and its `value` as `item`; a [file input](#file-fields) its `File`) |
+| `form.CHANGE` | `{ name, value }`: from the form element's `input` events ([field types](/guide/forms/#field-types); a checkbox gives `checked`, its `value` as `item` and its group's values in document order as `order`; a [file input](#file-fields) its `File`) |
 | `form.SET` | `{ values }`: several fields at once, by field name (`{ name: 'Dana', 'addresses.7.city': 'Hilo' }`), as if the user had typed them: one validation, the fields count as changed, `touched` as for `form.CHANGE` (so errors show by the [`show`](/guide/forms/#options) rule), their server errors and check results cleared. Fields not named keep their values; a name that isn't a field is skipped ([SYG230](/reference/errors/#syg230) in development). For a fill from elsewhere: [an AI extraction](/recipes/ai-form-fill/), a saved draft, an address lookup |
 | `form.BLUR` | The field name, from `focusout` |
 | `form.SUBMIT` | From the form element's `submit` (default prevented) |
@@ -71,10 +71,10 @@ function Profile({ state }) {
 Profile.uses = { form: form(profileSchema, { values: { name: '', avatar: null }, request: { url: '/api/profile' } }) }
 ```
 
-- **Progress**: the form's `request` asks for progress (`progress: 'form.PROGRESS'`; a `submit` entry's request can name it too), and the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
+- **Progress**: the form's `request` asks for progress when it sends a file (`progress: 'form.PROGRESS'`; `progress: true` on the `request` asks for it on a JSON submit too; a `submit` entry's request can name it), and the form keeps the latest step in `state.form.progress` (`{ phase, loaded, total, fraction }`) while it is submitting, and clears it on `form.DONE`, `form.ERRORS` and `form.RESET`.
 - **Don't bind `value`**: the browser doesn't let a page set a file input's file. So a reset can't clear it through state; instead the form counts its start overs in `state.form.resets`, and `key={'avatar' + state.form.resets}` makes a new, empty input after each one. For the same reason, show the chosen file's name yourself (`f.avatar.value?.name`): after a reset to saved values (`form.DONE` makes the saved values the start values) the value is still the file while the new input is empty.
 - **Validation** uses your schema's file checks: zod's `z.file()` (`.max()`, `.mime()`), valibot's `v.file()`, or `instanceof File` in a hand-written schema. Required means rejecting `null`.
-- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { target: { files: [new File(['…'], 'me.png')] } })`, submit, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
+- **Tests** pick a file with `t.simulateEvent('[name="avatar"]', 'input', { files: [new File(['…'], 'me.png')] })`, submit, then `t.progress('HTTP', { loaded: 1, total: 2 }, 'form.PROGRESS')` and `t.respond('HTTP', reply, 'form.DONE')`.
 - A file input whose `name` isn't in `values` is left alone, as before 6.7, for an app that reads its files in its own intent.
 - A `File` can't be serialized, so `persist()` and server-rendered state don't carry file fields.
 
@@ -308,7 +308,7 @@ Signup.model = {
 
 Whether a valid submit waits for `form.DONE` depends on how it is sent:
 
-- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (as committed: the outputs' state since 7.0); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` unless it sets `progress`, and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
+- **With `request`**: the form sends it on its `http` sink and waits. `request` is an object or `(data, state) => request`, called with the schema's output and the host's state (as committed: the outputs' state since 7.0); `ABORT` or a falsy result sends nothing and leaves the submit pending, as below. The form adds `json: data` (or `multipart: data` when a top-level value is a `File`, `Blob` or an array of them; a file nested deeper isn't sent as a file) unless the request sets `json`, `multipart` or `body`, adds `progress: 'form.PROGRESS'` to a multipart submit (or when the request sets `progress: true`; a progress request goes over XMLHttpRequest, so a plain JSON submit stays on `fetch`), and always sets `ok: 'form.DONE'` and `error: 'form.ERRORS'`. With `submit` as well, that host action is dispatched too (to set state); its entry shouldn't send another request.
 
 Otherwise it depends on the host's entry for the `submit` action, checked when the host starts:
 
@@ -492,6 +492,6 @@ processForm(DOM.select('.my-form'), { events: 'submit', preventDefault: true })
 ### Return Value
 
 The stream emits an object with:
-- All form field values keyed by their `name` attribute
+- All form field values keyed by their `name` attribute: a string (a file input: its `File`); a `<select multiple>` an array of its selected values (`[]` when none), and so does a `multiple` [Select or Combobox](/guide/widgets/#form-fields). Checkboxes that share a name (more than one in the form, disabled ones included) give an array of the checked, enabled boxes' values in document order (`[]` when none is checked), like `FormData.getAll()`; a lone checkbox gives its `value` (`"on"` without one), no entry when unchecked. Since 7.2; before, both gave the last selected or checked value (none: no entry), so `data.tags.at(-1)` is the old value. A group that can render a single box (a filtered list of options) then gives a string: read it as `[].concat(data.tags ?? [])`, or use the [`form` behavior](/guide/forms/), whose array fields are arrays however many boxes render
 - `event` — The raw DOM event
 - `eventType` — The event type string (e.g., `'submit'`, `'input'`)

@@ -41,12 +41,13 @@ The plugin detects the `run()` call, finds the imported root component, and auto
 | `diagnostics.timingAudit` | `boolean` | `false` | Turn on the 7.0 timing audit in the dev server: [SYG257](/reference/errors/#syg257) for each output sink that reads a state field its action's STATE changed (for [upgrading 6.x code](/guide/migrating-to-7/#step-by-step); tests use `renderComponent(C, { timingAudit: true })`) |
 | `diagnostics.ignore` | `string[]` | `[]` | Codes to drop, at runtime and in `sygnal-check` |
 | `check` | `boolean` or `{ strict, a11y, include, ignore, overlay }` | `true` | Run `sygnal-check` in the dev server (skipped silently when it isn't installed) |
-| `check.strict` | `boolean` | the config file's `strict`, else `diagnostics.strict` | Also run the strict rules (SYG501-508) |
+| `check.strict` | `boolean` | the config file's `strict`, else `diagnostics.strict` | Also run the strict rules (SYG501-509) |
 | `check.a11y` | `'warn' \| 'error'` | the config file's `a11y`, else `'warn'` | Severity of the [accessibility](/guide/accessibility/) findings (SYG701-708). They stay warnings with `strict`; `'error'` makes them errors, which open the overlay |
 | `check.include` | `string[]` | the config file's `paths`, else the existing `src/`, `pages/`, `renderer/` directories, else the project root | Files, directories or globs to check, relative to the Vite root |
 | `check.ignore` | `string[]` | the config file's `ignore`, else `diagnostics.ignore` | Codes to drop |
 | `check.overlay` | `'error' \| false` | `'error'` | Whether error-severity findings open Vite's error overlay |
 | `vitestSetup` | `boolean` | `true` | Under Vitest, add `sygnal/diagnostics` to `test.setupFiles` |
+| `compile` | `boolean` or `{ views, ssr, blocks, test }` | `false` | Experimental, Vite 8: compile JSX views at build time (same DOM, less work per render; see [Compiled Views](/integration/compiled-views/)) |
 | `nativeGlobalThis` | `boolean` | `true` | Resolve xstream's `globalthis` polyfill to the native `globalThis` (see [below](#native-globalthis)) |
 | `devtools` | `boolean` | `true` | Install the [DevTools](/integration/debugging/#devtools-extension) bridge in the dev server. `false` leaves it out |
 | `mcp` | `boolean` or `{ timeout, confirm }` | `false` | Serve the [dev MCP endpoint](/integration/agents/#dev-server-mcp-endpoint) at `/__sygnal/mcp`, so a coding agent can read and drive the open page. Also installs the DevTools bridge |

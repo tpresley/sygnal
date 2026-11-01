@@ -333,6 +333,28 @@ function listenersOf(project, comp) {
   return listeners
 }
 
+// ComponentInfo → [listeners, fields]: what the component's own intent and behaviors listen to and
+// its view's controlled fields depend only on its file and what it imports, so a component an
+// incremental build reuses keeps them (Project `previous`); the render sites (its parents) are
+// looked up per build
+const ownCache = new WeakMap()
+function own(project, comp) {
+  if (ownCache.has(comp)) return ownCache.get(comp)
+  let res = null
+  if (!comp.staticProps.intent || (comp.intent && comp.intent.fn)) {
+    const listeners = comp.staticProps.intent ? intentListeners(comp.intent.file, comp.intent.fn, project) : []
+    // PLAN-4 GS-1: what its behaviors listen to through their options (selection({ item: Pick })
+    // → a click on <Pick>), and controls passed to behaviors we can't see into (any event)
+    for (const sel of comp.behaviorSelectors || []) {
+      if (sel.selector != null) listeners.push({ chain: [sel.selector], event: sel.method === 'select' ? UNKNOWN : sel.method })
+    }
+    for (const c of assumedListened(project, comp.uses)) listeners.push({ chain: [c.selector], event: UNKNOWN })
+    res = [listeners, controlledFields(project, comp.file, comp.view)]
+  }
+  ownCache.set(comp, res)
+  return res
+}
+
 export default {
   id: 'controlled-input',
   codes: ['SYG111'],
@@ -340,18 +362,9 @@ export default {
   run(project, report) {
     for (const comp of project.components) {
       if (!comp.view || !isFunction(comp.view)) continue
-      let listeners = []
-      if (comp.staticProps.intent) {
-        // can't see the intent: stay quiet
-        if (!comp.intent || !comp.intent.fn) continue
-        listeners = intentListeners(comp.intent.file, comp.intent.fn, project)
-      }
-      // PLAN-4 GS-1: what its behaviors listen to through their options (selection({ item: Pick })
-      // → a click on <Pick>), and controls passed to behaviors we can't see into (any event)
-      for (const sel of comp.behaviorSelectors || []) {
-        if (sel.selector != null) listeners.push({ chain: [sel.selector], event: sel.method === 'select' ? UNKNOWN : sel.method })
-      }
-      for (const c of assumedListened(project, comp.uses)) listeners.push({ chain: [c.selector], event: UNKNOWN })
+      const mine = own(project, comp)
+      if (!mine) continue // can't see the intent: stay quiet
+      const [listeners, fields] = mine
       // D199 (from spike 0-S2): input events bubble out of a child (a Collection item) to an element
       // its parent rendered, so a parent listener around EVERY place it is rendered (a form
       // behavior on the <form>, DOM.select('.signup').events('input')) keeps its fields in state
@@ -361,7 +374,7 @@ export default {
         return sites.length > 0 && sites.every(s => s.listeners?.some(l => relevant(l.event) &&
           s.ancestors.some((a, i) => listens(l.chain, a, s.ancestors.slice(i + 1)))))
       }
-      for (const f of controlledFields(project, comp.file, comp.view)) {
+      for (const f of fields) {
         const relevant = (ev) => ev === UNKNOWN || TEXT_EVENTS.has(ev) || (f.kind === 'toggle' && ev === 'click')
         if (listeners.some(l => relevant(l.event) && listens(l.chain, f.el, f.ancestors))) continue
         if (parentListens(relevant)) continue

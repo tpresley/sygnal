@@ -1,7 +1,7 @@
 'use strict'
 
 // export sygnal core functions
-export { ABORT, abort } from "./shared"
+export { ABORT, abort, deliver as __deliver } from "./shared"
 export { defineComponent } from "./defineComponent"
 export { Collection } from "./collection"
 export { VirtualCollection } from "./extra/virtual"
@@ -30,11 +30,15 @@ export { default as exactState } from "./extra/exactState"
 export { default as run } from './extra/run'
 export { default as enableHMR } from './extra/hmr'
 export { default as classes } from './extra/classes'
-export { createElement } from './pragma/index'
+export { createElement, __cv } from './pragma/index'
+export { __cvb } from './pragma/blocks'
 export { createCommand } from './extra/command'
 export { createRef, createRef$ } from './extra/ref'
 export { controls } from './extra/controls'
 export { defineWidget } from './extra/widget'
+export { keymap } from './extra/keymap'
+// sygnal/three's <Model> / <Texture> placeholders (an external bundle: the core's registry, not a copy)
+export { pres as __pres } from './core/registry'
 export { defineBehavior } from './extra/behaviors'
 export { pager } from './extra/pager'
 export { form } from './extra/form'
@@ -44,9 +48,11 @@ export { sortable } from './extra/sortable'
 export { undoable, undo } from './extra/undo'
 export { persist } from './extra/persist'
 export { renderComponent } from './extra/testing'
+// 7.2 dev preview: record / replay (also 'sygnal/replay'; replay() is part of the testing API)
+export { startRecording, replay, replayTest, bugReport, timeline, finalState, RECORDING_SCHEMA, inertDriver } from './extra/replay/index'
 export { set, toggle, emit, event } from './extra/reducers'
 export { makeServiceWorkerDriver, onlineStatus$, createInstallPrompt } from './extra/pwa'
-export { renderToString } from './extra/ssr'
+export { renderToString, __cvs } from './extra/ssr'
 export { default as xs } from './extra/xstreamCompat'
 export { getDevTools } from './extra/devtoolsHook'
 export { getDiagnostics, clearDiagnostics, onDiagnostic } from './extra/diagnostics/index'
@@ -76,6 +82,10 @@ export { defineCatalog, compose, composeWith, fromTree, toTree, removeNode } fro
 export { openToolCalls, askCard } from './extra/ai/index'
 // PLAN-9 M-1: <Composed catalog from /> (documented import: 'sygnal/ai')
 export { Composed } from './extra/ai/index'
+// sygnal/api (dev preview; documented import: 'sygnal/api', src/api.ts): typed API clients
+export { orpcClient, openApiClient, honoClient, contractHash, contractSkew, isContractSkew, contractFetch, fixture, errorFixture } from './extra/api/index'
+// function-first (*.server.ts): 'sygnal/api' names these query / mutation / stream
+export { query as serverQuery, mutation as serverMutation, stream as serverStream, serverFunctions, __serverFunction } from './extra/api/index'
 // PLAN-9 (D463): a lens to an array element by id
 export { byId } from './extra/lens'
 

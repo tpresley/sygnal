@@ -1,0 +1,26 @@
+{
+  "name": "sygnal-todomvc-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "jsdom": "^29.1.1",
+    "sygnal-check": "file:../../sygnal-check",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "director": "^1.2.8",
+    "sygnal": "file:../..",
+    "todomvc-app-css": "^2.2.0",
+    "todomvc-common": "^1.0.5",
+    "xstream": "^11.14.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run"
+  }
+}

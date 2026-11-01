@@ -1,0 +1,334 @@
+{
+  "date": "2026-10-30T19:56:11.822Z",
+  "url": "http://127.0.0.1:52208/",
+  "machine": {
+    "platform": "darwin 24.6.0",
+    "cpu": "Apple M3 Max",
+    "cores": 16,
+    "memGB": 128
+  },
+  "browser": "Chromium 153.0.8010.12",
+  "settings": {
+    "viewport": "1440x900",
+    "dpr": 1,
+    "cpuThrottle": 1,
+    "steps": 120,
+    "warmup": 10
+  },
+  "framework": "react-konva",
+  "overheadMs": {
+    "busy": {
+      "n": 120,
+      "median": 1.52,
+      "p95": 2.01,
+      "max": 3.06,
+      "mean": 1.53
+    },
+    "wall": {
+      "n": 120,
+      "median": 48.17,
+      "p95": 49.7,
+      "max": 50.46,
+      "mean": 48.02
+    }
+  },
+  "startup": null,
+  "heap": [],
+  "generate": [
+    {
+      "shapes": 1000,
+      "count": 1000,
+      "ms": 62.4
+    },
+    {
+      "shapes": 5000,
+      "count": 5000,
+      "ms": 110.4
+    },
+    {
+      "shapes": 10000,
+      "count": 10000,
+      "ms": 179.5
+    }
+  ],
+  "drag": [
+    {
+      "shapes": 1000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.37,
+        "p95": 5.85,
+        "max": 7.58,
+        "mean": 4.42
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.41,
+        "p95": 50.51,
+        "max": 52.06,
+        "mean": 48.41
+      },
+      "dropMs": 31.3
+    },
+    {
+      "shapes": 1000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 4.29,
+        "p95": 5.99,
+        "max": 7.18,
+        "mean": 4.43
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.53,
+        "p95": 50.41,
+        "max": 51.34,
+        "mean": 48.32
+      },
+      "dropMs": 32.7
+    },
+    {
+      "shapes": 1000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 7.31,
+        "p95": 8.67,
+        "max": 9.64,
+        "mean": 7.1
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.37,
+        "p95": 50.58,
+        "max": 51.49,
+        "mean": 48.47
+      },
+      "dropMs": 64.5
+    },
+    {
+      "shapes": 5000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.04,
+        "p95": 5.79,
+        "max": 7.25,
+        "mean": 4.18
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.54,
+        "p95": 50.51,
+        "max": 51.96,
+        "mean": 48.41
+      },
+      "dropMs": 30.8
+    },
+    {
+      "shapes": 5000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 4.01,
+        "p95": 6.43,
+        "max": 17.4,
+        "mean": 4.31
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.14,
+        "p95": 50.24,
+        "max": 52.96,
+        "mean": 48.09
+      },
+      "dropMs": 32.3
+    },
+    {
+      "shapes": 5000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 7.99,
+        "p95": 9.54,
+        "max": 10.34,
+        "mean": 7.81
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.67,
+        "p95": 50.27,
+        "max": 51.02,
+        "mean": 48.58
+      },
+      "dropMs": 115.4
+    },
+    {
+      "shapes": 10000,
+      "selection": 1,
+      "busy": {
+        "n": 120,
+        "median": 4.22,
+        "p95": 6.01,
+        "max": 7.24,
+        "mean": 4.37
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.39,
+        "p95": 49.73,
+        "max": 51.23,
+        "mean": 48.31
+      },
+      "dropMs": 80.1
+    },
+    {
+      "shapes": 10000,
+      "selection": 100,
+      "busy": {
+        "n": 120,
+        "median": 5.12,
+        "p95": 6.99,
+        "max": 25.71,
+        "mean": 5.38
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.6,
+        "p95": 49.59,
+        "max": 55.48,
+        "mean": 48.45
+      },
+      "dropMs": 65.5
+    },
+    {
+      "shapes": 10000,
+      "selection": "all",
+      "busy": {
+        "n": 120,
+        "median": 8.97,
+        "p95": 10.71,
+        "max": 35.47,
+        "mean": 8.74
+      },
+      "wall": {
+        "n": 120,
+        "median": 48.79,
+        "p95": 49.7,
+        "max": 50.16,
+        "mean": 48.8
+      },
+      "dropMs": 198.9
+    }
+  ],
+  "pan": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 3.21,
+        "p95": 5.48,
+        "max": 15.73,
+        "mean": 3.72
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.2,
+        "p95": 66.58,
+        "max": 67.01,
+        "mean": 65.06
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 3.49,
+        "p95": 4.85,
+        "max": 7.89,
+        "mean": 3.56
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.95,
+        "p95": 66.15,
+        "max": 66.78,
+        "mean": 64.96
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 3.08,
+        "p95": 4.86,
+        "max": 6.02,
+        "mean": 3.29
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.14,
+        "p95": 65.99,
+        "max": 71.91,
+        "mean": 65.09
+      }
+    }
+  ],
+  "zoom": [
+    {
+      "shapes": 1000,
+      "busy": {
+        "n": 120,
+        "median": 8.75,
+        "p95": 10.65,
+        "max": 11.13,
+        "mean": 8.35
+      },
+      "wall": {
+        "n": 120,
+        "median": 65.33,
+        "p95": 66.91,
+        "max": 75.46,
+        "mean": 65.23
+      }
+    },
+    {
+      "shapes": 5000,
+      "busy": {
+        "n": 120,
+        "median": 8.31,
+        "p95": 10.06,
+        "max": 18.94,
+        "mean": 8.16
+      },
+      "wall": {
+        "n": 120,
+        "median": 64.98,
+        "p95": 67.11,
+        "max": 71.05,
+        "mean": 64.96
+      }
+    },
+    {
+      "shapes": 10000,
+      "busy": {
+        "n": 120,
+        "median": 8.65,
+        "p95": 11.05,
+        "max": 33.33,
+        "mean": 8.55
+      },
+      "wall": {
+        "n": 120,
+        "median": 65,
+        "p95": 66.75,
+        "max": 67.73,
+        "mean": 64.92
+      }
+    }
+  ],
+  "errors": []
+}

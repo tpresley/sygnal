@@ -173,15 +173,23 @@ export type Index = () => [items: any[], byKey: Map<any, number>]
 
 /** one per Collection: the key -> raw index map (first occurrence), rebuilt once per array identity, shared by its items */
 export function indexer(arr: Cell): Index {
-  let la: any, map = new Map<any, number>()
+  let la: any, t: [any[], Map<any, number>] = [EMPTY, new Map()]
+  // (the same pair until the array changes: every item reads it on each render)
   return () => {
     const g = arr.get(), a = Array.isArray(g) ? g : EMPTY
     if (a !== la) {
+      // the same length, and every replaced element keeps its key (a drag, an edit): the same map,
+      // after identity checks (no map of n keys per change)
+      let map = t[1], i = 0
+      if (a.length == t[0].length) for (; i < a.length && (a[i] === la[i] || keyOf(a[i], i) == keyOf(la[i], i)); i++);
+      if (i < a.length || !a.length) {
+        map = new Map()
+        for (i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!map.has(k)) map.set(k, i) }
+      }
       la = a
-      map = new Map()
-      for (let i = 0; i < a.length; i++) { const k = keyOf(a[i], i); if (!map.has(k)) map.set(k, i) }
+      t = [a, map]
     }
-    return [a, map]
+    return t
   }
 }
 

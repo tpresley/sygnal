@@ -7,7 +7,9 @@
  *
  * Renders a label, a trigger button (role="combobox", named by the label) showing the selected
  * label or the placeholder, the listbox (items role="option", aria-selected, a ✓ indicator Zag
- * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`).
+ * hides when unselected) in a positioner, and a hidden native <select> for forms (`name`). It is
+ * a widget field (extra/field.ts): the form behavior and processForm read its value; a form reset
+ * puts the first value back (Zag's).
  * Keyboard and typeahead are Zag's. Styling hooks: `data-scope="select"` + `data-part` (root,
  * label, control, trigger, value-text, indicator, positioner, content, item, item-text,
  * item-indicator), `data-state`, `data-highlighted`, `data-placeholder-shown`.
@@ -22,10 +24,11 @@
 import * as select from '@zag-js/select'
 import {fromZag} from '../../zag'
 import {createElement as h} from '../../index'
-import {NAMING, arr, collectionOf, named, norm, options, valueOut} from './shared'
+import {NAMING, field, placed, arr, collectionOf, layered, named, norm, options, valueOut} from './shared'
 
 export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: any) => {
   const hidden = api.getHiddenSelectProps(), v = api.value
+  layered(x, api.open)
   // multiple: the options' selected props carry the value (a select's value prop is one string)
   if (x.multiple) delete hidden.props.value
   if (p.label == null) delete hidden.attrs['aria-labelledby']
@@ -38,15 +41,23 @@ export const Select: any = /*#__PURE__*/ fromZag(select, (api: any, p: any, x: a
     h('div', api.getPositionerProps(), h('div', named(api.getContentProps(), p), options(h, api))),
     h('select', hidden,
       h('option', {value: ''}),
-      x.items.map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
+      // ZS-2: a selected item the items no longer have (Zag keeps showing it) is still submitted
+      [...x.items, ...api.selectedItems.filter((i: any) => !x.items.some((j: any) => j.value === i.value))]
+        .map((i: any) => h('option', {key: i.value, value: i.value, selected: v.includes(i.value)}, i.label))))
 }, {
   name: 'Select',
   $own: 1,
+  field,
   ownProps: [...NAMING, 'name'],
   props: ({items, label, placeholder, value, defaultValue, 'aria-label': _l, 'aria-labelledby': _b, 'aria-describedby': _d, ...p}: any, x: any) => {
     x.items = norm(items)
     x.multiple = !!p.multiple
-    return {...p, collection: collectionOf(select, x.items), value: arr(value), defaultValue: arr(defaultValue)}
+    return {
+      ...placed(p),
+      collection: collectionOf(select, x.items),
+      value: arr(value),
+      defaultValue: arr(defaultValue),
+    }
   },
   events: {'value-change': ['onValueChange', valueOut], 'open-change': ['onOpenChange', (d: any) => d.open]},
   commands: {open: (api: any) => api.setOpen(true), close: (api: any) => api.setOpen(false), clear: (api: any) => api.clearValue(), focus: (api: any) => api.focus()},

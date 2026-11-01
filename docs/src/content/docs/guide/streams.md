@@ -98,6 +98,8 @@ The operators used with `.compose()` (`debounce`, `throttle`, `delay`, `dropRepe
 import { debounce, flattenConcurrently, concat } from 'sygnal'
 ```
 
+Take them from `'sygnal'`, not from `xstream/extra/*`: those modules are CommonJS, and under Node's ESM loader or Vite 8 their default import is the module object, so `dropRepeats()` fails with "not a function" at run time ([SYG302](/reference/errors/#syg302)). To act when part of the state changes, an intent doesn't need `dropRepeats` at all: `STATE.watch(state => state.tab)` ([SYG303](/reference/errors/#syg303)).
+
 ## Creating Custom Streams
 
 ```javascript

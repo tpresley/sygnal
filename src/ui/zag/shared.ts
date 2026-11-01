@@ -2,6 +2,7 @@
  * PLAN-5 2-Z: helpers the Zag-based parts (Menu, Select, Combobox) share. '../../zag' becomes the
  * external 'sygnal/zag' and '../../index' the external 'sygnal' in the 'sygnal/ui/menu', 'sygnal/ui/select' and 'sygnal/ui/combobox' builds.
  */
+import {add, pull} from '../stack'
 
 /** G-413: the naming props a part applies to its control (not the host) */
 export const NAMING = ['aria-label', 'aria-labelledby', 'aria-describedby']
@@ -18,10 +19,15 @@ export const named = (bag: any, p: any, describe?: any) => {
   return bag
 }
 
-/** An item as the parts take it: a string, or { value, label?, disabled? } (Menu also { separator: true }) */
+/**
+ * The items as the parts take them: a string, or { value, label?, disabled? } (Menu also
+ * { separator: true } and its item kinds); a group (UI sweep round 2) { group, items } is its
+ * items, each with `group` (its label)
+ */
 export const norm = (items: any): any[] =>
-  (items || []).map((i: any) => (i && typeof i == 'object'
-    ? {...i, value: String(i.value ?? ''), label: i.label ?? String(i.value ?? '')}
+  (items || []).flatMap((i: any) => (i && typeof i == 'object'
+    ? i.group != null && Array.isArray(i.items) ? norm(i.items).map((j: any) => ({...j, group: String(i.group)}))
+    : {...i, value: String(i.value ?? ''), label: i.label ?? String(i.value ?? '')}
     : {value: String(i), label: String(i)}))
 
 /** A Select / Combobox value prop as Zag's string[] (undefined: uncontrolled; null or '': none) */
@@ -30,14 +36,60 @@ export const arr = (v: any): any =>
 
 /** The listbox collection options for Zag's collection() */
 export const collectionOf = (z: any, items: any[]) =>
-  z.collection({items, itemToValue: (i: any) => i.value, itemToString: (i: any) => i.label, isItemDisabled: (i: any) => !!i.disabled})
+  z.collection({items, itemToValue: (i: any) => i.value, itemToString: (i: any) => i.label, isItemDisabled: (i: any) => !!i.disabled,
+    // round 2: groups (Zag orders the items by group, as they are shown)
+    ...(items.some((i) => i.group != null) && {groupBy: (i: any) => i.group ?? ''})})
 
 /** value-change's detail: the value (single) or the values (multiple) */
 export const valueOut = (d: any, x: any) => (x.multiple ? d.value : d.value[0] ?? null)
 
-/** Item rows of a listbox (Select, Combobox): text + a ✓ indicator Zag hides when unselected */
-export const options = (h: any, api: any) =>
-  api.collection.items.map((item: any) =>
+/**
+ * Item rows of a listbox (Select, Combobox): text + a ✓ indicator Zag hides when unselected;
+ * grouped items (round 2) in a role="group" named by its label (items without a group first)
+ */
+export const options = (h: any, api: any) => {
+  const c = api.collection
+  const row = (item: any) =>
     h('div', {key: item.value, ...api.getItemProps({item})},
       h('span', api.getItemTextProps({item}), item.label),
-      h('span', api.getItemIndicatorProps({item}), '✓')))
+      h('span', api.getItemIndicatorProps({item}), '✓'))
+  if (!c.items.some((i: any) => i.group != null)) return c.items.map(row)
+  return c.group().flatMap(([g, items]: any, k: number) => {
+    if (!g) return items.map(row)
+    const id = 'g' + k + '-' + g.replace(/[^\w-]/g, '_')
+    return h('div', {key: 'group:' + g, ...api.getItemGroupProps({id})}, h('div', api.getItemGroupLabelProps({htmlFor: id}), g), items.map(row))
+  })
+}
+
+/**
+ * The parts are form fields (the widget field contract, extra/field.ts): `value-change`'s detail
+ * is the field's value, and between picks the machine's value
+ */
+export const field = {event: 'value-change', read: (x: any) => valueOut({value: x.api().value}, x)}
+
+/**
+ * Round 2 (Radix's Popper): the positioner is `position: fixed` by default, so a clipping
+ * container (`overflow: hidden` / `auto`: a card, a scrolling panel, a <dialog>) doesn't cut the
+ * list off or flip it off-screen. An ancestor with a `transform`, `filter` or `contain` is then
+ * its containing block; `positioning={{ strategy: 'absolute' }}` (merged over the default) goes back
+ */
+export const placed = (p: any) => ({...p, positioning: {strategy: 'fixed', ...p.positioning}})
+
+/**
+ * UI sweep round 4: an open part's content is a layer on sygnal/ui's layer stack (src/ui/stack.ts,
+ * shared through a global, so this bundle's copy and sygnal/ui's are one stack; layers.ts reads it). Zag dismisses it
+ * itself (its own @zag-js/dismissable layer: Escape, a press or a focus outside); on the stack it
+ * is a layer the stack doesn't dismiss (`ctl` false), anchored at the widget's host: so a
+ * controlled popover or dialog it opened in counts a press in it as inside, wherever the content
+ * renders (Radix's nested DismissableLayer), and Escape is the Zag part's while it is on top. Called
+ * from the render; the content exists after the patch, so the stack is updated in a microtask.
+ */
+export const layered = (x: any, open: boolean) => {
+  if (!!x.layer == open) return
+  x.layer = open || null
+  queueMicrotask(() => {
+    const c = open && x.el?.querySelector?.('[data-part="content"]')
+    if (c && x.layer) add(x.lc = c, {anchor: x.el})
+    else if (!x.layer && x.lc) pull(x.lc), x.lc = null
+  })
+}
