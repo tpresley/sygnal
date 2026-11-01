@@ -343,3 +343,231 @@ describe('tooltips: a press on a trigger hides its tip (R3)', () => {
     await t.next((s) => s.tips.id == 'tip-b' && !s.tips.pressed)
   })
 })
+
+// ── ui-sweep round 3: controlled parts dismiss through the state (Radix DismissableLayer) ─────
+// A dialog / popover with its `open` option given is controlled: no browser light dismiss (a
+// manual popover, closedby="none"); Escape, a press outside and a focus outside come as the
+// close request (popover DISMISS, dialog CANCEL) from the layer stack (src/ui/layers.ts), top
+// layer first. (jsdom has no :popover-open, so APPLY sends showPopover again after an open: the
+// actions are read without APPLY, the commands for hidePopover; the browser suite checks frames.)
+describe('controlled popover: dismissed through the state (round 3)', () => {
+  const pop = (extra = {}, opts = {}, inner = null) => {
+    function P({ state }) {
+      return h('div', null,
+        h('button', { className: 'btn', attrs: { popovertarget: 'pp' } }, 'Open'),
+        h('button', { className: 'outside' }, 'Out'),
+        h('div', { className: 'p', id: 'pp', attrs: { popover: 'auto' }, 'aria-label': 'P' },
+          h('button', { className: 'inside' }, 'In'),
+          inner && h('button', { className: 'cbtn', attrs: { popovertarget: 'cc' } }, 'Child'),
+          inner && h('div', { className: 'c', id: 'cc', attrs: { popover: 'auto' }, 'aria-label': 'C' }, h('button', { className: 'cin' }, 'x'))),
+        h('p', { className: 'out' }, String(state.p.open)))
+    }
+    P.initialState = { pinned: false }
+    P.uses = { p: popover({ popover: '.p', open: false, ...opts }), ...(inner && { c: popover({ popover: '.c', open: false }) }) }
+    P.model = { ...extra }
+    return P
+  }
+  const sent = () => [...new Set(t.commands('ELEMENT').map((c) => Object.keys(c)[0]))]
+  const types = () => t.actions.map((a) => a.type).filter((a) => !a.endsWith('.APPLY'))
+  const down = (el) => el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, composed: true }))
+  const esc = (el = document.body) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+  const step = async () => { await t.settle(); await tick() }
+  const open = async (sel = '.btn') => { t.query(sel).click(); await step() }
+
+  it('its popovertarget button opens it through the model (prevented), as a manual popover', async () => {
+    t = renderComponent(pop(), { dom: 'real' })
+    await t.ready()
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    t.query('.btn').dispatchEvent(click)
+    await step()
+    expect(click.defaultPrevented).toBe(true)
+    expect(types()).toEqual(['INITIALIZE', 'p.TOGGLE'])
+    expect(sent()).toEqual(['showPopover'])
+    expect(t.query('.p').getAttribute('popover')).toBe('manual')
+    expect(t.state.p.open).toBe(true)
+  })
+
+  it('a press outside and Escape dismiss it (DISMISS, data: the event); a press inside or on its button does not', async () => {
+    t = renderComponent(pop(), { dom: 'real' })
+    await t.ready()
+    await open()
+    down(t.query('.inside'))
+    down(t.query('.btn'))
+    await step()
+    expect(types()).toEqual(['INITIALIZE', 'p.TOGGLE'])
+    down(t.query('.outside'))
+    await step()
+    expect(types().at(-1)).toBe('p.DISMISS')
+    expect(t.actions.at(-1).data.type).toBe('pointerdown')
+    expect(t.state.p.open).toBe(false)
+    expect(sent().at(-1)).toBe('hidePopover')
+    await open()
+    esc()
+    await step()
+    expect(t.actions.at(-1).data.key).toBe('Escape')
+    expect(t.state.p.open).toBe(false)
+  })
+
+  it('a refused dismiss never hides it: no hide command, no closing toggle', async () => {
+    t = renderComponent(pop({ 'p.DISMISS': (s, _e, _n, { previousState }) => previousState }), { dom: 'real' })
+    await t.ready()
+    await open()
+    const toggles = []
+    t.query('.p').addEventListener('toggle', (e) => toggles.push(e.newState))
+    down(t.query('.outside'))
+    await step()
+    esc()
+    await step()
+    t.query('.outside').dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+    await step()
+    expect(types().filter((a) => a == 'p.DISMISS')).toHaveLength(3)
+    expect(t.state.p.open).toBe(true)
+    expect(sent()).toEqual(['showPopover'])
+    expect(toggles).toEqual([])
+  })
+
+  it('a touch press outside dismisses at the click after it (a scroll gesture, no click, doesn\'t)', async () => {
+    t = renderComponent(pop(), { dom: 'real' })
+    await t.ready()
+    await open()
+    const touch = () => t.query('.outside').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch' }))
+    touch()
+    await step()
+    expect(t.state.p.open).toBe(true)
+    touch()
+    t.query('.outside').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await step()
+    expect(t.state.p.open).toBe(false)
+    expect(t.actions.at(-1).data.type).toBe('pointerdown')
+  })
+
+  it('an Escape an element handled (defaultPrevented) is not a dismiss', async () => {
+    t = renderComponent(pop(), { dom: 'real' })
+    await t.ready()
+    await open()
+    t.query('.inside').addEventListener('keydown', (e) => e.preventDefault())
+    esc(t.query('.inside'))
+    await step()
+    expect(t.state.p.open).toBe(true)
+  })
+
+  it('nested: Escape and a press on the parent close the child only; a press outside both closes both', async () => {
+    t = renderComponent(pop({}, {}, true), { dom: 'real' })
+    await t.ready()
+    await open()
+    await open('.cbtn')
+    expect([t.state.p.open, t.state.c.open]).toEqual([true, true])
+    esc(t.query('.cin'))
+    await step()
+    expect([t.state.p.open, t.state.c.open]).toEqual([true, false])
+    await open('.cbtn')
+    down(t.query('.cin'))
+    await step()
+    expect([t.state.p.open, t.state.c.open]).toEqual([true, true])
+    down(t.query('.inside'))
+    await step()
+    expect([t.state.p.open, t.state.c.open]).toEqual([true, false])
+    await open('.cbtn')
+    down(t.query('.outside'))
+    await step()
+    expect([t.state.p.open, t.state.c.open]).toEqual([false, false])
+  })
+
+  it('without the open option it stays on the browser\'s light dismiss (no DISMISS, popover="auto")', async () => {
+    function U({ state }) {
+      return h('div', null,
+        h('button', { className: 'btn', attrs: { popovertarget: 'uu' } }, 'Open'),
+        h('button', { className: 'outside' }, 'Out'),
+        h('div', { className: 'p', id: 'uu', attrs: { popover: 'auto' } }, 'x'),
+        h('p', null, String(state.p.open)))
+    }
+    U.uses = { p: popover({ popover: '.p' }) }
+    t = renderComponent(U, { dom: 'real' })
+    await t.ready()
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    t.query('.btn').dispatchEvent(click)
+    down(t.query('.outside'))
+    esc()
+    await step()
+    expect(click.defaultPrevented).toBe(false)
+    expect(types()).toEqual(['INITIALIZE'])
+    expect(t.query('.p').getAttribute('popover')).toBe('auto')
+  })
+})
+
+describe('controlled dialog: dismissed through the state (round 3)', () => {
+  const dlgHost = (opts = {}, extra = {}, attrs = {}, inner = false) => {
+    function D({ state }) {
+      return h('div', null,
+        h('button', { className: 'open' }, 'Open'),
+        h('button', { className: 'outside' }, 'Out'),
+        h('dialog', { className: 'd', attrs, 'aria-label': 'D' },
+          h('button', { className: 'in' }, 'In'),
+          inner && h('button', { className: 'pbtn', attrs: { popovertarget: 'dp' } }, 'Menu'),
+          inner && h('div', { className: 'p', id: 'dp', attrs: { popover: 'auto' } }, h('button', { className: 'pin' }, 'x'))),
+        h('p', null, String(state.d.open)))
+    }
+    D.uses = { d: dialog({ dialog: '.d', trigger: '.open', ...opts }), ...(inner && { p: popover({ popover: '.p', open: false }) }) }
+    D.model = { ...extra }
+    return D
+  }
+  const types = () => t.actions.map((a) => a.type)
+  const step = async () => { await t.settle(); await tick() }
+  const esc = (el) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }))
+  const down = (el, x = 0) => el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: x, clientY: x }))
+
+  it('Escape comes from the layer stack as CANCEL; closedby="none" while open, the host\'s back after', async () => {
+    t = renderComponent(dlgHost({ open: false }, {}, { closedby: 'closerequest' }), { dom: 'real' })
+    await t.ready()
+    t.query('.open').click()
+    await step()
+    expect(t.query('.d').open).toBe(true)
+    expect(t.query('.d').getAttribute('closedby')).toBe('none')
+    // (closerequest: a press outside is not a dismiss)
+    down(t.query('.d'), 5)
+    await step()
+    expect(t.state.d.open).toBe(true)
+    esc(t.query('.in'))
+    await step()
+    expect(types().filter((a) => a == 'd.CANCEL')).toHaveLength(1)
+    expect(t.query('.d').open).toBe(false)
+    expect(t.query('.d').getAttribute('closedby')).toBe('closerequest')
+  })
+
+  it('closedby="any": a press on the backdrop (outside its box) is a CANCEL; a refused one leaves it open, never closed', async () => {
+    t = renderComponent(dlgHost({ open: false }, { 'd.CANCEL': (s, _e, _n, { previousState }) => previousState }, { closedby: 'any' }), { dom: 'real' })
+    await t.ready()
+    t.query('.open').click()
+    await step()
+    let closes = 0
+    t.query('.d').addEventListener('close', () => closes++)
+    down(t.query('.d'), 5)
+    await step()
+    esc(t.query('.in'))
+    await step()
+    expect(types().filter((a) => a == 'd.CANCEL')).toHaveLength(2)
+    expect([t.state.d.open, t.query('.d').open, closes]).toEqual([true, true, 0])
+  })
+
+  it('a controlled popover inside an uncontrolled dialog takes the first Escape and the press on the dialog', async () => {
+    t = renderComponent(dlgHost({}, {}, {}, true), { dom: 'real' })
+    await t.ready()
+    t.query('.open').click()
+    await step()
+    t.query('.pbtn').click()
+    await step()
+    expect([t.state.d.open, t.state.p.open]).toEqual([true, true])
+    esc(t.query('.pin'))
+    await step()
+    expect([t.state.d.open, t.state.p.open]).toEqual([true, false])
+    expect(types()).not.toContain('d.CANCEL')
+    t.query('.pbtn').click()
+    await step()
+    down(t.query('.in'), 5)
+    await step()
+    expect([t.state.d.open, t.state.p.open]).toEqual([true, false])
+    esc(t.query('.in'))
+    await step()
+    expect(t.state.d.open).toBe(false)
+  })
+})

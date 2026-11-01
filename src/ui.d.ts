@@ -32,10 +32,14 @@ export interface DialogOptions {
    * leave it to the browser.
    */
   returnFocus?: boolean | BehaviorTarget
-  /** Open at the start (default false; Radix's defaultOpen) */
+  /**
+   * Open at the start (default false). Given at all, even false: controlled (Radix's `open`): the
+   * dialog keeps closedby="none" and the behavior dismisses it (Escape; with closedby="any" also a
+   * press or a focus outside) as CANCEL, top layer first, so a refused CANCEL never closes it
+   */
   open?: boolean
 }
-export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean; /** The slice's `open` changed outside the behavior's entries: the dialog is made to match it */ APPLY: boolean }
+export interface DialogActions { OPEN: any; CLOSE: string | undefined; CLOSED: string; TOGGLED: boolean; /** Escape, a light dismiss, request-close (controlled: the keydown / pointerdown / focusin) */ CANCEL: Event; /** false: the dialog left the page while open; true: OPEN's showModal() threw */ SYNC: boolean; /** The slice's `open` changed outside the behavior's entries: the dialog is made to match it */ APPLY: boolean }
 /**
  * A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`
  * gives `state.help = { open, returnValue }` and 'help.OPEN' / 'help.CLOSE' (data: the returnValue) /
@@ -51,10 +55,14 @@ export interface PopoverOptions {
   popover: BehaviorTarget
   /** A button inside: its clicks dispatch CLOSE */
   close?: BehaviorTarget
-  /** Open at the start (default false) */
+  /**
+   * Open at the start (default false). Given at all, even false: controlled (Radix's `open`): a
+   * manual popover the browser never dismisses; Escape, a press and a focus outside come as
+   * DISMISS (top layer first), its popovertarget buttons as TOGGLE / OPEN / CLOSE
+   */
   open?: boolean
 }
-export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; SYNC: false; APPLY: boolean }
+export interface PopoverActions { OPEN: any; CLOSE: any; TOGGLE: any; TOGGLED: boolean; /** Controlled only: Escape, a press or a focus outside (the keydown / pointerdown / focusin) */ DISMISS: Event; SYNC: false; APPLY: boolean }
 /**
  * A popover (Popover API) as a behavior: `uses = { filters: popover({ popover: '.filters' }) }`, opened by a
  * `popovertarget` button or 'filters.OPEN' / 'filters.TOGGLE'; `state.filters.open` follows its toggle event.

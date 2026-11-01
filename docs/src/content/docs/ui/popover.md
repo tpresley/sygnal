@@ -35,7 +35,7 @@ Filters.model = { ONLY_OPEN: (state, onlyOpen) => ({ ...state, onlyOpen }) }
 |---|---|---|
 | `popover` | (required) | The popover element: a selector or a [control](/guide/controls/) |
 | `close` | | A button inside: its clicks close the popover |
-| `open` | `false` | Open at the start |
+| `open` | | Open at the start. Given at all, even `open: false`, it makes the popover controlled (see [Controlled dismissal](#controlled-dismissal)) |
 
 There is no `trigger` option: open it with a `popovertarget` button. A button that toggled an `auto` popover through the model would open it again right after closing it, because the press outside the popover light-dismisses it first; the browser exempts `popovertarget` buttons from that.
 
@@ -49,22 +49,45 @@ There is no `trigger` option: open it with a `popovertarget` button. A button th
 | `filters.CLOSE` | | Sets `open: false` and hides it (`hidePopover`) |
 | `filters.TOGGLE` | | Flips `open` and shows or hides it |
 | `filters.TOGGLED` | `true` / `false` | The `toggle` event (a `popovertarget` button, a light dismiss, Escape): sets `open` |
+| `filters.DISMISS` | the event | Controlled only: Escape, a press outside, the focus moving outside (the `keydown`, `pointerdown` or `focusin` event): sets `open: false` and hides it |
 | `filters.SYNC` | `false` | The popover left the page while open (a page change, a conditional render): sets `open: false`, as no `toggle` event comes |
 
 | `filters.APPLY` | `true` / `false` | `open` changed outside these actions (your reducer wrote it): the popover is shown or hidden to match |
 
 The commands check the popover itself (`:popover-open`): `OPEN` then `CLOSE` in one go leaves it closed, and `showPopover()` is never called on an open popover.
 
-A host entry for `filters.TOGGLED` that keeps `open: true` after a light dismiss shows the popover again (the browser closes an `auto` popover before any event can stop it, so it may disappear for a frame); `'filters.TOGGLED': (state, open) => (state.pinned && !open ? { ...state, filters: { open: true } } : state)`. The popover works inside a [`<Portal>`](/advanced/portals/) too.
+The popover works inside a [`<Portal>`](/advanced/portals/) too.
+
+## Controlled dismissal
+
+Without the `open` option the browser light-dismisses an `auto` popover, and the `toggle` event tells the state afterwards. A host entry for `filters.TOGGLED` that keeps `open: true` shows it again, but the browser has already hidden it, so it can disappear for a frame.
+
+To decide before anything is hidden, pass the `open` option, even `open: false`. The popover is then controlled, as Radix's `open` / `onOpenChange` is:
+
+- It is a `manual` popover (the behavior sets `popover="manual"` before it shows it), so the browser never dismisses it.
+- The behavior dismisses it itself, as Radix's `DismissableLayer` does: Escape, a press outside and the focus moving outside arrive as `filters.DISMISS`, with the event as the data. A press on its own `popovertarget` button isn't outside.
+- Its `popovertarget` buttons and `commandfor` commands go through the model too: the behavior prevents the browser's own toggle and dispatches `TOGGLE`, `OPEN` or `CLOSE` (from `popovertargetaction`).
+
+A host entry that keeps `open: true` keeps it shown, with no frame where it is hidden:
+
+```jsx
+Filters.uses = { filters: popover({ popover: '.filters', close: '.filters-done', open: false }) }
+Filters.model = {
+  // pinned: Escape and a click elsewhere leave it open
+  'filters.DISMISS': (state, event, next, { previousState }) => (state.pinned ? previousState : state),
+}
+```
+
+Controlled popovers and [dialogs](/ui/dialog/#controlled-dismissal) stack as layers. Escape dismisses the top layer only (not while an `auto` popover inside it is open, which the browser closes first), and an Escape that an element inside handled (`preventDefault()`) dismisses nothing. A press on a parent layer outside a child dismisses the child only, and a press outside both dismisses both. A layer opened in another one counts as inside it, also when it renders through a `<Portal>`. Under a modal dialog, presses can't reach the page, so the layers under it aren't dismissed by them.
 
 Open it from somewhere else, for example a keyboard shortcut, with an intent action of the same name: `'filters.OPEN': DOM.keydown('document').filter((e) => e.key === 'f' && e.altKey)`.
 
 ## `auto` or `manual`
 
 - `popover="auto"` (or just `popover`): light dismiss, and opening one closes the other `auto` popovers that aren't its ancestors. Menus, pickers and filter panels.
-- `popover="manual"`: only your code and its `popovertarget` button close it. Use it for something that stays open, such as a [tooltip](/ui/tooltip/) or [toasts](/ui/toaster/).
+- `popover="manual"`: only your code and its `popovertarget` button close it. Use it for something that stays open, such as a [tooltip](/ui/tooltip/) or [toasts](/ui/toaster/). A [controlled](#controlled-dismissal) popover is a manual one with the dismissal done by the behavior.
 
-A popover inside a modal [dialog](/ui/dialog/) works: it opens above the dialog, the first Escape closes the popover and the second the dialog.
+A popover inside a modal [dialog](/ui/dialog/) works: it opens above the dialog, the first Escape closes the popover and the second the dialog (controlled or not).
 
 ## Accessibility
 

@@ -341,3 +341,115 @@ rule `rules/syg116-event-returned.js`: a non-STATE sink entry that is a function
 SYG118, and a pager fixture that overrides `pager.NEXT` while passing `next` now expects SYG118);
 `node scripts/gen-error-docs.mjs --check` OK; `node scripts/check-doc-samples.mjs` 976 clean;
 `npm --prefix docs run build` OK; `node docs/scripts/check-live.mjs` on chromium, firefox and webkit OK.
+
+## Round 3: controlled parts dismiss through the state
+
+The maintainer approved open question 2 of round 2: a controlled popover must never flicker when
+the host refuses a dismiss (match Radix). Merged `claude/advanced-integration` (60cd4b5f) first.
+
+### What changed
+
+- **Controlled = the `open` option given** (even `open: false`), as Radix's `open` prop. Without
+  it the parts keep the round-2 behaviour (the slice is still the source of truth for writes;
+  only dismissal differs).
+- **`src/ui/layers.ts`, a dismissable-layer stack** (Radix `DismissableLayer`), one per page
+  (`Symbol.for('sygnal.layers')` on `globalThis`, so every copy of `sygnal/ui` shares it):
+  - Escape (a document keydown, bubble phase, so an element that handles it with
+    `preventDefault()`, a Zag menu say, wins): the top layer only; not while an auto / hint popover
+    inside it is open (the browser closes that first, G-579); not an IME Escape.
+  - pointerdown outside (capture): every controlled layer the target is outside of, top first.
+    "Inside" is logical: in its DOM, in a shadow root in it, or in a `<Portal>` rendered in it (the
+    placeholder's `__portal` link from round 2, walked backwards), so a child layer counts as inside
+    its parent, as Radix's React-tree containment does. A press on a layer's own
+    `popovertarget` / `commandfor` button (or the dialog's `trigger`) isn't outside (Radix exempts
+    the trigger). A modal dialog's backdrop (a press on the dialog outside its box) is outside.
+    Layers under the top modal dialog get none (Radix's `disableOutsidePointerEvents` floor).
+    Touch: dismissed at the click after the pointerdown (Radix), so a scroll gesture doesn't.
+  - focusin outside (capture): as pointerdown, without the modal floor (Radix's `onFocusOutside`).
+  - Each dismissal is a `sygnaldismiss` event on the layer's element (detail: the original event);
+    the behavior's intent turns it into its close request.
+- **Popover, controlled**: the behavior sets `popover="manual"` before it shows it (so the browser
+  never light-dismisses it, whatever the markup says) and puts it on the stack. New action
+  `DISMISS` (data: the keydown / pointerdown / focusin event) with the same entries as `CLOSE`, so a
+  host entry returning `previousState` keeps it shown and no hide command is ever sent. Its
+  `popovertarget` buttons and `commandfor` show / hide / toggle commands are prevented and dispatched
+  as `TOGGLE` / `OPEN` / `CLOSE` (otherwise the browser's invoker would hide a manual popover behind
+  the state's back). The hide command takes it off the stack at once (its toggle event comes later).
+- **Dialog, controlled**: `closedby="none"` while open even when the host set `closedby` (the
+  host's value comes back on close); the host's value says what the stack dismisses it on (none
+  given: Escape for a modal, nothing for a non-modal; `closerequest`: Escape; `any`: Escape, a
+  press on the backdrop, focus outside; `none`: nothing), each as `CANCEL` with the event as the
+  data. Its own keydown `CANCEL` is off (the stack's Escape replaces it).
+- **Every behavior-opened dialog is a layer** (uncontrolled ones with `ctl: false`), so the stack
+  knows what is on top: a controlled popover under an uncontrolled modal doesn't take Escape, and
+  presses don't reach it. An uncontrolled dialog keeps its own Escape, skipped while a layer
+  opened inside it is open (`covered()`), so a controlled popover in an uncontrolled dialog closes
+  first.
+- Types (`DISMISS`, the `open` doc comments), sygnal-check's first-party table (popover `DISMISS`),
+  docs (ui/popover "Controlled dismissal", ui/dialog "Controlled dismissal" with the `closedby`
+  table, ui/overview), `llms/ui.md` (+ copies).
+
+### Why uncontrolled popovers stay on the native light dismiss
+
+As asked, kept. The reasons the two paths differ rather than match: the native `auto` path gives,
+with no script, one auto popover at a time (opening one closes the others that aren't its
+ancestors), `hint` popovers, the browser's own Escape ordering and the exemption for
+`popovertarget` buttons; an app that never refuses a dismiss loses nothing by keeping them. Moving
+everything to manual would change existing apps' behaviour (a programmatic `OPEN` of a second
+popover would no longer close the first) for a benefit only hosts that refuse get. The cost of the
+split is one more rule to learn ("give `open` to refuse without a flicker"), which the docs state
+next to the `TOGGLED` refusal pattern.
+
+### Tests
+
+- `test/ui-native-sweep.test.js` (jsdom, `dom: 'real'`): 10 new. Popover: `popovertarget`
+  prevented → `TOGGLE`, `popover="manual"`; press outside / Escape → `DISMISS` with the event; a
+  press inside or on its button isn't; a refused press / Escape / focus outside → no hide command
+  and no closing toggle; a handled Escape isn't a dismiss; touch press waits for the click; nested
+  popovers (Escape and a press on the parent close only the child, a press outside both closes
+  both); an uncontrolled popover is untouched. Dialog: Escape from the stack as `CANCEL`, closedby
+  none while open and the host's back after, `closerequest` ignores presses; `any` + a refused
+  backdrop press and Escape → no close event; a controlled popover in an uncontrolled dialog takes
+  the first Escape and the press on the dialog. 8 of the 9 written before the touch case fail on the round-2 sources (the
+  uncontrolled one passes there, as it should).
+- `browser-tests/src/tests/ui-sweep-native.jsx`, chromium / firefox / webkit, real input:
+  - a pinned controlled popover across a real Escape, a real click outside and a focus outside:
+    `:popover-open` checked every animation frame and `beforetoggle` / `toggle` recorded → 0 hidden
+    frames, no closing event; unpinned, a click outside closes it; its button toggles it.
+  - a controlled popover in a controlled modal dialog: Escape, a click on the dialog and a focus on
+    the dialog close the popover only; the next Escape closes the dialog.
+  - Against the round-2 sources the frame check reports "hidden in 20 of 21 frames,
+    beforetoggle:closed toggle:closed" (chromium, webkit).
+
+### Size (round 3)
+
+- Core: unchanged (no `src/core` / core-bundle file touched; `layers.ts` is in `sygnal/ui`).
+  Size gate in the gate section.
+- `sygnal/ui` (esbuild, minified + gzip, the core external): dialog 2,232 → 3,039 B, popover 1,295 →
+  2,392 B; dialog + popover + tooltip together 3,097 → 4,202 B (+1,105 B, the layer stack once).
+
+### Open questions (round 3)
+
+1. Focus outside has no modal floor (Radix): a modal dialog that is *not* rendered inside a
+   controlled popover, opened from a button in it, moves the focus out and dismisses the popover
+   (a host can refuse, or render the dialog inside the popover / in a portal from it). OK?
+2. A host's own (non-`popovertarget`) button that toggles a controlled popover through the model:
+   its press is outside, so `DISMISS` closes it and the click's `TOGGLE` opens it again. Radix
+   exempts only its own trigger; a `trigger` option for `popover()` (exempt + `TOGGLE`) would fix
+   it. Add?
+3. A press and the focus it moves both dispatch a dismissal (Radix calls `onPointerDownOutside`
+   and `onFocusOutside` too), so a refusing entry runs twice; harmless for the `previousState`
+   pattern. Dedupe?
+4. A Zag menu / select inside a controlled popover but positioned through a portal outside it
+   isn't on this stack (Zag has its own dismissable layer), so a press inside that menu counts as
+   outside the popover. Zag positions inside its host by default; a shared stack is possible later.
+
+### Gate (round 3)
+
+2026-10-31, this branch: `npm run build` OK; `npm test` OK (vitest 527 files / 5,781 tests;
+examples; types; the Chromium browser suite 421/421; perf gate); the UI browser suites on firefox
+and webkit (`uiSweepNative` 16, `uiTestsP5U` 37, `uiZag` 17) all passed; `node
+scripts/size-gate.mjs` OK (**42,734 B, 266 B headroom: core unchanged**); `npm --prefix
+sygnal-check test` OK (1,860, plain and per-file); `node scripts/gen-error-docs.mjs --check` OK;
+`node scripts/check-doc-samples.mjs` 980 clean; `npm --prefix docs run build` OK; `node
+docs/scripts/check-live.mjs` on chromium, firefox and webkit OK (130 demos each).

@@ -19,6 +19,7 @@ const css = () => {
     .ui-sweep dialog, .ui-sweep [popover] { margin: auto; padding: 12px; }
     .ui-sweep .tip { inset: auto; margin: 0 0 6px 0; position-area: top; padding: 2px 6px; border: 1px solid; }
     .ui-sweep .bar { padding: 60px 0 0 200px; }
+    .ui-sweep .cp, .ui-sweep .ly-p { inset: auto 12px 12px auto; margin: 0; }
   `
   document.head.appendChild(style)
 }
@@ -251,7 +252,117 @@ Portaled.uses = {
   t: tooltip({ trigger: '.pt-tt', tip: '.tip', showDelay: 100 }),
 }
 
+// ── round 3: controlled parts dismiss through the state ──────────────
+function Pinned({ state, uid }) {
+  return (
+    <div>
+      <button className="cp-btn" popovertarget={uid('cp')}>Pick</button>
+      <button className="cp-pin">Pin</button>
+      <button className="cp-out" data-name="cp-out">Elsewhere</button>
+      <div className="cp" id={uid('cp')} popover="auto" aria-label="Choices"><button className="cp-in" data-name="cp-in">Choice</button></div>
+      <p className="out">{String(state.cp.open)}|{String(state.pinned)}</p>
+    </div>
+  )
+}
+Pinned.initialState = { pinned: false }
+Pinned.uses = { cp: popover({ popover: '.cp', open: false }) }
+Pinned.intent = ({ DOM }) => ({ PIN: DOM.click('.cp-pin') })
+Pinned.model = {
+  PIN: (s) => ({ ...s, pinned: !s.pinned }),
+  // pinned: Escape, a press and a focus outside are refused (Radix: onOpenChange(false) ignored)
+  'cp.DISMISS': (s, _e, _n, { previousState }) => (s.pinned ? previousState : s),
+}
+
+function Layered({ state, uid }) {
+  return (
+    <div>
+      <button className="ly-open">Edit</button>
+      <dialog className="ly-d" aria-label="Edit">
+        <button className="ly-menu" popovertarget={uid('ly-p')}>More</button>
+        <button className="ly-other" data-name="ly-other">Other</button>
+        <div className="ly-p" id={uid('ly-p')} popover="auto" aria-label="More"><button className="ly-item" data-name="ly-item">Item</button></div>
+      </dialog>
+      <p className="out">{String(state.d.open)}|{String(state.p.open)}</p>
+    </div>
+  )
+}
+Layered.uses = { d: dialog({ dialog: '.ly-d', trigger: '.ly-open', open: false }), p: popover({ popover: '.ly-p', open: false }) }
+
+// every animation frame and every toggle of `el` while `fn` runs: the frames it was hidden in, its
+// beforetoggle / toggle events (a hide sends beforetoggle:closed synchronously)
+async function watchFrames(el, fn) {
+  const r = { frames: 0, hidden: 0, events: [] }
+  let on = true
+  const f = () => { if (!on) return; r.frames++; el.matches(':popover-open') || r.hidden++; requestAnimationFrame(f) }
+  const ev = (e) => r.events.push(`${e.type}:${e.newState}`)
+  requestAnimationFrame(f)
+  el.addEventListener('beforetoggle', ev)
+  el.addEventListener('toggle', ev)
+  try { await fn() } finally { await wait(100); on = false; el.removeEventListener('beforetoggle', ev); el.removeEventListener('toggle', ev) }
+  return r
+}
+
 export async function uiSweepNativeTests() {
+
+  // ── round 3 ─────────────────────────────────────────────────────────
+  await runTest('Round 3 controlled popover: a refused Escape, press outside and focus outside never hide it (no frame, no toggle)', async () => {
+    const { id, app, $ } = await mount(Pinned)
+    const shown = () => $('.cp').matches(':popover-open')
+    try {
+      await window.__pw('click', `${id} .cp-pin`)
+      await window.__pw('click', `${id} .cp-btn`)
+      await until(() => shown() && $('.out').textContent === 'true|true', () => `${shown()} ${$('.out').textContent}`)
+      assert($('.cp').getAttribute('popover') === 'manual', `popover=${$('.cp').getAttribute('popover')}`)
+      // (the open's own toggle event is asynchronous)
+      await wait(60)
+      const r = await watchFrames($('.cp'), async () => {
+        await window.__pw('focus', `${id} .cp-in`)
+        await key('Escape')
+        await wait(60)
+        await window.__pw('click', `${id} .cp-out`)
+        await wait(60)
+        await window.__pw('focus', `${id} .cp-out`)
+        await wait(60)
+      })
+      assert(r.frames > 3 && r.hidden === 0 && !r.events.some((e) => e.endsWith(':closed')), `hidden in ${r.hidden} of ${r.frames} frames, events ${r.events.join(' ')}`)
+      assert($('.out').textContent === 'true|true', $('.out').textContent)
+      // unpinned: a press outside closes it (the press on Pin is outside too: refused, then unpinned)
+      await window.__pw('click', `${id} .cp-pin`)
+      await until(() => shown() && $('.out').textContent === 'true|false', () => $('.out').textContent)
+      await window.__pw('click', `${id} .cp-out`)
+      await until(() => !shown() && $('.out').textContent === 'false|false', () => `${shown()} ${$('.out').textContent}`)
+      // its button toggles it through the model (the press on it isn't outside)
+      await window.__pw('click', `${id} .cp-btn`)
+      await until(() => shown(), 'open')
+      await window.__pw('click', `${id} .cp-btn`)
+      await until(() => !shown() && $('.out').textContent === 'false|false', () => `${shown()} ${$('.out').textContent}`)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 3 layers: a controlled popover in a controlled dialog: Escape, a press and a focus on the dialog close the popover only', async () => {
+    const { id, app, $ } = await mount(Layered)
+    const shown = () => $('.ly-p').matches(':popover-open')
+    try {
+      await window.__pw('click', `${id} .ly-open`)
+      await until(() => $('.ly-d').open, 'dialog open')
+      await window.__pw('click', `${id} .ly-menu`)
+      await until(() => shown() && $('.out').textContent === 'true|true', () => $('.out').textContent)
+      await window.__pw('focus', `${id} .ly-item`)
+      await key('Escape')
+      await until(() => !shown() && $('.out').textContent === 'true|false', () => `${shown()} ${$('.out').textContent}`)
+      assert($('.ly-d').open, 'the first Escape closed the dialog')
+      await window.__pw('click', `${id} .ly-menu`)
+      await until(() => shown(), 'popover again')
+      await window.__pw('click', `${id} .ly-other`)
+      await until(() => !shown() && $('.out').textContent === 'true|false', () => `${shown()} ${$('.out').textContent}`)
+      await window.__pw('click', `${id} .ly-menu`)
+      await until(() => shown(), 'popover again')
+      await window.__pw('focus', `${id} .ly-other`)
+      await until(() => !shown() && $('.out').textContent === 'true|false', () => `${shown()} ${$('.out').textContent}`)
+      await key('Escape')
+      await until(() => !$('.ly-d').open && $('.out').textContent === 'false|false', () => `${$('.ly-d').open} ${$('.out').textContent}`)
+    } finally { app.dispose() }
+  })
 
   // ── round 2 ─────────────────────────────────────────────────────────
   await runTest('R2 dialog: a reducer writing open opens and closes it; Escape closes through the state, focus back on the opener', async () => {
