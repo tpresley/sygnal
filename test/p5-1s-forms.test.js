@@ -314,6 +314,33 @@ describe('G-376: field types', () => {
     expect(t.query('.tag-c').checked).toBe(true)
   })
 
+  it('7.2: a group keeps document order (FormData\'s, processForm\'s), whatever order the boxes are checked in', async () => {
+    t = renderComponent(C, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.tag-c', 'input', { checked: true }); await t.settle()
+    t.simulateEvent('.tag-b', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.tags).toEqual(['a', 'b', 'c'])
+    t.simulateEvent('.tag-a', 'input', { checked: false }); await t.settle()
+    t.simulateEvent('.tag-a', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.tags).toEqual(['a', 'b', 'c'])
+    expect([...new FormData(t.query('form')).getAll('tags')]).toEqual(['a', 'b', 'c'])
+  })
+
+  it('7.2: a value no rendered box has keeps its place; an app\'s own CHANGE without `order` appends', async () => {
+    function D({ state }) {
+      const v = state.form.values
+      return h('form', { className: 'f' }, ...['b', 'c'].map(x => h('input', { type: 'checkbox', name: 'tags', value: x, className: 'tag-' + x, checked: v.tags.includes(x) })))
+    }
+    D.uses = { form: form(sync(), { values: { tags: ['z', 'c'] }, submit: 'SAVE' }) }
+    D.model = { SAVE: { EFFECT: () => {} } }
+    t = renderComponent(D, { dom: 'real' })
+    await t.ready()
+    t.simulateEvent('.tag-b', 'input', { checked: true }); await t.settle()
+    expect(t.state.form.values.tags).toEqual(['z', 'b', 'c'])
+    await t.simulateAction('form.CHANGE', { name: 'tags', value: true, item: 'a' })
+    expect(t.state.form.values.tags).toEqual(['z', 'b', 'c', 'a'])
+  })
+
   it('a single checkbox on a boolean value: checked', async () => {
     t = renderComponent(C, { dom: 'real' })
     await t.ready()

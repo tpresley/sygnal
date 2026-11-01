@@ -47,8 +47,9 @@
  * dirty, pending }; `error` is what to show), valid (G-382: the last answer's, kept while an async
  * schema re-validates), dirty, error (form-level message).
  *
- * Actions: form.CHANGE ({ name, value, item? }: G-376: a checkbox gives `checked`, and `item`, its
- * value, which toggles membership when the field is an array; <select multiple> an array of the
+ * Actions: form.CHANGE ({ name, value, item?, order? }: G-376: a checkbox gives `checked`, and `item`, its
+ * value, which toggles membership when the field is an array (7.2: kept in document order, `order`
+ * being the group's values as rendered); <select multiple> an array of the
  * selected values; PLAN-11 F-2: a file input its File, `multiple` an array of them, none null),
  * form.SET ({ values }: G-647, field name -> value, several
  * fields changed at once as if typed: one validation, `touched` as for CHANGE, unknown names
@@ -106,9 +107,14 @@ const drop = (o: any, p: string) => {
 // custom checkbox / switch) gives `checked` and its value as `item`; a <select multiple> the
 // selected values; PLAN-11 F-2: a file input its File (`multiple`: an array of them; none: null);
 // others give `value`
+const box = (t: any) => t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean'
+// 7.2: a checkbox's `order` is its group's values in document order (its form's controls, so
+// form="id" ones too; a host form's descendants), so an array field keeps FormData's order
+const order = (t: any) => [...(t.form?.elements || t.closest?.('form')?.querySelectorAll?.('*') || [t])]
+  .filter((b: any) => b.name == t.name && box(b)).map((b: any) => b.value)
 const native = (t: any) =>
   t.type == 'file' ? {name: t.name, value: t.multiple || t.getAttribute?.('multiple') != null ? [...(t.files || [])] : t.files?.[0] ?? null, file: true}
-  : t.type == 'checkbox' || /-/.test(t.tagName) && typeof t.checked == 'boolean' ? {name: t.name, value: t.checked, item: t.value}
+  : box(t) ? {name: t.name, value: t.checked, item: t.value, order: order(t)}
   : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}
 
 export const form = (schema: any, o: any = {}): any => {
@@ -170,10 +176,16 @@ export const form = (schema: any, o: any = {}): any => {
   // a start over (RESET, resetOnShow): `resets` counts them, so a file input keyed by it is made anew
   const fresh = (vals: any, s?: any) => edit(base(vals, s ? (s.resets || 0) + 1 : 0), vals)
   const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}, progress: null})
+  // 7.2: the group's values in document order (`order`, from the DOM), as FormData and
+  // processForm; values no rendered box has (a filtered list) keep their places
   const group = (cur: any, d: any) => {
     if (!Array.isArray(cur) || !('item' in d)) return d.value
-    const r = cur.filter(x => x !== d.item)
-    return d.value ? [...r, d.item] : r
+    const r = cur.filter(x => x !== d.item), a = d.value ? [...r, d.item] : r, o = d.order
+    if (!Array.isArray(o)) return a
+    const at = (x: any) => o.indexOf(x), slots = a.map((x, i) => at(x) < 0 ? -1 : i).filter(i => i >= 0)
+    const sorted = slots.map(i => a[i]).sort((x, y) => at(x) - at(y))
+    slots.forEach((i, j) => { a[i] = sorted[j] })
+    return a
   }
 
   // fields changed as typed ones ([name, value] pairs; unknown names skipped, SYG230): their

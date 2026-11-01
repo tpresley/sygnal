@@ -1162,8 +1162,8 @@ export type FormServerErrors =
   | { status?: number; body?: any; error?: any; request?: any }
 
 export interface FormActions<V = any> {
-  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed); a file input its File (`multiple`: File[]; none: null) */
-  CHANGE: { name: string; value: any; item?: any; file?: boolean };
+  /** A field changed (the form element's input events): `{ name, value }`; a checkbox gives `checked` as `value` and its own value as `item` (on an array field: added or removed, kept in document order: 7.2) and as `order` its group's values as rendered; a file input its File (`multiple`: File[]; none: null) */
+  CHANGE: { name: string; value: any; item?: any; order?: ReadonlyArray<string>; file?: boolean };
   /**
    * Several fields at once, by field name (`{ values: { name: 'Dana', 'addresses.7.city': 'Hilo' } }`),
    * as if typed: one validation, `touched` as for CHANGE, their server errors and check results
