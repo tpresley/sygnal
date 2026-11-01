@@ -140,7 +140,8 @@ export class HostSource {
     const out = xs.create({
       start: (l: any) => {
         // recordDelivery: the core's onDispatch hook sees the event an action was queued from
-        const deliver = (e: HostEvent, el: HostElement) => { e.currentTarget = el; recordDelivery(e, () => l.next(e)) }
+        // (ownerTarget: the matched element, as the DOM driver sets it; currentTarget moves on as the event bubbles)
+        const deliver = (e: HostEvent, el: HostElement) => { e.currentTarget = e.ownerTarget = el; recordDelivery(e, () => l.next(e)) }
         d = Object.assign((e: HostEvent) => {
           for (let el: HostElement | null = e.target; el; el = e.bubbles ? el.parentNode : null) {
             if (this.accepts(el)) { d.deliver!(e, el); return }

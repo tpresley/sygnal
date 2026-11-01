@@ -54,9 +54,12 @@ export class HostDocument {
   activeElement: HostElement | null
   /** called once per microtask after any change to the tree */
   onChange: (() => void) | null
-  /** the host driver's root delegates (they see every dispatched event first) */
+  /** the host driver's root delegates (they see a dispatched event after the capture listeners) */
   delegates: Set<HostDelegate>
-  defaultView: { Event: typeof HostEvent }
+  defaultView: { Event: typeof HostEvent, CustomEvent: typeof HostEvent }
+  /** document listeners: a connected element's events reach them (capture first, bubbling last) */
+  addEventListener(type: string, listener: HostListener, options?: boolean | { once?: boolean, capture?: boolean }): void
+  removeEventListener(type: string, listener: HostListener, options?: boolean | { capture?: boolean }): void
   createElement(tag: string): HostElement
   createTextNode(text: unknown): HostText
   getElementById(id: string): HostElement | null
@@ -180,10 +183,10 @@ export class HostElement extends HostNode {
   focus(): void
   blur(): void
   click(): void
-  /** `once` is honored; capture listeners run with the others (there is no capture phase) */
+  /** one registration per listener and capture flag; `once`; `capture` runs on the way down (dispatchEvent) */
   addEventListener(type: string, listener: HostListener, options?: boolean | { once?: boolean, capture?: boolean }): void
   removeEventListener(type: string, listener: HostListener, options?: boolean | { capture?: boolean }): void
-  /** root delegates, then the target and (bubbling) its ancestors; false when prevented */
+  /** capture listeners from the document down, the root delegates, the target's own (capture first), then bubbling up to the document; false when prevented */
   dispatchEvent(event: HostEvent | { type: string, bubbles?: boolean }): boolean
   /** a form's named, enabled fields (processForm reads it) */
   toFormData(): { entries(): IterableIterator<[string, string]>, get(name: string): string | null }

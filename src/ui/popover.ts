@@ -34,11 +34,17 @@
  * closed, and a popover removed while open opens again.
  */
 import {ABORT, defineBehavior, sampleCombine, xs} from '../index'
+import {docOf} from './dom'
 import {DISMISS, pull, push} from './layers'
 import {ev, find, gone, idsOf, keyed, on, watch} from './shared'
 
 // a popovertarget button's popover
-const tgt = (b: any) => b?.popoverTargetElement ?? document.getElementById(b?.getAttribute?.('popovertarget'))
+// (round 6: in the button's root, a shadow root's or a host tree's, else its document)
+const tgt = (b: any) => {
+  if (b?.popoverTargetElement !== undefined) return b.popoverTargetElement
+  const r = b?.getRootNode?.(), id = b?.getAttribute?.('popovertarget')
+  return id && (r?.getElementById ? r : docOf(b))?.getElementById(id)
+}
 const isOpen = (el: any) => { try { return el.matches(':popover-open') } catch (_) { return false } }
 // round 3: a controlled popover (its `open` option given) is a manual one on the layer stack: the
 // browser never dismisses it, an Escape / a press or a focus outside comes as DISMISS (layers.ts)

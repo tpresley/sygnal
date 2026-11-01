@@ -4,8 +4,8 @@
 // mouse, paste, the TERMINAL sink and runTerminal's restore.
 import { describe, it, expect, afterEach } from 'vitest'
 import { EventEmitter } from 'node:events'
-import { run, createElement as h, controls, makeTimerDriver } from 'sygnal'
-import { tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, popover, tooltip } from 'sygnal/ui'
+import { run, createElement as h, controls, makeTimerDriver, event } from 'sygnal'
+import { tabs, tabsAttrs, accordion, accordionAttrs, disclosure, disclosureAttrs, popover, popoverAttrs, tooltip, dialog, dialogAttrs, Toaster } from 'sygnal/ui'
 import { createTerminal, runTerminal, parseKeys, paint, stringWidth, hitTest } from 'sygnal/terminal'
 import { HostDocument, HostEvent, pressKey, paste, focusableElements, isInert } from 'sygnal/host'
 
@@ -417,6 +417,167 @@ describe('sygnal/terminal: the ui parts that work in a terminal', () => {
     term.press('Tab')
     await tick(20)
     expect(term.frame()).toBe('[Filters] ▸[Save]\nopen: falsSaves it') // the tooltip, on focus: under its trigger
+  })
+})
+
+// ui-sweep round 6 (F13): the parts read the element's own document, so they run on a host tree
+describe('sygnal/terminal: dialog, a controlled popover, tabs and the Toaster (ui-sweep round 6)', () => {
+  it('dialog: the trigger opens it modal (dialogAttrs), Escape closes it through CANCEL and the focus returns; the close button too', async () => {
+    function C({ state, uid }) {
+      const a = dialogAttrs(state.d, uid)
+      return h('div', null, h('button', { className: 'del', ...a.trigger }, 'Delete'),
+        h('dialog', { className: 'dl', ...a.dialog }, h('p', a.title, 'Sure?'), h('button', { className: 'no', ...a.close }, 'No')),
+        h('p', null, 'open: ' + state.d.open + ' ' + state.d.returnValue))
+    }
+    const { term } = runApp(C, { uses: { d: dialog({ dialog: '.dl', trigger: '.del', close: '.no' }) } })
+    await tick()
+    expect(term.frame()).toBe('[Delete]\nopen: false')
+    term.focus('.del')
+    term.press('Enter')
+    await tick()
+    expect(term.doc.topModal).toBe(term.doc.querySelector('.dl'))
+    expect(term.doc.querySelector('.del').getAttribute('aria-expanded')).toBe('true')
+    expect(term.frame()).toMatch(/open: true[\s\S]*│ Sure\? │[\s\S]*│ ▸\[No\] │/)
+    term.press('Escape')
+    await tick()
+    expect(term.frame()).toBe('▸[Delete]\nopen: false')
+    term.press('Enter')
+    await tick()
+    term.press('Enter') // the focused No button: CLOSE
+    await tick()
+    expect(term.frame()).toBe('▸[Delete]\nopen: false')
+    expect(term.doc.querySelector('.dl').open).toBe(false)
+  })
+
+  it('a refused CANCEL keeps a modal dialog open; a controlled one (the layer stack on the host document) too', async () => {
+    function C({ state }) {
+      return h('div', null, h('button', { className: 'a' }, 'A'), h('button', { className: 'b' }, 'B'),
+        h('dialog', { className: 'da' }, h('button', null, 'in A')), h('dialog', { className: 'db' }, h('button', null, 'in B')),
+        h('p', null, state.a.open + ' ' + state.b.open + ' ' + state.refused))
+    }
+    const keep = (s, e, n, { previousState }) => ({ ...previousState, refused: s.refused + 1 })
+    const { term } = runApp(C, {
+      initialState: { refused: 0 },
+      uses: { a: dialog({ dialog: '.da', trigger: '.a' }), b: dialog({ dialog: '.db', trigger: '.b', open: false }) },
+      model: { 'a.CANCEL': keep, 'b.CANCEL': keep },
+    })
+    await tick()
+    term.focus('.a'); term.press('Enter'); await tick()
+    term.press('Escape'); await tick()
+    expect(term.doc.querySelector('.da').open).toBe(true)
+    expect(term.frame()).toMatch(/true false 1/)
+    term.doc.querySelector('.da').close(); await tick()
+    term.focus('.b'); term.press('Enter'); await tick()
+    expect(term.doc.querySelector('.db').getAttribute('closedby')).toBe('none')
+    term.press('Escape'); await tick()
+    expect(term.doc.querySelector('.db').open).toBe(true)
+    expect(term.frame()).toMatch(/false true 2/)
+  })
+
+  it('a controlled popover with a trigger (popoverAttrs): the trigger toggles it, Escape is a DISMISS from the layer stack', async () => {
+    function P({ state, uid }) {
+      const a = popoverAttrs(state.p, uid)
+      return h('div', null, h('button', { className: 't', ...a.trigger }, 'Share'),
+        h('div', { className: 'pp', ...a.popover, popover: 'auto' }, h('button', null, 'Copy')), h('p', null, 'open: ' + state.p.open + ' ' + state.n))
+    }
+    const { term } = runApp(P, { initialState: { n: 0 }, uses: { p: popover({ popover: '.pp', trigger: '.t', open: false }) }, model: { 'p.DISMISS': (s) => ({ ...s, n: s.n + 1 }) } })
+    await tick()
+    term.focus('.t'); term.press('Enter'); await tick()
+    expect(term.doc.querySelector('.pp').getAttribute('popover')).toBe('manual')
+    expect(term.doc.popovers).toContain(term.doc.querySelector('.pp'))
+    expect(term.doc.querySelector('.t').getAttribute('aria-expanded')).toBe('true')
+    term.press('Escape'); await tick()
+    expect(term.doc.popovers).not.toContain(term.doc.querySelector('.pp'))
+    expect(term.frame()).toBe('▸[Share]\nopen: false 1')
+    term.press('Enter'); await tick()
+    term.press('Enter'); await tick() // the trigger again: closes it (TOGGLE false)
+    expect(term.frame()).toBe('▸[Share]\nopen: false 1')
+  })
+
+  it('tabs: ← / → select, the panel follows', async () => {
+    function T({ state, uid }) {
+      const a = tabsAttrs(state.t, uid)
+      return h('div', null, h('div', a.list, h('button', { className: 'tab', ...a.tab('one') }, 'One'), h('button', { className: 'tab', ...a.tab('two') }, 'Two')),
+        h('p', a.panel('one'), 'First'), h('p', a.panel('two'), 'Second'))
+    }
+    const { term } = runApp(T, { uses: { t: tabs({ tab: '.tab', selected: 'one' }) } })
+    await tick()
+    expect(term.frame()).toBe('[One] [Two]\nFirst')
+    term.focus('.tab')
+    term.press('ArrowRight')
+    await tick(20)
+    expect(term.frame()).toBe('[One] ▸[Two]\nSecond')
+  })
+
+  it('<Toaster />: a toast appears at the top right and times out; Dismiss removes one', async () => {
+    function T({ state }) { return h('div', null, h('button', { className: 's' }, 'Save'), h('button', { className: 'e' }, 'Fail'), h(Toaster)) }
+    const { term } = runApp(T, {
+      initialState: {},
+      intent: ({ DOM }) => ({ SAVE: DOM.click('.s'), FAIL: DOM.click('.e') }),
+      model: { SAVE: { EVENTS: event('TOAST', { text: 'Saved', timeoutMs: 60 }) }, FAIL: { EVENTS: event('TOAST', { text: 'Offline', kind: 'error', timeoutMs: 0 }) } },
+    })
+    await tick()
+    expect(term.frame()).toBe('[Save] [Fail]')
+    term.focus('.s'); term.press('Enter'); await tick(10)
+    expect(term.frame()).toMatch(/^▸\[Save\] \[Fail\] +Saved \[Dismiss\]$/)
+    await tick(500) // the timeout, then the leave transition (duration)
+    expect(term.frame()).toBe('▸[Save] [Fail]')
+    term.press('Tab'); term.press('Enter'); await tick(10)
+    expect(term.doc.querySelector('.toaster-alert .toast-text').textContent).toBe('Offline')
+    term.focus('.toast-dismiss'); term.press('Enter'); await tick(500)
+    expect(term.doc.querySelector('.toast')).toBe(null)
+    expect(term.frame()).toMatch(/^\[Save\] ▸?\[Fail\]$/)
+  })
+})
+
+describe('sygnal/host: document listeners and the capture phase (ui-sweep round 6)', () => {
+  it('capture listeners from the document down, the target (capture first), then bubbling up to the document', () => {
+    const doc = tree(['div', { id: 'a' }, ['button', { id: 'b' }, 'B']])
+    const a = doc.getElementById('a'), b = doc.getElementById('b'), out = []
+    const on = (n, name, capture) => n.addEventListener('click', () => out.push(name), capture)
+    on(doc, 'doc-bubble', false); on(doc, 'doc-capture', true); on(a, 'a-bubble'); on(a, 'a-capture', { capture: true })
+    on(b, 'b-bubble'); on(b, 'b-capture', true)
+    b.click()
+    expect(out).toEqual(['doc-capture', 'a-capture', 'b-capture', 'b-bubble', 'a-bubble', 'doc-bubble'])
+  })
+
+  it('one registration per listener and capture flag; removal by the flag; once; stopPropagation; a detached element\'s events don\'t reach the document', () => {
+    const doc = tree(['button', { id: 'b' }, 'B'])
+    const b = doc.getElementById('b'), out = []
+    const f = (e) => out.push(e.currentTarget === doc ? 'doc' : 'b')
+    doc.addEventListener('click', f); doc.addEventListener('click', f); doc.addEventListener('click', f, true)
+    b.click()
+    expect(out).toEqual(['doc', 'doc'])
+    doc.removeEventListener('click', f, true)
+    out.length = 0; b.click()
+    expect(out).toEqual(['doc'])
+    doc.removeEventListener('click', f)
+    doc.addEventListener('click', f, { once: true })
+    out.length = 0; b.click(); b.click()
+    expect(out).toEqual(['doc'])
+    const stop = (e) => e.stopPropagation()
+    b.addEventListener('click', stop); b.addEventListener('click', f)
+    doc.addEventListener('click', f)
+    out.length = 0; b.click()
+    expect(out).toEqual(['b'])
+    const loose = doc.createElement('button')
+    loose.click()
+    expect(out).toEqual(['b'])
+  })
+
+  it('defaultView.CustomEvent keeps detail; the host driver sets ownerTarget as the DOM driver does', async () => {
+    const doc = new HostDocument()
+    const e = new doc.defaultView.CustomEvent('x', { detail: 7, bubbles: true })
+    expect(e.detail).toBe(7)
+    const seen = []
+    function C() { return h('div', { className: 'w' }, h('span', { className: 'in' }, 'x')) }
+    C.intent = ({ DOM }) => ({ HIT: DOM.click('.w') })
+    C.model = { HIT: { EFFECT: (s, ev) => { seen.push(ev.ownerTarget?.className) } } }
+    const { term } = runApp(C, { initialState: {} })
+    await tick()
+    term.doc.querySelector('.in').click()
+    await tick()
+    expect(seen).toEqual(['w'])
   })
 })
 

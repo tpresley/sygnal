@@ -1,9 +1,10 @@
 // An issue tracker for the terminal: tabs, a filtered list longer than the screen with a detail
 // pane, a form with validation (text, textarea, checkboxes, radios, a native <select>), a modal
-// confirm, keyboard shortcuts, data from a (fake) server with a loading state, and a status bar.
+// confirm (sygnal/ui's dialog), toasts, keyboard shortcuts, data from a (fake) server with a
+// loading state, and a status bar.
 // The views are plain HTML, so the same components run in a browser too.
-import { ABORT, Collection, controls, focusWithin, form, keymap, xs } from 'sygnal'
-import { tabs, tabsAttrs, disclosure, disclosureAttrs } from 'sygnal/ui'
+import { ABORT, Collection, controls, event, focusWithin, form, keymap, xs } from 'sygnal'
+import { tabs, tabsAttrs, disclosure, disclosureAttrs, dialog, dialogAttrs, Toaster } from 'sygnal/ui'
 import { PEOPLE } from './api.js'
 
 export const { Query, Show, NewForm, Confirm } = controls({
@@ -120,6 +121,7 @@ export default function Tracker({ state, uid }) {
   const list = visible(state)
   const sel = state.issues.find((x) => x.id === state.selectedId)
   const more = disclosureAttrs(state.more, uid)
+  const ask = dialogAttrs(state.confirm, uid)
   return (
     <main className="tracker">
       <header className="title-bar">
@@ -155,7 +157,7 @@ export default function Tracker({ state, uid }) {
                 <pre {...more.panel}>{sel.body}</pre>,
                 <div className="actions">
                   <button className="toggle-closed">{sel.closed ? 'Reopen' : 'Close'}</button>
-                  <button className="delete">Delete</button>
+                  <button className="delete" {...ask.trigger}>Delete</button>
                 </div>,
               ] : <p className="empty">{list.length ? 'Select an issue (j / k).' : 'No issues match.'}</p>}
             </article>
@@ -177,8 +179,9 @@ export default function Tracker({ state, uid }) {
         </ul>
       </section>
 
-      <Confirm className="confirm" aria-label="Confirm">
-        <p>Delete #{state.confirmId}? This can't be undone.</p>
+      {/* (the terminal titles a box from aria-label, so the dialog keeps one instead of a title element) */}
+      <Confirm className="confirm" {...ask.dialog} role="alertdialog" aria-label="Confirm" aria-labelledby={undefined}>
+        <p {...ask.description}>Delete #{state.confirmId}? This can't be undone.</p>
         <button className="confirm-ok">Delete</button> <button className="confirm-cancel">Cancel</button>
       </Confirm>
 
@@ -188,6 +191,7 @@ export default function Tracker({ state, uid }) {
         <span className="message">{state.message}</span>
         <span className="hint">↑↓ issues · → detail · 3 help</span>
       </footer>
+      <Toaster />
     </main>
   )
 }
@@ -206,6 +210,8 @@ Tracker.initialState = {
 Tracker.uses = {
   view: tabs({ tab: '.tab', selected: 'issues' }),
   more: disclosure({ trigger: '.more-toggle' }),
+  // opened by ASK_DELETE (d, the Delete button); Cancel and Escape close it through the behavior
+  confirm: dialog({ dialog: Confirm, close: '.confirm-cancel' }),
 }
 Tracker.context = {
   selectedId: (state) => state.selectedId,
@@ -233,12 +239,10 @@ Tracker.intent = ({ DOM, CHILD }) => {
     TOGGLE_CLOSED: xs.merge(keys.TOGGLE_CLOSED, DOM.click('.toggle-closed')),
     ASK_DELETE: xs.merge(keys.ASK_DELETE, DOM.click('.delete')),
     DELETE: DOM.click('.confirm-ok'),
-    CANCEL_DELETE: xs.merge(DOM.click('.confirm-cancel'), DOM.close(Confirm)),
     CREATED: CHILD.select(IssueForm),
   }
 }
 
-const say = (state, message) => ({ ...state, message })
 const patch = (state, id, f) => ({ ...state, issues: state.issues.map((x) => (x.id === id ? f(x) : x)) })
 
 Tracker.model = {
@@ -279,21 +283,20 @@ Tracker.model = {
       return x ? { url: '/api/issues/' + x.id, method: 'PUT', json: { closed: x.closed }, ok: 'SAVED', error: 'FAILED' } : ABORT
     },
   },
-  SAVED: (state, issue) => say(state, `#${issue.id} ${issue.closed ? 'closed' : 'reopened'}`),
-  ASK_DELETE: {
-    STATE: (state) => (state.selectedId == null ? ABORT : { ...state, confirmId: state.selectedId }),
-    ELEMENT: (state) => (state.confirmId == null ? ABORT : { showModal: Confirm }),
-  },
+  SAVED: { EVENTS: event('TOAST', (state, issue) => ({ text: `#${issue.id} ${issue.closed ? 'closed' : 'reopened'}`, kind: 'success' })) },
+  // the slice's `open` drives the dialog: writing it opens it modal, and the focus goes back to
+  // where it was (the row or the Delete button) when it closes
+  ASK_DELETE: (state) => (state.selectedId == null ? ABORT : { ...state, confirmId: state.selectedId, confirm: { ...state.confirm, open: true } }),
   DELETE: {
-    STATE: (state) => ({ ...state, issues: state.issues.filter((x) => x.id !== state.confirmId), selectedId: null, confirmId: null }),
+    STATE: (state) => ({ ...state, issues: state.issues.filter((x) => x.id !== state.confirmId), selectedId: null, confirmId: null, confirm: { ...state.confirm, open: false } }),
     HTTP: (state, _, next, { previousState }) => ({ url: '/api/issues/' + previousState.confirmId, method: 'DELETE', ok: 'DELETED', error: 'FAILED' }),
-    ELEMENT: () => ({ close: Confirm }),
   },
-  DELETED: (state, { id }) => say(state, `#${id} deleted`),
-  CANCEL_DELETE: {
-    STATE: (state) => (state.confirmId == null ? ABORT : { ...state, confirmId: null }),
-    ELEMENT: () => ({ close: Confirm }),
+  DELETED: { EVENTS: event('TOAST', (state, { id }) => ({ text: `#${id} deleted`, kind: 'success' })) },
+  'confirm.CLOSE': (state) => ({ ...state, confirmId: null }),
+  'confirm.CANCEL': (state) => ({ ...state, confirmId: null }),
+  CREATED: {
+    STATE: (state, issue) => ({ ...state, issues: [...state.issues, issue], selectedId: issue.id, show: 'open', query: '', view: { ...state.view, selected: 'issues' } }),
+    EVENTS: event('TOAST', (state, issue) => ({ text: `#${issue.id} created`, kind: 'success' })),
   },
-  CREATED: (state, issue) => ({ ...state, issues: [...state.issues, issue], selectedId: issue.id, show: 'open', query: '', view: { ...state.view, selected: 'issues' }, message: `#${issue.id} created` }),
   QUIT: { TERMINAL: () => 'exit' },
 }
