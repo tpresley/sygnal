@@ -90,3 +90,14 @@ export const withTrigger = popover4({ popover: '.p', trigger: '.t', id: 'menu', 
 declare const pstate: PopoverState
 export const pattrs: PopoverAttrs = popoverAttrs(pstate, (s?: string) => s ?? '')
 export const toggleTo: import('sygnal/ui').PopoverActions['TOGGLE'] = false
+
+// ui-sweep round 5: dialogAttrs
+import { dialog as dialog5, dialogAttrs } from 'sygnal/ui'
+import type { DialogAttrs } from 'sygnal/ui'
+export const withIds = dialog5({ dialog: '.d', trigger: '.t', id: 'confirm' })
+declare const dstate: DialogState
+export const dattrs: DialogAttrs = dialogAttrs(dstate, (s?: string) => s ?? '')
+export const dId: string | null = dstate.id
+export const titleId = dattrs.title.id
+// @ts-expect-error a slice, not options
+dialogAttrs({ dialog: '.d' }, (s?: string) => s ?? '')

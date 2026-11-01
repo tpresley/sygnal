@@ -24,7 +24,8 @@
  * (G-407: the clicked trigger, recorded by OPEN), else the trigger; a selector names another
  * element; false: leave it to the browser. G-430: the opener is focused from the close event, or
  * (R2) when the host stops rendering the open dialog, so it needs no command target).
- * State: { open, returnValue }. Actions: OPEN, CLOSE (data: the returnValue), CANCEL (Escape: the
+ * `id` (round 5: the prefix of dialogAttrs' ids; default: the key in `uses`).
+ * State: { id, open, returnValue }. Actions: OPEN, CLOSE (data: the returnValue), CANCEL (Escape: the
  * keydown in the dialog while it has the closedby="none" OPEN set (G-405 / G-429: no CloseWatcher
  * close; the attribute goes when it closes); the prevented cancel event of a dialog with the
  * host's own closedby; G-457: not an Escape an element inside handled (defaultPrevented) or an
@@ -34,10 +35,12 @@
  * (R2: `open` changed outside these: make the dialog match).
  * G-400: the commands check the dialog itself (showModal only on a closed one, close only on an
  * open one), so a state that is out of step can't block them.
+ * Round 5: `dialogAttrs(state, uid)` gives the trigger, the dialog, its title and description the
+ * ARIA and ids of Radix's Dialog.Trigger / Content / Title / Description / Close.
  */
 import {ABORT, defineBehavior, xs} from '../index'
 import {covered, DISMISS, first, pull, push} from './layers'
-import {ev, find, gone, on, watch} from './shared'
+import {ev, find, gone, idsOf, keyed, on, watch} from './shared'
 
 // G-429: Escape in this dialog (not in a dialog nested in it, nor with a popover open inside it
 // that Escape closes first, G-579 (layers.ts first()), nor with a controlled layer open inside it,
@@ -127,7 +130,7 @@ const closing = (o: any, rv: any) => ({close: on(o.dialog, 'close', (el: any, x:
 const closed = (s: any, rv: any) => (!s.open && s.returnValue === rv ? ABORT : {...s, open: false, returnValue: rv})
 
 const base = /*#__PURE__*/ defineBehavior({
-  initialState: {open: false, returnValue: ''},
+  initialState: {id: null, open: false, returnValue: ''},
   // SYG118 (dev): the option each action's trigger is built from (a host intent of that name replaces it)
   triggers: {OPEN: 'trigger', CLOSE: 'close'},
   intent: ({DOM, STATE}: any, {dialog: d, trigger, close, modal, controlled}: any) => {
@@ -206,4 +209,21 @@ const base = /*#__PURE__*/ defineBehavior({
 })
 
 /** A native <dialog> as a behavior: `uses = { help: dialog({ dialog: '.help', trigger: '.open-help', close: '.close-help' }) }`. */
-export const dialog = (options: any = {}): any => base({...options, open: !!options.open, returnValue: '', controlled: options.open !== undefined})
+export const dialog = (options: any = {}): any => keyed(base({...options, open: !!options.open, returnValue: '', controlled: options.open !== undefined}))
+
+/**
+ * Round 5: the attributes of a dialog's elements, from its slice, as Radix's Dialog parts: the
+ * trigger's aria-haspopup / aria-expanded / aria-controls, the dialog's id and its name and
+ * description (aria-labelledby / aria-describedby: the `title` and `description` ids), data-state.
+ * (No role: a <dialog> has it; an alert dialog writes role="alertdialog" on it.)
+ */
+export const dialogAttrs = (s: any, uid: any): any => {
+  const id = idsOf(s, uid, 'dialog'), open = !!s?.open, state = open ? 'open' : 'closed'
+  return {
+    trigger: {type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': open, 'aria-controls': id('dialog'), 'data-state': state},
+    dialog: {id: id('dialog'), 'aria-labelledby': id('title'), 'aria-describedby': id('description'), 'data-state': state},
+    title: {id: id('title')},
+    description: {id: id('description')},
+    close: {type: 'button'},
+  }
+}

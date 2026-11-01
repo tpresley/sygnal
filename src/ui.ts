@@ -6,7 +6,7 @@
 //
 // Separate entry: rollup turns the parts' '../index' imports into the external 'sygnal', so the
 // entry adds 0 B to the core bundle and shares the app's core; each part tree-shakes on its own.
-export {dialog} from './ui/dialog'
+export {dialog, dialogAttrs} from './ui/dialog'
 export {popover, popoverAttrs} from './ui/popover'
 export {tooltip} from './ui/tooltip'
 export {tooltips} from './ui/tooltips'

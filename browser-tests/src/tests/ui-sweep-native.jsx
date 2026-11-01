@@ -4,7 +4,7 @@
 // Collection item and in an isolated child, two instances of one component, and an accordion
 // whose open panels the host's own state sets (numbers).
 import { run, makeTimerDriver, Collection, Portal } from 'sygnal'
-import { dialog, popover, popoverAttrs, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
+import { dialog, dialogAttrs, popover, popoverAttrs, tooltip, tabs, tabsAttrs, accordion, accordionAttrs } from 'sygnal/ui'
 import { Menu } from 'sygnal/ui/menu'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait } from '../harness.js'
 
@@ -324,6 +324,22 @@ ZagIn.initialState = { picked: '' }
 ZagIn.uses = { p: popover({ popover: '.zm-p', trigger: '.zm-btn', open: false }) }
 ZagIn.intent = ({ DOM }) => ({ PICK: DOM.select('.zm').events('select').detail() })
 ZagIn.model = { PICK: (s, picked) => ({ ...s, picked }) }
+
+// ── round 5: dialogAttrs, an alert dialog ──
+function Confirm({ state, uid }) {
+  const a = dialogAttrs(state.c, uid)
+  return (
+    <div>
+      <button className="cf-open" {...a.trigger}>Delete</button>
+      <dialog className="cf-d" {...a.dialog} role="alertdialog">
+        <h2 {...a.title}>Delete the file?</h2>
+        <p {...a.description}>It cannot be undone.</p>
+        <button className="cf-no" {...a.close} data-name="cf-no" autofocus>Cancel</button>
+      </dialog>
+    </div>
+  )
+}
+Confirm.uses = { c: dialog({ dialog: '.cf-d', trigger: '.cf-open', close: '.cf-no' }) }
 
 // every animation frame and every toggle of `el` while `fn` runs: the frames it was hidden in, its
 // beforetoggle / toggle events (a hide sends beforetoggle:closed synchronously)
@@ -646,6 +662,25 @@ export async function uiSweepNativeTests() {
       await key('Escape')
       await until(() => $('.out').textContent === 'New|closed|', () => $('.out').textContent)
       await until(() => $('.name').value === 'New', () => `draft after Escape: ${$('.name').value} out=${$('.out').textContent}`, 1000)
+    } finally { app.dispose() }
+  })
+
+  await runTest('Round 5: dialogAttrs names and describes an alert dialog; the trigger\'s aria-expanded follows it', async () => {
+    const { id, app, $ } = await mount(Confirm)
+    const role = (o) => window.__pw('role', id, o)
+    try {
+      assert(await role({ role: 'button', name: 'Delete', expanded: false }) === 1, 'trigger collapsed')
+      await window.__pw('click', `${id} .cf-open`)
+      await until(() => $('.cf-d').open && $('.cf-open').getAttribute('aria-expanded') === 'true', 'opened')
+      assert(await role({ role: 'alertdialog', name: 'Delete the file?' }) === 1, 'the alert dialog is named by its title')
+      assert(await role({ role: 'button', name: 'Delete', expanded: true, includeHidden: true }) === 1, 'trigger expanded')
+      assert(activeName() === 'cf-no', `focus on the safe answer: ${activeName()}`)
+      if (ENGINE === 'chromium') {
+        const d = await window.__pw('ax', null, { role: 'alertdialog', name: 'Delete the file?', prop: 'description' })
+        assert(d === 'It cannot be undone.', `described: ${d}`)
+      }
+      await key('Escape')
+      await until(() => !$('.cf-d').open && $('.cf-open').getAttribute('aria-expanded') === 'false' && $('.cf-d').dataset.state === 'closed', 'closed')
     } finally { app.dispose() }
   })
 

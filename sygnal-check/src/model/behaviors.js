@@ -159,10 +159,10 @@ export const FIRST_PARTY = {
   // PLAN-5 2-U parts (sygnal/ui), G-392. `intent`: actions its intent always dispatches (the
   // element events of a required option, its timers' actions)
   dialog: {
-    stateKeys: ['open', 'returnValue'],
+    stateKeys: ['id', 'open', 'returnValue'],
     calculated: [],
     model: ['OPEN', 'CLOSE', 'TOGGLED', 'CLOSED', 'CANCEL', 'SYNC', 'APPLY'],
-    options: ['dialog', 'trigger', 'close', 'modal', 'cancelable', 'returnFocus', 'open'],
+    options: ['dialog', 'trigger', 'close', 'modal', 'cancelable', 'returnFocus', 'open', 'id'],
     listens: [['trigger', 'OPEN'], ['close', 'CLOSE'], ['dialog', null, 'select']],
     intent: ['TOGGLED', 'CLOSED', 'CANCEL', 'SYNC', 'APPLY'],
   },

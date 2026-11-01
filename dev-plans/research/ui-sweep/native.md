@@ -589,3 +589,114 @@ The maintainer's answers to round 3's four questions. Merged `claude/advanced-in
   `lsp-completion`, `lsp-parts`, `lsp-rename`, `p10-watch` (LSP / watcher timing), green alone
   (`lsp-parts` 4/4). The same four files fail on aaf2b964 (round 3's base) in a worktree run, so
   this round didn't cause them.
+
+## Round 5: `dialogAttrs`
+
+Maintainer's answer to round 4's open question 1: the dialog's trigger gets ARIA like Radix's
+`Dialog.Trigger`, through a helper in the `popoverAttrs` / `disclosureAttrs` pattern.
+
+### What changed
+
+- `dialogAttrs(state, uid)` (`src/ui/dialog.ts`, exported from `sygnal/ui`) returns the attributes
+  of Radix's Dialog parts, computed from the slice:
+
+  | Part | Radix | Attributes |
+  |---|---|---|
+  | `trigger` | `Dialog.Trigger` | `type="button"`, `aria-haspopup="dialog"`, `aria-expanded`, `aria-controls` (the dialog's id), `data-state` |
+  | `dialog` | `Dialog.Content` | `id`, `aria-labelledby` (the title's id), `aria-describedby` (the description's id), `data-state` |
+  | `title` | `Dialog.Title` | `id` |
+  | `description` | `Dialog.Description` | `id` |
+  | `close` | `Dialog.Close` | `type="button"` |
+
+- The dialog behavior is `keyed()` now, as popover, tabs, accordion and disclosure are: the slice
+  is `{ id, open, returnValue }`, with an `id` option for the prefix (default: the key in
+  `uses`), and a host reducer that replaces the slice without `id` gets it back (the calculated
+  field). The ids go through `uid()`, so two instances never share one.
+- Types (`DialogState.id`, `DialogOptions.id`, `DialogAttrs`, `dialogAttrs`), type tests,
+  sygnal-check's first-party table (`stateKeys`, `options`), the dialog guide (the main example
+  uses it; a "The parts' attributes" section with an "Alert dialogs" subsection), the overview
+  (table row, `data-state` row, the slice shape), `llms/ui.md` (the import list and one clause);
+  `llms.txt` itself is unchanged (65,041 B: the UI line lives in the topic file).
+
+### What's left out, and why
+
+- **`role`.** Radix's Content writes `role="dialog"` on a `<div>`; a `<dialog>` has the role
+  natively and a modal one is `aria-modal` to assistive technology, so writing it would only
+  repeat it. Radix's Content also sets `aria-modal`-like behavior through its focus scope, which
+  `showModal()` gives us.
+- **`alertdialog` as an option.** Radix's `AlertDialog` differs from `Dialog` in three ways: the
+  role, no dismissal by a press outside, and the initial focus on Cancel. A modal `<dialog>`
+  already ignores presses outside (unless the host writes `closedby="any"`), `cancelable: false`
+  keeps Escape from closing it if wanted (Radix's AlertDialog *does* close on Escape, so it is
+  not the default), and `autofocus` on Cancel is the native initial focus. What remains is the
+  role, which is markup: the guide writes `role="alertdialog"` after the spread. A `role` option
+  or a third `dialogAttrs` argument would carry one attribute the host already writes as easily,
+  and the slice would have to grow a field for the helper to read it. `aria-haspopup="dialog"`
+  stays right for an alert dialog's trigger (ARIA has no `alertdialog` value; Radix's
+  `AlertDialog.Trigger` writes `dialog` too).
+- **An overlay part.** Radix's `Dialog.Overlay` is an element; ours is `::backdrop`.
+- **`Dialog.Portal`.** Not an attribute; the dialog already works inside `<Portal>` (R4), and the
+  top layer makes it rarely needed.
+- **Radix's dev warnings for a missing Title / Description.** Radix warns when Content has no
+  Title, and when it has no Description unless `aria-describedby={undefined}` is passed. We
+  match the attribute contract (the helper always names a description; the guide says to write
+  `aria-describedby={undefined}` after the spread for a dialog without one), not the warning: see
+  below.
+
+### A diagnostic for a trigger without the ARIA? No
+
+Disclosure and popover have none: no sygnal-check rule or dev check looks for a trigger that
+lacks `disclosureAttrs` / `popoverAttrs`. A dialog trigger without them is also not broken: the
+WAI-ARIA APG's own modal dialog example has no `aria-haspopup` or `aria-expanded` on its
+openers (the focus moves into the dialog, which announces itself by its name), and
+`aria-haspopup="dialog"` is announced unevenly across screen readers. So a missing spread is a
+choice a host may make on purpose, not clearly a mistake, and a hint would be noise. A static
+check couldn't see through the spread reliably either (`{...a.trigger}` from any variable). The
+same goes for a missing title / description: SYG707 (a11y) already handles explicit ARIA, and a
+`<dialog>` without a name is a broader a11y rule than this helper.
+
+### Tests
+
+- `test/ui-native-sweep.test.js` (real DOM): the attributes on the trigger, the dialog, title,
+  description and close, before and after OPEN / CLOSE (`aria-expanded`, `data-state`), with
+  `role="alertdialog"` kept after the spread; the `id` option names the ids; a host reducer that
+  replaces the slice without `id` keeps the ids.
+- Existing expectations of the dialog slice now include `id` (`p5-2u-ui`, `ui-native-sweep`).
+- `type-tests/p5-2u-ui.tsx`: `dialogAttrs`, `DialogAttrs`, `DialogState.id`, the `id` option.
+- `browser-tests/src/tests/ui-sweep-native.jsx`, "Round 5: dialogAttrs names and describes an
+  alert dialog": Playwright role queries (the trigger collapsed / expanded, the `alertdialog`
+  named by its title), the focus on Cancel (`autofocus`), Escape closes it and resets
+  `aria-expanded` / `data-state`; on Chromium the engine's own accessibility tree reports the
+  description. Chromium, Firefox and WebKit.
+
+### Size (round 5)
+
+- Core: unchanged (no core file touched); size gate below.
+- Parts (the round-4 script: esbuild, minified + gzip; the core, `sygnal/zag`, `@zag-js/*`
+  external), round 4 (2be11123) → round 5:
+
+| | Round 4 | Round 5 | |
+|---|---|---|---|
+| dialog | 3,227 B | 3,342 B | +115 (`keyed`, the `id` field) |
+| dialog + dialogAttrs | | 3,587 B | +245 for the helper (`idsOf` shared) |
+| popover | 2,826 B | 2,826 B | |
+| dialog + popover + tooltip | 4,634 B | 4,631 B | −3 (`keyed` shared with popover) |
+| Menu / Select / Combobox | 1,732 / 1,465 / 3,416 B | unchanged | |
+
+### Gate (round 5)
+
+2026-10-31, this branch (merged bdf65850 first):
+- `npm run build` OK; `node scripts/size-gate.mjs` OK (**42,734 B, 266 B headroom: core
+  unchanged**); `node scripts/gen-error-docs.mjs --check` OK; `node scripts/check-doc-samples.mjs`
+  982 clean; `npm --prefix docs run build` OK; `node docs/scripts/check-live.mjs` on chromium,
+  firefox and webkit OK; UI browser suites on firefox and webkit (`uiSweepNative` 19,
+  `uiTestsP5U` 37, `uiZag` 18) all passed, `uiSweepNative` 19/19 on chromium too.
+- `npm test` vitest, first run: 1 real failure, `p5-2s-ui` expecting the dialog slice without
+  `id` (fixed). Second run, at load average ~110: 5,802 passed, 5 failed (`compose-generated-*`,
+  `p4-3b-persist`, `replay`, `vite-plugin-mcp`: timing, none touches `sygnal/ui`), 91/91 green
+  alone. The stages after vitest, run separately: `test:examples` OK, `test:types` OK,
+  `test:browser` 424/425 on chromium (one Zag Combobox typing test, ZS-3/ZS-4, input 'berParis'
+  under load; `src/ui/zag/` is untouched this round; the suite 18/18 twice alone), sygnal/sandbox
+  page 4/4, `test:perf-gate` OK.
+- `npm --prefix sygnal-check test`: plain 1,861 passed; the per-file run had one `lsp-parts`
+  timeout (the round-4 flake), 11/11 green alone.

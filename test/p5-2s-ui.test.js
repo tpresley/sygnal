@@ -179,7 +179,7 @@ describe('G-400: a dialog / popover unmounted while open', () => {
     t.simulateAction('d.CLOSE', 'b')
     await t.settle(); await wait()
     expect(calls).toEqual(['showModal', 'close'])
-    expect(t.state.d).toEqual({ open: false, returnValue: 'a' })
+    expect(t.state.d).toEqual({ id: 'd', open: false, returnValue: 'a' })
   })
 
   it('popover: a Switchable page change while it is open, then back: OPEN shows it again', async () => {
