@@ -18,6 +18,31 @@ describe("pokeDOM uses the element's own window", () => {
     dom.window.close()
   })
 
+  // 7.2.0-preview.0 CI (the Toaster suite): the leave timer fired after the jsdom window had closed, so
+  // the element's defaultView was null and the fallback was Node's Event again
+  // 7.2.0-preview.0 CI (the Toaster suite): the leave timer fired after Vitest had closed the jsdom
+  // window, and that window's Event was Node's again. A closed window no longer holds its document
+  it('an element whose window was closed: nothing dispatched, nothing thrown', () => {
+    const dom = new JSDOM('<div id="root"><p id="leaf"></p></div>')
+    const root = dom.window.document.getElementById('root'), leaf = dom.window.document.getElementById('leaf')
+    const seen = []
+    root.addEventListener('sygnal-dom', (e) => seen.push(e.type))
+    const win = dom.window
+    dom.window.close()
+    win.Event = Event // Vitest's teardown: the window's globals are Node's again
+    expect(() => pokeDOM(leaf)).not.toThrow()
+    expect(seen).toEqual([])
+  })
+
+  it('a host-style window without a document (sygnal/host, renderer targets) still gets the event', () => {
+    class E { constructor(type, o) { this.type = type; this.bubbles = o?.bubbles } }
+    const seen = []
+    const el = { ownerDocument: { defaultView: { Event: E } }, dispatchEvent: (e) => (seen.push(e), true) }
+    expect(pokeDOM(el)).toBe(true)
+    expect(seen[0]).toBeInstanceOf(E)
+    expect(seen[0].type).toBe('sygnal-dom')
+  })
+
   it('a detached node or no element: nothing thrown', () => {
     expect(pokeDOM(null)).toBeUndefined()
     const dom = new JSDOM('<p></p>')
