@@ -135,3 +135,53 @@ export function selectionBox<T extends Box & {id?: any}>(nodes: T[], ids: Iterab
 
 /** the camera a `parallax={[fx, fy]}` layer is seen through: it scrolls at f times the camera */
 export const layerCamera = (c: Camera, f: [number, number] | null | undefined): Camera => f ? {x: c.x * f[0], y: c.y * f[1], zoom: c.zoom} : c
+
+export type FollowOptions = {
+  /** the canvas size in CSS pixels */
+  width: number, height: number
+  /** a box around the anchor (screen pixels) the target moves in freely; the camera moves only when it leaves */
+  deadzone?: {width?: number, height?: number}
+  /** where the target sits relative to the view's centre (screen pixels): `{ x: -100 }` keeps it left of centre, a look-ahead */
+  offset?: Partial<Pt>
+  /** the share of the way the camera moves per call (0–1, `[x, y]` per axis; default 1: at once) */
+  lerp?: number | [number, number]
+  /** the time since the last call (ms): `lerp` is then per 1/60 s, so a variable frame time eases the same */
+  dt?: number
+  /** the world the camera never shows past (a level's bounds); a world smaller than the view is centred */
+  bounds?: AABB | null
+  /** whole screen pixels (a pixel-art game): the camera moves at least a pixel while it has a pixel to go */
+  round?: boolean
+}
+
+/**
+ * The camera after one step of following `target` (a point, or a box: its centre), as Phaser's
+ * `startFollow` and Godot's Camera2D do: a dead zone, a look-ahead offset, smoothing, world bounds.
+ * Pure: the model calls it each step with the camera in state and stores the result (the same
+ * camera object when it didn't move), so a run replays to the same pixel.
+ */
+export function follow(c: Camera, target: Pt | Box, o: FollowOptions): Camera {
+  const z = c.zoom, t = (target as Box).width != null ? centre(target as Box) : target
+  const lerp = Array.isArray(o.lerp) ? o.lerp : [o.lerp ?? 1, o.lerp ?? 1]
+  const b = o.bounds
+  const axis = (pos: number, tp: number, size: number, dz: number, off: number, lo: number, hi: number, l: number) => {
+    // where the target should be, and how far it may stray from there
+    const at = pos + size / 2 + off / z, half = dz / 2 / z
+    let want = tp > at + half ? pos + tp - at - half : tp < at - half ? pos + tp - at + half : pos
+    if (hi - lo <= size) want = (lo + hi - size) / 2
+    else want = Math.max(lo, Math.min(hi - size, want))
+    // whole pixels: the nearest one to where it should be (inside the bounds)
+    if (o.round) {
+      want = Math.round(want * z) / z
+      if (hi - lo > size) want = Math.max(Math.ceil(lo * z) / z, Math.min(Math.floor((hi - size) * z) / z, want))
+    }
+    if (want == pos) return pos
+    const f = o.dt != null && l < 1 ? 1 - (1 - l) ** (o.dt / (1000 / 60)) : l
+    let next = pos + (want - pos) * Math.max(0, Math.min(1, f))
+    // toward it by at least a pixel, never past it: no stall short of it, no bounce around it
+    if (o.round) next = want > pos ? Math.min(want, Math.ceil(next * z - 1e-9) / z) : Math.max(want, Math.floor(next * z + 1e-9) / z)
+    return next
+  }
+  const x = axis(c.x, t.x, o.width / z, o.deadzone?.width || 0, o.offset?.x || 0, b ? b.x0 : -Infinity, b ? b.x1 : Infinity, lerp[0])
+  const y = axis(c.y, t.y, o.height / z, o.deadzone?.height || 0, o.offset?.y || 0, b ? b.y0 : -Infinity, b ? b.y1 : Infinity, lerp[1])
+  return x == c.x && y == c.y ? c : {...c, x, y}
+}

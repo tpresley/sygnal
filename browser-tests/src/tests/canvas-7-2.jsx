@@ -2,9 +2,11 @@
 // __pw): a captured drag that leaves the canvas and comes back, wheel pan, ctrl-wheel zoom toward
 // the cursor, a two-finger pinch (CDP touch: Chromium), text editing in a positioned textarea, the
 // accessibility projection in the engine's tree, painting on a real 2D context; a game loop (canvas-game:
-// one paint per frame under a frame timer, keys held through real input). BROWSER=chromium|firefox|webkit.
+// one paint per frame under a frame timer, keys held through real input); image nodes (a sprite's
+// crop, flipX, pixel art), wrapped text with the engine's own metrics, and the scroll canvases of a
+// game camera (shifted and strip-painted, compared with a fresh paint). BROWSER=chromium|firefox|webkit.
 import { run, ABORT, makeTimerDriver } from 'sygnal'
-import { Canvas, canvasOf, pointer, toScreen, toWorld } from 'sygnal/canvas'
+import { Canvas, canvasOf, pointer, toScreen, toWorld, layoutText, paintWorld, frameOf } from 'sygnal/canvas'
 import { mountOnScreen, clearStage, assert, runTest, wait, waitFor } from '../harness.js'
 
 const CAT = 'sygnal/canvas (7.2)'
@@ -225,4 +227,117 @@ export async function canvasTests7_2() {
       assert(shape[0] < 40 && shape[2] > 200, 'the shape: ' + shape)
     } finally { app.dispose(); clearStage() }
   }, 8000)
+
+  // a 2 × 1 image: a red pixel, a blue one (a data: URL, so no server or cache)
+  const sheetURL = () => {
+    const cv = document.createElement('canvas'); cv.width = 2; cv.height = 1
+    const x = cv.getContext('2d'); x.fillStyle = '#ff0000'; x.fillRect(0, 0, 1, 1); x.fillStyle = '#0000ff'; x.fillRect(1, 0, 1, 1)
+    return cv.toDataURL('image/png')
+  }
+  // a canvas pixel at CSS pixel (x, y) of a `width`-wide canvas (its bitmap is width × devicePixelRatio)
+  const pixel = (cv, x, y, width = 300) => { const k = cv.width / width; return [...cv.getContext('2d').getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data] }
+
+  await runTest(CAT, 'image nodes: loaded once, painted when they arrive (imageload); a sprite\'s crop, flipX, no smoothing for pixel art', async () => {
+    const { id, el } = mountOnScreen()
+    const src = sheetURL(), sheet = { src, frameWidth: 1, frameHeight: 1, columns: 2 }
+    function Pics({ state }) {
+      return (
+        <Canvas className="pics" width={300} height={100} background="#ffffff">
+          <shapes className="doc" items={[
+            { id: 'whole', type: 'image', src, x: 0, y: 0, width: 100, height: 50, smoothing: false, alt: 'Whole' },
+            { id: 'flip', type: 'image', src, x: 100, y: 0, width: 100, height: 50, smoothing: false, flipX: true },
+            { id: 'blue', type: 'image', x: 200, y: 0, width: 50, height: 50, smoothing: false, ...frameOf(sheet, 1) },
+          ]} />
+          <p className="log">{state.log.join(',')}</p>
+        </Canvas>
+      )
+    }
+    Pics.initialState = { log: [] }
+    Pics.intent = ({ DOM }) => ({ LOAD: DOM.select('.pics').events('imageload').detail() })
+    Pics.model = { LOAD: (s) => ({ ...s, log: [...s.log, 'load'] }) }
+    const app = run(Pics, {}, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.pics canvas.sygnal-canvas'), 4000)
+      await waitFor(() => app.__runtime.getState().log.length === 1, 3000).catch(() => { throw new Error('no imageload: ' + JSON.stringify(app.__runtime.getState().log)) })
+      const c = canvasOf(el.querySelector('.pics'))
+      await wait(80)
+      const near = (p, rgb) => Math.abs(p[0] - rgb[0]) < 30 && Math.abs(p[1] - rgb[1]) < 30 && Math.abs(p[2] - rgb[2]) < 30
+      const at = (x, y) => pixel(c.canvas, x, y)
+      // the whole image: red then blue, a hard edge (no smoothing) at x = 50
+      assert(near(at(10, 25), [255, 0, 0]) && near(at(48, 25), [255, 0, 0]) && near(at(52, 25), [0, 0, 255]), 'whole: ' + [at(10, 25), at(48, 25), at(52, 25)])
+      // mirrored: blue then red
+      assert(near(at(110, 25), [0, 0, 255]) && near(at(190, 25), [255, 0, 0]), 'flipX: ' + [at(110, 25), at(190, 25)])
+      // frame 1 of the sheet: the blue pixel, scaled to 50 × 50
+      assert(near(at(205, 5), [0, 0, 255]) && near(at(245, 45), [0, 0, 255]) && near(at(260, 25), [255, 255, 255]), 'frameOf: ' + [at(205, 5), at(245, 45), at(260, 25)])
+      // the projection names it by its alt
+      await waitFor(() => el.querySelector('.pics [aria-label="Whole"]'))
+    } finally { app.dispose(); clearStage() }
+  }, 8000)
+
+  await runTest(CAT, 'text wraps to its width with the engine\'s metrics; align centre; maxLines ends in an ellipsis', async () => {
+    const { id, el } = mountOnScreen()
+    const text = 'Sygnal paints wrapped text on a canvas'
+    const node = { id: 't', type: 'text', x: 10, y: 10, width: 120, text, fontSize: 16, fill: '#000000', align: 'center' }
+    const cut = { id: 'c', type: 'text', x: 160, y: 10, width: 120, text, fontSize: 16, fill: '#000000', maxLines: 2 }
+    function Words() {
+      return <Canvas className="words" width={300} height={140} background="#ffffff"><shapes className="doc" items={[node, cut]} /></Canvas>
+    }
+    const app = run(Words, {}, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.words canvas.sygnal-canvas'), 4000)
+      await wait(80)
+      const c = canvasOf(el.querySelector('.words'))
+      const L = layoutText(text, node), K = layoutText(text, cut)
+      assert(L.lines.length >= 3 && L.lines.every((l) => l.length < text.length), 'wrapped with real metrics: ' + JSON.stringify(L.lines))
+      assert(K.lines.length === 2 && K.lines[1].endsWith('…'), 'maxLines 2 with an ellipsis: ' + JSON.stringify(K.lines))
+      // ink on each line of the wrapped text, none below its last line; centred: none at the box's left edge on a short line
+      const ink = (x0, x1, y) => { for (let x = x0; x < x1; x++) { const p = pixel(c.canvas, x, y); if (p[0] < 128) return true } return false }
+      for (let i = 0; i < L.lines.length; i++) assert(ink(10, 130, 10 + i * L.lineHeight + 9), `ink on line ${i + 1}`)
+      assert(!ink(10, 130, 10 + L.lines.length * L.lineHeight + 9), 'nothing below the last line')
+      assert(!ink(160, 280, 10 + 2 * K.lineHeight + 9), 'maxLines: no third line')
+    } finally { app.dispose(); clearStage() }
+  }, 8000)
+
+  await runTest(CAT, 'a scrolling game camera: the static run is a canvas the camera moves (no copies); shifted and strip-painted, it matches a fresh paint', async () => {
+    const { id, el } = mountOnScreen()
+    // tiles of many colours, so a misplaced strip would show
+    const tiles = Array.from({ length: 300 }, (_, i) => ({ id: 't' + i, type: 'rect', x: i * 24, y: 80 + (i % 5) * 6, width: 24, height: 40, fill: `hsl(${(i * 37) % 360} 70% 50%)` }))
+    function Scroller({ state }) {
+      return (
+        <Canvas className="scroller" camera={{ x: state.x, y: 0, zoom: 1 }} width={300} height={150} navigate={false} a11y={0} background="#8fd3ff">
+          <shapes className="tiles" items={tiles} />
+          <shapes className="actors" items={[{ id: 'p', type: 'rect', x: state.x + 40, y: 60, width: 16, height: 16, fill: '#000' }]} live />
+        </Canvas>
+      )
+    }
+    Scroller.initialState = { x: 0 }
+    Scroller.timers = (s) => ({ loop: s.x < 1500 && { frame: 'STEP' } })
+    Scroller.model = { STEP: (s) => ({ ...s, x: s.x + 7 }) }
+    const app = run(Scroller, { TIMER: makeTimerDriver() }, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.scroller canvas.sygnal-canvas'), 4000)
+      const c = canvasOf(el.querySelector('.scroller'))
+      await waitFor(() => app.__runtime.getState().x >= 1500, 6000)
+      await wait(100)
+      const st = c.st
+      assert(st.scrolled > 100 && st.strips > 0, 'scrolled frames and strip paints: ' + JSON.stringify(st))
+      const run_ = el.querySelector('.scroller canvas.sygnal-canvas-run')
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(run_.style.transform)
+      assert(m, 'positioned by a transform: ' + run_.style.transform)
+      // a fresh paint of the view, compared pixel by pixel where the tiles are (y 80 … 144)
+      const dpr = c.canvas.width / 300, ref = document.createElement('canvas')
+      ref.width = c.canvas.width; ref.height = c.canvas.height
+      paintWorld(ref.getContext('2d'), tiles, c.camera, dpr, null)
+      const rd = ref.getContext('2d').getImageData(0, 0, ref.width, ref.height).data
+      const tx = Math.round(Number(m[1]) * dpr), ty = Math.round(Number(m[2]) * dpr)
+      const got = run_.getContext('2d').getImageData(-tx, -ty, ref.width, ref.height).data
+      let bad = 0, n = 0
+      for (let y = Math.round(80 * dpr); y < Math.round(144 * dpr); y += 2) for (let x = 0; x < ref.width; x += 2) {
+        const o = (y * ref.width + x) * 4
+        n++
+        if (Math.abs(rd[o] - got[o]) > 2 || Math.abs(rd[o + 1] - got[o + 1]) > 2 || Math.abs(rd[o + 2] - got[o + 2]) > 2 || Math.abs(rd[o + 3] - got[o + 3]) > 2) bad++
+      }
+      assert(bad === 0, `the scroll canvas matches a fresh paint: ${bad} of ${n} pixels differ`)
+    } finally { app.dispose(); clearStage() }
+  }, 12000)
 }

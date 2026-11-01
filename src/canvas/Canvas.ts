@@ -15,13 +15,13 @@
  *   `live`: every node changes every frame (a game's actors): painted live, no ids, no projection
  *   by default. `parallax={f}` (or `[fx, fy]`): the layer scrolls at f times the camera (a
  *   background far away). Layers paint in their order whatever is live (canvas-game R4).
- * - Any other node tag (`rect ellipse text line path frame`, a `g` to group): one element per
+ * - Any other node tag (`rect ellipse text line path frame image`, a `g` to group): one element per
  *   node, for handles, guides, a marquee, a few interactive things with intents of their own.
  *   World coordinates, or `space="screen"` (canvas pixels: handles keep their size at any zoom).
  *   Components and <Collection> work inside, as in any island.
  * - One vocabulary, box-based (maintainer decision 1): `x y width height rotation`, `fill stroke
- *   strokeWidth radius opacity dash`, `text fontSize`, `hidden locked parent`; an ellipse is its
- *   box too (not SVG's cx cy rx ry), a line is `x1 y1 x2 y2`.
+ *   strokeWidth radius opacity dash`, `text fontSize` (wrapped to `width`), `src` (an image),
+ *   `hidden locked parent`; an ellipse is its box too (not SVG's cx cy rx ry), a line is `x1 y1 x2 y2`.
  *
  * Input: native pointer events → the shared pointer router (extra/pointer.ts, sygnal/three's) →
  * DOM events on the picked element, every one with `world`, `screen`, `hit`, `node`. A miss
@@ -43,11 +43,16 @@
  * the app commits on pointerup. Everything else (snapping, live panels, peers) waits for the up.
  *
  * Painting: on demand, once a frame, by the backend (backend.ts: `canvas2d()` by default): a static
- * layer plus a live layer, translation blits, the camera cache for pan and zoom.
+ * layer plus a live layer, translation blits, the camera cache for pan and zoom, scroll canvases
+ * for a game's camera.
+ *
+ * Images (image.ts): the canvas uses the images its layers name (loaded once per URL, shared by
+ * every canvas); one arriving makes the backend repaint what it cached (`refresh()`) and is
+ * reported as `imageload` / `imageerror` (detail `{ src, error? }`) on the host element.
  *
  * Accessibility: each data layer is projected into its element as a list of buttons, one per node
  * in view (at most `a11y` of them, default 100; `a11y={0}` turns it off): the node's `label`,
- * `name` or `text`, its type as the role description. Screen readers and the sygnal/agent-ui
+ * `name`, `alt` or `text`, its type as the role description. Screen readers and the sygnal/agent-ui
  * snapshot read them; activating one (click, Enter, Space) is a press and release on that node.
  * A focused JSX node or projected node gets a focus ring on the canvas.
  *
@@ -58,12 +63,13 @@ import {defineWidget} from '../index'
 import {controlled} from '../extra/controlled'
 import {pointerRouter, fire} from '../extra/pointer'
 import {CAMERA, toWorld, toScreen, viewport, zoomAt, panBy, aabb, overlaps, centre, layerCamera, type Camera} from './geometry'
-import {hitNodes, measureText, type Node} from './paint'
+import {hitNodes, sized, type Node} from './paint'
 import {canvas2d, type PaintLayer, type PaintStats} from './backend'
+import {assetOf, takeImage, releaseImage, type ImageAsset} from './image'
 import {atFrameEnd} from '../extra/frame'
 
 const tagOf = (sel: string) => /^[^#.]*/.exec(sel)![0]
-const NODE = /^(rect|ellipse|text|line|path|frame)$/
+const NODE = /^(rect|ellipse|text|line|path|frame|image)$/
 const OWN = /^(className|class|key|style|role|tabIndex|title|ref|hook|attrs|data|space)$|^(aria|data)-/
 const textOf = (v: any): string => v.text != null ? String(v.text) : (v.children || []).map(textOf).join('')
 
@@ -83,7 +89,8 @@ function nodeOf(v: any, tag: string, p: any): Node {
   if (n) return n
   n = {type: tag}
   for (const k in p) if (!OWN.test(k)) n[k.replace(/-(\w)/g, (_: string, c: string) => c.toUpperCase())] = p[k]
-  if (tag == 'text') { n.text = textOf(v); const m = measureText(n.text, n as any); n.width ??= m.width; n.height ??= m.height }
+  // (a text node's missing box is its laid-out size: sized(), as for a data node)
+  if (tag == 'text') n.text = textOf(v)
   nodes.set(v, n)
   return n
 }
@@ -160,6 +167,22 @@ function checkRebuild(el: any, items: Node[], active: Set<any> | null) {
   } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
+// the images a node array names, and the <img> elements it passes that are still loading (once per
+// array: a new array is a pass over it, as reusable()'s; an unchanged one costs nothing)
+const assets = new WeakMap<any[], {urls: ImageAsset[], pending: any[]}>()
+function assetsOf(items: Node[]) {
+  let a = assets.get(items)
+  if (a) return a
+  const s = new Set<ImageAsset>(), pending: any[] = []
+  for (const n of items) if (n.type == 'image') {
+    const x = assetOf(n)
+    if (x) s.add(x)
+    else if (n.image?.complete === false) pending.push(n.image)
+  }
+  assets.set(items, a = {urls: [...s], pending})
+  return a
+}
+
 const sameActive = (a: Set<any> | null, b: Set<any> | null) => a === b || (!!a && !!b && a.size == b.size && [...a].every(x => b.has(x)))
 function sameDisplay(la: Layer[], va: Live[], lb: Layer[], vb: Live[]) {
   if (la.length != lb.length || va.length != vb.length) return false
@@ -177,7 +200,7 @@ export const Canvas = defineWidget({
   children: true,
   // no `tags`: it is app-wide (the pragma's tag table), so it would turn the toolbar's SVG icons
   // into HTML elements. rect/ellipse/text/line/path/g stay SVG; sync reads attrs and props alike.
-  events: ['camerachange', 'canvasresize'],
+  events: ['camerachange', 'canvasresize', 'imageload', 'imageerror'],
   mount(el: any, props: any, emit: any) {
     const doc = el.ownerDocument, win = doc.defaultView
     const canvas = doc.createElement('canvas')
@@ -191,7 +214,7 @@ export const Canvas = defineWidget({
     const dpr = win?.devicePixelRatio || 1
     let w = props.width || el.clientWidth || 800, h = props.height || el.clientHeight || 600
     const raf = win?.requestAnimationFrame?.bind(win), caf = win?.cancelAnimationFrame?.bind(win)
-    const st: PaintStats & Record<string, any> = {paints: 0, nodes: 0, culled: 0, ms: 0, blits: 0, cached: 0, shifted: 0, scaled: 0, statics: 0, events: 0, first: 0}
+    const st: PaintStats & Record<string, any> = {paints: 0, nodes: 0, culled: 0, ms: 0, blits: 0, cached: 0, shifted: 0, scaled: 0, statics: 0, scrolled: 0, strips: 0, events: 0, first: 0}
     const inst: any = {el, canvas, backend, props, st, headless, layers: [] as Layer[], live: [] as Live[], nodeProps: new Map(), camera: props.camera || CAMERA, follow: null, focused: null}
     let pending = 0, camPending = 0, rest: any = 0, moving = false
 
@@ -232,6 +255,7 @@ export const Canvas = defineWidget({
       if (!st.first && s.nodes) st.first = performance.now()
       st.paints++; st.nodes = s.nodes; st.culled = s.culled; st.blits = s.blits
       st.cached += s.cached; st.shifted += s.shifted; st.scaled += s.scaled; st.statics += s.statics
+      st.scrolled! += s.scrolled || 0; st.strips! += s.strips || 0
       st.ms = performance.now() - t0
       inst.props.onPaint?.(st)
     }
@@ -305,7 +329,7 @@ export const Canvas = defineWidget({
 
     // focus: a focused JSX node or projected node gets a ring
     const focusRing = (): Node | null => {
-      const n = inst.focused
+      const n = inst.focused && sized(inst.focused)
       if (!n || n.type == 'line' || n.x == null) return null
       const screen = inst.live.some((l: Live) => l.node === n)
       const p = screen ? {x: n.x, y: n.y} : toScreen(inst.camera, n.x, n.y), z = screen ? 1 : inst.camera.zoom
@@ -363,7 +387,7 @@ export const Canvas = defineWidget({
         const keep = new Map<any, Node>()
         for (let i = l.items.length - 1; i >= 0 && keep.size < max; i--) {
           const n = l.items[i]
-          if (n.hidden || n.id == null || (n.type != 'line' && n.type != 'path' && !overlaps(aabb(n as any), view))) continue
+          if (n.hidden || n.id == null || (n.type != 'line' && n.type != 'path' && !overlaps(aabb(sized(n) as any), view))) continue
           keep.set(String(n.id), n)
         }
         for (const [id, it] of p.items) if (!keep.has(id)) { it.remove(); p.items.delete(id); p.nodes.delete(id) }
@@ -372,7 +396,7 @@ export const Canvas = defineWidget({
           let it = p.items.get(id)
           if (!it) { it = doc.createElement('div'); it.setAttribute('role', 'button'); it.setAttribute('tabindex', '0'); it.setAttribute('data-node', id); p.items.set(id, it) }
           if (p.nodes.get(id) !== n) {
-            it.setAttribute('aria-label', String(n.label ?? n.name ?? n.text ?? n.type))
+            it.setAttribute('aria-label', String(n.label ?? n.name ?? n.alt ?? n.text ?? n.type))
             it.setAttribute('aria-roledescription', n.type)
             if (n.locked) it.setAttribute('aria-disabled', 'true'); else it.removeAttribute('aria-disabled')
             p.nodes.set(id, n)
@@ -386,7 +410,7 @@ export const Canvas = defineWidget({
     }
     // a projected node activated (a screen reader, the keyboard, an agent): a press and release on it
     const activate = (layer: any, n: Node, e: any) => {
-      const c = centre(n as any), s = toScreen(inst.camera, c.x, c.y), ex = {world: c, screen: s, hit: n.id, node: n}
+      const c = centre(sized(n) as any), s = toScreen(inst.camera, c.x, c.y), ex = {world: c, screen: s, hit: n.id, node: n}
       const init = {clientX: s.x, clientY: s.y, button: 0, pointerId: 1, pointerType: 'mouse', shiftKey: !!e.shiftKey, metaKey: !!e.metaKey, ctrlKey: !!e.ctrlKey, altKey: !!e.altKey}
       fire(layer, 'pointerdown', init, ex)
       fire(layer, 'pointerup', init, ex)
@@ -485,6 +509,35 @@ export const Canvas = defineWidget({
       })
       ro.observe(el)
     }
+    // ---------------------------------------------------------------- images
+    // the canvas uses the images its layers name: they load once per URL; one arriving repaints
+    // the cached bitmaps (the node didn't change, its pixels did) and is reported on the element
+    let used = new Set<ImageAsset>()
+    const watched = new WeakSet<any>()
+    const arrived = (a: ImageAsset | {src: string, s: number, error?: any}) => {
+      backend?.refresh?.()
+      invalidate()
+      emit(a.s == 1 ? 'imageload' : 'imageerror', a.s == 1 ? {src: a.src} : {src: a.src, error: a.error})
+    }
+    inst.images = (layers: Layer[], live: Live[]) => {
+      if (!backend) return
+      const next = new Set<ImageAsset>()
+      const add = (items: Node[]) => {
+        const {urls, pending} = assetsOf(items)
+        for (const a of urls) next.add(a)
+        // an <img> the app passed that hasn't loaded yet: a repaint when it has
+        for (const i of pending) if (i.complete === false && !watched.has(i)) {
+          watched.add(i)
+          i.addEventListener?.('load', () => arrived({src: i.currentSrc || i.src || '', s: 1}), {once: true})
+          i.addEventListener?.('error', () => arrived({src: i.currentSrc || i.src || '', s: 2, error: new Error('the image did not load')}), {once: true})
+        }
+      }
+      for (const l of layers) add(l.items)
+      if (live.length) add(live.map(l => l.node))
+      for (const a of next) if (!used.has(a)) takeImage(a, arrived)
+      for (const a of used) if (!next.has(a)) releaseImage(a, arrived)
+      used = next
+    }
     inst.size = () => ({width: w, height: h})
     inst.resize = (W: number, H: number) => { size(W, H); invalidate() }
     inst.moving = () => moving
@@ -493,6 +546,8 @@ export const Canvas = defineWidget({
       el.firstChild?.removeEventListener?.('focusin', onFocus); el.firstChild?.removeEventListener?.('focusout', onBlur)
       pending && caf?.(pending); camPending && caf?.(camPending); rest && win.clearTimeout(rest)
       for (const p of proj.values()) p.list.remove()
+      for (const a of used) releaseImage(a, arrived)
+      used.clear()
       backend?.dispose?.()
       canvas.remove()
     }
@@ -519,6 +574,7 @@ export const Canvas = defineWidget({
     inst.layers = layers
     inst.live = live
     inst.nodeProps = props
+    inst.images(layers, live)
     inst.follow = inst.props.follow || null
     if (!same) inst.invalidate()
   },

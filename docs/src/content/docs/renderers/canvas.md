@@ -1,6 +1,6 @@
 ---
 title: Canvas
-description: Build canvas editors, whiteboards, diagrams and 2D games with sygnal/canvas (experimental). Shapes are data in state, painted, culled and hit-tested by one canvas element; a hit is a DOM event with the shape's id. A controlled camera with built-in pan and zoom, pointer capture, a static and a live layer, the camera cache, an accessibility projection, live and parallax layers for games, and an editor kit (gestures, snapping, handles, resize, undo that works with sygnal/yjs, SVG export)
+description: Build canvas editors, whiteboards, diagrams and 2D games with sygnal/canvas (experimental). Shapes are data in state, painted, culled and hit-tested by one canvas element; a hit is a DOM event with the shape's id. A controlled camera with built-in pan and zoom, pointer capture, a static and a live layer, the camera cache, an accessibility projection, live and parallax layers, sprites and a follow camera for games, wrapped text, images, and an editor kit (gestures, snapping, handles, resize, undo that works with sygnal/yjs, SVG export)
 ---
 
 `sygnal/canvas` is an infinite 2D canvas for apps whose content is a document of shapes: editors, whiteboards, diagrams, floor plans, and [2D games](#games). It is **experimental** (the 7.2 dev preview): the API may still change.
@@ -104,13 +104,15 @@ Every node is a box: `x`, `y` (the top-left corner, in world units), `width`, `h
 | Field | Meaning |
 |---|---|
 | `id` | What `event.hit` reports, and what `active`, `parent` and the undo history refer to |
-| `type` | `rect`, `ellipse`, `text`, `frame`, `line` (`x1 y1 x2 y2`, no box), `path` (`d`) |
+| `type` | `rect`, `ellipse`, `text`, `frame`, `image`, `line` (`x1 y1 x2 y2`, no box), `path` (`d`) |
 | `x y width height rotation` | The box |
 | `fill stroke strokeWidth radius opacity dash` | Paint |
-| `text fontSize fontFamily fontWeight` | A `text` node (its box is measured when width / height are missing) |
+| `text fontSize fontFamily fontWeight` | A `text` node: it wraps to its `width` ([below](#text)); with no width it is one line per `\n`, and its box is measured |
+| `wrap maxLines ellipsis align lineHeight` | How a `text` node lays out ([below](#text)) |
+| `src sx sy sw sh fit flipX flipY smoothing alt` | An `image` node: its URL, the crop, how it fits the box, mirrored, pixel art, its accessible name ([below](#images-and-sprites)) |
 | `parent` | A frame's id: the frame clips the node. A `frame` is a rect with its `name` drawn above it |
 | `hidden`, `locked` | Not painted and not hit; painted but not hit |
-| `name`, `label` | The node's accessible name ([below](#accessibility)) |
+| `name`, `label`, `alt` | The node's accessible name ([below](#accessibility)) |
 
 ## Inside the canvas
 
@@ -124,9 +126,117 @@ Every node is a box: `x`, `y` (the top-left corner, in world units), `width`, `h
 
 Layers paint in their order, whatever is live: a live or active layer under a static one stays under it, and over the ones below it.
 
-**JSX nodes**: `rect`, `ellipse`, `text`, `line`, `path`, `frame` as elements, `g` to group them. One element each, so each can have intents of its own (`DOM.click('.pin')`), live in a component or a `<Collection>`. `space="screen"` puts a node in canvas pixels instead of world units, so it keeps its size at any zoom: handles, guides, a marquee. Use JSX nodes for the few things with behaviour of their own, and data layers for the document. (One component per shape works up to about a thousand shapes; measured, it costs 3.7 times the main-thread time and 5 times the memory of a data layer at 10,000.)
+**JSX nodes**: `rect`, `ellipse`, `text`, `line`, `path`, `frame`, `image` as elements, `g` to group them. One element each, so each can have intents of its own (`DOM.click('.pin')`), live in a component or a `<Collection>`. `space="screen"` puts a node in canvas pixels instead of world units, so it keeps its size at any zoom: handles, guides, a marquee. Use JSX nodes for the few things with behaviour of their own, and data layers for the document. (One component per shape works up to about a thousand shapes; measured, it costs 3.7 times the main-thread time and 5 times the memory of a data layer at 10,000.)
 
 `handles(box, camera)` returns the standard selection box, eight resize handles (`data-part` `nw` … `w`) and a rotate handle (`rotate`) as screen-space nodes; a press on one arrives with `pointer(e).part`.
+
+## Text
+
+A `text` node wraps to its `width`, as text in a box does in the DOM: at spaces and after hyphens, with `\n` starting a new line. A word longer than the box overflows it (`wrap: 'char'` breaks anywhere instead; `wrap: 'none'` keeps one line per `\n`). `maxLines` cuts the text and ends the last line kept with an ellipsis (`ellipsis: false` cuts it plainly); `align` is `left`, `center` or `right` within the box, and `lineHeight` is the line box as a multiple of `fontSize` (default 1.25). Without a `width`, a text node is one line per `\n` and its box is measured. A missing `height` is the height of its lines, so the hit box, the focus ring and `exportSVG` (one `tspan` a line) follow the wrapped text. Text is single-style: one font, size and colour a node.
+
+```css live
+.notes { height: 220px; border: 1px solid #ddd; border-radius: 6px; }
+```
+
+```jsx live
+// Notes.jsx
+import { Canvas } from 'sygnal/canvas'
+
+const TEXT = 'Text wraps to the width of its box, at spaces and after hyphens, like text in the DOM.\nA new paragraph starts on its own line.'
+
+export default function Notes({ state }) {
+  const w = state.width
+  const note = (id, x, more) => [
+    { id: id + '-box', type: 'rect', x, y: 20, width: w, height: 180, fill: '#fff8c5', stroke: '#e3c84d', radius: 4 },
+    { id, type: 'text', x: x + 10, y: 30, width: w - 20, text: TEXT, fontSize: 14, fill: '#333', ...more },
+  ]
+  return (
+    <div>
+      <div className="bar">
+        <button className="narrow">Narrower</button><button className="wide">Wider</button><span>width {w}</span>
+      </div>
+      <Canvas className="notes" background="#f5f5f5" navigate={false}>
+        <shapes className="doc" aria-label="Notes" items={[
+          ...note('left', 20, { name: 'Left aligned' }),
+          ...note('centre', w + 40, { align: 'center', name: 'Centred' }),
+          ...note('short', 2 * w + 60, { maxLines: 3, name: 'Three lines at most' }),
+        ]} />
+      </Canvas>
+    </div>
+  )
+}
+Notes.initialState = { width: 200 }
+Notes.intent = ({ DOM }) => ({ NARROW: DOM.click('.narrow'), WIDE: DOM.click('.wide') })
+Notes.model = {
+  NARROW: (s) => ({ ...s, width: Math.max(100, s.width - 30) }),
+  WIDE: (s) => ({ ...s, width: Math.min(280, s.width + 30) }),
+}
+```
+
+`layoutText(text, { width, fontSize, … })` returns the lines and size a text node of that width paints (a fixed-width text box that grows downward with its text), and `measureText(text, font)` the natural size, one line per `\n` (an auto-width text box); both measure with the browser's text metrics.
+
+## Images and sprites
+
+An `image` node paints a picture in its box: `{ type: 'image', src: '/photo.jpg', x, y, width, height }`. Images are loaded once per URL (and `crossOrigin`), shared by every canvas on the page, and painted once they have arrived, as an `<img>` is: nothing before, nothing if the load fails. The canvas repaints when one arrives and dispatches `imageload` (or `imageerror`, with the error) on its element, detail `{ src }`. An image leaves the cache when no canvas shows a layer with it any more. `image: source` instead of `src` paints a source you loaded or drew yourself (an `<img>`, an `ImageBitmap`, another canvas).
+
+- `sx sy sw sh`: the crop, in image pixels (default the whole image).
+- `fit`: how the crop fills the box, as CSS `object-fit`: `fill` (the default), `contain`, `cover`, `none`, `scale-down`, centred. A missing `width` / `height` is the crop's natural size (one given: the other keeps the aspect ratio).
+- `flipX`, `flipY`: mirrored in its box (a sprite facing the other way). `smoothing: false`: scaled without smoothing, for pixel art.
+- `alt`: its accessible name in the [projection](#accessibility); `exportSVG` writes the image, crop and all.
+
+**Sprite sheets.** `frameOf(sheet, index)` is frame `index` of a sheet of same-size frames, as the node's `src` and crop, so you spread it into the node; `frameAt(frames, t, every)` is the frame an animation shows at `t` (each frame for `every` steps). Both are pure, so a replay shows the same frame. Press Play, then ← → (the sheet is drawn in code, so the demo needs no files):
+
+```css live
+.yard { height: 200px; border: 1px solid #ddd; border-radius: 6px; }
+```
+
+```jsx live
+// Walker.jsx
+import { Canvas, frameOf, frameAt } from 'sygnal/canvas'
+
+// a 4-frame sprite sheet (16 × 16 frames), drawn once into a data: URL
+const art = document.createElement('canvas')
+art.width = 64; art.height = 16
+const g = art.getContext('2d')
+for (let f = 0; f < 4; f++) {
+  const x = f * 16, step = f % 2 ? 2 : -2
+  g.fillStyle = '#e8603c'; g.fillRect(x + 4, 1, 8, 4)
+  g.fillStyle = '#ffd9b0'; g.fillRect(x + 5, 5, 6, 4)
+  g.fillStyle = '#1d2340'; g.fillRect(x + 9, 6, 1, 1)
+  g.fillStyle = '#2d3a8c'; g.fillRect(x + 4, 9, 8, 4)
+  g.fillStyle = '#1d2340'; g.fillRect(x + 5 + (f ? step : 0), 13, 2, 3); g.fillRect(x + 9 - (f ? step : 0), 13, 2, 3)
+}
+const SHEET = { src: art.toDataURL(), frameWidth: 16, frameHeight: 16, columns: 4 }
+const RUN = [1, 2, 3, 2]
+
+export default function Walker({ state }) {
+  const moving = state.vx != 0
+  return (
+    <div>
+      <div className="bar"><button className="play">{state.running ? 'Pause' : 'Play'}</button><span>← → walk</span></div>
+      <Canvas className="yard" navigate={false} background="#c9f0ff">
+        <shapes className="ground" items={[{ id: 'g', type: 'rect', x: -1000, y: 150, width: 3000, height: 60, fill: '#7ccf6a' }]} />
+        <shapes className="actors" live items={[{
+          id: 'hero', type: 'image', x: state.x, y: 86, width: 64, height: 64, smoothing: false, alt: 'Hero',
+          ...frameOf(SHEET, moving ? frameAt(RUN, state.t, 6) : 0), flipX: state.facing < 0,
+        }]} />
+      </Canvas>
+    </div>
+  )
+}
+Walker.initialState = { running: false, x: 120, vx: 0, facing: 1, t: 0 }
+Walker.timers = (s) => ({ loop: s.running && { frame: 'STEP', step: 1000 / 60, keys: { left: 'ArrowLeft', right: 'ArrowRight' } } })
+Walker.intent = ({ DOM }) => ({ PLAY: DOM.click('.play') })
+Walker.model = {
+  PLAY: (s) => ({ ...s, running: !s.running }),
+  STEP: (s, { held }) => {
+    const vx = (held.right ? 2 : 0) - (held.left ? 2 : 0)
+    return { ...s, vx, x: Math.max(0, Math.min(500, s.x + vx)), facing: vx ? Math.sign(vx) : s.facing, t: s.t + 1 }
+  },
+}
+```
+
+**`<Image>` and Suspense.** In a data layer an image is just data, so nothing waits for it. When the view should wait (a map's background), use the `Image` tag inside `<Canvas>`: `<Image src="/map.png" x={0} y={0} />` starts the load while the view renders, a [`<Suspense>`](/advanced/suspense/) boundary around the canvas shows its fallback until it has arrived, and a failed load throws in the view, so the component's `onError` renders. `preloadImage(src)` starts a load ahead and resolves when it has settled (a title screen); `clearImages(src)` forgets one, so a failed load is tried again.
 
 ## Events and pointer capture
 
@@ -142,7 +252,7 @@ The camera is `{ x, y, zoom }`: the world point at the canvas's top-left corner,
 
 The camera is a controlled value. The canvas moves it itself and reports each change once a frame as `camerachange` (the detail is the camera); store it if your view needs it (handles, a zoom readout). A `camera` prop you change (zoom to fit, 100 %) is written to the canvas; the canvas's own changes coming back as props are recognised and not written again.
 
-The geometry functions are plain functions for reducers and views: `toWorld(camera, sx, sy)`, `toScreen(camera, wx, wy)`, `zoomAt(camera, zoom, sx, sy)` (keeps the point under the cursor), `panBy`, `fit(union(shapes), width, height, padding)`, `viewport`, `aabb`, `union`, `selectionBox(shapes, ids)`, `positionsOf(shapes, previous)`. `canvasresize` reports the canvas's size, for `fit`.
+The geometry functions are plain functions for reducers and views: `toWorld(camera, sx, sy)`, `toScreen(camera, wx, wy)`, `zoomAt(camera, zoom, sx, sy)` (keeps the point under the cursor), `panBy`, `fit(union(shapes), width, height, padding)`, `follow(camera, target, options)` ([a game's camera](#a-camera-that-follows)), `viewport`, `aabb`, `union`, `selectionBox(shapes, ids)`, `positionsOf(shapes, previous)`. `canvasresize` reports the canvas's size, for `fit`.
 
 ## Painting and performance
 
@@ -150,7 +260,8 @@ The canvas paints on demand, at most once a frame, and does the performance work
 
 - **A static and a live layer.** Data-layer nodes outside `active` are painted once into a cached bitmap; the live layer (active nodes, outline layers, screen-space nodes) repaints each frame. A drag repaints one shape, not the document.
 - **Translation blits.** When 1,000 or more live nodes only moved by one offset since they were painted (a big selection being dragged), the canvas moves their bitmap instead of repainting them. Nodes that move each on their own (a game's) are painted directly after the first frame that didn't translate.
-- **Layer order.** When a live layer lies under a static one, or a layer has `parallax`, each run of static layers is a cached bitmap of its own and the live nodes are painted between them, in order, on one canvas. A pan shifts every run's bitmap.
+- **Layer order.** When a live layer lies under a static one, each run of static layers is a cached bitmap of its own and the live nodes are painted between them, in order, on one canvas. A pan shifts every run's bitmap.
+- **Scrolling.** In a game (a `live` layer over static ones, or `parallax` layers), each run of static layers is a canvas element of its own, covering the view and a margin, and the camera moving moves the element: a CSS transform, which the browser's compositor applies without copying pixels. When the view reaches the edge of what a run has, its pixels are shifted once and only the strip newly in view is painted. A camera that scrolls every frame costs what comes into view, not a copy of the view. When the camera has been still for half a second, the runs go back onto the main canvas (a copy of their pixels): extra canvases cost the compositor on every frame something else moves.
 - **The camera cache.** The cached bitmap covers a region around the view; a pan copies it at an offset, and a zoom gesture scales it, with a sharp repaint when the gesture ends. At 10,000 shapes a pan step costs about what React + Konva's page cache does.
 - **Culling.** Nodes out of view aren't painted.
 
@@ -185,7 +296,7 @@ A game is the same canvas: the world is state, a `frame` timer steps it, and the
 
 ```jsx live
 // Runner.jsx
-import { Canvas } from 'sygnal/canvas'
+import { Canvas, follow } from 'sygnal/canvas'
 
 const FLOOR = 220, SIZE = 24, STEP = 1000 / 60
 // far hills (a parallax layer: its own coordinates) and the ground: built once, cached
@@ -224,7 +335,11 @@ Runner.model = {
     p.x = Math.max(0, Math.min(1560, p.x + p.vx))
     p.y = Math.min(FLOOR - SIZE, p.y + p.vy)
     if (p.y >= FLOOR - SIZE) p.vy = 0
-    return { ...s, player: p, camera: { x: Math.max(0, p.x - 200), y: 0, zoom: 1 } }
+    // the camera follows: a dead zone around the player, eased, inside the level, whole pixels
+    const camera = follow(s.camera, { x: p.x, y: p.y, width: SIZE, height: SIZE }, {
+      width: 600, height: 260, deadzone: { width: 120, height: 260 }, lerp: 0.15, bounds: { x0: 0, y0: 0, x1: 1600, y1: 260 }, round: true,
+    })
+    return { ...s, player: p, camera }
   },
 }
 ```
@@ -232,11 +347,28 @@ Runner.model = {
 What makes it a game rather than an editor:
 
 - **`navigate={false}`**: the canvas's own pan and zoom are off (Space-drag would take the jump key), and **`a11y={0}`** turns the accessibility projection off for the whole canvas: a game's shapes aren't controls to list.
-- **A `live` layer** for what moves every frame, and **cached layers** for the rest (the ground, the scenery): their node objects stay the same, so a camera pan is a copy of their bitmap. **`parallax`** for what is far away.
+- **A `live` layer** for what moves every frame, and **cached layers** for the rest (the ground, the scenery): their node objects stay the same, so the camera scrolls their canvases ([Scrolling](#painting-and-performance)). **`parallax`** for what is far away.
+- **The camera is state**, moved by `follow()` in the step ([below](#a-camera-that-follows)).
 - **The timer steps the world**: `step` makes it a fixed 1/60 s step, `keys` samples the buttons (`held`, and `pressed` since the last frame, so a tap shorter than a frame still jumps). Keys are released when the window loses focus. See [the timers guide](/guide/timers/#a-game-loop-a-fixed-step-and-the-keyboard).
 - **Tests are deterministic**: with fake timers, dispatch real key events and run frames: `document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowRight' })); await t.frames(60)`. A [recording](/guide/record-replay/) replays a run exactly: each STEP carries the keys it saw.
 
-[`examples/platformer`](https://github.com/tpresley/sygnal/tree/main/examples/platformer) is a whole platformer this way (tiles, enemies, coins, lives, a checkpoint and a goal): about 0.1 ms of Sygnal's own work a frame, the same at 10 or 2,000 moving things.
+[`examples/platformer`](https://github.com/tpresley/sygnal/tree/main/examples/platformer) is a whole platformer this way (tiles, sprites from a sheet, enemies, coins, lives, a checkpoint and a goal): about 0.1 ms of Sygnal's own work a frame, the same at 10 or 2,000 moving things.
+
+### A camera that follows
+
+`follow(camera, target, options)` is the camera after one step of following `target` (a point, or a box: its centre), the way Phaser's `startFollow` and Godot's Camera2D follow a player. It is a pure function: the model calls it in each step with the camera in state and stores what it returns, so the camera is part of the state a test or a [recording](/guide/record-replay/) sees, and a replay reaches the same pixel. It returns the same camera object while the camera stays put, so the canvas has nothing to repaint.
+
+| Option | |
+|---|---|
+| `width`, `height` | The canvas size in CSS pixels (required) |
+| `deadzone: { width, height }` | A box around the anchor (screen pixels) the target moves in freely; the camera moves only when the target leaves it, just enough to keep it at the edge |
+| `offset: { x, y }` | Where the target sits relative to the view's centre (screen pixels): a look-ahead, `{ x: facing > 0 ? -60 : 60 }` |
+| `lerp` | The share of the way the camera moves per call, 0 to 1 (`[x, y]` per axis; default 1, at once) |
+| `dt` | The time since the last call in ms: `lerp` is then per 1/60 s, so a variable frame time eases the same (with a fixed `step` you don't need it) |
+| `bounds: { x0, y0, x1, y1 }` | The world the camera never shows past (a level); a world smaller than the view is centred |
+| `round` | Whole screen pixels (pixel art): the camera moves at least a pixel while it has one to go, so it never stalls short of the target |
+
+(The `follow` *prop* on `<Canvas>`, [above](#follow-the-escape-hatch-for-very-large-selections), is a different thing: nodes following the pointer during a drag.)
 
 ## The kit
 
@@ -251,7 +383,9 @@ Pure functions over plain data, for the parts every canvas editor writes the sam
 | `history(field)` | `commit(state, next, before)`, `undo`, `redo`, `canUndo`, `canRedo` over one state field ([below](#undo-and-multiplayer)) |
 | `exportSVG(nodes, ids?)` | The nodes (or a selection and its children) as an SVG document; frames become clip paths |
 | `keymap(DOM, table)` | Keyboard shortcuts as named action streams; on the main `sygnal` export too ([below](#keyboard-shortcuts)) |
-| `measureText(text, font)` | A text's box in world units |
+| `measureText(text, font)`, `layoutText(text, options)` | A text's natural size; its lines wrapped to a width ([Text](#text)) |
+| `follow(camera, target, options)` | A camera that follows a player: dead zone, look-ahead, easing, bounds ([above](#a-camera-that-follows)) |
+| `frameOf(sheet, index)`, `frameAt(frames, t, every)` | A sprite sheet's frame as an image node's crop; an animation's frame at `t` ([Images](#images-and-sprites)) |
 
 ### Keyboard shortcuts
 
@@ -277,7 +411,7 @@ With [`sygnal/yjs`](/guide/collaborative-state/) the same code becomes per-user 
 
 ## Accessibility
 
-A data layer is one element, so the canvas projects its nodes into an accessibility tree: inside the layer's element, a group named by the layer's `aria-label` (default "Shapes") with a button for each node in view (topmost first, at most 100: `a11y={n}` on the layer changes that, `a11y={0}` turns it off; on `<Canvas>`, `a11y` is every layer's default, and a `live` layer has none unless it says so). A button's name is the node's `label`, `name` or `text`, and its role description is its type. Screen readers read them and Tab reaches them (arrow keys move between them); activating one (Enter, Space, a click) is a press and release on that node, so your intents treat it as a click on the shape. The [`sygnal/agent-ui`](/renderers/agent-ui/) snapshot reads the same buttons, so an agent can select a shape. A focused node, or a focused JSX node, gets a focus ring on the canvas.
+A data layer is one element, so the canvas projects its nodes into an accessibility tree: inside the layer's element, a group named by the layer's `aria-label` (default "Shapes") with a button for each node in view (topmost first, at most 100: `a11y={n}` on the layer changes that, `a11y={0}` turns it off; on `<Canvas>`, `a11y` is every layer's default, and a `live` layer has none unless it says so). A button's name is the node's `label`, `name`, `alt` or `text`, and its role description is its type. Screen readers read them and Tab reaches them (arrow keys move between them); activating one (Enter, Space, a click) is a press and release on that node, so your intents treat it as a click on the shape. The [`sygnal/agent-ui`](/renderers/agent-ui/) snapshot reads the same buttons, so an agent can select a shape. A focused node, or a focused JSX node, gets a focus ring on the canvas.
 
 JSX nodes are elements of their own: give the interactive ones a `role`, `tabIndex` and `aria-label` as you would a `<div>`.
 
@@ -300,4 +434,4 @@ expect(t.state.shapes[0]).toMatchObject({ x: 100, y: 60 })
 
 ## Status
 
-Experimental, in the 7.2 dev preview. Not built yet: rich or wrapped text (text is single-style lines), dirty-rectangle repaints for small edits in huge documents, a spatial index for hit testing past about 50,000 shapes, a WebGL backend, and running the canvas inside [`sygnal/worker`](/renderers/off-main-thread/) (its target doesn't run widgets yet).
+Experimental, in the 7.2 dev preview. Not built yet: rich text (a text node is single-style), dirty-rectangle repaints for small edits in huge documents, a spatial index for hit testing past about 50,000 shapes, a WebGL backend, and running the canvas inside [`sygnal/worker`](/renderers/off-main-thread/) (its target doesn't run widgets yet).

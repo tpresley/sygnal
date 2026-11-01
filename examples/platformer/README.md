@@ -13,10 +13,13 @@ npm test         # the simulation step by step, the component under fake timers,
 
 - `src/sim.ts`: the simulation, plain functions over plain data (no Sygnal import), a fixed
   1/60 s step; `src/level.ts`: the level built from sections; `src/nodes.ts`: the world as
-  `sygnal/canvas` nodes (cached layers keep their node objects; the actors are live).
-- `src/Game.tsx`: one component. A `frame` timer runs while the game does; held keys are state.
-- `src/main.tsx` paints the canvas in the frame the world stepped: a workaround for the canvas
-  painting every other frame under a `frame` timer (the spike's B2).
+  `sygnal/canvas` nodes (cached layers keep their node objects; the actors are live sprites:
+  `image` nodes cropped from `src/sprites.png` with `frameOf`, animated with `frameAt`).
+- `src/camera.ts`: the camera, `follow()` after each step (a dead zone with a look-ahead, eased,
+  clamped to the level, whole pixels); the camera is state, so a replay sees the same one.
+- `src/Game.tsx`: one component. A `frame` timer runs while the game does and samples the keys.
+- `scripts/sprites.mjs` draws `src/sprites.png` (original 16 × 16 pixel art, no third-party assets):
+  `node scripts/sprites.mjs`.
 
 URL switches: `?stress=300` (a one-screen arena with 300 moving enemies), `?bench`
-(`window.__bench` for the perf runner), `?paint=lazy` (without the workaround).
+(`window.__bench` for the perf runner).

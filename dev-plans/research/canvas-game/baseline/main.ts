@@ -2,7 +2,8 @@
  * The baseline: the platformer's own simulation (examples/platformer/src/sim.ts) and actor nodes
  * (nodes.ts), driven by a hand-written requestAnimationFrame loop and painted with plain Canvas 2D
  * calls: what a developer writes with no framework. Same inputs (keydown / keyup on the document),
- * same fixed timestep, the same `window.__bench` fields as the Sygnal app's bench.ts.
+ * same fixed timestep, the same camera (examples/platformer/src/camera.ts: sygnal/canvas's pure
+ * `follow()`), the same `window.__bench` fields as the Sygnal app's bench.ts.
  *
  * The fixed step (an accumulator) and the held keys are this file's own: what the Sygnal app gets
  * from its frame timer (`step`, `keys`).
@@ -13,7 +14,8 @@
  */
 import {step, menu, newWorld, timeLeft, perf, RUNNING, STEP, MAX_STEPS, type World, type Button} from '../../../../examples/platformer/src/sim'
 import {meadow, arena, TILE, VIEW_W, VIEW_H} from '../../../../examples/platformer/src/level'
-import {actorsOf, sceneryOf, farOf, coinsOf, FAR, type Node} from '../../../../examples/platformer/src/nodes'
+import {actorsOf, sceneryOf, farOf, coinsOf, FAR, SHEET, type Node} from '../../../../examples/platformer/src/nodes'
+import {track} from '../../../../examples/platformer/src/camera'
 import {BUTTONS} from '../../../../examples/platformer/src/keys'
 
 const q = new URLSearchParams(location.search)
@@ -56,15 +58,28 @@ function advance(dt: number) {
   if (!RUNNING.includes(w.mode)) { acc = 0; return }
   acc = Math.min(acc + dt, STEP * MAX_STEPS)
   while (acc >= STEP) {
-    w = step(w, {held, pressed})
+    w = track(step(w, {held, pressed}))
     pressed = []
     acc -= STEP
   }
 }
 
 const COLORS: Record<string, string> = {'#': '#a0612e', X: '#8a8f99', B: '#c4552d', '?': '#f2b632', U: '#a7835a', '=': '#6b4a2b'}
+// the sprite sheet, loaded once; sprites are drawn once it has
+const sheet = new Image()
+sheet.src = SHEET.src
 function node(n: Node) {
   ctx.globalAlpha = n.opacity ?? 1
+  if (n.type == 'image') {
+    if (!sheet.complete) return
+    const flip = n.flipX || n.flipY
+    if (flip) { ctx.save(); ctx.translate(n.x + n.width / 2, n.y + n.height / 2); ctx.scale(n.flipX ? -1 : 1, n.flipY ? -1 : 1); ctx.translate(-n.x - n.width / 2, -n.y - n.height / 2) }
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(sheet, n.sx, n.sy, n.sw, n.sh, n.x, n.y, n.width, n.height)
+    ctx.imageSmoothingEnabled = true
+    if (flip) ctx.restore()
+    return
+  }
   if (n.type == 'text') {
     ctx.font = `${n.fontWeight || 400} ${n.fontSize || 16}px Inter, system-ui, sans-serif`
     ctx.textBaseline = 'top'
@@ -85,7 +100,7 @@ const visible = (n: Node, x0: number) => n.x + n.width > x0 && n.x < x0 + VIEW_W
 
 let paintMs = 0
 function paint() {
-  const t0 = performance.now(), cx = Math.round(w.camX)
+  const t0 = performance.now(), cx = w.camera.x
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.globalAlpha = 1
   ctx.fillStyle = '#8fd3ff'

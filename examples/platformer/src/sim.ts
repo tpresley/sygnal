@@ -7,7 +7,7 @@
  *
  * Units: pixels and steps. Speeds are pixels per step.
  */
-import {TILE, ROWS, VIEW_W, type Kind, type Level} from './level'
+import {TILE, ROWS, type Kind, type Level} from './level'
 
 export const STEP = 1000 / 60
 /** at most this many steps per frame (a tab that comes back doesn't simulate the time it was away) */
@@ -38,7 +38,8 @@ export type World = {
   tick: number
   modeT: number
   checkpoint: boolean
-  camX: number
+  /** what the view shows (a sygnal/canvas camera): camera.ts moves it after each step; the sim leaves it alone */
+  camera: {x: number, y: number, zoom: number}
   nextId: number
 }
 
@@ -126,9 +127,6 @@ function spawnEnemies(level: Level): Enemy[] {
     return {id: s.id, kind: s.kind, x, y: (s.row + 1) * TILE - h, vx: s.kind == 'walker' ? -1 : 0, vy: 0, w, h, dead: 0, flipped: false, t: s.id * 17, home: x, ground: false}
   })
 }
-const cameraFor = (level: Level, p: Player, at = 0) => clampCam(level, at || p.x + p.w / 2 - VIEW_W * 0.4)
-const clampCam = (level: Level, x: number) => Math.max(0, Math.min(level.rows[0].length * TILE - VIEW_W, x))
-
 /** a new game on `level`, at the title screen (`mode`) or straight into play */
 export function newWorld(level: Level, mode: Mode = 'title'): World {
   const player = spawnPlayer(level.start.col, level.start.row)
@@ -137,7 +135,7 @@ export function newWorld(level: Level, mode: Mode = 'title'): World {
     coins: level.coins.map(c => ({id: c.id, x: c.col * TILE + 8, y: c.row * TILE + 6})),
     fx: [], bumps: [],
     score: 0, coinCount: 0, lives: 3, tick: 0, modeT: 0, checkpoint: false,
-    camX: cameraFor(level, player), nextId: 1e6,
+    camera: {x: 0, y: 0, zoom: 1}, nextId: 1e6,
   }
 }
 
@@ -145,7 +143,7 @@ export function newWorld(level: Level, mode: Mode = 'title'): World {
 function respawn(w: World): World {
   const L = w.level, at = w.checkpoint && L.checkpoint != null ? {col: L.checkpoint, row: 12} : L.start
   const player = spawnPlayer(at.col, at.row)
-  return {...w, mode: 'playing', modeT: 0, player, enemies: spawnEnemies(L), fx: [], bumps: [], tick: 0, camX: cameraFor(L, player)}
+  return {...w, mode: 'playing', modeT: 0, player, enemies: spawnEnemies(L), fx: [], bumps: [], tick: 0}
 }
 
 // ------------------------------------------------------------------------------------- menus
@@ -273,12 +271,7 @@ function stepOnce(w: World, input: Input, rand: () => number): World {
   const mode = p.x + p.w >= L.goal * TILE ? 'clear' : 'playing'
   if (mode == 'clear') { score += 1000; scorePop(p.x, p.y - 20, 1000) }
 
-  // the camera: a dead zone around the player, a little ahead of the way it faces
-  const lead = p.facing > 0 ? 0.42 : 0.5, left = w.camX + VIEW_W * (lead - 0.08), right = w.camX + VIEW_W * (lead + 0.08)
-  const cx = p.x + p.w / 2
-  const camX = clampCam(L, cx > right ? w.camX + (cx - right) : cx < left ? w.camX - (left - cx) : w.camX)
-
-  return {...w, mode, modeT: 0, rows, player: p, enemies, coins, fx, bumps, score, coinCount, lives, tick: w.tick + 1, checkpoint, camX, nextId}
+  return {...w, mode, modeT: 0, rows, player: p, enemies, coins, fx, bumps, score, coinCount, lives, tick: w.tick + 1, checkpoint, nextId}
 }
 
 function stepEnemy(e0: Enemy, rows: string[], p: Player, bumped: [number, number] | null): Enemy | null {
