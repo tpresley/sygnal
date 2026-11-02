@@ -255,15 +255,10 @@ function rewrite(n: any, o: any, path: string): any {
   return r
 }
 
-/** widget markers among a Portal's children (the core doesn't walk them): `pres.widget.$k`, which the
- * Portal's rewrite calls (core/markers/portal.ts; G-751: either may be registered first) */
-const inPortal = (c: any[], o: any, x: string): any[] =>
-  c.map((n, i) => n?.sel == 'widget' ? rewrite(n, o, x + '.' + i) : n?.children ? {...n, children: inPortal(n.children, o, x + '.' + i)} : n)
-
 export function defineWidget(def: any): any {
   // (compile-wasm: set here, not at module level: a top-level assignment kept this module, ~2 KB
   // min, in every app's bundle, used or not)
-  pres.widget ||= ((rewrite as any).$k = inPortal, rewrite)
+  pres.widget ||= rewrite
   // canvas-three F3: the widget's own children vocabulary is HTML-namespace, never SVG's (a map's
   // <marker>, a scene's <line>): the pragma's tag bits (src/pragma), bit 2 cleared app-wide
   const t = (createElement as any).$t

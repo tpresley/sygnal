@@ -6,7 +6,7 @@
  */
 import {uidPart, vtStyle} from '../shared'
 import {sortFn} from '../core/hosts/collection'
-import {keyOf} from '../core/cell'
+import {keyOf, getIn, pathOf} from '../core/cell'
 import {ext} from '../core/registry'
 
 // Void elements that must not have closing tags
@@ -569,15 +569,17 @@ function renderSubComponent(vnode: any, context: Record<string, any>, parentStat
     }
   }
 
-  // Determine child state via state lens
-  let childState = componentDef.initialState
-  const stateProp = childProps.state
-  if (typeof stateProp === 'string' && parentState != null && parentState[stateProp] != null) {
-    childState = parentState[stateProp]
-  } else if (stateProp != null && typeof stateProp !== 'string') {
-    // State passed directly
-    childState = stateProp
-  }
+  // the child's state, as the client's cells give it (core/cell.ts, Inst.child): a key or path
+  // (`"a.b"`, `"a[0].b"`), a lens's get(), else the parent's state (an isolatedState child: its
+  // initialState; a `state` prop that is not a lens: the parent's whole state, SYG410)
+  const stateProp = childProps.state, own = componentDef.initialState
+  let childState: any
+  if (typeof stateProp === 'string') {
+    childState = parentState == null ? undefined : getIn(parentState, pathOf(stateProp))
+    if (childState === undefined) childState = own
+  } else if (typeof stateProp?.get === 'function') {
+    try { childState = stateProp.get(parentState) } catch (_) { childState = undefined }
+  } else childState = componentDef.isolatedState ? own : parentState
   childState = withResources(componentDef, childState, contextOf(componentDef, childState, context))
 
   // Build child context
@@ -770,64 +772,18 @@ function renderVirtual(vnode: any, context: Record<string, any>, parentState: an
 }
 
 /**
- * Render a Switchable by determining the active component from state.
+ * A Switchable: its `current` page of `of`, rendered as the client's host makes it
+ * (core/hosts/switchable.ts): the Switchable's props and children, its `state` (a key, a lens,
+ * or a per-page map `{ page: key | lens }`; none: the owner's state). A `current` that isn't a
+ * key of `of` renders nothing (the client renders the owner's error fallback, SYG416)
  */
 function renderSwitchable(vnode: any, context: Record<string, any>, parentState: any, uid: string): any {
-  const props = vnode.data?.props || {}
-  const {components, active, initial} = props
-
-  if (!components) {
-    return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
-
-  // Determine which component to render
-  let activeName: string | undefined
-  if (typeof active === 'string') {
-    // Direct name or state property
-    if (components[active]) {
-      activeName = active
-    } else if (parentState && typeof parentState[active] === 'string') {
-      activeName = parentState[active]
-    }
-  }
-  if (!activeName && initial) {
-    activeName = initial
-  }
-  if (!activeName) {
-    activeName = Object.keys(components)[0]
-  }
-
-  const activeComponent = components[activeName]
-  if (!activeComponent || typeof activeComponent !== 'function') {
-    return {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
-
-  return renderToStringInternal(activeComponent, parentState, context, uid + '-' + uidPart(activeName))
-}
-
-/**
- * Internal helper: render a component def to a VNode (not HTML string).
- */
-function renderToStringInternal(componentDef: any, state: any, context: Record<string, any>, uid: string): any {
-  const own = state !== undefined ? state : componentDef.initialState
-  const resolvedState = withResources(componentDef, own, contextOf(componentDef, own, context))
-  const mergedContext = contextOf(componentDef, resolvedState, context)
-
-  collectHead(componentDef, resolvedState, mergedContext)
-  let vnode: any
-  try {
-    vnode = componentDef({
-      state: resolvedState,
-      children: [],
-      slots: {},
-      context: mergedContext,
-      uid: makeUid(uid),
-    })
-  } catch (err: any) {
-    vnode = viewFailed(componentDef, err, componentDef.name || 'Component')
-  }
-
-  return processSSRTree(viewOut(vnode), mergedContext, resolvedState, uid, 'r')
+  const props = vnode.data?.props || {}, of = props.of, cur = props.current
+  const page = of && typeof cur == 'string' && of[cur]
+  if (typeof page != 'function') return null
+  const st = props.state, map = st && typeof st == 'object' && typeof st.get != 'function' ? st : null
+  const pageProps = {...props, state: map ? map[cur] : st}
+  return renderSubComponent({sel: cur, data: {props: pageProps, c: page}, children: vnode.children}, context, parentState, uid + '-' + uidPart(cur))
 }
 
 // G-465: a form field's `value` (a DOM property) has no attribute on <textarea> / <select>: the

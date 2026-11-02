@@ -36,7 +36,7 @@ renderToString(Greeting, { state: { name: 'Alice' } })
 
 ## Sub-Components
 
-Sub-components are rendered recursively. State lensing works the same as in the browser — pass `state="propName"` to scope child state:
+Sub-components are rendered recursively, each with the state it gets in the browser: `state="propName"` or a path (`state="team.lead"`, `state="people[0]"`) scopes it, a lens gives its `get()`, no `state` prop shares the parent's state, and an `isolatedState` child starts from its own `initialState`:
 
 ```jsx
 function App({ state }) {
@@ -129,7 +129,8 @@ To report these errors, pass the [app-level error hook](/advanced/error-boundari
 | **Suspense** | Always renders children (not fallback) |
 | **Slot** | Unwrapped to children |
 | **Collection** | Items rendered from state array |
-| **Switchable** | Active component rendered based on state |
+| **Switchable** | The `current` page of `of`, with the Switchable's props, children and `state` binding |
+| **ClientOnly** | Its `fallback` (none: an empty placeholder `<div>`); the client renders the children |
 
 ## Client Hydration
 
@@ -188,7 +189,8 @@ run(App, '#app', { initialState })
 | A text node | Kept, its text set to the client's. Text next to text in the client's view (`Hello, {name}!`: three text nodes) is one text node in the server's HTML: it is split where the client's first text ends, when it starts with that text, so the elements after it are still adopted |
 | A `<textarea>`'s text (`renderToString` writes its `value` as text) | The text node goes; the field keeps its value (the server's text, or what the user typed) |
 | A component that returns a fragment (`<>…</>`), or a `false` / `null` child (`{cond && <X />}`) | A fragment's elements are adopted one by one, as its parent's own children; a `false` / `null` child takes no element: the elements after them are still adopted. Later renders update, add, remove and move them as on a client-only page |
-| Whitespace and comments where the client renders no text (a page template's indentation) | Removed |
+| A view that returns `null`, `false` or `undefined` (`renderToString` writes an empty comment, `<!---->`) | The comment is adopted as that component's placeholder |
+| Whitespace and other comments where the client renders no text (a page template's indentation) | Removed |
 | An element with another tag, or text where the client renders an element | Replaced in place by the client's element; the elements around it are still adopted |
 | An element whose vnode has an `insert` hook: a `<Transition>`'s child (its enter runs), a `<VirtualCollection>` row (measured when inserted), the `<Toaster>` region, a `lazy()` placeholder, an element with your own `hook={{ insert }}` (also with a `postpatch`, a `ref` or `autoFocus`) | Made again in place, as a fresh render makes it: its `insert` runs |
 | An element with a `create` or `init` hook (a `thunk`) | Made again in place; its hooks run |

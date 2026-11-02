@@ -340,7 +340,7 @@ function Dashboard({ state }) {
 }
 ```
 
-During SSR, the `fallback` is rendered instead of the children. If no fallback is provided, an empty placeholder `<div>` is used. On the client, children render normally.
+During SSR, the `fallback` is rendered instead of the children. If no fallback is provided, an empty placeholder `<div>` is used. On the client, children render normally (several children in a `<div>`; none renders nothing).
 
 ## Diagnostics in Dev
 
