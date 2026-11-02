@@ -95,9 +95,12 @@ interface DOMListener {
   passive: boolean;
 }
 
+// one DOM listener per element and type, delivering to every destination set up on the
+// element: snabbdom may reuse it for another selector, and two selectors may match it
 interface NonBubblingListener {
-  sub: Subscription | undefined;
-  destination: Destination;
+  sub: Subscription;
+  passive: boolean;
+  destinations: Array<Destination>;
 }
 
 // [subject, type, finder, destination, number of started streams]
@@ -114,8 +117,6 @@ export class EventDelegator {
   private nonBubblingListeners: Map<string, Map<Element, NonBubblingListener>>;
   private domListenersToAdd: Map<string, boolean>;
   private nonBubblingListenersToAdd = new Set<NonBubblingMeta>();
-
-  private virtualNonBubblingListener: Array<Destination> = [];
 
   constructor(
     private rootElement$: Stream<Element>,
@@ -202,8 +203,11 @@ export class EventDelegator {
         if (!--r[4]) {
           const map = this.nonBubblingListeners.get(eventType);
           if (map) map.forEach((l, element: any) => {
-            if (l.destination === r[3]) {
-              l.sub!.unsubscribe();
+            const i = l.destinations.indexOf(r[3]);
+            if (i < 0) return;
+            l.destinations.splice(i, 1);
+            if (!l.destinations.length) {
+              l.sub.unsubscribe();
               delete element.subs[eventType];
               map.delete(element);
             }
@@ -323,30 +327,32 @@ export class EventDelegator {
       return;
     }
 
+    let map = this.nonBubblingListeners.get(eventType);
     elementFinder.call().forEach((element: Element) => {
-      const subs = (element as any).subs;
-      if (!subs || !subs[eventType]) {
-        const sub = fromEvent(
-          element,
-          eventType,
-          false,
-          false,
-          destination.passive
-        ).subscribe({
-          next: (ev: Event) =>
-            this.onEvent(eventType, ev, !!destination.passive, false),
-          error: () => {},
-          complete: () => {},
-        });
-        let map = this.nonBubblingListeners.get(eventType);
-        if (!map) this.nonBubblingListeners.set(eventType, map = new Map());
-        map.set(element, {sub, destination});
-
-        (element as any).subs = {
-          ...subs,
-          [eventType]: sub,
-        };
+      const l = map && map.get(element);
+      if (l) {
+        if (l.destinations.indexOf(destination) < 0) l.destinations.push(destination);
+        // a passive listener can't preventDefault: a non-passive destination replaces it
+        if (!l.passive || destination.passive) return;
+        l.sub.unsubscribe();
       }
+      const passive = !!destination.passive;
+      const sub = fromEvent(element, eventType, false, false, passive).subscribe({
+        next: (ev: Event) => this.onEvent(eventType, ev, passive, false),
+        error: () => {},
+        complete: () => {},
+      });
+      if (l) {
+        l.sub = sub;
+        l.passive = passive;
+      } else {
+        if (!map) this.nonBubblingListeners.set(eventType, map = new Map());
+        map.set(element, {sub, passive, destinations: [destination]});
+      }
+      (element as any).subs = {
+        ...(element as any).subs,
+        [eventType]: sub,
+      };
     });
   }
 
@@ -355,26 +361,6 @@ export class EventDelegator {
       sub.unsubscribe();
       this.setupDOMListener(type, passive);
     });
-  }
-
-  private putNonBubblingListener(
-    eventType: string,
-    elm: Element,
-    useCapture: boolean,
-    passive: boolean
-  ): void {
-    const map = this.nonBubblingListeners.get(eventType);
-    if (!map) {
-      return;
-    }
-    const listener = map.get(elm);
-    if (
-      listener &&
-      listener.destination.passive === passive &&
-      listener.destination.useCapture === useCapture
-    ) {
-      this.virtualNonBubblingListener[0] = listener.destination;
-    }
   }
 
   private onEvent(
@@ -409,17 +395,13 @@ export class EventDelegator {
         phase(true);
         phase(false);
       } else {
+        const map = this.nonBubblingListeners.get(eventType);
+        const l = map && map.get(target);
+        // a copy: a destination may stop while the event is delivered
+        const destinations = l ? l.destinations.slice() : [];
         const phase = (useCapture: boolean) => {
-          this.putNonBubblingListener(eventType, target, useCapture, passive);
-          this.doBubbleStep(
-            eventType,
-            target,
-            rootElement,
-            cycleEvent,
-            this.virtualNonBubblingListener,
-            useCapture,
-            passive
-          );
+          this.doBubbleStep(eventType, target, rootElement, cycleEvent, destinations, useCapture, false);
+          this.doBubbleStep(eventType, target, rootElement, cycleEvent, destinations, useCapture, true);
         };
         phase(true);
         phase(false);
