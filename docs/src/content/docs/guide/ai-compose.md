@@ -152,7 +152,7 @@ export const catalog = defineCatalog({
 
 | Field | What it does |
 |---|---|
-| `component` | The Sygnal component. It renders as a child of the host, so lenses, `CHILD.select`, `EVENTS`, context and drivers work as for any child. (`render`, a view function, works for a part with no state of its own.) |
+| `component` | The Sygnal component. It renders as a child of the host, so lenses, `CHILD.select`, `EVENTS`, context and drivers work as for any child. (`render`, a view function, works for a part with no state of its own. It is called inline, so its elements are in the host's own DOM scope: the host's intent and a `form()` behavior on the host hear them. Its root element gets the node key, as a component does, unless the view gives one.) |
 | `description` | All a model sees of the part: "Noun (what it shows)" ([below](#writing-descriptions-a-model-picks-well)) |
 | `props` | Fixed props, or `(params, state) => props` |
 | `params` | The inputs a model gives, passed as props ([below](#params)) |
@@ -223,6 +223,7 @@ const catalog = defineCatalog({
 - The view gets `{ key, node, params, slots, children, ui, control, frozen }`: `slots` maps each slot to its rendered parts, `children` lists them in order with their slot.
 - `control(name, value)` returns data attributes to spread on an element: a click on it sets `ui[name] = value` for this container (the behavior's `CONTROL` action), so the open tab is state too.
 - `minSlots`: with fewer filled slots the container is unwrapped and its parts go where it was.
+- `maxUses`: how many of it one layout may hold (default: no limit), as with parts. The ones after the limit are unwrapped, and their parts move to the first place their `in` allows (the first such container). `compose.llm()` tells the model the limit and repairs a reply that goes over it. `compose.decisions()` places parts into one container of each kind, so its layouts never repeat a container.
 - A container is a view, never a component with a model ([SYG161](/reference/errors/#syg161)): its parts must stay the host's children.
 
 `in` is the most valuable field a catalog has: with it, a decision model placed parts right in 37 of 37 cases, against 25 of 37 when it chose a parent among every slot.
@@ -541,6 +542,16 @@ The behavior's actions are the host's, under the slice's key:
 
 When the page already has parts, `page.COMPOSE` is an **edit** of it, with either backend: "move the orders to the top", "show the chart for the month", "the orders instead of the chart". `{ prompt, fresh: true }` starts over instead (a new page, keys still reused by identity), as the demo's first row of chips does.
 
+While a fresh composition streams over a page, the preview holds only the parts the model has finished so far. `compose(catalog, { preview })` says what shows meanwhile:
+
+| `preview` | While a fresh composition streams over a page |
+|---|---|
+| `'merge'` (default) | The finished parts where the new layout puts them; the page's other parts stay where they were, mounted, until the reply. A part the new layout drops goes when the reply arrives |
+| `'replace'` | Only the finished parts: the others are unmounted until they stream in again |
+| `'keep'` | The page as it is; `status` stays `'composing'` until the reply |
+
+A first composition, with no page yet, always shows its preview. An edit's preview is the whole page with the finished operations applied (`'keep'` hides that too).
+
 An edit can do any of these, several at once:
 
 - **remove** a part ("drop the weather"; "only my tasks" removes the rest);
@@ -578,7 +589,7 @@ compose.decisions({ url: 'http://localhost:11434/v1/systemone', model: 'nimble',
 
 ### `catalog.render`
 
-`catalog.render(slice, state)` returns the composition as vnodes for the host's view: `slice.preview ?? slice.layout`, each part a child of the host keyed by its node key, and containers through their views. Each part gets its params (defaults filled) as props, its lens, and the prop `node` (its key).
+`catalog.render(slice, state)` returns the composition as vnodes for the host's view: `slice.preview ?? slice.layout`, each part a child of the host keyed by its node key (a `render` part's root element too), and containers through their views. Each part gets its params (defaults filled) as props, its lens, and the prop `node` (its key).
 
 It renders anything with a `layout`, so a layout you keep elsewhere renders the same way: `catalog.render({ layout: state.saved }, state)`.
 

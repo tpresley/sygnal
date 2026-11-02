@@ -30,6 +30,12 @@
  * or delta with `keyed: true` (both backends' edits, B-4) already carries the previous layout's keys
  * and is used as is (re-keying by identity could swap the keys of two copies of one part).
  *
+ * `preview` (option): what shows while a fresh composition (`{ fresh: true }`, or the first) streams
+ * over a layout: 'merge' (default) the preview's nodes where it puts them and the layout's other
+ * nodes where they were, so the parts not reached yet stay mounted (layout.ts overlay()); 'replace'
+ * the preview alone (only the nodes finished so far); 'keep' the layout until the reply. An edit's
+ * preview (`keyed`) is the whole page already ('keep' hides it too).
+ *
  * The handlers that need the host's whole state (record params read it) are HOST entries; a sink
  * reads it as `props.state` (the pre-action state), and one memo per behavior value makes STATE,
  * the sink and EFFECT of one action compute the same step.
@@ -37,7 +43,7 @@
 import {defineBehavior, fromPrevious} from '../../behaviors'
 import {ABORT} from '../../../shared'
 import {fail} from '../../diagnostics/legacy'
-import {finish, fromTree, removeNode, toTree} from './layout'
+import {finish, fromTree, overlay, removeNode, toTree} from './layout'
 import type {Backend, Catalog, Layout} from './types'
 
 /** the compositions per catalog (composeWith finds the pending one): backend, lane and use keys */
@@ -67,10 +73,11 @@ const controlOf = (e: any) => {
  * src/ai.d.ts.
  */
 export function composeBehavior(catalog: Catalog, options: any = {}): any {
-  const {backend, form, prompt: promptSel, key: lane = 'compose'} = options
+  const {backend, form, prompt: promptSel, key: lane = 'compose', preview: mode = 'merge'} = options
   if (!backend || typeof backend.sink != 'string' || typeof backend.start != 'function' || typeof backend.reply != 'function') {
     fail('SYG681', 'compose', 'compose(catalog, { backend }) needs a backend', 'Pass compose.decisions({ model }) or compose.llm({ model })')
   }
+  if (mode != 'merge' && mode != 'replace' && mode != 'keep') fail('SYG681', 'compose', `compose(catalog, { preview }) takes 'merge', 'replace' or 'keep', not ${JSON.stringify(mode)}`, "Leave it out for 'merge'")
   if (!catalog || typeof catalog.render != 'function') fail('SYG681', 'compose', 'compose(catalog, …) needs a catalog made by defineCatalog()', 'Pass defineCatalog({ parts })')
   const S: string = backend.sink
   // mine: the pending steps this use made, so composeWith picks its backend among the catalog's uses
@@ -80,6 +87,15 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
   uses.get(catalog)!.push(entry)
   const names = (k: string) => ({ok: k + '.REPLY', error: k + '.FAILED', delta: k + '.DELTA', key: lane})
   const rekey = (l: Layout, prev: Layout | null): Layout => (prev ? fromTree(catalog, toTree(l), prev) : l)
+  // the preview a step shows: `keyed` (an edit) is the whole page already; a fresh composition's
+  // is re-keyed and, over a layout, merged with it ('merge') or not ('replace'); 'keep' shows none
+  // while a layout is up (status 'composing' until the reply)
+  const shown = (p: Layout, keyed: boolean, prev: Layout | null): Layout | null => {
+    if (mode == 'keep' && prev?.nodes && Object.keys(prev.nodes).length > 1) return null
+    if (keyed) return p
+    const r = rekey(p, prev)
+    return mode == 'replace' ? r : overlay(r, prev)
+  }
 
   const start = once((st, d, k) => {
     const s = st?.[k]
@@ -108,7 +124,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     // a reply that isn't a valid layout (even after the backend's repair): as FAILED
     if (r.error != null) return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: message(r.error)}}
     if (r.request !== undefined) {
-      const preview = r.preview ? (r.keyed ? r.preview : rekey(r.preview, s.layout)) : s.preview
+      const preview = r.preview ? shown(r.preview, !!r.keyed, s.layout) : s.preview
       return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending), decisions}, request: r.request}
     }
     if (r.layout) {
@@ -127,7 +143,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
 
   // `prompt` (a selector) must not set the slice's prompt (defineBehavior merges options naming
   // initialState keys): the factory gets the other options
-  const {prompt: _selector, ...rest} = options
+  const {prompt: _selector, preview: _mode, ...rest} = options
   const controls = Object.values(catalog.containers || {}).some((c: any) => typeof c.decl?.render == 'function')
   return defineBehavior({
     initialState: {prompt: '', status: 'idle', layout: null, preview: null, pending: null, decisions: null, error: null, ui: {}, local: {}},
@@ -158,7 +174,8 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
           if (!s?.pending || typeof backend.delta != 'function') return ABORT
           let r: any
           try { r = backend.delta({catalog, state: st, pending: s.pending, delta: d}) } catch (_) { return ABORT }
-          return r?.preview ? {...st, [k]: {...s, status: 'preview', preview: r.keyed ? r.preview : rekey(r.preview, s.layout)}} : ABORT
+          const preview = r?.preview && shown(r.preview, !!r.keyed, s.layout)
+          return preview ? {...st, [k]: {...s, status: 'preview', preview}} : ABORT
         },
       },
       FAILED: (s: any, d: any) => s.pending ? {...s, status: 'error', preview: null, pending: null, error: message(d?.error ?? d)} : ABORT,

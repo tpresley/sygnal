@@ -1388,6 +1388,8 @@ export interface CatalogContainerDecl {
   /** children per slot: fewer than `min` unwraps it, more than `max` overflow after it (a row splits) */
   min?: number
   max?: number
+  /** how many of it a layout may hold (default: no limit); the later ones are replaced by their children */
+  maxUses?: number
   /** only parts in its slots */
   accepts?: 'leaves'
   /** its order is fixed (no rows inside) */
@@ -1453,6 +1455,7 @@ export interface CatalogContainer {
   minSlots?: number
   min?: number
   max?: number
+  maxUses?: number
   accepts?: 'leaves'
   arranged: boolean
   direction?: 'row' | 'column'
@@ -1601,6 +1604,12 @@ export interface ComposeOptions {
   prompt?: BehaviorTarget
   /** the request lane (default 'compose'): a new prompt aborts the step in flight */
   key?: string
+  /**
+   * what shows while a fresh composition streams over a layout: 'merge' (default) the preview's
+   * parts where it puts them and the layout's other parts where they were (they stay mounted);
+   * 'replace' the preview alone (only the parts finished so far); 'keep' the layout until the reply
+   */
+  preview?: 'merge' | 'replace' | 'keep'
 }
 
 /** A result part's PARENT value (`compose.answer(props, value)`) */

@@ -23,7 +23,7 @@ const catalog = defineCatalog({
     },
   },
   containers: {
-    tabs: { slots: { overview: 'Overview', billing: 'Billing' }, minSlots: 2, render: ({ children, ui, control }) => <div {...control('tab', 1)}>{children.map((c) => c.vnode)}{ui.tab}</div> },
+    tabs: { slots: { overview: 'Overview', billing: 'Billing' }, minSlots: 2, maxUses: 2, render: ({ children, ui, control }) => <div {...control('tab', 1)}>{children.map((c) => c.vnode)}{ui.tab}</div> },
   },
 })
 expectTypeOf(fromCore).toEqualTypeOf(defineCatalog)
@@ -66,6 +66,10 @@ expectTypeOf<A['page.REMOVE']>().toEqualTypeOf<string>()
 compose(catalog, { backend: compose.llm({ model: 'qwen3:8b' }), key: 'lane' })
 // @ts-expect-error a backend is required
 compose(catalog, {})
+compose(catalog, { backend, preview: 'keep' })
+// @ts-expect-error 'merge' | 'replace' | 'keep'
+compose(catalog, { backend, preview: 'later' })
+expectTypeOf(catalog.containers.tabs.maxUses).toEqualTypeOf<number | undefined>()
 
 function Workspace({ state }: { state: { page: ComposeState; customers: Array<{ id: number; name: string }> } }) {
   return <main>{catalog.render(state.page, state, { scope: 'c1', frozen: false, answer: null, at: ['page'] })}</main>
