@@ -396,9 +396,33 @@ describe('canvas2d(): live layers, layer order, parallax, the blit for nodes tha
     // still: cached; the camera moves again: back on the scroll canvas, as it was (no repaint)
     const s2 = stats(); b.paint(frame(layers, cam), s2)
     expect(s2.cached).toBe(1)
+    f.calls.length = 0
     const s3 = stats(); b.paint(frame(layers, { x: 20, y: 0, zoom: 1 }), s3)
     expect(s3).toMatchObject({ statics: 0, scrolled: 1 })
     expect(f.divs[0].style.display).toBe('')
+    // the main canvas, which had the folded runs, is the background alone again (else a second copy
+    // of the scenery stays where it was under the moving scroll canvas, until the next fold)
+    expect(f.calls.filter((c) => c[0] == 'fillRect' || c[0] == 'drawImage')).toEqual([['fillRect', 0, 0, 800, 600]])
+  })
+
+  it('R14 with parallax: a pan after the fold shows each layer once (the main canvas cleared), at its own speed', () => {
+    const f = withParent(fakeCanvas()), b = canvas2d()(f.canvas)
+    const hills = [box('hill', 100, 300, { width: 400 })], tiles = Array.from({ length: 50 }, (_, i) => box('t' + i, i * 40, 500))
+    const layers = [{ items: hills, active: null, parallax: [0.5, 1] }, { items: tiles, active: null }, { items: [box('p', 0, 0)], active: null, live: true }]
+    const pan = (x) => { f.calls.length = 0; const s = stats(); b.paint(frame(layers, { x, y: 0, zoom: 1 }), s); return s }
+    pan(0); pan(10)
+    for (let i = 0; i < 30; i++) pan(10)
+    // folded: both runs on the main canvas
+    expect(f.divs[0].style.display).toBe('none')
+    expect(f.calls.filter((c) => c[0] == 'drawImage')).toHaveLength(2)
+    const s = pan(40)
+    expect(s).toMatchObject({ statics: 0, scrolled: 2 })
+    expect(f.calls.filter((c) => c[0] == 'fillRect' || c[0] == 'drawImage')).toEqual([['fillRect', 0, 0, 800, 600]])
+    // the hills' canvas moved half as far as the tiles'
+    const [hc, tc] = f.divs[0].children, x = (el) => +el.style.transform.match(/translate\((-?[\d.]+)px/)[1]
+    const h0 = x(hc), t0 = x(tc)
+    pan(60)
+    expect([x(hc) - h0, x(tc) - t0]).toEqual([-10, -20])
   })
 
   it('an editor (one document layer, a dragged node in it, outline layers above) keeps the two-canvas strategy', () => {

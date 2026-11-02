@@ -11,6 +11,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   an option. The input now drops that late focus and caret move when the focus isn't where it was at
   the close (as React Aria, which never moves the focus later). It also made the ZS-3 and Round 2 Q2
   browser tests flaky.
+- **sygnal/canvas: a pan no longer shows the scenery twice.** After the camera had been still long
+  enough for the scroll canvases to fold back onto the main canvas (R14), the next pan moved the
+  scroll canvases but left the folded copy on the main canvas, until the next fold removed it.
+  Parallax layers, which always use the ordered strategy, showed it on every pan after the first.
+  The main canvas is now cleared to its background when the scroll canvases come back.
 
 ## 7.2.0-preview.1 — dev preview
 

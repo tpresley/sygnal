@@ -283,7 +283,8 @@ export const canvas2d = (): CanvasBackend => (canvas: any) => {
       box.setAttribute?.('aria-hidden', 'true')
     }
     if (box.parentNode !== canvas.parentNode || box.nextSibling !== live) canvas.parentNode.insertBefore(box, live)
-    if (!scrolling) box.style.display = '', scrolling = true
+    // (the main canvas had the runs, folded or painted by the ordered strategy: the background again)
+    if (!scrolling) box.style.display = '', scrolling = true, mainValid = false
     // the main canvas: the background alone, painted when it changes
     const g = `${f.background} ${w} ${h} ${dpr}`
     if (!mainValid || g != groundKey) {
