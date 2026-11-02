@@ -108,10 +108,11 @@ describe('SYG450: in names an unknown container or slot', () => {
   })
   it('a string in, and container counts', async () => {
     const d = await check(cat(`{
-      containers: { grid: { min: -1, max: 2.5, accepts: 'parts' }, pair: { min: 3, max: 2 } },
+      containers: { grid: { min: -1, max: 2.5, accepts: 'parts' }, pair: { min: 3, max: 2 }, box: { maxUses: 0 }, ok: { maxUses: 2 } },
       parts: { a: { component: Kpi, description: 'A (one)', in: 'gird' } },
     }`))
-    expect(found(d)).toEqual(['SYG450 6', 'SYG450 6', 'SYG450 6', 'SYG450 6', 'SYG450 7'])
+    expect(found(d)).toEqual(['SYG450 6', 'SYG450 6', 'SYG450 6', 'SYG450 6', 'SYG450 6', 'SYG450 7'])
+    expect(only('SYG450', d).filter(x => x.data.key === 'maxUses').map(x => x.message)).toEqual([expect.stringMatching(/container 'box': `maxUses` must be a positive integer/)])
   })
   it('containers the checker cannot list: no unknown-container finding', async () => {
     const d = await check(cat(`{ containers: { ...more }, parts: { a: { component: Kpi, description: 'A (one)', in: 'drawer' } } }`, `const more = {}`))

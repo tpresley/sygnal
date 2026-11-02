@@ -14,7 +14,8 @@
  *   params are final; containers show what they hold). Keys are identities (fromTree), so a part
  *   keeps its key as the reply grows.
  * - reply(): read (lenient: `type` / `component` / `name` for `part`, flat params, the list under
- *   another key), repair (unknown parts dropped, duplicates beyond `maxUses`, one per `group`,
+ *   another key), repair (unknown parts dropped, duplicates beyond `maxUses`, a container beyond its
+ *   `maxUses` unwrapped, one per `group`,
  *   bad params → default, text cut to `maxLength`, unknown slots → default, containers too deep
  *   or in a row lifted, a row of one unwrapped, empty containers dropped), then a schema check
  *   of the repaired tree, fromTree, finish. An empty tree is `unavailable`; a reply that still
@@ -92,7 +93,9 @@ function context(catalog: any, state: any) {
     const slots = container ? Object.keys(def.slots || {default: null}) : []
     // leaves: holds parts only (a row; or a container declared `accepts: 'leaves'`)
     const it = {id, def, container, row, leaves: row || def.accepts == 'leaves', params, rec, slots,
-      min: def.min ?? (row ? 2 : 0), max: def.max ?? (row ? 4 : undefined), uses: def.maxUses ?? 1}
+      min: def.min ?? (row ? 2 : 0), max: def.max ?? (row ? 4 : undefined),
+      // a container may repeat unless it declares maxUses (a part's is normalized, default 1)
+      uses: def.maxUses ?? (container ? Infinity : 1)}
     items.push(it)
     byId[id] = it
   }
@@ -156,11 +159,14 @@ const onlyIn = (it: any, ctx: Ctx) => {
   return ` (only inside ${names.join(' or ')})`
 }
 
+/** ' (up to 3 times)': a part that may repeat, a container that declares maxUses (an undeclared one may repeat freely) */
+const timesText = (it: any) => it.uses == 1 ? (it.container ? ' (at most once)' : '') : isFinite(it.uses) ? ` (up to ${it.uses} times)` : ''
+
 /** the catalog as the prompt shows it */
 export function catalogText(ctx: Ctx) {
   const lines = ['Parts (id: what it shows):']
   for (const it of ctx.items.filter(i => !i.container)) {
-    lines.push(`- ${it.id}: ${it.def.description ?? it.id}${onlyIn(it, ctx)}`)
+    lines.push(`- ${it.id}: ${it.def.description ?? it.id}${timesText(it)}${onlyIn(it, ctx)}`)
     for (const p of it.params) lines.push(`    param ${paramText(p)}`)
   }
   const cs = ctx.items.filter(i => i.container)
@@ -174,7 +180,7 @@ export function catalogText(ctx: Ctx) {
         return s == 'default' ? [lim, acc].filter(Boolean).join('; ') : `slot ${s}${desc ? `: ${desc}` : ''}`
       }).filter(Boolean).join('; ')
       const desc = it.def.description ?? (it.row ? 'Row: shows its parts side by side, left to right' : it.id)
-      lines.push(`- ${it.id}: ${desc}${slots ? ` (${slots})` : ''}${onlyIn(it, ctx)}`)
+      lines.push(`- ${it.id}: ${desc}${slots ? ` (${slots})` : ''}${timesText(it)}${onlyIn(it, ctx)}`)
       for (const p of it.params) lines.push(`    param ${paramText(p)}`)
     }
   }
@@ -196,7 +202,9 @@ const SHAPE = `"children": [ {"part": "<id>", "params": {...}}, {"part": "<conta
 export function systemPrompt(catalog: any, state: any, {plan = true, instructions}: {plan?: boolean; instructions?: LlmOptions['instructions']} = {}, ctx: Ctx = context(catalog, state)) {
   const intro = 'You compose a page of an app from parts the app has prepared. Each part already has its own data and wording; you only choose which parts the request asks for and arrange them.'
   const guidance = [].concat(catalog.guidance ?? []).flatMap((g: string) => String(g).split('\n')).map(s => s.trim()).filter(Boolean)
-  const rules = [...RULES, ...guidance.map(g => g.replace(/^[-*]\s*/, ''))]
+  // a part that may repeat says so on its line (the research's rule, unchanged for catalogs without one)
+  const once = ctx.items.some(i => !i.container && i.uses > 1) ? 'Use each part at most once; a part marked "up to N times" at most N times.' : RULES[1]
+  const rules = [RULES[0], once, ...RULES.slice(2), ...guidance.map(g => g.replace(/^[-*]\s*/, ''))]
   if (plan) rules.push(PLAN)
   const named = ctx.items.some(i => i.container && i.slots.some((s: string) => s != 'default'))
   const extra = typeof instructions == 'string' && instructions ? `\n\n${instructions}` : ''
@@ -434,6 +442,9 @@ export function repairTree(ctx: Ctx, kids: Array<TNode | null>, issues: Issue[] 
       issues.push({kind: 'structure', detail: `${it.id} under min, unwrapped`})
       return all
     }
+    // over its maxUses: its children take its place (`in` is finish()'s: they move into the first one)
+    if ((uses[it.id] || 0) >= it.uses) { issues.push({kind: 'duplicate', detail: it.id}); return all }
+    uses[it.id] = (uses[it.id] || 0) + 1
     if (it.max && it.slots.length == 1 && all.length > it.max) {
       // over the maximum: split into consecutive containers (a trailing one under the minimum is unwrapped)
       issues.push({kind: 'structure', detail: `${it.id} over max, split`})
