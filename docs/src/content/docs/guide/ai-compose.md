@@ -516,6 +516,7 @@ A decision model composes in at most two `decide()` calls (watch the demo server
 | `status` | `idle`, `composing` (a request is out), `preview` (a partial layout shows), `done`, `unavailable` (nothing in the catalog fits), `error` |
 | `layout` | The last finished layout: plain JSON, `{ root: 'page', nodes }`. Kept on an error and when nothing fits |
 | `preview` | The layout being built; `catalog.render` shows it instead while it is set |
+| `queued` | With `busy: 'queue'`: the composition waiting for the one in flight, `{ prompt, fresh? }`, else `null` |
 | `decisions` | What the backend explains: a decision model's answers per step, or an LLM's plan (`asked_for`) and what its repair step fixed |
 | `error` | Why the last composition failed |
 | `ui`, `local` | Container state (the open tab) and `local` parts' state, per node |
@@ -524,7 +525,7 @@ The layout's node keys are **identities**: the part id (`orders`), `part:value` 
 
 - **Nothing fits** ("The stock price of Apple"): `status: 'unavailable'`, and the page keeps its layout.
 - **Errors**: a failed request, or a reply the backend can't turn into a valid layout, is `status: 'error'` with `error` set. The page keeps its layout: a model's mistake never becomes an invalid page.
-- A new prompt while one is composing aborts the old one's step in flight.
+- A new prompt while one is composing aborts the old one's step in flight (`busy: 'queue'` makes it wait instead: [A page that recomposes itself](#a-page-that-recomposes-itself)).
 
 ### Actions
 
@@ -537,6 +538,43 @@ The behavior's actions are the host's, under the slice's key:
 | `page.REMOVE` | A node key: that part and anything inside it go |
 | `page.CONTROL` | `{ key, name, value }`: a container control (what `control()` clicks send) |
 | `page.DONE` | Sent when a composition finishes, with the layout. A host entry `'page.DONE'` runs after the behavior's |
+
+### A page that recomposes itself
+
+A page that composes on its own, from a `STATE.watch` on what it shows, can ask for compositions faster than a model writes them: a fresh layout of nine parts takes a local 8B model 15 to 20 seconds. By default each new `page.COMPOSE` aborts the one in flight, so while the changes keep coming, none finishes. `busy: 'queue'` keeps one in flight and runs the latest after it:
+
+```jsx title="Board.jsx"
+Board.uses = {
+  page: compose(catalog, { backend: compose.llm({ model: 'qwen3:8b' }), busy: 'queue' }),
+}
+
+Board.intent = ({ STATE }) => ({
+  // compose again when what needs attention changes, not on every number that moves
+  ARRANGE: STATE.watch((s) => signature(s), { immediate: true }),
+})
+
+Board.model = {
+  ARRANGE: { EFFECT: (state, _, next) => next('page.COMPOSE', { prompt: brief(state), fresh: true }) },
+}
+```
+
+| `busy` | A `page.COMPOSE` while a composition is in flight |
+|---|---|
+| `'abort'` (default) | Starts at once; the one in flight is aborted (the request lane's `latest`) |
+| `'queue'` | Waits in `queued`; a newer one replaces it. When the one in flight ends, it lands first (`status: 'done'`, `page.DONE` runs), then the waiting one starts in the same action. One that fails while another waits is replaced by it |
+
+With `'queue'`, at most one request is out per slice, and the page always ends on the latest request. `page.SET_LAYOUT` ends both (a layout of your own wins). To correct the model's layout as it lands (hold it to the user's pins), write it in a `page.DONE` entry's `STATE` rather than through `page.SET_LAYOUT`, which would also drop the one that just started:
+
+```jsx title="Board.jsx"
+Board.model = {
+  'page.DONE': (state, layout) => {
+    const fixed = enforcePins(catalog, state, layout)
+    return fixed ? { ...state, page: { ...state.page, layout: catalog.finish(fixed, state) } } : state
+  },
+}
+```
+
+A burst of changes that should count as one (a slider dragged, several fields typed) is the intent's to collapse: `STATE.watch(signature).compose(debounce(500))` (`debounce` from `'sygnal'`) sends one `page.COMPOSE` after the burst. An aborted request costs the model little: Ollama stops generating within about 100 ms of the abort, streamed or not, and drops one still waiting in its queue.
 
 ### Follow-up edits
 

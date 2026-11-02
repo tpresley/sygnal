@@ -43,4 +43,7 @@ snoozes decides when to arrange again. The rules turn the scores into a tree (`f
 `page.SET_LAYOUT`); the model gets a written brief and composes fresh. Incident cards are
 components bound to their record with `byId`, the rest are view functions. While the model
 writes, its preview merges over the current board (compose's default `preview: 'merge'`), so the
-cards it hasn't placed yet stay mounted.
+cards it hasn't placed yet stay mounted. The board changes faster than the model arranges it, so
+compose runs with `busy: 'queue'`: one arrangement in flight, and the latest change waits for it
+(by default each change would abort the one in flight, and none would finish while the morning
+keeps moving).

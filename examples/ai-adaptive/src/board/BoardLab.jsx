@@ -8,7 +8,11 @@
 //   - or by the model: the app writes a brief of the situation and composes from it; the model
 //     picks the order, the size of each card and writes why each card is where it is.
 // - Pins and snoozes are the person's: the brief asks the model to honor them, and the app
-//   enforces them on the model's layout afterwards (enforceChoices).
+//   enforces them on the model's layout as it lands (enforceChoices, in the page.DONE entry).
+// - The board changes faster than the model arranges it (a tick is 3 s, an arrangement 15–20 s),
+//   so compose runs with busy: 'queue': one arrangement in flight, the latest one waiting. With
+//   the default ('abort'), each change would abort the arrangement in flight and, while the
+//   morning keeps moving, none would finish.
 // - Cards keep their instances across arrangements (node keys are identities): a note typed in
 //   an incident card survives the board moving under it, also while the model's next arrangement
 //   streams in (the preview merges over the current board).
@@ -51,7 +55,7 @@ export default function BoardLab({ state }) {
             <option value="manager" selected={state.role === 'manager'}>the manager</option>
           </select>
         </label>
-        <span className="status" aria-live="polite">{busy ? 'Arranging…' : page.status === 'error' ? `Model failed (${page.error}); arranged by the rules` : ''}</span>
+        <span className="status" aria-live="polite">{busy ? (page.queued ? 'Arranging… (the board changed: again after this one)' : 'Arranging…') : page.status === 'error' ? `Model failed (${page.error}); arranged by the rules` : ''}</span>
       </div>
 
       {state.snoozed.length > 0 && (
@@ -95,7 +99,7 @@ BoardLab.initialState = {
 BoardLab.isolatedState = true
 
 BoardLab.uses = {
-  page: compose(catalog, { backend: llm(), key: 'board-compose' }),
+  page: compose(catalog, { backend: llm(), key: 'board-compose', busy: 'queue' }),
 }
 
 BoardLab.timers = (state) => ({
@@ -143,16 +147,12 @@ BoardLab.model = {
   },
   FALLBACK: { EFFECT: (state, _, next) => next('page.SET_LAYOUT', rulesLayout(catalog, state)) },
 
-  // the model's layout, held to the person's pins and snoozes
-  'page.DONE': {
-    STATE: (state) => logged(state, 'model', `arranged ${state.page.layout ? Object.keys(state.page.layout.nodes).length - 1 : 0} nodes`),
-    EFFECT: (state, layout, next) => {
-      const fixed = enforceChoices(catalog, state, layout)
-      if (fixed) next('FIXED', fixed)
-    },
-  },
-  FIXED: {
-    STATE: (state) => logged(state, 'app', 'put back what the model missed of your pins and snoozes'),
-    EFFECT: (state, layout, next) => next('page.SET_LAYOUT', layout),
+  // the model's layout, held to the person's pins and snoozes. Written here rather than through
+  // page.SET_LAYOUT, which would also end the arrangement that may have just started (busy: 'queue')
+  'page.DONE': (state, layout) => {
+    const done = logged(state, 'model', `arranged ${Object.keys(layout.nodes).length - 1} nodes`)
+    const fixed = enforceChoices(catalog, state, layout)
+    if (!fixed) return done
+    return logged({ ...done, page: { ...done.page, layout: catalog.finish(fixed, state) } }, 'app', 'put back what the model missed of your pins and snoozes')
   },
 }

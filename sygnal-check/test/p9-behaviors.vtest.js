@@ -102,6 +102,10 @@ describe('compose(catalog, options)', () => {
     expect(check({ 'Page.jsx': PAGE.replace("key: 'page'", `key: 'page', preview: '${mode}'`) }, { strict: true })).toEqual([])
   })
 
+  it.each(['abort', 'queue'])("busy: '%s' is clean", (mode) => {
+    expect(check({ 'Page.jsx': PAGE.replace("key: 'page'", `key: 'page', busy: '${mode}'`) }, { strict: true })).toEqual([])
+  })
+
   it('a misspelled option is SYG127; a host entry for an action compose lacks is SYG102', () => {
     const bad = PAGE.replace("key: 'page'", "kye: 'page'").replace("'page.DONE'", "'page.DONEE'")
     const d = check({ 'Page.jsx': bad }, { strict: true })
