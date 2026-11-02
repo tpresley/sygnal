@@ -37,14 +37,15 @@ export type DriverFactories<DRIVERS extends DriverSpecs = DriverSpecs> = {
 }
 
 /**
- * A function that takes component properties and returns a JSX element.
+ * A function that takes component properties and returns a JSX element, a string or a number
+ * (rendered as text), or `null` / `false` / `undefined` to render nothing (7.2).
  * State and context are always provided by the framework at runtime. In JSX the element
  * takes the component's own props plus an optional `state` slice name or lens instead
  * (see `JSX.LibraryManagedAttributes` / `ElementProps`).
  */
 type ComponentProps<STATE, PROPS, CONTEXT> = (
   props: ViewProps<STATE, PROPS, CONTEXT>
-) => JSX.Element
+) => JSX.Element | string | number | null | false | undefined
 
 /**
  * PLAN-4 GS-9: `uid()` is a stable id string for this component instance (from its position in
@@ -4332,6 +4333,12 @@ declare global {
     interface Element {
       children?: JSX.Element;
     }
+
+    /**
+     * What may be a tag (TypeScript 5.1+): an element name, or a component whose view returns an
+     * element, a string or a number (text), or `null` / `false` / `undefined` (nothing, 7.2)
+     */
+    type ElementType = string | ((props: any) => Element | string | number | null | false | undefined)
 
     interface ElementChildrenAttribute {
       children: {};

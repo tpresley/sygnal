@@ -2,6 +2,32 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.2 — dev preview
+
+Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / number views typed.
+
+**Fixed.**
+- **Combobox no longer pulls the focus back after it closes.** Zag returns the focus to the input
+  (and moves its caret to the end) a frame after the list closes, even when the focus has moved on by
+  then: Tab out of an `allowCustomValue` combobox, a click into another field right after Enter picks
+  an option. The input now drops that late focus and caret move when the focus isn't where it was at
+  the close (as React Aria, which never moves the focus later). It also made the ZS-3 and Round 2 Q2
+  browser tests flaky.
+- **sygnal/canvas: a pan no longer shows the scenery twice.** After the camera had been still long
+  enough for the scroll canvases to fold back onto the main canvas (R14), the next pan moved the
+  scroll canvases but left the folded copy on the main canvas, until the next fold removed it.
+  Parallax layers, which always use the ordered strategy, showed it on every pan after the first.
+  The main canvas is now cleared to its background when the scroll canvases come back.
+- **Types: an annotated view may return `null`, `false` or `undefined` (nothing), or a string or a
+  number (text).** A view typed with `Comp` / `Component` / `RootComp` / `RootComponent` /
+  `defineComponent` returning `null` or text was a type error (TS2322) though it renders (7.2.0-preview.1);
+  `JSX.ElementType` now lets such a component be a JSX tag (TypeScript 5.1+). Reported by the Sift port.
+- **Hydration adopts a text view's server text node.** A component whose view returns a string or a
+  number got a new text node at hydration (the server's was replaced): the adopted node now has the
+  component's scope key, as a comment from a `null` view already did. Text views are now tested on
+  every path a `null` view is (`test/text-view.test.js`), and llms.txt and the skill say a view may
+  return a string or a number.
+
 ## 7.2.0-preview.1 — dev preview
 
 Fixes and additions from porting a large React app to the 7.2 preview. Everything is additive except
