@@ -190,6 +190,8 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     if (!s?.pending || typeof backend.delta != 'function') return null
     try { return backend.delta({catalog, state: st, pending: s.pending, delta: d}) || null } catch (_) { return null }
   })
+  // a delta that ends the step (a runaway stopped): its reply's step, which may start a queued one
+  const stopped = (st: any, d: any, k: string) => { const r = delta(st, d, k); return r?.reply !== undefined ? reply(st, r.reply, k) : null }
 
   const host = (step: (st: any, d: any, k: string) => any) =>
     (st: any, d: any, _n: any, _p: any, _o: any, k: string) => { const r = step(st, d, k); return r?.slice ? {...st, [k]: r.slice} : ABORT }
@@ -241,10 +243,10 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
           const x = reply(p?.state, r.reply, k)
           return x?.request !== undefined ? x.request : r.request !== undefined ? r.request : ABORT
         },
-        EFFECT: (_s: any, d: any, next: any, p: any, _o: any, k: string) => {
-          const r = delta(p?.state, d, k)
-          if (r?.reply === undefined) return
-          const x = reply(p?.state, r.reply, k)
+        EFFECT: (_s: any, d: any, next: any, p: any, o: any, k: string) => {
+          // 'queue': a composition the stop started is in flight too
+          if (busy == 'queue') track(stopped)(_s, d, next, p, o, k)
+          const x = stopped(p?.state, d, k)
           if (x?.done) next('DONE', x.done)
         },
       },
