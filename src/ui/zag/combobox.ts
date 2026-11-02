@@ -116,7 +116,9 @@ const onReset = (x: any, input: any) => (e: any) => e.defaultPrevented || setTim
 // then the caret to the end), even when the focus has moved on by then: a Tab out of the
 // combobox, a click into another field, the next field a user (or a test) types into. React Aria
 // never moves the focus later. So the input drops those two calls when the focus isn't where it
-// was at the close (always, for a close on leaving), until just after Zag's frame callback
+// was at the close (always, for a close on leaving), and the caret move over a selection made
+// since then (select all, to type over it: Zag's own value writes leave the caret collapsed),
+// until just after Zag's frame callback
 const closed = (x: any) => {
   x.fa = x.fl ? 0 : x.el.ownerDocument.activeElement
   x.fl = 0
@@ -127,7 +129,9 @@ const late = (x: any) => x.ff && x.el.ownerDocument.activeElement !== x.fa
 const guard = (x: any, el: any) => {
   const {focus, setSelectionRange} = el
   focus && (el.focus = function (o: any) { late(x) || focus.call(this, o) })
-  setSelectionRange && (el.setSelectionRange = function (...a: any[]) { late(x) || setSelectionRange.apply(this, a) })
+  setSelectionRange && (el.setSelectionRange = function (...a: any[]) {
+    late(x) || x.ff && this.selectionStart != this.selectionEnd || setSelectionRange.apply(this, a)
+  })
 }
 
 // Round 2 (F-2): a multiple combobox's values as chips before the input (chips={false}: none),

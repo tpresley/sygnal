@@ -478,6 +478,14 @@ export async function uiZagTestsP5Z() {
       city.setSelectionRange(0, 0)
       await frames()
       assert(document.activeElement === city && city.selectionStart === city.value.length, `caret ${city.selectionStart} of ${city.value.length}`)
+      // …but not over a selection made since the close, once the pick's value is in (select all
+      // to type over it; the app's flush and Zag's writes are microtasks, its focus a frame later)
+      await pick()
+      for (let i = 0; i < 20; i++) await Promise.resolve()
+      const before = city.value
+      city.select()
+      await frames()
+      assert(city.value === before && city.selectionStart === 0 && city.selectionEnd === city.value.length, `selection after the close ${city.selectionStart}-${city.selectionEnd} of ${city.value.length}`)
     } finally { app.dispose() }
   })
 
