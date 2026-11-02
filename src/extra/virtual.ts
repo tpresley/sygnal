@@ -390,7 +390,9 @@ export class VirtualHost extends CollectionHost {
     const c = this.dc.get(inst)
     if (c && c[0] === x && c[1] === i && c[2] === n && c[3] === list && c[4] === top) return c[5]
     let out = x
-    if (!x.sel) {
+    // a row that renders nothing (a comment) keeps its key; nothing to measure or label
+    if (x.sel == '!') out = {...x, key: (inst as any).k}
+    else if (!x.sel) {
       // a fragment or text: nothing to measure or label
       if (!(this.warned & 8)) { this.warned |= 8; dev(432, this.owner, {component: this.def.name}) }
     } else {

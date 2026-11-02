@@ -124,13 +124,13 @@ export class MockedDOMSource {
   /**
    * PLAN-4.6: isolateSink for one vnode (a copy, with the scope class). 4-I G-558: a fragment (a
    * Collection's, `<>…</>`) has no element: each of its top-level elements gets the class (as the
-   * real driver's scoped()); a text vnode is left as it is
+   * real driver's scoped()); a text vnode or a comment (a view that rendered nothing) is left as it is
    */
   public isolateValue(vnode: any, scope: string): any {
     // G-305: the scope's class token exactly (scope s1 is not s14)
     return !vnode || typeof vnode != 'object' ? vnode
       : !vnode.sel ? (vnode.children ? {...vnode, children: vnode.children.map((c: any) => this.isolateValue(c, scope))} : vnode)
-      : vnode.sel.split('.').indexOf(SCOPE_PREFIX + scope) > 0 ? vnode : {...vnode, sel: vnode.sel + `.${SCOPE_PREFIX}${scope}`};
+      : vnode.sel == '!' || vnode.sel.split('.').indexOf(SCOPE_PREFIX + scope) > 0 ? vnode : {...vnode, sel: vnode.sel + `.${SCOPE_PREFIX}${scope}`};
   }
 
   public isolateSink(sink: any, scope: string): any {
@@ -138,7 +138,7 @@ export class MockedDOMSource {
       xs.fromObservable<any>(sink).map((vnode: VNode) => {
         // B-025: a Switchable's DOM sink starts with undefined (nothing rendered yet); the
         // real DOM driver's isolateSink passes it through too
-        if (!vnode) return vnode;
+        if (!vnode || vnode.sel == '!') return vnode;
         if (vnode.sel && vnode.sel.indexOf(SCOPE_PREFIX + scope) !== -1) {
           return vnode;
         } else {

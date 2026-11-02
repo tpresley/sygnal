@@ -263,7 +263,10 @@ function childUid(uid: string, vnode: any, path: string): string {
 // G-567: a view that returns a string or a number renders it as text (core/instance.ts view());
 // another falsy value, an empty <div>
 const textOr = (r: any): any => typeof r == 'string' || typeof r == 'number' ? {text: '' + r} : r
-const viewOut = (r: any): any => textOr(r) || {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
+// a view that returns null, false or undefined renders nothing: an empty comment, as the client's
+// (core/instance.ts view()), so hydration pairs it
+const nothing = (): any => ({sel: '!', data: {}, children: undefined, text: '', elm: undefined, key: undefined})
+const viewOut = (r: any): any => textOr(r) || nothing()
 const errorDiv = (): any => ({sel: 'div', data: {attrs: {'data-sygnal-error': ''}}, children: [], text: undefined, elm: undefined, key: undefined})
 
 /**
@@ -370,9 +373,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
     vnode = viewFailed(componentDef, err, componentDef.componentName || componentDef.name || 'Component')
   }
 
-  if (!vnode) {
-    vnode = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
-  }
+  vnode = viewOut(vnode)
 
   // Process special components in the VNode tree
   vnode = processSSRTree(vnode, mergedContext, resolvedState, uid, 'r')
@@ -385,7 +386,7 @@ function renderRoot(componentDef: any, options: RenderToStringOptions): string {
     if (v?.sel) return v.sel !== '!' && v
     if (Array.isArray(v?.children)) for (const c of v.children) { const f = firstEl(c); if (f) return f }
   }
-  const first = vnode?.sel ? vnode : firstEl(vnode)
+  const first = firstEl(vnode)
   if (first && !innerHtmlMode) first.data = {...first.data, attrs: {'data-sygnal-ssr': '', ...first.data?.attrs}}
 
   // Serialize to HTML
@@ -720,14 +721,15 @@ function renderCollection(vnode: any, context: Record<string, any>, parentState:
       itemVnode = viewFailed(itemComponent, err, itemComponent.name || 'CollectionItem')
     }
 
-    const out = processSSRTree(textOr(itemVnode), itemContext, itemState, itemUid, 'r')
+    const out = processSSRTree(viewOut(itemVnode), itemContext, itemState, itemUid, 'r')
     // PLAN-5 A-1: the names the client's Collection gives a keyed item's root element
-    const named = vtn && isItemObj && itemState.id != null && out?.sel
+    const el = out?.sel && out.sel != '!'
+    const named = vtn && isItemObj && itemState.id != null && el
       ? {...out, data: {...out.data, style: vtStyle(vtn, itemState.id, out.data?.style)}}
       : out
     // a VirtualCollection's row decoration, with the row's position in the list (G-431: counted
     // before the rows that render nothing are left out, as the client counts them)
-    return deco && named?.sel ? deco(named, pos) : named
+    return deco && el ? deco(named, pos) : named
   }).filter((v: any) => v != null)
 
   return frag(renderedItems)
@@ -860,6 +862,7 @@ function vnodeToHtml(vnode: any, sv?: SV): string {
 
   // VNode with text content and a selector
   const sel = vnode.sel
+  if (sel == '!') return `<!--${String(vnode.text ?? '').replace(/--/g, '- -')}-->`
   if (!sel) {
     if (vnode.text != null) return escapeHtml(String(vnode.text))
     // Fragment: no selector, but has children — concatenate child HTML

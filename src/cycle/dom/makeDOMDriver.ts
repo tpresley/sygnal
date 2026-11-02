@@ -70,8 +70,8 @@ function makeDOMReady$(): Stream<null> {
 // and each attribute the client sets as an attribute or a prop, with the server's value (nothing
 // is written again: an iframe's src isn't reloaded). Any other attribute is removed now; so is a
 // style (G-483: the style module writes the client's declarations, so none of the server's
-// stays). A single text child keeps its text node. Whitespace and comments where the client has
-// no text go; any other node that doesn't match stays as a placeholder that snabbdom replaces
+// stays). A single text child keeps its text node, a comment (a view that renders nothing) the
+// server's comment. Whitespace and other comments go; any other node that doesn't match stays as a placeholder that snabbdom replaces
 // with the client's node, in place (the lists stay aligned, so the nodes after it are still
 // adopted). Made again that way, as a fresh render makes them: an element whose selector has a
 // class or id (G-486: `h('p.card')`, the Portal placeholder; patching never corrects them), and
@@ -93,6 +93,8 @@ const adopt = (e: any, v: any): any => {
     t == 3 && c[j + 1]?.text != null && !c[j + 1].sel && w?.text && x.data.startsWith(w.text) && x.splitText(w.text.length);
     y = x.nextSibling;
     if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
+    // a view that renders nothing: the server's comment is its comment
+    else if (t == 8 && w?.sel == '!') n = {sel: '!', key: w.key, data: {}, text: x.data, elm: x};
     // (CV-4: a compiled block's element is adopted, `$a`; the block takes its inside, blocks.ts)
     else if (t == 1 && x.localName == w?.sel && (w.$b || !(k && (k.create || k.init || k.u || k.insert && !(k.postpatch && k.insert.s))))) {
       const p = d.props || {}, a = d.attrs || {}, o: any = {}, at: any = {}, pr: any = {}, f = x.firstChild;

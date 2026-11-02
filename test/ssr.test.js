@@ -474,8 +474,8 @@ describe('renderToString', () => {
     it('handles component returning null', () => {
       function Empty() { return null }
       Empty.initialState = {}
-      const html = renderToString(Empty)
-      expect(html).toContain('<div')
+      // renders nothing, as in React: an empty comment holds its place (hydration adopts it)
+      expect(renderToString(Empty)).toBe('<!---->')
     })
 
     it('handles empty children array', () => {
