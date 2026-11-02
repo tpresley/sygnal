@@ -2,7 +2,9 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.2 — dev preview
+
+Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / number views typed.
 
 **Fixed.**
 - **Combobox no longer pulls the focus back after it closes.** Zag returns the focus to the input
