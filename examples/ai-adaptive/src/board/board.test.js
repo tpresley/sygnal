@@ -144,6 +144,26 @@ describe('arranged by the model', () => {
     expect(shape(t.state.page.layout)[0]).toBe('agenda')
   })
 
+  it('a change while the model arranges waits for it (busy: queue), and a pin fix keeps it', async () => {
+    await start({ ...at(6), arrange: 'model', pins: ['agenda'] })
+    expect(t.requests('LLM')).toHaveLength(1)
+    // the person pins another card while the model writes: the next arrangement waits
+    t.simulateAction('PIN', 'reviews')
+    await t.next((s) => s.page.queued)
+    expect(t.requests('LLM')).toHaveLength(1)
+    expect(t.html()).toContain('again after this one')
+    // the first one lands (held to the pin), and the waiting one starts with the new pins
+    await composeWith(t, catalog, MODEL_TREE)
+    await t.waitForState((s) => s.log.some((l) => l.by === 'app'))
+    expect(shape(t.state.page.layout)[0]).toBe('agenda')
+    expect(t.state.page).toMatchObject({ status: 'composing', queued: null })
+    expect(t.requests('LLM')).toHaveLength(2)
+    expect(t.requests('LLM')[1].messages.at(-1).content).toContain('reviews')
+    await composeWith(t, catalog, MODEL_TREE)
+    await t.waitForState((s) => s.page.status === 'done')
+    expect(shape(t.state.page.layout).slice(0, 2)).toEqual(['agenda', 'reviews'])
+  })
+
   it('falls back to the rules when the model fails', async () => {
     await start({ ...at(6), arrange: 'model' })
     await t.fail('LLM', 500, 'page.FAILED')

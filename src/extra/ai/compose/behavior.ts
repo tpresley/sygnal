@@ -4,12 +4,13 @@
  *   Workspace.uses = { page: compose(catalog, { backend: compose.decisions({ model }), form: '.ask', prompt: '.prompt' }) }
  *   view: {catalog.render(state.page, state)}
  *
- * Slice (state.page): { prompt, status, layout, preview, pending, decisions, error, ui, local }
+ * Slice (state.page): { prompt, status, layout, preview, pending, queued, decisions, error, ui, local }
  * - status: 'idle' | 'composing' (a request is out) | 'preview' (a partial layout shows: after a
  *   decision step, or while an LLM streams) | 'done' | 'unavailable' (nothing in the catalog fits:
  *   the layout is kept) | 'error' (the layout is kept; `error` says why);
  * - layout: the last finished layout; preview: the one being built (rendered instead while set);
  * - pending: the backend's step (plain JSON); decisions: what the backend explains (its last);
+ * - queued: the composition waiting for the one in flight (`busy: 'queue'`): `{ prompt, fresh? }`;
  * - ui: container state per node key (CONTROL: `{ key, name, value }` → ui[key][name] = value; the
  *   clicks are read only when a container has its own render);
  *   local: the state of `local` parts per node key.
@@ -33,6 +34,16 @@
  * or delta with `keyed: true` (both backends' edits, B-4) already carries the previous layout's keys
  * and is used as is (re-keying by identity could swap the keys of two copies of one part).
  *
+ * `busy` (option): what a COMPOSE does while a composition is in flight. 'abort' (default): it starts
+ * at once, and the lane's `latest` aborts the step in flight. 'queue': it waits in `queued` (a newer
+ * one replaces it); when the one in flight ends (its layout, unavailable, an error), the waiting one
+ * starts in the same action, so at most one request is out and the last COMPOSE always runs. For a
+ * page that recomposes itself on state changes faster than a model answers: with 'abort' no
+ * composition finishes while the changes keep coming (research/ai-compose/request-pacing.md).
+ * A composition that ends while another waits still lands (status 'done', DONE runs) before the
+ * waiting one starts; one that fails is replaced by it (the error isn't shown). SET_LAYOUT ends
+ * both: a layout of the app's own wins (adjust the backend's layout in a `page.DONE` entry's STATE).
+ *
  * `preview` (option): what shows while a fresh composition (`{ fresh: true }`, or the first) streams
  * over a layout: 'merge' (default) the preview's nodes where it puts them and the layout's other
  * nodes where they were, so the parts not reached yet stay mounted (layout.ts overlay()); 'replace'
@@ -49,8 +60,12 @@ import {fail} from '../../diagnostics/legacy'
 import {finish, fromTree, overlay, removeNode, toTree} from './layout'
 import type {Backend, Catalog, Layout} from './types'
 
-/** the compositions per catalog (composeWith finds the pending one): backend, lane and use keys */
-const uses = /*#__PURE__*/ new WeakMap<object, Array<{backend: Backend; lane: string; keys: Set<string>; mine: WeakSet<object>}>>()
+/**
+ * the compositions per catalog (composeWith finds the pending one): backend, lane and use keys;
+ * `of`: a pending step → its composition (the same object for every step of one), so composeWith
+ * stops at the end of one when a queued one starts in the same action
+ */
+const uses = /*#__PURE__*/ new WeakMap<object, Array<{backend: Backend; lane: string; keys: Set<string>; mine: WeakSet<object>; of: WeakMap<object, object>}>>()
 export const usesOf = (catalog: object) => uses.get(catalog) || []
 
 const message = (e: any) => String(e?.message ?? e ?? 'error')
@@ -76,16 +91,17 @@ const controlOf = (e: any) => {
  * src/ai.d.ts.
  */
 export function composeBehavior(catalog: Catalog, options: any = {}): any {
-  const {backend, form, prompt: promptSel, key: lane = 'compose', preview: mode = 'merge'} = options
+  const {backend, form, prompt: promptSel, key: lane = 'compose', preview: mode = 'merge', busy = 'abort'} = options
   if (!backend || typeof backend.sink != 'string' || typeof backend.start != 'function' || typeof backend.reply != 'function') {
     fail('SYG681', 'compose', 'compose(catalog, { backend }) needs a backend', 'Pass compose.decisions({ model }) or compose.llm({ model })')
   }
   if (mode != 'merge' && mode != 'replace' && mode != 'keep') fail('SYG681', 'compose', `compose(catalog, { preview }) takes 'merge', 'replace' or 'keep', not ${JSON.stringify(mode)}`, "Leave it out for 'merge'")
+  if (busy != 'abort' && busy != 'queue') fail('SYG681', 'compose', `compose(catalog, { busy }) takes 'abort' or 'queue', not ${JSON.stringify(busy)}`, "Leave it out for 'abort'")
   if (!catalog || typeof catalog.render != 'function') fail('SYG681', 'compose', 'compose(catalog, …) needs a catalog made by defineCatalog()', 'Pass defineCatalog({ parts })')
   const S: string = backend.sink
   // mine: the pending steps this use made, so composeWith picks its backend among the catalog's uses
-  const entry = {backend, lane, keys: new Set<string>(), mine: new WeakSet<object>()}
-  const own = (p: any) => { if (p && typeof p == 'object') entry.mine.add(p); return p }
+  const entry = {backend, lane, keys: new Set<string>(), mine: new WeakSet<object>(), of: new WeakMap<object, object>()}
+  const own = (p: any, c: any) => { if (p && typeof p == 'object') { entry.mine.add(p); if (c) entry.of.set(p, c) } return p }
   if (!uses.has(catalog)) uses.set(catalog, [])
   uses.get(catalog)!.push(entry)
   const names = (k: string) => ({ok: k + '.REPLY', error: k + '.FAILED', delta: k + '.DELTA', key: lane})
@@ -100,6 +116,32 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     return mode == 'replace' ? r : overlay(r, prev)
   }
 
+  // a composition `c` ({ prompt, fresh? }) starts: its first step
+  const begin = (st: any, k: string, c: any) => {
+    const s = st[k], base = {...s, prompt: c.prompt, preview: null, queued: null, decisions: null, error: null}
+    try {
+      const r = backend.start({catalog, state: st, prompt: c.prompt, previous: c.fresh ? null : s.layout, names: names(k)})
+      return {slice: {...base, status: 'composing', pending: own(r.pending ?? {}, c)}, request: r.request}
+    } catch (e) {
+      return {slice: {...base, status: 'error', pending: null, error: message(e)}}
+    }
+  }
+  // a composition ended (`r.slice` has no pending): the one waiting starts ('queue')
+  const ended = (st: any, k: string, r: any) => {
+    const q = r.slice.queued
+    return q ? {...begin({...st, [k]: r.slice}, k, q), done: r.done} : r
+  }
+
+  // 'queue': the steps whose request is out, with the signal of the instance that sent it (aborted
+  // when it is disposed, as its requests are): a slice that comes back with `pending` (an HMR swap's
+  // kept state, persist) has nothing in flight, so a COMPOSE doesn't wait for it
+  const sent = new WeakMap<object, AbortSignal>()
+  const inFlight = (p: any) => !!p && typeof p == 'object' && sent.get(p)?.aborted === false
+  const track = (step: (st: any, d: any, k: string) => any) => (_s: any, d: any, _n: any, p: any, _o: any, k: string) => {
+    const r = step(p?.state, d, k), q = r?.slice?.pending
+    if (r?.request !== undefined && q && typeof q == 'object' && p?.signal) sent.set(q, p.signal)
+  }
+
   const start = once((st, d, k) => {
     const s = st?.[k]
     if (!s) return null
@@ -107,18 +149,17 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     const prompt = String(raw ?? '').trim()
     if (!prompt) return null
     entry.keys.add(k)
-    const base = {...s, prompt, preview: null, decisions: null, error: null}
-    try {
-      const r = backend.start({catalog, state: st, prompt, previous: d?.fresh ? null : s.layout, names: names(k)})
-      return {slice: {...base, status: 'composing', pending: own(r.pending ?? {})}, request: r.request}
-    } catch (e) {
-      return {slice: {...base, status: 'error', pending: null, error: message(e)}}
-    }
+    const c = {prompt, ...(d?.fresh && {fresh: true})}
+    return busy == 'queue' && inFlight(s.pending) ? {slice: {...s, queued: c}} : begin(st, k, c)
   })
 
   const reply = once((st, d, k) => {
     const s = st?.[k]
     if (!s?.pending) return null
+    const r = answer(s, d, st, k)
+    return r.request !== undefined ? r : ended(st, k, r)
+  })
+  const answer = (s: any, d: any, st: any, k: string): any => {
     let r: any
     try { r = backend.reply({catalog, state: st, pending: s.pending, reply: d, names: names(k)}) || {} } catch (e) {
       return {slice: {...s, status: 'error', preview: null, pending: null, error: message(e)}}
@@ -128,7 +169,7 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     if (r.error != null) return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: message(r.error)}}
     if (r.request !== undefined) {
       const preview = r.preview ? shown(r.preview, !!r.keyed, s.layout) : s.preview
-      return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending), decisions}, request: r.request}
+      return {slice: {...s, status: preview ? 'preview' : 'composing', preview, pending: own(r.pending ?? s.pending, entry.of.get(s.pending)), decisions}, request: r.request}
     }
     if (r.layout) {
       // `keyed` (B-4 edits): the backend kept the previous keys itself (moves, new rows): not re-keyed
@@ -137,6 +178,10 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     }
     if (r.unavailable || r.layout === null) return {slice: {...s, status: 'unavailable', preview: null, pending: null, decisions}}
     return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: 'the backend gave no layout'}}
+  }
+  const failed = once((st, d, k) => {
+    const s = st?.[k]
+    return s?.pending ? ended(st, k, {slice: {...s, status: 'error', preview: null, pending: null, error: message(d?.error ?? d)}}) : null
   })
 
   /** a delta's step: a preview, or (`reply`) the reply it ends the step with */
@@ -153,10 +198,10 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
 
   // `prompt` (a selector) must not set the slice's prompt (defineBehavior merges options naming
   // initialState keys): the factory gets the other options
-  const {prompt: _selector, preview: _mode, ...rest} = options
+  const {prompt: _selector, preview: _mode, busy: _busy, ...rest} = options
   const controls = Object.values(catalog.containers || {}).some((c: any) => typeof c.decl?.render == 'function')
   return defineBehavior({
-    initialState: {prompt: '', status: 'idle', layout: null, preview: null, pending: null, decisions: null, error: null, ui: {}, local: {}},
+    initialState: {prompt: '', status: 'idle', layout: null, preview: null, pending: null, queued: null, decisions: null, error: null, ui: {}, local: {}},
     intent: (so: any, _o: any, k: string) => {
       const {DOM} = so
       if (!DOM) return {}
@@ -172,11 +217,15 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     },
     model: fromPrevious({
       PROMPT: (s: any, p: any) => typeof p == 'string' && p !== s.prompt ? {...s, prompt: p} : ABORT,
-      COMPOSE: {HOST: host(start), [S]: sink(start)},
+      COMPOSE: {HOST: host(start), [S]: sink(start), ...(busy == 'queue' && {EFFECT: track(start)})},
       REPLY: {
         HOST: host(reply),
         [S]: sink(reply),
-        EFFECT: (_s: any, d: any, next: any, p: any, _o: any, k: string) => { const r = reply(p?.state, d, k); if (r?.done) next('DONE', r.done) },
+        EFFECT: (_s: any, d: any, next: any, p: any, o: any, k: string) => {
+          if (busy == 'queue') track(reply)(_s, d, next, p, o, k)
+          const r = reply(p?.state, d, k)
+          if (r?.done) next('DONE', r.done)
+        },
       },
       DELTA: {
         HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) => {
@@ -199,11 +248,11 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
           if (x?.done) next('DONE', x.done)
         },
       },
-      FAILED: (s: any, d: any) => s.pending ? {...s, status: 'error', preview: null, pending: null, error: message(d?.error ?? d)} : ABORT,
+      FAILED: {HOST: host(failed), [S]: sink(failed), ...(busy == 'queue' && {EFFECT: track(failed)})},
       SET_LAYOUT: {
         HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) => {
           const layout = d == null ? null : finish(catalog, d, st)
-          return {...st, [k]: {...st[k], layout, preview: null, pending: null, error: null, status: layout ? 'done' : 'idle'}}
+          return {...st, [k]: {...st[k], layout, preview: null, pending: null, queued: null, error: null, status: layout ? 'done' : 'idle'}}
         },
       },
       REMOVE: {
