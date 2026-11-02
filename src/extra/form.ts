@@ -60,7 +60,20 @@
  * DONE / ERRORS / RESET); internal: form.RESULT (an async schema's result),
  * form.CHECKED_<name> (a check's reply; a failed check passes: the server checks on submit),
  * form.VALIDATE (the first validation, when the host starts: G-375; `valid` is false until the
- * schema answered; with resetOnShow also each time the form element appears, D239).
+ * schema answered; with resetOnShow also each time the form element appears, D239), form.SYNC
+ * (RT-1: the dynamic fields or the schema changed with the host's state).
+ *
+ * RT-1 (research: dev-plans/research/forms/runtime-fields.md), fields chosen at run time (a form
+ * composed from pieces): `dynamic: (hostState) => ({ path: start value })` names fields beyond
+ * `values` that follow the host's state. An entry that appears is added to values (and initial)
+ * with its start value; one that stays keeps what was typed (a start value that is an object
+ * reshapes it: keys it gained added, keys it lost dropped); one that goes is removed with its
+ * touched, server errors, check results and running checks. RESET / resetOnShow start them over
+ * too. The schema can be a function of the host's state, `form((state) => schema, …)`, for rules
+ * that depend on what is composed (required-ness): called whenever the form validates, results
+ * cached per schema object, so it must return the same schema for the same rules (memoized; a
+ * new one for the same state is SYG239 in dev). The form re-validates (form.SYNC) when the
+ * dynamic fields change (structurally) or the schema function returns another schema.
  *
  * G-575 (D236): a valid submit is `submitting` (until form.DONE / form.ERRORS, a second submit
  * dropped) only when the host's submit entry has the `http` sink; any other submit (STATE, PARENT,
@@ -103,6 +116,34 @@ const drop = (o: any, p: string) => {
   return r
 }
 
+// RT-1: a dynamic entry's value shaped by its start value: a plain object keeps the keys of the
+// start (what was typed in them kept), gains its new ones, loses the rest; any other value is kept.
+// The same object when nothing changes
+const plain = (x: any) => !!x && typeof x == 'object' && Object.getPrototypeOf(x) == Object.prototype
+const shape = (cur: any, start: any): any => {
+  if (!plain(start) || !plain(cur)) return cur === undefined ? start : cur
+  let same = Object.keys(cur).length == Object.keys(start).length
+  const r: any = {}
+  for (const k in start) same = (r[k] = k in cur ? shape(cur[k], start[k]) : start[k]) === cur[k] && k in cur && same
+  return same ? cur : r
+}
+const fit = (vals: any, n: string, start: any) => setField(vals, n, shape(hasField(vals, n) ? getField(vals, n) : undefined, start))
+// a path removed from values (object keys; the same object when it isn't there)
+const unset = (o: any, n: string): any => {
+  const [a, ...r] = n.split('.')
+  if (!plain(o) || !(a in o)) return o
+  const c = {...o}, x = r.length ? unset(o[a], r.join('.')) : c
+  if (x === o[a]) return o
+  r.length ? c[a] = x : delete c[a]
+  return c
+}
+// a map by field name without the names that are no fields of vals ('' stays: form-level)
+const prune = (m: any, vals: any) => {
+  let r = m
+  for (const n in m) if (n && !hasField(vals, n)) r === m && (r = {...m}), delete r[n]
+  return r
+}
+
 // G-376: a checkbox (native, or a hyphenated tag with a boolean `checked`: a form-associated
 // custom checkbox / switch) gives `checked` and its value as `item`; a <select multiple> the
 // selected values; PLAN-11 F-2: a file input its File (`multiple`: an array of them; none: null);
@@ -118,8 +159,10 @@ const native = (t: any) =>
   : {name: t.name, value: t.type == 'select-multiple' ? [...t.selectedOptions].map((o: any) => o.value) : t.value}
 
 export const form = (schema: any, o: any = {}): any => {
-  isStandardSchema(schema) || dev(231, schema)
-  const {values: vo = {}, submit, request: rq, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again} = o
+  // RT-1: a function that isn't itself a Standard Schema (arktype's are callable) is the schema of the host's state
+  const sfn = !isStandardSchema(schema) && typeof schema == 'function'
+  sfn || isStandardSchema(schema) || dev(231, schema)
+  const {values: vo = {}, submit, request: rq, check: checks = {}, show = 'blur', http = 'HTTP', form: sel = 'form', resetOnShow: again, dynamic: dyn} = o
   // D239: `values` can be a function of the host's state, called when the form starts (and each
   // show, resetOnShow). Before that (the host's first render, before its first action) the
   // fields come from calling it with a blank state: every read gives '' in the result
@@ -127,18 +170,28 @@ export const form = (schema: any, o: any = {}): any => {
   const clean = (x: any): any => x === B ? '' : Array.isArray(x) ? x.map(clean) : x && typeof x == 'object' ? Object.fromEntries(Object.entries(x).map(([k, y]) => [k, clean(y)])) : x
   let values: any = vo
   if (fn) try { values = clean(vo(B)) } catch (_) { values = {} }
-  const cache = new WeakMap(), checked = Object.keys(checks)
+  const cache = new WeakMap(), seen = new WeakMap(), checked = Object.keys(checks)
   // G-575: a submit is pending (until form.DONE / form.ERRORS) only when the host's submit entry
   // sends a request on the `http` sink; any other submit is done once its entry has run. Set when
   // the form merges into its host
   let req = true
-  // the schema's result, once per values object; an async one replaces its Promise when it settles
-  const v = (vals: any): any => {
-    let r = cache.get(vals)
+  // the schema for the host state h (RT-1: a schema function's, checked once per schema it returns)
+  const sOf = (h: any) => {
+    if (!sfn) return schema
+    const x = schema(h)
+    cache.has(x) || isStandardSchema(x) || dev(231, x)
+    return x
+  }
+  // the schema's result, once per (schema, values object); an async one replaces its Promise when
+  // it settles. `seen`: the last result per values object (for formTool's answer)
+  const v = (vals: any, sc: any): any => {
+    let m = cache.get(sc), r = m?.get(vals)
+    m || cache.set(sc, m = new WeakMap())
     if (!r) {
-      cache.set(vals, r = checkForm(schema, vals))
-      r.then?.((x: any) => cache.set(vals, x))
+      m.set(vals, r = checkForm(sc, vals))
+      r.then?.((x: any) => (m.set(vals, x), seen.set(vals, x)))
     }
+    seen.set(vals, r)
     return r
   }
   // G-379: a field is a path of values (an undefined value too); `quiet`: no SYG230 (a focusout
@@ -148,10 +201,11 @@ export const form = (schema: any, o: any = {}): any => {
     n && !k && !quiet && dev(230, n, s.values)
     return k
   }
-  // new values: errors now (sync schema), or after the schema's Promise (RESULT)
-  const edit = (s: any, vals: any, x?: any) => {
-    const r = v(vals), a = !!r.then
-    return {s: {...s, ...x, values: vals, validating: a, ...(!a && {errors: r.errors, validated: true})}, wait: a && {values: vals}}
+  // new values: errors now (sync schema), or after the schema's Promise (RESULT; `submit`: for a
+  // queued submit). h: the host state (the schema's, RT-1)
+  const edit = (s: any, vals: any, x: any, h: any, submit?: any) => {
+    const sc = sOf(h), r = v(vals, sc), a = !!r.then
+    return {s: {...s, ...x, values: vals, validating: a, ...(!a && {errors: r.errors, validated: true})}, wait: a && {values: vals, schema: sc, submit}}
   }
   // the first check due: no schema error, a value, and not checked or running for it
   const due = (s: any, only?: string) => checked.find(f => {
@@ -171,10 +225,20 @@ export const form = (schema: any, o: any = {}): any => {
       : Object.keys(s.pending).length ? {s: {...s, queued: true}}
       : {s: req ? {...s, queued: false, submitting: true} : done({...s, queued: false}), send: 1}
   }
-  const base = (vals: any, resets = 0) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
-    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false, progress: null, resets})
-  // a start over (RESET, resetOnShow): `resets` counts them, so a file input keyed by it is made anew
-  const fresh = (vals: any, s?: any) => edit(base(vals, s ? (s.resets || 0) + 1 : 0), vals)
+  const base = (vals: any, resets = 0, added = {}) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
+    submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false, progress: null, resets, added})
+  // RT-1: the dynamic entries `a` into values
+  const grow = (vals: any, a: any) => {
+    for (const n in a) vals = fit(vals, n, a[n])
+    return vals
+  }
+  // a start over (RESET, resetOnShow; `n`: counted in `resets`, so a file input keyed by it is
+  // made anew), with the dynamic fields of the slice s at their start values
+  const fresh = (vals: any, s: any, h: any, n?: any) => {
+    const a = s.added || {}
+    vals = grow(vals, a)
+    return edit(base(vals, (s.resets || 0) + (n ? 1 : 0), a), vals, 0, h)
+  }
   const done = (s: any) => ({...s, submitting: false, submitted: true, initial: s.values, server: {}, touched: {}, progress: null})
   // 7.2: the group's values in document order (`order`, from the DOM), as FormData and
   // processForm; values no rendered box has (a filtered list) keep their places
@@ -190,13 +254,13 @@ export const form = (schema: any, o: any = {}): any => {
 
   // fields changed as typed ones ([name, value] pairs; unknown names skipped, SYG230): their
   // server errors, check results and running checks go, `touched` as show 'input' says; one validation
-  const put = (s: any, d: any[], quiet?: any) => {
+  const put = (s: any, d: any[], h: any, quiet?: any) => {
     let vals = s.values, server = drop(s.server, ''), remote = s.remote, pending = s.pending, touched = s.touched
     for (const [n, y] of d) if (known(s, n, quiet)) {
       vals = setField(vals, n, y), server = drop(server, n), remote = drop(remote, n), pending = drop(pending, n)
       if (show == 'input') touched = {...touched, [n]: true}
     }
-    return vals != s.values ? edit(s, vals, {server, remote, pending, touched, queued: false}) : null
+    return vals != s.values ? edit(s, vals, {server, remote, pending, touched, queued: false}, h) : null
   }
 
   const steps: Record<string, (s: any, d: any, k: string, h?: any) => any> = {
@@ -204,35 +268,36 @@ export const form = (schema: any, o: any = {}): any => {
     // its value, unchecked removes it
     // PLAN-11 F-2: a file input whose name isn't in values is left alone, quietly (an app that reads
     // its files in its own intent, as before 6.7)
-    CHANGE: (s, d) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : [], d?.file),
+    CHANGE: (s, d, _k, h) => put(s, d?.name ? [[d.name, group(getField(s.values, d.name), d)]] : [], h, d?.file),
     BLUR: (s, n, k) => {
       if (!known(s, n, 1)) return null
       const t = show == 'submit' || s.touched[n] ? s.touched : {...s.touched, [n]: true}, x = {...s, touched: t}
       return due(s, n) ? ask(x, n, k, s.queued) : t != s.touched ? {s: x} : null
     },
-    SUBMIT: (s, _, k) => {
+    SUBMIT: (s, _, k, h) => {
       if (s.submitting || s.queued) return void dev(232, s)
-      const n = {...s, submitCount: s.submitCount + 1}, r = v(s.values)
+      const n = {...s, submitCount: s.submitCount + 1}, sc = sOf(h), r = v(s.values, sc)
       // G-371: a submit waiting for an async schema is queued (a second one is dropped)
-      return r.then ? {s: {...n, validating: true, queued: true}, wait: {values: s.values, submit: 1}} : attempt({...n, errors: r.errors}, k)
+      return r.then ? {s: {...n, validating: true, queued: true}, wait: {values: s.values, schema: sc, submit: 1}} : attempt({...n, errors: r.errors}, k)
     },
-    RESULT: (s, d, k) => {
-      if (d.values !== s.values) return
-      const n = {...s, errors: v(d.values).errors, validating: false, validated: true}
+    // (a result for other values, or for a schema the host state no longer gives, is stale)
+    RESULT: (s, d, k, h) => {
+      if (d.values !== s.values || d.schema !== sOf(h)) return
+      const n = {...s, errors: v(d.values, d.schema).errors, validating: false, validated: true}
       // the submit it was queued for (G-575: a done local submit isn't `submitting`, so not that)
       return d.submit && s.queued ? attempt(n, k) : {s: n}
     },
-    ADD: (s, {field, value}) => {
+    ADD: (s, {field, value}, _k, h) => {
       const rows = getField(s.values, field) || []
-      return edit(s, setField(s.values, field, [...rows, {id: rows.reduce((m: number, r: any) => Math.max(m, +r.id || 0), 0) + 1, ...value}]))
+      return edit(s, setField(s.values, field, [...rows, {id: rows.reduce((m: number, r: any) => Math.max(m, +r.id || 0), 0) + 1, ...value}]), 0, h)
     },
-    REMOVE: (s, {field, id}) => {
+    REMOVE: (s, {field, id}, _k, h) => {
       const p = field + '.' + id
       return edit(s, setField(s.values, field, getField(s.values, field).filter((r: any) => r.id + '' != id)),
-        {touched: drop(s.touched, p), server: drop(s.server, p)})
+        {touched: drop(s.touched, p), server: drop(s.server, p)}, h)
     },
     // G-647: several fields at once ({ values: { name: value } }, names as in CHANGE), as if typed
-    SET: (s, d) => put(s, Object.entries(d?.values || {})),
+    SET: (s, d, _k, h) => put(s, Object.entries(d?.values || {}), h),
     ERRORS: (s, d) => {
       const e = replyErrors(d, s.values)
       return {s: {...s, server: e, submitting: false, queued: false, progress: null}, focus: focusInvalid(e, sel)}
@@ -242,13 +307,25 @@ export const form = (schema: any, o: any = {}): any => {
     PROGRESS: (s, d) => s.submitting && d && typeof d == 'object'
       ? {s: {...s, progress: {phase: d.phase, loaded: d.loaded, total: d.total ?? null, fraction: d.fraction ?? null}}} : null,
     // PLAN-11: only a plain object is new values (a click event from `DOM.click('.reset')` is not)
-    RESET: (s, d) => fresh(d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d)) ? d : s.initial, s),
+    RESET: (s, d, _k, h) => fresh(d && typeof d == 'object' && [Object.prototype, null].includes(Object.getPrototypeOf(d)) ? d : s.initial, s, h, 1),
     // G-375: the first validation, when the host starts (form() doesn't validate at module load).
     // G-575: a slice kept in parent state from a host that unmounted mid-submit starts unstuck.
     // D239: with resetOnShow (also each time the form element appears again), or a `values`
     // function not called yet, the slice starts over from the start values (h: the host state)
-    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo, again && s)
-      : edit({...s, submitting: false, queued: false, pending: {}, progress: null}, s.values),
+    VALIDATE: (s, _, _k, h) => again || fn && s.values === values ? fresh(fn ? vo(h) : vo, s, h, again)
+      : edit({...s, submitting: false, queued: false, pending: {}, progress: null}, s.values, 0, h),
+    // RT-1: the dynamic fields (data: { fields }, `dynamic(hostState)`) or the schema changed: entries
+    // added, reshaped or removed (with their touched, server errors and checks), then a validation;
+    // no change when nothing moved and the schema answers the same
+    SYNC: (s, d, _k, h) => {
+      const a = d?.fields || {}, had = s.added || {}
+      let vals = s.values, init = s.initial
+      for (const n in had) if (!(n in a)) vals = unset(vals, n), init = unset(init, n)
+      vals = grow(vals, a), init = grow(init, a)
+      const x = edit(s, vals, {initial: init, added: a, touched: prune(s.touched, vals), server: prune(s.server, vals),
+        remote: prune(s.remote, vals), pending: prune(s.pending, vals)}, h, s.queued)
+      return x.wait || vals != s.values || init != s.initial || json(a) != json(had) || json(x.s.errors) != json(s.errors) ? x : null
+    },
   }
   // a check's reply (ok and error: an error reply carries an Error and passes)
   for (const f of checked) steps['CHECKED_' + f] = (s, d, k) => {
@@ -258,8 +335,8 @@ export const form = (schema: any, o: any = {}): any => {
   }
 
   // PLAN-11 F-3: the `request` option's request for a valid submit (data: the schema's output)
-  const send = (vals: any, h: any, k: string) => {
-    const data = v(vals).value, q = typeof rq == 'function' ? rq(data, h) : rq
+  const send = (vals: any, h: any, k: string, pre: any) => {
+    const data = v(vals, sOf(pre)).value, q = typeof rq == 'function' ? rq(data, h) : rq
     if (!q || q === ABORT) return ABORT
     // progress (over XMLHttpRequest) only for an upload or when asked (`progress: true`): a JSON submit stays on fetch
     const own = 'json' in q || 'multipart' in q || 'body' in q, up = own ? 'multipart' in q : hasFile(data)
@@ -267,34 +344,36 @@ export const form = (schema: any, o: any = {}): any => {
   }
 
   const model: any = {}
+  // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
+  const pre = (p: any) => p?.previousState || p?.state
   for (const a in steps) {
     let last: any[] = []
-    // (HOST, with the host state h, always computes: one slice object starts every app's host)
-    const out = (s: any, d: any, k: string, h?: any) => !h && last[0] === s && last[1] === d ? last[2] : (last = [s, d, steps[a](s, d, k, h)])[2]
+    // one step per (slice, data, host state): STATE's and its outputs'
+    const out = (s: any, d: any, k: string, h: any) => last[0] === s && last[1] === d && last[2] === h ? last[3] : (last = [s, d, h, steps[a](s, d, k, h)])[3]
     model[a] = {
       // VALIDATE: on the host's state (HOST), for a `values` function; the slice's own steps on it
       ...a == 'VALIDATE' ? {HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => { const x = out(h[k], d, k, h); return x ? {...h, [k]: x.s} : h }}
-        : {STATE: (s: any, d: any, _n: any, _p: any, _o: any, k: string) => out(s, d, k)?.s || ABORT},
+        : {STATE: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(s, d, k, p?.state)?.s || ABORT},
       // outputs share STATE's transition: computed from the slice before the action
       EFFECT: (s: any, d: any, next: any, p: any, _o: any, k: string) => {
         s = was(s, p, k)
-        const x = out(s, d, k), w = x?.wait
+        const h = pre(p), x = out(s, d, k, h), w = x?.wait
         if (x?.send) {
-          const r = v(x.s.values).value
+          const r = v(x.s.values, sOf(h)).value
           dev(233, s.values, r)
           // G-577: a submit named after one of the form's own actions goes to that one
           submit in steps && dev(234, submit, k, b)
           // PLAN-11 F-3: with `request`, `submit` is optional (dispatched for state when given)
           if (submit !== undefined || !rq) next(submit, r, 0)
         }
-        w && Promise.resolve(v(w.values)).then(() => next('RESULT', w, 0))
+        w && Promise.resolve(v(w.values, w.schema)).then(() => next('RESULT', w, 0))
       },
-      ELEMENT: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(was(s, p, k), d, k)?.focus || ABORT,
+      ELEMENT: (s: any, d: any, _n: any, p: any, _o: any, k: string) => out(was(s, p, k), d, k, pre(p))?.focus || ABORT,
       // the checks' requests, and (PLAN-11 F-3) the `request` option's for a valid submit; the
       // step from the slice before the action (7.0: outputs get the updated one), the host state as committed
       ...((checked.length || rq) && {[http]: (s: any, d: any, _n: any, p: any, _o: any, k: string) => {
-        const x = out(was(s, p, k), d, k)
-        return x?.req || (x?.send && rq ? send(x.s.values, p?.state, k) : ABORT)
+        const x = out(was(s, p, k), d, k, pre(p))
+        return x?.req || (x?.send && rq ? send(x.s.values, p?.state, k, pre(p)) : ABORT)
       }}),
     }
   }
@@ -303,10 +382,19 @@ export const form = (schema: any, o: any = {}): any => {
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
-    intent: ({DOM}: any) => {
+    intent: ({DOM}: any, _o: any, _k: any, host: any) => {
       const f = DOM.select(sel)
-      let on = 0
+      let on = 0, pf: any, ps: any
       return {
+        // RT-1: the dynamic fields and the schema, from the host's state: form.SYNC when the fields
+        // change (structurally) or the schema function returns another schema
+        ...(dyn || sfn) && host && {SYNC: host.stream.map((h: any) => {
+          const fields = dyn ? dyn(h) || {} : {}, f = json(fields), sc = sOf(h)
+          sfn && dev(239, () => schema(h) !== sc)
+          const r = f !== pf || sc !== ps
+          pf = f, ps = sc
+          return r && {fields}
+        }).filter((x: any) => x)},
         // D239: resetOnShow also starts over each time the form element appears again (a
         // Switchable page shown again: hidden pages stay alive; a form rendered again)
         VALIDATE: again ? xs.merge(xs.of(0), f.elements().filter((e: any) => { const r = e.length && !on; on = e.length; return r })) : xs.of(0),
@@ -342,7 +430,8 @@ export const form = (schema: any, o: any = {}): any => {
     },
   })({...o, values}), merge = b.merge
   // PLAN-6 A-3 (D291): a formTool() patches the behavior (formTool.ts); v: the schema's result
-  o.tool?.$?.(b, v)
+  // (RT-1: a schema function's result is the one the submit validated with)
+  o.tool?.$?.(b, (vals: any) => seen.get(vals) || (sfn ? {errors: {}} : v(vals, schema)))
   b.merge = (c: any, k: string) => {
     const e = c.model?.[submit]
     req = !!rq || !!e && typeof e == 'object' && http in e

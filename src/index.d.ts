@@ -876,8 +876,11 @@ export type BehaviorModelEntry<SLICE = any, OPTIONS = any> =
 export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, OPTIONS = Record<string, any>> {
   /** The slice a host starts with (`state[key]`); options naming one of its keys override it. */
   initialState: SLICE;
-  /** Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. `key`: the use's key in `uses`. */
-  intent?: (sources: BehaviorSources<SLICE>, options: OPTIONS, key: string) => { [ACTION in keyof ACTIONS]: Stream<ACTIONS[ACTION]> };
+  /**
+   * Actions named without the key (`NEXT`); the host sees them as `'<key>.NEXT'`. `key`: the use's key in `uses`.
+   * `hostState`: the host's own STATE source (`sources.STATE` is the slice's), for a trigger that follows the host's state
+   */
+  intent?: (sources: BehaviorSources<SLICE>, options: OPTIONS, key: string, hostState: StateSource<any>) => { [ACTION in keyof ACTIONS]: Stream<ACTIONS[ACTION]> };
   /**
    * Model entries on the slice: ABORT, or the slice itself, means no change. `next('X')` names
    * the behavior's own actions. Handlers get `(slice, data, next, props, options, key)`; a
@@ -1055,6 +1058,11 @@ export interface FormState<V = any> {
    * input can't be cleared through state: key it with this, `key={'avatar' + state.form.resets}`
    */
   resets: number;
+  /**
+   * RT-1: the dynamic fields on the form now (the `dynamic` option's entries for the host's
+   * state): path → start value. `{}` without the option
+   */
+  added: Record<string, any>;
 }
 
 type FormIsAny<T> = 0 extends (1 & T) ? true : false
@@ -1139,6 +1147,16 @@ export interface FormOptions<V = any, OUT = any> {
    * them when the user comes back)
    */
   resetOnShow?: boolean;
+  /**
+   * RT-1: fields beyond `values` that come and go with the host's state (a form composed from
+   * pieces): a function of the host's state returning `{ path: start value }`
+   * (`(state) => ({ 'amount~2': { amount: '', currency: 'USD' } })`). An entry that appears is
+   * added to values (and `initial`) with its start value; one that stays keeps what was typed (an
+   * object start value reshapes it: keys added, keys dropped); one that goes is removed with its
+   * touched, server errors and checks. `form.RESET` and `resetOnShow` start them over too. Paths
+   * name object keys (not array rows). Recomputed on each host state change, compared structurally
+   */
+  dynamic?: (state: any) => Record<string, any>;
   /**
    * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
    * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
@@ -1235,6 +1253,18 @@ export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>
   options: FormOptions<V, FormSchemaOutput<S>> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
     & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
 ): FormBehavior<FormValuesOf<V, S>, FormSchemaOutput<S>>
+/**
+ * RT-1: a schema that depends on the host's state (rules that follow what is composed:
+ * required-ness), `form((state) => schema, { values, dynamic, submit })`. Called with the host's
+ * state whenever the form validates; results are cached per schema object, so return the same
+ * schema while the rules don't change (memoize it on what it reads; a new one for the same state
+ * is SYG239 in dev). The form re-validates when it returns another schema. `values` holds the
+ * fields that are always there (often `{}` with `dynamic`)
+ */
+export function form<V = Record<string, any>, S extends StandardSchemaLike = StandardSchemaLike>(
+  schema: (state: any) => S,
+  options: FormOptions<V, FormSchemaOutput<S>> & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
+): FormBehavior<V, FormSchemaOutput<S>>
 
 /** A Standard Schema's result for `values`: errors by field name, and the output when there are none. A Promise for an async schema. */
 export function checkForm(schema: StandardSchemaLike, values: any): { errors: FieldErrors; value: any } | Promise<{ errors: FieldErrors; value: any }>

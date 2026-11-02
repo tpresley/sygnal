@@ -254,6 +254,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG235: 'Form check names an unknown field or sets reply fields',
   SYG236: 'Form array rows without an id',
   SYG237: 'Two forms in one component listen on the same form selector',
+  // RT-1: a form's schema function (checks/forms.ts)
+  SYG239: 'Form schema function returns a new schema for the same state',
   // PLAN-5 2-R (G-393; checks/state.ts; dev entry)
   SYG238: 'Root component with a model but no initial state',
   // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent; runtime, while an agent layer runs)
@@ -493,6 +495,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG235: 'warn',
   SYG236: 'warn',
   SYG237: 'warn',
+  SYG239: 'warn',
   SYG238: 'warn',
   // PLAN-6 A-1 (sygnal/ai agent layer, src/extra/ai/agent): reported by the layer itself with the
   // severity passed, like SYG611, so the main bundle's table doesn't grow

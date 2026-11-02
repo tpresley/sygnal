@@ -23,15 +23,16 @@
  *   after the behavior's, and a host value sink (EVENTS, PARENT, a driver) replaces the
  *   behavior's value for that sink.
  * - intent: gets the host's sources (DOM is the host's isolated DOM source; CHILD, EVENTS and
- *   drivers as they are) with STATE lensed to the slice, plus the options. A host intent action
- *   with the same namespaced name overrides the behavior's trigger.
+ *   drivers as they are) with STATE lensed to the slice, plus the options, the key and (RT-1) the
+ *   host's own STATE source (for triggers that follow the host's state: the form's `dynamic`). A
+ *   host intent action with the same namespaced name overrides the behavior's trigger.
  * - `instance._behaviorActions` maps each behavior-owned action to its key (t.actions, 2-C).
  *   A host intent action of the same name makes it host-owned (removed from the map).
  * - renderComponent marks the streams it adds for simulateAction (`__sygnalTestActions`); they
  *   are merged with a behavior trigger of the same name instead of overriding it.
  * - D197 (PLAN-5): every model handler gets `(slice, data, next, props, options, key)`: the
  *   use's options and its key in `uses` (so a driver request can name a reply action
- *   `key + '.LOADED'`); the intent gets `(sources, options, key)`.
+ *   `key + '.LOADED'`); the intent gets `(sources, options, key, hostState)`.
  * - D197: `HOST: (state, data, next, props, options, key) => state` in a model entry is a STATE
  *   reducer on the host's whole state (sortable reorders the host's array); ABORT or the same
  *   state is no change; the slice's calculated fields are recomputed when it changed. G-378:
@@ -164,7 +165,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
     c.intent = (so: any) => {
       const o: any = {}
       for (const [k, b, slice] of list) {
-        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options, k)
+        const st = so[S], i = b.intent?.({...so, [S]: st?.select({get: (s: any) => s?.[k] ?? slice})}, b.options, k, st)
         for (const a in i) o[k + '.' + a] = i[a], owned[k + '.' + a] = k
       }
       const h = own?.(so), test = h?.__sygnalTestActions || []
