@@ -2,6 +2,55 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.1 — dev preview
+
+Fixes and additions from porting a large React app to the 7.2 preview. Everything is additive except
+the two entries marked **Behaviour change** (a view returning `null`, and `false` on a string prop).
+
+**New.**
+- **Streamed responses on `makeFetchDriver`:** a request with `stream: 'sse' | 'ndjson' | 'text'` (a
+  POST too) sends each piece to its `chunk` action, then `ok` with `{ status, headers }` at the end.
+  `done: '[DONE]'` (or a predicate) ends the stream on a sentinel; `meta: true` gives SSE pieces as
+  `{ data, event, id }`. `abort`, `latest` and `timeoutMs` (the time to the first byte) apply; retry,
+  the cache, `parse` and `validate` don't, and resources never stream. Tests: `t.push('HTTP', piece)`,
+  then `t.respond('HTTP', null)` to end it.
+- **`keepHeaders: ['X-Computed-At']` on a request:** a resource's state gets `headers` (lowercased
+  names, `null` when absent) next to `data`. The query cache stores them, so cache hits, SSR
+  `dehydrate()` / `hydrate()` and refetches keep them. `cache.set(request, data, headers?)`.
+- **`{ reset: true | tag | tags | '/prefix' | predicate }` on the HTTP sink** (logout): matching cache
+  entries are dropped and matching mounted resources go back to `'loading'` with no data, then refetch
+  (React Query's `resetQueries`). `queryCache().clear()` drops every entry.
+- **Response headers on failures:** the `error` reply, `errors()` and the Error itself carry `headers`.
+- **`Comp<{ state, props, actions, calculated, context, parent, ... }>` / `RootComp<{ ... }>`**
+  (`ComponentSpec`, `RootComponentSpec`): components typed by name instead of seven positional
+  generics; `parent: Payload` types the parent's `CHILD.select(C)`. A misspelled key is a type error.
+  The positional `Component<...>` is unchanged. This is the form docs and llms.txt now show; 8.0 plans
+  to make it `Component`'s only form.
+- **`t.location.query`** (the parsed query, as `state.route.query`).
+
+**Changed.**
+- **Behaviour change:** a view returning `null`, `false` or `undefined` renders nothing (an empty
+  comment), as in React; it rendered an empty `<div>`. `ClientOnly` with no children renders nothing too.
+- **Behaviour change:** `false` on a string DOM property (`title={on && 'tip'}`) removes the attribute,
+  as React and `renderToString` already did; it rendered `title="false"`. `value`, `contentEditable`
+  and custom-element properties are unchanged.
+- A `next()` timeout in `renderComponent` names the usual cause: an awaited `t.respond` /
+  `t.simulateEvent` has already settled, so read `t.state`.
+
+**Fixed.**
+- A resource whose behaviour-only fields change (`refetchEvery: s.live ? 5000 : undefined`,
+  `keepPrevious`, `retry`, `staleTime`, `ok` / `error`, …) keeps its data and status: polling starts,
+  stops or reschedules without a new request. It went back to `'loading'` with its data cleared.
+- Components inside `<Portal>` are instantiated (they rendered as a literal tag).
+- On the server, a child without a `state` prop gets its parent's state, as on the client (it got its
+  own `initialState`).
+
+**Docs.** Reading response headers (`keepHeaders`, or a `parse` function, which is uncached), the logout
+reset, a cursor infinite list, streamed POSTs (a live demo), and the router block's leave-page prompt in
+llms.txt.
+
+**Companion packages.** sygnal-check accepts `chunk` as an HTTP reply action.
+
 ## 7.2.0-preview.0 — dev preview
 
 A dev preview (`npm install sygnal@next sygnal-check@next`). Its new subpaths and the `compile` option are

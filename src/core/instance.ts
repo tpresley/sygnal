@@ -55,9 +55,9 @@ function bindingState(k: any): any {
 const ERR_FIX = 'See the attached error'
 
 // 4-I G-557: a fragment root (a Collection's): each of its top-level elements is marked.
-// 4-K G-572: a text root (no element; an attribute would land on a Text node) gets `ready: false`
+// 4-K G-572: a text or comment root (no element; an attribute would land on a Text node) gets `ready: false`
 // (read by Suspense)
-const notReady = (v: any): any => v?.sel ? {...v, data: {...v.data, attrs: {...v.data?.attrs, 'data-sygnal-ready': 'false'}}}
+const notReady = (v: any): any => v?.sel && v.sel != '!' ? {...v, data: {...v.data, attrs: {...v.data?.attrs, 'data-sygnal-ready': 'false'}}}
   : v?.children ? {...v, children: v.children.map(notReady)} : v && {...v, ready: false}
 const errorDiv = (name: string) => ({sel: 'div', data: {attrs: {'data-sygnal-error': name}}, children: [], text: undefined, elm: undefined, key: undefined})
 
@@ -556,7 +556,9 @@ export class Inst {
     const t = this.tmpl
     // G-567: a view that returns a string or a number renders it as text (as renderToString)
     if (typeof t == 'string' || typeof t == 'number') this.tmpl = {text: '' + t}
-    else if (!t) this.tmpl = {sel: 'div', data: {}, children: [], text: undefined, elm: undefined, key: undefined}
+    // a view that returns null, false or undefined renders nothing (as React): an empty comment
+    // holds its place, so it patches to and from an element in position
+    else if (!t) this.tmpl = {sel: '!', data: {}, children: undefined, text: '', elm: undefined, key: undefined}
     this.keys = keys
   }
 

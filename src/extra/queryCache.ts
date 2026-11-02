@@ -1,5 +1,5 @@
 import {onBrowserSignals} from './browserSignals';
-import {withQuery, hit} from './fetchDriver';
+import {withQuery, hit, keptHeaders} from './fetchDriver';
 
 /*
  * queryCache(options?) (PLAN-3 D88, 5-5): the opt-in query cache of makeFetchDriver, in its own
@@ -11,7 +11,7 @@ import {withQuery, hit} from './fetchDriver';
  * n (resources using it), g (gc timer) }), gc, freshness (the stale-while-revalidate decision),
  * the fetches identical requests share (de-duplication, `f`), entry invalidation, the focus /
  * reconnect trigger and SSR seeding. The driver calls its hooks (key, fresh, get, put, use,
- * inval, on, list) and keeps resources, polling, retries and validation.
+ * inval, drop, on, list) and keeps resources, polling, retries and validation.
  *
  * - Keys: method + URL as written (the driver's baseUrl left out, query sorted) + body + parse.
  *   Cacheable: a resource's GET/HEAD request, and any request with `cache: true` or `staleTime`
@@ -20,6 +20,10 @@ import {withQuery, hit} from './fetchDriver';
  *   of the entries with data; `hydrate(snapshot)` / `queryCache({ initial })` write it back (an
  *   entry newer than the snapshot's is kept). `set(request, data)` writes one entry (a loader on
  *   the server). Entries keep their `updatedAt`, so a seeded entry is fresh for `staleTime`.
+ * - 7.2 `keepHeaders`: an entry also holds the request's kept response headers (`h`, in the key,
+ *   snapshot `headers`, `set(request, data, headers)`), so a cache hit shows them too.
+ * - `clear()` (logout) drops every entry; mounted resources keep showing what they have. The
+ *   driver's `{ reset }` command drops the matching entries (`drop`) and resets the resources.
  * - `prefetch(request)`: the attached driver (the last makeFetchDriver given this cache) fetches
  *   the request into the cache without a reply, like the `{ prefetch }` sink command.
  */
@@ -43,25 +47,45 @@ export function queryCache(o: any = {}): any {
   // the key of a cacheable request (else undefined); `res`: a resource's
   const key = (q: any, res?: any) => {
     if (typeof q == 'string') q = {url: q};
-    const {method, json, body, parse, query, multipart} = q;
+    const {method, json, body, parse, query, multipart, keepHeaders} = q;
     const m = (method || (json !== undefined || body !== undefined || multipart !== undefined ? 'POST' : 'GET')).toUpperCase();
     // PLAN-11 U-5: a multipart request is never cached (its body isn't a string)
     const b = json !== undefined ? JSON.stringify(json) : multipart !== undefined ? multipart : body ?? '';
     if (q.cache === false || typeof b != 'string' || typeof parse == 'function' || parse == 'response' ||
       !(q.cache || q.staleTime != null || (res && IDEMPOTENT.test(m)))) return;
-    return [m, withQuery(q.url ?? '', query, 1), b, parse].join(' ').trim();
+    // 7.2: the kept response headers (sorted, lowercased) are part of what the entry holds
+    const kh = keepHeaders?.length ? 'headers:' + [...new Set(keepHeaders.map((h: string) => h.toLowerCase()))].sort().join(',') : '';
+    return [m, withQuery(q.url ?? '', query, 1), b, parse].join(' ').trim() + (kh && ' ' + kh);
   };
   const fresh = (k: any, q: any) => {
     const E = map.get(k);
     return E?.at > 0 && !E.s && now() - E.at < (q?.staleTime ?? o.staleTime ?? 0);
   };
-  const put = (k: string, q: any, v: any, at = now()) => {
+  // `h`: 7.2, the request's keepHeaders values ({ lowercased name: string | null }), or none
+  const put = (k: string, q: any, v: any, at = now(), h?: any) => {
     const E = entry(k, q);
     E.v = v;
+    E.h = h;
     E.at = at;
     E.s = 0;
     E.q = q;
     E.n || gc(E);
+  };
+  // drops the entries `x` matches (true: all; else as invalidate): an entry a mounted resource
+  // still uses keeps only its subscriber count (no data, like a resource's new entry), so the
+  // resource's bookkeeping stays right. The fetches in flight for them never write it. Returns
+  // the keys
+  const drop = (x: any) => {
+    const ks = new Set<string>();
+    map.forEach(E => {
+      if (x !== true && !hit(x, E.q)) return;
+      ks.add(E.k);
+      clearTimeout(E.g);
+      if (E.n) { delete E.v; delete E.h; E.at = E.s = 0; }
+      else map.delete(E.k);
+    });
+    C.f.forEach((F: any) => { if (ks.has(F.k) || x === true || hit(x, F.q)) { F.z = 1; C.f.delete(F.k); } });
+    return ks;
   };
   const C: any = {
     key,
@@ -92,16 +116,22 @@ export function queryCache(o: any = {}): any {
     on: (on: any, fn: () => void) => (on || onBrowserSignals)((sig: string) => {
       o[sig == 'focus' ? 'refetchOnFocus' : 'refetchOnReconnect'] === false || fn();
     }),
-    list: () => [...map.values()].map(E => ({key: E.k, age: E.at && now() - E.at, stale: !fresh(E.k, E.q), subscribers: E.n, data: E.v, tags: E.q?.tags})),
-    dehydrate: () => [...map.values()].filter(E => E.at > 0).map(E => ({key: E.k, data: E.v, updatedAt: E.at, tags: E.q?.tags})),
+    list: () => [...map.values()].map(E => ({key: E.k, age: E.at && now() - E.at, stale: !fresh(E.k, E.q), subscribers: E.n, data: E.v, tags: E.q?.tags, ...(E.h && {headers: E.h})})),
+    dehydrate: () => [...map.values()].filter(E => E.at > 0).map(E => ({key: E.k, data: E.v, updatedAt: E.at, tags: E.q?.tags, ...(E.h && {headers: E.h})})),
     hydrate: (snap: any) => snap?.forEach?.((e: any) => {
-      if (!(map.get(e.key)?.at >= e.updatedAt)) put(e.key, {url: e.key.split(' ')[1], tags: e.tags}, e.data, e.updatedAt);
+      if (!(map.get(e.key)?.at >= e.updatedAt)) put(e.key, {url: e.key.split(' ')[1], tags: e.tags}, e.data, e.updatedAt, e.headers);
     }),
-    set: (q: any, data: any) => {
+    // `headers` (7.2): the entry's kept headers, a Headers or an object (picked by the request's
+    // keepHeaders when it has them, else every name lowercased)
+    set: (q: any, data: any, headers?: any) => {
+      if (typeof q == 'string') q = {url: q};
       const k = key(q, 1);
-      if (k !== undefined) put(k, typeof q == 'string' ? {url: q} : q, data);
+      if (k !== undefined) put(k, q, data, undefined, headers && keptHeaders(q.keepHeaders, headers, 1));
     },
     prefetch: (q: any) => C.d?.({prefetch: q}),
+    drop,
+    // React Query's queryClient.clear(): every entry goes; mounted resources keep what they show
+    clear: () => { drop(true); },
   };
   C.hydrate(o.initial);
   return C;

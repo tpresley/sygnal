@@ -260,6 +260,7 @@ describe('renderToString', () => {
         return createElement('span', null, state.text)
       }
       ChildComp.initialState = { text: 'child content' }
+      ChildComp.isolatedState = true   // its own state, as on the client (else SYG405)
 
       const html = renderToString(Parent)
       expect(html).toContain('Parent')
@@ -474,8 +475,8 @@ describe('renderToString', () => {
     it('handles component returning null', () => {
       function Empty() { return null }
       Empty.initialState = {}
-      const html = renderToString(Empty)
-      expect(html).toContain('<div')
+      // renders nothing, as in React: an empty comment holds its place (hydration adopts it)
+      expect(renderToString(Empty)).toBe('<!---->')
     })
 
     it('handles empty children array', () => {
@@ -492,6 +493,7 @@ describe('renderToString', () => {
         return createElement('span', null, `depth-${state.depth}`)
       }
       Level3.initialState = { depth: 3 }
+      Level3.isolatedState = true   // its own state, as on the client (else SYG405)
 
       function Level2({ state }) {
         return createElement('div', null,

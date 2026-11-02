@@ -3,10 +3,10 @@ title: TypeScript
 description: Type-safe Sygnal components
 ---
 
-Sygnal ships with full TypeScript type definitions. Type a component with `Component` (or `RootComponent` for the component you pass to `run()`), and let `ActionsOf` derive the actions from its intent:
+Sygnal ships with full TypeScript type definitions. Type a component with `Comp<{ ... }>` (or `RootComp<{ ... }>` for the component you pass to `run()`), naming what it has, and let `ActionsOf` derive the actions from its intent:
 
 ```tsx
-import type { RootComponent, IntentSources, ActionsOf } from 'sygnal'
+import type { RootComp, IntentSources, ActionsOf } from 'sygnal'
 
 type AppState = {
   count: number
@@ -20,7 +20,7 @@ const intent = ({ DOM }: IntentSources<AppState>) => ({
 
 type AppActions = ActionsOf<typeof intent>
 
-const App: RootComponent<AppState, {}, AppActions> = ({ state }) => (
+const App: RootComp<{ state: AppState; actions: AppActions }> = ({ state }) => (
   <div>
     <h1>{state.name}: {state.count}</h1>
     <input className="name" aria-label="Name" value={state.name} />
@@ -42,40 +42,54 @@ The view's arguments are typed from the annotation: `state` is `AppState` (plus 
 
 Run `tsc --noEmit` as well as `sygnal-check`: sygnal-check reads the code without types (it finds wiring bugs, such as an action with no model entry), so a value of the wrong type, like an `initialState` that doesn't match `AppState`, is caught only by `tsc`. The TypeScript templates of create-sygnal-app run both with `npm run check`.
 
-## Component Type Parameters
+## Component Types
+
+`Comp<{ ... }>` takes the component's types by name. Name only what the component has; each key left out takes its default:
+
+```typescript
+Comp<{ state: Task; props: { lane: string }; actions: TaskActions; parent: { taskId: string } }>
+RootComp<{ state: AppState; drivers: AppDrivers; actions: AppActions }>
+```
+
+| Key | Description |
+|-----------|-------------|
+| `state` | Shape of the component's state (default `any`) |
+| `props` | Shape of props received from the parent (default: any prop; `RootComp`: none) |
+| `drivers` | Custom driver type specifications (`{ API: { source: ...; sink: ... } }`) |
+| `actions` | Map of action names to their data types (`ActionsOf<typeof intent>`; default: any action) |
+| `calculated` | Shape of calculated field values (added to `state`) |
+| `context` | Shape of the context the view and reducers read (from ancestors and the component's own `.context`) |
+| `parent` | What the `PARENT` sink sends, so the parent's `CHILD.select(C)` is typed (not on `RootComp`) |
+| `sinks` | Return types for the non-state sinks (`{ EVENTS, LOG, PARENT }`; `parent: T` is short for `sinks: { PARENT: T }`) |
+| `provided` | Shape of what the component's own `.context` provides (defaults to `context`) |
+
+A misspelled key (`action`, `prop`) is a type error. `Comp<{ props: PanelProps }>` is a component with props and any state.
+
+### The positional form
+
+`Comp` and `RootComp` are `Component` and `RootComponent` with the type arguments named. The positional form still works, and is the same type:
 
 ```typescript
 Component<STATE, PROPS, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVIDED_CONTEXT>
 RootComponent<STATE, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVIDED_CONTEXT>
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| `STATE` | Shape of the component's state |
-| `PROPS` | Shape of props received from parent (`RootComponent`: none) |
-| `DRIVERS` | Custom driver type specifications (`{ API: { source: ...; sink: ... } }`) |
-| `ACTIONS` | Map of action names to their data types |
-| `CALCULATED` | Shape of calculated field values |
-| `CONTEXT` | Shape of the context the view and reducers read (from ancestors and the component's own `.context`) |
-| `SINK_RETURNS` | Return types for non-state sinks (`EVENTS`, `LOG`, `PARENT`) |
-| `PROVIDED_CONTEXT` | Shape of what the component's own `.context` provides (defaults to `CONTEXT`) |
-
-Unused parameters take `{}`: `Component<TaskState, {}, {}, TaskActions>`. An `any` PROPS (`Component<TaskState, any>`) allows any prop and keeps `state` typed (since 6.7).
+Unused parameters take `{}`: `Component<TaskState, {}, {}, TaskActions>` is `Comp<{ state: TaskState; actions: TaskActions }>`. An `any` PROPS (`Component<TaskState, any>`) allows any prop and keeps `state` typed (since 6.7). The object form has a name of its own because `Component<{ state: 'idle' | 'busy' }>` already means a component whose state has a `state` key.
 
 ## Sub-components in JSX
 
-The view of a typed component receives `state: STATE`, but in JSX the parent passes the state as a slice name of its own state, a lens, or nothing (the child then shares the parent's state). Only the component's own props are checked:
+The view of a typed component receives `state`, but in JSX the parent passes the state as a slice name of its own state, a lens, or nothing (the child then shares the parent's state). Only the component's own props are checked:
 
 ```tsx
-import type { Component } from 'sygnal'
+import type { Comp } from 'sygnal'
 
 type EditorState = { draft: string }
-const Editor: Component<EditorState> = ({ state }) => <textarea className="draft" value={state.draft} />
+const Editor: Comp<{ state: EditorState }> = ({ state }) => <textarea className="draft" value={state.draft} />
 
 type PanelProps = { title: string }
-const Panel: Component<{}, PanelProps> = ({ title }) => <aside>{title}</aside>
+const Panel: Comp<{ props: PanelProps }> = ({ title }) => <aside>{title}</aside>
 
-const Page: Component<{ editor: EditorState }> = () => (
+const Page: Comp<{ state: { editor: EditorState } }> = () => (
   <div>
     <Editor state="editor" />   {/* state: a field name of Page's state, or a lens */}
     <Panel title="Details" />   {/* no state prop: shares Page's state */}
@@ -87,25 +101,25 @@ const Page: Component<{ editor: EditorState }> = () => (
 
 ## Context
 
-Type the context a component reads with `CONTEXT`. The view's `context` is always present (no `context?.` needed):
+Type the context a component reads with `context`. The view's `context` is always present (no `context?.` needed):
 
 ```tsx
-import type { Component } from 'sygnal'
+import type { Comp } from 'sygnal'
 
 type AppContext = { theme: 'light' | 'dark'; selectedId: number | null }
 type Task = { id: number; title: string }
 
-const TaskRow: Component<Task, {}, {}, {}, {}, AppContext> = ({ state, context }) => (
+const TaskRow: Comp<{ state: Task; context: AppContext }> = ({ state, context }) => (
   <div className={context.selectedId === state.id ? `row ${context.theme} selected` : 'row'}>{state.title}</div>
 )
 ```
 
-The component that defines `.context` uses the same parameter, and every key of it must be provided:
+The component that defines `.context` uses the same key, and every key of it must be provided:
 
 ```tsx
 type AppState = { theme: 'light' | 'dark'; selectedId: number | null }
 
-const App: RootComponent<AppState, {}, {}, {}, AppContext> = ({ state }) => <div>{state.theme}</div>
+const App: RootComp<{ state: AppState; context: AppContext }> = ({ state }) => <div>{state.theme}</div>
 
 App.context = {
   theme:      (state) => state.theme,
@@ -113,14 +127,14 @@ App.context = {
 }
 ```
 
-A component that reads one context and provides another passes what it provides as `PROVIDED_CONTEXT` (the 8th parameter): `Component<SectionState, {}, {}, {}, {}, AppContext & SectionContext, {}, SectionContext>`. Its view sees both.
+A component that reads one context and provides another names what it provides as `provided`: `Comp<{ state: SectionState; context: AppContext & SectionContext; provided: SectionContext }>`. Its view sees both.
 
 ## Actions from the Intent: `ActionsOf`
 
-`ActionsOf<typeof intent>` turns an intent function into an action map: each key's `Stream<T>` becomes `T`. Declare the intent as a constant first, typing its sources with `IntentSources<State>`, then pass the derived actions to `Component`:
+`ActionsOf<typeof intent>` turns an intent function into an action map: each key's `Stream<T>` becomes `T`. Declare the intent as a constant first, typing its sources with `IntentSources<State>`, then name the derived actions as `actions`:
 
 ```tsx
-import type { Component, IntentSources, ActionsOf } from 'sygnal'
+import type { Comp, IntentSources, ActionsOf } from 'sygnal'
 
 type CounterState = { count: number }
 
@@ -129,7 +143,7 @@ const counterIntent = ({ DOM }: IntentSources<CounterState>) => ({
   RESET:     DOM.click('.reset'),
 })
 
-const Counter: Component<CounterState, {}, {}, ActionsOf<typeof counterIntent>> = ({ state }) => (
+const Counter: Comp<{ state: CounterState; actions: ActionsOf<typeof counterIntent> }> = ({ state }) => (
   <div>
     <span>{state.count}</span>
     <button className="inc">+</button>
@@ -161,7 +175,7 @@ type CounterActions = ActionsOf<typeof counterIntent> & { SAVED: { id: string } 
 The [reply actions](/guide/http/) a request names (`ok: 'LOADED'`, `error: 'FAILED'`) aren't produced by the intent either. Add them with their data: the `ok` action gets the parsed body (the type isn't inferred from the request, so name it), the `error` action a `FetchFailure` (`{ error, status?, body?, request }`):
 
 ```tsx
-import type { Component, IntentSources, ActionsOf, FetchRequest, FetchSource, FetchFailure } from 'sygnal'
+import type { Comp, IntentSources, ActionsOf, FetchRequest, FetchSource, FetchFailure } from 'sygnal'
 
 type Quote = { text: string }
 type QuoteState = { id: number; status: string; quote?: Quote }
@@ -170,7 +184,7 @@ type QuoteDrivers = { HTTP: { source: FetchSource; sink: FetchRequest } }
 const quoteIntent = ({ DOM }: IntentSources<QuoteState, QuoteDrivers>) => ({ LOAD: DOM.click('.load') })
 type QuoteActions = ActionsOf<typeof quoteIntent> & { LOADED: Quote; FAILED: FetchFailure }
 
-const QuoteCard: Component<QuoteState, {}, QuoteDrivers, QuoteActions> = ({ state }) => (
+const QuoteCard: Comp<{ state: QuoteState; drivers: QuoteDrivers; actions: QuoteActions }> = ({ state }) => (
   <div><button className="load">Load</button> {state.quote?.text ?? state.status}</div>
 )
 QuoteCard.intent = quoteIntent
@@ -200,7 +214,7 @@ type BoardCalculated = { totalCards: number }
 
 const boardIntent = ({ DOM }: IntentSources<BoardState>) => ({ ADD: DOM.click('.add') })
 
-const Board: Component<BoardState, {}, {}, ActionsOf<typeof boardIntent>, BoardCalculated> = ({ state }) => (
+const Board: Comp<{ state: BoardState; actions: ActionsOf<typeof boardIntent>; calculated: BoardCalculated }> = ({ state }) => (
   <div>{state.totalCards} cards <button className="add">Add</button></div>
 )
 Board.calculated = { totalCards: (state) => state.lists.reduce((n, list) => n + list.cards.length, 0) }
@@ -255,17 +269,17 @@ Inside a typed model, `event()`'s payload function gets the component's `state` 
 
 ## Typed Child Events
 
-`CHILD.select(ChildComponent)` returns a stream of whatever the child's `PARENT` sink sends. For a child typed with `Component<…>`, declare that type as the `PARENT` entry of `SINK_RETURNS` (the 7th parameter); the child's `PARENT` reducers are then checked against it and the parent's stream is typed:
+`CHILD.select(ChildComponent)` returns a stream of whatever the child's `PARENT` sink sends. For a child typed with `Comp<{ … }>`, name that type as `parent`; the child's `PARENT` reducers are then checked against it and the parent's stream is typed:
 
 ```tsx
-import type { Component, IntentSources, ActionsOf } from 'sygnal'
+import type { Comp, IntentSources, ActionsOf } from 'sygnal'
 
 type Task = { id: number; title: string }
 export type PinRequest = { taskId: number }
 
 const taskIntent = ({ DOM }: IntentSources<Task>) => ({ PIN: DOM.click('.pin') })
 
-const TaskItem: Component<Task, {}, {}, ActionsOf<typeof taskIntent>, {}, {}, { PARENT: PinRequest }> = ({ state }) => (
+const TaskItem: Comp<{ state: Task; actions: ActionsOf<typeof taskIntent>; parent: PinRequest }> = ({ state }) => (
   <div className="task">{state.title} <button className="pin">Pin</button></div>
 )
 TaskItem.intent = taskIntent
@@ -279,9 +293,11 @@ const listIntent = ({ CHILD }: IntentSources<ListState>) => ({
 })
 ```
 
-Without `{ PARENT: … }` the annotation doesn't say what the child sends, so `CHILD.select(TaskItem)` is a `Stream<unknown>`: reading a field of the payload is a type error until you declare it.
+Without `parent` the annotation doesn't say what the child sends, so `CHILD.select(TaskItem)` is a `Stream<unknown>`: reading a field of the payload is a type error until you declare it.
 
-A child written without a `Component<…>` annotation has its payload inferred from its `model`:
+(In the positional form, `parent` is the `PARENT` entry of `SINK_RETURNS`, the 7th parameter: `Component<Task, {}, {}, TaskActions, {}, {}, { PARENT: PinRequest }>`.)
+
+A child written without a `Comp` / `Component` annotation has its payload inferred from its `model`:
 
 ```tsx
 function TaskCard({ state }: { state: { id: string; title: string } }) {
@@ -298,7 +314,7 @@ const laneIntent = ({ CHILD }: IntentSources<LaneState>) => ({
 })
 ```
 
-The payload type is `ParentPayloadOf<typeof TaskCard>`. It is `any` when there is nothing to infer from (no model, or `PARENT: true` pass-through entries only), and `unknown` for a `Component<…>` child without a `PARENT` type. An explicit type argument also works: `CHILD.select<number>(Child)`.
+The payload type is `ParentPayloadOf<typeof TaskCard>`. It is `any` when there is nothing to infer from (no model, or `PARENT: true` pass-through entries only), and `unknown` for an annotated child without a `parent` type. An explicit type argument also works: `CHILD.select<number>(Child)`.
 
 ## Collection `from`
 
@@ -341,7 +357,7 @@ App.model = {
 
 ## Testing Types
 
-`renderComponent()` and its result are fully typed (`RenderOptions`, `RenderResult<State>`). The state type is inferred from the component (a `Component<State, ...>` annotation or a typed view, calculated fields included, else its `initialState`), so test predicates need no annotation:
+`renderComponent()` and its result are fully typed (`RenderOptions`, `RenderResult<State>`). The state type is inferred from the component (a `Comp<{ state: State }>` or `Component<State, ...>` annotation, or a typed view, calculated fields included, else its `initialState`), so test predicates need no annotation:
 
 ```tsx
 const t = renderComponent(Counter)          // RenderResult<CounterState>

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 import { stale, topics } from '../scripts/build-llms.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const CORE_BUDGET = 65_100   // bytes of llms.txt (63,963 at the spike; raised from 64,500 for Temper item 9, 2026-10; from 65,000 for the UI sweep round 2: SYG118 + widget form fields)
+const CORE_BUDGET = 66_000   // bytes of llms.txt (63,963 at the spike; raised from 65,800 when the Sift core/types fixes merged with the fetch fixes, 2026-11: Comp, null views, the block prompt; raised from 64,500 for Temper item 9, 2026-10; from 65,000 for the UI sweep round 2: SYG118 + widget form fields; from 65,100 for the Sift fetch fixes, 2026-11: stream, reset, headers, behaviour-only resource fields)
 const TOPIC_BUDGET = 16_000  // bytes per llms/<topic>.md
 
 describe('llms.txt and its topic files', () => {

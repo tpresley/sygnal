@@ -3,6 +3,7 @@ import {senderOf, keepSender, allowed, makeReplies} from './replies';
 import {backoff} from './backoff';
 import {isHidden} from './browserSignals';
 import {validateWith} from './standardSchema';
+import {sse} from './sse';
 
 /*
  * makeFetchDriver(options?) (PLAN-2 E2): an opt-in HTTP driver over `fetch`. Docs on the
@@ -20,7 +21,7 @@ import {validateWith} from './standardSchema';
  * - Reply actions (PLAN-3, D57/D58): a component's request naming `ok` / `error` actions gets its
  *   reply as that action, delivered to exactly the sending instance (./replies.ts), never to
  *   select()/errors(): `ok` data is the parsed body (the Response with parse: 'response'),
- *   `error` data `{ error, status?, body?, request }`. A request naming only one of them sends
+ *   `error` data `{ error, status?, body?, headers?, request }`. A request naming only one of them sends
  *   the other outcome down the plain path (select()/errors()). `latest` acts per (sender,
  *   `key ?? ok ?? error`); `{ abort: 'LOADED' }` / `{ abort: true, key }` cancel the sender's
  *   requests under that key; when the sender is disposed its requests with reply actions are aborted.
@@ -30,8 +31,9 @@ import {validateWith} from './standardSchema';
  * - `latest: true` (per request, or the driver option): a new request aborts the component's
  *   requests still in flight in its category; their late responses/errors are never delivered.
  * - Responses on `select(category?)`: `{ category, value, status, request }`. 2xx only.
- * - Failures on `errors(category?)`: `{ error, category, request, status?, body? }` for a
- *   non-2xx status (`error.status`, `error.body` too), a network error, a body that doesn't
+ * - Failures on `errors(category?)`: `{ error, category, request, status?, body?, headers? }` for a
+ *   non-2xx status (`error.status`, `error.body`, `error.headers` too; `headers`: the response's
+ *   Headers, also for a body that doesn't parse or fails `validate`), a network error, a body that doesn't
  *   parse, a timeout (`error.name === 'TimeoutError'`) or no fetch. Never delivered for an
  *   aborted/superseded request. Unheard failures are console.error'd.
  * - Isolation (R4-2, D54, like @cycle/http): an isolated component's requests are tagged with
@@ -45,7 +47,9 @@ import {validateWith} from './standardSchema';
  *   early failures until the first errors() listener or the next macrotask (R4-4, G-092).
  * - Resources (PLAN-3 3-A; D78): the core sends a component's `resources` static as
  *   `{ resources: { name: request | falsy } }` (sender-stamped). Per (sender, name), a request
- *   that changed (by JSON) is fetched with latest semantics (the stale one aborted); falsy aborts
+ *   that changed (by JSON, leaving out the fields that only change behaviour: BEHAVIOUR, e.g.
+ *   `refetchEvery`, `ok`, `keepPrevious`; those are taken over with no fetch and the poll
+ *   rescheduled) is fetched with latest semantics (the stale one aborted); falsy aborts
  *   it. Each step is the reply action RESOURCE `{ name, status, data, error, refreshing }`:
  *   - a new request (key change): 'loading', data and error cleared, unless `keepPrevious: true`;
  *   - a refetch of the same request (`{ refresh: name | names }`, invalidation, focus, polling,
@@ -75,6 +79,21 @@ import {validateWith} from './standardSchema';
  *   `invalidates: …` on any request does the same after its success. G-184: a refetch aborts
  *   the resource's older read; a shared fetch in flight for a matching entry still answers its
  *   waiters but never writes the cache.
+ * - `{ reset: true | tag | tags | '/url-prefix' | (request) => boolean }` (React Query's
+ *   resetQueries; matched like `invalidate`, `true`: everything): matching cache entries are
+ *   dropped, matching mounted resources go back to 'loading' with no data and no error and
+ *   refetch, paused ones lose their kept result ('idle'). A fetch in flight for a dropped entry
+ *   never writes the cache. `queryCache().clear()` drops every entry and leaves resources alone.
+ * - 7.2 `stream: 'sse' | 'ndjson' | 'text'` (not for resources, prefetches, batches): the 2xx body
+ *   read as pieces (SSE data JSON-parsed when it parses, `{ data, id, event }` with `meta: true`;
+ *   NDJSON lines parsed; text as it arrives), each the `chunk` action (else select()); the end, or
+ *   the `done` piece (a string: the raw data; a function: the piece), is the `ok` action with
+ *   `{ status, headers }`. latest / abort / key / sender scoping apply; `timeoutMs` is the time
+ *   to the first byte; never retried, cached or shared.
+ * - 7.2 `keepHeaders: [name, …]`: a resource's state gets `headers: { lowercased name: value | null }`
+ *   next to `data` on 'success' (kept with data on refetches, `keepPrevious` and errors; cleared
+ *   by a key change's 'loading'); the cache stores them with the entry (part of its key and of
+ *   the resource's identity). The `ok` data is still the body.
  * - `updates: name | names | { name: true | (data, reply) => data }` (G-184, setQueryData): on
  *   a 2xx, before the `ok` action and `invalidates`, the reply becomes the data of the sender's
  *   named resources that have a request, and of their cache entries; their reads in flight
@@ -157,11 +176,11 @@ const autoParse = async (res: any) => {
 
 /** a non-2xx response */
 const bad = (res: any) => res.ok === false || res.status < 200 || res.status > 299;
-/** the failure of a non-2xx response: `status`, `body` (parsed with 'auto') */
+/** the failure of a non-2xx response: `status`, `body` (parsed with 'auto'), `headers` */
 const httpError = async (res: any, href: string) => {
   let body: any;
   try { body = await autoParse(res); } catch (_) {}
-  return Object.assign(new Error(`HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${href}`), {status: res.status, body});
+  return Object.assign(new Error(`HTTP ${res.status}${res.statusText ? ' ' + res.statusText : ''}: ${href}`), {status: res.status, body, headers: res.headers});
 };
 
 const PARSERS: Record<string, (res: any) => any> = {
@@ -254,6 +273,54 @@ export const toFormData = (parts: any) => {
 };
 
 const IDEMPOTENT = /^(GET|HEAD)$/i;
+/**
+ * 7.2 `keepHeaders`: `{ lowercased name: value | null }` of the names asked for, from a Headers
+ * or a plain object (case-insensitive); `all` with no names: every header of `h`, lowercased
+ */
+export const keptHeaders = (names: any, h: any, all?: any) => {
+  const obj = h && typeof h.get != 'function' ? Object.keys(h).reduce((o: any, k) => (o[k.toLowerCase()] = h[k] == null ? null : String(h[k]), o), {}) : undefined;
+  const get = (n: string) => (obj ? obj[n.toLowerCase()] : h?.get?.(n)) ?? null;
+  if (names?.length) return names.reduce((o: any, n: string) => (o[n.toLowerCase()] = get(n), o), {});
+  if (!all || !h) return undefined;
+  if (obj) return obj;
+  const out: any = {};
+  h.forEach?.((v: string, k: string) => { out[k.toLowerCase()] = v; });
+  return out;
+};
+const STREAMS = ['sse', 'ndjson', 'text'];
+/**
+ * 7.2: the raw pieces of a streamed body, `{ d }`: SSE events' data (with `e`, the event type,
+ * and `i`, the last event id, for `meta`), NDJSON's non-blank lines, text as it arrives. `beat`:
+ * bytes arrived. Stopping early (a `done` piece, an abort) cancels the reader
+ */
+async function* rawPieces(res: any, mode: string, beat: () => void): AsyncGenerator<{d: string; e?: string; i?: string}> {
+  // a Response-like without a body stream (a test stub): its text, as one chunk
+  if (!res.body?.getReader) res = new Response(await res.text());
+  if (mode == 'sse') {
+    const m = {id: '', beat};
+    for await (const f of sse(res, m)) yield {d: f.data, e: f.event, i: m.id};
+    return;
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', done = false;
+  try {
+    for (;;) {
+      const r = await reader.read();
+      done = r.done;
+      if (!done) beat();
+      const s = done ? dec.decode() : dec.decode(r.value, {stream: true});
+      if (mode == 'text') { if (s) yield {d: s}; }
+      else {
+        const lines = (buf + s).split(/\r?\n/);
+        buf = done ? '' : lines.pop()!;
+        for (const l of lines) if (l.trim()) yield {d: l};
+      }
+      if (done) return;
+    }
+  } finally {
+    if (!done) reader.cancel().catch(() => {});
+  }
+}
 // D80: an invalidate value matches a request by tag, URL prefix ('/…') or predicate
 export const hit = (x: any, q: any) => {
   try {
@@ -263,6 +330,13 @@ export const hit = (x: any, q: any) => {
 };
 // a settled resource status ('success' / 'error')
 const SETTLED = /^[se]/;
+// a resource request's fields that change only how it is handled, not what is fetched: left out
+// of its identity, so changing one (`refetchEvery: s.live ? 5000 : undefined`) refetches nothing.
+// The cache key (queryCache's key()) reads none of them either
+const BEHAVIOUR = ['ok', 'error', 'key', 'category', 'latest', 'timeoutMs', 'retry', 'cache', 'staleTime', 'tags',
+  'invalidates', 'updates', 'keepPrevious', 'refetchEvery', 'background', 'progress'];
+/** the identity of a resource's request: its JSON without the BEHAVIOUR fields */
+const identity = (q: any) => q ? JSON.stringify(q, function (this: any, k, v) { return this === q && BEHAVIOUR.includes(k) ? undefined : v; }) : '';
 
 export function makeFetchDriver(options: any = {}) {
   // D88: the query cache (queryCache()), or none
@@ -359,6 +433,21 @@ export function makeFetchDriver(options: any = {}) {
       return n;
     };
 
+    // React Query's resetQueries: matching cache entries are dropped, matching mounted resources
+    // go back to 'loading' (no data, no error) and refetch, paused ones lose their kept result
+    // ('idle'). `x`: true (everything) or an invalidate value
+    const reset = (x: any) => {
+      const ks = C ? C.drop(x) : new Set();
+      const m = seq;
+      rsrc.forEach((cur, s) => cur.forEach((R, name) => {
+        if (!R.q || !(x === true || hit(x, R.q) || ks.has(R.k))) return;
+        stop(s, name, R);
+        C?.use(R);
+        R.last = undefined;
+        R.p ? write(s, name, R, 'idle') : load(s, name, R, 0, m);
+      }));
+    };
+
     // ends a request: true if it was still live (so its result may be delivered). D79: its fetch
     // is aborted when no request still wants it
     const finish = (id: number) => {
@@ -382,7 +471,7 @@ export function makeFetchDriver(options: any = {}) {
     const cancel = (which: (r: any) => boolean) =>
       inflight.forEach((r, id) => { if (which(r)) finish(id); });
 
-    // 3-A: sender → resource name → R { j (JSON of its request), q (the request), k (cache key),
+    // 3-A: sender → resource name → R { j (its identity), q (the request), k (cache key),
     // last (the last write), p (paused), t (poll timer), i (its request id) }
     const rsrc = new Map<any, Map<string, any>>();
     const stop = (s: any, n: string, R: any) => {
@@ -404,22 +493,29 @@ export function makeFetchDriver(options: any = {}) {
         const R = cur?.get(n), q = R?.q, f = u[n];
         if (!q) return;
         const k = C?.key(q, 1), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
+        // (the entry's kept headers stay)
+        const h = (k !== undefined ? C.get(k)?.h : undefined) ?? R.last?.headers;
         if (k !== undefined) {
-          C.put(k, q, d);
+          C.put(k, q, d, undefined, h);
           const F = C.f.get(k);
           F && stale(F);
         }
         rsrc.forEach((c, s2) => c.forEach((R2, n2) => {
-          if (R2 === R || (k !== undefined && !R2.p && R2.k === k)) { stop(s2, n2, R2); write(s2, n2, R2, 'success', d); }
+          if (R2 === R || (k !== undefined && !R2.p && R2.k === k)) { stop(s2, n2, R2); write(s2, n2, R2, 'success', d, undefined, undefined, h); }
         }));
       });
     };
-    const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any) => {
-      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined})});
-      // refetchEvery: polls after each result, skipping while the document is hidden
+    // `h`: 7.2, the request's kept headers (keepHeaders), next to `data`
+    const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any, h?: any) => {
+      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined, ...(h !== undefined && {headers: h})})});
+      poll(s, n, R);
+    };
+    // refetchEvery: polls after each result (and anew when the interval changes), skipping while
+    // the document is hidden
+    const poll = (s: any, n: string, R: any) => {
       clearTimeout(R.t);
-      const ms = R.q?.refetchEvery;
-      if (ms > 0 && !R.p && !refreshing && SETTLED.test(status))
+      const ms = R.q?.refetchEvery, L = R.last;
+      if (ms > 0 && !R.p && L && !L.refreshing && SETTLED.test(L.status))
         R.t = setTimeout(function tick() { isHidden() ? (R.t = setTimeout(tick, ms)) : load(s, n, R, 1, seq); }, ms);
     };
     // D78: (re)loads resource R. `same`: the same request again (keeps data); `after` (a
@@ -428,8 +524,8 @@ export function makeFetchDriver(options: any = {}) {
       const q = R.q, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
       stop(s, n, R);
       C?.use(R, k);
-      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
-      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
+      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go, E.h);
+      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true, L.headers);
       else write(s, n, R, 'loading');
       // R-1: the write is dispatched synchronously; when it changed the request (a navigation
       // recomputed the statics and a nested load sent the new one) or paused it, q is stale
@@ -441,8 +537,9 @@ export function makeFetchDriver(options: any = {}) {
     const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any, pf?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, validate, prefetch, progress} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, prefetch, chunk, done: dn} = req;
       if ('invalidate' in req) return inval(req.invalidate);
+      if ('reset' in req) return reset(req.reset);
       if (prefetch) return C && send(prefetch, 0, rn, -1, R, 1);
       if (resources || refresh) {
         if (sender === undefined) return;
@@ -459,16 +556,26 @@ export function makeFetchDriver(options: any = {}) {
               C?.use(R);
               const L = R.last;
               if (!L || !SETTLED.test(L.status)) write(sender, n, R, 'idle');
-              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error);
+              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error, undefined, L.headers);
             }
             return;
           }
           let q = resources[n];
           if (q && typeof q == 'string') q = {url: q};
-          const j = q ? JSON.stringify(q) : '', paused = R?.p;
+          const j = identity(q), paused = R?.p;
           if (!R) cur.set(n, (R = {j: ''}));
           R.p = 0;
-          if (R.j === j && !paused) return;
+          if (R.j === j && !paused) {
+            // only behaviour changed (refetchEvery, ok, keepPrevious, ...): the new request is
+            // used from now on, the poll rescheduled; no fetch, no status change
+            if (q && R.q !== q) {
+              const was = R.q?.refetchEvery;
+              R.q = q;
+              if (C && !inflight.has(R.i)) C.use(R, C.key(q, 1));
+              if (q.refetchEvery !== was) poll(sender, n, R);
+            }
+            return;
+          }
           const same = R.j === j;
           R.j = j;
           R.q = q;
@@ -478,10 +585,16 @@ export function makeFetchDriver(options: any = {}) {
         return;
       }
       const scope = scopeKey(req);
+      // 7.2: a streamed body (not for resources, prefetches or batches): its pieces, then the end
+      const sm = !pf && rn === undefined && !req.batch && req.stream;
+      // (a stream reports no progress, isn't validated)
+      const progress = !sm && req.progress, validate = !sm && req.validate;
       // reply actions: keyed per (sender, key ?? ok ?? error); a resource per (sender, '\0' + name)
-      // PLAN-11 U-1: a progress action is a reply action too (abort on dispose, its own lane)
+      // PLAN-11 U-1: a progress action is a reply action too (abort on dispose, its own lane); so is
+      // a stream's chunk action
       const pr = !pf && rn === undefined && !req.batch && progress;
-      const rk = rn !== undefined ? '\0' + rn : !pf && sender !== undefined && (ok || error || typeof pr == 'string') ? key ?? ok ?? error ?? pr : undefined;
+      const ck = sm && chunk;
+      const rk = rn !== undefined ? '\0' + rn : !pf && sender !== undefined && (ok || error || ck || typeof pr == 'string') ? key ?? ok ?? error ?? ck ?? pr : undefined;
       if (sender !== undefined && (typeof abort == 'string' || (abort && key !== undefined)))
         return cancel(r => r.sender === sender && r.rk === (key ?? abort));
       // per (scope, category): another component's requests are never cancelled
@@ -509,22 +622,28 @@ export function makeFetchDriver(options: any = {}) {
       // parts, at most 3 deep), their parsed bodies merged by `combine` into one reply. The test
       // fake (_whole) answers such a request as one
       const {batch, split, combine = (x: any) => x} = options._whole ? {} as any : req;
-      // PLAN-11 U-1: a progress request never shares a fetch (each sender gets its own steps)
-      const k = pr ? undefined : C?.key(req, rn !== undefined || pf);
+      // PLAN-11 U-1: a progress request never shares a fetch (each sender gets its own steps);
+      // 7.2: a stream is never cached nor shared
+      const k = pr || sm ? undefined : C?.key(req, rn !== undefined || pf);
       const id = ++seq;
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
-      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e),
+      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers),
         rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}));
-      r.ok = async (v: any, status: number) => {
-        if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, issues: e.issues}); }
+      // `kh`: the kept headers already picked (a cache hit)
+      r.ok = async (v: any, status: number, headers?: any, kh?: any) => {
+        if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, headers, issues: e.issues}); }
         if (!finish(id)) return;
-        if (R) write(sender, rn!, R, 'success', v);
-        if (updates) upd(sender, updates, v);
-        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && emit(false, {category, value: v, status, request: req});
+        if (R) write(sender, rn!, R, 'success', v, undefined, undefined, kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined));
+        if (updates && !sm) upd(sender, updates, v);
+        // a stream's end is its ok action only, `{ status, headers }` (its pieces went to select())
+        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
         if (invalidates) inval(invalidates);
       };
+      // 7.2: a stream's piece, to its chunk action (else select())
+      r.c = (v: any, status: number) => inflight.has(id) &&
+        (rk !== undefined && ck ? reply(sender, ck, v) : emit(false, {category, value: v, status, request: req}));
       const ms = timeoutMs ?? options.timeoutMs;
       if (ms > 0) {
         r.timer = setTimeout(() => {
@@ -534,11 +653,11 @@ export function makeFetchDriver(options: any = {}) {
         }, ms);
       }
       // D79: a fresh cache entry answers without a fetch
-      if (after < 0 && C?.fresh(k, req)) return queueMicrotask(() => r.ok(C.get(k).v, 200)), id;
+      if (after < 0 && C?.fresh(k, req)) return queueMicrotask(() => r.ok(C.get(k).v, 200, undefined, C.get(k).h)), id;
       // D79: identical cacheable requests share a fetch (a refetch only one started after it asked)
       let F = k !== undefined && C.f.get(k);
       if (!F || F.id <= after) {
-        const rp = retry ?? (IDEMPOTENT.test(m) ? options.retry : 0);
+        const rp = sm ? 0 : retry ?? (IDEMPOTENT.test(m) ? options.retry : 0);
         const pol = rp && typeof rp == 'object' ? rp : {count: +rp || 0};
         const tries = pol.count ?? 3;
         F = {id, k, q: req, s: new Set(), n: 0};
@@ -559,9 +678,9 @@ export function makeFetchDriver(options: any = {}) {
           doFetch = options._progress ? (u: string, i: any) => options._progress(u, i, step, req) : (u: string, i: any) => xhrFetch(X, u, i, step);
         }
         // the outcome, to every request waiting on this fetch (the failure once, after the last attempt)
-        const end = (e: any, x?: any, status?: number) => {
+        const end = (e: any, x?: any, status?: number, hs?: any) => {
           done(F);
-          F.s.forEach((w: any) => e ? w.ko(e, tries ? {...x, attempts: F.n} : x) : w.ok(x, status));
+          F.s.forEach((w: any) => e ? w.ko(e, tries ? {...x, attempts: F.n} : x) : w.ok(x, status, hs));
         };
         const go = () => {
           const ctl: any = F.c = typeof AbortController == "function" ? new AbortController() : {};
@@ -576,6 +695,7 @@ export function makeFetchDriver(options: any = {}) {
           let p: Promise<any>;
           try {
             if (typeof doFetch != 'function') throw new Error('fetch is not available in this environment (pass makeFetchDriver({ fetch }))');
+            if (sm && !STREAMS.includes(sm)) throw new Error(`stream must be 'sse', 'ndjson' or 'text' (got ${JSON.stringify(sm)}): ${href}`);
             // 5-1 (H-9): renderComponent's fake learns which request (and resource) the next fetch is for
             options._tap?.(req, rn, pf);
             // called synchronously, so a test sees the call right after the sink emitted
@@ -609,17 +729,38 @@ export function makeFetchDriver(options: any = {}) {
               if (bad(res)) {
                 const e = await httpError(res, href);
                 if (!live() || ((st == 408 || st == 429 || st > 499) && again(res))) return;
-                return end(e, {status: st, body: e.body});
+                return end(e, {status: st, body: e.body, headers: e.headers});
+              }
+              if (sm) {
+                // 7.2: each piece (SSE data JSON-parsed when it parses, `{ data, id, event }` with
+                // `meta: true`; NDJSON lines parsed; text as is) to the chunk action (else
+                // select()) until the end or the `done` piece (a string: the raw data; a function:
+                // the piece as delivered); then `ok` gets `{ status, headers }`. The time-out is
+                // the time to the first byte (never shared: `r` is its only request)
+                for await (const p of rawPieces(res, sm, () => clearTimeout(r.timer))) {
+                  if (!live()) return;
+                  const raw = p.d;
+                  if (raw === dn) break;
+                  let v: any = raw;
+                  if (sm == 'ndjson') v = JSON.parse(raw);
+                  else if (sm == 'sse') {
+                    try { v = JSON.parse(raw); } catch (_) {}
+                    if (req.meta) v = {data: v, id: p.i, event: p.e};
+                  }
+                  if (typeof dn == 'function' && dn(v)) break;
+                  r.c(v, st);
+                }
+                return live() && end(0, {status: st, headers: res.headers}, st, res.headers);
               }
               let v: any;
-              try { v = await parser(res); } catch (e) { return live() && end(e, {status: st}); }
+              try { v = await parser(res); } catch (e) { return live() && end(e, {status: st, headers: res.headers}); }
               if (!live()) return;
-              if (k !== undefined && !F.z) C.put(k, req, v);
-              end(0, v, st);
+              if (k !== undefined && !F.z) C.put(k, req, v, undefined, req.keepHeaders?.length ? keptHeaders(req.keepHeaders, res.headers) : undefined);
+              end(0, v, st, res.headers);
             } catch (e) {
               live() && end(e);
             }
-          }, (e: any) => { live() && (e?.status ? end(e, {status: e.status, body: e.body}) : !again() && end(e)); });
+          }, (e: any) => { live() && (e?.status ? end(e, {status: e.status, body: e.body, headers: e.headers}) : !again() && end(e)); });
         };
         go();
       }

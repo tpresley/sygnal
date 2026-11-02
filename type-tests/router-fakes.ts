@@ -10,6 +10,7 @@ t.navigate({ to: 'task', params: { id: 4 }, query: { tab: 'x' }, replace: true }
 t.back()
 t.forward()
 const path: string = t.location.path + t.location.search + t.location.hash + t.location.href
+const tab: string | undefined = t.location.query.tab
 const commands: any[] = t.sent('ROUTER')
 const title: string | undefined = t.head().title
 const description: string = t.head().meta.description
@@ -20,4 +21,4 @@ renderComponent(App, { router: { home: '/' } })
 t.navigate({ params: { id: 1 } })
 // @ts-expect-error location is read-only
 t.location = { path: '/', search: '', hash: '', href: '' }
-export { p, path, commands, title, description, links }
+export { p, path, tab, commands, title, description, links }

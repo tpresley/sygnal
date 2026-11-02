@@ -1,4 +1,4 @@
-import {sse} from './ai/transports/shared';
+import {sse} from './sse';
 
 /*
  * PLAN-11 E-1: an EventSource over fetch, for server-sent events that need request headers

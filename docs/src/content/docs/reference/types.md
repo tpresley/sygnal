@@ -7,6 +7,31 @@ All types are exported from `sygnal` (`import type { … } from 'sygnal'`). See 
 
 ## Components
 
+### Comp, RootComp
+
+`Component` and `RootComponent` with the type arguments named (the preferred form): each key is optional, and one left out takes `Component`'s default. A key that isn't one of these is a type error. `parent: T` is short for `sinks: { PARENT: T }`; `RootComp` has neither `props` nor `parent`.
+
+```typescript
+type ComponentSpec = {
+  state?: unknown          // STATE (any)
+  props?: unknown          // PROPS (any prop)
+  drivers?: unknown        // DRIVERS
+  actions?: unknown        // ACTIONS (any action)
+  calculated?: unknown     // CALCULATED
+  context?: unknown        // CONTEXT
+  parent?: unknown         // SINK_RETURNS['PARENT']: types the parent's CHILD.select(C)
+  sinks?: NonStateSinkReturns   // SINK_RETURNS ({ EVENTS, LOG, PARENT })
+  provided?: unknown       // PROVIDED_CONTEXT (default: context)
+}
+type RootComponentSpec = Omit<ComponentSpec, 'props' | 'parent'>
+
+type Comp<SPEC extends ComponentSpec = {}> = Component</* SPEC's types, by position */>
+type RootComp<SPEC extends RootComponentSpec = {}> = RootComponent</* SPEC's types, by position */>
+
+// Comp<{ state: Task; actions: TaskActions; parent: { taskId: string } }>
+//   is Component<Task, { [prop: string]: any }, {}, TaskActions, {}, {}, { PARENT: { taskId: string } }>
+```
+
 ### Component
 
 ```typescript
@@ -79,7 +104,7 @@ type ActionsOf<INTENT> = { [ACTION in keyof ReturnType<INTENT>]: StreamPayload<R
 
 ### ParentPayloadOf
 
-The value type a component sends to its parent through `PARENT`: the `PARENT` type in a `Component<…>` annotation's `SINK_RETURNS`, or, for a component without an annotation, inferred from its model. A child annotated without `{ PARENT: T }` gives `unknown`; a component without a model (or with `PARENT: true` entries only) gives `any`. `CHILD.select(Comp)` returns `Stream<ParentPayloadOf<typeof Comp>>`.
+The value type a component sends to its parent through `PARENT`: the `parent` type of a `Comp<{ … }>` annotation (the `PARENT` type in a `Component<…>` annotation's `SINK_RETURNS`), or, for a component without an annotation, inferred from its model. A child annotated without `{ PARENT: T }` gives `unknown`; a component without a model (or with `PARENT: true` entries only) gives `any`. `CHILD.select(Comp)` returns `Stream<ParentPayloadOf<typeof Comp>>`.
 
 ```typescript
 type ParentPayloadOf<COMPONENT> = /* SINK_RETURNS['PARENT'], or the model's PARENT return type; unknown / any */ any
@@ -562,7 +587,7 @@ import { h, div, span, a, button, input, form, label, ul, li, p, ... } from 'syg
 
 // Types
 import type {
-  Component, RootComponent, IntentSources, ActionsOf, ParentPayloadOf, SygnalEvents,
+  Comp, RootComp, Component, RootComponent, IntentSources, ActionsOf, ParentPayloadOf, SygnalEvents,
   Lens, Stream, MemoryStream, RunOptions, SygnalApp, Diagnostic, DiagnosticsMode,
   InspectGraph, RenderOptions, RenderResult, SygnalDOMSource, DragDriverSource
 } from 'sygnal'

@@ -1,19 +1,20 @@
 /**
  * PLAN-4.6 core: the Portal marker (R2), registered by the public `Portal` when used (G-751).
- * A template rewrite (registry `pres`): the `portal` marker becomes a hidden placeholder whose
- * hooks patch its children into the target with a separate snabbdom patch function. As today
- * (the 5.x core's createPortalPlaceholder):
+ * A post-processor (registry `posts`) of the injected vnode of an instance whose template has a
+ * `portal` marker: the marker becomes a hidden placeholder whose hooks patch its children into
+ * the target with a separate snabbdom patch function. The core walks and injects the marker's
+ * children as any element's first, so components (and widgets) inside a Portal are the owner's
+ * children as anywhere else. As the 5.x core's createPortalPlaceholder:
  * - the target is looked up on insert; one rendered later is retried 10 times, 5 ms apart, and a
  *   late mount pokes the DOM driver (G-261 pokeDOM); never found: SYG417;
  * - an update patches the portal's content; a removal patches it to empty (its destroy hooks
  *   run: G-359) and removes it;
- * - the children move into the placeholder unprocessed (components inside a Portal are not
- *   instantiated, as today).
+ * - the (injected) children move into the placeholder (`data.portalChildren`).
  * G-316: the mount state lives in one object the placeholder's successive
  * vnodes share (`_p`, handed on by postpatch), so a late-target retry mounts the latest children
  * once, and a removal cancels a pending retry. `_portalVnode` stays on the current vnode (testing).
  */
-import {pres} from '../registry'
+import {posts} from '../registry'
 import {init as snabbdomInit} from '../../cycle/dom/snabbdom'
 import defaultModules from '../../cycle/dom/modules'
 import {pokeDOM, flat} from '../../cycle/dom/utils'
@@ -64,7 +65,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
       attrs: {'data-sygnal-portal': target},
       portalChildren,
       hook: {
-        insert: (vnode: any) => start(vnode, target, portalChildren),
+        insert: (vnode: any) => start(vnode, target, vnode.data.portalChildren),
         postpatch: (oldVnode: any, newVnode: any) => {
           const st: PortalState | undefined = oldVnode.data?._p
           // G-318: reached by a patch, never inserted (hydration over server markup, or a plain
@@ -97,7 +98,16 @@ export function portalPlaceholder(target: string, children: any[]): any {
   }
 }
 
-// (widgets among its children: `pres.widget.$k` rewrites them, extra/widget.ts; the core doesn't walk them)
-const pre = (n: any, o: any, x: string) => portalPlaceholder(n.data?.props?.target, (pres.widget as any)?.$k(n.children || [], o, x) || n.children || [])
-/** G-751: registers the rewrite; the public `Portal` calls it when used (its `$reg`), not on import */
-export const enablePortal = () => { pres.portal = pre }
+// (a child instance's vnode, data.isolate, was processed by its own instance; nested portals first)
+const post = (v: any): any => {
+  if (!v || v.data?.isolate) return v
+  const c = v.children
+  let out: any
+  for (let i = 0; c && i < c.length; i++) {
+    const o = post(c[i])
+    if (o !== c[i]) (out ||= c.slice())[i] = o
+  }
+  return v.sel === 'portal' ? portalPlaceholder(v.data?.props?.target, out || c || []) : out ? {...v, children: out} : v
+}
+/** G-751: registers the post-processor; the public `Portal` calls it when used (its `$reg`), not on import */
+export const enablePortal = () => { posts.portal = post }

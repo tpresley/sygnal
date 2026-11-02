@@ -16,6 +16,10 @@
  * to classNameModule (B-012). On form fields a nullish `value`/`checked` clears
  * the field ('' / false, D49); a removed one is left alone (the controlled-input
  * module owns them; removing them hands control back to the user, as in React).
+ *
+ * `false` on a string property (`title={open && 'Close'}`, `href`, `alt`) is no value, as in
+ * React and renderToString: the attribute goes (it was written as "false"). Not for `value`,
+ * `contentEditable` (its "false" is a value) or a custom element's own properties.
  */
 
 import type {VNode} from 'snabbdom/build/vnode.js';
@@ -54,7 +58,7 @@ function updateProps(oldVnode: VNode, vnode: VNode): void {
     const cur = props[key];
     if (cur === oldProps[key]) continue;
     // a nullish className is left to classNameModule, which rebuilds the attribute (B-012)
-    if (cur == null) clearProp(elm, key, true);
+    if (cur == null || cur === false && typeof elm[key] == 'string' && !/^(value|contentEditable)$/.test(key) && !elm.localName?.includes('-')) clearProp(elm, key, true);
     // G-553: on create (no old sel) `value` is always written: the create hooks run before the
     // children are appended, so an <option>'s value reads '' (no text yet) and value="" would be
     // skipped, leaving no attribute (the option then submits its label)

@@ -1,6 +1,6 @@
 ---
 title: Resources and Caching
-description: Declarative reads with the resources static, refetching, the opt-in query cache, SSR seeding, prefetching, invalidation, writing replies into the cache, retries and validation
+description: Declarative reads with the resources static, refetching, the opt-in query cache, SSR seeding, prefetching, invalidation, resetting, writing replies into the cache, retries and validation
 ---
 
 A **resource** is a read that follows state. The component declares which request each resource needs, and [`makeFetchDriver()`](/guide/http/) fetches it whenever that request changes, writing the result to `state[name]`. There is no model entry for loading or for the reply.
@@ -46,18 +46,18 @@ Quote.model = {
 }
 ```
 
-`state.quote` is `{ status, data, error, refreshing }`:
+`state.quote` is `{ status, data, error, refreshing }` (plus `headers` for a request with [`keepHeaders`](#showing-when-the-data-was-computed)):
 
 | `status` | When | `data` / `error` |
 |---|---|---|
 | `'idle'` | The entry returns a falsy value (or before the first request) | none |
 | `'loading'` | A **new** request is in flight (the first one, or the request changed) | none: the previous record is never shown for the new one |
 | `'success'` | The 2xx reply arrived | `data` is the parsed body |
-| `'error'` | A non-2xx status, a network error, a timeout or a validation failure | `error` is the Error (`error.status`, `error.body`, `error.issues`); `data` is kept from the last success of the same request |
+| `'error'` | A non-2xx status, a network error, a timeout or a validation failure | `error` is the Error (`error.status`, `error.body`, `error.headers`, `error.issues`); `data` is kept from the last success of the same request |
 
 - **A refetch of the same request keeps what is shown.** `{ refresh: 'quote' }`, an [invalidation](#invalidation), a [focus or reconnect refetch](#focus-reconnect-and-polling), polling, or the same request declared again after a pause keep `status`, `data` and `error`, and set `refreshing: true` until the reply lands. Show a spinner next to the data, or treat `refreshing` like loading when the old data must not be visible.
 - **A new request clears it.** When the derived request changes (another id), the resource goes to `'loading'` with no data, and the earlier request is aborted: its reply never lands. For pagination, where the previous page should stay visible, set `keepPrevious: true` on the request: the old `data` stays (with `refreshing: true`) until the new page arrives.
-- **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing.
+- **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing. Fields that only change how the request is handled are left out of that comparison: `refetchEvery`, `keepPrevious`, `ok`, `error`, `key`, `category`, `latest`, `timeoutMs`, `retry`, `cache`, `staleTime`, `tags`, `invalidates`, `updates`, `background` and `progress`. Changing one of them takes effect with no fetch and no change to `status` or `data`: `refetchEvery: state.live ? 5000 : undefined` starts and stops [polling](#focus-reconnect-and-polling) while the data stays shown.
 - **An entry gets the context too**: `(state, context)`. A routed page reads `route` from context (`(state, { route }) => `/api/tasks/${route.params.id}``) instead of keeping a copy of it; the entries are computed again when the context changes ([Router](/guide/router/)).
 - `ok` / `error` on the request also dispatch those actions after the write, for side work such as appending pages.
 - A Collection item, or any component instance, has its own resources. Removing it aborts them.
@@ -85,7 +85,8 @@ With the cache on:
 - **`staleTime`** (default `0`): how long a reply counts as fresh. A fresh entry is served without any request; a `{ refresh }` always fetches.
 - **De-duplication.** Identical requests in flight share one fetch, even from different components; each component still gets its own `state[name]` (or its own `ok` action). The fetch is aborted only when no component still wants it.
 - **`gcTime`** (default 5 minutes): an entry that no mounted resource uses is dropped after this long.
-- The cache key is the method, the URL with its query (sorted), the body and `parse`. Resources' GET and HEAD requests are cached; a request opts out with `cache: false`.
+- The cache key is the method, the URL with its query (sorted), the body and `parse`. Resources' GET and HEAD requests are cached; a request opts out with `cache: false`. With `keepHeaders`, the entry also keeps those response headers, and they are part of the key. A request with a `parse` function or `parse: 'response'` is never cached: the key can't tell two functions apart, and a `Response` can't be kept. To cache a value from a response header, use [`keepHeaders`](#showing-when-the-data-was-computed).
+- **`queryCache().clear()`** drops every entry (React Query's `queryClient.clear()`); mounted resources keep what they show. To reset them too, send `{ reset: true }` ([Resetting](#resetting)).
 
 Requests with reply actions keep one-send-one-request semantics unless they ask for the cache with `cache: true` or `staleTime`:
 
@@ -213,6 +214,27 @@ QuoteEditor.model = {
 - **An `ok` action that navigates is fine.** When the `ok` action changes the resource's request (a `ROUTER` move to the next record), the new request is sent and the invalidation never resends the old one after it.
 - An `invalidate` that matches nothing is reported as [SYG632](/reference/errors/#syg632) (info).
 
+## Resetting
+
+`{ reset: value }` on the `HTTP` sink puts data back to where it started, like React Query's `resetQueries`. Use it when the data no longer applies, such as after a logout or an account switch:
+
+```jsx
+Account.model = {
+  SWITCH_ORG: {
+    STATE: (state, org) => ({ ...state, org }),
+    HTTP:  () => ({ reset: true }),
+  },
+}
+```
+
+- `true` matches everything; otherwise the value matches like [`invalidate`](#invalidation): a tag, a URL prefix starting with `/`, an array of them, or a predicate `(request) => boolean`.
+- Matching cache entries are dropped, so nothing is served from them, however fresh.
+- Matching **mounted** resources go back to `'loading'` with no data and no error, then refetch. Their reads in flight are aborted, so an old reply never lands.
+- Matching **paused** resources (in a hidden page) lose the result they kept and become `'idle'`; when the page is shown again they load anew.
+- It works with or without the cache, from any component.
+
+Compared with the neighbours: `invalidate` refetches and keeps showing the old data (`refreshing: true`); `reset` hides it until the new reply arrives; `queryCache().clear()` drops the cache entries and leaves the resources as they are.
+
 ## Writing a reply into the cache
 
 `updates` on a request writes its 2xx reply into this component's resources, like React Query's `setQueryData`. The saved record shows at once, without waiting for a refetch:
@@ -241,10 +263,11 @@ Item.model = {
 
 - With a `queryCache()`, when the window regains focus (or the tab becomes visible) and when the browser comes back online, every **stale** mounted resource refetches, keeping its data. Turn either off with `refetchOnFocus: false` / `refetchOnReconnect: false`. Resources in hidden pages don't refetch.
 - `refetchEvery: ms` on a resource request polls: it refetches that long after each reply, and skips while the document is hidden. It works with or without the cache.
+- `refetchEvery` can follow state. Turning it on or changing it schedules the next refetch that long from now; turning it off (`undefined`) stops polling. Neither sends a request or clears the data: `refetchEvery` isn't part of what is fetched.
 
 ```jsx
 Prices.resources = {
-  prices: (state) => ({ url: '/api/prices', query: { market: state.market }, refetchEvery: 10000 }),
+  prices: (state) => ({ url: '/api/prices', query: { market: state.market }, refetchEvery: state.live ? 10000 : undefined }),
 }
 ```
 
@@ -352,6 +375,21 @@ Feed.model = {
 
 `PAGE` runs on every successful fetch of the request, refetches included, so leave the cache's focus refetch off for such a list (`queryCache({ refetchOnFocus: false })`) or de-duplicate by id in `PAGE`.
 
+For a cursor API, keep the cursor in state instead of a page number. The request sends the cursor it was given, `PAGE` stores the next one, and "Load more" moves to it:
+
+```jsx
+Feed.initialState = { cursor: null, next: null, items: [] }
+Feed.resources = {
+  feed: (state) => ({ url: '/api/feed', query: { after: state.cursor }, ok: 'PAGE' }),
+}
+Feed.model = {
+  MORE: (state) => (state.feed.status === 'loading' || !state.next ? ABORT : { ...state, cursor: state.next }),
+  PAGE: (state, body) => ({ ...state, items: [...state.items, ...body.items], next: body.nextCursor }),
+}
+```
+
+A `null` cursor is left out of the query string, so the first request is plain `/api/feed`.
+
 ### List and detail with a save
 
 Each view declares its read only while it is shown, the cache shows a known list or item at once, and a save writes the reply and refetches both. In this demo, a stand-in server keeps three items, refuses an empty title, and the driver has a `queryCache()` (the `options` export):
@@ -439,6 +477,76 @@ run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
 - A hidden view's resource goes `'idle'`. Shown again within `staleTime`, the cached data is shown with no request; later it is shown at once and refetched (`'Updating…'`).
 - The save shows the new title at once (`updates`), and the list and item refetch (`invalidates`). A read in flight from before the save is aborted, so its reply never overwrites the saved title.
 
+### Showing when the data was computed
+
+A server that computes a report says when in a response header. `keepHeaders` keeps it next to the data, through refetches and the cache:
+
+```jsx title="Report.jsx"
+function Report({ state }) {
+  const { status, data, headers, refreshing } = state.report
+  if (status === 'loading') return <p>Loading…</p>
+  if (status === 'error' && !data) return <p>Could not load the report.</p>
+  return (
+    <section>
+      <p className="total">{data?.total} open tasks</p>
+      <p className="as-of">As of {headers?.['x-computed-at'] ?? 'unknown'}{refreshing ? ' (updating…)' : ''}</p>
+      <button className="refresh">Refresh</button>
+    </section>
+  )
+}
+Report.initialState = {}
+Report.resources = {
+  report: () => ({ url: '/api/report', keepHeaders: ['X-Computed-At'], refetchEvery: 60000 }),
+}
+Report.intent = ({ DOM }) => ({ REFRESH: DOM.click('.refresh') })
+Report.model = { REFRESH: { HTTP: { refresh: 'report' } } }
+```
+
+- `headers` holds the names asked for, lowercased, each a string or `null` when the response didn't send it.
+- While a refetch is in flight (`refreshing`), the old time stays with the old data; the new reply replaces both. A failed refetch keeps both.
+- With a `queryCache()`, the entry keeps the headers: coming back to the report shows its cached data with the time it was computed, and so do `dehydrate()` / `hydrate()` and server rendering. A server loader seeds both: `cache.set({ url: '/api/report', keepHeaders: ['X-Computed-At'] }, report, { 'X-Computed-At': computedAt })`.
+- In a test: `await t.respond('HTTP', new Response(JSON.stringify({ total: 3 }), { headers: { 'content-type': 'application/json', 'X-Computed-At': '10:00' } }), 'report')`, then `t.state.report.headers['x-computed-at']` is `'10:00'`; `t.cache('HTTP')` lists the entry's `headers`.
+
+### Logout
+
+On logout, nothing fetched for the old user may be shown or served again. When the components that read user data stay mounted (a header with the user's name, a dashboard that turns into its signed-out version), reset everything: each mounted resource goes back to `'loading'` and refetches as the signed-out user, and every cache entry is dropped:
+
+```jsx title="Account.jsx"
+function Account({ state }) {
+  return <button className="logout" disabled={state.leaving}>Log out</button>
+}
+Account.initialState = { leaving: false }
+Account.intent = ({ DOM }) => ({ LOGOUT: DOM.click('.logout') })
+Account.model = {
+  LOGOUT: {
+    STATE: (state) => ({ ...state, leaving: true }),
+    HTTP:  () => ({ url: '/api/logout', method: 'POST', ok: 'LOGGED_OUT', error: 'LOGGED_OUT' }),
+  },
+  LOGGED_OUT: {
+    STATE: (state) => ({ ...state, leaving: false }),
+    HTTP:  () => ({ reset: true }),
+  },
+}
+```
+
+When logout replaces the whole app with a sign-in page, the user-data components are removed (their requests are aborted), so there is nothing to refetch: clear the cache instead. Keep the `queryCache()` in a module that `main.js` and the component both import, and call `clear()` from an `EFFECT`:
+
+```jsx title="SignOut.jsx"
+import { event } from 'sygnal'
+import { cache } from './cache.js'   // export const cache = queryCache(), given to makeFetchDriver in main.js
+
+function SignOut() {
+  return <button className="sign-out">Sign out</button>
+}
+SignOut.intent = ({ DOM }) => ({ SIGN_OUT: DOM.click('.sign-out') })
+SignOut.model = {
+  SIGN_OUT: {
+    EFFECT: () => cache.clear(),
+    EVENTS: event('SIGNED_OUT'),      // the app's root shows the sign-in page
+  },
+}
+```
+
 For writes, see the [optimistic update and save status recipes](/guide/http/#recipes).
 
 ## Testing
@@ -470,7 +578,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 
 - A resource's request is sent after the state changes, not during the event that caused it. `t.respond` / `t.fail` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch; otherwise, as for any request, they throw at the call when nothing matches.
 - `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake: give it the same `queryCache()` as `main.js`, or the test runs without a cache. A seeded cache: `queryCache({ initial: snapshot })`.
-- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
+- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags, headers }` (`headers` with `keepHeaders`).
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.
 - Retries and `refetchEvery` run on the test's timers, fake timers included. `t.requests('HTTP')` lists what the component sent (and each resource fetch), not each retry.

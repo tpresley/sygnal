@@ -263,6 +263,6 @@ it('redirects to login from the admin page', async () => {
 })
 ```
 
-`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location. A `simulateEvent` click on a link goes through the router's link interception. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
+`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location (`path`, `search`, `query`, `hash`, `href`). A `simulateEvent` click on a link goes through the router's link interception. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
 
 Outside `renderComponent`, `makeRouter({ routes, window })` (and `history`, `location`, `document`) takes stand-ins, for an in-memory history in a test that calls `run()`.
