@@ -548,7 +548,7 @@ export interface RenderResult {
    * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event;
    * `{ id }` (PLAN-13 S-1): its SSE event id (`meta`, `resume`).
    * 7.2: on a sink with `stream` requests, one piece of the one `target` picks (t.respond's
-   * targets), in its format; t.respond(name, null) ends it.
+   * targets), in its format (`{ event, id }`: an SSE piece's fields); t.respond(name, null) ends it.
    */
   push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; id?: string | number; connection?: FakeConnectionTarget}) => Promise<void>;
   /**
@@ -1373,10 +1373,14 @@ const fakeBody = (gone: () => void): FakeBody => {
     fail: (e: any) => { if (!closed && !err) { err = e; gone(); wake(); } },
   };
 };
-/** 7.2: one t.push piece as a `stream` request's mode writes it (SSE `data:` lines, an NDJSON line, text) */
-const streamText = (mode: string, piece: any) => {
+/**
+ * 7.2: one t.push piece as a `stream` request's mode writes it (SSE `data:` lines, with `event:` /
+ * `id:` from `o`; an NDJSON line; text)
+ */
+const streamText = (mode: string, piece: any, o?: {event?: string; id?: string | number}) => {
   const t = typeof piece == 'string' ? piece : JSON.stringify(piece);
-  return mode == 'sse' ? t.split(/\r?\n/).map(l => 'data: ' + l).join('\n') + '\n\n' : mode == 'ndjson' ? t + '\n' : t;
+  if (mode != 'sse') return mode == 'ndjson' ? t + '\n' : t;
+  return (o?.event ? `event: ${o.event}\n` : '') + (o?.id != null ? `id: ${o.id}\n` : '') + t.split(/\r?\n/).map(l => 'data: ' + l).join('\n') + '\n\n';
 };
 const abortErr = () => Object.assign(new Error('The operation was aborted.'), {name: 'AbortError'});
 /** a request field compared by value (t.respond / t.fail targets) */
@@ -3145,12 +3149,12 @@ export function renderComponent(
   // 7.2: t.push on a sink with `stream` requests: one piece of the pending stream request the
   // target picks (t.respond's targets), written in its mode (the driver parses it as a server's);
   // its response starts with the first piece. Used when such a request matches, or when the sink
-  // (not the socketSink) declares no connections
-  const streamPush = (name: string, data: any, target: any) => {
+  // (not the socketSink) declares no connections. `sse`: an SSE piece's `{ event, id }` (meta)
+  const streamPush = (name: string, data: any, target: any, sse?: any) => {
     const tg0 = targetOf(target), tg = {...tg0, match: (r: Pending) => !!r.open && tg0.match(r), desc: ` with stream: 'sse' | 'ndjson' | 'text'${tg0.desc}`};
     const what = `t.push('${name}')`;
     return scripted(() => pick(name, tg), w => noPending(what, name, tg, w), (e: Pending) => {
-      streamOpen(e).put(streamText(e.req.stream, data));
+      streamOpen(e).put(streamText(e.req.stream, data, sse));
     }, sendDue && !('nth' in tg.o));
   };
   const push = (name: string, data: any, target?: any) => {
@@ -3160,6 +3164,9 @@ export function renderComponent(
       try { tg = targetOf(target); } catch (_) {}
       if (tg && ((name != socketSink && !conns(name).length) || (fakes.get(name)?.pending || []).some(r => r.live && r.open && tg!.match(r)))) return streamPush(name, data, target);
     }
+    // `{ event, id }` without a connection, on a sink with stream requests: an SSE piece's fields
+    if (sockForm && !drivers[name] && !('connection' in target) &&
+      ((name != socketSink && !conns(name).length) || (fakes.get(name)?.pending || []).some(r => r.live && r.open))) return streamPush(name, data, undefined, target);
     const o = sockForm ? target : {connection: target};
     const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
     const ev = o.event;

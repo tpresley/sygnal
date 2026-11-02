@@ -84,6 +84,12 @@ import {sse} from './sse';
  *   dropped, matching mounted resources go back to 'loading' with no data and no error and
  *   refetch, paused ones lose their kept result ('idle'). A fetch in flight for a dropped entry
  *   never writes the cache. `queryCache().clear()` drops every entry and leaves resources alone.
+ * - 7.2 `stream: 'sse' | 'ndjson' | 'text'` (not for resources, prefetches, batches): the 2xx body
+ *   read as pieces (SSE data JSON-parsed when it parses, `{ data, id, event }` with `meta: true`;
+ *   NDJSON lines parsed; text as it arrives), each the `chunk` action (else select()); the end, or
+ *   the `done` piece (a string: the raw data; a function: the piece), is the `ok` action with
+ *   `{ status, headers }`. latest / abort / key / sender scoping apply; `timeoutMs` is the time
+ *   to the first byte; never retried, cached or shared.
  * - 7.2 `keepHeaders: [name, …]`: a resource's state gets `headers: { lowercased name: value | null }`
  *   next to `data` on 'success' (kept with data on refetches, `keepPrevious` and errors; cleared
  *   by a key change's 'loading'); the cache stores them with the entry (part of its key and of
@@ -283,14 +289,16 @@ export const keptHeaders = (names: any, h: any, all?: any) => {
 };
 const STREAMS = ['sse', 'ndjson', 'text'];
 /**
- * 7.2: the raw pieces of a streamed body: SSE events' data, NDJSON's non-blank lines, text as it
- * arrives. `beat`: bytes arrived. Stopping early (a `done` piece, an abort) cancels the reader
+ * 7.2: the raw pieces of a streamed body, `{ d }`: SSE events' data (with `e`, the event type,
+ * and `i`, the last event id, for `meta`), NDJSON's non-blank lines, text as it arrives. `beat`:
+ * bytes arrived. Stopping early (a `done` piece, an abort) cancels the reader
  */
-async function* rawPieces(res: any, mode: string, beat: () => void): AsyncGenerator<string> {
+async function* rawPieces(res: any, mode: string, beat: () => void): AsyncGenerator<{d: string; e?: string; i?: string}> {
   // a Response-like without a body stream (a test stub): its text, as one chunk
   if (!res.body?.getReader) res = new Response(await res.text());
   if (mode == 'sse') {
-    for await (const f of sse(res, {beat})) yield f.data;
+    const m = {id: '', beat};
+    for await (const f of sse(res, m)) yield {d: f.data, e: f.event, i: m.id};
     return;
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
@@ -301,11 +309,11 @@ async function* rawPieces(res: any, mode: string, beat: () => void): AsyncGenera
       done = r.done;
       if (!done) beat();
       const s = done ? dec.decode() : dec.decode(r.value, {stream: true});
-      if (mode == 'text') { if (s) yield s; }
+      if (mode == 'text') { if (s) yield {d: s}; }
       else {
         const lines = (buf + s).split(/\r?\n/);
         buf = done ? '' : lines.pop()!;
-        for (const l of lines) if (l.trim()) yield l;
+        for (const l of lines) if (l.trim()) yield {d: l};
       }
       if (done) return;
     }
@@ -629,8 +637,8 @@ export function makeFetchDriver(options: any = {}) {
         if (!finish(id)) return;
         if (R) write(sender, rn!, R, 'success', v, undefined, undefined, kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined));
         if (updates && !sm) upd(sender, updates, v);
-        // a stream's end is its ok action only (its pieces went to select())
-        rk !== undefined && ok ? reply(sender, ok, sm ? undefined : v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
+        // a stream's end is its ok action only, `{ status, headers }` (its pieces went to select())
+        rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
         if (invalidates) inval(invalidates);
       };
       // 7.2: a stream's piece, to its chunk action (else select())
@@ -724,20 +732,25 @@ export function makeFetchDriver(options: any = {}) {
                 return end(e, {status: st, body: e.body, headers: e.headers});
               }
               if (sm) {
-                // 7.2: each piece (SSE data JSON-parsed when it parses, NDJSON lines parsed, text
-                // as is) to the chunk action (else select()) until the end or the `done` piece;
-                // the time-out is the time to the first byte
-                // (never shared: `r` is its only request)
-                for await (const raw of rawPieces(res, sm, () => clearTimeout(r.timer))) {
+                // 7.2: each piece (SSE data JSON-parsed when it parses, `{ data, id, event }` with
+                // `meta: true`; NDJSON lines parsed; text as is) to the chunk action (else
+                // select()) until the end or the `done` piece (a string: the raw data; a function:
+                // the piece as delivered); then `ok` gets `{ status, headers }`. The time-out is
+                // the time to the first byte (never shared: `r` is its only request)
+                for await (const p of rawPieces(res, sm, () => clearTimeout(r.timer))) {
                   if (!live()) return;
+                  const raw = p.d;
                   if (raw === dn) break;
                   let v: any = raw;
                   if (sm == 'ndjson') v = JSON.parse(raw);
-                  else if (sm == 'sse') try { v = JSON.parse(raw); } catch (_) {}
+                  else if (sm == 'sse') {
+                    try { v = JSON.parse(raw); } catch (_) {}
+                    if (req.meta) v = {data: v, id: p.i, event: p.e};
+                  }
                   if (typeof dn == 'function' && dn(v)) break;
                   r.c(v, st);
                 }
-                return live() && end(0, undefined, st, res.headers);
+                return live() && end(0, {status: st, headers: res.headers}, st, res.headers);
               }
               let v: any;
               try { v = await parser(res); } catch (e) { return live() && end(e, {status: st, headers: res.headers}); }

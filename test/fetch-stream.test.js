@@ -14,6 +14,9 @@ import { _resetDiagnostics } from '../src/extra/diagnostics/index.js'
 import { sleep } from '../evals/agent-ergonomics/hidden/_support/queries.js'
 import { until } from './support/wait.js'
 
+// the ok action at the end of a stream: { status, headers }
+const END = expect.objectContaining({ status: 200, headers: expect.any(Headers) })
+
 let t
 afterEach(() => {
   try { t?.dispose() } catch (_) {}
@@ -74,7 +77,7 @@ describe('stream: sse', () => {
     s.write('event: other\ndata: [1,2]\n\n')
     s.end()
     await until(() => expect(H.got).toHaveLength(4))
-    expect(H.got.slice(2)).toEqual([['DELTA', [1, 2]], ['DONE', undefined]])
+    expect(H.got.slice(2)).toEqual([['DELTA', [1, 2]], ['DONE', END]])
   })
 
   it("done: '[DONE]' ends the stream at that piece: not delivered, the reader cancelled, ok follows", async () => {
@@ -83,7 +86,7 @@ describe('stream: sse', () => {
     const s = streamed()
     H.calls[0].resolve(s.response)
     s.write('data: {"t":"a"}\n\ndata: [DONE]\n\ndata: {"t":"late"}\n\n')
-    await until(() => expect(H.got).toEqual([['DELTA', { t: 'a' }], ['DONE', undefined]]))
+    await until(() => expect(H.got).toEqual([['DELTA', { t: 'a' }], ['DONE', END]]))
     expect(s.cancelled).toBe(true)
   })
 
@@ -93,7 +96,7 @@ describe('stream: sse', () => {
     const s = streamed()
     H.calls[0].resolve(s.response)
     s.write('data: {"type":"text","v":1}\n\ndata: {"type":"finish"}\n\n')
-    await until(() => expect(H.got).toEqual([['DELTA', { type: 'text', v: 1 }], ['DONE', undefined]]))
+    await until(() => expect(H.got).toEqual([['DELTA', { type: 'text', v: 1 }], ['DONE', END]]))
   })
 
   it('a non-2xx status is the error action, with status, body and headers', async () => {
@@ -121,6 +124,53 @@ describe('stream: sse', () => {
   })
 })
 
+describe('stream: the end and meta', () => {
+  it('ok gets { status, headers } of the response', async () => {
+    const H = harness()
+    H.send({ url: '/a', json: {}, stream: 'sse', chunk: 'DELTA', ok: 'DONE' })
+    H.calls[0].resolve(new Response('data: 1\n\n', { status: 201, headers: { 'content-type': 'text/event-stream', 'X-Request-Id': 'r7' } }))
+    await until(() => expect(H.got).toHaveLength(2))
+    const [type, end] = H.got[1]
+    expect(type).toBe('DONE')
+    expect(Object.keys(end).sort()).toEqual(['headers', 'status'])
+    expect(end.status).toBe(201)
+    expect(end.headers.get('x-request-id')).toBe('r7')
+  })
+
+  it('meta: true delivers each SSE piece as { data, id, event }; the id carries over', async () => {
+    const H = harness()
+    H.send({ url: '/a', json: {}, stream: 'sse', meta: true, chunk: 'DELTA', ok: 'DONE', done: '[DONE]' })
+    const s = streamed()
+    H.calls[0].resolve(s.response)
+    s.write('id: 1\ndata: {"t":"a"}\n\nevent: tool\ndata: x\n\ndata: [DONE]\n\n')
+    await until(() => expect(H.got).toHaveLength(3))
+    expect(H.got.slice(0, 2)).toEqual([
+      ['DELTA', { data: { t: 'a' }, id: '1', event: 'message' }],
+      ['DELTA', { data: 'x', id: '1', event: 'tool' }],
+    ])
+    expect(H.got[2]).toEqual(['DONE', END])
+  })
+
+  it('with meta, a done predicate gets the piece as delivered', async () => {
+    const H = harness()
+    H.send({ url: '/a', json: {}, stream: 'sse', meta: true, chunk: 'DELTA', ok: 'DONE', done: (p) => p.event === 'end' })
+    const s = streamed()
+    H.calls[0].resolve(s.response)
+    s.write('data: 1\n\nevent: end\ndata: {}\n\n')
+    await until(() => expect(H.got).toEqual([['DELTA', { data: 1, id: '', event: 'message' }], ['DONE', END]]))
+  })
+
+  it('meta is ignored for ndjson and text', async () => {
+    const H = harness()
+    H.send({ url: '/a', json: {}, stream: 'ndjson', meta: true, chunk: 'ROW', ok: 'END' })
+    const s = streamed('application/x-ndjson')
+    H.calls[0].resolve(s.response)
+    s.write('{"a":1}\n')
+    s.end()
+    await until(() => expect(H.got).toEqual([['ROW', { a: 1 }], ['END', END]]))
+  })
+})
+
 describe('stream: ndjson and text', () => {
   it('ndjson: each non-blank line, parsed, across chunk boundaries', async () => {
     const H = harness()
@@ -130,7 +180,7 @@ describe('stream: ndjson and text', () => {
     s.write('{"a":1}\n{"a"')
     s.write(':2}\r\n\n{"a":3}')
     s.end()
-    await until(() => expect(H.got).toEqual([['ROW', { a: 1 }], ['ROW', { a: 2 }], ['ROW', { a: 3 }], ['END', undefined]]))
+    await until(() => expect(H.got).toEqual([['ROW', { a: 1 }], ['ROW', { a: 2 }], ['ROW', { a: 3 }], ['END', END]]))
   })
 
   it('ndjson: a line that is not JSON fails the request', async () => {
@@ -152,7 +202,7 @@ describe('stream: ndjson and text', () => {
     await until(() => expect(H.got).toEqual([['TEXT', 'Hel']]))
     s.write('lo')
     s.end()
-    await until(() => expect(H.got).toEqual([['TEXT', 'Hel'], ['TEXT', 'lo'], ['END', undefined]]))
+    await until(() => expect(H.got).toEqual([['TEXT', 'Hel'], ['TEXT', 'lo'], ['END', END]]))
   })
 
   it('an unknown mode fails the request', async () => {
@@ -179,7 +229,7 @@ describe('stream: abort, latest, timeout, no retry, no cache', () => {
     H.calls[1].resolve(s2.response)
     s2.write('data: 2\n\n')
     s2.end()
-    await until(() => expect(H.got).toEqual([['DELTA', 1], ['DELTA', 2], ['DONE', undefined]]))
+    await until(() => expect(H.got).toEqual([['DELTA', 1], ['DELTA', 2], ['DONE', END]]))
   })
 
   it("{ abort: 'DELTA' } cancels it by its chunk lane (key: chunk when there is no ok / error)", async () => {
@@ -199,7 +249,7 @@ describe('stream: abort, latest, timeout, no retry, no cache', () => {
     await sleep(80)
     s.write('data: 2\n\n')
     s.end()
-    await until(() => expect(H.got).toEqual([['DELTA', 1], ['DELTA', 2], ['DONE', undefined]]))
+    await until(() => expect(H.got).toEqual([['DELTA', 1], ['DELTA', 2], ['DONE', END]]))
   })
 
   it('no byte within timeoutMs: a TimeoutError', async () => {
@@ -249,7 +299,7 @@ Copilot.model = {
     HTTP: (s, q) => ({ url: '/api/copilot', json: { q }, stream: 'sse', chunk: 'DELTA', ok: 'DONE', error: 'FAILED', done: '[DONE]', latest: true }),
   },
   DELTA: (s, piece) => ({ ...s, answer: s.answer + piece.text }),
-  DONE: (s) => ({ ...s, status: 'done' }),
+  DONE: (s, end) => ({ ...s, status: 'done', end: end.status }),
   FAILED: (s, { error }) => ({ ...s, status: 'failed: ' + error.message }),
 }
 
@@ -263,7 +313,7 @@ describe('renderComponent: t.push per piece, t.respond to end', () => {
     await t.push('HTTP', { text: 'lo' }, 'DELTA')
     expect(t.state.answer).toBe('Hello')
     await t.respond('HTTP', null)
-    expect(t.state.status).toBe('done')
+    expect(t.state).toMatchObject({ status: 'done', end: 200 })
     expect(() => t.push('HTTP', { text: 'x' })).toThrow(/no pending HTTP request with stream/)
   })
 
@@ -292,6 +342,23 @@ describe('renderComponent: t.push per piece, t.respond to end', () => {
     await t.push('HTTP', { text: 'a' })
     await t.fail('HTTP', 'connection reset')
     expect(t.state).toMatchObject({ answer: 'a', status: 'failed: connection reset' })
+  })
+
+  it('meta: t.push(name, piece, { event, id }) writes the SSE fields', async () => {
+    const C = (p) => Copilot(p)
+    C.initialState = { answer: '', status: 'idle', seen: [] }
+    C.model = {
+      ASK: { HTTP: () => ({ url: '/api/copilot', json: {}, stream: 'sse', meta: true, chunk: 'PIECE', ok: 'DONE' }) },
+      PIECE: (s, p) => ({ ...s, seen: [...s.seen, p] }),
+      DONE: (s) => ({ ...s, status: 'done' }),
+    }
+    t = renderComponent(C)
+    await t.simulateAction('ASK')
+    await t.push('HTTP', { text: 'a' }, { event: 'delta', id: 7 })
+    await t.push('HTTP', 'plain')
+    await t.respond('HTTP', null)
+    expect(t.state.seen).toEqual([{ data: { text: 'a' }, id: '7', event: 'delta' }, { data: 'plain', id: '7', event: 'message' }])
+    expect(t.state.status).toBe('done')
   })
 
   it('latest: a second ASK aborts the first stream; t.push goes to the new one', async () => {

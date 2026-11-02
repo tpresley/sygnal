@@ -1,6 +1,6 @@
 // Sift friction (7.2): stream requests, { reset }, queryCache().clear() and failure headers
 import { queryCache } from 'sygnal'
-import type { FetchRequest, FetchFailure, FetchError, ResourceRequest, Resource } from 'sygnal'
+import type { FetchRequest, FetchFailure, FetchError, ResourceRequest, Resource, FetchStreamEnd, SseEvent } from 'sygnal'
 
 export const streamed: FetchRequest = { url: '/api/copilot', json: { q: 'hi' }, stream: 'sse', chunk: 'DELTA', ok: 'DONE', error: 'FAILED', done: '[DONE]' }
 export const byPredicate: FetchRequest = { url: '/rows', stream: 'ndjson', chunk: 'ROW', done: (p: any) => p.last === true }
@@ -25,3 +25,8 @@ export const kept: ResourceRequest = { url: '/api/report', keepHeaders: ['X-Comp
 export const asOf = (r: Resource<{ total: number }>) => r.status === 'success' ? r.headers?.['x-computed-at'] : undefined
 cache.set('/api/report', { total: 1 }, { 'x-computed-at': 'now' })
 cache.set({ url: '/api/report', keepHeaders: ['X-Computed-At'] }, { total: 1 }, new Headers())
+
+// approved stream decisions: ok gets { status, headers }; meta: true on SSE
+export const withMeta: FetchRequest = { url: '/api/copilot', json: {}, stream: 'sse', meta: true, chunk: 'DELTA', ok: 'DONE', done: '[DONE]' }
+export const onEnd = (end: FetchStreamEnd) => [end.status, end.headers.get('x-request-id')]
+export const onPiece = (p: SseEvent<{ text: string }>) => [p.data.text, p.id, p.event]

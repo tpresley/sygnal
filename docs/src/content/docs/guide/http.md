@@ -157,7 +157,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `multipart` | — | A `multipart/form-data` body written as data: `{ file: state.file, title: state.title }` ([uploads](#upload-and-download-progress)) |
 | `body` | — | Raw body (string, `FormData`, `Blob`, …) |
 | `progress` | — | Report upload and download progress: an action name (`'UPLOADING'`) or `true` for `HTTP.progress()` ([Upload and download progress](#upload-and-download-progress)) |
-| `stream`, `chunk`, `done` | — | Read the body piece by piece: `stream: 'sse' \| 'ndjson' \| 'text'`, each piece to the `chunk` action, `done` the piece that ends it ([Streamed responses](#streamed-responses)) |
+| `stream`, `chunk`, `done`, `meta` | — | Read the body piece by piece: `stream: 'sse' \| 'ndjson' \| 'text'`, each piece to the `chunk` action, `done` the piece that ends it, `meta: true` SSE pieces as `{ data, id, event }` ([Streamed responses](#streamed-responses)) |
 | `headers` | — | Object or `Headers`, merged over the driver's `headers` case-insensitively (sent with lowercase names) |
 | `latest` | driver's `latest` (false) | Abort this instance's requests with the same key still in flight |
 | `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms (with `stream`: if no byte has arrived by then) |
@@ -292,8 +292,9 @@ Copilot.model = {
 }
 ```
 
-- **What a piece is**, by `stream`: `'sse'` gives each event's `data`, JSON-parsed when it parses (else the text); `'ndjson'` gives each non-blank line, parsed (a line that isn't JSON fails the request); `'text'` gives the text as it arrives, in whatever chunks the network delivers.
-- **The end** is the end of the body, or the piece `done` names: a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a predicate of the parsed piece (`done: (p) => p.type === 'finish'`). That piece isn't delivered, the connection is closed, and `ok` follows, with no data.
+- **What a piece is**, by `stream`: `'sse'` gives each event's `data`, JSON-parsed when it parses (else the text), of every event type; `'ndjson'` gives each non-blank line, parsed (a line that isn't JSON fails the request); `'text'` gives the text as it arrives, in whatever chunks the network delivers.
+- **The end** is the end of the body, or the piece `done` names: a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a predicate of the piece as delivered (`done: (p) => p.type === 'finish'`). There is no default: an endpoint that ends with a sentinel needs `done`. That piece isn't delivered, the connection is closed, and `ok` follows with `{ status, headers }` of the response.
+- **`meta: true`** (SSE only) delivers each piece as `{ data, id, event }`, as a socket SSE connection's `meta` does: `data` parsed as above, `id` the last event id (`''` when none was sent) and `event` the type (`'message'`, or the named event's name). Use it when the server names its events (`event: tool`) or numbers them. NDJSON lines and text have no ids or types, so `meta` is ignored there.
 - **Failures**: a non-2xx status goes to `error` like any request, with `status`, `body` and `headers`; so does a connection lost mid-stream, after the pieces read so far.
 - **What applies**: `latest`, `{ abort }`, `key` and removing the component stop the stream, and nothing more arrives from it. `timeoutMs` is the time to the first byte: a stream that has started never times out. `retry`, the cache, `parse`, `validate` and `progress` don't apply, and resources don't stream.
 - Without a `chunk` action, each piece is a reply on `HTTP.select(category)`; the end then adds nothing there.
@@ -310,7 +311,7 @@ await t.respond('HTTP', null)                       // the end of the body: DONE
 expect(t.state.status).toBe('done')
 ```
 
-`t.push('HTTP', '[DONE]')` ends it through the `done` piece instead, and `t.fail('HTTP', 'connection reset')` after a piece loses the connection mid-stream. `t.respond` with a value other than `null` writes it as a last piece first.
+`t.push('HTTP', piece, { event: 'tool', id: 7 })` writes an SSE piece's `event:` and `id:` lines (for `meta: true`). `t.push('HTTP', '[DONE]')` ends it through the `done` piece instead, and `t.fail('HTTP', 'connection reset')` after a piece loses the connection mid-stream. `t.respond` with a value other than `null` writes it as a last piece first.
 
 ## Response Headers
 

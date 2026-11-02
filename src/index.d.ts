@@ -2547,7 +2547,7 @@ export type MultipartValue = Blob | string | number | boolean | null | undefined
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`; with `stream`: the end, no data) */
+  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`; with `stream`: the end, `FetchStreamEnd`) */
   ok?: string;
   /** Reply action that receives a failure, `{ error, status?, body?, headers?, request }` (FetchFailure) */
   error?: string;
@@ -2592,7 +2592,7 @@ export type FetchRequest = string | {
    * endpoint answering `data: {...}` lines). 'sse': each event's `data`, JSON-parsed when it
    * parses; 'ndjson': each non-blank line, JSON-parsed; 'text': the text as it arrives. Each piece
    * is the `chunk` action (else a reply on `select(category)`); the end of the body (or the
-   * `done` piece) is the `ok` action, with no data. `latest`, `abort`, `key` and `timeoutMs` (here:
+   * `done` piece) is the `ok` action, with `{ status, headers }` (FetchStreamEnd). `latest`, `abort`, `key` and `timeoutMs` (here:
    * the time to the first byte) apply; `retry`, `cache`, `parse`, `validate` and `progress` don't.
    * Not for resources. Test: `t.push('HTTP', piece)` per piece, then `t.respond('HTTP', null)` to end
    */
@@ -2602,9 +2602,16 @@ export type FetchRequest = string | {
   /**
    * 7.2: with `stream`, the piece that ends it (not delivered; the connection is closed and `ok`
    * follows): a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a
-   * predicate of the parsed piece (`done: (p) => p.type === 'finish'`)
+   * predicate of the piece as delivered (`done: (p) => p.type === 'finish'`). No default
    */
   done?: string | ((piece: any) => boolean);
+  /**
+   * 7.2: with `stream: 'sse'`, each piece is `{ data, id, event }` (SseEvent, as a socket SSE
+   * connection's `meta: true`): the data JSON-parsed when it parses, the last event id ('' when
+   * none was sent) and the event type ('message' or its name). SSE only: NDJSON lines and text
+   * have no id or type, so it is ignored there
+   */
+  meta?: boolean;
   /**
    * Latest only: sending this request aborts this component's requests still in flight in the
    * same category; their responses and errors are never delivered. Default: the driver's `latest`
@@ -2856,6 +2863,14 @@ export type FetchFailure<REQUEST = any> = {
   attempts?: number;
   /** With `validate`: the schema's issues (the body didn't validate) */
   issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>;
+}
+
+/** 7.2: the data of a `stream` request's `ok` action, at the end of the body (or its `done` piece) */
+export type FetchStreamEnd = {
+  /** HTTP status of the response */
+  status: number;
+  /** The response's headers */
+  headers: Headers;
 }
 
 /** A successful (2xx) response on `select()` of a makeFetchDriver() source */
@@ -3984,7 +3999,8 @@ export interface RenderResult<STATE = any> {
    * 7.2: on an HTTP fake, `data` is one piece of the pending request sent with `stream` that
    * `target` picks (as in respond), written in its format (SSE `data:` lines, an NDJSON line, text;
    * objects as JSON) and parsed by the real driver; `t.respond(name, null)` ends it. A sink other
-   * than the socket sink that declares no connections pushes to its stream requests.
+   * than the socket sink that declares no connections pushes to its stream requests. `{ event, id }`
+   * (no `connection`) writes an SSE piece's `event:` / `id:` lines (what `meta: true` reports).
    */
   push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; id?: string | number; connection?: FakeConnectionTarget }) => Promise<void>;
   /**
