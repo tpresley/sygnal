@@ -147,7 +147,7 @@ describe('G-065: ready() is a cursor for the next next()', () => {
     await t.ready()
     t.simulateAction('INC')
     await t.settle()
-    await expect(t.next(s => s.count === 1, 100)).rejects.toThrow(/next timed out after 100ms.*state recorded before this next\(\) call already matches.*waitForState/s)
+    await expect(t.next(s => s.count === 1, 100)).rejects.toThrow(/next timed out after 100ms.*state recorded before this next\(\) call already matches.*awaited t\.respond\(\) \/ t\.simulateEvent\(\).*read t\.state.*waitForState/s)
   })
 })
 
