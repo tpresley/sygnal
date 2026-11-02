@@ -34,6 +34,32 @@ describe("pokeDOM uses the element's own window", () => {
     expect(seen).toEqual([])
   })
 
+  // 7.2.0-preview.2 CI (again in the Toaster suite): the document had no window at all
+  // (`defaultView` null) and the fallback was the global Event, another realm's: the event is made by
+  // the element's own document instead
+  it('an element whose document has no window: no throw, the event made by its own document', () => {
+    const dom = new JSDOM('<div id="root"><p id="leaf"></p></div>')
+    const doc = dom.window.document, root = doc.getElementById('root'), leaf = doc.getElementById('leaf')
+    const seen = []
+    root.addEventListener('sygnal-dom', (e) => seen.push(e.type))
+    Object.defineProperty(doc, 'defaultView', { get: () => null })
+    expect(() => pokeDOM(leaf)).not.toThrow()
+    expect(seen).toEqual(['sygnal-dom'])
+    dom.window.close()
+  })
+
+  // …and in the next run: the window still held its document, but its Event was Node's already
+  it('an element whose window still holds its document but whose Event is another realm\'s: dispatched', () => {
+    const dom = new JSDOM('<div id="root"><p id="leaf"></p></div>')
+    const doc = dom.window.document, root = doc.getElementById('root'), leaf = doc.getElementById('leaf')
+    const seen = []
+    root.addEventListener('sygnal-dom', (e) => seen.push(e.type))
+    dom.window.Event = Event
+    expect(() => pokeDOM(leaf)).not.toThrow()
+    expect(seen).toEqual(['sygnal-dom'])
+    dom.window.close()
+  })
+
   it('a host-style window without a document (sygnal/host, renderer targets) still gets the event', () => {
     class E { constructor(type, o) { this.type = type; this.bubbles = o?.bubbles } }
     const seen = []
