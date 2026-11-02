@@ -1761,6 +1761,77 @@ export type RootComponent<
 > = Component<STATE, {}, DRIVERS, ACTIONS, CALCULATED, CONTEXT, SINK_RETURNS, PROVIDED_CONTEXT>
 
 /**
+ * The type arguments of `Comp<{ ... }>`, by name (each optional; what's left out takes
+ * Component's default):
+ * - `state`: the state the view and reducers see (any)
+ * - `props`: the props a parent passes (any prop)
+ * - `drivers`: the custom drivers' sources and sinks, as `Component`'s DRIVERS
+ * - `actions`: action name → data, e.g. `ActionsOf<typeof intent>` (any action)
+ * - `calculated`: the calculated fields' types, added to `state`
+ * - `context`: the context the view and reducers read
+ * - `parent`: what the `PARENT` sink sends, so the parent's `CHILD.select(C)` is typed
+ * - `sinks`: the `EVENTS` / `LOG` / `PARENT` values (`parent` is short for `{ PARENT: T }`)
+ * - `provided`: the context this component's `.context` provides (default: `context`)
+ */
+export type ComponentSpec = {
+  state?: unknown;
+  props?: unknown;
+  drivers?: unknown;
+  actions?: unknown;
+  calculated?: unknown;
+  context?: unknown;
+  parent?: unknown;
+  sinks?: NonStateSinkReturns;
+  provided?: unknown;
+}
+
+/** RootComp's type arguments: ComponentSpec without `props` and `parent` (a root has neither) */
+export type RootComponentSpec = Omit<ComponentSpec, 'props' | 'parent'>
+
+/** a misspelled key (`action`, `prop`) is an error, not a silently ignored one */
+type OnlyKeys<T, SPEC> = { [K in Exclude<keyof T, keyof SPEC>]: never }
+type SpecOf<T, K extends keyof ComponentSpec, DEFAULT> = K extends keyof T ? Exclude<T[K], undefined> : DEFAULT
+type SpecSinks<T> = SpecOf<T, 'sinks', {}> & ('parent' extends keyof T ? { PARENT: T['parent' & keyof T] } : {})
+
+/**
+ * Sygnal Component, typed by name: `Comp<{ state: State; props: Props; actions: Actions }>` is
+ * `Component<State, Props, {}, Actions>`. Name only what the component has; see ComponentSpec.
+ *
+ *   type Actions = ActionsOf<typeof intent>
+ *   const TaskCard: Comp<{ state: Task; props: { lane: string }; actions: Actions; parent: { taskId: string } }> =
+ *     ({ state, lane }) => <li>{state.title}</li>
+ *   // in the lane's intent: CHILD.select(TaskCard) is a Stream<{ taskId: string }>
+ *
+ * (A name of its own: `Component<{ state: ... }>` already means a component whose state has a
+ * `state` key, as `{ state: 'idle' | 'busy' }`.)
+ */
+export type Comp<T extends ComponentSpec & OnlyKeys<T, ComponentSpec> = {}> = Component<
+  SpecOf<T, 'state', any>,
+  SpecOf<T, 'props', { [prop: string]: any }>,
+  SpecOf<T, 'drivers', {}>,
+  SpecOf<T, 'actions', {}>,
+  SpecOf<T, 'calculated', {}>,
+  SpecOf<T, 'context', {}>,
+  SpecSinks<T>,
+  SpecOf<T, 'provided', SpecOf<T, 'context', {}>>
+>
+
+/**
+ * Sygnal Root Component (the one passed to `run()`), typed by name:
+ * `RootComp<{ state: State; drivers: Drivers; actions: Actions }>` is
+ * `RootComponent<State, Drivers, Actions>`. See RootComponentSpec.
+ */
+export type RootComp<T extends RootComponentSpec & OnlyKeys<T, RootComponentSpec> = {}> = RootComponent<
+  SpecOf<T, 'state', any>,
+  SpecOf<T, 'drivers', {}>,
+  SpecOf<T, 'actions', {}>,
+  SpecOf<T, 'calculated', {}>,
+  SpecOf<T, 'context', {}>,
+  SpecOf<T, 'sinks', {}>,
+  SpecOf<T, 'provided', SpecOf<T, 'context', {}>>
+>
+
+/**
  * A component function that can be used in Collection/Switchable.
  * Uses a permissive type to avoid contravariance issues with typed custom drivers.
  */
@@ -3951,8 +4022,11 @@ export interface RenderResult<STATE = any> {
   back: () => Promise<void>;
   /** Router fake: the browser's forward button. Throws with no entry to go forward to */
   forward: () => Promise<void>;
-  /** Router fake: the in-memory location: `path` (pathname), `search` ('?tab=x' or ''), `hash` ('#c' or ''), `href` */
-  readonly location: { path: string; search: string; hash: string; href: string };
+  /**
+   * Router fake: the in-memory location: `path` (pathname), `search` ('?tab=x' or ''), `query`
+   * (the search parsed as `state.route.query` has it: `{ tab: 'x' }`), `hash` ('#c' or ''), `href`
+   */
+  readonly location: { path: string; search: string; query: Record<string, string>; hash: string; href: string };
   /**
    * HEAD fake (no HEAD driver passed): the head the components declare now (`head` statics and
    * HEAD sink values), merged as makeHeadDriver merges them: `{ title, meta: { name: content },
