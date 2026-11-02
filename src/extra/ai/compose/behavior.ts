@@ -20,7 +20,10 @@
  * composition finished: data is the layout; a host entry 'page.DONE' runs after it). Internal:
  * PROMPT (typing), REPLY / DELTA / FAILED (the backend sink's reply actions). A backend reply
  * `{ error }` (not a valid layout even after repair), or a start / reply that throws, is handled as
- * FAILED: status 'error', the layout kept; a delta that throws is ignored.
+ * FAILED: status 'error', the layout kept; a delta that throws is ignored. A delta that returns
+ * `{ reply, request }` stops the step there (compose.llm(): a reply in a loop): `reply` is handled
+ * as the step's reply (REPLY's STATE, sink and DONE) and `request` (the abort) is sent when it
+ * starts no other step.
  *
  * The only sink it declares is `backend.sink`. Requests go in the lane `key` (default 'compose')
  * with `latest`, so a new prompt aborts the old one's step in flight. The reply names are the
@@ -136,6 +139,13 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
     return {slice: {...s, status: 'error', preview: null, pending: null, decisions, error: 'the backend gave no layout'}}
   })
 
+  /** a delta's step: a preview, or (`reply`) the reply it ends the step with */
+  const delta = once((st, d, k) => {
+    const s = st?.[k]
+    if (!s?.pending || typeof backend.delta != 'function') return null
+    try { return backend.delta({catalog, state: st, pending: s.pending, delta: d}) || null } catch (_) { return null }
+  })
+
   const host = (step: (st: any, d: any, k: string) => any) =>
     (st: any, d: any, _n: any, _p: any, _o: any, k: string) => { const r = step(st, d, k); return r?.slice ? {...st, [k]: r.slice} : ABORT }
   const sink = (step: (st: any, d: any, k: string) => any) =>
@@ -170,12 +180,23 @@ export function composeBehavior(catalog: Catalog, options: any = {}): any {
       },
       DELTA: {
         HOST: (st: any, d: any, _n: any, _p: any, _o: any, k: string) => {
+          const r = delta(st, d, k)
+          if (r?.reply !== undefined) { const x = reply(st, r.reply, k); return x?.slice ? {...st, [k]: x.slice} : ABORT }
           const s = st[k]
-          if (!s?.pending || typeof backend.delta != 'function') return ABORT
-          let r: any
-          try { r = backend.delta({catalog, state: st, pending: s.pending, delta: d}) } catch (_) { return ABORT }
           const preview = r?.preview && shown(r.preview, !!r.keyed, s.layout)
           return preview ? {...st, [k]: {...s, status: 'preview', preview}} : ABORT
+        },
+        [S]: (_s: any, d: any, _n: any, p: any, _o: any, k: string) => {
+          const r = delta(p?.state, d, k)
+          if (r?.reply === undefined) return ABORT
+          const x = reply(p?.state, r.reply, k)
+          return x?.request !== undefined ? x.request : r.request !== undefined ? r.request : ABORT
+        },
+        EFFECT: (_s: any, d: any, next: any, p: any, _o: any, k: string) => {
+          const r = delta(p?.state, d, k)
+          if (r?.reply === undefined) return
+          const x = reply(p?.state, r.reply, k)
+          if (x?.done) next('DONE', x.done)
         },
       },
       FAILED: (s: any, d: any) => s.pending ? {...s, status: 'error', preview: null, pending: null, error: message(d?.error ?? d)} : ABORT,

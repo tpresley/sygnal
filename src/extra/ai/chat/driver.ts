@@ -30,6 +30,8 @@ import {messageId} from '../messages';
  *     (logged, also in production; G-584).
  * - An aborted run (abort, latest, sender dispose, app dispose, sink complete) delivers nothing:
  *   every reply checks the run first, a delta already scheduled included.
+ * - `timeoutMs` (> 0): a run not finished by then is aborted and fails with an Error named
+ *   'TimeoutError' (as makeFetchDriver's), delivered to `error`.
  * - Coalescing (G-582, G-588, D254): 'frame' (default) is at most one `delta` per animation frame
  *   and per 15 ms; rAF is raced with a 100 ms timer (a hidden tab never fires rAF); without rAF a
  *   frame is a 16 ms timer. 'none': one per event; a number: at most one per that many ms. The
@@ -119,6 +121,7 @@ export function makeChatDriver(options: any = {}) {
       runs.add(r);
       const live = () => !ac.signal.aborted && !disposed;
       const send = (type: any, data: any) => { if (type && live()) reply(sender, type, data); };
+      let timer: any;
 
       let id: any, text = '', reasoning = '', pending = '', changed = false, scheduled = false, lastTs = -Infinity, finishReason: any, usage: any;
       const parts: any[] = [], toolCalls: any[] = [];
@@ -170,6 +173,14 @@ export function makeChatDriver(options: any = {}) {
       };
 
       let events: any;
+      if (typeof req.timeoutMs == 'number' && req.timeoutMs > 0) {
+        timer = setTimeout(() => {
+          const e: any = new Error(`makeChatDriver: request '${key}' timed out after ${req.timeoutMs}ms`);
+          e.name = 'TimeoutError';
+          fail(e);
+          ac.abort();
+        }, req.timeoutMs);
+      }
       try {
         events = transport.stream(req, ac.signal);
         for await (const ev of events) {
@@ -234,6 +245,7 @@ export function makeChatDriver(options: any = {}) {
         fail(error);
       } finally {
         runs.delete(r);
+        clearTimeout(timer);
       }
     };
 

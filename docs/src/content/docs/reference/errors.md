@@ -2810,6 +2810,16 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 
 **Fix:** Mark the parts the user answers with `result: true` (a choice, a picker, a form, a yes/no) and send `compose.answer(props, value)` to PARENT from their model, for example `PICK: { PARENT: (_s, value, _n, props) => compose.answer(props, value) }`.
 
+### SYG687
+
+**LLM reply stopped in a loop or cut short**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
+
+`compose.llm()` stopped reading the model's reply before it ended, and used what came before the stop. A small model asked for a change it can't express (before edits had `wrap`, qwen3:8b met "put the dates and amount in a Trip section" with `add dates top, add amount top, …`) can repeat the same operations without end; every list in the reply's JSON Schema has a `maxItems`, but not every provider enforces it. So a streamed reply is stopped (and its request aborted) when an edit repeats an operation exactly or has more operations than the page needs (one per node plus the catalog's `limits.maxParts`), or when a composition has more than twice `maxParts` parts; a reply that wasn't streamed is cut at the same point. A reply that reached the output-token limit (`maxTokens`, finish reason 'length') is read up to where it stopped. The layout is built from the rest, and the cut shows in `decisions.repairs` as `{ kind: 'stopped' }`.
+
+**Fix:** Check what the change asked for and what the reply did (`decisions.ops`); rephrasing the change, or sending it as a fresh composition (`{ prompt, fresh: true }`), often helps a small model. Use a transport and model that enforce the schema (Ollama's structured output does, `strict: strictSchemas` on OpenAI), or raise `maxTokens` if a long page was cut. The diagnostic's `data` holds the reply.
+
 ### SYG690
 
 **API contract skew**

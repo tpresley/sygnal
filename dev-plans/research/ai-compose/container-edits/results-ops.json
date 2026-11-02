@@ -1,0 +1,705 @@
+{
+ "model": "qwen3:8b",
+ "variant": true,
+ "date": "2026-11-02T22:04:02.993Z",
+ "rows": [
+  {
+   "id": "c1",
+   "set": "container",
+   "variant": "ops",
+   "ms": 7475,
+   "exact": false,
+   "titles": null,
+   "kept": true,
+   "got": "section(dates,amount,approver,contact) details",
+   "wants": [
+    "section(dates,amount) section(approver,contact) details",
+    "section(dates,amount) section(contact,approver) details",
+    "section(contact,approver) section(dates,amount) details",
+    "section(approver,contact) section(dates,amount) details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"wrap\",\"nodes\":[\"n2\",\"n3\"],\"part\":\"section\",\"params\":{\"title\":\"Trip\"}},{\"op\":\"wrap\",\"nodes\":[\"n4\",\"n1\"],\"part\":\"section\",\"params\":{\"title\":\"Approval\"}},{\"op\":\"move\",\"node\":\"n2\",\"where\":\"above n4\"},{\"op\":\"move\",\"node\":\"n3\",\"where\":\"above n4\"}]}",
+   "ops": [
+    {
+     "op": "wrap",
+     "node": "section",
+     "nodes": [
+      "dates",
+      "amount"
+     ],
+     "part": "section",
+     "params": {
+      "title": "Trip"
+     }
+    },
+    {
+     "op": "wrap",
+     "node": "section~2",
+     "nodes": [
+      "approver",
+      "contact"
+     ],
+     "part": "section",
+     "params": {
+      "title": "Approval"
+     }
+    },
+    {
+     "op": "move",
+     "node": "dates",
+     "where": "above n4"
+    },
+    {
+     "op": "move",
+     "node": "amount",
+     "where": "above n4"
+    }
+   ]
+  },
+  {
+   "id": "c2",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1495,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,amount,details)",
+   "wants": [
+    "section(dates,amount,details)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"move\",\"node\":\"n4\",\"where\":\"into n1\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "details",
+     "where": "into n1"
+    }
+   ]
+  },
+  {
+   "id": "c3",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1531,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,amount) details",
+   "wants": [
+    "section(dates,amount) details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"move\",\"node\":\"n4\",\"where\":\"below n1\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "details",
+     "where": "below n1"
+    }
+   ]
+  },
+  {
+   "id": "c4",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1687,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "dates amount approver contact",
+   "wants": [
+    "dates amount approver contact"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"unwrap\",\"node\":\"n1\"},{\"op\":\"unwrap\",\"node\":\"n4\"}]}",
+   "ops": [
+    {
+     "op": "unwrap",
+     "node": "section"
+    },
+    {
+     "op": "unwrap",
+     "node": "section~2"
+    }
+   ]
+  },
+  {
+   "id": "c5",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1395,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates) section(approver,amount)",
+   "wants": [
+    "section(dates) section(approver,amount)",
+    "section(dates) section(amount,approver)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"move\",\"node\":\"n3\",\"where\":\"into n4\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "amount",
+     "where": "into n4"
+    }
+   ]
+  },
+  {
+   "id": "c6",
+   "set": "container",
+   "variant": "ops",
+   "ms": 2122,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,place) details contact",
+   "wants": [
+    "section(dates,place) details contact"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"wrap\",\"nodes\":[\"n1\",\"n2\"],\"part\":\"section\",\"params\":{\"title\":\"Where and when\"}}]}",
+   "ops": [
+    {
+     "op": "wrap",
+     "node": "section",
+     "nodes": [
+      "dates",
+      "place"
+     ],
+     "part": "section",
+     "params": {
+      "title": "Where and when"
+     }
+    }
+   ]
+  },
+  {
+   "id": "c7",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1472,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,amount,approver) contact",
+   "wants": [
+    "section(dates,amount,approver) contact"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"approver\",\"where\":\"into n1\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "approver",
+     "part": "approver",
+     "where": "into n1"
+    }
+   ]
+  },
+  {
+   "id": "c8",
+   "set": "container",
+   "variant": "ops",
+   "ms": 2090,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,amount) section(contact,approver)",
+   "wants": [
+    "section(dates,amount) section(contact,approver)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"wrap\",\"nodes\":[\"n4\",\"n5\"],\"part\":\"section\",\"params\":{\"title\":\"People\"}}]}",
+   "ops": [
+    {
+     "op": "wrap",
+     "node": "section~2",
+     "nodes": [
+      "contact",
+      "approver"
+     ],
+     "part": "section",
+     "params": {
+      "title": "People"
+     }
+    }
+   ]
+  },
+  {
+   "id": "c9",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1416,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "details attachments contact",
+   "wants": [
+    "details attachments contact"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"unwrap\", \"node\": \"n1\"}]}",
+   "ops": [
+    {
+     "op": "unwrap",
+     "node": "section"
+    }
+   ]
+  },
+  {
+   "id": "c10",
+   "set": "container",
+   "variant": "ops",
+   "ms": 1879,
+   "exact": true,
+   "titles": true,
+   "kept": true,
+   "got": "section(dates,amount) section(approver,contact)",
+   "wants": [
+    "section(dates,amount) section(approver,contact)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"setParams\",\"node\":\"n1\",\"params\":{\"title\":\"Travel\"}}]}",
+   "ops": [
+    {
+     "op": "setParams",
+     "node": "section",
+     "params": {
+      "title": "Travel"
+     }
+    }
+   ]
+  },
+  {
+   "id": "r1",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1398,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "dates contact details",
+   "wants": [
+    "dates contact details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"move\",\"node\":\"n2\",\"where\":\"top\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "dates",
+     "where": "top"
+    }
+   ]
+  },
+  {
+   "id": "r2",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1115,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "contact dates details attachments",
+   "wants": [
+    "contact dates details attachments"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"attachments\",\"where\":\"bottom\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "attachments",
+     "part": "attachments",
+     "params": {
+      "label": "Attachments"
+     },
+     "where": "bottom"
+    }
+   ]
+  },
+  {
+   "id": "r3",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1253,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "dates details",
+   "wants": [
+    "dates details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"remove\", \"node\": \"n1\"}]}",
+   "ops": [
+    {
+     "op": "remove",
+     "node": "contact"
+    }
+   ]
+  },
+  {
+   "id": "r4",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1768,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "dates{mode=range} amount",
+   "wants": [
+    "dates{mode=range} amount"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"setParams\",\"node\":\"n1\",\"params\":{\"mode\":\"range\"}}]}",
+   "ops": [
+    {
+     "op": "setParams",
+     "node": "dates",
+     "params": {
+      "mode": "range"
+     }
+    }
+   ]
+  },
+  {
+   "id": "r5",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1564,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "urgency section(dates,amount) details",
+   "wants": [
+    "urgency section(dates,amount) details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"urgency\",\"where\":\"top\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "urgency",
+     "part": "urgency",
+     "where": "top"
+    }
+   ]
+  },
+  {
+   "id": "r6",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1208,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "section(dates,amount) details attachments",
+   "wants": [
+    "section(dates,amount) details attachments"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"attachments\",\"where\":\"below n4\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "attachments",
+     "part": "attachments",
+     "params": {
+      "label": "Attachments"
+     },
+     "where": "below n4"
+    }
+   ]
+  },
+  {
+   "id": "r7",
+   "set": "plain",
+   "variant": "ops",
+   "ms": 1070,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "section(dates) details",
+   "wants": [
+    "section(dates) details"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"remove\", \"node\": \"n3\"}]}",
+   "ops": [
+    {
+     "op": "remove",
+     "node": "amount"
+    }
+   ]
+  },
+  {
+   "id": "edit-1",
+   "set": "research",
+   "variant": "ops",
+   "ms": 3314,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "orders tickets",
+   "wants": [
+    "orders tickets"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"move\", \"node\": \"n2\", \"where\": \"top\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "orders",
+     "where": "top"
+    }
+   ]
+  },
+  {
+   "id": "edit-2",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1451,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "row(revenue,signups) revenueChart",
+   "wants": [
+    "row(revenue,signups) revenueChart"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"remove\", \"node\": \"n4\"}]}",
+   "ops": [
+    {
+     "op": "remove",
+     "node": "churn"
+    }
+   ]
+  },
+  {
+   "id": "edit-3",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1276,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "weather tasks feedback",
+   "wants": [
+    "weather tasks feedback"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"feedback\",\"where\":\"bottom\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "feedback",
+     "part": "feedback",
+     "where": "bottom"
+    }
+   ]
+  },
+  {
+   "id": "edit-4",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1513,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "revenue revenueChart{range=quarter}",
+   "wants": [
+    "revenue revenueChart{range=quarter}"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"setParams\",\"node\":\"n2\",\"params\":{\"range\":\"quarter\"}}]}",
+   "ops": [
+    {
+     "op": "setParams",
+     "node": "revenueChart",
+     "params": {
+      "range": "quarter"
+     }
+    }
+   ]
+  },
+  {
+   "id": "edit-5",
+   "set": "research",
+   "variant": "ops",
+   "ms": 2172,
+   "exact": false,
+   "titles": null,
+   "kept": true,
+   "got": "section(tasks,weather)",
+   "wants": [
+    "row(tasks,weather)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"wrap\", \"nodes\": [\"n1\", \"n2\"], \"part\": \"section\", \"params\": {\"title\": \"\"}}]}",
+   "ops": [
+    {
+     "op": "wrap",
+     "node": "section",
+     "nodes": [
+      "tasks",
+      "weather"
+     ],
+     "part": "section"
+    }
+   ]
+  },
+  {
+   "id": "edit-6",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1672,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "revenueChart tickets",
+   "wants": [
+    "revenueChart tickets"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"replace\",\"node\":\"n1\",\"part\":\"revenueChart\",\"params\":{\"range\":\"year\"}}]}",
+   "ops": [
+    {
+     "op": "replace",
+     "node": "orders",
+     "part": "revenueChart",
+     "params": {
+      "range": "year"
+     }
+    }
+   ]
+  },
+  {
+   "id": "edit-7",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1863,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "row(churn,signups,revenue)",
+   "wants": [
+    "row(churn,signups,revenue)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"add\", \"part\": \"revenue\", \"where\": \"right of n3\"}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "revenue",
+     "part": "revenue",
+     "where": "right of n3"
+    }
+   ]
+  },
+  {
+   "id": "edit-8",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1407,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "orders{status=refunded} weather",
+   "wants": [
+    "orders{status=refunded} weather"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"setParams\",\"node\":\"n1\",\"params\":{\"status\":\"refunded\"}}]}",
+   "ops": [
+    {
+     "op": "setParams",
+     "node": "orders",
+     "params": {
+      "status": "refunded"
+     }
+    }
+   ]
+  },
+  {
+   "id": "edit-9",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1462,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "feedback row(tasks,weather)",
+   "wants": [
+    "feedback row(tasks,weather)"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\": \"move\", \"node\": \"n4\", \"where\": \"top\"}]}",
+   "ops": [
+    {
+     "op": "move",
+     "node": "feedback",
+     "where": "top"
+    }
+   ]
+  },
+  {
+   "id": "edit-10",
+   "set": "research",
+   "variant": "ops",
+   "ms": 1736,
+   "exact": true,
+   "titles": null,
+   "kept": true,
+   "got": "revenue revenueChart tickets{priority=high}",
+   "wants": [
+    "revenue revenueChart tickets{priority=high}"
+   ],
+   "stopped": null,
+   "finishReason": "stop",
+   "reply": "{\"ops\": [{\"op\":\"add\",\"part\":\"tickets\",\"where\":\"below n2\",\"params\":{\"priority\":\"high\"}}]}",
+   "ops": [
+    {
+     "op": "add",
+     "node": "tickets",
+     "part": "tickets",
+     "params": {
+      "priority": "high"
+     },
+     "where": "below n2"
+    }
+   ]
+  }
+ ]
+}

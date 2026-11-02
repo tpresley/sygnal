@@ -12,7 +12,8 @@ import type {StrictOption} from './tools';
  * Request: `instructions`, `input` items from the messages (text and file parts as message
  * content, `tool-<name>` parts as `function_call` items followed by their `function_call_output`
  * when they have a result; reasoning, data and source parts stay in the app), `tools` as
- * function tools, `output` as `text.format` json_schema; `body` (transport and request) merged in.
+ * function tools, `output` as `text.format` json_schema; `maxTokens` as `max_output_tokens`; `body`
+ * (transport and request) merged in.
  *
  * Events: output_text deltas (and refusal deltas) -> text; reasoning_text and
  * reasoning_summary_text deltas -> reasoning; a function_call item -> one tool call when its
@@ -65,6 +66,7 @@ export function openResponses(options: OpenResponsesOptions = {}) {
         input: req.messages.flatMap(toItems),
         ...(p.tools.length && {tools: p.tools.map(t => ({type: 'function', ...t}))}),
         ...(p.output && {text: {format: {type: 'json_schema', name: 'output', schema: p.output.schema, strict: p.output.strict}}}),
+        ...(req.maxTokens > 0 && {max_output_tokens: req.maxTokens}),
       }, req, signal, options, 'openResponses');
       // function_call items by item id; `done` once yielded
       const calls: Record<string, any> = {};

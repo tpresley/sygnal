@@ -114,3 +114,19 @@ export async function researchSets() {
 }
 
 export const names = { ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA', key: 'compose' }
+
+/**
+ * a research schema with compose.llm()'s runaway caps (llm.ts header): every list of nodes without a
+ * `maxItems` gets the catalog's maxParts; an edit's `ops` gets opsCap (one per node + maxParts, at least 8)
+ */
+export function capped(schema, { maxParts = 12, nodes } = {}) {
+  const s = JSON.parse(JSON.stringify(schema))
+  const walk = (x) => {
+    if (!x || typeof x != 'object') return
+    if (x.type == 'array' && x.items?.$ref && x.maxItems === undefined) x.maxItems = maxParts
+    Object.values(x).forEach(walk)
+  }
+  walk(s)
+  if (nodes !== undefined && s.properties?.ops) s.properties.ops.maxItems = Math.max(8, nodes + maxParts)
+  return s
+}

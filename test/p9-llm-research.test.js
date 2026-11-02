@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { llm, systemPrompt, layoutSchema } from '../src/extra/ai/compose/llm.ts'
-import { researchSets, str, want, names } from './p9-llm-helpers.js'
+import { researchSets, str, want, names, capped } from './p9-llm-helpers.js'
 
 const R = new URL('../dev-plans/research/ai-compose/llm/', import.meta.url)
 const research = await import(new URL('llm-composer.mjs', R))
@@ -20,9 +20,11 @@ describe('the research request, exactly', () => {
     it(`${name}: the same system prompt and schema as llm-composer.mjs (tree+plan and tree)`, () => {
       const cat = fromResearch(rc)
       expect(systemPrompt(cat, {})).toBe(research.systemPrompt(rc, 'tree+plan'))
-      expect(layoutSchema(cat, {})).toEqual(research.layoutSchema(rc, 'tree+plan'))
+      // with the runaway caps (maxItems on every list of nodes)
+      const max = { maxParts: cat.limits?.maxParts ?? 12 }
+      expect(layoutSchema(cat, {})).toEqual(capped(research.layoutSchema(rc, 'tree+plan'), max))
       expect(systemPrompt(cat, {}, { plan: false })).toBe(research.systemPrompt(rc, 'tree'))
-      expect(layoutSchema(cat, {}, { plan: false })).toEqual(research.layoutSchema(rc, 'tree'))
+      expect(layoutSchema(cat, {}, { plan: false })).toEqual(capped(research.layoutSchema(rc, 'tree'), max))
     })
   }
 })

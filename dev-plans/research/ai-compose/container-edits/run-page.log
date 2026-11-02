@@ -1,0 +1,28 @@
+page  c1         -        KEYS  10571ms [stopped: operation 9 repeats an earlier one] contact approver amount dates details
+page  c2         -   T ok keys    981ms section(dates,amount) details
+page  c3       EXACT T ok keys   1011ms section(dates,amount) details
+page  c4         -   T ok keys   1062ms 
+page  c5         -   T ok keys    846ms section(dates) amount section(approver)
+page  c6         -   T no KEYS   5383ms [stopped: operation 8 repeats an earlier one] details question{answer=long} contact
+page  c7         -   T ok keys   1063ms section(dates,amount) approver contact
+page  c8         -   T no KEYS   4431ms approver
+page  c9         -   T ok keys    653ms contact
+page  c10      EXACT T ok keys    984ms section(dates,amount) section(approver,contact)
+page  r1       EXACT      keys    845ms dates contact details
+page  r2       EXACT      keys    669ms contact dates details attachments
+page  r3       EXACT      keys    750ms dates details
+page  r4       EXACT      keys    990ms dates{mode=range} amount
+page  r5       EXACT      keys   1128ms urgency section(dates,amount) details
+page  r6       EXACT      keys   1014ms section(dates,amount) details attachments
+page  r7       EXACT      keys    902ms section(dates) details
+page  edit-1   EXACT      keys   1314ms orders tickets
+page  edit-2   EXACT      keys    973ms row(revenue,signups) revenueChart
+page  edit-3   EXACT      keys    940ms weather tasks feedback
+page  edit-4   EXACT      keys   1167ms revenue revenueChart{range=quarter}
+page  edit-5     -        keys   1808ms row(weather,tasks)
+page  edit-6   EXACT      keys   1374ms revenueChart tickets
+page  edit-7   EXACT      keys   1371ms row(churn,signups,revenue)
+page  edit-8   EXACT      keys   1136ms orders{status=refunded} weather
+page  edit-9   EXACT      keys   1292ms feedback row(tasks,weather)
+page  edit-10  EXACT      keys   1410ms revenue revenueChart tickets{priority=high}
+== page: container 2/10 exact, keys kept 7/10, median 1062 ms, max 10571 ms; plain 7/7 exact, keys kept 7/7, median 902 ms, max 1128 ms; research 9/10 exact, keys kept 10/10, median 1314 ms, max 1808 ms

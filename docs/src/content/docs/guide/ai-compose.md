@@ -558,7 +558,8 @@ An edit can do any of these, several at once:
 - **change a setting**: a param option ("for the month", "only the pending orders");
 - **add** a part, with its params;
 - **move** a part to the top or the bottom, above, below or beside another part, or into a container's slot;
-- **swap** one part for another ("the orders instead of the chart").
+- **swap** one part for another ("the orders instead of the chart");
+- **group** parts in a new container ("put the dates and amount in a Trip section"), take a part out of one, or **ungroup** one ("remove the sections but keep their fields").
 
 What stays the same:
 
@@ -572,12 +573,16 @@ The backends edit in their own way:
 
 | | `compose.decisions()` | `compose.llm()` |
 |---|---|---|
-| Request | Call 1 asks, per part on the page, "remove it?" and "change its setting?", per part not on it "add it?", and which parts move. Call 2, only when something moves or is added, asks where each one goes | One request with the page (one node per line) and the change; the model writes operations: `add`, `remove`, `move`, `replace`, `setParams`, placed by `top`, `bottom`, `above n2`, `left of n3` |
+| Request | Call 1 asks, per part on the page, "remove it?" and "change its setting?", per part not on it "add it?", and which parts move. Call 2, only when something moves or is added, asks where each one goes | One request with the page (one node per line) and the change; the model writes operations: `add`, `remove`, `move`, `replace`, `setParams`, placed by `top`, `bottom`, `above n2`, `left of n3`; with containers in the catalog also `wrap` (parts into a new container), `unwrap`, and `into n1` |
 | Calls | 1 or 2 | 1 (streamed: the preview applies each finished operation) |
-| Exact edits, measured | Jev: 66/66 on the tuning set, 43/48 held out, every key kept; `nimble`: weaker, 18/22 and 8/16 | `qwen3:8b`: 9/10 and 18/21, every key kept, no invalid reply, about 1.4 s |
+| Exact edits, measured | Jev: 66/66 on the tuning set, 43/48 held out, every key kept; `nimble`: weaker, 18/22 and 8/16 | `qwen3:8b`: 9/10 and 18/21, every key kept, no invalid reply, about 1.4 s; container edits 9/10 (2/10 without `wrap`) |
 | `decisions` | The answers of `edit` and `where` | `ops`: the operations as applied, with layout keys |
 
 The demos above and below edit: in the first, compose a page, then try the second row of chips.
+
+With `compose.llm()`, an edit can group parts when the catalog has a container other than a row: `{"op":"wrap","nodes":["n2","n3"],"part":"section","params":{"title":"Trip"}}` puts those parts, in that order, into a new section where the first one was, and the parts keep their keys (the container's `maxUses` holds). `unwrap` puts a container's parts in its place, `into n1` is the end of container n1 (`into n1:side` names a slot), and `above` / `below` a part inside a container stay inside it. `compose.llm({ containers: false })` leaves these out.
+
+**A reply that runs away is stopped.** Asked for something it couldn't express, `qwen3:8b` once repeated `add dates top, add amount top, …` without end. So every list in the reply's schema has a `maxItems` (an edit's operations: one per node on the page plus the catalog's `limits.maxParts`), and a streamed reply that repeats an operation exactly, or runs past that, is stopped there: the request is aborted, the operations before it are applied, and `decisions.repairs` has `{ kind: 'stopped' }` ([SYG687](/reference/errors/#syg687)). A composition with more than twice `maxParts` parts is stopped the same way, and a reply cut at the output-token limit (`maxTokens`) is read up to where it stopped. A step that takes longer than `timeoutMs` (60 s by default, both backends) ends as `status: 'error'`, with the page kept.
 
 #### `profile: 'small'`
 
@@ -689,7 +694,8 @@ It sends [`decide()`](/guide/ai-decisions/) requests on the `HTTP` sink (the [fe
 - `maxParts`: the most parts one composition picks (the catalog's `limits.maxParts`, 12; 8 with `profile: 'small'`);
 - `maxOptions`: the most options one question may have (255; 25 when `url` looks like Ollama): a larger choice is split into several questions;
 - `maxQuestions`, `maxPromptTokens`, `split`: passed to every `decide()` request ([Large question sets](/guide/ai-decisions/#large-question-sets)). A step with more than 64 questions, such as `profile: 'small'`'s layout step for 6 or more elements, goes as parallel requests read as one;
-- `profile: 'small'`: for a small local model such as `nimble` ([`profile: 'small'`](#profile-small)).
+- `profile: 'small'`: for a small local model such as `nimble` ([`profile: 'small'`](#profile-small));
+- `timeoutMs`: the most one step may take (60000; `0` for no limit): then `status` is `'error'` and the page stays.
 
 ### `compose.llm()`
 
@@ -699,7 +705,7 @@ compose.llm({ model: 'gpt-5-mini' })    // the LLM sink: one structured-output r
 
 It sends one chat request on the `LLM` sink ([`makeChatDriver()`](/guide/ai-chat/), any transport): a system prompt with the catalog as text and its `guidance`, and a JSON Schema of the catalog as the structured output. The model writes a short plan (`asked_for`: what the request asks for), then the layout tree. Parts are closed objects with enum params, so a schema the provider enforces keeps it to the catalog. While it streams, the complete parts so far show as the preview. The reply goes through a repair step (unknown parts dropped, duplicates removed, bad params set to their default); a reply still invalid after it is `status: 'error'` ([SYG683](/reference/errors/#syg683)), never a layout.
 
-Options: `model`, `sink` (`'LLM'`), `stream` (true), `plan` (true; false when the catalog has `examples`), `instructions` (more rules, or a function of the system prompt), `examples`, and transport options such as `body: { temperature: 0 }`, sent on the request as is.
+Options: `model`, `sink` (`'LLM'`), `stream` (true), `plan` (true; false when the catalog has `examples`), `instructions` (more rules, or a function of the system prompt), `examples`, `timeoutMs` (60000: a step that takes longer is `status: 'error'`, the page kept; `0` for no limit), `maxTokens` (no default: the most tokens the model may write, sent as the transport's `max_tokens` / `max_output_tokens`), and transport options such as `body: { temperature: 0 }`, sent on the request as is.
 
 This demo is the first one with `compose.llm()`: its stand-in model streams the layout JSON from the demo server's `'POST /v1/responses'` route, so the page fills in part by part. The second row of chips edits the page: the stand-in streams operations, and the preview applies each one as it completes. Under the page, the model's plan, or the operations of an edit as applied (with the layout's keys).
 

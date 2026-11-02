@@ -141,7 +141,8 @@ export interface Backend {
   start(a: {catalog: Catalog; state: any; prompt: string; previous: Layout | null; names: Names}): {request: any; pending: any}
   reply(a: {catalog: Catalog; state: any; pending: any; reply: any; names: Names}):
     {layout?: Layout | null; unavailable?: true; preview?: Layout; request?: any; pending?: any; decisions?: unknown; error?: string; keyed?: boolean}
-  delta?(a: {catalog: Catalog; state: any; pending: any; delta: any}): {preview?: Layout; keyed?: boolean}
+  /** `reply`: stop the stream here (a runaway reply): handled as the step's reply, `request` (the abort) sent */
+  delta?(a: {catalog: Catalog; state: any; pending: any; delta: any}): {preview?: Layout; keyed?: boolean; reply?: any; request?: any}
   fake(a: {catalog: Catalog; state: any; pending: any; target: Tree}): unknown
 }
 

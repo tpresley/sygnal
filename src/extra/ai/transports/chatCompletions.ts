@@ -13,7 +13,7 @@ import type {StrictOption} from './tools';
  * Request: `instructions` as the first system message; each message as Chat Completions
  * messages (an assistant message's text and tool calls as one message per step, followed by a
  * `tool` message per result); `tools` as function tools; `output` as `response_format`
- * json_schema; `body` merged in.
+ * json_schema; `maxTokens` as `max_tokens`; `body` merged in.
  *
  * Events: `delta.content` -> text; `delta.reasoning_content` / `delta.reasoning` (vLLM,
  * DeepSeek, Ollama) -> reasoning; `delta.tool_calls` accumulated by `index`, yielded in index
@@ -71,6 +71,7 @@ export function chatCompletions(options: ChatCompletionsOptions = {}) {
         messages: [...(req.instructions ? [{role: 'system', content: req.instructions}] : []), ...req.messages.flatMap(toMessages)],
         ...(p.tools.length && {tools: p.tools.map(({name, description, parameters, strict}) => ({type: 'function', function: {name, ...(description && {description}), parameters, ...(strict && {strict})}}))}),
         ...(p.output && {response_format: {type: 'json_schema', json_schema: {name: 'output', schema: p.output.schema, ...(p.output.strict && {strict: true})}}}),
+        ...(req.maxTokens > 0 && {max_tokens: req.maxTokens}),
       }, req, signal, options, 'chatCompletions');
       // tool calls by index, as their deltas arrive
       let calls: any[] = [], reason: any, usage: any, started = false;
