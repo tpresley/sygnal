@@ -219,7 +219,7 @@ State updates and re-renders are **asynchronous**: after a `simulate*` call, the
 | `t.settle(timeout?)` | nothing | waiting until everything has calmed down |
 | `t.ready()` | nothing | waiting for the initial subscription |
 
-Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms; the `timeoutMs` option changes it for every wait). The timeout error reports still-queued simulated inputs, names any model `next()` follow-up that was scheduled during the wait or is still pending, and, for `next()`, a recorded state that already matched before the call.
+Both `next()` and `waitForState()` resolve only once the whole tree, children included, has rendered the matching state, so `t.html()` is up to date when they return. They reject after the timeout (default 2000 ms; the `timeoutMs` option changes it for every wait). The timeout error reports still-queued simulated inputs, names any model `next()` follow-up that was scheduled during the wait or is still pending, and, for `next()`, a recorded state that already matched before the call. That usually means an awaited `t.respond()`, `t.simulateEvent()` or `t.simulateAction()` already settled the state: read `t.state` after the `await` instead of waiting for it.
 
 ### next() vs waitForState()
 
@@ -579,7 +579,7 @@ it('opens a task from the list, and goes back', async () => {
 
 - `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
 - `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
-- `t.location` is `{ path, search, hash, href }` of the in-memory location.
+- `t.location` is `{ path, search, query, hash, href }` of the in-memory location; `query` is the search parsed as `state.route.query` has it (`{ tab: 'notes' }`).
 - `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.
 - Links: in the mock DOM, `simulateEvent(selector, 'click')` on an `<a>`, or on an element inside one, also reaches the router's document listener, so the driver decides as it would in a browser. Modified clicks (`{ metaKey: true }`), `target="_blank"`, `download`, `rel="external"`, `data-router-ignore` and other origins are left alone. With `dom: 'real'` the click is a real event that bubbles to the document.
 - Each call returns a promise that resolves once the new route has been reduced and the tree has rendered, as `t.respond` does. Fake timers work: `popstate` and the redirect order run on the test's clock.

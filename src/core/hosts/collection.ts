@@ -310,7 +310,7 @@ export class CollectionHost {
  */
 export function named(inst: any, v: any, p: string): any {
   const k = inst.k
-  if (!v.sel || k[0] == '\0') return v
+  if (!v.sel || v.sel == '!' || k[0] == '\0') return v
   if (inst.vi !== v || inst.vp !== p) {
     inst.vi = v; inst.vp = p
     inst.vo = {...v, data: {...v.data, style: vtStyle(p, k, v.data?.style)}}

@@ -48,9 +48,11 @@ export function makeIsolateValue(namespace: Array<Scope>): (node: any, scope: st
 }
 
 // G-144: a fragment has no element of its own, so each of its top-level elements (through
-// nested fragments) carries the scope; the fragment keeps the key
+// nested fragments) carries the scope; the fragment keeps the key. A comment (a view that
+// rendered nothing) is no element of the scope
 function scoped(node: any, isolate: Array<Scope>): any {
   return !node || typeof node != 'object' ? node
+    : node.sel == '!' ? node
     : node.sel ? {...node, data: {...node.data, isolate: node.data && Array.isArray(node.data.isolate) ? node.data.isolate : isolate}}
     : node.children ? {...node, children: node.children.map((c: any) => scoped(c, isolate))}
     : node;

@@ -570,7 +570,7 @@ export interface RenderResult {
   /** PLAN-3 5-4c: the browser's forward button */
   forward: () => Promise<void>;
   /** PLAN-3 5-4c: the in-memory location */
-  readonly location: {path: string; search: string; hash: string; href: string};
+  readonly location: {path: string; search: string; query: Record<string, string>; hash: string; href: string};
   /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
@@ -3230,7 +3230,8 @@ export function renderComponent(
   };
   const routerLocation = () => {
     const L = needRouter('location').mem.w.location;
-    return {path: L.pathname, search: L.search, hash: L.hash, href: L.href};
+    // (query: as the router's Route parses it, `state.route.query`)
+    return {path: L.pathname, search: L.search, query: Object.fromEntries(new URLSearchParams(L.search)), hash: L.hash, href: L.href};
   };
   // mock DOM: a click on (or inside) an <a> also reaches the router's document click listener,
   // as it would bubble to the document: the driver's own interception decides
@@ -3527,7 +3528,8 @@ export function renderComponent(
         for (let i = from - 1; i >= 0; i--) {
           if (test(i)) {
             msg += ` A state recorded before this next() call already matches the predicate (t.states[${i}]); next() only matches new states.` +
-              ` Use t.waitForState(pred) to search the history too, or call next() before the input that causes the state.`;
+              ` Usually an awaited t.respond() / t.simulateEvent() / t.simulateAction() has already settled it: read t.state after the await instead.` +
+              ` Or use t.waitForState(pred) to search the history too, or call next() before the input that causes the state.`;
             break;
           }
         }

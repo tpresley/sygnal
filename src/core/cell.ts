@@ -43,7 +43,7 @@ export function localCell(app: {commit(): void}, parent: Cell): Cell {
  * the data passed by mistake (SYG410 / SYG412), and ['x', 'y'] would be ambiguous.
  */
 export const pathOf = (p: string): string[] => p.replace(/\[(\d+)\]/g, '.$1').split('.')
-const getIn = (o: any, ks: any[]) => { for (const k of ks) { if (o == null) return undefined; o = o[k] } return o }
+export const getIn = (o: any, ks: any[]) => { for (const k of ks) { if (o == null) return undefined; o = o[k] } return o }
 /** `o` with the value at `ks` replaced; only the levels on the path are copied (a missing level becomes {}) */
 function setIn(o: any, ks: any[], i: number, v: any): any {
   if (i == ks.length) return v

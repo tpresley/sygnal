@@ -52,6 +52,12 @@ ModalExample.intent = ({ DOM }) => ({
 
 If the portal target is a container **within** the component's own DOM subtree, normal `DOM.select()` will still work for portal content. The document-level approach is only necessary when the target is outside the component's isolation boundary (which is the typical use case for portals — rendering to `body`, `#modal-root`, etc.).
 
+## Components inside a Portal
+
+A component in a portal's content is a child of the component that renders the `<Portal>`, as anywhere else in its view: it gets its state (`<Picker state="picker" />`), renders into the target, sends `PARENT` and `EVENTS`, and is disposed when the portal goes. A `Collection` inside a portal follows its array.
+
+Its own DOM listeners follow the rule above: on the browser DOM, portal content is outside the app's isolation scopes, so a child in a portal hears its elements' events with `DOM.select('document')` (as the owner does), not with `DOM.select('.ok')`. `renderComponent`'s mock DOM delivers them either way.
+
 [`ELEMENT` commands](/guide/element-commands/) (`{ focus: '.title' }`, `{ showModal: '.dialog' }`) reach the portal's content: a target that isn't in the component's own DOM is looked for in the content of the `<Portal>`s it renders.
 
 ## Moving an element with a hook
