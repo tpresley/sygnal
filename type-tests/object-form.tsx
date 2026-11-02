@@ -131,7 +131,7 @@ run(App)
 const t = renderComponent(App)
 expectType<Equal<typeof t.state, AppState>>()
 
-// ═══ 7. A view may return null, false or undefined (7.2: it renders nothing) ═══════════════
+// ═══ 7. A view may return null, false or undefined (7.2: it renders nothing), a string or a number (text) ═══
 
 type BannerState = { show: boolean; text: string }
 const Banner: Comp<{ state: BannerState }> = ({ state }) => (state.show ? <p>{state.text}</p> : null)
@@ -142,3 +142,8 @@ const Root: RootComp<{ state: { banner: BannerState } }> = ({ state }) => (state
 const Page = () => <div><Banner state="banner" /><Hidden state="banner" /><Nothing state="banner" /></div>
 run(Root)
 void Page
+const Greeting: Comp<{ state: { name: string } }> = ({ state }) => `Hello, ${state.name}`
+const Count: Component<{ n: number }> = ({ state }) => state.n
+const Label = ({ state }: { state: { text: string } }) => state.text
+const Text = () => <p>{'x'}<Greeting state="user" /><Count state="count" /><Label state="label" /></p>
+void Text

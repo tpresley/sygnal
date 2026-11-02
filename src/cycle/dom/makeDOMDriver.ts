@@ -92,7 +92,8 @@ const adopt = (e: any, v: any): any => {
     // it is split by the client's text when that is its start, so the nodes after stay paired
     t == 3 && c[j + 1]?.text != null && !c[j + 1].sel && w?.text && x.data.startsWith(w.text) && x.splitText(w.text.length);
     y = x.nextSibling;
-    if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, elm: x};
+    // (a component's view that returns text: its scope's key, as the client's vnode has)
+    if (t == 3 && w && !w.sel && w.text != null) n = {text: x.data, key: w.key, elm: x};
     // a view that renders nothing: the server's comment is its comment
     else if (t == 8 && w?.sel == '!') n = {sel: '!', key: w.key, data: {}, text: x.data, elm: x};
     // (CV-4: a compiled block's element is adopted, `$a`; the block takes its inside, blocks.ts)
