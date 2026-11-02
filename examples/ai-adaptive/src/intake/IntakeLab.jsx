@@ -3,38 +3,22 @@
 // - The person writes the task ("I left my laptop on the train"); the model picks the field
 //   pieces it needs, writes their labels and questions, and groups them.
 // - The pieces are view functions inside the host's <form className="intake">, so one `form`
-//   behavior holds every value, whatever the model placed.
+//   behavior holds every value, whatever the model placed: its `dynamic` fields follow the layout
+//   (each piece's values under its node key), and its schema is a function of the layout (each
+//   piece's rules, so what is required is what is on the form).
 // - While the form is filled in, the app edits it (adapt.js): "critical" adds an approver, a large
 //   amount adds a receipts upload. Each edit is a follow-up compose, so what was typed stays.
 // - The person can edit it too, in words ("also ask for a phone number"), or remove a piece.
 import { ABORT, form } from 'sygnal'
 import { compose } from 'sygnal/ai'
-import { z } from 'zod'
-import { catalog, formRequest, missingNames, placed } from './catalog.jsx'
+import { catalog, formFields, formRequest, formSchema, placed, shown } from './catalog.jsx'
 import { nextRule, RULES } from './adapt.js'
-import { EMPTY, TASKS } from './data.js'
+import { TASKS } from './data.js'
 import { llm } from '../llm.js'
 import { modelPlan } from '../plan.jsx'
 
-// Every piece's value, all optional: which ones are required depends on the composed form, which a
-// schema fixed at definition can't know. The app checks those on submit (missingNames).
-const schema = z.object({
-  email: z.union([z.literal(''), z.email('Enter an email address')]),
-  phone: z.string(),
-  start: z.string(),
-  end: z.string(),
-  amount: z.union([z.literal(''), z.coerce.number().positive('Enter an amount above 0')]),
-  currency: z.string(),
-  device: z.string(),
-  assetTag: z.union([z.literal(''), z.string().regex(/^AT-\d{4,6}$/, 'Asset tags look like AT-10442')]),
-  place: z.string(),
-  details: z.string(),
-  urgency: z.string(),
-  approver: z.string(),
-  consent: z.boolean(),
-  attachments: z.any(),
-  extra: z.record(z.string(), z.string()),
-})
+/** what was sent, for the "Sent" panel: files as a count */
+const summary = (values) => Object.fromEntries(Object.entries(values).map(([k, v]) => [k, Array.isArray(v) && v.every((f) => f instanceof Blob) ? `${v.length} file(s)` : v]))
 
 const STATUS = {
   idle: () => 'Describe what you need; the form is built for it.',
@@ -49,6 +33,7 @@ export default function IntakeLab({ state }) {
   const page = state.page
   const busy = page.status === 'composing' || page.status === 'preview'
   const pieces = placed(page.layout)
+  const invalid = Object.keys(state.intake.errors).filter((n) => n && state.intake.errors[n]).length
   return (
     <section className="lab intake-lab">
       <header>
@@ -85,7 +70,7 @@ export default function IntakeLab({ state }) {
           {pieces.length > 0 && (
             <div className="intake-actions">
               <button type="submit" disabled={busy}>Send</button>
-              {state.missing.length > 0 && <span className="error">Fill in the {state.missing.length} highlighted field{state.missing.length > 1 ? 's' : ''}.</span>}
+              {state.intake.submitCount > 0 && invalid > 0 && <span className="error">Fill in the {invalid} highlighted field{invalid > 1 ? 's' : ''}.</span>}
             </div>
           )}
         </form>
@@ -118,7 +103,6 @@ export default function IntakeLab({ state }) {
 IntakeLab.initialState = {
   task: '',
   change: '',
-  missing: [],
   adapted: [],
   sent: null,
 }
@@ -127,7 +111,8 @@ IntakeLab.isolatedState = true
 
 IntakeLab.uses = {
   page: compose(catalog, { backend: llm(), key: 'intake-compose' }),
-  intake: form(schema, { values: EMPTY, form: '.intake', submit: 'SEND' }),
+  // the fields and the rules of what is on screen (the preview while the model writes)
+  intake: form((state) => formSchema(shown(state.page)), { values: {}, dynamic: (state) => formFields(shown(state.page)), form: '.intake', submit: 'SEND' }),
 }
 
 IntakeLab.intent = ({ DOM, STATE }) => ({
@@ -148,14 +133,14 @@ IntakeLab.model = {
 
   // a new task: a new form, values cleared
   BUILD: {
-    STATE: (state) => ({ ...state, missing: [], adapted: [], sent: null }),
+    STATE: (state) => ({ ...state, adapted: [], sent: null }),
     EFFECT: (state, _, next) => {
       next('intake.RESET')
       next('page.COMPOSE', { prompt: formRequest(state.task), fresh: true })
     },
   },
   PICK_TASK: {
-    STATE: (state, task) => ({ ...state, task, missing: [], adapted: [], sent: null }),
+    STATE: (state, task) => ({ ...state, task, adapted: [], sent: null }),
     EFFECT: (state, task, next) => {
       next('intake.RESET')
       next('page.COMPOSE', { prompt: formRequest(task), fresh: true })
@@ -174,17 +159,13 @@ IntakeLab.model = {
     EFFECT: (state, rule, next) => next('page.COMPOSE', rule.prompt),
   },
 
-  // a valid submit (the schema's checks): the app's own check of what this form requires
+  // a valid submit: the composed form's schema passed, values by node key
   SEND: (state, values) => {
-    const missing = missingNames(state.page.layout, values)
-    if (missing.length) return { ...state, missing }
-    const sent = Object.fromEntries(placed(state.page.layout).map((p) => [p.key, p.params]))
-    return { ...state, missing: [], sent: { task: state.task, fields: sent, values: { ...values, attachments: values.attachments?.length ?? 0 } } }
+    const fields = Object.fromEntries(placed(state.page.layout).map((p) => [p.key, p.params]))
+    return { ...state, sent: { task: state.task, fields, values: summary(values) } }
   },
-  // a field filled in clears its "Required"
-  'intake.CHANGE': (state, { name }) => (state.missing.includes(name) ? { ...state, missing: state.missing.filter((n) => n !== name) } : ABORT),
   AGAIN: {
-    STATE: (state) => ({ ...state, sent: null, task: '', missing: [], adapted: [] }),
+    STATE: (state) => ({ ...state, sent: null, task: '', adapted: [] }),
     EFFECT: (state, _, next) => {
       next('intake.RESET')
       next('page.SET_LAYOUT', null)

@@ -83,13 +83,14 @@ export const FIRST_PARTY = {
   // PLAN-5 F-1: form(schema, options) (src/extra/form.ts). It listens to input/focusout/submit on
   // the form element (option `form`, default 'form'), so fields inside it count as listened
   // (SYG111); its model is open (CHANGE, SET (G-647), BLUR, SUBMIT, ADD, REMOVE, ERRORS, DONE, RESET,
-  // PROGRESS (PLAN-11 F-2), RESULT, VALIDATE, and CHECKED_<field> per `check` entry); the host action named by
-  // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument.
+  // PROGRESS (PLAN-11 F-2), RESULT, VALIDATE, SYNC (RT-1), and CHECKED_<field> per `check` entry); the host action named by
+  // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument (RT-1:
+  // `dynamic`, fields that follow the host's state; the 1st can be a schema function of it).
   form: {
-    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated', 'progress', 'resets'],
+    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated', 'progress', 'resets', 'added'],
     calculated: ['fields', 'valid', 'dirty', 'error'],
     model: null,
-    options: ['values', 'submit', 'request', 'form', 'check', 'show', 'http', 'resetOnShow', 'tool'],
+    options: ['values', 'submit', 'request', 'form', 'check', 'show', 'http', 'resetOnShow', 'tool', 'dynamic'],
     listens: [['form', null, 'select']],
     defaults: { form: 'form' },
     nextOptions: ['submit'],

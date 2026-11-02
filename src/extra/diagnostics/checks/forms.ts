@@ -11,6 +11,10 @@
  *   233  (values, output) a valid submit: each top-level `values` key missing from the schema's
  *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does). G-377:
  *        only when every output key is a values key (an output with other keys reshapes: a rename)
+ *   239  (changed) RT-1: a schema function, `form((state) => schema)`: `changed()` calls it again
+ *        with the same host state and tells whether it returned another schema object: SYG239
+ *        (warn, once): it isn't memoized, so the form re-validates on every state change (and
+ *        an async schema never settles)
  *   235  (field, request) a check's request with `ok` / `error` / `latest` keys, which the form
  *        overwrites: SYG235 (warn, once per field)
  *   234  (submit, key) G-577: a valid submit whose `submit` names one of the form's own actions,
@@ -19,7 +23,8 @@
  * Host checks (onModel, once per component name), for each `uses` entry made by form():
  *   SYG234 (warn) `submit` missing, not a host model entry, or one of the form's own action names
  *          (G-577: every action in that form's model, CHECKED_<field> included)
- *   SYG235 (warn) a `check` key that isn't a field of `values`
+ *   SYG235 (warn) a `check` key that isn't a field of `values` (not with `dynamic`: RT-1, the
+ *          name may be a dynamic field)
  *   SYG236 (warn) an array of objects in `values` with a row without an `id`
  *   SYG237 (warn) two form uses of one host with the same form selector (G-374)
  *   SYG245 (error, reported) PLAN-6 A-3 (D291): a `tool` option not made by formTool() (no `$`
@@ -55,7 +60,7 @@ export function reportForm(code: number, a?: any, b?: any, c?: any): any {
     devReport('SYG230', {
       component: 'form',
       message: `form: a field named '${a}' changed, but '${a}' isn't a field of the form's values (${Object.keys(b || {}).join(', ') || 'none'}); the change is ignored`,
-      fix: `Name the input after a path in values (name="email", name="addresses.<row id>.city"), add '${a}' to values, or move the input out of the form element`,
+      fix: `Name the input after a path in values (name="email", name="addresses.<row id>.city"), add '${a}' to values, add it with the dynamic option when the field comes and goes with the host's state (dynamic: (state) => ({ '${a}': '' })), or move the input out of the form element`,
       data: {name: a},
     })
   } else if (code == 232) {
@@ -81,6 +86,13 @@ export function reportForm(code: number, a?: any, b?: any, c?: any): any {
       message: `form '${b}': a valid submit dispatched '${b}.${a}' (the form's own ${a} action), not the host's '${a}': submit: '${a}' names one of the form's own actions, which next() prefers`,
       fix: SUBMIT_FIX(b, a, ownActions(c)),
       data: {key: b, submit: a},
+    })
+  } else if (code == 239) {
+    if (!a() || !once('SYG239')) return
+    devReport('SYG239', {
+      component: 'form',
+      message: `form: the schema function returned a new schema for the same state, so the form re-validates on every state change (an async schema never settles)`,
+      fix: `Return the same schema object while the rules don't change: memoize it on what it reads, e.g. const byLayout = new WeakMap(); form((state) => byLayout.get(state.page.layout) ?? (byLayout.set(state.page.layout, build(state.page.layout)), byLayout.get(state.page.layout)), { ... })`,
     })
   } else if (code == 235) {
     const set = RESERVED.filter(k => b && k in b)
@@ -146,7 +158,7 @@ export const formsCheck: DiagnosticCheck = {
         })
       }
       for (const f of Object.keys(o.check || {})) {
-        if (!hasField(values, f)) devReport('SYG235', {
+        if (!o.dynamic && !hasField(values, f)) devReport('SYG235', {
           component,
           message: `${name}'s form '${key}' has a check for '${f}', which isn't a field of its values; it never runs`,
           fix: `Use a field name from values (${Object.keys(values).join(', ')})`,

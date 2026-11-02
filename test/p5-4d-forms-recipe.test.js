@@ -44,8 +44,9 @@ describe('guide/forms: the agent-sized page (D231)', () => {
     for (const s of ["'form.ADD'", "'form.REMOVE'", 'state.form.submitting', "request: { url: '/api/signup' }", "error: 'form.ERRORS'", '422']) expect(page).toContain(s)
     // 18,000 until the live examples added the demo server and the error-line CSS (+436 B);
     // 18,500 until the UI sweep round 2's field-types row (Select, Combobox, widget fields: +137 B;
-    // the page was 16 B under; maintainer to confirm)
-    expect(Buffer.byteLength(page)).toBeLessThan(18700)
+    // the page was 16 B under; maintainer to confirm); 18,700 until RT-1's `dynamic` options row
+    // (+143 B; the rest of run-time fields is on the reference page; maintainer to confirm)
+    expect(Buffer.byteLength(page)).toBeLessThan(18800)
   })
 
   it('the recipe and the testing sample are clean under sygnal-check --strict', () => {

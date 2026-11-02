@@ -51,7 +51,9 @@ describe('SYG231: not a Standard Schema', () => {
     expect(err.code).toBe('SYG231')
     expect(err.message).toMatch(/\[Sygnal SYG231\].*an object without ~standard\.validate \(a validator from before Standard Schema\?\)/)
     expect(err.message).toContain('sygnal.js.org/reference/errors#syg231')
-    expect(() => form(() => {}, { values: {}, submit: 'X' })).toThrow(/a function, not a Standard Schema/)
+    expect(() => form('zod', { values: {}, submit: 'X' })).toThrow(/a string, not a Standard Schema/)
+    // RT-1: a function is a schema of the host's state (SYG231 when what it returns isn't one: rt1-form-dynamic.test.js)
+    expect(() => form(() => {}, { values: {}, submit: 'X' })).not.toThrow()
   })
 })
 

@@ -4,13 +4,14 @@
 // field the host wrote itself. (A part declared with `component` is an isolated child: the form
 // behavior would not see the fields inside it, and its values would need a lens of their own.)
 //
-// Each one gets the host's state and its params as props. The values are in state.intake.values,
-// the messages to show in state.intake.fields[name].error, plus the app's own "required" check for
-// fields that are on the page (state.missing).
+// Each one gets the host's state, its params and its node key (`node`) as props. Its values live
+// under its node key (the form's `dynamic` fields, catalog.jsx): one value named `<node>`, or
+// several named `<node>.<field>`, so a piece can repeat ('amount', 'amount~2'). The value and the
+// message to show are in state.intake.fields[name] (the message: the composed form's schema).
 import { PEOPLE } from './data.js'
 
-/** a field's message: the schema's (form behavior), else the app's own required check */
-const errorOf = (state, name) => state.intake.fields[name]?.error || (state.missing.includes(name) ? 'Required' : '')
+/** a field's message to show */
+const errorOf = (state, name) => state.intake.fields[name]?.error ?? ''
 
 /**
  * A labelled field with its message. A view helper, called as a function: as a capitalized JSX tag
@@ -30,135 +31,131 @@ function field(state, name, label, control, hint) {
   )
 }
 
-const value = (state, name) => state.intake.values[name] ?? ''
+/** a field's value (a field that isn't on the form yet, while the preview streams: empty) */
+const value = (state, name) => state.intake.fields[name]?.value ?? ''
 
-export function Contact({ state, phone }) {
+export function Contact({ state, node, phone }) {
   return (
     <div className="piece">
-      {field(state, 'email', 'Email', <input type="email" name="email" value={value(state, 'email')} autocomplete="email" />)}
-      {phone !== 'none' && field(state, 'phone', phone === 'required' ? 'Phone' : 'Phone (optional)', <input type="tel" name="phone" value={value(state, 'phone')} autocomplete="tel" />)}
+      {field(state, `${node}.email`, 'Email', <input type="email" name={`${node}.email`} value={value(state, `${node}.email`)} autocomplete="email" />)}
+      {phone !== 'none' && field(state, `${node}.phone`, phone === 'required' ? 'Phone' : 'Phone (optional)', <input type="tel" name={`${node}.phone`} value={value(state, `${node}.phone`)} autocomplete="tel" />)}
     </div>
   )
 }
 
-export function Dates({ state, mode, label }) {
+export function Dates({ state, node, mode, label }) {
+  const date = (name, text) => field(state, `${node}.${name}`, text, <input type="date" name={`${node}.${name}`} value={value(state, `${node}.${name}`)} />)
   if (mode === 'range') {
     return (
       <fieldset className="piece inline">
         <legend>{label}</legend>
-        {field(state, 'start', 'From', <input type="date" name="start" value={value(state, 'start')} />)}
-        {field(state, 'end', 'To', <input type="date" name="end" value={value(state, 'end')} />)}
+        {date('start', 'From')}
+        {date('end', 'To')}
       </fieldset>
     )
   }
-  return (
-    <div className="piece">
-      {field(state, 'start', label, <input type="date" name="start" value={value(state, 'start')} />)}
-    </div>
-  )
+  return <div className="piece">{date('start', label)}</div>
 }
 
-export function Amount({ state, label }) {
+export function Amount({ state, node, label }) {
   return (
     <div className="piece inline">
-      {field(state, 'amount', label, <input type="number" name="amount" min="0" step="0.01" value={value(state, 'amount')} />)}
-      {field(state, 'currency', 'Currency', <select name="currency">
-          {['USD', 'EUR', 'GBP', 'JPY'].map((c) => <option value={c} selected={value(state, 'currency') === c}>{c}</option>)}
+      {field(state, `${node}.amount`, label, <input type="number" name={`${node}.amount`} min="0" step="0.01" value={value(state, `${node}.amount`)} />)}
+      {field(state, `${node}.currency`, 'Currency', <select name={`${node}.currency`}>
+          {['USD', 'EUR', 'GBP', 'JPY'].map((c) => <option value={c} selected={value(state, `${node}.currency`) === c}>{c}</option>)}
         </select>)}
     </div>
   )
 }
 
-export function Device({ state }) {
+export function Device({ state, node }) {
+  const kind = `${node}.kind`, tag = `${node}.assetTag`
   return (
     <div className="piece inline">
-      {field(state, 'device', 'Device', <select name="device">
-          <option value="" selected={!value(state, 'device')}>Choose…</option>
-          {['laptop', 'phone', 'monitor', 'headset', 'other'].map((d) => <option value={d} selected={value(state, 'device') === d}>{d}</option>)}
+      {field(state, kind, 'Device', <select name={kind}>
+          <option value="" selected={!value(state, kind)}>Choose…</option>
+          {['laptop', 'phone', 'monitor', 'headset', 'other'].map((d) => <option value={d} selected={value(state, kind) === d}>{d}</option>)}
         </select>)}
-      {field(state, 'assetTag', 'Asset tag', <input name="assetTag" value={value(state, 'assetTag')} />, "On the sticker, e.g. AT-10442")}
+      {field(state, tag, 'Asset tag', <input name={tag} value={value(state, tag)} />, "On the sticker, e.g. AT-10442")}
     </div>
   )
 }
 
-export function Place({ state, label }) {
+export function Place({ state, node, label }) {
   return (
     <div className="piece">
-      {field(state, 'place', label, <input name="place" value={value(state, 'place')} />)}
+      {field(state, node, label, <input name={node} value={value(state, node)} />)}
     </div>
   )
 }
 
-export function Details({ state, question }) {
+export function Details({ state, node, question }) {
   return (
     <div className="piece">
-      {field(state, 'details', question, <textarea name="details" rows="3" value={value(state, 'details')} />)}
+      {field(state, node, question, <textarea name={node} rows="3" value={value(state, node)} />)}
     </div>
   )
 }
 
-export function Urgency({ state }) {
-  const current = value(state, 'urgency')
+export function Urgency({ state, node }) {
+  const current = value(state, node), error = errorOf(state, node)
   return (
-    <fieldset className={errorOf(state, 'urgency') ? 'piece radios invalid' : 'piece radios'}>
+    <fieldset className={error ? 'piece radios invalid' : 'piece radios'}>
       <legend>How urgent is it?</legend>
       {[['low', 'Whenever'], ['normal', 'This week'], ['critical', 'Today — it blocks work']].map(([v, text]) => (
-        <label><input type="radio" name="urgency" value={v} checked={current === v} /> {text}</label>
+        <label><input type="radio" name={node} value={v} checked={current === v} /> {text}</label>
       ))}
-      {errorOf(state, 'urgency') && <span className="error" role="alert">{errorOf(state, 'urgency')}</span>}
+      {error && <span className="error" role="alert">{error}</span>}
     </fieldset>
   )
 }
 
-export function Approver({ state }) {
+export function Approver({ state, node }) {
   return (
     <div className="piece">
-      {field(state, 'approver', 'Approver', <select name="approver">
-          <option value="" selected={!value(state, 'approver')}>Choose…</option>
-          {PEOPLE.map((p) => <option value={p.id} selected={value(state, 'approver') === p.id}>{p.name} — {p.role}</option>)}
+      {field(state, node, 'Approver', <select name={node}>
+          <option value="" selected={!value(state, node)}>Choose…</option>
+          {PEOPLE.map((p) => <option value={p.id} selected={value(state, node) === p.id}>{p.name} — {p.role}</option>)}
         </select>, "Your manager, or whoever signs off")}
     </div>
   )
 }
 
-export function Attachments({ state, label }) {
+export function Attachments({ state, node, label }) {
   return (
     <div className="piece">
       {/* a file input can't be cleared from state: keyed by the form's reset count */}
-      {field(state, 'attachments', label, <input type="file" name="attachments" multiple key={'attachments' + state.intake.resets} />)}
+      {field(state, node, label, <input type="file" name={node} multiple key={node + state.intake.resets} />)}
     </div>
   )
 }
 
-export function Consent({ state, statement }) {
+export function Consent({ state, node, statement }) {
+  const error = errorOf(state, node)
   return (
-    <div className={errorOf(state, 'consent') ? 'piece consent invalid' : 'piece consent'}>
-      <label><input type="checkbox" name="consent" checked={!!state.intake.values.consent} /> {statement}</label>
-      {errorOf(state, 'consent') && <span className="error" role="alert">{errorOf(state, 'consent')}</span>}
+    <div className={error ? 'piece consent invalid' : 'piece consent'}>
+      <label><input type="checkbox" name={node} checked={!!value(state, node)} /> {statement}</label>
+      {error && <span className="error" role="alert">{error}</span>}
     </div>
   )
 }
 
-/**
- * A question the model wrote itself. Its value lives under `extra.<node key>` ("question",
- * "question~2", …): the node key is the only identity a repeated part has.
- */
+/** A question the model wrote itself (it may ask up to three: 'question', 'question~2', …) */
 export function Question({ state, node, label, answer }) {
-  const name = `extra.${node}`
-  const current = state.intake.values.extra?.[node] ?? ''
+  const current = value(state, node), error = errorOf(state, node)
   if (answer === 'yesno') {
     return (
       <fieldset className="piece radios">
         <legend>{label}</legend>
-        <label><input type="radio" name={name} value="yes" checked={current === 'yes'} /> Yes</label>
-        <label><input type="radio" name={name} value="no" checked={current === 'no'} /> No</label>
-        {errorOf(state, name) && <span className="error" role="alert">{errorOf(state, name)}</span>}
+        <label><input type="radio" name={node} value="yes" checked={current === 'yes'} /> Yes</label>
+        <label><input type="radio" name={node} value="no" checked={current === 'no'} /> No</label>
+        {error && <span className="error" role="alert">{error}</span>}
       </fieldset>
     )
   }
   return (
     <div className="piece">
-      {field(state, name, label, answer === 'long' ? <textarea name={name} rows="3" value={current} /> : <input name={name} value={current} />)}
+      {field(state, node, label, answer === 'long' ? <textarea name={node} rows="3" value={current} /> : <input name={node} value={current} />)}
     </div>
   )
 }
