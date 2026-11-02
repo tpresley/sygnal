@@ -23,9 +23,10 @@ export const LLM_REPLY_KEYS = new Set(['ok', 'error', 'delta', 'tool'])
 /**
  * PLAN-11 U-3: an HTTP request (a non-LLM one, where ok / error apply) also names a `progress`
  * reply action (`progress: 'UPLOAD_PROGRESS'`, the fetch driver's upload / download progress).
- * `progress: true` goes to `HTTP.progress()`: not a name.
+ * `progress: true` goes to `HTTP.progress()`: not a name. 7.2: a `stream` request's `chunk` names
+ * the action each piece arrives as.
  */
-export const HTTP_REPLY_KEYS = new Set([...REPLY_KEYS, 'progress'])
+export const HTTP_REPLY_KEYS = new Set([...REPLY_KEYS, 'progress', 'chunk'])
 export const isLlmRequest = (obj, sink) => sink === 'LLM' ||
   obj.properties.some(p => (p.type === 'ObjectProperty' || p.type === 'ObjectMethod') && propName(p) === 'messages')
 /** `connections` entry keys that name actions (PLAN-3 §1.3, D61). */

@@ -5,9 +5,7 @@ import {fail, error as logError} from '../../diagnostics/legacy';
  * it uses).
  * - post(): the fetch (the `fetch` option, 0-S5), the headers option (an object or a function of
  *   the request), HTTP errors as Errors with `status` and the provider's message, and SYG670.
- * - sse(): a fetch Response body as SSE frames ({ event, data }), per the HTML spec's parsing
- *   rules: CRLF / LF, comments, multi-line data. The reader is cancelled when the consumer stops
- *   (abort, a thrown error), so the connection closes.
+ * - sse(): re-exported from src/extra/sse.ts.
  * - SYG670: in a browser, a request with an auth header (Authorization, x-api-key, api-key,
  *   x-goog-api-key) to a host that is neither local (localhost, 127.0.0.1, [::1], *.localhost)
  *   nor the page's own origin is refused unless the transport has `dangerouslyAllowBrowser: true`:
@@ -60,47 +58,8 @@ export async function post(url: string, body: any, req: any, signal: AbortSignal
   return res;
 }
 
-/**
- * the SSE frames of a response body: `{ event, data }` (data: the joined data lines). PLAN-11
- * E-1: `meta` (optional) follows the stream's `id` (the last event id, kept across frames) and
- * `retry` (ms) fields, as EventSource does, for a reconnect
- */
-export async function* sse(res: any, meta?: {id?: string; retry?: number; beat?: () => void}): AsyncGenerator<{event: string; data: string}> {
-  const reader = res.body.getReader(), dec = new TextDecoder();
-  let buf = '', cr = '', done = false;
-  try {
-    for (;;) {
-      const r = await reader.read();
-      // PLAN-13 S-1: any bytes (a heartbeat comment too) show the stream is alive
-      if (!r.done) meta?.beat?.();
-      // line ends -> \n (a \r at a chunk's end waits: it may be half of a \r\n)
-      let s = cr + (r.done ? '\n\n' : dec.decode(r.value, {stream: true}));
-      cr = !r.done && s.endsWith('\r') ? '\r' : '';
-      if (cr) s = s.slice(0, -1);
-      buf += s.replace(/\r\n?/g, '\n');
-      done = r.done;
-      let i;
-      while ((i = buf.indexOf('\n\n')) >= 0) {
-        const frame = buf.slice(0, i);
-        buf = buf.slice(i + 2);
-        let event = 'message', data: string[] = [];
-        for (const line of frame.split('\n')) {
-          if (!line || line[0] == ':') continue;
-          const c = line.indexOf(':'), field = c < 0 ? line : line.slice(0, c);
-          const v = c < 0 ? '' : line.slice(c + 1).replace(/^ /, '');
-          if (field == 'event') event = v;
-          else if (field == 'data') data.push(v);
-          else if (meta && field == 'id' && !v.includes('\0')) meta.id = v;
-          else if (meta && field == 'retry' && /^\d+$/.test(v)) meta.retry = +v;
-        }
-        if (data.length) yield {event, data: data.join('\n')};
-      }
-      if (done) return;
-    }
-  } finally {
-    if (!done) reader.cancel().catch(() => {});
-  }
-}
+// 7.2: sse() moved to src/extra/sse.ts (the fetch driver's `stream: 'sse'` reads with it, with no AI code)
+export {sse} from '../../sse';
 
 /** JSON.parse, or the text itself when it isn't JSON (a model's malformed tool arguments go to validation as is) */
 export const json = (s: any): any => {

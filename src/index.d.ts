@@ -2547,12 +2547,12 @@ export type MultipartValue = Blob | string | number | boolean | null | undefined
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
+  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`; with `stream`: the end, `FetchStreamEnd`) */
   ok?: string;
-  /** Reply action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
+  /** Reply action that receives a failure, `{ error, status?, body?, headers?, request }` (FetchFailure) */
   error?: string;
   /**
-   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
+   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`, else `chunk`). Requests with
    * the same key from the same instance supersede each other under `latest: true`
    */
   key?: string;
@@ -2588,6 +2588,31 @@ export type FetchRequest = string | {
    */
   progress?: string | true;
   /**
+   * 7.2: read a 2xx body as a stream of pieces as they arrive (a POST that streams: a copilot
+   * endpoint answering `data: {...}` lines). 'sse': each event's `data`, JSON-parsed when it
+   * parses; 'ndjson': each non-blank line, JSON-parsed; 'text': the text as it arrives. Each piece
+   * is the `chunk` action (else a reply on `select(category)`); the end of the body (or the
+   * `done` piece) is the `ok` action, with `{ status, headers }` (FetchStreamEnd). `latest`, `abort`, `key` and `timeoutMs` (here:
+   * the time to the first byte) apply; `retry`, `cache`, `parse`, `validate` and `progress` don't.
+   * Not for resources. Test: `t.push('HTTP', piece)` per piece, then `t.respond('HTTP', null)` to end
+   */
+  stream?: 'sse' | 'ndjson' | 'text';
+  /** 7.2: with `stream`, the reply action each piece arrives as (`chunk: 'DELTA'`: `DELTA: (state, piece) => ...`) */
+  chunk?: string;
+  /**
+   * 7.2: with `stream`, the piece that ends it (not delivered; the connection is closed and `ok`
+   * follows): a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a
+   * predicate of the piece as delivered (`done: (p) => p.type === 'finish'`). No default
+   */
+  done?: string | ((piece: any) => boolean);
+  /**
+   * 7.2: with `stream: 'sse'`, each piece is `{ data, id, event }` (SseEvent, as a socket SSE
+   * connection's `meta: true`): the data JSON-parsed when it parses, the last event id ('' when
+   * none was sent) and the event type ('message' or its name). SSE only: NDJSON lines and text
+   * have no id or type, so it is ignored there
+   */
+  meta?: boolean;
+  /**
    * Latest only: sending this request aborts this component's requests still in flight in the
    * same category; their responses and errors are never delivered. Default: the driver's `latest`
    * option.
@@ -2617,6 +2642,14 @@ export type FetchRequest = string | {
   staleTime?: number;
   /** Invalidation tags of this request (and its cache entry): `{ invalidate: 'quotes' }` matches `tags: ['quotes']` */
   tags?: string[];
+  /**
+   * 7.2: response headers to keep (case-insensitive): a resource's state gets
+   * `headers: { 'x-computed-at': '…' }` (lowercased names, `null` when absent) next to `data` on
+   * 'success', kept with `data` on refetches and `keepPrevious`; the query cache stores them with
+   * the entry (cache hits, `dehydrate()`, SSR). Part of the cache key and of the request's
+   * identity. The `ok` action still gets the body
+   */
+  keepHeaders?: string[];
   /**
    * After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like
    * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands
@@ -2682,6 +2715,14 @@ export type FetchRequest = string | {
   invalidate: FetchInvalidate;
 } | {
   /**
+   * 7.2 (React Query's resetQueries), from any component: matching cache entries are dropped;
+   * matching mounted resources go back to 'loading' with no data and no error, then refetch;
+   * paused ones (a hidden Switchable page) lose their kept result ('idle'). `true` matches
+   * everything (logout: `{ reset: true }`); otherwise matched like `invalidate`. With or without the cache
+   */
+  reset: true | FetchInvalidate;
+} | {
+  /**
    * PLAN-3 5-5 (H-7): fetch this request into the driver's `queryCache()` without a reply (a
    * fresh entry or the same fetch in flight: nothing new), so a resource that reads it later
    * renders 'success' at once. Without a queryCache it does nothing (SYG635)
@@ -2730,7 +2771,7 @@ export type FetchCacheOptions = {
 
 /** PLAN-3 5-5 (H-7): one entry of a `dehydrate()` snapshot (JSON-safe when `data` is) */
 export type QueryCacheSnapshotEntry = {
-  /** method, URL as written (query sorted), body and parse: `'GET /api/quotes/1'` */
+  /** method, URL as written (query sorted), body, parse and keepHeaders: `'GET /api/quotes/1'` */
   key: string;
   /** the parsed (and validated) body */
   data: any;
@@ -2738,6 +2779,8 @@ export type QueryCacheSnapshotEntry = {
   updatedAt: number;
   /** the request's invalidation tags */
   tags?: string[];
+  /** 7.2: the kept response headers (`keepHeaders`) */
+  headers?: Record<string, string | null>;
 }
 export type QueryCacheSnapshot = QueryCacheSnapshotEntry[];
 
@@ -2747,10 +2790,18 @@ export interface QueryCache {
   dehydrate(): QueryCacheSnapshot;
   /** writes a snapshot's entries (an entry newer than the snapshot's is kept) */
   hydrate(snapshot: QueryCacheSnapshot | null | undefined): void;
-  /** writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`) */
-  set(request: ResourceRequest, data: any): void;
+  /**
+   * writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`).
+   * 7.2 `headers`: its kept headers (a `Headers` or an object; picked by the request's `keepHeaders`)
+   */
+  set(request: ResourceRequest, data: any, headers?: Headers | Record<string, string | null>): void;
   /** the driver given this cache fetches the request into it, without a reply (like the `{ prefetch }` command) */
   prefetch(request: ResourceRequest): void;
+  /**
+   * 7.2 (React Query's `queryClient.clear()`): drops every entry. Mounted resources keep what they
+   * show (send `{ reset: true }` on the HTTP sink to reset and refetch them too)
+   */
+  clear(): void;
 }
 
 /**
@@ -2782,16 +2833,17 @@ export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: 
  * `data` is the parsed (validated) body; `error` is the Error (`error.status` / `error.body` for
  * a non-2xx response, `error.issues` for a validation failure). D78: a refetch of the same
  * request keeps `data` and `error` with `refreshing: true`; a failed refetch keeps `data`.
+ * 7.2: `headers`, the request's `keepHeaders` (`{ lowercased name: value | null }`), kept with `data`.
  */
 export type Resource<DATA = any, ERROR = any> =
-  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined }
-  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean }
-  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean }
+  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined; headers?: undefined }
+  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean; headers?: Record<string, string | null> }
+  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean; headers?: Record<string, string | null> }
 
 /** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
   /**
-   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * 'HTTP 404 ...' for a non-2xx status (with `.status`, `.body` and `.headers`), the network error
    * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
    * "fetch is not available"
    */
@@ -2800,12 +2852,25 @@ export type FetchFailure<REQUEST = any> = {
   status?: number;
   /** The non-2xx response's body, parsed like 'auto' */
   body?: any;
+  /**
+   * 7.2: the response's headers (`headers.get('Retry-After')`), whenever there was a response: a
+   * non-2xx status, a body that doesn't parse or doesn't validate. Undefined for a network error or timeout
+   */
+  headers?: Headers;
   /** The request as the app sent it */
   request: REQUEST;
   /** With `retry`: how many attempts were made */
   attempts?: number;
   /** With `validate`: the schema's issues (the body didn't validate) */
   issues?: ReadonlyArray<{message: string; path?: ReadonlyArray<any>}>;
+}
+
+/** 7.2: the data of a `stream` request's `ok` action, at the end of the body (or its `done` piece) */
+export type FetchStreamEnd = {
+  /** HTTP status of the response */
+  status: number;
+  /** The response's headers */
+  headers: Headers;
 }
 
 /** A successful (2xx) response on `select()` of a makeFetchDriver() source */
@@ -2823,7 +2888,7 @@ export type FetchResponse<VALUE = any, REQUEST = any> = {
 /** A failure on `errors()` of a makeFetchDriver() source */
 export type FetchError<REQUEST = any> = {
   /**
-   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * 'HTTP 404 ...' for a non-2xx status (with `.status`, `.body` and `.headers`), the network error
    * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
    * "fetch is not available"
    */
@@ -2834,6 +2899,8 @@ export type FetchError<REQUEST = any> = {
   status?: number;
   /** The non-2xx response's body, parsed like 'auto' */
   body?: any;
+  /** 7.2: the response's headers, whenever there was a response (undefined for a network error or timeout) */
+  headers?: Headers;
 }
 
 /**
@@ -3510,6 +3577,8 @@ export type FakeCacheEntry = {
   subscribers: number;
   /** the parsed body */
   data: any;
+  /** 7.2: the kept response headers (`keepHeaders`), `{ lowercased name: value | null }` */
+  headers?: Record<string, string | null>;
 }
 
 export interface RenderOptions {
@@ -3871,6 +3940,8 @@ export interface RenderResult<STATE = any> {
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end
    * of the stream (a non-string `value` is sent as JSON, for structured output).
+   * 7.2: on a request sent with `stream`, the end of its body (`ok`); a `value` other than
+   * null / undefined is written as a last piece first (pieces: t.push).
    */
   respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
@@ -3925,6 +3996,11 @@ export interface RenderResult<STATE = any> {
    * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
    * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event;
    * `{ id }` gives an SSE event its id (what `meta: true` reports and `resume` resumes from).
+   * 7.2: on an HTTP fake, `data` is one piece of the pending request sent with `stream` that
+   * `target` picks (as in respond), written in its format (SSE `data:` lines, an NDJSON line, text;
+   * objects as JSON) and parsed by the real driver; `t.respond(name, null)` ends it. A sink other
+   * than the socket sink that declares no connections pushes to its stream requests. `{ event, id }`
+   * (no `connection`) writes an SSE piece's `event:` / `id:` lines (what `meta: true` reports).
    */
   push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; id?: string | number; connection?: FakeConnectionTarget }) => Promise<void>;
   /**
