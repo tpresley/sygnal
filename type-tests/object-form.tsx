@@ -4,7 +4,7 @@
  * types the PARENT sink, so the parent's CHILD.select(C) is typed; a misspelled key is an
  * error. The positional forms are unchanged, including a state that has a `state` key.
  */
-import { run } from 'sygnal'
+import { run, renderComponent } from 'sygnal'
 import type {
   Component, RootComponent, Comp, RootComp, ComponentSpec, ActionsOf, IntentSources, ParentPayloadOf,
 } from 'sygnal'
@@ -126,3 +126,7 @@ App.model = {
 // @ts-expect-error: initialState is AppState
 App.initialState = { tasks: [] }
 run(App)
+
+// renderComponent infers the state, as from a positional annotation
+const t = renderComponent(App)
+expectType<Equal<typeof t.state, AppState>>()

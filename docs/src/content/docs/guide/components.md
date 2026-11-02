@@ -83,6 +83,31 @@ The view function must be **pure**: it should only use the values it receives to
 
 Always read everything from the first argument: it is the only one (6.0 removed the positional `(props, state, context)` arguments; see [Migrating to 6.0](/guide/migrating-to-6/#positional-views)).
 
+### Rendering Nothing
+
+A view that returns `null`, `false` or `undefined` renders nothing, as in React. An empty comment (`<!---->`) holds its place, so when the view returns an element again it appears in the same position among its siblings, and the component keeps its state, intent and children meanwhile. This works the same at the app root, as a `Collection` item, a `Switchable` page, on the server (`renderToString` writes the comment and hydration adopts it) and on the other renderers. A string or a number renders as text.
+
+```jsx live
+function Hint({ state }) {
+  return state.open ? <p className="hint">Press Tab to move between fields.</p> : null
+}
+
+function App() {
+  return (
+    <div>
+      <button className="toggle">Toggle the hint</button>
+      <Hint state="hint" />
+      <p>The paragraph after the hint.</p>
+    </div>
+  )
+}
+App.initialState = { hint: { open: false } }
+App.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle') })
+App.model = { TOGGLE: (state) => ({ ...state, hint: { open: !state.hint.open } }) }
+```
+
+In JSX, `false`, `null` and `undefined` children render nothing at all (`{state.open && <Hint />}`), and so does `false` for a string attribute: `title={state.busy && 'Saving…'}` sets no `title` while `busy` is false. `0` renders as `0`, as in React.
+
 ### Reserved Prop Names
 
 Because the view's argument also carries `state`, `children`, `slots`, `context` and `uid`, a parent prop with one of these names is overwritten (Sygnal warns with [SYG106](/reference/errors/#syg106), an error in [strict mode](/guide/strict-mode/)). The `state` prop is special: it selects the child's [state slice](/guide/state/#passing-state-to-child-components). Name data props something else, such as `item` or `contextValue`.
