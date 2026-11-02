@@ -12,6 +12,8 @@
  *   `{ slot: [...] }` names them. Not validated: finish() does that.
  * - toTree(layout): the inverse (keys dropped).
  * - removeNode(layout, key): the node and its subtree removed (not finished).
+ * - overlay(preview, previous): a fresh composition's preview over the layout it replaces (the
+ *   previous nodes it doesn't hold yet stay where they were; the behavior's `preview: 'merge'`).
  * - finish(catalog, layout, state): the deterministic finishing step, idempotent:
  *   1. validation (reported, ./diag.ts): an unknown node, part or slot is dropped (SYG250; the
  *      children of an unknown container or slot take its place); an invalid param value falls
@@ -29,7 +31,8 @@
  *      (the extra children go after it; an over-full row is split into even rows), `accepts:
  *      'leaves'` (nested containers go after it), then `pin` (start / end of their slot).
  *      `maxUses` counts per identity (`part`, `part:record`); in a `group` the first part (depth
- *      first) wins, the group's other parts go.
+ *      first) wins, the group's other parts go. A container's `maxUses` counts per container id:
+ *      the ones after it (depth first) are replaced by their children.
  *   Container params are checked like a part's.
  */
 import {dev} from './diag'
@@ -177,6 +180,50 @@ export function removeNode(layout: Layout, key: string): Layout {
     nodes[k] = {...n, slots}
   }
   return {...layout, nodes}
+}
+
+/**
+ * a fresh composition's preview shown over the layout it replaces: the preview's nodes where it
+ * puts them, then each node of `previous` it doesn't hold yet, at the end of the slot it was in
+ * (its container, else the page), in reading order. The preview is re-keyed against `previous`,
+ * so a node it already holds has the same key and appears once. Not finished.
+ */
+export function overlay(preview: Layout, previous: Layout | null | undefined): Layout {
+  const pn = previous?.nodes
+  if (!pn || !preview?.nodes) return preview
+  const nodes: Record<string, Node> = {}
+  for (const k in preview.nodes) {
+    const n = preview.nodes[k]
+    nodes[k] = n.slots ? {...n, slots: {...n.slots}} : n
+  }
+  const seen = new Set<string>(), added = new Set<string>()
+  const visit = (pk: string, into: string) => {
+    if (seen.has(pk)) return
+    seen.add(pk)
+    const slots = pn[pk]?.slots
+    for (const s in slots) for (const c of slots[s] || []) {
+      const n = pn[c]
+      if (!n || seen.has(c)) continue
+      if (!own(nodes, c)) {
+        const t = nodes[into].slots ||= {}
+        const at = own(t, s) ? s : Object.keys(t)[0] ?? 'default'
+        t[at] = [...(t[at] || []), c]
+        nodes[c] = n.slots ? {...n, slots: Object.fromEntries(Object.keys(n.slots).map(x => [x, []]))} : n
+        added.add(c)
+      }
+      if (n.slots && nodes[c].slots) visit(c, c)
+    }
+  }
+  const root = preview.root || 'page'
+  visit(previous!.root || 'page', root)
+  // a previous container whose children all moved into the preview goes (bottom up)
+  const prune = (k: string): boolean => {
+    const n = nodes[k]
+    for (const s in n.slots) n.slots[s] = n.slots[s].filter(c => !nodes[c] || prune(c) || (delete nodes[c], false))
+    return !added.has(k) || !n.slots || Object.values(n.slots).some(a => a.length > 0)
+  }
+  prune(root)
+  return {...preview, nodes}
 }
 
 // ------------------------------------------------------------------ finish
@@ -333,6 +380,19 @@ function round(cat: Catalog, root: T) {
     if (n > p.maxUses) over.push([t, arr])
   })
   for (const [t, arr] of over) without(arr, t)
+  // a container's maxUses (per container id): the later ones are replaced by their children
+  const boxes = new Map<string, number>(), extra: Array<[T, T[]]> = []
+  each(root, (t, arr) => {
+    const c: any = t.slots && cat.get(t.part)
+    if (c?.kind != 'container' || c.maxUses == null) return
+    const n = (boxes.get(t.part) || 0) + 1
+    boxes.set(t.part, n)
+    if (n > c.maxUses) extra.push([t, arr])
+  })
+  for (const [t, arr] of extra) {
+    const i = arr.indexOf(t)
+    if (i > -1) arr.splice(i, 1, ...Object.values(t.slots!).flat())
+  }
   // `in` (rows are transparent; a row in an arranged slot or in a row is unwrapped)
   const moves: Array<[T, T[]]> = [], unwrap: Array<[T, T[]]> = []
   each(root, (t, arr, _i, parent, _s, eff) => {

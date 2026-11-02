@@ -13,7 +13,7 @@
  *     under them), and the props `node` (its key), and `scope` / `frozen` / `answer` when given (a
  *     result part's answer: `answer.value` when `answer.node` is its key).
  *   A part declared with `render` (a view function) is called inline with the same props and
- *   `state` read through its lens.
+ *   `state` read through its lens; the vnode it returns gets the same `key` unless it has one.
  * - A container calls its view with `{ key, node, params (defaults filled), slots, children, ui, control, scope, frozen }`:
  *   `slots` maps each slot to its vnodes, `children` lists `{ key, node, part, slot, vnode }` in
  *   order, `ui` is `slice.ui[key]`, and `control(name, value)` returns data attributes to spread on an
@@ -35,6 +35,9 @@ const setIn = (o: any, path: any[], v: any): any => {
   base[k] = rest.length ? setIn(o?.[k] ?? {}, rest, v) : v
   return base
 }
+
+/** a copy of a vnode with `key` (kept a Plain vnode when it was one: the core's view walk skips those) */
+const withKey = (v: any, key: string) => Object.assign(Object.create(Object.getPrototypeOf(v)), v, {key})
 
 /** the memoized lenses (G-752), per catalog: (at, scope, node key, part, params) → lens */
 const memo = /*#__PURE__*/ new WeakMap<object, Map<string, any>>()
@@ -120,9 +123,14 @@ export function renderLayout(cat: Catalog, slice: any, state: any, opts: RenderO
     const props = typeof part.props == 'function' ? part.props(params, state) : {...part.props, ...params}
     const lens = lensOf(cat, part, n, key, at, scope)
     const own = {...props, ...extra, node: key, ...(answer && answer.node === key && {answer: answer.value})}
-    if (part.render) return part.render({...own, state: lens === undefined ? state : typeof lens == 'string' ? state?.[lens] : lens.get(state)})
-    if (!part.component) return null
     const id = scope !== undefined ? `${scope}/${key}` : key
+    if (part.render) {
+      const v = part.render({...own, state: lens === undefined ? state : typeof lens == 'string' ? state?.[lens] : lens.get(state)})
+      // keyed like a component part (unless the view keyed it): a part inserted above it moves it
+      // instead of patching it by position (the field being typed in keeps its element and focus)
+      return v && typeof v == 'object' && typeof v.sel == 'string' && v.key === undefined ? withKey(v, id) : v
+    }
+    if (!part.component) return null
     // identity from the vnode key (D470: key ?? props.id ?? path), so a param named `id` reaches the part
     return h(part.component, {...own, ...(lens !== undefined && {state: lens}), key: id})
   }

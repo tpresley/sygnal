@@ -8,7 +8,8 @@
  *         `.initialState` or `.uses`, also through an import, or `defineComponent({ model, ... })`):
  *         it is called as a view, its model never runs.
  * SYG450  `in` naming an unknown container or slot, or the built-in `row`; a container `min` / `max`
- *         that is not a non-negative integer, `min` above `max`, `accepts` other than 'leaves'.
+ *         that is not a non-negative integer, `min` above `max`, `maxUses` that is not a positive
+ *         integer, `accepts` other than 'leaves'.
  * SYG250  a `companions` entry that is not a part of the catalog (or the part itself).
  * SYG680  (info) a part with a `required` text or list param without a `default`, in a catalog
  *         passed to `compose(catalog, { backend: compose.decisions(...) })` in a scanned file (the
@@ -34,7 +35,7 @@ import { renameFix, keyEdit } from '../edits.js'
 const KEYS = {
   catalog: ['parts', 'containers', 'description', 'categories', 'rows', 'guidance', 'limits', 'examples'],
   part: ['component', 'render', 'props', 'description', 'state', 'local', 'params', 'in', 'group', 'maxUses', 'required', 'pin', 'companions', 'category', 'result'],
-  container: ['slots', 'minSlots', 'min', 'max', 'accepts', 'arranged', 'direction', 'description', 'in', 'params', 'render'],
+  container: ['slots', 'minSlots', 'min', 'max', 'maxUses', 'accepts', 'arranged', 'direction', 'description', 'in', 'params', 'render'],
   param: ['options', 'default', 'label', 'ask', 'type', 'min', 'max', 'bins', 'maxLength', 'required', 'items', 'from'],
 }
 
@@ -258,6 +259,11 @@ export default {
         const min = num('min'), max = num('max')
         if (min !== undefined && max !== undefined && min > max) {
           report({ code: 'SYG450', file, node: e.obj.props.get('min').value, message: `container '${id}': \`min\` ${min} is above \`max\` ${max}; defineCatalog ignores both`, fix: 'make min at most max', data: { min, max } })
+        }
+        const up = e.obj.props.get('maxUses')
+        const uv = up?.type === 'ObjectProperty' ? literalValue(up.value) : undefined
+        if (uv !== undefined && uv !== null && !(Number.isInteger(uv) && uv >= 1)) {
+          report({ code: 'SYG450', file, node: up.value, message: `container '${id}': \`maxUses\` must be a positive integer (how many of it a layout may hold); defineCatalog ignores it`, fix: 'use a whole number, e.g. maxUses: 3, or leave it out (no limit)', data: { key: 'maxUses' } })
         }
         const ap = e.obj.props.get('accepts')
         const av = ap?.type === 'ObjectProperty' ? literalValue(ap.value) : undefined

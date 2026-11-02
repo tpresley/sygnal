@@ -62,6 +62,8 @@ export interface Container {
   /** children per slot: fewer than `min` unwraps it, more than `max` overflow (a row splits) */
   min?: number
   max?: number
+  /** how many of it a layout may hold (default: no limit); the later ones are unwrapped */
+  maxUses?: number
   /** 'leaves': only parts in its slots (nested containers go after it) */
   accepts?: 'leaves'
   params: Record<string, Param>

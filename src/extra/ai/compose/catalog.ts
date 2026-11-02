@@ -8,8 +8,8 @@
  * (K-2), `description` (the page's label, with `containers.page.description`), `categories`
  * (`{ id: description }`, for a category prefilter; parts name one in `category`), `rows`,
  * `guidance`, `limits` (`{ maxParts: 12, maxDepth: 4 }`) and `examples`. Containers carry
- * `description`, `in`, `slots`, `minSlots`, `min` / `max` (children per slot), `accepts: 'leaves'`,
- * `arranged`, `direction` and `params`.
+ * `description`, `in`, `slots`, `minSlots`, `min` / `max` (children per slot), `maxUses` (how many
+ * of it a layout may hold; default: no limit), `accepts: 'leaves'`, `arranged`, `direction` and `params`.
  *
  * Errors: an id that can't be a node key (empty, or with ':', '~', '/'), a part id that is also a
  * container's, a part named `page` / `row`, a malformed param and two record params on a part throw
@@ -76,6 +76,12 @@ function container(id: string, d: any): Container {
     dev('SYG450', 'defineCatalog', `container '${id}': \`min\` ${min} is above \`max\` ${max}; both are ignored`)
     min = max = undefined
   }
+  // maxUses: how many of it a layout may hold (a positive integer; default: no limit)
+  let maxUses = d.maxUses
+  if (maxUses != null && !(Number.isInteger(maxUses) && maxUses >= 1)) {
+    dev('SYG450', 'defineCatalog', `container '${id}': \`maxUses\` must be a positive integer (how many of it a layout may hold); it is ignored`)
+    maxUses = undefined
+  }
   let accepts = d.accepts
   if (accepts != null && accepts != 'leaves') {
     dev('SYG450', 'defineCatalog', `container '${id}': \`accepts\` takes only 'leaves'; it is ignored`)
@@ -86,7 +92,7 @@ function container(id: string, d: any): Container {
     const p = params[k] = param(id, k, d.params[k])
     if (p.kind == 'record') fail(`container '${id}', param '${k}': containers take no record params`)
   }
-  return {id, kind: 'container', slots, slotNames: Object.keys(slots), minSlots: d.minSlots, min, max, accepts, params,
+  return {id, kind: 'container', slots, slotNames: Object.keys(slots), minSlots: d.minSlots, min, max, maxUses, accepts, params,
     arranged: !!d.arranged, direction: d.direction ?? (id == 'row' ? 'row' : undefined), description: d.description, render, in: d.in ?? ['page'], decl: d}
 }
 
