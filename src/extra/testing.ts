@@ -547,6 +547,8 @@ export interface RenderResult {
    * PLAN-3 2-C: the server sends `data` (objects as JSON text) on the open connection(s): `message`
    * fires (the data JSON-parsed when it parses). `{ event, connection? }`: an SSE named event;
    * `{ id }` (PLAN-13 S-1): its SSE event id (`meta`, `resume`).
+   * 7.2: on a sink with `stream` requests, one piece of the one `target` picks (t.respond's
+   * targets), in its format; t.respond(name, null) ends it.
    */
   push: (sinkName: string, data: any, target?: FakeConnectionTarget | {event?: string; id?: string | number; connection?: FakeConnectionTarget}) => Promise<void>;
   /**

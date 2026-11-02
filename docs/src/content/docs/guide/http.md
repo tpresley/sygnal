@@ -1,6 +1,6 @@
 ---
 title: HTTP
-description: HTTP requests with makeFetchDriver() and reply actions
+description: HTTP requests with makeFetchDriver() and reply actions, streamed responses and response headers
 ---
 
 For HTTP, use the built-in fetch driver instead of calling `fetch` in a component. Register it once in `main.js`:
@@ -61,7 +61,7 @@ Quote.model = {
 Click First, then Second before quote 1 arrives: with `latest: true` the first request is aborted (see [Only the Latest Response](#only-the-latest-response)), and the 404 goes to `FAILED`.
 
 - The **`ok` action** gets the parsed body: JSON when the response says so, otherwise text (see `parse` below).
-- The **`error` action** gets `{ error, status, body, request }`. For a non-2xx response, `status` and the parsed `body` are set and `error.message` reads like `'HTTP 404 Not Found: /api/quotes/9'`. For a network error, a body that doesn't parse, a timeout (`error.name === 'TimeoutError'`) or no `fetch`, `status` is `undefined`. `request` is the request as the model sent it.
+- The **`error` action** gets `{ error, status, body, headers, request }`. For a non-2xx response, `status`, the parsed `body` and the response's `headers` are set and `error.message` reads like `'HTTP 404 Not Found: /api/quotes/9'`. For a network error, a body that doesn't parse, a timeout (`error.name === 'TimeoutError'`) or no `fetch`, `status` is `undefined`. `request` is the request as the model sent it.
 - The reply goes to **exactly the component instance that sent the request**. Two `<Quote>` components, or every item of a Collection, can use the same action names without seeing each other's replies, and need no request ids.
 - If the instance is removed (a Collection item deleted, a page left), its requests are aborted and nothing arrives.
 - A name with no model entry is reported as [SYG112](/reference/errors/#syg112), with the closest model key (or the ancestor that has an entry of that name). A request with a `then` or `catch` key is not sent ([SYG610](/reference/errors/#syg610)): use `ok` and `error`.
@@ -148,19 +148,20 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | Field | Default | Meaning |
 |---|---|---|
 | `url` | (required) | The URL, prefixed with the driver's `baseUrl` |
-| `ok` | — | Action that receives the parsed body of a 2xx response |
-| `error` | — | Action that receives `{ error, status, body, request }` |
-| `key` | the `ok` action, else `error` | The group for `latest` and `abort` |
+| `ok` | — | Action that receives the parsed body of a 2xx response (with `stream`: the end) |
+| `error` | — | Action that receives `{ error, status, body, headers, request }` |
+| `key` | the `ok` action, else `error`, else `chunk` | The group for `latest` and `abort` |
 | `method` | `'POST'` with `json`/`multipart`/`body`, else `'GET'` | HTTP method |
 | `query` | — | Object appended as a query string, before any `#fragment`: `{ q: 'dune' }` → `?q=dune` (URL-encoded; `null`/`undefined` values skipped; an array repeats the key: `{ tag: ['a', 'b'] }` → `?tag=a&tag=b`) |
 | `json` | — | Body sent as `JSON.stringify(json)` with `Content-Type: application/json` |
 | `multipart` | — | A `multipart/form-data` body written as data: `{ file: state.file, title: state.title }` ([uploads](#upload-and-download-progress)) |
 | `body` | — | Raw body (string, `FormData`, `Blob`, …) |
 | `progress` | — | Report upload and download progress: an action name (`'UPLOADING'`) or `true` for `HTTP.progress()` ([Upload and download progress](#upload-and-download-progress)) |
+| `stream`, `chunk`, `done` | — | Read the body piece by piece: `stream: 'sse' \| 'ndjson' \| 'text'`, each piece to the `chunk` action, `done` the piece that ends it ([Streamed responses](#streamed-responses)) |
 | `headers` | — | Object or `Headers`, merged over the driver's `headers` case-insensitively (sent with lowercase names) |
 | `latest` | driver's `latest` (false) | Abort this instance's requests with the same key still in flight |
-| `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms |
-| `parse` | `'auto'` | How the body becomes the `ok` data: `'auto'` (JSON when the content-type says JSON, otherwise text; 204 → `null`), `'json'`, `'text'`, `'response'` (the `Response` itself), or a function `res => value` |
+| `timeoutMs` | driver's `timeoutMs` (none) | Fail with a `TimeoutError` after this many ms (with `stream`: if no byte has arrived by then) |
+| `parse` | `'auto'` | How the body becomes the `ok` data: `'auto'` (JSON when the content-type says JSON, otherwise text; 204 → `null`), `'json'`, `'text'`, `'response'` (the `Response` itself), or a function `res => value` ([Response headers](#response-headers)) |
 | `init` | driver's `init` | Other `fetch()` options: `{ credentials: 'include', mode, cache, redirect, referrer, referrerPolicy, integrity, keepalive, priority }` |
 | `cache`, `staleTime` | — | Answer from the driver's cache (GET/HEAD only): see [Resources and Caching](/guide/resources/#the-query-cache) |
 | `tags`, `invalidates` | — | Tags for [invalidation](/guide/resources/#invalidation); `invalidates: ['quotes']` refreshes the tagged reads after a 2xx reply |
@@ -239,6 +240,106 @@ await t.respond('HTTP', { name: 'sample.bin', size: 3145728 }, 'UPLOADED')
 expect(t.state.status).toBe('done')
 ```
 
+## Streamed Responses
+
+Some endpoints answer a POST with a body that arrives bit by bit: an assistant writing `data: {...}` lines as it thinks, an export sending one JSON line per row. Add `stream` to the request and name a `chunk` action: each piece arrives as that action as soon as it is read, and `ok` comes at the end. In this demo, a stand-in server answers a question with Server-Sent Events and ends with `data: [DONE]`:
+
+```js live-server
+export default {
+  'POST /api/copilot': ({ json }) => {
+    const words = `You asked: ${json.q} A streamed answer arrives one piece at a time.`.split(' ')
+    return { sse: [...words.map((w, i) => ({ text: (i ? ' ' : '') + w })), '[DONE]'], chunkMs: 120 }
+  },
+}
+```
+
+```jsx live title="Copilot.jsx"
+function Copilot({ state }) {
+  return (
+    <form className="copilot">
+      <input className="q" aria-label="Question" value={state.q} />
+      <button type="submit">Ask</button>
+      <button type="button" className="stop" disabled={state.status !== 'streaming'}>Stop</button>
+      <p className="answer" aria-live="polite">{state.answer}</p>
+      <p className="status">{state.status}</p>
+    </form>
+  )
+}
+Copilot.initialState = { q: 'What is a stream?', answer: '', status: 'idle' }
+Copilot.intent = ({ DOM }) => ({
+  TYPE: DOM.input('.q').value(),
+  ASK:  DOM.select('.copilot').events('submit', { preventDefault: true }),
+  STOP: DOM.click('.stop'),
+})
+Copilot.model = {
+  TYPE: (state, q) => ({ ...state, q }),
+  ASK: {
+    STATE: (state) => ({ ...state, answer: '', status: 'streaming' }),
+    HTTP:  (state) => ({
+      url: '/api/copilot', json: { q: state.q },
+      stream: 'sse', done: '[DONE]',
+      chunk: 'DELTA', ok: 'DONE', error: 'FAILED', latest: true,
+    }),
+  },
+  STOP: {
+    STATE: (state) => ({ ...state, status: 'stopped' }),
+    HTTP:  () => ({ abort: 'DONE' }),                 // the request's key: its ok action
+  },
+  DELTA:  (state, piece) => ({ ...state, answer: state.answer + piece.text }),
+  DONE:   (state) => ({ ...state, status: 'done' }),
+  FAILED: (state) => ({ ...state, status: 'failed' }),
+}
+```
+
+- **What a piece is**, by `stream`: `'sse'` gives each event's `data`, JSON-parsed when it parses (else the text); `'ndjson'` gives each non-blank line, parsed (a line that isn't JSON fails the request); `'text'` gives the text as it arrives, in whatever chunks the network delivers.
+- **The end** is the end of the body, or the piece `done` names: a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a predicate of the parsed piece (`done: (p) => p.type === 'finish'`). That piece isn't delivered, the connection is closed, and `ok` follows, with no data.
+- **Failures**: a non-2xx status goes to `error` like any request, with `status`, `body` and `headers`; so does a connection lost mid-stream, after the pieces read so far.
+- **What applies**: `latest`, `{ abort }`, `key` and removing the component stop the stream, and nothing more arrives from it. `timeoutMs` is the time to the first byte: a stream that has started never times out. `retry`, the cache, `parse`, `validate` and `progress` don't apply, and resources don't stream.
+- Without a `chunk` action, each piece is a reply on `HTTP.select(category)`; the end then adds nothing there.
+- For an AI chat UI with tools and messages, the [chat driver](/guide/ai-chat/) already reads the providers' formats; `stream` is for your own endpoints. A GET stream that stays open, with reconnects, is a [socket](/guide/sockets/) connection.
+
+In a test, `t.push` writes a piece to the pending stream request, in its format (an object as JSON), and `t.respond` ends it:
+
+```js
+t.simulateEvent('.copilot', 'submit')
+await t.push('HTTP', { text: 'Streams' })           // data: {"text":"Streams"}
+await t.push('HTTP', { text: ' arrive' })
+expect(t.state.answer).toBe('Streams arrive')
+await t.respond('HTTP', null)                       // the end of the body: DONE
+expect(t.state.status).toBe('done')
+```
+
+`t.push('HTTP', '[DONE]')` ends it through the `done` piece instead, and `t.fail('HTTP', 'connection reset')` after a piece loses the connection mid-stream. `t.respond` with a value other than `null` writes it as a last piece first.
+
+## Response Headers
+
+A failure carries the response's headers: the `error` action and `HTTP.errors()` get `headers` (a `Headers`), and the Error has them too (`error.headers`, so a resource's `state.quote.error.headers`). They are set whenever a response came back: a non-2xx status, or a 2xx whose body doesn't parse or validate. A network error or a timeout has none.
+
+```jsx
+Quote.model = {
+  FAILED: (state, { status, headers }) => ({
+    ...state,
+    error: status === 429 ? `Busy: try again in ${headers.get('Retry-After')} s.` : 'Could not load the quote.',
+  }),
+}
+```
+
+On success, read headers in a `parse` function. It gets the `Response` and returns what the `ok` action (or the resource's `data`) receives:
+
+```jsx
+Report.resources = {
+  report: () => ({
+    url: '/api/report',
+    parse: async (res) => ({ body: await res.json(), asOf: res.headers.get('X-Computed-At') }),
+  }),
+}
+// state.report.data is { body, asOf }
+```
+
+- The same `parse` works on a request with reply actions: `{ url, parse, ok: 'LOADED' }`.
+- **With the cache:** a request with a `parse` function is never cached, since the cache key can't tell two functions apart. Such a resource still works (stale-while-revalidate and de-duplication don't apply to it). To cache the value, have the server send it in the body.
+- In a test, answer with a real `Response` to give it headers: `t.respond('HTTP', new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json', 'X-Computed-At': '…' } }), 'report')`.
+
 ## Driver Options
 
 ```javascript
@@ -287,7 +388,8 @@ it('shows the picked quote, then a missing one', async () => {
 
 - The third argument picks the request: an action, key or category name (`'LOADED'`), a partial request (`{ url: '/api/quotes/2' }`), or a predicate. Without it, the newest pending request is answered.
 - A request that was superseded by `latest: true` or aborted is no longer pending, and answering it **throws at the call**: `expect(() => t.respond('HTTP', [], { query: { q: 'du' } })).toThrow()` asserts that a stale request can't land. (A call made while earlier input is still queued, such as a debounced search, waits up to 1 s for its request instead.)
-- `t.requests('HTTP')` lists the requests sent; `t.sinkValues('HTTP')` also has the `{ abort }` commands.
+- `t.requests('HTTP')` lists the requests sent; `t.sinkValues('HTTP')` also has the `{ abort }`, `{ invalidate }` and `{ reset }` commands.
+- A [streamed response](#streamed-responses) gets its pieces from `t.push('HTTP', piece)`, then `t.respond` ends it.
 
 The [Testing guide](/integration/testing/#answering-requests-respond-and-fail) has the full matching rules. In a running app, a sink with no driver is reported as [SYG609](/reference/errors/#syg609) (with the dev diagnostics on).
 
@@ -297,7 +399,7 @@ For data a component shows, declare it instead of loading it in the model: `` Qu
 
 ## Requests Without Reply Actions: select() and errors()
 
-A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of reply actions, flagged in strict mode as [SYG508](/reference/errors/#syg508).
+A request without `ok`/`error` has no reply actions: its reply goes to the `HTTP` source, read in the intent with `HTTP.select(category)` (`{ category, value, status, request }`) and `HTTP.errors(category)` (`{ error, category, request, status, body, headers }`). Use it to compose replies as streams, or for replies that a component other than the sender handles. Reading your own request back this way is the [alternative form](/advanced/alternative-forms/#selecterrors-round-trip) of reply actions, flagged in strict mode as [SYG508](/reference/errors/#syg508).
 
 ## Recipes
 

@@ -3909,6 +3909,8 @@ export interface RenderResult<STATE = any> {
    * awaited, fails the next wait) when no request comes or nothing receives a plain reply.
    * On the LLM fake (`llmSink`, default 'LLM'): the whole reply as one text chunk, then the end
    * of the stream (a non-string `value` is sent as JSON, for structured output).
+   * 7.2: on a request sent with `stream`, the end of its body (`ok`); a `value` other than
+   * null / undefined is written as a last piece first (pieces: t.push).
    */
   respond: (sinkName: string, value: any, target?: string | FakeReplyOptions | Record<string, any> | ((request: any) => boolean)) => Promise<void>;
   /**
@@ -3963,6 +3965,10 @@ export interface RenderResult<STATE = any> {
    * The server sends `data` (objects as JSON text) on open connection(s): `message` fires with
    * the data, JSON-parsed when it parses. `{ event, connection? }` sends an SSE named event;
    * `{ id }` gives an SSE event its id (what `meta: true` reports and `resume` resumes from).
+   * 7.2: on an HTTP fake, `data` is one piece of the pending request sent with `stream` that
+   * `target` picks (as in respond), written in its format (SSE `data:` lines, an NDJSON line, text;
+   * objects as JSON) and parsed by the real driver; `t.respond(name, null)` ends it. A sink other
+   * than the socket sink that declares no connections pushes to its stream requests.
    */
   push: (sinkName: string, data: any, target?: FakeConnectionTarget | { event?: string; id?: string | number; connection?: FakeConnectionTarget }) => Promise<void>;
   /**
