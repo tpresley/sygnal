@@ -80,6 +80,13 @@ both backends, the prompt ("up to 3 times") and `finish`.
 
 ### Forms whose fields are chosen at run time
 
+**Addressed in #69:** `form(schema, { dynamic: (state) => ({ path: start }) })` adds and removes
+fields as the host's state says (typed values kept, removed fields' touched/errors dropped), and
+`form((state) => schema)` makes required-ness follow what was composed (SYG239: a schema function
+that isn't memoized). The intake lab now names each piece's fields under its node key, lets the
+amount piece repeat, and has no app-side required check; a rejected submit no longer leaves
+`submitted: true` (`dev-plans/research/forms/runtime-fields.md`). The original notes:
+
 - **`form()` only takes names already in its start values** (others are skipped; SYG230 in dev).
   A composed form has to predeclare every name any piece could write, including the node keys of
   repeated parts (`extra: { question: '', 'question~2': '', 'question~3': '' }`), which ties the
@@ -169,7 +176,7 @@ worth measuring.
   `amount` piece: the form's names are fixed per piece (`amount`, `currency`), so a second amount
   would write over the first. Only `question` repeats, because its names come from the node key.
   Composed forms want a field-name scheme per node (`<node>.<field>`), which loops back to
-  `form()` needing to accept names that appear at run time.
+  `form()` needing to accept names that appear at run time. **Addressed in #69** (above).
 
 ## Model behaviour (qwen3:8b)
 
