@@ -244,7 +244,7 @@ function withResources(def: any, state: any, ctx?: any): any {
     let q: any
     try { q = typeof res[n] === 'function' ? res[n](state, ctx) : res[n] } catch (_) {}
     const E = q && ssrCache ? ssrCache.get(ssrCache.key(q, 1)) : undefined
-    out[n] = E && E.at > 0 ? {status: 'success', data: E.v} : {status: q ? 'loading' : 'idle'}
+    out[n] = E && E.at > 0 ? {status: 'success', data: E.v, ...(E.h && {headers: E.h})} : {status: q ? 'loading' : 'idle'}
   }
   return out
 }

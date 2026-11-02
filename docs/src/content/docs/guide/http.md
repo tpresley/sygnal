@@ -164,6 +164,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `parse` | `'auto'` | How the body becomes the `ok` data: `'auto'` (JSON when the content-type says JSON, otherwise text; 204 → `null`), `'json'`, `'text'`, `'response'` (the `Response` itself), or a function `res => value` ([Response headers](#response-headers)) |
 | `init` | driver's `init` | Other `fetch()` options: `{ credentials: 'include', mode, cache, redirect, referrer, referrerPolicy, integrity, keepalive, priority }` |
 | `cache`, `staleTime` | — | Answer from the driver's cache (GET/HEAD only): see [Resources and Caching](/guide/resources/#the-query-cache) |
+| `keepHeaders` | — | Response headers a resource keeps next to `data` (and the cache with its entry): `['X-Computed-At']` → `state.report.headers['x-computed-at']` ([Response headers](#response-headers)) |
 | `tags`, `invalidates` | — | Tags for [invalidation](/guide/resources/#invalidation); `invalidates: ['quotes']` refreshes the tagged reads after a 2xx reply |
 | `updates` | — | After a 2xx reply, write it into this component's resources (and their cache entries): `updates: 'item'`, or `{ items: (list, reply) => newList }` ([Writing a reply into the cache](/guide/resources/#writing-a-reply-into-the-cache)) |
 | `retry` | driver's `retry` for GET/HEAD (0) | Retry network errors, 408, 429 and 5xx: a count or `{ count, delayMs, maxDelayMs, jitter }` ([Retries](/guide/resources/#retries)) |
@@ -324,20 +325,18 @@ Quote.model = {
 }
 ```
 
-On success, read headers in a `parse` function. It gets the `Response` and returns what the `ok` action (or the resource's `data`) receives:
+On success, name the headers to keep: `keepHeaders: ['X-Computed-At']` puts them next to `data` in a resource's state, as `state.report.headers['x-computed-at']` (names lowercased; `null` when the response didn't send one). They work with the query cache, so a cached read shows the headers it was fetched with ([Showing when the data was computed](/guide/resources/#showing-when-the-data-was-computed)):
 
 ```jsx
 Report.resources = {
-  report: () => ({
-    url: '/api/report',
-    parse: async (res) => ({ body: await res.json(), asOf: res.headers.get('X-Computed-At') }),
-  }),
+  report: () => ({ url: '/api/report', keepHeaders: ['X-Computed-At'] }),
 }
-// state.report.data is { body, asOf }
+// state.report is { status: 'success', data, headers: { 'x-computed-at': '2026-11-01T10:00:00Z' } }
 ```
 
-- The same `parse` works on a request with reply actions: `{ url, parse, ok: 'LOADED' }`.
-- **With the cache:** a request with a `parse` function is never cached, since the cache key can't tell two functions apart. Such a resource still works (stale-while-revalidate and de-duplication don't apply to it). To cache the value, have the server send it in the body.
+- A refetch keeps the previous `headers` with `data` until its reply lands (`keepPrevious` too); a new request's `'loading'` clears them.
+- `keepHeaders` is part of what is fetched: changing it is a new request, and it is part of the cache key.
+- The `ok` action of a request with reply actions still gets the body. To read any part of the `Response` there, use a `parse` function: `parse: async (res) => ({ body: await res.json(), asOf: res.headers.get('X-Computed-At') })`. A request with a `parse` function is never cached, since the cache key can't tell two functions apart.
 - In a test, answer with a real `Response` to give it headers: `t.respond('HTTP', new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json', 'X-Computed-At': '…' } }), 'report')`.
 
 ## Driver Options

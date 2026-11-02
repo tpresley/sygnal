@@ -2636,6 +2636,14 @@ export type FetchRequest = string | {
   /** Invalidation tags of this request (and its cache entry): `{ invalidate: 'quotes' }` matches `tags: ['quotes']` */
   tags?: string[];
   /**
+   * 7.2: response headers to keep (case-insensitive): a resource's state gets
+   * `headers: { 'x-computed-at': '…' }` (lowercased names, `null` when absent) next to `data` on
+   * 'success', kept with `data` on refetches and `keepPrevious`; the query cache stores them with
+   * the entry (cache hits, `dehydrate()`, SSR). Part of the cache key and of the request's
+   * identity. The `ok` action still gets the body
+   */
+  keepHeaders?: string[];
+  /**
    * After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like
    * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands
    */
@@ -2756,7 +2764,7 @@ export type FetchCacheOptions = {
 
 /** PLAN-3 5-5 (H-7): one entry of a `dehydrate()` snapshot (JSON-safe when `data` is) */
 export type QueryCacheSnapshotEntry = {
-  /** method, URL as written (query sorted), body and parse: `'GET /api/quotes/1'` */
+  /** method, URL as written (query sorted), body, parse and keepHeaders: `'GET /api/quotes/1'` */
   key: string;
   /** the parsed (and validated) body */
   data: any;
@@ -2764,6 +2772,8 @@ export type QueryCacheSnapshotEntry = {
   updatedAt: number;
   /** the request's invalidation tags */
   tags?: string[];
+  /** 7.2: the kept response headers (`keepHeaders`) */
+  headers?: Record<string, string | null>;
 }
 export type QueryCacheSnapshot = QueryCacheSnapshotEntry[];
 
@@ -2773,8 +2783,11 @@ export interface QueryCache {
   dehydrate(): QueryCacheSnapshot;
   /** writes a snapshot's entries (an entry newer than the snapshot's is kept) */
   hydrate(snapshot: QueryCacheSnapshot | null | undefined): void;
-  /** writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`) */
-  set(request: ResourceRequest, data: any): void;
+  /**
+   * writes one entry, keyed like the request (a loader on the server: `cache.set('/api/quotes/1', quote)`).
+   * 7.2 `headers`: its kept headers (a `Headers` or an object; picked by the request's `keepHeaders`)
+   */
+  set(request: ResourceRequest, data: any, headers?: Headers | Record<string, string | null>): void;
   /** the driver given this cache fetches the request into it, without a reply (like the `{ prefetch }` command) */
   prefetch(request: ResourceRequest): void;
   /**
@@ -2813,11 +2826,12 @@ export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: 
  * `data` is the parsed (validated) body; `error` is the Error (`error.status` / `error.body` for
  * a non-2xx response, `error.issues` for a validation failure). D78: a refetch of the same
  * request keeps `data` and `error` with `refreshing: true`; a failed refetch keeps `data`.
+ * 7.2: `headers`, the request's `keepHeaders` (`{ lowercased name: value | null }`), kept with `data`.
  */
 export type Resource<DATA = any, ERROR = any> =
-  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined }
-  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean }
-  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean }
+  | { status: 'idle' | 'loading'; data?: undefined; error?: undefined; refreshing?: undefined; headers?: undefined }
+  | { status: 'success'; data: DATA; error?: undefined; refreshing?: boolean; headers?: Record<string, string | null> }
+  | { status: 'error'; data?: DATA; error: ERROR; refreshing?: boolean; headers?: Record<string, string | null> }
 
 /** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
@@ -3548,6 +3562,8 @@ export type FakeCacheEntry = {
   subscribers: number;
   /** the parsed body */
   data: any;
+  /** 7.2: the kept response headers (`keepHeaders`), `{ lowercased name: value | null }` */
+  headers?: Record<string, string | null>;
 }
 
 export interface RenderOptions {

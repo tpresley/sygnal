@@ -46,7 +46,7 @@ Quote.model = {
 }
 ```
 
-`state.quote` is `{ status, data, error, refreshing }`:
+`state.quote` is `{ status, data, error, refreshing }` (plus `headers` for a request with [`keepHeaders`](#showing-when-the-data-was-computed)):
 
 | `status` | When | `data` / `error` |
 |---|---|---|
@@ -85,7 +85,7 @@ With the cache on:
 - **`staleTime`** (default `0`): how long a reply counts as fresh. A fresh entry is served without any request; a `{ refresh }` always fetches.
 - **De-duplication.** Identical requests in flight share one fetch, even from different components; each component still gets its own `state[name]` (or its own `ok` action). The fetch is aborted only when no component still wants it.
 - **`gcTime`** (default 5 minutes): an entry that no mounted resource uses is dropped after this long.
-- The cache key is the method, the URL with its query (sorted), the body and `parse`. Resources' GET and HEAD requests are cached; a request opts out with `cache: false`. A request with a `parse` function or `parse: 'response'` is never cached: the key can't tell two functions apart, and a `Response` can't be kept. To cache a value from a response header, have the server put it in the body, or leave that read uncached ([Response headers](/guide/http/#response-headers)).
+- The cache key is the method, the URL with its query (sorted), the body and `parse`. Resources' GET and HEAD requests are cached; a request opts out with `cache: false`. With `keepHeaders`, the entry also keeps those response headers, and they are part of the key. A request with a `parse` function or `parse: 'response'` is never cached: the key can't tell two functions apart, and a `Response` can't be kept. To cache a value from a response header, use [`keepHeaders`](#showing-when-the-data-was-computed).
 - **`queryCache().clear()`** drops every entry (React Query's `queryClient.clear()`); mounted resources keep what they show. To reset them too, send `{ reset: true }` ([Resetting](#resetting)).
 
 Requests with reply actions keep one-send-one-request semantics unless they ask for the cache with `cache: true` or `staleTime`:
@@ -462,6 +462,36 @@ run(App, { HTTP: makeFetchDriver({ cache: queryCache() }) })
 - A hidden view's resource goes `'idle'`. Shown again within `staleTime`, the cached data is shown with no request; later it is shown at once and refetched (`'Updating…'`).
 - The save shows the new title at once (`updates`), and the list and item refetch (`invalidates`). A read in flight from before the save is aborted, so its reply never overwrites the saved title.
 
+### Showing when the data was computed
+
+A server that computes a report says when in a response header. `keepHeaders` keeps it next to the data, through refetches and the cache:
+
+```jsx title="Report.jsx"
+function Report({ state }) {
+  const { status, data, headers, refreshing } = state.report
+  if (status === 'loading') return <p>Loading…</p>
+  if (status === 'error' && !data) return <p>Could not load the report.</p>
+  return (
+    <section>
+      <p className="total">{data?.total} open tasks</p>
+      <p className="as-of">As of {headers?.['x-computed-at'] ?? 'unknown'}{refreshing ? ' (updating…)' : ''}</p>
+      <button className="refresh">Refresh</button>
+    </section>
+  )
+}
+Report.initialState = {}
+Report.resources = {
+  report: () => ({ url: '/api/report', keepHeaders: ['X-Computed-At'], refetchEvery: 60000 }),
+}
+Report.intent = ({ DOM }) => ({ REFRESH: DOM.click('.refresh') })
+Report.model = { REFRESH: { HTTP: { refresh: 'report' } } }
+```
+
+- `headers` holds the names asked for, lowercased, each a string or `null` when the response didn't send it.
+- While a refetch is in flight (`refreshing`), the old time stays with the old data; the new reply replaces both. A failed refetch keeps both.
+- With a `queryCache()`, the entry keeps the headers: coming back to the report shows its cached data with the time it was computed, and so do `dehydrate()` / `hydrate()` and server rendering. A server loader seeds both: `cache.set({ url: '/api/report', keepHeaders: ['X-Computed-At'] }, report, { 'X-Computed-At': computedAt })`.
+- In a test: `await t.respond('HTTP', new Response(JSON.stringify({ total: 3 }), { headers: { 'content-type': 'application/json', 'X-Computed-At': '10:00' } }), 'report')`, then `t.state.report.headers['x-computed-at']` is `'10:00'`; `t.cache('HTTP')` lists the entry's `headers`.
+
 ### Logout
 
 On logout, nothing fetched for the old user may be shown or served again. When the components that read user data stay mounted (a header with the user's name, a dashboard that turns into its signed-out version), reset everything: each mounted resource goes back to `'loading'` and refetches as the signed-out user, and every cache entry is dropped:
@@ -533,7 +563,7 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 
 - A resource's request is sent after the state changes, not during the event that caused it. `t.respond` / `t.fail` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch; otherwise, as for any request, they throw at the call when nothing matches.
 - `renderComponent(C, { http })` passes driver options (`cache: queryCache()`, `retry`, `timeoutMs`, …) to the fake: give it the same `queryCache()` as `main.js`, or the test runs without a cache. A seeded cache: `queryCache({ initial: snapshot })`.
-- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags }`.
+- `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags, headers }` (`headers` with `keepHeaders`).
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.
 - Retries and `refetchEvery` run on the test's timers, fake timers included. `t.requests('HTTP')` lists what the component sent (and each resource fetch), not each retry.

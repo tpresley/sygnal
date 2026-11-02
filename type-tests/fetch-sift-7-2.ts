@@ -1,6 +1,6 @@
 // Sift friction (7.2): stream requests, { reset }, queryCache().clear() and failure headers
 import { queryCache } from 'sygnal'
-import type { FetchRequest, FetchFailure, FetchError, ResourceRequest } from 'sygnal'
+import type { FetchRequest, FetchFailure, FetchError, ResourceRequest, Resource } from 'sygnal'
 
 export const streamed: FetchRequest = { url: '/api/copilot', json: { q: 'hi' }, stream: 'sse', chunk: 'DELTA', ok: 'DONE', error: 'FAILED', done: '[DONE]' }
 export const byPredicate: FetchRequest = { url: '/rows', stream: 'ndjson', chunk: 'ROW', done: (p: any) => p.last === true }
@@ -19,3 +19,9 @@ cache.clear()
 
 export const retryAfter = (f: FetchFailure) => f.headers?.get('Retry-After')
 export const requestId = (f: FetchError) => f.headers?.get('X-Request-Id')
+
+// item 5: keepHeaders
+export const kept: ResourceRequest = { url: '/api/report', keepHeaders: ['X-Computed-At'] }
+export const asOf = (r: Resource<{ total: number }>) => r.status === 'success' ? r.headers?.['x-computed-at'] : undefined
+cache.set('/api/report', { total: 1 }, { 'x-computed-at': 'now' })
+cache.set({ url: '/api/report', keepHeaders: ['X-Computed-At'] }, { total: 1 }, new Headers())

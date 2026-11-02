@@ -84,6 +84,10 @@ import {sse} from './sse';
  *   dropped, matching mounted resources go back to 'loading' with no data and no error and
  *   refetch, paused ones lose their kept result ('idle'). A fetch in flight for a dropped entry
  *   never writes the cache. `queryCache().clear()` drops every entry and leaves resources alone.
+ * - 7.2 `keepHeaders: [name, …]`: a resource's state gets `headers: { lowercased name: value | null }`
+ *   next to `data` on 'success' (kept with data on refetches, `keepPrevious` and errors; cleared
+ *   by a key change's 'loading'); the cache stores them with the entry (part of its key and of
+ *   the resource's identity). The `ok` data is still the body.
  * - `updates: name | names | { name: true | (data, reply) => data }` (G-184, setQueryData): on
  *   a 2xx, before the `ok` action and `invalidates`, the reply becomes the data of the sender's
  *   named resources that have a request, and of their cache entries; their reads in flight
@@ -263,6 +267,20 @@ export const toFormData = (parts: any) => {
 };
 
 const IDEMPOTENT = /^(GET|HEAD)$/i;
+/**
+ * 7.2 `keepHeaders`: `{ lowercased name: value | null }` of the names asked for, from a Headers
+ * or a plain object (case-insensitive); `all` with no names: every header of `h`, lowercased
+ */
+export const keptHeaders = (names: any, h: any, all?: any) => {
+  const obj = h && typeof h.get != 'function' ? Object.keys(h).reduce((o: any, k) => (o[k.toLowerCase()] = h[k] == null ? null : String(h[k]), o), {}) : undefined;
+  const get = (n: string) => (obj ? obj[n.toLowerCase()] : h?.get?.(n)) ?? null;
+  if (names?.length) return names.reduce((o: any, n: string) => (o[n.toLowerCase()] = get(n), o), {});
+  if (!all || !h) return undefined;
+  if (obj) return obj;
+  const out: any = {};
+  h.forEach?.((v: string, k: string) => { out[k.toLowerCase()] = v; });
+  return out;
+};
 const STREAMS = ['sse', 'ndjson', 'text'];
 /**
  * 7.2: the raw pieces of a streamed body: SSE events' data, NDJSON's non-blank lines, text as it
@@ -467,18 +485,21 @@ export function makeFetchDriver(options: any = {}) {
         const R = cur?.get(n), q = R?.q, f = u[n];
         if (!q) return;
         const k = C?.key(q, 1), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
+        // (the entry's kept headers stay)
+        const h = (k !== undefined ? C.get(k)?.h : undefined) ?? R.last?.headers;
         if (k !== undefined) {
-          C.put(k, q, d);
+          C.put(k, q, d, undefined, h);
           const F = C.f.get(k);
           F && stale(F);
         }
         rsrc.forEach((c, s2) => c.forEach((R2, n2) => {
-          if (R2 === R || (k !== undefined && !R2.p && R2.k === k)) { stop(s2, n2, R2); write(s2, n2, R2, 'success', d); }
+          if (R2 === R || (k !== undefined && !R2.p && R2.k === k)) { stop(s2, n2, R2); write(s2, n2, R2, 'success', d, undefined, undefined, h); }
         }));
       });
     };
-    const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any) => {
-      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined})});
+    // `h`: 7.2, the request's kept headers (keepHeaders), next to `data`
+    const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any, h?: any) => {
+      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined, ...(h !== undefined && {headers: h})})});
       poll(s, n, R);
     };
     // refetchEvery: polls after each result (and anew when the interval changes), skipping while
@@ -495,8 +516,8 @@ export function makeFetchDriver(options: any = {}) {
       const q = R.q, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
       stop(s, n, R);
       C?.use(R, k);
-      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go);
-      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true);
+      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go, E.h);
+      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true, L.headers);
       else write(s, n, R, 'loading');
       // R-1: the write is dispatched synchronously; when it changed the request (a navigation
       // recomputed the statics and a nested load sent the new one) or paused it, q is stale
@@ -527,7 +548,7 @@ export function makeFetchDriver(options: any = {}) {
               C?.use(R);
               const L = R.last;
               if (!L || !SETTLED.test(L.status)) write(sender, n, R, 'idle');
-              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error);
+              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error, undefined, L.headers);
             }
             return;
           }
@@ -600,12 +621,13 @@ export function makeFetchDriver(options: any = {}) {
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
-      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e),
+      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers),
         rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}));
-      r.ok = async (v: any, status: number, headers?: any) => {
+      // `kh`: the kept headers already picked (a cache hit)
+      r.ok = async (v: any, status: number, headers?: any, kh?: any) => {
         if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, headers, issues: e.issues}); }
         if (!finish(id)) return;
-        if (R) write(sender, rn!, R, 'success', v);
+        if (R) write(sender, rn!, R, 'success', v, undefined, undefined, kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined));
         if (updates && !sm) upd(sender, updates, v);
         // a stream's end is its ok action only (its pieces went to select())
         rk !== undefined && ok ? reply(sender, ok, sm ? undefined : v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
@@ -623,7 +645,7 @@ export function makeFetchDriver(options: any = {}) {
         }, ms);
       }
       // D79: a fresh cache entry answers without a fetch
-      if (after < 0 && C?.fresh(k, req)) return queueMicrotask(() => r.ok(C.get(k).v, 200)), id;
+      if (after < 0 && C?.fresh(k, req)) return queueMicrotask(() => r.ok(C.get(k).v, 200, undefined, C.get(k).h)), id;
       // D79: identical cacheable requests share a fetch (a refetch only one started after it asked)
       let F = k !== undefined && C.f.get(k);
       if (!F || F.id <= after) {
@@ -720,7 +742,7 @@ export function makeFetchDriver(options: any = {}) {
               let v: any;
               try { v = await parser(res); } catch (e) { return live() && end(e, {status: st, headers: res.headers}); }
               if (!live()) return;
-              if (k !== undefined && !F.z) C.put(k, req, v);
+              if (k !== undefined && !F.z) C.put(k, req, v, undefined, req.keepHeaders?.length ? keptHeaders(req.keepHeaders, res.headers) : undefined);
               end(0, v, st, res.headers);
             } catch (e) {
               live() && end(e);
