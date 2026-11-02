@@ -375,6 +375,21 @@ Feed.model = {
 
 `PAGE` runs on every successful fetch of the request, refetches included, so leave the cache's focus refetch off for such a list (`queryCache({ refetchOnFocus: false })`) or de-duplicate by id in `PAGE`.
 
+For a cursor API, keep the cursor in state instead of a page number. The request sends the cursor it was given, `PAGE` stores the next one, and "Load more" moves to it:
+
+```jsx
+Feed.initialState = { cursor: null, next: null, items: [] }
+Feed.resources = {
+  feed: (state) => ({ url: '/api/feed', query: { after: state.cursor }, ok: 'PAGE' }),
+}
+Feed.model = {
+  MORE: (state) => (state.feed.status === 'loading' || !state.next ? ABORT : { ...state, cursor: state.next }),
+  PAGE: (state, body) => ({ ...state, items: [...state.items, ...body.items], next: body.nextCursor }),
+}
+```
+
+A `null` cursor is left out of the query string, so the first request is plain `/api/feed`.
+
 ### List and detail with a save
 
 Each view declares its read only while it is shown, the cache shows a known list or item at once, and a save writes the reply and refetches both. In this demo, a stand-in server keeps three items, refuses an empty title, and the driver has a `queryCache()` (the `options` export):
