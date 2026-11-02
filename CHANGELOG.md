@@ -2,6 +2,16 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Fixed.**
+- **Combobox no longer pulls the focus back after it closes.** Zag returns the focus to the input
+  (and moves its caret to the end) a frame after the list closes, even when the focus has moved on by
+  then: Tab out of an `allowCustomValue` combobox, a click into another field right after Enter picks
+  an option. The input now drops that late focus and caret move when the focus isn't where it was at
+  the close (as React Aria, which never moves the focus later). It also made the ZS-3 and Round 2 Q2
+  browser tests flaky.
+
 ## 7.2.0-preview.1 — dev preview
 
 Fixes and additions from porting a large React app to the 7.2 preview. Everything is additive except

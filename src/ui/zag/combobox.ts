@@ -55,7 +55,7 @@ const commit = (x: any, blur?: any) => {
   const a = x.api(), q = a.inputValue, it = x.items.find((i: any) => i.label === q)
   x.t = 0
   // leaving closes the list (Zag closes it on a pointer or focus outside, not on every blur)
-  blur && a.open && a.setOpen(false)
+  blur && a.open && (x.fl = 1, a.setOpen(false))
   a.setValue(it ? [it.value] : q ? [q] : [])
 }
 
@@ -111,6 +111,24 @@ const onReset = (x: any, input: any) => (e: any) => e.defaultPrevented || setTim
   a.setInputValue(text)
   input.value = text
 })
+
+// 7.2: Zag returns the focus to the input a frame after the list closes (setFinalFocus: focus(),
+// then the caret to the end), even when the focus has moved on by then: a Tab out of the
+// combobox, a click into another field, the next field a user (or a test) types into. React Aria
+// never moves the focus later. So the input drops those two calls when the focus isn't where it
+// was at the close (always, for a close on leaving), until just after Zag's frame callback
+const closed = (x: any) => {
+  x.fa = x.fl ? 0 : x.el.ownerDocument.activeElement
+  x.fl = 0
+  // a microtask: after the transition queued Zag's callback, so this one runs after it
+  x.ff = 1, queueMicrotask(() => (globalThis.requestAnimationFrame || setTimeout)(() => { x.ff = 0 }))
+}
+const late = (x: any) => x.ff && x.el.ownerDocument.activeElement !== x.fa
+const guard = (x: any, el: any) => {
+  const {focus, setSelectionRange} = el
+  focus && (el.focus = function (o: any) { late(x) || focus.call(this, o) })
+  setSelectionRange && (el.setSelectionRange = function (...a: any[]) { late(x) || setSelectionRange.apply(this, a) })
+}
 
 // Round 2 (F-2): a multiple combobox's values as chips before the input (chips={false}: none),
 // each with a remove button (Zag's clearValue(value)); Backspace in the empty input removes the
@@ -208,6 +226,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
   // ZS-4: the reset listener on the input's form (its ancestor, or the `form` attribute's)
   const hook = {
     insert: (v: any) => {
+      guard(x, v.elm)
       const f = x.form = p.form != null ? v.elm.ownerDocument.getElementById(p.form) : v.elm.closest('form')
       f?.addEventListener('reset', x.reset = onReset(x, v.elm))
     },
@@ -262,7 +281,7 @@ export const Combobox: any = /*#__PURE__*/ fromZag(combobox, (api: any, p: any, 
       },
       onSelect: (d: any) => { x.t = 0; p.onSelect?.(d) },
       onValueChange: (d: any) => { x.t = 0; p.onValueChange?.(d) },
-      onOpenChange: (d: any) => { p.onOpenChange?.(d); d.open || (setText(x, ''), sync(0, x.p, x)) },
+      onOpenChange: (d: any) => { p.onOpenChange?.(d); d.open || (closed(x), setText(x, ''), sync(0, x.p, x)) },
     }
   },
   events: {

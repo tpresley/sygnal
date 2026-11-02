@@ -451,6 +451,36 @@ export async function uiZagTestsP5Z() {
   })
 
 
+  await runTest('7.2: a close doesn\'t pull the focus back once it has moved (Zag\'s deferred final focus)', async () => {
+    const { id, app, $ } = await mount(Picky)
+    try {
+      const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+      const city = $('.city input[role=combobox]'), free = $('.free input[role=combobox]')
+      const pick = async () => {
+        await window.__pw('click', `${id} .city [data-part=trigger]`)
+        await until(() => !$('.city [data-part=content]').hidden, 'open')
+        await frames()
+        await key('ArrowDown')
+        await until(() => $('.city [data-highlighted]'), 'highlighted')
+        // Enter picks and closes (Zag's setFinalFocus: the input's focus and caret a frame later)
+        city.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+      }
+      await window.__pw('click', `${id} .load`)
+      await until(() => city.value === 'Lisbon', 'loaded')
+      // in the same frame the focus moves on and selects the text: both stay
+      await pick()
+      free.select(); free.focus()
+      await frames()
+      assert(document.activeElement === free, `focus on ${document.activeElement === city ? 'the city input' : document.activeElement?.tagName}`)
+      assert(free.selectionStart === 0 && free.selectionEnd === free.value.length, `selection ${free.selectionStart}-${free.selectionEnd}`)
+      // a close that keeps the focus in the input still puts the caret at the end
+      await pick()
+      city.setSelectionRange(0, 0)
+      await frames()
+      assert(document.activeElement === city && city.selectionStart === city.value.length, `caret ${city.selectionStart} of ${city.value.length}`)
+    } finally { app.dispose() }
+  })
+
   // ── Round 2 ──────────────────────────────────────────────────────────
   const out = ($) => JSON.parse($('.out').textContent)
   await runTest('Round 2 Q2: allowCustomValue commits the typed text on Tab (and Enter)', async () => {
