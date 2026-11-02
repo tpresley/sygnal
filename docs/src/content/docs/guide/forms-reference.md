@@ -16,6 +16,7 @@ The details of the [`form` behavior](/guide/forms/). Start with the recipe on [F
 | `touched`, `server`, `remote`, `pending` | Blurred fields; [server errors](/guide/forms/#server-errors-and-failed-submits); [check](#async-checks) results; checks running |
 | `submitting`, `submitted`, `submitCount`, `queued`, `validating`, `validated` | Submit state: the request sent and not answered yet; `form.DONE` arrived (or a submit without a request was dispatched); attempts; a submit waits for a check or an async schema; an async schema runs; the schema has answered since the start or the last reset |
 | `progress`, `resets` | The submit request's last [progress](#file-fields) step (`{ phase, loaded, total, fraction }`, or `null`); how many times the form started over (`form.RESET`, `resetOnShow`), for keying a [file input](#file-fields) |
+| `added` | The [dynamic fields](#fields-chosen-at-run-time) on the form now: name → start value (`{}` without the `dynamic` option) |
 | `fields`, `valid`, `dirty`, `error` | Calculated: per-field view data; no errors as of the schema's last answer (`false` before the first); values differ from `initial`; the form-level message |
 
 The options are on [Forms](/guide/forms/#options).
@@ -36,6 +37,7 @@ Named after the `uses` key (`form.CHANGE` for `uses = { form: … }`):
 | `form.RESET` | Back to `initial`, or to the values given |
 | `form.PROGRESS` | A progress step of the submit's request, sent with `progress: 'form.PROGRESS'`: kept as `progress` until `form.DONE` or `form.ERRORS` ([file fields](#file-fields)) |
 | `form.VALIDATE` | Internal: the first validation when the host starts; with `resetOnShow`, the start over (also each time the form element appears again) |
+| `form.SYNC` | Internal: the [dynamic fields](#fields-chosen-at-run-time) changed with the host's state, or a schema function returned another schema; data `{ fields }` |
 
 As for any behavior, a host model entry with the same name runs after the form's: `'form.DONE': (state) => ({ ...state, done: true })` shows a confirmation. Trigger an action from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test.
 
@@ -302,6 +304,83 @@ Signup.model = {
 - Fields of child components and Collection items inside the form element count as the form's fields.
 - A failed submit focuses the first invalid field even inside a row.
 
+## Fields chosen at run time
+
+Some forms don't know their fields when they are written: the user adds a line, or a model composes the form from field pieces ([composed UI](/guide/ai-compose/)). Two things follow the host's state then:
+
+- **`dynamic: (state) => ({ name: start value })`** names the fields beyond `values` that are on the form now. The start value can be one value or an object of them (`{ amount: '', currency: 'USD' }` makes `line2.amount` and `line2.currency` fields). When an entry appears, it is added to `values` (and to `initial`, so it isn't dirty) with its start value; while it stays, it keeps what was typed (an object start value that changes shape reshapes it: new keys are added, keys it no longer has are dropped); when it goes, its value goes with it, and so do its touched state, server errors and check results. `form.RESET` and `resetOnShow` start the dynamic fields over too. A name that is in neither `values` nor `dynamic` is still ignored ([SYG230](/reference/errors/#syg230)).
+- **`form((state) => schema, options)`**: a schema that depends on the host's state, for rules that follow what is on the form (a line's amount is required while the line is there, a note becomes required once there are two lines). It is called whenever the form validates, and the form validates again when it returns another schema. The form caches results per schema object, so return the same schema while the rules don't change: memoize it on what it reads ([SYG239](/reference/errors/#syg239) when it builds a new one on every call).
+
+```jsx title="Expense.jsx"
+import { form } from 'sygnal'
+import { z } from 'zod'
+
+const line = z.object({ amount: z.coerce.number().positive('Enter an amount'), currency: z.string() })
+
+// one schema per list of lines (the form caches its results per schema object)
+const schemas = new WeakMap()
+function schemaOf(state) {
+  if (!schemas.has(state.lines)) {
+    schemas.set(state.lines, z.object({
+      note: state.lines.length > 1 ? z.string().min(1, 'Say what the amounts are for') : z.string(),
+      ...Object.fromEntries(state.lines.map((key) => [key, line])),
+    }))
+  }
+  return schemas.get(state.lines)
+}
+
+export default function Expense({ state }) {
+  const f = state.form.fields
+  return (
+    <form className="expense" noValidate>
+      {state.lines.map((key) => (
+        <div className="line">
+          <label>Amount <input name={`${key}.amount`} type="number" value={f[`${key}.amount`].value} /></label>
+          <select name={`${key}.currency`} aria-label="Currency">
+            {['USD', 'EUR'].map((c) => <option value={c} selected={f[`${key}.currency`].value === c}>{c}</option>)}
+          </select>
+          <span className="error">{f[`${key}.amount`].error}</span>
+          <button type="button" className="remove-line" data-key={key}>Remove</button>
+        </div>
+      ))}
+      <button type="button" className="add-line">Add an amount</button>
+      <label>Note <input name="note" value={f.note.value} /></label>
+      <span className="error">{f.note.error}</span>
+      <button type="submit">Send</button>
+    </form>
+  )
+}
+
+Expense.initialState = { lines: ['line1'], next: 2, sent: null }
+
+Expense.uses = {
+  form: form(schemaOf, {
+    values: { note: '' },
+    dynamic: (state) => Object.fromEntries(state.lines.map((key) => [key, { amount: '', currency: 'USD' }])),
+    form: '.expense',
+    submit: 'SEND',
+  }),
+}
+
+Expense.intent = ({ DOM }) => ({
+  ADD_LINE: DOM.click('.add-line'),
+  REMOVE_LINE: DOM.click('.remove-line').data('key'),
+})
+
+Expense.model = {
+  ADD_LINE: (state) => ({ ...state, lines: [...state.lines, `line${state.next}`], next: state.next + 1 }),
+  REMOVE_LINE: (state, key) => ({ ...state, lines: state.lines.filter((k) => k !== key) }),
+  // the schema's output: { note, line1: { amount: 12, currency: 'USD' }, … }, only the lines on the form
+  SEND: (state, data) => ({ ...state, sent: data }),
+}
+```
+
+- A field is in `state.form.fields` in the first render that shows it: the form adds it in the same update as the state change that names it.
+- Name the dynamic fields after something that identifies the piece, not its position (the line's key here; in a [composed form](/guide/ai-compose/), the `node` key a part gets as a prop: ``name={`${node}.amount`}``), so a piece can repeat and its values follow it when another is removed.
+- A submit the schema rejects is blocked like any other: nothing is dispatched, `submitted` stays `false`, the first invalid field is focused.
+- Dynamic names are object keys, not array rows (rows have [`form.ADD` / `form.REMOVE`](/guide/forms/#field-arrays)). A [`check`](#async-checks) is keyed by a fixed name, so it works on a dynamic field only when its name is known in advance.
+- The `examples/ai-adaptive` intake lab builds a form from pieces a model picks this way: each catalog part has its start value and its rules, keyed by node.
+
 ## Saving and resetting
 
 `form.DONE` marks the submit saved: `submitting` turns off, `submitted` on, and the saved values become `initial` (so `dirty` is `false` again).
@@ -434,7 +513,7 @@ A schema without `types` (a hand-written one) types the values from `values` and
 
 ## Diagnostics
 
-With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, [SYG236](/reference/errors/#syg236) array rows without an `id`, and [SYG237](/reference/errors/#syg237) two forms in one component on the same selector. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
+With the dev checks on (the Vite plugin in dev, `renderComponent` in tests): [SYG230](/reference/errors/#syg230) a field inside the form whose name isn't in `values`, [SYG231](/reference/errors/#syg231) a schema that isn't a Standard Schema, [SYG232](/reference/errors/#syg232) a submit dropped while one is in progress (info), [SYG233](/reference/errors/#syg233) a value the schema strips from its output, [SYG234](/reference/errors/#syg234) a `submit` action the model doesn't have, [SYG235](/reference/errors/#syg235) a `check` for an unknown field, or a check request that sets `ok`/`error`/`latest`, [SYG236](/reference/errors/#syg236) array rows without an `id`, [SYG237](/reference/errors/#syg237) two forms in one component on the same selector, and [SYG239](/reference/errors/#syg239) a schema function that builds a new schema on every call. `sygnal-check` knows `form`: an option typo is [SYG127](/reference/errors/#syg127), and fields inside the form element are not reported as uncontrolled ([SYG111](/reference/errors/#syg111)).
 
 ## processForm()
 

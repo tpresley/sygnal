@@ -536,8 +536,8 @@ export const EXPLANATIONS = {
     title: "Form field name not in values",
     severity: "warn",
     reportedBy: ["dev-entry"],
-    explanation: "The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name, on `input`; fields without a `name` are skipped silently, and so is a `focusout` from a named element that isn't a field (a `<button name=\"intent\">`). A field whose value is `undefined` (an optional field: `values: { nick: undefined }`) is a field.",
-    fix: "Name the input after a path in `values` (`name=\"email\"`, or `name={f.email.name}` from `state.form.fields`), add the field to `values`, or move the unrelated input out of the form element.",
+    explanation: "The `form` behavior hears `input` and `focusout` on its form element and reads the event target's `name` as a path in `values` (`email`, `addresses.7.city` for the row with id 7). A named field inside the form whose name is not a field of `values` is ignored: its value never reaches `state.form` and it is never validated. It is usually a typo, a renamed field, a row name built with the index instead of the row's `id`, or an input that belongs to something else (a search box) placed inside the form element. Reported once per name, on `input`; fields without a `name` are skipped silently, and so is a `focusout` from a named element that isn't a field (a `<button name=\"intent\">`). A field whose value is `undefined` (an optional field: `values: { nick: undefined }`) is a field. Fields that come and go with the host's state (a form composed from pieces) are fields while the `dynamic` option names them.",
+    fix: "Name the input after a path in `values` (`name=\"email\"`, or `name={f.email.name}` from `state.form.fields`), add the field to `values`, or move the unrelated input out of the form element. For a field that appears at run time, name it in the `dynamic` option with its start value: `dynamic: (state) => Object.fromEntries(state.lines.map((key) => [key, { amount: '', currency: 'USD' }]))` makes `${key}.amount` a field while the line is there.",
   },
   SYG231: {
     title: "form() schema is not a Standard Schema",
@@ -571,7 +571,7 @@ export const EXPLANATIONS = {
     title: "Form check names an unknown field or sets reply fields",
     severity: "warn",
     reportedBy: ["dev-entry"],
-    explanation: "`check: { email: { request, error } }` runs an async check for a field through a driver: the form sends `request(value)` with its own reply action (`ok`/`error` set to `'form.CHECKED_email'`) and `latest: true`, so a newer value's check replaces an older one. A `check` key that isn't a field of `values` never runs (reported when the component is created), and a request that sets `ok`, `error` or `latest` has them replaced by the form's (reported when the check runs).",
+    explanation: "`check: { email: { request, error } }` runs an async check for a field through a driver: the form sends `request(value)` with its own reply action (`ok`/`error` set to `'form.CHECKED_email'`) and `latest: true`, so a newer value's check replaces an older one. A `check` key that isn't a field of `values` never runs (reported when the component is created; not with the `dynamic` option, whose fields may include it), and a request that sets `ok`, `error` or `latest` has them replaced by the form's (reported when the check runs).",
     fix: "Use a field name from `values` as the key, and return only the request from `request`: `check: { email: { request: (email) => ({ url: '/api/email-free', query: { email } }), error: (body) => !body.free && 'Taken' } }`.",
   },
   SYG236: {
@@ -587,6 +587,13 @@ export const EXPLANATIONS = {
     reportedBy: ["dev-entry"],
     explanation: "Each `form` behavior hears `input`, `focusout` and `submit` on its form element, found by the `form` option inside the host component (default `'form'`). Two `form` uses in one component with the same selector (both left at the default, usually) both match every form element of the view, so typing in one form changes the other's values too (when the names overlap) and each submit is handled by both. Reported when the component is created.",
     fix: "Give each form element its own class and pass it as the `form` option: `uses = { login: form(loginSchema, { ..., form: '.login' }), news: form(newsSchema, { ..., form: '.news' }) }` with `<form className=\"login\">` and `<form className=\"news\">`.",
+  },
+  SYG239: {
+    title: "Form schema function returns a new schema for the same state",
+    severity: "warn",
+    reportedBy: ["dev-entry"],
+    explanation: "`form((state) => schema, options)` validates with a schema that depends on the host's state (which fields are required depends on what is on the form). The form calls the function whenever it validates and caches each result per schema object, and it re-validates whenever the function returns another schema. This function returned a new schema object when called twice with the same state: it builds the schema on every call. The form then re-validates on every state change of the host (each keystroke), and an async schema never settles (each answer changes the state, which makes a new schema, which starts another validation). Reported once, in development (the check calls the function a second time).",
+    fix: "Return the same schema object while the rules don't change: memoize it on what it reads. For a schema built from a list or a layout in state, cache it per that object: `const schemas = new WeakMap(); const schemaOf = (state) => { if (!schemas.has(state.lines)) schemas.set(state.lines, build(state.lines)); return schemas.get(state.lines) }`, then `form(schemaOf, { ... })`.",
   },
   SYG238: {
     title: "Root component with a model but no initial state",

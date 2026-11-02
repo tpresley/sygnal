@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { renderComponent } from 'sygnal'
 import { composeWith } from 'sygnal/ai'
 import IntakeLab from './IntakeLab.jsx'
-import { catalog, missingNames, placed, requiredNames } from './catalog.jsx'
+import { catalog, placed } from './catalog.jsx'
 
 let t
 afterEach(() => { t?.dispose(); t = null })
@@ -44,49 +44,86 @@ describe('building the form', () => {
     expect(html).toContain('<legend>What happened</legend>')
     expect(html).toContain('When did you lose it?')
     expect(html).toContain('Was the laptop encrypted?')
-    expect(html).toContain('name="assetTag"')
-    expect(html).toContain('name="extra.question"')
+    expect(html).toContain('name="device.assetTag"')
+    expect(html).toContain('name="question"')
     expect(placed(t.state.page.layout).map((p) => p.key)).toEqual(['device', 'dates', 'place', 'urgency', 'contact', 'question'])
   })
 
-  it('keeps every value in the one form slice, model-written questions under extra.<node key>', async () => {
+  it('keeps every value in the one form slice, each piece\'s under its node key, and only the pieces placed', async () => {
     await build()
-    type('assetTag', 'AT-10442')
-    type('extra.question', 'yes')
+    type('device.assetTag', 'AT-10442')
+    type('question', 'yes')
     await t.settle()
-    expect(t.state.intake.values.assetTag).toBe('AT-10442')
-    expect(t.state.intake.values.extra).toEqual({ question: 'yes', 'question~2': '', 'question~3': '' })
+    expect(t.state.intake.values).toEqual({
+      device: { kind: '', assetTag: 'AT-10442' },
+      dates: { start: '' },
+      place: '',
+      urgency: '',
+      contact: { email: '', phone: '' },
+      question: 'yes',
+    })
+  })
+
+  it('a piece can repeat: two amounts, each with its own values', async () => {
+    await build('Expense the flight and the hotel', [
+      { part: 'amount', params: { label: 'Flight' } },
+      { part: 'amount', params: { label: 'Hotel' } },
+    ])
+    expect(placed(t.state.page.layout).map((p) => p.key)).toEqual(['amount', 'amount~2'])
+    type('amount.amount', '320')
+    type('amount~2.amount', '180')
+    t.simulateEvent('[name="amount~2.currency"]', 'input', { value: 'EUR' })
+    await t.settle()
+    t.simulateEvent('.intake', 'submit')
+    await t.waitForState((s) => s.sent)
+    expect(t.state.sent.values).toEqual({ amount: { amount: 320, currency: 'USD' }, 'amount~2': { amount: 180, currency: 'EUR' } })
   })
 })
 
 describe('what the form requires', () => {
-  it('follows the composed form, not a fixed schema', async () => {
+  it('follows the composed form: every field on it, by the piece\'s params (the contact\'s phone is required here)', async () => {
     await build()
-    expect(requiredNames(t.state.page.layout)).toEqual(['device', 'assetTag', 'start', 'place', 'urgency', 'email', 'phone', 'extra.question'])
-    expect(missingNames(t.state.page.layout, { ...t.state.intake.values, device: 'laptop' })).not.toContain('device')
+    expect(Object.keys(t.state.intake.errors)).toEqual(['device.kind', 'device.assetTag', 'dates.start', 'place', 'urgency', 'contact.email', 'contact.phone', 'question'])
+    expect(t.state.intake.valid).toBe(false)
   })
 
   it('marks the empty fields on submit and sends once they are filled', async () => {
     await build('Request a second monitor', [{ part: 'device' }, { part: 'approver' }])
     t.simulateEvent('.intake', 'submit')
-    await t.next((s) => s.missing.length > 0)
-    expect(t.state.missing).toEqual(['device', 'assetTag', 'approver'])
+    await t.next((s) => s.intake.submitCount === 1)
+    expect(t.state.sent).toBe(null)
+    expect(t.state.intake.submitted).toBe(false)
+    expect(t.state.intake.fields['device.kind'].error).toBe('Required')
     expect(t.html()).toContain('Fill in the 3 highlighted fields.')
 
-    t.simulateEvent('[name="device"]', 'input', { value: 'monitor' })
-    type('assetTag', 'AT-20001')
+    t.simulateEvent('[name="device.kind"]', 'input', { value: 'monitor' })
+    type('device.assetTag', 'AT-20001')
     t.simulateEvent('[name="approver"]', 'input', { value: 'kim' })
-    await t.next((s) => s.missing.length === 0)
+    await t.settle()
+    expect(t.html()).not.toContain('highlighted field')
     t.simulateEvent('.intake', 'submit')
     await t.waitForState((s) => s.sent)
-    expect(t.state.sent.values).toMatchObject({ device: 'monitor', assetTag: 'AT-20001', approver: 'kim' })
+    expect(t.state.sent.values).toEqual({ device: { kind: 'monitor', assetTag: 'AT-20001' }, approver: 'kim' })
     expect(Object.keys(t.state.sent.fields)).toEqual(['device', 'approver'])
+  })
+
+  it('a piece removed is no longer required, and its value is not sent', async () => {
+    await build('Request a second monitor', [{ part: 'device' }, { part: 'approver' }])
+    t.simulateEvent('[name="approver"]', 'input', { value: 'kim' })
+    t.simulateEvent('.intake', 'submit')
+    await t.next((s) => s.intake.submitCount === 1)
+    t.simulateEvent('.remove-piece[data-key="device"]', 'click')
+    await t.waitForState((s) => !s.page.layout.nodes.device)
+    expect(t.state.intake.errors).toEqual({})
+    t.simulateEvent('.intake', 'submit')
+    await t.waitForState((s) => s.sent)
+    expect(t.state.sent.values).toEqual({ approver: 'kim' })
   })
 
   it('still runs the schema checks of the pieces that are there', async () => {
     await build('Request a second monitor', [{ part: 'device' }])
-    type('assetTag', 'sticker 12')
-    t.simulateEvent('[name="assetTag"]', 'focusout')
+    type('device.assetTag', 'sticker 12')
+    t.simulateEvent('[name="device.assetTag"]', 'focusout')
     await t.settle()
     expect(t.html()).toContain('Asset tags look like AT-10442')
   })
@@ -115,6 +152,7 @@ describe('editing the form', () => {
     t.simulateEvent('.remove-piece[data-key="question"]', 'click')
     await t.waitForState((s) => !s.page.layout.nodes.question)
     expect(t.requests('LLM').length).toBe(calls)
+    expect('question' in t.state.intake.values).toBe(false)
   })
 })
 
