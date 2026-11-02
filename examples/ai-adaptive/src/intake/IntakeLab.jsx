@@ -1,0 +1,193 @@
+// Lab 1: a form built from pieces for the task the person describes.
+//
+// - The person writes the task ("I left my laptop on the train"); the model picks the field
+//   pieces it needs, writes their labels and questions, and groups them.
+// - The pieces are view functions inside the host's <form className="intake">, so one `form`
+//   behavior holds every value, whatever the model placed.
+// - While the form is filled in, the app edits it (adapt.js): "critical" adds an approver, a large
+//   amount adds a receipts upload. Each edit is a follow-up compose, so what was typed stays.
+// - The person can edit it too, in words ("also ask for a phone number"), or remove a piece.
+import { ABORT, form } from 'sygnal'
+import { compose } from 'sygnal/ai'
+import { z } from 'zod'
+import { catalog, formRequest, missingNames, placed } from './catalog.jsx'
+import { nextRule, RULES } from './adapt.js'
+import { EMPTY, TASKS } from './data.js'
+import { llm } from '../llm.js'
+import { modelPlan } from '../plan.jsx'
+
+// Every piece's value, all optional: which ones are required depends on the composed form, which a
+// schema fixed at definition can't know. The app checks those on submit (missingNames).
+const schema = z.object({
+  email: z.union([z.literal(''), z.email('Enter an email address')]),
+  phone: z.string(),
+  start: z.string(),
+  end: z.string(),
+  amount: z.union([z.literal(''), z.coerce.number().positive('Enter an amount above 0')]),
+  currency: z.string(),
+  device: z.string(),
+  assetTag: z.union([z.literal(''), z.string().regex(/^AT-\d{4,6}$/, 'Asset tags look like AT-10442')]),
+  place: z.string(),
+  details: z.string(),
+  urgency: z.string(),
+  approver: z.string(),
+  consent: z.boolean(),
+  attachments: z.any(),
+  extra: z.record(z.string(), z.string()),
+})
+
+const STATUS = {
+  idle: () => 'Describe what you need; the form is built for it.',
+  composing: () => 'Building the form…',
+  preview: () => 'Placing the fields…',
+  done: () => '',
+  unavailable: () => 'Nothing in the field library fits that.',
+  error: (page) => `The model failed: ${page.error}`,
+}
+
+export default function IntakeLab({ state }) {
+  const page = state.page
+  const busy = page.status === 'composing' || page.status === 'preview'
+  const pieces = placed(page.layout)
+  return (
+    <section className="lab intake-lab">
+      <header>
+        <h2>An intake form, built for the task</h2>
+        <p className="muted">The model picks field pieces from a library and writes their labels. The app keeps one form state for all of them, and grows the form as you fill it in.</p>
+      </header>
+
+      <form className="ask">
+        <input className="task" aria-label="What do you need?" value={state.task} placeholder="e.g. I left my work laptop on the train" />
+        <button type="submit" disabled={busy || !state.task.trim()}>Build the form</button>
+      </form>
+      <div className="chips">
+        {TASKS.map((t) => <button type="button" className="chip task-chip" data={{ task: t }} disabled={busy}>{t}</button>)}
+      </div>
+
+      {page.layout && (
+        <form className="change">
+          <input className="change-prompt" aria-label="Change the form" value={state.change} placeholder="Change it: “also ask for a phone number”, “drop the dates”" />
+          <button type="submit" disabled={busy || !state.change.trim()}>Change</button>
+        </form>
+      )}
+
+      <p className="status" aria-live="polite">{STATUS[page.status](page)}</p>
+
+      {state.sent ? (
+        <div className="sent">
+          <h3>Sent</h3>
+          <pre>{JSON.stringify(state.sent, null, 2)}</pre>
+          <button type="button" className="again">File another</button>
+        </div>
+      ) : (page.layout || page.preview) && (
+        <form className={page.preview ? 'intake preview' : 'intake'} novalidate>
+          {catalog.render(page, state)}
+          {pieces.length > 0 && (
+            <div className="intake-actions">
+              <button type="submit" disabled={busy}>Send</button>
+              {state.missing.length > 0 && <span className="error">Fill in the {state.missing.length} highlighted field{state.missing.length > 1 ? 's' : ''}.</span>}
+            </div>
+          )}
+        </form>
+      )}
+
+      {pieces.length > 0 && (
+        <aside className="explain">
+          <h3>On this form</h3>
+          <ul>
+            {pieces.map((p) => (
+              <li>
+                <code>{p.key}</code> {Object.entries(p.params).map(([k, v]) => <span className="param">{k}: {String(v)}</span>)}
+                <button type="button" className="remove-piece link" data={{ key: p.key }} aria-label={`Remove ${p.key}`}>remove</button>
+              </li>
+            ))}
+          </ul>
+          {state.adapted.length > 0 && (
+            <>
+              <h3>Added while you typed</h3>
+              <ul>{state.adapted.map((id) => <li>{RULES.find((r) => r.id === id).why}</li>)}</ul>
+            </>
+          )}
+          {modelPlan(page.decisions)}
+        </aside>
+      )}
+    </section>
+  )
+}
+
+IntakeLab.initialState = {
+  task: '',
+  change: '',
+  missing: [],
+  adapted: [],
+  sent: null,
+}
+
+IntakeLab.isolatedState = true
+
+IntakeLab.uses = {
+  page: compose(catalog, { backend: llm(), key: 'intake-compose' }),
+  intake: form(schema, { values: EMPTY, form: '.intake', submit: 'SEND' }),
+}
+
+IntakeLab.intent = ({ DOM, STATE }) => ({
+  TASK: DOM.input('.task').value(),
+  CHANGE_TEXT: DOM.input('.change-prompt').value(),
+  BUILD: DOM.submit('.ask', { preventDefault: true }),
+  PICK_TASK: DOM.click('.task-chip').data('task'),
+  CHANGE: DOM.submit('.change', { preventDefault: true }),
+  REMOVE_PIECE: DOM.click('.remove-piece').data('key'),
+  AGAIN: DOM.click('.again'),
+  // the form grows while it's filled in: each time the values or the layout change, the rule to apply
+  ADAPT: STATE.watch(nextRule).filter(Boolean),
+})
+
+IntakeLab.model = {
+  TASK: (state, task) => ({ ...state, task }),
+  CHANGE_TEXT: (state, change) => ({ ...state, change }),
+
+  // a new task: a new form, values cleared
+  BUILD: {
+    STATE: (state) => ({ ...state, missing: [], adapted: [], sent: null }),
+    EFFECT: (state, _, next) => {
+      next('intake.RESET')
+      next('page.COMPOSE', { prompt: formRequest(state.task), fresh: true })
+    },
+  },
+  PICK_TASK: {
+    STATE: (state, task) => ({ ...state, task, missing: [], adapted: [], sent: null }),
+    EFFECT: (state, task, next) => {
+      next('intake.RESET')
+      next('page.COMPOSE', { prompt: formRequest(task), fresh: true })
+    },
+  },
+
+  // the person's own edit, in words: a follow-up of the current form
+  CHANGE: {
+    STATE: (state) => ({ ...state, change: '' }),
+    EFFECT: (state, _, next, props) => next('page.COMPOSE', props.previousState.change),
+  },
+  REMOVE_PIECE: { EFFECT: (state, key, next) => next('page.REMOVE', key) },
+
+  ADAPT: {
+    STATE: (state, rule) => (state.adapted.includes(rule.id) ? ABORT : { ...state, adapted: [...state.adapted, rule.id] }),
+    EFFECT: (state, rule, next) => next('page.COMPOSE', rule.prompt),
+  },
+
+  // a valid submit (the schema's checks): the app's own check of what this form requires
+  SEND: (state, values) => {
+    const missing = missingNames(state.page.layout, values)
+    if (missing.length) return { ...state, missing }
+    const sent = Object.fromEntries(placed(state.page.layout).map((p) => [p.key, p.params]))
+    return { ...state, missing: [], sent: { task: state.task, fields: sent, values: { ...values, attachments: values.attachments?.length ?? 0 } } }
+  },
+  // a field filled in clears its "Required"
+  'intake.CHANGE': (state, { name }) => (state.missing.includes(name) ? { ...state, missing: state.missing.filter((n) => n !== name) } : ABORT),
+  AGAIN: {
+    STATE: (state) => ({ ...state, sent: null, task: '', missing: [], adapted: [] }),
+    EFFECT: (state, _, next) => {
+      next('intake.RESET')
+      next('page.SET_LAYOUT', null)
+    },
+  },
+}

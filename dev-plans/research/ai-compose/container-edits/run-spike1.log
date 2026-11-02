@@ -1,0 +1,78 @@
+false c1         -        keys   6537ms contact dates{mode=range} amount approver details
+false c2         -   T ok keys    890ms section(dates,amount) details
+false c3       EXACT T ok keys    879ms section(dates,amount) details
+false c4         -   T ok keys    958ms 
+false c5         -   T ok keys    833ms section(dates) section(approver) amount
+false c6         -   T no keys   3557ms question{answer=long} dates place details contact approver urgency
+false c7         -   T ok keys    850ms section(dates,amount) approver contact
+false c8         -   T no keys   2055ms approver section(dates,amount)
+false c9         -   T ok keys   1427ms contact
+false c10      EXACT T ok keys    922ms section(dates,amount) section(approver,contact)
+false r1       EXACT      keys    727ms dates contact details
+false r2       EXACT      keys    636ms contact dates details attachments
+false r3       EXACT      keys    765ms dates details
+false r4       EXACT      keys    831ms dates{mode=range} amount
+false r5       EXACT      keys    840ms urgency section(dates,amount) details
+false r6       EXACT      keys    756ms section(dates,amount) details attachments
+false r7       EXACT      keys    633ms section(dates) details
+false edit-1   EXACT      keys   2342ms orders tickets
+false edit-2   EXACT      keys    709ms row(revenue,signups) revenueChart
+false edit-3   EXACT      keys    799ms weather tasks feedback
+false edit-4   EXACT      keys    806ms revenue revenueChart{range=quarter}
+false edit-5     -        keys   1603ms row(weather,tasks)
+false edit-6   EXACT      keys    961ms revenueChart tickets
+false edit-7   EXACT      keys    992ms row(churn,signups,revenue)
+false edit-8   EXACT      keys   1016ms orders{status=refunded} weather
+false edit-9   EXACT      keys   1039ms feedback row(tasks,weather)
+false edit-10  EXACT      keys   1132ms revenue revenueChart tickets{priority=high}
+== false: container 2/10 exact, keys kept 10/10, median 958 ms, max 6537 ms; plain 7/7 exact, keys kept 7/7, median 756 ms, max 840 ms; research 9/10 exact, keys kept 10/10, median 1016 ms, max 2342 ms
+ops   c1       EXACT      keys   3000ms section(dates,amount) section(approver,contact) details
+ops   c2       EXACT T ok keys    879ms section(dates,amount,details)
+ops   c3         -   T no keys   1086ms dates amount details
+ops   c4       EXACT T ok keys    964ms dates amount approver contact
+ops   c5       EXACT T ok keys    827ms section(dates) section(approver,amount)
+ops   c6       EXACT T ok keys   1264ms section(dates,place) details contact
+ops   c7       EXACT T ok keys    945ms section(dates,amount,approver) contact
+ops   c8       EXACT T ok keys   1125ms section(dates,amount) section(contact,approver)
+ops   c9       EXACT T ok keys    853ms details attachments contact
+ops   c10      EXACT T ok keys   1040ms section(dates,amount) section(approver,contact)
+ops   r1       EXACT      keys    826ms dates contact details
+ops   r2       EXACT      keys    669ms contact dates details attachments
+ops   r3       EXACT      keys    609ms dates details
+ops   r4       EXACT      keys    885ms dates{mode=range} amount
+ops   r5       EXACT      keys    810ms urgency section(dates,amount) details
+ops   r6       EXACT      keys    737ms section(dates,amount) details attachments
+ops   r7       EXACT      keys    611ms section(dates) details
+ops   edit-1   EXACT      keys   1850ms orders tickets
+ops   edit-2   EXACT      keys    721ms row(revenue,signups) revenueChart
+ops   edit-3   EXACT      keys    681ms weather tasks feedback
+ops   edit-4   EXACT      keys    862ms revenue revenueChart{range=quarter}
+ops   edit-5     -        keys   1375ms section(tasks,weather)
+ops   edit-6   EXACT      keys   1123ms revenueChart tickets
+ops   edit-7   EXACT      keys    931ms row(churn,signups,revenue)
+ops   edit-8   EXACT      keys    876ms orders{status=refunded} weather
+ops   edit-9   EXACT      keys   1019ms feedback row(tasks,weather)
+ops   edit-10  EXACT      keys   1051ms revenue revenueChart tickets{priority=high}
+== ops: container 9/10 exact, keys kept 10/10, median 1040 ms, max 3000 ms; plain 7/7 exact, keys kept 7/7, median 737 ms, max 885 ms; research 9/10 exact, keys kept 10/10, median 1019 ms, max 1850 ms
+page  c1         -        keys   8569ms ERROR The model's reply is not a layout (no list of parts)
+page  c2         -        keys   1214ms ERROR The model's reply is not a layout (no list of parts)
+page  c3         -        keys   3195ms ERROR The model's reply is not a layout (no list of parts)
+page  c4         -        keys   2547ms ERROR The model's reply is not a layout (no list of parts)
+page  c5         -        keys   1224ms ERROR The model's reply is not a layout (no list of parts)
+page  c6         -        keys   4102ms ERROR The model's reply is not a layout (no list of parts)
+page  c7         -        keys   3645ms ERROR The model's reply is not a layout (no list of parts)
+page  c8         -        keys   5200ms ERROR The model's reply is not a layout (no list of parts)
+page  c9         -        keys   2455ms ERROR The model's reply is not a layout (no list of parts)
+page  c10        -        keys   1408ms ERROR The model's reply is not a layout (no list of parts)
+page  r1         -        keys   2611ms ERROR The model's reply is not a layout (no list of parts)
+page  r2         -        keys   3008ms ERROR The model's reply is not a layout (no list of parts)
+page  r3         -        keys   2138ms ERROR The model's reply is not a layout (no list of parts)
+page  r4         -        keys   2890ms ERROR The model's reply is not a layout (no list of parts)
+page  r5         -        keys   1288ms ERROR The model's reply is not a layout (no list of parts)
+page  r6         -        keys   1103ms ERROR The model's reply is not a layout (no list of parts)
+page  r7         -        keys    857ms ERROR The model's reply is not a layout (no list of parts)
+page  edit-1     -        keys   2365ms ERROR The model's reply is not a layout (no list of parts)
+page  edit-2     -        keys   1857ms ERROR The model's reply is not a layout (no list of parts)
+page  edit-3     -        keys   1162ms ERROR The model's reply is not a layout (no list of parts)
+page  edit-4     -        keys   1130ms ERROR The model's reply is not a layout (no list of parts)
+page  edit-5     -        keys    803ms ERROR The model's reply is not a layout (no list of parts)

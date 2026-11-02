@@ -383,6 +383,7 @@ export const CODE_TITLES: Record<string, string> = {
   SYG682: 'Decision model answered outside the criteria',
   // PLAN-9 B-3: compose.llm() (src/extra/ai/compose/llm.ts; the compose status becomes 'error')
   SYG683: 'LLM layout invalid after repair',
+  SYG687: 'LLM reply stopped in a loop or cut short',
   // PLAN-9 X-2: static only (sygnal-check rules/syg253-catalog.js)
   SYG253: 'Misspelled catalog declaration key',
   SYG254: 'Catalog descriptions or options overlap',
@@ -592,6 +593,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG682: 'warn',
   // PLAN-9 B-3 (compose.llm)
   SYG683: 'error',
+  SYG687: 'warn',
   // PLAN-9 H (chat client tools and ask; reported with the severity passed)
   SYG160: 'warn',
   SYG684: 'warn',

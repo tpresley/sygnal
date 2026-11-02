@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { llm, editPrompt, opsSchema, applyOps, preorder, currentPage } from '../src/extra/ai/compose/llm.ts'
 import { fromTree, toTree, finish } from '../src/extra/ai/compose/layout.ts'
-import { catalog, fromResearch, tree, str, want, names } from './p9-llm-helpers.js'
+import { catalog, fromResearch, tree, str, want, names, capped } from './p9-llm-helpers.js'
 
 const R = new URL('../dev-plans/research/ai-compose/llm/', import.meta.url)
 const research = await import(new URL('llm-composer.mjs', R))
@@ -38,11 +38,14 @@ describe('the research edit request, exactly', () => {
       for (const k of cases) {
         const prev = layoutOf(k.catalog, k.prev)
         const r = editRequest(k.rc, 'tree', k.prev, k.prompt, 'ops2')
-        const { request, pending } = llm().start({ catalog: k.catalog, state: {}, prompt: k.prompt, previous: prev, names })
+        // containers: false: the research's ops2 (EXT's section would add wrap / unwrap / into)
+        const { request, pending } = llm({ containers: false }).start({ catalog: k.catalog, state: {}, prompt: k.prompt, previous: prev, names })
         expect(request.instructions).toBe(r.system)
         expect(request.messages).toEqual(r.messages)
-        expect(opsSchema(k.catalog, {}, prev)).toEqual(r.schema)
-        expect(request.output['~standard'].jsonSchema.input({ target: 'draft-2020-12' })).toEqual(r.schema)
+        // with the runaway cap on `ops` (one per node + maxParts)
+        const schema = capped(r.schema, { maxParts: k.catalog.limits?.maxParts ?? 12, nodes: preorder(prev).length - 1 })
+        expect(opsSchema(k.catalog, {}, prev, undefined, undefined, { containers: false })).toEqual(schema)
+        expect(request.output['~standard'].jsonSchema.input({ target: 'draft-2020-12' })).toEqual(schema)
         expect(request).toMatchObject({ key: 'compose', latest: true, parse: false, ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA' })
         expect(pending).toMatchObject({ step: 'edit', prompt: k.prompt, previous: prev, order: preorder(prev) })
       }

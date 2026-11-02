@@ -521,6 +521,14 @@ export type ChatRequest<OUT = unknown> = {
   key?: string;
   /** A new request aborts the sender's request under the same key (default true) */
   latest?: boolean;
+  /** The most the reply may take, in ms: then it is aborted and fails (`error`) with an Error named 'TimeoutError' */
+  timeoutMs?: number;
+  /**
+   * The most tokens the model may write (reasoning included on most providers): chatCompletions sends
+   * `max_tokens`, openResponses `max_output_tokens`, anthropicMessages `max_tokens`. A reply cut there
+   * has `finishReason: 'length'`
+   */
+  maxTokens?: number;
   /** Action for streamed text and reasoning (ChatDelta), coalesced per `coalesce` */
   delta?: string;
   /** Action for the finished reply (ChatOk) */
@@ -1552,8 +1560,11 @@ export interface ComposeBackend {
    */
   reply(a: { catalog: Catalog<any>; state: any; pending: any; reply: any; names: ComposeNames }):
     { layout?: Layout | null; unavailable?: true; preview?: Layout; request?: unknown; pending?: unknown; decisions?: unknown; error?: string; keyed?: boolean }
-  /** `keyed` (on reply too): the layout already has the previous layout's keys (an edit applied to it): the behavior doesn't re-key it */
-  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout; keyed?: boolean }
+  /**
+   * `keyed` (on reply too): the layout already has the previous layout's keys (an edit applied to it): the behavior doesn't re-key it.
+   * `reply`: the stream is to stop here (a runaway reply): the behavior handles `reply` as the step's reply and sends `request` (the abort)
+   */
+  delta?(a: { catalog: Catalog<any>; state: any; pending: any; delta: any }): { preview?: Layout; keyed?: boolean; reply?: unknown; request?: unknown }
   /** the reply body that leads to `target` (composeWith) */
   fake(a: { catalog: Catalog<any>; state: any; pending: any; target: ComposeTree }): unknown
 }
@@ -1783,6 +1794,8 @@ export interface ComposeDecisionsOptions {
   maxPromptTokens?: number
   /** passed to every `decide()` request (D472): false sends each step as one request, never halved */
   split?: boolean
+  /** the most one step may take, in ms (default 60000; 0: no limit): the request's `timeoutMs`, then status 'error' */
+  timeoutMs?: number
 }
 /**
  * the decisions backend: plain-JSON `pending` steps (`'categories'`, `'select'`, `'layout'`; for an
@@ -1850,6 +1863,15 @@ export interface ComposeLlmOptions {
   instructions?: string | ((prompt: string) => string)
   /** Few-shot examples (default: the catalog's): `[prompt, tree, asked_for?]` or `{ prompt, tree, asked_for? }` */
   examples?: ReadonlyArray<readonly [string, ReadonlyArray<ComposeLlmTreeNode>, ReadonlyArray<string>?] | { prompt: string; tree: ReadonlyArray<ComposeLlmTreeNode>; asked_for?: ReadonlyArray<string> }>
+  /** The most a step may take, in ms (default 60000; 0: no limit): then the status is 'error' and the layout stays */
+  timeoutMs?: number
+  /** The most tokens the model may write (no default); a reply cut there is read up to where it stopped */
+  maxTokens?: number
+  /**
+   * Edits reach containers (default true; for a catalog with a container other than a row): the
+   * `wrap` and `unwrap` operations and `into <key>` places. false: the operations alone
+   */
+  containers?: boolean
   /** Transport options, sent on the request as is */
   [option: string]: unknown
 }

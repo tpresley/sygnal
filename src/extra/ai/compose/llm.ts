@@ -26,6 +26,14 @@
  *   `{ error }` + SYG683 rather than the driver's FAILED.
  * - B-4: with a `previous` layout that has nodes, start() sends an edit instead (ops2, the section
  *   "B-4: edits" below); fake() then returns the operations that make the target.
+ * - Runaway replies (examples/ai-adaptive: an edit the grammar can't express made qwen3:8b repeat its
+ *   operations without end): every list in the schemas has a `maxItems` (an edit's `ops`: opsCap(), one
+ *   per node plus the catalog's maxParts; a slot: the container's `max`, else maxParts); a streamed
+ *   reply that repeats an operation exactly, or runs past the cap (an edit), or past twice maxParts
+ *   (a composition) is stopped there: delta() returns the reply so far as the step's reply plus the
+ *   abort request, and the stop is a `stopped` repair + SYG687. A reply cut at `maxTokens`
+ *   (finishReason 'length') is read as the JSON prefix it is. `timeoutMs` (default 60 s) goes on the
+ *   request: the chat driver fails the step (status 'error') when the reply takes longer.
  * Pure apart from SYG683's report.
  */
 import {jsonSchema, check} from '../schema/jsonSchema'
@@ -47,6 +55,14 @@ export interface LlmOptions {
   instructions?: string | ((prompt: string) => string)
   /** few-shot examples: [prompt, tree, asked_for?] or { prompt, tree, asked_for? }; default: the catalog's */
   examples?: any[]
+  /** the most a step may take, in ms (default 60000; 0: no limit): the chat driver's `timeoutMs` */
+  timeoutMs?: number
+  /**
+   * edits reach containers (default true, for a catalog with containers other than a row): the wrap
+   * and unwrap operations and `into <key>` places (dev-plans/research/ai-compose/container-edits.md);
+   * false: the research's ops2 alone
+   */
+  containers?: boolean
   /** anything else goes on the request as is (transport options: `body`, `coalesce`, ...) */
   [option: string]: unknown
 }
@@ -265,7 +281,7 @@ export function layoutSchema(catalog: any, state: any, {plan = true, relaxIn = f
           if (!items) continue
           any = true
           const key = s == 'default' ? 'children' : s
-          props[key] = {type: 'array', items, ...(it.max && {maxItems: it.max})}
+          props[key] = {type: 'array', items, maxItems: it.max || ctx.maxParts}
           required.push(key)
         }
         if (!any) continue
@@ -281,7 +297,7 @@ export function layoutSchema(catalog: any, state: any, {plan = true, relaxIn = f
     return ref
   }
   const items = slot(PLACE, 1, false, !!ctx.root.arranged)
-  const children = items ? {type: 'array', items} : {type: 'array', maxItems: 0}
+  const children = items ? {type: 'array', items, maxItems: ctx.maxParts} : {type: 'array', maxItems: 0}
   const schema = {
     type: 'object',
     properties: {...(plan && {asked_for: {type: 'array', items: {type: 'string', maxLength: askedMax(ctx)}, maxItems: 8}}), children},
@@ -619,6 +635,10 @@ const say = (message: string, data: any) => {
   try { report('SYG683', {component: 'compose.llm', message, data}) } catch (e) { queueMicrotask(() => { throw e }) }
 }
 
+const stopped = (message: string, data: any) => {
+  try { report('SYG687', {component: 'compose.llm', message, data}) } catch (e) { queueMicrotask(() => { throw e }) }
+}
+
 /** examples → few-shot turns */
 function shots(ctx: Ctx, examples: any[], plan: boolean) {
   return examples.flatMap((x: any) => {
@@ -634,9 +654,10 @@ function shots(ctx: Ctx, examples: any[], plan: boolean) {
 }
 
 /** a reply value → `{ layout, decisions }`, `unavailable`, or `{ error }`: read, repair, check, fromTree (keys from `previous`), finish */
-function readTree(catalog: any, state: any, previous: any, value: any): any {
+function readTree(catalog: any, state: any, previous: any, value: any, cut?: string): any {
   const ctx = context(catalog, state)
   const {kids, raw, asked, issues} = readReply(ctx, value)
+  if (cut) issues.push({kind: 'stopped', detail: cut})
   const fixed = repairTree(ctx, kids, issues)
   const decisions = {...(asked && {asked_for: asked}), ...(issues.length && {repairs: issues})}
   if (!fixed.length) {
@@ -663,16 +684,25 @@ function readTree(catalog: any, state: any, previous: any, value: any): any {
 }
 
 /** the reply's value: `reply.value` when a driver parsed it, else its text, read leniently (SYG683 when it isn't JSON) */
-function valueOf(reply: any): {value?: any; error?: string} {
-  if (reply?.value !== undefined) return {value: reply.value}
+function valueOf(reply: any): {value?: any; error?: string; cut?: string} {
+  if (reply?.value !== undefined) return {value: reply.value, ...(reply.stopped && {cut: reply.stopped})}
   const r = parseText(reply?.text)
+  if (r.error && reply?.finishReason == 'length' && typeof reply.text == 'string') {
+    // cut at the output-token limit: the JSON prefix, its complete items only
+    const v = parsePartialJSON(reply.text.replace(/<think>[\s\S]*?(<\/think>|$)/g, '').replace(/^[\s\S]*?(?=[{[])/, ''))
+    if (v && typeof v == 'object') {
+      const cut = 'the reply reached the output-token limit'
+      stopped(`${cut}: read up to where it stopped`, {text: reply.text})
+      return {value: prune(v), cut}
+    }
+  }
   if (r.error) say(`the reply is not a layout: ${r.error}`, {text: reply?.text})
   return r
 }
 
 /** compose.llm(options): the chat-LLM backend (one structured-output request, streamed preview; ops2 edits) */
 export function llm(options: LlmOptions = {}) {
-  const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, ...rest} = options
+  const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, timeoutMs = 60000, containers = true, ...rest} = options
   const planFor = (catalog: any) => plan ?? !(examples ?? catalog.examples ?? []).length
   const base = (names: any, state: any) => {
     // a function of the host's state: resolved per request (an app's model picker)
@@ -682,6 +712,7 @@ export function llm(options: LlmOptions = {}) {
       ...(m && {model: m}),
       key: key ?? names?.key ?? 'compose',
       latest: true,
+      ...(timeoutMs > 0 && {timeoutMs}),
       // the driver sends the schema but leaves the text to reply(): a reply that isn't strict JSON
       // (prose around it, a code fence) still reaches parseText and the repair, or fails as SYG683
       parse: false,
@@ -701,11 +732,11 @@ export function llm(options: LlmOptions = {}) {
         const order = preorder(previous)
         const request: any = {
           ...base(names, state),
-          instructions: editPrompt(catalog, state, {instructions}, ctx),
+          instructions: editPrompt(catalog, state, {instructions, containers}, ctx),
           messages: [{role: 'user', content: `Current page:\n${currentPage(previous, {ctx, order})}\n\nChange: ${text}`}],
-          output: jsonSchema(opsSchema(catalog, state, previous, ctx, order), {validate: ANY}),
+          output: jsonSchema(opsSchema(catalog, state, previous, ctx, order, {containers}), {validate: ANY}),
         }
-        return {request, pending: {step: 'edit', prompt: text, previous, order}}
+        return {request, pending: {step: 'edit', prompt: text, previous, order, lane: request.key, max: opsCap(ctx, order), ...(containers && groups(ctx) && {containers: true})}}
       }
       const p = planFor(catalog)
       const request: any = {
@@ -714,7 +745,7 @@ export function llm(options: LlmOptions = {}) {
         messages: [...shots(ctx, examples ?? catalog.examples ?? [], p), {role: 'user', content: text}],
         output: jsonSchema(layoutSchema(catalog, state, {plan: p}, ctx), {validate: ANY}),
       }
-      return {request, pending: {step: 'llm', prompt: text, plan: p, ...(previous && {previous})}}
+      return {request, pending: {step: 'llm', prompt: text, plan: p, lane: request.key, ...(previous && {previous})}}
     },
     delta({catalog, state, pending, delta}: any) {
       const text = typeof delta == 'string' ? delta : delta?.text
@@ -725,11 +756,17 @@ export function llm(options: LlmOptions = {}) {
         // the operations complete so far, applied to the previous layout (its keys kept)
         const done = (opsOf(v) || []).filter((o: any) => !(o && typeof o == 'object' && o[PARTIAL]))
         if (!done.length) return {}
-        const r = applyOps(catalog, state, pending.previous, pending.order, done)
+        // a reply in a loop: stopped here, the operations before it are the reply
+        const lf = loopFree(done, pending.max ?? opsCap(context(catalog, state), pending.order))
+        if (lf.cut) return {reply: {value: {ops: lf.ops}, stopped: lf.cut}, request: {abort: pending.lane ?? key ?? 'compose'}}
+        const r = applyOps(catalog, state, pending.previous, pending.order, done, {containers: !!pending.containers})
         return r.applied ? {preview: finish(catalog, r.layout, state), keyed: true} : {}
       }
       const ctx = context(catalog, state)
-      const {kids} = readReply(ctx, prune(v))
+      const settled = prune(v)
+      const {kids} = readReply(ctx, settled)
+      // far more parts than a page holds (a part repeated without end): stopped, the parts so far are the reply
+      if (leafCount(kids) > 2 * ctx.maxParts) return {reply: {value: settled, stopped: `more than ${2 * ctx.maxParts} parts`}, request: {abort: pending?.lane ?? key ?? 'compose'}}
       const fixed = cap(repairTree(ctx, kids, [], {relaxMin: true}), ctx.maxParts)
       if (!fixed.length) return {}
       return {preview: fromTree(catalog, toContractTree(ctx, fixed), pending?.previous)}
@@ -737,13 +774,19 @@ export function llm(options: LlmOptions = {}) {
     reply({catalog, state, pending, reply}: any) {
       const r = valueOf(reply)
       if (r.error) return {error: `The model's reply is not a layout (${r.error})`}
-      if (pending?.step != 'edit') return readTree(catalog, state, pending?.previous, r.value)
-      const ops = opsOf(r.value)
+      if (r.cut && reply?.stopped) stopped(`the reply was stopped: ${r.cut}`, {value: r.value})
+      if (pending?.step != 'edit') return readTree(catalog, state, pending?.previous, r.value, r.cut)
+      const all = opsOf(r.value)
       // a whole page instead of operations: read as a composition, keys reused from the previous layout
-      if (!ops) return readTree(catalog, state, pending.previous, r.value)
+      if (!all) return readTree(catalog, state, pending.previous, r.value, r.cut)
+      // a reply that wasn't streamed is cut where it repeats itself, or at the cap, too
+      const lf = loopFree(all, pending.max ?? opsCap(context(catalog, state), pending.order))
+      if (lf.cut) stopped(`the reply was cut: ${lf.cut}`, {value: r.value})
+      const ops = lf.ops, cut = r.cut ?? lf.cut
       // no operation: nothing in the catalog fits the change (or it changes nothing); the layout stays
-      if (!ops.length) return {layout: null, unavailable: true, decisions: {ops: []}}
-      const a = applyOps(catalog, state, pending.previous, pending.order, ops)
+      if (!ops.length) return {layout: null, unavailable: true, decisions: {ops: [], ...(cut && {repairs: [{kind: 'stopped', detail: cut}]})}}
+      const a = applyOps(catalog, state, pending.previous, pending.order, ops, {containers: !!pending.containers})
+      if (cut) a.issues.push({kind: 'stopped', detail: cut})
       const decisions = {ops: a.ops, ...(a.issues.length && {repairs: a.issues})}
       if (!a.applied) {
         const what = a.issues.map(i => i.detail).join(', ')
@@ -759,7 +802,7 @@ export function llm(options: LlmOptions = {}) {
         // layout into `target`, or the whole page when operations can't reach it (a new container
         // other than a row, a row of new parts only)
         if (!target?.length) return JSON.stringify({ops: []})
-        const ops = editOps(catalog, state, pending.previous, pending.order, target)
+        const ops = editOps(catalog, state, pending.previous, pending.order, target, !!pending.containers)
         return JSON.stringify(ops ? {ops} : {children: toReply(ctx, target)})
       }
       const children = toReply(ctx, target || [])
@@ -787,6 +830,11 @@ export function llm(options: LlmOptions = {}) {
  * - places: 'top' / 'bottom' of the page, 'above k' / 'below k' (around k's block on the page),
  *   'left of k' / 'right of k' (in k's row, or a new row made of k and the part in k's place).
  *   The reference node never moves (a move relative to itself or its own subtree is skipped).
+ * - containers (a catalog with a container other than a row, unless `containers: false`;
+ *   dev-plans/research/ai-compose/container-edits.md): `wrap` puts nodes, in order, into a new
+ *   container where the first one's block was (its `maxUses` holds); `unwrap` puts a container's
+ *   parts in its place; 'into k' / 'into k:slot' is the end of container k's slot; 'above k' /
+ *   'below k' stay in k's container (around a row, as before). The nodes keep their keys.
  * Then finish(). A reply with a whole page (`children`) instead is read as a composition with the
  * previous keys reused; no operation is `unavailable` (the layout stays); operations of which none
  * applies are an error (SYG683).
@@ -806,6 +854,24 @@ export function preorder(layout: any): string[] {
   return out
 }
 const hasNodes = (l: any) => !!l?.nodes && preorder(l).length > 1
+
+/** the most operations an edit has (its `maxItems`): one per node on the page, plus a page's worth of new parts */
+export const opsCap = (ctx: Ctx, order: string[]) => Math.max(8, order.length - 1 + ctx.maxParts)
+
+/** the operations before the first that repeats an earlier one exactly, or before the cap (a model in a loop) */
+function loopFree(ops: any[], max: number): {ops: any[]; cut?: string} {
+  const seen = new Set<string>()
+  for (let i = 0; i < ops.length; i++) {
+    if (i >= max) return {ops: ops.slice(0, i), cut: `more than ${max} operations`}
+    const c = canon(ops[i])
+    if (seen.has(c)) return {ops: ops.slice(0, i), cut: `operation ${i + 1} repeats an earlier one`}
+    seen.add(c)
+  }
+  return {ops}
+}
+
+/** the leaf nodes in a read tree */
+const leafCount = (ks: Array<TNode | null>): number => ks.reduce((n, k) => n + (!k ? 0 : k.slots ? leafCount(Object.values(k.slots).flat()) : 1), 0)
 
 /**
  * a layout as the edit prompt shows it: one node per line (`n1: part param="value"`, params with
@@ -840,21 +906,46 @@ Change only what the request asks; everything else stays as it is. A request tha
 
 Reply with JSON only: {"ops": [ ... ]}`
 
-/** the edit's system prompt: the catalog and the rules (no plan line), then the operations (research ops2, exact) */
-export function editPrompt(catalog: any, state: any, {instructions}: {instructions?: LlmOptions['instructions']} = {}, ctx: Ctx = context(catalog, state)) {
+/** containers an edit can group parts in (not a row): their ids, or null */
+const groups = (ctx: Ctx) => { const g = ctx.items.filter(i => i.container && !i.row).map(i => i.id); return g.length ? g : null }
+
+const EDIT_OPS = `The user message gives the current page (one node per line: key: part params; the parts in a container are indented under it) and a change. Return only the operations that make the change, in order:
+- {"op":"add","part":"<id>","params":{...},"where":"<place>"}
+- {"op":"remove","node":"<key>"}
+- {"op":"move","node":"<key>","where":"<place>"}
+- {"op":"replace","node":"<key>","part":"<id>","params":{...}}   (the new part takes the old one's place)
+- {"op":"setParams","node":"<key>","params":{"<param>":"<value>"}}
+- {"op":"wrap","nodes":["<key>", ...],"part":"<container id>","params":{...}}   (a new container holding those nodes, in that order, where the first of them was; side by side is "left of" / "right of", not a container)
+- {"op":"unwrap","node":"<key>"}   (removes the container; its parts take its place)
+A place is "top" or "bottom" of the page, "above <key>" or "below <key>" (next to that node, in its container), "into <key>" (at the end of that container), or "left of <key>" / "right of <key>" (side by side with that part, in a row). To take a part out of a container, move it to a place outside it.
+Change only what the request asks; everything else stays as it is. A request that changes nothing gets no operations.
+
+Reply with JSON only: {"ops": [ ... ]}`
+
+/** the edit's system prompt: the catalog and the rules (no plan line), then the operations (research ops2, exact; with `containers` and a catalog that has them, wrap / unwrap / into too) */
+export function editPrompt(catalog: any, state: any, {instructions, containers = true}: {instructions?: LlmOptions['instructions']; containers?: boolean} = {}, ctx: Ctx = context(catalog, state)) {
   const head = systemPrompt(catalog, state, {plan: false, instructions: typeof instructions == 'string' ? instructions : undefined}, ctx).split('\n\nReply with JSON only')[0]
-  const prompt = `${head}\n\n${EDIT}`
+  const ops = containers && groups(ctx) ? EDIT_OPS : EDIT
+  const prompt = `${head}\n\n${ops}`
   return typeof instructions == 'function' ? instructions(prompt) : prompt
 }
 
 /** the edit's JSON Schema: `node` an enum of the current nodes, `where` an enum of every place, `part` + `params` per part */
-export function opsSchema(catalog: any, state: any, previous: any, ctx: Ctx = context(catalog, state), order: string[] = preorder(previous)) {
+export function opsSchema(catalog: any, state: any, previous: any, ctx: Ctx = context(catalog, state), order: string[] = preorder(previous), {containers = true}: {containers?: boolean} = {}) {
   const nodeKeys = order.slice(1).map((_, i) => `n${i + 1}`)
   const places = ['top', 'bottom']
+  const wrapping = containers && groups(ctx)
+  const boxes: string[] = []
   order.forEach((k, i) => {
     if (i == 0) return
     places.push(`above n${i}`, `below n${i}`)
-    if (catalog.get?.(previous.nodes[k].part)?.kind != 'container') places.push(`left of n${i}`, `right of n${i}`)
+    const e = catalog.get?.(previous.nodes[k].part)
+    if (e?.kind != 'container') places.push(`left of n${i}`, `right of n${i}`)
+    else if (wrapping && !(e.direction == 'row' || e.id == 'row')) {
+      boxes.push(`n${i}`)
+      const slots = Object.keys(e.slots || {default: null})
+      places.push(...(slots.length == 1 ? [`into n${i}`] : slots.map(sl => `into n${i}:${sl}`)))
+    }
   })
   const where = {enum: places}
   const leaves = ctx.items.filter(i => !i.container)
@@ -873,8 +964,21 @@ export function opsSchema(catalog: any, state: any, previous: any, ctx: Ctx = co
       ...leaves.map(it => ({type: 'object', properties: withParams({op: {const: 'replace'}, node: {enum: nodeKeys}, part: {const: it.id}}, it), required: needs(it, ['op', 'node', 'part']), additionalProperties: false})),
       {type: 'object', properties: {op: {const: 'setParams'}, node: {enum: nodeKeys}, params: {type: 'object'}}, required: ['op', 'node', 'params'], additionalProperties: false},
     )
+    if (wrapping) {
+      for (const it of ctx.items.filter(i => i.container && !i.row)) {
+        const ps = paramsSchema(it)
+        const props: any = {op: {const: 'wrap'}, nodes: {type: 'array', items: {enum: nodeKeys}, minItems: 1, maxItems: nodeKeys.length}, part: {const: it.id}}
+        const required = ['op', 'nodes', 'part']
+        if (Object.keys(ps.props).length) {
+          props.params = {type: 'object', properties: ps.props, required: ps.required, additionalProperties: false}
+          if (ps.required.length) required.push('params')
+        }
+        ops.push({type: 'object', properties: props, required, additionalProperties: false})
+      }
+      if (boxes.length) ops.push({type: 'object', properties: {op: {const: 'unwrap'}, node: {enum: boxes}}, required: ['op', 'node'], additionalProperties: false})
+    }
   }
-  return {type: 'object', properties: {ops: {type: 'array', items: {anyOf: ops}}}, required: ['ops'], additionalProperties: false}
+  return {type: 'object', properties: {ops: {type: 'array', items: {anyOf: ops}, maxItems: opsCap(ctx, order)}}, required: ['ops'], additionalProperties: false}
 }
 
 /** the operations in a reply (lenient: a bare list, `operations`, a single operation); undefined when it has none (a whole page, say) */
@@ -887,7 +991,7 @@ function opsOf(v: any): any[] | undefined {
 }
 
 /** apply operations to `previous` (see the section's header): the layout (not finished), how many applied, the operations as applied (layout keys), issues */
-export function applyOps(catalog: any, state: any, previous: any, order: string[], ops: any[]) {
+export function applyOps(catalog: any, state: any, previous: any, order: string[], ops: any[], {containers = false}: {containers?: boolean} = {}) {
   const ctx = context(catalog, state)
   const issues: Issue[] = [], done: any[] = []
   const root = previous.root || 'page'
@@ -912,6 +1016,9 @@ export function applyOps(catalog: any, state: any, previous: any, order: string[
   const isRow = (k: string) => { const e = catalog.get(L.nodes[k]?.part); return e?.kind == 'container' && (e.direction == 'row' || e.id == 'row') }
   const rowPart: string | undefined = catalog.get('row')?.kind == 'container' ? 'row' : (Object.values<any>(catalog.containers || {}).find(c => c.direction == 'row')?.id)
   const topOf = (k: string) => { let p = parentOf(k); while (p && p.pk != root) { k = p.pk; p = parentOf(k) } return k }
+  // containers: above / below stay in the node's container (a row's parts go around the row)
+  const blockOf = (k: string) => { if (!containers) return topOf(k); let p = parentOf(k); while (p && p.pk != root && isRow(p.pk)) { k = p.pk; p = parentOf(k) } return k }
+  const isBox = (k: string) => catalog.get(L.nodes[k]?.part)?.kind == 'container' && !isRow(k)
   const within = (k: string, anc: string) => { for (let x: string | undefined = k; x && x != root; x = parentOf(x)?.pk) if (x == anc) return true; return false }
   const detach = (k: string) => { const p = parentOf(k); if (p) p.arr.splice(p.i, 1) }
   const drop = (k: string) => { const n = L.nodes[k]; if (!n) return; delete L.nodes[k]; for (const s in n.slots) for (const c of n.slots[s]) drop(c) }
@@ -924,11 +1031,20 @@ export function applyOps(catalog: any, state: any, previous: any, order: string[
     const w = typeof where == 'string' ? where.trim() : ''
     if (w == 'top') return k => { page().unshift(k) }
     if (w == 'bottom') return k => { page().push(k) }
+    const into = containers ? /^into\s+([^\s:]+)(?::(\S+))?$/.exec(w) : null
+    if (into) {
+      const ref = keyOf(into[1])
+      if (!ref || !isBox(ref) || (self && within(ref, self))) return null
+      const sl = L.nodes[ref].slots ||= {}
+      const names = Object.keys(catalog.get(L.nodes[ref].part).slots || {default: null})
+      const slot = into[2] && names.includes(into[2]) ? into[2] : names.includes('default') ? 'default' : names[0]
+      return k => { (sl[slot] ||= []).push(k) }
+    }
     const m = /^(above|below|left of|right of)\s+(\S+)$/.exec(w)
     const ref = m ? keyOf(m[2]) : undefined
     if (!m || !ref || (self && within(ref, self))) return null
     const rel = m[1]
-    if (rel == 'above' || rel == 'below') return k => { const pg = page(); pg.splice(pg.indexOf(topOf(ref)) + (rel == 'below' ? 1 : 0), 0, k) }
+    if (rel == 'above' || rel == 'below') return k => { const b = blockOf(ref), p = parentOf(b)!; p.arr.splice(p.arr.indexOf(b) + (rel == 'below' ? 1 : 0), 0, k) }
     const right = rel == 'right of'
     return k => {
       if (isRow(ref)) { const s = L.nodes[ref].slots.default ||= []; right ? s.push(k) : s.unshift(k); return }
@@ -1028,6 +1144,29 @@ export function applyOps(catalog: any, state: any, previous: any, order: string[
       const why = setParams(k, given)
       if (why) { fail(why); continue }
       done.push({op: 'setParams', node: k, params: given})
+    } else if (containers && op.op == 'wrap') {
+      const it = ctx.byId[op.part]
+      if (!it || !it.container || it.row) { fail('not a container'); continue }
+      // the nodes, once each, none inside another of them
+      const ks = [...new Set<string>((Array.isArray(op.nodes) ? op.nodes : [op.nodes]).map(keyOf).filter(Boolean) as string[])]
+      const nodes = ks.filter(x => !ks.some(y => y != x && within(x, y)))
+      if (!nodes.length) { fail('no such node'); continue }
+      if (count(it.id) >= it.uses) { fail(`${it.id} is on the page as often as it may be`); continue }
+      const f = fixParams(it, op.params, issues)
+      if (f.drop) { fail('params'); continue }
+      // where the first node's block was (a container holds no row's part alone)
+      const at = blockOf(nodes[0]), p = parentOf(at)!
+      const c = fresh(it.id, f.params)
+      p.arr.splice(p.arr.indexOf(at), 0, c)
+      for (const x of nodes) detach(x)
+      L.nodes[c] = {part: it.id, ...(f.params && {params: f.params}), slots: {[it.slots.includes('default') ? 'default' : it.slots[0]]: nodes}}
+      done.push({op: 'wrap', node: c, nodes: [...nodes], part: it.id, ...(f.params && {params: f.params})})
+    } else if (containers && op.op == 'unwrap') {
+      if (!k || !isBox(k)) { fail(k ? 'not a container' : 'no such node'); continue }
+      const p = parentOf(k)!
+      p.arr.splice(p.i, 1, ...Object.values<string[]>(L.nodes[k].slots || {}).flat())
+      delete L.nodes[k]
+      done.push({op: 'unwrap', node: k})
     } else fail('unknown operation')
   }
   return {layout: L, applied: done.length, ops: done, issues}
@@ -1041,7 +1180,7 @@ const canon = (v: any): string => JSON.stringify(v, (_k, x) => x && typeof x == 
  * found greedily and then minimized; null when operations can't reach it (the caller sends the
  * whole page). Every result is checked by applying it.
  */
-function editOps(catalog: any, state: any, previous: any, order: string[], target: any[]): any[] | null {
+function editOps(catalog: any, state: any, previous: any, order: string[], target: any[], containers = false): any[] | null {
   const want = finish(catalog, fromTree(catalog, target, previous), state)
   const goal = canon(toTree(want))
   const root = previous.root || 'page'
@@ -1052,7 +1191,7 @@ function editOps(catalog: any, state: any, previous: any, order: string[], targe
   const kept = new Set(order.filter(k => k != root && own(W, k) && W[k].part == P[k].part))
   const keptLeaves = [...kept].filter(k => isLeaf(k, P))
   const ok = (ops: any[]) => {
-    const a = applyOps(catalog, state, previous, order, ops)
+    const a = applyOps(catalog, state, previous, order, ops, {containers})
     if (a.issues.some(i => i.kind == 'op')) return false
     const got = finish(catalog, a.layout, state)
     return canon(toTree(got)) == goal && keptLeaves.every(k => got.nodes[k]?.part == P[k].part)
@@ -1126,10 +1265,12 @@ function editOps(catalog: any, state: any, previous: any, order: string[], targe
   }
   let all = [...ops, ...moves, ...adds, ...removes]
   if (!ok(all)) return null
+  const max = opsCap(context(catalog, state), order)
   // minimize: drop each operation the result doesn't need
   for (let i = all.length - 1; i >= 0; i--) {
     const fewer = all.slice(0, i).concat(all.slice(i + 1))
     if (ok(fewer)) all = fewer
   }
-  return all
+  // more than an edit may have: the whole page instead
+  return all.length > max ? null : all
 }

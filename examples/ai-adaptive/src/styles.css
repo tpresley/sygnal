@@ -1,0 +1,111 @@
+:root {
+  --bg: #f6f7f9;
+  --panel: #fff;
+  --ink: #1d2330;
+  --muted: #687085;
+  --line: #dde1e8;
+  --accent: #3559e0;
+  --red: #d33a2c;
+  --amber: #c98a06;
+  --blue: #3a7bd5;
+  --ok: #2f9e5b;
+  font: 15px/1.45 system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171d; --panel: #1c2028; --ink: #e6e8ee; --muted: #9aa1b2; --line: #2e3440; --accent: #7d97ff; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+input, select, textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.4rem 0.55rem; }
+button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 0.35rem 0.75rem; cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary, form button[type='submit'] { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.link { border: 0; background: none; padding: 0 0.25rem; color: var(--accent); text-decoration: underline; }
+.muted { color: var(--muted); }
+.error { color: var(--red); font-size: 0.85rem; }
+
+.app { max-width: 1180px; margin: 0 auto; padding: 1rem; }
+.tabs { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.tabs h1 { font-size: 1.15rem; margin: 0 1rem 0 0; }
+.tab.on { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.tabs .model { margin-left: auto; font-size: 0.85rem; }
+
+.lab header h2 { margin: 0 0 0.2rem; font-size: 1.1rem; }
+.lab header p { margin: 0 0 0.8rem; }
+.ask, .change { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.ask input, .change input { flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem; }
+.chip { font-size: 0.82rem; border-radius: 999px; }
+.status { min-height: 1.3em; color: var(--muted); margin: 0.3rem 0; }
+.explain { font-size: 0.85rem; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.8rem; }
+.explain h3 { font-size: 0.85rem; margin: 0.3rem 0; }
+.explain ul, .explain ol { margin: 0 0 0.5rem; padding-left: 1.2rem; }
+.param { display: inline-block; margin-left: 0.4rem; color: var(--muted); }
+.preview { opacity: 0.6; transition: opacity 0.2s; }
+
+/* the intake form */
+.intake-lab { display: grid; grid-template-columns: 1fr 300px; gap: 0 1rem; }
+.intake-lab > header, .intake-lab > .ask, .intake-lab > .chips, .intake-lab > .change, .intake-lab > .status { grid-column: 1 / -1; }
+.intake, .sent { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; display: grid; gap: 0.75rem; align-content: start; }
+.compose-page { display: grid; gap: 0.75rem; }
+.piece.inline { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.field { display: grid; gap: 0.2rem; }
+.field label { display: grid; gap: 0.2rem; }
+.field .label, legend { font-weight: 600; font-size: 0.9rem; }
+.field input, .field textarea, .field select { width: 100%; }
+.piece.inline .field { flex: 1; min-width: 140px; }
+.field.invalid input, .field.invalid select, .field.invalid textarea, .invalid { border-color: var(--red); }
+.hint { font-size: 0.8rem; color: var(--muted); }
+fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0; padding: 0.5rem 0.75rem 0.75rem; }
+fieldset.section { display: grid; gap: 0.75rem; }
+.radios label { display: block; }
+.intake-actions { display: flex; align-items: center; gap: 0.75rem; }
+.sent pre { white-space: pre-wrap; font-size: 0.8rem; margin: 0; }
+
+/* the board */
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.controls label { display: flex; gap: 0.35rem; align-items: center; font-size: 0.9rem; }
+.clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.1rem; margin-right: 0.25rem; }
+.board-grid { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; }
+.board .compose-page { display: grid; gap: 0.6rem; }
+.compose-row { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0.6rem; }
+.card { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 0.5rem 0.75rem; }
+.card.red { border-left-color: var(--red); }
+.card.amber { border-left-color: var(--amber); }
+.card.blue { border-left-color: var(--blue); }
+.card.full { padding: 0.75rem 1rem; }
+.card header { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.card h3 { margin: 0; font-size: 0.95rem; }
+.card.full h3 { font-size: 1.05rem; }
+.card .tools { display: flex; gap: 0.25rem; }
+.card .tools button { font-size: 0.75rem; padding: 0.1rem 0.45rem; }
+.card .pin.on { border-color: var(--accent); color: var(--accent); }
+.card .why { margin: 0.2rem 0 0.3rem; font-size: 0.82rem; color: var(--muted); font-style: italic; }
+.card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.1rem 0.75rem; margin: 0.25rem 0 0.5rem; }
+.card dt { color: var(--muted); }
+.card dd { margin: 0; }
+.card ul { margin: 0.2rem 0; padding-left: 1.1rem; }
+.card .grid { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.25rem; }
+.card .grid li.red b { color: var(--red); }
+.card .grid li.amber b { color: var(--amber); }
+.card .note { display: grid; gap: 0.2rem; margin-top: 0.5rem; }
+.card .note textarea { width: 100%; }
+.meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 0.4rem 0; }
+.meter span { display: block; height: 100%; background: var(--amber); }
+.quiet { border: 1px dashed var(--line); border-radius: 8px; padding: 0.4rem 0.6rem; }
+.quiet-body { display: grid; gap: 0.4rem; margin-top: 0.4rem; }
+.scores { list-style: none; padding: 0; }
+.scores li { padding: 0.1rem 0; }
+.scores li.act b { color: var(--red); }
+.scores li.watch b { color: var(--amber); }
+.scores li b { display: inline-block; width: 2rem; }
+.brief { white-space: pre-wrap; font-size: 0.78rem; }
+.snoozed { font-size: 0.85rem; }
+
+@media (max-width: 800px) {
+  .intake-lab, .board-grid { grid-template-columns: 1fr; }
+  .compose-row { grid-auto-flow: row; }
+}
