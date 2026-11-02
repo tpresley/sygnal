@@ -130,3 +130,15 @@ run(App)
 // renderComponent infers the state, as from a positional annotation
 const t = renderComponent(App)
 expectType<Equal<typeof t.state, AppState>>()
+
+// ═══ 7. A view may return null, false or undefined (7.2: it renders nothing) ═══════════════
+
+type BannerState = { show: boolean; text: string }
+const Banner: Comp<{ state: BannerState }> = ({ state }) => (state.show ? <p>{state.text}</p> : null)
+const Hidden: Component<BannerState> = ({ state }) => state.show && <p>{state.text}</p>
+const Nothing: Comp<{ state: BannerState }> = () => undefined
+const Root: RootComp<{ state: { banner: BannerState } }> = ({ state }) => (state.banner.show ? <Banner state="banner" /> : null)
+// …and they are still components in JSX
+const Page = () => <div><Banner state="banner" /><Hidden state="banner" /><Nothing state="banner" /></div>
+run(Root)
+void Page

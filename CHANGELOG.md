@@ -16,6 +16,10 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
   scroll canvases but left the folded copy on the main canvas, until the next fold removed it.
   Parallax layers, which always use the ordered strategy, showed it on every pan after the first.
   The main canvas is now cleared to its background when the scroll canvases come back.
+- **Types: an annotated view may return `null`, `false` or `undefined`.** A view typed with
+  `Comp` / `Component` / `RootComp` / `RootComponent` / `defineComponent` returning `null` was a
+  type error (TS2322) though it renders nothing (7.2.0-preview.1); `JSX.ElementType` now lets such a
+  component be a JSX tag (TypeScript 5.1+). Reported by the Sift port.
 
 ## 7.2.0-preview.1 — dev preview
 
