@@ -23,6 +23,10 @@ Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / n
   number (text).** A view typed with `Comp` / `Component` / `RootComp` / `RootComponent` /
   `defineComponent` returning `null` or text was a type error (TS2322) though it renders (7.2.0-preview.1);
   `JSX.ElementType` now lets such a component be a JSX tag (TypeScript 5.1+). Reported by the Sift port.
+- **A Transition's leave no longer throws after its document lost its window.** The re-render it
+  triggers (`pokeDOM`) built its event from the global `Event` when the element's document had no
+  window (a jsdom environment torn down while a leave timer was pending: an uncaught TypeError in
+  the next test file). It now makes the event with the element's own document.
 - **Hydration adopts a text view's server text node.** A component whose view returns a string or a
   number got a new text node at hydration (the server's was replaced): the adopted node now has the
   component's scope key, as a comment from a `null` view already did. Text views are now tested on

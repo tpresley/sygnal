@@ -92,13 +92,19 @@ export function makeInsert(
 // The event comes from the element's own window: jsdom refuses an `Event` from another realm (a
 // Transition's leave timer that fires after a jsdom test environment was torn down). A window that no
 // longer holds the element's document (a closed jsdom window, whose Event is Node's again after
-// Vitest's teardown) has no app left to re-emit: nothing is dispatched
+// Vitest's teardown) has no app left to re-emit: nothing is dispatched. A document with no window
+// (defaultView null: a jsdom window gone, a createHTMLDocument document) makes the event itself,
+// in its own realm; without createEvent either, nothing is dispatched
 export const POKE = 'sygnal-dom';
 export const pokeDOM = (el: any): any => {
   if (!el) return
   const d = el.ownerDocument, w = d?.defaultView
   if (w && 'document' in w && w.document !== d) return
-  return el.dispatchEvent(new (w?.Event || Event)(POKE, {bubbles: true}))
+  if (w) return el.dispatchEvent(new w.Event(POKE, {bubbles: true}))
+  const e = d?.createEvent?.('Event')
+  if (!e) return
+  e.initEvent(POKE, true, false)
+  return el.dispatchEvent(e)
 };
 
 const obj = (o: any) => o !== null && typeof o == 'object' && !Array.isArray(o);
