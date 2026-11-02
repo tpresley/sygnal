@@ -48,6 +48,18 @@ describe("pokeDOM uses the element's own window", () => {
     dom.window.close()
   })
 
+  // …and in the next run: the window still held its document, but its Event was Node's already
+  it('an element whose window still holds its document but whose Event is another realm\'s: dispatched', () => {
+    const dom = new JSDOM('<div id="root"><p id="leaf"></p></div>')
+    const doc = dom.window.document, root = doc.getElementById('root'), leaf = doc.getElementById('leaf')
+    const seen = []
+    root.addEventListener('sygnal-dom', (e) => seen.push(e.type))
+    dom.window.Event = Event
+    expect(() => pokeDOM(leaf)).not.toThrow()
+    expect(seen).toEqual(['sygnal-dom'])
+    dom.window.close()
+  })
+
   it('a host-style window without a document (sygnal/host, renderer targets) still gets the event', () => {
     class E { constructor(type, o) { this.type = type; this.bubbles = o?.bubbles } }
     const seen = []
