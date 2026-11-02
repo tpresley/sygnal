@@ -2547,12 +2547,12 @@ export type MultipartValue = Blob | string | number | boolean | null | undefined
 export type FetchRequest = string | {
   /** Request URL (prefixed with the driver's `baseUrl`) */
   url: string;
-  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`) */
+  /** Reply action that receives the parsed body of a 2xx response (the Response with `parse: 'response'`; with `stream`: the end, no data) */
   ok?: string;
-  /** Reply action that receives a failure, `{ error, status?, body?, request }` (FetchFailure) */
+  /** Reply action that receives a failure, `{ error, status?, body?, headers?, request }` (FetchFailure) */
   error?: string;
   /**
-   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`). Requests with
+   * Reply actions: the `latest` / `abort` group (default: the `ok` action, else `error`, else `chunk`). Requests with
    * the same key from the same instance supersede each other under `latest: true`
    */
   key?: string;
@@ -2587,6 +2587,24 @@ export type FetchRequest = string | {
    * apply (SYG636). Not for resources or `batch`. Without XMLHttpRequest (Node): no steps
    */
   progress?: string | true;
+  /**
+   * 7.2: read a 2xx body as a stream of pieces as they arrive (a POST that streams: a copilot
+   * endpoint answering `data: {...}` lines). 'sse': each event's `data`, JSON-parsed when it
+   * parses; 'ndjson': each non-blank line, JSON-parsed; 'text': the text as it arrives. Each piece
+   * is the `chunk` action (else a reply on `select(category)`); the end of the body (or the
+   * `done` piece) is the `ok` action, with no data. `latest`, `abort`, `key` and `timeoutMs` (here:
+   * the time to the first byte) apply; `retry`, `cache`, `parse`, `validate` and `progress` don't.
+   * Not for resources. Test: `t.push('HTTP', piece)` per piece, then `t.respond('HTTP', null)` to end
+   */
+  stream?: 'sse' | 'ndjson' | 'text';
+  /** 7.2: with `stream`, the reply action each piece arrives as (`chunk: 'DELTA'`: `DELTA: (state, piece) => ...`) */
+  chunk?: string;
+  /**
+   * 7.2: with `stream`, the piece that ends it (not delivered; the connection is closed and `ok`
+   * follows): a string compared with the raw piece (`done: '[DONE]'` for `data: [DONE]`), or a
+   * predicate of the parsed piece (`done: (p) => p.type === 'finish'`)
+   */
+  done?: string | ((piece: any) => boolean);
   /**
    * Latest only: sending this request aborts this component's requests still in flight in the
    * same category; their responses and errors are never delivered. Default: the driver's `latest`
@@ -2682,6 +2700,14 @@ export type FetchRequest = string | {
   invalidate: FetchInvalidate;
 } | {
   /**
+   * 7.2 (React Query's resetQueries), from any component: matching cache entries are dropped;
+   * matching mounted resources go back to 'loading' with no data and no error, then refetch;
+   * paused ones (a hidden Switchable page) lose their kept result ('idle'). `true` matches
+   * everything (logout: `{ reset: true }`); otherwise matched like `invalidate`. With or without the cache
+   */
+  reset: true | FetchInvalidate;
+} | {
+  /**
    * PLAN-3 5-5 (H-7): fetch this request into the driver's `queryCache()` without a reply (a
    * fresh entry or the same fetch in flight: nothing new), so a resource that reads it later
    * renders 'success' at once. Without a queryCache it does nothing (SYG635)
@@ -2751,6 +2777,11 @@ export interface QueryCache {
   set(request: ResourceRequest, data: any): void;
   /** the driver given this cache fetches the request into it, without a reply (like the `{ prefetch }` command) */
   prefetch(request: ResourceRequest): void;
+  /**
+   * 7.2 (React Query's `queryClient.clear()`): drops every entry. Mounted resources keep what they
+   * show (send `{ reset: true }` on the HTTP sink to reset and refetch them too)
+   */
+  clear(): void;
 }
 
 /**
@@ -2791,7 +2822,7 @@ export type Resource<DATA = any, ERROR = any> =
 /** The data of the `error` reply action of a makeFetchDriver() request (`error: 'FAILED'`) */
 export type FetchFailure<REQUEST = any> = {
   /**
-   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * 'HTTP 404 ...' for a non-2xx status (with `.status`, `.body` and `.headers`), the network error
    * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
    * "fetch is not available"
    */
@@ -2800,6 +2831,11 @@ export type FetchFailure<REQUEST = any> = {
   status?: number;
   /** The non-2xx response's body, parsed like 'auto' */
   body?: any;
+  /**
+   * 7.2: the response's headers (`headers.get('Retry-After')`), whenever there was a response: a
+   * non-2xx status, a body that doesn't parse or doesn't validate. Undefined for a network error or timeout
+   */
+  headers?: Headers;
   /** The request as the app sent it */
   request: REQUEST;
   /** With `retry`: how many attempts were made */
@@ -2823,7 +2859,7 @@ export type FetchResponse<VALUE = any, REQUEST = any> = {
 /** A failure on `errors()` of a makeFetchDriver() source */
 export type FetchError<REQUEST = any> = {
   /**
-   * 'HTTP 404 ...' for a non-2xx status (with `.status` and `.body`), the network error
+   * 'HTTP 404 ...' for a non-2xx status (with `.status`, `.body` and `.headers`), the network error
    * (TypeError), the body parse error, a TimeoutError (`.name === 'TimeoutError'`), or
    * "fetch is not available"
    */
@@ -2834,6 +2870,8 @@ export type FetchError<REQUEST = any> = {
   status?: number;
   /** The non-2xx response's body, parsed like 'auto' */
   body?: any;
+  /** 7.2: the response's headers, whenever there was a response (undefined for a network error or timeout) */
+  headers?: Headers;
 }
 
 /**

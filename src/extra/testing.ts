@@ -1343,6 +1343,40 @@ const fakeResponse = (status: number, body: any, url: string): any => {
     clone: () => fakeResponse(status, body, url),
   };
 };
+/**
+ * 7.2: the body of a fake `stream` response: what t.push writes (`put`), t.respond ends (`end`)
+ * and t.fail / an abort errors (`fail`), read by the real driver through `getReader()`. `gone`:
+ * called when the reader stops (ended, failed or cancelled by the driver: a `done` piece)
+ */
+type FakeBody = {getReader: () => any; put: (text: string) => void; end: () => void; fail: (e: any) => void};
+const fakeBody = (gone: () => void): FakeBody => {
+  const q: any[] = [], enc = new TextEncoder();
+  let wait: any, closed = false, err: any;
+  const wake = () => {
+    if (!wait) return;
+    const w = wait;
+    if (q.length) { wait = undefined; w[0]({done: false, value: q.shift()}); }
+    else if (err) { wait = undefined; w[1](err); }
+    else if (closed) { wait = undefined; w[0]({done: true, value: undefined}); }
+  };
+  const stop = () => { closed = true; q.length = 0; gone(); };
+  return {
+    getReader: () => ({
+      read: () => new Promise((a, b) => { wait = [a, b]; wake(); }),
+      cancel: async () => { stop(); wake(); },
+      releaseLock() {},
+    }),
+    put: (text: string) => { if (!closed && !err) { q.push(enc.encode(text)); wake(); } },
+    end: () => { if (!closed) { closed = true; gone(); wake(); } },
+    fail: (e: any) => { if (!closed && !err) { err = e; gone(); wake(); } },
+  };
+};
+/** 7.2: one t.push piece as a `stream` request's mode writes it (SSE `data:` lines, an NDJSON line, text) */
+const streamText = (mode: string, piece: any) => {
+  const t = typeof piece == 'string' ? piece : JSON.stringify(piece);
+  return mode == 'sse' ? t.split(/\r?\n/).map(l => 'data: ' + l).join('\n') + '\n\n' : mode == 'ndjson' ? t + '\n' : t;
+};
+const abortErr = () => Object.assign(new Error('The operation was aborted.'), {name: 'AbortError'});
 /** a request field compared by value (t.respond / t.fail targets) */
 const same = (a: any, b: any): boolean => {
   if (a === b) return true;
@@ -1888,7 +1922,8 @@ export function renderComponent(
   // pf: a { prefetch } fetch (5-5: answered into the cache, no reply)
   // llm: the in-memory stream handle of an LLM fake request (PLAN-6 L-4)
   // step: PLAN-11 U-2, the driver's progress callback of a request sent with `progress` (t.progress)
-  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any; step?: (phase: string, loaded: number, total: number) => void};
+  // sb: 7.2, the body of a `stream` request once a t.push / t.respond started it (fakeBody)
+  type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any; step?: (phase: string, loaded: number, total: number) => void; sb?: FakeBody; open?: (r: any) => void};
   type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
@@ -1944,10 +1979,13 @@ export function renderComponent(
           const value = res !== undefined ? {...req, resource: res} : pf ? {...req, prefetch: true} : sending !== undefined ? sending : req;
           if (res !== undefined || pf) requests(name).push(value);
           const p: Pending = {value, req, category: req.category, res, pf, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
+          // 7.2: a stream's response is resolved by its first t.push (or t.respond); it stays pending
+          if (req.stream) p.open = resolve;
           pending.push(p);
           init?.signal?.addEventListener?.('abort', () => {
             if (!p.live) return;
             p.live = false;
+            p.sb?.fail(abortErr());
             const e: any = new Error('The operation was aborted.');
             e.name = 'AbortError';
             reject(e);
@@ -2081,7 +2119,7 @@ export function renderComponent(
     }
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
-    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'prefetch' in v));
+    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'reset' in v || 'prefetch' in v));
     const value = typeof shown == 'string' ? {url: shown} : shown;
     if (listed) requests(name).push(value);
     if (!track) return;
@@ -2733,7 +2771,7 @@ export function renderComponent(
     if (tg === undefined) return {match: cat, desc: catDesc, o};
     if (typeof tg == 'string') {
       // an ok/error action name, key, category, resource name or URL
-      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.progress, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
+      return {match: r => { const v = r.value || {}; return cat(r) && [v.ok, v.error, v.progress, v.chunk, v.key, v.category, r.res, v.url].includes(tg); }, desc: ` matching '${tg}'${catDesc}`, o};
     }
     if (typeof tg == 'function') {
       // a sygnal/api endpoint: its own match (called as a predicate it would build a request)
@@ -2809,7 +2847,8 @@ export function renderComponent(
       // the driver delivers a resource's reply, and a reply action for a request that names one
       // for this outcome (from a component), as that action; a prefetch into the cache; anything
       // else on select()/errors()
-      if (e && (e.res !== undefined || e.pf || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
+      // 7.2: a stream's end (its pieces went out with t.push) is the driver's to deliver
+      if (e && (e.res !== undefined || e.pf || (!err && e.req?.stream) || (senderOf(e.req) !== undefined && (err ? e.req.error : e.req.ok)))) return deliver(e, o);
       const data = payload(category, o, e);
       let heard = false;
       f.subs.forEach(sub => {
@@ -2938,9 +2977,28 @@ export function renderComponent(
   // 5-1: the fetch resolves with a Response-like object (status, the body as JSON, or text for a
   // string), which the driver parses as it would a server's (a Response passed in is used as is)
   const urlOf = (e: Pending) => e.value?.url ?? e.req.url ?? '';
+  // 7.2: a `stream` request's response (status, its mode's content type, a fakeBody), sent at the
+  // first t.push / t.respond; it stays pending (live) until its body ends
+  const streamOpen = (e: Pending, status = 200): FakeBody => {
+    if (!e.sb) {
+      const sb = e.sb = fakeBody(() => { e.live = false; });
+      const type = e.req.stream == 'sse' ? 'text/event-stream' : e.req.stream == 'ndjson' ? 'application/x-ndjson' : 'text/plain;charset=UTF-8';
+      e.open!({ok: status > 199 && status < 300, status, statusText: '', url: urlOf(e), redirected: false, type: 'basic', bodyUsed: false,
+        headers: new Headers({'content-type': type}), body: sb});
+    }
+    return e.sb;
+  };
+  // t.respond on a stream: the end (a value other than undefined / null is written as a last
+  // piece first); a non-2xx status before any piece: an HTTP error response
+  const streamEnd = (e: Pending, value: any, o: any) => {
+    if (!e.sb && o.status !== undefined && !(o.status > 199 && o.status < 300)) return e.settle(true, fakeResponse(o.status, value, urlOf(e)));
+    const sb = streamOpen(e, o.status);
+    if (value != null) sb.put(streamText(e.req.stream, value));
+    sb.end();
+  };
   const respond = (name: string, value: any, opts?: FakeReplyTarget) =>
     reply('respond', name, false, opts,
-      (e, o) => e.llm ? llmEnd(e, [typeof value == 'string' ? value : JSON.stringify(value)]) : e.settle(true,typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
+      (e, o) => e.llm ? llmEnd(e, [typeof value == 'string' ? value : JSON.stringify(value)]) : e.open ? streamEnd(e, value, o) : e.settle(true,typeof Response == 'function' && value instanceof Response ? value : fakeResponse(o.status ?? 200, value, urlOf(e))),
       (category, o, e) => ({category, value, status: o.status ?? 200, request: e?.req}));
   // 5-1: a number (or a `status` option) is an HTTP error response the driver turns into its
   // Error('HTTP 404: url') with `status` / `body`; an Error or a message is a network failure
@@ -2961,6 +3019,8 @@ export function renderComponent(
           e.live = false;
           return void e.llm.fail(status !== undefined && !(x instanceof Error) ? Object.assign(new Error(`HTTP ${status}`), {status, body}) : x);
         }
+        // 7.2: a stream already started fails mid-body (a network error: an Error, else 'HTTP n')
+        if (e.sb) return e.sb.fail(x instanceof Error ? x : Object.assign(new Error(`HTTP ${status}`), {status, body}));
         status !== undefined ? e.settle(true, fakeResponse(status, body, urlOf(e))) : e.settle(false, x);
       },
       (category, o, e) => {
@@ -3080,8 +3140,25 @@ export function renderComponent(
     }));
   };
   const open = (name: string, target?: FakeConnectionTarget) => sockCall('open', name, target, [0], sockOpen);
+  // 7.2: t.push on a sink with `stream` requests: one piece of the pending stream request the
+  // target picks (t.respond's targets), written in its mode (the driver parses it as a server's);
+  // its response starts with the first piece. Used when such a request matches, or when the sink
+  // (not the socketSink) declares no connections
+  const streamPush = (name: string, data: any, target: any) => {
+    const tg0 = targetOf(target), tg = {...tg0, match: (r: Pending) => !!r.open && tg0.match(r), desc: ` with stream: 'sse' | 'ndjson' | 'text'${tg0.desc}`};
+    const what = `t.push('${name}')`;
+    return scripted(() => pick(name, tg), w => noPending(what, name, tg, w), (e: Pending) => {
+      streamOpen(e).put(streamText(e.req.stream, data));
+    }, sendDue && !('nth' in tg.o));
+  };
   const push = (name: string, data: any, target?: any) => {
-    const o = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection' || k == 'id') ? target : {connection: target};
+    const sockForm = target && typeof target == 'object' && !Array.isArray(target) && Object.keys(target).length && Object.keys(target).every(k => k == 'event' || k == 'connection' || k == 'id');
+    if (!sockForm && !drivers[name]) {
+      let tg: Target | undefined;
+      try { tg = targetOf(target); } catch (_) {}
+      if (tg && ((name != socketSink && !conns(name).length) || (fakes.get(name)?.pending || []).some(r => r.live && r.open && tg!.match(r)))) return streamPush(name, data, target);
+    }
+    const o = sockForm ? target : {connection: target};
     const raw = typeof data == 'string' || (data && typeof data == 'object' && (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || (typeof Blob != 'undefined' && data instanceof Blob))) ? data : JSON.stringify(data);
     const ev = o.event;
     return sockCall('push', name, o.connection, [1], s => {

@@ -112,7 +112,7 @@ describe('makeFetchDriver: reply actions', () => {
     expect(typeof got.text).toBe('function')
   })
 
-  it('non-2xx: the error action gets { error, status, body, request }', async () => {
+  it('non-2xx: the error action gets { error, status, body, headers, request }', async () => {
     const f = stubFetch()
     start(Quote, { HTTP: makeFetchDriver({ fetch: f.fetch }) })
     await until(() => document.querySelector('.load'), 'render')
@@ -121,7 +121,7 @@ describe('makeFetchDriver: reply actions', () => {
     f.respond(f.calls[0], { message: 'nope' }, 404)
     await until(() => text('.out') === 'missing:', 'FAILED')
     const err = JSON.parse(text('.err'))
-    expect(err).toEqual({ status: 404, body: { message: 'nope' }, message: 'HTTP 404: /api/q/0', url: '/api/q/0', keys: ['body', 'error', 'request', 'status'] })
+    expect(err).toEqual({ status: 404, body: { message: 'nope' }, message: 'HTTP 404: /api/q/0', url: '/api/q/0', keys: ['body', 'error', 'headers', 'request', 'status'] })
     expect(errorSpy).not.toHaveBeenCalled()
   })
 

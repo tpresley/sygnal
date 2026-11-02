@@ -101,6 +101,7 @@ export function check(component: any, sink: string, req: any) {
     reportNoCache(component, sink, '{ prefetch }', typeof p === 'string' ? p : String(p?.url ?? ''))
     return
   }
+  if ('reset' in req) return
   if ('invalidate' in req) {
     const count = component.sources[sink]?.__matches?.(req.invalidate)
     const what = typeof req.invalidate === 'function' ? 'the predicate' : JSON.stringify(req.invalidate)

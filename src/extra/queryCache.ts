@@ -11,7 +11,7 @@ import {withQuery, hit} from './fetchDriver';
  * n (resources using it), g (gc timer) }), gc, freshness (the stale-while-revalidate decision),
  * the fetches identical requests share (de-duplication, `f`), entry invalidation, the focus /
  * reconnect trigger and SSR seeding. The driver calls its hooks (key, fresh, get, put, use,
- * inval, on, list) and keeps resources, polling, retries and validation.
+ * inval, drop, on, list) and keeps resources, polling, retries and validation.
  *
  * - Keys: method + URL as written (the driver's baseUrl left out, query sorted) + body + parse.
  *   Cacheable: a resource's GET/HEAD request, and any request with `cache: true` or `staleTime`
@@ -20,6 +20,8 @@ import {withQuery, hit} from './fetchDriver';
  *   of the entries with data; `hydrate(snapshot)` / `queryCache({ initial })` write it back (an
  *   entry newer than the snapshot's is kept). `set(request, data)` writes one entry (a loader on
  *   the server). Entries keep their `updatedAt`, so a seeded entry is fresh for `staleTime`.
+ * - `clear()` (logout) drops every entry; mounted resources keep showing what they have. The
+ *   driver's `{ reset }` command drops the matching entries (`drop`) and resets the resources.
  * - `prefetch(request)`: the attached driver (the last makeFetchDriver given this cache) fetches
  *   the request into the cache without a reply, like the `{ prefetch }` sink command.
  */
@@ -63,6 +65,22 @@ export function queryCache(o: any = {}): any {
     E.q = q;
     E.n || gc(E);
   };
+  // drops the entries `x` matches (true: all; else as invalidate): an entry a mounted resource
+  // still uses keeps only its subscriber count (no data, like a resource's new entry), so the
+  // resource's bookkeeping stays right. The fetches in flight for them never write it. Returns
+  // the keys
+  const drop = (x: any) => {
+    const ks = new Set<string>();
+    map.forEach(E => {
+      if (x !== true && !hit(x, E.q)) return;
+      ks.add(E.k);
+      clearTimeout(E.g);
+      if (E.n) { delete E.v; E.at = E.s = 0; }
+      else map.delete(E.k);
+    });
+    C.f.forEach((F: any) => { if (ks.has(F.k) || x === true || hit(x, F.q)) { F.z = 1; C.f.delete(F.k); } });
+    return ks;
+  };
   const C: any = {
     key,
     fresh,
@@ -102,6 +120,9 @@ export function queryCache(o: any = {}): any {
       if (k !== undefined) put(k, typeof q == 'string' ? {url: q} : q, data);
     },
     prefetch: (q: any) => C.d?.({prefetch: q}),
+    drop,
+    // React Query's queryClient.clear(): every entry goes; mounted resources keep what they show
+    clear: () => { drop(true); },
   };
   C.hydrate(o.initial);
   return C;
