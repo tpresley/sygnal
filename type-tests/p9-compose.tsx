@@ -69,6 +69,10 @@ compose(catalog, {})
 compose(catalog, { backend, preview: 'keep' })
 // @ts-expect-error 'merge' | 'replace' | 'keep'
 compose(catalog, { backend, preview: 'later' })
+compose(catalog, { backend, busy: 'queue' })
+// @ts-expect-error 'abort' | 'queue'
+compose(catalog, { backend, busy: 'debounce' })
+expectTypeOf<ComposeState['queued']>().toEqualTypeOf<{ prompt: string; fresh?: true } | null>()
 expectTypeOf(catalog.containers.tabs.maxUses).toEqualTypeOf<number | undefined>()
 
 function Workspace({ state }: { state: { page: ComposeState; customers: Array<{ id: number; name: string }> } }) {

@@ -132,16 +132,16 @@ export const FIRST_PARTY = {
     listens: [['form', 'SEND', 'select'], ['prompt', 'PROMPT', 'select'], ['stop', 'STOP'], ['approve', 'APPROVE'], ['deny', 'DENY'], ['regenerate', 'REGENERATE']],
     intent: ['DELTA', 'REPLY', 'FAILED', 'RESULTS', 'ASK', 'DONE', 'TOOL_OUTPUT', 'TOOL_CALL', 'ANSWER', 'CONTROL', 'CARD', 'CARD_FAILED', 'RESUME'],
   },
-  // PLAN-9 C-1: compose(catalog, { backend, form, prompt, key, preview }) from 'sygnal/ai'
+  // PLAN-9 C-1: compose(catalog, { backend, form, prompt, key, preview, busy }) from 'sygnal/ai'
   // (src/extra/ai/compose/behavior.ts); options are the 2nd argument. COMPOSE comes from the form's
   // submit (or next() / the host), SET_LAYOUT, REMOVE from the host; the backend's replies (REPLY,
   // DELTA, FAILED), CONTROL (container controls) and DONE come from outside its intent; a host
   // entry 'page.DONE' extends DONE
   compose: {
-    stateKeys: ['prompt', 'status', 'layout', 'preview', 'pending', 'decisions', 'error', 'ui', 'local'],
+    stateKeys: ['prompt', 'status', 'layout', 'preview', 'pending', 'queued', 'decisions', 'error', 'ui', 'local'],
     calculated: [],
     model: ['PROMPT', 'COMPOSE', 'SET_LAYOUT', 'REMOVE', 'CONTROL', 'DONE', 'REPLY', 'DELTA', 'FAILED'],
-    options: ['backend', 'form', 'prompt', 'key', 'preview'],
+    options: ['backend', 'form', 'prompt', 'key', 'preview', 'busy'],
     listens: [['form', 'COMPOSE', 'select'], ['prompt', 'PROMPT', 'select']],
     intent: ['REPLY', 'DELTA', 'FAILED', 'CONTROL', 'DONE'],
     optionsArg: 1,

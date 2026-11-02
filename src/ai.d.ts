@@ -1581,6 +1581,8 @@ export interface ComposeState {
   preview: Layout | null
   /** the backend's step (plain JSON) */
   pending: unknown
+  /** the composition waiting for the one in flight (`busy: 'queue'`), else null */
+  queued: { prompt: string; fresh?: true } | null
   /** what the backend explains (decisions: its answers; LLM: its plan) */
   decisions: unknown
   error: string | null
@@ -1621,6 +1623,14 @@ export interface ComposeOptions {
    * 'replace' the preview alone (only the parts finished so far); 'keep' the layout until the reply
    */
   preview?: 'merge' | 'replace' | 'keep'
+  /**
+   * what a COMPOSE does while a composition is in flight: 'abort' (default) starts it at once (the
+   * step in flight is aborted); 'queue' keeps one in flight: the COMPOSE waits in `queued` (a newer
+   * one replaces it) and starts when the one in flight ends, which still lands first (DONE runs).
+   * For a page that recomposes itself on state changes faster than its model answers.
+   * SET_LAYOUT ends both.
+   */
+  busy?: 'abort' | 'queue'
 }
 
 /** A result part's PARENT value (`compose.answer(props, value)`) */

@@ -80,6 +80,13 @@ both backends, the prompt ("up to 3 times") and `finish`.
 
 ### Forms whose fields are chosen at run time
 
+**Addressed in #69:** `form(schema, { dynamic: (state) => ({ path: start }) })` adds and removes
+fields as the host's state says (typed values kept, removed fields' touched/errors dropped), and
+`form((state) => schema)` makes required-ness follow what was composed (SYG239: a schema function
+that isn't memoized). The intake lab now names each piece's fields under its node key, lets the
+amount piece repeat, and has no app-side required check; a rejected submit no longer leaves
+`submitted: true` (`dev-plans/research/forms/runtime-fields.md`). The original notes:
+
 - **`form()` only takes names already in its start values** (others are skipped; SYG230 in dev).
   A composed form has to predeclare every name any piece could write, including the node keys of
   repeated parts (`extra: { question: '', 'question~2': '', 'question~3': '' }`), which ties the
@@ -150,20 +157,26 @@ worth measuring.
   `{"op":"add","part":"dates","where":"top"},{"op":"add","part":"amount","where":"top"},…` without
   end: replayed with `max_tokens: 600` it stopped at the cap (`finish_reason: "length"`, 28 s); the
   app's own request, which sends no `max_tokens` and whose `ops` array has no `maxItems`, streamed
-  for minutes with the page in "preview" and the Change button disabled. Ideas: container ops (`wrap: [keys], in: '<container>'`, `where: 'into <key>'`), or
-  dropping containers from the edit prompt and answering such a change as a fresh composition;
-  either way a cap on `ops` and a timeout on a compose request.
+  for minutes with the page in "preview" and the Change button disabled. **Addressed in #67:**
+  `maxItems` on every list in the reply schemas, a streamed reply stopped where it repeats itself
+  or passes the cap (SYG687), a 60 s `timeoutMs` per compose step, a `maxTokens` transport option,
+  and container edit ops (`wrap`, `unwrap`, `into <key>`): container edits on qwen3:8b went from
+  2/10 to 9/10 with no regression on plain edits (`dev-plans/research/ai-compose/container-edits.md`).
 - **sygnal-check didn't know the new `preview` option** (SYG127 in the dev checker). Fixed in #66.
-- **Aborted requests still cost the model's time.** Hot reloads during development (and any
-  burst of `latest` re-sends) abort fetches, but Ollama keeps generating each one: about 20 aborted
-  requests queued up and delayed the next real composition by minutes. Not a Sygnal bug, but a
-  self-arranging page that recomposes on every change needs a debounce, or a cap on requests in
-  flight, more than a `latest` abort.
+- **Recomposing faster than the model answers starves the page.** The diagnosis above blamed
+  aborted requests that Ollama kept generating; #68 measured that wrong: Ollama stops within about
+  100 ms of an abort, streamed or not, on every endpoint (the minutes-long stall was the runaway
+  edit above). The real cost is abort-and-resend itself: the board ticks every 3 s and a fresh
+  arrangement takes 15–20 s, so each change aborted the one in flight and none landed (1 of 10 in a
+  live run). **Addressed in #68:** `compose(catalog, { busy: 'queue' })` keeps one composition in
+  flight and starts the newest waiting one when it lands (4 of 4 landed, the first at 14 s); the
+  board uses it (`dev-plans/research/ai-compose/request-pacing.md`). Not done: a rules-first,
+  model-refines pipeline, and `SET_LAYOUT` / `REMOVE` leaving a request running.
 - **A piece that repeats needs its own value names.** "Flight and hotel budget" can only be one
   `amount` piece: the form's names are fixed per piece (`amount`, `currency`), so a second amount
   would write over the first. Only `question` repeats, because its names come from the node key.
   Composed forms want a field-name scheme per node (`<node>.<field>`), which loops back to
-  `form()` needing to accept names that appear at run time.
+  `form()` needing to accept names that appear at run time. **Addressed in #69** (above).
 
 ## Model behaviour (qwen3:8b)
 

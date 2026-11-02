@@ -119,6 +119,34 @@ describe('a reply in a loop is stopped', () => {
   })
 })
 
+describe("a runaway stop with busy: 'queue'", () => {
+  it('the composition the stop starts is in flight: the next COMPOSE waits for it', async () => {
+    const backend = compose.llm({ model: 'qwen3:8b' })
+    t = renderComponent(makeApp(backend, { uses: { page: compose(appCatalog, { backend, form: '.ask', prompt: '.prompt', busy: 'queue' }) } }), { strict: true })
+    t.simulateAction('page.COMPOSE', 'the weather, then the tickets')
+    await t.next((s) => s.page.status === 'composing')
+    await t.stream('LLM', [JSON.stringify({ asked_for: ['weather', 'tickets'], children: [{ part: 'weather' }, { part: 'tickets' }] })], 'page.REPLY')
+    await t.waitForState((s) => s.page.status === 'done')
+
+    // an edit in flight, and a fresh composition waiting for it
+    t.simulateAction('page.COMPOSE', 'the tickets first')
+    await t.next((s) => s.page.status === 'composing')
+    t.simulateAction('page.COMPOSE', { prompt: 'the orders', fresh: true })
+    await t.next((s) => s.page.queued?.prompt === 'the orders')
+
+    // the edit loops: the stop ends it, and the waiting one starts
+    const op = { op: 'move', node: 'n2', where: 'top' }
+    await t.stream('LLM', [JSON.stringify({ ops: [op, op, op] }).slice(0, -2)], 'page.REPLY', { end: false })
+    await t.waitForState((s) => s.page.prompt === 'the orders' && s.page.status === 'composing')
+    const sent = t.requests('LLM').length
+
+    // it is in flight, so the next COMPOSE waits instead of aborting it
+    t.simulateAction('page.COMPOSE', { prompt: 'the weather', fresh: true })
+    await t.next((s) => s.page.queued?.prompt === 'the weather')
+    expect(t.requests('LLM')).toHaveLength(sent)
+  })
+})
+
 describe('the output-token limit', () => {
   it("a reply cut there (finishReason 'length') is read up to where it stopped", () => {
     const b = llm()

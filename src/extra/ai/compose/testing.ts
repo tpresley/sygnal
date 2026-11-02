@@ -9,7 +9,8 @@
  * has `pending`) and answers each of its steps with the backend's `fake()` (the reply body that
  * leads to `tree`) on the backend's sink, targeted by the use's reply action (`page.REPLY`):
  * `t.respond`, or, with `stream: n` (true: 3) and a text body, `t.stream` in n chunks (an LLM
- * backend's JSON). It resolves once no step is pending.
+ * backend's JSON). It resolves once no step of that composition is pending (a queued one that
+ * starts as it ends, `busy: 'queue'`, needs a composeWith of its own).
  *
  * H-2: a card of `chat({ ask: { catalog } })` being composed (an `ask_user` part whose `ui` has
  * `pending`) is answered the same way, targeted by the chat's CARD action ('assistant.CARD'). A
@@ -29,7 +30,8 @@ export async function composeWith(t: any, catalog: any, tree: Tree, options: {st
   if (!entries.length && !cards.length) throw err('no compose behavior uses this catalog (compose(catalog, { backend }) in a component\'s uses, or chat({ ask: { catalog } }))')
   const use = (e: (typeof entries)[number], k: string, s: any): Cur => ({backend: e.backend, target: k + '.REPLY', pending: s.pending, next: () => {
     const n = t.state?.[k]
-    return n?.pending != null && n.pending !== s.pending ? use(e, k, n) : undefined
+    // the next step of this composition (not a queued one that started as it ended: busy 'queue')
+    return n?.pending != null && n.pending !== s.pending && e.of.get(n.pending) === e.of.get(s.pending) ? use(e, k, n) : undefined
   }})
   // the card being composed in a chat's last message (cards compose one at a time)
   const cardOf = (backend: any, k: string, id?: string): Cur => {
