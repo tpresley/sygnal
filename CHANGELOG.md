@@ -10,9 +10,10 @@ Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / n
 - **Combobox no longer pulls the focus back after it closes.** Zag returns the focus to the input
   (and moves its caret to the end) a frame after the list closes, even when the focus has moved on by
   then: Tab out of an `allowCustomValue` combobox, a click into another field right after Enter picks
-  an option. The input now drops that late focus and caret move when the focus isn't where it was at
-  the close (as React Aria, which never moves the focus later). It also made the ZS-3 and Round 2 Q2
-  browser tests flaky.
+  an option, or a select-all in the input to type over it (the text was added after the old one).
+  The input now drops that late focus when the focus isn't where it was at the close, and the late
+  caret move then or over a selection made since the close (as React Aria, which never moves the
+  focus later). It also made the ZS-3, Round 2 Q2 and G-468 browser tests flaky.
 - **sygnal/canvas: a pan no longer shows the scenery twice.** After the camera had been still long
   enough for the scroll canvases to fold back onto the main canvas (R14), the next pan moved the
   scroll canvases but left the folded copy on the main canvas, until the next fold removed it.
