@@ -298,20 +298,18 @@ TaskPage.model = {   // a page shares the parent's state: no initialState (SYG40
 
 ## 7. Testing your change
 ```js
-import { it, expect, afterEach } from 'vitest'
+import { it, expect } from 'vitest'
 import { renderComponent } from 'sygnal'
 import TaskList from './TaskList.jsx'
-let t
-afterEach(() => t?.dispose())
 it('picks, then removes a task', async () => {
-  t = renderComponent(TaskList, { strict: true })   // also: initialState, context, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
+  const t = renderComponent(TaskList, { strict: true })   // disposed after the test; also: initialState, context, drivers, mockConfig, diagnostics, timeoutMs, settleMs, eventWaitMs
   t.simulateEvent('.pick', 'click')                 // first match; bubbles; reaches child components too
   await t.next(s => s.picked === 1)                 // a state emitted after this call
   await t.simulateEvent('.task[data-id="2"] .remove', 'click')
   expect(t.state.tasks.length).toBe(1)
   await t.settle()                                  // nothing pending anywhere in the tree
   expect(t.html()).not.toContain('Test')
-  t.expectNoDiagnostics()                           // throws on any warn/error diagnostic
+  t.expectNoDiagnostics()                           // throws on warn/error; strict fails unread ones
 })
 ```
 - `simulateEvent(sel, type, init?)`: init `{ value }`, `{ checked }`, `{ files: [file] }` (a FileList), `{ key: 'Enter' }`, `{ data: { id: 2 } }`; `'document'` targets `DOM.select('document')` listeners. Calls made before the component is ready are buffered (`await t.ready()` is optional). `sel` matches the rendered tree like the real DOM (`:nth-child(n)`, `:not()`, `>`, `+`, `~`: `.list:nth-child(2) .card:first-child .next`). Delivered later: await it (resolves once rendered) before `t.query`. If it matches nothing (after waiting up to 300ms for a render), the test fails with an error naming the selector (check `t.html()`, or select by attribute: `[data-id="3"]`); `{ allowMissing: true }` drops the event instead. `:has()` throws. `t.queryAll('.a, .b')`: document order. `sel` is always a selector string, never an element (`t.query()` returns snapshots: select by attribute, `'.remove[data-id="2"]'`). With `dom: 'real'`, simulated inputs wait for a quiet, patched tree between deliveries (10 ms), so a large queued batch may exceed `timeoutMs` without losing writes. Use native button `.click()` calls for a synchronous burst test, or give serialized tests a larger timeout. `eventWaitMs` is the target-readiness budget, not a quiet-window switch; wait timeouts report queued input counts.

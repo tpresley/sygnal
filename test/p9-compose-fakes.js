@@ -156,8 +156,11 @@ export function fakeLlm({ model = 'test-llm', sink = 'LLM' } = {}) {
       return { layout: catalog.finish(fromTree(catalog, v.page), state), decisions: v }
     },
     delta({ catalog, state, delta }) {
-      const v = parsePartial(delta.text || '')
-      const page = complete(catalog, v?.page)
+      // the complete nodes: a cut prefix's last top-level node may be half-written (a required
+      // param not there yet, SYG251), so it waits for the next delta
+      let whole
+      try { whole = JSON.parse(delta.text || '') } catch (_) {}
+      const page = complete(catalog, whole ? whole.page : parsePartial(delta.text || '')?.page?.slice(0, -1))
       return page.length ? { preview: catalog.finish(fromTree(catalog, page), state) } : {}
     },
     fake: ({ target }) => JSON.stringify({ page: target }),
