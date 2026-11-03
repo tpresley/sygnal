@@ -274,3 +274,6 @@ A wizard is tested like any component:
 
 - [SYG455](/reference/errors/#syg455): `<Outlet from>` names no `wizard()` in the component's `uses`.
 - [SYG456](/reference/errors/#syg456): the outlet has no component in `of` for the current step or route.
+- [SYG457](/reference/errors/#syg457): an `of` key that is no step of the wizard (`sygnal-check` only).
+
+`sygnal-check` reports SYG455 and SYG456 before the app runs too, when `uses`, `steps` and `of` are object literals.
