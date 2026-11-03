@@ -28,8 +28,16 @@
 import {pres} from '../core/registry'
 import {createElement} from '../pragma/index'
 import {h} from '../cycle/dom/snabbdom'
+import {error} from './diagnostics/legacy'
 
 const FOCUS = '[data-wizard-focus],h1,h2,h3'
+
+// SYG455 / SYG456, once per owner and name (a view renders often); in production too, as SYG620
+const told = new WeakMap<any, Set<string>>()
+const bad = (o: any, code: string, what: string, msg: string, fix: string) => {
+  const t = told.get(o) || (told.set(o, new Set()), told.get(o)!)
+  if (!t.has(code + what)) t.add(code + what), error(code, o.def?.name, msg, fix)
+}
 
 const focusIn = (el: any, sel: string) => {
   let n = 0
@@ -83,7 +91,7 @@ function rewrite(n: any, owner: any): any {
   let cur: any = null, id: any = null, st = bind
   if (from != null) {
     const W = owner.def?.view?.uses?.[from]?.$wizard, s = owner.cell?.get(), w = s?.[from]
-    if (!W) console.error(`[Sygnal] Outlet: from="${from}" names no wizard() in the component's uses`)
+    if (!W) bad(owner, 'SYG455', from, `<Outlet from="${from}"> names no wizard() in the component's uses; nothing rendered`, `Declare it: ${owner.def?.name || 'C'}.uses = { ${from}: wizard({ steps }) }, or name its key in from`)
     else if (w?.visit && (!W.keyOf || Object.is(W.keyOf(s) ?? null, w.key))) {
       cur = w.step
       id = `${w.key}:${w.step}:${w.visit}`
@@ -100,7 +108,7 @@ function rewrite(n: any, owner: any): any {
     id = identity ?? current
   }
   const C = cur != null ? of[cur] : null
-  if (cur != null && !C) console.error(`[Sygnal] Outlet: no component for '${cur}' in of`)
+  if (cur != null && !C) bad(owner, 'SYG456', cur, `<Outlet> has no component for '${cur}' in of; nothing rendered`, `Add it: of={{ ${cur}: Component, ... }} (the keys are ${from != null ? 'the step names' : route ? 'the route names' : 'the current values'})`)
   const child = C ? createElement(C, {...rest, key: id, ...st !== undefined && {state: st}}) : null
   const sel = focus === false ? '' : typeof focus == 'string' ? focus : FOCUS
   const seen = (v: any) => {

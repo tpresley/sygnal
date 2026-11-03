@@ -77,6 +77,20 @@ export const EXPLANATIONS = {
     explanation: "In Sygnal 6 a retained component's state path or byId binding is fixed at mount. A changing byId selector without a corresponding key can keep reading and writing the old record. Sygnal 7 disposes and remounts components when a known state path or byId target changes, even with the same explicit key; equivalent fresh byId objects preserve the component. Opaque custom lenses remain mount-bound. The static checker reports direct dynamic unkeyed byId selections only when the installed Sygnal is known to be 6; it is silent for 7 and when the installed version cannot be determined (no node_modules, Yarn PnP, git-tree --base checks).",
     fix: "On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.",
   },
+  SYG455: {
+    title: "Outlet from names no wizard behavior",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "`<Outlet from=\"wizard\">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. Reported once per component, in production too.",
+    fix: "Declare the behavior on the component that renders the outlet, under the key `from` names: `NewFilter.uses = { wizard: wizard({ steps }) }` with `<Outlet of={STEPS} from=\"wizard\" />`.",
+  },
+  SYG456: {
+    title: "Outlet has no component for the current name",
+    severity: "error",
+    reportedBy: ["runtime"],
+    explanation: "`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. Reported once per component and name, in production too.",
+    fix: "Add the component under that name: `of={{ source: Source, review: Review }}` with one key per step name, or one per route name in route mode (`notFound: NotFound` included).",
+  },
   SYG101: {
     title: "Intent action has no model entry",
     severity: "warn",

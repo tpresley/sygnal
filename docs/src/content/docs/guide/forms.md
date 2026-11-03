@@ -114,7 +114,7 @@ AccountStep.model = {
 }
 ```
 
-**Wizards**: each step is a child with a `state` prop (`<AccountStep state="account" />`); the parent switches steps on its `PARENT` message. The step's `form` slice lives in the parent's state, so after "Back" the step mounts with its values kept (and `submitting` off, even if it unmounted mid-request). Make "Next" a `type="submit"` button inside the `<form>`; in a test, simulate `'submit'` on the form (the mock DOM doesn't turn a click into a submit).
+**Wizards**: [`wizard()`](/guide/wizards/#what-a-step-sees). By hand, each step is a child with a `state` prop (`<AccountStep state="account" />`) that the parent switches on its `PARENT` message; its `form` slice lives in the parent's state, so after "Back" the step mounts with its values kept (`submitting` off). Make "Next" a `type="submit"` button inside the `<form>`; in a test, simulate `'submit'` on the form (the mock DOM doesn't turn a click into a submit).
 
 ## Start empty on each visit
 

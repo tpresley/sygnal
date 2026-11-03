@@ -4,6 +4,24 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+From the Sift console port's hand-built wizards (research: `dev-plans/research/wizard/`).
+
+**Added (experimental, outside semver): wizards.**
+- **The `wizard()` behavior and `<Outlet>`** (guide/wizards). They build multi-step flows where only the current step exists: entering a step runs its BOOTSTRAP, and leaving it runs its DISPOSE and aborts its requests.
+  - **State:** a `draft` shared by the steps, plus each step's own slice, kept across Back. Two steps' resources and forms no longer collide. Per-step `visit` scratch is reset on entry.
+  - **Flow key:** `key` makes the flow anew for a new record (session, draft, report).
+  - **Moves:** start over (`reset`), `valid` / `when` per step, and `finish`.
+  - **Leave guard:** `dirty` with a confirm dialog, on the router's `block`.
+  - **URL binding:** `url: { route, param, key }`.
+  - **Stepper:** its state is in `state.wizard.steps`, with `aria-current="step"` markup in the guide. Focus moves to the new step's heading.
+  - **Route mode:** `<Outlet of={PAGES} route={state.route} query={['session']} />` renders route pages one at a time, identified by name + path + the named query keys.
+  - **Diagnostics:** **SYG455** (an Outlet `from` that names no wizard) and **SYG456** (no component for the current name).
+  - **sygnal-check** knows the behavior's slice, actions and options.
+
+**Fixed.**
+- **Router: a blocked back / forward whose `proceed` was sent at once was lost.** The router told the blocker before undoing the traversal, so the proceed's `history.go()` ran first and went nowhere. The traversal is now undone first.
+- **`renderComponent`'s in-memory history resolves `go(n)` when the traversal runs**, as browsers do, instead of when it is called.
+
 From the `examples/ai-adaptive` stress test of composed UI (#65–#70; its `FINDINGS.md` has the
 reports).
 

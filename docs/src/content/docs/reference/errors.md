@@ -2004,6 +2004,26 @@ In Sygnal 6 a retained component's state path or byId binding is fixed at mount.
 
 **Fix:** On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.
 
+### SYG455
+
+**Outlet from names no wizard behavior**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+`<Outlet from="wizard">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. Reported once per component, in production too.
+
+**Fix:** Declare the behavior on the component that renders the outlet, under the key `from` names: `NewFilter.uses = { wizard: wizard({ steps }) }` with `<Outlet of={STEPS} from="wizard" />`.
+
+### SYG456
+
+**Outlet has no component for the current name**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+
+`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. Reported once per component and name, in production too.
+
+**Fix:** Add the component under that name: `of={{ source: Source, review: Review }}` with one key per step name, or one per route name in route mode (`notFound: NotFound` included).
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501

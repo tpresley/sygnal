@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The wizard spike (dev-plans/research/wizard): the `wizard` behavior and <Outlet>.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
@@ -321,5 +321,25 @@ describe('router: a blocked back/forward whose proceed is sent at once', () => {
     await t.back(); await tick(40)
     expect(t.location.path).toBe('/a')
     expect(t.state.route.name).toBe('a')
+  })
+})
+
+describe('Outlet diagnostics', () => {
+  it('SYG455: from names no wizard; SYG456: no component for the current name (each once)', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      function Nope({ state }) { return h('div', null, h(Outlet, { of: STEPS, from: 'flow' }), h(Outlet, { of: {}, current: state.n ? 'a' : 'b' }), h('button', { className: 'n' })) }
+      Nope.initialState = { n: 0 }
+      Nope.intent = ({ DOM }) => ({ N: DOM.click('.n') })
+      Nope.model = { N: (s) => ({ ...s, n: s.n + 1 }) }
+      t = renderComponent(Nope, { dom: 'real' })
+      await t.ready(); await tick()
+      t.query('.n').click(); await tick()
+      t.query('.n').click(); await tick()
+      const codes = spy.mock.calls.map(c => String(c[0]).match(/SYG\d+/)?.[0]).filter(Boolean)
+      expect(codes.filter(c => c === 'SYG455')).toHaveLength(1)
+      expect(codes.filter(c => c === 'SYG456')).toHaveLength(2)   // 'b', then 'a'
+      expect(String(spy.mock.calls.find(c => String(c[0]).includes('SYG455'))[0])).toContain('from="flow"')
+    } finally { spy.mockRestore() }
   })
 })

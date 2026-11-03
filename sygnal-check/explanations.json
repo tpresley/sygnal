@@ -1747,6 +1747,30 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg454"
   },
   {
+    "code": "SYG455",
+    "title": "Outlet from names no wizard behavior",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "`<Outlet from=\"wizard\">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. Reported once per component, in production too.",
+    "fix": "Declare the behavior on the component that renders the outlet, under the key `from` names: `NewFilter.uses = { wizard: wizard({ steps }) }` with `<Outlet of={STEPS} from=\"wizard\" />`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg455"
+  },
+  {
+    "code": "SYG456",
+    "title": "Outlet has no component for the current name",
+    "severity": "error",
+    "strict": false,
+    "reportedBy": [
+      "runtime"
+    ],
+    "explanation": "`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. Reported once per component and name, in production too.",
+    "fix": "Add the component under that name: `of={{ source: Source, review: Review }}` with one key per step name, or one per route name in route mode (`notFound: NotFound` included).",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg456"
+  },
+  {
     "code": "SYG501",
     "title": "Removed in 6.0: view with positional arguments",
     "severity": "error",

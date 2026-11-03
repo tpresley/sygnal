@@ -399,6 +399,9 @@ export const CODE_TITLES: Record<string, string> = {
   // sygnal/canvas (research: dev-plans/research/canvas-apps): the Canvas reports it (dev)
   SYG262: 'Canvas data layer rebuilt with equal nodes',
   SYG454: 'State binding changed without a new component identity',
+  // the wizard spike (src/extra/outlet.ts): reported by the Outlet, in production too
+  SYG455: 'Outlet from names no wizard behavior',
+  SYG456: 'Outlet has no component for the current name',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
@@ -665,6 +668,8 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG262: 'warn',
   // PLAN-12: static only for legacy (6.x) binding contracts. Sygnal 7 remounts known targets.
   SYG454: 'warn',
+  SYG455: 'error',
+  SYG456: 'error',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {
