@@ -1353,18 +1353,22 @@ export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> 
 export type WizardStepComp<OWN = {}, DRAFT = any, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}, DK extends string = 'draft'> =
   ComponentProps<WizardStepState<DRAFT, OWN, DK> & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
   & Omit<Comp<T & { state: WizardStepState<DRAFT, OWN, DK> }>, 'initialState'> & { initialState?: OWN }
-/** One step of a `wizard()` (spike). The predicates get `(step, state)`: the step's view (WizardStepState) and the host's state. */
+/**
+ * One step of a `wizard()` (spike). The predicates get `(step, state)`: the step's view
+ * (WizardStepState: its initialState, its own slice and the draft; typed as the full OWN, since the
+ * outlet merges the initialState in) and the host's state.
+ */
 export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>> {
   /** The stepper label (default: the step name), or a function of the step's view and the host state */
-  label?: string | ((step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => string);
+  label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => string);
   /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
-  valid?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => boolean;
+  valid?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
   /** Is this step part of the flow? (default true). A step for which it is false is skipped */
-  when?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => boolean;
+  when?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
   /** Fields of the step's own slice set again on every entry and host mount (its scratch: busy flags, errors) */
-  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => Partial<OWN>);
+  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN>);
   /** The leave guard while this step is current (instead of the wizard's `dirty`) */
-  dirty?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST, name: string) => boolean;
+  dirty?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST, name: string) => boolean;
   /** The slice after a confirmed leave from this step (instead of the wizard's `discard`) */
   discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
 }
@@ -1393,8 +1397,8 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
   visited: string[];
   /** The flow's draft, shared by the steps */
   draft: DRAFT;
-  /** Each step's own slice, by step name (a step not entered yet has none) */
-  local: { [K in keyof LOCAL]?: LOCAL[K] };
+  /** Each step's own slice, by step name: what the step wrote (its initialState isn't in it until it writes); a step not entered yet has none */
+  local: { [K in keyof LOCAL]?: Partial<LOCAL[K]> };
   /** A navigation held while the leave confirm is open (a router command), else null */
   leaving: RouterCommand | null;
 }

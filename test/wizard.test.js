@@ -634,3 +634,44 @@ describe('SYNC costs nothing for unrelated changes', () => {
     expect(syncs.every(a => a.cause === 'built-in')).toBe(true)
   })
 })
+
+describe('Sift pass 2', () => {
+  const router = makeRouter({ routes: { home: '/', step: '/flow/:step', notFound: '*' } })
+  const A = () => h('h2', { className: 'a' }, 'a'), B = () => h('h2', { className: 'b' }, 'b'), C = () => h('h2', { className: 'c' }, 'c')
+  function App({ state }) { return state.route.name === 'step' ? h(H, { state: 'flow' }) : h('p', null, 'home') }
+  App.route = 'ROUTE'
+  App.initialState = { route: router.current('/'), flow: {} }
+  App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+  function H() { return h(Outlet, { of: { a: A, b: B, c: C }, from: 'wizard', focus: false }) }
+  H.uses = {
+    wizard: wizard({
+      steps: { a: {}, b: { when: (s) => s.draft.x != null }, c: {} },
+      draft: (st) => ({ x: st.route?.query?.x ?? null }),
+      key: (st) => st.route?.query?.k,
+      url: { route: 'step', param: 'step', key: 'k' },
+    }),
+  }
+
+  it('bug A1: a route to a step skipped by `when` goes back to the step before it, not to the last step', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/a' })
+    await t.ready(); await tick(40)
+    await t.navigate('/flow/b?k=1'); await tick(60)
+    expect(t.location.path).toBe('/flow/a')
+    expect(t.state.flow.wizard.step).toBe('a')
+  })
+
+  it('bug B: a slice the parent seeded (no derived fields) gets them at the host start, before the first patch', async () => {
+    const seen = []
+    // (the host's view runs once in the pass that creates it, before its first actions: that call
+    // still sees the seeded slice as it is; see the research note)
+    function Host({ state }) { seen.push(Array.isArray(state.wizard.steps)); return h(Outlet, { of: { a: A, b: B, c: C }, from: 'wizard' }) }
+    Host.uses = { wizard: wizard({ steps: { a: {}, b: {}, c: {} } }) }
+    function Root() { return h(Host, { state: 'page' }) }
+    Root.initialState = { page: { wizard: { step: 'b', key: null, visit: 3, visited: ['a', 'b'], draft: {}, local: {}, leaving: null } } }
+    t = renderComponent(Root, { dom: 'real' })
+    await t.ready(); await tick()
+    expect(seen.at(-1)).toBe(true)
+    expect(t.state.page.wizard.steps.map(x => x.status)).toEqual(['done', 'current', 'upcoming'])
+    expect(t.query('.b')).toBeTruthy()
+  })
+})

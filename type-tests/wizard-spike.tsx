@@ -88,3 +88,10 @@ export const d2 = wizard<Draft, Host, { define: DefineState }, 'flow'>({
 })
 declare const NotPorted: (p: any) => any
 export const f = <Outlet of={{ x: Source }} current="y" identity="y:1" fallback={NotPorted} />
+
+// pass 2 bug C: local holds what a step wrote (Partial); the predicates see the full OWN
+// @ts-expect-error a field of local may be missing
+export const partialWords: string = tw.local.define!.words
+export const fullView = wizard<Draft, Host, { define: DefineState }>({
+  steps: { define: { valid: (s) => s.busy === false && s.words.length > 0 } },
+})

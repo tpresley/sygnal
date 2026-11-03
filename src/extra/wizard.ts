@@ -38,7 +38,7 @@
  * `finish` action). A step sends them as a PARENT message: `{ wizard: 'NEXT' }`, `{ wizard:
  * 'GOTO', step }`, `{ wizard: 'RESET', draft? }`, `{ wizard: 'FINISH' }`. With `url`, a move is a
  * ROUTER command and the step follows the route (ROUTE); a route to a step that isn't reachable is
- * replaced with the furthest reachable one; RESET goes to `resetTo` (a command, or a function of
+ * replaced with the first incomplete step before it (backTo); RESET goes to `resetTo` (a command, or a function of
  * the slice and the host state), else the first step's route. `url.from(hostState)` (default
  * state.route) maps the host's route to the step route; an attempted navigation is mapped with it
  * too, given the host state with `route` set to the attempted route.
@@ -89,11 +89,19 @@ export const wizard = (o: any = {}): any => {
     for (const m of live(w, h)) { if (m == n) return true; if (!ok(w, m, h)) return false }
     return false
   }
-  // the furthest reachable step (a deep link to a step that isn't reachable yet)
-  const furthest = (w: any, h: any) => {
-    let r = first
-    for (const m of live(w, h)) { r = m; if (!ok(w, m, h)) break }
-    return r
+  // where a route to step n that isn't reachable goes (a deep link, a step's navigation): the first
+  // step before it that isn't valid (as GOV.UK and React Hook Form wizards send you back to the first
+  // incomplete step); for a step skipped by `when`, the last step before it that isn't skipped.
+  // Never past n
+  const backTo = (w: any, n: string, h: any) => {
+    const l = live(w, h)
+    let t = n
+    if (!l.includes(n)) {
+      t = l[0] ?? first
+      for (const m of names) { if (m == n) break; if (l.includes(m)) t = m }
+    }
+    for (const m of l) if (m == t || !ok(w, m, h)) return m
+    return t
   }
   const derive = (w: any, h: any) => {
     const l = live(w, h), i = l.indexOf(w.step)
@@ -180,10 +188,11 @@ export const wizard = (o: any = {}): any => {
       return put(h, key, w.key == null ? {...w, key: k} : fresh(w, h, k))
     }, ...shut},
     // the host started (Sift bug 2: a host mounted again with the same key and step): the current
-    // step's visit defaults again, as its new instance's scratch
+    // step's visit defaults again, as its new instance's scratch; and (pass 2 bug B) the derived
+    // fields of a slice the host didn't make (seeded by a parent, persisted), before the first render
     MOUNT: {HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
       const w = h[k], l = w.visit ? scratch(w, w.step, h) : w.local
-      return l === w.local ? h : put(h, k, {...w, local: l})
+      return put(h, k, l === w.local ? w : {...w, local: l})
     }},
     // the host's state changed (a step's write, the host's own data): the derived fields again
     // (dispatched only when they would change: the intent filters; ABORT when they didn't)
@@ -214,7 +223,7 @@ export const wizard = (o: any = {}): any => {
     STATE: (w: any, n: any, _x: any, p: any) => !n || n == w.step || !w.visit || !reachable(w, n, p?.state) ? ABORT : fin(enter(w, n, p?.state), p?.state),
     [R]: (w: any, n: any, _x: any, p: any, _o: any, k: string) => {
       const s = was(w, p, k), h = pre(p)
-      return n && s.visit && n != s.step && !reachable(s, n, h) ? go(s, furthest(s, h), true) : ABORT
+      return n && s.visit && n != s.step && !reachable(s, n, h) ? go(s, backTo(s, n, h), true) : ABORT
     },
   }
   // the current step's dirty / discard, else the wizard's
