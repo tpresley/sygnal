@@ -1486,7 +1486,7 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
 function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
   const entries = [{url: start, state: null as any}];
   const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
-  let i = 0;
+  let i = 0, moving = 0;
   const at = () => new URL(entries[i].url);
   const fire = (type: string) => (on[type] || []).slice().forEach(f => f({type}));
   const D: any = real ? document : null;
@@ -1499,9 +1499,13 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
       get state() { return entries[i].state; }, get length() { return entries.length; },
       pushState(state: any, _: any, url: string) { entries.splice(i + 1); entries.push({url: new URL(url, entries[i].url).href, state}); i++; },
       replaceState(state: any, _: any, url?: string) { entries[i] = {url: url ? new URL(url, entries[i].url).href : entries[i].url, state}; },
-      // the delta is resolved when the traversal runs, as browsers queue them (an undone back then
-      // proceeded in one task: +1 then -1 lands where it started)
-      go(n: number) { n && setTimeout(() => { const j = i + n; if (j >= 0 && j < entries.length) { i = j; fire('popstate'); } }); },
+      // a task later, as browsers; a go() while one is pending is dropped, as Chromium drops it (so a
+      // router that sends two in one task is caught here, not only in Chromium)
+      go(n: number) {
+        if (!n || moving) return;
+        moving = 1;
+        setTimeout(() => { moving = 0; const j = i + n; if (j >= 0 && j < entries.length) { i = j; fire('popstate'); } });
+      },
       back() { this.go(-1); }, forward() { this.go(1); },
     },
     addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },

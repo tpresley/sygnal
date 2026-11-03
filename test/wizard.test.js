@@ -310,8 +310,9 @@ describe('router: a blocked back/forward whose proceed is sent at once', () => {
   App.model = {
     ROUTE: (s, route) => ({ ...s, route }),
     ARM: { ROUTER: () => ({ block: 'ASK' }) },
-    ASK: { ROUTER: (_s, attempt) => ({ ...attempt.proceed, block: 'ASK' }) },
+    ASK: { ROUTER: (_s, attempt) => (asks++, { ...attempt.proceed, block: 'ASK' }) },
   }
+  let asks = 0
 
   it('lands where the traversal was going', async () => {
     t = renderComponent(App, { dom: 'real', router, url: '/a' })
@@ -321,6 +322,11 @@ describe('router: a blocked back/forward whose proceed is sent at once', () => {
     await t.back(); await tick(40)
     expect(t.location.path).toBe('/a')
     expect(t.state.route.name).toBe('a')
+    // the next traversal is still guarded (nothing forced is left over): ASK again, then made
+    asks = 0
+    await t.forward(); await tick(40)
+    expect(asks).toBe(1)
+    expect(t.location.path).toBe('/b')
   })
 })
 

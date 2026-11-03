@@ -2,7 +2,7 @@
 // and keys, Next moves to a step whose heading gets focus (tabindex=-1 added, not on the first
 // mount), the stepper's aria-current follows, Back keeps the step's typed value, and only the
 // current step is in the DOM.
-import { run, wizard, Outlet } from 'sygnal'
+import { run, wizard, Outlet, makeRouter } from 'sygnal'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait, waitFor } from '../harness.js'
 
 const CAT = 'Wizard spike'
@@ -66,4 +66,49 @@ export async function wizardSpikeTests() {
       assert(el.querySelector('.wz-name').value === 'Ada', 'Back keeps the value')
     } finally { app.dispose() }
   })
+}
+
+// Sift stress test bug 3: a blocker that answers a back/forward at once with its `proceed`. The
+// router undoes the traversal first; a second history.go() in the same task while that is
+// pending is dropped by Chromium, so the proceed waits for the undo to land, and nothing forced is
+// left for the next traversal (which is asked about again).
+export async function wizardRouterTests() {
+  await runTest('a blocked back answered at once lands; the next traversal is still guarded', async () => {
+    const start = location.pathname + location.search
+    history.pushState(null, '', '/wzr/a')
+    const router = makeRouter({ routes: { a: '/a', b: '/b', notFound: '*' }, base: '/wzr', scroll: false, focus: false })
+    let asks = 0
+    function App({ state }) { return <p className="wzr">{state.route.name}</p> }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current() }
+    App.model = {
+      ROUTE: (s, route) => ({ ...s, route }),
+      ASK: { ROUTER: (_s, attempt) => (asks++, { ...attempt.proceed, block: 'ASK' }) },
+      BOOTSTRAP: { ROUTER: () => ({ block: 'ASK' }) },
+    }
+    const { id, el } = mountOnScreen()
+    const app = run(App, { ROUTER: router.driver }, { mountPoint: id })
+    try {
+      await waitFor(() => el.querySelector('.wzr')?.textContent == 'a')
+      await wait(30)
+      // a link to b: asked (the block), answered at once, made
+      const link = document.body.appendChild(document.createElement('a'))
+      link.href = '/wzr/b'
+      link.click()
+      link.remove()
+      await waitFor(() => asks == 1 && el.querySelector('.wzr')?.textContent == 'b', 2000)
+      asks = 0
+      history.back()
+      await waitFor(() => asks == 1, 2000)
+      await waitFor(() => location.pathname == '/wzr/a' && el.querySelector('.wzr')?.textContent == 'a', 2000)
+      asks = 0
+      history.forward()
+      await waitFor(() => asks == 1, 2000)
+      await waitFor(() => location.pathname == '/wzr/b' && el.querySelector('.wzr')?.textContent == 'b', 2000)
+    } finally {
+      app.dispose()
+      await wait(10)
+      history.replaceState(null, '', start)
+    }
+  }, 8000)
 }
