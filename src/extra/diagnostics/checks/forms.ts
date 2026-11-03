@@ -11,10 +11,11 @@
  *   233  (values, output) a valid submit: each top-level `values` key missing from the schema's
  *        output, SYG233 (warn, once per key): the schema strips it (zod's z.object does). G-377:
  *        only when every output key is a values key (an output with other keys reshapes: a rename)
- *   239  (changed) RT-1: a schema function, `form((state) => schema)`: `changed()` calls it again
- *        with the same host state and tells whether it returned another schema object: SYG239
- *        (warn, once): it isn't memoized, so the form re-validates on every state change (and
- *        an async schema never settles)
+ *   239  (changed) RT-1: a schema function, `form((state) => schema)`: `changed()` tells whether
+ *        it returned another schema object for the same host state (it calls it again, on the
+ *        form's first host state only) or for a host state that differs only in the form's own
+ *        slice, with the same values (memoized on the whole state): SYG239 (warn, once): the
+ *        form re-validates on every state change (and an async schema never settles)
  *   235  (field, request) a check's request with `ok` / `error` / `latest` keys, which the form
  *        overwrites: SYG235 (warn, once per field)
  *   234  (submit, key) G-577: a valid submit whose `submit` names one of the form's own actions,
@@ -91,8 +92,8 @@ export function reportForm(code: number, a?: any, b?: any, c?: any): any {
     if (!a() || !once('SYG239')) return
     devReport('SYG239', {
       component: 'form',
-      message: `form: the schema function returned a new schema for the same state, so the form re-validates on every state change (an async schema never settles)`,
-      fix: `Return the same schema object while the rules don't change: memoize it on what it reads, e.g. const byLayout = new WeakMap(); form((state) => byLayout.get(state.page.layout) ?? (byLayout.set(state.page.layout, build(state.page.layout)), byLayout.get(state.page.layout)), { ... })`,
+      message: `form: the schema function returned a new schema for the same state (or for one where only the form's own state changed: memoized on the whole state object), so the form re-validates on every state change (an async schema never settles)`,
+      fix: `Return the same schema object while the rules don't change: memoize it on the part of the state it reads, not on the whole state, e.g. const byLayout = new WeakMap(); form((state) => byLayout.get(state.page.layout) ?? (byLayout.set(state.page.layout, build(state.page.layout)), byLayout.get(state.page.layout)), { ... })`,
     })
   } else if (code == 235) {
     const set = RESERVED.filter(k => b && k in b)

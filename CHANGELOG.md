@@ -2,6 +2,61 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+From the `examples/ai-adaptive` stress test of composed UI (#65–#70; its `FINDINGS.md` has the
+reports).
+
+**Added.**
+- **Forms: fields chosen at run time.** `form(schema, { dynamic: (state) => ({ path: start }) })`
+  adds and removes fields as the host's state changes: a field that appears starts at its start
+  value (not dirty), one that stays keeps what was typed, one that goes is removed with its touched
+  state, server errors and checks. `form((state) => schema, ...)` takes a schema of the host's state
+  (memoize it: **SYG239**). New slice key `added`; a behavior's intent gets the host's STATE source
+  as its 4th argument. Guide: forms reference, "Fields chosen at run time".
+- **compose: `busy: 'queue'`.** One composition in flight, then the newest one asked for meanwhile
+  (the default, `'abort'`, still aborts the one in flight).
+- **compose: container edits in `compose.llm()`.** `wrap`, `unwrap` and `into <key>` operations for
+  any catalog with a container other than a row (`containers: false` keeps the previous edits);
+  `above` / `below` stay inside the reference node's container.
+- **compose: `maxUses` on containers**, and the prompt says how often a part may repeat.
+- **compose: `preview` option** for a fresh composition streamed over a page: `'merge'` (default),
+  `'replace'`, `'keep'`.
+- **Chat driver: a request `timeoutMs`** (a TimeoutError on `error`); `maxTokens` is sent as
+  `max_tokens` (Chat Completions) / `max_output_tokens` (Open Responses).
+
+**Changed.**
+- **Behaviour change: a fresh composition's preview keeps the page's other parts mounted**
+  (`preview: 'merge'`); before, only the streamed parts showed. `preview: 'replace'` is the old one.
+- **Behaviour change: `compose.llm()` and `compose.decisions()` time out after 60 s** by default
+  (`timeoutMs: 0` for none); the step ends as status `'error'` with the page kept.
+- **Behaviour change: `compose.llm()` stops a runaway reply** (an edit repeating operations or
+  past its cap, a composition far past `maxParts`) and keeps what came before (**SYG687**, a
+  `stopped` repair); every list in the reply schemas has a `maxItems`.
+
+**Fixed.**
+- **DOM driver: a non-bubbling event (`submit`, `reset`, `toggle`, `scroll`, `load`, ...) reaches
+  every stream set up on its element.** An element snabbdom reused for another selector, or two
+  selectors on one element, delivered only to the first stream (a form's Enter reloaded the page).
+- **compose: `render` parts are keyed**, so an edit inserting a part above one no longer rebuilds
+  the field being typed in.
+- **DOM driver: two streams on one selector with different options each keep theirs.**
+  `DOM.submit('.f')` and `DOM.submit('.f', { preventDefault: true })` shared one destination, so
+  whichever started first set `preventDefault` / `passive` / `useCapture` for both (the submit
+  reloaded the page); a bubbling type's root listener took the first stream's `passive` and
+  delivered only to destinations with the same one. A listener is non-passive while any stream on
+  it is, and passive again when the last such stream stops.
+- **Forms (dynamic fields):** a `values` function is used when `dynamic` is set too (the form
+  started blank); removing a dotted path (`'a.b'`) also removes the parents it leaves empty; a
+  dynamic entry named after a static field no longer removes it; SYG239 also catches a schema
+  memoized on the whole host state, and the schema function is no longer called twice per state
+  change in dev.
+- **compose:** an edit may repeat an `add` up to the part's `maxUses` (two identical notes were cut
+  as a loop, SYG687); a valid nested layout no longer counts as a runaway; with `busy: 'queue'`, a
+  step aborted without a reply (another compose use in the lane, or its `timeoutMs`) releases the
+  queue instead of stalling it, and the queued composition starts after `page.DONE`, on the layout
+  its handlers left (an app's fix there was lost).
+
 ## 7.2.0-preview.2 — dev preview
 
 Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / number views typed.

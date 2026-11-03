@@ -29,8 +29,9 @@
  * - Runaway replies (examples/ai-adaptive: an edit the grammar can't express made qwen3:8b repeat its
  *   operations without end): every list in the schemas has a `maxItems` (an edit's `ops`: opsCap(), one
  *   per node plus the catalog's maxParts; a slot: the container's `max`, else maxParts); a streamed
- *   reply that repeats an operation exactly, or runs past the cap (an edit), or past twice maxParts
- *   (a composition) is stopped there: delta() returns the reply so far as the step's reply plus the
+ *   reply that repeats an operation exactly more often than it can mean anything (an `add` past its
+ *   part's `maxUses`, another operation twice), or runs past the cap (an edit), or has a list more
+ *   than twice its maxItems (a composition) is stopped there: delta() returns the reply so far as the step's reply plus the
  *   abort request, and the stop is a `stopped` repair + SYG687. A reply cut at `maxTokens`
  *   (finishReason 'length') is read as the JSON prefix it is. `timeoutMs` (default 60 s) goes on the
  *   request: the chat driver fails the step (status 'error') when the reply takes longer.
@@ -757,7 +758,8 @@ export function llm(options: LlmOptions = {}) {
         const done = (opsOf(v) || []).filter((o: any) => !(o && typeof o == 'object' && o[PARTIAL]))
         if (!done.length) return {}
         // a reply in a loop: stopped here, the operations before it are the reply
-        const lf = loopFree(done, pending.max ?? opsCap(context(catalog, state), pending.order))
+        const ctx = context(catalog, state)
+        const lf = loopFree(done, pending.max ?? opsCap(ctx, pending.order), ctx)
         if (lf.cut) return {reply: {value: {ops: lf.ops}, stopped: lf.cut}, request: {abort: pending.lane ?? key ?? 'compose'}}
         const r = applyOps(catalog, state, pending.previous, pending.order, done, {containers: !!pending.containers})
         return r.applied ? {preview: finish(catalog, r.layout, state), keyed: true} : {}
@@ -765,8 +767,9 @@ export function llm(options: LlmOptions = {}) {
       const ctx = context(catalog, state)
       const settled = prune(v)
       const {kids} = readReply(ctx, settled)
-      // far more parts than a page holds (a part repeated without end): stopped, the parts so far are the reply
-      if (leafCount(kids) > 2 * ctx.maxParts) return {reply: {value: settled, stopped: `more than ${2 * ctx.maxParts} parts`}, request: {abort: pending?.lane ?? key ?? 'compose'}}
+      // a list far longer than the schema lets it be (a part repeated without end): stopped, the parts so far are the reply
+      const over = overrun(ctx, kids)
+      if (over) return {reply: {value: settled, stopped: `more than ${2 * over} parts in one list`}, request: {abort: pending?.lane ?? key ?? 'compose'}}
       const fixed = cap(repairTree(ctx, kids, [], {relaxMin: true}), ctx.maxParts)
       if (!fixed.length) return {}
       return {preview: fromTree(catalog, toContractTree(ctx, fixed), pending?.previous)}
@@ -780,7 +783,8 @@ export function llm(options: LlmOptions = {}) {
       // a whole page instead of operations: read as a composition, keys reused from the previous layout
       if (!all) return readTree(catalog, state, pending.previous, r.value, r.cut)
       // a reply that wasn't streamed is cut where it repeats itself, or at the cap, too
-      const lf = loopFree(all, pending.max ?? opsCap(context(catalog, state), pending.order))
+      const ctx = context(catalog, state)
+      const lf = loopFree(all, pending.max ?? opsCap(ctx, pending.order), ctx)
       if (lf.cut) stopped(`the reply was cut: ${lf.cut}`, {value: r.value})
       const ops = lf.ops, cut = r.cut ?? lf.cut
       // no operation: nothing in the catalog fits the change (or it changes nothing); the layout stays
@@ -858,20 +862,35 @@ const hasNodes = (l: any) => !!l?.nodes && preorder(l).length > 1
 /** the most operations an edit has (its `maxItems`): one per node on the page, plus a page's worth of new parts */
 export const opsCap = (ctx: Ctx, order: string[]) => Math.max(8, order.length - 1 + ctx.maxParts)
 
-/** the operations before the first that repeats an earlier one exactly, or before the cap (a model in a loop) */
-function loopFree(ops: any[], max: number): {ops: any[]; cut?: string} {
-  const seen = new Set<string>()
+/**
+ * the operations before the cap, or before one repeated exactly more often than it can mean
+ * anything (a model in a loop): an `add` more times than its part's `maxUses` ("two notes at the
+ * bottom" is two equal adds), any other operation twice
+ */
+function loopFree(ops: any[], max: number, ctx: Ctx): {ops: any[]; cut?: string} {
+  const seen = new Map<string, number>()
   for (let i = 0; i < ops.length; i++) {
     if (i >= max) return {ops: ops.slice(0, i), cut: `more than ${max} operations`}
-    const c = canon(ops[i])
-    if (seen.has(c)) return {ops: ops.slice(0, i), cut: `operation ${i + 1} repeats an earlier one`}
-    seen.add(c)
+    const o = ops[i], c = canon(o), n = (seen.get(c) || 0) + 1
+    if (n > (o?.op == 'add' && ctx.byId[o.part]?.uses || 1)) return {ops: ops.slice(0, i), cut: `operation ${i + 1} repeats an earlier one`}
+    seen.set(c, n)
   }
   return {ops}
 }
 
-/** the leaf nodes in a read tree */
-const leafCount = (ks: Array<TNode | null>): number => ks.reduce((n, k) => n + (!k ? 0 : k.slots ? leafCount(Object.values(k.slots).flat()) : 1), 0)
+/**
+ * the schema's maxItems of the first list in a read tree that is more than twice as long (the
+ * page's and a slot's: maxParts, or the container's `max` when larger), else 0: a valid nested
+ * page (sections of parts) can hold more than maxParts leaves, a loop overflows the list it repeats in
+ */
+const overrun = (ctx: Ctx, ks: Array<TNode | null>, max = ctx.maxParts): number => {
+  if (ks.length > 2 * max) return max
+  for (const k of ks) for (const x of Object.values(k?.slots || {})) {
+    const r = overrun(ctx, x, Math.max(ctx.byId[k!.part]?.max || 0, ctx.maxParts))
+    if (r) return r
+  }
+  return 0
+}
 
 /**
  * a layout as the edit prompt shows it: one node per line (`n1: part param="value"`, params with

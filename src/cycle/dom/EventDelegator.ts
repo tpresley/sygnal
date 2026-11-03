@@ -106,6 +106,12 @@ interface NonBubblingListener {
 // [subject, type, finder, destination, number of started streams]
 type NonBubblingMeta = [Stream<Event>, string, ElementFinder, Destination, number]
 
+// streams share a destination only with the same options: each keeps its own preventDefault,
+// capture and passive
+const sameOptions = (d: Destination, o: EventsFnOptions) =>
+  d.preventDefault === o.preventDefault && d.passive === !!o.passive &&
+  d.useCapture === !!o.useCapture && d.bubbles === !!o.bubbles;
+
 export class EventDelegator {
   private virtualListeners = new SymbolTree<
     Map<string, PriorityQueue<Destination>>,
@@ -116,6 +122,9 @@ export class EventDelegator {
   private domListeners: Map<string, DOMListener>;
   private nonBubblingListeners: Map<string, Map<Element, NonBubblingListener>>;
   private domListenersToAdd: Map<string, boolean>;
+  // per type: the started non-passive bubbling destinations; the root listener is passive only
+  // while there are none
+  private active: Record<string, number> = {};
   private nonBubblingListenersToAdd = new Set<NonBubblingMeta>();
 
   constructor(
@@ -169,11 +178,16 @@ export class EventDelegator {
       // a disposed component leaves nothing behind (audit rec 3). Each stream has its own
       // destination; xstream counts the stream's own listeners
       let dest: Destination;
+      const p = options.passive ? 0 : 1;
       const out: Stream<Event> = xs.create({
         start: () => {
           dest = this.insertListener(out, scopeChecker, eventType, options);
+          this.countActive(eventType, p);
         },
-        stop: () => this.removeListener(dest, eventType),
+        stop: () => {
+          this.removeListener(dest, eventType);
+          this.countActive(eventType, -p);
+        },
       });
       return out;
     }
@@ -187,7 +201,7 @@ export class EventDelegator {
       start: listener => {
         rec = undefined;
         this.nonBubblingListenersToAdd.forEach(x => {
-          if (!rec && x[1] === eventType && isEqualNamespace(x[2].namespace, namespace)) rec = x;
+          if (!rec && x[1] === eventType && sameOptions(x[3], options) && isEqualNamespace(x[2].namespace, namespace)) rec = x;
         });
         if (!rec) {
           const s = xs.never();
@@ -210,6 +224,9 @@ export class EventDelegator {
               l.sub.unsubscribe();
               delete element.subs[eventType];
               map.delete(element);
+            } else if (!l.passive && l.destinations.every(d => d.passive)) {
+              l.sub.unsubscribe();
+              l.sub = this.listenOn(element, eventType, l.passive = true);
             }
           });
           this.nonBubblingListenersToAdd.delete(r);
@@ -300,6 +317,13 @@ export class EventDelegator {
     return (map && map.get(eventType)) || ([] as any);
   }
 
+  private countActive(eventType: string, d: number): void {
+    const want = !(this.active[eventType] = (this.active[eventType] || 0) + d);
+    const l = this.domListeners.get(eventType);
+    if (!l) this.domListenersToAdd.has(eventType) && this.domListenersToAdd.set(eventType, want);
+    else if (l.passive !== want) l.sub.unsubscribe(), this.setupDOMListener(eventType, want);
+  }
+
   private setupDOMListener(eventType: string, passive: boolean): void {
     if (this.origin) {
       const sub = fromEvent(
@@ -309,7 +333,7 @@ export class EventDelegator {
         false,
         passive
       ).subscribe({
-        next: (event: Event) => this.onEvent(eventType, event, passive),
+        next: (event: Event) => this.onEvent(eventType, event),
         error: () => {},
         complete: () => {},
       });
@@ -337,11 +361,7 @@ export class EventDelegator {
         l.sub.unsubscribe();
       }
       const passive = !!destination.passive;
-      const sub = fromEvent(element, eventType, false, false, passive).subscribe({
-        next: (ev: Event) => this.onEvent(eventType, ev, passive, false),
-        error: () => {},
-        complete: () => {},
-      });
+      const sub = this.listenOn(element, eventType, passive);
       if (l) {
         l.sub = sub;
         l.passive = passive;
@@ -349,11 +369,20 @@ export class EventDelegator {
         if (!map) this.nonBubblingListeners.set(eventType, map = new Map());
         map.set(element, {sub, passive, destinations: [destination]});
       }
-      (element as any).subs = {
-        ...(element as any).subs,
-        [eventType]: sub,
-      };
     });
+  }
+
+  private listenOn(element: Element, eventType: string, passive: boolean): Subscription {
+    const sub = fromEvent(element, eventType, false, false, passive).subscribe({
+      next: (ev: Event) => this.onEvent(eventType, ev, false),
+      error: () => {},
+      complete: () => {},
+    });
+    (element as any).subs = {
+      ...(element as any).subs,
+      [eventType]: sub,
+    };
+    return sub;
   }
 
   private resetEventListeners(): void {
@@ -366,7 +395,6 @@ export class EventDelegator {
   private onEvent(
     eventType: string,
     event: Event,
-    passive: boolean,
     bubbles = true
   ): void {
     // 7.2: the event is recorded while it is delivered (the core's onDispatch hook)
@@ -389,8 +417,7 @@ export class EventDelegator {
           listeners,
           namespace,
           namespace.length - 1,
-          useCapture,
-          passive
+          useCapture
         );
         phase(true);
         phase(false);
@@ -399,10 +426,8 @@ export class EventDelegator {
         const l = map && map.get(target);
         // a copy: a destination may stop while the event is delivered
         const destinations = l ? l.destinations.slice() : [];
-        const phase = (useCapture: boolean) => {
-          this.doBubbleStep(eventType, target, rootElement, cycleEvent, destinations, useCapture, false);
-          this.doBubbleStep(eventType, target, rootElement, cycleEvent, destinations, useCapture, true);
-        };
+        const phase = (useCapture: boolean) =>
+          this.doBubbleStep(eventType, target, rootElement, cycleEvent, destinations, useCapture);
         phase(true);
         phase(false);
         event.stopPropagation();
@@ -418,8 +443,7 @@ export class EventDelegator {
     listeners: PriorityQueue<Destination>,
     namespace: Array<Scope>,
     index: number,
-    useCapture: boolean,
-    passive: boolean
+    useCapture: boolean
   ): void {
     if (!useCapture && !event.propagationHasBeenStopped) {
       this.doBubbleStep(
@@ -428,8 +452,7 @@ export class EventDelegator {
         rootElement,
         event,
         listeners,
-        useCapture,
-        passive
+        useCapture
       );
     }
 
@@ -463,8 +486,7 @@ export class EventDelegator {
         newListeners,
         namespace,
         newIndex,
-        useCapture,
-        passive
+        useCapture
       );
     }
 
@@ -475,8 +497,7 @@ export class EventDelegator {
         rootElement,
         event,
         listeners,
-        useCapture,
-        passive
+        useCapture
       );
     }
   }
@@ -487,15 +508,15 @@ export class EventDelegator {
     rootElement: Element | undefined,
     event: CycleDOMEvent,
     listeners: PriorityQueue<Destination> | Array<Destination>,
-    useCapture: boolean,
-    passive: boolean
+    useCapture: boolean
   ): void {
     if (!rootElement) {
       return;
     }
     this.mutateEventCurrentTarget(event, elm);
     listeners.forEach(dest => {
-      if (dest.passive === passive && dest.useCapture === useCapture) {
+      // every destination, passive or not: the one root listener is non-passive while any is
+      if (dest.useCapture === useCapture) {
         const sel = getSelectors(dest.scopeChecker.namespace);
         if (
           !event.propagationHasBeenStopped &&

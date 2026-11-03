@@ -16,7 +16,11 @@ export const a = form(z.object({ title: z.string() }).loose(), {
 })
 // a schema of the host state: the output is the returned schema's
 const memo = new WeakMap<object, z.ZodObject<{ trip: typeof amount }>>()
-export const b = form((state: Host) => memo.get(state.pieces) ?? z.object({ trip: amount }), { values: {}, dynamic: () => ({ trip: { amount: '', currency: 'USD' } }), submit: 'SEND' })
+const schemaOf = (state: Host) => {
+  if (!memo.has(state.pieces)) memo.set(state.pieces, z.object({ trip: amount }))
+  return memo.get(state.pieces)!
+}
+export const b = form(schemaOf, { values: {}, dynamic: () => ({ trip: { amount: '', currency: 'USD' } }), submit: 'SEND' })
 const uses = { form: b }
 export const out: FormOutput<typeof b> = { trip: { amount: 1, currency: 'USD' } }
 // @ts-expect-error the output's amount is a number

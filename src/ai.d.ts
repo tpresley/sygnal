@@ -1619,14 +1619,15 @@ export interface ComposeOptions {
   key?: string
   /**
    * what shows while a fresh composition streams over a layout: 'merge' (default) the preview's
-   * parts where it puts them and the layout's other parts where they were (they stay mounted);
+   * parts where it puts them and the layout's other parts after them in their slot (they stay mounted);
    * 'replace' the preview alone (only the parts finished so far); 'keep' the layout until the reply
    */
   preview?: 'merge' | 'replace' | 'keep'
   /**
    * what a COMPOSE does while a composition is in flight: 'abort' (default) starts it at once (the
    * step in flight is aborted); 'queue' keeps one in flight: the COMPOSE waits in `queued` (a newer
-   * one replaces it) and starts when the one in flight ends, which still lands first (DONE runs).
+   * one replaces it) and starts when the one in flight ends, which still lands first (DONE runs;
+   * the waiting one starts on the layout DONE's entries left).
    * For a page that recomposes itself on state changes faster than its model answers.
    * SET_LAYOUT ends both.
    */

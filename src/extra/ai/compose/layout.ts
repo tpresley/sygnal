@@ -13,7 +13,7 @@
  * - toTree(layout): the inverse (keys dropped).
  * - removeNode(layout, key): the node and its subtree removed (not finished).
  * - overlay(preview, previous): a fresh composition's preview over the layout it replaces (the
- *   previous nodes it doesn't hold yet stay where they were; the behavior's `preview: 'merge'`).
+ *   previous nodes it doesn't hold yet stay in their slot, after its nodes; the behavior's `preview: 'merge'`).
  * - finish(catalog, layout, state): the deterministic finishing step, idempotent:
  *   1. validation (reported, ./diag.ts): an unknown node, part or slot is dropped (SYG250; the
  *      children of an unknown container or slot take its place); an invalid param value falls

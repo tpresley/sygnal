@@ -6,6 +6,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'vitest'
 import { setupChecks } from './diagnostics/helpers.js'
 import { renderComponent } from '../src/extra/testing.ts'
 import { composeWith, compose } from '../src/extra/ai/index.ts'
+import { fromTree } from '../src/extra/ai/compose/layout.ts'
 import { makeApp, catalog } from './p9-compose-app.js'
 import { fakeDecisions, fakeLlm, shape } from './p9-compose-fakes.js'
 
@@ -28,7 +29,7 @@ describe("compose busy: 'queue'", () => {
     expect(t.state.page.queued).toEqual({ prompt: 'weather', fresh: true })
     expect(prompts()).toEqual(['orders'])
 
-    // the one in flight lands (DONE runs), and the waiting one starts in the same action
+    // the one in flight lands (DONE runs), then the waiting one starts
     await t.respond('LLM', tree('orders'), 'page.REPLY')
     await t.waitForState((s) => s.doneCount === 1)
     expect(shape(t.state.page.layout)).toEqual(['orders'])
@@ -116,6 +117,56 @@ describe("compose busy: 'queue'", () => {
     await t.next((s) => s.page.prompt === 'tickets')
     expect(t.state.page.queued).toBe(null)
     expect(prompts()).toEqual(['tickets'])
+  })
+
+  it("the waiting edit starts after DONE: on the layout DONE's STATE left, the landed one 'done' first", async () => {
+    const pinned = (state) => catalog.finish(fromTree(catalog, [{ part: 'weather' }]), state)
+    const App = queued(fakeLlm())
+    // the app's correction as a layout lands (the docs' enforcePins)
+    App.model = { ...App.model, 'page.DONE': (state) => ({ ...state, seen: state.page.status, doneCount: state.doneCount + 1, page: { ...state.page, layout: pinned(state) } }) }
+    t = renderComponent(App, { strict: true })
+    t.simulateAction('page.COMPOSE', 'orders')
+    await t.next((s) => s.page.status === 'composing')
+    t.simulateAction('page.COMPOSE', 'tickets too')
+    await t.next((s) => s.page.queued)
+    await t.respond('LLM', tree('orders'), 'page.REPLY')
+    await t.waitForState((s) => s.page.prompt === 'tickets too' && s.page.status === 'composing')
+    expect(t.state.seen).toBe('done')
+    // the edit's previous layout is the corrected one
+    expect(t.requests('LLM')[1].messages[0].content).toBe('tickets too\n\nThe page now: ["weather","page"]')
+  })
+
+  it('a step whose request is aborted with no reply releases the queue', async () => {
+    // two uses of one host in the default lane: the second one's request aborts the first one's
+    const both = makeApp(fakeLlm(), { uses: {
+      page: compose(catalog, { backend: fakeLlm(), busy: 'queue' }),
+      side: compose(catalog, { backend: fakeLlm() }),
+    } })
+    t = renderComponent(both, { strict: true })
+    t.simulateAction('page.COMPOSE', 'orders')
+    await t.next((s) => s.page.status === 'composing')
+    t.simulateAction('side.COMPOSE', 'weather')
+    await t.waitForState((s) => s.page.status === 'error')
+    expect(t.state.page.error).toMatch(/aborted/)
+    t.simulateAction('page.COMPOSE', 'tickets')
+    await t.next((s) => s.page.prompt === 'tickets')
+    expect(t.state.page).toMatchObject({ status: 'composing', queued: null })
+    t.dispose()
+
+    // the app aborts the lane: the waiting one starts when the request's timeout ends
+    const b = fakeLlm(), start = b.start
+    b.start = (a) => { const r = start(a); r.request.timeoutMs = 50; return r }
+    t = renderComponent(queued(b), { strict: true })
+    t.simulateAction('page.COMPOSE', 'orders')
+    await t.next((s) => s.page.status === 'composing')
+    t.simulateAction('page.COMPOSE', 'tickets')
+    await t.next((s) => s.page.queued)
+    await t.waitForState((s) => s.page.prompt === 'tickets' && s.page.status === 'composing')
+    expect(t.state.page).toMatchObject({ queued: null, error: null })
+    expect(prompts()).toEqual(['orders', 'tickets'])
+    await composeWith(t, catalog, [{ part: 'tickets' }])
+    await t.waitForState((s) => s.page.status === 'done')
+    expect(shape(t.state.page.layout)).toEqual(['tickets'])
   })
 
   it('busy takes abort or queue (SYG681)', () => {

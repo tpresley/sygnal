@@ -561,9 +561,9 @@ Board.model = {
 | `busy` | A `page.COMPOSE` while a composition is in flight |
 |---|---|
 | `'abort'` (default) | Starts at once; the one in flight is aborted (the request lane's `latest`) |
-| `'queue'` | Waits in `queued`; a newer one replaces it. When the one in flight ends, it lands first (`status: 'done'`, `page.DONE` runs), then the waiting one starts in the same action. One that fails while another waits is replaced by it |
+| `'queue'` | Waits in `queued`; a newer one replaces it. When the one in flight ends, it lands first (`status: 'done'`, `page.DONE` runs), then the waiting one starts on the layout `page.DONE`'s entries left. One that fails while another waits is replaced by it (in the same action). A request aborted with no reply (by another `compose` use of the component in the same `key`, or by your `{ abort }`) ends as an error, or, when one waits, lets it start once the request's `timeoutMs` ends |
 
-With `'queue'`, at most one request is out per slice, and the page always ends on the latest request. `page.SET_LAYOUT` ends both (a layout of your own wins). To correct the model's layout as it lands (hold it to the user's pins), write it in a `page.DONE` entry's `STATE` rather than through `page.SET_LAYOUT`, which would also drop the one that just started:
+With `'queue'`, at most one request is out per slice, and the page always ends on the latest request. `page.SET_LAYOUT` ends both (a layout of your own wins). To correct the model's layout as it lands (hold it to the user's pins), write it in a `page.DONE` entry's `STATE` rather than through `page.SET_LAYOUT`, which would also drop the one waiting:
 
 ```jsx title="Board.jsx"
 Board.model = {
@@ -584,7 +584,7 @@ While a fresh composition streams over a page, the preview holds only the parts 
 
 | `preview` | While a fresh composition streams over a page |
 |---|---|
-| `'merge'` (default) | The finished parts where the new layout puts them; the page's other parts stay where they were, mounted, until the reply. A part the new layout drops goes when the reply arrives |
+| `'merge'` (default) | The finished parts where the new layout puts them; the page's other parts stay mounted until the reply, in the container they were in, after the finished ones, in their old order. A part the new layout drops goes when the reply arrives |
 | `'replace'` | Only the finished parts: the others are unmounted until they stream in again |
 | `'keep'` | The page as it is; `status` stays `'composing'` until the reply |
 
@@ -620,7 +620,7 @@ The demos above and below edit: in the first, compose a page, then try the secon
 
 With `compose.llm()`, an edit can group parts when the catalog has a container other than a row: `{"op":"wrap","nodes":["n2","n3"],"part":"section","params":{"title":"Trip"}}` puts those parts, in that order, into a new section where the first one was, and the parts keep their keys (the container's `maxUses` holds). `unwrap` puts a container's parts in its place, `into n1` is the end of container n1 (`into n1:side` names a slot), and `above` / `below` a part inside a container stay inside it. `compose.llm({ containers: false })` leaves these out.
 
-**A reply that runs away is stopped.** Asked for something it couldn't express, `qwen3:8b` once repeated `add dates top, add amount top, …` without end. So every list in the reply's schema has a `maxItems` (an edit's operations: one per node on the page plus the catalog's `limits.maxParts`), and a streamed reply that repeats an operation exactly, or runs past that, is stopped there: the request is aborted, the operations before it are applied, and `decisions.repairs` has `{ kind: 'stopped' }` ([SYG687](/reference/errors/#syg687)). A composition with more than twice `maxParts` parts is stopped the same way, and a reply cut at the output-token limit (`maxTokens`) is read up to where it stopped. A step that takes longer than `timeoutMs` (60 s by default, both backends) ends as `status: 'error'`, with the page kept.
+**A reply that runs away is stopped.** Asked for something it couldn't express, `qwen3:8b` once repeated `add dates top, add amount top, …` without end. So every list in the reply's schema has a `maxItems` (an edit's operations: one per node on the page plus the catalog's `limits.maxParts`), and a streamed reply that repeats an operation exactly more often than it can mean anything (an `add` more times than the part's `maxUses`, so "two notes at the bottom" is fine; any other operation twice), or runs past that, is stopped there: the request is aborted, the operations before it are applied, and `decisions.repairs` has `{ kind: 'stopped' }` ([SYG687](/reference/errors/#syg687)). A composition with a list (the page, a container's slot) of more than twice the parts its schema allows is stopped the same way, and a reply cut at the output-token limit (`maxTokens`) is read up to where it stopped. A step that takes longer than `timeoutMs` (60 s by default, both backends) ends as `status: 'error'`, with the page kept.
 
 #### `profile: 'small'`
 

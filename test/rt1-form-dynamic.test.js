@@ -243,3 +243,102 @@ describe('RT-1: a schema of the host state', () => {
     expect(diagnostics('SYG216').map((d) => String(d.data?.error?.message ?? d.error?.message ?? JSON.stringify(d)))).toEqual(expect.arrayContaining([expect.stringMatching(/SYG231/)]))
   })
 })
+
+describe('RT-1: review fixes', () => {
+  it('a `values` function with dynamic fields: its start values and the dynamic ones', async () => {
+    function C({ state }) { return h('form', {}, h('input', { name: 'email', value: state.form.values.email })) }
+    C.initialState = { user: { email: 'a@b.c' }, on: true }
+    C.uses = { form: form(z.any(), { values: (s) => ({ email: s.user.email }), dynamic: (s) => (s.on ? { note: 'n' } : {}), submit: 'S' }) }
+    C.model = { S: (s) => s }
+    t = renderComponent(C)
+    await t.ready()
+    await t.settle()
+    expect(t.state.form.values).toEqual({ email: 'a@b.c', note: 'n' })
+    expect(t.state.form.initial).toEqual({ email: 'a@b.c', note: 'n' })
+    expect(t.state.form.dirty).toBe(false)
+  })
+
+  it('a nested dynamic path that goes takes the parents it left empty along (an optional nested schema stays valid)', async () => {
+    function C() { return h('form', {}) }
+    C.initialState = { on: true }
+    const schema = z.object({ keep: z.object({ x: z.string() }), a: z.object({ b: z.string().min(1, 'Required') }).optional() })
+    C.uses = { form: form(schema, { values: { keep: { x: '' } }, dynamic: (s) => (s.on ? { 'a.b': '', 'keep.y': '' } : {}), submit: 'S' }) }
+    C.model = { OFF: (s) => ({ ...s, on: false }), S: (s) => s }
+    t = renderComponent(C)
+    await t.ready()
+    expect(t.state.form.values).toEqual({ keep: { x: '', y: '' }, a: { b: '' } })
+    expect(t.state.form.valid).toBe(false)
+    t.simulateAction('OFF')
+    await t.settle()
+    expect(t.state.form.values).toEqual({ keep: { x: '' } })
+    expect(t.state.form.initial).toEqual({ keep: { x: '' } })
+    expect(t.state.form.valid).toBe(true)
+  })
+
+  it('a dynamic entry named after a static field leaves it alone (it stays when the entry goes)', async () => {
+    function C({ state }) { return h('form', {}, h('input', { name: 'title', value: state.form.values.title })) }
+    C.initialState = { on: true }
+    C.uses = { form: form(z.any(), { values: { title: 'T', addr: { city: '' } }, dynamic: (s) => (s.on ? { title: '', addr: { zip: '' }, extra: '' } : {}), submit: 'S' }) }
+    C.model = { OFF: (s) => ({ ...s, on: false }), S: (s) => s }
+    t = renderComponent(C)
+    await t.ready()
+    expect(t.state.form.values).toEqual({ title: 'T', addr: { city: '' }, extra: '' })
+    type('title', 'typed')
+    await t.settle()
+    t.simulateAction('OFF')
+    await t.settle()
+    expect(t.state.form.values).toEqual({ title: 'typed', addr: { city: '' } })
+    expect(t.state.form.initial).toEqual({ title: 'T', addr: { city: '' } })
+  })
+
+  it('SYG239: a schema memoized on the whole host state', async () => {
+    const memo = new WeakMap()
+    const onState = (state) => memo.get(state) ?? (memo.set(state, z.object({ title: z.string() }).loose()), memo.get(state))
+    t = renderComponent(make(onState))
+    await t.ready()
+    type('title', 'x')
+    t.simulateEvent('[name="title"]', 'focusout')
+    await t.settle()
+    expect(diagnostics('SYG239')).toHaveLength(1)
+  })
+
+  it('no SYG239 for a schema that follows the host state (rules changed with the same fields)', async () => {
+    t = renderComponent(make(schemaOf, {}, [{ key: 'note', kind: 'note' }]))
+    await t.ready()
+    type('note', 'x')
+    t.simulateEvent('[name="note"]', 'focusout')
+    t.simulateAction('PIECES', [{ key: 'note', kind: 'note', required: true }])
+    await t.settle()
+    t.simulateEvent('.f', 'submit')
+    await t.settle()
+    expect(diagnostics('SYG239')).toEqual([])
+  })
+
+  it('the SYG239 check calls the schema function a second time only for the first host state', async () => {
+    let calls = 0
+    const counted = (state) => (calls++, schemaOf(state))
+    t = renderComponent(make(counted))
+    await t.ready()
+    await t.settle()
+    const start = calls
+    type('title', 'abc')
+    t.simulateEvent('[name="title"]', 'focusout')
+    await t.settle()
+    const after = calls - start
+    // compare with production (no diagnostics hook): the same number of calls once started
+    const hook = globalThis.__SYGNAL_DIAGNOSTICS__.form
+    t.dispose(); t = null; calls = 0
+    globalThis.__SYGNAL_DIAGNOSTICS__.form = undefined
+    try {
+      t = renderComponent(make(counted))
+      await t.ready()
+      await t.settle()
+      const s2 = calls
+      type('title', 'abc')
+      t.simulateEvent('[name="title"]', 'focusout')
+      await t.settle()
+      expect(after).toBe(calls - s2)
+      expect(start).toBe(s2 + 1)
+    } finally { globalThis.__SYGNAL_DIAGNOSTICS__.form = hook }
+  })
+})

@@ -68,11 +68,12 @@
  * `values` that follow the host's state. An entry that appears is added to values (and initial)
  * with its start value; one that stays keeps what was typed (a start value that is an object
  * reshapes it: keys it gained added, keys it lost dropped); one that goes is removed with its
- * touched, server errors, check results and running checks. RESET / resetOnShow start them over
- * too. The schema can be a function of the host's state, `form((state) => schema, …)`, for rules
+ * touched, server errors, check results and running checks (and the parents it leaves empty). An
+ * entry named after a path of `values` leaves it alone (the static field owns it). RESET /
+ * resetOnShow start them over too. The schema can be a function of the host's state, `form((state) => schema, …)`, for rules
  * that depend on what is composed (required-ness): called whenever the form validates, results
  * cached per schema object, so it must return the same schema for the same rules (memoized; a
- * new one for the same state is SYG239 in dev). The form re-validates (form.SYNC) when the
+ * new one for the same state, or one memoized on the whole host state, is SYG239 in dev). The form re-validates (form.SYNC) when the
  * dynamic fields change (structurally) or the schema function returns another schema.
  *
  * G-575 (D236): a valid submit is `submitting` (until form.DONE / form.ERRORS, a second submit
@@ -128,13 +129,14 @@ const shape = (cur: any, start: any): any => {
   return same ? cur : r
 }
 const fit = (vals: any, n: string, start: any) => setField(vals, n, shape(hasField(vals, n) ? getField(vals, n) : undefined, start))
-// a path removed from values (object keys; the same object when it isn't there)
-const unset = (o: any, n: string): any => {
-  const [a, ...r] = n.split('.')
+// a path removed from values (object keys; the same object when it isn't there), with the
+// parents the removal left empty (`keep`: a parent path that stays, a static field)
+const unset = (o: any, n: string, keep: (p: string) => any = () => 0, at = ''): any => {
+  const [a, ...r] = n.split('.'), p = at ? at + '.' + a : a
   if (!plain(o) || !(a in o)) return o
-  const c = {...o}, x = r.length ? unset(o[a], r.join('.')) : c
+  const c = {...o}, x = r.length ? unset(o[a], r.join('.'), keep, p) : c
   if (x === o[a]) return o
-  r.length ? c[a] = x : delete c[a]
+  r.length && (Object.keys(x).length || keep(p)) ? c[a] = x : delete c[a]
   return c
 }
 // a map by field name without the names that are no fields of vals ('' stays: form-level)
@@ -227,9 +229,12 @@ export const form = (schema: any, o: any = {}): any => {
   }
   const base = (vals: any, resets = 0, added = {}) => ({initial: vals, values: vals, touched: {}, server: {}, remote: {}, pending: {},
     submitting: false, submitted: false, submitCount: 0, queued: false, errors: {}, validated: false, progress: null, resets, added})
+  // RT-1: a path of the static values (the `values` option's): a dynamic entry of that name
+  // neither reshapes nor removes it
+  const own = (n: string) => hasField(values, n)
   // RT-1: the dynamic entries `a` into values
   const grow = (vals: any, a: any) => {
-    for (const n in a) vals = fit(vals, n, a[n])
+    for (const n in a) own(n) || (vals = fit(vals, n, a[n]))
     return vals
   }
   // a start over (RESET, resetOnShow; `n`: counted in `resets`, so a file input keyed by it is
@@ -319,8 +324,10 @@ export const form = (schema: any, o: any = {}): any => {
     // no change when nothing moved and the schema answers the same
     SYNC: (s, d, _k, h) => {
       const a = d?.fields || {}, had = s.added || {}
+      // a `values` function not called yet (VALIDATE): the entries are kept for its start (fresh)
+      if (fn && s.values === values) return json(a) != json(had) ? {s: {...s, added: a}} : null
       let vals = s.values, init = s.initial
-      for (const n in had) if (!(n in a)) vals = unset(vals, n), init = unset(init, n)
+      for (const n in had) if (!(n in a) && !own(n)) vals = unset(vals, n, own), init = unset(init, n, own)
       vals = grow(vals, a), init = grow(init, a)
       const x = edit(s, vals, {initial: init, added: a, touched: prune(s.touched, vals), server: prune(s.server, vals),
         remote: prune(s.remote, vals), pending: prune(s.pending, vals)}, h, s.queued)
@@ -382,17 +389,21 @@ export const form = (schema: any, o: any = {}): any => {
     form: schema,
     // validating until VALIDATE (sync) or its RESULT (async): not valid yet (G-375, not validated)
     initialState: {...base(values), validating: true},
-    intent: ({DOM}: any, _o: any, _k: any, host: any) => {
+    intent: ({DOM}: any, _o: any, k: any, host: any) => {
       const f = DOM.select(sel)
-      let on = 0, pf: any, ps: any
+      let on = 0, pf: any, ps: any, ph: any, n = 0
       return {
         // RT-1: the dynamic fields and the schema, from the host's state: form.SYNC when the fields
         // change (structurally) or the schema function returns another schema
         ...(dyn || sfn) && host && {SYNC: host.stream.map((h: any) => {
           const fields = dyn ? dyn(h) || {} : {}, f = json(fields), sc = sOf(h)
-          sfn && dev(239, () => schema(h) !== sc)
+          // SYG239 (dev): another schema for the same state (called again, the first time only), or
+          // for a state that differs only in the form's slice with the same values (memoized on
+          // the whole host state: a new schema per state change)
+          sfn && dev(239, () => !n++ ? schema(h) !== sc
+            : sc !== ps && h?.[k]?.values === ph?.[k]?.values && Object.keys({...h, ...ph}).every(x => x == k || h[x] === ph[x]))
           const r = f !== pf || sc !== ps
-          pf = f, ps = sc
+          pf = f, ps = sc, ph = h
           return r && {fields}
         }).filter((x: any) => x)},
         // D239: resetOnShow also starts over each time the form element appears again (a
