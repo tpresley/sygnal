@@ -210,6 +210,13 @@ wizard({
 
 In URL mode it then navigates to the first step's route. `resetTo` names another place: a router command, or a function of the slice and the host's state (`resetTo: { to: 'newFilter' }`).
 
+A Start over *link* inside a step must not navigate as well: the router would push its `href` and then `resetTo`. Keep the `<a href>` (it still works as a link without the app) and prevent its default in the intent:
+
+```jsx
+StartOver.intent = ({ DOM }) => ({ RESTART: DOM.click('.start-over', { preventDefault: true }) })
+StartOver.model = { RESTART: { PARENT: () => ({ wizard: 'RESET' }) } }
+```
+
 ## Unsaved changes
 
 ```js
@@ -263,7 +270,9 @@ NewFilter.uses = {
 - the route `newFilter` with `step` naming a step enters it;
 - Back, Next and the stepper navigate, and the browser's back and forward buttons move between steps;
 - the flow key goes in the query string (`/filters/new/review?session=…`);
-- a link to a step the user can't reach yet (an earlier step isn't valid) is replaced with the furthest reachable step.
+- a link to a step the user can't reach yet is replaced (`replace`) with the first incomplete step before it, as GOV.UK and React Hook Form wizards send the user back:
+  - when an earlier step isn't valid, that step;
+  - when the step itself is skipped by `when`, the last step before it that isn't.
 
 **Where the route comes from:** the behavior reads it from the host's `state.route`. `url.from` names another place, or maps a route of its own onto the step route. For a first step at `/filters/new`: `from: (state) => state.route.name === 'newFilter' ? { ...state.route, name: 'newFilterStep', params: { step: 'define' } } : state.route`. A navigation the user attempts goes through `from` too, with the attempted route as the state's `route`, to tell whether it stays in the flow.
 

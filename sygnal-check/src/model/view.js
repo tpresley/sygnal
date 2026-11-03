@@ -303,6 +303,8 @@ function handleElement(project, file, el, sink, visited) {
         of: ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
           ? ofExpr.properties.map(p => ({ key: propName(p), node: p.key })) : null,
         ofNode: ofAttr || opening,
+        // (`of` as written: a const the rule follows, `of={STEPS}`)
+        ofExpr: ofExpr || null,
         fallback: !!jsxAttr(opening, 'fallback'),
       } : null,
     }

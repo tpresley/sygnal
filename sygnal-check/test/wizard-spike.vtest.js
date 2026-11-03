@@ -97,4 +97,13 @@ Source.intent = ({ DOM }) => ({ DONE: DOM.click('.done') })
 Source.model = { DONE: { PARENT: () => ({ wizard: 'NEXT' }) } }`)
     expect(codes(check({ 'NewThing.jsx': src }, { strict: true }))).toEqual([])
   })
+
+  it('SYG456 / SYG457 follow a same-module const of={STEPS}', () => {
+    const src = FLOW()
+      .replace('<Outlet of={{ source: Source, review: Review }} from="wizard" />', '<Outlet of={STEPS} from="wizard" />')
+      .replace('export function NewThing', 'const STEPS = { source: Source, reveiw: Review }\n\nexport function NewThing')
+    const d = check({ 'NewThing.jsx': src })
+    expect(codes(d)).toEqual(['SYG456 error', 'SYG457 warn'])
+    expect(d.find(x => x.code === 'SYG457').message).toContain("did you mean 'review'")
+  })
 })

@@ -6,7 +6,8 @@
  * - SYG456: a step of the wizard's `steps` with no component in `of` and no `fallback` (nothing
  *   renders when the flow reaches it; the runtime reports it when it happens).
  * - SYG457: an `of` key that is no step (a typo, or a step that was removed).
- * Only for a known `uses` object, a string `from`, and `of` / `steps` object literals of named keys.
+ * Only for a known `uses` object, a string `from`, and `of` / `steps` objects of named keys (inline,
+ * or a const they name: `of={STEPS}`).
  */
 import { closestName } from '../names.js'
 import { renameFix, keyEdit, stringEdit } from '../edits.js'
@@ -56,8 +57,14 @@ export default {
           continue
         }
         const st = e.options.get('steps'), steps = st && project.objectKeys(st.file, st.node)
-        if (!steps || !o.of) continue
-        const ofKeys = new Set(o.of.map(x => x.key)), names = new Set(steps.keys())
+        // `of` inline, or an identifier bound to an object (a same-module const, an import)
+        let of = o.of && o.of.map(x => ({ ...x, file }))
+        if (!of && o.ofExpr) {
+          const ks = project.objectKeys(file, o.ofExpr)
+          of = ks && [...ks].map(([key, v]) => ({ key, node: v.keyNode, file: v.file || file }))
+        }
+        if (!steps || !of) continue
+        const ofKeys = new Set(of.map(x => x.key)), names = new Set(steps.keys())
         for (const [name] of steps) {
           if (ofKeys.has(name) || o.fallback) continue
           report({
@@ -70,18 +77,18 @@ export default {
             data: { step: name, steps: [...names] },
           })
         }
-        for (const { key, node } of o.of) {
+        for (const { key, node, file: kf } of of) {
           if (names.has(key)) continue
           const near = closestName(key, names)
           report({
             code: 'SYG457',
             component: comp.name,
-            file,
+            file: kf,
             node,
             message: `the Outlet's of names '${key}', which is not a step of ${comp.name}.uses.${o.from} (${[...names].join(', ')}), so it never renders` + (near ? ` (did you mean '${near}'?)` : ''),
             fix: near ? `rename the key to the step: ${near}: …` : `use one of the step names as the key, or remove the entry`,
             data: { key, steps: [...names], ...(near ? { suggestion: near } : {}) },
-            fixes: near && renameFix(`Change '${key}' to '${near}'`, keyEdit(file, node, near)),
+            fixes: near && renameFix(`Change '${key}' to '${near}'`, keyEdit(kf, node, near)),
           })
         }
       }
