@@ -215,8 +215,8 @@ describe('a step that takes too long', () => {
   // a model that never answers
   const silent = { stream: (_req, signal) => (async function* () { await new Promise((_r, no) => signal.addEventListener('abort', () => no(new Error('aborted')))) })() }
 
-  it('timeoutMs: compose.llm default 60 s (0: none), compose.decisions too', () => {
-    expect(llm().start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request.timeoutMs).toBe(60000)
+  it('timeoutMs: compose.llm default 300 s (0: none), compose.decisions too', () => {
+    expect(llm().start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request.timeoutMs).toBe(300000)
     expect(llm({ timeoutMs: 0 }).start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request).not.toHaveProperty('timeoutMs')
     expect(decisions({ model: 'm', timeoutMs: 5000 }).start({ catalog: form, state: {}, prompt: 'dates', previous: null, names }).request.timeoutMs).toBe(5000)
   })

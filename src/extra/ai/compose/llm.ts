@@ -33,7 +33,7 @@
  *   part's `maxUses`, another operation twice), or runs past the cap (an edit), or has a list more
  *   than twice its maxItems (a composition) is stopped there: delta() returns the reply so far as the step's reply plus the
  *   abort request, and the stop is a `stopped` repair + SYG687. A reply cut at `maxTokens`
- *   (finishReason 'length') is read as the JSON prefix it is. `timeoutMs` (default 60 s) goes on the
+ *   (finishReason 'length') is read as the JSON prefix it is. `timeoutMs` (default 300 s) goes on the
  *   request: the chat driver fails the step (status 'error') when the reply takes longer.
  * Pure apart from SYG683's report.
  */
@@ -56,7 +56,7 @@ export interface LlmOptions {
   instructions?: string | ((prompt: string) => string)
   /** few-shot examples: [prompt, tree, asked_for?] or { prompt, tree, asked_for? }; default: the catalog's */
   examples?: any[]
-  /** the most a step may take, in ms (default 60000; 0: no limit): the chat driver's `timeoutMs` */
+  /** the most a step may take, in ms (default 300000; 0: no limit): the chat driver's `timeoutMs` */
   timeoutMs?: number
   /**
    * edits reach containers (default true, for a catalog with containers other than a row): the wrap
@@ -703,7 +703,7 @@ function valueOf(reply: any): {value?: any; error?: string; cut?: string} {
 
 /** compose.llm(options): the chat-LLM backend (one structured-output request, streamed preview; ops2 edits) */
 export function llm(options: LlmOptions = {}) {
-  const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, timeoutMs = 60000, containers = true, ...rest} = options
+  const {model, sink = 'LLM', key, stream = true, plan, instructions, examples, timeoutMs = 300000, containers = true, ...rest} = options
   const planFor = (catalog: any) => plan ?? !(examples ?? catalog.examples ?? []).length
   const base = (names: any, state: any) => {
     // a function of the host's state: resolved per request (an app's model picker)

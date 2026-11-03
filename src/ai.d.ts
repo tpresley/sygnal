@@ -1805,7 +1805,7 @@ export interface ComposeDecisionsOptions {
   maxPromptTokens?: number
   /** passed to every `decide()` request (D472): false sends each step as one request, never halved */
   split?: boolean
-  /** the most one step may take, in ms (default 60000; 0: no limit): the request's `timeoutMs`, then status 'error' */
+  /** the most one step may take, in ms (default 300000; 0: no limit): the request's `timeoutMs`, then status 'error' */
   timeoutMs?: number
 }
 /**
@@ -1874,7 +1874,7 @@ export interface ComposeLlmOptions {
   instructions?: string | ((prompt: string) => string)
   /** Few-shot examples (default: the catalog's): `[prompt, tree, asked_for?]` or `{ prompt, tree, asked_for? }` */
   examples?: ReadonlyArray<readonly [string, ReadonlyArray<ComposeLlmTreeNode>, ReadonlyArray<string>?] | { prompt: string; tree: ReadonlyArray<ComposeLlmTreeNode>; asked_for?: ReadonlyArray<string> }>
-  /** The most a step may take, in ms (default 60000; 0: no limit): then the status is 'error' and the layout stays */
+  /** The most a step may take, in ms (default 300000; 0: no limit): then the status is 'error' and the layout stays */
   timeoutMs?: number
   /** The most tokens the model may write (no default); a reply cut there is read up to where it stopped */
   maxTokens?: number

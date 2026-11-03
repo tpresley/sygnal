@@ -43,7 +43,7 @@ describe('the request', () => {
     const b = llm({ model: 'm1', body: { temperature: 0 } })
     expect(b.sink).toBe('LLM')
     const { request, pending } = b.start({ catalog: SHOP, state: STATE, prompt: 'Show revenue', previous: null, names })
-    expect(request).toMatchObject({ model: 'm1', body: { temperature: 0 }, key: 'compose', latest: true, timeoutMs: 60000, ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA' })
+    expect(request).toMatchObject({ model: 'm1', body: { temperature: 0 }, key: 'compose', latest: true, timeoutMs: 300000, ok: 'page.REPLY', error: 'page.FAILED', delta: 'page.DELTA' })
     expect(request.messages).toEqual([{ role: 'user', content: 'Show revenue' }])
     expect(request.instructions).toBe(systemPrompt(SHOP, STATE))
     expect(request.output['~standard'].jsonSchema.input()).toEqual(layoutSchema(SHOP, STATE))

@@ -28,7 +28,7 @@ reports).
 **Changed.**
 - **Behaviour change: a fresh composition's preview keeps the page's other parts mounted**
   (`preview: 'merge'`); before, only the streamed parts showed. `preview: 'replace'` is the old one.
-- **Behaviour change: `compose.llm()` and `compose.decisions()` time out after 60 s** by default
+- **Behaviour change: `compose.llm()` and `compose.decisions()` time out after 300 s** by default
   (`timeoutMs: 0` for none); the step ends as status `'error'` with the page kept.
 - **Behaviour change: `compose.llm()` stops a runaway reply** (an edit repeating operations or
   past its cap, a composition far past `maxParts`) and keeps what came before (**SYG687**, a
