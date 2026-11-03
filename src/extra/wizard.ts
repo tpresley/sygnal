@@ -65,15 +65,19 @@ const nameOf = (d: any, sel: any): any => {
   return el?.getAttribute?.('data-step') ?? el?.dataset?.step
 }
 const BUILT_IN = Symbol.for('sygnal.builtIn')
-const DERIVED = ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext']
-// derived fields compared by value (steps: its entries' fields), so an unchanged result writes nothing
-const same = (a: any, b: any): boolean => a === b || (Array.isArray(a) && Array.isArray(b) && a.length == b.length
-  && a.every((x, i) => Object.keys(x).every(f => x[f] === b[i][f])))
+const DERIVED = ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog']
+// derived fields compared by value (arrays and plain objects, a few levels), so an unchanged result
+// writes nothing (a dialog copy function returning a new object each time doesn't re-sync)
+const same = (a: any, b: any, d = 0): boolean => Object.is(a, b) || d < 4 && !!a && !!b && typeof a == 'object' && typeof b == 'object'
+  && Array.isArray(a) == Array.isArray(b) && Object.keys(a).length == Object.keys(b).length
+  && Object.keys(a).every(f => same(a[f], b[f], d + 1))
 
 export const wizard = (o: any = {}): any => {
   const {steps: defs = {}, draft: dr = {}, key: keyOf, dirty, discard, finish, url, router: R = 'ROUTER', draftKey: DK = 'draft',
-    resetTo, next: nextSel, back: backSel, reset: resetSel, goto: gotoSel, confirm, leave: leaveSel, stay: staySel} = o
-  const names = Object.keys(defs), first = names[0]
+    resetTo, groups = {}, dialog, next: nextSel, back: backSel, reset: resetSel, goto: gotoSel, confirm, leave: leaveSel, stay: staySel} = o
+  const names = Object.keys(defs), out = (n: any) => !!defs[n]?.outcome
+  // the steps of the stepper (outcome steps aren't: a final screen after the flow, such as Created)
+  const regular = names.filter(n => !out(n)), first = regular[0] ?? names[0]
   // the steps' components and their initialStates, registered by the outlet (comps: for their PARENT
   // messages; subs: each running intent's subscriber for a component registered later)
   const inits: any = {}, comps = new Set<any>(), subs = new Set<(c: any) => void>(), regs = new Set<() => void>()
@@ -83,8 +87,8 @@ export const wizard = (o: any = {}): any => {
   const viewOf = (w: any, n: string) => ({...inits[n], ...w.local?.[n], [DK]: w.draft})
   const on = (w: any, n: string, h: any) => !defs[n]?.when || !!defs[n].when(viewOf(w, n), h)
   const ok = (w: any, n: string, h: any) => !defs[n]?.valid || !!defs[n].valid(viewOf(w, n), h)
-  // the step names not skipped, in order
-  const live = (w: any, h: any) => names.filter(n => on(w, n, h))
+  // the stepper's step names not skipped, in order
+  const live = (w: any, h: any) => regular.filter(n => on(w, n, h))
   const reachable = (w: any, n: string, h: any) => {
     for (const m of live(w, h)) { if (m == n) return true; if (!ok(w, m, h)) return false }
     return false
@@ -98,22 +102,39 @@ export const wizard = (o: any = {}): any => {
     let t = n
     if (!l.includes(n)) {
       t = l[0] ?? first
-      for (const m of names) { if (m == n) break; if (l.includes(m)) t = m }
+      for (const m of regular) { if (m == n) break; if (l.includes(m)) t = m }
     }
     for (const m of l) if (m == t || !ok(w, m, h)) return m
     return t
   }
+  const labelOf = (lb: any, w: any, n: string, h: any) => typeof lb == 'function' ? lb(viewOf(w, n), h) : lb
   const derive = (w: any, h: any) => {
-    const l = live(w, h), i = l.indexOf(w.step)
+    const l = live(w, h), i = l.indexOf(w.step), o = out(w.step)
+    const steps = regular.map(n => {
+      const skipped = !l.includes(n), current = n == w.step, valid = ok(w, n, h), visited = w.visited.includes(n), r = !skipped && reachable(w, n, h)
+      return {name: n, label: labelOf(defs[n].label, w, n, h) ?? n, index: l.indexOf(n), current, valid, visited, reachable: r, skipped,
+        // on an outcome step every step that applies is done
+        status: skipped ? 'skipped' : o ? 'done' : current ? 'current' : !r ? 'blocked' : visited ? (valid ? 'done' : 'visited') : 'upcoming'}
+    })
+    // the stepper: one entry per group (alternative steps sharing a slot: the one that applies, else
+    // its first) or per step outside any group, in order
+    const stepper: any[] = [], at: any = {}
+    for (const e of steps) {
+      const g = defs[e.name].group
+      if (g == null) { stepper.push({...e, steps: [e.name], step: e.name}); continue }
+      const x = at[g]
+      if (!x) { stepper.push(at[g] = {...e, name: g, steps: [e.name], step: e.name, label: labelOf(groups[g]?.label, w, e.name, h) ?? e.label}); continue }
+      x.steps.push(e.name)
+      // the member that applies (the current one first) gives the entry its state
+      if (e.current || x.skipped && !e.skipped) Object.assign(x, {...e, name: g, steps: x.steps, step: e.name, label: labelOf(groups[g]?.label, w, e.name, h) ?? e.label})
+    }
+    const dg = defs[w.step]?.dialog ?? dialog
     return {
-      steps: names.map(n => {
-        const skipped = !l.includes(n), current = n == w.step, valid = ok(w, n, h), visited = w.visited.includes(n), r = !skipped && reachable(w, n, h)
-        const lb = defs[n].label, label = typeof lb == 'function' ? lb(viewOf(w, n), h) : lb ?? n
-        return {name: n, label, index: l.indexOf(n), current, valid, visited, reachable: r, skipped,
-          status: skipped ? 'skipped' : current ? 'current' : !r ? 'blocked' : visited ? (valid ? 'done' : 'visited') : 'upcoming'}
-      }),
-      index: i, count: l.length, first: l[0] == w.step, last: l[l.length - 1] == w.step, canBack: i > 0,
-      canNext: ok(w, w.step, h) && (i < l.length - 1 || !!finish),
+      steps, stepper,
+      index: i, count: l.length, first: l[0] == w.step, last: l[l.length - 1] == w.step, canBack: !o && i > 0,
+      canNext: !o && ok(w, w.step, h) && (i < l.length - 1 || !!finish),
+      outcome: o ? w.step : null,
+      dialog: (typeof dg == 'function' ? dg(viewOf(w, w.step), h) : dg) ?? null,
     }
   }
   // the slice with its derived fields for host state h (the same object when they didn't change)
@@ -146,12 +167,13 @@ export const wizard = (o: any = {}): any => {
   const go = (w: any, n: string, replace?: boolean) =>
     ({to: url.route, params: {[url.param]: n}, ...url.key && w.key != null && {query: {[url.key]: w.key}}, ...replace && {replace: true}})
   // a step to move to from w (null: none)
+  // (an outcome step is reached by GOTO from any step; from it, only another outcome step)
   const target = (w: any, a: string, d: any, h: any) => {
-    const l = live(w, h), i = l.indexOf(w.step)
+    const l = live(w, h), i = l.indexOf(w.step), n = a == 'GOTO' && nameOf(plainObj(d) ? d.step : d, gotoSel)
+    if (out(w.step)) return n && out(n) && n != w.step ? n : null
     if (a == 'NEXT') return ok(w, w.step, h) ? l[i + 1] ?? null : null
     if (a == 'BACK') return i > 0 ? l[i - 1] : null
-    const n = nameOf(d, gotoSel)
-    return n != w.step && names.includes(n) && reachable(w, n, h) ? n : null
+    return n != w.step && names.includes(n) && (out(n) || reachable(w, n, h)) ? n : null
   }
   // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
   const pre = (p: any) => p?.previousState || p?.state
@@ -206,24 +228,52 @@ export const wizard = (o: any = {}): any => {
       },
     },
     BACK: move('BACK'),
-    GOTO: move('GOTO'),
+    // GOTO: a step name (or a click on `goto`); a step's { step, key }: the flow anew for that key at
+    // that step (adopted, the flow kept, while it has no key yet) (a second record from inside the flow; url: navigated, past the leave guard). An
+    // outcome step, or a new key, is entered in state at once (url: and navigated); another step in
+    // url mode follows the route
+    GOTO: {
+      ...shut,
+      HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => {
+        const w = h[k]
+        if (plainObj(d) && 'key' in d) {
+          // (as for a key the route names: adopted when the flow has none yet, or the same key)
+          const keep = w.key == null || Object.is(w.key, d.key)
+          const f = keep ? {...w, key: d.key ?? w.key} : fresh(w, h, d.key ?? null, undefined, true), n = names.includes(d.step) ? d.step : f.step
+          return put(h, k, n == f.step && !keep ? f : enter(f, n, h))
+        }
+        const n = target(w, 'GOTO', d, h)
+        return n && (!url || out(n)) ? put(h, k, enter(w, n, h)) : h
+      },
+      ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
+        const s = was(w, p, k)
+        if (plainObj(d) && 'key' in d) return {...go({key: d.key}, names.includes(d.step) ? d.step : first), force: true}
+        const n = target(s, 'GOTO', d, pre(p))
+        return n ? go(s, n) : ABORT
+      }},
+    },
     FINISH: {EFFECT: (w: any, _d: any, next: any, p: any, _o: any, k: string) => done(was(w, p, k), next)},
     RESET: {
       ...shut,
       HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => put(h, k, fresh(h[k], h, h[k].key, plainObj(d) ? d : undefined, true)),
       // url: to `resetTo`, else back to the first step's route (the state is already at the first step)
-      ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any) => resetTo
-        ? (typeof resetTo == 'function' ? resetTo(w, p?.state) : resetTo)
+      ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => resetTo
+        // (from the slice being reset: the flow's data decides where its start over goes)
+        ? (typeof resetTo == 'function' ? resetTo(was(w, p, k), pre(p)) : resetTo)
         : routeStep(p?.state) != first ? go(w, first) : ABORT},
     },
   }
   if (url) model.ROUTE = {
     ...shut,
     // a route to a step: entered when reachable (redirected in ROUTER otherwise)
-    STATE: (w: any, n: any, _x: any, p: any) => !n || n == w.step || !w.visit || !reachable(w, n, p?.state) ? ABORT : fin(enter(w, n, p?.state), p?.state),
+    // (from an outcome step a route back into the steps is replaced with the outcome's; an outcome
+    // step is entered by GOTO, so a route to one that isn't current goes to the first incomplete step)
+    STATE: (w: any, n: any, _x: any, p: any) => !n || n == w.step || !w.visit || out(w.step) || out(n) || !reachable(w, n, p?.state) ? ABORT : fin(enter(w, n, p?.state), p?.state),
     [R]: (w: any, n: any, _x: any, p: any, _o: any, k: string) => {
-      const s = was(w, p, k), h = pre(p)
-      return n && s.visit && n != s.step && !reachable(s, n, h) ? go(s, backTo(s, n, h), true) : ABORT
+      const s = was(w, p, k), h = pre(p), l = live(s, h)
+      if (!n || !s.visit || n == s.step) return ABORT
+      if (out(s.step)) return go(s, s.step, true)
+      return out(n) || !reachable(s, n, h) ? go(s, backTo(s, out(n) ? l[l.length - 1] ?? first : n, h), true) : ABORT
     },
   }
   // the current step's dirty / discard, else the wizard's
@@ -241,7 +291,13 @@ export const wizard = (o: any = {}): any => {
     },
     DISCARD: {
       HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
-        const w = h[k], f = defs[w.step]?.discard || discard, r = f ? f(w, h) : fresh(w, h, w.key, undefined, true)
+        const w = h[k], sd = defs[w.step]?.discard
+        // a step's discard: (its view, the host state) => its state (the draft key in it: the draft)
+        if (sd) {
+          const {[DK]: d, ...own} = sd(viewOf(w, w.step), h) || {}
+          return put(h, k, {...w, local: {...w.local, [w.step]: own}, ...d !== undefined && {draft: d}, leaving: null})
+        }
+        const r = discard ? discard(w, h) : fresh(w, h, w.key, undefined, true)
         return put(h, k, {...r, leaving: null})
       },
       [R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => {
@@ -266,7 +322,7 @@ export const wizard = (o: any = {}): any => {
   // the host's state get none here
   const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, local: {}, leaving: null}
   try { Object.assign(init, derive(init, {})) }
-  catch (_) { Object.assign(init, {steps: [], index: 0, count: names.length, first: true, last: names.length < 2, canBack: false, canNext: false}) }
+  catch (_) { Object.assign(init, {steps: [], stepper: [], index: 0, count: regular.length, first: true, last: regular.length < 2, canBack: false, canNext: false, outcome: null, dialog: null}) }
 
   const b = defineBehavior({
     initialState: init,
@@ -302,7 +358,7 @@ export const wizard = (o: any = {}): any => {
         NEXT: or(nextSel, 'NEXT'),
         BACK: or(backSel, 'BACK'),
         RESET: or(resetSel, 'RESET', (m: any) => m.draft),
-        GOTO: or(gotoSel, 'GOTO', (m: any) => m.step),
+        GOTO: or(gotoSel, 'GOTO', (m: any) => 'key' in m ? {step: m.step, key: m.key} : m.step),
         FINISH: from('FINISH'),
         ...guarded && leaveSel && {DISCARD: DOM.click(leaveSel)},
         // the stay button, or the confirm dialog closed (Escape; after DISCARD / STAY: no change then)

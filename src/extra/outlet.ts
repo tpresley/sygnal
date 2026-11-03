@@ -25,7 +25,9 @@
  * - `fallback`: the component for a name not in `of` (a page not ported, an unknown step), keyed
  *   by the same identity; without it nothing renders there (SYG456).
  * - other props pass through to the page (not `of`, `from`, `route`, `query`, `current`,
- *   `identity`, `focus`, `fallback`; `state` binds the page in route / plain mode).
+ *   `identity`, `focus`, `fallback`). In route / plain mode `state` binds the page: a key or path, a
+ *   lens, a byId selection, or a map from page names to those (the pages not in it share the
+ *   owner's state, as Switchable's per-page `state`).
  * - focus: after an identity change (not the first one shown), the first match of `focus`
  *   (default '[data-wizard-focus],h1,h2,h3', tried in order) inside the outlet gets focus, with
  *   tabindex=-1 added when needed; retried each frame for about a second while the page renders.
@@ -35,6 +37,7 @@ import {pres} from '../core/registry'
 import {createElement} from '../pragma/index'
 import {h} from '../cycle/dom/snabbdom'
 import {error} from './diagnostics/legacy'
+import {BINDING} from '../shared'
 
 const FOCUS = '[data-wizard-focus],h1,h2,h3'
 
@@ -120,6 +123,9 @@ function rewrite(n: any, owner: any): any {
     cur = current
     id = identity ?? current
   }
+  // a per-page map ({ admin: 'pages.admin', wizard: byId(…) }: an object that is no lens nor byId
+  // selection), as Switchable's: the current page's entry; pages not in it share the owner's state
+  if (from == null && st && typeof st == 'object' && typeof st.get != 'function' && !st[BINDING]) st = cur != null ? st[cur] : undefined
   const C = cur != null ? of[cur] || fallback : null
   if (cur != null && !C) bad(owner, 'SYG456', cur, `<Outlet> has no component for '${cur}' in of; nothing rendered`, `Add it: of={{ ${cur}: Component, ... }} (the keys are ${from != null ? 'the step names' : route ? 'the route names' : 'the current values'})`)
   const child = C ? createElement(C, {...rest, key: id, ...st !== undefined && {state: st}}) : null

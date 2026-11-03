@@ -537,7 +537,7 @@ describe('the decided API (Sift second pass)', () => {
           label: (s, h) => s.agreed ? 'Agreed' : 'Agree ' + h.who,
           valid: (s, h) => (seen.push([s.agreed, h.who]), s.agreed),
           dirty: (s) => s.agreed,
-          discard: (w) => ({ ...w, draft: { name: 'discarded' } }),
+          discard: (s) => ({ ...s, agreed: false, flow: { name: 'discarded' } }),
         },
         done: {},
       },
@@ -560,6 +560,7 @@ describe('the decided API (Sift second pass)', () => {
     expect(t.sinkValues('ROUTER').at(-1)).toEqual({ block: 'wizard.LEAVE' })
     await t.simulateAction('wizard.DISCARD'); await tick()
     expect(t.state.wizard.draft).toEqual({ name: 'discarded' })
+    expect(t.state.wizard.local.agree.agreed).toBe(false)
   })
 
   it('a step moves the flow with PARENT messages (NEXT, BACK, GOTO, RESET, FINISH); resetTo; Outlet fallback', async () => {
@@ -673,5 +674,125 @@ describe('Sift pass 2', () => {
     expect(seen.at(-1)).toBe(true)
     expect(t.state.page.wizard.steps.map(x => x.status)).toEqual(['done', 'current', 'upcoming'])
     expect(t.query('.b')).toBeTruthy()
+  })
+})
+
+describe('Outlet: a per-page state map (plain mode)', () => {
+  it('each page binds its own entry; a page not in the map shares the owner state', async () => {
+    function Admin({ state }) { return h('p', { className: 'admin' }, String(state.n)) }
+    function Home({ state }) { return h('p', { className: 'home' }, String(state.page)) }
+    function App({ state }) {
+      return h('main', null, h('button', { className: 'go' }), h(Outlet, { of: { admin: Admin, home: Home }, current: state.page, state: { admin: 'pages.admin' }, focus: false }))
+    }
+    App.initialState = { page: 'home', pages: { admin: { n: 7 } } }
+    App.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+    App.model = { GO: (s) => ({ ...s, page: s.page === 'home' ? 'admin' : 'home' }) }
+    t = renderComponent(App, { dom: 'real' })
+    await t.ready(); await tick()
+    expect(t.query('.home').textContent).toBe('home')
+    await click('.go')
+    expect(t.query('.admin').textContent).toBe('7')
+  })
+})
+
+describe('pass 3: the decided API', () => {
+  const router = makeRouter({ routes: { home: '/', newFilter: '/new', step: '/new/:step', notFound: '*' } })
+  const inWizard = (r) => r?.name === 'newFilter' || r?.name === 'step'
+  function Define({ state }) {
+    return h('div', null, h('h2', null, 'Define'), h('input', { className: 'words', value: state.words }), h('button', { className: 'continue' }, 'Continue'))
+  }
+  Define.initialState = { words: '' }
+  Define.isolatedState = true
+  Define.intent = ({ DOM }) => ({ WORDS: DOM.input('.words').map(e => e.target.value), CONTINUE: DOM.click('.continue') })
+  Define.model = {
+    WORDS: (s, words) => ({ ...s, words }),
+    // a session is opened; the first time the flow adopts it (a route), later it moves to a new one
+    CONTINUE: { PARENT: (s, _d, _n, { context }) => ({ wizard: 'GOTO', step: 'describe', key: s.words }) },
+  }
+  function Describe() { return h('div', null, h('h2', null, 'Describe'), h('button', { className: 'create' }, 'Create')) }
+  Describe.intent = ({ DOM }) => ({ CREATE: DOM.click('.create') })
+  Describe.model = { CREATE: { PARENT: () => ({ wizard: 'GOTO', step: 'created' }) } }
+  function Analyze() { return h('h2', null, 'Analyze') }
+  function Created() { return h('h2', { className: 'created' }, 'Created') }
+  function App({ state }) { return inWizard(state.route) ? h(Flow, { state: 'flow' }) : h('p', { className: 'home' }, 'home') }
+  App.route = 'ROUTE'
+  App.initialState = { route: router.current('/'), flow: {} }
+  App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+  const resets = []
+  function Flow({ state }) {
+    const w = state.wizard
+    return h('section', null,
+      h('ol', null, ...w.stepper.map(e => h('li', { 'data-status': e.status, 'data-step': e.step }, e.label))),
+      h(Outlet, { of: { define: Define, analyze: Analyze, describe: Describe, created: Created }, from: 'wizard', focus: false }),
+      h('dialog', { className: 'leave-dialog' }, h('p', { className: 'copy' }, w.dialog?.title ?? ''), h('button', { className: 'leave' }), h('button', { className: 'stay' })),
+      h('button', { className: 'back' }), h('button', { className: 'restart' }))
+  }
+  Flow.uses = {
+    wizard: wizard({
+      steps: {
+        define: { label: 'Source', dirty: (s) => s.words !== '', dialog: { title: 'Discard what you typed?' } },
+        analyze: { group: 'build', label: 'Analyze', when: (s, st) => st.route?.query?.report != null },
+        describe: { group: 'build', label: 'Describe', when: (s, st) => st.route?.query?.report == null },
+        created: { outcome: true },
+      },
+      groups: { build: { label: 'Build the filter' } },
+      dialog: { title: 'Leave?' },
+      key: (s) => inWizard(s.route) ? s.route.query.session ?? null : undefined,
+      url: { route: 'step', param: 'step', key: 'session', from: (s) => s.route?.name === 'newFilter' ? { ...s.route, name: 'step', params: { step: 'define' } } : s.route },
+      confirm: '.leave-dialog', leave: '.leave', stay: '.stay', back: '.back', reset: '.restart',
+      resetTo: (prev) => (resets.push(prev.key), { to: 'newFilter' }),
+    }),
+  }
+  const statuses = () => t.queryAll('li').map(l => `${l.textContent}:${l.dataset.status}`)
+  const P = HTMLDialogElement.prototype, sm = P.showModal, cl = P.close
+  afterEach(() => { P.showModal = sm; P.close = cl })
+
+  it('GOTO with a key: a second session from inside the flow passes the guard and starts the flow over; groups; outcome; dialog copy; resetTo(previous)', async () => {
+    P.showModal = function () { this.setAttribute('open', '') }
+    P.close = function () { this.removeAttribute('open') }
+    t = renderComponent(App, { dom: 'real', router, url: '/new' })
+    await t.ready(); await tick(40)
+    expect(statuses()).toEqual(['Source:current', 'Build the filter:upcoming'])
+    expect(t.state.flow.wizard.dialog).toEqual({ title: 'Discard what you typed?' })
+    await type('.words', 'S1')
+    await click('.continue'); await tick(60)
+    expect(t.location.path).toBe('/new/describe')
+    expect(t.location.query).toEqual({ session: 'S1' })
+    expect(t.state.flow.wizard).toMatchObject({ step: 'describe', key: 'S1', leaving: null })
+    expect(t.state.flow.wizard.local.define.words).toBe('S1')   // adopted: the flow had no key
+    expect(statuses()).toEqual(['Source:done', 'Build the filter:current'])
+    expect(t.state.flow.wizard.stepper[1].step).toBe('describe')
+    expect(t.state.flow.wizard.dialog).toEqual({ title: 'Leave?' })
+    // Back to Define (key S1 kept), type again (dirty), Continue with a new session: no dialog
+    await t.back(); await tick(60)
+    expect(t.state.flow.wizard.step).toBe('define')
+    await type('.words', 'S2')
+    await click('.continue'); await tick(60)
+    expect(t.state.flow.wizard).toMatchObject({ step: 'describe', key: 'S2', leaving: null })
+    expect(t.location.query).toEqual({ session: 'S2' })
+    expect(t.state.flow.wizard.local.define).toBeUndefined()   // the flow started over for S2
+    expect(t.query('.leave-dialog').hasAttribute('open')).toBe(false)
+    // the outcome: all steps done, not in the stepper, Back refused, a route back is replaced
+    await click('.create'); await tick(60)
+    expect(t.location.path).toBe('/new/created')
+    expect(t.query('.created')).toBeTruthy()
+    expect(t.state.flow.wizard).toMatchObject({ outcome: 'created', canBack: false, canNext: false })
+    expect(statuses()).toEqual(['Source:done', 'Build the filter:done'])
+    await click('.back')
+    expect(t.state.flow.wizard.step).toBe('created')
+    await t.back(); await tick(60)
+    expect(t.state.flow.wizard.step).toBe('created')
+    expect(t.location.path).toBe('/new/created')
+    // start over: resetTo gets the slice being reset (key S2)
+    await click('.restart'); await tick(60)
+    expect(resets).toEqual(['S2'])
+    expect(t.location.path).toBe('/new')
+    expect(t.state.flow.wizard.step).toBe('define')
+  })
+
+  it('a group shows the alternative that applies (Analyze when there is a report)', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/new/analyze?session=A&report=R' })
+    await t.ready(); await tick(40)
+    expect(t.state.flow.wizard.stepper.map(e => [e.name, e.step, e.steps.join('|')])).toEqual([['define', 'define', 'define'], ['build', 'analyze', 'analyze|describe']])
   })
 })
