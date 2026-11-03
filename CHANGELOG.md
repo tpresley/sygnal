@@ -2,6 +2,16 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.
+
+- `external` takes route patterns (the `routes` syntax, plus a trailing `*` that matches the rest: `['/billing/:id', '/auth/*']`) or a function of the resolved `URL`. Patterns match the path without `base`.
+- A navigation to a matching URL is a full page load: `location.assign(url)`, or `location.replace(url)` for a replace, never a pushState. This applies to a link click (not intercepted: the browser follows it), a `{ to }` / `{ url }` command, a guard's redirect, and a block's `proceed`. Leave blocks are asked first.
+- Unmatched URLs still show the not-found route, so a typo doesn't reload the page. Under Vike's `navigate`, the option applies to commands.
+- Testing: the router fake records page loads in `t.pageLoads` (`{ url, replace }`): `external` navigations and link clicks the router left to the browser. The location and the page stay.
+- Docs: `guide/router` § Routes Another App Owns.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).

@@ -578,6 +578,8 @@ export interface RenderResult {
   forward: () => Promise<void>;
   /** PLAN-3 5-4c: the in-memory location */
   readonly location: {path: string; search: string; query: Record<string, string>; hash: string; href: string};
+  /** the full page loads the app made (the router's `external`, a link it left to the browser): recorded, not made */
+  readonly pageLoads: Array<{url: string; replace: boolean}>;
   /** PLAN-3 5-4c: the HEAD fake's merged head (titleTemplate applied) */
   head: () => {title: string | undefined; meta: Record<string, any>; link: any[]};
   /** PLAN-4 GS-7: the timer fake's active timers, in start order: `{ name, every | after | frame, action, background?, component }` */
@@ -1485,10 +1487,24 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
  * kept in memory, and a document whose listeners are recorded in `docLs` (the mock DOM's link
  * clicks call them) and, with `real` (dom: 'real'), also added to the real document, so real
  * clicks bubble into the driver's link interception. `baseURI` is the in-memory URL, so relative
- * links resolve against it.
+ * links resolve against it. A full page load (location.assign / replace, the router's `external`,
+ * or a link click nothing prevented) is recorded in `loads`, not made: the page stays.
  */
 function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
   const entries = [{url: start, state: null as any}];
+  const loads: Array<{url: string; replace: boolean}> = [];
+  const load = (url: string, replace: boolean) => { loads.push({url: new URL(url, entries[i].url).href, replace}); };
+  // a link the browser follows (a left click nothing prevented): a page load, unless it only
+  // moves to a fragment of this page
+  const follow = (e: any, a: any) => {
+    const raw = a?.getAttribute('href');
+    if (e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || raw == null ||
+        (a.getAttribute('target') || '_self') != '_self' || a.hasAttribute('download')) return;
+    const u = new URL(raw, entries[i].url), here = at();
+    if (!(u.hash && u.origin == here.origin && u.pathname == here.pathname && u.search == here.search)) load(u.href, false);
+  };
+  // dom: 'real': on the window, so it runs after the document's listeners (the router's)
+  const onReal = (e: any) => follow(e, (e.composedPath?.() || []).find((x: any) => x.localName == 'a'));
   const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
   let i = 0, moving = 0;
   const at = () => new URL(entries[i].url);
@@ -1498,6 +1514,7 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     location: {
       get href() { return entries[i].url; }, get pathname() { return at().pathname; }, get search() { return at().search; },
       get hash() { return at().hash; }, get origin() { return at().origin; },
+      assign: (url: string) => load(url, false), replace: (url: string) => load(url, true),
     },
     history: {
       get state() { return entries[i].state; }, get length() { return entries.length; },
@@ -1515,8 +1532,16 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },
     removeEventListener(t: string, f: any) { on[t] = (on[t] || []).filter(x => x !== f); },
     document: {
-      addEventListener(t: string, f: any) { (docLs[t] = docLs[t] || []).push(f); D?.addEventListener(t, f); },
-      removeEventListener(t: string, f: any) { docLs[t] = (docLs[t] || []).filter(x => x !== f); D?.removeEventListener(t, f); },
+      addEventListener(t: string, f: any) {
+        (docLs[t] = docLs[t] || []).push(f);
+        D?.addEventListener(t, f);
+        if (D && t == 'click') D.defaultView?.addEventListener('click', onReal);
+      },
+      removeEventListener(t: string, f: any) {
+        docLs[t] = (docLs[t] || []).filter(x => x !== f);
+        D?.removeEventListener(t, f);
+        if (D && t == 'click' && !docLs[t].length) D.defaultView?.removeEventListener('click', onReal);
+      },
       querySelector: (s: string) => (D ? query(s) : null),
       getElementById: (id: string) => (D ? D.getElementById(id) : null),
       get body() { return D?.body; },
@@ -1526,7 +1551,7 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
     scrollTo(x: any, y?: any) { if (typeof x == 'object') ({left: x = w.scrollX, top: y = w.scrollY} = x); w.scrollX = x; w.scrollY = y; },
     MutationObserver: real && observe ? (globalThis as any).MutationObserver : undefined,
   };
-  return {w, docLs, index: () => i, size: () => entries.length};
+  return {w, docLs, loads, follow, index: () => i, size: () => entries.length};
 }
 /**
  * PLAN-3 5-4c: an element-like `<a>` for the router's click handler (mock DOM), from the vnode:
@@ -3266,6 +3291,7 @@ export function renderComponent(
       preventDefault() { e.defaultPrevented = true; },
     };
     ls.slice().forEach((l: any) => l(e));
+    rt!.mem.follow(e, a);
   };
   // (PARENT and EVENTS, the sinks no driver serves: what was sent on them, as t.sinkValues; before,
   // t.sent('PARENT') made an empty socket fake and returned [])
@@ -3751,6 +3777,7 @@ export function renderComponent(
     back: () => traverse('back', -1),
     forward: () => traverse('forward', 1),
     get location() { return routerLocation(); },
+    get pageLoads() { return needRouter('pageLoads').mem.loads; },
     head,
     timers: () => {
       if (!tm) throw new Error(`[Sygnal] t.timers(): ${timerSink} has a real driver (passed in drivers); t.timers lists the timers of the fake renderComponent provides when no driver is passed`);

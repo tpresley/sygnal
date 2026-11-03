@@ -3522,6 +3522,15 @@ export interface RouterOptions<R extends Record<string, string> = Record<string,
    * `prefetch: (route) => routeData[route.name]?.(route).forEach(cache.prefetch)`
    */
   prefetch?: (route: Route, url: string) => void;
+  /**
+   * URLs another app owns (a strangler migration, multi-zones): a navigation to one is a full page
+   * load (`location.assign`, `location.replace` for a replace), never a pushState, whether it comes
+   * from a link, a `{ to }` / `{ url }` command, a guard's redirect or a block's `proceed`. Leave
+   * blocks are asked first. Route patterns (`'/billing/:id'`, a trailing `*` matching the rest:
+   * `'/admin/*'`), matched against the path without `base`, or a function of the resolved URL.
+   * Under Vike it applies to commands (links are Vike's)
+   */
+  external?: string[] | ((url: URL) => boolean);
   /** Vike: its `navigate()` (from 'vike/client/router'); the router then leaves links and history to Vike */
   navigate?: (url: string, options: { overwriteLastHistoryEntry: boolean }) => any;
   /** test seams: default the global window and its history, location and document */
@@ -4350,6 +4359,12 @@ export interface RenderResult<STATE = any> {
    * (the search parsed as `state.route.query` has it: `{ tab: 'x' }`), `hash` ('#c' or ''), `href`
    */
   readonly location: { path: string; search: string; query: Record<string, string>; hash: string; href: string };
+  /**
+   * Router fake: the full page loads the app made, in order, as absolute URLs: a navigation to an
+   * `external` URL (`replace: true` for a replace) or a link click the router left to the browser.
+   * Recorded, not made: the location and the rendered page stay as they were
+   */
+  readonly pageLoads: Array<{ url: string; replace: boolean }>;
   /**
    * HEAD fake (no HEAD driver passed): the head the components declare now (`head` statics and
    * HEAD sink values), merged as makeHeadDriver merges them: `{ title, meta: { name: content },

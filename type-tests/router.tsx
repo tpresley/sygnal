@@ -41,6 +41,13 @@ loose.href('anything', { id: 1 })
 loose.href('anything')
 makeRouterDriver({ routes: table, window: {}, prefetch: (route, url) => { void [route.name, url] } })
 makeRouter({ routes: { a: '/a' }, navigate: (url, { overwriteLastHistoryEntry }) => { void [url, overwriteLastHistoryEntry] } })
+// external: route patterns, or a function of the resolved URL
+makeRouter({ routes: { a: '/a', billing: '/billing/:id' }, external: ['/billing/:id', '/auth/*'] })
+makeRouter({ routes: { a: '/a' }, external: (url) => url.pathname.startsWith('/legacy/') })
+// @ts-expect-error a single pattern is an array
+makeRouter({ routes: { a: '/a' }, external: '/billing' })
+// @ts-expect-error the function gets a URL
+makeRouter({ routes: { a: '/a' }, external: (url: string) => url.startsWith('/legacy') })
 
 // the route static and commands from the model
 type S = { route: Route | null; dirty: boolean; pending: RouterCommand | null }
