@@ -295,6 +295,15 @@ function handleElement(project, file, el, sink, visited) {
       from: fromExpr && !outlet ? stringValue(fromExpr) : null,
       fromNode: fromAttr || null,
       targets: targets.map(t => ({ name: exprName(t) || (stringValue(t) ?? '?'), ref: refFor(project, file, t), node: t })),
+      // wizard spike (rules/syg455-outlet.js): an <Outlet from="key">'s wizard key and its `of` keys
+      // (null when `of` isn't an object literal of named keys)
+      outlet: outlet ? {
+        from: fromExpr ? stringValue(fromExpr) : null,
+        fromNode: fromAttr || null,
+        of: ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
+          ? ofExpr.properties.map(p => ({ key: propName(p), node: p.key })) : null,
+        ofNode: ofAttr || opening,
+      } : null,
     }
     sink.collections.push(usage)
     for (const t of usage.targets) {

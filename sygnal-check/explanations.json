@@ -1752,9 +1752,10 @@
     "severity": "error",
     "strict": false,
     "reportedBy": [
-      "runtime"
+      "runtime",
+      "static"
     ],
-    "explanation": "`<Outlet from=\"wizard\">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. Reported once per component, in production too.",
+    "explanation": "`<Outlet from=\"wizard\">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. The runtime reports it once per component, in production too; the static checker reports it for a string `from` when the component's `uses` can be read, and also when the key names a behavior that isn't `wizard()`.",
     "fix": "Declare the behavior on the component that renders the outlet, under the key `from` names: `NewFilter.uses = { wizard: wizard({ steps }) }` with `<Outlet of={STEPS} from=\"wizard\" />`.",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg455"
   },
@@ -1764,11 +1765,24 @@
     "severity": "error",
     "strict": false,
     "reportedBy": [
-      "runtime"
+      "runtime",
+      "static"
     ],
-    "explanation": "`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. Reported once per component and name, in production too.",
+    "explanation": "`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. The runtime reports it once per component and name, in production too, when it happens; the static checker reports each step of the wizard's `steps` with no key in an `of` object literal.",
     "fix": "Add the component under that name: `of={{ source: Source, review: Review }}` with one key per step name, or one per route name in route mode (`notFound: NotFound` included).",
     "docsUrl": "https://sygnal.js.org/reference/errors#syg456"
+  },
+  {
+    "code": "SYG457",
+    "title": "Outlet of names no step of its wizard",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "static"
+    ],
+    "explanation": "An `<Outlet of={{ … }} from=\"wizard\">` maps step names to components, and one of its keys is not a step of the `wizard()` it names (its `steps` option). That entry never renders: a misspelled step name (its step then has no component, SYG456), or a step that was removed from the flow. Reported when `of` and `steps` are object literals of named keys.",
+    "fix": "Rename the key to the step it is for (the checker suggests the closest name), or remove the entry.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg457"
   },
   {
     "code": "SYG501",

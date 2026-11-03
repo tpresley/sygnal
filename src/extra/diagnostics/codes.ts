@@ -402,6 +402,8 @@ export const CODE_TITLES: Record<string, string> = {
   // the wizard spike (src/extra/outlet.ts): reported by the Outlet, in production too
   SYG455: 'Outlet from names no wizard behavior',
   SYG456: 'Outlet has no component for the current name',
+  // static only (sygnal-check rules/syg455-outlet.js)
+  SYG457: 'Outlet of names no step of its wizard',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
@@ -670,6 +672,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG454: 'warn',
   SYG455: 'error',
   SYG456: 'error',
+  SYG457: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

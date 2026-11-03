@@ -64,6 +64,10 @@ export const CODES = {
   // installed Sygnal 7, SYG454 (rules/syg454-byid-binding.js) on an installed Sygnal 6 only
   SYG256: { severity: 'warn', title: 'Output guard rejects the updated state' },
   SYG454: { severity: 'warn', title: 'State binding changed without a new component identity' },
+  // wizard spike (rules/syg455-outlet.js)
+  SYG455: { severity: 'error', title: 'Outlet from names no wizard behavior' },
+  SYG456: { severity: 'error', title: 'Outlet has no component for the current name' },
+  SYG457: { severity: 'warn', title: 'Outlet of names no step of its wizard' },
   // record/replay (rules/syg258-clock-in-reducer.js): left out under --strict, where SYG509 reports it
   SYG258: { severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)

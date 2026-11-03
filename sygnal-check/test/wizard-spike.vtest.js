@@ -74,4 +74,16 @@ describe('wizard spike: sygnal-check', () => {
     const d = check({ 'NewThing.jsx': FLOW({ opts: "nxt: '.next', next: '.next', back: '.back', reset: '.start-over', goto: '.goto', finish: 'CREATE'" }) })
     expect(codes(d)).toEqual(['SYG127 error'])
   })
+
+  it('SYG455: <Outlet from> naming no uses key (did you mean), or a behavior that is not a wizard', () => {
+    const d = check({ 'NewThing.jsx': FLOW().replace('from="wizard"', 'from="wizrd"') })
+    expect(codes(d)).toEqual(['SYG455 error'])
+    expect(d[0].message).toContain("did you mean 'wizard'")
+  })
+
+  it('SYG456: a step with no component in of; SYG457: an of key that is no step', () => {
+    const d = check({ 'NewThing.jsx': FLOW().replace('of={{ source: Source, review: Review }}', 'of={{ source: Source, reveiw: Review }}') })
+    expect(codes(d)).toEqual(['SYG456 error', 'SYG457 warn'])
+    expect(d.find(x => x.code === 'SYG457').message).toContain("did you mean 'review'")
+  })
 })
