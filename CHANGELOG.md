@@ -69,6 +69,13 @@ reports).
   step aborted without a reply (another compose use in the lane, or its `timeoutMs`) releases the
   queue instead of stalling it, and the queued composition starts after `page.DONE`, on the layout
   its handlers left (an app's fix there was lost).
+- **Router: a blocked back/forward answered at once with its `proceed` lands.** The router asked the
+  blocker before undoing the traversal, so the proceed and the undo were two `history.go()` calls
+  in one task (Chromium drops one): the URL and the route disagreed, and a dropped forced traversal
+  left the next back/forward unguarded. The undo now comes first, a navigation sent meanwhile is
+  made when it lands, and only the forced traversal's own entry skips the blocks. The test
+  router's history drops a `go()` sent while one is pending, as Chromium does, and resolves the
+  delta when the traversal runs.
 - **Fetch driver: a resource with a deep request body keeps its refetches.** A `json` body nested
   a few levels deep was re-declared on every action, and an invalidation, focus or `refetchEvery`
   refetch running outside a drain then took itself for superseded: it was never sent, the

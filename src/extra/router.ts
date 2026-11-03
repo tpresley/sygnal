@@ -121,7 +121,10 @@ export function makeRouter(options: any = {}) {
     // sender → block action; the last one set gets the attempted navigation
     const blocks = new Map<any, string>();
     const pos = new Map<string, number[]>();
-    let ver = 0, idx = 0, key = '', last = '', force = 0, undo = 0, n = 0, hops = 0, warned = 0;
+    let ver = 0, idx = 0, key = '', last = '', undo = 0, n = 0, hops = 0, warned = 0;
+    // a forced traversal's target entry (it alone skips the blocks); a navigation held while a
+    // blocked traversal's undo is pending
+    let forceTo: any = null, held: any = null;
     let cur: any = null, cancel: any = null, pendingKind = '', asked: any;
 
     const newKey = () => Date.now().toString(36) + (n++);
@@ -184,6 +187,9 @@ export function makeRouter(options: any = {}) {
       if (kind != 'start') settle(kind);
     };
 
+    // a navigation now, or (a blocked traversal's undo pending) once the undo landed; the last one wins
+    const later = (f: any) => undo ? (held = f) : f();
+
     const blocked = (data: any) => {
       const b = [...blocks].pop();
       return b && (asked = b[0], reply(b[0], b[1], data), 1);
@@ -192,6 +198,7 @@ export function makeRouter(options: any = {}) {
     const go = (url: string, replace?: boolean, scroll?: boolean, f?: any) => {
       if (!f && blocked({to: url, route: match(url), proceed: {url, replace, force: true}})) return;
       if (navigate) return navigate(url, {overwriteLastHistoryEntry: !!replace});
+      forceTo = null;
       pos.set(key, [w.scrollX, w.scrollY]);
       H[replace ? 'replaceState' : 'pushState'](stamp(replace ? idx : idx + 1), '', url);
       if (doScroll && !replace && scroll !== false) w.scrollTo(0, 0);
@@ -200,12 +207,25 @@ export function makeRouter(options: any = {}) {
 
     const onPop = () => {
       const st = H.state, i = st?.i ?? idx + 1;
-      if (undo) return void (undo = 0);
-      if (!force && blocked({to: L.href, route: current(), proceed: {go: i - idx, force: true}})) {
-        undo = 1;
-        return H.go(idx - i);
+      // the undo of a blocked traversal landed: now the navigation sent meanwhile (a `proceed` the
+      // blocker sent at once) is made. A second history.go() while one is pending is dropped by
+      // Chromium, so it waits for this
+      if (undo) {
+        undo = 0;
+        const h = held;
+        held = null;
+        return void h?.();
       }
-      force = 0;
+      // only the entry a forced traversal was going to skips the blocks (a forced go() the browser
+      // dropped leaves nothing set for the next traversal)
+      const forced = forceTo === i;
+      forceTo = null;
+      // undone before the blocker hears of it, so what it sends meanwhile is held until the undo landed
+      if (!forced && blocks.size) {
+        undo = 1;
+        H.go(idx - i);
+        return void blocked({to: L.href, route: current(), proceed: {go: i - idx, force: true}});
+      }
       pos.set(key, [w.scrollX, w.scrollY]);
       if (st?.key) { key = st.key; idx = i; }
       else H.replaceState({...st, ...stamp(i)}, '');
@@ -306,11 +326,11 @@ export function makeRouter(options: any = {}) {
           if (url) prefetch?.(match(url), url);
         } else if (!w) return;
         else if (v.back || v.forward || v.go) {
-          force = v.force ? 1 : 0;
-          H.go(v.back ? -1 : v.forward ? 1 : v.go);
+          const d = v.back ? -1 : v.forward ? 1 : v.go;
+          later(() => { forceTo = v.force ? idx + d : null; H.go(d); });
         } else if (nav) {
           const url = v.url ?? target(v, v.to);
-          if (url) go(url, v.replace, v.scroll, v.force);
+          if (url) later(() => go(url, v.replace, v.scroll, v.force));
         } else bad(v, 'unknown command', "{ to: 'name', params?, query?, hash?, replace? }, { back: true }, { forward: true }, { block: 'ACTION' } or { prefetch: 'name' }");
       },
       error: (e: any) => console.error('[Sygnal] router', e),
