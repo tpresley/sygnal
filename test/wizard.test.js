@@ -508,10 +508,11 @@ describe('the decided API (Sift second pass)', () => {
     expect(t.state.wizard).toMatchObject({ key: null, draft: { title: 'for null' } })
     await type('.note', 'kept')
     await click('.set-k1')
-    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for null' } })   // adopted
+    // adopted: the flow kept; the draft's untouched field refilled from draft(state) (A2)
+    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for k1' } })
     expect(t.query('.note').value).toBe('kept')
     await click('.set-undef')
-    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for null' } })   // not mine: kept
+    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for k1' } })     // not mine: kept
     await click('.set-k1')
     await click('.set-k2')
     expect(t.state.wizard).toMatchObject({ key: 'k2', draft: { title: 'for k2' } })     // another record
@@ -659,6 +660,32 @@ describe('Sift pass 2', () => {
     await t.navigate('/flow/b?k=1'); await tick(60)
     expect(t.location.path).toBe('/flow/a')
     expect(t.state.flow.wizard.step).toBe('a')
+  })
+
+  it('bug A2: an adopted key refills the draft fields still at their start from draft(state); a changed one is kept', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/a' })
+    await t.ready(); await tick(40)
+    expect(t.state.flow.wizard).toMatchObject({ key: null, draft: { x: null }, initial: { x: null } })
+    await t.navigate('/flow/b?k=1&x=7'); await tick(60)
+    expect(t.location.path).toBe('/flow/b')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '1', draft: { x: '7' }, initial: { x: '7' } })
+  })
+
+  it('bug A2: a draft field the user changed is not refilled on adoption', async () => {
+    const flow = wizard({ steps: { a: {}, b: {} }, draft: (st) => ({ x: st.k ?? null, y: 'start' }), key: (st) => st.k })
+    function S({ state }) { return h('button', { className: 'edit' }, String(state.draft.y)) }
+    S.intent = ({ DOM }) => ({ EDIT: DOM.click('.edit') })
+    S.model = { EDIT: (s) => ({ ...s, draft: { ...s.draft, x: 'mine', y: 'mine' } }) }
+    function Host() { return h('div', null, h(Outlet, { of: { a: S, b: S }, from: 'wizard' }), h('button', { className: 'k' })) }
+    Host.initialState = { k: null }
+    Host.uses = { wizard: flow }
+    Host.intent = ({ DOM }) => ({ K: DOM.click('.k') })
+    Host.model = { K: (s) => ({ ...s, k: 'K1' }) }
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.edit')
+    await click('.k')
+    expect(t.state.wizard).toMatchObject({ key: 'K1', draft: { x: 'mine', y: 'mine' } })
   })
 
   it('bug B: a slice the parent seeded (no derived fields) gets them at the host start, before the first patch', async () => {

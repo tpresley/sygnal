@@ -170,7 +170,9 @@ What a step's state keeps, and when:
   - `state` is the host's state, for what the step doesn't hold (the route, a setting).
 
   A step can therefore be skipped because of an earlier step's answer, as the Seats step is in the recipe. The derived fields (`steps`, `canNext`, …) are updated whenever the slice or the host's state changes.
-- **Types:** `wizard<Draft, State, { review: ReviewState }>` types each step's slice (`state.wizard.local.review`), and `WizardStepComp<ReviewState, Draft>` types a step component, whose `initialState` is its own slice without the draft.
+- **Types:** `wizard<Draft, State, { review: ReviewState }>` types each step's slice (`state.wizard.local.review`). A step component is a `WizardStepComp`, whose `initialState` is its own fields:
+  - `WizardStepComp<ReviewState>` for a step that doesn't read the draft (its state is its own fields; it works under any wizard);
+  - `WizardStepComp<DefineState, { draft: Draft }>` for one that does, naming the draft's key and type together (`{ flow: Draft }` under `draftKey: 'flow'`).
 
 **A step with a form:**
 1. Put the [`form`](/guide/forms/) behavior in the step's `uses`.
@@ -189,7 +191,7 @@ A flow belongs to a record: a session, a draft being edited, a report. Name it w
 | `key(state)` goes from | the flow |
 |---|---|
 | one key to another | starts over for the new record: `draft` and every step's slice are made again, at the first step |
-| none (`null` or `undefined`) to a key | is kept, and takes the key: a key born mid-flow (step one created the session) |
+| none (`null` or `undefined`) to a key | is kept, and takes the key: a key born mid-flow (step one created the session). With a `draft` function, the draft's top-level fields the user hasn't changed are filled again from `draft(state)` (a field the new route fills); the others keep what the user typed |
 | a key to none | is kept with its key (a step route without the key, such as the first step's) |
 | anything to `undefined` | is kept: `undefined` means "not mine" (another route of the host) |
 

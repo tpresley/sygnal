@@ -376,4 +376,9 @@ See the summary sent to the coordinator; the same list, with the recommendation 
 - **Dialog copy:** `steps.x.dialog`, else the wizard's `dialog` (a value, or `(step, state) => value`), becomes the derived `dialog`.
 - **The Outlet's per-page `state` map** (plain and route modes), as Switchable's PLAN-13 F-3. The JSX types keep the Outlet's own `state` through a brand checked in `JSX.LibraryManagedAttributes`.
 
-**Pending with the maintainer:** A2 (the draft on key adoption, a proposed `initial` rule) and the full fix for B.
+**Decided later and built:**
+- **A2:** on key adoption, a `draft` function's top-level fields that are still `Object.is` their start value (a new slice field, `initial`) are filled again from `draft(state)`.
+- **`WizardStepComp<Own>`:** for a step that doesn't read the draft, whose state is its own fields only.
+- **`WizardStepComp<Own, { key: Draft }>`:** for one that does, with the draft's key and type named together.
+
+**Pending with the maintainer:** the full fix for B (a core read-time hook plus a size-budget raise).

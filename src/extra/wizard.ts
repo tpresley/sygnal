@@ -13,7 +13,7 @@
  *
  * Slice (state.wizard): step, key (the flow key the state belongs to), visit (counts entries: the
  * outlet's identity is step + visit; 0 until the flow starts), visited, draft (shared by the
- * steps), local (each step's own slice, by name), leaving (a navigation held while the leave
+ * steps), initial (the draft the flow started with), local (each step's own slice, by name), leaving (a navigation held while the leave
  * confirm is open). Derived (written when a change of the slice or of the host's state changes
  * them: SYNC, a built-in action dispatched only then):
  * steps ({ name, label, index, status, current, valid, visited, reachable, skipped }; status
@@ -28,7 +28,9 @@
  * starts (MOUNT: a host mounted again shows the step anew). A step's own slice survives Back.
  *
  * The flow key: `key(state)`. Only a change from one key to another makes the draft and every step
- * slice anew; a key born mid-flow (null / undefined to a value) is adopted: the flow is kept; no
+ * slice anew; a key born mid-flow (null / undefined to a value) is adopted: the flow is kept (with
+ * a `draft` function, the draft's top-level fields still at their start, `initial`, refilled from
+ * draft(state)); no
  * key (null: a step route without it; undefined: "not mine", another route of the host) keeps the
  * flow and its key. Start over is RESET.
  *
@@ -154,7 +156,7 @@ export const wizard = (o: any = {}): any => {
   // the flow anew for key k (the draft from the host state; `d`: a draft given to RESET)
   // (url: at the step the route names when it is reachable, unless `top`: a reset)
   const fresh = (w: any, h: any, k: any, d?: any, top?: boolean) => {
-    const n = {...w, key: k, draft: d ?? draftOf(h), local: {}, visited: [], leaving: null}
+    const dd = d ?? draftOf(h), n = {...w, key: k, draft: dd, initial: dd, local: {}, visited: [], leaving: null}
     const at = url && !top && routeStep(h)
     return enter(n, at && reachable(n, at, h) ? at : first, h)
   }
@@ -174,6 +176,17 @@ export const wizard = (o: any = {}): any => {
     if (a == 'NEXT') return ok(w, w.step, h) ? l[i + 1] ?? null : null
     if (a == 'BACK') return i > 0 ? l[i - 1] : null
     return n != w.step && names.includes(n) && (out(n) || reachable(w, n, h)) ? n : null
+  }
+  // a key adopted mid-flow (none to a value): the flow kept, and (a `draft` function) the draft's
+  // top-level fields the user hasn't changed from their start (`initial`) refilled from draft(state),
+  // e.g. a field the new route now fills
+  const adopt = (w: any, k: any, h: any) => {
+    const r = {...w, key: k}
+    if (typeof dr != 'function') return r
+    const nd = dr(h), i = w.initial || {}, d = {...w.draft}, ni = {...i}
+    if (!nd || typeof nd != 'object' || !w.draft || typeof w.draft != 'object') return r
+    for (const f in nd) if (Object.is(w.draft[f], i[f])) d[f] = ni[f] = nd[f]
+    return {...r, draft: d, initial: ni}
   }
   // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
   const pre = (p: any) => p?.previousState || p?.state
@@ -207,7 +220,7 @@ export const wizard = (o: any = {}): any => {
       const w = h[key]
       if (!w.visit) return put(h, key, fresh(w, h, k ?? null))
       if (k == null || Object.is(w.key, k)) return h
-      return put(h, key, w.key == null ? {...w, key: k} : fresh(w, h, k))
+      return put(h, key, w.key == null ? adopt(w, k, h) : fresh(w, h, k))
     }, ...shut},
     // the host started (Sift bug 2: a host mounted again with the same key and step): the current
     // step's visit defaults again, as its new instance's scratch; and (pass 2 bug B) the derived
@@ -239,7 +252,7 @@ export const wizard = (o: any = {}): any => {
         if (plainObj(d) && 'key' in d) {
           // (as for a key the route names: adopted when the flow has none yet, or the same key)
           const keep = w.key == null || Object.is(w.key, d.key)
-          const f = keep ? {...w, key: d.key ?? w.key} : fresh(w, h, d.key ?? null, undefined, true), n = names.includes(d.step) ? d.step : f.step
+          const f = keep ? (w.key == null && d.key != null ? adopt(w, d.key, h) : w) : fresh(w, h, d.key ?? null, undefined, true), n = names.includes(d.step) ? d.step : f.step
           return put(h, k, n == f.step && !keep ? f : enter(f, n, h))
         }
         const n = target(w, 'GOTO', d, h)
@@ -320,7 +333,7 @@ export const wizard = (o: any = {}): any => {
 
   // the start slice, with derived fields for a render before any action (SSR); predicates that need
   // the host's state get none here
-  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, local: {}, leaving: null}
+  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, initial: typeof dr == 'function' ? {} : dr, local: {}, leaving: null}
   try { Object.assign(init, derive(init, {})) }
   catch (_) { Object.assign(init, {steps: [], stepper: [], index: 0, count: regular.length, first: true, last: regular.length < 2, canBack: false, canNext: false, outcome: null, dialog: null}) }
 

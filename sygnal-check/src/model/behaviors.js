@@ -101,7 +101,7 @@ export const FIRST_PARTY = {
   // intent (SYNC: the host's state, for the derived fields); LEAVE is the router's block reply;
   // `finish` is a host action dispatched with next(); the moves also come from the steps' PARENT messages
   wizard: {
-    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'local', 'leaving'],
+    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'initial', 'local', 'leaving'],
     calculated: ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog'],
     model: ['KEY', 'MOUNT', 'SYNC', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
     options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],

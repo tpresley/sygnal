@@ -58,7 +58,7 @@ export const typed3 = wizard<Draft, Host, { define: DefineState }>({
 })
 declare const tw: WizardState<Draft, { define: DefineState }>
 export const words: string | undefined = tw.local.define?.words
-export const Define: WizardStepComp<DefineState, Draft> = ({ state }) => <p>{state.words}{state.draft.title}</p>
+export const Define: WizardStepComp<DefineState, { draft: Draft }> = ({ state }) => <p>{state.words}{state.draft.title}</p>
 Define.initialState = { words: '', busy: false }
 // @ts-expect-error initialState is the step's own slice
 Define.initialState = { words: '', busy: false, draft: { title: '' }, extra: 1 }
@@ -116,3 +116,12 @@ export const rekey: WizardMessage = { wizard: 'GOTO', step: 'describe', key: 'S2
 export const sm = <Outlet of={{ admin: Source, home: Review }} current="admin" state={{ admin: 'pages.admin' }} />
 // @ts-expect-error a state map key names a page
 export const smBad = <Outlet of={{ admin: Source }} current="admin" state={{ amdin: 'x' }} />
+
+// pass 3: a step that doesn't read the draft (its own state only; its reducers take and return it);
+// a step that reads it under another key
+export const Review2: WizardStepComp<ReviewState> = ({ state }) => <p>{String(state.creating)}</p>
+Review2.model = { CREATE: (s: ReviewState) => ({ ...s, creating: true }) }
+Review2.initialState = { creating: false }
+// @ts-expect-error no draft in a step that doesn't read it
+export const NoDraft: WizardStepComp<ReviewState> = ({ state }) => <p>{state.draft}</p>
+export const Flowed: WizardStepComp<DefineState, { flow: Draft }> = ({ state }) => <p>{state.flow.title}</p>

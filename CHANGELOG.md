@@ -22,7 +22,7 @@ From the Sift console port's hand-built wizards (research: `dev-plans/research/w
     - `dirty` and `discard` can be set per step;
     - steps move the flow with PARENT messages (`{ wizard: 'NEXT' }`).
   - **Options:** `draftKey` renames the draft, and `resetTo` says where Start over navigates.
-  - **The flow key:** a key born mid-flow is adopted, and no key keeps the flow.
+  - **The flow key:** a key born mid-flow is adopted, and no key keeps the flow. On adoption, the draft's top-level fields the user hasn't changed are filled again from `draft(state)`; the slice's `initial` holds the start draft.
   - **Outlet:** a `fallback` component. Plain mode (`current` + `identity`) is the outlet for an app's pages.
   - **More steps:**
     - **Alternative steps** share one stepper entry (`group`, `groups`, `state.wizard.stepper`).

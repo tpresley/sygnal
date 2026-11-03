@@ -1345,19 +1345,17 @@ export function isSelected(slice: SelectionState | undefined | null, id: string 
  */
 export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> = OWN & { [K in DK]: DRAFT }
 /**
- * A step component's type (wizard spike): its state is its own slice OWN plus the flow's draft (under
- * DK), and its `initialState` is OWN alone (the draft isn't part of it).
+ * A step component's type (wizard spike). `WizardStepComp<Own>`: a step that doesn't read the draft;
+ * its state is its own fields (reusable under any wizard). `WizardStepComp<Own, { draft: Draft }>`:
+ * a step that reads it names the draft's key (the wizard's `draftKey`) and type together. Its
+ * `initialState` is Own alone either way.
  *
- *   const Review: WizardStepComp<ReviewState, Draft, { actions: Actions }> = ({ state }) => …
+ *   const Review: WizardStepComp<ReviewState> = ({ state }) => …
+ *   const Define: WizardStepComp<DefineState, { flow: Draft }, { actions: Actions }> = ({ state }) => … state.flow …
  */
-export type WizardStepComp<OWN = {}, DRAFT = any, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}, DK extends string = 'draft'> =
-  ComponentProps<WizardStepState<DRAFT, OWN, DK> & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
-  & Omit<Comp<T & { state: WizardStepState<DRAFT, OWN, DK> }>, 'initialState'> & { initialState?: OWN }
-/**
- * One step of a `wizard()` (spike). The predicates get `(step, state)`: the step's view
- * (WizardStepState: its initialState, its own slice and the draft; typed as the full OWN, since the
- * outlet merges the initialState in) and the host's state.
- */
+export type WizardStepComp<OWN = {}, DRAFT extends Record<string, any> | undefined = undefined, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
+  ComponentProps<(DRAFT extends undefined ? OWN : OWN & DRAFT) & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
+  & Omit<Comp<T & { state: DRAFT extends undefined ? OWN : OWN & DRAFT }>, 'initialState'> & { initialState?: OWN }
 export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>> {
   /** The stepper label (default: the step name), or a function of the step's view and the host state */
   label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => string);
@@ -1410,6 +1408,8 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
   visited: string[];
   /** The flow's draft, shared by the steps */
   draft: DRAFT;
+  /** The draft the flow started with (a key adopted mid-flow refills the draft's fields still equal to it) */
+  initial: DRAFT;
   /** Each step's own slice, by step name: what the step wrote (its initialState isn't in it until it writes); a step not entered yet has none */
   local: { [K in keyof LOCAL]?: Partial<LOCAL[K]> };
   /** A navigation held while the leave confirm is open (a router command), else null */
