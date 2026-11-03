@@ -201,9 +201,12 @@ export function makeRouter(options: any = {}) {
     const onPop = () => {
       const st = H.state, i = st?.i ?? idx + 1;
       if (undo) return void (undo = 0);
-      if (!force && blocked({to: L.href, route: current(), proceed: {go: i - idx, force: true}})) {
+      // undone before the blocker hears of it: a `proceed` it sends at once queues its go() after
+      // the undo, so the traversal lands where it was asked to
+      if (!force && blocks.size) {
         undo = 1;
-        return H.go(idx - i);
+        H.go(idx - i);
+        return void blocked({to: L.href, route: current(), proceed: {go: i - idx, force: true}});
       }
       force = 0;
       pos.set(key, [w.scrollX, w.scrollY]);

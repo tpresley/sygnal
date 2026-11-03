@@ -1338,6 +1338,119 @@ export function selection(options?: SelectionOptions): Behavior<SelectionState, 
 /** Is `id` in a `selection` slice? Ids compare as strings. */
 export function isSelected(slice: SelectionState | undefined | null, id: string | number): boolean
 
+/** What a wizard step sees (and its predicates get): its own slice, with `draft` the flow's shared draft. */
+export type WizardStepState<DRAFT = any, OWN = {}> = OWN & { draft: DRAFT }
+/** One step of a `wizard()` (spike): the stepper label, its validity, when it applies, its scratch. */
+export interface WizardStep<DRAFT = any> {
+  /** The stepper label (default: the step name) */
+  label?: string;
+  /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
+  valid?: (step: WizardStepState<DRAFT, any>) => boolean;
+  /** Is this step part of the flow? (default true). A step for which it is false is skipped */
+  when?: (step: WizardStepState<DRAFT, any>) => boolean;
+  /** Fields of the step's own slice set again on every entry (its scratch: busy flags, errors) */
+  visit?: Record<string, any> | ((step: WizardStepState<DRAFT, any>) => Record<string, any>);
+}
+/** A step of the stepper, `state.wizard.steps[i]`. */
+export interface WizardStepInfo {
+  name: string;
+  label: string;
+  /** Position among the steps not skipped (-1 when skipped) */
+  index: number;
+  status: 'current' | 'done' | 'visited' | 'upcoming' | 'blocked' | 'skipped';
+  current: boolean;
+  valid: boolean;
+  visited: boolean;
+  /** Every step before it (not skipped) is valid: GOTO can go there */
+  reachable: boolean;
+  skipped: boolean;
+}
+/** A `wizard` slice (spike): `state.wizard`. */
+export interface WizardState<DRAFT = any> {
+  /** The current step's name */
+  step: string;
+  /** The flow key the state belongs to (null without the `key` option) */
+  key: any;
+  /** Counts step entries (the outlet's identity); 0 until the flow starts */
+  visit: number;
+  visited: string[];
+  /** The flow's draft, shared by the steps */
+  draft: DRAFT;
+  /** Each step's own slice, by step name */
+  local: Record<string, any>;
+  /** A navigation held while the leave confirm is open (a router command), else null */
+  leaving: RouterCommand | null;
+}
+export interface WizardCalculated {
+  steps: WizardStepInfo[];
+  index: number;
+  count: number;
+  first: boolean;
+  last: boolean;
+  canBack: boolean;
+  canNext: boolean;
+}
+export interface WizardOptions<DRAFT = any, HOST = any> {
+  /** The steps, in order: name -> definition */
+  steps: Record<string, WizardStep<DRAFT>>;
+  /** The draft a flow starts with, or a function of the host's state called at each start */
+  draft?: DRAFT | ((state: HOST) => DRAFT);
+  /** The flow key (a record, session or report id): when it changes, the flow starts anew */
+  key?: (state: HOST) => any;
+  /** Selectors (or controls) whose clicks move: NEXT, BACK, RESET, GOTO (a `data-step` attribute names the step) */
+  next?: BehaviorTarget; back?: BehaviorTarget; reset?: BehaviorTarget; goto?: BehaviorTarget;
+  /** A host action dispatched (with the draft) by NEXT on the last step */
+  finish?: string;
+  /** The leave guard: while true, navigating away from the flow is held for a confirm */
+  dirty?: (wizard: WizardState<DRAFT>, step: string) => boolean;
+  /** The slice after a confirmed leave (default: the flow started over) */
+  discard?: (wizard: WizardState<DRAFT>, state: HOST) => WizardState<DRAFT>;
+  /** A <dialog> to open (showModal) while a leave is held; closing it stays */
+  confirm?: BehaviorTarget;
+  /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
+  leave?: BehaviorTarget; stay?: BehaviorTarget;
+  /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key */
+  url?: { route: string; param: string; key?: string; from?: (state: HOST) => Route | undefined };
+  /** The router sink (default 'ROUTER') */
+  router?: string;
+}
+export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; DISCARD: any; STAY: any }
+
+/**
+ * A multi-step flow (spike, dev-plans/research/wizard): `C.uses = { wizard: wizard({ steps, draft, key, ... }) }`
+ * with `<Outlet of={STEPS} from="wizard" />` mounting only the current step. Gives `state.wizard`
+ * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
+ * 'wizard.GOTO', 'wizard.RESET', 'wizard.DISCARD', 'wizard.STAY'.
+ */
+export function wizard<DRAFT = any, HOST = any>(options: WizardOptions<DRAFT, HOST>): Behavior<WizardState<DRAFT>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST>>
+
+export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
+  /** name -> component */
+  of: OF;
+  /** The host's `wizard` behavior key: its current step, keyed by flow key + step + visit */
+  from?: string;
+  /** Route mode: the current route; `of` is keyed by route name */
+  route?: Route;
+  /** Route mode: query keys that are part of the page's identity (others don't re-create it) */
+  query?: string[];
+  /** Plain mode: the name of the current component, and its identity (default: the name) */
+  current?: string;
+  identity?: string | number;
+  /** Focus after an identity change: selectors tried in order (default '[data-wizard-focus],h1,h2,h3'); false: none */
+  focus?: string | false;
+  /** Route / plain mode: the page's state binding */
+  state?: string | Lense;
+  [prop: string]: any;
+}
+/**
+ * One page or step at a time (spike): only the current entry of `of` is alive, keyed by its
+ * identity (a new identity disposes it and mounts a new one).
+ *
+ *   <Outlet of={PAGES} route={state.route} query={['session']} />
+ *   <Outlet of={{ source: Source, review: Review }} from="wizard" />
+ */
+export function Outlet<OF extends Record<string, AnyComponent>>(props: OutletProps<OF>): JSX.Element
+
 /** A `sortable` slice: the drag state the view styles from, and the live-region text. */
 export interface SortableState {
   /** The id (as a string) of the item being moved, or null */

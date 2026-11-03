@@ -24,7 +24,8 @@ import { resolveWidgetJSX } from './widgets.js'
 const TRANSPARENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'React.Fragment'])
 // PLAN-5 V-1: a VirtualCollection is a Collection here (its rows are isolated items, its className the container's)
 const COLLECTION = new Set(['Collection', 'collection', 'VirtualCollection'])
-const SWITCHABLE = new Set(['Switchable', 'switchable'])
+// wizard spike: an <Outlet of={{ name: Page }}> renders one of its pages, as a Switchable does
+const SWITCHABLE = new Set(['Switchable', 'switchable', 'Outlet'])
 
 export function newSink() {
   return {
@@ -277,7 +278,8 @@ function handleElement(project, file, el, sink, visited) {
     const fromAttr = jsxAttr(opening, 'from')
     const fromExpr = jsxAttrExpr(fromAttr)
     // PLAN-13 F-3: a Switchable's per-page `state={{ page: … }}` (an object literal with no `get`)
-    const stExpr = kind === 'switchable' ? unwrap(jsxAttrExpr(jsxAttr(opening, 'state'))) : null
+    const outlet = name === 'Outlet'
+    const stExpr = kind === 'switchable' && !outlet ? unwrap(jsxAttrExpr(jsxAttr(opening, 'state'))) : null
     const stateMap = stExpr?.type === 'ObjectExpression' && !stExpr.properties.some(p => p.type !== 'SpreadElement' && propName(p) === 'get')
       ? stExpr.properties.filter(p => p.type === 'ObjectProperty' && propName(p) != null).map(p => ({ key: propName(p), node: p.key }))
       : null
@@ -287,9 +289,10 @@ function handleElement(project, file, el, sink, visited) {
       node: opening,
       file,
       stateMap,
-      ofKeys: kind === 'switchable' && ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
+      ofKeys: kind === 'switchable' && !outlet && ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
         ? ofExpr.properties.map(p => propName(p)) : null,
-      from: fromExpr ? stringValue(fromExpr) : null,
+      // (an Outlet's `from` names a wizard behavior, not a state key)
+      from: fromExpr && !outlet ? stringValue(fromExpr) : null,
       fromNode: fromAttr || null,
       targets: targets.map(t => ({ name: exprName(t) || (stringValue(t) ?? '?'), ref: refFor(project, file, t), node: t })),
     }

@@ -7,7 +7,7 @@
  * A `uses` value resolves when it is a call of
  *   - a `defineBehavior({ ... })` factory (same file, or through relative
  *     imports and re-exports), or
- *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form, sortable),
+ *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form, sortable, wizard),
  *     modelled below as known definitions.
  *   - D199 (PLAN-5): a factory function that returns such a call with the options it got,
  *     `(opts) => base(opts)`, `(opts = {}) => base({ delay: 300, ...opts })`,
@@ -95,6 +95,18 @@ export const FIRST_PARTY = {
     defaults: { form: 'form' },
     nextOptions: ['submit'],
     optionsArg: 1,
+  },
+  // wizard spike (dev-plans/research/wizard): wizard({ steps, draft, key, ... }) (src/extra/wizard.ts).
+  // KEY (the flow key, watched on the host's state), ROUTE (url) and GUARD (dirty) come from its
+  // intent; LEAVE is the router's block reply; `finish` is a host action dispatched with next()
+  wizard: {
+    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'local', 'leaving'],
+    calculated: ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext'],
+    model: ['KEY', 'NEXT', 'BACK', 'GOTO', 'RESET', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
+    options: ['steps', 'draft', 'key', 'dirty', 'discard', 'finish', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
+    listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
+    intent: ['KEY', 'ROUTE', 'GUARD', 'LEAVE'],
+    nextOptions: ['finish'],
   },
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
   // host's root and finds the item / handle from the event target (delegated: items are usually
