@@ -39,6 +39,14 @@ reports).
   past its cap, a composition far past `maxParts`) and keeps what came before (**SYG687**, a
   `stopped` repair); every list in the reply schemas has a `maxItems`.
 
+- **Behaviour change: a child that a state change removes no longer acts on that state.** When a
+  parent's state replaced a keyed child (a routed page keyed by the visit, `cond ? <A key="a"/> :
+  <B key="b"/>`, a component under a new key), the leaving child's `STATE.watch` fired on the new
+  state and its action's sinks ran (`EFFECT`, `HTTP`: a leaving page requested the new route)
+  before it was disposed. An action a child's watch sends is now queued after the render pass that
+  decides which children stay, in the same flush (one patch); a disposed child's is dropped. The
+  root component's watches keep their timing. Size budget 43,000 → 43,080 B.
+
 **Fixed.**
 - **DOM driver: a non-bubbling event (`submit`, `reset`, `toggle`, `scroll`, `load`, ...) reaches
   every stream set up on its element.** An element snabbdom reused for another selector, or two

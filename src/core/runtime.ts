@@ -105,6 +105,9 @@ export class App {
   /** Last state version delivered to stream listeners and binding owners. */
   nv?: number
   watchers = new Set<Inst>()
+  /** in notify(): what a child dispatches is held until the next render pass, which disposes a leaving child first */
+  hold?: boolean
+  held: any[] = []
   /** streams the disposed instances left without listeners, stopped when the drain / flush ends */
   dq: any[] = []
   stopping = false
@@ -155,6 +158,7 @@ export class App {
   /** `src`: for a reply, the source that delivered it (the action log's replySink) */
   dispatch(inst: Inst, type: any, data: any, cause: ActionCause = 'intent', src?: string) {
     if (this.disposed) return
+    if (this.hold && inst.parent) return void this.held.push(arguments)
     // 7.2: at enqueue, with the DOM event being delivered (a string type: not setState / a seed)
     typeof type == 'string' && this.hooks.onDispatch?.(viewOf(inst), type, data, cause, delivering)
     this.queue.push(inst, type, data, cause, src)
@@ -198,7 +202,12 @@ export class App {
   notify() {
     if (this.nv === this.ver) return
     this.nv = this.ver
-    for (const i of this.watchers) i.notify()
+    this.hold = true
+    try { for (const i of this.watchers) i.notify() } finally { this.hold = false }
+  }
+  /** the held actions of the instances still mounted, enqueued (onDispatch now: FIFO with onAction) */
+  unhold() {
+    for (const a of this.held.splice(0)) a[0].disposed || this.dispatch.apply(this, a)
   }
 
   // ---------------------------------------------------------------- flush
@@ -278,6 +287,7 @@ export class App {
           break
         }
         this.afterRender?.()
+        this.unhold()
         this.rendering = false
         if (this.queue.length) this.drain()
       } while (this.dirty && ++n < LOOP)
@@ -288,6 +298,8 @@ export class App {
     this.tail = true
     try {
       // G-311 (c): what the throwing pass queued (a new child's INITIALIZE / seed) is still applied
+      // (and what is still held: a render that threw, the loop guard)
+      this.unhold()
       if (this.queue.length) this.drain()
       if (v !== this.last || this.ran) {
         this.ran = false

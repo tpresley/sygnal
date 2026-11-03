@@ -68,7 +68,7 @@ The `key` is the visit: a new key disposes the page (its `DISPOSE` runs, its req
 
 - `path` is the pathname only: it never includes the query string or the hash. When a query value should make a new visit too, put it in the key: `` key={`${route.name}:${route.path}?${route.query.session ?? ''}`} ``. Leave out the query keys a page just reads (a sort order, a filter), so changing them doesn't re-create it.
 - A page mounted per visit sees the state as it is at mount. A `STATE.watch()` emits only later changes, so a page that reacts to state already present at mount needs `STATE.watch(selector, { immediate: true })` ([Reacting to state changes](/guide/intent/#reacting-to-state-changes-statewatch)).
-- The old page gets the new state once before it is disposed, so a watch in it may fire for the new route; the requests it starts then are aborted with it.
+- The old page doesn't act on the new route: what a page's watch sends waits for the render that decides which page stays, and a page that is gone is disposed first, so its watches and sinks never run for the next visit.
 - Don't use [`Switchable`](/guide/switchable/) as the page outlet. It creates every page at mount and keeps the hidden ones running: their intents, watches and model sinks (`EFFECT`, `HTTP`) keep running while another page shows, so a hidden page can send a request, and pages that declare the same resource name collide. Switchable is for tabs, panels and wizard steps on one page.
 
 - `router.current()` reads the current location, so the first render already shows the right page. On the server, pass the request URL: `router.current(request.url)`.
