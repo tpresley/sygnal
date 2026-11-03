@@ -1339,26 +1339,34 @@ export function selection(options?: SelectionOptions): Behavior<SelectionState, 
 export function isSelected(slice: SelectionState | undefined | null, id: string | number): boolean
 
 /** What a wizard step sees (and its predicates get): its own slice, with `draft` the flow's shared draft. */
-export type WizardStepState<DRAFT = any, OWN = {}> = OWN & { draft: DRAFT }
-/** One step of a `wizard()` (spike): the stepper label, its validity, when it applies, its scratch. */
 /**
- * A step component's type (wizard spike): its state is its own slice OWN plus the flow's `draft`,
- * and its `initialState` is OWN alone (the draft isn't part of it).
+ * What a wizard step sees, and its predicates get: its initialState, its own slice, and the flow's
+ * draft under the wizard's `draftKey` (DK, default 'draft').
+ */
+export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> = OWN & { [K in DK]: DRAFT }
+/**
+ * A step component's type (wizard spike): its state is its own slice OWN plus the flow's draft (under
+ * DK), and its `initialState` is OWN alone (the draft isn't part of it).
  *
  *   const Review: WizardStepComp<ReviewState, Draft, { actions: Actions }> = ({ state }) => …
  */
-export type WizardStepComp<OWN = {}, DRAFT = any, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
-  ComponentProps<OWN & { draft: DRAFT } & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
-  & Omit<Comp<T & { state: OWN & { draft: DRAFT } }>, 'initialState'> & { initialState?: OWN }
-export interface WizardStep<DRAFT = any, OWN = any> {
-  /** The stepper label (default: the step name) */
-  label?: string;
+export type WizardStepComp<OWN = {}, DRAFT = any, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}, DK extends string = 'draft'> =
+  ComponentProps<WizardStepState<DRAFT, OWN, DK> & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
+  & Omit<Comp<T & { state: WizardStepState<DRAFT, OWN, DK> }>, 'initialState'> & { initialState?: OWN }
+/** One step of a `wizard()` (spike). The predicates get `(step, state)`: the step's view (WizardStepState) and the host's state. */
+export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>> {
+  /** The stepper label (default: the step name), or a function of the step's view and the host state */
+  label?: string | ((step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => string);
   /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
-  valid?: (step: WizardStepState<DRAFT, Partial<OWN>>) => boolean;
+  valid?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => boolean;
   /** Is this step part of the flow? (default true). A step for which it is false is skipped */
-  when?: (step: WizardStepState<DRAFT, Partial<OWN>>) => boolean;
-  /** Fields of the step's own slice set again on every entry (its scratch: busy flags, errors) */
-  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, Partial<OWN>>) => Partial<OWN>);
+  when?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => boolean;
+  /** Fields of the step's own slice set again on every entry and host mount (its scratch: busy flags, errors) */
+  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST) => Partial<OWN>);
+  /** The leave guard while this step is current (instead of the wizard's `dirty`) */
+  dirty?: (step: WizardStepState<DRAFT, Partial<OWN>, DK>, state: HOST, name: string) => boolean;
+  /** The slice after a confirmed leave from this step (instead of the wizard's `discard`) */
+  discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
 }
 /** A step of the stepper, `state.wizard.steps[i]`. */
 export interface WizardStepInfo {
@@ -1378,9 +1386,9 @@ export interface WizardStepInfo {
 export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Record<string, any>> {
   /** The current step's name */
   step: string;
-  /** The flow key the state belongs to (null without the `key` option) */
+  /** The flow key the state belongs to (null until a key is named) */
   key: any;
-  /** Counts step entries (the outlet's identity); 0 until the flow starts */
+  /** Counts step entries (the outlet's identity is step + visit); 0 until the flow starts */
   visit: number;
   visited: string[];
   /** The flow's draft, shared by the steps */
@@ -1390,6 +1398,7 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
   /** A navigation held while the leave confirm is open (a router command), else null */
   leaving: RouterCommand | null;
 }
+/** The fields derived from the slice and the host state (written with every change) */
 export interface WizardCalculated {
   steps: WizardStepInfo[];
   index: number;
@@ -1399,39 +1408,52 @@ export interface WizardCalculated {
   canBack: boolean;
   canNext: boolean;
 }
-export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>> {
+export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft'> {
   /** The steps, in order: name -> definition */
-  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K]> };
+  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL> };
   /** The draft a flow starts with, or a function of the host's state called at each start */
   draft?: DRAFT | ((state: HOST) => DRAFT);
-  /** The flow key (a record, session or report id): when it changes, the flow starts anew */
+  /** The draft's key in a step's state (default 'draft') */
+  draftKey?: DK;
+  /**
+   * The flow key (a record, session or report id). Only a change from one key to another starts the
+   * flow over; a key born mid-flow (none to a value) is adopted; none (null, or undefined: "not
+   * mine") keeps the flow and its key
+   */
   key?: (state: HOST) => any;
   /** Selectors (or controls) whose clicks move: NEXT, BACK, RESET, GOTO (a `data-step` attribute names the step) */
   next?: BehaviorTarget; back?: BehaviorTarget; reset?: BehaviorTarget; goto?: BehaviorTarget;
-  /** A host action dispatched (with the draft) by NEXT on the last step */
+  /** A host action dispatched (with the draft) by NEXT on the last step, or a step's `{ wizard: 'FINISH' }` */
   finish?: string;
-  /** The leave guard: while true, navigating away from the flow is held for a confirm */
-  dirty?: (wizard: WizardState<DRAFT, LOCAL>, step: keyof LOCAL & string) => boolean;
-  /** The slice after a confirmed leave (default: the flow started over) */
+  /** The leave guard (a step's own `dirty` wins): while true, navigating away from the flow is held for a confirm */
+  dirty?: (step: WizardStepState<DRAFT, any, DK>, state: HOST, name: keyof LOCAL & string) => boolean;
+  /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over) */
   discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
+  /** Where Start over navigates (a router command, or a function of the slice and the host state); url mode default: the first step's route */
+  resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, state: HOST) => RouterCommand);
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
   confirm?: BehaviorTarget;
   /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
   leave?: BehaviorTarget; stay?: BehaviorTarget;
-  /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key */
+  /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key; `from` maps the host's route (and an attempted one) onto it */
   url?: { route: string; param: string; key?: string; from?: (state: HOST) => Route | undefined };
   /** The router sink (default 'ROUTER') */
   router?: string;
 }
-export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; DISCARD: any; STAY: any }
+export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; FINISH: any; DISCARD: any; STAY: any }
+/** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
+export type WizardMessage =
+  | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
+  | { wizard: 'GOTO'; step: string }
+  | { wizard: 'RESET'; draft?: any }
 
 /**
  * A multi-step flow (spike, dev-plans/research/wizard): `C.uses = { wizard: wizard({ steps, draft, key, ... }) }`
  * with `<Outlet of={STEPS} from="wizard" />` mounting only the current step. Gives `state.wizard`
  * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
- * 'wizard.GOTO', 'wizard.RESET', 'wizard.DISCARD', 'wizard.STAY'.
+ * 'wizard.GOTO', 'wizard.RESET', 'wizard.FINISH', 'wizard.DISCARD', 'wizard.STAY'.
  */
-export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>>(options: WizardOptions<DRAFT, HOST, LOCAL>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST, LOCAL>>
+export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft'>(options: WizardOptions<DRAFT, HOST, LOCAL, DK>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST, LOCAL, DK>>
 
 export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
   /** name -> component */
@@ -1442,9 +1464,11 @@ export type OutletProps<OF extends Record<string, AnyComponent> = Record<string,
   route?: Route;
   /** Route mode: query keys that are part of the page's identity (others don't re-create it) */
   query?: string[];
-  /** Plain mode: the name of the current component, and its identity (default: the name) */
+  /** Plain mode (an app's root outlet): the name of the current component, and its identity (default: the name) */
   current?: string;
   identity?: string | number;
+  /** The component for a name not in `of` (a page not ported, an unknown step), keyed by the same identity */
+  fallback?: AnyComponent;
   /** Focus after an identity change: selectors tried in order (default '[data-wizard-focus],h1,h2,h3'); false: none */
   focus?: string | false;
   /** Route / plain mode: the page's state binding */

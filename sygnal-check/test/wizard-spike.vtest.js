@@ -86,4 +86,15 @@ describe('wizard spike: sygnal-check', () => {
     expect(codes(d)).toEqual(['SYG456 error', 'SYG457 warn'])
     expect(d.find(x => x.code === 'SYG457').message).toContain("did you mean 'review'")
   })
+
+  it('a step that moves the flow with a PARENT message is read (the wizard reads it): no SYG171', () => {
+    const src = FLOW().replace(`function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p></div>
+}`, `function Source({ state }) {
+  return <div><h2>Source</h2><p>{state.draft.title}</p><button type="button" className="done">Done</button></div>
+}
+Source.intent = ({ DOM }) => ({ DONE: DOM.click('.done') })
+Source.model = { DONE: { PARENT: () => ({ wizard: 'NEXT' }) } }`)
+    expect(codes(check({ 'NewThing.jsx': src }, { strict: true }))).toEqual([])
+  })
 })

@@ -3,8 +3,8 @@
  * `uses`.
  * - SYG455: `from` names no uses key, or a key whose behavior isn't `wizard()` (the dev runtime
  *   reports the first at run time too).
- * - SYG456: a step of the wizard's `steps` with no component in `of` (nothing renders when the flow
- *   reaches it; the runtime reports it when it happens).
+ * - SYG456: a step of the wizard's `steps` with no component in `of` and no `fallback` (nothing
+ *   renders when the flow reaches it; the runtime reports it when it happens).
  * - SYG457: an `of` key that is no step (a typo, or a step that was removed).
  * Only for a known `uses` object, a string `from`, and `of` / `steps` object literals of named keys.
  */
@@ -58,8 +58,8 @@ export default {
         const st = e.options.get('steps'), steps = st && project.objectKeys(st.file, st.node)
         if (!steps || !o.of) continue
         const ofKeys = new Set(o.of.map(x => x.key)), names = new Set(steps.keys())
-        for (const [name, s] of steps) {
-          if (ofKeys.has(name)) continue
+        for (const [name] of steps) {
+          if (ofKeys.has(name) || o.fallback) continue
           report({
             code: 'SYG456',
             component: comp.name,

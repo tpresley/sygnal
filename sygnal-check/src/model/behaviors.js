@@ -98,14 +98,16 @@ export const FIRST_PARTY = {
   },
   // wizard spike (dev-plans/research/wizard): wizard({ steps, draft, key, ... }) (src/extra/wizard.ts).
   // KEY (the flow key, watched on the host's state), ROUTE (url) and GUARD (dirty) come from its
-  // intent; LEAVE is the router's block reply; `finish` is a host action dispatched with next()
+  // intent (SYNC: the host's state, for the derived fields); LEAVE is the router's block reply;
+  // `finish` is a host action dispatched with next(); the moves also come from the steps' PARENT messages
   wizard: {
     stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'local', 'leaving'],
     calculated: ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext'],
-    model: ['KEY', 'MOUNT', 'NEXT', 'BACK', 'GOTO', 'RESET', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
-    options: ['steps', 'draft', 'key', 'dirty', 'discard', 'finish', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
+    model: ['KEY', 'MOUNT', 'SYNC', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
+    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
     listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
-    intent: ['KEY', 'MOUNT', 'ROUTE', 'GUARD', 'LEAVE'],
+    // (NEXT, BACK, GOTO, RESET, FINISH also come from the steps' PARENT messages)
+    intent: ['KEY', 'MOUNT', 'SYNC', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],
     nextOptions: ['finish'],
   },
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the

@@ -303,6 +303,7 @@ function handleElement(project, file, el, sink, visited) {
         of: ofExpr?.type === 'ObjectExpression' && ofExpr.properties.every(p => p.type === 'ObjectProperty' && propName(p) != null)
           ? ofExpr.properties.map(p => ({ key: propName(p), node: p.key })) : null,
         ofNode: ofAttr || opening,
+        fallback: !!jsxAttr(opening, 'fallback'),
       } : null,
     }
     sink.collections.push(usage)

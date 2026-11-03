@@ -46,7 +46,7 @@ export const typed = wizard<Draft, Host, { define: DefineState; review: ReviewSt
     define: { valid: (s) => s.words !== '' && s.draft.title !== '', visit: { busy: false } },
     review: { visit: { creating: false } },
   },
-  dirty: (w, step) => step === 'define' && !!w.local.define?.words,
+  dirty: (s, h, step) => step === 'define' && !!s.draft.title && h.session !== '',
 })
 export const typed2 = wizard<Draft, Host, { define: DefineState }>({
   // @ts-expect-error a step LOCAL doesn't name
@@ -62,3 +62,29 @@ export const Define: WizardStepComp<DefineState, Draft> = ({ state }) => <p>{sta
 Define.initialState = { words: '', busy: false }
 // @ts-expect-error initialState is the step's own slice
 Define.initialState = { words: '', busy: false, draft: { title: '' }, extra: 1 }
+
+// the decided API: predicates (step, state), per-step dirty / discard, a label function, draftKey,
+// resetTo, PARENT messages, Outlet fallback
+import type { WizardMessage } from 'sygnal'
+export const decided = wizard<Draft, Host, { define: DefineState; review: ReviewState }, 'flow'>({
+  draftKey: 'flow',
+  steps: {
+    define: {
+      label: (s, h) => s.words ? 'Define' : 'Define for ' + h.session,
+      valid: (s, h) => s.flow.title !== '' && h.session !== '',
+      dirty: (s) => !!s.words,
+      discard: (w) => ({ ...w, draft: { title: '' } }),
+    },
+    review: { when: (s) => !s.creating },
+  },
+  resetTo: (w, h) => ({ to: 'home', query: { from: String(w.key ?? h.session) } }),
+})
+export const msgs: WizardMessage[] = [{ wizard: 'NEXT' }, { wizard: 'GOTO', step: 'review' }, { wizard: 'RESET', draft: {} }]
+// @ts-expect-error GOTO needs a step
+export const badMsg: WizardMessage = { wizard: 'GOTO' }
+export const d2 = wizard<Draft, Host, { define: DefineState }, 'flow'>({
+  // @ts-expect-error the draft is under draftKey
+  steps: { define: { valid: (s) => s.draft.title !== '' } },
+})
+declare const NotPorted: (p: any) => any
+export const f = <Outlet of={{ x: Source }} current="y" identity="y:1" fallback={NotPorted} />
