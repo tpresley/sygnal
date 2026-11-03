@@ -606,3 +606,31 @@ describe('the decided API (Sift second pass)', () => {
     expect(t.sinkValues('ROUTER')).toContainEqual({ to: 'home' })
   })
 })
+
+describe('SYNC costs nothing for unrelated changes', () => {
+  it('N unrelated host actions are N states and N renders; SYNC is a built-in action', async () => {
+    let renders = 0
+    function Host({ state }) {
+      renders++
+      return h('div', null, h(Outlet, { of: STEPS, from: 'wizard', focus: false }), h('button', { className: 'bump' }, String(state.n)))
+    }
+    Host.initialState = { n: 0 }
+    Host.uses = { wizard: makeFlow() }
+    Host.intent = ({ DOM }) => ({ BUMP: DOM.click('.bump') })
+    Host.model = { BUMP: (s) => ({ ...s, n: s.n + 1 }) }
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    const r0 = renders, s0 = t.states.length
+    for (let i = 0; i < 5; i++) await click('.bump')
+    expect(t.state.n).toBe(5)
+    expect(t.states.length - s0).toBe(5)
+    expect(renders - r0).toBe(5)
+    // a write that changes the derived fields still syncs them (the step's title makes it valid)
+    await type('.title', 'x')
+    expect(t.state.wizard.canNext).toBe(true)
+    // the action log calls SYNC (and MOUNT) built-in, as sygnal/yjs's LOCAL / REMOTE
+    const syncs = t.actions.filter(a => a.type === 'wizard.SYNC')
+    expect(syncs.length).toBeGreaterThan(0)
+    expect(syncs.every(a => a.cause === 'built-in')).toBe(true)
+  })
+})

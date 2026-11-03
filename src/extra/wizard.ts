@@ -14,7 +14,8 @@
  * Slice (state.wizard): step, key (the flow key the state belongs to), visit (counts entries: the
  * outlet's identity is step + visit; 0 until the flow starts), visited, draft (shared by the
  * steps), local (each step's own slice, by name), leaving (a navigation held while the leave
- * confirm is open). Derived (written with every change of the slice or of the host's state, SYNC):
+ * confirm is open). Derived (written when a change of the slice or of the host's state changes
+ * them: SYNC, a built-in action dispatched only then):
  * steps ({ name, label, index, status, current, valid, visited, reachable, skipped }; status
  * current | done | visited | upcoming | blocked | skipped), index, count, first, last, canBack,
  * canNext.
@@ -63,6 +64,7 @@ const nameOf = (d: any, sel: any): any => {
   const el = (sel && d.target?.closest?.(String(sel))) || d.ownerTarget || d.target
   return el?.getAttribute?.('data-step') ?? el?.dataset?.step
 }
+const BUILT_IN = Symbol.for('sygnal.builtIn')
 const DERIVED = ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext']
 // derived fields compared by value (steps: its entries' fields), so an unchanged result writes nothing
 const same = (a: any, b: any): boolean => a === b || (Array.isArray(a) && Array.isArray(b) && a.length == b.length
@@ -184,7 +186,8 @@ export const wizard = (o: any = {}): any => {
       return l === w.local ? h : put(h, k, {...w, local: l})
     }},
     // the host's state changed (a step's write, the host's own data): the derived fields again
-    SYNC: {HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => put(h, k, h[k])},
+    // (dispatched only when they would change: the intent filters; ABORT when they didn't)
+    SYNC: {HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => { const r = put(h, k, h[k]); return r === h ? ABORT : r }},
     NEXT: {
       ...move('NEXT'),
       // the last step: the finish action, with the draft
@@ -281,7 +284,7 @@ export const wizard = (o: any = {}): any => {
         MOUNT: xs.of(0),
         // (and when the outlet registers a step component: its initialState joins the predicates' view;
         // a task later, as it happens while the host renders)
-        SYNC: xs.merge(host.stream, xs.create({
+        SYNC: xs.merge(host.stream.filter((h: any) => !!h?.[k]?.visit && fin(h[k], h) !== h[k]), xs.create({
           start(l: any) { const f = () => l.next(0); regs.add(f); (this as any).stop = () => regs.delete(f) },
           stop() { (this as any).stop?.() },
         })),
@@ -301,6 +304,13 @@ export const wizard = (o: any = {}): any => {
   // (`draft`, `key` and `steps` name slice fields: not options that set their start values)
   })((({draft: _d, key: _k, steps: _s, ...x}) => x)(o))
   b.options = o
+  // SYNC and MOUNT are the wizard's own bookkeeping: built-in actions (Symbol.for('sygnal.builtIn')
+  // on their handlers, as sygnal/yjs's), so the dev action log and DevTools leave them out
+  const merge = b.merge
+  b.merge = (c: any, k: string) => {
+    merge(c, k)
+    for (const a of ['SYNC', 'MOUNT']) for (const f of Object.values(c.model[k + '.' + a] || {})) if (typeof f == 'function') (f as any)[BUILT_IN] = true
+  }
   // for the outlet (src/extra/outlet.ts): the flow key the host state names, the draft's key in a
   // step's state, the slice's derived fields again (a step's write through the outlet's lens), and
   // `step(name, Component)`: a step component the outlet renders (its initialState for the

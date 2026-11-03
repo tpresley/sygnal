@@ -269,5 +269,14 @@
   },
   "SYG410": {
     "App.jsx": "function F({ state }) { return <p>{state.v}</p> }\nexport function App() { return <main><F state=\"\" /></main> }\nApp.initialState = { v: 1 }\n"
+  },
+  "SYG455": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A }} from=\"wizrd\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {} } }) }\n"
+  },
+  "SYG456": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A }} from=\"wizard\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {}, b: {} } }) }\n"
+  },
+  "SYG457": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A, c: A }} from=\"wizard\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {} } }) }\n"
   }
 }

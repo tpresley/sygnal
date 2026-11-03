@@ -65,6 +65,9 @@ const RANGES = [
   ['SYG302', 'App.jsx', 1, "import xs from 'xstream'"],
   ['SYG303', 'App.jsx', 4, 'STATE.stream.map(s => s.tab).compose(dropRepeats())'],
   ['SYG429', 'App.jsx', 3, 'bb'],
+  ['SYG455', 'App.jsx', 3, 'from="wizrd"'],
+  ['SYG456', 'App.jsx', 3, 'of={{ a: A }}'],
+  ['SYG457', 'App.jsx', 3, 'c'],
   ['SYG410', 'App.jsx', 2, 'state=""'],          // the attribute (what --fix removes)
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],
