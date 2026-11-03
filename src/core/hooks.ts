@@ -49,6 +49,12 @@ export interface DefSource {
   initialState: any
   /** defaults of missing state keys (a behavior's slice or a resource's `{status: 'idle'}` on a sub-component) */
   idle: Record<string, any> | null
+  /**
+   * state key -> a read-time normalizer `(value, state) => value` a behavior sets in its merge
+   * (`c._read`): applied when the state is read, before the calculated fields, memoized per state
+   * object (the wizard spike: a slice seeded without its derived fields gets them)
+   */
+  read?: Record<string, (value: any, state: any) => any> | null
   calculated: Record<string, any> | undefined
   context: Record<string, (state: any) => any> | undefined
   /** action -> behavior key, for action logs (`pager.NEXT` comes from `pager`) */
@@ -65,6 +71,7 @@ export interface Def {
   readonly sinks: ReadonlySet<string>
   readonly initialState: any
   readonly idle: Record<string, any> | null
+  readonly read?: Record<string, (value: any, state: any) => any> | null
   readonly isolated: boolean
   /** calculated fields in topological order (SYG206 / SYG209 thrown at definition) */
   readonly calculated: ReadonlyArray<[field: string, fn: (s: any) => any, deps: string[] | null]> | null

@@ -1,9 +1,11 @@
 ---
 title: Switchable
-description: Conditional component rendering
+description: Switching between tabs, panels and steps on one page
 ---
 
-The `<Switchable>` component conditionally renders one of several components based on a state value. This is useful for tabs, views, or any UI that switches between different content.
+The `<Switchable>` component shows one of several components, picked by a state value: the tabs of a settings screen, the panels of a dashboard, the steps of a wizard whose values should survive going back. Every component in `of` is created when the Switchable mounts and stays alive while hidden, so switching back shows it as it was.
+
+It is not a router outlet: for the pages of an app, render only the current page, keyed by the route ([Router](/guide/router/#reading-the-route)). Hidden pages keep running ([Pages with entry side effects](#pages-with-entry-side-effects)), which an app's pages rarely want.
 
 ```jsx live
 import { xs, Switchable } from 'sygnal'
@@ -105,12 +107,19 @@ App.initialState = { page: 'list', taskId: null }
 
 - Switching `current` without changing `instance` keeps the pages alive, as before.
 - A hidden page is re-created when it's shown again with another key than the one it last had (it was hidden while the key changed). A page that was never shown takes the key it's first shown with.
-- With a router, use the path: `instance={state.route.path}`. Going from `/tasks/1` to `/tasks/2` re-creates the task page; going back to a page with the path it had keeps it.
+- `instance` suits a panel shown for one record at a time (a task id, a step number). For routed pages use a keyed page instead of a Switchable ([Router](/guide/router/#reading-the-route)).
 - The page sees the new state once before it is re-created (state reaches it before the Switchable re-renders with the new key), so in that moment it may start a request or open a connection for the new values; disposing the old instance aborts or closes it right away.
 
 ## Pages with entry side effects
 
-Every page in `of` is created when the Switchable mounts, and its `BOOTSTRAP` action runs then, whether or not it is the current page. That suits pages whose start is harmless (a tab that loads its data, which pauses while hidden). It doesn't suit pages whose start *does* something: a logout page whose `BOOTSTRAP` signs the user out, a wizard that redirects on entry. Mount them all and the logout runs on page load.
+Every page in `of` is created when the Switchable mounts, whether or not it is the current page, and keeps running while hidden:
+
+- its `BOOTSTRAP` runs at mount;
+- its intent is subscribed, so its `STATE.watch()` streams fire on state changes made while another page shows;
+- its model sinks (`EFFECT`, `HTTP`, `ROUTER`, ...) run for those actions: a hidden page can send a request;
+- its `resources` are declared under their names, so two pages that declare the same resource name collide (only the requests pause while hidden, [below](#hidden-pages-pause-connections-and-resources)).
+
+That suits pages whose start and updates are harmless (a tab that loads its data, which pauses while hidden). It doesn't suit pages whose start or watches *do* something: a logout page whose `BOOTSTRAP` signs the user out, a page that saves when a value changes, a wizard that redirects on entry. Mount them all and the logout runs on page load.
 
 For those, give the Switchable only the current page, and key it by the page so that another page makes a new Switchable:
 
@@ -140,7 +149,7 @@ App.initialState = { route: { name: 'projects', path: '/' }, pages: { projects: 
 
 - Only the shown page exists, so a page's `BOOTSTRAP` runs when it is first shown, every time it is shown.
 - Going back to a page creates it again: what it keeps in its own slice of the owner's state (`pages.projects` here) is still there, its resources refetch (from the cache, if the fetch driver has one), and its local state starts over.
-- A router already re-creates a page for a new path with `instance={state.route.path}`; the key adds the same for every switch between pages.
+- For a router this is the [keyed page](/guide/router/#reading-the-route) without the Switchable: `` <Page key={`${route.name}:${route.path}`} /> ``.
 
 This changes page lifetimes compared with a Switchable over every page, so moving lens-hosted pages to one Switchable with a per-page `state` map needs this pattern for any page with entry side effects.
 

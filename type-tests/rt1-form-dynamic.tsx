@@ -16,13 +16,22 @@ export const a = form(z.object({ title: z.string() }).loose(), {
 })
 // a schema of the host state: the output is the returned schema's
 const memo = new WeakMap<object, z.ZodObject<{ trip: typeof amount }>>()
-export const b = form((state: Host) => memo.get(state.pieces) ?? z.object({ trip: amount }), { values: {}, dynamic: () => ({ trip: { amount: '', currency: 'USD' } }), submit: 'SEND' })
+const schemaOf = (state: Host) => {
+  if (!memo.has(state.pieces)) memo.set(state.pieces, z.object({ trip: amount }))
+  return memo.get(state.pieces)!
+}
+export const b = form(schemaOf, { values: {}, dynamic: () => ({ trip: { amount: '', currency: 'USD' } }), submit: 'SEND' })
 const uses = { form: b }
 export const out: FormOutput<typeof b> = { trip: { amount: 1, currency: 'USD' } }
 // @ts-expect-error the output's amount is a number
 export const bad: FormOutput<typeof b> = { trip: { amount: '1', currency: 'USD' } }
 declare const st: UsesState<typeof uses>
 export const added: Record<string, any> = st.form.added
+export const kept: Record<string, true> = st.form.kept
+// keepRemoved: false removes a dynamic entry's value when it goes (default true: kept)
+export const f = form(z.object({}).loose(), { values: {}, dynamic: () => ({ note: '' }), keepRemoved: false, submit: 'SEND' })
+// @ts-expect-error keepRemoved is a boolean
+export const g = form(z.object({}).loose(), { values: {}, dynamic: () => ({ note: '' }), keepRemoved: 'yes', submit: 'SEND' })
 // @ts-expect-error dynamic returns an object of start values
 export const c = form(z.object({}), { values: {}, dynamic: () => 'x', submit: 'SEND' })
 // @ts-expect-error a schema function returns a Standard Schema

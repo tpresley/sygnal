@@ -89,3 +89,55 @@ Feed.model = { TICK: (s) => s, PRICE: (s) => s, HALTED: (s) => s }
     expect(codes(run({ 'App.jsx': chat(`() => CONNS`, all) }), 'SYG102', 'SYG112')).toEqual([])
   })
 })
+
+describe('reply names through ?:, helper parameters and spreads', () => {
+  const sev = (d, code, action) => d.find(x => x.code === code && x.data?.action === action)?.severity
+
+  it('a conditional value: its literals are names (block: now ? NAME : false), no dynamic', () => {
+    const d = run({ 'App.jsx': app(`(s) => s.busy ? null : { url: '/a', ok: s.fast ? 'GOT' : false, error: s.quiet || 'FAILED' }`) })
+    expect(codes(d, 'SYG102', 'SYG112')).toEqual([])
+    // a ROUTER block through ?:, as written in the router guide
+    const r = run({ 'App.jsx': `import { ABORT } from 'sygnal'
+function App({ state }) { return <button className="go">go</button> }
+App.initialState = { dirty: false, now: true }
+App.intent = ({ DOM }) => ({ NAV: DOM.click('.go') })
+App.model = {
+  NAV: { ROUTER: (state) => state.dirty ? ABORT : { block: state.now ? 'CONFIRM_LEAVE' : false } },
+  CONFIRM_LEAVE: (s) => s,
+  NEVER: (s) => s,
+}` })
+    expect(codes(r, 'SYG102')).toEqual(['SYG102 NEVER'])
+    // only literals left, so the finding stays a warning
+    expect(sev(r, 'SYG102', 'NEVER')).toBe('warn')
+  })
+
+  it('a misspelled literal in a branch is SYG112', () => {
+    const d = run({ 'App.jsx': app(`(s) => ({ url: '/a', ok: s.fast ? 'GOTT' : 'GOT', error: 'FAILED' })`) })
+    expect(codes(d, 'SYG102', 'SYG112')).toEqual(['SYG112 GOTT'])
+  })
+
+  it("a helper's parameter is bound to the call's argument (get('/x', 'GOT'))", () => {
+    const head = `const get = (url, ok, error = 'FAILED') => ({ url, ok, error })\n`
+    expect(codes(run({ 'App.jsx': app(`() => get('/a', 'GOT')`, { head }) }), 'SYG102', 'SYG112')).toEqual([])
+    // the same helper twice in one sink, and a const string argument
+    const two = run({ 'App.jsx': app(`(s) => s.x ? get('/a', 'GOT') : get('/b', NAME)`, { head: head + `const NAME = 'GOT'\n`, model: `\n  NEVER: (s) => s,` }) })
+    expect(codes(two, 'SYG102', 'SYG112')).toEqual(['SYG102 NEVER'])
+    expect(sev(two, 'SYG102', 'NEVER')).toBe('warn')
+    const bad = run({ 'App.jsx': app(`() => get('/a', 'GOTT')`, { head }) })
+    expect(codes(bad, 'SYG102', 'SYG112').sort()).toEqual(['SYG102 GOT', 'SYG112 GOTT'])
+  })
+
+  it('a spread of a helper call, a const object or a literal is followed', () => {
+    const head = `const streamRequest = (s) => ({ url: '/s/' + s.id, ok: 'GOT', error: 'FAILED' })\nconst BASE = { error: 'FAILED' }\n`
+    expect(codes(run({ 'App.jsx': app(`(s) => ({ ...streamRequest(s), key: 'k', latest: true })`, { head }) }), 'SYG102', 'SYG112')).toEqual([])
+    expect(codes(run({ 'App.jsx': app(`(s) => ({ ...BASE, ...{ ok: 'GOT' }, url: '/a' })`, { head }) }), 'SYG102', 'SYG112')).toEqual([])
+    const bad = run({ 'App.jsx': app(`(s) => ({ ...BASE, url: '/a', ok: 'GOTT' })`, { head }) })
+    expect(codes(bad, 'SYG102', 'SYG112').sort()).toEqual(['SYG102 GOT', 'SYG112 GOTT'])
+  })
+
+  it('an unresolvable spread makes the entry dynamic (SYG102 is info)', () => {
+    const d = run({ 'App.jsx': app(`(s) => ({ ...s.opts, url: '/a', ok: 'GOT' })`, { head: '' }) })
+    expect(codes(d, 'SYG102')).toEqual(['SYG102 FAILED'])
+    expect(sev(d, 'SYG102', 'FAILED')).toBe('info')
+  })
+})

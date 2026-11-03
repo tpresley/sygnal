@@ -114,11 +114,11 @@ AccountStep.model = {
 }
 ```
 
-**Wizards**: each step is a child with a `state` prop (`<AccountStep state="account" />`); the parent switches steps on its `PARENT` message. The step's `form` slice lives in the parent's state, so after "Back" the step mounts with its values kept (and `submitting` off, even if it unmounted mid-request). Make "Next" a `type="submit"` button inside the `<form>`; in a test, simulate `'submit'` on the form (the mock DOM doesn't turn a click into a submit).
+**Wizards**: [`wizard()`](/guide/wizards/#what-a-step-sees). By hand, each step is a child with a `state` prop (`<AccountStep state="account" />`) that the parent switches on its `PARENT` message; its `form` slice lives in the parent's state, so after "Back" the step mounts with its values kept (`submitting` off). Make "Next" a `type="submit"` button inside the `<form>`; in a test, simulate `'submit'` on the form (the mock DOM doesn't turn a click into a submit).
 
 ## Start empty on each visit
 
-The values live in state, so they survive a visit (a [Switchable](/guide/switchable/) page shares its parent's state and stays alive while hidden). For a form that starts empty each time it is shown, set `resetOnShow: true`; a start value from state goes in a `values` function:
+The values live in state, so they survive a visit (a routed page or a [Switchable](/guide/switchable/) tab shares its parent's state). For a form that starts empty each time it is shown, set `resetOnShow: true`; a start value from state goes in a `values` function:
 
 ```jsx
 NewExpensePage.uses = {
@@ -197,11 +197,11 @@ What `state.form.values[name]` gets from each kind of field, and how to bind it:
 | `request` | What a valid submit sends: `{ url, … }`, or `(data, state) => request` (an id from state) |
 | `submit` | Instead of `request`: the host action a valid submit dispatches with the schema's output ([SYG234](/reference/errors/#syg234) when the model has no such entry; [submit without a request](#submit-without-a-request)) |
 | `show` | `'blur'` (default), `'input'` or `'submit'`: when a schema error shows |
-| `form` | The form element's selector, default `'form'`. Give each form its own when a component has two: `form: '.login'` and `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |
+| `form` | The form's selector, default `'form'`. One per form when there are two: `form: '.login'`, `form: '.news'` ([two forms](/guide/forms-reference/#two-forms-in-one-component), [SYG237](/reference/errors/#syg237)) |
 | `check` | [Async checks](/guide/forms-reference/#async-checks) by field name |
-| `http` | The driver sink of the requests, default `'HTTP'` |
+| `http` | The requests' driver sink, default `'HTTP'` |
 | `resetOnShow` | `true`: start over each time the form is shown ([start empty on each visit](#start-empty-on-each-visit)) |
-| `dynamic` | Fields that come and go with the host's state ([fields chosen at run time](/guide/forms-reference/#fields-chosen-at-run-time)) |
+| `dynamic` | Fields that come and go with the host's state (gone values kept unless `keepRemoved: false`) ([fields chosen at run time](/guide/forms-reference/#fields-chosen-at-run-time)) |
 | `tool` | Experimental: `formTool({ name, description, autosubmit? })` from `sygnal/ai` offers the form to the browser's agent ([WebMCP](/guide/forms-reference/#offer-the-form-to-the-browsers-agent)) |
 
 The form's actions are named after the `uses` key (`form.ADD` for `uses = { form: … }`): `form.CHANGE`, `form.SET` (several fields at once), `form.BLUR`, `form.SUBMIT`, `form.ADD`, `form.REMOVE`, `form.ERRORS`, `form.DONE` and `form.RESET` ([the actions](/guide/forms-reference/#the-actions)). A host model entry with one of those names runs after the form's, on the full state; trigger one from elsewhere with an intent action of that name, or `t.simulateAction('form.RESET')` in a test. Don't name `submit` after one ([SYG234](/reference/errors/#syg234)).

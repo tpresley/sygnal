@@ -84,6 +84,23 @@ function dottedKey(f: any, what: string, designator: any, ownerState: any): void
   })
 }
 
+/**
+ * SYG410: `state=""` (or a path with an empty segment: "x.", ".x", "a..b") names an empty key, so the
+ * child reads `state[""]`, gets undefined and is left out of the parent's view, silently. Leaving
+ * `state` out shares the parent's state, which is what an empty one usually means.
+ */
+function emptyStateKey(f: any, designator: any): void {
+  if (typeof designator != 'string' || !designator.replace(/\[(\d+)\]/g, '.$1').split('.').includes('')) return
+  if (!once(`SYG410:empty:${f.name}:${designator}`)) return
+  const empty = designator === ''
+  reportSafely('SYG410', {
+    component: f.name,
+    message: `<${f.name} state="${designator}"> ${empty ? 'names an empty key' : 'has an empty path segment'}, so ${f.name} gets no state and doesn't render`,
+    fix: `Leave state out to share the parent's state (<${f.name} />), or name a key${empty ? '' : ' in every segment'}: state="user"${empty ? '' : ' / state="user.name"'}`,
+    data: {designator},
+  })
+}
+
 /** SYG427: CHILD.select(x) with no component (an import of a name the module doesn't export) */
 function notComponent(f: any, x: any): void {
   if (!once(`SYG427:${f.name}`)) return
@@ -259,6 +276,8 @@ class Facade {
   get _componentNumber() { return this.__next.id }
   get calculated() { return this.__next.def.view.calculated }
   get _calculatedFieldNames() { return this.__next.def.calcNames }
+  /** the defaults a missing state key reads (resources' { status: 'idle' }, behaviors' slices) */
+  get _idleDefaults() { return this.__next.def.idle }
   get context() { return this.__next.def.view.context }
   get _uses() { return Object.entries(this.__next.def.view.uses || {}) }
   get _behaviorActions() { return this.__next.def.behaviorActions }
@@ -457,6 +476,7 @@ export function nextHooks(_api: any): any {
       const f = fac(iv)
       const parent = live.get(iv.parentId)
       if (parent) dottedKey(f, `<${f.name} state`, iv.props?.state, parent.state)
+      if (parent) emptyStateKey(f, iv.props?.state)
       removedStatics(f)
       if (!iv.def.intent) wire(iv, [])
     },

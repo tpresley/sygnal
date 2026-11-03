@@ -99,10 +99,10 @@ const post = (v: any, inst: any) => {
 }
 
 /**
- * The submit stream wrapped so an agent's submit gets its answer (`result(values)`: the schema's
- * result for values, the form's own cached one)
+ * The submit stream wrapped so an agent's submit gets its answer (`result(slice)`: the schema's
+ * result for the slice's values, the form's own cached one)
  */
-const answering = (sub: any, STATE: any, result: (vals: any) => any) => {
+const answering = (sub: any, STATE: any, result: (s: any) => any) => {
   let cur: any, pend: any, l: any
   // after the host's submit action (the form dispatches it with next(submit, data, 0): a
   // timer set before this one) and the flush that renders it
@@ -112,7 +112,7 @@ const answering = (sub: any, STATE: any, result: (vals: any) => any) => {
     if (!pend || !s || s.submitCount <= pend.c || s.queued || s.validating || s.submitting) return
     const errors: any = {}
     for (const m of [s.server, s.remote, s.errors]) for (const k in m) m[k] && !(k in errors) && (errors[k] = m[k])
-    answer(Object.keys(errors).length ? {ok: false, errors} : Promise.resolve(result(s.values)).then(r => ({ok: true, values: r.value})))
+    answer(Object.keys(errors).length ? {ok: false, errors} : Promise.resolve(result(s)).then(r => ({ok: true, values: r.value})))
   }
   const agent = (e: any) => {
     if (!e?.agentInvoked || typeof e.respondWith != 'function') return e
@@ -138,7 +138,7 @@ const answering = (sub: any, STATE: any, result: (vals: any) => any) => {
  * hook registers the post-processor, marks the behavior for it (`$tool`: the spec and the form
  * selector, read from the host's `uses`) and wraps the behavior's intent so SUBMIT answers agents.
  */
-export const formTool = (tool: FormTool) => ({...tool, $: (b: any, result: (vals: any) => any) => {
+export const formTool = (tool: FormTool) => ({...tool, $: (b: any, result: (s: any) => any) => {
   posts.form = post
   b.$tool = [tool, b.options?.form || 'form']
   const intent = b.intent

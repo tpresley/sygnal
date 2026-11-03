@@ -35,20 +35,23 @@ run(App, { ROUTER: router.driver })
 
 ## Reading the Route
 
-The root declares `App.route = 'ROUTE'`. The driver then sends it a `ROUTE` action with `{ name, params, query, hash, path }` on start and on every change: link clicks, back and forward, and commands. The reducer stores it; a `Switchable` renders the page:
+The root declares `App.route = 'ROUTE'`. The driver then sends it a `ROUTE` action with `{ name, params, query, hash, path }` on start and on every change: link clicks, back and forward, and commands. The reducer stores it, and the view renders the current page, and only that one:
 
 ```jsx
-import { Switchable } from 'sygnal'
 import { router, href } from './routes.js'
 import TaskList from './TaskList.jsx'
 import TaskPage from './TaskPage.jsx'
 import NotFound from './NotFound.jsx'
 
+const PAGES = { home: TaskList, task: TaskPage, notFound: NotFound }
+
 function App({ state }) {
+  const { route } = state
+  const Page = PAGES[route.name]
   return (
     <main>
       <nav><a href={href('home')}>All tasks</a></nav>
-      <Switchable of={{ home: TaskList, task: TaskPage, notFound: NotFound }} current={state.route.name} />
+      <Page key={`${route.name}:${route.path}`} />
     </main>
   )
 }
@@ -60,6 +63,13 @@ App.model = {
 
 export default App
 ```
+
+The `key` is the visit: a new key disposes the page (its `DISPOSE` runs, its requests are aborted, its connections close) and mounts a new one, which gets `INITIALIZE` and `BOOTSTRAP`. Going from `/tasks/1` to `/tasks/2` is a new visit: the page's local state and its children start over, and what it wrote to the app's state is still there.
+
+- `path` is the pathname only: it never includes the query string or the hash. When a query value should make a new visit too, put it in the key: `` key={`${route.name}:${route.path}?${route.query.session ?? ''}`} ``. Leave out the query keys a page just reads (a sort order, a filter), so changing them doesn't re-create it.
+- A page mounted per visit sees the state as it is at mount. A `STATE.watch()` emits only later changes, so a page that reacts to state already present at mount needs `STATE.watch(selector, { immediate: true })` ([Reacting to state changes](/guide/intent/#reacting-to-state-changes-statewatch)).
+- The old page doesn't act on the new route: what a page's watch sends waits for the render that decides which page stays, and a page that is gone is disposed first, so its watches and sinks never run for the next visit.
+- Don't use [`Switchable`](/guide/switchable/) as the page outlet. It creates every page at mount and keeps the hidden ones running: their intents, watches and model sinks (`EFFECT`, `HTTP`) keep running while another page shows, so a hidden page can send a request, and pages that declare the same resource name collide. Switchable is for tabs, panels and wizard steps on one page.
 
 - `router.current()` reads the current location, so the first render already shows the right page. On the server, pass the request URL: `router.current(request.url)`.
 - `params` are decoded strings (`{ id: '2' }`), `query` is an object of strings (the last value of a repeated key), `hash` has no `#`.
@@ -105,6 +115,8 @@ The driver intercepts same-origin link clicks at the document level and navigate
 - in history mode, a link that only changes the fragment of the current page (`#comments`), which scrolls as usual;
 - form submissions.
 
+A link to a route another app owns (a server-rendered page, another single-page app under the same origin) needs `data-router-ignore` or `rel="external"`: without it the router intercepts it and shows its own not-found route.
+
 SVG `<a>` elements, links inside open shadow roots and relative links (resolved against `<base href>`) are intercepted too.
 
 `href()` is typed from the route table: `href('task', { id })` type-checks, and an unknown name, a missing `id` or an extra param are type errors. In development the dev entry reports the same mistakes at run time (SYG130, SYG131).
@@ -142,6 +154,8 @@ TaskPage.model = {
 
 export default TaskPage
 ```
+
+A `{ to }` or `{ url }` command always pushes a new history entry, even when it names the URL already shown; pass `replace: true` when it shouldn't add one.
 
 The `route` key is reserved for the `route` declaration: `{ route: 'home' }` is not a command. A command the router can't perform (an unknown route, a missing param) is reported as SYG620 and ignored, also in production.
 
@@ -202,7 +216,7 @@ export default Editor
 
 - Back and forward have already happened when the router hears of them; a blocked one is undone with `history.go()`, and its `proceed` is `{ go: n, force: true }`.
 - While any block is set, closing the tab or reloading shows the browser's own "Leave site?" prompt (`beforeunload`).
-- **A block belongs to the component that set it**: its `{ block: false }` clears it, and another component's doesn't, so put `CONFIRM_LEAVE` and the Leave action next to the `block`. `{ block: false }` also works as part of a navigation (`{ ...attempt.proceed, block: false }`), and sending a `proceed` clears the block it overrode, whichever component sends it; a disposed component's block goes with it. Clear the block when the changes are saved or discarded: a page kept alive by `Switchable` is not disposed when it is hidden. With several blocks, the last one set gets the attempt.
+- **A block belongs to the component that set it**: its `{ block: false }` clears it, and another component's doesn't, so put `CONFIRM_LEAVE` and the Leave action next to the `block`. `{ block: false }` also works as part of a navigation (`{ ...attempt.proceed, block: false }`), and sending a `proceed` clears the block it overrode, whichever component sends it; a disposed component's block goes with it. Clear the block when the changes are saved or discarded: a page mounted per visit drops its block when it is disposed, but a tab kept alive by `Switchable` is not disposed when it is hidden. With several blocks, the last one set gets the attempt.
 
 ## Scroll and Focus
 

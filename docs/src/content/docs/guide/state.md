@@ -197,3 +197,30 @@ What `isolatedState` does depends on how the parent renders the child:
 - **No `state` prop** (`<Widget />`): the state is local to that instance, starts from `initialState`, and is never written to the parent. Each instance has its own.
 
 (Before 6.0 a bound child's `initialState` always overwrote the slice; see [Migrating to 6.0](/guide/migrating-to-6/#behaviour-changes).)
+
+#### A widget used several times
+
+A child with no `state` prop and no `isolatedState` gets its parent's **whole** state. A small stateful widget written that way, such as a hint that opens on click, shares one `open` field between every copy: opening one opens them all, and the field is written into the parent's state next to its own data. Give the widget its own state with `isolatedState`:
+
+```jsx
+function Hint({ state, text }) {
+  return <span><button className="toggle">?</button>{state.open && text}</span>
+}
+Hint.initialState = { open: false }
+Hint.isolatedState = true   // each <Hint /> has its own open flag, kept out of the parent's state
+Hint.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle') })
+Hint.model = {
+  TOGGLE: (state) => ({ ...state, open: !state.open }),
+}
+
+function SignupForm() {
+  return (
+    <form>
+      <label>Email <Hint text="We never share it." /></label>
+      <label>Password <Hint text="At least 12 characters." /></label>
+    </form>
+  )
+}
+```
+
+When the parent needs to read the flag (to close every hint at once, say), bind each copy to its own slice instead: `<Hint state="emailHint" />`.

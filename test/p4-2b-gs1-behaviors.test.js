@@ -229,6 +229,18 @@ describe('GS-1: host entries for a behavior action', () => {
     expect(t.html()).toContain('30')
   })
 
+  it('a host reducer that leaves state[key] out gets the behavior\'s default slice back (calculated fields included)', async () => {
+    function C({ state }) { return h('div', null, String(state.pager.offset)) }
+    C.initialState = { n: 0 }
+    C.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }
+    C.model = { JUMP: (s, page) => ({ ...s, pager: { ...s.pager, page } }), CLEAR: (s) => ({ n: s.n + 1 }) }
+    t = renderComponent(C)
+    await t.ready()
+    t.simulateAction('JUMP', 3); await t.next(s => s.pager.page === 3)
+    t.simulateAction('CLEAR'); await t.next(s => s.n === 1)
+    expect(t.state.pager).toEqual({ page: 0, pageSize: 10, offset: 0 })
+  })
+
   it('GS-4 on the slice: a behavior reducer returning its slice unchanged is no change', async () => {
     let ran = 0
     const { Same } = controls({ Same: 'button' })

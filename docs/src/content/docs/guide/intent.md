@@ -208,5 +208,6 @@ Every keystroke changes `state.text`, so `SAVE` fires one second after the last 
 
 - Values are compared structurally, so a selector that builds an object (`state => ({ page: state.page, sort: state.sort })`) emits only when a field changes, not on every new object.
 - By default the current value is not emitted, only later changes. Pass `{ immediate: true }` to get the current value first: `STATE.watch(state => state.filter, { immediate: true })` loads a list for the initial filter and again for each new one.
+- An immediate watch's first action runs in the flush that creates the component, before `BOOTSTRAP` (which is dispatched a microtask after the first render). A `BOOTSTRAP` that resets state wipes what the watch just set, so put start values in `initialState` (or `INITIALIZE`), not in `BOOTSTRAP`, when a watch seeds state. A component mounted later (a page per route, a new Collection item) works the same way: it needs `{ immediate: true }` to see the value it mounts with. In a child, a watch's action waits for the render pass in the same flush (one patch), so a child that this state removes (a page keyed by the visit) is disposed before its watch can act.
 - In a [Collection](/guide/collections/) item, `state` is the item's own state.
 - The stream ends when the component is disposed.

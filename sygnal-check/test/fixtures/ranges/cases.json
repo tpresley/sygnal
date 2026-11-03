@@ -266,5 +266,17 @@
   },
   "SYG118": {
     "App.jsx": "import { pager } from 'sygnal'\nfunction A() { return <div><button className=\"newer\">n</button><button className=\"key\">k</button></div> }\nA.uses = { pager: pager({ next: '.newer' }) }\nA.intent = ({ DOM }) => ({ 'pager.NEXT': DOM.click('.key') })\n"
+  },
+  "SYG410": {
+    "App.jsx": "function F({ state }) { return <p>{state.v}</p> }\nexport function App() { return <main><F state=\"\" /></main> }\nApp.initialState = { v: 1 }\n"
+  },
+  "SYG455": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A }} from=\"wizrd\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {} } }) }\n"
+  },
+  "SYG456": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A }} from=\"wizard\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {}, b: {} } }) }\n"
+  },
+  "SYG457": {
+    "App.jsx": "import { wizard, Outlet } from 'sygnal'\nfunction A() { return <p /> }\nexport function App() { return <main><Outlet of={{ a: A, c: A }} from=\"wizard\" /></main> }\nApp.uses = { wizard: wizard({ steps: { a: {} } }) }\n"
   }
 }

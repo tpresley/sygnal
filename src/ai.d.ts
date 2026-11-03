@@ -1619,14 +1619,15 @@ export interface ComposeOptions {
   key?: string
   /**
    * what shows while a fresh composition streams over a layout: 'merge' (default) the preview's
-   * parts where it puts them and the layout's other parts where they were (they stay mounted);
+   * parts where it puts them and the layout's other parts after them in their slot (they stay mounted);
    * 'replace' the preview alone (only the parts finished so far); 'keep' the layout until the reply
    */
   preview?: 'merge' | 'replace' | 'keep'
   /**
    * what a COMPOSE does while a composition is in flight: 'abort' (default) starts it at once (the
    * step in flight is aborted); 'queue' keeps one in flight: the COMPOSE waits in `queued` (a newer
-   * one replaces it) and starts when the one in flight ends, which still lands first (DONE runs).
+   * one replaces it) and starts when the one in flight ends, which still lands first (DONE runs;
+   * the waiting one starts on the layout DONE's entries left).
    * For a page that recomposes itself on state changes faster than its model answers.
    * SET_LAYOUT ends both.
    */
@@ -1804,7 +1805,7 @@ export interface ComposeDecisionsOptions {
   maxPromptTokens?: number
   /** passed to every `decide()` request (D472): false sends each step as one request, never halved */
   split?: boolean
-  /** the most one step may take, in ms (default 60000; 0: no limit): the request's `timeoutMs`, then status 'error' */
+  /** the most one step may take, in ms (default 300000; 0: no limit): the request's `timeoutMs`, then status 'error' */
   timeoutMs?: number
 }
 /**
@@ -1873,7 +1874,7 @@ export interface ComposeLlmOptions {
   instructions?: string | ((prompt: string) => string)
   /** Few-shot examples (default: the catalog's): `[prompt, tree, asked_for?]` or `{ prompt, tree, asked_for? }` */
   examples?: ReadonlyArray<readonly [string, ReadonlyArray<ComposeLlmTreeNode>, ReadonlyArray<string>?] | { prompt: string; tree: ReadonlyArray<ComposeLlmTreeNode>; asked_for?: ReadonlyArray<string> }>
-  /** The most a step may take, in ms (default 60000; 0: no limit): then the status is 'error' and the layout stays */
+  /** The most a step may take, in ms (default 300000; 0: no limit): then the status is 'error' and the layout stays */
   timeoutMs?: number
   /** The most tokens the model may write (no default); a reply cut there is read up to where it stopped */
   maxTokens?: number

@@ -97,7 +97,44 @@ describe('a reply in a loop is stopped', () => {
     const kids = Array.from({ length: 21 }, () => ({ part: 'section', params: { title: 'T' }, children: [{ part: 'dates' }] }))
     const r = b.delta({ catalog: form, state: {}, pending, delta: { text: JSON.stringify({ asked_for: [], children: kids }).slice(0, -2) } })
     expect(r.request).toEqual({ abort: 'compose' })
-    expect(r.reply.stopped).toBe('more than 20 parts')
+    expect(r.reply.stopped).toBe('more than 20 parts in one list')
+    // more than one slot allows, in a section, too
+    const long = [{ part: 'section', params: { title: 'T' }, children: Array.from({ length: 21 }, () => ({ part: 'dates' })) }]
+    const s = b.delta({ catalog: form, state: {}, pending, delta: { text: JSON.stringify({ asked_for: [], children: long }).slice(0, -2) } })
+    expect(s.reply.stopped).toBe('more than 20 parts in one list')
+  })
+
+  it('a valid nested page with more leaves than twice maxParts is not stopped', () => {
+    const b = llm()
+    const { pending } = b.start({ catalog: form, state: {}, prompt: 'x', previous: null, names })
+    const parts = ['dates', 'amount', 'approver', 'contact', 'dates', 'amount', 'approver', 'contact']
+    const kids = ['A', 'B', 'C'].map((title) => ({ part: 'section', params: { title }, children: parts.map((part) => ({ part })) }))
+    const r = b.delta({ catalog: form, state: {}, pending, delta: { text: JSON.stringify({ asked_for: [], children: kids }).slice(0, -2) } })
+    expect(r.reply).toBe(undefined)
+    expect(r.preview).toBeTruthy()
+    expect(codes()).not.toContain('SYG687')
+  })
+
+  it('equal adds of a part that may repeat (maxUses) are not a loop; past its maxUses they are', () => {
+    const cat = defineCatalog({
+      parts: { note: { render: () => null, description: 'Note', maxUses: 3 }, dates: { render: () => null, description: 'Dates' } },
+    })
+    const prev = page(cat, [{ part: 'dates' }])
+    const add = { op: 'add', part: 'note', where: 'bottom' }
+    const b = llm()
+    const { pending } = b.start({ catalog: cat, state: {}, prompt: 'add two notes at the bottom', previous: prev, names })
+    // "add two notes at the bottom": two equal operations, streamed and in the reply
+    const two = JSON.stringify({ ops: [add, add] })
+    const d = b.delta({ catalog: cat, state: {}, pending, delta: { text: two } })
+    expect(d.reply).toBe(undefined)
+    expect(shape(d.preview)).toEqual(['dates', 'note', 'note~2'])
+    const r = b.reply({ catalog: cat, state: {}, pending, reply: { text: two } })
+    expect(shape(r.layout)).toEqual(['dates', 'note', 'note~2'])
+    expect(r.decisions.repairs).toBe(undefined)
+    expect(codes()).not.toContain('SYG687')
+    // a fourth equal add can't mean anything: a loop
+    const s = b.delta({ catalog: cat, state: {}, pending, delta: { text: JSON.stringify({ ops: [add, add, add, add, add] }).slice(0, -2) } })
+    expect(s.reply).toEqual({ value: { ops: [add, add, add] }, stopped: 'operation 4 repeats an earlier one' })
   })
 
   it('in the app: the step finishes with the operations before the loop, the request is aborted, DONE runs', async () => {
@@ -178,8 +215,8 @@ describe('a step that takes too long', () => {
   // a model that never answers
   const silent = { stream: (_req, signal) => (async function* () { await new Promise((_r, no) => signal.addEventListener('abort', () => no(new Error('aborted')))) })() }
 
-  it('timeoutMs: compose.llm default 60 s (0: none), compose.decisions too', () => {
-    expect(llm().start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request.timeoutMs).toBe(60000)
+  it('timeoutMs: compose.llm default 300 s (0: none), compose.decisions too', () => {
+    expect(llm().start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request.timeoutMs).toBe(300000)
     expect(llm({ timeoutMs: 0 }).start({ catalog: form, state: {}, prompt: 'x', previous: null, names }).request).not.toHaveProperty('timeoutMs')
     expect(decisions({ model: 'm', timeoutMs: 5000 }).start({ catalog: form, state: {}, prompt: 'dates', previous: null, names }).request.timeoutMs).toBe(5000)
   })

@@ -98,7 +98,7 @@ export const shimOf = (src: DefSource, view: ComponentFn): any => ({
 })
 export const fromShim = (shim: any, src: DefSource): DefSource => ({
   ...src, model: shim.model, intent: shim.intent, initialState: shim.initialState,
-  idle: shim._idle, behaviorActions: shim._behaviorActions || src.behaviorActions,
+  idle: shim._idle, read: shim._read, behaviorActions: shim._behaviorActions || src.behaviorActions,
 })
 
 /** the built-in RESOURCE reducer (a model RESOURCE entry replaces it) */
@@ -163,7 +163,7 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
   return {
     name, view, intent, handlers, sinks,
     initialState: src.initialState,
-    idle: src.idle,
+    idle: src.idle, read: src.read,
     isolated: !!view.isolatedState,
     calculated: c && c[0], calcNames: c && c[1],
     context: context && context.length ? context : null,

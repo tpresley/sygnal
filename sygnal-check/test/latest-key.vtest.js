@@ -49,4 +49,12 @@ describe('SYG634: latest: true with a computed key', () => {
       "(state, q) => ({ url: '/api/search', ok: 'RESULTS', key: `search-${q}`, latest: false })",
     ]) expect(codes(checkSource(search(req)))).toEqual([])
   })
+
+  it('a const string key (key: KEY, shorthand key) is fixed; a const of a computed value is not', () => {
+    const app = (head, req) => `${head}\n` + search(req)
+    expect(codes(checkSource(app("const KEY = 'search'", "({ url: '/api/search', ok: 'RESULTS', key: KEY, latest: true })")))).toEqual([])
+    expect(codes(checkSource(app("const key = 'search'", "({ url: '/api/search', ok: 'RESULTS', key, latest: true })")))).toEqual([])
+    expect(codes(checkSource(app("const req = (s) => ({ url: '/s/' + s.id, ok: 'RESULTS' })\nconst KEY = 'search'", "(state) => ({ ...req(state), key: KEY, latest: true })")))).toEqual([])
+    expect(codes(checkSource(app("const KEY = 'search-' + Date.now()", "({ url: '/api/search', ok: 'RESULTS', key: KEY, latest: true })")))).toHaveLength(1)
+  })
 })

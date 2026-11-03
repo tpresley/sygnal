@@ -58,8 +58,14 @@ export type UidFunction = (name?: string) => string
  * The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`.
  * PLAN-11 Q-1: PROPS = `any` is read as "any other props" (`any & X` would make `state` `any` too).
  */
+/**
+ * What a component's `children` may hold: elements, text (strings and numbers arrive as text
+ * vnodes), `boolean` / `null` / `undefined` (rendered as nothing), and arrays of these.
+ */
+export type SygnalChild = JSX.Element | string | number | boolean | null | undefined | readonly SygnalChild[]
+
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: SygnalChild; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
@@ -117,7 +123,9 @@ export interface HandlerEntropy {
   /** crypto.randomUUID() */
   uuid(): string
 }
-type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, keyof PROPS> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+/** the declared (literal) keys of PROPS: none for an index signature such as the default `{ [prop: string]: any }` */
+type LiteralKeys<PROPS> = keyof { [KEY in keyof PROPS as string extends KEY ? never : number extends KEY ? never : symbol extends KEY ? never : KEY]: 0 }
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, LiteralKeys<PROPS>> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: SygnalChild; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -1063,6 +1071,11 @@ export interface FormState<V = any> {
    * state): path → start value. `{}` without the option
    */
   added: Record<string, any>;
+  /**
+   * RT-1: the dynamic fields that went while their values stay in `values` (`keepRemoved`, the
+   * default): path → true. Neither validated nor sent; emptied by `form.RESET` / `resetOnShow`
+   */
+  kept: Record<string, true>;
 }
 
 type FormIsAny<T> = 0 extends (1 & T) ? true : false
@@ -1152,11 +1165,20 @@ export interface FormOptions<V = any, OUT = any> {
    * pieces): a function of the host's state returning `{ path: start value }`
    * (`(state) => ({ 'amount~2': { amount: '', currency: 'USD' } })`). An entry that appears is
    * added to values (and `initial`) with its start value; one that stays keeps what was typed (an
-   * object start value reshapes it: keys added, keys dropped); one that goes is removed with its
-   * touched, server errors and checks. `form.RESET` and `resetOnShow` start them over too. Paths
-   * name object keys (not array rows). Recomputed on each host state change, compared structurally
+   * object start value reshapes it: keys added, keys dropped); one that goes loses its touched,
+   * server errors and checks, and its value is kept (see `keepRemoved`). `form.RESET` and
+   * `resetOnShow` start them over too. Paths name object keys (not array rows). Recomputed on
+   * each host state change, compared structurally
    */
   dynamic?: (state: any) => Record<string, any>;
+  /**
+   * RT-1: what happens to a `dynamic` entry's value when the entry goes. `true` (default, as
+   * React Hook Form / TanStack Form): it stays in `values` (and `initial`: dirty shows it; its
+   * path in `state.form.kept`), and an entry that comes back shows it; `form.RESET` and
+   * `resetOnShow` drop it. The schema validates, and a submit sends, the values without the kept
+   * ones (as with `false`). `false`: the value is removed with the entry (and the parents it leaves empty)
+   */
+  keepRemoved?: boolean;
   /**
    * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
    * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
@@ -1315,6 +1337,195 @@ export function selection(options?: SelectionOptions): Behavior<SelectionState, 
 
 /** Is `id` in a `selection` slice? Ids compare as strings. */
 export function isSelected(slice: SelectionState | undefined | null, id: string | number): boolean
+
+/** What a wizard step sees (and its predicates get): its own slice, with `draft` the flow's shared draft. */
+/**
+ * What a wizard step sees, and its predicates get: its initialState, its own slice, and the flow's
+ * draft under the wizard's `draftKey` (DK, default 'draft').
+ */
+export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> = OWN & { [K in DK]: DRAFT }
+/**
+ * A step component's type (wizard spike). `WizardStepComp<Own>`: a step that doesn't read the draft;
+ * its state is its own fields (reusable under any wizard). `WizardStepComp<Own, { draft: Draft }>`:
+ * a step that reads it names the draft's key (the wizard's `draftKey`) and type together. Its
+ * `initialState` is Own alone either way.
+ *
+ *   const Review: WizardStepComp<ReviewState> = ({ state }) => …
+ *   const Define: WizardStepComp<DefineState, { flow: Draft }, { actions: Actions }> = ({ state }) => … state.flow …
+ */
+/** a WizardStepComp's second argument read as a component spec (every key a ComponentSpec key), not a draft */
+type IsStepSpec<A> = [A] extends [undefined] ? false : [keyof A] extends [never] ? false : keyof A extends Exclude<keyof ComponentSpec, 'state'> ? true : false
+type StepState<OWN, D> = [D] extends [undefined] ? OWN : OWN & D
+type StepSpecOf<A, T> = IsStepSpec<A> extends true ? A : T
+type StepDraftOf<A> = IsStepSpec<A> extends true ? undefined : A
+export type WizardStepComp<OWN = {}, DRAFT_OR_SPEC extends Record<string, any> | undefined = undefined, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
+  ComponentProps<StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>> & SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
+  & Omit<Component<
+    StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'drivers', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'actions', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>,
+    SpecSinks<StepSpecOf<DRAFT_OR_SPEC, T>>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'provided', SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
+  >, 'initialState'> & { initialState?: OWN }
+/** a wizard's leave-dialog copy option: a value of DIALOG (when DIALOG is left `any`: a string or an object), or a function of the step's view and the host state */
+type WizardDialogOpt<DIALOG, STEP, HOST> = ((step: STEP, state: HOST) => DIALOG) | (0 extends (1 & DIALOG) ? string | { [field: string]: unknown } : DIALOG)
+export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>, DIALOG = any> {
+  /** The stepper label (default: the step name), or a function of the step's view and the host state */
+  label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => string);
+  /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
+  valid?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
+  /** Is this step part of the flow? (default true). A step for which it is false is skipped */
+  when?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
+  /** Fields of the step's own slice set again on every entry and host mount (its scratch: busy flags, errors) */
+  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN>);
+  /** The leave guard while this step is current (instead of the wizard's `dirty`) */
+  dirty?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST, name: string) => boolean;
+  /** This step's state after a confirmed leave from it (instead of the wizard's `discard`): its view in, its state out (the draft key in it updates the draft) */
+  discard?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN> & { [K in DK]?: DRAFT };
+  /** Alternative steps sharing one stepper entry (Analyze or Describe): the same group name; `groups` labels it */
+  group?: string;
+  /** A final screen after the flow (Created): not in the stepper; entered by GOTO; Back doesn't return into the steps */
+  outcome?: boolean;
+  /** The leave dialog's copy while this step is current (any value; `state.wizard.dialog`) */
+  dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, OWN, DK>, HOST>;
+}
+/** An entry of the stepper (`state.wizard.stepper`): a step, or a group of alternative steps (the one that applies gives its state) */
+export interface WizardStepperEntry extends WizardStepInfo {
+  /** The step names in the entry (one, or a group's) */
+  steps: string[];
+  /** The step that applies (a group's member that is current or not skipped) */
+  step: string;
+}
+/** A step of the stepper, `state.wizard.steps[i]`. */
+export interface WizardStepInfo {
+  name: string;
+  label: string;
+  /** Position among the steps not skipped (-1 when skipped) */
+  index: number;
+  status: 'current' | 'done' | 'visited' | 'upcoming' | 'blocked' | 'skipped';
+  current: boolean;
+  valid: boolean;
+  visited: boolean;
+  /** Every step before it (not skipped) is valid: GOTO can go there */
+  reachable: boolean;
+  skipped: boolean;
+}
+/** A `wizard` slice (spike): `state.wizard`. */
+export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Record<string, any>> {
+  /** The current step's name */
+  step: string;
+  /** The flow key the state belongs to (null until a key is named) */
+  key: any;
+  /** Counts step entries (the outlet's identity is step + visit); 0 until the flow starts */
+  visit: number;
+  visited: string[];
+  /** The flow's draft, shared by the steps */
+  draft: DRAFT;
+  /** The draft the flow started with (a key adopted mid-flow refills the draft's fields still equal to it) */
+  initial: DRAFT;
+  /** Each step's own slice, by step name: what the step wrote (its initialState isn't in it until it writes); a step not entered yet has none */
+  local: { [K in keyof LOCAL]?: Partial<LOCAL[K]> };
+  /** A navigation held while the leave confirm is open (a router command), else null */
+  leaving: RouterCommand | null;
+}
+/** The fields derived from the slice and the host state (written with every change) */
+export interface WizardCalculated<DIALOG = any> {
+  /** One entry per step of the stepper (not outcome steps) */
+  steps: WizardStepInfo[];
+  /** One entry per group or ungrouped step: what a stepper renders */
+  stepper: WizardStepperEntry[];
+  /** The current outcome step's name, else null */
+  outcome: string | null;
+  /** The leave dialog's copy: the current step's `dialog`, else the wizard's, else null */
+  dialog: DIALOG | null;
+  index: number;
+  count: number;
+  first: boolean;
+  last: boolean;
+  canBack: boolean;
+  canNext: boolean;
+}
+export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any> {
+  /** The steps, in order: name -> definition */
+  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL, DIALOG> };
+  /** The draft a flow starts with, or a function of the host's state called at each start */
+  draft?: DRAFT | ((state: HOST) => DRAFT);
+  /** The draft's key in a step's state (default 'draft') */
+  draftKey?: DK;
+  /**
+   * The flow key (a record, session or report id). Only a change from one key to another starts the
+   * flow over; a key born mid-flow (none to a value) is adopted; none (null, or undefined: "not
+   * mine") keeps the flow and its key
+   */
+  key?: (state: HOST) => any;
+  /** Selectors (or controls) whose clicks move: NEXT, BACK, RESET, GOTO (a `data-step` attribute names the step) */
+  next?: BehaviorTarget; back?: BehaviorTarget; reset?: BehaviorTarget; goto?: BehaviorTarget;
+  /** A host action dispatched (with the draft) by NEXT on the last step, or a step's `{ wizard: 'FINISH' }` */
+  finish?: string;
+  /** The leave guard (a step's own `dirty` wins): while true, navigating away from the flow is held for a confirm */
+  dirty?: (step: WizardStepState<DRAFT, any, DK>, state: HOST, name: keyof LOCAL & string) => boolean;
+  /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over) */
+  discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
+  /** Group labels: `{ build: { label } }` (default: the label of the step that applies) */
+  groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => string) }>;
+  /** The leave dialog's copy when the current step has none (`state.wizard.dialog`) */
+  dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, any, DK>, HOST>;
+  /** Where Start over navigates (a router command, or a function of the slice being reset and the host state); url mode default: the first step's route */
+  resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, state: HOST) => RouterCommand);
+  /** A <dialog> to open (showModal) while a leave is held; closing it stays */
+  confirm?: BehaviorTarget;
+  /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
+  leave?: BehaviorTarget; stay?: BehaviorTarget;
+  /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key; `from` maps the host's route (and an attempted one) onto it */
+  url?: { route: string; param: string; key?: string; from?: (state: HOST) => Route | undefined };
+  /** The router sink (default 'ROUTER') */
+  router?: string;
+}
+export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RESET: any; FINISH: any; DISCARD: any; STAY: any }
+/** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
+export type WizardMessage =
+  | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
+  | { wizard: 'GOTO'; step: string; key?: unknown; query?: Record<string, string | number | boolean | null | undefined>; draft?: Record<string, any> }
+  | { wizard: 'RESET'; draft?: any }
+
+/**
+ * A multi-step flow (spike, dev-plans/research/wizard): `C.uses = { wizard: wizard({ steps, draft, key, ... }) }`
+ * with `<Outlet of={STEPS} from="wizard" />` mounting only the current step. Gives `state.wizard`
+ * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
+ * 'wizard.GOTO', 'wizard.RESET', 'wizard.FINISH', 'wizard.DISCARD', 'wizard.STAY'.
+ */
+export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any>(options: WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated<DIALOG>, WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>>
+
+export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
+  /** name -> component */
+  of: OF;
+  /** The host's `wizard` behavior key: its current step, keyed by flow key + step + visit */
+  from?: string;
+  /** Route mode: the current route; `of` is keyed by route name */
+  route?: Route;
+  /** Route mode: query keys that are part of the page's identity (others don't re-create it) */
+  query?: string[];
+  /** Plain mode (an app's root outlet): the name of the current component, and its identity (default: the name) */
+  current?: string;
+  identity?: string | number;
+  /** The component for a name not in `of` (a page not ported, an unknown step), keyed by the same identity */
+  fallback?: AnyComponent;
+  /** Focus after an identity change: selectors tried in order (default '[data-wizard-focus],h1,h2,h3'); false: none */
+  focus?: string | false;
+  /** Route / plain mode: the page's state binding, or a map from page names to bindings (pages not in it share the owner's state) */
+  state?: string | Lense | { [PAGE in keyof NoInfer<OF>]?: string | Lense };
+} & { [prop: string]: any }
+/**
+ * One page or step at a time (spike): only the current entry of `of` is alive, keyed by its
+ * identity (a new identity disposes it and mounts a new one).
+ *
+ *   <Outlet of={PAGES} route={state.route} query={['session']} />
+ *   <Outlet of={{ source: Source, review: Review }} from="wizard" />
+ */
+export declare const Outlet: (<OF extends Record<string, AnyComponent>>(props: OutletProps<OF>) => JSX.Element) & { readonly __sygnalOutlet: true }
 
 /** A `sortable` slice: the drag state the view styles from, and the live-region text. */
 export interface SortableState {
@@ -2482,7 +2693,7 @@ export function Slot(props: SlotProps): JSX.Element
  * still carries the component statics (`model`, `intent`, …) once loaded.
  */
 export type LazyComponent<PROPS = any> = ((
-  props: PROPS & { state?: any; children?: JSX.Element | JSX.Element[] }
+  props: PROPS & { state?: any; children?: SygnalChild }
 ) => JSX.Element) & Omit<Component<any, PROPS>, never> & {
   /** start the import now (a deferred `when` one too: preload on hover, or in a test); resolves once it has loaded or failed */
   load(): Promise<void>
@@ -3732,7 +3943,11 @@ export interface RenderOptions {
    * disposed. Dev checks require `import 'sygnal/diagnostics'` (the Vite plugin adds it under Vitest).
    */
   diagnostics?: DiagnosticsMode;
-  /** Enable strict (canonical-form) runtime checks while rendered (requires 'sygnal/diagnostics') */
+  /**
+   * Enable strict (canonical-form) runtime checks while rendered (SYG508; the other strict
+   * codes are sygnal-check --strict only). Requires 'sygnal/diagnostics'. Findings are collected,
+   * not thrown: a test fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   */
   strict?: boolean;
   /**
    * settle()'s quiet window in ms (default 20). A model `next('X', data, ms)` with a longer
@@ -4114,7 +4329,8 @@ export interface RenderResult<STATE = any> {
   /**
    * Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection).
    * For the router fake's sink (`t.sent('ROUTER')`): the commands the components sent
-   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations
+   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations. For PARENT
+   * and EVENTS (no driver): the values sent on them, as `sinkValues` (a step's `{ wizard: 'NEXT' }`)
    */
   sent: (sinkName: string, to?: string) => any[];
   /**
@@ -4387,7 +4603,8 @@ declare global {
      * A component's view receives `state: STATE` and `context`, but in JSX the parent passes
      * an optional `state` slice name or lens (`<Editor state="editor" />`, `<Panel />`).
      */
-    type LibraryManagedAttributes<C, P> = ElementProps<P>
+    // (the wizard spike's <Outlet> keeps its own `state`: a per-page map too)
+    type LibraryManagedAttributes<C, P> = C extends { readonly __sygnalOutlet: true } ? P : ElementProps<P>
   }
 }
 

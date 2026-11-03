@@ -152,7 +152,8 @@ describe('editing the form', () => {
     t.simulateEvent('.remove-piece[data-key="question"]', 'click')
     await t.waitForState((s) => !s.page.layout.nodes.question)
     expect(t.requests('LLM').length).toBe(calls)
-    expect('question' in t.state.intake.values).toBe(false)
+    // its value is kept (keepRemoved), out of validation and the submit
+    expect(t.state.intake.kept.question).toBe(true)
   })
 })
 

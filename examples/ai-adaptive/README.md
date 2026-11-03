@@ -35,7 +35,8 @@ the host's `<form className="intake">`, so the form behavior hears them by `name
 values live under its node key (`device.assetTag`, `amount~2.amount`), so a piece can repeat. The
 form's fields and its schema both follow the layout (`PIECES` in
 [`catalog.jsx`](src/intake/catalog.jsx): each part's start value and rules): `dynamic` adds and
-removes the placed pieces' fields, and the schema is a function of the layout, so what is required
+removes the placed pieces' fields (a removed piece's value is kept, out of the submit, and back if
+the piece is), and the schema is a function of the layout, so what is required
 is what is on the form. The rules that grow the form
 ([`adapt.js`](src/intake/adapt.js)) are watched with `STATE.watch(nextRule)` and sent to the model
 as follow-up edits, which keep the other pieces' node keys and so what was typed.

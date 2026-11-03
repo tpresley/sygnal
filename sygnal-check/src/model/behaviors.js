@@ -7,7 +7,7 @@
  * A `uses` value resolves when it is a call of
  *   - a `defineBehavior({ ... })` factory (same file, or through relative
  *     imports and re-exports), or
- *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form, sortable),
+ *   - a first-party behavior imported from 'sygnal' (pager, selection, undo, form, sortable, wizard),
  *     modelled below as known definitions.
  *   - D199 (PLAN-5): a factory function that returns such a call with the options it got,
  *     `(opts) => base(opts)`, `(opts = {}) => base({ delay: 300, ...opts })`,
@@ -85,16 +85,30 @@ export const FIRST_PARTY = {
   // (SYG111); its model is open (CHANGE, SET (G-647), BLUR, SUBMIT, ADD, REMOVE, ERRORS, DONE, RESET,
   // PROGRESS (PLAN-11 F-2), RESULT, VALIDATE, SYNC (RT-1), and CHECKED_<field> per `check` entry); the host action named by
   // `submit` is dispatched with next() (a trigger for SYG102); options are the 2nd argument (RT-1:
-  // `dynamic`, fields that follow the host's state; the 1st can be a schema function of it).
+  // `dynamic`, fields that follow the host's state, and `keepRemoved`; the 1st can be a schema function of it).
   form: {
-    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated', 'progress', 'resets', 'added'],
+    stateKeys: ['values', 'initial', 'errors', 'touched', 'server', 'remote', 'pending', 'submitting', 'submitted', 'submitCount', 'queued', 'validating', 'validated', 'progress', 'resets', 'added', 'kept'],
     calculated: ['fields', 'valid', 'dirty', 'error'],
     model: null,
-    options: ['values', 'submit', 'request', 'form', 'check', 'show', 'http', 'resetOnShow', 'tool', 'dynamic'],
+    options: ['values', 'submit', 'request', 'form', 'check', 'show', 'http', 'resetOnShow', 'tool', 'dynamic', 'keepRemoved'],
     listens: [['form', null, 'select']],
     defaults: { form: 'form' },
     nextOptions: ['submit'],
     optionsArg: 1,
+  },
+  // wizard spike (dev-plans/research/wizard): wizard({ steps, draft, key, ... }) (src/extra/wizard.ts).
+  // KEY (the flow key, watched on the host's state), ROUTE (url) and GUARD (dirty) come from its
+  // intent (SYNC: the host's state, for the derived fields); LEAVE is the router's block reply;
+  // `finish` is a host action dispatched with next(); the moves also come from the steps' PARENT messages
+  wizard: {
+    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'initial', 'local', 'leaving', 'reseed'],
+    calculated: ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog'],
+    model: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
+    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
+    listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
+    // (NEXT, BACK, GOTO, RESET, FINISH also come from the steps' PARENT messages)
+    intent: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],
+    nextOptions: ['finish'],
   },
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
   // host's root and finds the item / handle from the event target (delegated: items are usually

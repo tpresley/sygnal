@@ -2,6 +2,165 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.3 — dev preview
+
+From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
+
+**Added (experimental, outside semver): wizards and an outlet**, in `guide/wizards`.
+
+- **`wizard()`, a behavior (`C.uses = { wizard: wizard({ steps, … }) }`), and `<Outlet of={STEPS} from="wizard" />`.** Only the current step exists:
+  - entering a step runs its INITIALIZE and BOOTSTRAP;
+  - leaving it runs its DISPOSE and stops its requests, connections, timers and watches.
+- **State.**
+  - **What a step sees:** its own slice (kept across Back, so two steps' resources and forms can't collide), plus the flow's shared `draft` (renamed with `draftKey`).
+  - **Scratch:** `visit` fields are set again on each entry and each host mount.
+  - **The slice `state.wizard`:** `step`, `key`, `draft`, `initial`, `local`, `visited`, `leaving`.
+  - **Derived fields:** `steps`, `stepper`, `canBack`, `canNext`, `index`, `count`, `first`, `last`, `outcome`, `dialog`, written by a built-in SYNC action only when they change.
+- **Steps.**
+  - **Predicates:** `valid`, `when` (skip), `dirty`, and a `label` function, each getting `(step, state)`: the step's view with its initialState merged in, and the host state.
+  - **Groups:** alternative steps share one stepper entry (`group`, `groups`).
+  - **Outcome step:** a final screen such as Created (`outcome: true`). It is shown as done, and Back doesn't return into the steps.
+  - **Leave-dialog copy** per step (`dialog`).
+  - A step that can't be reached sends the user back to the first incomplete step before it.
+- **Moves.**
+  - **Buttons:** `next`, `back`, `goto`, `reset` and `finish`.
+  - **From inside a step**, as PARENT messages: `{ wizard: 'NEXT' | 'BACK' | 'FINISH' }`, `{ wizard: 'GOTO', step }`, and `{ wizard: 'RESET', draft? }`.
+  - **A second record:** `{ wizard: 'GOTO', step, key, query?, draft? }`.
+  - **Start over** goes to `resetTo(previousSlice, state)`.
+- **The flow key** (`key(state)`).
+  - Another key starts the flow over.
+  - A key born mid-flow is adopted, and the draft's untouched fields are refilled from `draft(state)`.
+  - No key keeps the flow.
+  - Start over and a GOTO with a key take their draft from the route they land on.
+- **Leave guard.** While the step's (or the wizard's) `dirty` is true, the router's `block` holds a navigation out of the flow, and the `confirm` `<dialog>` offers Discard (the step's or the wizard's `discard`) or Stay.
+- **URL binding.** `url: { route, param, key, from? }` puts the step and the flow key in the route. Back and forward move between steps.
+- **Stepper.** The guide shows the `<ol>` + `aria-current="step"` markup. After a step change, focus moves to the new step's heading.
+- **`<Outlet>`** keeps only the current page alive, keyed by its identity.
+  - **Plain mode** (`current`, `identity`) is the outlet for an app's pages.
+  - **Route mode:** `route` + `query`.
+  - **Options:** `fallback` for names not in `of`, and a per-page `state` map.
+- **Types.**
+  - `wizard<Draft, State, Local, DraftKey, DialogCopy>`.
+  - `WizardStepComp<Own>` for a step that doesn't read the draft, `WizardStepComp<Own, { flow: Draft }>` for one that does, and an optional component spec.
+  - `WizardMessage`.
+- **Diagnostics.**
+  - **SYG455:** an Outlet `from` that names no wizard.
+  - **SYG456:** no component for the current name (also static).
+  - **SYG457:** an `of` key that names no step (`sygnal-check`).
+  - **sygnal-check** knows the behavior's slice, actions and options.
+- **Core: a behavior's read-time normalizer.** A behavior's merge may set `c._read = { key: (value, state) => value }`. The core applies it whenever the component's state is read (before calculated fields, memoized per state object). The wizard uses it so that a slice a parent seeded has its derived fields from the first view call.
+  - **Size:** the size gate's budget goes from 43,080 B to 43,144 B (user-approved, +64 B).
+
+**Fixed.**
+- **`renderComponent`:**
+  - a value a driverless sink gets while the component is created is recorded (it threw);
+  - `t.sent('PARENT')` and `t.sent('EVENTS')` return what was sent (they returned an empty socket fake's list).
+
+From the `examples/ai-adaptive` stress test of composed UI (#65–#70; its `FINDINGS.md` has the
+reports).
+
+**Added.**
+- **Forms: fields chosen at run time.** `form(schema, { dynamic: (state) => ({ path: start }) })`
+  adds and removes fields as the host's state changes: a field that appears starts at its start
+  value (not dirty), one that stays keeps what was typed, one that goes loses its touched state,
+  server errors and checks. Its value is kept, as React Hook Form and TanStack Form keep it (it
+  comes back if the field does; it isn't validated or submitted meanwhile, slice key `kept`), or
+  removed with `keepRemoved: false`; a reset drops kept values. `form((state) => schema, ...)` takes
+  a schema of the host's state (memoize it: **SYG239**). New slice key `added`; a behavior's intent
+  gets the host's STATE source as its 4th argument. Guide: forms reference, "Fields chosen at run
+  time".
+- **compose: `busy: 'queue'`.** One composition in flight, then the newest one asked for meanwhile
+  (the default, `'abort'`, still aborts the one in flight).
+- **compose: container edits in `compose.llm()`.** `wrap`, `unwrap` and `into <key>` operations for
+  any catalog with a container other than a row (`containers: false` keeps the previous edits);
+  `above` / `below` stay inside the reference node's container.
+- **compose: `maxUses` on containers**, and the prompt says how often a part may repeat.
+- **compose: `preview` option** for a fresh composition streamed over a page: `'merge'` (default),
+  `'replace'`, `'keep'`.
+- **Chat driver: a request `timeoutMs`** (a TimeoutError on `error`); `maxTokens` is sent as
+  `max_tokens` (Chat Completions) / `max_output_tokens` (Open Responses). OpenAI's reasoning models
+  want `max_completion_tokens` on Chat Completions: `body: { max_completion_tokens }` instead
+  (guide/ai-chat, Transports).
+
+**Changed.**
+- **Behaviour change: a fresh composition's preview keeps the page's other parts mounted**
+  (`preview: 'merge'`); before, only the streamed parts showed. `preview: 'replace'` is the old one.
+- **Behaviour change: `compose.llm()` and `compose.decisions()` time out after 300 s** by default
+  (`timeoutMs: 0` for none); the step ends as status `'error'` with the page kept.
+- **Behaviour change: `compose.llm()` stops a runaway reply** (an edit repeating operations or
+  past its cap, a composition far past `maxParts`) and keeps what came before (**SYG687**, a
+  `stopped` repair); every list in the reply schemas has a `maxItems`.
+
+- **Behaviour change: a child that a state change removes no longer acts on that state.** When a
+  parent's state replaced a keyed child (a routed page keyed by the visit, `cond ? <A key="a"/> :
+  <B key="b"/>`, a component under a new key), the leaving child's `STATE.watch` fired on the new
+  state and its action's sinks ran (`EFFECT`, `HTTP`: a leaving page requested the new route)
+  before it was disposed. An action a child's watch sends is now queued after the render pass that
+  decides which children stay, in the same flush (one patch); a disposed child's is dropped. The
+  root component's watches keep their timing. Size budget 43,000 → 43,080 B.
+
+**Fixed.**
+- **DOM driver: a non-bubbling event (`submit`, `reset`, `toggle`, `scroll`, `load`, ...) reaches
+  every stream set up on its element.** An element snabbdom reused for another selector, or two
+  selectors on one element, delivered only to the first stream (a form's Enter reloaded the page).
+- **compose: `render` parts are keyed**, so an edit inserting a part above one no longer rebuilds
+  the field being typed in.
+- **DOM driver: two streams on one selector with different options each keep theirs.**
+  `DOM.submit('.f')` and `DOM.submit('.f', { preventDefault: true })` shared one destination, so
+  whichever started first set `preventDefault` / `passive` / `useCapture` for both (the submit
+  reloaded the page); a bubbling type's root listener took the first stream's `passive` and
+  delivered only to destinations with the same one. A listener is non-passive while any stream on
+  it is, and passive again when the last such stream stops.
+- **Forms (dynamic fields):** a `values` function is used when `dynamic` is set too (the form
+  started blank); removing a dotted path (`'a.b'`) also removes the parents it leaves empty; a
+  dynamic entry named after a static field no longer removes it; SYG239 also catches a schema
+  memoized on the whole host state, and the schema function is no longer called twice per state
+  change in dev.
+- **compose:** an edit may repeat an `add` up to the part's `maxUses` (two identical notes were cut
+  as a loop, SYG687); a valid nested layout no longer counts as a runaway; with `busy: 'queue'`, a
+  step aborted without a reply (another compose use in the lane, or its `timeoutMs`) releases the
+  queue instead of stalling it, and the queued composition starts after `page.DONE`, on the layout
+  its handlers left (an app's fix there was lost).
+- **Router: a blocked back/forward answered at once with its `proceed` lands.** The router asked the
+  blocker before undoing the traversal, so the proceed and the undo were two `history.go()` calls
+  in one task (Chromium drops one): the URL and the route disagreed, and a dropped forced traversal
+  left the next back/forward unguarded. The undo now comes first, a navigation sent meanwhile is
+  made when it lands, and only the forced traversal's own entry skips the blocks. The test
+  router's history drops a `go()` sent while one is pending, as Chromium does, and resolves the
+  delta when the traversal runs.
+- **Fetch driver: a resource with a deep request body keeps its refetches.** A `json` body nested
+  a few levels deep was re-declared on every action, and an invalidation, focus or `refetchEvery`
+  refetch running outside a drain then took itself for superseded: it was never sent, the
+  resource stayed `refreshing`, and polling stopped after one tick.
+- **Dev diagnostics: SYG410 reports an empty `state` key** (`state=""`, `"a..b"`): the child got no
+  state and silently didn't render. sygnal-check reports it too, and `--fix` removes `state=""`.
+- **renderComponent:** `t.respond` with nothing pending for a polling resource says when its next
+  request is sent (`refetchEvery` ms after the last reply).
+- **Behaviors:** a host reducer that leaves a behavior's key out of the state gets the default
+  slice back; for a behavior with calculated fields (`selection()`) the key was left `undefined`.
+- **Types:** a component's children may be text (`<ActionButton>Save</ActionButton>` failed tsc;
+  new `SygnalChild` type); a reducer's 4th argument keeps `now` / `random` / `uuid` when the
+  component's props type has an index signature.
+- **Dev diagnostics:** SYG201 no longer reports a resource or behavior key that a reducer left out
+  while it still held its idle default (the core puts it back).
+- **sygnal-check:** SYG102 follows reply names through `?:`, `||` / `??` and `&&`, through a local
+  helper's parameters (`get('/x', 'LOADED')`), through spreads of a helper's result or a const
+  object, and reads a const string (`ok: OK`, now checked like a literal); SYG634 accepts a
+  `key` that is a const string.
+
+**Docs.**
+- **The router outlet renders only the current page**, keyed by the visit
+  (`` <Page key={`${route.name}:${route.path}`} /> ``): each visit gets INITIALIZE / BOOTSTRAP and
+  DISPOSE. Switchable is documented for tabs, panels and wizard steps on one page; it keeps hidden
+  pages running (watches, sinks, resource names), so it is no longer shown as the router. `path`
+  excludes the query string. Links to routes another app owns: `data-router-ignore`.
+- **Mount order:** an immediate `STATE.watch` acts in the creating flush, before BOOTSTRAP.
+- **Infinite list recipe:** one resource per loaded page, the list derived from them (a refetch
+  reloads every page from the first; the old `ok`-accumulation recipe repeated rows and came back
+  empty from the cache).
+- Resources and props, `strict` and `waitForState` in tests, `afterEach` dispose under node:test,
+  `isolatedState` for a widget used several times, hidden vs removed form fields.
+
 ## 7.2.0-preview.2 — dev preview
 
 Fixes found while releasing 7.2.0-preview.1 and in the Sift port, and string / number views typed.

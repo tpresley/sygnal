@@ -262,7 +262,7 @@ export class Inst {
     this.uidBase = uidBase
     this.ready = !def.ready
     // (no calculated fields: the base cell itself)
-    this.cell = def.calculated || def.idle ? calcCell(base, def) : base as CalcCell
+    this.cell = def.calculated || def.idle || def.read ? calcCell(base, def) : base as CalcCell
     const H = app.hooks
     // the initial state, synchronously (INITIALIZE at construction, D165): a root (or the state an
     // HMR swap keeps), an isolated child's local state. D174: an isolated child bound to a slice

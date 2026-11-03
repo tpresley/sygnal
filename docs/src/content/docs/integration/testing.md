@@ -215,7 +215,7 @@ State updates and re-renders are **asynchronous**: after a `simulate*` call, the
 | Helper | Resolves with | Use it for |
 |---|---|---|
 | `t.next(predicate?, timeout?)` | the first state emitted **after the call** that matches | the result of something you just did |
-| `t.waitForState(predicate, timeout?)` | the first matching state **in the whole history**, including earlier ones | "has the component ever been in this state?" |
+| `t.waitForState(predicate, timeout?)` | the first matching state **in the whole history**, including earlier ones (the initial state too: use `next()` for new states only) | "has the component ever been in this state?" |
 | `t.settle(timeout?)` | nothing | waiting until everything has calmed down |
 | `t.ready()` | nothing | waiting for the initial subscription |
 
@@ -641,7 +641,7 @@ While a component is rendered, diagnostics are collected (`'collect'` mode by de
 - `t.expectNoDiagnostics()` throws, with the formatted messages, if any warning or error was collected. Call it at the end of a test (after `settle()` or `next()`).
 - `t.diagnostics` lists everything collected, info included.
 - `renderComponent(C, { diagnostics: 'error' })` makes every warning throw instead.
-- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) runtime checks (SYG501, SYG504, SYG508) for this render.
+- `renderComponent(C, { strict: true })` turns on the [strict-mode](/guide/strict-mode/) canonical-form checks for this render. At run time that is [SYG508](/reference/errors/#syg508); SYG503, SYG505, SYG507 and SYG509 are checked statically only, by `sygnal-check --strict`. `strict` only turns the checks on: their findings are collected like any other diagnostic, and the test fails on them only with `t.expectNoDiagnostics()` or `diagnostics: 'error'`.
 - `renderComponent(C, { timingAudit: true })` turns on the 7.0 timing audit for this render: [SYG257](/reference/errors/#syg257) (info) for each output sink that reads a top-level field the same action's STATE changed. Info isn't a failure for `expectNoDiagnostics()`; read the reports from `t.diagnostics` (see [Migrating to 7.0](/guide/migrating-to-7/#step-by-step)).
 
 ```jsx
@@ -683,7 +683,7 @@ expect(graph.recentActions.map(a => a.type)).toEqual(['INITIALIZE', 'INC', 'SET'
 | `context` | `object` | none | The context the component's ancestors would give it, for testing a child alone (see [Context](#context)) |
 | `drivers` | `object` | `{}` | Extra drivers beyond DOM, EVENTS, STATE and LOG |
 | `diagnostics` | `'off' \| 'collect' \| 'warn' \| 'error'` | `'collect'` (or the current mode) | Diagnostics mode while rendered |
-| `strict` | `boolean` | unchanged | Strict-mode runtime checks while rendered |
+| `strict` | `boolean` | unchanged | Strict-mode runtime checks (SYG508) while rendered; findings are collected, not thrown |
 | `timingAudit` | `boolean` | unchanged | The 7.0 timing audit (SYG257) while rendered, for upgrading 6.x code |
 | `onError` | `(error, info) => void` | none | The [app-level error hook](/advanced/error-boundaries/#tests), as `run()`'s `onError` |
 | `mockConfig` | `object` | `{}` | Extra mock DOM event streams, by selector (see below) |
@@ -873,3 +873,21 @@ This tests `NewTodo` from [Controlled inputs](/guide/inputs/#controlled-inputs).
 ## Cleanup
 
 Always call `dispose()` when a test is done, for example in `afterEach`. It disposes the whole tree (children's `DISPOSE` actions run), removes listeners, and restores the diagnostics mode and strict setting. A wait still pending (`ready`, `next`, `waitForState`, `settle`) rejects with "renderComponent was disposed", also under fake timers, so await every wait before disposing.
+
+Vitest tears its worker down after each file, so a test that throws before its `t.dispose()` still ends. Other runners don't: under `node:test` the tree's timers and router keep the process alive and it never exits. Dispose in a hook that runs when the test fails too:
+
+```jsx
+import { test, afterEach } from 'node:test'
+import assert from 'node:assert/strict'
+import { renderComponent } from 'sygnal'
+import Counter from './Counter.jsx'
+
+let t
+afterEach(() => t?.dispose())
+
+test('increments', async () => {
+  t = renderComponent(Counter, { initialState: { count: 0 } })
+  t.simulateEvent('.inc', 'click')
+  assert.equal((await t.next(s => s.count === 1)).count, 1)
+})
+```

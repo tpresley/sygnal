@@ -84,7 +84,7 @@ describe("a fresh composition's preview over a layout", () => {
     }
   }
 
-  it("'merge' (the default): the streamed parts where the reply puts them, the others where they were", async () => {
+  it("'merge' (the default): the streamed parts where the reply puts them, the others after them in their slot", async () => {
     const end = await rearrange()
     expect(t.state.page.status).toBe('preview')
     expect(shape(t.state.page.preview)).toEqual(['weather', 'tickets', 'orders'])

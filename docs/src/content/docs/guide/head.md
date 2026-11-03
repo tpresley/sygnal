@@ -75,15 +75,17 @@ It shares the component's entry with its `head` static (the last value sent wins
 The router and the head driver don't know about each other: the route is state, so the title is derived from it like anything else.
 
 ```jsx
-import { Switchable } from 'sygnal'
 import { router } from './routes.js'
 import TaskList from './TaskList.jsx'
 import TaskPage from './TaskPage.jsx'
 
+const PAGES = { home: TaskList, task: TaskPage }
 const TITLES = { home: () => 'All tasks', task: (route) => `Task ${route.params.id}` }
 
 function App({ state }) {
-  return <main><Switchable of={{ home: TaskList, task: TaskPage }} current={state.route.name} /></main>
+  const { route } = state
+  const Page = PAGES[route.name]
+  return <main><Page key={`${route.name}:${route.path}`} /></main>
 }
 App.route = 'ROUTE'
 App.initialState = { route: router.current() }

@@ -1371,7 +1371,7 @@ export interface DecisionsOptions {
   maxQuestions?: number
   maxPromptTokens?: number
   split?: boolean
-  /** the most one step may take, in ms (default 60000; 0: no limit): the fetch driver's `timeoutMs` */
+  /** the most one step may take, in ms (default 300000; 0: no limit): the fetch driver's `timeoutMs` */
   timeoutMs?: number
 }
 
@@ -1388,7 +1388,7 @@ const SMALL_MAX_PARTS = 8
 
 const isOllama = (url: string) => /:11434\b|ollama/i.test(url)
 
-export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts, maxQuestions, maxPromptTokens, split, timeoutMs = 60000}: DecisionsOptions = {}) {
+export function decisions({url = '/api/decide', model, key, rowMean = 0.25, prefilter = 'auto', maxOptions, profile, maxParts, maxQuestions, maxPromptTokens, split, timeoutMs = 300000}: DecisionsOptions = {}) {
   // profile 'small' (a local 9B decision model such as Ollama's nimble, G-755): pairwise order
   // questions asked in both option orders (it prefers the first option), and near-ties ordered by
   // where the request names the elements

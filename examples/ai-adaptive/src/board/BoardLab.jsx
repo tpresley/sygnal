@@ -148,7 +148,7 @@ BoardLab.model = {
   FALLBACK: { EFFECT: (state, _, next) => next('page.SET_LAYOUT', rulesLayout(catalog, state)) },
 
   // the model's layout, held to the person's pins and snoozes. Written here rather than through
-  // page.SET_LAYOUT, which would also end the arrangement that may have just started (busy: 'queue')
+  // page.SET_LAYOUT, which would also drop the arrangement waiting behind this one (busy: 'queue')
   'page.DONE': (state, layout) => {
     const done = logged(state, 'model', `arranged ${Object.keys(layout.nodes).length - 1} nodes`)
     const fixed = enforceChoices(catalog, state, layout)

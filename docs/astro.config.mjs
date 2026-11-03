@@ -147,6 +147,7 @@ export default defineConfig({
             { label: 'Document Head', slug: 'guide/head' },
             { label: 'Behaviors', slug: 'guide/behaviors' },
             { label: 'Switchable', slug: 'guide/switchable' },
+            { label: 'Wizards', slug: 'guide/wizards' },
             { label: 'Virtual Collections', slug: 'guide/virtual-collections' },
             { label: 'Forms', slug: 'guide/forms' },
             { label: 'Forms Reference', slug: 'guide/forms-reference' },

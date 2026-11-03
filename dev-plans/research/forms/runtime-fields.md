@@ -115,6 +115,10 @@ Costs and limits:
 - The schema function must be memoized. An unmemoized one re-validates on every host state change
   (and an async one would never settle): SYG239 in dev (the form calls it twice with the same state
   and compares).
+- **Decision (maintainer, 2026-11-02): keep by default, `keepRemoved: false` drops.** A gone
+  entry's value stays in `values` / `initial` (path in the slice's `kept`; not validated or sent:
+  the schema gets the values without the kept ones; RESET / `resetOnShow` drop them), as RHF /
+  TanStack Form / Final Form do; the paragraph below is the original (now `keepRemoved: false`) rationale.
 - Removing an entry drops its value (RHF's `shouldUnregister: true`). That is right for a composed
   form (the composition is the truth: a removed question's answer isn't sent). An app that wants
   values to survive a piece leaving and coming back keeps the entry in `dynamic` (the field set is

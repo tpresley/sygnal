@@ -521,16 +521,19 @@ export function makeFetchDriver(options: any = {}) {
     // D78: (re)loads resource R. `same`: the same request again (keeps data); `after` (a
     // refetch: refresh, invalidation, focus, polling) skips the cache and fetches anew
     const load = (s: any, n: string, R: any, same?: any, after?: number) => {
-      const q = R.q, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
+      const q = R.q, j = R.j, g = R.g = (R.g | 0) + 1, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
       stop(s, n, R);
       C?.use(R, k);
       if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go, E.h);
       else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true, L.headers);
       else write(s, n, R, 'loading');
       // R-1: the write is dispatched synchronously; when it changed the request (a navigation
-      // recomputed the statics and a nested load sent the new one) or paused it, q is stale
-      if (R.q !== q || R.p) return;
-      if (go || q.validate) R.i = send(q, s, n, after, R);
+      // recomputed the statics and a nested load sent the new one), paused it, or a nested load
+      // took over, this load is stale. Compared by identity (R.j) and generation (R.g), not by
+      // object: the drain may re-send the same request as a new object (a deep body compares
+      // unequal in the statics), which only replaces R.q, so the latest R.q is what is sent
+      if (R.j !== j || R.g !== g || R.p) return;
+      if (go || R.q.validate) R.i = send(R.q, s, n, after, R);
     };
 
     // `pf`: a prefetch (into the cache, no reply)

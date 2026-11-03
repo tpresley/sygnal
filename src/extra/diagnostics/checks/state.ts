@@ -133,8 +133,12 @@ export const stateCheck: DiagnosticCheck = {
     }
 
     const calculated: Set<string> | null = component?._calculatedFieldNames || null
+    // a resource's { status: 'idle' } or a behavior's default slice (def.idle): the core puts it
+    // back when a reducer leaves it out, so only a key that held other data was lost
+    const idle: Record<string, any> | null = component?._idleDefaults || null
     const dropped = Object.keys(prevState).filter(key =>
-      !(key in nextState) && prevState[key] !== undefined && !(calculated && calculated.has(key)))
+      !(key in nextState) && prevState[key] !== undefined && !(calculated && calculated.has(key)) &&
+      !(idle && key in idle && prevState[key] === idle[key]))
     if (dropped.length === 0 || !once(`SYG201:${name}:${action}`)) return
 
     const list = dropped.map(k => `'${k}'`).join(', ')

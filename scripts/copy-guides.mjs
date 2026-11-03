@@ -39,6 +39,8 @@ export const GUIDES = [
   'typed-apis',
   // sygnal/yjs (experimental)
   'collaborative-state',
+  // the wizard behavior and <Outlet> (experimental)
+  'wizards',
   // sygnal/sandbox (dev preview)
   'advanced/sandboxed-components',
   // renderer targets (sygnal/terminal, sygnal/agent-ui, sygnal/host)

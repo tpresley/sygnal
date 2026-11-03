@@ -277,8 +277,11 @@ export interface RenderOptions {
    */
   diagnostics?: DiagnosticsMode;
   /**
-   * Strict mode (canonical-form checks SYG501/502/504) while the component is
-   * rendered; restored on dispose(). Requires `import 'sygnal/diagnostics'`.
+   * Strict mode (canonical-form checks; at run time SYG508, the others are
+   * sygnal-check --strict only) while the component is rendered; restored on
+   * dispose(). It only turns the checks on: findings are collected, and a test
+   * fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   * Requires `import 'sygnal/diagnostics'`.
    * Default: unchanged (off unless configureStrict(true) was called).
    */
   strict?: boolean;
@@ -557,7 +560,11 @@ export interface RenderResult {
    * reconnects per the spec. `close` defaults to `{ code: 1006, reason: '' }`.
    */
   drop: (sinkName: string, close?: {code?: number; reason?: string} | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
-  /** PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those to that connection) */
+  /**
+   * PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those
+   * to that connection). The router's sink: its commands. PARENT and EVENTS: the values sent on them
+   * (a step's `{ wizard: 'NEXT' }`), as t.sinkValues
+   */
   sent: (sinkName: string, to?: string) => any[];
   /**
    * PLAN-3 5-4c (router fake): navigate as a link click (a URL) or a command (`{ to, params,
@@ -1483,7 +1490,7 @@ const drive = <T>(p: Promise<T>, stop: () => boolean): Promise<T> => {
 function memoryWindow(start: string, real: boolean, query: (s: string) => any, observe: boolean) {
   const entries = [{url: start, state: null as any}];
   const on: Record<string, any[]> = {}, docLs: Record<string, any[]> = {};
-  let i = 0;
+  let i = 0, moving = 0;
   const at = () => new URL(entries[i].url);
   const fire = (type: string) => (on[type] || []).slice().forEach(f => f({type}));
   const D: any = real ? document : null;
@@ -1496,7 +1503,13 @@ function memoryWindow(start: string, real: boolean, query: (s: string) => any, o
       get state() { return entries[i].state; }, get length() { return entries.length; },
       pushState(state: any, _: any, url: string) { entries.splice(i + 1); entries.push({url: new URL(url, entries[i].url).href, state}); i++; },
       replaceState(state: any, _: any, url?: string) { entries[i] = {url: url ? new URL(url, entries[i].url).href : entries[i].url, state}; },
-      go(n: number) { const j = i + n; if (n && j >= 0 && j < entries.length) setTimeout(() => { i = j; fire('popstate'); }); },
+      // a task later, as browsers; a go() while one is pending is dropped, as Chromium drops it (so a
+      // router that sends two in one task is caught here, not only in Chromium)
+      go(n: number) {
+        if (!n || moving) return;
+        moving = 1;
+        setTimeout(() => { moving = 0; const j = i + n; if (j >= 0 && j < entries.length) { i = j; fire('popstate'); } });
+      },
       back() { this.go(-1); }, forward() { this.go(1); },
     },
     addEventListener(t: string, f: any) { (on[t] = on[t] || []).push(f); },
@@ -2102,6 +2115,10 @@ export function renderComponent(
     if (str !== undefined) Object.defineProperty(r, STR, {value: str});
     return r;
   };
+  // (before the run starts: a sink value sent while the component is created, a declaration
+  // static's or a STATE.watch({ immediate }) action's, is recorded too)
+  const values: Record<string, any[]> = {};
+  const sinkValues = (k: string) => (values[k] = values[k] || []);
   const requests = (k: string) => (reqValues[k] = reqValues[k] || []);
   const reqValues: Record<string, any[]> = {};
   // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
@@ -2463,8 +2480,6 @@ export function renderComponent(
     bump();
   });
 
-  const values: Record<string, any[]> = {};
-  const sinkValues = (k: string) => (values[k] = values[k] || []);
   for (const k in sinks) {
     if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
       listen(sinks[k], v => record(k, k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v, faked.has(k)));
@@ -2816,11 +2831,14 @@ export function renderComponent(
         : `no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}: t.requests('${name}') has ${list.length} request${list.length == 1 ? '' : 's'}${list.length < all ? ` matching (${all} in all)` : ''}.`));
     }
     const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
+    // a polled resource (refetchEvery) matching the target: its next request comes on a timer
+    const pv = nthOf(name, tg).list.map(r => r.value).filter(v => v?.resource !== undefined && v.refetchEvery > 0).pop();
     return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
-      (sent ? `The component sent ${sent} (t.requests('${name}'))${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
+      (sent ? `The component sent ${sent} (t.requests('${name}') lists every request sent, answered or not)${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
         `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
-      (waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
+      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it.` :
+        waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
   };
   /**
    * 5-1: `deliver(e, o)` settles the pending fetch `e` (the driver then routes the reply);
@@ -3249,7 +3267,9 @@ export function renderComponent(
     };
     ls.slice().forEach((l: any) => l(e));
   };
-  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : sent(name, to));
+  // (PARENT and EVENTS, the sinks no driver serves: what was sent on them, as t.sinkValues; before,
+  // t.sent('PARENT') made an empty socket fake and returned [])
+  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : name == 'PARENT' || name == 'EVENTS' ? sinkValues(name) : sent(name, to));
   const head = () => {
     if (!hd) throw new Error(`[Sygnal] t.head(): ${headSink} has a real driver (passed in drivers), so the fake that records the head isn't there. Read the document it writes, or drop it from drivers`);
     const m = mergeHead([...hd.entries.values()], titleTemplate);

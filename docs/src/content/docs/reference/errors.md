@@ -1099,9 +1099,9 @@ A root component (the one passed to `run()` or `renderComponent()`) has a `model
 
 Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-`form((state) => schema, options)` validates with a schema that depends on the host's state (which fields are required depends on what is on the form). The form calls the function whenever it validates and caches each result per schema object, and it re-validates whenever the function returns another schema. This function returned a new schema object when called twice with the same state: it builds the schema on every call. The form then re-validates on every state change of the host (each keystroke), and an async schema never settles (each answer changes the state, which makes a new schema, which starts another validation). Reported once, in development (the check calls the function a second time).
+`form((state) => schema, options)` validates with a schema that depends on the host's state (which fields are required depends on what is on the form). The form calls the function whenever it validates and caches each result per schema object, and it re-validates whenever the function returns another schema. This function returned a new schema object when called twice with the same state (it builds the schema on every call), or a new one for a host state where only the form's own state changed (touched, errors, validation) with the same values: it is memoized on the whole host state object (`memo.get(state)`), and the host's state is a new object after every change, so it still builds a new schema each time. The form then re-validates on every state change of the host (each keystroke), and an async schema never settles (each answer changes the state, which makes a new schema, which starts another validation). Reported once, in development (the check calls the function a second time for the form's first host state).
 
-**Fix:** Return the same schema object while the rules don't change: memoize it on what it reads. For a schema built from a list or a layout in state, cache it per that object: `const schemas = new WeakMap(); const schemaOf = (state) => { if (!schemas.has(state.lines)) schemas.set(state.lines, build(state.lines)); return schemas.get(state.lines) }`, then `form(schemaOf, { ... })`.
+**Fix:** Return the same schema object while the rules don't change: memoize it on the part of the state it reads, not on the whole state. For a schema built from a list or a layout in state, cache it per that object: `const schemas = new WeakMap(); const schemaOf = (state) => { if (!schemas.has(state.lines)) schemas.set(state.lines, build(state.lines)); return schemas.get(state.lines) }`, then `form(schemaOf, { ... })`.
 
 ### SYG240
 
@@ -1549,11 +1549,11 @@ A sub-component, Switchable, or Collection is bound to a parent state field (via
 
 **Invalid sub-component 'state' prop**
 
-Severity: `error` · Reported by: the Sygnal runtime (every app, production included)
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), the dev checks (`sygnal/diagnostics`), `sygnal-check`
 
-The `state` prop on a sub-component or Switchable is neither a state key string nor an object with a `get()` function (for example a number, or a `{ set }` object without `get`). It is logged and the child falls back to receiving the parent's whole state, which is usually not what was intended.
+The `state` prop on a sub-component or Switchable is neither a state key string nor an object with a `get()` function (for example a number, or a `{ set }` object without `get`). It is logged and the child falls back to receiving the parent's whole state, which is usually not what was intended. Also reported (by the dev checks at run time, and by sygnal-check for a literal) when a child's `state` is an empty string, `state=""`, or a path with an empty segment (`"user."`, `".user"`, `"a..b"`): that names an empty key, so the child reads `state[""]`, gets no state and is left out of the view without any other error.
 
-**Fix:** Pass a state key string (`state="user"`) or a lens object `state={{ get: s => s.user, set: (s, user) => ({ ...s, user }) }}`.
+**Fix:** Pass a state key string (`state="user"`) or a lens object `state={{ get: s => s.user, set: (s, user) => ({ ...s, user }) }}`. For an empty `state`, leave the prop out to share the parent's state (`<Child />`; `sygnal-check --fix` removes `state=""`), or name a key in every segment of the path.
 
 Before:
 
@@ -2003,6 +2003,36 @@ Severity: `warn` · Reported by: `sygnal-check`
 In Sygnal 6 a retained component's state path or byId binding is fixed at mount. A changing byId selector without a corresponding key can keep reading and writing the old record. Sygnal 7 disposes and remounts components when a known state path or byId target changes, even with the same explicit key; equivalent fresh byId objects preserve the component. Opaque custom lenses remain mount-bound. The static checker reports direct dynamic unkeyed byId selections only when the installed Sygnal is known to be 6; it is silent for 7 and when the installed version cannot be determined (no node_modules, Yarn PnP, git-tree --base checks).
 
 **Fix:** On Sygnal 6 write <Workspace key={selected.id} state={byId('projects', selected.id)} />. The key creates a new component lifetime, disposing the old requests, timers and subscriptions. On Sygnal 7 known paths and byId targets remount automatically. For an opaque custom lens whose target changes, use an explicit key; memoization or forcing a render cannot identify its semantic target.
+
+### SYG455
+
+**Outlet from names no wizard behavior**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+`<Outlet from="wizard">` renders the current step of the `wizard()` behavior the component declares under that key in its `uses`. The key names none (a typo, or `uses` declares the wizard under another key, or on another component), so the outlet has no steps to show and renders nothing. The runtime reports it once per component, in production too; the static checker reports it for a string `from` when the component's `uses` can be read, and also when the key names a behavior that isn't `wizard()`.
+
+**Fix:** Declare the behavior on the component that renders the outlet, under the key `from` names: `NewFilter.uses = { wizard: wizard({ steps }) }` with `<Outlet of={STEPS} from="wizard" />`.
+
+### SYG456
+
+**Outlet has no component for the current name**
+
+Severity: `error` · Reported by: the Sygnal runtime (every app, production included), `sygnal-check`
+
+`<Outlet of={…}>` renders `of[name]` for the current name: the wizard's current step (`from`), the route's name (`route`), or `current`. The map has no component under that name, so nothing is rendered in its place. Typical causes: a step added to `wizard({ steps })` but not to `of`, or a route (the not-found route too) with no page. The runtime reports it once per component and name, in production too, when it happens; the static checker reports each step of the wizard's `steps` with no key in an `of` object literal.
+
+**Fix:** Add the component under that name: `of={{ source: Source, review: Review }}` with one key per step name, or one per route name in route mode (`notFound: NotFound` included).
+
+### SYG457
+
+**Outlet of names no step of its wizard**
+
+Severity: `warn` · Reported by: `sygnal-check`
+
+An `<Outlet of={{ … }} from="wizard">` maps step names to components, and one of its keys is not a step of the `wizard()` it names (its `steps` option). That entry never renders: a misspelled step name (its step then has no component, SYG456), or a step that was removed from the flow. Reported when `of` and `steps` are object literals of named keys.
+
+**Fix:** Rename the key to the step it is for (the checker suggests the closest name), or remove the entry.
 
 ## SYG5xx: Strict mode (canonical forms)
 
@@ -2826,7 +2856,7 @@ Severity: `warn` · Reported by: the Sygnal runtime (every app, production inclu
 
 Severity: `warn` · Reported by: the Sygnal runtime (every app, production included)
 
-`compose.llm()` stopped reading the model's reply before it ended, and used what came before the stop. A small model asked for a change it can't express (before edits had `wrap`, qwen3:8b met "put the dates and amount in a Trip section" with `add dates top, add amount top, …`) can repeat the same operations without end; every list in the reply's JSON Schema has a `maxItems`, but not every provider enforces it. So a streamed reply is stopped (and its request aborted) when an edit repeats an operation exactly or has more operations than the page needs (one per node plus the catalog's `limits.maxParts`), or when a composition has more than twice `maxParts` parts; a reply that wasn't streamed is cut at the same point. A reply that reached the output-token limit (`maxTokens`, finish reason 'length') is read up to where it stopped. The layout is built from the rest, and the cut shows in `decisions.repairs` as `{ kind: 'stopped' }`.
+`compose.llm()` stopped reading the model's reply before it ended, and used what came before the stop. A small model asked for a change it can't express (before edits had `wrap`, qwen3:8b met "put the dates and amount in a Trip section" with `add dates top, add amount top, …`) can repeat the same operations without end; every list in the reply's JSON Schema has a `maxItems`, but not every provider enforces it. So a streamed reply is stopped (and its request aborted) when an edit repeats an operation exactly more often than it can mean anything (an `add` more times than its part's `maxUses`, any other operation twice) or has more operations than the page needs (one per node plus the catalog's `limits.maxParts`), or when a list in a composition (the page, a container's slot) has more than twice the parts its schema allows; a reply that wasn't streamed is cut at the same point. A reply that reached the output-token limit (`maxTokens`, finish reason 'length') is read up to where it stopped. The layout is built from the rest, and the cut shows in `decisions.repairs` as `{ kind: 'stopped' }`.
 
 **Fix:** Check what the change asked for and what the reply did (`decisions.ops`); rephrasing the change, or sending it as a fresh composition (`{ prompt, fresh: true }`), often helps a small model. Use a transport and model that enforce the schema (Ollama's structured output does, `strict: strictSchemas` on OpenAI), or raise `maxTokens` if a long page was cut. The diagnostic's `data` holds the reply.
 

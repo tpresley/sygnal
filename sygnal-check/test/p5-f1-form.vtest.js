@@ -148,8 +148,8 @@ describe('F-1: the form behavior in sygnal-check', () => {
     expect(d).toEqual([])
   })
 
-  it('RT-1: dynamic fields and a schema function of the state are clean', () => {
-    const src = SIGNUP("values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, dynamic: (state) => ({ note: '' }), submit: 'SIGN_UP'")
+  it('RT-1: dynamic fields (keepRemoved) and a schema function of the state are clean', () => {
+    const src = SIGNUP("values: { name: '', email: '', addresses: [{ id: 1, city: '' }] }, dynamic: (state) => ({ note: '' }), keepRemoved: false, submit: 'SIGN_UP'")
       .replace('form(signupSchema,', 'form((state) => signupSchema,')
     expect(src).toContain('form((state) => signupSchema,')
     const d = check({ 'schema.js': SCHEMA, 'Signup.jsx': src }, { strict: true })
