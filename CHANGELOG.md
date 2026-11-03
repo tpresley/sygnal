@@ -10,10 +10,13 @@ reports).
 **Added.**
 - **Forms: fields chosen at run time.** `form(schema, { dynamic: (state) => ({ path: start }) })`
   adds and removes fields as the host's state changes: a field that appears starts at its start
-  value (not dirty), one that stays keeps what was typed, one that goes is removed with its touched
-  state, server errors and checks. `form((state) => schema, ...)` takes a schema of the host's state
-  (memoize it: **SYG239**). New slice key `added`; a behavior's intent gets the host's STATE source
-  as its 4th argument. Guide: forms reference, "Fields chosen at run time".
+  value (not dirty), one that stays keeps what was typed, one that goes loses its touched state,
+  server errors and checks. Its value is kept, as React Hook Form and TanStack Form keep it (it
+  comes back if the field does; it isn't validated or submitted meanwhile, slice key `kept`), or
+  removed with `keepRemoved: false`; a reset drops kept values. `form((state) => schema, ...)` takes
+  a schema of the host's state (memoize it: **SYG239**). New slice key `added`; a behavior's intent
+  gets the host's STATE source as its 4th argument. Guide: forms reference, "Fields chosen at run
+  time".
 - **compose: `busy: 'queue'`.** One composition in flight, then the newest one asked for meanwhile
   (the default, `'abort'`, still aborts the one in flight).
 - **compose: container edits in `compose.llm()`.** `wrap`, `unwrap` and `into <key>` operations for
@@ -23,7 +26,9 @@ reports).
 - **compose: `preview` option** for a fresh composition streamed over a page: `'merge'` (default),
   `'replace'`, `'keep'`.
 - **Chat driver: a request `timeoutMs`** (a TimeoutError on `error`); `maxTokens` is sent as
-  `max_tokens` (Chat Completions) / `max_output_tokens` (Open Responses).
+  `max_tokens` (Chat Completions) / `max_output_tokens` (Open Responses). OpenAI's reasoning models
+  want `max_completion_tokens` on Chat Completions: `body: { max_completion_tokens }` instead
+  (guide/ai-chat, Transports).
 
 **Changed.**
 - **Behaviour change: a fresh composition's preview keeps the page's other parts mounted**

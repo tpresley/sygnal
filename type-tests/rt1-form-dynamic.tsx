@@ -27,6 +27,11 @@ export const out: FormOutput<typeof b> = { trip: { amount: 1, currency: 'USD' } 
 export const bad: FormOutput<typeof b> = { trip: { amount: '1', currency: 'USD' } }
 declare const st: UsesState<typeof uses>
 export const added: Record<string, any> = st.form.added
+export const kept: Record<string, true> = st.form.kept
+// keepRemoved: false removes a dynamic entry's value when it goes (default true: kept)
+export const f = form(z.object({}).loose(), { values: {}, dynamic: () => ({ note: '' }), keepRemoved: false, submit: 'SEND' })
+// @ts-expect-error keepRemoved is a boolean
+export const g = form(z.object({}).loose(), { values: {}, dynamic: () => ({ note: '' }), keepRemoved: 'yes', submit: 'SEND' })
 // @ts-expect-error dynamic returns an object of start values
 export const c = form(z.object({}), { values: {}, dynamic: () => 'x', submit: 'SEND' })
 // @ts-expect-error a schema function returns a Standard Schema

@@ -642,6 +642,8 @@ A transport speaks one wire format. Pick the one your server or model speaks; ev
 
 Each HTTP transport takes `headers` (an object, or a function of the request), `fetch` (another fetch: a test server, a proxy, SSR), `body` (extra JSON fields for every request) and `dangerouslyAllowBrowser`.
 
+A request's `maxTokens` is sent as the wire format's limit: `max_output_tokens` (Open Responses), `max_tokens` (Chat Completions, which most servers that speak it read), `max_tokens` (Anthropic Messages, where it is required: the transport's `maxTokens` option, else 16000). OpenAI's reasoning models reject `max_tokens` on Chat Completions and want `max_completion_tokens`: for them, leave `maxTokens` unset and send the limit in `body`, `chatCompletions({ model: 'o4-mini', body: { max_completion_tokens: 2000 } })`.
+
 - `chromePrompt()` sends no tools (the Prompt API has none yet). The Prompt API takes one system prompt, so `instructions` and every `system` message, wherever it is in the conversation, are joined into it. Its `status()` resolves with `'available'`, `'downloadable'`, `'downloading'` or `'unavailable'`; a component reads it through [`driverFromAsync`](/guide/custom-drivers/), with no awaiting in `main.js`:
 
   ```js

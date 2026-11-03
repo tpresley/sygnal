@@ -1063,6 +1063,11 @@ export interface FormState<V = any> {
    * state): path → start value. `{}` without the option
    */
   added: Record<string, any>;
+  /**
+   * RT-1: the dynamic fields that went while their values stay in `values` (`keepRemoved`, the
+   * default): path → true. Neither validated nor sent; emptied by `form.RESET` / `resetOnShow`
+   */
+  kept: Record<string, true>;
 }
 
 type FormIsAny<T> = 0 extends (1 & T) ? true : false
@@ -1152,11 +1157,20 @@ export interface FormOptions<V = any, OUT = any> {
    * pieces): a function of the host's state returning `{ path: start value }`
    * (`(state) => ({ 'amount~2': { amount: '', currency: 'USD' } })`). An entry that appears is
    * added to values (and `initial`) with its start value; one that stays keeps what was typed (an
-   * object start value reshapes it: keys added, keys dropped); one that goes is removed with its
-   * touched, server errors and checks. `form.RESET` and `resetOnShow` start them over too. Paths
-   * name object keys (not array rows). Recomputed on each host state change, compared structurally
+   * object start value reshapes it: keys added, keys dropped); one that goes loses its touched,
+   * server errors and checks, and its value is kept (see `keepRemoved`). `form.RESET` and
+   * `resetOnShow` start them over too. Paths name object keys (not array rows). Recomputed on
+   * each host state change, compared structurally
    */
   dynamic?: (state: any) => Record<string, any>;
+  /**
+   * RT-1: what happens to a `dynamic` entry's value when the entry goes. `true` (default, as
+   * React Hook Form / TanStack Form): it stays in `values` (and `initial`: dirty shows it; its
+   * path in `state.form.kept`), and an entry that comes back shows it; `form.RESET` and
+   * `resetOnShow` drop it. The schema validates, and a submit sends, the values without the kept
+   * ones (as with `false`). `false`: the value is removed with the entry (and the parents it leaves empty)
+   */
+  keepRemoved?: boolean;
   /**
    * **Experimental** (PLAN-6 A-3, D241: tracks the WebMCP draft, outside semver until Chrome's
    * origin trial ends): offer the form to the browser's agent as a declarative WebMCP tool,
