@@ -301,3 +301,45 @@ See the summary sent to the coordinator; the same list, with the recommendation 
 - **Q9** Non-linear steps (Sift's step-2 variants, a skippable last step, a "Created" outcome):
   - `when` + `finish` (done here)
   - variants as separate steps sharing a label: the label decides what the stepper shows (later, if Sift needs it)
+
+## 8. The Sift stress test and the second pass (2026-11-02)
+
+**The report:** Sift ported its new-filter wizard onto the candidate. The full report is `/Users/troy/kindo-sift/.claude/worktrees/modest-morse-1a9367/dev-plans/sygnal-wizard-control-spike.md`, on Sift's branch `sygnal-wizard-spike`.
+- **Verdict:** the structure is better and the net is −76 lines, but it isn't an improvement yet.
+- **Why:** in Sift's wizard the moves come from async step results, and the flow key (the copilot session) is born at the end of step one.
+
+**Bugs fixed (no API change):**
+- **Bug 2:** `visit` is applied again when the host mounts (MOUNT), not only on an entry.
+- **Bug 3 (router):**
+  - A navigation sent while a blocked traversal's undo is pending is held, and made when the undo lands. Chromium drops a second `history.go()` in the same task.
+  - `force` became `forceTo`, the target entry: only a pop that lands there skips the blocks.
+  - The bug is on `main` too, for any blocker that answers a back/forward synchronously.
+  - renderComponent's fake history now drops a `go()` while one is pending, as Chromium does.
+  - A real-browser test passes on 3 engines.
+- **Bug 4:** a move, route, key or reset that drops a held leave closes the dialog.
+- **Bug 5:** `inFlow` maps the attempted route through `url.from`.
+- **Types and checker:**
+  - LOCAL (`wizard<DRAFT, HOST, LOCAL, DK>`) and `WizardStepComp`;
+  - sygnal-check reports SYG455 and SYG456 statically, and SYG457 for an `of` key that is no step.
+
+**API decided by the maintainer, and built:**
+1. **The flow key:**
+   - Only a change from one key to another starts the flow over.
+   - None to a value is adopted, keeping the draft and the step slices.
+   - None (`null`, or `undefined`: "not mine") keeps the flow and its key.
+   - In URL mode, a navigation to a step route is in the flow when it is for the flow's key, for no key, or for any key while the flow has none yet. That covers Sift's "Define creates the session and moves to Describe" with no dialog: it is a test.
+   - It is route-based: the router's attempt doesn't say which component sent the navigation, so "sent by a step" can't be told apart from a link with the same target.
+2. **Predicates and the leave guard:**
+   - `valid`, `when`, `dirty` and a function `label` get `(step, state)`: the step's view (its `initialState` merged in, registered by the outlet) and the host state.
+   - `dirty` and `discard` can also be set per step.
+   - The derived fields are no longer behavior `calculated` fields (those see only the slice). A SYNC action writes them whenever the slice or the host state changes.
+3. **`draftKey`:** the draft's name in a step's state (default `'draft'`).
+4. **Additions:**
+   - a function `label`;
+   - steps send `{ wizard: 'NEXT' | 'BACK' | 'GOTO' | 'RESET' | 'FINISH' }` as PARENT messages (the outlet registers each step component with the wizard, which listens to its CHILD stream);
+   - `resetTo`;
+   - the Outlet's `fallback`;
+   - plain mode (`current` + `identity`) documented as an app's root outlet.
+   - The outlet's identity is now `step:visit`, so an adopted key doesn't remount the step.
+
+**Not decided, so not built:** step groups and variants, an outcome step, and a per-step dialog copy hook.

@@ -16,11 +16,22 @@ From the Sift console port's hand-built wizards (research: `dev-plans/research/w
   - **Stepper:** its state is in `state.wizard.steps`, with `aria-current="step"` markup in the guide. Focus moves to the new step's heading.
   - **Route mode:** `<Outlet of={PAGES} route={state.route} query={['session']} />` renders route pages one at a time, identified by name + path + the named query keys.
   - **Diagnostics:** **SYG455** (an Outlet `from` that names no wizard) and **SYG456** (no component for the current name).
-  - **sygnal-check** knows the behavior's slice, actions and options.
+  - **sygnal-check** knows the behavior's slice, actions and options. It reports SYG455 and SYG456 statically, and **SYG457** for an `of` key that is no step.
+  - **Steps:**
+    - predicates (`valid`, `when`, `dirty`, a function `label`) get `(step, state)`;
+    - `dirty` and `discard` can be set per step;
+    - steps move the flow with PARENT messages (`{ wizard: 'NEXT' }`).
+  - **Options:** `draftKey` renames the draft, and `resetTo` says where Start over navigates.
+  - **The flow key:** a key born mid-flow is adopted, and no key keeps the flow.
+  - **Outlet:** a `fallback` component. Plain mode (`current` + `identity`) is the outlet for an app's pages.
 
 **Fixed.**
 - **Router: a blocked back / forward whose `proceed` was sent at once was lost.** The router told the blocker before undoing the traversal, so the proceed's `history.go()` ran first and went nowhere. The traversal is now undone first.
-- **`renderComponent`'s in-memory history resolves `go(n)` when the traversal runs**, as browsers do, instead of when it is called.
+- **Router: no stale `force`.** A navigation sent while a blocked traversal's undo is pending waits for the undo to land, because Chromium drops a second `history.go()` in the same task. A forced traversal now skips the blocks only at the entry it was going to, so a dropped one can't leave the next traversal unguarded.
+- **`renderComponent`'s in-memory history:**
+  - it resolves `go(n)` when the traversal runs, as browsers do, instead of when it is called;
+  - a `go()` while one is pending is dropped, as in Chromium;
+  - a value a driverless sink gets while the component is created is recorded. It threw before.
 
 From the `examples/ai-adaptive` stress test of composed UI (#65–#70; its `FINDINGS.md` has the
 reports).
