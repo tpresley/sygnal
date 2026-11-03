@@ -343,3 +343,37 @@ See the summary sent to the coordinator; the same list, with the recommendation 
    - The outlet's identity is now `step:visit`, so an adopted key doesn't remount the step.
 
 **Not decided, so not built:** step groups and variants, an outcome step, and a per-step dialog copy hook.
+
+## 9. The third pass (Sift's second report, 2026-11-03)
+
+**Sift's second report** is `dev-plans/sygnal-wizard-control-spike-2.md` in the Sift worktree. Its verdict: the wizard beats the hand-built version (−113 lines), and bugs 1–5 are verified in a real browser.
+
+**Fixes:**
+- **A1:** a route to a step that can't be reached goes back to the first incomplete step before it, never past it:
+  - when an earlier step isn't valid, that step;
+  - when the target is skipped by `when`, the last step before it that isn't skipped.
+
+  This is what GOV.UK and React Hook Form wizards do.
+- **B:** MOUNT writes the derived fields into a seeded or persisted slice before the first patch. A sub-component host's very first view call still sees a parent-seeded slice as it is. A full fix needs a core read-time hook (`fromShim` carrying a normalizer); it is with the maintainer, since it costs core bytes.
+- **C:** `local` is typed `Partial`, and the predicates' view as the full OWN.
+- **sygnal-check:** SYG456/457 follow `of={CONST}`.
+- **The guide:** a Start over link inside a step needs `preventDefault`.
+
+**Decided by the maintainer, and built:**
+- **GOTO with a key:** a step's PARENT `{ wizard: 'GOTO', step, key }`. The flow starts over for that key at that step (or adopts the key while it has none); in URL mode it navigates there with `force`, since it is the wizard's own move.
+- **`resetTo(previousSlice, state)`**.
+- **A step's own `discard(stepView, state) => stepState`.** A draft under the draft key in the result updates the draft.
+- **Groups:**
+  - a per-step `group`, plus `groups: { name: { label } }`;
+  - a derived `stepper`, with one entry per group or ungrouped step: `{ name, label, status, current, reachable, valid, visited, skipped, index, steps, step }`;
+  - the member that applies (the current one, else the first not skipped) gives the entry its state.
+- **Outcome steps:** `outcome: true`.
+  - They are not in `steps`, `stepper` or the count, and are entered by GOTO only.
+  - While on one, every step that applies is `done`, `canBack` and `canNext` are false, and `state.wizard.outcome` names it.
+  - Back and a GOTO to a regular step are refused. In URL mode a route back into the steps is replaced with the outcome's route.
+  - A deep link to an outcome that isn't current goes to the first incomplete step.
+  - Prior art: GOV.UK confirmation pages, and RHF / Formik result steps.
+- **Dialog copy:** `steps.x.dialog`, else the wizard's `dialog` (a value, or `(step, state) => value`), becomes the derived `dialog`.
+- **The Outlet's per-page `state` map** (plain and route modes), as Switchable's PLAN-13 F-3. The JSX types keep the Outlet's own `state` through a brand checked in `JSX.LibraryManagedAttributes`.
+
+**Pending with the maintainer:** A2 (the draft on key adoption, a proposed `initial` rule) and the full fix for B.

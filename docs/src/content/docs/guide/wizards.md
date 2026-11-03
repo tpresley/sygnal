@@ -126,7 +126,9 @@ export default NewProject
   - `valid`, which gates Next and the steps after it;
   - `when`, which leaves the step out of the flow when false;
   - `visit`, the step's scratch (below);
-  - `dirty` and `discard`, the [leave guard](#unsaved-changes) while it is the current step.
+  - `dirty`, `discard` and `dialog`, the [leave guard](#unsaved-changes) while it is the current step;
+  - `group`, for [alternative steps](#alternative-steps-and-an-outcome) that share one stepper entry;
+  - `outcome`, for a [final screen](#alternative-steps-and-an-outcome) after the flow.
 - **`draft`:** the draft a flow starts with. A function gets the host's state.
 - **`draftKey`:** the draft's name in a step's state (default `'draft'`). Use another when the steps already have a `draft` of their own: `draftKey: 'flow'` gives them `state.flow`.
 - **The buttons:** `next`, `back`, `reset` and `goto` are selectors whose clicks move. A `goto` element names its step in `data-step`.
@@ -202,13 +204,16 @@ wizard({
 ```
 
 - **No stale render:** until the state belongs to the new key, the outlet renders no step. A step never mounts against the old record's data.
+- **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`. The flow starts over for the new key at that step; in URL mode the wizard navigates there, past the leave guard. While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
 
 ## Start over
 
 `reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
 
-In URL mode it then navigates to the first step's route. `resetTo` names another place: a router command, or a function of the slice and the host's state (`resetTo: { to: 'newFilter' }`).
+In URL mode it then navigates to the first step's route. `resetTo` names another place:
+- a router command: `resetTo: { to: 'newFilter' }`;
+- or a function of the slice *being reset* and the host's state, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
 A Start over *link* inside a step must not navigate as well: the router would push its `href` and then `resetTo`. Keep the `<a href>` (it still works as a link without the app) and prevent its default in the intent:
 
@@ -227,7 +232,17 @@ wizard({
 })
 ```
 
-`dirty` gets the current step's state and the host's state, plus the step's name. A step's own `dirty` (and `discard`) in `steps` is used instead while it is the current step: `review: { dirty: (s) => s.name !== '' }`.
+`dirty` gets the current step's state and the host's state, plus the step's name. A step's own `dirty` in `steps` is used instead while it is the current step: `review: { dirty: (s) => s.name !== '' }`.
+
+**A step's own `discard`** takes the step's state and returns it, as `dirty` reads it: `review: { discard: (s) => ({ ...s, name: '' }) }`. The draft under its key in the result updates the draft. The wizard-level `discard(wizardSlice, state)` returns the whole slice.
+
+**The dialog's copy** can follow the step: `steps.x.dialog` (any value, or a function of the step's state and the host's state), else the wizard's `dialog`, is `state.wizard.dialog`:
+
+```jsx
+wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review: { dialog: { title: 'Discard your edits?' } } } })
+
+<dialog className="leave-dialog"><h2>{state.wizard.dialog?.title}</h2>…</dialog>
+```
 
 ```jsx
 <dialog className="leave-dialog">
@@ -246,9 +261,41 @@ wizard({
   - a step's own navigation to another step. A step that created the flow's record and moves on with the new key passes too, while the flow has no key yet.
 
 **A held navigation** goes in `state.wizard.leaving` and opens the `confirm` dialog with `showModal()`:
-- **Discard** (`leave`) starts the flow over, or runs `discard(wizardSlice, state)` (the step's own first) and keeps what it returns. Then it makes the navigation.
+- **Discard** (`leave`) runs the current step's `discard`, else the wizard's `discard`, else starts the flow over. Then it makes the navigation.
 - **Keep editing** (`stay`), or Escape, closes the dialog and stays.
 - **A move that drops a held navigation closes the dialog.** The browser's back and forward buttons aren't stopped by a modal, so an in-flow traversal can arrive while it's open.
+
+## Alternative steps and an outcome
+
+**Alternative steps** fill one place in the flow: Analyze a report, or Describe it in a conversation. Give them the same `group`. Their `when` decides which applies, and the stepper shows one entry for both:
+
+```js
+wizard({
+  steps: {
+    source: { label: 'Source' },
+    analyze: { group: 'build', when: (s) => s.draft.report != null },
+    describe: { group: 'build', when: (s) => s.draft.report == null },
+    review: { label: 'Review' },
+    created: { outcome: true },
+  },
+  groups: { build: { label: 'Build the filter' } },
+})
+```
+
+- `state.wizard.stepper` has one entry per group or ungrouped step: `{ name, label, status, current, reachable, steps, step }`.
+  - `step` is the member that applies; its state gives the entry its status.
+  - `steps` lists the members.
+  - The label is the group's, else the label of the member that applies.
+  - Render the stepper from `stepper`.
+- `state.wizard.steps` still has one entry per step.
+
+**An outcome step** is a final screen after the flow, such as "Created": `created: { outcome: true }`.
+- **How it is entered:** by a GOTO, from any step: a step's `{ wizard: 'GOTO', step: 'created' }` when the create request succeeds.
+- **The stepper while on it:** every step that applies shows `done`, `state.wizard.outcome` names it, and `canBack` and `canNext` are false. It isn't in `steps` or `stepper`, and no stepper entry gets `aria-current`.
+- **No way back into the steps:** Back and a GOTO to a step are refused. In URL mode the browser's back button to a step's route is replaced with the outcome's.
+- **What still works:** Start over, and leaving the flow.
+
+GOV.UK's confirmation pages behave the same way: the service is done, and going back doesn't reopen it.
 
 ## The step in the URL
 
@@ -310,7 +357,8 @@ const pageIdentity = (route) => `${pageFor(route)}:${route.path}?${route.query.s
 - **A new identity makes a new page instance:** the old one is disposed, the new one starts.
 - **Another `current` with the same identity** is a new page too (another component).
 - **`fallback`** renders for a name `of` doesn't have, such as a page not ported yet.
-- **Other props** pass through to the page, and `state` binds it.
+- **Other props** pass through to the page.
+- **`state`** binds every page, or each page its own with a map from page names to bindings: `state={{ admin: 'pages.admin', report: byId('reports', id) }}`. Pages not in the map share the owner's state, as with [Switchable's per-page state](/guide/switchable/#per-page-state).
 - **Focus:** `focus={false}` leaves focus to the router.
 
 It is the keyed page of the [router recipe](/guide/router/#reading-the-route), as a tag.

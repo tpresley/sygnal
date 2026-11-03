@@ -24,6 +24,16 @@ From the Sift console port's hand-built wizards (research: `dev-plans/research/w
   - **Options:** `draftKey` renames the draft, and `resetTo` says where Start over navigates.
   - **The flow key:** a key born mid-flow is adopted, and no key keeps the flow.
   - **Outlet:** a `fallback` component. Plain mode (`current` + `identity`) is the outlet for an app's pages.
+  - **More steps:**
+    - **Alternative steps** share one stepper entry (`group`, `groups`, `state.wizard.stepper`).
+    - **An outcome step** (`outcome: true`, a final screen) is shown as done, and Back doesn't return into the steps.
+    - **Leave-dialog copy per step:** `dialog` → `state.wizard.dialog`.
+  - **Steps from inside the flow:**
+    - a second record with `{ wizard: 'GOTO', step, key }`;
+    - `resetTo(previousSlice, state)`;
+    - a step's own `discard(step, state) => step`.
+  - **Outlet `state` per page:** a map from page names to bindings.
+  - **A route to a step that can't be reached** goes back to the first incomplete step before it.
 
 **Fixed.**
 - **Router: a blocked back / forward whose `proceed` was sent at once was lost.** The router told the blocker before undoing the traversal, so the proceed's `history.go()` ran first and went nowhere. The traversal is now undone first.
