@@ -349,3 +349,93 @@ describe('Outlet diagnostics', () => {
     } finally { spy.mockRestore() }
   })
 })
+
+describe('Sift stress test fixes', () => {
+  it('bug 2: a host mounted again (same key, same step) gives the step its visit scratch again', async () => {
+    function S({ state }) { return h('p', null, h('button', { className: 'busy' }, String(state.busy))) }
+    S.initialState = { busy: false }
+    S.isolatedState = true
+    S.intent = ({ DOM }) => ({ BUSY: DOM.click('.busy') })
+    S.model = { BUSY: (s) => ({ ...s, busy: true }) }
+    function Host() { return h('div', null, h(Outlet, { of: { s: S }, from: 'wizard' })) }
+    Host.uses = { wizard: wizard({ steps: { s: { visit: { busy: false } } } }) }
+    function Page({ state }) { return h('main', null, h('button', { className: 'toggle' }, 'toggle'), state.show ? h(Host, { state: 'host' }) : null) }
+    Page.initialState = { show: true, host: {} }
+    Page.intent = ({ DOM }) => ({ TOGGLE: DOM.click('.toggle') })
+    Page.model = { TOGGLE: (s) => ({ ...s, show: !s.show }) }
+    t = renderComponent(Page, { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.busy')
+    expect(t.query('.busy').textContent).toBe('true')
+    await click('.toggle')
+    expect(t.query('.busy')).toBeFalsy()
+    await click('.toggle')
+    expect(t.query('.busy').textContent).toBe('false')
+    expect(t.state.host.wizard.local.s.busy).toBe(false)
+  })
+
+  describe('URL mode, with a confirm dialog', () => {
+    const router = makeRouter({ routes: { home: '/', step: '/new/:step', first: '/new', notFound: '*' } })
+    const opened = []
+    let restore
+    afterEach(() => restore?.())
+    const stubDialog = () => {
+      const P = HTMLDialogElement.prototype, sm = P.showModal, cl = P.close
+      P.showModal = function () { this.setAttribute('open', ''); opened.push('open') }
+      P.close = function () { this.removeAttribute('open'); opened.push('close') }
+      restore = () => { P.showModal = sm; P.close = cl }
+    }
+    function App({ state }) {
+      return ['step', 'first'].includes(state.route.name) ? h(Flow, { state: 'flow' }) : h('p', { className: 'home' }, 'home')
+    }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/'), flow: {} }
+    App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+    function Flow({ state }) {
+      return h('section', null, h(Outlet, { of: STEPS, from: 'wizard', focus: false }), h('button', { className: 'next' }, 'Next'),
+        h('dialog', { className: 'leave-dialog' }, h('button', { className: 'leave' }, 'Discard'), h('button', { className: 'stay' }, 'Stay')))
+    }
+    Flow.uses = {
+      wizard: wizard({
+        steps: { source: { valid: (s) => !!s.draft.title }, review: {} },
+        draft: { title: '' },
+        key: (s) => s.route?.query?.k,
+        // the first step's own route (no step param) maps to the step route
+        url: { route: 'step', param: 'step', key: 'k', from: (s) => s.route?.name == 'first' ? { ...s.route, name: 'step', params: { step: 'source' } } : s.route },
+        dirty: (w) => !!w.draft.title,
+        next: '.next', confirm: '.leave-dialog', leave: '.leave', stay: '.stay',
+      }),
+    }
+
+    it('bug 4: a route entering a step closes the open leave dialog', async () => {
+      stubDialog(); opened.length = 0
+      t = renderComponent(App, { dom: 'real', router, url: '/new/source?k=a' })
+      await t.ready(); await tick(40)
+      await type('.title', 'T')
+      await click('.next'); await tick(40)
+      expect(t.location.path).toBe('/new/review')
+      await t.navigate('/'); await tick(40)
+      expect(t.state.flow.wizard.leaving).toBeTruthy()
+      expect(t.query('.leave-dialog').hasAttribute('open')).toBe(true)
+      // the browser's back button while the modal is open: in the flow, so made
+      await t.back(); await tick(60)
+      expect(t.state.flow.wizard.step).toBe('source')
+      expect(t.state.flow.wizard.leaving).toBe(null)
+      expect(t.query('.leave-dialog').hasAttribute('open')).toBe(false)
+    })
+
+    it('bug 5: a navigation to a step through the route url.from maps is inside the flow', async () => {
+      stubDialog(); opened.length = 0
+      t = renderComponent(App, { dom: 'real', router, url: '/new/review?k=a' })
+      await t.ready(); await tick(40)
+      expect(t.location.path).toBe('/new/source')
+      await type('.title', 'T')
+      await click('.next'); await tick(40)
+      expect(t.location.path).toBe('/new/review')
+      await t.navigate('/new?k=a'); await tick(40)
+      expect(opened).toEqual([])
+      expect(t.state.flow.wizard.step).toBe('source')
+      expect(t.location.path).toBe('/new')
+    })
+  })
+})

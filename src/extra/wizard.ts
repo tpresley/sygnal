@@ -20,20 +20,24 @@
  *
  * What a step sees (the outlet's lens): its own slice local[name] over its component's
  * initialState, with `draft` the flow's draft; writes of `draft` go to the draft, the rest to its
- * own slice. Its `visit` defaults are written into its slice on each entry (scratch). A step's own
+ * own slice. Its `visit` defaults are written into its slice on each entry (scratch), and again
+ * when the host starts (MOUNT: a host mounted again shows the step anew). A step's own
  * slice survives Back; the flow key changing, or a reset, makes the draft and every slice anew.
  *
  * Moves: NEXT (the next step not skipped, when the current one is valid; on the last step, the
  * `finish` host action with the draft), BACK, GOTO (a name, or a click on `goto` with data-step:
  * only a reachable step), RESET (start over; a plain object is the new draft). With `url`, a move
  * is a ROUTER command and the step follows the route (ROUTE); a route to a step that isn't
- * reachable is replaced with the furthest reachable one.
+ * reachable is replaced with the furthest reachable one. `url.from(hostState)` (default
+ * state.route) maps the host's route to the step route; an attempted navigation is mapped with it
+ * too, given the host state with `route` set to the attempted route.
  *
  * Leave guard: while `dirty(slice, step)`, the host holds { block: '<key>.LEAVE' }. A navigation
  * inside the flow (url: the same route and flow key) is made at once and the block re-armed;
  * another is held in `leaving` and the `confirm` dialog opened (showModal). DISCARD runs
  * `discard(slice, hostState)` (default: start over) and makes the held navigation; STAY (or the
- * dialog's close) drops it.
+ * dialog's close) drops it. A move, a route, a new key or a reset that drops a held leave closes
+ * the dialog (browser back/forward isn't stopped by a modal).
  *
  * Linear reachability: a step is reachable when every step before it that isn't skipped is valid.
  */
@@ -70,12 +74,14 @@ export const wizard = (o: any = {}): any => {
     for (const m of live(w)) { r = m; if (!ok(w, m)) break }
     return r
   }
-  // an entry: a new visit, the step's visit defaults written into its slice
-  const enter = (w: any, n: string) => {
-    const v = defs[n]?.visit, l = w.local || {}
-    return {...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n],
-      local: v ? {...l, [n]: {...l[n], ...(typeof v == 'function' ? v(viewOf(w, n)) : v)}} : l, leaving: null}
+  // step n's slices with its visit defaults written into its own (the same object when they are there)
+  const scratch = (w: any, n: string) => {
+    const v = defs[n]?.visit, l = w.local || {}, x = typeof v == 'function' ? v(viewOf(w, n)) : v
+    return x && Object.keys(x).some(f => !Object.is(l[n]?.[f], x[f])) ? {...l, [n]: {...l[n], ...x}} : l
   }
+  // an entry: a new visit, the step's visit defaults written into its slice
+  const enter = (w: any, n: string) =>
+    ({...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n], local: scratch(w, n), leaving: null})
   // the flow anew for key k (the draft from the host state; `d`: a draft given to RESET)
   // (url: at the step the route names when it is reachable, unless `top`: a reset)
   const fresh = (w: any, h: any, k: any, d?: any, top?: boolean) => {
@@ -101,6 +107,7 @@ export const wizard = (o: any = {}): any => {
   }
   // a move: a new step in state, or (url) a ROUTER command and no state change
   const move = (a: string) => ({
+    ...shut,
     STATE: (w: any, d: any) => { const n = !url && target(w, a, d); return n ? enter(w, n) : ABORT },
     ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
       const s = was(w, p, k), n = target(s, a, d)
@@ -108,13 +115,22 @@ export const wizard = (o: any = {}): any => {
     }},
   })
   const close = confirm ? {ELEMENT: () => ({close: confirm})} : {}
+  // a move (or a route, a new key, a reset) that dropped a held leave closes its dialog (Sift bug 4:
+  // browser back/forward isn't stopped by a modal)
+  const shut = confirm ? {ELEMENT: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => was(w, p, k)?.leaving && !w?.leaving ? {close: confirm} : ABORT} : {}
 
   const model: any = {
     // the flow starts, or the flow key changed: the flow anew (the same key: no change)
     KEY: {HOST: (h: any, k: any, _n: any, _p: any, _o: any, key: string) => {
       const w = h[key]
       return w.visit && Object.is(w.key, k) ? h : {...h, [key]: fresh(w, h, k)}
-    }},
+    }, ...shut},
+    // the host started (Sift bug 2: a host mounted again with the same key and step): the current
+    // step's visit defaults again, as its new instance's scratch
+    MOUNT: (w: any) => {
+      const l = w.visit ? scratch(w, w.step) : w.local
+      return l === w.local ? ABORT : {...w, local: l}
+    },
     NEXT: {
       ...move('NEXT'),
       // the last step: the finish action, with the draft
@@ -126,6 +142,7 @@ export const wizard = (o: any = {}): any => {
     BACK: move('BACK'),
     GOTO: move('GOTO'),
     RESET: {
+      ...shut,
       HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => ({...h, [k]: fresh(h[k], h, h[k].key, plainObj(d) ? d : undefined, true)}),
       // url: back to the first step's route (the state is already at the first step)
       ...url && {[R]: (w: any, _d: any, _n: any, p: any) => routeStep(p?.state) != first ? go(w, first) : ABORT},
@@ -137,6 +154,7 @@ export const wizard = (o: any = {}): any => {
     return reachable(w, n) ? enter(w, n) : ABORT
   }
   if (url) model.ROUTE = {
+    ...shut,
     STATE: model.ROUTE,
     [R]: (w: any, n: any, _x: any, p: any, _o: any, k: string) => {
       const s = was(w, p, k)
@@ -147,9 +165,9 @@ export const wizard = (o: any = {}): any => {
     GUARD: {[R]: (_w: any, d: any, _n: any, _p: any, _o: any, k: string) => ({block: d ? k + '.LEAVE' : false})},
     // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); else held
     LEAVE: {
-      STATE: (w: any, a: any) => inFlow(w, a?.route) ? ABORT : {...w, leaving: a?.proceed ?? null},
-      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route) ? {...a.proceed, block: k + '.LEAVE'} : ABORT,
-      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route) ? ABORT : {showModal: confirm}},
+      STATE: (w: any, a: any, _n: any, p: any) => inFlow(w, a?.route, p?.state) ? ABORT : {...w, leaving: a?.proceed ?? null},
+      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, pre(p)) ? {...a.proceed, block: k + '.LEAVE'} : ABORT,
+      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, pre(p)) ? ABORT : {showModal: confirm}},
     },
     DISCARD: {
       HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
@@ -164,14 +182,22 @@ export const wizard = (o: any = {}): any => {
     },
     STAY: {STATE: (w: any) => w.leaving ? {...w, leaving: null} : ABORT, ...close},
   })
-  const inFlow = (w: any, r: any) => !!url && r?.name == url.route && names.includes(r.params?.[url.param])
-    && (!url.key || r.query?.[url.key] == (w.key ?? undefined))
+  // an attempted route inside the flow: one naming a step (Sift bug 5: through `url.from`, given the
+  // host state with that route) for the flow's key
+  const inFlow = (w: any, r: any, h: any) => {
+    if (!url || !r) return false
+    const m = url.from ? url.from({...h, route: r}) : r
+    return m?.name == url.route && names.includes(m.params?.[url.param]) && (!url.key || m.query?.[url.key] == (w.key ?? undefined))
+  }
+  // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
+  const pre = (p: any) => p?.previousState || p?.state
 
   const b = defineBehavior({
     initialState: {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, local: {}, leaving: null},
     triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay'},
     intent: ({DOM}: any, _o: any, k: string, host: any) => ({
       KEY: host.watch((h: any) => keyOf ? keyOf(h) ?? null : null, {immediate: true}),
+      MOUNT: xs.of(0),
       ...url && {ROUTE: host.watch((h: any) => routeStep(h), {immediate: true})},
       ...dirty && {GUARD: host.watch((h: any) => !!(h?.[k]?.visit && dirty(h[k], h[k].step)), {immediate: true})},
       ...nextSel && {NEXT: DOM.click(nextSel)},

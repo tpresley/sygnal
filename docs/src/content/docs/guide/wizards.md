@@ -144,7 +144,7 @@ What a step's state keeps, and when:
 |---|---|---|
 | `state.draft` | kept | made again from `draft` |
 | the step's own slice | kept | made again |
-| the step's `visit` fields | set again on each entry | set again |
+| the step's `visit` fields | set again on each entry (and when the host mounts again) | set again |
 | the step's running work (requests, watches, timers) | stopped on leave, started on entry | stopped, started |
 
 - **`visit`** is a step's scratch: fields that must not survive leaving the step, such as a `creating` flag or an error. `review: { visit: { creating: false, error: null } }` sets them on every entry.
@@ -212,6 +212,7 @@ wizard({
 **A held navigation** goes in `state.wizard.leaving` and opens the `confirm` dialog with `showModal()`:
 - **Discard** (`leave`) starts the flow over, or runs `discard(wizardSlice, state)` and keeps what it returns. Then it makes the navigation.
 - **Keep editing** (`stay`), or Escape, closes the dialog and stays.
+- **A move that drops a held navigation closes the dialog.** The browser's back and forward buttons aren't stopped by a modal, so an in-flow traversal can arrive while it's open.
 
 ## The step in the URL
 
@@ -235,7 +236,7 @@ NewFilter.uses = {
 - the flow key goes in the query string (`/filters/new/review?session=…`);
 - a link to a step the user can't reach yet (an earlier step isn't valid) is replaced with the furthest reachable step.
 
-**Where the route comes from:** the behavior reads it from the host's `state.route`. Name another place with `url: { …, from: (state) => state.page.route }`.
+**Where the route comes from:** the behavior reads it from the host's `state.route`. `url.from` names another place, or maps a route of its own onto the step route. For a first step at `/filters/new`: `from: (state) => state.route.name === 'newFilter' ? { ...state.route, name: 'newFilterStep', params: { step: 'define' } } : state.route`. A navigation the user attempts goes through `from` too, with the attempted route as the state's `route`, to tell whether it stays in the flow.
 
 ## Accessibility
 

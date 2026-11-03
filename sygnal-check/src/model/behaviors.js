@@ -102,10 +102,10 @@ export const FIRST_PARTY = {
   wizard: {
     stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'local', 'leaving'],
     calculated: ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext'],
-    model: ['KEY', 'NEXT', 'BACK', 'GOTO', 'RESET', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
+    model: ['KEY', 'MOUNT', 'NEXT', 'BACK', 'GOTO', 'RESET', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
     options: ['steps', 'draft', 'key', 'dirty', 'discard', 'finish', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
     listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
-    intent: ['KEY', 'ROUTE', 'GUARD', 'LEAVE'],
+    intent: ['KEY', 'MOUNT', 'ROUTE', 'GUARD', 'LEAVE'],
     nextOptions: ['finish'],
   },
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
