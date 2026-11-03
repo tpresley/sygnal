@@ -2111,6 +2111,10 @@ export function renderComponent(
     if (str !== undefined) Object.defineProperty(r, STR, {value: str});
     return r;
   };
+  // (before the run starts: a sink value sent while the component is created, a declaration
+  // static's or a STATE.watch({ immediate }) action's, is recorded too)
+  const values: Record<string, any[]> = {};
+  const sinkValues = (k: string) => (values[k] = values[k] || []);
   const requests = (k: string) => (reqValues[k] = reqValues[k] || []);
   const reqValues: Record<string, any[]> = {};
   // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
@@ -2472,8 +2476,6 @@ export function renderComponent(
     bump();
   });
 
-  const values: Record<string, any[]> = {};
-  const sinkValues = (k: string) => (values[k] = values[k] || []);
   for (const k in sinks) {
     if (k != 'DOM' && k != 'STATE' && typeof sinks[k]?.addListener == 'function') {
       listen(sinks[k], v => record(k, k == 'EVENTS' ? {type: v.type, data: v.data} : k == 'PARENT' ? v.value : v, faked.has(k)));

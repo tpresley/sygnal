@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 
 import { renderComponent } from '../src/extra/testing.js'
 import { createElement as h } from '../src/pragma/index.js'
-import { ABORT, makeRouter, wizard, Outlet } from '../src/index.js'
+import { ABORT, makeRouter, wizard, Outlet, xs } from '../src/index.js'
 
 let t
 afterEach(() => { try { t?.dispose() } catch (_) {} t = null })
@@ -437,5 +437,172 @@ describe('Sift stress test fixes', () => {
       expect(t.state.flow.wizard.step).toBe('source')
       expect(t.location.path).toBe('/new')
     })
+  })
+})
+
+describe('the decided API (Sift second pass)', () => {
+  describe('a flow key born mid-flow (Sift: Define creates the session)', () => {
+    const router = makeRouter({ routes: { home: '/', newFilter: '/new', step: '/new/:step', notFound: '*' } })
+    const inWizard = (r) => r?.name === 'newFilter' || r?.name === 'step'
+    let sent
+    function Define({ state }) {
+      return h('div', null, h('h2', null, 'Define'), h('input', { className: 'words', value: state.words }), h('button', { className: 'continue' }, 'Continue'))
+    }
+    Define.initialState = { words: '' }
+    Define.isolatedState = true
+    Define.intent = ({ DOM }) => ({ WORDS: DOM.input('.words').map(e => e.target.value), CONTINUE: DOM.click('.continue') })
+    Define.model = {
+      WORDS: (s, words) => ({ ...s, words, draft: { ...s.draft, words } }),
+      // the session is created (the request elided): the step itself navigates to Describe for it
+      CONTINUE: { ROUTER: () => ({ to: 'step', params: { step: 'describe' }, query: { session: 's1' } }) },
+    }
+    function Describe({ state }) { return h('div', null, h('h2', null, 'Describe'), h('p', { className: 'carried' }, state.draft.words)) }
+    function App({ state }) { return inWizard(state.route) ? h(Flow, { state: 'flow' }) : h('p', { className: 'home' }, 'home') }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/'), flow: {} }
+    App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+    function Flow() {
+      return h('section', null, h(Outlet, { of: { define: Define, describe: Describe }, from: 'wizard', focus: false }),
+        h('dialog', { className: 'leave-dialog' }, h('button', { className: 'leave' }, 'Discard'), h('button', { className: 'stay' }, 'Stay')))
+    }
+    Flow.uses = {
+      wizard: wizard({
+        steps: { define: { dirty: (s) => s.words !== '' }, describe: {} },
+        draft: { words: '' },
+        // undefined off the wizard's routes: not mine, the flow is kept
+        key: (s) => inWizard(s.route) ? s.route.query.session ?? null : undefined,
+        url: { route: 'step', param: 'step', key: 'session', from: (s) => s.route?.name === 'newFilter' ? { ...s.route, name: 'step', params: { step: 'define' } } : s.route },
+        confirm: '.leave-dialog', leave: '.leave', stay: '.stay',
+      }),
+    }
+
+    it('Define creates the session and moves to Describe: the draft and its slice survive, no dialog; leaving the flow is still held', async () => {
+      t = renderComponent(App, { dom: 'real', router, url: '/new' })
+      await t.ready(); await tick(40)
+      expect(t.state.flow.wizard).toMatchObject({ step: 'define', key: null })
+      await type('.words', 'my filter')
+      expect(t.state.flow.wizard.local.define.words).toBe('my filter')
+      await click('.continue'); await tick(60)
+      expect(t.location.path).toBe('/new/describe')
+      expect(t.state.flow.wizard).toMatchObject({ step: 'describe', key: 's1', leaving: null })
+      expect(t.query('.carried').textContent).toBe('my filter')
+      expect(t.state.flow.wizard.local.define.words).toBe('my filter')
+      // back to Define (in the flow, the same key): its words are there; leaving the flow is held
+      await t.back(); await tick(60)
+      expect(t.state.flow.wizard.step).toBe('define')
+      expect(t.query('.words').value).toBe('my filter')
+      await t.navigate('/'); await tick(40)
+      expect(t.state.flow.wizard.leaving).toBeTruthy()
+      expect(t.location.path).toBe('/new')
+    })
+  })
+
+  it('key: null -> value is adopted, none (null / undefined) keeps the flow and its key, value -> value starts over', async () => {
+    const Flow = host(makeFlow({ key: (s) => s.session, draft: (s) => ({ title: 'for ' + s.session }) }),
+      () => h('div', null, ...['none', 'undef', 'k1', 'k2'].map(v => h('button', { className: 'set-' + v }, v))))
+    Flow.initialState = { session: null }
+    Flow.intent = ({ DOM }) => ({ SET: xs.merge(...['none', 'undef', 'k1', 'k2'].map(v => DOM.click('.set-' + v).mapTo(v))) })
+    Flow.model = { SET: (s, v) => ({ ...s, session: { none: null, undef: undefined, k1: 'k1', k2: 'k2' }[v] }) }
+    t = renderComponent(Flow, { dom: 'real' })
+    await t.ready(); await tick()
+    expect(t.state.wizard).toMatchObject({ key: null, draft: { title: 'for null' } })
+    await type('.note', 'kept')
+    await click('.set-k1')
+    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for null' } })   // adopted
+    expect(t.query('.note').value).toBe('kept')
+    await click('.set-undef')
+    expect(t.state.wizard).toMatchObject({ key: 'k1', draft: { title: 'for null' } })   // not mine: kept
+    await click('.set-k1')
+    await click('.set-k2')
+    expect(t.state.wizard).toMatchObject({ key: 'k2', draft: { title: 'for k2' } })     // another record
+    expect(t.query('.note').value).toBe('')
+    await type('.note', 'kept2')
+    await click('.set-none')
+    expect(t.state.wizard).toMatchObject({ key: 'k2', draft: { title: 'for k2' } })     // value -> none: kept
+    expect(t.query('.note').value).toBe('kept2')
+  })
+
+  it('predicates get the step view (initialState merged) and the host state; label as a function; per-step dirty and discard; draftKey', async () => {
+    const seen = []
+    function Agree({ state }) { return h('div', null, h('button', { className: 'agree' }, String(state.agreed)), h('span', { className: 'f' }, state.flow.name)) }
+    Agree.initialState = { agreed: false }
+    Agree.isolatedState = true
+    Agree.intent = ({ DOM }) => ({ AGREE: DOM.click('.agree') })
+    Agree.model = { AGREE: (s) => ({ ...s, agreed: true, flow: { ...s.flow, name: 'x' } }) }
+    function Done() { return h('p', { className: 'done' }, 'done') }
+    const flow = wizard({
+      draftKey: 'flow',
+      steps: {
+        agree: {
+          label: (s, h) => s.agreed ? 'Agreed' : 'Agree ' + h.who,
+          valid: (s, h) => (seen.push([s.agreed, h.who]), s.agreed),
+          dirty: (s) => s.agreed,
+          discard: (w) => ({ ...w, draft: { name: 'discarded' } }),
+        },
+        done: {},
+      },
+      draft: { name: '' }, next: '.next',
+    })
+    function Host({ state }) { return h('div', null, h(Outlet, { of: { agree: Agree, done: Done }, from: 'wizard' }), h('button', { className: 'next' }), h('b', { className: 'label' }, state.wizard.steps[0].label)) }
+    Host.initialState = { who: 'Ada' }
+    Host.uses = { wizard: flow }
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    expect(seen.some(([a, w]) => a === false && w === 'Ada')).toBe(true)   // initialState merged, host state
+    expect(t.query('.label').textContent).toBe('Agree Ada')
+    expect(t.state.wizard.canNext).toBe(false)
+    await click('.agree')
+    expect(t.state.wizard.draft).toEqual({ name: 'x' })                      // the draft under draftKey 'flow'
+    expect(t.query('.f').textContent).toBe('x')
+    expect(t.query('.label').textContent).toBe('Agreed')
+    expect(t.state.wizard.canNext).toBe(true)
+    // the step's own dirty holds the block; its own discard runs
+    expect(t.sinkValues('ROUTER').at(-1)).toEqual({ block: 'wizard.LEAVE' })
+    await t.simulateAction('wizard.DISCARD'); await tick()
+    expect(t.state.wizard.draft).toEqual({ name: 'discarded' })
+  })
+
+  it('a step moves the flow with PARENT messages (NEXT, BACK, GOTO, RESET, FINISH); resetTo; Outlet fallback', async () => {
+    function A({ state }) { return h('div', null, h('button', { className: 'a-next' }), h('button', { className: 'a-finish' }), h('input', { className: 'title', value: state.draft.title })) }
+    A.intent = ({ DOM }) => ({ N: DOM.click('.a-next'), F: DOM.click('.a-finish'), TITLE: DOM.input('.title').map(e => e.target.value) })
+    A.model = {
+      N: { PARENT: () => ({ wizard: 'NEXT' }) },
+      F: { PARENT: () => ({ wizard: 'FINISH' }) },
+      TITLE: (s, title) => ({ ...s, draft: { ...s.draft, title } }),
+    }
+    function B() { return h('div', null, h('button', { className: 'b-back' }), h('button', { className: 'b-reset' }), h('button', { className: 'b-goto' })) }
+    B.intent = ({ DOM }) => ({ BK: DOM.click('.b-back'), RS: DOM.click('.b-reset'), GT: DOM.click('.b-goto') })
+    B.model = {
+      BK: { PARENT: () => ({ wizard: 'BACK' }) },
+      RS: { PARENT: () => ({ wizard: 'RESET', draft: { title: 'again' } }) },
+      GT: { PARENT: () => ({ wizard: 'GOTO', step: 'c' }) },
+    }
+    function Missing() { return h('p', { className: 'fallback' }, 'not ported') }
+    function Host({ state }) { return h('div', null, h(Outlet, { of: { a: A, b: B }, fallback: Missing, from: 'wizard' }), h('p', { className: 'made' }, state.made)) }
+    Host.initialState = { made: '' }
+    Host.uses = { wizard: wizard({ steps: { a: {}, b: {}, c: {} }, draft: { title: '' }, finish: 'MAKE', resetTo: { to: 'home' } }) }
+    Host.model = { MAKE: (s, d) => ({ ...s, made: d.title }) }
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    await type('.title', 'T')
+    await click('.a-finish')
+    expect(t.query('.made').textContent).toBe('T')
+    await click('.a-next')
+    expect(t.state.wizard.step).toBe('b')
+    await click('.b-back')
+    expect(t.state.wizard.step).toBe('a')
+    await click('.a-next')
+    await click('.b-goto')
+    expect(t.state.wizard.step).toBe('c')
+    expect(t.query('.fallback').textContent).toBe('not ported')   // no `c` in of: the fallback
+    await click('.fallback')
+    t.dispose()
+    // RESET from a step, with a draft; resetTo is sent on the router sink
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.a-next')
+    await click('.b-reset')
+    expect(t.state.wizard).toMatchObject({ step: 'a', draft: { title: 'again' } })
+    expect(t.sinkValues('ROUTER')).toContainEqual({ to: 'home' })
   })
 })
