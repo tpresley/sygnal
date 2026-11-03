@@ -61,6 +61,30 @@ reports).
   step aborted without a reply (another compose use in the lane, or its `timeoutMs`) releases the
   queue instead of stalling it, and the queued composition starts after `page.DONE`, on the layout
   its handlers left (an app's fix there was lost).
+- **Behaviors:** a host reducer that leaves a behavior's key out of the state gets the default
+  slice back; for a behavior with calculated fields (`selection()`) the key was left `undefined`.
+- **Types:** a component's children may be text (`<ActionButton>Save</ActionButton>` failed tsc;
+  new `SygnalChild` type); a reducer's 4th argument keeps `now` / `random` / `uuid` when the
+  component's props type has an index signature.
+- **Dev diagnostics:** SYG201 no longer reports a resource or behavior key that a reducer left out
+  while it still held its idle default (the core puts it back).
+- **sygnal-check:** SYG102 follows reply names through `?:`, `||` / `??` and `&&`, through a local
+  helper's parameters (`get('/x', 'LOADED')`), through spreads of a helper's result or a const
+  object, and reads a const string (`ok: OK`, now checked like a literal); SYG634 accepts a
+  `key` that is a const string.
+
+**Docs.**
+- **The router outlet renders only the current page**, keyed by the visit
+  (`` <Page key={`${route.name}:${route.path}`} /> ``): each visit gets INITIALIZE / BOOTSTRAP and
+  DISPOSE. Switchable is documented for tabs, panels and wizard steps on one page; it keeps hidden
+  pages running (watches, sinks, resource names), so it is no longer shown as the router. `path`
+  excludes the query string. Links to routes another app owns: `data-router-ignore`.
+- **Mount order:** an immediate `STATE.watch` acts in the creating flush, before BOOTSTRAP.
+- **Infinite list recipe:** one resource per loaded page, the list derived from them (a refetch
+  reloads every page from the first; the old `ok`-accumulation recipe repeated rows and came back
+  empty from the cache).
+- Resources and props, `strict` and `waitForState` in tests, `afterEach` dispose under node:test,
+  `isolatedState` for a widget used several times, hidden vs removed form fields.
 
 ## 7.2.0-preview.2 — dev preview
 

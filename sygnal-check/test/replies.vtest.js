@@ -48,10 +48,15 @@ const req = (state) => state.id ? { url: '/q/' + state.id, ok: 'LOADED' } : { ur
   })
 
   it('a request built with a non-literal name downgrades SYG102 to info', () => {
-    const { diags } = checkSource(`const OK = 'LOADED'\n` + quote(`(state) => ({ url: '/q', ok: OK })`))
+    const { diags } = checkSource(quote(`(state) => ({ url: '/q', ok: state.okName })`))
     const found = codes(diags, 'SYG102')
     expect(found.map(d => [d.data.action, d.severity]).sort()).toEqual([['FAILED', 'info'], ['LOADED', 'info']])
     expect(found[0].message).toMatch(/non-literal ok\/error/)
+  })
+
+  it('a const string name is a literal one (only the entry nothing names is reported, as a warning)', () => {
+    const { diags } = checkSource(`const OK = 'LOADED'\n` + quote(`(state) => ({ url: '/q', ok: OK })`))
+    expect(codes(diags, 'SYG102').map(d => [d.data.action, d.severity])).toEqual([['FAILED', 'warn']])
   })
 
   it('ok/error values returned to STATE or EVENTS are not triggers', () => {

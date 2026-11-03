@@ -113,42 +113,123 @@ const hasReplyKey = (obj) => obj.properties.some(p => p.type === 'ObjectProperty
  * call's object-literal arguments that hold a reply key are requests too, whatever the callee
  * (`req('/a', { ok: 'GOT_A' })`, `api.get_run(args, { ok: 'RUN' })`, an imported helper).
  */
-export function returnedObjects(project, file, valueNode, depth = 0, seen = new Set()) {
+export function returnedObjects(project, file, valueNode, depth = 0, seen = new Set(), bind = null) {
   const r = resolveExpr(project, file, valueNode)
   const fn = r?.node
-  if (!fn || seen.has(fn)) return []
+  // a local helper followed with its arguments bound (bind) may be called more than once (depth-limited)
+  if (!fn || (seen.has(fn) && !bind)) return []
   seen.add(fn)
   const objs = []
-  const collect = (e, f) => {
+  // f: the file of e, b: its parameter bindings (a helper's params → the call's arguments)
+  const collect = (e, f, b) => {
     e = unwrap(e)
     if (!e) return
-    if (e.type === 'ConditionalExpression') { collect(e.consequent, f); collect(e.alternate, f); return }
-    if (e.type === 'LogicalExpression') { collect(e.right, f); if (e.operator !== '&&') collect(e.left, f); return }
-    if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1], f); return }
-    if (e.type === 'ObjectExpression') objs.push({ node: e, file: f })
-    else if (e.type === 'Identifier' && e.name !== 'undefined') {
+    if (e.type === 'ConditionalExpression') { collect(e.consequent, f, b); collect(e.alternate, f, b); return }
+    if (e.type === 'LogicalExpression') { collect(e.right, f, b); if (e.operator !== '&&') collect(e.left, f, b); return }
+    if (e.type === 'SequenceExpression') { collect(e.expressions[e.expressions.length - 1], f, b); return }
+    if (e.type === 'ObjectExpression') objs.push({ node: e, file: f, bind: b })
+    else if (e.type === 'Identifier' && b?.has(e.name)) {
+      const a = b.get(e.name)
+      collect(a.node, a.file, a.bind)
+    } else if (e.type === 'Identifier' && e.name !== 'undefined') {
       // C-1: a const holding the request (or a call that makes it)
       const x = resolveExpr(project, f, e)
-      if (x?.node && x.node !== e && !seen.has(x.node) && !isFunction(x.node)) { seen.add(x.node); collect(x.node, x.file) }
+      if (x?.node && x.node !== e && !seen.has(x.node) && !isFunction(x.node)) { seen.add(x.node); collect(x.node, x.file, null) }
     } else if (e.type === 'CallExpression' && isDecideCall(f, e)) {
       // G-648: decide() / decide.openai() (sygnal/ai) pass their reply keys through to the request
       const arg = e.arguments[0] && resolveExpr(project, f, e.arguments[0])
-      if (arg?.node?.type === 'ObjectExpression') objs.push({ node: arg.node, file: arg.file })
+      if (arg?.node?.type === 'ObjectExpression') objs.push({ node: arg.node, file: arg.file, bind: arg.node === unwrap(e.arguments[0]) ? b : null })
     } else if (e.type === 'CallExpression') {
       if (depth < 3 && unwrap(e.callee).type === 'Identifier') {
         const h = resolveExpr(project, f, e.callee)
-        if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen))
+        if (h?.node && isFunction(h.node)) objs.push(...returnedObjects(project, h.file, h.node, depth + 1, seen, bindArgs(h.node, h.file, e, f, b)))
       }
       // C-1: the options passed to a request helper
       for (const a of e.arguments) {
         const x = a.type === 'SpreadElement' ? null : resolveExpr(project, f, a)
-        if (x?.node?.type === 'ObjectExpression' && hasReplyKey(x.node) && !objs.some(o => o.node === x.node)) objs.push({ node: x.node, file: x.file })
+        if (x?.node?.type === 'ObjectExpression' && hasReplyKey(x.node) && !objs.some(o => o.node === x.node)) objs.push({ node: x.node, file: x.file, bind: x.node === unwrap(a) ? b : null })
       }
     }
   }
-  if (isFunction(fn)) returnedExpressions(fn).forEach(e => collect(e, r.file))
-  else collect(fn, r.file)
+  if (isFunction(fn)) returnedExpressions(fn).forEach(e => collect(e, r.file, bind))
+  else collect(fn, r.file, bind)
   return objs
+}
+
+/**
+ * A helper's parameters bound to a call's arguments (`get('/x', 'LOADED')` with
+ * `const get = (url, ok) => ...`: ok → 'LOADED'; a default value when the argument is missing).
+ * @returns {Map<string, { node, file, bind }>}
+ */
+function bindArgs(fn, fnFile, call, file, bind) {
+  const m = new Map()
+  fn.params.forEach((p, i) => {
+    const a = call.arguments[i]
+    if (a?.type === 'SpreadElement') return
+    if (p.type === 'Identifier' && a) m.set(p.name, { node: a, file, bind })
+    else if (p.type === 'AssignmentPattern' && p.left.type === 'Identifier') {
+      m.set(p.left.name, a ? { node: a, file, bind } : { node: p.right, file: fnFile, bind: null })
+    }
+  })
+  return m
+}
+
+const FALSY_LITERAL = (e) => e.type === 'NullLiteral' || e.type === 'BooleanLiteral' ||
+  (e.type === 'Identifier' && e.name === 'undefined')
+
+/**
+ * The action names a reply key's value can be: string literals through ?:, && and ||/??,
+ * a helper's parameter bound to the call's argument (bind), and a const string.
+ * `false` / `null` / `undefined` (and `true`) name nothing.
+ * @returns {{ names: Array<{ name, node, file }>, dynamic: Array<{ node, file }> }}
+ */
+export function literalNames(project, file, node, bind = null, out = { names: [], dynamic: [] }, depth = 0) {
+  const e = unwrap(node)
+  if (!e) return out
+  const s = stringValue(e)
+  if (s != null) { out.names.push({ name: s, node: e, file }); return out }
+  if (FALSY_LITERAL(e)) return out
+  if (depth > 8) { out.dynamic.push({ node: e, file }); return out }
+  if (e.type === 'ConditionalExpression') {
+    literalNames(project, file, e.consequent, bind, out, depth + 1)
+    literalNames(project, file, e.alternate, bind, out, depth + 1)
+    return out
+  }
+  if (e.type === 'LogicalExpression') {
+    // `a && 'X'` is 'X' or a falsy a; `a || 'X'` / `a ?? 'X'` either side
+    if (e.operator !== '&&') literalNames(project, file, e.left, bind, out, depth + 1)
+    literalNames(project, file, e.right, bind, out, depth + 1)
+    return out
+  }
+  if (e.type === 'Identifier' && bind?.has(e.name)) {
+    const a = bind.get(e.name)
+    return literalNames(project, a.file, a.node, a.bind, out, depth + 1)
+  }
+  if (e.type === 'Identifier') {
+    const x = resolveExpr(project, file, e)
+    if (x?.node && x.node !== e && !isFunction(x.node) && x.node.type !== 'ObjectExpression') return literalNames(project, x.file, x.node, null, out, depth + 1)
+  }
+  out.dynamic.push({ node: e, file })
+  return out
+}
+
+/**
+ * A request object's properties with its spreads followed (`{ ...streamRequest(s), key }`: the
+ * helper's returned object(s), a const object, an object literal); an unresolvable spread is
+ * `dynamic`.
+ * @returns {{ props: Array<{ p, file, bind }>, dynamic: Array<{ node, file }> }}
+ */
+export function requestProps(project, obj, file, bind = null, out = { props: [], dynamic: [] }, seen = new Set()) {
+  if (seen.has(obj) || seen.size > 16) return out
+  seen.add(obj)
+  for (const p of obj.properties) {
+    if (p.type === 'ObjectProperty') { out.props.push({ p, file, bind }); continue }
+    if (p.type !== 'SpreadElement') continue
+    const objs = returnedObjects(project, file, p.argument, 0, new Set(), bind)
+    if (!objs.length) { out.dynamic.push({ node: p.argument, file }); continue }
+    for (const o of objs) requestProps(project, o.node, o.file, o.bind, out, seen)
+  }
+  return out
 }
 
 /**
@@ -162,26 +243,37 @@ export const customReplyKeys = (project, sink) => {
   return Array.isArray(r) ? r : (r && sink && r[sink]) || []
 }
 
+/** keys that make an object with an unresolvable spread a request */
+const REQUEST_KEYS = new Set(['url', 'messages', 'key', 'latest', 'method', 'body', 'query', 'headers', 'stream', 'path', 'href'])
+
 export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
   const out = { targets: [], dynamic: [], candidates: [] }
   const custom = customReplyKeys(project, sink)
-  for (const { node: obj, file: f } of returnedObjects(project, file, valueNode)) {
+  // a helper's object can be reached twice (its own return and as a spread / options argument)
+  const seenNodes = new Set()
+  const once = (n) => !seenNodes.has(n) && !!seenNodes.add(n)
+  for (const { node: obj, file: f, bind } of returnedObjects(project, file, valueNode)) {
     let k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
     if (custom.length) k = new Set([...k, ...custom])
-    // C-4: an UPPER_CASE value under another key may name a reply action of a custom driver
-    for (const p of obj.properties) {
-      const key = p.type === 'ObjectProperty' && propName(p), v = key && !k.has(key) && stringValue(p.value)
-      if (v && /^[A-Z][A-Z0-9_]*$/.test(v)) out.candidates.push({ name: v, key, node: p.value, file: f })
+    const { props, dynamic } = requestProps(project, obj, f, bind)
+    // an unresolvable spread may hold reply names, when the object is a request at all
+    // (`{ ...s.opts, url }`, not a reducer's `{ ...state, [from]: rows }`)
+    if (dynamic.length && props.some(({ p }) => k.has(propName(p)) || REQUEST_KEYS.has(propName(p)))) {
+      for (const d of dynamic) if (once(d.node)) out.dynamic.push(d)
     }
-    for (const p of obj.properties) {
-      if (p.type !== 'ObjectProperty') continue
+    // C-4: an UPPER_CASE value under another key may name a reply action of a custom driver
+    for (const { p, file: pf } of props) {
+      const key = propName(p), v = key && !k.has(key) && stringValue(p.value)
+      if (v && /^[A-Z][A-Z0-9_]*$/.test(v) && once(p.value)) out.candidates.push({ name: v, key, node: p.value, file: pf })
+    }
+    for (const { p, file: pf, bind: pb } of props) {
       const key = propName(p)
       if (!k.has(key)) continue
       // U-3: `progress: true` (HTTP.progress()) names no action
       if (key === 'progress' && unwrap(p.value)?.type === 'BooleanLiteral') continue
-      const s = stringValue(p.value)
-      if (s != null) out.targets.push({ name: s, key, node: p.value, file: f })
-      else out.dynamic.push({ node: p.value, file: f })
+      const v = literalNames(project, pf, p.value, pb)
+      for (const n of v.names) if (once(n.node)) out.targets.push({ name: n.name, key, node: n.node, file: n.file })
+      for (const d of v.dynamic) if (once(d.node)) out.dynamic.push(d)
     }
   }
   return out
@@ -284,7 +376,7 @@ export function analyzeModel(project, file, modelNode) {
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
     res.replyCandidates.push(...t.candidates.map(x => ({ ...x, sink, action })))
-    res.requests.push(...returnedObjects(project, mfile, valueNode).map(o => ({ ...o, sink, action })))
+    res.requests.push(...returnedObjects(project, mfile, valueNode).filter((o, i, all) => all.findIndex(x => x.node === o.node) === i).map(o => ({ ...o, sink, action })))
   }
 
   for (const p of obj.properties) {

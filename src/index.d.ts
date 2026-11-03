@@ -58,8 +58,14 @@ export type UidFunction = (name?: string) => string
  * The first argument of a component's view: its props plus `state`, `context`, `children`, `slots` and `uid`.
  * PLAN-11 Q-1: PROPS = `any` is read as "any other props" (`any & X` would make `state` `any` too).
  */
+/**
+ * What a component's `children` may hold: elements, text (strings and numbers arrive as text
+ * vnodes), `boolean` / `null` / `undefined` (rendered as nothing), and arrays of these.
+ */
+export type SygnalChild = JSX.Element | string | number | boolean | null | undefined | readonly SygnalChild[]
+
 export type ViewProps<STATE = any, PROPS = {}, CONTEXT = {}> =
-  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+  (0 extends (1 & PROPS) ? { [prop: string]: any } : PROPS) & { state: STATE; context: CONTEXT; children?: SygnalChild; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 /**
  * The `state` prop a parent passes to a sub-component in JSX: the name of a field of the
@@ -117,7 +123,9 @@ export interface HandlerEntropy {
   /** crypto.randomUUID() */
   uuid(): string
 }
-type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, keyof PROPS> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: JSX.Element | JSX.Element[]; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+/** the declared (literal) keys of PROPS: none for an index signature such as the default `{ [prop: string]: any }` */
+type LiteralKeys<PROPS> = keyof { [KEY in keyof PROPS as string extends KEY ? never : number extends KEY ? never : symbol extends KEY ? never : KEY]: 0 }
+type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, LiteralKeys<PROPS>> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: SygnalChild; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -2496,7 +2504,7 @@ export function Slot(props: SlotProps): JSX.Element
  * still carries the component statics (`model`, `intent`, …) once loaded.
  */
 export type LazyComponent<PROPS = any> = ((
-  props: PROPS & { state?: any; children?: JSX.Element | JSX.Element[] }
+  props: PROPS & { state?: any; children?: SygnalChild }
 ) => JSX.Element) & Omit<Component<any, PROPS>, never> & {
   /** start the import now (a deferred `when` one too: preload on hover, or in a test); resolves once it has loaded or failed */
   load(): Promise<void>
@@ -3746,7 +3754,11 @@ export interface RenderOptions {
    * disposed. Dev checks require `import 'sygnal/diagnostics'` (the Vite plugin adds it under Vitest).
    */
   diagnostics?: DiagnosticsMode;
-  /** Enable strict (canonical-form) runtime checks while rendered (requires 'sygnal/diagnostics') */
+  /**
+   * Enable strict (canonical-form) runtime checks while rendered (SYG508; the other strict
+   * codes are sygnal-check --strict only). Requires 'sygnal/diagnostics'. Findings are collected,
+   * not thrown: a test fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   */
   strict?: boolean;
   /**
    * settle()'s quiet window in ms (default 20). A model `next('X', data, ms)` with a longer

@@ -9,7 +9,8 @@
  * cancels the previous one. That is right for per-row lanes (`save-${id}`), so
  * the finding is info.
  */
-import { propName, stringValue } from '../ast.js'
+import { propName } from '../ast.js'
+import { literalNames } from '../model/modelEntries.js'
 
 export default {
   id: 'latest-computed-key',
@@ -20,7 +21,10 @@ export default {
       for (const r of comp.model?.requests || []) {
         const props = new Map(r.node.properties.filter(p => p.type === 'ObjectProperty').map(p => [propName(p), p]))
         const latest = props.get('latest'), key = props.get('key')
-        if (!latest || latest.value.type !== 'BooleanLiteral' || !latest.value.value || !key || stringValue(key.value) != null) continue
+        if (!latest || latest.value.type !== 'BooleanLiteral' || !latest.value.value || !key) continue
+        // a fixed key: a literal, a const string (key: KEY) or a helper's parameter bound to one
+        const v = literalNames(project, r.file, key.value, r.bind)
+        if (v.names.length === 1 && !v.dynamic.length) continue
         report({
           code: 'SYG634',
           component: comp.name,

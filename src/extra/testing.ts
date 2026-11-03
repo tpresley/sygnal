@@ -277,8 +277,11 @@ export interface RenderOptions {
    */
   diagnostics?: DiagnosticsMode;
   /**
-   * Strict mode (canonical-form checks SYG501/502/504) while the component is
-   * rendered; restored on dispose(). Requires `import 'sygnal/diagnostics'`.
+   * Strict mode (canonical-form checks; at run time SYG508, the others are
+   * sygnal-check --strict only) while the component is rendered; restored on
+   * dispose(). It only turns the checks on: findings are collected, and a test
+   * fails on them only with t.expectNoDiagnostics() or diagnostics: 'error'.
+   * Requires `import 'sygnal/diagnostics'`.
    * Default: unchanged (off unless configureStrict(true) was called).
    */
   strict?: boolean;

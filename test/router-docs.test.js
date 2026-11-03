@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // PLAN-3 5-4b: the docs samples of guide/router.md and guide/head.md, run (transcribed from
-// JSX to h()): the routes module + App/TaskList/TaskPage with a Switchable, the DELETE
+// JSX to h()): the routes module + App/TaskList/TaskPage (the current page keyed by the visit), the DELETE
 // redirect, the admin guard, the unsaved-changes Editor, and the route title in HEAD.
 import { it, expect, beforeEach, afterEach, vi } from 'vitest'
 import run from '../src/extra/run.js'
@@ -47,11 +47,12 @@ it('Setup / Reading the Route / Links / Navigating from the Model', async () => 
     },
   }
   const NotFound = () => h('p', { className: 'nf' }, 'Not found')
+  const PAGES = { home: TaskList, task: TaskPage, notFound: NotFound }
 
   function App({ state }) {
     return h('main', null,
       h('nav', null, h('a', { href: href('home'), className: 'all' }, 'All tasks')),
-      h(Switchable, { of: { home: TaskList, task: TaskPage, notFound: NotFound }, current: state.route.name }))
+      h(PAGES[state.route.name], { key: `${state.route.name}:${state.route.path}` }))
   }
   App.route = 'ROUTE'
   App.initialState = { route: router.current(), tasks: TASKS }
@@ -152,7 +153,8 @@ it('head.md: the route title from the app state, titleTemplate, a page head stat
   TaskPage.model = {}
   const Home = () => h('a', { href: router.href('task', { id: 2 }), className: 't2' }, 'two')
   function App({ state }) {
-    return h('main', null, h(Switchable, { of: { home: Home, task: TaskPage }, current: state.route.name }))
+    const Page = { home: Home, task: TaskPage }[state.route.name]
+    return h('main', null, h(Page, { key: `${state.route.name}:${state.route.path}` }))
   }
   App.route = 'ROUTE'
   App.initialState = { route: router.current() }

@@ -1,4 +1,4 @@
-import { run, makeRouter, Switchable } from 'sygnal'
+import { run, makeRouter } from 'sygnal'
 
 // hash mode keeps the demo's routes in the fragment (#/tasks/2), next to the showcase's ?s=
 const router = makeRouter({ routes: { home: '/', task: '/tasks/:id', notFound: '*' }, mode: 'hash', scroll: false, focus: false })
@@ -8,6 +8,7 @@ const TASKS = { 1: 'Write the spec', 2: 'Build it', 3: 'Ship it' }
 
 // A second route declarer, below the root: it gets each route in the same flush as the root
 // (before the page is patched), so its reset never wipes text typed right after a navigation.
+// It lives in the task page, which is mounted per visit: a new one gets the current route at mount.
 function Editor({ state }) {
   return (
     <div className="editor">
@@ -45,7 +46,13 @@ function NotFound() {
   return <p>No such page.</p>
 }
 
+// The outlet renders only the current page, keyed by the visit: /tasks/1 → /tasks/2 disposes the
+// page and mounts a new one (path is the pathname only; add query keys that should re-create it).
+const PAGES = { home: Home, task: TaskPage, notFound: NotFound }
+
 export function Tasks({ state }) {
+  const { route } = state
+  const Page = PAGES[route.name]
   return (
     <div>
       <nav className="row">
@@ -54,7 +61,7 @@ export function Tasks({ state }) {
         <button className="back">Back (command)</button>
       </nav>
       <p className="muted">Route: {state.route.name} {state.route.path}</p>
-      <Switchable of={{ home: Home, task: TaskPage, notFound: NotFound }} current={state.route.name} />
+      <Page key={`${route.name}:${route.path}`} />
     </div>
   )
 }

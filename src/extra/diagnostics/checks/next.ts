@@ -259,6 +259,8 @@ class Facade {
   get _componentNumber() { return this.__next.id }
   get calculated() { return this.__next.def.view.calculated }
   get _calculatedFieldNames() { return this.__next.def.calcNames }
+  /** the defaults a missing state key reads (resources' { status: 'idle' }, behaviors' slices) */
+  get _idleDefaults() { return this.__next.def.idle }
   get context() { return this.__next.def.view.context }
   get _uses() { return Object.entries(this.__next.def.view.uses || {}) }
   get _behaviorActions() { return this.__next.def.behaviorActions }

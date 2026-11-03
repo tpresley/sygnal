@@ -118,7 +118,7 @@ AccountStep.model = {
 
 ## Start empty on each visit
 
-The values live in state, so they survive a visit (a [Switchable](/guide/switchable/) page shares its parent's state and stays alive while hidden). For a form that starts empty each time it is shown, set `resetOnShow: true`; a start value from state goes in a `values` function:
+The values live in state, so they survive a visit (a routed page or a [Switchable](/guide/switchable/) tab shares its parent's state). For a form that starts empty each time it is shown, set `resetOnShow: true`; a start value from state goes in a `values` function:
 
 ```jsx
 NewExpensePage.uses = {

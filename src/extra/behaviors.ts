@@ -124,7 +124,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
   // the slice's calculated fields stay fresh when a host reducer changes state[key]
   const fresh = (f: any) => (st: any, ...x: any[]) => {
     const r = f(st, ...x)
-    return r && typeof r == 'object' && st && r[k] !== st[k] ? {...r, [k]: calc(r[k])} : r
+    return r && typeof r == 'object' && st && k in r && r[k] !== st[k] ? {...r, [k]: calc(r[k])} : r
   }
   if (calcs) for (const a in model) {
     const e = model[a]

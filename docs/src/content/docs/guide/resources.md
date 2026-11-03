@@ -59,7 +59,8 @@ Quote.model = {
 - **A new request clears it.** When the derived request changes (another id), the resource goes to `'loading'` with no data, and the earlier request is aborted: its reply never lands. For pagination, where the previous page should stay visible, set `keepPrevious: true` on the request: the old `data` stays (with `refreshing: true`) until the new page arrives.
 - **Change detection is by value.** A state change that derives an equal request (by JSON) sends nothing. Fields that only change how the request is handled are left out of that comparison: `refetchEvery`, `keepPrevious`, `ok`, `error`, `key`, `category`, `latest`, `timeoutMs`, `retry`, `cache`, `staleTime`, `tags`, `invalidates`, `updates`, `background` and `progress`. Changing one of them takes effect with no fetch and no change to `status` or `data`: `refetchEvery: state.live ? 5000 : undefined` starts and stops [polling](#focus-reconnect-and-polling) while the data stays shown.
 - **An entry gets the context too**: `(state, context)`. A routed page reads `route` from context (`(state, { route }) => `/api/tasks/${route.params.id}``) instead of keeping a copy of it; the entries are computed again when the context changes ([Router](/guide/router/)).
-- `ok` / `error` on the request also dispatch those actions after the write, for side work such as appending pages.
+- **An entry gets no props.** When a child's read depends on something its parent knows (a project id, a filter), give it through the parent's [`.context`](/guide/context/) and read it there, or bind the child with a lens whose `get` adds the parent's field to the child's slice. Copying the prop into the child's state with an action is a second copy that can fall behind.
+- `ok` / `error` on the request also dispatch those actions after the write, for side work. Not for collecting pages: see [Infinite list](#infinite-list).
 - A Collection item, or any component instance, has its own resources. Removing it aborts them.
 - In a hidden [Switchable](/guide/switchable/#hidden-pages-pause-connections-and-resources) page, resources pause: the request in flight is aborted and the resource keeps its last result (`refreshing` off; `'idle'` if nothing had arrived yet). When the page is shown again, the same request is refetched, keeping data. Mark an entry `background: true` to keep it live while hidden.
 
@@ -348,47 +349,49 @@ With a `queryCache()`, going back to a page fetched less than `staleTime` ago sh
 
 ### Infinite list
 
-The resource fetches the current page; its `ok` action appends each page to a list the component owns:
+Give each loaded page its own resource, `page0`, `page1`, …, and derive the list from them. Page `i` starts at the cursor page `i - 1` returned, and "Load more" adds a page:
 
 ```jsx
 import { ABORT } from 'sygnal'
+
+const pageName = (i) => `page${i}`
+const pagesOf = (state) => Array.from({ length: state.pages }, (_, i) => state[pageName(i)])
+// the first page has no cursor; a later one waits (undefined) until the page before it arrives
+const cursorFor = (state, i) => (i === 0 ? null : state[pageName(i - 1)]?.data?.nextCursor)
 
 function Feed({ state }) {
   return (
     <div>
       <ul>{state.items.map(item => <li>{item.title}</li>)}</ul>
-      {state.feed.status === 'loading' && <p className="loading">Loading…</p>}
+      {pagesOf(state).at(-1)?.status === 'loading' && <p className="loading">Loading…</p>}
       {state.hasMore && <button className="more">Load more</button>}
     </div>
   )
 }
-Feed.initialState = { page: 1, items: [], hasMore: true }
-Feed.resources = {
-  feed: (state) => ({ url: '/api/feed', query: { page: state.page }, ok: 'PAGE' }),
+Feed.initialState = { pages: 1 }
+Feed.resources = (state) => Object.fromEntries(
+  Array.from({ length: state.pages }, (_, i) => {
+    const after = cursorFor(state, i)
+    return [pageName(i), after !== undefined && { url: '/api/feed', query: { after }, tags: ['feed'], keepPrevious: true }]
+  })
+)
+Feed.calculated = {
+  // a row that moved to a later page while the pages refetched is shown once
+  items: (state) => {
+    const seen = new Set()
+    return pagesOf(state).flatMap(page => page?.data?.items ?? []).filter(item => !seen.has(item.id) && seen.add(item.id))
+  },
+  hasMore: (state) => pagesOf(state).at(-1)?.data?.nextCursor != null,
 }
 Feed.intent = ({ DOM }) => ({ MORE: DOM.click('.more') })
 Feed.model = {
-  MORE: (state) => (state.feed.status === 'loading' ? ABORT : { ...state, page: state.page + 1 }),
-  PAGE: (state, body) => ({ ...state, items: [...state.items, ...body.items], hasMore: body.hasMore }),
+  MORE: (state) => (pagesOf(state).at(-1)?.status !== 'success' || !state.hasMore ? ABORT : { ...state, pages: state.pages + 1 }),
 }
 ```
 
-`PAGE` runs on every successful fetch of the request, refetches included, so leave the cache's focus refetch off for such a list (`queryCache({ refetchOnFocus: false })`) or de-duplicate by id in `PAGE`.
+A refetch (an invalidation of `'feed'`, a focus refetch, polling) refetches every loaded page, from the first, so new rows appear at the top and each later page gets the cursor of the fresh page before it. Nothing depends on an `ok` action, so a refetch or a cached revisit can't append a page twice or miss one: the list is whatever the pages hold. Rows pushed past the last loaded page by new ones drop off the end until "Load more" fetches them; `hasMore` stays true. For a page-number API, `cursorFor` is `(state, i) => i + 1` and `hasMore` reads the last page's own flag. To start over, set `pages: 1`. A remounted `Feed` starts at one page, shown at once from a `queryCache()` while it refetches.
 
-For a cursor API, keep the cursor in state instead of a page number. The request sends the cursor it was given, `PAGE` stores the next one, and "Load more" moves to it:
-
-```jsx
-Feed.initialState = { cursor: null, next: null, items: [] }
-Feed.resources = {
-  feed: (state) => ({ url: '/api/feed', query: { after: state.cursor }, ok: 'PAGE' }),
-}
-Feed.model = {
-  MORE: (state) => (state.feed.status === 'loading' || !state.next ? ABORT : { ...state, cursor: state.next }),
-  PAGE: (state, body) => ({ ...state, items: [...state.items, ...body.items], next: body.nextCursor }),
-}
-```
-
-A `null` cursor is left out of the query string, so the first request is plain `/api/feed`.
+Don't accumulate pages in an `ok` action (`items: [...state.items, ...body.items]`): a resource refetches its current request, the last page, so its rows repeat, new rows never reach the top, and a reply served from the cache runs no `ok` at all.
 
 ### List and detail with a save
 

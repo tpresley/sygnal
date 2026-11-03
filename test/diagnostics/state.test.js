@@ -66,6 +66,44 @@ describe('SYG201 — STATE reducer dropped keys', () => {
   })
 })
 
+describe('SYG201 — idle defaults (resources, behavior slices)', () => {
+  it('a resource left at its idle default is not reported as dropped', async () => {
+    function C({ state }) { return createElement('div', null, String(state.seeded)) }
+    C.initialState = { seeded: false }
+    C.resources = { r: () => false }
+    C.model = { BOOTSTRAP: () => ({ seeded: true }) }
+    t = renderComponent(C)
+    await t.waitForState(s => s && s.seeded === true)
+    expect(t.state.r).toEqual({ status: 'idle' })
+    await settle(60)
+    expect(diagnostics('SYG201')).toEqual([])
+  })
+
+  it('a dropped resource that held data is still reported', async () => {
+    function C({ state }) { return createElement('div', null, String(state.seeded)) }
+    C.initialState = { seeded: false, r: { status: 'success', data: [1, 2] } }
+    C.resources = { r: () => false }
+    C.model = { BOOTSTRAP: () => ({ seeded: true }) }
+    t = renderComponent(C)
+    await t.waitForState(s => s && s.seeded === true)
+    await until(() => expect(diagnostics('SYG201')).toHaveLength(1))
+    expect(diagnostics('SYG201')[0].data).toEqual({ action: 'BOOTSTRAP', droppedKeys: ['r'] })
+  })
+
+  it('a behavior slice left at its default is not reported', async () => {
+    const { defineBehavior } = await import('../../src/extra/behaviors.js')
+    function C({ state }) { return createElement('div', null, String(state.seeded)) }
+    C.initialState = { seeded: false }
+    C.uses = { pager: defineBehavior({ initialState: { page: 1 } })() }
+    C.model = { BOOTSTRAP: () => ({ seeded: true }) }
+    t = renderComponent(C)
+    await t.waitForState(s => s && s.seeded === true)
+    expect(t.state.pager).toEqual({ page: 1 })
+    await settle(60)
+    expect(diagnostics('SYG201')).toEqual([])
+  })
+})
+
 describe('SYG202 — STATE reducer returned undefined', () => {
   it('reports a reducer that returns undefined', async () => {
     const App = make({

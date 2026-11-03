@@ -1881,7 +1881,7 @@ Notes.intent = ({ STATE }) => ({
 })
 ```
 
-By default only later changes are emitted; `{ immediate: true }` emits the current value first. In a Collection item, `state` is the item's state. The stream ends when the component is disposed. The raw state stream is `STATE.stream`.
+By default only later changes are emitted, so a component mounted with the value already set (a page per route) never sees it; `{ immediate: true }` emits the current value first. That first action runs in the flush that creates the component, before `BOOTSTRAP`: reset state in `initialState` or `INITIALIZE`, not in `BOOTSTRAP`, when a watch seeds it. In a Collection item, `state` is the item's state. The stream ends when the component is disposed. The raw state stream is `STATE.stream`.
 
 ---
 
