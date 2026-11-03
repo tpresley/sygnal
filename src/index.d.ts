@@ -1353,10 +1353,26 @@ export type WizardStepState<DRAFT = any, OWN = {}, DK extends string = 'draft'> 
  *   const Review: WizardStepComp<ReviewState> = ({ state }) => …
  *   const Define: WizardStepComp<DefineState, { flow: Draft }, { actions: Actions }> = ({ state }) => … state.flow …
  */
-export type WizardStepComp<OWN = {}, DRAFT extends Record<string, any> | undefined = undefined, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
-  ComponentProps<(DRAFT extends undefined ? OWN : OWN & DRAFT) & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
-  & Omit<Comp<T & { state: DRAFT extends undefined ? OWN : OWN & DRAFT }>, 'initialState'> & { initialState?: OWN }
-export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>> {
+/** a WizardStepComp's second argument read as a component spec (every key a ComponentSpec key), not a draft */
+type IsStepSpec<A> = [A] extends [undefined] ? false : [keyof A] extends [never] ? false : keyof A extends Exclude<keyof ComponentSpec, 'state'> ? true : false
+type StepState<OWN, D> = [D] extends [undefined] ? OWN : OWN & D
+type StepSpecOf<A, T> = IsStepSpec<A> extends true ? A : T
+type StepDraftOf<A> = IsStepSpec<A> extends true ? undefined : A
+export type WizardStepComp<OWN = {}, DRAFT_OR_SPEC extends Record<string, any> | undefined = undefined, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
+  ComponentProps<StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>> & SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>, SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
+  & Omit<Component<
+    StepState<OWN, StepDraftOf<DRAFT_OR_SPEC>>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'props', { [prop: string]: any }>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'drivers', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'actions', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'calculated', {}>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>,
+    SpecSinks<StepSpecOf<DRAFT_OR_SPEC, T>>,
+    SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'provided', SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
+  >, 'initialState'> & { initialState?: OWN }
+/** a wizard's leave-dialog copy option: a value of DIALOG (when DIALOG is left `any`: a string or an object), or a function of the step's view and the host state */
+type WizardDialogOpt<DIALOG, STEP, HOST> = ((step: STEP, state: HOST) => DIALOG) | (0 extends (1 & DIALOG) ? string | { [field: string]: unknown } : DIALOG)
+export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>, DIALOG = any> {
   /** The stepper label (default: the step name), or a function of the step's view and the host state */
   label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => string);
   /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
@@ -1374,7 +1390,7 @@ export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends strin
   /** A final screen after the flow (Created): not in the stepper; entered by GOTO; Back doesn't return into the steps */
   outcome?: boolean;
   /** The leave dialog's copy while this step is current (any value; `state.wizard.dialog`) */
-  dialog?: ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => unknown) | string | { [field: string]: unknown };
+  dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, OWN, DK>, HOST>;
 }
 /** An entry of the stepper (`state.wizard.stepper`): a step, or a group of alternative steps (the one that applies gives its state) */
 export interface WizardStepperEntry extends WizardStepInfo {
@@ -1416,7 +1432,7 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
   leaving: RouterCommand | null;
 }
 /** The fields derived from the slice and the host state (written with every change) */
-export interface WizardCalculated {
+export interface WizardCalculated<DIALOG = any> {
   /** One entry per step of the stepper (not outcome steps) */
   steps: WizardStepInfo[];
   /** One entry per group or ungrouped step: what a stepper renders */
@@ -1424,7 +1440,7 @@ export interface WizardCalculated {
   /** The current outcome step's name, else null */
   outcome: string | null;
   /** The leave dialog's copy: the current step's `dialog`, else the wizard's, else null */
-  dialog: any;
+  dialog: DIALOG | null;
   index: number;
   count: number;
   first: boolean;
@@ -1432,9 +1448,9 @@ export interface WizardCalculated {
   canBack: boolean;
   canNext: boolean;
 }
-export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft'> {
+export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any> {
   /** The steps, in order: name -> definition */
-  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL> };
+  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL, DIALOG> };
   /** The draft a flow starts with, or a function of the host's state called at each start */
   draft?: DRAFT | ((state: HOST) => DRAFT);
   /** The draft's key in a step's state (default 'draft') */
@@ -1456,7 +1472,7 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   /** Group labels: `{ build: { label } }` (default: the label of the step that applies) */
   groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => string) }>;
   /** The leave dialog's copy when the current step has none (`state.wizard.dialog`) */
-  dialog?: ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => unknown) | string | { [field: string]: unknown };
+  dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, any, DK>, HOST>;
   /** Where Start over navigates (a router command, or a function of the slice being reset and the host state); url mode default: the first step's route */
   resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, state: HOST) => RouterCommand);
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
@@ -1472,7 +1488,7 @@ export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RES
 /** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
 export type WizardMessage =
   | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
-  | { wizard: 'GOTO'; step: string; key?: unknown }
+  | { wizard: 'GOTO'; step: string; key?: unknown; query?: Record<string, string | number | boolean | null | undefined>; draft?: Record<string, any> }
   | { wizard: 'RESET'; draft?: any }
 
 /**
@@ -1481,7 +1497,7 @@ export type WizardMessage =
  * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
  * 'wizard.GOTO', 'wizard.RESET', 'wizard.FINISH', 'wizard.DISCARD', 'wizard.STAY'.
  */
-export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft'>(options: WizardOptions<DRAFT, HOST, LOCAL, DK>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST, LOCAL, DK>>
+export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>, DK extends string = 'draft', DIALOG = any>(options: WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated<DIALOG>, WizardOptions<DRAFT, HOST, LOCAL, DK, DIALOG>>
 
 export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
   /** name -> component */

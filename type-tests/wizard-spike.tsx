@@ -125,3 +125,29 @@ Review2.initialState = { creating: false }
 // @ts-expect-error no draft in a step that doesn't read it
 export const NoDraft: WizardStepComp<ReviewState> = ({ state }) => <p>{state.draft}</p>
 export const Flowed: WizardStepComp<DefineState, { flow: Draft }> = ({ state }) => <p>{state.flow.title}</p>
+
+// Sift pass 3 N3: a step that writes the draft in some reducers and reads none: `{ flow?: Draft }`
+import type { IntentSources } from 'sygnal'
+export const Writer: WizardStepComp<ReviewState, { flow?: Draft }> = ({ state }) => <p>{String(state.creating)}</p>
+Writer.model = {
+  START: (s: ReviewState) => ({ ...s, creating: true }),
+  CREATED: (s) => ({ ...s, creating: false, flow: { ...s.flow!, title: 'made' } }),
+}
+Writer.intent = (sources: IntentSources<ReviewState>) => ({ START: sources.DOM.click('.start') })
+
+// Sift pass 3: a DIALOG type for state.wizard.dialog; WizardStepComp<Own, Spec> with no middle undefined
+type Copy = { title: string; body?: string }
+export const typedDialog = wizard<Draft, Host, { define: DefineState }, 'draft', Copy>({
+  steps: { define: { dialog: (s, h) => ({ title: 'Discard ' + s.words + ' for ' + h.session }) } },
+  dialog: { title: 'Leave?' },
+})
+// @ts-expect-error a dialog copy is a Copy
+export const badDialog = wizard<Draft, Host, { define: DefineState }, 'draft', Copy>({ steps: { define: { dialog: { nope: 1 } } } })
+declare const wd: WizardCalculated<Copy>
+export const dtitle: string | undefined = wd.dialog?.title
+type ReviewActions = { START: void }
+export const WithSpec: WizardStepComp<ReviewState, { actions: ReviewActions }> = ({ state }) => <p>{String(state.creating)}</p>
+WithSpec.model = { START: (s) => ({ ...s, creating: true }) }
+// @ts-expect-error no draft with a spec only
+export const WithSpecNoDraft: WizardStepComp<ReviewState, { actions: ReviewActions }> = ({ state }) => <p>{state.draft}</p>
+export const DraftAndSpec: WizardStepComp<DefineState, { flow: Draft }, { actions: ReviewActions }> = ({ state }) => <p>{state.flow.title}</p>

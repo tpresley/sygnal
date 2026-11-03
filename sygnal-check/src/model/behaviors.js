@@ -101,13 +101,13 @@ export const FIRST_PARTY = {
   // intent (SYNC: the host's state, for the derived fields); LEAVE is the router's block reply;
   // `finish` is a host action dispatched with next(); the moves also come from the steps' PARENT messages
   wizard: {
-    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'initial', 'local', 'leaving'],
+    stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'initial', 'local', 'leaving', 'reseed'],
     calculated: ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog'],
-    model: ['KEY', 'MOUNT', 'SYNC', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
+    model: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
     options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
     listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
     // (NEXT, BACK, GOTO, RESET, FINISH also come from the steps' PARENT messages)
-    intent: ['KEY', 'MOUNT', 'SYNC', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],
+    intent: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],
     nextOptions: ['finish'],
   },
   // PLAN-5 B-1: sortable({ from, item, handle, ... }) (src/extra/sortable.ts). It listens on the
