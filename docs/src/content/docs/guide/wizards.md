@@ -172,7 +172,11 @@ What a step's state keeps, and when:
   A step can therefore be skipped because of an earlier step's answer, as the Seats step is in the recipe. The derived fields (`steps`, `canNext`, …) are updated whenever the slice or the host's state changes.
 - **Types:** `wizard<Draft, State, { review: ReviewState }>` types each step's slice (`state.wizard.local.review`). A step component is a `WizardStepComp`, whose `initialState` is its own fields:
   - `WizardStepComp<ReviewState>` for a step that doesn't read the draft (its state is its own fields; it works under any wizard);
-  - `WizardStepComp<DefineState, { draft: Draft }>` for one that does, naming the draft's key and type together (`{ flow: Draft }` under `draftKey: 'flow'`).
+  - `WizardStepComp<DefineState, { draft: Draft }>` for one that does, naming the draft's key and type together (`{ flow: Draft }` under `draftKey: 'flow'`);
+  - `WizardStepComp<ReviewState, { draft?: Draft }>` for one that only writes it, in a reducer or two: its other reducers stay `(s: ReviewState) => ReviewState`;
+  - a component spec comes after, or in second place when there's no draft: `WizardStepComp<ReviewState, { actions: Actions }>`, `WizardStepComp<DefineState, { draft: Draft }, { actions: Actions }>`.
+
+  The leave dialog's copy has a type too: `wizard<Draft, State, Local, 'draft', Copy>` makes `state.wizard.dialog` a `Copy | null`.
 
 **A step with a form:**
 1. Put the [`form`](/guide/forms/) behavior in the step's `uses`.
@@ -206,14 +210,18 @@ wizard({
 ```
 
 - **No stale render:** until the state belongs to the new key, the outlet renders no step. A step never mounts against the old record's data.
-- **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`. The flow starts over for the new key at that step; in URL mode the wizard navigates there, past the leave guard. While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
+- **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`.
+  - The flow starts over for the new key, straight at that step. In URL mode the wizard navigates there, past the leave guard.
+  - `query` adds values to the route it navigates to: `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. The current route's other query values are kept unless `query` gives them.
+  - `draft` seeds the new flow. Without it, the draft comes from `draft(state)` on the route it lands on.
+  - While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
 
 ## Start over
 
 `reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
 
-In URL mode it then navigates to the first step's route. `resetTo` names another place:
+In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state)` on that route, once it has landed, not on the route left. `resetTo` names another place:
 - a router command: `resetTo: { to: 'newFilter' }`;
 - or a function of the slice *being reset* and the host's state, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
@@ -247,14 +255,6 @@ wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review
 ```jsx
 <dialog className="leave-dialog">
   <h2>{state.wizard.dialog?.title}</h2>
-  <button type="button" className="discard">Discard</button>
-  <button type="button" className="stay">Keep editing</button>
-</dialog>
-```
-
-```jsx
-<dialog className="leave-dialog">
-  <p>Discard this filter? Nothing is saved yet.</p>
   <button type="button" className="discard">Discard</button>
   <button type="button" className="stay">Keep editing</button>
 </dialog>
@@ -304,6 +304,30 @@ wizard({
 - **What still works:** Start over, and leaving the flow.
 
 GOV.UK's confirmation pages behave the same way: the service is done, and going back doesn't reopen it.
+
+**Start the outcome's work in the outcome step.** A step's requests end with the step: they are aborted when it is left, and their replies go nowhere. So a step that finishes the flow and also starts more work can't do both. Take "the filter is created: start its gold-set build and show Created at once": Review's GOTO to `created` would abort the build it just sent.
+1. Review puts what the work needs in the draft and moves on.
+2. Created starts the work in its `BOOTSTRAP`, from the draft.
+3. Created clears the flag, so a host mounted again doesn't start it twice.
+
+The build's reply and its failure then reach Created, which shows them.
+
+```jsx
+Review.model = {
+  CREATED: { STATE: (s, filter) => ({ ...s, draft: { ...s.draft, created: { id: filter.id, startBuild: true } } }),
+             PARENT: () => ({ wizard: 'GOTO', step: 'created' }) },
+}
+
+Created.model = {
+  BOOTSTRAP: {
+    STATE: (s) => s.draft.created?.startBuild ? { ...s, draft: { ...s.draft, created: { ...s.draft.created, startBuild: false } } } : s,
+    // (the other sinks get the state STATE committed: the flag is read from the state before)
+    HTTP: (s, data, next, { previousState: p }) => p.draft.created?.startBuild ? { url: `/api/filters/${p.draft.created.id}/gold-set`, method: 'POST', ok: 'BUILT', error: 'BUILD_FAILED' } : ABORT,
+  },
+  BUILT: (s) => ({ ...s, build: 'done' }),
+  BUILD_FAILED: (s, e) => ({ ...s, build: 'failed', error: e.status }),
+}
+```
 
 ## The step in the URL
 
@@ -381,6 +405,7 @@ A wizard is tested like any component:
 - Click Next with `t.simulateEvent('.next', 'click')`, or dispatch `t.simulateAction('wizard.NEXT')`. A step's `{ wizard: 'NEXT' }` message moves it too.
 - Read `t.state.wizard` (`step`, `draft`, `local`, `steps`).
 - In URL mode pass the router: `renderComponent(NewFilter, { router, url: '/filters/new/source?session=a' })`. Then `t.navigate` and `t.back` move between steps.
+- A step alone: render the step, and its wizard messages are in `t.sent('PARENT')` (or `t.sinkValues('PARENT')`): `expect(t.sent('PARENT')).toEqual([{ wizard: 'NEXT' }])`.
 
 ## Diagnostics
 

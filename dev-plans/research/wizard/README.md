@@ -387,3 +387,19 @@ See the summary sent to the coordinator; the same list, with the recommendation 
 - **The wizard's use:** it fills the derived fields into a slice that lacks them. Every view call, the first included, has `steps`.
 - **Cost:** kanban 43,077 → 43,138 B (+61 B); the budget is now 43,138 B.
 - **Test:** `test/parity/behavior-read.test.js`, with a hand-written behavior.
+
+## 10. The fourth pass (Sift's third report: nothing blocks the 7.2 preview)
+
+**Fixes:**
+- **N2:** Start over (RESET) that navigates drops the key and takes its draft from `draft(state)` on the route it lands on (RESEED, a built-in action), not on the route left.
+- **N4:** a GOTO with a new key enters the target step straight, without step one's `visit` scratch.
+- **`t.sent('PARENT')` / `t.sent('EVENTS')`** return the values sent. They returned an empty socket fake's list.
+
+**Decided and built:**
+- **N1:** `{ wizard: 'GOTO', step, key, query?, draft? }`. `query` is merged into the navigation's query, and the route's other query values are kept unless given. `draft` seeds the new flow; without it, the draft comes from the route entered (RESEED).
+- **F1 (documented, no API):** start the outcome's work in the outcome step's BOOTSTRAP, from the draft, because a step's requests end with the step. The guide's Created / gold-set build example is a test.
+- **Types:**
+  - N3 is `WizardStepComp<Own, { flow?: Draft }>`, for a step that only writes the draft;
+  - `wizard<…, DIALOG>` types `state.wizard.dialog`;
+  - `WizardStepComp<Own, Spec>` works with no middle `undefined`. A second argument whose keys are all ComponentSpec keys is the spec.
+

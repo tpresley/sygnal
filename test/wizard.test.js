@@ -894,3 +894,32 @@ describe('testing a step alone', () => {
     expect(t.sinkValues('PARENT')).toEqual([{ wizard: 'NEXT' }])
   })
 })
+
+describe('guide: start the outcome step\'s work in the outcome (F1)', () => {
+  it('Created sends the build from the draft once, and its reply reaches Created', async () => {
+    function Review() { return h('button', { className: 'create' }, 'Create') }
+    Review.intent = ({ DOM }) => ({ CREATED: DOM.click('.create').mapTo({ id: 7 }) })
+    Review.model = {
+      CREATED: { STATE: (s, f) => ({ ...s, draft: { ...s.draft, created: { id: f.id, startBuild: true } } }), PARENT: () => ({ wizard: 'GOTO', step: 'created' }) },
+    }
+    function Created({ state }) { return h('p', { className: 'created' }, `${state.draft.created?.id}:${state.build ?? 'building'}`) }
+    Created.model = {
+      BOOTSTRAP: {
+        STATE: (s) => s.draft.created?.startBuild ? { ...s, draft: { ...s.draft, created: { ...s.draft.created, startBuild: false } } } : s,
+        HTTP: (s, data, next, { previousState: p }) => p.draft.created?.startBuild ? { url: `/api/filters/${p.draft.created.id}/gold-set`, method: 'POST', ok: 'BUILT', error: 'BUILD_FAILED' } : ABORT,
+      },
+      BUILT: (s) => ({ ...s, build: 'done' }),
+    }
+    function Host() { return h(Outlet, { of: { review: Review, created: Created }, from: 'wizard', focus: false }) }
+    Host.uses = { wizard: wizard({ steps: { review: {}, created: { outcome: true } }, draft: {} }) }
+    t = renderComponent(Host, { dom: 'real' })
+    await t.ready(); await tick()
+    await click('.create'); await tick(40)
+    expect(t.query('.created').textContent).toBe('7:building')
+    expect(t.requests('HTTP').map(r => r.url)).toEqual(['/api/filters/7/gold-set'])
+    expect(t.state.wizard.draft.created.startBuild).toBe(false)
+    await t.respond('HTTP', { ok: true })
+    await tick()
+    expect(t.query('.created').textContent).toBe('7:done')
+  })
+})

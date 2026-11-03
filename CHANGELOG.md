@@ -4,44 +4,57 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
-From the Sift console port's hand-built wizards (research: `dev-plans/research/wizard/`).
+From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
 
-**Added (experimental, outside semver): wizards.**
-- **The `wizard()` behavior and `<Outlet>`** (guide/wizards). They build multi-step flows where only the current step exists: entering a step runs its BOOTSTRAP, and leaving it runs its DISPOSE and aborts its requests.
-  - **State:** a `draft` shared by the steps, plus each step's own slice, kept across Back. Two steps' resources and forms no longer collide. Per-step `visit` scratch is reset on entry.
-  - **Flow key:** `key` makes the flow anew for a new record (session, draft, report).
-  - **Moves:** start over (`reset`), `valid` / `when` per step, and `finish`.
-  - **Leave guard:** `dirty` with a confirm dialog, on the router's `block`.
-  - **URL binding:** `url: { route, param, key }`.
-  - **Stepper:** its state is in `state.wizard.steps`, with `aria-current="step"` markup in the guide. Focus moves to the new step's heading.
-  - **Route mode:** `<Outlet of={PAGES} route={state.route} query={['session']} />` renders route pages one at a time, identified by name + path + the named query keys.
-  - **Diagnostics:** **SYG455** (an Outlet `from` that names no wizard) and **SYG456** (no component for the current name).
-  - **sygnal-check** knows the behavior's slice, actions and options. It reports SYG455 and SYG456 statically, and **SYG457** for an `of` key that is no step.
-  - **Steps:**
-    - predicates (`valid`, `when`, `dirty`, a function `label`) get `(step, state)`;
-    - `dirty` and `discard` can be set per step;
-    - steps move the flow with PARENT messages (`{ wizard: 'NEXT' }`).
-  - **Options:** `draftKey` renames the draft, and `resetTo` says where Start over navigates.
-  - **The flow key:** a key born mid-flow is adopted, and no key keeps the flow. On adoption, the draft's top-level fields the user hasn't changed are filled again from `draft(state)`; the slice's `initial` holds the start draft.
-  - **Outlet:** a `fallback` component. Plain mode (`current` + `identity`) is the outlet for an app's pages.
-  - **More steps:**
-    - **Alternative steps** share one stepper entry (`group`, `groups`, `state.wizard.stepper`).
-    - **An outcome step** (`outcome: true`, a final screen) is shown as done, and Back doesn't return into the steps.
-    - **Leave-dialog copy per step:** `dialog` → `state.wizard.dialog`.
-  - **Steps from inside the flow:**
-    - a second record with `{ wizard: 'GOTO', step, key }`;
-    - `resetTo(previousSlice, state)`;
-    - a step's own `discard(step, state) => step`.
-  - **Outlet `state` per page:** a map from page names to bindings.
-  - **A route to a step that can't be reached** goes back to the first incomplete step before it.
+**Added (experimental, outside semver): wizards and an outlet**, in `guide/wizards`.
+
+- **`wizard()`, a behavior (`C.uses = { wizard: wizard({ steps, … }) }`), and `<Outlet of={STEPS} from="wizard" />`.** Only the current step exists:
+  - entering a step runs its INITIALIZE and BOOTSTRAP;
+  - leaving it runs its DISPOSE and stops its requests, connections, timers and watches.
+- **State.**
+  - **What a step sees:** its own slice (kept across Back, so two steps' resources and forms can't collide), plus the flow's shared `draft` (renamed with `draftKey`).
+  - **Scratch:** `visit` fields are set again on each entry and each host mount.
+  - **The slice `state.wizard`:** `step`, `key`, `draft`, `initial`, `local`, `visited`, `leaving`.
+  - **Derived fields:** `steps`, `stepper`, `canBack`, `canNext`, `index`, `count`, `first`, `last`, `outcome`, `dialog`, written by a built-in SYNC action only when they change.
+- **Steps.**
+  - **Predicates:** `valid`, `when` (skip), `dirty`, and a `label` function, each getting `(step, state)`: the step's view with its initialState merged in, and the host state.
+  - **Groups:** alternative steps share one stepper entry (`group`, `groups`).
+  - **Outcome step:** a final screen such as Created (`outcome: true`). It is shown as done, and Back doesn't return into the steps.
+  - **Leave-dialog copy** per step (`dialog`).
+  - A step that can't be reached sends the user back to the first incomplete step before it.
+- **Moves.**
+  - **Buttons:** `next`, `back`, `goto`, `reset` and `finish`.
+  - **From inside a step**, as PARENT messages: `{ wizard: 'NEXT' | 'BACK' | 'FINISH' }`, `{ wizard: 'GOTO', step }`, and `{ wizard: 'RESET', draft? }`.
+  - **A second record:** `{ wizard: 'GOTO', step, key, query?, draft? }`.
+  - **Start over** goes to `resetTo(previousSlice, state)`.
+- **The flow key** (`key(state)`).
+  - Another key starts the flow over.
+  - A key born mid-flow is adopted, and the draft's untouched fields are refilled from `draft(state)`.
+  - No key keeps the flow.
+  - Start over and a GOTO with a key take their draft from the route they land on.
+- **Leave guard.** While the step's (or the wizard's) `dirty` is true, the router's `block` holds a navigation out of the flow, and the `confirm` `<dialog>` offers Discard (the step's or the wizard's `discard`) or Stay.
+- **URL binding.** `url: { route, param, key, from? }` puts the step and the flow key in the route. Back and forward move between steps.
+- **Stepper.** The guide shows the `<ol>` + `aria-current="step"` markup. After a step change, focus moves to the new step's heading.
+- **`<Outlet>`** keeps only the current page alive, keyed by its identity.
+  - **Plain mode** (`current`, `identity`) is the outlet for an app's pages.
+  - **Route mode:** `route` + `query`.
+  - **Options:** `fallback` for names not in `of`, and a per-page `state` map.
+- **Types.**
+  - `wizard<Draft, State, Local, DraftKey, DialogCopy>`.
+  - `WizardStepComp<Own>` for a step that doesn't read the draft, `WizardStepComp<Own, { flow: Draft }>` for one that does, and an optional component spec.
+  - `WizardMessage`.
+- **Diagnostics.**
+  - **SYG455:** an Outlet `from` that names no wizard.
+  - **SYG456:** no component for the current name (also static).
+  - **SYG457:** an `of` key that names no step (`sygnal-check`).
+  - **sygnal-check** knows the behavior's slice, actions and options.
+- **Core: a behavior's read-time normalizer.** A behavior's merge may set `c._read = { key: (value, state) => value }`. The core applies it whenever the component's state is read (before calculated fields, memoized per state object). The wizard uses it so that a slice a parent seeded has its derived fields from the first view call.
+  - **Size:** the size gate's budget goes from 43,080 B to 43,138 B (user-approved, +61 B).
 
 **Fixed.**
-- **Router: a blocked back / forward whose `proceed` was sent at once was lost.** The router told the blocker before undoing the traversal, so the proceed's `history.go()` ran first and went nowhere. The traversal is now undone first.
-- **Router: no stale `force`.** A navigation sent while a blocked traversal's undo is pending waits for the undo to land, because Chromium drops a second `history.go()` in the same task. A forced traversal now skips the blocks only at the entry it was going to, so a dropped one can't leave the next traversal unguarded.
-- **`renderComponent`'s in-memory history:**
-  - it resolves `go(n)` when the traversal runs, as browsers do, instead of when it is called;
-  - a `go()` while one is pending is dropped, as in Chromium;
-  - a value a driverless sink gets while the component is created is recorded. It threw before.
+- **`renderComponent`:**
+  - a value a driverless sink gets while the component is created is recorded (it threw);
+  - `t.sent('PARENT')` and `t.sent('EVENTS')` return what was sent (they returned an empty socket fake's list).
 
 From the `examples/ai-adaptive` stress test of composed UI (#65–#70; its `FINDINGS.md` has the
 reports).
