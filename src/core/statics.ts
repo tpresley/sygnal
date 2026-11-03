@@ -5,11 +5,14 @@
  * makeSocketDriver, 'route' the router, 'head' makeHeadDriver, a testing fake) takes that static
  * of every component that declares it.
  *
- * - A declaring instance's value of `view[static]` (a function of the calculated state, an object
- *   of such functions, or a constant such as a `route` string) is recomputed when its state or its
- *   shown flag changed: in the flush (after each render pass, so a new instance and a parent's
+ * - A declaring instance's value of `view[static]` (a function `(state, bag)`, an object of such
+ *   functions, or a constant such as a `route` string) is recomputed when its state, its shown
+ *   flag, its context or (7.2, shallowly) its props changed: in the flush (after each render pass, so a new instance and a parent's
  *   write are covered) and synchronously after each of its own actions (G-158: before that
  *   action's own values on any driver sink; D170/Q21).
+ * - 7.2: the bag is what the view gets, without children and slots: `{ ...props, state, context,
+ *   uid }`. Until 8.0 the context's own fields are on it too (the bag's own keys win), as the
+ *   context was the 2nd argument before; sygnal/diagnostics wraps it (`wrapBag`) to warn when one is read.
  * - Sent as `{ [static]: value }`, without deep-equal repeats (objIsEqual); while the instance is
  *   on a hidden Switchable page, an object value keeps only its `background: true` entries.
  *   Stamped and scoped like any sink value (actions.ts send()). A throwing declaration is SYG216
@@ -23,6 +26,7 @@ import type {Inst} from './instance'
 import type {App} from './runtime'
 import type {CoreDef} from './define'
 import {objIsEqual} from '../cycle/state/objIsEqual'
+import {shallowEq} from './instance'
 import {send} from './actions'
 import {viewOf} from './view'
 
@@ -73,20 +77,22 @@ const shownOf = (inst: Inst) => {
   return true
 }
 
-/** recompute the instance's declarations when its state or shown flag changed; send the changed ones */
+/** recompute the instance's declarations when its state, shown flag, context or props changed; send the changed ones */
 export function checkStatics(inst: Inst) {
   if (inst.disposed) return
-  const s = inst.cell.get(), shown = shownOf(inst), c = inst.context()
+  const s = inst.cell.get(), shown = shownOf(inst), c = inst.context(), p = inst.props
   // no state yet: nothing declared (as the state stream, which skips undefined)
-  if (s === undefined || (s === inst.sS && shown === inst.sH && c === inst.sC)) return
-  inst.sS = s; inst.sH = shown; inst.sC = c
-  const view = inst.def.view, sv = inst.sv!
+  if (s === undefined || (s === inst.sS && shown === inst.sH && c === inst.sC && shallowEq(p, inst.sP))) return
+  inst.sS = s; inst.sH = shown; inst.sC = c; inst.sP = p
+  const view = inst.def.view, sv = inst.sv!, H = inst.app.hooks
+  let b: any = {...c, ...p, state: s, context: c, uid: inst.uid}
+  if (H.wrapBag) b = H.wrapBag(viewOf(inst), b, c) || b
   for (const [n, k] of inst.st!) {
     const f = view[k]
     let v: any = f
     try {
-      if (typeof f == 'function') v = f(s, c)
-      else if (f && typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s, c) }
+      if (typeof f == 'function') v = f(s, b)
+      else if (f && typeof f == 'object') { v = {}; for (const r in f) v[r] = f[r](s, b) }
     } catch (e) {
       // as today: nothing sent; the next value is sent even when equal to the last one
       inst.app.caught(inst, 'SYG216', `${k} threw; nothing sent`, e, 'declaration')
@@ -98,7 +104,7 @@ export function checkStatics(inst: Inst) {
     const out = {[k]: v}
     if (n in sv && objIsEqual(out, sv[n])) continue
     sv[n] = out
-    inst.app.hooks.onSink?.(viewOf(inst), null, n, out)
+    H.onSink?.(viewOf(inst), null, n, out)
     send(inst, n, out)
   }
 }

@@ -2,6 +2,26 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+From the Sift port (a resource function couldn't see the component's props), generalized by the maintainer: **every function you write over state takes `(subject, …its own arguments, bag)`**, the bag being what the view gets, `{ ...props, state, context, uid }` (`bag.state`: the component's whole state; for a behavior's or a wizard step's function, the host's). Guide: `guide/state#what-every-function-gets`.
+
+**Changed**
+- **Declaration statics** (`resources`, `timers`, `connections`, `head`, `browser`, `route`) get `(state, bag)` instead of `(state, context)`, and are computed again when a prop changes (compared shallowly), as well as the state, the shown flag and the context. A child now reads its parent's id as a prop: `Tasks.resources = { list: (s, { projectId }) => … }`.
+  - **7.2 compatibility:** the context's own fields stay on the bag until 8.0, so `(s, { route })` keeps working; a prop or bag key of the same name wins. The dev entry warns on such a read, **SYG458** (a collision says the prop won). `sygnal-check` reports it too, and `--fix` rewrites `(s, { route })` → `(s, { context: { route } })`. 8.0 removes the compatibility read (BACKLOG-8.0 B8-2).
+  - `route`'s type said `(state)`; it was always called with a second argument and is now typed `(state, bag)`.
+- **Wizard (experimental):** the predicates and copy functions (`valid`, `when`, `label`, `dialog`, `visit`, a step's `discard`) get `(step, bag)` instead of `(step, hostState)`; `dirty` gets `(step, stepName, bag)` instead of `(step, hostState, stepName)`; `resetTo` and the wizard-level `discard` `(slice, bag)`; `draft`, `key` and `url.from` `(hostState, bag)`. Read the host state as `bag.state`. The bag is complete in the handlers; what the wizard watches in its intent (the key, the leave guard, the derived fields' sync, the route) has the host's props and state but no context or uid, and the read-time normalizer and the start slice have `state` only.
+
+**Added**
+- **`.context` entries** get `(state, bag)`, `bag.context` being the parent's context; a prop change recomputes the context.
+- **A behavior's `calculated`** gets `(slice, bag)` (`bag.state`: the host state holding the new slice; the start slice gets `{ state: undefined }`), and its `timers` `(slice, options, key, bag)`.
+- **`form()`:** the schema function, `values` and `dynamic` get `(hostState, bag)`; `request` gets `(data, hostState, bag)` (8.0 reorders it to `(hostState, data, bag)`, B8-3). `dynamic` and the schema function's sync in the intent get the props and the state.
+- **sygnal/ai:** an agent's `read`, `when` and `until` get `(state, bag)`, `queries.run` `(state, input, bag)` (cached by state, props and context), and `chat({ model })` `(hostState, bag)`.
+- **Types:** `ReadBag<State, Props, Context>` (a derivation's bag; `ReducerExtras` now extends it) and `DeclarationBag<State, Props, Context>` (a declaration static's, with the 7.2 context fields).
+- **Core hook** `wrapBag(inst, bag, context)` (the dev entry's SYG458 Proxy).
+
+**Unchanged, on purpose:** `calculated` fields, lenses and a behavior's read-time normalizer (they belong to the state cell, which instances with different props can share); a Collection's `filter` / `sort`, `estimateSize` and lens props (written in the view); `intent` (sources); `onError`.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).

@@ -610,6 +610,30 @@ export function nextHooks(_api: any): any {
         data: {missing, slice: Object.keys(slice)},
       })
     },
+    // SYG458 (7.2): a declaration static (resources, timers, ...) reads a context field off its bag,
+    // the 7.2 compatibility read (removed in 8.0), or a key the context and the props both have
+    // (the prop wins). The bag as a Proxy: a read reports once per component and key
+    wrapBag(iv: any, bag: any, ctx: any) {
+      if (!on() || !ctx || !Object.keys(ctx).length) return
+      const props = iv.props || {}, name = iv.name
+      return new Proxy(bag, {get(t, k) {
+        if (typeof k == 'string' && k in ctx && once(`SYG458:${name}:${k}`)) {
+          // (a context key named state / context / uid: the bag's own key wins, as a prop does)
+          const own = k == 'state' || k == 'context' || k == 'uid', prop = own || k in props
+          devReport('SYG458', {
+            component: name,
+            message: prop
+              ? `A declaration static of ${name} read '${k}' off its bag: the ${own ? "bag's own" : 'prop'} '${k}' is what it got, though the context has a '${k}' too`
+              : `A declaration static of ${name} read the context field '${k}' off its bag; since 7.2 the 2nd argument is the bag ({ ...props, state, context, uid }), and context fields on it go in 8.0`,
+            fix: prop
+              ? `For the context's value read bag.context.${k}: (state, { context: { ${k} } }) => …`
+              : `Read it from the bag's context: (state, { context: { ${k} } }) => … (sygnal-check --fix rewrites it)`,
+            data: {key: k, prop},
+          })
+        }
+        return t[k as any]
+      }})
+    },
     onContextSkip(iv: any, render: (c: any) => any, prev: any, next: any, keys: string[]) {
       if (!on() || !prev || !next) return
       const n = (skips.get(iv) || 0) + 1

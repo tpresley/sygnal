@@ -208,3 +208,11 @@ export async function pendingResult() {
   const r = await set.call('todos_add', { value: 'x' })
   if (r.ok && r.pending) return r.note
 }
+
+// 7.2 (the one bag): read / when / until / a query's run get the instance's view bag last
+export const bagged: AgentDeclaration<State> = {
+  name: 'todos',
+  read: (s, { context, uid }) => ({ n: s.todos.length, who: context?.user, id: uid() }),
+  actions: {},
+  queries: { count: { description: 'how many', when: (s, { state }) => state === s, run: (s, _in, { listId }) => String(listId) + s.todos.length } },
+}

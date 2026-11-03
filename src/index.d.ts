@@ -125,7 +125,25 @@ export interface HandlerEntropy {
 }
 /** the declared (literal) keys of PROPS: none for an index signature such as the default `{ [prop: string]: any }` */
 type LiteralKeys<PROPS> = keyof { [KEY in keyof PROPS as string extends KEY ? never : number extends KEY ? never : symbol extends KEY ? never : KEY]: 0 }
-type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, LiteralKeys<PROPS>> & PROPS & { state: STATE; previousState: STATE; context: CONTEXT; children?: SygnalChild; slots?: Record<string, JSX.Element[]>; uid: UidFunction }
+/**
+ * 7.2: the bag every function a user writes over state gets as its last argument, the object the
+ * view gets without `children` and `slots`: the props, `state` (the component's whole state; for
+ * a behavior's or a wizard step's function, the host's), `context` and `uid`. Derivations
+ * (declaration statics, `.context` entries, a behavior's `calculated`, the wizard's and form's
+ * functions, an agent's `read` / `when` / `until` / query `run`, a chat `model`) get it as is;
+ * handlers get `ReducerExtras`, which adds `previousState`, `children`, `slots` and
+ * now / random / uuid.
+ */
+export type ReadBag<STATE = any, PROPS = { [prop: string]: any }, CONTEXT = any> = PROPS & { state: STATE; context: CONTEXT; uid: UidFunction }
+/**
+ * 7.2: a declaration static's bag (`resources`, `timers`, `connections`, `head`, `browser`,
+ * `route`). Until 8.0 the context's own fields are on it too (the 2nd argument was the context
+ * before 7.2): `(state, { route })` still works, with SYG458 in dev; the canonical form is
+ * `(state, { context: { route } })`. A prop or bag key of the same name wins.
+ */
+export type DeclarationBag<STATE = any, PROPS = { [prop: string]: any }, CONTEXT = any> =
+  Omit<CONTEXT, LiteralKeys<PROPS> | 'state' | 'context' | 'uid'> & ReadBag<STATE, PROPS, CONTEXT>
+export type ReducerExtras<PROPS, CONTEXT, STATE = any> = Omit<HandlerEntropy, LiteralKeys<PROPS>> & ReadBag<STATE, PROPS, CONTEXT> & { previousState: STATE; children?: SygnalChild; slots?: Record<string, JSX.Element[]> }
 
 type Reducer<STATE, PROPS, ACTIONS = any, DATA = any, RETURN = any, CONTEXT = {}> = (
   state: STATE,
@@ -897,15 +915,20 @@ export interface BehaviorDefinition<SLICE = any, ACTIONS = {}, CALCULATED = {}, 
    * functions.)
    */
   model?: { [action: string]: BehaviorModelEntry<SLICE, OPTIONS> };
-  /** Fields of the slice (`state.pager.offset`), stored on it and recomputed when it changes. */
-  calculated?: { [FIELD in keyof CALCULATED]: (slice: SLICE) => CALCULATED[FIELD] };
+  /**
+   * Fields of the slice (`state.pager.offset`), stored on it and recomputed when it changes.
+   * 7.2: `(slice, bag)`, the host view's bag with `state` the host's state holding the new slice;
+   * the slice's start value (no host yet) gets `{ state: undefined }`.
+   */
+  calculated?: { [FIELD in keyof CALCULATED]: (slice: SLICE, bag: ReadBag) => CALCULATED[FIELD] };
   /**
    * D197: timers for the host (`makeTimerDriver()`), from the slice: `{ name: spec }`, as the
    * `timers` static. The host sees them as `'<key>.<name>'`; a spec's `action` (or `frame`)
    * naming one of the behavior's actions is namespaced (`'SHOW'` → `'<key>.SHOW'`), any other
-   * name is sent to the host as written. They join the host's own `timers`.
+   * name is sent to the host as written. They join the host's own `timers`. 7.2: the host's
+   * declaration bag last.
    */
-  timers?: (slice: SLICE, options: OPTIONS, key: string) => Timers;
+  timers?: (slice: SLICE, options: OPTIONS, key: string, bag: DeclarationBag) => Timers;
   /**
    * ui-sweep R1: the option each action's trigger is built from (`{ TOGGLE: 'toggle' }`). Dev
    * only: SYG118 when a host intent action of that name replaces it while the host passes the option.
@@ -1118,7 +1141,7 @@ declare const formOutput: unique symbol
 type FormRequestObject = Exclude<FetchRequest, string> & { url: string; ok?: never; error?: never }
 export type FormRequest<OUT = any> =
   | FormRequestObject
-  | ((data: OUT, state: any) => FormRequestObject | typeof ABORT | null | undefined | false)
+  | ((data: OUT, state: any, bag: ReadBag) => FormRequestObject | typeof ABORT | null | undefined | false)
 
 export interface FormOptions<V = any, OUT = any> {
   /** Phantom, types only: the schema's output (`FormOutput<typeof uses.form>`); never set */
@@ -1128,7 +1151,7 @@ export interface FormOptions<V = any, OUT = any> {
    * Or a function of the host component's state, for start values that come from state (a default
    * from the settings): called when the form starts, and each time it starts over (`resetOnShow`)
    */
-  values: V | ((state: any) => V);
+  values: V | ((state: any, bag: ReadBag) => V);
   /**
    * The host action a valid submit dispatches with the schema's output (SYG234 when it has no model entry). With an `http` sink in its entry the submit is pending until `form.DONE` / `form.ERRORS`; otherwise it is done at once.
    * Optional with `request` (then dispatched too, for state; its entry should send no request)
@@ -1170,7 +1193,7 @@ export interface FormOptions<V = any, OUT = any> {
    * `resetOnShow` start them over too. Paths name object keys (not array rows). Recomputed on
    * each host state change, compared structurally
    */
-  dynamic?: (state: any) => Record<string, any>;
+  dynamic?: (state: any, bag: ReadBag) => Record<string, any>;
   /**
    * RT-1: what happens to a `dynamic` entry's value when the entry goes. `true` (default, as
    * React Hook Form / TanStack Form): it stays in `values` (and `initial`: dirty shows it; its
@@ -1272,7 +1295,7 @@ export type FormOutput<F> = F extends Behavior<any, any, any, infer OPTIONS>
  */
 export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>(
   schema: S,
-  options: FormOptions<V, FormSchemaOutput<S>> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any) => SchemaInput<S>) }
+  options: FormOptions<V, FormSchemaOutput<S>> & { values: FormIsAny<SchemaInput<S>> extends true ? unknown : SchemaInput<S> | ((state: any, bag: ReadBag) => SchemaInput<S>) }
     & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
 ): FormBehavior<FormValuesOf<V, S>, FormSchemaOutput<S>>
 /**
@@ -1281,10 +1304,11 @@ export function form<V = any, S extends StandardSchemaLike = StandardSchemaLike>
  * state whenever the form validates; results are cached per schema object, so return the same
  * schema while the rules don't change (memoize it on what it reads; a new one for the same state
  * is SYG239 in dev). The form re-validates when it returns another schema. `values` holds the
- * fields that are always there (often `{}` with `dynamic`)
+ * fields that are always there (often `{}` with `dynamic`). 7.2: the bag last, as every function
+ * option of the form (`values`, `dynamic`, `request`): the host view's `{ ...props, state, context, uid }`
  */
 export function form<V = Record<string, any>, S extends StandardSchemaLike = StandardSchemaLike>(
-  schema: (state: any) => S,
+  schema: (state: any, bag: ReadBag) => S,
   options: FormOptions<V, FormSchemaOutput<S>> & ({ submit: string } | { request: FormRequest<FormSchemaOutput<S>> })
 ): FormBehavior<V, FormSchemaOutput<S>>
 
@@ -1370,21 +1394,21 @@ export type WizardStepComp<OWN = {}, DRAFT_OR_SPEC extends Record<string, any> |
     SpecSinks<StepSpecOf<DRAFT_OR_SPEC, T>>,
     SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'provided', SpecOf<StepSpecOf<DRAFT_OR_SPEC, T>, 'context', {}>>
   >, 'initialState'> & { initialState?: OWN }
-/** a wizard's leave-dialog copy option: a value of DIALOG (when DIALOG is left `any`: a string or an object), or a function of the step's view and the host state */
-type WizardDialogOpt<DIALOG, STEP, HOST> = ((step: STEP, state: HOST) => DIALOG) | (0 extends (1 & DIALOG) ? string | { [field: string]: unknown } : DIALOG)
+/** a wizard's leave-dialog copy option: a value of DIALOG (when DIALOG is left `any`: a string or an object), or a function of the step's view and the bag (7.2; `bag.state`: the host's state) */
+type WizardDialogOpt<DIALOG, STEP, HOST> = ((step: STEP, bag: ReadBag<HOST>) => DIALOG) | (0 extends (1 & DIALOG) ? string | { [field: string]: unknown } : DIALOG)
 export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends string = 'draft', LOCAL extends Record<string, any> = Record<string, any>, DIALOG = any> {
-  /** The stepper label (default: the step name), or a function of the step's view and the host state */
-  label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => string);
+  /** The stepper label (default: the step name), or a function of the step's view and the bag (7.2; `bag.state`: the host's state) */
+  label?: string | ((step: WizardStepState<DRAFT, OWN, DK>, bag: ReadBag<HOST>) => string);
   /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
-  valid?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
+  valid?: (step: WizardStepState<DRAFT, OWN, DK>, bag: ReadBag<HOST>) => boolean;
   /** Is this step part of the flow? (default true). A step for which it is false is skipped */
-  when?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => boolean;
+  when?: (step: WizardStepState<DRAFT, OWN, DK>, bag: ReadBag<HOST>) => boolean;
   /** Fields of the step's own slice set again on every entry and host mount (its scratch: busy flags, errors) */
-  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN>);
+  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, OWN, DK>, bag: ReadBag<HOST>) => Partial<OWN>);
   /** The leave guard while this step is current (instead of the wizard's `dirty`) */
-  dirty?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST, name: string) => boolean;
+  dirty?: (step: WizardStepState<DRAFT, OWN, DK>, name: string, bag: ReadBag<HOST>) => boolean;
   /** This step's state after a confirmed leave from it (instead of the wizard's `discard`): its view in, its state out (the draft key in it updates the draft) */
-  discard?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN> & { [K in DK]?: DRAFT };
+  discard?: (step: WizardStepState<DRAFT, OWN, DK>, bag: ReadBag<HOST>) => Partial<OWN> & { [K in DK]?: DRAFT };
   /** Alternative steps sharing one stepper entry (Analyze or Describe): the same group name; `groups` labels it */
   group?: string;
   /** A final screen after the flow (Created): not in the stepper; entered by GOTO; Back doesn't return into the steps */
@@ -1452,7 +1476,7 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   /** The steps, in order: name -> definition */
   steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K], HOST, DK, LOCAL, DIALOG> };
   /** The draft a flow starts with, or a function of the host's state called at each start */
-  draft?: DRAFT | ((state: HOST) => DRAFT);
+  draft?: DRAFT | ((state: HOST, bag: ReadBag<HOST>) => DRAFT);
   /** The draft's key in a step's state (default 'draft') */
   draftKey?: DK;
   /**
@@ -1460,27 +1484,27 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
    * flow over; a key born mid-flow (none to a value) is adopted; none (null, or undefined: "not
    * mine") keeps the flow and its key
    */
-  key?: (state: HOST) => any;
+  key?: (state: HOST, bag: ReadBag<HOST>) => any;
   /** Selectors (or controls) whose clicks move: NEXT, BACK, RESET, GOTO (a `data-step` attribute names the step) */
   next?: BehaviorTarget; back?: BehaviorTarget; reset?: BehaviorTarget; goto?: BehaviorTarget;
   /** A host action dispatched (with the draft) by NEXT on the last step, or a step's `{ wizard: 'FINISH' }` */
   finish?: string;
   /** The leave guard (a step's own `dirty` wins): while true, navigating away from the flow is held for a confirm */
-  dirty?: (step: WizardStepState<DRAFT, any, DK>, state: HOST, name: keyof LOCAL & string) => boolean;
+  dirty?: (step: WizardStepState<DRAFT, any, DK>, name: keyof LOCAL & string, bag: ReadBag<HOST>) => boolean;
   /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over) */
-  discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
+  discard?: (wizard: WizardState<DRAFT, LOCAL>, bag: ReadBag<HOST>) => WizardState<DRAFT, LOCAL>;
   /** Group labels: `{ build: { label } }` (default: the label of the step that applies) */
-  groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => string) }>;
+  groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, bag: ReadBag<HOST>) => string) }>;
   /** The leave dialog's copy when the current step has none (`state.wizard.dialog`) */
   dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, any, DK>, HOST>;
-  /** Where Start over navigates (a router command, or a function of the slice being reset and the host state); url mode default: the first step's route */
-  resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, state: HOST) => RouterCommand);
+  /** Where Start over navigates (a router command, or a function of the slice being reset and the bag); url mode default: the first step's route */
+  resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, bag: ReadBag<HOST>) => RouterCommand);
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
   confirm?: BehaviorTarget;
   /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
   leave?: BehaviorTarget; stay?: BehaviorTarget;
   /** The step (and the flow key) in the URL: route `route`'s param `param` names the step, query `key` the flow key; `from` maps the host's route (and an attempted one) onto it */
-  url?: { route: string; param: string; key?: string; from?: (state: HOST) => Route | undefined };
+  url?: { route: string; param: string; key?: string; from?: (state: HOST, bag: ReadBag<HOST>) => Route | undefined };
   /** The router sink (default 'ROUTER') */
   router?: string;
 }
@@ -1824,9 +1848,11 @@ type Calculated<STATE, CALCULATED> = keyof CALCULATED extends never
   ? { [field: string]: CalculatedFieldValue<STATE, any> }
   : { [CALCULATED_KEY in keyof CALCULATED]: CalculatedFieldValue<STATE & CALCULATED, CALCULATED[CALCULATED_KEY]> }
 
-type Context<STATE, CONTEXT> = keyof CONTEXT extends never
-  ? { [field: string]: StateOnlyReducer<STATE, any> }
-  : { [CONTEXT_KEY in keyof CONTEXT]: StateOnlyReducer<STATE, CONTEXT[CONTEXT_KEY]> }
+/** 7.2: a `.context` entry: `(state, bag)`, the bag with the parent's context */
+type ContextEntry<STATE, RETURN, PROPS, PARENT> = (state: STATE, bag: ReadBag<STATE, PROPS, PARENT>) => RETURN
+type Context<STATE, CONTEXT, PROPS = any, PARENT = any> = keyof CONTEXT extends never
+  ? { [field: string]: ContextEntry<STATE, any, PROPS, PARENT> }
+  : { [CONTEXT_KEY in keyof CONTEXT]: ContextEntry<STATE, CONTEXT[CONTEXT_KEY], PROPS, PARENT> }
 
 export type Lense<PARENT_STATE = any, CHILD_STATE = any> = {
   get: (state: PARENT_STATE) => CHILD_STATE;
@@ -1883,7 +1909,7 @@ export type Component<
    * Context this component provides to itself and its descendants. Typed by PROVIDED_CONTEXT,
    * which defaults to CONTEXT (the context the view and reducers see).
    */
-  context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT>;
+  context?: Context<STATE & CALCULATED, PROVIDED_CONTEXT, PROPS, CONTEXT>;
   onError?: (error: Error, info: { componentName: string }) => any;
   /**
    * PLAN-6 A-1: what agents (the in-app assistant, WebMCP, coding agents) may do with this
@@ -1903,12 +1929,12 @@ export type Component<
    * actions on this instance; send with `{ to: 'room', json }` from a model entry (a connection
    * the same action opens or changes is declared first). Dispose closes them.
    */
-  connections?: (state: STATE & CALCULATED, context: CONTEXT) => Connections;
+  connections?: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => Connections;
   /**
    * PLAN-3: declarative reads (`makeFetchDriver()`). Each entry derives a
-   * request from state (and, PLAN-13 F-1, the context as its second argument, as every
-   * declaration static: `(state, { route }) => '/api/items/' + route.params.id`; re-run when the
-   * context changes); falsy means idle:
+   * request from state and (7.2, as every declaration static) the bag, the view's `{ ...props,
+   * state, context, uid }`: `(state, { id, context: { route } }) => '/api/items/' + (id ?? route.params.id)`;
+   * re-run when the state, the context or a prop changes; falsy means idle:
    * `Quote.resources = { quote: (state) => state.id && '/api/quotes/' + state.id }`.
    * `state.quote` is a `Resource`: `{ status: 'idle' | 'loading' | 'success' | 'error', data,
    * error, refreshing }`, written by the built-in RESOURCE action (idle until the first request).
@@ -1918,7 +1944,7 @@ export type Component<
    * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
    * request also dispatch those actions after the write.
    */
-  resources?: { [name: string]: (state: STATE & CALCULATED, context: CONTEXT) => ResourceRequest | false | null | undefined | '' | 0 };
+  resources?: { [name: string]: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => ResourceRequest | false | null | undefined | '' | 0 };
   /**
    * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
    * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
@@ -1932,7 +1958,7 @@ export type Component<
    * return a falsy value to stop listening. Works
    * with or without a model; a root needs `initialState` (SYG132), seeded with `router.current()`.
    */
-  route?: string | ((state: STATE & CALCULATED) => string | false | null | undefined);
+  route?: string | ((state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => string | false | null | undefined);
   /**
    * Document head values for `makeHeadDriver()`, derived from state: `App.head = (state) =>
    * ({ title: state.task?.title })`. Recomputed when the result changes; removed on dispose.
@@ -1940,7 +1966,7 @@ export type Component<
    * `renderToString(App, { head: list })` for SSR (`renderHead(list)`). Like every declaration
    * static, it is sent with or without a model; a root needs `initialState` (SYG132).
    */
-  head?: (state: STATE & CALCULATED, context: CONTEXT) => HeadValue | false | null | undefined;
+  head?: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => HeadValue | false | null | undefined;
   /**
    * PLAN-4 GS-1: behaviors this component uses, each under its state key:
    * `TaskList.uses = { pager: pager({ pageSize: 10, next: Newer, prev: Older }) }` gives
@@ -1957,7 +1983,7 @@ export type Component<
    * fires once (`{ t }`), `frame` runs every animation frame (`{ t, dt }`). A hidden Switchable
    * page's timers stop unless `background: true`; dispose stops them; nothing runs during SSR.
    */
-  timers?: (state: STATE & CALCULATED, context: CONTEXT) => Timers<ActionNameOf<ACTIONS>>;
+  timers?: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => Timers<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-5 B-3: browser sources derived from state, run by `makeBrowserDriver()` (registered:
    * `run(App, { BROWSER: makeBrowserDriver() })`; renderComponent provides a fake, `t.browser`)
@@ -1967,7 +1993,7 @@ export type Component<
    * restarts. A hidden Switchable page's sources stop unless `background: true`; dispose stops
    * them; nothing runs during SSR.
    */
-  browser?: (state: STATE & CALCULATED, context: CONTEXT) => BrowserSources<ActionNameOf<ACTIONS>>;
+  browser?: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => BrowserSources<ActionNameOf<ACTIONS>>;
   /**
    * PLAN-4 GS-5: save this root component's state and restore it at startup:
    * `TodoApp.persist = persist({ key: 'todo-app', pick: ['todos', 'filter'] })`. `pick` / `omit`

@@ -93,7 +93,7 @@
  * was composing composed again; open client calls stay answerable.
  */
 import {defineBehavior, fromPrevious} from '../../behaviors'
-import {ABORT} from '../../../shared'
+import {ABORT, readBag} from '../../../shared'
 import {report} from '../../diagnostics/index'
 import xs from '../../xstreamCompat'
 import {agentTools, hasUserText, labelsUntrusted, unlabel} from '../agent/index'
@@ -405,9 +405,9 @@ const shadowed = new Set<string>()
  * the last user message; `fresh`: a new turn. When the last message is the assistant's (tool
  * results, an approval answered) the reply continues it (`continue: true`, G-628). H-1: the client
  * tools join the agent tools (a name in both: the client tool, SYG684); `host`: the host's state
- * (ask's direct layout schema reads it)
+ * (ask's direct layout schema reads it); `bag`: the host view's bag for a `model` function (7.2)
  */
-function request(e: Engine | undefined, o: any, k: string, messages: any[], fresh: boolean, c?: Cfg, host?: any) {
+function request(e: Engine | undefined, o: any, k: string, messages: any[], fresh: boolean, c?: Cfg, host?: any, bag?: any) {
   const t = e && toolsOf(e)
   if (e) {
     // a new turn: a call still waiting on `until` answers now, as pending
@@ -432,14 +432,14 @@ function request(e: Engine | undefined, o: any, k: string, messages: any[], fres
     messages: !state ? messages : i < 0 ? [state, ...messages] : [...messages.slice(0, i), state, ...messages.slice(i)],
     ...(o.instructions && {instructions: o.instructions}),
     ...(Object.keys(tools).length && {tools}),
-    ...modelOf(o.model, host),
+    ...modelOf(o.model, host, bag),
     ...(lastOf(messages)?.role == 'assistant' && {continue: true}),
     key: k, delta: k + '.DELTA', ok: k + '.REPLY', error: k + '.FAILED',
   }
 }
 
-/** `model`: a model id, or a function of the host's state returning one (resolved per request) */
-const modelOf = (m: any, host: any) => { const v = typeof m == 'function' ? m(host) : m; return v ? {model: v} : {} }
+/** `model`: a model id, or a function `(hostState, bag)` returning one (resolved per request; 7.2: the bag) */
+const modelOf = (m: any, host: any, bag: any) => { const v = typeof m == 'function' ? m(host, bag) : m; return v ? {model: v} : {} }
 
 /**
  * run a reply's tool calls one at a time; RESULTS when all are done (dropped if the turn moved on).
@@ -495,7 +495,7 @@ export const chat = (options: any = {}): any => {
   const out = (n: any, e: any, o: any, k: string, p: any, which: 'chat' | 'card') => {
     if (!n) return ABORT
     if (which == 'card') return n.compose ?? ABORT
-    return n.send ? request(e, o, k, n.s.messages, false, c, p?.state) : B === sink && n.compose !== undefined ? n.compose : ABORT
+    return n.send ? request(e, o, k, n.s.messages, false, c, p?.state, readBag(p, p?.state)) : B === sink && n.compose !== undefined ? n.compose : ABORT
   }
   /** model entries for a step's chat request and its card request (one entry when they share a sink) */
   const sinks = (step: (s: any, d: any, e: any, p: any) => any) => ({
@@ -533,11 +533,11 @@ export const chat = (options: any = {}): any => {
       PROMPT: (s: any, p: any) => typeof p == 'string' && p !== s.prompt ? {...s, prompt: p} : ABORT,
       SEND: {
         STATE: (s: any, d: any) => sendStep(s, d) || ABORT,
-        [sink]: (s: any, d: any, _n: any, p: any, o: any, k: string) => { const n = sendStep(s, d); return n ? request(E(p, k, o), o, k, n.messages, true, c, p?.state) : ABORT },
+        [sink]: (s: any, d: any, _n: any, p: any, o: any, k: string) => { const n = sendStep(s, d); return n ? request(E(p, k, o), o, k, n.messages, true, c, p?.state, readBag(p, p?.state)) : ABORT },
       },
       REGENERATE: {
         STATE: (s: any) => regenStep(s, 0) || ABORT,
-        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = regenStep(s, 0); return n ? request(E(p, k, o), o, k, n.messages, true, c, p?.state) : ABORT },
+        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = regenStep(s, 0); return n ? request(E(p, k, o), o, k, n.messages, true, c, p?.state, readBag(p, p?.state)) : ABORT },
       },
       // G-627: the reply's text and reasoning so far
       DELTA: (s: any, d: any) => ({...s, draft: d?.text ?? s.draft, draftReasoning: d?.reasoning ?? s.draftReasoning, status: 'streaming'}),
@@ -560,18 +560,18 @@ export const chat = (options: any = {}): any => {
       },
       RESULTS: {
         STATE: stateOf(resultsStep),
-        [sink]: (s: any, d: any, _n: any, p: any, o: any, k: string) => { const e = E(p, k, o), n = resultsStep(s, d, e); return n?.send ? request(e, o, k, n.s.messages, false, c, p?.state) : ABORT },
+        [sink]: (s: any, d: any, _n: any, p: any, o: any, k: string) => { const e = E(p, k, o), n = resultsStep(s, d, e); return n?.send ? request(e, o, k, n.s.messages, false, c, p?.state, readBag(p, p?.state)) : ABORT },
       },
       ASK: (s: any, info: any) => ({...s, pending: info}),
       // a consequential app call (A-1's confirm) or a server approval (G-628: answerStep)
       APPROVE: {
         STATE: (s: any) => answerStep(s, true)?.s || (s.pending ? {...s, pending: null} : ABORT),
-        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = answerStep(s, true); return n?.send ? request(E(p, k, o), o, k, n.s.messages, false, c, p?.state) : ABORT },
+        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = answerStep(s, true); return n?.send ? request(E(p, k, o), o, k, n.s.messages, false, c, p?.state, readBag(p, p?.state)) : ABORT },
         EFFECT: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { if (s.pending?.approvalId === undefined) E(p, k, o)?.answer?.(true) },
       },
       DENY: {
         STATE: (s: any) => answerStep(s, false)?.s || (s.pending ? {...s, pending: null} : ABORT),
-        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = answerStep(s, false); return n?.send ? request(E(p, k, o), o, k, n.s.messages, false, c, p?.state) : ABORT },
+        [sink]: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { const n = answerStep(s, false); return n?.send ? request(E(p, k, o), o, k, n.s.messages, false, c, p?.state, readBag(p, p?.state)) : ABORT },
         EFFECT: (s: any, _d: any, _n: any, p: any, o: any, k: string) => { if (s.pending?.approvalId === undefined) E(p, k, o)?.answer?.(false) },
       },
       // H-1: the app answers a client call (rule 5)

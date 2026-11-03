@@ -38,3 +38,10 @@ export const c = form(z.object({}), { values: {}, dynamic: () => 'x', submit: 'S
 export const d = form((state: Host) => state.pieces, { values: {}, submit: 'SEND' })
 // a behavior's intent gets the host's STATE source as its 4th argument
 export const e = defineBehavior({ initialState: { n: 0 }, intent: (_so, _o, _k, host) => ({ SEEN: host.stream.mapTo(1) }) })
+
+// 7.2 (the one bag): the schema function, values, dynamic and request get the host view's bag last
+export const bagged = form((state: Host, { context }) => context?.strict ? z.object({ title: z.string().min(3) }) : z.object({ title: z.string() }), {
+  values: (state, { title }) => ({ title: String(title ?? '') }),
+  dynamic: (state, { uid }) => ({ [uid('x')]: '' }),
+  request: (data, state, { id }) => ({ url: '/api/items/' + id, method: 'PUT' }),
+})
