@@ -381,4 +381,9 @@ See the summary sent to the coordinator; the same list, with the recommendation 
 - **`WizardStepComp<Own>`:** for a step that doesn't read the draft, whose state is its own fields only.
 - **`WizardStepComp<Own, { key: Draft }>`:** for one that does, with the draft's key and type named together.
 
-**Pending with the maintainer:** the full fix for B (a core read-time hook plus a size-budget raise).
+**B, fully fixed (user-approved, with a budget raise):**
+- **The hook:** a behavior's merge can set `c._read = { key: (value, state) => value }`.
+- **In the core:** `fromShim` carries it into the definition (`read`), and `calcCell` applies it when the state is read: before the calculated fields, and memoized per state object.
+- **The wizard's use:** it fills the derived fields into a slice that lacks them. Every view call, the first included, has `steps`.
+- **Cost:** kanban 43,077 → 43,138 B (+61 B); the budget is now 43,138 B.
+- **Test:** `test/parity/behavior-read.test.js`, with a hand-written behavior.

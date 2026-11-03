@@ -110,9 +110,9 @@ export function lensCell(parent: Cell, lens: any, owner: string, onErr?: (e: any
   }
 }
 
-/** calculated fields and `idle` defaults over a base cell */
+/** calculated fields, `idle` defaults and behaviors' read-time normalizers (`read`) over a base cell */
 export function calcCell(base: Cell, def: CoreDef): CalcCell {
-  const calc = def.calculated, idle = def.idle
+  const calc = def.calculated, idle = def.idle, rd = def.read
   const caches = calc ? calc.map(() => ({v: null as any[] | null, r: undefined as any})) : []
   let ls: any = {}, lr: any
   const add = (s: any) => {
@@ -120,6 +120,10 @@ export function calcCell(base: Cell, def: CoreDef): CalcCell {
     if (s === ls) return lr
     ls = s
     let m = idle ? {...idle, ...s} : s
+    for (const k in rd) {
+      const v = rd[k](m[k], m)
+      if (v !== m[k]) (m === s ? m = {...s} : m)[k] = v
+    }
     if (calc) {
       if (m === s) m = {...s}
       for (let i = 0; i < calc.length; i++) {
@@ -141,7 +145,7 @@ export function calcCell(base: Cell, def: CoreDef): CalcCell {
     raw: () => base.get(),
     get: () => add(base.get()),
     set(v) {
-      if (!isObj(v) || !(calc || idle)) return base.set(v)
+      if (!isObj(v) || !(calc || idle || rd)) return base.set(v)
       // stored with its calculated fields (and idle defaults), as cleanupCalculated did
       const c = {...add(v)}
       ls = c; lr = c

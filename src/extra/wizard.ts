@@ -387,6 +387,9 @@ export const wizard = (o: any = {}): any => {
   const merge = b.merge
   b.merge = (c: any, k: string) => {
     merge(c, k)
+    // the core's read-time hook (`_read`): a slice without its derived fields (seeded by a parent,
+    // persisted) gets them wherever the state is read, the host's first view call included
+    c._read = {...c._read, [k]: (w: any, h: any) => w && typeof w == 'object' && !('steps' in w) ? fin(w, h) : w}
     for (const a of ['SYNC', 'MOUNT']) for (const f of Object.values(c.model[k + '.' + a] || {})) if (typeof f == 'function') (f as any)[BUILT_IN] = true
   }
   // for the outlet (src/extra/outlet.ts): the flow key the host state names, the draft's key in a

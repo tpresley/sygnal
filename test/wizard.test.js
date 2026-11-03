@@ -688,18 +688,19 @@ describe('Sift pass 2', () => {
     expect(t.state.wizard).toMatchObject({ key: 'K1', draft: { x: 'mine', y: 'mine' } })
   })
 
-  it('bug B: a slice the parent seeded (no derived fields) gets them at the host start, before the first patch', async () => {
+  it('bug B: a slice the parent seeded (no derived fields) has them in every view call, the first included', async () => {
     const seen = []
-    // (the host's view runs once in the pass that creates it, before its first actions: that call
-    // still sees the seeded slice as it is; see the research note)
-    function Host({ state }) { seen.push(Array.isArray(state.wizard.steps)); return h(Outlet, { of: { a: A, b: B, c: C }, from: 'wizard' }) }
+    // (the core's read-time hook: the host reads the slice normalized, before its first actions run)
+    let statuses
+    function Host({ state }) { seen.push(Array.isArray(state.wizard.steps)); statuses = state.wizard.steps?.map(x => x.status); return h(Outlet, { of: { a: A, b: B, c: C }, from: 'wizard' }) }
     Host.uses = { wizard: wizard({ steps: { a: {}, b: {}, c: {} } }) }
     function Root() { return h(Host, { state: 'page' }) }
     Root.initialState = { page: { wizard: { step: 'b', key: null, visit: 3, visited: ['a', 'b'], draft: {}, local: {}, leaving: null } } }
     t = renderComponent(Root, { dom: 'real' })
     await t.ready(); await tick()
-    expect(seen.at(-1)).toBe(true)
-    expect(t.state.page.wizard.steps.map(x => x.status)).toEqual(['done', 'current', 'upcoming'])
+    expect(seen.length).toBeGreaterThan(0)
+    expect(seen.every(Boolean)).toBe(true)
+    expect(statuses).toEqual(['done', 'current', 'upcoming'])
     expect(t.query('.b')).toBeTruthy()
   })
 })
