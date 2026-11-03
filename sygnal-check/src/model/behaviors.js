@@ -102,9 +102,9 @@ export const FIRST_PARTY = {
   // `finish` is a host action dispatched with next(); the moves also come from the steps' PARENT messages
   wizard: {
     stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'local', 'leaving'],
-    calculated: ['steps', 'index', 'count', 'first', 'last', 'canBack', 'canNext'],
+    calculated: ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog'],
     model: ['KEY', 'MOUNT', 'SYNC', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
-    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
+    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
     listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
     // (NEXT, BACK, GOTO, RESET, FINISH also come from the steps' PARENT messages)
     intent: ['KEY', 'MOUNT', 'SYNC', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],

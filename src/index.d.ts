@@ -1369,8 +1369,21 @@ export interface WizardStep<DRAFT = any, OWN = any, HOST = any, DK extends strin
   visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN>);
   /** The leave guard while this step is current (instead of the wizard's `dirty`) */
   dirty?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST, name: string) => boolean;
-  /** The slice after a confirmed leave from this step (instead of the wizard's `discard`) */
-  discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
+  /** This step's state after a confirmed leave from it (instead of the wizard's `discard`): its view in, its state out (the draft key in it updates the draft) */
+  discard?: (step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => Partial<OWN> & { [K in DK]?: DRAFT };
+  /** Alternative steps sharing one stepper entry (Analyze or Describe): the same group name; `groups` labels it */
+  group?: string;
+  /** A final screen after the flow (Created): not in the stepper; entered by GOTO; Back doesn't return into the steps */
+  outcome?: boolean;
+  /** The leave dialog's copy while this step is current (any value; `state.wizard.dialog`) */
+  dialog?: ((step: WizardStepState<DRAFT, OWN, DK>, state: HOST) => unknown) | string | { [field: string]: unknown };
+}
+/** An entry of the stepper (`state.wizard.stepper`): a step, or a group of alternative steps (the one that applies gives its state) */
+export interface WizardStepperEntry extends WizardStepInfo {
+  /** The step names in the entry (one, or a group's) */
+  steps: string[];
+  /** The step that applies (a group's member that is current or not skipped) */
+  step: string;
 }
 /** A step of the stepper, `state.wizard.steps[i]`. */
 export interface WizardStepInfo {
@@ -1404,7 +1417,14 @@ export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Re
 }
 /** The fields derived from the slice and the host state (written with every change) */
 export interface WizardCalculated {
+  /** One entry per step of the stepper (not outcome steps) */
   steps: WizardStepInfo[];
+  /** One entry per group or ungrouped step: what a stepper renders */
+  stepper: WizardStepperEntry[];
+  /** The current outcome step's name, else null */
+  outcome: string | null;
+  /** The leave dialog's copy: the current step's `dialog`, else the wizard's, else null */
+  dialog: any;
   index: number;
   count: number;
   first: boolean;
@@ -1433,7 +1453,11 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   dirty?: (step: WizardStepState<DRAFT, any, DK>, state: HOST, name: keyof LOCAL & string) => boolean;
   /** The slice after a confirmed leave (a step's own `discard` wins; default: the flow started over) */
   discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
-  /** Where Start over navigates (a router command, or a function of the slice and the host state); url mode default: the first step's route */
+  /** Group labels: `{ build: { label } }` (default: the label of the step that applies) */
+  groups?: Record<string, { label?: string | ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => string) }>;
+  /** The leave dialog's copy when the current step has none (`state.wizard.dialog`) */
+  dialog?: ((step: WizardStepState<DRAFT, any, DK>, state: HOST) => unknown) | string | { [field: string]: unknown };
+  /** Where Start over navigates (a router command, or a function of the slice being reset and the host state); url mode default: the first step's route */
   resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, state: HOST) => RouterCommand);
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
   confirm?: BehaviorTarget;
@@ -1448,7 +1472,7 @@ export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RES
 /** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
 export type WizardMessage =
   | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
-  | { wizard: 'GOTO'; step: string }
+  | { wizard: 'GOTO'; step: string; key?: unknown }
   | { wizard: 'RESET'; draft?: any }
 
 /**
@@ -1475,10 +1499,9 @@ export type OutletProps<OF extends Record<string, AnyComponent> = Record<string,
   fallback?: AnyComponent;
   /** Focus after an identity change: selectors tried in order (default '[data-wizard-focus],h1,h2,h3'); false: none */
   focus?: string | false;
-  /** Route / plain mode: the page's state binding */
-  state?: string | Lense;
-  [prop: string]: any;
-}
+  /** Route / plain mode: the page's state binding, or a map from page names to bindings (pages not in it share the owner's state) */
+  state?: string | Lense | { [PAGE in keyof NoInfer<OF>]?: string | Lense };
+} & { [prop: string]: any }
 /**
  * One page or step at a time (spike): only the current entry of `of` is alive, keyed by its
  * identity (a new identity disposes it and mounts a new one).
@@ -1486,7 +1509,7 @@ export type OutletProps<OF extends Record<string, AnyComponent> = Record<string,
  *   <Outlet of={PAGES} route={state.route} query={['session']} />
  *   <Outlet of={{ source: Source, review: Review }} from="wizard" />
  */
-export function Outlet<OF extends Record<string, AnyComponent>>(props: OutletProps<OF>): JSX.Element
+export declare const Outlet: (<OF extends Record<string, AnyComponent>>(props: OutletProps<OF>) => JSX.Element) & { readonly __sygnalOutlet: true }
 
 /** A `sortable` slice: the drag state the view styles from, and the live-region text. */
 export interface SortableState {
@@ -4563,7 +4586,8 @@ declare global {
      * A component's view receives `state: STATE` and `context`, but in JSX the parent passes
      * an optional `state` slice name or lens (`<Editor state="editor" />`, `<Panel />`).
      */
-    type LibraryManagedAttributes<C, P> = ElementProps<P>
+    // (the wizard spike's <Outlet> keeps its own `state`: a per-page map too)
+    type LibraryManagedAttributes<C, P> = C extends { readonly __sygnalOutlet: true } ? P : ElementProps<P>
   }
 }
 

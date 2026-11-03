@@ -73,7 +73,7 @@ export const decided = wizard<Draft, Host, { define: DefineState; review: Review
       label: (s, h) => s.words ? 'Define' : 'Define for ' + h.session,
       valid: (s, h) => s.flow.title !== '' && h.session !== '',
       dirty: (s) => !!s.words,
-      discard: (w) => ({ ...w, draft: { title: '' } }),
+      discard: (s) => ({ words: '', flow: { title: '' } }),
     },
     review: { when: (s) => !s.creating },
   },
@@ -95,3 +95,24 @@ export const partialWords: string = tw.local.define!.words
 export const fullView = wizard<Draft, Host, { define: DefineState }>({
   steps: { define: { valid: (s) => s.busy === false && s.words.length > 0 } },
 })
+
+// pass 3: groups, outcome, dialog copy, the stepper, GOTO with a key, resetTo(previous), Outlet state map
+export const p3 = wizard<Draft, Host, { define: DefineState; analyze: {}; describe: {}; created: {} }>({
+  steps: {
+    define: { dialog: { title: 'Discard what you typed?' } },
+    analyze: { group: 'build' },
+    describe: { group: 'build', dialog: (s, h) => ({ title: 'Discard your reply in ' + h.session }) },
+    created: { outcome: true },
+  },
+  groups: { build: { label: 'Build the filter' } },
+  dialog: { title: 'Leave?' },
+  resetTo: (prev) => ({ to: 'home', query: { from: String(prev.key) } }),
+})
+declare const w3: WizardState<Draft> & WizardCalculated
+export const entrySteps: string[] = w3.stepper[0].steps
+export const applying: string = w3.stepper[0].step
+export const outcomeName: string | null = w3.outcome
+export const rekey: WizardMessage = { wizard: 'GOTO', step: 'describe', key: 'S2' }
+export const sm = <Outlet of={{ admin: Source, home: Review }} current="admin" state={{ admin: 'pages.admin' }} />
+// @ts-expect-error a state map key names a page
+export const smBad = <Outlet of={{ admin: Source }} current="admin" state={{ amdin: 'x' }} />
