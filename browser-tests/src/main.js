@@ -45,6 +45,7 @@ import { fixesTestsP5_1S } from './tests/fixes-p5-1s.jsx'
 import { virtualTestsP5V1 } from './tests/virtual-p5v1.jsx'
 import { uiTestsP5U } from './tests/ui-p5u.jsx'
 import { uiSweepNativeTests } from './tests/ui-sweep-native.jsx'
+import { routerTraversalTests } from './tests/router-traversal-7-2.jsx'
 import { collectionViewTransitionTestsP5_2A } from './tests/collection-vt-p5-2a.jsx'
 import { uiZagTestsP5Z } from './tests/ui-zag-p5z.jsx'
 import { fixesTestsP5_2R, fixesTestsP5_2R_after } from './tests/fixes-p5-2r.jsx'
@@ -116,6 +117,7 @@ async function runAll() {
     virtualTestsP5V1,
     uiTestsP5U,
     uiSweepNativeTests,
+    routerTraversalTests,
     collectionViewTransitionTestsP5_2A,
     uiZagTestsP5Z,
     fixesTestsP5_2R,

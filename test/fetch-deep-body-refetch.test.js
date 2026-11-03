@@ -49,8 +49,8 @@ describe('a deep request body does not lose refetches', () => {
     for (let i = 1; i <= 3; i++) {
       await until(() => expect(reads()).toHaveLength(i))
       await t.respond('HTTP', [i], 'items')
+      // the next poll may already be in flight on a loaded machine (refreshing: the fake-timer test checks it's cleared)
       expect(t.state.items).toMatchObject({ status: 'success', data: [i] })
-      expect(t.state.items.refreshing).toBeFalsy()
     }
     await until(() => expect(reads()).toHaveLength(4))
     expect(t.state.items).toMatchObject({ status: 'success', refreshing: true, data: [3] })
