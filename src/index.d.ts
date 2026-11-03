@@ -1942,9 +1942,10 @@ export type Component<
    * shown): 'loading' with no data (unless `keepPrevious: true`). A refetch of the same request
    * (`{ refresh: 'quote' }` on the HTTP sink, `{ invalidate }`, focus, `refetchEvery`) keeps
    * `data`, `error` and `status` and sets `refreshing: true` (D78). `ok` / `error` on the
-   * request also dispatch those actions after the write.
+   * request also dispatch those actions after the write. A `PagedRequest` (`url` a function of the
+   * cursor) owns its pages: `state.feed` is a `PagedResource`, `{ more: 'feed' }` loads one more.
    */
-  resources?: { [name: string]: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => ResourceRequest | false | null | undefined | '' | 0 };
+  resources?: { [name: string]: (state: STATE & CALCULATED, bag: DeclarationBag<STATE & CALCULATED, PROPS, CONTEXT>) => ResourceRequest | PagedRequest | false | null | undefined | '' | 0 };
   /**
    * The router's reply action (`makeRouter()`): `App.route = 'ROUTE'`. The driver sends this
    * instance ROUTE with the `Route` (`{ name, params, query, hash, path }`) once declared and on
@@ -3057,6 +3058,14 @@ export type FetchRequest = string | {
   refresh: string | string[];
 } | {
   /**
+   * 7.2: load one more page of this instance's paged resource (a `PagedRequest`): after the last
+   * page, or before the first with `previous: true`. Ignored while the resource is loading, has
+   * no page yet, or `next` / `previous` gave no cursor (`hasMore` / `hasPrevious` false)
+   */
+  more: string;
+  previous?: boolean;
+} | {
+  /**
    * PLAN-3 5-3 (D80), from any component: matching cache entries go stale and matching mounted
    * resources refetch, keeping data. With or without the cache
    */
@@ -3170,7 +3179,7 @@ export interface QueryCache {
 export function queryCache(options?: FetchCacheOptions): QueryCache
 
 /** PLAN-3: a request a `resources` entry derives (a URL, or a request without `abort`) */
-export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] }> & {
+export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: true | string } | { refresh: string | string[] } | { more: string }> & {
   /**
    * Keep this resource live while its component is in a hidden Switchable page (default: a
    * hidden page's resources are paused, keeping their last result, and refetched when it is shown)
@@ -3181,6 +3190,49 @@ export type ResourceRequest = string | (Exclude<FetchRequest, string | { abort: 
   /** Refetch every this many ms after each result (skipped while the document is hidden) */
   refetchEvery?: number;
 })
+
+/**
+ * 7.2: a paged resource (TanStack Query's `useInfiniteQuery`): a `resources` entry whose `url`
+ * gives each page's request from its cursor. The resource owns its pages (`PagedResource`):
+ * `{ more: name }` on the HTTP sink adds one; a refetch (refresh, invalidation, focus,
+ * polling, a cached revisit) loads as many again from the first cursor, each later cursor
+ * from the fresh page before it. Its identity is the first page's request: a change (a filter
+ * in state, a prop) starts again at one page. The other fields go on every page's request
+ */
+export type PagedRequest<PAGE = any, CURSOR = any> = {
+  /** The request of the page at `cursor` (the first: `initialCursor`); falsy for the first: idle */
+  url: (cursor: CURSOR) => string | Exclude<ResourceRequest, string> | false | null | undefined;
+  /** The cursor of the page after `page` (the last loaded), or null / undefined: no more (`hasMore` false) */
+  next: (page: PAGE, pages: PAGE[], cursor: CURSOR, cursors: CURSOR[]) => CURSOR | null | undefined;
+  /** The cursor of the page before `page` (the first loaded), for `{ more, previous: true }` */
+  previous?: (page: PAGE, pages: PAGE[], cursor: CURSOR, cursors: CURSOR[]) => CURSOR | null | undefined;
+  /** The first page's cursor. Default undefined */
+  initialCursor?: CURSOR;
+  /** Keep at most this many pages: a `more` drops the oldest (the last ones after a `previous`) */
+  maxPages?: number;
+  background?: boolean;
+  refetchEvery?: number;
+  tags?: string[];
+  cache?: boolean;
+  staleTime?: number;
+  retry?: number | FetchRetry;
+  timeoutMs?: number;
+  validate?: StandardSchemaLike;
+  /** Your own fields, and the other request fields every page's request gets */
+  [field: string]: any;
+}
+
+/**
+ * 7.2: the state slot of a paged resource (`PagedRequest`): `data` is `{ pages, cursors }` (the
+ * bodies, and the cursor each was fetched with), shown and refetched as a plain resource's.
+ * A failed page keeps the pages ('error'). `hasMore` / `hasPrevious`: `next` / `previous` give
+ * a cursor; `loadingMore` while a `{ more }` page loads
+ */
+export type PagedResource<PAGE = any, CURSOR = any, ERROR = any> = Resource<{ pages: PAGE[]; cursors: CURSOR[] }, ERROR> & {
+  hasMore: boolean;
+  hasPrevious: boolean;
+  loadingMore?: 'next' | 'previous';
+}
 
 /**
  * PLAN-3: the state slot of a resource (`state.quote`), written by the built-in RESOURCE action.
@@ -4282,7 +4334,7 @@ export interface RenderResult<STATE = any> {
   /**
    * Live array of the requests a sink was sent, as objects: a string request is `{ url }`, a
    * resource fetch `{ url, ...request, resource: name }`. Never the `{ abort }` commands,
-   * `{ resources }` declarations or `{ refresh }` commands (sinkValues has every value, as sent)
+   * `{ resources }` declarations or `{ refresh }` / `{ more }` commands (sinkValues has every value, as sent)
    */
   requests: (sinkName: string) => any[];
   /**

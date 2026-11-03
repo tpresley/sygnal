@@ -72,6 +72,19 @@ import {sse} from './sse';
  *   queryCache, `cache: true` / `staleTime` / `{ prefetch }` do nothing (dev: SYG635).
  * - `{ prefetch: request }` (H-7): fetched into the cache with no reply (a fresh entry or a
  *   fetch in flight: nothing new).
+ * - Paged resources (TanStack Query's useInfiniteQuery): a resource request whose `url` is a function
+ *   of the cursor, `{ url: (cursor) => url | request, next: (page, pages, cursor, cursors) => cursor,
+ *   previous?, initialCursor?, maxPages?, ...request fields }`, owns its pages: `data` is
+ *   `{ pages, cursors }` (bodies and the cursor each was fetched with), plus `hasMore` /
+ *   `hasPrevious` (`next` / `previous` gave a cursor, not null / undefined) and `loadingMore`
+ *   ('next' / 'previous') while `{ more: name, previous? }` loads one more page (ignored while
+ *   the resource is loading or has no such cursor; `maxPages` drops the oldest). Its identity is
+ *   its first page's request (`url(initialCursor)`, falsy: idle): a change starts again at one
+ *   page. A refetch (refresh, invalidation, focus, polling) or a fetch of cached pages loads as
+ *   many pages again from the first cursor, each later cursor from the fresh page before it
+ *   (fewer when one comes back empty), and writes them once at the end. Each page is a request
+ *   of the resource (`_tap`: the fake answers it by name); the pages are one cache entry
+ *   (the first page's key + ' pages'). A failure keeps the pages shown ('error').
  * - `refetchEvery: ms` on a resource polls (after each result; skipped while the document is hidden).
  * - `{ invalidate: tag | tags | '/url-prefix' | (request) => boolean }` (D80): matching cache
  *   entries go stale and matching mounted resources refetch (keeping data). Tags are explicit
@@ -339,7 +352,28 @@ const SETTLED = /^[se]/;
 const BEHAVIOUR = ['ok', 'error', 'key', 'category', 'latest', 'timeoutMs', 'retry', 'cache', 'staleTime', 'tags',
   'invalidates', 'invalidateOn', 'updates', 'keepPrevious', 'refetchEvery', 'background', 'progress'];
 /** the identity of a resource's request: its JSON without the BEHAVIOUR fields */
-const identity = (q: any) => q ? JSON.stringify(q, function (this: any, k, v) { return this === q && BEHAVIOUR.includes(k) ? undefined : v; }) : '';
+const identity = (q: any) => q ? JSON.stringify(q, function (this: any, k, v) { return this === q && BEHAVIOUR.includes(k) ? undefined : v; }) + (q[PG] ? ' pages' : '') : '';
+// a paged resource's spec, on its first page's request
+const PG = Symbol('pages');
+const PAGING = ['url', 'next', 'previous', 'initialCursor', 'maxPages'];
+/** the request of a paged spec's page at cursor `c` (falsy when `url` gives none) */
+const pageOf = (P: any, c: any) => {
+  const u = P.url(c), q: any = {};
+  for (const k in P) if (!PAGING.includes(k)) q[k] = P[k];
+  return u && Object.assign(q, typeof u == 'string' ? {url: u} : u);
+};
+/** a paged spec as its first page's request (marked), or falsy */
+const pagedOf = (P: any) => {
+  const q = pageOf(P, P.initialCursor);
+  if (q) q[PG] = P;
+  return q;
+};
+/** the cursor of the page after the last (`back`: before the first) of `D`, or undefined */
+const cursorOf = (P: any, D: any, back?: any) => {
+  const f = back ? P.previous : P.next, ps = D?.pages, cs = D?.cursors;
+  const c = f && ps?.length ? (back ? f(ps[0], ps, cs[0], cs) : f(ps[ps.length - 1], ps, cs[cs.length - 1], cs)) : undefined;
+  return c ?? undefined;
+};
 
 export function makeFetchDriver(options: any = {}) {
   // D88: the query cache (queryCache()), or none
@@ -477,8 +511,11 @@ export function makeFetchDriver(options: any = {}) {
     // 3-A: sender → resource name → R { j (its identity), q (the request), k (cache key),
     // last (the last write), p (paused), t (poll timer), i (its request id) }
     const rsrc = new Map<any, Map<string, any>>();
+    // a resource's cache key (a paged one's pages: one entry next to its first page's)
+    const keyOf = (q: any) => { const k = C?.key(q, 1); return k !== undefined && q[PG] ? k + ' pages' : k; };
     const stop = (s: any, n: string, R: any) => {
       clearTimeout(R.t);
+      R.m = 0;
       cancel(r => r.sender === s && r.rk === '\0' + n);
     };
     // a disposed sender's requests with reply actions (and resources) are aborted
@@ -495,7 +532,7 @@ export function makeFetchDriver(options: any = {}) {
       (typeof u == 'object' && !Array.isArray(u) ? Object.keys(u) : [].concat(u)).forEach((n: string) => {
         const R = cur?.get(n), q = R?.q, f = u[n];
         if (!q) return;
-        const k = C?.key(q, 1), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
+        const k = keyOf(q), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
         // (the entry's kept headers stay)
         const h = (k !== undefined ? C.get(k)?.h : undefined) ?? R.last?.headers;
         if (k !== undefined) {
@@ -510,7 +547,9 @@ export function makeFetchDriver(options: any = {}) {
     };
     // `h`: 7.2, the request's kept headers (keepHeaders), next to `data`
     const write = (s: any, n: string, R: any, status: string, data?: any, error?: any, refreshing?: any, h?: any) => {
-      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined, ...(h !== undefined && {headers: h})})});
+      const P = R.q?.[PG];
+      reply(s, 'RESOURCE', {name: n, ...(R.last = {status, data, error, refreshing: refreshing || undefined, ...(h !== undefined && {headers: h}),
+        ...(P && {hasMore: cursorOf(P, data) !== undefined, hasPrevious: cursorOf(P, data, 1) !== undefined, loadingMore: R.m || undefined})})});
       poll(s, n, R);
     };
     // refetchEvery: polls after each result (and anew when the interval changes), skipping while
@@ -524,11 +563,14 @@ export function makeFetchDriver(options: any = {}) {
     // D78: (re)loads resource R. `same`: the same request again (keeps data); `after` (a
     // refetch: refresh, invalidation, focus, polling) skips the cache and fetches anew
     const load = (s: any, n: string, R: any, same?: any, after?: number) => {
-      const q = R.q, j = R.j, g = R.g = (R.g | 0) + 1, k = C?.key(q, 1), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
+      const q = R.q, P = q[PG], j = R.j, g = R.g = (R.g | 0) + 1, k = keyOf(q), E = C?.get(k), L = R.last, go = after !== undefined || !C?.fresh(k, q);
+      // a paged resource refetches the pages it shows (cached, or the same request's)
+      let base: any;
       stop(s, n, R);
       C?.use(R, k);
-      if (E && 'v' in E && !q.validate) write(s, n, R, 'success', E.v, undefined, go, E.h);
-      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true, L.headers);
+      // (a paged entry holds validated pages)
+      if (E && 'v' in E && (P || !q.validate)) write(s, n, R, 'success', base = E.v, undefined, go, E.h);
+      else if ((same || q.keepPrevious) && L && SETTLED.test(L.status)) write(s, n, R, L.status, L.data, L.error, true, L.headers), same && (base = L.data);
       else write(s, n, R, 'loading');
       // R-1: the write is dispatched synchronously; when it changed the request (a navigation
       // recomputed the statics and a nested load sent the new one), paused it, or a nested load
@@ -536,22 +578,70 @@ export function makeFetchDriver(options: any = {}) {
       // object: the drain may re-send the same request as a new object (a deep body compares
       // unequal in the statics), which only replaces R.q, so the latest R.q is what is sent
       if (R.j !== j || R.g !== g || R.p) return;
-      if (go || R.q.validate) R.i = send(R.q, s, n, after, R);
+      if (go || (R.q.validate && !P)) R.i = P ? pages(s, n, R, base, after) : send(R.q, s, n, after, R);
+    };
+    // a paged resource's pages fetched again from the first cursor of `D` (one page from
+    // initialCursor without), each next cursor from the fresh page before it, at most as many
+    // as `D` has; written (and cached) at the end. A failure keeps what is shown
+    const pages = (s: any, n: string, R: any, D: any, after?: number) => {
+      const P = R.q[PG], g = R.g, want = D?.pages?.length || 1, out: any = {pages: [], cursors: []};
+      const step = (c: any): any => {
+        out.cursors.push(c);
+        return send(pageOf(P, c), s, n, after, {$: (v: any, ok: any, h: any) => {
+          if (R.g !== g) return;
+          const L = R.last;
+          if (!ok) return write(s, n, R, 'error', L?.data, v, undefined, L?.headers);
+          out.pages.push(v);
+          if (out.pages.length < want) {
+            const c2 = cursorOf(P, out);
+            if (c2 !== undefined) return (R.i = step(c2));
+          }
+          settle(s, n, R, out, h);
+        }});
+      };
+      return step(D?.cursors ? D.cursors[0] : P.initialCursor);
+    };
+    // a paged resource's new pages: cached and shown
+    const settle = (s: any, n: string, R: any, D: any, h: any) => {
+      const k = R.k;
+      if (k !== undefined) C.put(k, R.q, D, undefined, h);
+      write(s, n, R, 'success', D, undefined, undefined, h);
+    };
+    // `{ more: name, previous? }`: one more page after the last (before the first), when the
+    // resource shows pages, loads nothing and has that cursor; `maxPages` drops the oldest
+    const more = (s: any, n: string, R: any, back: any) => {
+      const P = R.q?.[PG], L = R.last, D = L?.data, c = P && !R.p && D?.pages && !inflight.has(R.i) ? cursorOf(P, D, back) : undefined;
+      if (c === undefined) return;
+      const g = R.g = (R.g | 0) + 1, x = P.maxPages;
+      clearTimeout(R.t);
+      R.m = back ? 'previous' : 'next';
+      write(s, n, R, L.status, D, L.error, undefined, L.headers);
+      R.i = send(pageOf(P, c), s, n, -1, {$: (v: any, ok: any, h: any) => {
+        if (R.g !== g) return;
+        R.m = 0;
+        if (!ok) return write(s, n, R, 'error', D, v, undefined, L.headers);
+        const add = (a: any[], y: any) => {
+          const r = back ? [y, ...a] : [...a, y];
+          return x > 0 && r.length > x ? (back ? r.slice(0, x) : r.slice(-x)) : r;
+        };
+        settle(s, n, R, {pages: add(D.pages, v), cursors: add(D.cursors, c)}, L.headers ?? h);
+      }});
     };
 
     // `pf`: a prefetch (into the cache, no reply)
     const send = (req: any, sender = senderOf(req), rn?: string, after = -1, R?: any, pf?: any): any => {
       if (typeof req == 'string') req = {url: req};
       if (!req || typeof req != 'object' || disposed || !allowed(req, 'makeFetchDriver')) return;
-      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, invalidates, updates, retry, prefetch, chunk, done: dn} = req;
+      const {url, category, method, headers, query, json, body, latest, timeoutMs, parse, abort, init, ok, error, key, resources, refresh, more: mo, invalidates, updates, retry, prefetch, chunk, done: dn} = req;
       if ('invalidate' in req) return inval(req.invalidate);
       if ('reset' in req) return reset(req.reset);
       if (prefetch) return C && send(prefetch, 0, rn, -1, R, 1);
-      if (resources || refresh) {
+      if (resources || refresh || mo) {
         if (sender === undefined) return;
         const cur = rsrc.get(sender) || new Map();
         rsrc.set(sender, cur);
         if (refresh) return [].concat(refresh).forEach((n: string) => { const R = cur.get(n); R?.q && !R.p && load(sender, n, R, 1, seq); });
+        if (mo) return cur.has(mo) && more(sender, mo, cur.get(mo), req.previous);
         new Set([...cur.keys(), ...Object.keys(resources)]).forEach(n => {
           let R = cur.get(n);
           // D85 / G-177: left out (a hidden Switchable page): paused, keeping its last result
@@ -562,12 +652,13 @@ export function makeFetchDriver(options: any = {}) {
               C?.use(R);
               const L = R.last;
               if (!L || !SETTLED.test(L.status)) write(sender, n, R, 'idle');
-              else if (L.refreshing) write(sender, n, R, L.status, L.data, L.error, undefined, L.headers);
+              else if (L.refreshing || L.loadingMore) write(sender, n, R, L.status, L.data, L.error, undefined, L.headers);
             }
             return;
           }
           let q = resources[n];
           if (q && typeof q == 'string') q = {url: q};
+          if (q && typeof q.url == 'function') q = pagedOf(q);
           const j = identity(q), paused = R?.p;
           if (!R) cur.set(n, (R = {j: ''}));
           R.p = 0;
@@ -577,7 +668,7 @@ export function makeFetchDriver(options: any = {}) {
             if (q && R.q !== q) {
               const was = R.q?.refetchEvery;
               R.q = q;
-              if (C && !inflight.has(R.i)) C.use(R, C.key(q, 1));
+              if (C && !inflight.has(R.i)) C.use(R, keyOf(q));
               if (q.refetchEvery !== was) poll(sender, n, R);
             }
             return;
@@ -635,14 +726,15 @@ export function makeFetchDriver(options: any = {}) {
       const r: any = {category, scope, sender, rk};
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
-      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers),
+      const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && (R.$ ? R.$(e) : write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers)),
         rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}),
         invalidates && (req.invalidateOn ?? options.invalidateOn) == 'settled' && inval(invalidates));
       // `kh`: the kept headers already picked (a cache hit)
       r.ok = async (v: any, status: number, headers?: any, kh?: any) => {
         if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, headers, issues: e.issues}); }
         if (!finish(id)) return;
-        if (R) write(sender, rn!, R, 'success', v, undefined, undefined, kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined));
+        const h = kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined);
+        if (R) R.$ ? R.$(v, 1, h) : write(sender, rn!, R, 'success', v, undefined, undefined, h);
         if (updates && !sm) upd(sender, updates, v);
         // a stream's end is its ok action only, `{ status, headers }` (its pieces went to select())
         rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
