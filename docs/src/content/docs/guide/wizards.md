@@ -240,10 +240,16 @@ wizard({
 
 **The dialog's copy** can follow the step: `steps.x.dialog` (any value, or a function of the step's state and the host's state), else the wizard's `dialog`, is `state.wizard.dialog`:
 
-```jsx
+```js
 wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review: { dialog: { title: 'Discard your edits?' } } } })
+```
 
-<dialog className="leave-dialog"><h2>{state.wizard.dialog?.title}</h2>…</dialog>
+```jsx
+<dialog className="leave-dialog">
+  <h2>{state.wizard.dialog?.title}</h2>
+  <button type="button" className="discard">Discard</button>
+  <button type="button" className="stay">Keep editing</button>
+</dialog>
 ```
 
 ```jsx
