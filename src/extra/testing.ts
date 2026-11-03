@@ -560,7 +560,11 @@ export interface RenderResult {
    * reconnects per the spec. `close` defaults to `{ code: 1006, reason: '' }`.
    */
   drop: (sinkName: string, close?: {code?: number; reason?: string} | FakeConnectionTarget, target?: FakeConnectionTarget) => Promise<void>;
-  /** PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those to that connection) */
+  /**
+   * PLAN-3 2-C: the `{ to, json | text | binary }` values the components sent (live; with `to`: those
+   * to that connection). The router's sink: its commands. PARENT and EVENTS: the values sent on them
+   * (a step's `{ wizard: 'NEXT' }`), as t.sinkValues
+   */
   sent: (sinkName: string, to?: string) => any[];
   /**
    * PLAN-3 5-4c (router fake): navigate as a link click (a URL) or a command (`{ to, params,
@@ -3263,7 +3267,9 @@ export function renderComponent(
     };
     ls.slice().forEach((l: any) => l(e));
   };
-  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : sent(name, to));
+  // (PARENT and EVENTS, the sinks no driver serves: what was sent on them, as t.sinkValues; before,
+  // t.sent('PARENT') made an empty socket fake and returned [])
+  const sentTo = (name: string, to?: string) => (rt && name == routerSink ? rt.sent : name == 'PARENT' || name == 'EVENTS' ? sinkValues(name) : sent(name, to));
   const head = () => {
     if (!hd) throw new Error(`[Sygnal] t.head(): ${headSink} has a real driver (passed in drivers), so the fake that records the head isn't there. Read the document it writes, or drop it from drivers`);
     const m = mergeHead([...hd.entries.values()], titleTemplate);

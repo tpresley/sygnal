@@ -824,3 +824,73 @@ describe('pass 3: the decided API', () => {
     expect(t.state.flow.wizard.stepper.map(e => [e.name, e.step, e.steps.join('|')])).toEqual([['define', 'define', 'define'], ['build', 'analyze', 'analyze|describe']])
   })
 })
+
+describe('Sift pass 3: N1, N2, N4', () => {
+  const router = makeRouter({ routes: { first: '/flow', step: '/flow/:step', home: '/', notFound: '*' } })
+  const inW = (r) => r?.name === 'first' || r?.name === 'step'
+  function A() { return h('div', null, h('h2', null, 'a'), h('button', { className: 'two' }), h('button', { className: 'two-d' }), h('button', { className: 'restart' })) }
+  A.intent = ({ DOM }) => ({ TWO: DOM.click('.two'), TWOD: DOM.click('.two-d'), RS: DOM.click('.restart') })
+  A.model = {
+    TWO: { PARENT: () => ({ wizard: 'GOTO', step: 'b', key: '2', query: { r: 'R2' } }) },
+    TWOD: { PARENT: () => ({ wizard: 'GOTO', step: 'b', key: '3', draft: { r: 'given' } }) },
+    RS: { PARENT: () => ({ wizard: 'RESET' }) },
+  }
+  function B() { return h('div', null, h('h2', null, 'b'), h('button', { className: 'restart' })) }
+  B.intent = ({ DOM }) => ({ RS: DOM.click('.restart') })
+  B.model = { RS: { PARENT: () => ({ wizard: 'RESET' }) } }
+  function App({ state }) { return inW(state.route) ? h(H, { state: 'flow' }) : h('p', null, 'home') }
+  App.route = 'ROUTE'
+  App.initialState = { route: router.current('/'), flow: {} }
+  App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+  function H() { return h(Outlet, { of: { a: A, b: B }, from: 'wizard', focus: false }) }
+  H.uses = {
+    wizard: wizard({
+      steps: { a: { visit: { scratch: 1 } }, b: {} },
+      draft: (st) => ({ r: st.route?.query?.r ?? null, door: st.route?.query?.door ?? null }),
+      key: (st) => inW(st.route) ? st.route.query.k ?? null : undefined,
+      url: { route: 'step', param: 'step', key: 'k', from: (s) => s.route?.name === 'first' ? { ...s.route, name: 'step', params: { step: 'a' } } : s.route },
+      resetTo: { to: 'first' },
+    }),
+  }
+
+  it('N1: GOTO with a key and a query: the route keeps its other values, the draft comes from the route entered; N4: no step-one scratch', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/b?k=1&door=agent' })
+    await t.ready(); await tick(40)
+    await t.navigate('/flow/a?k=1&door=agent'); await tick(40)
+    await click('.two'); await tick(60)
+    expect(t.location.path).toBe('/flow/b')
+    expect(t.location.query).toEqual({ k: '2', door: 'agent', r: 'R2' })
+    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '2', draft: { r: 'R2', door: 'agent' }, reseed: null })
+    expect(t.state.flow.wizard.local.a).toBeUndefined()
+  })
+
+  it('N1: GOTO with a key and a draft seeds the new flow', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/a?k=1' })
+    await t.ready(); await tick(40)
+    await click('.two-d'); await tick(60)
+    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '3', draft: { r: 'given' } })
+    expect(t.location.query).toEqual({ k: '3' })
+  })
+
+  it("N2: Start over takes its draft (and key) from the route it goes to, not the one left", async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/b?k=1&r=R' })
+    await t.ready(); await tick(40)
+    expect(t.state.flow.wizard).toMatchObject({ key: '1', draft: { r: 'R' } })
+    await click('.restart'); await tick(60)
+    expect(t.location.path).toBe('/flow')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'a', key: null, draft: { r: null }, reseed: null })
+  })
+})
+
+describe('testing a step alone', () => {
+  it("its wizard messages are in t.sent('PARENT') (and t.sinkValues('PARENT'))", async () => {
+    function Step() { return h('button', { className: 'go' }, 'Next') }
+    Step.intent = ({ DOM }) => ({ GO: DOM.click('.go') })
+    Step.model = { GO: { PARENT: () => ({ wizard: 'NEXT' }) } }
+    t = renderComponent(Step, { dom: 'real', initialState: {} })
+    await t.ready()
+    await click('.go')
+    expect(t.sent('PARENT')).toEqual([{ wizard: 'NEXT' }])
+    expect(t.sinkValues('PARENT')).toEqual([{ wizard: 'NEXT' }])
+  })
+})

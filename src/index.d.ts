@@ -4313,7 +4313,8 @@ export interface RenderResult<STATE = any> {
   /**
    * Live array of the `{ to, json | text | binary }` values sent (`to`: only those to that connection).
    * For the router fake's sink (`t.sent('ROUTER')`): the commands the components sent
-   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations
+   * (`{ to, params }`, `{ back: true }`, `{ block }`...), not the `route` declarations. For PARENT
+   * and EVENTS (no driver): the values sent on them, as `sinkValues` (a step's `{ wizard: 'NEXT' }`)
    */
   sent: (sinkName: string, to?: string) => any[];
   /**

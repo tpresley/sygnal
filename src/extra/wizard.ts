@@ -155,11 +155,14 @@ export const wizard = (o: any = {}): any => {
     ({...w, step: n, visit: (w.visit || 0) + 1, visited: w.visited.includes(n) ? w.visited : [...w.visited, n], local: scratch(w, n, h), leaving: null})
   // the flow anew for key k (the draft from the host state; `d`: a draft given to RESET)
   // (url: at the step the route names when it is reachable, unless `top`: a reset)
-  const fresh = (w: any, h: any, k: any, d?: any, top?: boolean) => {
-    const dd = d ?? draftOf(h), n = {...w, key: k, draft: dd, initial: dd, local: {}, visited: [], leaving: null}
+  // (`to`: the step to enter, straight: a GOTO with a new key doesn't pass through step one)
+  const fresh = (w: any, h: any, k: any, d?: any, top?: boolean, to?: string) => {
+    const dd = d ?? draftOf(h), n = {...w, key: k, draft: dd, initial: dd, local: {}, visited: [], leaving: null, reseed: null}
     const at = url && !top && routeStep(h)
-    return enter(n, at && reachable(n, at, h) ? at : first, h)
+    return enter(n, to ?? (at && reachable(n, at, h) ? at : first), h)
   }
+  // url: a route's identity (name, params, query), to tell when the wizard's own navigation landed
+  const sig = (r: any) => JSON.stringify(r ? [r.name, r.params, r.query] : null)
   // url: the step the route names (null when it is another route)
   const routeOf = (h: any) => (url.from ? url.from(h) : h?.route)
   const routeStep = (h: any) => {
@@ -180,13 +183,14 @@ export const wizard = (o: any = {}): any => {
   // a key adopted mid-flow (none to a value): the flow kept, and (a `draft` function) the draft's
   // top-level fields the user hasn't changed from their start (`initial`) refilled from draft(state),
   // e.g. a field the new route now fills
-  const adopt = (w: any, k: any, h: any) => {
-    const r = {...w, key: k}
-    if (typeof dr != 'function') return r
+  const adopt = (w: any, k: any, h: any) => refill({...w, key: k}, h)
+  // the draft's top-level fields still at their start (`initial`) from draft(state) (a draft function)
+  const refill = (w: any, h: any) => {
+    if (typeof dr != 'function') return w
     const nd = dr(h), i = w.initial || {}, d = {...w.draft}, ni = {...i}
-    if (!nd || typeof nd != 'object' || !w.draft || typeof w.draft != 'object') return r
+    if (!nd || typeof nd != 'object' || !w.draft || typeof w.draft != 'object') return w
     for (const f in nd) if (Object.is(w.draft[f], i[f])) d[f] = ni[f] = nd[f]
-    return {...r, draft: d, initial: ni}
+    return {...w, draft: d, initial: ni}
   }
   // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
   const pre = (p: any) => p?.previousState || p?.state
@@ -229,6 +233,12 @@ export const wizard = (o: any = {}): any => {
       const w = h[k], l = w.visit ? scratch(w, w.step, h) : w.local
       return put(h, k, l === w.local ? w : {...w, local: l})
     }},
+    // url: the wizard's own navigation (Start over, a GOTO with a new key) landed: the draft's
+    // untouched fields from draft(state) on the route entered, not the one left
+    RESEED: {HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => {
+      const w = h[k]
+      return w.reseed == null ? h : put(h, k, {...refill(w, h), reseed: null})
+    }},
     // the host's state changed (a step's write, the host's own data): the derived fields again
     // (dispatched only when they would change: the intent filters; ABORT when they didn't)
     SYNC: {HOST: (h: any, _d: any, _n: any, _p: any, _o: any, k: string) => { const r = put(h, k, h[k]); return r === h ? ABORT : r }},
@@ -250,17 +260,25 @@ export const wizard = (o: any = {}): any => {
       HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => {
         const w = h[k]
         if (plainObj(d) && 'key' in d) {
-          // (as for a key the route names: adopted when the flow has none yet, or the same key)
-          const keep = w.key == null || Object.is(w.key, d.key)
-          const f = keep ? (w.key == null && d.key != null ? adopt(w, d.key, h) : w) : fresh(w, h, d.key ?? null, undefined, true), n = names.includes(d.step) ? d.step : f.step
-          return put(h, k, n == f.step && !keep ? f : enter(f, n, h))
+          // (as for a key the route names: adopted when the flow has none yet, or the same key; else
+          // the flow anew, at that step straight; `draft` seeds it, else (url) draft(state) is taken
+          // once the route it navigates to has landed, RESEED)
+          const keep = w.key == null || Object.is(w.key, d.key), n = names.includes(d.step) ? d.step : first
+          let f = keep ? (w.key == null && d.key != null ? adopt(w, d.key, h) : w) : fresh(w, h, d.key ?? null, d.draft, true, n)
+          if (keep && plainObj(d.draft)) f = {...f, draft: {...f.draft, ...d.draft}, initial: {...f.initial, ...d.draft}}
+          if (url && !plainObj(d.draft)) f = {...f, reseed: sig(routeOf(h))}
+          return put(h, k, keep && n != f.step ? enter(f, n, h) : f)
         }
         const n = target(w, 'GOTO', d, h)
         return n && (!url || out(n)) ? put(h, k, enter(w, n, h)) : h
       },
       ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const s = was(w, p, k)
-        if (plainObj(d) && 'key' in d) return {...go({key: d.key}, names.includes(d.step) ? d.step : first), force: true}
+        // (the route's other query values kept unless the message's `query` gives them)
+        if (plainObj(d) && 'key' in d) {
+          const {[url.key]: _k, ...q} = routeOf(pre(p))?.query || {}
+          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...q, ...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
+        }
         const n = target(s, 'GOTO', d, pre(p))
         return n ? go(s, n) : ABORT
       }},
@@ -268,7 +286,12 @@ export const wizard = (o: any = {}): any => {
     FINISH: {EFFECT: (w: any, _d: any, next: any, p: any, _o: any, k: string) => done(was(w, p, k), next)},
     RESET: {
       ...shut,
-      HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => put(h, k, fresh(h[k], h, h[k].key, plainObj(d) ? d : undefined, true)),
+      // (url: when it navigates (resetTo, or to the first step's route), the flow anew with no key
+      // (the route it lands on names one, or none) and the draft taken from that route once landed)
+      HOST: (h: any, d: any, _n: any, _p: any, _o: any, k: string) => {
+        const nav = url && (!!resetTo || routeStep(h) != first), f = fresh(h[k], h, nav ? null : h[k].key, plainObj(d) ? d : undefined, true)
+        return put(h, k, nav && !plainObj(d) ? {...f, reseed: sig(routeOf(h))} : f)
+      },
       // url: to `resetTo`, else back to the first step's route (the state is already at the first step)
       ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => resetTo
         // (from the slice being reset: the flow's data decides where its start over goes)
@@ -333,7 +356,7 @@ export const wizard = (o: any = {}): any => {
 
   // the start slice, with derived fields for a render before any action (SSR); predicates that need
   // the host's state get none here
-  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, initial: typeof dr == 'function' ? {} : dr, local: {}, leaving: null}
+  const init: any = {step: first, key: null, visit: 0, visited: [], draft: typeof dr == 'function' ? {} : dr, initial: typeof dr == 'function' ? {} : dr, local: {}, leaving: null, reseed: null}
   try { Object.assign(init, derive(init, {})) }
   catch (_) { Object.assign(init, {steps: [], stepper: [], index: 0, count: regular.length, first: true, last: regular.length < 2, canBack: false, canNext: false, outcome: null, dialog: null}) }
 
@@ -366,12 +389,13 @@ export const wizard = (o: any = {}): any => {
           start(l: any) { const f = () => l.next(0); regs.add(f); (this as any).stop = () => regs.delete(f) },
           stop() { (this as any).stop?.() },
         })),
-        ...url && {ROUTE: host.watch((h: any) => routeStep(h), {immediate: true})},
+        ...url && {ROUTE: host.watch((h: any) => routeStep(h), {immediate: true}),
+          RESEED: host.stream.filter((h: any) => h?.[k]?.reseed != null && sig(routeOf(h)) !== h[k].reseed)},
         ...guarded && {GUARD: host.watch((h: any) => !!(h?.[k]?.visit && dirtyIn(h[k], h)), {immediate: true})},
         NEXT: or(nextSel, 'NEXT'),
         BACK: or(backSel, 'BACK'),
         RESET: or(resetSel, 'RESET', (m: any) => m.draft),
-        GOTO: or(gotoSel, 'GOTO', (m: any) => 'key' in m ? {step: m.step, key: m.key} : m.step),
+        GOTO: or(gotoSel, 'GOTO', ({wizard: _w, ...m}: any) => 'key' in m ? m : m.step),
         FINISH: from('FINISH'),
         ...guarded && leaveSel && {DISCARD: DOM.click(leaveSel)},
         // the stay button, or the confirm dialog closed (Escape; after DISCARD / STAY: no change then)
@@ -390,7 +414,7 @@ export const wizard = (o: any = {}): any => {
     // the core's read-time hook (`_read`): a slice without its derived fields (seeded by a parent,
     // persisted) gets them wherever the state is read, the host's first view call included
     c._read = {...c._read, [k]: (w: any, h: any) => w && typeof w == 'object' && !('steps' in w) ? fin(w, h) : w}
-    for (const a of ['SYNC', 'MOUNT']) for (const f of Object.values(c.model[k + '.' + a] || {})) if (typeof f == 'function') (f as any)[BUILT_IN] = true
+    for (const a of ['SYNC', 'MOUNT', 'RESEED']) for (const f of Object.values(c.model[k + '.' + a] || {})) if (typeof f == 'function') (f as any)[BUILT_IN] = true
   }
   // for the outlet (src/extra/outlet.ts): the flow key the host state names, the draft's key in a
   // step's state, the slice's derived fields again (a step's write through the outlet's lens), and
