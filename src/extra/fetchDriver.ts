@@ -76,7 +76,10 @@ import {sse} from './sse';
  * - `{ invalidate: tag | tags | '/url-prefix' | (request) => boolean }` (D80): matching cache
  *   entries go stale and matching mounted resources refetch (keeping data). Tags are explicit
  *   (`tags: ['quotes']` on the request); a string starting with '/' is a URL prefix.
- *   `invalidates: …` on any request does the same after its success. G-184: a refetch aborts
+ *   `invalidates: …` on any request does the same after its success; with `invalidateOn:
+ *   'settled'` (the request's, else the driver option; default 'success') after its final failure
+ *   too (non-2xx, network error, timeout, validation; not an abort, not a retry that tries again),
+ *   after the error write and reply, like React Query's onSettled. G-184: a refetch aborts
  *   the resource's older read; a shared fetch in flight for a matching entry still answers its
  *   waiters but never writes the cache.
  * - `{ reset: true | tag | tags | '/url-prefix' | (request) => boolean }` (React Query's
@@ -334,7 +337,7 @@ const SETTLED = /^[se]/;
 // of its identity, so changing one (`refetchEvery: s.live ? 5000 : undefined`) refetches nothing.
 // The cache key (queryCache's key()) reads none of them either
 const BEHAVIOUR = ['ok', 'error', 'key', 'category', 'latest', 'timeoutMs', 'retry', 'cache', 'staleTime', 'tags',
-  'invalidates', 'updates', 'keepPrevious', 'refetchEvery', 'background', 'progress'];
+  'invalidates', 'invalidateOn', 'updates', 'keepPrevious', 'refetchEvery', 'background', 'progress'];
 /** the identity of a resource's request: its JSON without the BEHAVIOUR fields */
 const identity = (q: any) => q ? JSON.stringify(q, function (this: any, k, v) { return this === q && BEHAVIOUR.includes(k) ? undefined : v; }) : '';
 
@@ -633,7 +636,8 @@ export function makeFetchDriver(options: any = {}) {
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
       const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers),
-        rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}));
+        rk !== undefined && error ? reply(sender, error, {error: e, request: req, ...extra}) : rn === undefined && !pf && emit(true, {error: e, category, request: req, ...extra}),
+        invalidates && (req.invalidateOn ?? options.invalidateOn) == 'settled' && inval(invalidates));
       // `kh`: the kept headers already picked (a cache hit)
       r.ok = async (v: any, status: number, headers?: any, kh?: any) => {
         if (validate) try { v = await validateWith(validate, v); } catch (e: any) { return fail(e, {status, headers, issues: e.issues}); }

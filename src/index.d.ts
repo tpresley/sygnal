@@ -2991,9 +2991,18 @@ export type FetchRequest = string | {
   keepHeaders?: string[];
   /**
    * After a 2xx reply: invalidate these tags / URL prefixes / the predicate's matches (like
-   * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands
+   * `{ invalidate }`). A read of them already in flight is aborted, so an older reply never lands.
+   * With `invalidateOn: 'settled'`, after a failure too
    */
   invalidates?: FetchInvalidate;
+  /**
+   * When `invalidates` runs (React Query's `onSuccess` / `onSettled`): `'success'` (the default),
+   * after a 2xx only; `'settled'`, after the final outcome, failures included (a non-2xx, a
+   * network error, a timeout, a `validate` failure), so an optimistic update that failed is
+   * refetched. Never after an abort, and once after the last retry. On a failure it runs after
+   * the resource's error and the `error` action. Overrides the driver's `invalidateOn`
+   */
+  invalidateOn?: FetchInvalidateOn;
   /**
    * PLAN-3 6-A (G-184; React Query's setQueryData): after a 2xx reply, write it into this
    * component's resources with these names (and their `queryCache()` entries) before the `ok`
@@ -3068,6 +3077,12 @@ export type FetchRequest = string | {
    */
   prefetch: string | { url: string; [field: string]: any };
 }
+
+/**
+ * When a request's `invalidates` runs: after a 2xx (`'success'`, the default) or after any final
+ * outcome but an abort (`'settled'`)
+ */
+export type FetchInvalidateOn = 'success' | 'settled';
 
 /**
  * What `{ invalidate }` / `invalidates` match: a tag (`tags: ['quotes']` on the request), a URL
@@ -3297,6 +3312,12 @@ export type FetchDriverOptions = {
   cache?: QueryCache;
   /** Default `retry` for GET/HEAD requests (a request's own `retry` applies to any method). Default 0 */
   retry?: number | FetchRetry;
+  /**
+   * Default `invalidateOn` for every request (a request's own wins): `'settled'` runs
+   * `invalidates` after failures too. Default 'success'. renderComponent passes it on:
+   * `renderComponent(C, { http: { invalidateOn: 'settled' } })`
+   */
+  invalidateOn?: FetchInvalidateOn;
 }
 
 /**

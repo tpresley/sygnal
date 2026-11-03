@@ -2,7 +2,7 @@
 // a ResourceRequest (a URL or a request) or falsy from STATE & CALCULATED; `{ refresh }` is an
 // HTTP sink value; Resource<T> narrows on status.
 import { ABORT, makeFetchDriver, renderComponent, queryCache, renderToString } from 'sygnal'
-import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike, QueryCache, QueryCacheSnapshot } from 'sygnal'
+import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike, QueryCache, QueryCacheSnapshot, FetchInvalidateOn } from 'sygnal'
 
 type Quote = { id: number; text: string; author: string }
 type QuoteState = { selected: number | null; quote: Resource<Quote> }
@@ -82,6 +82,9 @@ const writes: FetchRequest[] = [
   { invalidate: ['quotes', '/api/users'] },
   { invalidate: (req) => req.url.startsWith('/api') },
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', invalidates: ['quotes'] },
+  // invalidateOn: also after a failure (React Query's onSettled)
+  { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', error: 'FAILED', invalidates: ['quotes'], invalidateOn: 'settled' },
+  { url: '/api/quotes/1', method: 'PUT', json: {}, invalidates: ['quotes'], invalidateOn: 'success' },
   // 6-A (G-184): the reply written into resources
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', updates: 'quote', invalidates: '/api/quotes' },
   { url: '/api/quotes/1', method: 'PUT', json: {}, updates: ['quote', 'other'] },
@@ -93,6 +96,14 @@ const writes: FetchRequest[] = [
 export { writes }
 // @ts-expect-error retry is a count or a policy
 makeFetchDriver({ retry: 'twice' })
+makeFetchDriver({ invalidateOn: 'settled' })
+const on: FetchInvalidateOn = 'success'
+export { on }
+// @ts-expect-error invalidateOn is 'success' or 'settled'
+makeFetchDriver({ invalidateOn: 'error' })
+// @ts-expect-error invalidateOn is 'success' or 'settled'
+const badOn: FetchRequest = { url: '/x', invalidates: 'quotes', invalidateOn: 'always' }
+export { badOn }
 const tc = renderComponent(App, { http: { cache: queryCache({ staleTime: 1000 }) } })
 const entries: FakeCacheEntry[] = tc.cache('HTTP')
 tc.focus()

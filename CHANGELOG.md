@@ -22,6 +22,14 @@ From the Sift port (a resource function couldn't see the component's props), gen
 
 **Unchanged, on purpose:** `calculated` fields, lenses and a behavior's read-time normalizer (they belong to the state cell, which instances with different props can share); a Collection's `filter` / `sort`, `estimateSize` and lens props (written in the view); `intent` (sources); `onError`.
 
+**Added: `invalidateOn: 'settled'` for `makeFetchDriver`**, in `guide/resources#invalidation`. From the Sift port, which added a manual invalidate to every save's error handler (13+ call sites) so a failed optimistic update didn't leave stale data.
+
+- **`invalidates` after a failure too.** `invalidateOn: 'settled'` on a request runs its `invalidates` after the final outcome, whatever it is: a 2xx, a non-2xx, a network error, a timeout or a `validate` failure (React Query's `onSettled`).
+- **Once, and not for an abort.** A retried request invalidates once, after its last attempt. A request superseded by `latest`, cancelled or disposed invalidates nothing.
+- **Order.** On a failure, the resource's error and the `error` action come first, then the invalidation, as on success.
+- **Driver default.** `makeFetchDriver({ invalidateOn: 'settled' })` (and `renderComponent(C, { http: { invalidateOn: 'settled' } })`) sets it for every request; a request's own `invalidateOn` wins. The default stays `'success'`.
+- **Types.** `invalidateOn?: FetchInvalidateOn` on `FetchRequest` and `FetchDriverOptions`. Like `invalidates`, it is a behaviour-only field: changing it on a resource refetches nothing.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
