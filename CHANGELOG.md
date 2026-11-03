@@ -61,6 +61,14 @@ reports).
   step aborted without a reply (another compose use in the lane, or its `timeoutMs`) releases the
   queue instead of stalling it, and the queued composition starts after `page.DONE`, on the layout
   its handlers left (an app's fix there was lost).
+- **Fetch driver: a resource with a deep request body keeps its refetches.** A `json` body nested
+  a few levels deep was re-declared on every action, and an invalidation, focus or `refetchEvery`
+  refetch running outside a drain then took itself for superseded: it was never sent, the
+  resource stayed `refreshing`, and polling stopped after one tick.
+- **Dev diagnostics: SYG410 reports an empty `state` key** (`state=""`, `"a..b"`): the child got no
+  state and silently didn't render. sygnal-check reports it too, and `--fix` removes `state=""`.
+- **renderComponent:** `t.respond` with nothing pending for a polling resource says when its next
+  request is sent (`refetchEvery` ms after the last reply).
 - **Behaviors:** a host reducer that leaves a behavior's key out of the state gets the default
   slice back; for a behavior with calculated fields (`selection()`) the key was left `undefined`.
 - **Types:** a component's children may be text (`<ActionButton>Save</ActionButton>` failed tsc;

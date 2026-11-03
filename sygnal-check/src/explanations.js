@@ -738,9 +738,9 @@ export const EXPLANATIONS = {
   SYG410: {
     title: "Invalid sub-component 'state' prop",
     severity: "error",
-    reportedBy: ["runtime"],
-    explanation: "The `state` prop on a sub-component or Switchable is neither a state key string nor an object with a `get()` function (for example a number, or a `{ set }` object without `get`). It is logged and the child falls back to receiving the parent's whole state, which is usually not what was intended.",
-    fix: "Pass a state key string (`state=\"user\"`) or a lens object `state={{ get: s => s.user, set: (s, user) => ({ ...s, user }) }}`.",
+    reportedBy: ["runtime", "dev-entry", "static"],
+    explanation: "The `state` prop on a sub-component or Switchable is neither a state key string nor an object with a `get()` function (for example a number, or a `{ set }` object without `get`). It is logged and the child falls back to receiving the parent's whole state, which is usually not what was intended. Also reported (by the dev checks at run time, and by sygnal-check for a literal) when a child's `state` is an empty string, `state=\"\"`, or a path with an empty segment (`\"user.\"`, `\".user\"`, `\"a..b\"`): that names an empty key, so the child reads `state[\"\"]`, gets no state and is left out of the view without any other error.",
+    fix: "Pass a state key string (`state=\"user\"`) or a lens object `state={{ get: s => s.user, set: (s, user) => ({ ...s, user }) }}`. For an empty `state`, leave the prop out to share the parent's state (`<Child />`; `sygnal-check --fix` removes `state=\"\"`), or name a key in every segment of the path.",
   },
   SYG411: {
     title: "Collection 'of' is missing or not a component",

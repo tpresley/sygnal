@@ -65,6 +65,7 @@ const RANGES = [
   ['SYG302', 'App.jsx', 1, "import xs from 'xstream'"],
   ['SYG303', 'App.jsx', 4, 'STATE.stream.map(s => s.tab).compose(dropRepeats())'],
   ['SYG429', 'App.jsx', 3, 'bb'],
+  ['SYG410', 'App.jsx', 2, 'state=""'],          // the attribute (what --fix removes)
   ['SYG124', 'App.jsx', 7, 'TodoItem'],
   ['SYG125', 'App.jsx', 2, 'Add.model'],
   ['SYG126', 'App.jsx', 3, '<A'],                 // endNode: "<Control", not the whole tag

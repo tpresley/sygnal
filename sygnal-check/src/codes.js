@@ -31,6 +31,8 @@ export const CODES = {
   SYG118: { severity: 'warn', title: 'Host intent replaces a behavior trigger' },
   // PLAN-13 F-3 (rules/syg429-switchable-state-map.js; the dev entry reports it at run time too)
   SYG429: { severity: 'warn', title: 'Switchable state map names no page' },
+  // rules/syg410-empty-state-key.js: a child's state="" (the dev entry reports it at run time too)
+  SYG410: { severity: 'error', title: "Invalid sub-component 'state' prop" },
   // PLAN-13 X-1 (rules/syg302-xstream-default-import.js)
   SYG302: { severity: 'info', title: "Default import from 'xstream' or 'xstream/extra/*'" },
   SYG303: { severity: 'info', title: 'STATE.stream with dropRepeats() in an intent' },

@@ -79,6 +79,26 @@ describe('R-1: invalidation with navigation in the ok action', () => {
     }
   }
 
+  it('a deep json body (re-sent as a new object on every action): the new request still wins', async () => {
+    const Page = makePage(['items'])
+    Page.resources = { item: (s) => ({ url: `/api/items/${s.route.params.id}`, method: 'POST', json: { a: { b: { c: { d: { e: { id: s.route.params.id } } } } } }, tags: ['items'] }) }
+    const { Root, page } = app('lens', Page)
+    const t = renderComponent(Root, { router, url: '/items/1', http: { cache: queryCache() } })
+    await t.respond('HTTP', { id: 1 }, { url: '/api/items/1', method: 'POST' })
+    t.simulateEvent('.save', 'click')
+    await t.respond('HTTP', {}, 'SAVED')
+    await t.settle()
+    expect(t.location.path).toBe('/items/2')
+    const sent = reads(t)
+    expect(sent.lastIndexOf('/api/items/1')).toBeLessThan(sent.indexOf('/api/items/2'))
+    expect(sent.at(-1)).toBe('/api/items/2')
+    await t.respond('HTTP', { id: 2 }, { url: '/api/items/2', method: 'POST' })
+    await t.settle()
+    expect(page(t.state).item).toMatchObject({ status: 'success', data: { id: 2 } })
+    expect(page(t.state).item.refreshing).toBeFalsy()
+    t.dispose()
+  })
+
   it('two resources on the page: neither sends its old request after the new one', async () => {
     const Page = makePage(['items'])
     Page.resources = { ...Page.resources, notes: (s) => ({ url: `/api/items/${s.route.params.id}/notes`, tags: ['items'] }) }

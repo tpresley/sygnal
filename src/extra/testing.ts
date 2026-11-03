@@ -2819,11 +2819,14 @@ export function renderComponent(
         : `no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}: t.requests('${name}') has ${list.length} request${list.length == 1 ? '' : 's'}${list.length < all ? ` matching (${all} in all)` : ''}.`));
     }
     const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
+    // a polled resource (refetchEvery) matching the target: its next request comes on a timer
+    const pv = nthOf(name, tg).list.map(r => r.value).filter(v => v?.resource !== undefined && v.refetchEvery > 0).pop();
     return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
-      (sent ? `The component sent ${sent} (t.requests('${name}'))${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
+      (sent ? `The component sent ${sent} (t.requests('${name}') lists every request sent, answered or not)${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
         `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
-      (waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
+      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it.` :
+        waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
   };
   /**
    * 5-1: `deliver(e, o)` settles the pending fetch `e` (the driver then routes the reply);
