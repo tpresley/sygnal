@@ -112,5 +112,6 @@ function rewrite(n: any, owner: any): any {
 }
 
 /** One page or step of `of` at a time, keyed by its identity (see the module comment) */
-export function Outlet(_props: any): any { return null }
-Object.assign(Outlet, {componentName: 'outlet', preventInstantiation: true, $reg: () => { pres.outlet ||= rewrite }})
+// (a pure expression: a top-level assignment would keep this module in every app's bundle)
+export const Outlet: any = /*#__PURE__*/ Object.assign((_props: any): any => null,
+  {componentName: 'outlet', preventInstantiation: true, $reg: () => { pres.outlet ||= rewrite }})
