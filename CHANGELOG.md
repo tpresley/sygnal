@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
 
@@ -49,7 +49,7 @@ From the Sift console port's hand-built wizards, after three stress-test passes 
   - **SYG457:** an `of` key that names no step (`sygnal-check`).
   - **sygnal-check** knows the behavior's slice, actions and options.
 - **Core: a behavior's read-time normalizer.** A behavior's merge may set `c._read = { key: (value, state) => value }`. The core applies it whenever the component's state is read (before calculated fields, memoized per state object). The wizard uses it so that a slice a parent seeded has its derived fields from the first view call.
-  - **Size:** the size gate's budget goes from 43,080 B to 43,138 B (user-approved, +61 B).
+  - **Size:** the size gate's budget goes from 43,080 B to 43,144 B (user-approved, +64 B).
 
 **Fixed.**
 - **`renderComponent`:**
