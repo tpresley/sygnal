@@ -1341,15 +1341,24 @@ export function isSelected(slice: SelectionState | undefined | null, id: string 
 /** What a wizard step sees (and its predicates get): its own slice, with `draft` the flow's shared draft. */
 export type WizardStepState<DRAFT = any, OWN = {}> = OWN & { draft: DRAFT }
 /** One step of a `wizard()` (spike): the stepper label, its validity, when it applies, its scratch. */
-export interface WizardStep<DRAFT = any> {
+/**
+ * A step component's type (wizard spike): its state is its own slice OWN plus the flow's `draft`,
+ * and its `initialState` is OWN alone (the draft isn't part of it).
+ *
+ *   const Review: WizardStepComp<ReviewState, Draft, { actions: Actions }> = ({ state }) => …
+ */
+export type WizardStepComp<OWN = {}, DRAFT = any, T extends Omit<ComponentSpec, 'state'> & OnlyKeys<T, Omit<ComponentSpec, 'state'>> = {}> =
+  ComponentProps<OWN & { draft: DRAFT } & SpecOf<T, 'calculated', {}>, SpecOf<T, 'props', { [prop: string]: any }>, SpecOf<T, 'context', {}>>
+  & Omit<Comp<T & { state: OWN & { draft: DRAFT } }>, 'initialState'> & { initialState?: OWN }
+export interface WizardStep<DRAFT = any, OWN = any> {
   /** The stepper label (default: the step name) */
   label?: string;
   /** Can the flow move past this step? (default true). Gates NEXT and makes later steps reachable */
-  valid?: (step: WizardStepState<DRAFT, any>) => boolean;
+  valid?: (step: WizardStepState<DRAFT, Partial<OWN>>) => boolean;
   /** Is this step part of the flow? (default true). A step for which it is false is skipped */
-  when?: (step: WizardStepState<DRAFT, any>) => boolean;
+  when?: (step: WizardStepState<DRAFT, Partial<OWN>>) => boolean;
   /** Fields of the step's own slice set again on every entry (its scratch: busy flags, errors) */
-  visit?: Record<string, any> | ((step: WizardStepState<DRAFT, any>) => Record<string, any>);
+  visit?: Partial<OWN> | ((step: WizardStepState<DRAFT, Partial<OWN>>) => Partial<OWN>);
 }
 /** A step of the stepper, `state.wizard.steps[i]`. */
 export interface WizardStepInfo {
@@ -1366,7 +1375,7 @@ export interface WizardStepInfo {
   skipped: boolean;
 }
 /** A `wizard` slice (spike): `state.wizard`. */
-export interface WizardState<DRAFT = any> {
+export interface WizardState<DRAFT = any, LOCAL extends Record<string, any> = Record<string, any>> {
   /** The current step's name */
   step: string;
   /** The flow key the state belongs to (null without the `key` option) */
@@ -1376,8 +1385,8 @@ export interface WizardState<DRAFT = any> {
   visited: string[];
   /** The flow's draft, shared by the steps */
   draft: DRAFT;
-  /** Each step's own slice, by step name */
-  local: Record<string, any>;
+  /** Each step's own slice, by step name (a step not entered yet has none) */
+  local: { [K in keyof LOCAL]?: LOCAL[K] };
   /** A navigation held while the leave confirm is open (a router command), else null */
   leaving: RouterCommand | null;
 }
@@ -1390,9 +1399,9 @@ export interface WizardCalculated {
   canBack: boolean;
   canNext: boolean;
 }
-export interface WizardOptions<DRAFT = any, HOST = any> {
+export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>> {
   /** The steps, in order: name -> definition */
-  steps: Record<string, WizardStep<DRAFT>>;
+  steps: { [K in keyof NoInfer<LOCAL>]: WizardStep<DRAFT, NoInfer<LOCAL>[K]> };
   /** The draft a flow starts with, or a function of the host's state called at each start */
   draft?: DRAFT | ((state: HOST) => DRAFT);
   /** The flow key (a record, session or report id): when it changes, the flow starts anew */
@@ -1402,9 +1411,9 @@ export interface WizardOptions<DRAFT = any, HOST = any> {
   /** A host action dispatched (with the draft) by NEXT on the last step */
   finish?: string;
   /** The leave guard: while true, navigating away from the flow is held for a confirm */
-  dirty?: (wizard: WizardState<DRAFT>, step: string) => boolean;
+  dirty?: (wizard: WizardState<DRAFT, LOCAL>, step: keyof LOCAL & string) => boolean;
   /** The slice after a confirmed leave (default: the flow started over) */
-  discard?: (wizard: WizardState<DRAFT>, state: HOST) => WizardState<DRAFT>;
+  discard?: (wizard: WizardState<DRAFT, LOCAL>, state: HOST) => WizardState<DRAFT, LOCAL>;
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
   confirm?: BehaviorTarget;
   /** The confirm's buttons: leave (DISCARD) and stay (STAY) */
@@ -1422,7 +1431,7 @@ export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RES
  * (step, draft, each step's own slice, the stepper's `steps`) and 'wizard.NEXT', 'wizard.BACK',
  * 'wizard.GOTO', 'wizard.RESET', 'wizard.DISCARD', 'wizard.STAY'.
  */
-export function wizard<DRAFT = any, HOST = any>(options: WizardOptions<DRAFT, HOST>): Behavior<WizardState<DRAFT>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST>>
+export function wizard<DRAFT = any, HOST = any, LOCAL extends Record<string, any> = Record<string, any>>(options: WizardOptions<DRAFT, HOST, LOCAL>): Behavior<WizardState<DRAFT, LOCAL>, WizardActions, WizardCalculated, WizardOptions<DRAFT, HOST, LOCAL>>
 
 export type OutletProps<OF extends Record<string, AnyComponent> = Record<string, AnyComponent>> = {
   /** name -> component */
