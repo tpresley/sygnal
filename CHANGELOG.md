@@ -18,7 +18,7 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Added: `box` on a `resize` browser source** (the Sift console port's Phase A, #10): `{ resize: '.row', box: 'border-box', action }` reports the border box (padding and border included), `'device-pixel-content-box'` the content box in device pixels. The default is still the content box. An unknown `box` is SYG663.
 
-**Size:** the size gate's budget goes from 43,263 B to 43,460 B (user-approved, +197 B), for the portal events (+161 B) and the "true"/"false" attribute fix (+35 B).
+**Size:** the size gate's budget goes from 43,263 B to 43,467 B (user-approved, +204 B), for the portal events (+161 B) and the "true"/"false" attribute fix (+43 B).
 
 **Fixed: `spellcheck="false"` turned spell checking on** (the Sift console port). React DOM's booleanish string attributes, `spellcheck`, `draggable` and `contenteditable` (any case: `spellCheck`, `contentEditable`), are now attributes, as in React: `"false"` and `false` are written as `"false"`, `true` as `"true"`, `null` removes it. As properties, the string `"false"` was `true`, and a lowercase `contenteditable` was ignored. The default mock DOM (`renderComponent` without `dom: 'real'`) now shows them in `t.html()` / `outerHTML`; sygnal/host gets the same attributes, and on sygnal/three and sygnal/canvas elements `draggable="false"` is not a drag source.
 

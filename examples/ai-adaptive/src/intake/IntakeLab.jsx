@@ -65,7 +65,7 @@ export default function IntakeLab({ state }) {
           <button type="button" className="again">File another</button>
         </div>
       ) : (page.layout || page.preview) && (
-        <form className={page.preview ? 'intake preview' : 'intake'} novalidate>
+        <form className={page.preview ? 'intake preview' : 'intake'} noValidate>
           {catalog.render(page, state)}
           {pieces.length > 0 && (
             <div className="intake-actions">
