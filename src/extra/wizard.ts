@@ -348,11 +348,16 @@ export const wizard = (o: any = {}): any => {
   }
   if (guarded) Object.assign(model, {
     GUARD: {[R]: (_w: any, d: any, _n: any, _p: any, _o: any, k: string) => ({block: d ? k + '.LEAVE' : false})},
-    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); else held
+    // the router's attempt { to, route, proceed }: inside the flow, made (the block kept); out of it,
+    // made with the block lifted when the step isn't dirty any more (Sift: the action that sent the
+    // navigation saved or cleared it in its STATE, before GUARD's watch lifted the block), else held
     LEAVE: {
-      STATE: (w: any, a: any, _n: any, p: any) => inFlow(w, a?.route, bag(p, p?.state)) ? ABORT : {...w, leaving: a?.proceed ?? null},
-      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, bag(p)) ? {...a.proceed, block: k + '.LEAVE'} : ABORT,
-      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => inFlow(was(w, p, k), a?.route, bag(p)) ? ABORT : {showModal: confirm}},
+      STATE: (w: any, a: any, _n: any, p: any) => { const B = bag(p, p?.state); return inFlow(w, a?.route, B) || !dirtyIn(w, B) ? ABORT : {...w, leaving: a?.proceed ?? null} },
+      [R]: (w: any, a: any, _n: any, p: any, _o: any, k: string) => {
+        const s = was(w, p, k), B = bag(p)
+        return inFlow(s, a?.route, B) ? {...a.proceed, block: k + '.LEAVE'} : dirtyIn(s, B) ? ABORT : {...a.proceed, block: false}
+      },
+      ...confirm && {ELEMENT: (w: any, a: any, _n: any, p: any, _o: any, k: string) => { const s = was(w, p, k), B = bag(p); return inFlow(s, a?.route, B) || !dirtyIn(s, B) ? ABORT : {showModal: confirm} }},
     },
     DISCARD: {
       HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {

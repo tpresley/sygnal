@@ -200,6 +200,24 @@ Account.uses = { form: form(accountSchema, { values: { email: '' }, submit: 'DON
 Account.model = { DONE: { PARENT: () => ({ wizard: 'NEXT' }) } }
 ```
 
+**A step seeded from its own data**, and seeded again when that data is revised: React's `key={updatedAt}` on the step. Review builds an editable spec from a proposal it loads. Going Back and returning keeps the user's edits, but a revised proposal replaces the spec, edits and all, since they were made against the old one. Watch the data's stamp, and keep the stamp the spec was built from next to it:
+
+```jsx
+Review.resources = { proposal: (state) => ({ url: `/api/sessions/${state.draft.session}/proposal` }) }
+Review.intent = ({ STATE }) => ({
+  SEED: STATE.watch((state) => state.proposal?.data?.updatedAt ?? null, { immediate: true }),
+})
+Review.model = {
+  SEED: (state, stamp) => stamp == null || stamp === state.specFor
+    ? ABORT
+    : { ...state, spec: specFrom(state.proposal.data), specFor: stamp },
+}
+```
+
+- The watch runs on entry (`immediate`) and on every change of the stamp, so the data arriving after the step mounts seeds it too.
+- Back and forth with the same proposal keeps the spec: `specFor` already matches. A new flow key or Start over makes the step's slice again, so the spec is rebuilt.
+- To keep some edits across a revision instead, merge them in `SEED` rather than replacing the spec.
+
 ## The flow key
 
 A flow belongs to a record: a session, a draft being edited, a report. Name it with `key`:
@@ -288,6 +306,7 @@ wizard({ steps: { describe: { dialog: { title: 'Discard your reply?' } }, review
   - Next, Back and the stepper;
   - the browser's back and forward between steps;
   - a step's own navigation to another step. A step that created the flow's record and moves on with the new key passes too, while the flow has no key yet.
+- **A step that saves or drops its edits and leaves in the same action** isn't held: the guard reads `dirty` after that action's `STATE`. `SAVED: { STATE: (s) => ({ ...s, saved: true }), ROUTER: () => ({ to: 'filter', params }) }` navigates with no dialog, and so does a step's own confirmed "Leave" that clears the edits in `STATE`. No `force` is needed.
 
 **A held navigation** goes in `state.wizard.leaving` and opens the `confirm` dialog with `showModal()`:
 - **Discard** (`leave`) runs the current step's `discard`, else the wizard's `discard`, else starts the flow over. Then it makes the navigation.
