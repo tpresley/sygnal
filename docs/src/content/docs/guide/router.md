@@ -112,10 +112,11 @@ The driver intercepts same-origin link clicks at the document level and navigate
 - clicks with a modifier key (Ctrl, Cmd, Shift, Alt) or a button other than the left one;
 - links with a `target` other than `_self`, a `download` attribute, `rel="external"` or `data-router-ignore`;
 - links to another origin, or outside `base`;
+- links to a URL another app owns (the `external` option: see [Routes another app owns](#routes-another-app-owns));
 - in history mode, a link that only changes the fragment of the current page (`#comments`), which scrolls as usual;
 - form submissions.
 
-A link to a route another app owns (a server-rendered page, another single-page app under the same origin) needs `data-router-ignore` or `rel="external"`: without it the router intercepts it and shows its own not-found route.
+A link to a route another app owns (a server-rendered page, another single-page app under the same origin) is left to the browser when the router's `external` option lists it, or when the link has `data-router-ignore` or `rel="external"`. Without either the router intercepts it and shows its own not-found route.
 
 SVG `<a>` elements, links inside open shadow roots and relative links (resolved against `<base href>`) are intercepted too.
 
@@ -260,6 +261,38 @@ export default { ROUTER: router.driver }
 
 Write the route table to match the Vike routes, with `:param` for Vike's `@param`. The router then leaves link clicks and history to Vike, navigates with `navigate(url, { overwriteLastHistoryEntry })`, leaves scrolling to Vike, and re-reads the route after each Vike navigation (the Sygnal Vike hooks signal it). A Layout can declare `route` and keep the route in its state across pages. Without `navigate` the dev entry reports SYG133.
 
+## Routes Another App Owns
+
+When Sygnal shares an origin with other apps, some URLs belong to someone else. This happens while you port an app page by page behind a proxy (a strangler migration), or when several apps each own part of a site (islands, multi-zones). A navigation to one of those URLs has to load the page from the server. If the router made it a client-side navigation, it would show its own not-found route.
+
+List them in `external`:
+
+```javascript
+// src/routes.js
+import { makeRouter } from 'sygnal'
+
+export const router = makeRouter({
+  routes: { home: '/', task: '/tasks/:id', billing: '/billing/:id', signIn: '/auth/login', notFound: '*' },
+  // still served by the old app
+  external: ['/billing/:id', '/auth/*'],
+})
+```
+
+A navigation to a matching URL is a full page load: `location.assign(url)`, or `location.replace(url)` for a `replace`. It never pushes a history entry, wherever the navigation comes from:
+
+- a link click: the router doesn't intercept it, so the browser follows the link;
+- a `{ to }` or `{ url }` command;
+- a guard's redirect, such as `{ to: 'signIn', replace: true }` from the root's `ROUTE` entry;
+- the `proceed` a component sends after a `{ block }`.
+
+Leave blocks are still asked first: a component with unsaved changes gets the attempt, as for any navigation.
+
+`external` takes route patterns, the same syntax as `routes` (`:param` matches one segment), plus a trailing `*` that matches the rest of the path (`'/auth/*'` matches `/auth`, `/auth/login` and `/auth/sso/callback`). Patterns match the path without `base`. For anything else, pass a function of the resolved `URL`: `external: (url) => url.pathname.startsWith('/legacy/')`.
+
+Keep the other app's routes in `routes` too, so `href('billing', { id })` builds the link and `{ to: 'billing', params }` type-checks. A URL that matches neither table still shows your not-found route. A mistyped link stays inside the app instead of reloading the page.
+
+Under Vike, which owns link clicks, `external` applies to the router's commands.
+
 ## Testing
 
 Pass the router to [`renderComponent`](/integration/testing/#routing-navigate-back-location). It runs the router's driver over an in-memory history that starts at `url`, and the test drives it like a user:
@@ -277,6 +310,6 @@ it('redirects to login from the admin page', async () => {
 })
 ```
 
-`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location (`path`, `search`, `query`, `hash`, `href`). A `simulateEvent` click on a link goes through the router's link interception. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
+`t.navigate('/tasks/2')` or `t.navigate({ to: 'task', params: { id: 2 } })` navigates, `t.back()` and `t.forward()` traverse, and `t.location` is the current location (`path`, `search`, `query`, `hash`, `href`). A `simulateEvent` click on a link goes through the router's link interception. `t.pageLoads` lists the full page loads (`{ url, replace }`): `external` navigations and links the router left to the browser. They are recorded, not made. Each call resolves once the route has been reduced and rendered. A `{ block }` stops them as it would stop a user. `t.head()` returns the merged head when no `HEAD` driver is passed.
 
 Outside `renderComponent`, `makeRouter({ routes, window })` (and `history`, `location`, `document`) takes stand-ins, for an in-memory history in a test that calls `run()`.

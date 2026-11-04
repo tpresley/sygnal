@@ -49,6 +49,13 @@ import {SET} from '../core/teardown';
  *   navigation calls navigate(url, { overwriteLastHistoryEntry }), scroll is left to Vike, and
  *   the route is re-read on popstate and on the 'sygnal:navigate' event the Vike client hook
  *   dispatches before each client-side render.
+ * - External (`external` option: route patterns, a trailing `*` matching the rest, or
+ *   `(url: URL) => boolean`): URLs another app owns (a strangler, multi-zones). A navigation to
+ *   one, from a link, a command, a guard's redirect or a `proceed`, is a full page load:
+ *   location.assign (replace: location.replace), never pushState; a link click is left to the
+ *   browser. The blocks are asked first, as for any navigation. Patterns match the path as
+ *   `match()` reads it (base removed; in hash mode the page's path). Under Vike it applies to
+ *   commands (links are Vike's).
  */
 
 type Routes = Record<string, string>;
@@ -73,6 +80,8 @@ export function makeRouter(options: any = {}) {
   const hashMode = mode == 'hash';
   const focusSel = options.focus ?? '[data-router-focus],main h1,h1';
   const doScroll = options.scroll ?? !navigate;
+  const ext = options.external;
+  const extPats: string[][] = typeof ext == 'function' ? [] : (ext || []).map((p: string) => p.split('/').filter(Boolean));
 
   const href = (name: string, params: any = {}, query?: any, hash?: string) => {
     // dev entry only (SYG130: unknown name, missing or extra params)
@@ -103,6 +112,19 @@ export function makeRouter(options: any = {}) {
     if (!hashMode && base && (p == base || p.startsWith(base + '/'))) p = p.slice(base.length);
     const path = '/' + p.split('/').filter(Boolean).join('/');
     return {...matchPath(path), query: Object.fromEntries(new URLSearchParams(u.search)), hash: dec(u.hash.slice(1)), path};
+  };
+
+  /** whether `url` (resolved against `at`) is one another app owns (`external`) */
+  const isExternal = (url: string, at = 'http://x') => {
+    if (!ext) return false;
+    const u = new URL(url, at);
+    if (typeof ext == 'function') return !!ext(u);
+    let p = u.pathname;
+    if (!hashMode && base && (p == base || p.startsWith(base + '/'))) p = p.slice(base.length);
+    const segs = p.split('/').filter(Boolean), seg = (x: string, i: number) => x[0] == ':' || x == segs[i];
+    return extPats.some(ps => ps[ps.length - 1] == '*'
+      ? segs.length >= ps.length - 1 && ps.slice(0, -1).every(seg)
+      : ps.length == segs.length && ps.every(seg));
   };
 
   const win = () => options.window || (typeof window != 'undefined' ? window : null);
@@ -195,8 +217,15 @@ export function makeRouter(options: any = {}) {
       return b && (asked = b[0], reply(b[0], b[1], data), 1);
     };
 
+    const ask = (url: string, replace?: boolean) => blocked({to: url, route: match(url), proceed: {url, replace, force: true}});
+
     const go = (url: string, replace?: boolean, scroll?: boolean, f?: any) => {
-      if (!f && blocked({to: url, route: match(url), proceed: {url, replace, force: true}})) return;
+      if (!f && ask(url, replace)) return;
+      // another app's URL: a full page load (the blocks were asked; a forced one skips the rest)
+      if (isExternal(url, L.href)) {
+        w.removeEventListener('beforeunload', onUnload);
+        return void L[replace ? 'replace' : 'assign'](url);
+      }
       if (navigate) return navigate(url, {overwriteLastHistoryEntry: !!replace});
       forceTo = null;
       pos.set(key, [w.scrollX, w.scrollY]);
@@ -242,8 +271,11 @@ export function makeRouter(options: any = {}) {
       const u = new URL(raw, D.baseURI || L.href), same = u.pathname == L.pathname && u.search == L.search;
       if (u.origin != L.origin) return;
       if (hashMode ? !(same && u.hash.startsWith('#/')) : (base && u.pathname != base && !u.pathname.startsWith(base + '/')) || (u.hash && same)) return;
+      const url = u.pathname + u.search + u.hash;
+      // another app's URL: the browser follows the link, unless a block stops it
+      if (isExternal(url, L.href)) return void (ask(url) && e.preventDefault());
       e.preventDefault();
-      go(u.pathname + u.search + u.hash);
+      go(url);
     };
 
     const onUnload = (e: any) => { e.preventDefault(); e.returnValue = ''; };

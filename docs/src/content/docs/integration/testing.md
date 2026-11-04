@@ -580,6 +580,7 @@ it('opens a task from the list, and goes back', async () => {
 - `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
 - `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
 - `t.location` is `{ path, search, query, hash, href }` of the in-memory location; `query` is the search parsed as `state.route.query` has it (`{ tab: 'notes' }`).
+- `t.pageLoads` lists the full page loads the app made, as `{ url, replace }` with an absolute `url`: navigations to the router's [`external`](/guide/router/#routes-another-app-owns) URLs, and link clicks the router left to the browser. They are recorded, not made: the location and the page stay as they were.
 - `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.
 - Links: in the mock DOM, `simulateEvent(selector, 'click')` on an `<a>`, or on an element inside one, also reaches the router's document listener, so the driver decides as it would in a browser. Modified clicks (`{ metaKey: true }`), `target="_blank"`, `download`, `rel="external"`, `data-router-ignore` and other origins are left alone. With `dom: 'real'` the click is a real event that bubbles to the document.
 - Each call returns a promise that resolves once the new route has been reduced and the tree has rendered, as `t.respond` does. Fake timers work: `popstate` and the redirect order run on the test's clock.
@@ -737,6 +738,7 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `navigate` | `(url \| { to, params }) => Promise<void>` | Router fake: navigate as a link click or a command (through `block`); throws for an unknown route |
 | `back`, `forward` | `() => Promise<void>` | Router fake: the browser's back and forward buttons |
 | `location` | `{ path, search, hash, href }` | Router fake: the in-memory location |
+| `pageLoads` | `Array<{ url, replace }>` | Router fake: the full page loads (`external` URLs, links left to the browser), recorded, not made |
 | `head` | `() => { title, meta, link }` | HEAD fake: the merged head the components declare |
 | `diagnostics` | `Diagnostic[]` | Diagnostics collected while rendered |
 | `expectNoDiagnostics` | `() => void` | Throws if any warning or error was collected |
