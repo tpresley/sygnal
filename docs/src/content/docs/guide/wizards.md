@@ -78,7 +78,7 @@ function NewProject({ state }) {
     <section className="new-project">
       <ol className="wizard-steps" aria-label="Progress">
         {w.steps.filter((s) => !s.skipped).map((s) => (
-          <li aria-current={s.current ? 'step' : undefined}>
+          <li aria-current={s.current ? 'step' : undefined} data-status={s.status}>
             {s.reachable && !s.current
               ? <button type="button" className="goto" data-step={s.name}>{s.label}</button>
               : <span>{s.label}</span>}
@@ -87,7 +87,7 @@ function NewProject({ state }) {
         ))}
       </ol>
       <Outlet of={{ name: Name, plan: Plan, seats: Seats, review: Review }} from="wizard" />
-      <p>
+      <p className="wizard-moves">
         <button type="button" className="back" disabled={!w.canBack}>Back</button>
         <button type="button" className="next" disabled={!w.canNext}>{w.last ? 'Create' : 'Next'}</button>
       </p>
@@ -117,8 +117,16 @@ export default NewProject
 ```
 
 ```css live
-.wizard-steps { display: flex; gap: 1rem; list-style: none; padding: 0; }
-.wizard-steps [aria-current="step"] { font-weight: bold; }
+.wizard-steps { display: flex; flex-wrap: wrap; list-style: none; padding: 0; border-bottom: 1px solid var(--sl-color-gray-5); counter-reset: step; }
+.wizard-steps li { counter-increment: step; display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; margin: 0 0 -1px; border-bottom: 2px solid transparent; color: var(--sl-color-gray-3); }
+.wizard-steps li::before { content: counter(step); display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 1px solid currentColor; border-radius: 50%; font-size: 0.8rem; }
+.wizard-steps [data-status="done"]::before { content: "✓"; color: var(--sl-color-text-accent); }
+.wizard-steps [aria-current="step"] { color: var(--sl-color-white); font-weight: 600; border-bottom-color: var(--sl-color-accent); }
+.wizard-steps [aria-current="step"]::before { background: var(--sl-color-accent-high); border-color: var(--sl-color-accent-high); color: var(--sl-color-black); }
+.wizard-steps button { margin: 0; padding: 0; border: 0; background: none; color: var(--sl-color-text-accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.wizard-moves { display: flex; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--sl-color-gray-5); }
+.wizard-moves button { margin: 0; padding: 0.4rem 1rem; font-weight: 600; }
+.wizard-moves .next { margin-left: auto; background: var(--sl-color-accent-high); border-color: var(--sl-color-accent-high); color: var(--sl-color-black); }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 ```
 
