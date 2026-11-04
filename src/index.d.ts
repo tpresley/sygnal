@@ -1530,7 +1530,9 @@ export interface WizardActions { NEXT: any; BACK: any; GOTO: string | Event; RES
 /** What a step sends as a PARENT message to move the flow: `NEXT: { PARENT: () => ({ wizard: 'NEXT' }) }` */
 export type WizardMessage =
   | { wizard: 'NEXT' | 'BACK' | 'FINISH' }
+  /** `draft` (with a new `key`): merged over `draft(state)` on the route entered */
   | { wizard: 'GOTO'; step: string; key?: unknown; query?: Record<string, string | number | boolean | null | undefined>; draft?: Record<string, any> }
+  /** `draft`: merged over `draft(state)` (with `url`, on the route the reset lands on); a field set to `undefined` is dropped */
   | { wizard: 'RESET'; draft?: any }
 
 /**

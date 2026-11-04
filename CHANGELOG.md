@@ -4,6 +4,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+**Changed: a wizard RESET's `draft` is merged over `draft()`** (the Sift console port, after preview.6; maintainer decision), and so is a GOTO-with-a-new-key's. `{ wizard: 'RESET', draft: { carried } }` starts over with what `draft(state, bag)` gives plus `carried`; before, the message's draft replaced it, so carrying one field meant restating the others. In URL mode the merge is over `draft()` on the route the reset lands on. A field set to `undefined` drops it. A RESET that relied on its draft leaving out fields `draft()` gives now needs to set them to `undefined`.
+
 **Fixed: SYG103 reported an attribute selector for an element the view renders in some states only** (the Sift console port, after preview.6). `DOM.select('[data-act="remove"]')` warned after the idle time when the button wasn't on screen: the check takes a selector whose words appear in the view as conditionally rendered, but it ignored what's inside `[...]`. The attribute's name and its value's words count now; a misspelled one is still reported.
 
 ## 7.2.0-preview.6 — dev preview

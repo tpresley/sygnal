@@ -152,7 +152,7 @@ export default NewProject
 Describe.model = {
   OPENED: { PARENT: () => ({ wizard: 'NEXT' }) },              // also 'BACK' and 'FINISH'
   EDIT_SOURCE: { PARENT: () => ({ wizard: 'GOTO', step: 'source' }) },
-  START_OVER: { PARENT: () => ({ wizard: 'RESET' }) },         // `draft: { … }` starts with that draft
+  START_OVER: { PARENT: () => ({ wizard: 'RESET' }) },         // `draft: { … }` merged over draft()
 }
 ```
 
@@ -225,7 +225,7 @@ wizard({
 - **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`.
   - The flow starts over for the new key, straight at that step. In URL mode the wizard navigates there, past the leave guard.
   - The query starts fresh, as on any step's navigation: the route gets the key and `query`, `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. A value of the current route the new flow needs goes in `query`.
-  - `draft` seeds the new flow. Without it, the draft comes from `draft(state)` on the route it lands on.
+  - The new flow's draft is `draft(state)` on the route it lands on, with the message's `draft` merged over it: `draft: { carried }` adds a field, `draft: { bound: undefined }` drops one.
   - While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
 
@@ -240,9 +240,9 @@ An entry is the wizard's host mounting again in the same page session; `'entry'`
 
 ## Start over
 
-`reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
+`reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is merged over `draft(state, bag)`: pass only what the new flow adds or changes, `{ wizard: 'RESET', draft: { source: null } }`, and set a field to `undefined` to drop it.
 
-In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left, and so do the first step's `visit` defaults (a `visit` function sees the landed route; a RESET with a `draft` keeps that draft). `resetTo` names another place:
+In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left, and so do the first step's `visit` defaults (a `visit` function sees the landed route; a RESET's `draft` is merged over that route's draft). `resetTo` names another place:
 - a router command: `resetTo: { to: 'newFilter' }`;
 - or a function of the slice *being reset* and the bag, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
