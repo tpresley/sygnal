@@ -86,6 +86,7 @@ t.simulateEvent('document', 'keydown', { key: 'Escape' })   // DOM.select('docum
 How it works:
 
 - It targets the **first rendered element** that matches `selector`, and bubbles within that element's component scope, like a real event. Events inside a child component (or Collection item) reach the child's intent, not the parent's.
+- An event that doesn't bubble (`focus`, `close`, `toggle`, ...) reaches the target's listeners, and on its way down the `{ useCapture: true }` ones: document and body first, then the ancestors. So `DOM.select('document').select('.hint-box').events('toggle', { useCapture: true })`, the way a component hears its own [`<Portal>`](/advanced/portals/) content, fires for `t.simulateEvent('.hint-box', 'toggle')`. A listener's `preventDefault` option is applied to the event (`event.defaultPrevented`), so a link click the intent prevents isn't followed by the router fake.
 - `event.target.value`, `.checked` and `.dataset` default to what the element renders, and `init` overrides them. `init.value`, `init.checked`, `init.files`, `init.dataset` (alias `init.data`) and `init.key` are shorthands; `init.target` sets any other target property; any other property is copied onto the event.
 - If nothing matches yet, the event waits (up to `eventWaitMs`, default 300 ms, re-checked on every render) for a matching element, for example a Collection item that is about to render. It is never sent to every listener with that selector.
 - If no element matches, the test **fails** with an error that names the selector, says it matched nothing in the rendered output, and shows the start of `t.html()`. The error rejects the pending `t.next()`, `t.waitForState()` or `t.settle()`. If none is pending, the next `t.*` call or `t.dispose()` throws it. When nothing is queued and the tree is quiet, `simulateEvent` throws it straight away. To drop the event instead (reported as [SYG103](/reference/errors/#syg103), info), pass `{ allowMissing: true }`.
@@ -485,6 +486,12 @@ it('loads the picked quote, and only the latest one', async () => {
 ```
 
 A resource's request is derived from state, so it is sent after the state change, not during the event that caused it. `t.respond('HTTP', body, 'quote')` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch, so no `await t.settle()` is needed in between. Targeting it by URL or a partial request still needs the fetch to be pending.
+
+**A poll is a timer.** `refetchEvery` sends the next request that long after the last reply, so `t.respond` finds it only once it has been sent. With nothing queued, a `t.respond` for it throws at the call (the message names the poll). The wait behind queued input (up to 1 s) catches it only when it comes well inside that second: a 1 s poll races that limit and the test is flaky. Answer a poll after it is sent:
+- with real timers, wait for it: `await t.waitForState(s => s.quote.refreshing)` (a poll keeps the data and sets `refreshing`), then `await t.respond('HTTP', body, 'quote')`;
+- under fake timers, advance the clock first: `await vi.advanceTimersByTimeAsync(1000)`.
+
+The same goes for any request a timer sends (a debounce, a retry): answer it once it is pending, not by racing the wait.
 
 `t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`, with `refreshing` during a refetch), and `ok` / `error` actions on the resource's request run after the write, as in the app. For the cache (`renderComponent(C, { http: { cache: queryCache() } })`, `t.cache`, `t.focus`, `t.online`, `{ prefetch }`), see [Resources and Caching](/guide/resources/#testing).
 
