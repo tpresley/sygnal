@@ -24,7 +24,9 @@ import {sse} from './sse';
  *   `error` data `{ error, status?, body?, headers?, request }`. A request naming only one of them sends
  *   the other outcome down the plain path (select()/errors()). `latest` acts per (sender,
  *   `key ?? ok ?? error`); `{ abort: 'LOADED' }` / `{ abort: true, key }` cancel the sender's
- *   requests under that key; when the sender is disposed its requests with reply actions are aborted.
+ *   requests under that key; when the sender is disposed its requests with reply actions are
+ *   aborted (not a `detached: true` one: its updates and invalidates still apply, its replies
+ *   are dropped).
  *   Requests with a `then` / `catch` key are refused (SYG610).
  * - `{ category?, abort: true }` cancels the component's requests in flight in that category
  *   (all of its requests without a category); a cancelled request delivers nothing.
@@ -518,19 +520,21 @@ export function makeFetchDriver(options: any = {}) {
       R.m = 0;
       cancel(r => r.sender === s && r.rk === '\0' + n);
     };
-    // a disposed sender's requests with reply actions (and resources) are aborted
+    // a disposed sender's requests with reply actions (and resources) are aborted, but not a
+    // `detached` one (its updates and invalidates still apply; its replies are dropped)
     const {replies, reply} = makeReplies(sender => {
       rsrc.get(sender)?.forEach(R => { clearTimeout(R.t); C?.use(R); });
       rsrc.delete(sender);
-      cancel(r => r.rk !== undefined && r.sender === sender);
+      cancel(r => r.rk !== undefined && r.sender === sender && !r.d);
     });
     // G-184: `updates` (setQueryData): the reply (or fn(current data, reply)) becomes the data
     // of the sender's named resources that have a request, and of their cache entries; a read
     // of them in flight is aborted, and every mounted resource on that entry shows it at once
-    const upd = (s: any, u: any, v: any) => {
+    // (`at`: a detached request's snapshot of the named resources' requests, for a sender gone since)
+    const upd = (s: any, u: any, v: any, at?: any) => {
       const cur = rsrc.get(s);
       (typeof u == 'object' && !Array.isArray(u) ? Object.keys(u) : [].concat(u)).forEach((n: string) => {
-        const R = cur?.get(n), q = R?.q, f = u[n];
+        const R = cur?.get(n) ?? at?.[n], q = R?.q, f = u[n];
         if (!q) return;
         const k = keyOf(q), d = typeof f == 'function' ? f(R.last?.data ?? C?.get(k)?.v, v) : v;
         // (the entry's kept headers stay)
@@ -723,7 +727,10 @@ export function makeFetchDriver(options: any = {}) {
       // 7.2: a stream is never cached nor shared
       const k = pr || sm ? undefined : C?.key(req, rn !== undefined || pf);
       const id = ++seq;
-      const r: any = {category, scope, sender, rk};
+      const d = rn === undefined && !pf && req.detached
+      const r: any = {category, scope, sender, rk, d};
+      // detached: the resources `updates` names, as they are now (their sender may be gone by the reply)
+      const at = d && updates && Object.fromEntries([...rsrc.get(sender) || []].map(([n, R]: any) => [n, {q: R.q, k: R.k, last: R.last}]));
       inflight.set(id, r);
       // an outcome with a reply action goes to the sender's actions, the other to errors()/select()
       const fail = r.ko = (e: any, extra?: any) => finish(id) && (R && (R.$ ? R.$(e) : write(sender, rn!, R, 'error', R.last?.data, e, undefined, R.last?.headers)),
@@ -735,7 +742,7 @@ export function makeFetchDriver(options: any = {}) {
         if (!finish(id)) return;
         const h = kh ?? (req.keepHeaders?.length ? keptHeaders(req.keepHeaders, headers) : undefined);
         if (R) R.$ ? R.$(v, 1, h) : write(sender, rn!, R, 'success', v, undefined, undefined, h);
-        if (updates && !sm) upd(sender, updates, v);
+        if (updates && !sm) upd(sender, updates, v, at);
         // a stream's end is its ok action only, `{ status, headers }` (its pieces went to select())
         rk !== undefined && ok ? reply(sender, ok, v) : rn === undefined && !pf && !sm && emit(false, {category, value: v, status, request: req});
         if (invalidates) inval(invalidates);

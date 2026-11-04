@@ -78,3 +78,19 @@ the subject is the host state, so 8.0 reorders it to `(hostState, data, bag)`.
 **Migration path:** 7.x documents the 7.2 order; a sygnal-check rule (and `--fix`, swapping the
 first two parameters of a `request` function in `form()` options) lands before 8.0. Open: whether
 the 7.x rule is a strict-mode note or a warning.
+
+## B8-4: a write with `updates` or `invalidates` outlives its sender by default
+
+Decided 2026-11-04 (maintainer), from the Sift console port's Phase C. 7.2 adds `detached: true`
+on a fetch request: it isn't aborted when its sender is disposed, its `updates` and `invalidates`
+still apply, and its `ok` / `error` actions are dropped. Aborting such a write is rarely what an
+app wants: the server may apply it while the client loses its cache effects. React Query's
+mutations finish after an unmount by default.
+
+**8.0:** a request with `updates` or `invalidates` (its cache effects belong to the app, not the
+component) is detached unless it says `detached: false`; other requests with reply actions keep
+being aborted with their sender. Open: whether a write without either should follow (no cache
+effect to keep, but the server still applies it).
+
+**Migration path:** 7.x documents `detached`; a strict-mode note before 8.0 for a write with
+`updates` / `invalidates` and no `detached`, so an app can opt in early and see what changes.
