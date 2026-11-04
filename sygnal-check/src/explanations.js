@@ -1114,6 +1114,13 @@ export const EXPLANATIONS = {
     explanation: "Strict mode only (`sygnal-check --strict`). A component receives a prop from its parent and passes it on unchanged, under the same name, to its own child component, so the value crosses three component levels. Data that flows that far down belongs in `.context`, which reaches every descendant without each level forwarding it. This is informational only.",
     fix: "Provide the value as context on the top component, e.g. `Parent.context = { theme: state => state.theme }`, and read `context.theme` where it is needed.",
   },
+  SYG510: {
+    title: "waitForState matched only a state the test had already seen",
+    severity: "warn",
+    reportedBy: ["runtime"],
+    explanation: "Strict mode only (`renderComponent(C, { strict: true })` or `configureStrict(true)`). `t.waitForState(pred)` searches the recorded history first, so it resolves at once when any earlier state matches. Reported when the only match is a state from before the test's last awaited input (`await t.simulateEvent(...)`, `await t.simulateAction(...)`) and the current state doesn't match: the wait was true in the past and proves nothing about now. A match the current state also satisfies (`count === 0` again after a reset) isn't reported.",
+    fix: "Assert the current state, `expect(t.state).toMatchObject({ ... })`, or wait for a new state, `await t.next(pred)`. To wait for a state an input will cause, call `t.next(pred)` before the input, or await the input and read `t.state`.",
+  },
   SYG508: {
     title: "select()/errors() round trip where reply actions would do",
     severity: "warn",

@@ -222,6 +222,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG507: 'Prop drilled through more than 2 component levels',
   SYG508: 'select()/errors() round trip where reply actions would do',
   SYG509: 'Clock or randomness read from a global in a handler',
+  // renderComponent({ strict: true }) (src/extra/testing.ts)
+  SYG510: 'waitForState matched only a state the test had already seen',
   // SYG9xx internal (0B)
   SYG900: 'A diagnostics check threw',
   // ---- 1E retrofit codes (SYG206-299, 402-499, 601-699, 901-999) ----
@@ -453,6 +455,7 @@ export const STRICT_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG507: 'info',
   SYG508: 'warn',
   SYG509: 'warn',
+  SYG510: 'warn',
 }
 
 // PLAN-3 1-G (G-143): codes only the 'sygnal/diagnostics' dev entry reports. Like the strict

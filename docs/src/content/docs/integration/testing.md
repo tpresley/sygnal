@@ -231,7 +231,7 @@ await t.next(s => s.count === 0)           // waits for the reset
 
 Use `next()` for the effect of an action. Call it right after the `simulate*` call, without awaiting anything in between, so the state can't arrive before `next()` starts listening. With no predicate, `next()` resolves with the next state of any kind.
 
-A `next()` right after another wait (with no input in between) starts after the state that wait returned, so `await t.next(a); await t.next(b)` also matches a `b` that arrived while `a` was rendering (a fast reply, a model `next()`). After a `waitForState()` that matched an older state from the history, the `next()` doesn't go back before the states an awaited input already produced: `await t.simulateAction('INC')` twice, `waitForState(s => s.n >= 0)` (the initial state), then `next(s => s.n >= 1)` waits for a new state.
+A `next()` right after another wait (with no input in between) starts after the state that wait returned, so `await t.next(a); await t.next(b)` also matches a `b` that arrived while `a` was rendering (a fast reply, a model `next()`). After a `waitForState()` that matched an older state from the history, the `next()` doesn't go back before the states an awaited input already produced: `await t.simulateAction('INC')` twice, `waitForState(s => s.n >= 0)` (the initial state), then `next(s => s.n >= 1)` waits for a new state. Under `strict: true`, a `waitForState()` that only such an older state satisfies, while the current state doesn't, reports [SYG510](/reference/errors/#syg510): the wait proves nothing about now.
 
 
 ### settle()

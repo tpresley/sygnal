@@ -3630,7 +3630,15 @@ export function renderComponent(
         }
         fail(new Error(msg));
       }, timeoutMs);
-      for (let i = from; i < states.length; i++) if (test(i)) return found(i);
+      for (let i = from; i < states.length; i++) if (test(i)) {
+        // SYG510 (strict): only a state the test had already seen matches, not the current one: the
+        // wait proves nothing (Sift, after B1)
+        const last = states.length - 1
+        if (name == 'waitForState' && (strict ?? core.strict) && i < last && i < seenAt && !test(last))
+          raise('SYG510', compName, `t.waitForState() resolved at once with t.states[${i}], a state from before the last awaited input; the current state (t.states[${last}]) doesn't match the predicate, so the wait proves nothing about now`,
+            `Assert the current state: expect(t.state).toMatchObject(…), or wait for a new one: await t.next(pred). waitForState searches the history, so it matches a condition that was true earlier`, {index: i, current: last})
+        return found(i)
+      }
       stateStream.addListener(listener);
     });
 

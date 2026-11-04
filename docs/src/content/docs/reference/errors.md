@@ -2272,6 +2272,16 @@ Strict mode only (`sygnal-check --strict`). A model handler (a STATE reducer, an
 
 **Fix:** Use the handler's 4th argument: `SAVE: { EFFECT: (state, data, next, { now }) => { localStorage.setItem('savedAt', String(now())) } }`, or `(state, data, next, props) => … props.uuid() …`; `new Date()` becomes `new Date(now())`.
 
+### SYG510
+
+**waitForState matched only a state the test had already seen**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included) · Strict mode only
+
+Strict mode only (`renderComponent(C, { strict: true })` or `configureStrict(true)`). `t.waitForState(pred)` searches the recorded history first, so it resolves at once when any earlier state matches. Reported when the only match is a state from before the test's last awaited input (`await t.simulateEvent(...)`, `await t.simulateAction(...)`) and the current state doesn't match: the wait was true in the past and proves nothing about now. A match the current state also satisfies (`count === 0` again after a reset) isn't reported.
+
+**Fix:** Assert the current state, `expect(t.state).toMatchObject({ ... })`, or wait for a new state, `await t.next(pred)`. To wait for a state an input will cause, call `t.next(pred)` before the input, or await the input and read `t.state`.
+
 ## SYG6xx: Drivers, sources and component setup
 
 ### SYG601
