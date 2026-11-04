@@ -15,6 +15,9 @@
  *   dynamic   [{ node, file }]                            action names (or maps) it can't read
  * }
  *
+ * A spread in a timer map is followed (`timers: () => ({ ...pollers(), tick: … })`): a helper's
+ * returned map(s) (same module or imported), or a const map; one the checker can't read is dynamic.
+ *
  * The validity rules mirror src/extra/timers.ts valid() and the dev entry's timerSpecProblem()
  * (src/extra/diagnostics/checks/timers.ts); only literal values are judged.
  */
@@ -151,9 +154,33 @@ export function analyzeTimers(project, file, node, keys = null) {
       }
     }
   }
+  const seen = new Set()
+  // the maps a spread's argument holds: a helper call's returned objects, or a const object
+  const spreadMaps = (arg, afile) => {
+    const a = unwrap(arg)
+    const target = a?.type === 'CallExpression' && unwrap(a.callee).type === 'Identifier' ? a.callee : a?.type === 'Identifier' ? a : null
+    const x = target && resolveExpr(project, afile, target)
+    if (!x?.node || seen.has(x.node) || seen.size > 16) return null
+    if (a.type === 'Identifier') return x.node.type === 'ObjectExpression' ? [{ node: x.node, file: x.file }] : null
+    if (!isFunction(x.node)) return null
+    const maps = []
+    for (const ret of returnedExpressions(x.node)) {
+      for (const m of alternatives(ret)) {
+        if (m.type === 'ObjectExpression') maps.push({ node: m, file: x.file })
+        else if (!(literal(m).known && !literal(m).value)) return null
+      }
+    }
+    seen.add(x.node)
+    return maps
+  }
   const addMap = (obj, ofile, perTimerFunctions) => {
     for (const p of obj.properties) {
-      if (p.type === 'SpreadElement') { res.known = false; res.dynamic.push({ node: p, file: ofile }); continue }
+      if (p.type === 'SpreadElement') {
+        const maps = spreadMaps(p.argument, ofile)
+        // (in the object form, the spread map's values are per-timer functions too)
+        if (maps) { for (const m of maps) addMap(m.node, m.file, perTimerFunctions); continue }
+        res.known = false; res.dynamic.push({ node: p, file: ofile }); continue
+      }
       const name = propName(p) ?? '?'
       const value = p.type === 'ObjectMethod' ? p : p.value
       if (!perTimerFunctions) { addSpec(name, p.key, value, ofile); continue }

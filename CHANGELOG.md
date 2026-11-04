@@ -10,6 +10,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Added: SYG510 (strict)**, `t.waitForState()` matched only a state the test had already seen (the Sift console port's suggestion, after B1). Under `renderComponent(C, { strict: true })`, a `waitForState(pred)` whose only match is a state from before the last awaited input, while the current state doesn't match, warns: the wait proves nothing about now. A match the current state also satisfies isn't reported.
 
+**Fixed: sygnal-check follows helpers in SYG102, SYG110 and SYG702** (from the Sift console port, which inlined literals to get past them). SYG102 counts the timer actions in a helper's map spread into `timers` (`timers: () => ({ ...pollers(), … })`), `ok` / `error` names a helper returns (`ok: replyOf('GOT')`, `NAMES.ok`, `names().ok`), and the replies of a shared entry object (`FETCH: loadEntry`, or `FETCH: fetching('GOT')` made by a helper; before, such an entry was read as a reducer and its replies were reported unreachable). SYG110 follows a class passed to a view helper (`row({ className: 'pick' })`). SYG702 accepts a field passed to a view helper that wraps it in a `<label>` (`field('Name', <input />)`). Same-module and imported helpers; one the checker can't follow stays info or silent, as before.
+
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 ## 7.2.0-preview.5 — dev preview
