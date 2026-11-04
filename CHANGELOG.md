@@ -62,6 +62,8 @@ From the Sift port (a resource function couldn't see the component's props), gen
 - **Driver default.** `makeFetchDriver({ invalidateOn: 'settled' })` (and `renderComponent(C, { http: { invalidateOn: 'settled' } })`) sets it for every request; a request's own `invalidateOn` wins. The default stays `'success'`.
 - **Types.** `invalidateOn?: FetchInvalidateOn` on `FetchRequest` and `FetchDriverOptions`. Like `invalidates`, it is a behaviour-only field: changing it on a resource refetches nothing.
 
+**Size:** the size gate's budget goes from 43,144 B to 43,256 B (user-approved, +112 B), for the one-shape bag.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).
