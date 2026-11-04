@@ -1509,7 +1509,8 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   /**
    * What entering the wizard again does (its host mounting again in this page session; a reload
    * resumes): 'outcome' (default) starts a finished flow, on its outcome step, over ('url': when
-   * the route isn't the outcome's); 'entry' starts every entry over, finished or not
+   * the route isn't the outcome's); 'entry' starts every entry by a link or command over, finished
+   * or not (Back / Forward resume: ROUTER.navigation())
    */
   restart?: 'outcome' | 'entry';
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
@@ -3655,6 +3656,8 @@ export interface RouterOptions<R extends Record<string, string> = Record<string,
 /** The ROUTER source: reply actions plus the latest route */
 export interface RouterSource {
   current(): Route | null;
+  /** how the current route was reached: the page loaded, a link or command, a replace, or the browser's Back / Forward */
+  navigation(): 'load' | 'push' | 'replace' | 'traverse';
   href: (name: string, params?: Record<string, string | number>, query?: RouteQuery, hash?: string) => string;
   dispose(): void;
 }

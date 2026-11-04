@@ -1009,6 +1009,31 @@ describe("restart: entering a finished flow ('outcome', the default) or any flow
     expect(step()).toBe('b')
   })
 
+  it("'entry': Back and Forward from another page resume the flow, the outcome included (ROUTER.navigation() 'traverse')", async () => {
+    t = renderComponent(app('entry'), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await go('/flow?door=x')
+    t.query('.next').click(); await tick(40)
+    expect(step()).toBe('b')
+    await go('/')
+    await t.back(); await tick(60)
+    expect(t.location.path).toBe('/flow/b')
+    expect(step()).toBe('b')
+    expect(t.state.flow.wizard.draft.door).toBe('x')
+    t.query('.finish').click(); await tick(60)
+    expect(step()).toBe('done')
+    await go('/')
+    await t.back(); await tick(60)
+    expect(t.location.path).toBe('/flow/done')
+    expect(step()).toBe('done')
+    expect(t.query('.done')).toBeTruthy()
+    // a link in again starts over
+    await go('/')
+    await go('/flow?door=y')
+    expect(step()).toBe('a')
+    expect(t.state.flow.wizard.draft.door).toBe('y')
+  })
+
   it("'entry': any entry from another page starts a new flow, with the draft from the route entered; a reload resumes", async () => {
     t = renderComponent(app('entry'), { dom: 'real', router, url: '/' })
     await t.ready(); await tick(40)
@@ -1029,3 +1054,27 @@ describe("restart: entering a finished flow ('outcome', the default) or any flow
     expect(t.state.flow.wizard.draft.door).toBe('x')
   })
 })
+
+describe('ROUTER.navigation(): how the current route was reached', () => {
+  it("'load', then 'push' for a link or command, 'replace', and 'traverse' for Back / Forward", async () => {
+    const router = makeRouter({ routes: { home: '/', a: '/a', b: '/b', notFound: '*' } })
+    const seen = []
+    function App({ state }) { return h('p', null, state.route.name) }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/') }
+    App.model = { ROUTE: (s, route) => ({ ...s, route }) }
+    let src
+    App.intent = (sources) => { src = sources.ROUTER; return {} }
+    t = renderComponent(App, { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(20)
+    seen.push(src.navigation())
+    await t.navigate('/a'); await tick(20)
+    seen.push(src.navigation())
+    await t.navigate({ to: 'b', replace: true }); await tick(20)
+    seen.push(src.navigation())
+    await t.back(); await tick(40)
+    seen.push(src.navigation())
+    expect(seen).toEqual(['load', 'push', 'replace', 'traverse'])
+  })
+})
+

@@ -246,10 +246,11 @@ export const wizard = (o: any = {}): any => {
     // `restart` (an entry starts a new flow; before the route is seen, so it doesn't redirect):
     // 'outcome', a host mounted on an outcome step that the route doesn't name (url; without url:
     // mounted again); 'entry', also a host mounted again in this page session (SEEN: a marker
-    // persist and recordings drop, so a reload resumes)
-    MOUNT: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
+    // persist and recordings drop, so a reload resumes), unless the router reached the route by
+    // Back / Forward (ROUTER.navigation() 'traverse')
+    MOUNT: {HOST: (h: any, via: any, _n: any, p: any, _o: any, k: string) => {
       const w = h[k], B = bag(p, h), again = !!w[SEEN]
-      if (w.visit && ((out(w.step) && (url ? routeStep(B) != w.step : again)) || (restart == 'entry' && again)))
+      if (w.visit && ((out(w.step) && (url ? routeStep(B) != w.step : again)) || (restart == 'entry' && again && via != 'traverse')))
         return put(B, k, {...fresh(w, B, keyOf ? keyOf(B.state, B) ?? null : null), [SEEN]: true})
       const l = w.visit ? scratch(w, w.step, B) : w.local
       return put(B, k, l === w.local && again ? w : {...w, local: l, [SEEN]: true})
@@ -385,7 +386,7 @@ export const wizard = (o: any = {}): any => {
   const b = defineBehavior({
     initialState: init,
     triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay'},
-    intent: ({DOM, CHILD, props$}: any, _o: any, k: string, host: any) => {
+    intent: ({DOM, CHILD, props$, ...S}: any, _o: any, k: string, host: any) => {
       // what the intent watches gets the bag of the host's state and (a sub-component host) its
       // props, again when either changes; no context or uid here (the handlers' bags have them)
       const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => readBag(p, h, 'wizard')) : host.stream.map((h: any) => readBag(null, h, 'wizard'))
@@ -408,7 +409,8 @@ export const wizard = (o: any = {}): any => {
       const or = (sel: any, t: string, f?: any) => sel ? xs.merge(DOM.click(sel), from(t, f)) : from(t, f)
       return {
         KEY: watch((B: any) => keyOf ? keyOf(B.state, B) : null),
-        MOUNT: xs.of(0),
+        // (with how the router reached this route: 'entry' restarts on a link or a command, not on Back / Forward)
+        MOUNT: xs.of(S[R]?.navigation?.() ?? null),
         // (and when the outlet registers a step component: its initialState joins the predicates' view;
         // a task later, as it happens while the host renders)
         SYNC: xs.merge(B$.filter((B: any) => !!B.state?.[k]?.visit && fin(B.state[k], B) !== B.state[k]), xs.create({

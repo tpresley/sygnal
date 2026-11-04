@@ -4,7 +4,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
-**Docs:** `guide/wizards` says that `restart: 'entry'` counts Back and Forward into the flow as an entry, and how a test simulates a reload (a JSON copy of the slice; a spread copy keeps the entry marker).
+**Added: `ROUTER.navigation()`**, how the current route was reached: `'load'`, `'push'` (a link or a command), `'replace'` or `'traverse'` (the browser's Back or Forward). The test fake reports it too (`t.navigate`, `t.back`).
+
+**Changed: the wizard's `restart: 'entry'` resumes on Back and Forward** (the Sift console port's preview.5 pass; maintainer decision). Only an entry by a link or a navigation command starts a new flow, so Back from another page to the outcome, or to a step left mid-way, shows it again. Before, a flow you return to with Back couldn't use `'entry'`.
+
+**Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 ## 7.2.0-preview.5 — dev preview
 
