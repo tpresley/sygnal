@@ -228,7 +228,7 @@ A flow kept in a parent's state outlives the wizard's page, so a reload resumes 
 - **`restart: 'outcome'`** (the default): a finished flow, on its [outcome step](#alternative-steps-and-an-outcome), starts over. A flow left mid-way resumes where it was. Leaving it with unsaved edits asked first (the leave guard), and Discard started it over.
 - **`restart: 'entry'`**: every entry from another page starts a new flow, finished or not, with the draft from `draft(state, bag)` on the route entered. Use it when the way in sets the flow up, such as a "door" query that seeds the draft. A reload still resumes: the marker that tells an entry from a reload isn't saved by `persist`.
 
-An entry is the wizard's host mounting again in the same page session. Render the wizard's steps in one host that stays mounted across them (one `<Outlet>` page for the wizard's routes): with `'entry'`, a host that remounts on every step would start over each time.
+An entry is the wizard's host mounting again in the same page session, the browser's Back and Forward included: with `'entry'`, Back from another page to the outcome or to a step left mid-way starts a new flow too. Render the wizard's steps in one host that stays mounted across them (one `<Outlet>` page for the wizard's routes): with `'entry'`, a host that remounts on every step would start over each time.
 
 ## Start over
 
@@ -421,6 +421,7 @@ A wizard is tested like any component:
 - Click Next with `t.simulateEvent('.next', 'click')`, or dispatch `t.simulateAction('wizard.NEXT')`. A step's `{ wizard: 'NEXT' }` message moves it too.
 - Read `t.state.wizard` (`step`, `draft`, `local`, `steps`).
 - In URL mode pass the router: `renderComponent(NewFilter, { router, url: '/filters/new/source?session=a' })`. Then `t.navigate` and `t.back` move between steps.
+- A reload: render the host again with the slice as `persist` saves it, `JSON.parse(JSON.stringify(t.state.flow))`. A slice copied with a spread (`{ ...t.state.flow }`) keeps the marker that tells an entry from a reload, so with `restart: 'entry'` it starts over as an entry instead of resuming.
 - A step alone: render the step, and its wizard messages are in `t.sent('PARENT')` (or `t.sinkValues('PARENT')`): `expect(t.sent('PARENT')).toEqual([{ wizard: 'NEXT' }])`.
 
 ## Diagnostics
