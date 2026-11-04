@@ -4,6 +4,10 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+**Fixed: entering a finished wizard again showed its outcome step** (found while building `examples/filter-wizard`). After Created → All filters → New filter, the wizard showed Created again: an outcome step replaced every route into the steps with its own, a fresh entry from another page included. Now a host that mounts on another route while the flow is on its outcome starts a new flow at step one. A reload on the outcome's route, Back from another page to it, and Back from it into the steps (still refused) are unchanged.
+
+**Added: the wizard's `restart` option** (maintainer decision): `'outcome'` (the default: the fix above) or `'entry'`: every entry from another page starts a new flow, finished or not, with the draft from the route entered (a "door" that seeds the draft). A reload still resumes. Guide: `guide/wizards` § Entering the wizard again.
+
 **Changed: a behavior's bag types the host's props as `unknown`** (N6, from the Sift console port; maintainer decision). The wizard's, the form's and a behavior's `calculated` functions get `BehaviorBag<Host>`: `{ [prop: string]: unknown } & { state, context, uid }`. Before, the props were `any`, so the pre-7.2 wizard form `when: (step, h) => h.route` compiled and read `undefined` (the 2nd argument was the host state before 7.2). Now a read whose value is used fails to type-check; read the host's state as `bag.state.route`.
 
 **Added: SYG459, a behavior option reads a host-state field off its bag.** The dev entry warns when a wizard or form function reads a field the bag doesn't have and the host's state does (also in JavaScript, and for the reads the types can't catch, such as `key`). `sygnal-check` reports it statically against the host's `initialState`, and `--fix` rewrites `h.route` to `h.state.route` and `(step, { route })` to `(step, { state: { route } })`.

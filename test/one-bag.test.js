@@ -261,6 +261,17 @@ describe('SYG459: a behavior option reads a host-state field off its bag (N6)', 
     expect(got[0].fix).toMatch(/bag\.state\.session/)
     t.dispose()
 
+    // the flow key, read in the wizard's intent watch
+    clearDiagnostics(); resetChecks()
+    function K() { return h('div', null, h(Outlet, { of: { a: A }, from: 'wizard', focus: false })) }
+    K.initialState = { session: 'S1' }
+    K.uses = { wizard: wizard({ steps: { a: {} }, key: (st, h) => h.session }) }
+    const k = renderComponent(K)
+    await k.ready()
+    await k.settle()
+    expect(k.diagnostics.filter((d) => d.code === 'SYG459').map((d) => d.data.key)).toEqual(['session'])
+    k.dispose()
+
     clearDiagnostics(); resetChecks()
     const ok = renderComponent(host((_s, { state, label, other }) => state.session === 'S1' && label !== 1 && other === undefined), { props: { label: 'x' } })
     await ok.ready()

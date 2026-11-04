@@ -1506,6 +1506,12 @@ export interface WizardOptions<DRAFT = any, HOST = any, LOCAL extends Record<str
   dialog?: WizardDialogOpt<DIALOG, WizardStepState<DRAFT, any, DK>, HOST>;
   /** Where Start over navigates (a router command, or a function of the slice being reset and the bag); url mode default: the first step's route */
   resetTo?: RouterCommand | ((wizard: WizardState<DRAFT, LOCAL>, bag: BehaviorBag<HOST>) => RouterCommand);
+  /**
+   * What entering the wizard again does (its host mounting again in this page session; a reload
+   * resumes): 'outcome' (default) starts a finished flow, on its outcome step, over ('url': when
+   * the route isn't the outcome's); 'entry' starts every entry over, finished or not
+   */
+  restart?: 'outcome' | 'entry';
   /** A <dialog> to open (showModal) while a leave is held; closing it stays */
   confirm?: BehaviorTarget;
   /** The confirm's buttons: leave (DISCARD) and stay (STAY) */

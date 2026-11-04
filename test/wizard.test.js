@@ -923,3 +923,109 @@ describe('guide: start the outcome step\'s work in the outcome (F1)', () => {
     expect(t.query('.created').textContent).toBe('7:done')
   })
 })
+
+describe("restart: entering a finished flow ('outcome', the default) or any flow ('entry') starts a new one", () => {
+  const router = makeRouter({ routes: { home: '/', first: '/flow', step: '/flow/:step', notFound: '*' } })
+  const inW = (r) => r?.name === 'first' || r?.name === 'step'
+  function A() { return h('h2', { className: 'a' }, 'a') }
+  function B() { return h('div', null, h('h2', { className: 'b' }, 'b'), h('button', { className: 'finish' })) }
+  B.intent = ({ DOM }) => ({ FIN: DOM.click('.finish') })
+  B.model = { FIN: { PARENT: () => ({ wizard: 'GOTO', step: 'done' }) } }
+  function Done() { return h('h2', { className: 'done' }, 'done') }
+  const app = (restart) => {
+    function Flow() { return h('section', null, h(Outlet, { of: { a: A, b: B, done: Done }, from: 'wizard', focus: false }), h('button', { className: 'next' })) }
+    Flow.uses = {
+      wizard: wizard({
+        steps: { a: {}, b: {}, done: { outcome: true } },
+        draft: (st) => ({ door: st.route?.query?.door ?? null }),
+        url: { route: 'step', param: 'step', from: (s) => s.route?.name === 'first' ? { ...s.route, name: 'step', params: { step: 'a' } } : s.route },
+        next: '.next',
+        ...restart && { restart },
+      }),
+    }
+    function App({ state }) { return inW(state.route) ? h(Flow, { state: 'flow' }) : h('p', { className: 'home' }, 'home') }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/'), flow: {} }
+    App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+    return App
+  }
+  const go = async (url) => { await t.navigate(url); await tick(40) }
+  const step = () => t.state.flow.wizard.step
+  const finish = async () => {
+    await go('/flow')
+    t.query('.next').click(); await tick(40)
+    t.query('.finish').click(); await tick(60)
+    expect(step()).toBe('done')
+    expect(t.location.path).toBe('/flow/done')
+  }
+
+  it('default: New filter after the outcome is a new flow at step one, not the outcome', async () => {
+    t = renderComponent(app(), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await finish()
+    await go('/')
+    await go('/flow')
+    expect(step()).toBe('a')
+    expect(t.state.flow.wizard.outcome).toBe(null)
+    expect(t.query('.a')).toBeTruthy()
+    expect(t.location.path).toBe('/flow')
+  })
+
+  it('default: Back from the outcome is still refused; Back from another page into its URL shows it', async () => {
+    t = renderComponent(app(), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await finish()
+    await t.back(); await tick(60)
+    expect(step()).toBe('done')
+    expect(t.location.path).toBe('/flow/done')
+    await go('/')
+    await t.back(); await tick(60)
+    expect(t.location.path).toBe('/flow/done')
+    expect(step()).toBe('done')
+    expect(t.query('.done')).toBeTruthy()
+  })
+
+  it("default: a reload on the outcome stays; a reload on step one's route after it starts over; a flow left mid-way resumes", async () => {
+    t = renderComponent(app(), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await finish()
+    const saved = JSON.parse(JSON.stringify(t.state.flow))   // what persist keeps
+    t.dispose()
+    t = renderComponent(app(), { dom: 'real', router, url: '/flow/done', initialState: { route: router.current('/flow/done'), flow: { ...saved, route: router.current('/flow/done') } } })
+    await t.ready(); await tick(40)
+    expect(step()).toBe('done')
+    t.dispose()
+    t = renderComponent(app(), { dom: 'real', router, url: '/flow', initialState: { route: router.current('/flow'), flow: { ...saved, route: router.current('/flow') } } })
+    await t.ready(); await tick(40)
+    expect(step()).toBe('a')
+    t.dispose()
+    t = renderComponent(app(), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await go('/flow')
+    t.query('.next').click(); await tick(40)
+    expect(step()).toBe('b')
+    await go('/')
+    await go('/flow/b')
+    expect(step()).toBe('b')
+  })
+
+  it("'entry': any entry from another page starts a new flow, with the draft from the route entered; a reload resumes", async () => {
+    t = renderComponent(app('entry'), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await go('/flow?door=x')
+    expect(t.state.flow.wizard.draft.door).toBe('x')
+    t.query('.next').click(); await tick(40)
+    expect(step()).toBe('b')
+    const saved = JSON.parse(JSON.stringify(t.state.flow))
+    await go('/')
+    await go('/flow?door=y')
+    expect(step()).toBe('a')
+    expect(t.state.flow.wizard.draft.door).toBe('y')
+    t.dispose()
+    // a reload (a new page: the persisted slice) on step b resumes it
+    t = renderComponent(app('entry'), { dom: 'real', router, url: '/flow/b?door=x', initialState: { route: router.current('/flow/b?door=x'), flow: { ...saved, route: router.current('/flow/b?door=x') } } })
+    await t.ready(); await tick(40)
+    expect(step()).toBe('b')
+    expect(t.state.flow.wizard.draft.door).toBe('x')
+  })
+})
