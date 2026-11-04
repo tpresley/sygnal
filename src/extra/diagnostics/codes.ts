@@ -406,6 +406,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG457: 'Outlet of names no step of its wizard',
   // 7.2 (the one bag): a declaration static's 2nd argument is the bag; context fields on it until 8.0
   SYG458: 'Declaration reads a context field off its bag',
+  // N6: a behavior option (wizard, form) reads a host-state field off its bag (checks/behaviorBag.ts)
+  SYG459: 'Behavior option reads a state field off its bag',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
@@ -676,6 +678,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG456: 'error',
   SYG457: 'warn',
   SYG458: 'warn',
+  SYG459: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

@@ -70,6 +70,8 @@ export const CODES = {
   SYG457: { severity: 'warn', title: 'Outlet of names no step of its wizard' },
   // 7.2 (rules/syg458-bag-context-field.js; the dev entry reports it at run time too)
   SYG458: { severity: 'warn', title: 'Declaration reads a context field off its bag' },
+  // 7.2 N6 (rules/syg459-behavior-bag-state.js; the dev entry reports it at run time too)
+  SYG459: { severity: 'warn', title: 'Behavior option reads a state field off its bag' },
   // record/replay (rules/syg258-clock-in-reducer.js): left out under --strict, where SYG509 reports it
   SYG258: { severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' },
   // PLAN-4 GS-1 behaviors (model/behaviors.js)

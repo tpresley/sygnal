@@ -17,12 +17,14 @@ export const isAbort = (v: any): boolean => typeof v == 'symbol' && v.descriptio
  * 7.2: the bag a derivation gets (a behavior's calculated field, a wizard's predicates, a form's
  * schema, an agent's `read`), made from a handler's 4th argument: the view's `{ ...props, state,
  * context, uid }`, without what only a handler gets (now / random / uuid, previousState) and the
- * children and slots; `state` is the given (host) state
+ * children and slots; `state` is the given (host) state. `who` names the behavior for SYG459
+ * (dev: the bag comes back wrapped to report a read of a host-state field it doesn't have)
  */
-export const readBag = (p: any, state: any): any => {
+export const readBag = (p: any, state: any, who?: string): any => {
   const {now: _n, random: _r, uuid: _u, previousState: _p, children: _c, slots: _s, ...b} = p || {}
   b.state = state
-  return b
+  const d = (globalThis as any).__SYGNAL_DIAGNOSTICS__
+  return d?.bag ? d.bag(b, state, who) : b
 }
 
 /**

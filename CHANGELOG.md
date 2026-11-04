@@ -4,6 +4,10 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+**Changed: a behavior's bag types the host's props as `unknown`** (N6, from the Sift console port; maintainer decision). The wizard's, the form's and a behavior's `calculated` functions get `BehaviorBag<Host>`: `{ [prop: string]: unknown } & { state, context, uid }`. Before, the props were `any`, so the pre-7.2 wizard form `when: (step, h) => h.route` compiled and read `undefined` (the 2nd argument was the host state before 7.2). Now a read whose value is used fails to type-check; read the host's state as `bag.state.route`.
+
+**Added: SYG459, a behavior option reads a host-state field off its bag.** The dev entry warns when a wizard or form function reads a field the bag doesn't have and the host's state does (also in JavaScript, and for the reads the types can't catch, such as `key`). `sygnal-check` reports it statically against the host's `initialState`, and `--fix` rewrites `h.route` to `h.state.route` and `(step, { route })` to `(step, { state: { route } })`.
+
 **Fixed (from the Sift console port's preview.4 bump):**
 - **`t.next()` after a `t.waitForState()` that matched the history** no longer matches a state older than the current one. With states 0, 1, 2, `waitForState(n >= 0)` returns 0 (the history's earliest match, as documented), and a following `next(n >= 1)` now waits for 3 instead of returning the recorded 1: a `next()` doesn't go back before the states an awaited input already produced. Mock DOM only; `dom: 'real'` already did this.
 - **`t.simulateEvent()` / `t.simulateAction()` on a disposed handle** throw at the call. They returned a promise that never settled.

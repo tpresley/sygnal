@@ -89,6 +89,7 @@ import {installWidgetHooks} from './widgets'
 import {installVirtualHooks} from './virtual'
 import {behaviorsCheck} from './behaviors'
 import {formsCheck, installFormHooks} from './forms'
+import {installBagHooks} from './behaviorBag'
 import {installSortableHooks} from './sortable'
 import {datasetCheck} from './dataset'
 import {strictCheck} from './strict'
@@ -161,6 +162,7 @@ export function installChecks(): () => void {
   const uninstallWidgets = installWidgetHooks()
   const uninstallVirtual = installVirtualHooks()
   const uninstallForms = installFormHooks()
+  const uninstallBag = installBagHooks()
   const uninstallSortable = installSortableHooks()
   // PLAN-4.6 R4: the core reads its hooks from the bridge once per app (checks/next.ts)
   ;(core.layers ||= new Set()).add(nextHooks)
@@ -178,6 +180,7 @@ export function installChecks(): () => void {
     uninstallWidgets()
     uninstallVirtual()
     uninstallForms()
+    uninstallBag()
     uninstallSortable()
     if (core.__uninstallChecks === uninstall) core.__uninstallChecks = undefined
   }

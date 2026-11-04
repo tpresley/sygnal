@@ -21,6 +21,10 @@ export const flow = wizard<Draft, Host>({
   next: '.next', back: '.back', finish: 'CREATE', confirm: '.leave-dialog',
   url: { route: 'step', param: 'step', key: 'session' },
 })
+// N6: the bag's props are unknown (a behavior doesn't know its host's props); the host state is bag.state
+export const n6ok = wizard<Draft, Host>({ steps: { a: { when: (_s, { state }) => state.route.name === 'step', label: (_s, b) => String(b.title ?? 'A') } } })
+// @ts-expect-error the pre-7.2 form: the 2nd argument was the host state; h.route is an unknown prop now
+export const n6bad = wizard<Draft, Host>({ steps: { a: { when: (_s, h) => h.route } } })
 // @ts-expect-error steps are required
 export const bad = wizard({})
 // @ts-expect-error a draft is a Draft

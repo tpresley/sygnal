@@ -204,7 +204,7 @@ export const wizard = (o: any = {}): any => {
   // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
   const pre = (p: any) => p?.previousState || p?.state
   // the bag of a handler (its props p) for host state h (default: the one before the action)
-  const bag = (p: any, h = pre(p)) => readBag(p, h)
+  const bag = (p: any, h = pre(p)) => readBag(p, h, 'wizard')
   const close = confirm ? {ELEMENT: () => ({close: confirm})} : {}
   // a move (or a route, a new key, a reset) that dropped a held leave closes its dialog (Sift bug 4:
   // browser back/forward isn't stopped by a modal)

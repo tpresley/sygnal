@@ -1798,6 +1798,19 @@
     "docsUrl": "https://sygnal.js.org/reference/errors#syg458"
   },
   {
+    "code": "SYG459",
+    "title": "Behavior option reads a state field off its bag",
+    "severity": "warn",
+    "strict": false,
+    "reportedBy": [
+      "dev-entry",
+      "static"
+    ],
+    "explanation": "Since Sygnal 7.2 the functions of a behavior's options (the wizard's `when`, `valid`, `label`, `visit`, `dirty`, `discard`, `dialog`, `draft`, `key`, `resetTo`, `url.from`; the form's `values`, `dynamic`, `request`) get the bag the view gets, `{ ...props, state, context, uid }`, after their own arguments. Before 7.2 the wizard's second argument was the host's state, so `when: (step, h) => h.route` still runs but reads `undefined`: the bag has no `route` prop. TypeScript types a behavior bag's props as `unknown`, which catches the reads whose value is used, but not every one. The dev entry reports a read of a field the bag doesn't have and the host's state does. sygnal-check reports a top-level key of the bag parameter's object pattern, or a member read off a plain parameter, that names a key of the host's `initialState` and no prop the host takes; `state`, `context` and `uid` are the bag's own.",
+    "fix": "Read the host's state from the bag: `when: (step, { state }) => state.route.name === 'review'`, or `h.state.route` instead of `h.route`. `sygnal-check --fix` rewrites `h.route` to `h.state.route`, and `(step, { route })` to `(step, { state: { route } })`.",
+    "docsUrl": "https://sygnal.js.org/reference/errors#syg459"
+  },
+  {
     "code": "SYG501",
     "title": "Removed in 6.0: view with positional arguments",
     "severity": "error",

@@ -2044,6 +2044,16 @@ Since Sygnal 7.2 the second argument of the declaration statics `resources`, `ti
 
 **Fix:** Read it from the bag's context: `Page.resources = { item: (state, { context: { route } }) => '/api/items/' + route.params.id }` instead of `(state, { route }) => ...`, and `bag.context.route` instead of `bag.route`. `sygnal-check --fix` rewrites the destructuring form, keeping props at the top level: `(state, { id, route })` becomes `(state, { id, context: { route } })`, merged into an existing `context: { ... }` entry.
 
+### SYG459
+
+**Behavior option reads a state field off its bag**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+Since Sygnal 7.2 the functions of a behavior's options (the wizard's `when`, `valid`, `label`, `visit`, `dirty`, `discard`, `dialog`, `draft`, `key`, `resetTo`, `url.from`; the form's `values`, `dynamic`, `request`) get the bag the view gets, `{ ...props, state, context, uid }`, after their own arguments. Before 7.2 the wizard's second argument was the host's state, so `when: (step, h) => h.route` still runs but reads `undefined`: the bag has no `route` prop. TypeScript types a behavior bag's props as `unknown`, which catches the reads whose value is used, but not every one. The dev entry reports a read of a field the bag doesn't have and the host's state does. sygnal-check reports a top-level key of the bag parameter's object pattern, or a member read off a plain parameter, that names a key of the host's `initialState` and no prop the host takes; `state`, `context` and `uid` are the bag's own.
+
+**Fix:** Read the host's state from the bag: `when: (step, { state }) => state.route.name === 'review'`, or `h.state.route` instead of `h.route`. `sygnal-check --fix` rewrites `h.route` to `h.state.route`, and `(step, { route })` to `(step, { state: { route } })`.
+
 ## SYG5xx: Strict mode (canonical forms)
 
 ### SYG501
