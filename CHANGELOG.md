@@ -2,6 +2,13 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Fixed: SYG458's `--fix` and its reach** (sygnal-check; from the Sift console port's `--fix` pass).
+- A TypeScript annotation is rewritten with the pattern: `(s, { route }: Ctx)` → `(s, { context: { route } }: { context: Ctx })`, a type literal's members moved into its `context` member. Before, the annotation was kept and the result no longer typechecked. An annotation it can't rewrite (it also types the bag's other keys, or the parameter has a default) leaves the code alone, and the message says why.
+- A plain parameter that only reads context fields is rewritten to the bag's context under the same name, so the body stays: `(s, context: Ctx) => context.csrf` → `(s, { context }: { context: Ctx }) => context.csrf`. Before, there was no fix and the suggestion was `context.context.csrf`.
+- A context read through a same-module helper is reported, at the argument: `bound: (_s, context) => boundId(context)` where `boundId` reads `context.route`. A helper the checker can't see stays silent (the dev entry's warning covers it).
+
 ## 7.2.0-preview.4 — dev preview
 
 **Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.

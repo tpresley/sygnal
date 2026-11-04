@@ -78,7 +78,9 @@ Page.head = (s, b) => { const { route } = b; return { title: route.params.id } }
       '3:49 route timers', '3:90 user timers', '4:33 route head',
     ])
     expect(d[0].fix).toBe("read it from the bag's context: ctx.context.route")
-    expect(d.every(x => !x.fixes?.length)).toBe(true)
+    // ctx.id is a prop read: no fix for timers; head only reads context fields
+    expect(d.filter(x => x.data.static === 'timers').every(x => !x.fixes?.length)).toBe(true)
+    expect(d.find(x => x.data.static === 'head').fixes).toHaveLength(1)
   })
 
   it('--fix moves context keys into context: { … }, keeping the others at the top level', () => {
@@ -115,10 +117,109 @@ Page.head = (s, b) => { const { route } = b; return { title: route.params.id } }
     }
   })
 
+  const tsFix = (st) => {
+    const file = path.join(ROOT, 'App.tsx')
+    const src = app(st)
+    return (fixFiles([file], { cwd: ROOT, sources: { [file]: src } }).texts.get(file) ?? src).split('\n')[2]
+  }
+  const tsFound = (st) => {
+    const file = path.join(ROOT, 'App.tsx')
+    return checkFiles([file], { cwd: ROOT, sources: { [file]: app(st) } }).filter(d => d.code === 'SYG458')
+  }
+
+  it('--fix rewrites a type literal annotation with the pattern', () => {
+    expect(tsFix(`Page.resources = { item: (s: any, { id, route }: { id: string, route: any }) => '/api/' + route + id }`))
+      .toBe(`Page.resources = { item: (s: any, { id, context: { route } }: { id: string, context: { route: any } }) => '/api/' + route + id }`)
+    expect(tsFix(`Page.head = (s: any, { route, user }: { route: any; user?: string }) => ({ title: route + user })`))
+      .toBe(`Page.head = (s: any, { context: { route, user } }: { context: { route: any; user?: string } }) => ({ title: route + user })`)
+    // merged into the annotation's existing context member
+    expect(tsFix(`Page.head = (s: any, { route, context: { user } }: { route: any; context: { user: string } }) => ({ title: route + user })`))
+      .toBe(`Page.head = (s: any, { context: { user, route } }: { context: { user: string; route: any } }) => ({ title: route + user })`)
+  })
+
+  it('--fix wraps another annotation in { context: … } when every key moves', () => {
+    expect(tsFix(`type Ctx = { route: any }\nPage.resources = { item: (s: any, { route }: Ctx) => '/api/' + route }`.split('\n')[1]))
+      .toBe(`Page.resources = { item: (s: any, { context: { route } }: { context: Ctx }) => '/api/' + route }`)
+    expect(tsFix(`Page.head = (s: any, { route, user }: Pick<Ctx, 'route' | 'user'>) => ({ title: route + user })`))
+      .toBe(`Page.head = (s: any, { context: { route, user } }: { context: Pick<Ctx, 'route' | 'user'> }) => ({ title: route + user })`)
+  })
+
+  it('leaves the code alone, saying why, when the annotation cannot be rewritten', () => {
+    for (const [st, why] of [
+      [`Page.head = (s: any, { id, route }: Props) => ({ title: route + id })`, "its type annotation (Props) types the bag's other keys too"],
+      [`Page.head = (s: any, { route }: Ctx = {} as Ctx) => ({ title: route })`, 'the typed parameter has a default value'],
+      [`Page.head = (s: any, { route, context: { user } }: { route: any; context: Ctx }) => ({ title: route + user })`, "the type annotation's 'context' (Ctx) is not a type literal"],
+    ]) {
+      const d = tsFound(st)
+      expect(d, st).toHaveLength(1)
+      expect(d[0].message, st).toContain('--fix leaves it: ' + why)
+      expect(d[0].fixes ?? [], st).toEqual([])
+      expect(tsFix(st), st).toBe(st)
+    }
+  })
+
+  it('--fix takes the bag\'s context for a plain parameter that only reads context fields', () => {
+    const st = `Page.head = (s: any, context: Ctx) => ({ title: context.user })`
+    const [d] = tsFound(st)
+    expect(d.message).toContain("reads the context field 'user'")
+    expect(d.fix).toBe("take the bag's context: (state, { context }) => …")
+    expect(tsFix(st)).toBe(`Page.head = (s: any, { context }: { context: Ctx }) => ({ title: context.user })`)
+    expect(fix(app(`Page.head = (s, b) => { const { route } = b; return { title: b.user + route } }`)).split('\n')[2])
+      .toBe(`Page.head = (s, { context: b }) => { const { route } = b; return { title: b.user + route } }`)
+    expect(found(fix(app(`Page.head = (s, b) => ({ title: b.user + b.route })`)))).toEqual([])
+    // a prop or state read, the bag passed on, or a default: reported, no fix
+    for (const st of [
+      `Page.head = (s, b) => ({ title: b.user + b.id })`,
+      `Page.head = (s, b) => ({ title: b.user + b.state.x })`,
+      `Page.head = (s, b) => ({ title: b.user, all: b })`,
+      `Page.head = (s, b = {}) => ({ title: b.user })`,
+    ]) {
+      const d = found(app(st))
+      expect(d, st).toHaveLength(1)
+      expect(d[0].fixes ?? [], st).toEqual([])
+      expect(d[0].fix, st).toBe("read it from the bag's context: b.context.user")
+    }
+  })
+
+  it('follows the bag into a same-module helper', () => {
+    const helper = `function boundId(context) { return context.route.params.id }\n`
+    const st = helper.trim() + `\nPage.resources = { bound: (_s, context) => '/api/' + boundId(context) }`
+    const d = found(app(st))
+    expect(d).toHaveLength(1)
+    expect(d[0].message).toMatch(/^Page\.resources\.bound passes its second argument, the bag, to boundId\(\), which reads the context field 'route' off it/)
+    expect(d[0].data).toEqual({ static: 'resources.bound', keys: ['route'], helper: 'boundId' })
+    expect(`${d[0].line}:${d[0].column}`).toBe('4:62')
+    expect(fix(app(st)).split('\n')[3]).toBe(`Page.resources = { bound: (_s, { context }) => '/api/' + boundId(context) }`)
+    expect(found(fix(app(st)))).toEqual([])
+    // a pattern parameter, a helper of a helper, an arrow helper
+    for (const h of [
+      `function boundId({ route }) { return route.params.id }`,
+      `const inner = (c) => c.route.params.id\nfunction boundId(b) { return inner(b) }`,
+      `const boundId = (b) => { const { route, user } = b; return route.params.id + user }`,
+    ]) {
+      const d = found(app(h + `\nPage.resources = { bound: (_s, ctx) => '/api/' + boundId(ctx) }`))
+      expect(d, h).toHaveLength(1)
+      expect(d[0].data.helper, h).toBe('boundId')
+      expect(d[0].fixes, h).toHaveLength(1)
+    }
+    // the helper also reads a prop: reported, no fix
+    const mixed = found(app(`function boundId(b) { return b.route.params.id + b.id }\nPage.resources = { bound: (_s, b) => boundId(b) }`))
+    expect(mixed).toHaveLength(1)
+    expect(mixed[0].fixes ?? []).toEqual([])
+    expect(mixed[0].fix).toBe("pass the bag's context: boundId(b.context)")
+  })
+
+  it('is silent for a helper it cannot see or one that reads no context field', () => {
+    expect(found(app(`import { boundId } from './ids'\nPage.resources = { bound: (_s, b) => boundId(b) }`))).toEqual([])
+    expect(found(app(`Page.resources = { bound: (_s, b) => window.boundId(b) }`))).toEqual([])
+    expect(found(app(`function idOf(b) { return b.id }\nPage.resources = { bound: (_s, b) => idOf(b) }`))).toEqual([])
+    expect(found(app(`function loop(b) { return loop(b) }\nPage.resources = { bound: (_s, b) => loop(b) }`))).toEqual([])
+  })
+
   it('keeps a TypeScript annotation on the parameter', () => {
     const file = path.join(ROOT, 'App.tsx')
     const src = app(`Page.resources = { item: (s: any, { id, route }: { id: string, route: any }) => '/api/' + route + id }`)
     const out = fixFiles([file], { cwd: ROOT, sources: { [file]: src } }).texts.get(file)
-    expect(out.split('\n')[2]).toBe(`Page.resources = { item: (s: any, { id, context: { route } }: { id: string, route: any }) => '/api/' + route + id }`)
+    expect(out.split('\n')[2]).toBe(`Page.resources = { item: (s: any, { id, context: { route } }: { id: string, context: { route: any } }) => '/api/' + route + id }`)
   })
 })
