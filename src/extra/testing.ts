@@ -3476,7 +3476,10 @@ export function renderComponent(
     return delivered(done => later(last => {
       const rel = real ? realEl() : undefined;
       const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
-      const el = real ? rel : chain?.[chain.length - 1];
+      // ('document .x' on the mock DOM: delivered to that page listener, with the first rendered
+      // .x, Portal content included, as its target)
+      const pageSel = page && !real && text.replace(PAGE, ''), pageChain = pageSel ? (() => { try { return find(vtree, parse(pageSel)); } catch (_) { return undefined; } })() : undefined;
+      const el = real ? rel : chain ? chain[chain.length - 1] : pageChain?.[pageChain.length - 1];
       if (!page && !el) {
         if (!last) return false;
         if (!allowMissing) {
@@ -3569,16 +3572,23 @@ export function renderComponent(
         currentTarget: target,
         ownerTarget: target,
         dataTransfer: {},
-        preventDefault: noop,
+        // Sift: an intent's `preventDefault` option (applied by the mock source) shows here, so the
+        // router fake doesn't follow a link the intent prevented
+        defaultPrevented: false,
+        preventDefault() { event.defaultPrevented = true; },
         stopPropagation: noop,
         bubbles: !noBubble,
         ...rest,
       };
       // G-145: like native bubbling, listeners on deeper elements (a child's) hear the
       // event before those on their ancestors (the parent's wrapper), then document/body.
-      // 1-F: an event that doesn't bubble (dialog close, focus, ...) reaches the target only
+      // 1-F: an event that doesn't bubble (dialog close, focus, ...) reaches the target only, and
+      // (Sift) on its way down, document/body first, the ancestors' `{ useCapture: true }` listeners
       if (!chain) hub.emit({type, event, match});
-      else for (let k = chain.length - 1; k >= (noBubble ? chain.length - 1 : -1); k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
+      else if (noBubble) {
+        for (let k = -1; k < chain.length - 1; k++) hub.emit({type, event, capture: true, match: (p: string[]) => depthOf(p) === k});
+        hub.emit({type, event, match: (p: string[]) => depthOf(p) === chain.length - 1});
+      } else for (let k = chain.length - 1; k >= -1; k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;

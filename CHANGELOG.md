@@ -24,6 +24,17 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
+**Fixed (from the Sift console port's Phase A lanes):**
+- **The wizard's Start over in URL mode ran the first step's `visit` on the route being left.** `{ wizard: 'RESET' }` from a bound step wrote step one's visit scratch from the host state before `resetTo`'s navigation landed, and it didn't run again on landing, while the draft came from the landed route. A step that keys its slice on the route saw the old one: Define's words were lost on Continue → Back. The visit defaults now come from the landed route, as the draft does. The same goes for a RESET with a `draft` (the draft kept) and for a GOTO with a new key.
+- **The mock DOM ignored an intent's `preventDefault`.** `DOM.click('a.x', { preventDefault: true })` didn't stop the router fake following the link, so `renderComponent` navigated where a browser doesn't. The mock source now applies the option (`true`, a predicate or a pattern) to the event, and the event's `preventDefault()` sets `defaultPrevented`.
+- **The mock DOM couldn't drive `DOM.select('document').select(sel)` for a non-bubbling event.** A `toggle` or `close` reached only the target's listeners, so `events('toggle', { useCapture: true })` through the document (how a component hears its own `<Portal>` content) never fired in a test. A non-bubbling event now reaches the `useCapture` listeners on its way down (document and body first, then the ancestors), as in a browser. `t.simulateEvent('document .x', type)` gives that listener the rendered `.x` (Portal content included) as its target.
+- **A reducer declared apart from its component didn't fit the model's types.** With `const model = { … }` assigned later, a reducer whose `next` was annotated `(action: string, data?: any) => void` was rejected once the component's `actions` declared its reply actions (inline it was typed by context). `next` now also accepts a `string` action name; a literal name is still checked against the actions, with its data.
+
+**Docs:**
+- `integration/testing` § Resources: a poll is a timer. `t.respond` finds a `refetchEvery` request only once it has been sent, and its wait behind queued input (up to 1 s) races a 1 s poll. Wait for `refreshing` (or advance fake timers by the interval) first.
+- `guide/resources` § Writing a reply into the cache: the `updates` write is its own state change, so a resource gated on a field the `ok` action sets fetches once in between. Gate it on the cache, or set the field in the action that sends the request.
+- `guide/wizards` § Start over: the first step's `visit` defaults come from the landed route too.
+
 ## 7.2.0-preview.5 — dev preview
 
 **Fixed: entering a finished wizard again showed its outcome step** (found while building `examples/filter-wizard`). After Created → All filters → New filter, the wizard showed Created again: an outcome step replaced every route into the steps with its own, a fresh entry from another page included. Now a host that mounts on another route while the flow is on its outcome starts a new flow at step one. A reload on the outcome's route, Back from another page to it, and Back from it into the steps (still refused) are unchanged.

@@ -95,10 +95,14 @@ type WithoutViewOnlyProps<PROPS> = {
   [KEY in keyof PROPS as KEY extends 'state' | 'context' | 'slots' | 'uid' ? never : KEY]: PROPS[KEY]
 }
 
+// A literal action name must be one of ACTIONS (with its data); a `string` (a name computed at run
+// time) is accepted, so a reducer declared apart from its component, with `next` annotated as
+// `(action: string, data?: any) => void`, still fits the model (Sift: a `const model` assigned
+// later failed once `actions` declared its reply actions; inline, `next` is typed by context)
 type NextFunction<ACTIONS = any> = ACTIONS extends object
-  ? <ACTION_KEY extends keyof ACTIONS>(
-      action: ACTION_KEY,
-      data?: ACTIONS[ACTION_KEY],
+  ? <ACTION_KEY extends keyof ACTIONS | (string & {})>(
+      action: ACTION_KEY & (string extends ACTION_KEY ? unknown : keyof ACTIONS),
+      data?: ACTION_KEY extends keyof ACTIONS ? ACTIONS[ACTION_KEY] : any,
       delay?: number
     ) => void
   : (action: string, data?: any, delay?: number) => void

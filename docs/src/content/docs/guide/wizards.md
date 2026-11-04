@@ -234,7 +234,7 @@ An entry is the wizard's host mounting again in the same page session; `'entry'`
 
 `reset: '.start-over'`, the `wizard.RESET` action, or a step's `{ wizard: 'RESET' }` starts the flow over: the draft, every step's slice, and the first step. When the action's data (the message's `draft`) is a plain object, it is the new draft.
 
-In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left. `resetTo` names another place:
+In URL mode it then navigates to the first step's route, with no key (the route it lands on names one, or none). The new draft comes from `draft(state, bag)` on that route, once it has landed, not on the route left, and so do the first step's `visit` defaults (a `visit` function sees the landed route; a RESET with a `draft` keeps that draft). `resetTo` names another place:
 - a router command: `resetTo: { to: 'newFilter' }`;
 - or a function of the slice *being reset* and the bag, when the flow's data decides where its start over goes: `resetTo: (prev) => ({ to: 'newFilter', query: { filter: prev.draft.bound } })`.
 
