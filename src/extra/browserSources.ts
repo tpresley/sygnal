@@ -80,7 +80,7 @@ const where = (els: any[], el: any) => ({index: els.indexOf(el), dataset: {...el
  * element already observed gets its last report (a microtask later), as its own observer's first
  * one; the observer is disconnected when nothing is left to observe.
  */
-const shared = (c: BrowserCtx, key: string, Obs: any, opts: any) => {
+const shared = (c: BrowserCtx, key: string, Obs: any, opts: any, at?: any) => {
   let r = c.obs.get(key);
   if (!r) {
     const h = new Map<any, Set<any>>(), last = new Map<any, any>();
@@ -88,7 +88,7 @@ const shared = (c: BrowserCtx, key: string, Obs: any, opts: any) => {
     c.obs.set(key, r = {
       add: (el: any, f: any) => {
         let s = h.get(el);
-        if (!s) h.set(el, s = new Set()), o.observe(el);
+        if (!s) h.set(el, s = new Set()), o.observe(el, at);
         else if (last.has(el)) Promise.resolve().then(() => s!.has(f) && f(last.get(el)));
         s.add(f);
       },
@@ -117,11 +117,11 @@ const elementsOf = (dom: any, target: any) => {
  * are observed and gone ones let go after every patch. Nothing without a DOM source (SYG668) or
  * the observer.
  */
-const track = (c: BrowserCtx, kind: string, target: any, Obs: any, opts: any, data: (e: any) => any) => {
+const track = (c: BrowserCtx, kind: string, target: any, Obs: any, opts: any, data: (e: any) => any, at?: any) => {
   if (!c.dom) return c.miss('dom');
   if (!Obs) return;
   let els: any[] = [];
-  const o = shared(c, kind + JSON.stringify(opts), Obs, opts), f = (e: any) => c.send({...data(e), ...where(els, e.target)});
+  const o = shared(c, kind + JSON.stringify(opts ?? at), Obs, opts, at), f = (e: any) => c.send({...data(e), ...where(els, e.target)});
   const $ = elementsOf(c.dom, target);
   const l = {next: (now: any[]) => {
     for (const e of now) els.includes(e) || o.add(e, f);
@@ -138,10 +138,18 @@ export const intersectionSource: BrowserSource = {d: {
     (e) => ({visible: e.isIntersecting, ratio: e.intersectionRatio})),
 }};
 
-/** Element size: `{ resize: '.chart' | true, action }`, data `{ width, height, index, dataset }` (the content box) */
+/**
+ * Element size: `{ resize: '.chart' | true, action, box? }`, data `{ width, height, index, dataset }`:
+ * the content box, or the `box` ResizeObserver observes ('border-box': padding and border
+ * included; 'device-pixel-content-box': in device pixels), as inline × block size
+ */
+// a resize spec's box: the entry's field with its size (content-box: contentRect)
+const BOXES: Record<string, string> = {'border-box': 'borderBoxSize', 'device-pixel-content-box': 'devicePixelContentBoxSize'};
 export const resizeSource: BrowserSource = {d: {
-  resize: (s, c) => track(c, 'r', s.resize, g.ResizeObserver, undefined,
-    (e) => ({width: e.contentRect.width, height: e.contentRect.height})),
+  resize: (s, c) => track(c, 'r', s.resize, g.ResizeObserver, undefined, (e) => {
+    const b = BOXES[s.box] && e[BOXES[s.box]]?.[0]
+    return b ? {width: b.inlineSize, height: b.blockSize} : {width: e.contentRect.width, height: e.contentRect.height}
+  }, s.box && {box: s.box}),
 }};
 
 /** A media query: `{ media: '(prefers-color-scheme: dark)', action }`, data `{ matches, media }` */
@@ -277,7 +285,7 @@ export const browserDriver = (sources: BrowserSource[], runners: Map<any, any>) 
       if (!s || on[n]) continue;
       const e: any = on[n] = {k: JSON.stringify(s), s, x: noop};
       const k = typeof s == 'object' && KINDS.find(k => k in s);
-      if (!k || !s.action || typeof s.action != 'string' || (k == 'intersection' || k == 'resize') && s[k] !== true && (typeof s[k] != 'string' || !s[k])) diag('SYG663', n, s, comp);
+      if (!k || !s.action || typeof s.action != 'string' || (k == 'intersection' || k == 'resize') && s[k] !== true && (typeof s[k] != 'string' || !s[k]) || k == 'resize' && s.box != null && !/^(content|border|device-pixel-content)-box$/.test(s.box)) diag('SYG663', n, s, comp);
       else if (!d[k]) diag('SYG664', n, s, comp, k);
       else e.x = d[k](s, {
         dom: doms.get(id),

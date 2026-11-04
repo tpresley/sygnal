@@ -148,6 +148,8 @@ export function makeRouter(options: any = {}) {
     // blocked traversal's undo is pending
     let forceTo: any = null, held: any = null;
     let cur: any = null, cancel: any = null, pendingKind = '', asked: any;
+    // how the current route was reached (ROUTER.navigation()): 'load', 'push', 'replace' or 'traverse'
+    let via = 'load';
 
     const newKey = () => Date.now().toString(36) + (n++);
     const stamp = (i: number) => ({key: (key = newKey()), i: (idx = i)});
@@ -191,6 +193,7 @@ export function makeRouter(options: any = {}) {
 
     const emit = (kind: string) => {
       last = L.href;
+      via = kind == 'start' ? 'load' : kind == 'pop' ? 'traverse' : kind;
       const r = (cur = current()), list = [...declared], v = ++ver;
       const send = () => {
         if (ver != v || !list.length) return;
@@ -369,7 +372,7 @@ export function makeRouter(options: any = {}) {
       complete: stop,
     });
 
-    return {...replies, __sygnalStatic: 'route', __sygnalRouter: options, current: () => cur, href, dispose: stop};
+    return {...replies, __sygnalStatic: 'route', __sygnalRouter: options, current: () => cur, navigation: () => via, href, dispose: stop};
   };
 
   return {routes, href, match, current, driver, options};

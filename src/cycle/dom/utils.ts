@@ -97,7 +97,8 @@ export function makeInsert(
 // another realm's after a teardown, or it has no window); a document without createEvent (sygnal/host)
 // takes its defaultView's Event
 export const POKE = 'sygnal-dom';
-export const pokeDOM = (el: any): any => {
+// Sift #4: with `req`, the app's driver answers it instead (its isolate module as `req.m`: a Portal)
+export const pokeDOM = (el: any, req?: any): any => {
   if (!el) return
   const d = el.ownerDocument, w = d?.defaultView
   if (w && 'document' in w && w.document !== d) return
@@ -105,6 +106,7 @@ export const pokeDOM = (el: any): any => {
   if (e) e.initEvent(POKE, true, false)
   else if (w?.Event) e = new w.Event(POKE, {bubbles: true})
   else return
+  e.q = req
   return el.dispatchEvent(e)
 };
 

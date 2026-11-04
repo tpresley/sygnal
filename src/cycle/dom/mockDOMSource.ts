@@ -4,14 +4,17 @@ import {VNode} from './snabbdom';
 import {EventsFnOptions} from './DOMSource';
 import {adapt} from '../run/adapt';
 import {enrichEventStream} from './enrichEventStream';
+import {preventDefaultConditional} from './fromEvent';
 
 /**
  * Optional simulated-event hub (used by renderComponent's simulateEvent): a
- * stream of `{type, event, match(path)}`; each source's events(type) also emits
+ * stream of `{type, event, match(path), capture?}`; each source's events(type) also emits
  * the hub events whose `match` accepts its selector path (isolation scopes
- * included as '.___scope' segments).
+ * included as '.___scope' segments). A `capture` event (a non-bubbling event on its way down
+ * to its target) reaches only `{ useCapture: true }` listeners. A listener's `preventDefault`
+ * option is applied to the event, as the DOM driver does.
  */
-export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean}>;
+export type MockEventHub = Stream<{type: string; event: any; match: (path: string[]) => boolean; capture?: boolean}>;
 
 /**
  * Optional listener callback (renderComponent): called with `live` undefined when events() is
@@ -69,7 +72,9 @@ export class MockedDOMSource {
     if (on) on(path, eventType);
     let hub$: Stream<any> | undefined;
     if (hub) {
-      const ev$ = hub.filter(e => e.type === eventType && e.match(path)).map(e => e.event);
+      const capture = !!options?.useCapture, pd = options?.preventDefault;
+      const ev$ = hub.filter(e => e.type === eventType && (capture || !e.capture) && e.match(path))
+        .map(e => (pd && preventDefaultConditional(e.event, pd), e.event));
       let l: any;
       hub$ = on
         ? xs.create({

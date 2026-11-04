@@ -259,6 +259,7 @@ Item.model = {
 
 - The value names resources of the component that sends the request: `'item'`, `['item', 'detail']`, or an object whose functions derive the new data from the current one: `updates: { item: true, items: (list, saved) => list.map((i) => (i.id === saved.id ? { ...i, title: saved.title } : i)) }`.
 - The write comes first: the resource becomes `'success'` with the new data, its cache entry is set, and its read in flight (if any) is aborted. Then the `ok` action runs, then `invalidates`. An invalidated resource refetches keeping the written data (`refreshing: true`), and the server's reply replaces it.
+- The write is a state change of its own, so the resources are derived again before the `ok` action runs. A resource gated on a field that `ok` sets (`check: (state) => !state.saved && state.item.data?.ready && { url: '/api/check' }` with `SAVED` setting `saved`) sees the state before `ok` and fetches once in between. Gate it on the cache instead (the written `state.item.data`), or set the field in the same write: in the action that sends the request (`SAVE`'s `STATE`), so it is already set when the reply lands.
 - Other mounted resources reading the same cache entry show the new data too. A resource that is idle (its entry returned a falsy value) is skipped; a paused one (a hidden page) is updated.
 - Nothing is written when the request fails. The `ok` action still gets the reply.
 
@@ -582,4 +583,4 @@ it('refreshes in place, and shows the cached quote when coming back', async () =
 - `t.cache('HTTP')` lists the cache entries: `{ key, age, stale, subscribers, data, tags, headers }` (`headers` with `keepHeaders`).
 - A `{ prefetch }` fetch is listed in `t.requests('HTTP')` as `{ url, ...request, prefetch: true }`; answer it like any other, e.g. `t.respond('HTTP', data, '/api/quotes/2')`.
 - `t.focus()` and `t.online()` simulate the browser events; the test's own window events never trigger refetches.
-- Retries and `refetchEvery` run on the test's timers, fake timers included. `t.requests('HTTP')` lists what the component sent (and each resource fetch), not each retry.
+- Retries and `refetchEvery` run on the test's timers, fake timers included. `t.requests('HTTP')` lists what the component sent (and each resource fetch), not each retry. A poll's request is answered once it has been sent: wait for `refreshing` (or advance fake timers by `refetchEvery`) before `t.respond` ([A poll is a timer](/integration/testing/#resources)).

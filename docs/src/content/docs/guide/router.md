@@ -75,6 +75,7 @@ The `key` is the visit: a new key disposes the page (its `DISPOSE` runs, its req
 - `params` are decoded strings (`{ id: '2' }`), `query` is an object of strings (the last value of a repeated key), `hash` has no `#`.
 - Matching ignores a trailing slash and empty segments: `/tasks/2/` is the `task` route, and its `path` is `/tasks/2`. `href()` never adds a trailing slash.
 - A root that declares `route` needs an `initialState`, seeded with `router.current()` (SYG132). A sub-component can declare it too, with or without a model.
+- How the current route was reached: `ROUTER.navigation()` in an intent returns `'load'` (the page loaded), `'push'` (a link or a command), `'replace'` (a replace) or `'traverse'` (the browser's Back or Forward). The wizard's `restart: 'entry'` uses it to resume on Back.
 
 Pages read the route from context, so their own state needs no copy of it. Provide it once at the root, and a page's [declaration statics](/guide/resources/) read it from their second argument, the [bag](/guide/state/#what-every-function-gets), as views do:
 

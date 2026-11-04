@@ -60,6 +60,7 @@
  * | SYG222 | same object returned after an in-place mutation        | state.ts       |
  * | SYG301 | RxJS operator used on an xstream stream                | rxjsHints.ts   |
  * | SYG401 | Collection `from` missing or not an array              | collections.ts |
+ * | SYG107 | a DOM property name in the wrong case on an HTML element | domProps.ts  |
  * | SYG421 | invalid data (dataset) key in a view                   | dataset.ts     |
  * | SYG612 | a form 6.0 removed (also SYG501/504 statically)        | next.ts        |
  * | SYG502 | retired in 6.0 (never reported; GS-4)                  | —              |
@@ -92,6 +93,7 @@ import {formsCheck, installFormHooks} from './forms'
 import {installBagHooks} from './behaviorBag'
 import {installSortableHooks} from './sortable'
 import {datasetCheck} from './dataset'
+import {domPropsCheck} from './domProps'
 import {strictCheck} from './strict'
 import {repliesCheck} from './replies'
 import {routerCheck, installRouterHooks} from './router'
@@ -130,6 +132,7 @@ export const checks: DiagnosticCheck[] = [
   behaviorsCheck,
   formsCheck,
   datasetCheck,
+  domPropsCheck,
   strictCheck,
   repliesCheck,
   routerCheck,

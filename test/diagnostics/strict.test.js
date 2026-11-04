@@ -43,7 +43,8 @@ describe('strict mode switch', () => {
     expect(getCodeInfo('SYG508')).toMatchObject({ severity: 'warn', title: 'select()/errors() round trip where reply actions would do' })
     expect(getCodeInfo('SYG509')).toMatchObject({ severity: 'warn', title: 'Clock or randomness read from a global in a handler' })
     expect(getCodeInfo('SYG258')).toMatchObject({ severity: 'warn', title: 'Clock or randomness read from a global in a STATE reducer' })
-    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(9)
+    expect(getCodeInfo('SYG510')).toMatchObject({ severity: 'warn', title: 'waitForState matched only a state the test had already seen' })
+    expect(listCodes().filter(c => /^SYG5/.test(c.code))).toHaveLength(10)
   })
 
   it('reports nothing when strict is off, even for every non-canonical form', async () => {

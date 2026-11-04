@@ -18,13 +18,14 @@
  *   labelState(project, file, node) → 'label' | 'unknown' | 'none'
  *   idIndex(project)          → which ids (literal, uid() keys) are rendered
  */
-import { walk, unwrap, isFunction, jsxName, jsxAttrExpr, propName, stringValue } from '../../ast.js'
+import { walk, unwrap, isFunction, jsxName, jsxAttrExpr, propName, stringValue, memberName } from '../../ast.js'
 import { resolveControlJSX } from '../../model/controls.js'
 import { resolveWidgetJSX } from '../../model/widgets.js'
 import { evalStrings, tokenize, DYN } from '../../strings.js'
 import { hyperscriptSel } from '../../selectors.js'
 import { findBinding } from '../../scope.js'
 import { HYPERSCRIPT_TAGS } from '../../model/view.js'
+import { resolveExpr } from '../../model/resolve.js'
 
 export const TRANSPARENT = new Set(['Fragment', 'Portal', 'Transition', 'Suspense', 'ClientOnly', 'Slot', 'React.Fragment'])
 
@@ -282,23 +283,121 @@ function functionName(file, fn) {
   return null
 }
 
+// what JSX passed to a call goes through to be an argument's value (`field('Name', <input />)`)
+const ARG_PATH = new Set([...PASS_THROUGH, 'JSXElement', 'JSXFragment', 'JSXExpressionContainer'])
+
+/**
+ * The call `node` is passed to as (part of) an argument's value: `field(<input />)`, or one key
+ * of an object literal argument (`field({ input: <input /> })`): { call, index, key } or null
+ * (a callback, a JSX attribute, a deeper object: not an argument's value).
+ */
+function argumentOf(file, node) {
+  let n = node, key = null
+  for (let p = file.parents.get(n); p; n = p, p = file.parents.get(p)) {
+    if (p.type === 'CallExpression') {
+      const index = p.arguments.indexOf(n)
+      return index >= 0 && (key == null || n.type === 'ObjectExpression') ? { call: p, index, key } : null
+    }
+    if (key != null && p.type !== 'ObjectExpression') return null
+    if (p.type === 'ObjectProperty') {
+      if (p.value !== n || key != null) return null
+      key = propName(p)
+      if (key == null) return null
+      continue
+    }
+    if (p.type === 'ObjectExpression') { if (key == null) return null; continue }
+    if (!ARG_PATH.has(p.type)) return null
+  }
+  return null
+}
+
+/** Where a helper function renders its parameter `name` (Identifier uses), or null when it does more with it. */
+function paramUses(file, fn, name, key) {
+  const uses = []
+  let opaque = false
+  walk(fn.body, (n) => {
+    if (opaque) return false
+    if (n.type !== 'Identifier' || n.name !== name) return true
+    const p = file.parents.get(n)
+    if ((p?.type === 'MemberExpression' || p?.type === 'OptionalMemberExpression') && p.property === n && !p.computed) return true
+    if (p?.type === 'ObjectProperty' && p.key === n && !p.computed && p.value !== n) return true
+    if (findBinding(file, name, n)?.node !== fn) return true // shadowed
+    if (key == null) { uses.push(n); return true }
+    // `props.input`: the use is the member; `props.label` isn't this argument; `props` passed on may be
+    if ((p?.type === 'MemberExpression' || p?.type === 'OptionalMemberExpression') && p.object === n) {
+      if (memberName(p) === key) uses.push(p)
+      else if (memberName(p) == null) opaque = true
+      return true
+    }
+    opaque = true
+    return false
+  })
+  return opaque ? null : uses
+}
+
+/**
+ * Is JSX passed to a view helper (`field('Name', <input />)`) wrapped in a <label> where the
+ * helper renders that parameter? 'label' / 'unknown' (a helper or parameter we can't follow) /
+ * 'none' (the helper renders it outside a label).
+ */
+function helperArgState(project, file, arg, depth) {
+  const callee = unwrap(arg.call.callee)
+  if (callee?.type !== 'Identifier') return 'unknown'
+  const h = resolveExpr(project, file, callee)
+  const fn = h?.node
+  if (!fn || !isFunction(fn) || project.componentForFunction(fn)) return 'unknown'
+  if (fn.params.slice(0, arg.index + 1).some(p => p.type === 'RestElement')) return 'unknown'
+  let p = fn.params[arg.index]
+  if (p?.type === 'AssignmentPattern') p = p.left
+  let name = null, key = null
+  if (p?.type === 'Identifier') { name = p.name; key = arg.key }
+  else if (p?.type === 'ObjectPattern' && arg.key != null) {
+    if (p.properties.some(x => x.type === 'RestElement')) return 'unknown'
+    const prop = p.properties.find(x => propName(x) === arg.key)
+    let v = prop?.value
+    if (v?.type === 'AssignmentPattern') v = v.left
+    if (v?.type !== 'Identifier') return 'unknown'
+    name = v.name
+  }
+  if (!name) return 'unknown'
+  const uses = paramUses(h.file, fn, name, key)
+  if (!uses?.length) return 'unknown'
+  let state = 'none'
+  for (const u of uses) {
+    const s = labelState(project, h.file, u, depth + 1)
+    if (s === 'label') return 'label'
+    if (s === 'unknown') state = 'unknown'
+  }
+  return state
+}
+
 /**
  * 'label'   a <label> (element or control) wraps the node
  * 'unknown' a child component, an unresolvable helper, or JSX kept in a variable
  *           might wrap it
  * 'none'    nothing wraps it in a label
+ *
+ * JSX passed to a view helper (`field('Name', <input />)`) is followed to where the helper
+ * renders that parameter (helperArgState), then to the call's own place.
  */
 export function labelState(project, file, node, depth = 0) {
   if (depth > MAX_LABEL_DEPTH) return 'unknown'
+  const arg = argumentOf(file, node)
   const ancestors = jsxAncestors(file, node)
   for (const a of ancestors) {
     if (a.type !== 'JSXElement') continue
+    // (outside the helper call: judged from the call's place below)
+    if (arg && !(a.start >= arg.call.start && a.end <= arg.call.end)) break
     const info = describe(project, file, a)
     if (info.tag === 'label') return 'label'
     if (info.kind === 'component') return 'unknown'
   }
+  if (arg) {
+    const s = helperArgState(project, file, arg, depth)
+    return s === 'none' ? labelState(project, file, arg.call, depth + 1) : s
+  }
   const top = ancestors.length ? ancestors[ancestors.length - 1] : node
-  if (top.type !== 'JSXElement' && top.type !== 'JSXFragment') return 'unknown'
+  if (top.type !== 'JSXElement' && top.type !== 'JSXFragment' && !(top === node && node.type === 'CallExpression')) return 'unknown'
   const fn = returnedFrom(file, top)
   if (!fn) return 'unknown'
   const comp = project.componentForFunction(fn)

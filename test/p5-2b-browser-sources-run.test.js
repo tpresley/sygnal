@@ -19,7 +19,7 @@ const stub = (k, v) => { if (!(k in saved)) saved[k] = Object.getOwnPropertyDesc
 const observers = []
 class FakeObserver {
   constructor(cb, opts) { this.cb = cb; this.opts = opts; this.els = new Set(); observers.push(this) }
-  observe(el) { this.els.add(el) }
+  observe(el, at) { this.els.add(el); this.at = at }
   unobserve(el) { this.els.delete(el) }
   disconnect() { this.els.clear(); this.off = true }
 }
@@ -112,6 +112,24 @@ describe('declarations', () => {
     fire(document.querySelector('.chart'), { contentRect: { width: 300, height: 120 } })
     await tick()
     expect(got).toEqual([{ width: 300, height: 120, index: 0, dataset: {} }])
+  })
+
+  it("resize with box: 'border-box': the border box, observed with that box (Sift preview.5 #10)", async () => {
+    const got = []
+    function Row() { return h('div', null, h('div', { className: 'a' }), h('div', { className: 'b' })) }
+    Row.initialState = {}
+    Row.browser = () => ({ outer: { resize: '.a', box: 'border-box', action: 'SIZE' }, inner: { resize: '.b', action: 'SIZE' } })
+    Row.model = { SIZE: (s, d) => { got.push(d); return s } }
+    app = run(Row, { BROWSER: makeBrowserDriver() }, { mountPoint: '#root' })
+    await tick()
+    const [a, b] = ['.a', '.b'].map(sel => document.querySelector(sel))
+    const bo = observers.find(o => o.els.has(a))
+    expect(bo.at).toEqual({ box: 'border-box' })
+    expect(observers.find(o => o.els.has(b)).at).toBeUndefined()   // its own observer: the default box
+    fire(a, { contentRect: { width: 280, height: 100 }, borderBoxSize: [{ inlineSize: 300, blockSize: 120 }] })
+    fire(b, { contentRect: { width: 50, height: 10 }, borderBoxSize: [{ inlineSize: 60, blockSize: 20 }] })
+    await tick()
+    expect(got).toEqual([{ width: 300, height: 120, index: 0, dataset: {} }, { width: 50, height: 10, index: 0, dataset: {} }])
   })
 
   it('media: the current value at start, then each change; a falsy entry stops it', async () => {
@@ -312,6 +330,7 @@ describe('dev checks', () => {
       noKind: { action: 'M' },
       noAction: { media: '(x)' },
       badTarget: { intersection: 3, action: 'M' },
+      badBox: { resize: true, box: 'padding-box', action: 'M' },
       lacking: { intersection: '.x', action: 'M' },
       ok: { media: '(x)', action: 'M' },
     })
@@ -321,7 +340,7 @@ describe('dev checks', () => {
     app.__runtime.dispatch('root', 'BAD')
     app.__runtime.dispatch('root', 'COPY')
     await tick()
-    expect(diagnostics('SYG663').map(d => d.data.name)).toEqual(['noKind', 'noAction', 'badTarget', 'shout'])
+    expect(diagnostics('SYG663').map(d => d.data.name)).toEqual(['noKind', 'noAction', 'badTarget', 'badBox', 'shout'])
     expect(diagnostics('SYG664').map(d => [d.data.name, d.data.kind])).toEqual([['lacking', 'intersection']])
     expect(diagnostics('SYG665').map(d => [d.data.name, d.data.failure])).toEqual([['copy', { name: 'NotAllowedError', message: 'denied' }]])
     expect(diagnostics('SYG663')[0].component).toBe('C')

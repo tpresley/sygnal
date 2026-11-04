@@ -246,19 +246,23 @@ export const wizard = (o: any = {}): any => {
     // `restart` (an entry starts a new flow; before the route is seen, so it doesn't redirect):
     // 'outcome', a host mounted on an outcome step that the route doesn't name (url; without url:
     // mounted again); 'entry', also a host mounted again in this page session (SEEN: a marker
-    // persist and recordings drop, so a reload resumes)
-    MOUNT: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
+    // persist and recordings drop, so a reload resumes), unless the router reached the route by
+    // Back / Forward (ROUTER.navigation() 'traverse')
+    MOUNT: {HOST: (h: any, via: any, _n: any, p: any, _o: any, k: string) => {
       const w = h[k], B = bag(p, h), again = !!w[SEEN]
-      if (w.visit && ((out(w.step) && (url ? routeStep(B) != w.step : again)) || (restart == 'entry' && again)))
+      if (w.visit && ((out(w.step) && (url ? routeStep(B) != w.step : again)) || (restart == 'entry' && again && via != 'traverse')))
         return put(B, k, {...fresh(w, B, keyOf ? keyOf(B.state, B) ?? null : null), [SEEN]: true})
       const l = w.visit ? scratch(w, w.step, B) : w.local
       return put(B, k, l === w.local && again ? w : {...w, local: l, [SEEN]: true})
     }},
     // url: the wizard's own navigation (Start over, a GOTO with a new key) landed: the draft's
-    // untouched fields from draft(state) on the route entered, not the one left
+    // untouched fields from draft(state) on the route entered, not the one left (unless the message
+    // gave the draft: reseed.refill false), and the step's visit defaults again on that route
     RESEED: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
       const w = h[k], B = bag(p, h)
-      return w.reseed == null ? h : put(B, k, {...refill(w, B), reseed: null})
+      if (w.reseed == null) return h
+      const f = w.reseed.refill ? refill(w, B) : w
+      return put(B, k, {...f, local: scratch(f, f.step, B), reseed: null})
     }},
     // the host's state changed (a step's write, the host's own data): the derived fields again
     // (dispatched only when they would change: the intent filters; ABORT when they didn't)
@@ -287,7 +291,7 @@ export const wizard = (o: any = {}): any => {
           const keep = w.key == null || Object.is(w.key, d.key), n = names.includes(d.step) ? d.step : first
           let f = keep ? (w.key == null && d.key != null ? adopt(w, d.key, B) : w) : fresh(w, B, d.key ?? null, d.draft, true, n)
           if (keep && plainObj(d.draft)) f = {...f, draft: {...f.draft, ...d.draft}, initial: {...f.initial, ...d.draft}}
-          if (url && !plainObj(d.draft)) f = {...f, reseed: sig(routeOf(B))}
+          if (url) f = {...f, reseed: {at: sig(routeOf(B)), refill: !plainObj(d.draft)}}
           return put(B, k, keep && n != f.step ? enter(f, n, B) : f)
         }
         const n = target(w, 'GOTO', d, B)
@@ -309,7 +313,7 @@ export const wizard = (o: any = {}): any => {
       // (the route it lands on names one, or none) and the draft taken from that route once landed)
       HOST: (h: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const B = bag(p, h), nav = url && (!!resetTo || routeStep(B) != first), f = fresh(h[k], B, nav ? null : h[k].key, plainObj(d) ? d : undefined, true)
-        return put(B, k, nav && !plainObj(d) ? {...f, reseed: sig(routeOf(B))} : f)
+        return put(B, k, nav ? {...f, reseed: {at: sig(routeOf(B)), refill: !plainObj(d)}} : f)
       },
       // url: to `resetTo`, else back to the first step's route (the state is already at the first step)
       ...(url || resetTo) && {[R]: (w: any, _d: any, _n: any, p: any, _o: any, k: string) => resetTo
@@ -385,7 +389,7 @@ export const wizard = (o: any = {}): any => {
   const b = defineBehavior({
     initialState: init,
     triggers: {NEXT: 'next', BACK: 'back', RESET: 'reset', GOTO: 'goto', DISCARD: 'leave', STAY: 'stay'},
-    intent: ({DOM, CHILD, props$}: any, _o: any, k: string, host: any) => {
+    intent: ({DOM, CHILD, props$, ...S}: any, _o: any, k: string, host: any) => {
       // what the intent watches gets the bag of the host's state and (a sub-component host) its
       // props, again when either changes; no context or uid here (the handlers' bags have them)
       const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => readBag(p, h, 'wizard')) : host.stream.map((h: any) => readBag(null, h, 'wizard'))
@@ -408,7 +412,8 @@ export const wizard = (o: any = {}): any => {
       const or = (sel: any, t: string, f?: any) => sel ? xs.merge(DOM.click(sel), from(t, f)) : from(t, f)
       return {
         KEY: watch((B: any) => keyOf ? keyOf(B.state, B) : null),
-        MOUNT: xs.of(0),
+        // (with how the router reached this route: 'entry' restarts on a link or a command, not on Back / Forward)
+        MOUNT: xs.of(S[R]?.navigation?.() ?? null),
         // (and when the outlet registers a step component: its initialState joins the predicates' view;
         // a task later, as it happens while the host renders)
         SYNC: xs.merge(B$.filter((B: any) => !!B.state?.[k]?.visit && fin(B.state[k], B) !== B.state[k]), xs.create({
@@ -416,7 +421,7 @@ export const wizard = (o: any = {}): any => {
           stop() { (this as any).stop?.() },
         })),
         ...url && {ROUTE: watch(routeStep),
-          RESEED: B$.filter((B: any) => B.state?.[k]?.reseed != null && sig(routeOf(B)) !== B.state[k].reseed)},
+          RESEED: B$.filter((B: any) => B.state?.[k]?.reseed != null && sig(routeOf(B)) !== B.state[k].reseed.at)},
         ...guarded && {GUARD: watch((B: any) => !!(B.state?.[k]?.visit && dirtyIn(B.state[k], B)))},
         NEXT: or(nextSel, 'NEXT'),
         BACK: or(backSel, 'BACK'),

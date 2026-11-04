@@ -172,6 +172,16 @@ After:
 <UserCard contextValue={ctx} />
 ```
 
+### SYG107
+
+**DOM property name in the wrong case**
+
+Severity: `warn` · Reported by: the dev checks (`sygnal/diagnostics`), `sygnal-check`
+
+Sygnal sets a JSX name on an HTML element as the DOM property of that name, in that case (React keeps a table of attribute names; Preact falls back to an attribute). A name the element has no property for creates an unused JavaScript property on the element: nothing is rendered, nothing fails, and the server-rendered markup and the mock DOM of `renderComponent` still show it. The usual cause is the case. React's spellings `autoComplete`, `autoPlay`, `autoCapitalize`, `srcSet`, `hrefLang`, `encType` and `allowFullScreen` are lowercase or differently cased in the DOM (`autocomplete`, `autoplay`, `autocapitalize`, `srcset`, `hreflang`, `enctype`, `allowFullscreen`), and the attribute's lowercase `inputmode`, `maxlength`, `readonly`, `colspan` or `crossorigin` are camelCase in the DOM (`inputMode`, `maxLength`, `readOnly`, `colSpan`, `crossOrigin`). Reported for a name on an HTML element (not inside `<svg>`, whose names are attributes, and not on a custom element) that matches one of these properties in a different case. Names Sygnal writes as attributes are never reported: `aria-*`, `role`, `tabindex`, `for`, `form`, `list`, the popover and invoker attributes, `attrs-*`, `data-*`, and `spellcheck`, `draggable` and `contenteditable` in any case. The dev entry checks each rendered element; sygnal-check checks the JSX.
+
+**Fix:** Write the DOM property's name: `<input autocomplete="off" inputMode="numeric" maxLength={4} />`, `<img srcset={…} />`, `<td colSpan={2} />`. For an attribute that has no DOM property, use the attrs module: `attrs-autocomplete="off"` or `attrs={{ autocomplete: 'off' }}`. `sygnal-check --fix` renames the attribute.
+
 ### SYG110
 
 **Intent selector not present in the component view**
@@ -2272,6 +2282,16 @@ Strict mode only (`sygnal-check --strict`). A model handler (a STATE reducer, an
 
 **Fix:** Use the handler's 4th argument: `SAVE: { EFFECT: (state, data, next, { now }) => { localStorage.setItem('savedAt', String(now())) } }`, or `(state, data, next, props) => … props.uuid() …`; `new Date()` becomes `new Date(now())`.
 
+### SYG510
+
+**waitForState matched only a state the test had already seen**
+
+Severity: `warn` · Reported by: the Sygnal runtime (every app, production included) · Strict mode only
+
+Strict mode only (`renderComponent(C, { strict: true })` or `configureStrict(true)`). `t.waitForState(pred)` searches the recorded history first, so it resolves at once when any earlier state matches. Reported when the only match is a state from before the test's last awaited input (`await t.simulateEvent(...)`, `await t.simulateAction(...)`) and the current state doesn't match: the wait was true in the past and proves nothing about now. A match the current state also satisfies (`count === 0` again after a reset) isn't reported.
+
+**Fix:** Assert the current state, `expect(t.state).toMatchObject({ ... })`, or wait for a new state, `await t.next(pred)`. To wait for a state an input will cause, call `t.next(pred)` before the input, or await the input and read `t.state`.
+
 ## SYG6xx: Drivers, sources and component setup
 
 ### SYG601
@@ -2646,7 +2666,7 @@ A widget's `unmount(instance, el)` threw when its host left the page. The host i
 
 Severity: `error` · Reported by: the dev checks (`sygnal/diagnostics`)
 
-An entry of a component's `browser` static can't be started, or a command sent to the browser driver's sink can't be run, so it is skipped and nothing would happen. A `browser` entry is an object with one key that names its source (`intersection`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`) and that names the action its events are delivered as (`action: 'SEEN'`, a string); `intersection` and `resize` take a selector in the component's own view, or `true` for its root element. A command names its method as one of its keys: `copy`, `paste`, `setItem` or `removeItem` (those of the sources the driver was made with). Reported once per component, entry and spec.
+An entry of a component's `browser` static can't be started, or a command sent to the browser driver's sink can't be run, so it is skipped and nothing would happen. A `browser` entry is an object with one key that names its source (`intersection`, `resize`, `media`, `storage`, `visibility`, `online`, `geolocation`) and that names the action its events are delivered as (`action: 'SEEN'`, a string); `intersection` and `resize` take a selector in the component's own view, or `true` for its root element; a `resize` entry's `box`, when given, is `'content-box'`, `'border-box'` or `'device-pixel-content-box'`. A command names its method as one of its keys: `copy`, `paste`, `setItem` or `removeItem` (those of the sources the driver was made with). Reported once per component, entry and spec.
 
 **Fix:** Write the entry as `seen: { intersection: '.cover', action: 'SEEN' }`, `dark: { media: '(prefers-color-scheme: dark)', action: 'DARK' }` (a falsy value stops it: `seen: !state.seen && { ... }`), and a command as `COPY: { BROWSER: (state) => ({ copy: state.link, ok: 'COPIED' }) }`. Clipboard reads and writes are commands, not `browser` entries.
 

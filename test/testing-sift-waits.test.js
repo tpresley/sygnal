@@ -51,3 +51,45 @@ describe('B2: an input on a disposed handle', () => {
     })
   }
 })
+
+describe('SYG510 (strict): a waitForState() only an already-seen state satisfies', () => {
+  it('warns when the match is older than the last awaited input and the current state does not match', async () => {
+    using t = renderComponent(Counter, { strict: true })
+    await t.ready()
+    await t.simulateAction('INC')
+    await t.simulateAction('INC')
+    expect((await t.waitForState((s) => s.n === 1)).n).toBe(1)
+    const d = t.diagnostics.filter((x) => x.code === 'SYG510')
+    expect(d).toHaveLength(1)
+    expect(d[0].severity).toBe('warn')
+    expect(d[0].message).toMatch(/t\.states\[1\].*t\.states\[2\]/)
+  })
+
+  it("doesn't warn when the current state matches too, without strict, or for a state not seen yet", async () => {
+    {
+      using t = renderComponent(Counter, { strict: true })
+      await t.ready()
+      await t.simulateAction('INC')
+      await t.waitForState((s) => s.n >= 0)   // the initial state matches, and so does the current one
+      await t.waitForState((s) => s.n === 1)  // the current state
+      t.expectNoDiagnostics()
+    }
+    {
+      using t = renderComponent(Counter)
+      await t.ready()
+      await t.simulateAction('INC')
+      await t.simulateAction('INC')
+      await t.waitForState((s) => s.n === 1)
+      expect(t.diagnostics.filter((x) => x.code === 'SYG510')).toEqual([])
+    }
+    {
+      // an input not awaited: its states aren't seen yet, so an earlier match isn't stale
+      using t = renderComponent(Counter, { strict: true })
+      await t.ready()
+      t.simulateAction('INC')
+      t.simulateAction('INC')
+      await t.waitForState((s) => s.n === 1)
+      t.expectNoDiagnostics()
+    }
+  })
+})

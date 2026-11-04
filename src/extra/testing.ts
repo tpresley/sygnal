@@ -264,6 +264,8 @@ export interface RenderOptions {
    * of the same name. Fixed values for the test's lifetime.
    */
   context?: Record<string, any>;
+  /** Sift #7: the props a parent would pass (a child tested alone; no state / context / uid / children) */
+  props?: Record<string, any>;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
   /** Additional drivers beyond DOM, EVENTS, STATE, and LOG */
@@ -1746,11 +1748,14 @@ export function entropyOf(o: {now?: any; random?: any; uuid?: any}) {
   return e
 }
 
+/** a memory stream holding `v` (the core's props$ / children$ of a child) */
+const memoryOf = (v: any) => { const s = xs.createWithMemory(); s.shamefullySendNext(v); return s; };
+
 export function renderComponent(
   componentDef: any,
   options: RenderOptions = {}
 ): RenderResult {
-  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors, autoDispose = true} = options;
+  const {initialState, mockConfig = {}, drivers = {}, diagnostics, strict, timingAudit, dom = 'mock', autoConnect = true, socketSink = 'WS', resourceSink = 'HTTP', llmSink = 'LLM', http: httpOptions, context: ancestors, props: rootProps, autoDispose = true} = options;
   const {intent, model = {}} = componentDef;
   // E4: real DOM mode
   const real = dom == 'real';
@@ -1758,6 +1763,8 @@ export function renderComponent(
   if (real && (typeof document == 'undefined' || !document.body)) {
     throw new Error(`[Sygnal] renderComponent(C, { dom: 'real' }) needs a DOM, and there is no document here. Run the test in a DOM environment: add the comment // @vitest-environment jsdom at the top of the test file, or set test.environment: 'jsdom' (or 'happy-dom') in the Vitest config (npm i -D jsdom)`);
   }
+  if (rootProps !== undefined && (!rootProps || typeof rootProps != 'object' || Array.isArray(rootProps))) throw new Error(`[Sygnal] renderComponent: props takes the object of props a parent would pass the component (renderComponent(Item, { props: { label: 'Milk' } })), not ${Array.isArray(rootProps) ? 'an array' : rootProps === null ? 'null' : 'a ' + typeof rootProps}`);
+  for (const k of ['state', 'context', 'uid', 'children']) if (rootProps && k in rootProps) throw new Error(`[Sygnal] renderComponent: props can't have \`${k}\`: the view reads ${k} from the runtime, as it does from a parent. ${k == 'state' ? 'Use the initialState option' : k == 'context' ? 'Use the context option' : k == 'children' ? 'Render it inside a host component to pass children' : ''}`.trim());
   if (real && options.mockConfig) throw new Error(`[Sygnal] renderComponent: mockConfig drives the mock DOM, so it can't be used with { dom: 'real' }. Use simulateEvent instead`);
   const timing = {...TIMING};
   for (const k of Object.keys(TIMING) as (keyof typeof TIMING)[]) {
@@ -2437,9 +2444,18 @@ export function renderComponent(
         // E2 / G-151: a source no driver provides (driver-like name, or one of its sinks) is the
         // scriptable fake, scoped to the component (R4-2)
         let ns: any[] | undefined;
+        // Sift #7: the props option gives the root a child's props$ / children$ / commands$ (the
+        // core gives them to children only), on the raw instance (`iv.i`, as the dev checks read it)
+        const own: Record<string, () => any> = rootProps && iv.isRoot ? {
+          props$: () => iv.i.props$ ||= memoryOf(iv.i.props),
+          children$: () => iv.i.children$ ||= memoryOf(iv.i.children),
+          commands$: () => iv.i.commands(),
+        } : {};
         return new Proxy(so, {
-          get: (t: any, k: any) => typeof k == 'string' && !(k in t) && (DRIVER_NAME.test(k) || extra.includes(k)) ? fake(k).at(ns ||= nsOfView(iv)) : t[k],
-          has: (t: any, k: any) => k in t || (typeof k == 'string' && extra.includes(k)),
+          get: (t: any, k: any) => typeof k == 'string' && own[k] && !(k in t) ? own[k]() : typeof k == 'string' && !(k in t) && (DRIVER_NAME.test(k) || extra.includes(k)) ? fake(k).at(ns ||= nsOfView(iv)) : t[k],
+          has: (t: any, k: any) => k in t || (typeof k == 'string' && (extra.includes(k) || !!own[k])),
+          ownKeys: (t: any) => [...new Set([...Reflect.ownKeys(t), ...Object.keys(own)])],
+          getOwnPropertyDescriptor: (t: any, k: any) => typeof k == 'string' && own[k] && !(k in t) ? {value: own[k](), enumerable: true, configurable: true} : Reflect.getOwnPropertyDescriptor(t, k),
         });
       },
       onRender() { bump(); if (real) viewTag = recorded(); },
@@ -2505,6 +2521,7 @@ export function renderComponent(
       useDefaultDrivers: false, onError: options.onError,
       __hooks: nextHooks(),
       __entropy: entropyOf(options),
+      __props: rootProps,
       // simulateAction dispatches through the runtime (cause 'simulateAction'), so the root runs
       // its own intent; testActions: the model actions it doesn't name (wiring, inspect())
       __override: {intent: intent ? (s: any) => { const r = intent(s); if (r && typeof r == 'object') testActions.push(...names.filter(n => !(n in r))); return r; } : undefined,
@@ -3459,7 +3476,10 @@ export function renderComponent(
     return delivered(done => later(last => {
       const rel = real ? realEl() : undefined;
       const chain: any[] | undefined = page ? undefined : real ? rel && (chainOf(ext.xb ? ext.xb(vtree) : vtree, rel) || []) : findChain();
-      const el = real ? rel : chain?.[chain.length - 1];
+      // ('document .x' on the mock DOM: delivered to that page listener, with the first rendered
+      // .x, Portal content included, as its target)
+      const pageSel = page && !real && text.replace(PAGE, ''), pageChain = pageSel ? (() => { try { return find(vtree, parse(pageSel)); } catch (_) { return undefined; } })() : undefined;
+      const el = real ? rel : chain ? chain[chain.length - 1] : pageChain?.[pageChain.length - 1];
       if (!page && !el) {
         if (!last) return false;
         if (!allowMissing) {
@@ -3552,16 +3572,23 @@ export function renderComponent(
         currentTarget: target,
         ownerTarget: target,
         dataTransfer: {},
-        preventDefault: noop,
+        // Sift: an intent's `preventDefault` option (applied by the mock source) shows here, so the
+        // router fake doesn't follow a link the intent prevented
+        defaultPrevented: false,
+        preventDefault() { event.defaultPrevented = true; },
         stopPropagation: noop,
         bubbles: !noBubble,
         ...rest,
       };
       // G-145: like native bubbling, listeners on deeper elements (a child's) hear the
       // event before those on their ancestors (the parent's wrapper), then document/body.
-      // 1-F: an event that doesn't bubble (dialog close, focus, ...) reaches the target only
+      // 1-F: an event that doesn't bubble (dialog close, focus, ...) reaches the target only, and
+      // (Sift) on its way down, document/body first, the ancestors' `{ useCapture: true }` listeners
       if (!chain) hub.emit({type, event, match});
-      else for (let k = chain.length - 1; k >= (noBubble ? chain.length - 1 : -1); k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
+      else if (noBubble) {
+        for (let k = -1; k < chain.length - 1; k++) hub.emit({type, event, capture: true, match: (p: string[]) => depthOf(p) === k});
+        hub.emit({type, event, match: (p: string[]) => depthOf(p) === chain.length - 1});
+      } else for (let k = chain.length - 1; k >= -1; k--) hub.emit({type, event, match: (p: string[]) => depthOf(p) === k});
       // PLAN-3 5-4c: and a link click reaches the router fake's document listener
       if (type == 'click' && chain) routerClick(chain, event);
       return true;
@@ -3630,7 +3657,15 @@ export function renderComponent(
         }
         fail(new Error(msg));
       }, timeoutMs);
-      for (let i = from; i < states.length; i++) if (test(i)) return found(i);
+      for (let i = from; i < states.length; i++) if (test(i)) {
+        // SYG510 (strict): only a state the test had already seen matches, not the current one: the
+        // wait proves nothing (Sift, after B1)
+        const last = states.length - 1
+        if (name == 'waitForState' && (strict ?? core.strict) && i < last && i < seenAt && !test(last))
+          raise('SYG510', compName, `t.waitForState() resolved at once with t.states[${i}], a state from before the last awaited input; the current state (t.states[${last}]) doesn't match the predicate, so the wait proves nothing about now`,
+            `Assert the current state: expect(t.state).toMatchObject(…), or wait for a new one: await t.next(pred). waitForState searches the history, so it matches a condition that was true earlier`, {index: i, current: last})
+        return found(i)
+      }
       stateStream.addListener(listener);
     });
 

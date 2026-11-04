@@ -13,6 +13,12 @@
  * G-316: the mount state lives in one object the placeholder's successive
  * vnodes share (`_p`, handed on by postpatch), so a late-target retry mounts the latest children
  * once, and a removal cancels a pending retry. `_portalVnode` stays on the current vnode (testing).
+ * Sift #4: events from the content bubble to the placeholder, through the components around it
+ * (as React's portals): the anchor's home (`__sygnalHome`, IsolateModule's upOf) is the
+ * placeholder, the app's DOM driver listens on the anchor too, and the content is patched with
+ * that driver's isolate module (the components inside keep their scopes). The driver is asked
+ * through pokeDOM; with none (a driver without it, a root replaced in the same patch) it is
+ * patched with the default modules, its events unheard, as before.
  */
 import {posts} from '../registry'
 import {init as snabbdomInit} from '../../cycle/dom/snabbdom'
@@ -21,18 +27,24 @@ import {pokeDOM, flat} from '../../cycle/dom/utils'
 import {warn} from '../../extra/diagnostics/legacy'
 
 let patch: any
+// a patch function per app (its DOM driver's isolate module)
+const patches = new WeakMap<any, any>()
 const notFound = (target: string) => warn('SYG417', 'Portal', `Target '${target}' not found; content not rendered`, 'Render the target first')
 // (fragments among the children are flattened, as the DOM driver does)
 const box = (children: any[]) => flat({sel: 'div', data: {}, children, text: undefined, elm: undefined, key: undefined})
 
-interface PortalState { v: any; kids: any[]; pv: any; c: any; t: any; dead: boolean }
+interface PortalState { v: any; kids: any[]; pv: any; c: any; t: any; dead: boolean; p: any; m: any }
 
 function mount(st: PortalState, target: string): boolean {
   const container = document.querySelector(target)
   if (!container) return false
-  const anchor = document.createElement('div')
+  const anchor: any = document.createElement('div'), q: any = {}
   container.appendChild(anchor)
-  st.pv = st.v.data._portalVnode = (patch ||= snabbdomInit(defaultModules))(anchor, box(st.kids))
+  if (st.v.elm) pokeDOM(anchor.__sygnalHome = st.v.elm, q)
+  const m = st.m = q.m
+  st.p = m ? patches.get(m) || (patches.set(m, snabbdomInit([m.createModule(), ...defaultModules])), patches.get(m)) : patch ||= snabbdomInit(defaultModules)
+  st.pv = st.v.data._portalVnode = st.p(anchor, box(st.kids))
+  m?.portal(anchor, true)
   st.c = st.v.data._portalContainer = container
   // ui-sweep R4: the placeholder names its content, so ELEMENT commands and sygnal/ui parts find
   // elements the component renders into the portal (extra/elementCommands.ts, ui/shared.ts)
@@ -42,7 +54,7 @@ function mount(st: PortalState, target: string): boolean {
 
 /** mount the portal's children into its target (retried while the target isn't rendered yet) */
 function start(vnode: any, target: string, kids: any[]) {
-  const st: PortalState = vnode.data._p = {v: vnode, kids, pv: null, c: null, t: 0, dead: false}
+  const st: PortalState = vnode.data._p = {v: vnode, kids, pv: null, c: null, t: 0, dead: false, p: null, m: null}
   let attempts = 0
   const tryMount = () => {
     st.t = 0
@@ -76,9 +88,9 @@ export function portalPlaceholder(target: string, children: any[]): any {
           st.kids = newVnode.data?.portalChildren || []
           // not mounted yet: the pending retry mounts these children
           if (!st.pv) return
-          st.pv = newVnode.data._portalVnode = patch(st.pv, box(st.kids))
+          st.pv = newVnode.data._portalVnode = st.p(st.pv, box(st.kids))
           newVnode.data._portalContainer = st.c
-          if (newVnode.elm) newVnode.elm.__portal = st.pv.elm
+          if (newVnode.elm) newVnode.elm.__portal = st.pv.elm, st.pv.elm.__sygnalHome = newVnode.elm
         },
         destroy: (vnode: any) => {
           const st: PortalState | undefined = vnode.data?._p
@@ -87,7 +99,7 @@ export function portalPlaceholder(target: string, children: any[]): any {
           clearTimeout(st.t)
           const el = st.pv?.elm
           // G-359: patched to empty first, so the content's destroy hooks run (a widget unmounts)
-          if (el) patch(st.pv, box([])), el.remove()
+          if (el) st.p(st.pv, box([])), el.remove(), st.m?.portal(el, false)
         },
       },
     },

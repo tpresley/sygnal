@@ -40,6 +40,7 @@ import bagContextField from './syg458-bag-context-field.js'
 import behaviorBagState from './syg459-behavior-bag-state.js'
 import emptyStateKey from './syg410-empty-state-key.js'
 import selectorInView from './syg110-selector-in-view.js'
+import domPropCase from './syg107-dom-prop-case.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
 import collectionFrom from './syg401-collection-from.js'
 import missingExport from './syg427-missing-export.js'
@@ -83,6 +84,7 @@ export const coreRules = [
   switchableStateMap, // SYG429 (PLAN-13 F-3): a Switchable state map key that names no page
   outlet, // SYG455/456/457 (wizard spike): an <Outlet from> naming no wizard; steps and of keys that don't match
   bagContextField, // SYG458 (7.2): a declaration static reads a context field off its bag (with --fix)
+  domPropCase, // SYG107 (7.2, Sift preview.5): a DOM property name in the wrong case on an HTML element (with --fix)
   behaviorBagState, // SYG459 (7.2, N6): a wizard / form option reads a host-state field off its bag (with --fix)
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,

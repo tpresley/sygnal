@@ -124,7 +124,7 @@ export function pointerRouter(pick: Pick, root: any, opts: RouterOptions = {}): 
   let cap: {el: any, id: any, n?: number[], p?: number[], last?: number[], moved: number} | null = null
   // the HTML drag: source, started, element under the pointer, its last dragover canceled, dataTransfer
   let drag: {src: any, on: boolean, over: any, ok: boolean, dt: any} | null = null
-  const prop = (el: any, k: string) => { const v = opts.prop?.(el, k); return v === false || v == null ? undefined : v }
+  const prop = (el: any, k: string) => { const v = opts.prop?.(el, k); return v === false || v === 'false' || v == null ? undefined : v }
   const closest = (el: any, k: string) => chain(el, root).find(e => prop(e, k) !== undefined)
   // the nearest common ancestor of a press's and a release's targets (the background when one was it)
   const common = (a: any, b: any) => { const cb = chain(b, root); return chain(a, root).find(e => cb.includes(e)) || (a === root || b === root ? root : undefined) }

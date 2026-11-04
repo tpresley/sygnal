@@ -882,6 +882,57 @@ describe('Sift pass 3: N1, N2, N4', () => {
   })
 })
 
+describe("Sift Phase A: Start over's first step visit comes from the route it lands on", () => {
+  const router = makeRouter({ routes: { first: '/flow', step: '/flow/:step', home: '/', notFound: '*' } })
+  const inW = (r) => r?.name === 'first' || r?.name === 'step'
+  function A() { return h('div', null, h('h2', null, 'a'), h('button', { className: 'two' })) }
+  A.intent = ({ DOM }) => ({ TWO: DOM.click('.two') })
+  A.model = { TWO: { PARENT: () => ({ wizard: 'GOTO', step: 'b', key: '2' }) } }
+  function B() { return h('div', null, h('h2', null, 'b'), h('button', { className: 'restart' }), h('button', { className: 'restart-d' })) }
+  B.intent = ({ DOM }) => ({ RS: DOM.click('.restart'), RSD: DOM.click('.restart-d') })
+  B.model = { RS: { PARENT: () => ({ wizard: 'RESET' }) }, RSD: { PARENT: () => ({ wizard: 'RESET', draft: { r: 'given' } }) } }
+  function App({ state }) { return inW(state.route) ? h(H, { state: 'flow' }) : h('p', null, 'home') }
+  App.route = 'ROUTE'
+  App.initialState = { route: router.current('/'), flow: {} }
+  App.model = { ROUTE: (s, route) => ({ ...s, route, flow: { ...s.flow, route } }) }
+  function H() { return h(Outlet, { of: { a: A, b: B }, from: 'wizard', focus: false }) }
+  H.uses = {
+    wizard: wizard({
+      // a step that keys its slice on the route (Sift's Define on the bound filter)
+      steps: { a: { visit: (_w, B) => ({ for: B.state.route?.query?.k ?? null }) }, b: { visit: (_w, B) => ({ for: B.state.route?.query?.k ?? null }) } },
+      draft: (st) => ({ r: st.route?.query?.r ?? null }),
+      key: (st) => inW(st.route) ? st.route.query.k ?? null : undefined,
+      url: { route: 'step', param: 'step', key: 'k', from: (s) => s.route?.name === 'first' ? { ...s.route, name: 'step', params: { step: 'a' } } : s.route },
+      resetTo: { to: 'first' },
+    }),
+  }
+
+  it('a plain RESET: the draft and the first step\'s scratch from the landed route', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/b?k=1&r=R' })
+    await t.ready(); await tick(40)
+    expect(t.state.flow.wizard.local.b).toEqual({ for: '1' })
+    await click('.restart'); await tick(60)
+    expect(t.location.path).toBe('/flow')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'a', key: null, draft: { r: null }, reseed: null, local: { a: { for: null } } })
+  })
+
+  it('a RESET with a draft: that draft kept, the scratch from the landed route', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/b?k=1&r=R' })
+    await t.ready(); await tick(40)
+    await click('.restart-d'); await tick(60)
+    expect(t.location.path).toBe('/flow')
+    expect(t.state.flow.wizard).toMatchObject({ step: 'a', key: null, draft: { r: 'given' }, reseed: null, local: { a: { for: null } } })
+  })
+
+  it('a GOTO with a new key: the step entered gets its scratch on the route of that key', async () => {
+    t = renderComponent(App, { dom: 'real', router, url: '/flow/a?k=1' })
+    await t.ready(); await tick(40)
+    await click('.two'); await tick(60)
+    expect(t.location.query).toEqual({ k: '2' })
+    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '2', reseed: null, local: { b: { for: '2' } } })
+  })
+})
+
 describe('testing a step alone', () => {
   it("its wizard messages are in t.sent('PARENT') (and t.sinkValues('PARENT'))", async () => {
     function Step() { return h('button', { className: 'go' }, 'Next') }
@@ -1009,6 +1060,31 @@ describe("restart: entering a finished flow ('outcome', the default) or any flow
     expect(step()).toBe('b')
   })
 
+  it("'entry': Back and Forward from another page resume the flow, the outcome included (ROUTER.navigation() 'traverse')", async () => {
+    t = renderComponent(app('entry'), { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(40)
+    await go('/flow?door=x')
+    t.query('.next').click(); await tick(40)
+    expect(step()).toBe('b')
+    await go('/')
+    await t.back(); await tick(60)
+    expect(t.location.path).toBe('/flow/b')
+    expect(step()).toBe('b')
+    expect(t.state.flow.wizard.draft.door).toBe('x')
+    t.query('.finish').click(); await tick(60)
+    expect(step()).toBe('done')
+    await go('/')
+    await t.back(); await tick(60)
+    expect(t.location.path).toBe('/flow/done')
+    expect(step()).toBe('done')
+    expect(t.query('.done')).toBeTruthy()
+    // a link in again starts over
+    await go('/')
+    await go('/flow?door=y')
+    expect(step()).toBe('a')
+    expect(t.state.flow.wizard.draft.door).toBe('y')
+  })
+
   it("'entry': any entry from another page starts a new flow, with the draft from the route entered; a reload resumes", async () => {
     t = renderComponent(app('entry'), { dom: 'real', router, url: '/' })
     await t.ready(); await tick(40)
@@ -1029,3 +1105,27 @@ describe("restart: entering a finished flow ('outcome', the default) or any flow
     expect(t.state.flow.wizard.draft.door).toBe('x')
   })
 })
+
+describe('ROUTER.navigation(): how the current route was reached', () => {
+  it("'load', then 'push' for a link or command, 'replace', and 'traverse' for Back / Forward", async () => {
+    const router = makeRouter({ routes: { home: '/', a: '/a', b: '/b', notFound: '*' } })
+    const seen = []
+    function App({ state }) { return h('p', null, state.route.name) }
+    App.route = 'ROUTE'
+    App.initialState = { route: router.current('/') }
+    App.model = { ROUTE: (s, route) => ({ ...s, route }) }
+    let src
+    App.intent = (sources) => { src = sources.ROUTER; return {} }
+    t = renderComponent(App, { dom: 'real', router, url: '/' })
+    await t.ready(); await tick(20)
+    seen.push(src.navigation())
+    await t.navigate('/a'); await tick(20)
+    seen.push(src.navigation())
+    await t.navigate({ to: 'b', replace: true }); await tick(20)
+    seen.push(src.navigation())
+    await t.back(); await tick(40)
+    seen.push(src.navigation())
+    expect(seen).toEqual(['load', 'push', 'replace', 'traverse'])
+  })
+})
+
