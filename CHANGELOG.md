@@ -22,6 +22,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Fixed: `spellcheck="false"` turned spell checking on** (the Sift console port). React DOM's booleanish string attributes, `spellcheck`, `draggable` and `contenteditable` (any case: `spellCheck`, `contentEditable`), are now attributes, as in React: `"false"` and `false` are written as `"false"`, `true` as `"true"`, `null` removes it. As properties, the string `"false"` was `true`, and a lowercase `contenteditable` was ignored. The default mock DOM (`renderComponent` without `dom: 'real'`) now shows them in `t.html()` / `outerHTML`; sygnal/host gets the same attributes, and on sygnal/three and sygnal/canvas elements `draggable="false"` is not a drag source.
 
+**Fixed: sygnal-check follows helpers in SYG102, SYG110 and SYG702** (from the Sift console port, which inlined literals to get past them). SYG102 counts the timer actions in a helper's map spread into `timers` (`timers: () => ({ ...pollers(), … })`), `ok` / `error` names a helper returns (`ok: replyOf('GOT')`, `NAMES.ok`, `names().ok`), and the replies of a shared entry object (`FETCH: loadEntry`, or `FETCH: fetching('GOT')` made by a helper; before, such an entry was read as a reducer and its replies were reported unreachable). SYG110 follows a class passed to a view helper (`row({ className: 'pick' })`). SYG702 accepts a field passed to a view helper that wraps it in a `<label>` (`field('Name', <input />)`). Same-module and imported helpers; one the checker can't follow stays info or silent, as before.
+
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 **Fixed (from the Sift console port's Phase A lanes):**

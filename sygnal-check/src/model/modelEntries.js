@@ -3,7 +3,7 @@
  * targets, EVENTS types returned from EVENTS sinks, and the action names of
  * reply actions of requests (`{ url, ok: 'LOADED', error: 'FAILED' }`, PLAN-3).
  */
-import { walk, unwrap, isFunction, propName, stringValue } from '../ast.js'
+import { walk, unwrap, isFunction, propName, stringValue, memberName } from '../ast.js'
 import { findBinding } from '../scope.js'
 import { resolveExpr } from './resolve.js'
 import { returnedExpressions } from './intent.js'
@@ -179,7 +179,9 @@ const FALSY_LITERAL = (e) => e.type === 'NullLiteral' || e.type === 'BooleanLite
 
 /**
  * The action names a reply key's value can be: string literals through ?:, && and ||/??,
- * a helper's parameter bound to the call's argument (bind), and a const string.
+ * a helper's parameter bound to the call's argument (bind), a const string, what a helper
+ * returns (`ok: replyOf('GOT')`, its parameters bound), and a key of a const object or of a
+ * helper's returned object (`ok: NAMES.loaded`, `ok: names('item').ok`).
  * `false` / `null` / `undefined` (and `true`) name nothing.
  * @returns {{ names: Array<{ name, node, file }>, dynamic: Array<{ node, file }> }}
  */
@@ -209,7 +211,58 @@ export function literalNames(project, file, node, bind = null, out = { names: []
     const x = resolveExpr(project, file, e)
     if (x?.node && x.node !== e && !isFunction(x.node) && x.node.type !== 'ObjectExpression') return literalNames(project, x.file, x.node, null, out, depth + 1)
   }
+  if (e.type === 'CallExpression' && unwrap(e.callee).type === 'Identifier') {
+    const h = resolveExpr(project, file, e.callee)
+    if (h?.node && isFunction(h.node) && returnedExpressions(h.node).length) {
+      const b = bindArgs(h.node, h.file, e, file, bind)
+      for (const r of returnedExpressions(h.node)) literalNames(project, h.file, r, b, out, depth + 1)
+      return out
+    }
+  }
+  if (e.type === 'MemberExpression' && memberName(e) != null) {
+    const v = memberValue(project, file, e, bind, depth)
+    if (v) {
+      for (const x of v) literalNames(project, x.file, x.node, x.bind, out, depth + 1)
+      return out
+    }
+  }
   out.dynamic.push({ node: e, file })
+  return out
+}
+
+/**
+ * `OBJ.key` / `helper().key`: the property's value in each object the object part can be (a
+ * const object literal, a helper's returned object literals), or null when one of them has no
+ * such key in sight (a spread, a computed key, a value the checker can't read).
+ * @returns {Array<{ node, file, bind }> | null}
+ */
+function memberValue(project, file, e, bind, depth) {
+  const key = memberName(e)
+  let objs
+  const o = unwrap(e.object)
+  if (o.type === 'Identifier' && !bind?.has(o.name)) {
+    const x = resolveExpr(project, file, o)
+    objs = x?.node?.type === 'ObjectExpression' ? [{ node: x.node, file: x.file, bind: null }] : null
+  } else if (o.type === 'CallExpression' && unwrap(o.callee).type === 'Identifier' && depth < 6) {
+    const h = resolveExpr(project, file, o.callee)
+    if (!h?.node || !isFunction(h.node)) return null
+    const b = bindArgs(h.node, h.file, o, file, bind)
+    objs = []
+    for (const r of returnedExpressions(h.node)) {
+      const ro = unwrap(r)
+      if (ro?.type !== 'ObjectExpression') return null
+      objs.push({ node: ro, file: h.file, bind: b })
+    }
+  }
+  if (!objs?.length) return null
+  const out = []
+  for (const obj of objs) {
+    const props = obj.node.properties
+    const i = props.findIndex(x => x.type === 'ObjectProperty' && propName(x) === key)
+    // (a later spread may override it)
+    if (i < 0 || props.slice(i + 1).some(x => x.type === 'SpreadElement')) return null
+    out.push({ node: props[i].value, file: obj.file, bind: obj.bind })
+  }
   return out
 }
 
@@ -246,13 +299,13 @@ export const customReplyKeys = (project, sink) => {
 /** keys that make an object with an unresolvable spread a request */
 const REQUEST_KEYS = new Set(['url', 'messages', 'key', 'latest', 'method', 'body', 'query', 'headers', 'stream', 'path', 'href'])
 
-export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null) {
+export function replyNames(project, file, valueNode, keys = REPLY_KEYS, sink = null, valueBind = null) {
   const out = { targets: [], dynamic: [], candidates: [] }
   const custom = customReplyKeys(project, sink)
   // a helper's object can be reached twice (its own return and as a spread / options argument)
   const seenNodes = new Set()
   const once = (n) => !seenNodes.has(n) && !!seenNodes.add(n)
-  for (const { node: obj, file: f, bind } of returnedObjects(project, file, valueNode)) {
+  for (const { node: obj, file: f, bind } of returnedObjects(project, file, valueNode, 0, new Set(), valueBind)) {
     let k = keys !== REPLY_KEYS ? keys : isLlmRequest(obj, sink) ? new Set([...keys, ...LLM_REPLY_KEYS]) : HTTP_REPLY_KEYS
     if (custom.length) k = new Set([...k, ...custom])
     const { props, dynamic } = requestProps(project, obj, f, bind)
@@ -334,6 +387,26 @@ export function connectionNames(project, file, node, keys = CONNECTION_KEYS) {
 }
 
 /**
+ * The entry object a model entry's value holds when it isn't written in place: a const object
+ * (`FETCH: loadEntry`, same module or imported) or a helper call returning one object literal
+ * (`FETCH: fetching('GOT')`). null otherwise (a reducer, or a value the checker can't read).
+ */
+function entryObject(project, file, value) {
+  if (isFunction(value)) return null
+  const v = unwrap(value)
+  if (v?.type === 'Identifier' || v?.type === 'MemberExpression') {
+    const x = resolveExpr(project, file, v)
+    return x?.node?.type === 'ObjectExpression' ? x : null
+  }
+  if (v?.type !== 'CallExpression' || unwrap(v.callee).type !== 'Identifier') return null
+  const h = resolveExpr(project, file, v.callee)
+  if (!h?.node || !isFunction(h.node)) return null
+  const rets = returnedExpressions(h.node).map(unwrap)
+  // (bind: the helper's parameters, for the reply names its requests take from them)
+  return rets.length === 1 && rets[0]?.type === 'ObjectExpression' ? { node: rets[0], file: h.file, bind: bindArgs(h.node, h.file, v, file, null) } : null
+}
+
+/**
  * @returns {{
  *   known: boolean,
  *   entries: Array<{ action, sinks: string[], node, key, shorthand,
@@ -365,18 +438,18 @@ export function analyzeModel(project, file, modelNode) {
   if (!obj || obj.type !== 'ObjectExpression') { res.known = false; return res }
   const mfile = r.file
 
-  const addEvents = (valueNode) => {
-    const t = eventSinkTypes(project, mfile, valueNode)
+  const addEvents = (valueNode, vfile = mfile) => {
+    const t = eventSinkTypes(project, vfile, valueNode)
     res.eventsEmitted.push(...t.types)
     res.eventsDynamic.push(...t.dynamic)
   }
-  const addReplies = (action, sink, valueNode) => {
+  const addReplies = (action, sink, valueNode, vfile = mfile, bind = null) => {
     if (NON_REPLY_SINKS.has(sink)) return
-    const t = replyNames(project, mfile, valueNode, REPLY_KEYS, sink)
+    const t = replyNames(project, vfile, valueNode, REPLY_KEYS, sink, bind)
     res.replyTargets.push(...t.targets.map(x => ({ ...x, sink, action })))
     res.replyDynamic.push(...t.dynamic)
     res.replyCandidates.push(...t.candidates.map(x => ({ ...x, sink, action })))
-    res.requests.push(...returnedObjects(project, mfile, valueNode).filter((o, i, all) => all.findIndex(x => x.node === o.node) === i).map(o => ({ ...o, sink, action })))
+    res.requests.push(...returnedObjects(project, vfile, valueNode).filter((o, i, all) => all.findIndex(x => x.node === o.node) === i).map(o => ({ ...o, sink, action })))
   }
 
   for (const p of obj.properties) {
@@ -384,7 +457,11 @@ export function analyzeModel(project, file, modelNode) {
     const key = propName(p)
     if (key == null) { res.known = false; if (p.computed) res.computed.push({ node: p.key, file: mfile }); continue }
     const { action, sink, shorthand } = splitModelKey(key)
-    const value = p.type === 'ObjectMethod' ? p : unwrap(p.value)
+    let value = p.type === 'ObjectMethod' ? p : unwrap(p.value)
+    // an entry object shared through a const or made by a helper (`FETCH: loadEntry`)
+    const shared = !shorthand && value && value.type !== 'ObjectExpression' ? entryObject(project, mfile, value) : null
+    const vfile = shared?.file || mfile
+    if (shared) value = shared.node
     let sinks
     // PLAN-10 A-7: the STATE reducer (and a behavior's HOST reducer), for the writes analysis
     let stateValue = null, hostValue = null
@@ -402,11 +479,11 @@ export function analyzeModel(project, file, modelNode) {
         if (!sname) continue
         sinks.push(sname)
         const sval = sp.type === 'ObjectMethod' ? sp : sp.value
-        if (sname === 'STATE') stateValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile }
-        if (sname === 'HOST') hostValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: mfile }
-        if (sname === 'EVENTS') addEvents(sval)
-        addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value))
-        res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), keyNode: sp.key, file: mfile })
+        if (sname === 'STATE') stateValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: vfile }
+        if (sname === 'HOST') hostValue = { node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), file: vfile }
+        if (sname === 'EVENTS') addEvents(sval, vfile)
+        addReplies(action, sname, sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), vfile, shared?.bind)
+        res.sinkValues.push({ action, sink: sname, node: sp.type === 'ObjectMethod' ? sp : unwrap(sp.value), keyNode: sp.key, file: vfile })
       }
     } else {
       sinks = ['STATE']

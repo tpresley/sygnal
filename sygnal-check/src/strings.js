@@ -38,8 +38,41 @@ function union(...lists) {
 }
 
 /**
+ * A view helper's parameter bound to the call's argument (SYG110: `row({ className: 'pick' })`
+ * with `const row = ({ className }) => <li className={className} />`): `ctx.bind` is
+ * { fn, params: Map<name, { node, file, bind }>, outer } (model/view.js bindViewParams), and a
+ * bound parameter evaluates as its argument, in the caller's file.
+ * @returns {{ node, file, bind } | null}
+ */
+export function boundParam(bind, fn, name) {
+  for (let b = bind; b; b = b.outer) if (b.fn === fn) return b.params.get(name) || null
+  return null
+}
+
+// `props.className` with `props` bound to an object literal argument: that property's value
+// (an absent key is undefined; null when a spread might hold it)
+function boundMember(node, ctx) {
+  const obj = unwrap(node.object)
+  if (obj?.type !== 'Identifier' || !ctx?.bind || !ctx.fileInfo) return null
+  const b = findBinding(ctx.fileInfo, obj.name, obj)
+  const a = b?.kind === 'param' ? boundParam(ctx.bind, b.node, obj.name) : null
+  const arg = unwrap(a?.node)
+  const key = memberName(node)
+  if (arg?.type !== 'ObjectExpression' || key == null) return null
+  const p = arg.properties.find(x => x.type === 'ObjectProperty' && propName(x) === key)
+  if (p) return { node: p.value, file: a.file, bind: a.bind }
+  return arg.properties.some(x => x.type !== 'ObjectProperty') ? null : { node: UNDEFINED, file: a.file, bind: null }
+}
+
+/** a synthetic `undefined` (a destructured key the argument doesn't pass) */
+export const UNDEFINED = { type: 'Identifier', name: 'undefined' }
+
+const argCtx = (a) => ({ fileInfo: a.file, bind: a.bind })
+
+/**
  * @param node   expression
- * @param ctx    { fileInfo } — used to resolve identifiers to their const initializer
+ * @param ctx    { fileInfo, bind? } — used to resolve identifiers to their const initializer
+ *               (and bound helper parameters to their arguments)
  */
 export function evalStrings(node, ctx, depth = 0) {
   node = unwrap(node)
@@ -68,7 +101,13 @@ export function evalStrings(node, ctx, depth = 0) {
       if (node.name === 'undefined') return ['']
       const b = ctx?.fileInfo && findBinding(ctx.fileInfo, node.name, node)
       if (b && b.kind === 'var' && b.init) return evalStrings(b.init, ctx, depth + 1)
+      const a = b?.kind === 'param' && boundParam(ctx.bind, b.node, node.name)
+      if (a) return evalStrings(a.node, argCtx(a), depth + 1)
       return [DYN]
+    }
+    case 'MemberExpression': {
+      const a = boundMember(node, ctx)
+      return a ? evalStrings(a.node, argCtx(a), depth + 1) : [DYN]
     }
     case 'ArrayExpression':
       return [classTokens(node.elements, ctx, depth + 1).join(' ')]
@@ -135,6 +174,8 @@ export function classTokens(args, ctx, depth = 0) {
         out.push(...classTokens([init], ctx, depth + 1))
         continue
       }
+      const p = b?.kind === 'param' && depth < MAX_DEPTH && boundParam(ctx.bind, b.node, a.name)
+      if (p) { out.push(...classTokens([p.node], argCtx(p), depth + 1)); continue }
     }
     out.push(...evalStrings(a, ctx, depth + 1))
   }
@@ -191,6 +232,10 @@ export function tokenSites(expr, ctx, depth = 0, out = []) {
     words(n, raw.slice(1, -1), n.start + 1)
   }
   const sub = (n) => tokenSites(n, ctx, depth + 1, out)
+  // a bound parameter's sites are in the caller's file (each site carries it)
+  const argSites = (a) => {
+    for (const s of tokenSites(a.node, argCtx(a), depth + 1)) out.push(s.file ? s : { ...s, file: a.file })
+  }
   switch (node.type) {
     case 'StringLiteral': literal(node); break
     case 'TemplateLiteral':
@@ -206,6 +251,13 @@ export function tokenSites(expr, ctx, depth = 0, out = []) {
     case 'Identifier': {
       const b = ctx?.fileInfo && findBinding(ctx.fileInfo, node.name, node)
       if (b && b.kind === 'var' && b.init) sub(b.init)
+      const a = b?.kind === 'param' && boundParam(ctx.bind, b.node, node.name)
+      if (a) argSites(a)
+      break
+    }
+    case 'MemberExpression': {
+      const a = boundMember(node, ctx)
+      if (a) argSites(a)
       break
     }
     case 'ArrayExpression': for (const e of node.elements) if (e && e.type !== 'SpreadElement') sub(e); break
