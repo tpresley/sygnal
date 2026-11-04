@@ -17,7 +17,7 @@
  * One finding per component and field, at the first read.
  */
 import { renderGraph } from '../model/renderGraph.js'
-import { contextReads } from '../model/context.js'
+import { contextReads, modelContextReads } from '../model/context.js'
 import { closestName } from '../names.js'
 
 /** true / false, or null when the unit's `.context` can't be read */
@@ -39,7 +39,8 @@ export default {
     for (const u of [...g.units]) {
       const reads = []
       for (const r of (u.viewOnly ? contextReads(u.view) : u.contextConsumed) || []) reads.push({ ...r, file: u.file })
-      for (const r of u.contextReadsModel || []) reads.push(r)
+      // (a declaration static's top-level bag key counts only when it names a declared context key: 7.2)
+      if (!u.viewOnly) for (const r of modelContextReads(project, u)) reads.push(r)
       if (!reads.length) continue
 
       // everything above u; open when a way up leaves what the checker sees

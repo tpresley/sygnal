@@ -456,7 +456,7 @@ export class App {
         // G-312: a wrapping layer that returns nothing keeps what the layers below gave
         H[k] = !b ? a
           : k == 'wrapHandler' ? (i: any, t: any, s: any, f: any) => { const x = b(i, t, s, f) || f; return a(i, t, s, x) || x }
-          : k == 'wrapSources' ? (i: any, s: any) => { const x = b(i, s) || s; return a(i, x) || x }
+          : k == 'wrapSources' || k == 'wrapBag' ? (i: any, s: any, c: any) => { const x = b(i, s, c) || s; return a(i, x, c) || x }
           : k == 'transformDef' ? (src: any, v: any) => { const x = b(src, v) || src; return a(x, v) || x }
           // false from either layer: onElementCommand (not run), onAction (dropped)
           : (...args: any[]) => { const x = b(...args); return a(...args) === false || x === false ? false : undefined }

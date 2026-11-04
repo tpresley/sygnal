@@ -26,7 +26,7 @@
  *     calculatedEntries, contextEntries: Map<key, { node, keyNode, file }> | null   (PLAN-7 N-1:
  *                                      the same keys with their nodes; null when unknown)
  *     contextConsumed: [{ name, node }] | null   the context reads of the view (model/context.js)
- *     contextReadsModel: [{ name, node, file }]  the context reads of the model's handlers and statics
+ *     contextReadsModel: [{ name, node, file, legacy? }]  the context reads of the model's handlers and statics
  *     connections: { targets, dynamic } | null  (action names in a `connections`, `resources`,
  *                                                `route` or `timers` static: reply actions)
  *     timers: TimersInfo | null        (model/timers.js: the `timers` static, PLAN-4 GS-7)
@@ -382,7 +382,7 @@ export class Project {
     if (comp.view) comp.viewInfo = this.viewOf({ file, node: comp.view })
     // PLAN-7 N-1: the context entries the view and the reducers read (--graph contextConsumes: the view's)
     comp.contextConsumed = comp.view ? contextReads(comp.view) : null
-    // (PLAN-13 F-1: and the declaration statics' context parameter)
+    // (PLAN-13 F-1: and the declaration statics' second parameter, the bag since 7.2; legacy reads: its top-level keys)
     comp.contextReadsModel = [...(sp.model ? reducerContextReads(this, file, sp.model) : []), ...staticContextReads(this, file, sp)]
     // PLAN-4 GS-2: the ELEMENT commands its model sends (literal command objects)
     comp.commands = analyzeCommands(this, comp)

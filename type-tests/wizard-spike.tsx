@@ -46,7 +46,7 @@ export const typed = wizard<Draft, Host, { define: DefineState; review: ReviewSt
     define: { valid: (s) => s.words !== '' && s.draft.title !== '', visit: { busy: false } },
     review: { visit: { creating: false } },
   },
-  dirty: (s, h, step) => step === 'define' && !!s.draft.title && h.session !== '',
+  dirty: (s, step, { state: h }) => step === 'define' && !!s.draft.title && h.session !== '',
 })
 export const typed2 = wizard<Draft, Host, { define: DefineState }>({
   // @ts-expect-error a step LOCAL doesn't name
@@ -63,21 +63,21 @@ Define.initialState = { words: '', busy: false }
 // @ts-expect-error initialState is the step's own slice
 Define.initialState = { words: '', busy: false, draft: { title: '' }, extra: 1 }
 
-// the decided API: predicates (step, state), per-step dirty / discard, a label function, draftKey,
+// the decided API: predicates (step, bag) (7.2; bag.state: the host state), per-step dirty / discard, a label function, draftKey,
 // resetTo, PARENT messages, Outlet fallback
 import type { WizardMessage } from 'sygnal'
 export const decided = wizard<Draft, Host, { define: DefineState; review: ReviewState }, 'flow'>({
   draftKey: 'flow',
   steps: {
     define: {
-      label: (s, h) => s.words ? 'Define' : 'Define for ' + h.session,
-      valid: (s, h) => s.flow.title !== '' && h.session !== '',
+      label: (s, { state: h }) => s.words ? 'Define' : 'Define for ' + h.session,
+      valid: (s, { state: h }) => s.flow.title !== '' && h.session !== '',
       dirty: (s) => !!s.words,
       discard: (s) => ({ words: '', flow: { title: '' } }),
     },
     review: { when: (s) => !s.creating },
   },
-  resetTo: (w, h) => ({ to: 'home', query: { from: String(w.key ?? h.session) } }),
+  resetTo: (w, { state: h }) => ({ to: 'home', query: { from: String(w.key ?? h.session) } }),
 })
 export const msgs: WizardMessage[] = [{ wizard: 'NEXT' }, { wizard: 'GOTO', step: 'review' }, { wizard: 'RESET', draft: {} }]
 // @ts-expect-error GOTO needs a step
@@ -101,7 +101,7 @@ export const p3 = wizard<Draft, Host, { define: DefineState; analyze: {}; descri
   steps: {
     define: { dialog: { title: 'Discard what you typed?' } },
     analyze: { group: 'build' },
-    describe: { group: 'build', dialog: (s, h) => ({ title: 'Discard your reply in ' + h.session }) },
+    describe: { group: 'build', dialog: (s, { state: h }) => ({ title: 'Discard your reply in ' + h.session }) },
     created: { outcome: true },
   },
   groups: { build: { label: 'Build the filter' } },
@@ -138,7 +138,7 @@ Writer.intent = (sources: IntentSources<ReviewState>) => ({ START: sources.DOM.c
 // Sift pass 3: a DIALOG type for state.wizard.dialog; WizardStepComp<Own, Spec> with no middle undefined
 type Copy = { title: string; body?: string }
 export const typedDialog = wizard<Draft, Host, { define: DefineState }, 'draft', Copy>({
-  steps: { define: { dialog: (s, h) => ({ title: 'Discard ' + s.words + ' for ' + h.session }) } },
+  steps: { define: { dialog: (s, { state: h }) => ({ title: 'Discard ' + s.words + ' for ' + h.session }) } },
   dialog: { title: 'Leave?' },
 })
 // @ts-expect-error a dialog copy is a Copy
@@ -151,3 +151,13 @@ WithSpec.model = { START: (s) => ({ ...s, creating: true }) }
 // @ts-expect-error no draft with a spec only
 export const WithSpecNoDraft: WizardStepComp<ReviewState, { actions: ReviewActions }> = ({ state }) => <p>{state.draft}</p>
 export const DraftAndSpec: WizardStepComp<DefineState, { flow: Draft }, { actions: ReviewActions }> = ({ state }) => <p>{state.flow.title}</p>
+
+// 7.2 (the one bag): draft / key / url.from get (hostState, bag); the bag has the host's props, context, uid
+export const bagged = wizard<Draft, Host>({
+  steps: { source: { valid: (s, { state, uid }) => s.draft.title !== '' && state.session !== uid() } },
+  draft: (state, { context }) => ({ title: String(context?.title ?? state.session) }),
+  key: (state, bag) => bag.recordId ?? state.session,
+  url: { route: 'step', param: 'step', from: (state, { context }) => context?.route ?? state.route },
+  // @ts-expect-error the bag's state is the host state
+  dirty: (s, step, { state }) => state.nope,
+})

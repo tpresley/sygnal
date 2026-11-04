@@ -23,6 +23,45 @@ From the Sift console port: a failing test left its tree running, and `strict: t
 
 **Changed: `strict: true` fails the test on diagnostics it never read.** `t.dispose()`, the automatic dispose or `cleanup()` throws, listing them, when warnings or errors were collected and the test never read them through `t.expectNoDiagnostics()` or `t.diagnostics`. Before, `strict` only collected them. When the test has already failed, they are printed with `console.warn` instead, so its own error stays the one reported. Under Vitest, a `using` block hands this check to the end of the test, so the block's own error isn't wrapped in a `SuppressedError`.
 
+From the Sift port (a resource function couldn't see the component's props), generalized by the maintainer: **every function you write over state takes `(subject, …its own arguments, bag)`**, the bag being what the view gets, `{ ...props, state, context, uid }` (`bag.state`: the component's whole state; for a behavior's or a wizard step's function, the host's). Guide: `guide/state#what-every-function-gets`.
+
+**Changed**
+- **Declaration statics** (`resources`, `timers`, `connections`, `head`, `browser`, `route`) get `(state, bag)` instead of `(state, context)`, and are computed again when a prop changes (compared shallowly), as well as the state, the shown flag and the context. A child now reads its parent's id as a prop: `Tasks.resources = { list: (s, { projectId }) => … }`.
+  - **7.2 compatibility:** the context's own fields stay on the bag until 8.0, so `(s, { route })` keeps working; a prop or bag key of the same name wins. The dev entry warns on such a read, **SYG458** (a collision says the prop won). `sygnal-check` reports it too, and `--fix` rewrites `(s, { route })` → `(s, { context: { route } })`. 8.0 removes the compatibility read (BACKLOG-8.0 B8-2).
+  - `route`'s type said `(state)`; it was always called with a second argument and is now typed `(state, bag)`.
+- **Wizard (experimental):** the predicates and copy functions (`valid`, `when`, `label`, `dialog`, `visit`, a step's `discard`) get `(step, bag)` instead of `(step, hostState)`; `dirty` gets `(step, stepName, bag)` instead of `(step, hostState, stepName)`; `resetTo` and the wizard-level `discard` `(slice, bag)`; `draft`, `key` and `url.from` `(hostState, bag)`. Read the host state as `bag.state`. The bag is complete in the handlers; what the wizard watches in its intent (the key, the leave guard, the derived fields' sync, the route) has the host's props and state but no context or uid, and the read-time normalizer and the start slice have `state` only.
+
+**Added**
+- **`.context` entries** get `(state, bag)`, `bag.context` being the parent's context; a prop change recomputes the context.
+- **A behavior's `calculated`** gets `(slice, bag)` (`bag.state`: the host state holding the new slice; the start slice gets `{ state: undefined }`), and its `timers` `(slice, options, key, bag)`.
+- **`form()`:** the schema function, `values` and `dynamic` get `(hostState, bag)`; `request` gets `(data, hostState, bag)` (8.0 reorders it to `(hostState, data, bag)`, B8-3). `dynamic` and the schema function's sync in the intent get the props and the state.
+- **sygnal/ai:** an agent's `read`, `when` and `until` get `(state, bag)`, `queries.run` `(state, input, bag)` (cached by state, props and context), and `chat({ model })` `(hostState, bag)`.
+- **Types:** `ReadBag<State, Props, Context>` (a derivation's bag; `ReducerExtras` now extends it) and `DeclarationBag<State, Props, Context>` (a declaration static's, with the 7.2 context fields).
+- **Core hook** `wrapBag(inst, bag, context)` (the dev entry's SYG458 Proxy).
+
+**Unchanged, on purpose:** `calculated` fields, lenses and a behavior's read-time normalizer (they belong to the state cell, which instances with different props can share); a Collection's `filter` / `sort`, `estimateSize` and lens props (written in the view); `intent` (sources); `onError`.
+
+**Added: paged resources** (TanStack Query's `useInfiniteQuery`), in `guide/resources#infinite-list`. From the Sift port, whose infinite lists were built from one resource per page.
+
+- **A `resources` entry whose `url` is a function of the cursor owns its pages:** `feed: (state) => ({ url: (cursor) => ({ url: '/api/feed', query: { after: cursor } }), next: (page) => page.nextCursor })`. `state.feed.data` is `{ pages, cursors }` (each page's body, and the cursor it was fetched with), next to the usual `status`, `refreshing` and `error`, plus `hasMore`, `hasPrevious` and `loadingMore` (`'next'` / `'previous'`).
+- **`{ more: 'feed' }`** on the `HTTP` sink loads the next page; `{ more: 'feed', previous: true }` loads the page before the first (with `previous`). It is ignored while the resource is loading, before its first page, and when there is no such cursor (`null` / `undefined`).
+- **A refetch** (refresh, invalidation, `invalidateOn: 'settled'`, focus, polling) reloads the loaded pages from the first cursor. Each later cursor comes from the fresh page before it, the refetch stops early when a cursor comes back empty, and the pages are written once, at the end. New rows land at the head, not after the last page.
+- **Cached:** with a `queryCache()`, the pages are one entry (the first page's key + `' pages'`). A cached revisit shows them at once (`'success'`, `refreshing: true`) and refetches them; the old `ok`-accumulation recipe came back empty.
+- **Identity** is the first page's request, `url(initialCursor)`: a change (a filter in state, a prop) starts again at one page, as does `{ reset }`. A hidden Switchable page pauses it like a plain resource, and it refetches when shown again.
+- **`initialCursor`, `maxPages`** (drops the oldest), **`previous`.** The other fields (`tags`, `staleTime`, `validate`, `retry`, …) go on every page's request.
+- **Errors:** a failed page, whether loaded by `more` or by a refetch, keeps the pages shown (`'error'`); `{ more }` tries the failed page again.
+- **Tests:** each page is a request of the resource, so `t.respond('HTTP', body, 'feed')` answers it; `t.requests` doesn't list `{ more }` commands.
+- **Types:** `PagedRequest<Page, Cursor>`, `PagedResource<Page, Cursor>`, and the `{ more, previous? }` sink value.
+- **Not yet:** server rendering renders a paged resource as `'loading'` (no cache seeding for it).
+
+**Added: `invalidateOn: 'settled'` for `makeFetchDriver`**, in `guide/resources#invalidation`. From the Sift port, which added a manual invalidate to every save's error handler (13+ call sites) so a failed optimistic update didn't leave stale data.
+
+- **`invalidates` after a failure too.** `invalidateOn: 'settled'` on a request runs its `invalidates` after the final outcome, whatever it is: a 2xx, a non-2xx, a network error, a timeout or a `validate` failure (React Query's `onSettled`).
+- **Once, and not for an abort.** A retried request invalidates once, after its last attempt. A request superseded by `latest`, cancelled or disposed invalidates nothing.
+- **Order.** On a failure, the resource's error and the `error` action come first, then the invalidation, as on success.
+- **Driver default.** `makeFetchDriver({ invalidateOn: 'settled' })` (and `renderComponent(C, { http: { invalidateOn: 'settled' } })`) sets it for every request; a request's own `invalidateOn` wins. The default stays `'success'`.
+- **Types.** `invalidateOn?: FetchInvalidateOn` on `FetchRequest` and `FetchDriverOptions`. Like `invalidates`, it is a behaviour-only field: changing it on a resource refetches nothing.
+
 ## 7.2.0-preview.3 — dev preview
 
 From the Sift console port's hand-built wizards, after three stress-test passes (research and decisions: `dev-plans/research/wizard/`).

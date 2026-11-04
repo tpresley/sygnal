@@ -76,16 +76,16 @@ The `key` is the visit: a new key disposes the page (its `DISPOSE` runs, its req
 - Matching ignores a trailing slash and empty segments: `/tasks/2/` is the `task` route, and its `path` is `/tasks/2`. `href()` never adds a trailing slash.
 - A root that declares `route` needs an `initialState`, seeded with `router.current()` (SYG132). A sub-component can declare it too, with or without a model.
 
-Pages read the route from context, so their own state needs no copy of it. Provide it once at the root, and a page's [declaration statics](/guide/resources/) get it as their second argument, as views do:
+Pages read the route from context, so their own state needs no copy of it. Provide it once at the root, and a page's [declaration statics](/guide/resources/) read it from their second argument, the [bag](/guide/state/#what-every-function-gets), as views do:
 
 ```jsx
 App.context = { route: (state) => state.route }
 
 // TaskPage.jsx: a new id loads the new task; nothing about the route is in the page's state
-TaskPage.resources = { task: (state, { route }) => `/api/tasks/${route.params.id}` }
+TaskPage.resources = { task: (state, { context: { route } }) => `/api/tasks/${route.params.id}` }
 ```
 
-Every declaration static (`resources`, `timers`, `connections`, `head`, `browser`) gets `(state, context)` and is computed again when the component's context changes, as well as its state.
+Every declaration static (`resources`, `timers`, `connections`, `head`, `browser`, `route`) gets `(state, bag)`, the bag being what the view gets (`{ ...props, state, context, uid }`), and is computed again when the component's state, context or props change.
 
 ## Links
 

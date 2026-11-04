@@ -2,7 +2,7 @@
 // a ResourceRequest (a URL or a request) or falsy from STATE & CALCULATED; `{ refresh }` is an
 // HTTP sink value; Resource<T> narrows on status.
 import { ABORT, makeFetchDriver, renderComponent, queryCache, renderToString } from 'sygnal'
-import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike, QueryCache, QueryCacheSnapshot } from 'sygnal'
+import type { Component, RootComponent, FetchRequest, Resource, ResourceRequest, FetchCacheOptions, FakeCacheEntry, StandardSchemaLike, QueryCache, QueryCacheSnapshot, FetchInvalidateOn, PagedRequest, PagedResource } from 'sygnal'
 
 type Quote = { id: number; text: string; author: string }
 type QuoteState = { selected: number | null; quote: Resource<Quote> }
@@ -82,6 +82,9 @@ const writes: FetchRequest[] = [
   { invalidate: ['quotes', '/api/users'] },
   { invalidate: (req) => req.url.startsWith('/api') },
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', invalidates: ['quotes'] },
+  // invalidateOn: also after a failure (React Query's onSettled)
+  { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', error: 'FAILED', invalidates: ['quotes'], invalidateOn: 'settled' },
+  { url: '/api/quotes/1', method: 'PUT', json: {}, invalidates: ['quotes'], invalidateOn: 'success' },
   // 6-A (G-184): the reply written into resources
   { url: '/api/quotes/1', method: 'PUT', json: {}, ok: 'SAVED', updates: 'quote', invalidates: '/api/quotes' },
   { url: '/api/quotes/1', method: 'PUT', json: {}, updates: ['quote', 'other'] },
@@ -93,8 +96,50 @@ const writes: FetchRequest[] = [
 export { writes }
 // @ts-expect-error retry is a count or a policy
 makeFetchDriver({ retry: 'twice' })
+makeFetchDriver({ invalidateOn: 'settled' })
+const on: FetchInvalidateOn = 'success'
+export { on }
+// @ts-expect-error invalidateOn is 'success' or 'settled'
+makeFetchDriver({ invalidateOn: 'error' })
+// @ts-expect-error invalidateOn is 'success' or 'settled'
+const badOn: FetchRequest = { url: '/x', invalidates: 'quotes', invalidateOn: 'always' }
+export { badOn }
 const tc = renderComponent(App, { http: { cache: queryCache({ staleTime: 1000 }) } })
 const entries: FakeCacheEntry[] = tc.cache('HTTP')
 tc.focus()
 tc.online()
 export { entries }
+
+// 7.2: a paged resource (useInfiniteQuery): `url` from the cursor, `next` from the last page
+type FeedPage = { items: string[]; next?: string }
+type FeedState = { q: string; feed: PagedResource<FeedPage, string | undefined> }
+export const Feed: RootComponent<FeedState, { HTTP: FetchRequest }, { MORE: null; BACK: null }> = ({ state }) => {
+  const f = state.feed
+  const items: string[] = f.status === 'success' ? f.data.pages.flatMap((p) => p.items) : []
+  const cursors: Array<string | undefined> = f.data?.cursors ?? []
+  const more: boolean = f.hasMore && !f.loadingMore
+  const back: boolean = f.hasPrevious || f.loadingMore === 'previous'
+  return <ul>{items.map((i) => <li>{i}</li>)}{cursors.length}{more}{back}</ul>
+}
+Feed.initialState = { q: '', feed: { status: 'idle', hasMore: false, hasPrevious: false } }
+Feed.resources = {
+  feed: (state) => ({
+    url: (cursor: string | undefined) => ({ url: '/api/feed', query: { after: cursor, q: state.q } }),
+    next: (page: FeedPage) => page.next,
+    previous: (page: FeedPage, pages: FeedPage[], cursor: string | undefined) => cursor && undefined,
+    maxPages: 5,
+    tags: ['feed'],
+    staleTime: 10000,
+  }),
+}
+Feed.resources = { feed: (state) => state.q !== '' && { url: (c: number) => `/api/feed?page=${c}`, initialCursor: 1, next: (_p: any, pages: any[]) => pages.length + 1 } }
+Feed.model = { MORE: { HTTP: () => ({ more: 'feed' }) }, BACK: { HTTP: { more: 'feed', previous: true } } }
+const paged: PagedRequest<FeedPage, string> = { url: (c) => `/api/feed?after=${c}`, next: (p) => p.next }
+export { paged }
+// @ts-expect-error a paged request needs next
+const noNext: PagedRequest = { url: (c) => `/x?c=${c}` }
+// @ts-expect-error maxPages is a number
+const badMax: PagedRequest = { url: (c) => `/x?c=${c}`, next: () => undefined, maxPages: 'two' }
+// @ts-expect-error `more` names a resource
+const badMore: FetchRequest = { more: 3 }
+export { noNext, badMax, badMore }

@@ -146,7 +146,7 @@ export function normalize(view: ComponentFn, src: DefSource): CoreDef {
     handlers.set(key, list)
   }
   const c = normCalc(name, src.calculated, src.initialState)
-  let context: Array<[string, (s: any) => any]> | null = null
+  let context: Array<[string, (s: any, bag: any) => any]> | null = null
   if (src.context !== undefined && src.context !== null) {
     if (!isObj(src.context)) logError('SYG402', name, `context must be an object, got ${typeof src.context}; ignoring it`, 'Use context = { name: state => value }')
     else {

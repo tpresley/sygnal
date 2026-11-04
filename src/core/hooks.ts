@@ -56,7 +56,7 @@ export interface DefSource {
    */
   read?: Record<string, (value: any, state: any) => any> | null
   calculated: Record<string, any> | undefined
-  context: Record<string, (state: any) => any> | undefined
+  context: Record<string, (state: any, bag: any) => any> | undefined
   /** action -> behavior key, for action logs (`pager.NEXT` comes from `pager`) */
   behaviorActions: Record<string, string>
 }
@@ -75,7 +75,7 @@ export interface Def {
   readonly isolated: boolean
   /** calculated fields in topological order (SYG206 / SYG209 thrown at definition) */
   readonly calculated: ReadonlyArray<[field: string, fn: (s: any) => any, deps: string[] | null]> | null
-  readonly context: ReadonlyArray<[key: string, fn: (s: any) => any]> | null
+  readonly context: ReadonlyArray<[key: string, fn: (s: any, bag: any) => any]> | null
   /** the statics this definition declares that some driver takes (`__sygnalStatic`) */
   readonly statics: ReadonlyArray<string>
   readonly behaviorActions: Readonly<Record<string, string>>
@@ -204,6 +204,13 @@ export interface Hooks {
    * ...) comes here too, with `type` null
    */
   onSink?(inst: InstanceView, type: string | null, sink: string, value: any): void
+  /**
+   * 7.2: the bag a declaration static (`resources`, `timers`, ...) is called with, `{ ...context,
+   * ...props, state, context, uid }` (the context's own fields: the 7.2 compatibility read, until
+   * 8.0). Return a replacement (sygnal/diagnostics: a Proxy that warns when a context field is
+   * read off it, SYG458)
+   */
+  wrapBag?(inst: InstanceView, bag: any, context: any): any
   /**
    * R4 (04 §4 #3): a host's props when it is created and each time its owner re-renders it
    * (`sel`: the marker's, a Collection's or a VirtualCollection's), before it renders; the Collection checks (SYG401

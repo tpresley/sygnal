@@ -404,6 +404,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG456: 'Outlet has no component for the current name',
   // static only (sygnal-check rules/syg455-outlet.js)
   SYG457: 'Outlet of names no step of its wizard',
+  // 7.2 (the one bag): a declaration static's 2nd argument is the bag; context fields on it until 8.0
+  SYG458: 'Declaration reads a context field off its bag',
   // PLAN-9 H: chat client tools and ask (src/extra/ai/chat/behavior.ts, compose/ask.ts, compose/render.ts)
   SYG160: 'Result part rendered outside a card',
   SYG684: 'Client tool shadows an agent tool',
@@ -673,6 +675,7 @@ export const DEV_CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG455: 'error',
   SYG456: 'error',
   SYG457: 'warn',
+  SYG458: 'warn',
 }
 
 export function getCodeInfo(code: string): DiagnosticCodeInfo | undefined {

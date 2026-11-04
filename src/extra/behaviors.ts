@@ -15,7 +15,9 @@
  *   (that would replace the parent's slice, SYG405): state[key] reads as that default until the
  *   first write (the core's `_idle` defaults, as for resources).
  * - calculated: fields of the slice, stored on it (state.pager.offset), recomputed after every
- *   behavior reducer and after any host STATE reducer that changes state[key].
+ *   behavior reducer and after any host STATE reducer that changes state[key]. 7.2: `(slice, bag)`,
+ *   the bag the host's view gets (no children / slots) with `state` the host state holding the
+ *   new slice; the slice's start value (no host yet) gets `{ state: undefined }`.
  * - model: each entry gets the slice (STATE returns the new slice; ABORT and the slice itself
  *   mean no change, GS-4), `next('ACTION')` names the behavior's own actions. A host entry for
  *   the same action ('pager.NEXT') runs after the behavior's: a host STATE reducer gets the full
@@ -37,7 +39,7 @@
  *   reducer on the host's whole state (sortable reorders the host's array); ABORT or the same
  *   state is no change; the slice's calculated fields are recomputed when it changed. G-378:
  *   with a STATE in the same entry, STATE runs first and HOST gets its result.
- * - D197: `timers: (slice, options, key) => ({ name: spec })` declares timers (makeTimerDriver)
+ * - D197: `timers: (slice, options, key, bag) => ({ name: spec })` declares timers (makeTimerDriver)
  *   for the host: named '<key>.<name>', a spec's action / frame naming one of the behavior's
  *   actions is namespaced as next() does. They join the host's own `timers` static through an
  *   accessor on the component function (installed once; the host's own value is kept as is and
@@ -45,7 +47,7 @@
  * - Limitations: a host intent must return an object (not one stream).
  */
 import xs from './xstreamCompat'
-import {isAbort} from '../shared'
+import {isAbort, readBag} from '../shared'
 /** A behavior output's slice from before the action (outputs get the updated one): for a transition shared with STATE */
 export const was = (s: any, p: any, k: string) => p?.previousState ? p.previousState[k] : s
 /**
@@ -85,8 +87,10 @@ const seq = (bf: any, hf: any) => (st: any, ...x: any[]) => {
   return isAbort(q) ? r : q
 }
 
-const calcOf = (calcs: any) => (r: any) => {
-  if (r && typeof r == 'object') for (const f in calcs) r = {...r, [f]: calcs[f](r)}
+// (slice, bag): the bag from the handler's props `p` and the host state `h` (7.2)
+const calcOf = (calcs: any) => (r: any, p?: any, h?: any) => {
+  let b: any
+  if (r && typeof r == 'object') for (const f in calcs) r = {...r, [f]: calcs[f](r, b ||= readBag(p, h))}
   return r
 }
 
@@ -97,13 +101,14 @@ const addTimers = (v: any): void => {
   if (timed.has(v)) return
   timed.add(v)
   let own = v.timers
+  // (st, bag): the core's declaration arguments (7.2); a behavior's timers get the same bag last
   const all = (st: any, c?: any) => {
     const o: any = {}, f = own
     if (typeof f == 'function') Object.assign(o, f(st, c))
     else if (f && typeof f == 'object') for (const r in f) o[r] = f[r](st, c)
     const u = v.uses
     for (const k in u) {
-      const b = u[k], t = b?.timers?.(st?.[k] ?? b.state, b.options, k), rn = (a: any) => a in (b.model || {}) ? k + '.' + a : a
+      const b = u[k], t = b?.timers?.(st?.[k] ?? b.state, b.options, k, c), rn = (a: any) => a in (b.model || {}) ? k + '.' + a : a
       for (const n in t) {
         const x = t[n]
         o[k + '.' + n] = x && {...x, ...(x.action && {action: rn(x.action)}), ...(x.frame && {frame: rn(x.frame)})}
@@ -124,7 +129,7 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
   // the slice's calculated fields stay fresh when a host reducer changes state[key]
   const fresh = (f: any) => (st: any, ...x: any[]) => {
     const r = f(st, ...x)
-    return r && typeof r == 'object' && st && k in r && r[k] !== st[k] ? {...r, [k]: calc(r[k])} : r
+    return r && typeof r == 'object' && st && k in r && r[k] !== st[k] ? {...r, [k]: calc(r[k], x[2], r)} : r
   }
   if (calcs) for (const a in model) {
     const e = model[a]
@@ -140,8 +145,8 @@ const mergeBehavior = (c: any, k: string, b: any): void => {
       const whole = s == 'HOST', o = whole ? S : s
       const f = (st: any, d: any, next: any, p: any) => {
         const r = e[s](whole ? st : st?.[k], d, next && ((t: string, ...y: any[]) => next(t in b.model ? ns(t) : t, ...y)), p, opts, k)
-        return whole ? (isAbort(r) || r === st || !r || r[k] === st?.[k] ? r : {...r, [k]: calc(r[k])})
-          : s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r)}
+        return whole ? (isAbort(r) || r === st || !r || r[k] === st?.[k] ? r : {...r, [k]: calc(r[k], p, r)})
+          : s != S || isAbort(r) ? r : r === st[k] ? st : {...st, [k]: calc(r, p, calcs && {...st, [k]: r})}
       }
       m[o] = !m[o] ? f : whole ? seq(m[o], f) : seq(f, m[o])
     }

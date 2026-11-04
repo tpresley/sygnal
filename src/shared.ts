@@ -14,6 +14,18 @@ export const ABORT = Symbol.for('sygnal.ABORT')
 export const isAbort = (v: any): boolean => typeof v == 'symbol' && v.description == 'sygnal.ABORT'
 
 /**
+ * 7.2: the bag a derivation gets (a behavior's calculated field, a wizard's predicates, a form's
+ * schema, an agent's `read`), made from a handler's 4th argument: the view's `{ ...props, state,
+ * context, uid }`, without what only a handler gets (now / random / uuid, previousState) and the
+ * children and slots; `state` is the given (host) state
+ */
+export const readBag = (p: any, state: any): any => {
+  const {now: _n, random: _r, uuid: _u, previousState: _p, children: _c, slots: _s, ...b} = p || {}
+  b.state = state
+  return b
+}
+
+/**
  * Set on a dev-only wrapper of a model function (SYG222's) to the function it wraps, so the
  * action log and t.explain() show the user's reducer (G-214 follow-up)
  */

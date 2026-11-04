@@ -484,14 +484,14 @@ function Editor({ state }) {
   return h('div', null, h('button', { className: 'save' }, 'save'), h('button', { className: 'inval' }, 'inval'), h('p', { className: 'saved' }, state.saved))
 }
 Editor.intent = ({ DOM }) => ({ SAVE: DOM.click('.save'), INVAL: DOM.click('.inval') })
-const editorApp = (inval, saveExtra = {}) => {
+const editorApp = (inval, saveExtra = {}, onFailed) => {
   const E = (p) => Editor(p)
   E.intent = Editor.intent
   E.model = {
     SAVE: { HTTP: () => ({ url: '/api/quotes/1', method: 'PUT', json: { text: 'x' }, ok: 'SAVED', error: 'SAVE_FAILED', invalidates: ['quotes'], ...saveExtra }) },
     INVAL: { HTTP: () => ({ invalidate: inval }) },
     SAVED: (s) => ({ ...s, saved: 'yes' }),
-    SAVE_FAILED: (s) => ({ ...s, saved: 'no' }),
+    SAVE_FAILED: (s) => (onFailed?.(), { ...s, saved: 'no' }),
   }
   function App() { return h('div', null, h(List, { state: 'l' }), h(E, { state: 'e' })) }
   App.initialState = { l: {}, e: { saved: '' } }
@@ -568,6 +568,106 @@ describe('D80: invalidation', () => {
     expect(t.requests('HTTP').map(r => r.url)).toEqual(['/api/quotes/1', '/api/quotes/2', '/api/quotes/2', '/api/quotes/1'])
     // { invalidate } is a command, not a request
     expect(t.sinkValues('HTTP').filter(v => v.invalidate)).toHaveLength(1)
+  })
+})
+
+// invalidateOn: 'settled' (React Query's onSettled): `invalidates` after the final failure too
+describe("invalidateOn: 'settled'", () => {
+  // the list loaded ('success:a'), then a save sent; resolves to the PUT's request index
+  const saving = async (saveExtra, options, onFailed) => {
+    start(editorApp('nothing', saveExtra, onFailed), options)
+    await waitFor(() => expect(srv.fn).toHaveBeenCalledTimes(1))
+    srv.respond(0, ['a'])
+    await waitFor(() => expect(text('.list')).toBe('success:a'))
+    await click('.save')
+    await waitFor(() => expect(srv.requests[1]?.method).toBe('PUT'))
+  }
+  const refetched = async (i) => {
+    await waitFor(() => expect(srv.requests[i]?.path).toBe('/api/quotes'))
+    await waitFor(() => expect(text('.list')).toBe('success+:a'))
+    srv.respond(i, ['a', 'b'])
+    await waitFor(() => expect(text('.list')).toBe('success:a,b'))
+  }
+
+  it('a 500: the error action, then the refetch', async () => {
+    // the error reply comes first, as the ok reply does on success
+    const order = []
+    await saving({ invalidateOn: 'settled' }, undefined, () => order.push('SAVE_FAILED'))
+    const send = srv.fn.getMockImplementation()
+    srv.fn.mockImplementation((u, i) => (order.push(pathOf(u)), send(u, i)))
+    srv.status(1, 500)
+    await waitFor(() => expect(text('.saved')).toBe('no'))
+    await refetched(2)
+    expect(order).toEqual(['SAVE_FAILED', '/api/quotes'])
+  })
+
+  it('a network error, a timeout and a validation failure refetch too', async () => {
+    const invalid = { '~standard': { version: 1, vendor: 'test', validate: () => ({ issues: [{ message: 'bad' }] }) } }
+    for (const [how, extra, fail] of [
+      ['network', {}, () => srv.networkError(1)],
+      ['timeout', { timeoutMs: 30 }, () => {}],
+      ['validation', { validate: invalid }, () => srv.respond(1, { ok: true })],
+    ]) {
+      await saving({ invalidateOn: 'settled', ...extra })
+      fail()
+      await waitFor(() => expect(text('.saved')).toBe('no'))
+      await refetched(2)
+      app.dispose()
+      srv = server()
+      vi.stubGlobal('fetch', srv.fn)
+      document.body.innerHTML = '<div id="root"></div>'
+    }
+  })
+
+  it('a success invalidates once', async () => {
+    await saving({ invalidateOn: 'settled' })
+    srv.respond(1, { ok: true })
+    await waitFor(() => expect(text('.saved')).toBe('yes'))
+    await refetched(2)
+    await sleep(20)
+    expect(srv.fn).toHaveBeenCalledTimes(3)
+  })
+
+  it('an aborted request (superseded by latest) invalidates nothing', async () => {
+    await saving({ invalidateOn: 'settled', latest: true })
+    await click('.save')
+    await waitFor(() => expect(srv.requests[2]?.method).toBe('PUT'))
+    expect(srv.requests[1].aborted).toBe(true)
+    await sleep(20)
+    expect(srv.fn).toHaveBeenCalledTimes(3)
+    srv.status(2, 500)
+    await waitFor(() => expect(text('.saved')).toBe('no'))
+    await refetched(3)
+    await sleep(20)
+    expect(srv.fn).toHaveBeenCalledTimes(4)
+  })
+
+  it('a retried request invalidates once, after the last attempt', async () => {
+    await saving({ invalidateOn: 'settled', retry: fast(2) })
+    for (let i = 1; i <= 3; i++) {
+      await waitFor(() => expect(srv.requests[i]?.method).toBe('PUT'))
+      srv.status(i, 503)
+    }
+    await waitFor(() => expect(text('.saved')).toBe('no'))
+    await refetched(4)
+    await sleep(40)
+    expect(srv.requests.filter(r => r.path === '/api/quotes')).toHaveLength(2)
+  })
+
+  it('the driver default; a request\'s own invalidateOn wins', async () => {
+    await saving({}, { invalidateOn: 'settled' })
+    srv.status(1, 500)
+    await waitFor(() => expect(text('.saved')).toBe('no'))
+    await refetched(2)
+    app.dispose()
+    srv = server()
+    vi.stubGlobal('fetch', srv.fn)
+    document.body.innerHTML = '<div id="root"></div>'
+    await saving({ invalidateOn: 'success' }, { invalidateOn: 'settled' })
+    srv.status(1, 500)
+    await waitFor(() => expect(text('.saved')).toBe('no'))
+    await sleep(20)
+    expect(srv.fn).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -28,15 +28,17 @@
  *   reason; otherwise "changed nothing" (`idempotent: true`: `{ ok: true, unchanged: true }`, D256);
  * - `until`: an action whose result arrives later (a `resources` entry, a driver reply) answers
  *   once it is in state: `until: 'search'` (the resource is neither loading nor refreshing) or
- *   `until: (state) => boolean`, checked after the action's flush and after every flush that
+ *   `until: (state, bag) => boolean`, checked after the action's flush and after every flush that
  *   changed something; `{ ok: true, pending: true, note, state }` after `timeout` (default 10 s) or
  *   `cancel()` (the chat behavior's STOP / new turn); `removed: true` when the instance went away.
  *   Calls run one at a time, so a waiting call delays the next one;
  * - queries: read-only tools (`readOnlyHint`) that take an input, for data too large for `read`
- *   or answers computed from the state: `run(state, input)` is a pure, synchronous function of the
+ *   or answers computed from the state: `run(state, input, bag)` is a pure, synchronous function of the
  *   instance's state; a call validates the input as for actions, checks `when`, and returns
  *   `{ ok: true, result }` without dispatching anything (no confirm, no flush);
- * - `when` and `read`: cached by state identity per instance (reducers are immutable);
+ * - `read`, `when`, `until` and a query's `run` get the instance's view bag last (7.2: `{ ...props,
+ *   state, context, uid }`, no children / slots);
+ * - `when` and `read`: cached by state, props and context identity per instance (reducers are immutable);
  * - HMR: given the `run()` result, it re-binds to `app.__runtime` after the root's dispose.
  * Diagnostics (dev, once each): SYG240 an input with no JSON Schema form (the tool is left out;
  * `list({ all: true })` shows it with `error`), SYG241 `read` / `when` / `until` / `label` / a query threw,
@@ -172,7 +174,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
   /** item tools seen before: a call when no item is shown (all filtered out) explains why */
   const seen = new Map<string, Rec>()
   let current: Call | null = null, pending: Call | null = null
-  const reads = new WeakMap<any, {s: any; v: any}>(), whens = new WeakMap<any, Map<string, {s: any; v: boolean}>>()
+  const reads = new WeakMap<any, {s: any; p: any; c: any; v: any}>(), whens = new WeakMap<any, Map<string, {s: any; p: any; c: any; v: boolean}>>()
   /** item component -> its Collection owners and their `from` (hidden-by-filter errors) */
   const owners = new Map<any, Map<any, any>>()
   const listeners = new Set<(change: {tools: AgentTool[]; context: Record<string, any>}) => void>()
@@ -252,24 +254,28 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
 
   // ------------------------------------------------------------------ discovery
   const declOf = (iv: any) => iv.def.view.agent
+  // 7.2: the bag a function of the declaration gets last, the instance's view bag (no children /
+  // slots); `same`: the cached inputs (state, props, context) are the current ones
+  const bagOf = (iv: any): any => ({...iv.props, state: iv.state, context: iv.context, uid: (n?: string) => n ? iv.uid + '-' + n : iv.uid})
+  const same = (c: any, iv: any): boolean => !!c && c.s === iv.state && c.p === iv.props && c.c === iv.context
   const project = (iv: any, d: any) => {
     if (!d.read) return
     const s = iv.state, c = reads.get(iv)
-    if (c && c.s === s) return c.v
+    if (same(c, iv)) return c!.v
     let v: any
-    try { v = d.read(s) } catch (e: any) { dev('SYG241', d, 'read', iv.name, `agent.read threw: ${e?.message ?? e}`) }
-    reads.set(iv, {s, v})
+    try { v = d.read(s, bagOf(iv)) } catch (e: any) { dev('SYG241', d, 'read', iv.name, `agent.read threw: ${e?.message ?? e}`) }
+    reads.set(iv, {s, p: iv.props, c: iv.context, v})
     return v
   }
-  const whenOk = (iv: any, action: string, w?: (s: any) => boolean) => {
+  const whenOk = (iv: any, action: string, w?: (s: any, bag: any) => boolean) => {
     if (!w) return true
     let m = whens.get(iv)
     if (!m) whens.set(iv, m = new Map())
     const s = iv.state, c = m.get(action)
-    if (c && c.s === s) return c.v
+    if (same(c, iv)) return c!.v
     let v = false
-    try { v = !!w(s) } catch (e: any) { dev('SYG241', declOf(iv), 'when' + action, iv.name, `agent.actions.${action}.when threw: ${e?.message ?? e}`) }
-    m.set(action, {s, v})
+    try { v = !!w(s, bagOf(iv)) } catch (e: any) { dev('SYG241', declOf(iv), 'when' + action, iv.name, `agent.actions.${action}.when threw: ${e?.message ?? e}`) }
+    m.set(action, {s, p: iv.props, c: iv.context, v})
     return v
   }
   const labelOf = (iv: any) => {
@@ -478,7 +484,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
 
   /** `until` as a predicate: a resource name is done when that resource is neither loading nor refreshing */
   const doneTest = (iv: any, action: string, u: any): ((s: any) => boolean) | undefined => {
-    if (typeof u == 'function') return u
+    if (typeof u == 'function') return (s: any) => u(s, bagOf(iv))
     if (typeof u != 'string') return
     const res = iv.def.view.resources
     if (!res || !(u in res)) {
@@ -516,7 +522,7 @@ export function agentTools(target: any, options: AgentToolsOptions = {}) {
   function ask(name: string, iv: any, query: string, q: any, data: any): AgentResult {
     if (!whenOk(iv, query, q.when)) return {ok: false, error: `${name} is not available now`}
     let result: any
-    try { result = q.run(iv.state, data) } catch (err: any) {
+    try { result = q.run(iv.state, data, bagOf(iv)) } catch (err: any) {
       const m = err?.message ?? err
       dev('SYG241', declOf(iv), 'query' + query, iv.name, `agent.queries.${query}.run threw: ${m}`)
       return {ok: false, error: `${name} failed: ${m}`}

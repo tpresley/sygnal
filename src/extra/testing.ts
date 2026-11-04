@@ -494,7 +494,7 @@ export interface RenderResult {
   /**
    * E2: the requests sent to a sink (live), as objects (G-171: a string is `{ url }`, a resource
    * fetch `{ url, ...request, resource: name }`); never `{ abort }` commands (G-141), `{ resources }`
-   * declarations or `{ refresh }` commands. Answer the pending ones of a driverless sink with
+   * declarations or `{ refresh }` / `{ more }` commands. Answer the pending ones of a driverless sink with
    * respond() / fail().
    */
   requests: (sinkName: string) => any[];
@@ -2186,7 +2186,7 @@ export function renderComponent(
   const reqValues: Record<string, any[]> = {};
   // a sink value: recorded (t.sinkValues: everything) and, on a fake source, sent to its driver.
   // G-141 / G-171(1): t.requests lists the requests, normalised (a string is { url }); never the
-  // { abort } commands, { resources } declarations or { refresh } commands. A resource's fetches
+  // { abort } commands, { resources } declarations or { refresh } / { more } commands. A resource's fetches
   // are listed by the fake's fetch, with `resource: name`.
   // 5-7: resource names declared on each sink, so t.respond(name, …, 'quote') right after the
   // state change that (re)fetches 'quote' waits for that fetch instead of throwing
@@ -2205,7 +2205,7 @@ export function renderComponent(
     }
     sinkValues(name).push(shown);
     const obj = !!v && typeof v == 'object';
-    const listed = !(obj && (v.abort || v.resources || v.refresh || 'invalidate' in v || 'reset' in v || 'prefetch' in v));
+    const listed = !(obj && (v.abort || v.resources || v.refresh || v.more || 'invalidate' in v || 'reset' in v || 'prefetch' in v));
     const value = typeof shown == 'string' ? {url: shown} : shown;
     if (listed) requests(name).push(value);
     if (!track) return;

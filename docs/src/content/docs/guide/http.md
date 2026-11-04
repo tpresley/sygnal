@@ -166,6 +166,7 @@ A request is an object (or a URL string, for a plain GET with no reply actions):
 | `cache`, `staleTime` | — | Answer from the driver's cache (GET/HEAD only): see [Resources and Caching](/guide/resources/#the-query-cache) |
 | `keepHeaders` | — | Response headers a resource keeps next to `data` (and the cache with its entry): `['X-Computed-At']` → `state.report.headers['x-computed-at']` ([Response headers](#response-headers)) |
 | `tags`, `invalidates` | — | Tags for [invalidation](/guide/resources/#invalidation); `invalidates: ['quotes']` refreshes the tagged reads after a 2xx reply |
+| `invalidateOn` | driver's `invalidateOn` (`'success'`) | `'settled'`: `invalidates` runs after a failure too, once and not after an abort ([Invalidation](/guide/resources/#invalidation)) |
 | `updates` | — | After a 2xx reply, write it into this component's resources (and their cache entries): `updates: 'item'`, or `{ items: (list, reply) => newList }` ([Writing a reply into the cache](/guide/resources/#writing-a-reply-into-the-cache)) |
 | `retry` | driver's `retry` for GET/HEAD (0) | Retry network errors, 408, 429 and 5xx: a count or `{ count, delayMs, maxDelayMs, jitter }` ([Retries](/guide/resources/#retries)) |
 | `validate` | — | A Standard Schema the body must pass ([Validation](/guide/resources/#validation)) |

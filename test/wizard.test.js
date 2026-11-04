@@ -535,8 +535,8 @@ describe('the decided API (Sift second pass)', () => {
       draftKey: 'flow',
       steps: {
         agree: {
-          label: (s, h) => s.agreed ? 'Agreed' : 'Agree ' + h.who,
-          valid: (s, h) => (seen.push([s.agreed, h.who]), s.agreed),
+          label: (s, { state: h }) => s.agreed ? 'Agreed' : 'Agree ' + h.who,
+          valid: (s, { state: h }) => (seen.push([s.agreed, h.who]), s.agreed),
           dirty: (s) => s.agreed,
           discard: (s) => ({ ...s, agreed: false, flow: { name: 'discarded' } }),
         },
@@ -759,8 +759,8 @@ describe('pass 3: the decided API', () => {
     wizard: wizard({
       steps: {
         define: { label: 'Source', dirty: (s) => s.words !== '', dialog: { title: 'Discard what you typed?' } },
-        analyze: { group: 'build', label: 'Analyze', when: (s, st) => st.route?.query?.report != null },
-        describe: { group: 'build', label: 'Describe', when: (s, st) => st.route?.query?.report == null },
+        analyze: { group: 'build', label: 'Analyze', when: (s, { state: st }) => st.route?.query?.report != null },
+        describe: { group: 'build', label: 'Describe', when: (s, { state: st }) => st.route?.query?.report == null },
         created: { outcome: true },
       },
       groups: { build: { label: 'Build the filter' } },
