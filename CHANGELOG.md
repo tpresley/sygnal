@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.4 — dev preview
 
 **Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.
 
