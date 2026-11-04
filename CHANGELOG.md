@@ -2,6 +2,10 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Fixed: SYG103 reported an attribute selector for an element the view renders in some states only** (the Sift console port, after preview.6). `DOM.select('[data-act="remove"]')` warned after the idle time when the button wasn't on screen: the check takes a selector whose words appear in the view as conditionally rendered, but it ignored what's inside `[...]`. The attribute's name and its value's words count now; a misspelled one is still reported.
+
 ## 7.2.0-preview.6 — dev preview
 
 **Added: `ROUTER.navigation()`**, how the current route was reached: `'load'`, `'push'` (a link or a command), `'replace'` or `'traverse'` (the browser's Back or Forward). The test fake reports it too (`t.navigate`, `t.back`).
