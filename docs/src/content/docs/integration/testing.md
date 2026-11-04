@@ -487,11 +487,9 @@ it('loads the picked quote, and only the latest one', async () => {
 
 A resource's request is derived from state, so it is sent after the state change, not during the event that caused it. `t.respond('HTTP', body, 'quote')` by resource name right after a `simulateEvent` / `simulateAction` that hasn't produced its state yet waits (up to 1 s) for that fetch, so no `await t.settle()` is needed in between. Targeting it by URL or a partial request still needs the fetch to be pending.
 
-**A poll is a timer.** `refetchEvery` sends the next request that long after the last reply, so `t.respond` finds it only once it has been sent. With nothing queued, a `t.respond` for it throws at the call (the message names the poll). The wait behind queued input (up to 1 s) catches it only when it comes well inside that second: a 1 s poll races that limit and the test is flaky. Answer a poll after it is sent:
-- with real timers, wait for it: `await t.waitForState(s => s.quote.refreshing)` (a poll keeps the data and sets `refreshing`), then `await t.respond('HTTP', body, 'quote')`;
-- under fake timers, advance the clock first: `await vi.advanceTimersByTimeAsync(1000)`.
+**A poll is a timer.** `refetchEvery` sends the next request that long after the last reply. A `t.respond` for a polled resource with nothing pending waits for that request when it is due within `timeoutMs` (2 s by default), so `await t.respond('HTTP', { n: 1 }, 'quote'); await t.respond('HTTP', { n: 2 }, 'quote')` answers the first request, then the next poll. Under fake timers, the awaited `t.respond` advances the clock to it. A poll due later than that throws at the call, and the message names the poll: advance the clock first (`await vi.advanceTimersByTimeAsync(30_000)`), or raise `timeoutMs`.
 
-The same goes for any request a timer sends (a debounce, a retry): answer it once it is pending, not by racing the wait.
+Any other request a timer sends (a debounce, a retry) is found only once it has been sent: answer it once it is pending (`await t.waitForState(...)` for the state that shows it, or advance fake timers first), not by racing the wait.
 
 `t.states` shows every `RESOURCE` write (`idle`, `loading`, `success`, `error`, with `refreshing` during a refetch), and `ok` / `error` actions on the resource's request run after the write, as in the app. For the cache (`renderComponent(C, { http: { cache: queryCache() } })`, `t.cache`, `t.focus`, `t.online`, `{ prefetch }`), see [Resources and Caching](/guide/resources/#testing).
 
@@ -576,7 +574,7 @@ it('opens a task from the list, and goes back', async () => {
 ```
 
 - `t.navigate(url)` navigates as a click on a link with that `href` would. `t.navigate({ to, params, query?, hash?, replace? })` sends that command. Both go through `{ block }` like the real thing. An unknown route name, a missing param or a URL on another origin throws at the call.
-- `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. They throw when there is no entry to go to.
+- `t.back()` and `t.forward()` press the browser's buttons: the history moves, and `popstate` fires a task later. A `block` undoes it, as in a browser. With no entry to go to they throw at the call, like `t.respond` (`expect(() => t.back()).toThrow()`); behind queued input they reject instead.
 - `t.location` is `{ path, search, query, hash, href }` of the in-memory location; `query` is the search parsed as `state.route.query` has it (`{ tab: 'notes' }`).
 - `t.pageLoads` lists the full page loads the app made, as `{ url, replace }` with an absolute `url`: navigations to the router's [`external`](/guide/router/#routes-another-app-owns) URLs, and link clicks the router left to the browser. They are recorded, not made: the location and the page stay as they were.
 - `t.sent('ROUTER')` lists the commands the components sent (`{ to, params }`, `{ back: true }`, `{ block }`). The `route` declarations aren't listed.

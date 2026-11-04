@@ -511,7 +511,8 @@ export interface RenderResult {
    * request compared by value with its t.requests form; a predicate; FakeReplyOptions), or the
    * newest pending one. Throws at the call when
    * none matches, unless input is still queued before it or the component isn't ready: then
-   * it waits up to 1s (half of timeoutMs if lower) for one. Resolves after the reply has been
+   * it waits up to 1s (half of timeoutMs if lower) for one; a polled resource's next request
+   * due within timeoutMs is waited for. Resolves after the reply has been
    * reduced and rendered; rejects (and, un-awaited, fails the next wait) otherwise.
    */
   respond: (sinkName: string, value: any, target?: FakeReplyTarget) => Promise<void>;
@@ -582,7 +583,7 @@ export interface RenderResult {
    * a missing param or another origin; resolves once reduced and rendered.
    */
   navigate: (target: FakeNavigateTarget) => Promise<void>;
-  /** PLAN-3 5-4c: the browser's back button on the in-memory history (throws with no entry to go back to) */
+  /** PLAN-3 5-4c: the browser's back button on the in-memory history (with no entry to go back to: throws at the call, or rejects behind queued input, as t.respond) */
   back: () => Promise<void>;
   /** PLAN-3 5-4c: the browser's forward button */
   forward: () => Promise<void>;
@@ -2014,7 +2015,7 @@ export function renderComponent(
   // step: PLAN-11 U-2, the driver's progress callback of a request sent with `progress` (t.progress)
   // sb: 7.2, the body of a `stream` request once a t.push / t.respond started it (fakeBody)
   type Pending = {value: any; req: any; category: any; res?: string; pf?: any; live: boolean; settle: (ok: boolean, v: any) => void; llm?: any; step?: (phase: string, loaded: number, total: number) => void; sb?: FakeBody; open?: (r: any) => void};
-  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any};
+  type Fake = {select: any; errors: any; subs: Set<FakeSub>; at: (ns: any[]) => any; pending: Pending[]; in$: any; http: any; ws: Sock; llm?: any; polls?: Map<string, number>};
   const fakes = new Map<string, Fake>();
   // 5-3: the fake drivers' focus / online listeners (t.focus, t.online)
   const signals = new Set<(s: string) => void>();
@@ -2025,6 +2026,8 @@ export function renderComponent(
     if (!f) {
       const subs = new Set<FakeSub>();
       const pending: Pending[] = [];
+      // a polled resource's next request: when it is due (clockNow)
+      const polls = new Map<string, number>();
       const in$ = xs.create();
       const ws = sockFake();
       // PLAN-6 L-4: the sink named by llmSink also runs the real chat driver over an in-memory
@@ -2068,7 +2071,14 @@ export function renderComponent(
           // { prefetch } fetch as { url, ...request, prefetch: true }
           const value = res !== undefined ? {...req, resource: res} : pf ? {...req, prefetch: true} : sending !== undefined ? sending : req;
           if (res !== undefined || pf) requests(name).push(value);
-          const p: Pending = {value, req, category: req.category, res, pf, live: true, settle: (ok, v) => { p.live = false; (ok ? resolve : reject)(v); }};
+          // a polled resource (refetchEvery) sends its next request that long after a reply: when it
+          // is due, for t.respond (the driver keeps the timer; this costs it nothing)
+          if (res !== undefined) polls.delete(res);
+          const p: Pending = {value, req, category: req.category, res, pf, live: true, settle: (ok, v) => {
+            p.live = false;
+            if (res !== undefined && req.refetchEvery > 0) polls.set(res, clockNow() + req.refetchEvery);
+            (ok ? resolve : reject)(v);
+          }};
           // 7.2: a stream's response is resolved by its first t.push (or t.respond); it stays pending
           if (req.stream) p.open = resolve;
           pending.push(p);
@@ -2113,6 +2123,7 @@ export function renderComponent(
         };
       };
       fakes.set(name, (f = at([])));
+      f!.polls = polls;
     }
     return f!;
   };
@@ -2921,12 +2932,13 @@ export function renderComponent(
     }
     const sent = requests(name).length, live = fakes.get(name)?.pending.filter(r => r.live) || [];
     // a polled resource (refetchEvery) matching the target: its next request comes on a timer
+    // (reached only when it is due later than timeoutMs: an earlier one is waited for, pollDue)
     const pv = nthOf(name, tg).list.map(r => r.value).filter(v => v?.resource !== undefined && v.refetchEvery > 0).pop();
     return new Error(`[Sygnal] ${what}: no pending ${name} request${tg.desc}${waited ? ` after ${waited}ms` : ''}. ` +
       (live.length ? `Pending: ${live.map(r => brief(r.value)).join(', ')}. ` : '') +
       (sent ? `The component sent ${sent} (t.requests('${name}') lists every request sent, answered or not)${live.length ? '; the others were' : ','} all answered, aborted or superseded by a later latest: true request.` :
         `The component sent none: check the model entry that returns the ${name} request (t.requests('${name}') is empty).`) +
-      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it.` :
+      (pv ? ` Resource '${pv.resource}' polls every ${pv.refetchEvery}ms (refetchEvery): its next request is sent ${pv.refetchEvery}ms after the last reply, so advance the clock (vi.advanceTimersByTime(${pv.refetchEvery}) under fake timers) or wait that long (await t.next(...)) before answering it: t.respond waits only for a poll due within timeoutMs (${defaultTimeout}ms).` :
         waited ? '' : ` t.respond/t.fail answer a request already sent, or one sent by the simulate* calls queued before them: wait for a later one first (await t.next(...) or t.settle()).`));
   };
   /**
@@ -2947,6 +2959,9 @@ export function renderComponent(
       // G-218: so does any request: behind a same-tick STATE reducer (several queued simulate*
       // calls), an action's non-STATE sinks run in a microtask (B-003)
       sendDue && !tg.push && !('nth' in tg.o);
+    // Sift: a polled resource's next request, due within timeoutMs, is waited for (a 1 s poll raced
+    // the 1 s wait behind queued input); a later one still throws at once, naming the poll
+    const due = !tg.push && !('nth' in tg.o) && !pick(name, tg) ? pollDue(name, tg) : undefined;
     return scripted(() => tg.push ? {} : pick(name, tg), w => noPending(what, name, tg, w), hit => {
       const f = fake(name), o = tg.o;
       const e: Pending | undefined = tg.push ? undefined : hit;
@@ -2977,7 +2992,19 @@ export function renderComponent(
         (ls.length ? ` (listening: ${ls.join(', ')})` : '') + `. ` +
         (err ? `Name a reply action for the failure (error: 'FAILED' on the request), or handle it in the intent, e.g. FAILED: ${name}.errors('${category ?? 'category'}'), so a failed request can't leave the component loading.` :
           `Name a reply action for the reply (ok: 'LOADED' on the request), or select it in the intent, e.g. LOADED: ${name}.select('${category ?? 'category'}').`));
-    }, later);
+    }, later || due !== undefined, due);
+  };
+  // ms until the next poll of a resource the target matches (its last request, as nthOf lists it),
+  // when that is within timeoutMs (POLL_SLACK left for the timer and the send)
+  const POLL_SLACK = 250;
+  const pollDue = (name: string, tg: Target): number | undefined => {
+    let at: number | undefined;
+    fakes.get(name)?.polls?.forEach((when, res) => {
+      const v = requests(name).filter(x => x?.resource === res).pop();
+      if (v && tg.match({value: v, req: v, category: v.category, res, live: false, settle: noop}) && (at === undefined || when < at)) at = when;
+    });
+    const ms = at === undefined ? undefined : Math.max(0, at - clockNow());
+    return ms !== undefined && ms + POLL_SLACK <= defaultTimeout ? ms + POLL_SLACK : undefined;
   };
   /**
    * G-140 / PLAN-3 1-C: a scripted input (t.respond/t.fail, 2-C's t.open/t.push/t.drop). With
@@ -2986,7 +3013,7 @@ export function renderComponent(
    * 1s (half of timeoutMs if lower). `act(hit)` delivers it (an Error: it failed). The promise
    * resolves once the result has been reduced and the whole tree rendered.
    */
-  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void, later = false): Promise<void> => {
+  const scripted = (find: () => any, none: (waited: number) => Error, act: (hit: any) => Error | void, later = false, waitMs?: number): Promise<void> => {
     throwFailure();
     if (isReady && !inputs.length && !disposed && !later && !find()) throw none(0);
     let ok!: () => void, ko!: (e: Error) => void, seen = false, open = true;
@@ -3009,7 +3036,8 @@ export function renderComponent(
       ko(e);
     };
     replyWaits.add(settle);
-    const wait = Math.min(1000, defaultTimeout / 2);
+    // (waitMs: a polled resource's next request, due later than that)
+    const wait = Math.max(Math.min(1000, defaultTimeout / 2), waitMs || 0);
     const input: Input = {
       // up to 1s (half of timeoutMs if lower), so a wait (next/settle) still times out later
       wait,
