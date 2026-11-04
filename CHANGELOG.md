@@ -2,6 +2,28 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## 7.2.0-preview.5 — dev preview
+
+**Fixed: entering a finished wizard again showed its outcome step** (found while building `examples/filter-wizard`). After Created → All filters → New filter, the wizard showed Created again: an outcome step replaced every route into the steps with its own, a fresh entry from another page included. Now a host that mounts on another route while the flow is on its outcome starts a new flow at step one. A reload on the outcome's route, Back from another page to it, and Back from it into the steps (still refused) are unchanged.
+
+**Added: the wizard's `restart` option** (maintainer decision): `'outcome'` (the default: the fix above) or `'entry'`: every entry from another page starts a new flow, finished or not, with the draft from the route entered (a "door" that seeds the draft). A reload still resumes. Guide: `guide/wizards` § Entering the wizard again.
+
+**Changed: a behavior's bag types the host's props as `unknown`** (N6, from the Sift console port; maintainer decision). The wizard's, the form's and a behavior's `calculated` functions get `BehaviorBag<Host>`: `{ [prop: string]: unknown } & { state, context, uid }`. Before, the props were `any`, so the pre-7.2 wizard form `when: (step, h) => h.route` compiled and read `undefined` (the 2nd argument was the host state before 7.2). Now a read whose value is used fails to type-check; read the host's state as `bag.state.route`.
+
+**Added: SYG459, a behavior option reads a host-state field off its bag.** The dev entry warns when a wizard or form function reads a field the bag doesn't have and the host's state does (also in JavaScript, and for the reads the types can't catch, such as `key`). `sygnal-check` reports it statically against the host's `initialState`, and `--fix` rewrites `h.route` to `h.state.route` and `(step, { route })` to `(step, { state: { route } })`.
+
+**Fixed (from the Sift console port's preview.4 bump):**
+- **`t.next()` after a `t.waitForState()` that matched the history** no longer matches a state older than the current one. With states 0, 1, 2, `waitForState(n >= 0)` returns 0 (the history's earliest match, as documented), and a following `next(n >= 1)` now waits for 3 instead of returning the recorded 1: a `next()` doesn't go back before the states an awaited input already produced. Mock DOM only; `dom: 'real'` already did this.
+- **`t.simulateEvent()` / `t.simulateAction()` on a disposed handle** throw at the call. They returned a promise that never settled.
+- **`Router.match()` / `router.current()` types** include the `'*'` route's name, which an unmatched URL carries at run time, so `route.name === 'notFound'` type-checks.
+
+**Changed: a wizard GOTO with a key starts the URL query fresh** (the Sift console port's fourth pass, N5; maintainer decision). `{ wizard: 'GOTO', step, key, query }` navigates with only the key and `query` in the URL, as a step's own Next and Back do. Before, it kept the current route's other query values, step one's own included, so `/flow?door=x` became `?door=x&r=…&k=2`. A value of the current route that the new flow needs goes in `query`.
+
+**Fixed: SYG458's `--fix` and its reach** (sygnal-check; from the Sift console port's `--fix` pass).
+- A TypeScript annotation is rewritten with the pattern: `(s, { route }: Ctx)` → `(s, { context: { route } }: { context: Ctx })`, a type literal's members moved into its `context` member. Before, the annotation was kept and the result no longer typechecked. An annotation it can't rewrite (it also types the bag's other keys, or the parameter has a default) leaves the code alone, and the message says why.
+- A plain parameter that only reads context fields is rewritten to the bag's context under the same name, so the body stays: `(s, context: Ctx) => context.csrf` → `(s, { context }: { context: Ctx }) => context.csrf`. Before, there was no fix and the suggestion was `context.context.csrf`.
+- A context read through a same-module helper is reported, at the argument: `bound: (_s, context) => boundId(context)` where `boundId` reads `context.route`. A helper the checker can't see stays silent (the dev entry's warning covers it).
+
 ## 7.2.0-preview.4 — dev preview
 
 **Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.

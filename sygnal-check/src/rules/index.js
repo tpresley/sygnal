@@ -37,6 +37,7 @@ import xstreamDefaultImport from './syg302-xstream-default-import.js'
 import switchableStateMap from './syg429-switchable-state-map.js'
 import outlet from './syg455-outlet.js'
 import bagContextField from './syg458-bag-context-field.js'
+import behaviorBagState from './syg459-behavior-bag-state.js'
 import emptyStateKey from './syg410-empty-state-key.js'
 import selectorInView from './syg110-selector-in-view.js'
 import eventsCounterpart from './syg105-events-counterpart.js'
@@ -82,6 +83,7 @@ export const coreRules = [
   switchableStateMap, // SYG429 (PLAN-13 F-3): a Switchable state map key that names no page
   outlet, // SYG455/456/457 (wizard spike): an <Outlet from> naming no wizard; steps and of keys that don't match
   bagContextField, // SYG458 (7.2): a declaration static reads a context field off its bag (with --fix)
+  behaviorBagState, // SYG459 (7.2, N6): a wizard / form option reads a host-state field off its bag (with --fix)
   selectorInView, // also reports SYG104 (selector only found in a child component)
   eventsCounterpart,
   collectionFrom,

@@ -13,6 +13,8 @@ A wizard is one flow over several steps: a draft that the steps fill in, Back an
 
 A [Switchable](/guide/switchable/) keeps hidden steps running instead.
 
+The [`filter-wizard` example](https://github.com/tpresley/sygnal/tree/main/examples/filter-wizard) is a whole flow on the router: the step in the URL, a step group, the leave dialog, an outcome step, and its tests.
+
 ## The recipe
 
 ```jsx live title="NewProject.jsx"
@@ -214,10 +216,19 @@ wizard({
 - **No stale render:** until the state belongs to the new key, the outlet renders no step. A step never mounts against the old record's data.
 - **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`.
   - The flow starts over for the new key, straight at that step. In URL mode the wizard navigates there, past the leave guard.
-  - `query` adds values to the route it navigates to: `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. The current route's other query values are kept unless `query` gives them.
+  - The query starts fresh, as on any step's navigation: the route gets the key and `query`, `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. A value of the current route the new flow needs goes in `query`.
   - `draft` seeds the new flow. Without it, the draft comes from `draft(state)` on the route it lands on.
   - While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
+
+## Entering the wizard again
+
+A flow kept in a parent's state outlives the wizard's page, so a reload resumes it. What an entry from another page does depends on `restart`:
+
+- **`restart: 'outcome'`** (the default): a finished flow, on its [outcome step](#alternative-steps-and-an-outcome), starts over. A flow left mid-way resumes where it was. Leaving it with unsaved edits asked first (the leave guard), and Discard started it over.
+- **`restart: 'entry'`**: every entry from another page starts a new flow, finished or not, with the draft from `draft(state, bag)` on the route entered. Use it when the way in sets the flow up, such as a "door" query that seeds the draft. A reload still resumes: the marker that tells an entry from a reload isn't saved by `persist`.
+
+An entry is the wizard's host mounting again in the same page session. Render the wizard's steps in one host that stays mounted across them (one `<Outlet>` page for the wizard's routes): with `'entry'`, a host that remounts on every step would start over each time.
 
 ## Start over
 
@@ -296,7 +307,7 @@ wizard({
   - `step` is the member that applies; its state gives the entry its status.
   - `steps` lists the members.
   - The label is the group's, else the label of the member that applies.
-  - Render the stepper from `stepper`.
+  - Render the stepper from `stepper`. A stepper button names the member, `data-step={e.step}`: `e.name` is the group's name, which is no step.
 - `state.wizard.steps` still has one entry per step.
 
 **An outcome step** is a final screen after the flow, such as "Created": `created: { outcome: true }`.
@@ -304,6 +315,7 @@ wizard({
 - **The stepper while on it:** every step that applies shows `done`, `state.wizard.outcome` names it, and `canBack` and `canNext` are false. It isn't in `steps` or `stepper`, and no stepper entry gets `aria-current`.
 - **No way back into the steps:** Back and a GOTO to a step are refused. In URL mode the browser's back button to a step's route is replaced with the outcome's.
 - **What still works:** Start over, and leaving the flow.
+- **Entering it again starts a new flow:** once the flow is on its outcome, a host that mounts on another route (New filter from the list) starts over at step one, with the draft from the route entered. A reload on the outcome's route, or Back from another page to it, shows the outcome again. Without URL binding, a host mounted again on the outcome starts over. See [Entering the wizard again](#entering-the-wizard-again).
 
 GOV.UK's confirmation pages behave the same way: the service is done, and going back doesn't reopen it.
 
@@ -354,6 +366,8 @@ NewFilter.uses = {
 - a link to a step the user can't reach yet is replaced (`replace`) with the first incomplete step before it, as GOV.UK and React Hook Form wizards send the user back:
   - when an earlier step isn't valid, that step;
   - when the step itself is skipped by `when`, the last step before it that isn't.
+
+**A flow kept in a parent's state outlives the page.** Leaving the wizard mid-way and coming back finds the same flow, on the same step. A finished flow, on its outcome step, starts over; `restart: 'entry'` starts every entry over ([Entering the wizard again](#entering-the-wizard-again)).
 
 **Where the route comes from:** the behavior reads it from the host's `state.route`. `url.from` names another place, or maps a route of its own onto the step route. For a first step at `/filters/new`: `from: (state) => state.route.name === 'newFilter' ? { ...state.route, name: 'newFilterStep', params: { step: 'define' } } : state.route`. A navigation the user attempts goes through `from` too, with the attempted route as the state's `route`, to tell whether it stays in the flow.
 

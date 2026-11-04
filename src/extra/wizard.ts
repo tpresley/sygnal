@@ -75,6 +75,8 @@ const nameOf = (d: any, sel: any): any => {
   return el?.getAttribute?.('data-step') ?? el?.dataset?.step
 }
 const BUILT_IN = Symbol.for('sygnal.builtIn')
+// a slice a host of this page session mounted (restart: 'entry'); a symbol: JSON (persist, recordings) drops it
+const SEEN = Symbol('sygnal.wizard.seen')
 const DERIVED = ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog']
 // derived fields compared by value (arrays and plain objects, a few levels), so an unchanged result
 // writes nothing (a dialog copy function returning a new object each time doesn't re-sync)
@@ -84,7 +86,8 @@ const same = (a: any, b: any, d = 0): boolean => Object.is(a, b) || d < 4 && !!a
 
 export const wizard = (o: any = {}): any => {
   const {steps: defs = {}, draft: dr = {}, key: keyOf, dirty, discard, finish, url, router: R = 'ROUTER', draftKey: DK = 'draft',
-    resetTo, groups = {}, dialog, next: nextSel, back: backSel, reset: resetSel, goto: gotoSel, confirm, leave: leaveSel, stay: staySel} = o
+    resetTo, groups = {}, dialog, next: nextSel, back: backSel, reset: resetSel, goto: gotoSel, confirm, leave: leaveSel, stay: staySel,
+    restart = 'outcome'} = o
   const names = Object.keys(defs), out = (n: any) => !!defs[n]?.outcome
   // the steps of the stepper (outcome steps aren't: a final screen after the flow, such as Created)
   const regular = names.filter(n => !out(n)), first = regular[0] ?? names[0]
@@ -204,7 +207,7 @@ export const wizard = (o: any = {}): any => {
   // the host state before the action (STATE gets it as props.state, outputs as props.previousState)
   const pre = (p: any) => p?.previousState || p?.state
   // the bag of a handler (its props p) for host state h (default: the one before the action)
-  const bag = (p: any, h = pre(p)) => readBag(p, h)
+  const bag = (p: any, h = pre(p)) => readBag(p, h, 'wizard')
   const close = confirm ? {ELEMENT: () => ({close: confirm})} : {}
   // a move (or a route, a new key, a reset) that dropped a held leave closes its dialog (Sift bug 4:
   // browser back/forward isn't stopped by a modal)
@@ -223,7 +226,7 @@ export const wizard = (o: any = {}): any => {
   // the host state (B.state) with slice k replaced by w and its derived fields
   // (the same host state when nothing changed)
   const put = (B: any, k: string, w: any) => {
-    const h = B.state, r = fin(w, w === h[k] ? B : {...B, state: {...h, [k]: w}})
+    const h = B.state, r = fin(w, w === h[k] ? B : readBag(B, {...h, [k]: w}, 'wizard'))
     return r === h[k] ? h : {...h, [k]: r}
   }
 
@@ -240,9 +243,16 @@ export const wizard = (o: any = {}): any => {
     // the host started (Sift bug 2: a host mounted again with the same key and step): the current
     // step's visit defaults again, as its new instance's scratch; and (pass 2 bug B) the derived
     // fields of a slice the host didn't make (seeded by a parent, persisted), before the first render
+    // `restart` (an entry starts a new flow; before the route is seen, so it doesn't redirect):
+    // 'outcome', a host mounted on an outcome step that the route doesn't name (url; without url:
+    // mounted again); 'entry', also a host mounted again in this page session (SEEN: a marker
+    // persist and recordings drop, so a reload resumes)
     MOUNT: {HOST: (h: any, _d: any, _n: any, p: any, _o: any, k: string) => {
-      const w = h[k], B = bag(p, h), l = w.visit ? scratch(w, w.step, B) : w.local
-      return put(B, k, l === w.local ? w : {...w, local: l})
+      const w = h[k], B = bag(p, h), again = !!w[SEEN]
+      if (w.visit && ((out(w.step) && (url ? routeStep(B) != w.step : again)) || (restart == 'entry' && again)))
+        return put(B, k, {...fresh(w, B, keyOf ? keyOf(B.state, B) ?? null : null), [SEEN]: true})
+      const l = w.visit ? scratch(w, w.step, B) : w.local
+      return put(B, k, l === w.local && again ? w : {...w, local: l, [SEEN]: true})
     }},
     // url: the wizard's own navigation (Start over, a GOTO with a new key) landed: the draft's
     // untouched fields from draft(state) on the route entered, not the one left
@@ -285,11 +295,9 @@ export const wizard = (o: any = {}): any => {
       },
       ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const s = was(w, p, k)
-        // (the route's other query values kept unless the message's `query` gives them)
-        if (plainObj(d) && 'key' in d) {
-          const {[url.key]: _k, ...q} = routeOf(bag(p))?.query || {}
-          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...q, ...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
-        }
+        // a fresh query: the message's `query` and the key, as a step's own navigation (N5)
+        if (plainObj(d) && 'key' in d)
+          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
         const n = target(s, 'GOTO', d, bag(p))
         return n ? go(s, n) : ABORT
       }},
@@ -363,7 +371,7 @@ export const wizard = (o: any = {}): any => {
   // the flow has none yet (a key born mid-flow: a step that created the record moves on)
   const inFlow = (w: any, r: any, B: any) => {
     if (!url || !r) return false
-    const h = {...B.state, route: r}, m = url.from ? url.from(h, {...B, state: h}) : r, q = m?.query?.[url.key]
+    const h = {...B.state, route: r}, m = url.from ? url.from(h, readBag(B, h, 'wizard')) : r, q = m?.query?.[url.key]
     return m?.name == url.route && names.includes(m.params?.[url.param])
       && (!url.key || w.key == null || q == null || q == w.key)
   }
@@ -380,7 +388,7 @@ export const wizard = (o: any = {}): any => {
     intent: ({DOM, CHILD, props$}: any, _o: any, k: string, host: any) => {
       // what the intent watches gets the bag of the host's state and (a sub-component host) its
       // props, again when either changes; no context or uid here (the handlers' bags have them)
-      const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => ({...p, state: h})) : host.stream.map((h: any) => ({state: h}))
+      const B$ = props$ ? xs.combine(host.stream, props$).map(([h, p]: any) => readBag(p, h, 'wizard')) : host.stream.map((h: any) => readBag(null, h, 'wizard'))
       const watch = (f: (B: any) => any) => B$.map(f).compose(dropRepeats(objIsEqual))
       // the steps' PARENT messages ({ wizard: 'NEXT' | 'BACK' | 'GOTO' | 'RESET' | 'FINISH', step?, draft? }),
       // from every step component the outlet registered (now or later)

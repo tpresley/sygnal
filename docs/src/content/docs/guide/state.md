@@ -45,7 +45,7 @@ MyComponent.model = {
 Every function you write over state takes the same shape: `(subject, …its own arguments, bag)`.
 
 - **The subject** is the state the function is about: the component's state, a behavior's slice, a wizard step's view, or a Collection item.
-- **The bag** always comes last. It is the object the view gets: `{ ...props, state, context, uid }`. `bag.state` is the component's whole state; in a behavior's or a wizard step's function, it is the host's.
+- **The bag** always comes last. It is the object the view gets: `{ ...props, state, context, uid }`. `bag.state` is the component's whole state; in a behavior's or a wizard step's function, it is the host's. A behavior doesn't know its host's props, so in TypeScript its bag types them as `unknown`: read the host's state as `bag.state.route`, never `bag.route` (SYG459 reports that read in dev and in `sygnal-check`).
 
 ```jsx
 TaskList.resources = {

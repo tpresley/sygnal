@@ -12,6 +12,8 @@ import { configureDiagnostics, getDiagnostics, clearDiagnostics } from '../src/e
 import { resetChecks } from '../src/extra/diagnostics/checks/index.js'
 import { CODE_TITLES, DEV_CODE_SEVERITY } from '../src/extra/diagnostics/codes.ts'
 import { readBag } from '../src/shared.ts'
+import { wizard } from '../src/extra/wizard.ts'
+import { Outlet } from '../src/extra/outlet.ts'
 
 const sleep = (ms = 10) => new Promise((r) => setTimeout(r, ms))
 
@@ -229,5 +231,52 @@ describe('sygnal/ai: agent read / when / query run get the instance\'s bag', asy
     expect(await t.callTool('item_label')).toEqual({ ok: true, result: 'L' })
     expect(await t.callTool('item_inc')).toMatchObject({ ok: true })
     t.dispose()
+  })
+})
+
+describe('SYG459: a behavior option reads a host-state field off its bag (N6)', () => {
+  beforeEach(() => { clearDiagnostics(); resetChecks() })
+  afterEach(() => { configureDiagnostics({ mode: undefined }) })
+
+  it('is a dev-entry warning with a title', () => {
+    expect(DEV_CODE_SEVERITY.SYG459).toBe('warn')
+    expect(CODE_TITLES.SYG459).toMatch(/state field off its bag/)
+  })
+
+  it("warns once for the pre-7.2 wizard form (s, h) => h.session; not for bag.state, a prop or a missing name", async () => {
+    function A() { return h('p', null, 'a') }
+    function B() { return h('p', null, 'b') }
+    const host = (when) => {
+      function Host() { return h('div', null, h(Outlet, { of: { a: A, b: B }, from: 'wizard', focus: false })) }
+      Host.initialState = { session: 'S1', note: 'n' }
+      Host.uses = { wizard: wizard({ steps: { a: {}, b: { when } } }) }
+      return Host
+    }
+    const t = renderComponent(host((_s, h) => h.session === 'S1'))
+    await t.ready()
+    await t.settle()
+    const got = t.diagnostics.filter((d) => d.code === 'SYG459')
+    expect(got).toHaveLength(1)
+    expect(got[0].message).toMatch(/A wizard option read 'session' off its bag/)
+    expect(got[0].fix).toMatch(/bag\.state\.session/)
+    t.dispose()
+
+    // the flow key, read in the wizard's intent watch
+    clearDiagnostics(); resetChecks()
+    function K() { return h('div', null, h(Outlet, { of: { a: A }, from: 'wizard', focus: false })) }
+    K.initialState = { session: 'S1' }
+    K.uses = { wizard: wizard({ steps: { a: {} }, key: (st, h) => h.session }) }
+    const k = renderComponent(K)
+    await k.ready()
+    await k.settle()
+    expect(k.diagnostics.filter((d) => d.code === 'SYG459').map((d) => d.data.key)).toEqual(['session'])
+    k.dispose()
+
+    clearDiagnostics(); resetChecks()
+    const ok = renderComponent(host((_s, { state, label, other }) => state.session === 'S1' && label !== 1 && other === undefined), { props: { label: 'x' } })
+    await ok.ready()
+    await ok.settle()
+    expect(ok.diagnostics.filter((d) => d.code === 'SYG459')).toEqual([])
+    ok.dispose()
   })
 })

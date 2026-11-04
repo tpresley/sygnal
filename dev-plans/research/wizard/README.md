@@ -396,10 +396,15 @@ See the summary sent to the coordinator; the same list, with the recommendation 
 - **`t.sent('PARENT')` / `t.sent('EVENTS')`** return the values sent. They returned an empty socket fake's list.
 
 **Decided and built:**
-- **N1:** `{ wizard: 'GOTO', step, key, query?, draft? }`. `query` is merged into the navigation's query, and the route's other query values are kept unless given. `draft` seeds the new flow; without it, the draft comes from the route entered (RESEED).
+- **N1:** `{ wizard: 'GOTO', step, key, query?, draft? }`. `query` is merged into the navigation's query, and the route's other query values are kept unless given (changed in preview.5 by N5: the query starts fresh). `draft` seeds the new flow; without it, the draft comes from the route entered (RESEED).
 - **F1 (documented, no API):** start the outcome's work in the outcome step's BOOTSTRAP, from the draft, because a step's requests end with the step. The guide's Created / gold-set build example is a test.
 - **Types:**
   - N3 is `WizardStepComp<Own, { flow?: Draft }>`, for a step that only writes the draft;
   - `wizard<…, DIALOG>` types `state.wizard.dialog`;
   - `WizardStepComp<Own, Spec>` works with no middle `undefined`. A second argument whose keys are all ComponentSpec keys is the spec.
+
+## 11. The fifth pass (Sift's fourth report, on preview.4: clean)
+
+- **N5 (maintainer decision): a GOTO with a key starts the URL query fresh.** It puts only the key and its `query` in the URL, like a step's own navigation, and like React Router and TanStack Router, which drop the old query unless it's passed. Before, it kept the left route's other values, step one's own (`start`, `filter`) included, so Sift passed `query: { start: null, … }` to clear them.
+- **Still open:** N6 (the bag's props index signature lets `(s, h) => h.route` compile); a "new flow on each entry" option (`examples/filter-wizard` starts one in the root's `ROUTE` reducer); `force` on navigation out of the flow; the async reseed watch.
 

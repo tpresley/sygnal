@@ -104,7 +104,7 @@ export const FIRST_PARTY = {
     stateKeys: ['step', 'key', 'visit', 'visited', 'draft', 'initial', 'local', 'leaving', 'reseed'],
     calculated: ['steps', 'stepper', 'index', 'count', 'first', 'last', 'canBack', 'canNext', 'outcome', 'dialog'],
     model: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH', 'ROUTE', 'GUARD', 'LEAVE', 'DISCARD', 'STAY'],
-    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
+    options: ['steps', 'draft', 'draftKey', 'key', 'dirty', 'discard', 'finish', 'resetTo', 'restart', 'groups', 'dialog', 'url', 'router', 'next', 'back', 'reset', 'goto', 'confirm', 'leave', 'stay'],
     listens: [['next', 'NEXT'], ['back', 'BACK'], ['reset', 'RESET'], ['goto', 'GOTO'], ['leave', 'DISCARD'], ['stay', 'STAY'], ['confirm', 'STAY', 'select']],
     // (NEXT, BACK, GOTO, RESET, FINISH also come from the steps' PARENT messages)
     intent: ['KEY', 'MOUNT', 'SYNC', 'RESEED', 'ROUTE', 'GUARD', 'LEAVE', 'NEXT', 'BACK', 'GOTO', 'RESET', 'FINISH'],

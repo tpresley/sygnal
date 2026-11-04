@@ -461,8 +461,9 @@ export interface RenderResult {
    * Wait for the next state emitted AFTER this call (or, right after `await t.ready()`, after
    * the component became ready) that satisfies the predicate (default: any). Resolves with it
    * once the whole tree (children included) has rendered it. The timeout error names a model
-   * next() still scheduled, and a recorded state that already matched. `dom: 'real'` (4-A1):
-   * right after another wait (no input in between) it starts after that wait's state.
+   * next() still scheduled, and a recorded state that already matched. Right after another wait
+   * (no input in between; 4-A1, G-129) it starts after that wait's state, and never before the
+   * states an awaited input already produced (a waitForState() history match; Sift B1).
    */
   next: (predicate?: (state: any) => boolean, timeoutMs?: number) => Promise<any>;
   /**
@@ -2650,6 +2651,10 @@ export function renderComponent(
    * (real DOM: patched). The fake clock is driven only once the promise is awaited (Lazy), so a
    * call that isn't awaited never moves a test's fake timers.
    */
+  // Sift B2: an input on a disposed handle can never be delivered: fail at the call
+  const notDisposed = (what: string) => {
+    if (disposed) throw new Error(`[Sygnal] t.${what}() after t.dispose(): the component is gone. Make every input before the handle is disposed (with \`using\`, inside its block)`);
+  };
   const delivered = (queue: (done: () => void) => void): Promise<void> => {
     let done!: () => void, n = 0;
     const got = new Promise<void>(r => { done = () => { n = states.length; r(); }; });
@@ -2660,11 +2665,14 @@ export function renderComponent(
     const inner = () => got.then(async () => {
       if (disposed) return;
       await (real ? patchedTree(n) : treeRendered(n));
+      // (Sift B1: what an awaited input caused is seen; a next() after a history match starts after it)
+      seenAt = Math.max(seenAt, n);
     }).catch(noop);
     let driving: Promise<void> | undefined;
     return new Lazy<void>(r => r(undefined as any), () => (driving = driving || drive(inner(), () => disposed)));
   };
   const whenDisposed = new Set<() => void>();
+  let seenAt = 0;
 
   let vtree: any;
   let timer: any;
@@ -2810,6 +2818,7 @@ export function renderComponent(
       `. simulateAction reaches one instance (the rendered component unless { component } says another), like next(), never its parent or children`);
   };
   const simulateAction = (type: string, data?: any, options: SimulateActionOptions = {}) => {
+    notDisposed('simulateAction');
     simAt = states.length; due();
     throwFailure();
     // nothing queued and ready: a wrong name or component fails at the call, like simulateEvent
@@ -3411,6 +3420,7 @@ export function renderComponent(
   };
 
   const simulateEvent = (target: any, type: string, init: SimulatedEventInit = {}) => {
+    notDisposed('simulateEvent');
     simAt = states.length; due();
     throwFailure();
     const {allowMissing, within: inside, ...evInit} = init;
@@ -3582,8 +3592,9 @@ export function renderComponent(
           });
         } else {
           // G-129: the next next() starts after this state (as on the real DOM), so a state
-          // that arrived while this one's render settled can still match
-          treeRendered(i + 1).then(() => { waiters.delete(fail); if (!disposed) shown = i + 1; resolve(states[i]); });
+          // that arrived while this one's render settled can still match. Sift B1: never before
+          // the states an awaited input already showed the test (a history match is older)
+          treeRendered(i + 1).then(() => { waiters.delete(fail); if (!disposed) shown = Math.max(i + 1, seenAt); resolve(states[i]); });
         }
       };
       const test = (i: number) => { try { return predicate(states[i]); } catch (_) { return false; } };

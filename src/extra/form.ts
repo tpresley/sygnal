@@ -197,7 +197,7 @@ export const form = (schema: any, o: any = {}): any => {
   // 7.2: the props of the handler running (its 4th argument): a function option's bag is
   // readBag(P, h), the host's view bag (P is set by every model entry before its step runs)
   let P: any
-  const bag = (h: any) => readBag(P, h)
+  const bag = (h: any) => readBag(P, h, 'form')
   // the schema for the host state h and bag (RT-1: a schema function's, checked once per schema it returns)
   const sOf = (h: any, g = bag(h)) => {
     if (!sfn) return schema
