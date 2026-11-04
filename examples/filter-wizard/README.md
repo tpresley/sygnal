@@ -31,7 +31,7 @@ npm test
 - **Start over** (`reset`, `resetTo`), and **Create a similar filter** on Created (a step's `{ wizard: 'RESET', draft }`).
 - **A GOTO with a `key`:** Review's create reply sends `{ wizard: 'GOTO', step: 'created', key }`. The flow had no key, so it adopts the new filter's id, and the URL gets `?filter=3`.
 - **The outcome's work in the outcome step:** Review leaves `{ id, countMatches: true }` in the draft. [Created](src/new-filter/Created.jsx) sends the count from its `BOOTSTRAP` and clears the flag, so a reload doesn't count twice. A request sent from Review would be aborted as Review is left.
-- **A reload keeps the flow:** the root persists it for the tab (`persist({ storage: 'session' })`), so a reload lands on the same step with the draft. Entering the wizard from another page starts a new flow ([src/App.jsx](src/App.jsx), the `ROUTE` reducer).
+- **A reload keeps the flow:** the root persists it for the tab (`persist({ storage: 'session' })`), so a reload lands on the same step with the draft. New filter after Created starts a new flow: the wizard's `restart` default (`'outcome'`). A flow left mid-way resumes; leaving it with something typed asks first, and Discard starts it over.
 - **One outlet for the pages:** `<Outlet of={PAGES} current identity state={{ newFilter: 'flow' }} />`. Both wizard routes are one page, so the wizard host stays the same instance while its steps change.
 
 The API is a fake with latency ([src/api.js](src/api.js)) behind `makeFetchDriver({ fetch })`. It lives in memory, so a reload forgets the filters you created.
@@ -40,7 +40,7 @@ The API is a fake with latency ([src/api.js](src/api.js)) behind `makeFetchDrive
 
 [src/app.test.js](src/app.test.js) renders the app with `renderComponent(App, { dom: 'real', router, url })`:
 - the steps, the stepper, the browser's Back and Forward, and the `when` alternative;
-- a deep link, a reload (the same `storage`), and a new flow from another page;
+- a deep link, a reload (the same `storage`), and a new flow from another page, after Discard or after Created;
 - the leave guard: Keep editing, Discard, the dialog's copy;
 - creating: the HTTP fake's `t.requests` / `t.respond`, Created's count, a failed create, and one run end to end against the fake API;
 - a step alone, its wizard messages in `t.sent('PARENT')`.

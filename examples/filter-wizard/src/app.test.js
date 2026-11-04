@@ -296,6 +296,14 @@ describe('creating the filter', () => {
     await t.waitForState((s) => s.filter?.status === 'success', 1000)
     expect(t.query('h1').textContent).toBe('Disk full')
     expect(t.query('.condition').textContent).toBe('log lines with “ENOSPC”')
+
+    // New filter from the list: a new flow at Describe, not Created again (restart: 'outcome')
+    await t.navigate('/')
+    await t.settle()
+    await click('.new-filter')
+    expect(t.location.path).toBe('/filters/new')
+    expect(wizardState()).toMatchObject({ step: 'describe', outcome: null, key: null })
+    expect(t.query('.name').value).toBe('')
   })
 })
 

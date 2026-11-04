@@ -32,13 +32,8 @@ App.persist = persist({ key: 'filter-wizard', pick: ['flow'], storage: 'session'
 App.context = { route: (state) => state.route }
 App.model = {
   // The wizard reads the route from its own state (`flow.route`), so the flow key and the URL
-  // binding see it. Entering the wizard from another page starts a new flow; moving between its
-  // steps (and a reload) keeps the one there is.
-  ROUTE: (state, route) => {
-    if (!inWizard(route)) return { ...state, route }
-    const flow = inWizard(state.route) ? state.flow : {}
-    return { ...state, route, flow: { ...flow, route } }
-  },
+  // binding see it. (New filter after Created starts a new flow: the wizard's `restart` default.)
+  ROUTE: (state, route) => (inWizard(route) ? { ...state, route, flow: { ...state.flow, route } } : { ...state, route }),
 }
 
 export default App

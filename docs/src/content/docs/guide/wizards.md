@@ -367,17 +367,7 @@ NewFilter.uses = {
   - when an earlier step isn't valid, that step;
   - when the step itself is skipped by `when`, the last step before it that isn't.
 
-**A flow kept in a parent's state outlives the page.** Leaving the wizard and coming back finds the same flow, on the same step (the outcome step too, once the flow is done). To start a new flow each time the wizard is entered from another page, drop the slice in the root's route reducer:
-
-```js
-App.model = {
-  ROUTE: (state, route) => {
-    if (!inWizard(route)) return { ...state, route }
-    const flow = inWizard(state.route) ? state.flow : {}   // from another page: a new flow
-    return { ...state, route, flow: { ...flow, route } }
-  },
-}
-```
+**A flow kept in a parent's state outlives the page.** Leaving the wizard mid-way and coming back finds the same flow, on the same step. A finished flow, on its outcome step, starts over; `restart: 'entry'` starts every entry over ([Entering the wizard again](#entering-the-wizard-again)).
 
 **Where the route comes from:** the behavior reads it from the host's `state.route`. `url.from` names another place, or maps a route of its own onto the step route. For a first step at `/filters/new`: `from: (state) => state.route.name === 'newFilter' ? { ...state.route, name: 'newFilterStep', params: { step: 'define' } } : state.route`. A navigation the user attempts goes through `from` too, with the attempted route as the state's `route`, to tell whether it stays in the flow.
 
