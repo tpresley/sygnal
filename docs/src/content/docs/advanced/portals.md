@@ -35,28 +35,21 @@ The `target` prop is a CSS selector for the destination container. Add a `<div i
 
 ## Event Handling in Portals
 
-Elements in your component's own DOM tree work with `DOM.select()` as usual. However, portal content is rendered into the target container, which may be **outside** the component's isolation scope. When that's the case, `DOM.select('.close-btn').events('click')` won't match elements inside the portal.
-
-Use document-level event delegation for portal content that renders outside the component:
+Events from a portal's content belong to the component that renders the `<Portal>`, as in React: they bubble from the content to the portal's place in the view, then through the elements and components around it. So the intent selects portal content as it selects the rest of its view:
 
 ```jsx
 ModalExample.intent = ({ DOM }) => ({
-  // Normal DOM.select works — button is in the component's own tree
   OPEN: DOM.select('.open-btn').events('click'),
-
-  // Document-level delegation — close button is inside the portal
-  CLOSE: DOM.select('document').events('click')
-    .filter(e => e.target && e.target.closest && !!e.target.closest('.close-btn')),
+  // the close button is inside the portal, rendered into #modal-root
+  CLOSE: DOM.select('.close-btn').events('click'),
 })
 ```
 
-If the portal target is a container **within** the component's own DOM subtree, normal `DOM.select()` will still work for portal content. The document-level approach is only necessary when the target is outside the component's isolation boundary (which is the typical use case for portals — rendering to `body`, `#modal-root`, etc.).
+This holds wherever the target is (`body`, `#modal-root`, an element of the app). Events that don't bubble (`focus`, `toggle`, `close` on a `<dialog>`) work the same way, and `DOM.select('.close-btn').elements()` finds the content's elements too. A click in the portal reaches a listener on an element around the `<Portal>` in the view (`DOM.select('.card').events('click')`), not the listeners on the target's ancestors in the app.
 
 ## Components inside a Portal
 
-A component in a portal's content is a child of the component that renders the `<Portal>`, as anywhere else in its view: it gets its state (`<Picker state="picker" />`), renders into the target, sends `PARENT` and `EVENTS`, and is disposed when the portal goes. A `Collection` inside a portal follows its array.
-
-Its own DOM listeners follow the rule above: on the browser DOM, portal content is outside the app's isolation scopes, so a child in a portal hears its elements' events with `DOM.select('document')` (as the owner does), not with `DOM.select('.ok')`. `renderComponent`'s mock DOM delivers them either way.
+A component in a portal's content is a child of the component that renders the `<Portal>`, as anywhere else in its view: it gets its state (`<Picker state="picker" />`), renders into the target, sends `PARENT` and `EVENTS`, and is disposed when the portal goes. A `Collection` inside a portal follows its array. It keeps its own scope: its intent hears its elements (`DOM.select('.ok')`), and the owner's selectors don't match them.
 
 [`ELEMENT` commands](/guide/element-commands/) (`{ focus: '.title' }`, `{ showModal: '.dialog' }`) reach the portal's content: a target that isn't in the component's own DOM is looked for in the content of the `<Portal>`s it renders.
 
@@ -87,9 +80,9 @@ function Notices({ state }) {
 
 With `__sygnalHome`, `DOM.click('.clear')` hears the moved button, and the event bubbles through the home to the component's parents (not to the dialog's listeners). Without it, child components inside the moved element (Collection items) still hear their own events, but the component's listeners on its own moved elements don't fire, and an element moved out of the app's root is outside the app. `DOM.select(…).elements()` and `ELEMENT` commands look inside the component's own DOM, so they don't find moved elements; give the moved element a child component for those. (An `ELEMENT` command whose target isn't in the component's own DOM is also looked for in the content of the `<Portal>`s it renders.)
 
-## Chained Document Selectors
+## Page-wide listeners
 
-You can also use the chained `.select()` syntax on document sources for cleaner filtering:
+To hear an event wherever it happens on the page, inside the portal or not, listen on the document, filtered with `.select()`:
 
 ```jsx
 ModalExample.intent = ({ DOM }) => ({
@@ -97,4 +90,4 @@ ModalExample.intent = ({ DOM }) => ({
 })
 ```
 
-This uses CSS selector matching on the event target internally, equivalent to the manual `.filter()` approach above.
+This matches the event target (or an ancestor of it) against the selector, anywhere on the page.

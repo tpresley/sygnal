@@ -108,7 +108,9 @@ function appearsInView(component: any, selector: string): boolean {
 function rootElementsOf(t: Tracked): Element[] {
   try {
     const im = t.source._isolateModule
-    return (im && im.getElements(scopesOf(t.source.namespace))) || []
+    // Sift #4: and the app's Portal anchors (their content is in the scope of the component that
+    // renders the Portal; the scope check below sorts it out)
+    return im ? [...im.getElements(scopesOf(t.source.namespace)), ...(im.portals || [])] : []
   } catch (_) {
     return []
   }

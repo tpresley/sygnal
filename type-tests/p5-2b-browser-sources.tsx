@@ -87,3 +87,15 @@ void drive
 b.deny('camera')
 // @ts-expect-error unknown option
 renderComponent(Card, { browser: { mediaQueries: {} } })
+
+// Sift #10: a resize spec's box
+const boxed: BrowserSpec = { resize: '.row', box: 'border-box', action: 'SIZE' }
+void boxed
+// @ts-expect-error not a ResizeObserver box
+const badBox: BrowserSpec = { resize: '.row', box: 'padding-box', action: 'SIZE' }
+void badBox
+
+// Sift #7: renderComponent's props
+renderComponent(Card, { props: { label: 'Milk', step: 2 } })
+// @ts-expect-error props is an object of props
+renderComponent(Card, { props: 'Milk' })

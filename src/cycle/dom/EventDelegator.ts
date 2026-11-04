@@ -326,18 +326,20 @@ export class EventDelegator {
 
   private setupDOMListener(eventType: string, passive: boolean): void {
     if (this.origin) {
-      const sub = fromEvent(
-        this.origin,
+      // Sift #4: on the root and on each mounted Portal's anchor (an event from a Portal's content
+      // bubbles from the anchor to its placeholder: IsolateModule's upOf)
+      const subs = [this.origin, ...this.isolateModule.portals].map(el => fromEvent(
+        el,
         eventType,
         false,
         false,
         passive
       ).subscribe({
-        next: (event: Event) => this.onEvent(eventType, event),
+        next: (event: Event) => this.onEvent(eventType, event, true, el),
         error: () => {},
         complete: () => {},
-      });
-      this.domListeners.set(eventType, {sub, passive});
+      }));
+      this.domListeners.set(eventType, {sub: {unsubscribe: () => subs.forEach(s => s.unsubscribe())} as Subscription, passive});
     } else {
       this.domListenersToAdd.set(eventType, passive);
     }
@@ -385,7 +387,7 @@ export class EventDelegator {
     return sub;
   }
 
-  private resetEventListeners(): void {
+  public resetEventListeners(): void {
     this.domListeners.forEach(({sub, passive}, type) => {
       sub.unsubscribe();
       this.setupDOMListener(type, passive);
@@ -395,8 +397,17 @@ export class EventDelegator {
   private onEvent(
     eventType: string,
     event: Event,
-    bubbles = true
+    bubbles = true,
+    at?: Element
   ): void {
+    // Sift #4: an event heard on several of the listening elements (a Portal's target inside the
+    // root) is delivered by the innermost one only
+    const ps = this.isolateModule.portals;
+    if (at && ps.size) {
+      let n: any = event.target;
+      while (n && n !== this.origin && !ps.has(n)) n = n.parentNode;
+      if (n && n !== at) return;
+    }
     // 7.2: the event is recorded while it is delivered (the core's onDispatch hook)
     deliver(event, () => {
       const cycleEvent = this.patchEvent(event);

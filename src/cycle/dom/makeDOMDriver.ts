@@ -160,7 +160,7 @@ function makeDOMDriver(
     // can replace the first one). G-277: the innermost app's root takes it (a nested app or
     // custom element doesn't re-emit the outer app's DOM source)
     let pl: any, cur: any;
-    const poke = (e: Event) => pl && (e.stopPropagation(), pl.next(cur));
+    const poke = (e: any) => pl && (e.stopPropagation(), e.q ? e.q.m = isolateModule : pl.next(cur));
     const off = () => cur?.removeEventListener(POKE, poke);
     // G-545: run() gives any DOM driver its reporter (onError, phase 'patch') on the isolate
     // module; an explicit reportSnabbdomError comes first

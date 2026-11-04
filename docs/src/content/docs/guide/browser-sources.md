@@ -45,7 +45,7 @@ A spec whose source the driver wasn't made with is [SYG664](/reference/errors/#s
 | Spec | Watches | Action data |
 |---|---|---|
 | `{ intersection: '.cover', action }` | The elements the selector matches in this component's view entering or leaving the viewport (`IntersectionObserver`). `true` instead of a selector: the component's root element. Options: `threshold`, `rootMargin` | `{ visible, ratio, index, dataset }` |
-| `{ resize: '.chart', action }` | The size of those elements' content box (`ResizeObserver`); `true`: the root element | `{ width, height, index, dataset }` |
+| `{ resize: '.chart', action, box? }` | The size of those elements' content box (`ResizeObserver`); `true`: the root element. `box: 'border-box'` includes padding and border, `'device-pixel-content-box'` is in device pixels | `{ width, height, index, dataset }` |
 | `{ media: '(min-width: 800px)', action }` | A media query | `{ matches, media }` |
 | `{ storage: 'theme', action }` | A `localStorage` key (`area: 'session'`: `sessionStorage`; `json: true`: the value parsed), including writes from other tabs | `{ key, value }` (`null` when absent) |
 | `{ visibility: true, action }` | Whether the page is visible (another tab, a minimized window) | `{ visible }` |
@@ -196,7 +196,7 @@ The `browser` option sets the environment at the start: `renderComponent(Theme, 
 
 | Code | When |
 |---|---|
-| [SYG663](/reference/errors/#syg663) (error) | A spec the driver can't start (no known source key, no `action`, an `intersection` / `resize` target that is neither a selector nor `true`), or a command with an unknown method |
+| [SYG663](/reference/errors/#syg663) (error) | A spec the driver can't start (no known source key, no `action`, an `intersection` / `resize` target that is neither a selector nor `true`, an unknown `box`), or a command with an unknown method |
 | [SYG664](/reference/errors/#syg664) (error) | A spec whose source `makeBrowserDriverWith(...)` wasn't given |
 | [SYG665](/reference/errors/#syg665) (warning) | A source or command failed and names no `error` action |
 | [SYG668](/reference/errors/#syg668) (warning) | An `intersection` / `resize` entry has nothing to observe: no DOM source reached the driver, or (in `renderComponent` with `dom: 'real'`) its selector matches no element of the component |

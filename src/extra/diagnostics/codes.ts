@@ -76,6 +76,7 @@ export const CODE_SEVERITY: Record<string, DiagnosticSeverity> = {
   SYG104: 'warn',
   SYG105: 'info',
   SYG106: 'warn',
+  SYG107: 'warn',
   SYG110: 'warn',
   SYG111: 'warn',
   SYG201: 'warn',
@@ -142,6 +143,8 @@ export const CODE_TITLES: Record<string, string> = {
   SYG104: 'Intent selector crosses an isolation boundary',
   SYG105: 'EVENTS type selected but never emitted, or emitted but never selected',
   SYG106: 'Parent prop is overwritten by a reserved view argument',
+  // Sift preview.5 #2/#3 (checks/domProps.ts, sygnal-check rules/syg107-dom-prop-case.js)
+  SYG107: 'DOM property name in the wrong case',
   SYG110: 'Intent selector not present in the component view',
   SYG111: 'Controlled input has no input listener',
   SYG115: 'Unknown DOM event shorthand',

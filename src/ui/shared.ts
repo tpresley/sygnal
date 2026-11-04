@@ -32,41 +32,19 @@ export const idsOf = (s: any, uid: any, fallback: string) => (kind: string, v?: 
 export const on = (sel: any, m: string, run: (el: any, o: any) => void, optional?: boolean): any => ({toString: () => '' + sel, __sel: sel, spec: {commands: {[m]: run}, optional}})
 
 // ── ui-sweep R4: a part's elements in a <Portal> ─────────────────────
-// A <Portal> patches its content into its target, outside the component's own DOM; its
-// placeholder (in the component's DOM) names that content as `__portal` (core/markers/portal.ts).
-// The component's own roots come from `DOM.elements()` (no select(): the dev selector checks
-// don't see it); the mock DOM has none, and the parts then read their own DOM only.
-const boxes = (roots: any): any[] => {
-  const b: any[] = []
-  for (const r of roots || []) for (const p of r.querySelectorAll?.('[data-sygnal-portal]') || []) p.__portal && b.push(p.__portal)
-  return b
-}
-const real = (DOM: any) => typeof DOM.elements == 'function'
+// Sift #4: the DOM driver finds a component's elements in the content of its Portals, and
+// delivers their events as from inside the component (core/markers/portal.ts), so a part reads
+// them through its DOM source alone (before: the content of the placeholders' `__portal` and a
+// capture listener on the document)
 
-/** the elements `sel` matches: in the component's own DOM, else in the content of its portals */
-export const find = (DOM: any, sel: any): any => {
-  const own = DOM.select(sel).elements()
-  return real(DOM) ? xs.combine(own, DOM.elements()).map(([o, rs]: any) => (o?.length ? o : boxes(rs).flatMap((b) => [...b.querySelectorAll('' + sel)]))) : own
-}
+/** the elements `sel` matches: in the component's own DOM and in the content of its portals */
+export const find = (DOM: any, sel: any): any => DOM.select(sel).elements()
 
 /**
  * `type` events on `sel`'s elements (and, for a type that bubbles, from inside them), in the
- * component's own DOM and in its portals: there a capture listener on the document, with
- * `ownerTarget` set as the DOM driver sets it and `preventDefault` (true or a predicate) applied
+ * component's own DOM and in its portals
  */
-export const ev = (DOM: any, sel: any, type: string, o: any = {}, bubbles?: boolean): any => {
-  const own = DOM.select(sel).events(type, o, bubbles)
-  if (!real(DOM)) return own
-  const pd = o.preventDefault
-  return xs.merge(own, DOM.select('document').events(type, {useCapture: true}).compose(sampleCombine(DOM.elements())).map(([e, rs]: any) => {
-    const t = e.target, m = e.bubbles ? t?.closest?.('' + sel) : t?.matches?.('' + sel) && t
-    // not in its own DOM (the DOM driver delivers those), in one of its portals
-    if (!m || rs.some((r: any) => r.contains(m)) || !boxes(rs).some((b) => b.contains(m))) return
-    Object.defineProperty(e, 'ownerTarget', {value: m, configurable: true})
-    if (pd === true || (typeof pd == 'function' && pd(e))) e.preventDefault()
-    return e
-  }).filter(Boolean))
-}
+export const ev = (DOM: any, sel: any, type: string, o: any = {}, bubbles?: boolean): any => DOM.select(sel).events(type, o, bubbles)
 
 /**
  * G-400: SYNC's trigger for a dialog / popover behavior: `false` when its element left the page

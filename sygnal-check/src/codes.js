@@ -20,6 +20,8 @@ export const CODES = {
   SYG102: { severity: 'warn', title: 'Model entry is unreachable' },
   SYG104: { severity: 'warn', title: 'Intent selector crosses an isolation boundary' },
   SYG105: { severity: 'warn', title: 'EVENTS type selected but never emitted, or emitted but never selected' },
+  // 7.2, Sift preview.5 (rules/syg107-dom-prop-case.js; the dev entry reports it at run time too)
+  SYG107: { severity: 'warn', title: 'DOM property name in the wrong case' },
   SYG110: { severity: 'warn', title: 'Intent selector not present in the component view' },
   SYG111: { severity: 'warn', title: 'Controlled input has no input listener' },
   SYG112: { severity: 'error', title: 'Reply action has no model entry' },

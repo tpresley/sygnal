@@ -1,7 +1,8 @@
 // Components inside a <Portal> (BROWSER=chromium|firefox|webkit): instantiated like any child (they
 // rendered as a literal <kid> tag): the child renders into the target, re-renders with its state,
 // a Collection inside the portal follows its array, and the portal's removal disposes them. Its own
-// clicks reach it through document-level selection (portal content is outside the app's scopes).
+// clicks reach it through document-level selection, as before; Sift #4: and through its own DOM
+// source, as the owner's do (events from a portal's content bubble to its placeholder).
 import { run, Portal, Collection } from 'sygnal'
 import { mountOnScreen, clearStage, assert, runTest as run_, wait, waitFor } from '../harness.js'
 
@@ -63,6 +64,58 @@ export async function portalComponentTests7_2() {
       await click(`${id} .pc-close`)
       assert(!modal.querySelector('.pc-dialog'), 'removed: ' + modal.innerHTML)
       assert(disposed.join() === '2', 'disposed: ' + disposed)
+    } finally { app.dispose() }
+  })
+}
+
+// Sift #4: the owner's DOM source hears its portal's content (a click, a focus, an element
+// around the placeholder), and a child inside the portal its own elements, through select()
+function Kid({ state }) { return <button className="pe-kid">kid {state.n}</button> }
+Kid.intent = ({ DOM }) => ({ INC: DOM.select('.pe-kid').events('click') })
+Kid.model = { INC: (s) => ({ ...s, n: s.n + 1 }) }
+function Owner({ state }) {
+  return (
+    <main className="pe-owner">
+      <output className="pe-got">{`${state.hint}/${state.wrap}/${state.focus}`}</output>
+      <Portal target="#pc-modal">
+        <section>
+          <button className="pe-hint">hint</button>
+          <input className="pe-field" aria-label="field" />
+          <Kid state="kid" />
+        </section>
+      </Portal>
+    </main>
+  )
+}
+Owner.initialState = { hint: 0, wrap: 0, focus: 0, kid: { n: 0 } }
+Owner.intent = ({ DOM }) => ({
+  HINT: DOM.select('.pe-hint').events('click'),
+  WRAP: DOM.select('.pe-owner').events('click'),
+  FOCUS: DOM.select('.pe-field').events('focus'),
+})
+Owner.model = {
+  HINT: (s) => ({ ...s, hint: s.hint + 1 }),
+  WRAP: (s) => ({ ...s, wrap: s.wrap + 1 }),
+  FOCUS: (s) => ({ ...s, focus: s.focus + 1 }),
+}
+
+export async function portalEventTests7_2() {
+  await runTest("the owner's select() hears its portal's content; a child in it keeps its scope", async () => {
+    const modal = document.createElement('div')
+    modal.id = 'pc-modal'
+    document.body.appendChild(modal)
+    const { id, el } = mountOnScreen()
+    const app = run(Owner, {}, { mountPoint: id })
+    const got = () => el.querySelector('.pe-got').textContent
+    try {
+      await waitFor(() => modal.querySelector('.pe-hint'))
+      await click('#pc-modal .pe-hint')
+      assert(got() === '1/1/0', 'click: ' + got())
+      await window.__pw('focus', '#pc-modal .pe-field')
+      await waitFor(() => got() === '1/1/1')
+      await click('#pc-modal .pe-kid')
+      assert(modal.querySelector('.pe-kid').textContent === 'kid 1', 'kid: ' + modal.innerHTML)
+      assert(got() === '1/2/1', "the kid's click bubbles to the owner, not to its .pe-hint: " + got())
     } finally { app.dispose() }
   })
 }

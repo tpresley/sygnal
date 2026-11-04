@@ -751,6 +751,21 @@ The timing options (and a timeout passed to `next()`, `waitForState()` or `settl
 | `callTool` | `(name, args?, { confirm? }) => Promise<AgentResult>` | Run a tool as an agent does (cause `'agent'`); resolves with the result after the render. A consequential tool throws without `confirm` |
 | `agentContext` | `() => Record<string, any>` | What a model sees of the app: keyed by declaration `name`, each entry what that declaration's `read` returned (an item declaration's: an array of the items' projections, each with its `id`). So `agent = { name: 'todos', read: (s) => ({ todos: s.todos }) }` gives `{ todos: { todos: [...] } }` |
 
+## Props
+
+A child component gets props from the parent that renders it. Tested alone, pass them with `props`:
+
+```jsx
+import { renderComponent } from 'sygnal'
+import { Item } from './Item.jsx'
+
+const t = renderComponent(Item, { props: { label: 'Milk', done: true } })
+await t.ready()
+expect(t.html()).toContain('Milk')
+```
+
+The view reads them as it does in the app (`function Item({ state, label, done })`), and so do the handlers (their fourth argument), the intent's `props$`, behaviors and `.context` entries. The props are fixed for the test. `state`, `context`, `uid` and `children` are not props: use `initialState` and `context`, and render a host component to pass children or to test a change of props.
+
 ## Context
 
 A component that reads `context` gets it from its ancestors' `.context`. Tested alone it has no ancestors, so pass what they would give it:

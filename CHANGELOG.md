@@ -10,6 +10,14 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Added: SYG510 (strict)**, `t.waitForState()` matched only a state the test had already seen (the Sift console port's suggestion, after B1). Under `renderComponent(C, { strict: true })`, a `waitForState(pred)` whose only match is a state from before the last awaited input, while the current state doesn't match, warns: the wait proves nothing about now. A match the current state also satisfies isn't reported.
 
+**Changed: events from a `<Portal>`'s content reach the component that renders it** (the Sift console port's Phase A, #4; maintainer decision), as in React. They bubble from the content to the portal's place in the view, then through the elements and components around it, wherever the target is. So `DOM.select('.close').events('click')` hears the close button inside the portal, events that don't bubble (`focus`, `toggle`) work too, `DOM.select(sel).elements()` finds the content's elements, and a component inside the portal keeps its own scope (its intent hears its elements, the owner's selectors don't match them). Before, an intent heard its portal's content only through `DOM.select('document')`, and a control in Sift was dead in the browser while its mock-DOM tests passed. `DOM.select('document')` listeners are unchanged. A listener on an element around the `<Portal>` (`DOM.select('.card').events('click')`) now also hears clicks in the portal; the listeners of the target's own ancestors don't. `sygnal/ui` parts read portal content through their DOM source (their document listener is gone), and SYG103 counts a match in the component's portals.
+
+**Added: SYG107, a DOM property name in the wrong case** (the Sift console port's Phase A, #2 and #3). Sygnal sets a name on an HTML element as the DOM property of that name, so React's `autoComplete` or the attribute's lowercase `inputmode` rendered nothing, with no message, while the mock DOM and server markup showed them. The dev entry and `sygnal-check` now warn, naming the property (`autocomplete`, `inputMode`); `sygnal-check --fix` renames it. Names Sygnal writes as attributes aren't reported.
+
+**Added: `renderComponent(C, { props })`** (the Sift console port's Phase A, #7): a child tested alone with the props a parent would pass. The view, the handlers' 4th argument, the intent's `props$` and `.context` entries read them.
+
+**Added: `box` on a `resize` browser source** (the Sift console port's Phase A, #10): `{ resize: '.row', box: 'border-box', action }` reports the border box (padding and border included), `'device-pixel-content-box'` the content box in device pixels. The default is still the content box. An unknown `box` is SYG663.
+
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 ## 7.2.0-preview.5 — dev preview

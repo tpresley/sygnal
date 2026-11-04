@@ -19,6 +19,9 @@ export class IsolateModule {
   private eventDelegator: EventDelegator | undefined;
 
   private vnodesBeingRemoved: Array<Element>;
+  // Sift #4: the anchors of the Portals mounted from this app (their content is outside its root):
+  // the delegator listens on them too, and ElementFinder looks in them
+  public portals = new Set<Element>();
 
   constructor() {
     this.namespaceByElement = new WeakMap<Element, Array<Scope>>();
@@ -44,6 +47,12 @@ export class IsolateModule {
       // P45-A: an unmounted scope leaves no node behind
       if (!els.size) this.namespaceTree.delete(namespace!);
     }
+  }
+
+  /** a Portal's anchor mounted (`on`) or removed: the delegator's listeners move with it */
+  public portal(el: Element, on: boolean): void {
+    on ? this.portals.add(el) : this.portals.delete(el);
+    this.eventDelegator?.resetEventListeners();
   }
 
   public getElements(namespace: Array<Scope>): Array<Element> {

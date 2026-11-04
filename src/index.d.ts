@@ -3771,7 +3771,8 @@ interface BrowserSpecBase<ACTION extends string> {
  * PLAN-5 B-3: one entry of a `browser` static; its one source key is its kind:
  * - `intersection`: the elements a selector matches in this component (`true`: its root element)
  *   entering or leaving the viewport (IntersectionObserver), data `BrowserIntersection`;
- * - `resize`: their content-box size (ResizeObserver), data `BrowserResize`;
+ * - `resize`: their content-box size (ResizeObserver; `box: 'border-box'` includes padding and
+ *   border, `'device-pixel-content-box'` is in device pixels), data `BrowserResize`;
  * - `media`: a media query, data `{ matches, media }` (the current value first);
  * - `storage`: a localStorage key (`area: 'session'`: sessionStorage; `json: true`: parsed), read
  *   and observed (other tabs' writes, and BROWSER `setItem` / `removeItem`), data `{ key, value }`;
@@ -3784,7 +3785,7 @@ interface BrowserSpecBase<ACTION extends string> {
  */
 export type BrowserSpec<ACTION extends string = string> =
   | (BrowserSpecBase<ACTION> & { intersection: string | true; threshold?: number | number[]; rootMargin?: string })
-  | (BrowserSpecBase<ACTION> & { resize: string | true })
+  | (BrowserSpecBase<ACTION> & { resize: string | true; box?: 'content-box' | 'border-box' | 'device-pixel-content-box' })
   | (BrowserSpecBase<ACTION> & { media: string })
   | (BrowserSpecBase<ACTION> & { storage: string; area?: 'local' | 'session'; json?: boolean; error?: ACTION })
   | (BrowserSpecBase<ACTION> & { visibility: true })
@@ -3796,7 +3797,7 @@ export type BrowserSources<ACTION extends string = string> = { [name: string]: B
 
 /** The data of an `intersection` action: visible (isIntersecting), the ratio, which matched element (its index and dataset) */
 export interface BrowserIntersection { visible: boolean; ratio: number; index: number; dataset: Record<string, string> }
-/** The data of a `resize` action: the content box, which matched element */
+/** The data of a `resize` action: the observed box (the content box unless the spec's `box`) as inline × block size, which matched element */
 export interface BrowserResize { width: number; height: number; index: number; dataset: Record<string, string> }
 /** The data of a `geolocation` action */
 export interface BrowserPosition { latitude: number; longitude: number; accuracy: number; altitude: number | null; altitudeAccuracy: number | null; heading: number | null; speed: number | null; timestamp: number }
@@ -4051,6 +4052,14 @@ export interface RenderOptions {
    * of the same name. Fixed values for the test's lifetime.
    */
   context?: Record<string, any>;
+  /**
+   * 7.2: the props a parent would pass, for testing a child alone:
+   * `renderComponent(Item, { props: { label: 'Milk', done: true } })`. The view reads them as
+   * `label`, handlers in their 4th argument, the intent through `props$`, behaviors and context
+   * entries in their bag. Fixed for the test's lifetime; no `state`, `context`, `uid` or
+   * `children` (the initialState and context options; a host component for children).
+   */
+  props?: Record<string, any>;
   /** Mock DOM configuration — maps selectors to event streams */
   mockConfig?: Record<string, any>;
   /** The app-level error hook, as run()'s `onError` (PLAN-4 GS-11) */

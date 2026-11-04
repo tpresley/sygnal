@@ -245,7 +245,7 @@ On the client, the first render replaces the fallback and mounts the widget. A v
 
 ## Portals
 
-A widget works inside a [`<Portal>`](/advanced/portals/), and unmounts when the portal is removed. Its events are dispatched in the portal's target, outside the component's own element, so listen through the document, as for any content of a portal: `DOM.select('document').select('.due').events('pick').detail()`.
+A widget works inside a [`<Portal>`](/advanced/portals/), and unmounts when the portal is removed. Its events bubble to the component that renders the portal, as any event from a portal's content does: `DOM.select('.due').events('pick').detail()`.
 
 ## Transitions
 

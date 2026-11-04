@@ -62,6 +62,8 @@ export interface StartOptions {
   __entropy?: {now?: () => number; random?: () => number; uuid?: () => string}
   /** internal: renderComponent's root (test intent, initial state, name) */
   __override?: Partial<DefSource> & {name?: string; testActions?: string[]}
+  /** internal: the root's props (renderComponent's `props`: a child tested alone) */
+  __props?: Record<string, any>
 }
 
 export class App {
@@ -574,7 +576,7 @@ export function start(Root: ComponentFn, drivers: Record<string, any> = {}, opts
       setup(shim)
       return {...src, model: shim.model, initialState: shim.initialState}
     } : undefined)
-    app.root = new Inst(app, def, null, rootCell(app), app.sources.DOM, {}, [], undefined,
+    app.root = new Inst(app, def, null, rootCell(app), app.sources.DOM, opts.__props || {}, [], undefined,
       opts.uid ? opts.uid.replace(/[^\w-]+/g, '_') : 'u', 'root')
     link?.()
   } catch (e) {
