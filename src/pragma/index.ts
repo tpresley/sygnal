@@ -182,8 +182,10 @@ const clean = (obj: any): any => {
 //   (ATTRS) go to attrs (G-370: a component placeholder keeps them as props); an aria-* true is
 //   written as "true" (D196: snabbdom writes true as "", which ARIA doesn't read as true), false
 //   as "false" for a state whose values include false (G-372: ARIA_FALSE), else (an IDREF, a
-//   string, a number) it removes the attribute, as null does; key is dropped; anything else is a
-//   prop
+//   string, a number) it removes the attribute, as null does; React's booleanish strings
+//   (spellcheck, draggable, contenteditable, any case: BOOLISH) go to attrs by their lowercase
+//   name, true / false as "true" / "false" (as a property, spellcheck="false" became true); key
+//   is dropped; anything else is a prop
 // - an undefined value is skipped (a `<module>-<name>` one still makes its bucket)
 // A bucket is the object passed (`lent`) until a second source adds to it; then it is a copy.
 // sanitizeData doesn't re-enter, so `lent` is per call (null until a bucket is lent).
@@ -206,7 +208,7 @@ const add = (out: any, b: string, v: any): void => {
 // P46-P: where a key goes, by key (per modules map; 0: skipped): [bucket, name, kind]. kind 1: a
 // `<module>-<name>` key (its bucket is made even for undefined); 2: a module's own object
 // (3: `class`, made a map first); else the bucket's `name` (no bucket: the data's own key; 4:
-// aria-*, a boolean stringified)
+// aria-*, a boolean stringified; 5: BOOLISH, a boolean always stringified)
 const ATTRS = /^(for|form|list|role|tabindex|popovertarget(action)?|command(for)?|closedby|interestfor|anchor|aria-.*)$/
 // G-372: the WAI-ARIA 1.2 states and properties whose value set includes "false" (true/false,
 // tristate, and the tokens aria-current / aria-invalid / aria-haspopup), by a prefix no other
@@ -214,6 +216,8 @@ const ATTRS = /^(for|form|list|role|tabindex|popovertarget(action)?|command(for)
 // haspopup, hidden, invalid, modal, multiline, multiselectable, pressed, readonly, required,
 // selected (sel: not setsize)
 const ARIA_FALSE = /^aria-(at|bu|ch|cu|di|ex|gr|ha|hi|in|mo|mu|pr|re[aq]|sel)/
+// React DOM's booleanish string attributes on HTML elements (the SVG ones are attributes already)
+const BOOLISH = /^(spellcheck|draggable|contenteditable)$/i
 // `c`: a component placeholder (G-370: ATTRS stay props)
 const route = (key: string, modules: Record<string, any>, c?: any): any => {
   if (key == 'ref' || key == 'key' || key == 'children') return 0
@@ -225,6 +229,7 @@ const route = (key: string, modules: Record<string, any>, c?: any): any => {
   // stays an attribute (a form-associated element's `form` is a getter; the attribute links it).
   // G-542: there, only a string form (an object is the element's own property: r[3])
   if (c != 1 && modules.attrs !== undefined && ATTRS.test(key) && !(c && key == 'list')) return ['attrs', key, prefix == 'aria' && 4, c && key == 'form']
+  if (c != 1 && modules.attrs !== undefined && BOOLISH.test(key)) return ['attrs', key.toLowerCase(), 5]
   if (modules[key] !== undefined) return [modules[key] || key, 0, key == 'class' && modules.class !== undefined ? 3 : 2]
   return [modules.props !== undefined && 'props', key]
 }
@@ -237,7 +242,7 @@ const put = (out: any, r: any, key: string, val: any): void => {
     if (val !== undefined) o[name] = val
   } else if (val === undefined) return
   else if (kind & 2) add(out, b, kind == 3 ? toClassMap(val) : val)
-  else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
+  else if (b) bucket(out, r[3] && typeof val != 'string' ? 'props' : b)[name] = kind ? val === !!val ? (val || kind == 5 || ARIA_FALSE.test(key)) && '' + val : val ?? false : val
   else out[key] = val
 }
 const sanitizeData = (data: any, modules: Record<string, any>, routes: Map<string, any>, c?: any): any => {

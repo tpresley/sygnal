@@ -10,6 +10,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Added: SYG510 (strict)**, `t.waitForState()` matched only a state the test had already seen (the Sift console port's suggestion, after B1). Under `renderComponent(C, { strict: true })`, a `waitForState(pred)` whose only match is a state from before the last awaited input, while the current state doesn't match, warns: the wait proves nothing about now. A match the current state also satisfies isn't reported.
 
+**Fixed: `spellcheck="false"` turned spell checking on** (the Sift console port). React DOM's booleanish string attributes, `spellcheck`, `draggable` and `contenteditable` (any case: `spellCheck`, `contentEditable`), are now attributes, as in React: `"false"` and `false` are written as `"false"`, `true` as `"true"`, `null` removes it. As properties, the string `"false"` was `true`, and a lowercase `contenteditable` was ignored. The default mock DOM (`renderComponent` without `dom: 'real'`) now shows them in `t.html()` / `outerHTML`; sygnal/host gets the same attributes, and on sygnal/three and sygnal/canvas elements `draggable="false"` is not a drag source.
+
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 ## 7.2.0-preview.5 — dev preview

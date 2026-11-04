@@ -55,6 +55,7 @@ import { hydrationTestsP5_3J } from './tests/hydration-p5-3j.jsx'
 import { hydrationTestsP5_3M } from './tests/hydration-p5-3m.jsx'
 import { fragmentTestsP5_3Q } from './tests/fragments-p5-3q.jsx'
 import { nullViewTests7_2 } from './tests/null-view-7-2.jsx'
+import { booleanishAttrTests7_2 } from './tests/booleanish-attrs-7-2.jsx'
 import { wizardSpikeTests, wizardRouterTests } from './tests/wizard-spike.jsx'
 import { portalComponentTests7_2 } from './tests/portal-components-7-2.jsx'
 import { fixesTestsP5_3K } from './tests/fixes-p5-3k.jsx'
@@ -128,6 +129,7 @@ async function runAll() {
     hydrationTestsP5_3M,
     fragmentTestsP5_3Q,
     nullViewTests7_2,
+    booleanishAttrTests7_2,
     wizardSpikeTests,
     wizardRouterTests,
     portalComponentTests7_2,
