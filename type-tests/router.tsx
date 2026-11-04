@@ -31,6 +31,8 @@ href('home', { id: 1 })
 const r: Route<'home' | 'task' | 'note' | 'notFound'> = router.current()
 router.current('/tasks/1?x=1')
 const n: 'home' | 'task' | 'note' | 'notFound' | null = router.match('/x').name
+// Sift B3: an unmatched URL carries the '*' route's name, so comparing with it type-checks
+export const unmatched: boolean = router.match('/x').name === 'notFound' || router.current().name === 'notFound'
 const p: string = r.params.id
 void [a, n, p]
 

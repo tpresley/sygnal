@@ -3650,10 +3650,10 @@ export interface Router<R extends Record<string, string> = Record<string, string
   routes: R;
   /** a link to a named route (pure, SSR-safe): href('task', { id: 2 }, { tab: 'notes' }) */
   href<N extends RouteName<R>>(name: N, ...args: [...RouteParamsArg<R[N]>, query?: RouteQuery, hash?: string]): string;
-  /** the Route of a URL (a path or an absolute URL); pure */
-  match(url: string): Route<RouteName<R>>;
+  /** the Route of a URL (a path or an absolute URL); pure. Its name is any route's, the `'*'` route's included (an unmatched URL) */
+  match(url: string): Route<keyof R & string>;
   /** the Route of the current location, or of `url` (SSR: the request URL). The `initialState.route` seed */
-  current(url?: string): Route<RouteName<R>>;
+  current(url?: string): Route<keyof R & string>;
   /** the driver: `run(App, { ROUTER: router.driver })` */
   driver: (sink$: Stream<any>) => RouterSource;
   options: RouterOptions<R>;
@@ -4321,9 +4321,10 @@ export interface RenderResult<STATE = any> {
    * component became ready) that satisfies the predicate (default: any state). Resolves with it
    * once the whole tree (children included) has rendered it; rejects after timeoutMs (default:
    * the timeoutMs option, 2000). The error names a model next() still scheduled, and a recorded
-   * state that already matched. With `{ dom: 'real' }`, a next() right after another wait (no
-   * input in between) starts after the state that wait resolved with, so
-   * `await t.next(a); await t.next(b)` sees a `b` that arrived while the DOM showed `a`.
+   * state that already matched. A next() right after another wait (no input in between) starts
+   * after the state that wait resolved with, so `await t.next(a); await t.next(b)` sees a `b`
+   * that arrived while `a` rendered. After a waitForState() that matched the history, it starts
+   * no earlier than after the states an awaited input already produced.
    */
   next: (predicate?: (state: STATE) => boolean, timeoutMs?: number) => Promise<STATE>;
   /**

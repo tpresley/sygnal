@@ -4,6 +4,11 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 ## Unreleased
 
+**Fixed (from the Sift console port's preview.4 bump):**
+- **`t.next()` after a `t.waitForState()` that matched the history** no longer matches a state older than the current one. With states 0, 1, 2, `waitForState(n >= 0)` returns 0 (the history's earliest match, as documented), and a following `next(n >= 1)` now waits for 3 instead of returning the recorded 1: a `next()` doesn't go back before the states an awaited input already produced. Mock DOM only; `dom: 'real'` already did this.
+- **`t.simulateEvent()` / `t.simulateAction()` on a disposed handle** throw at the call. They returned a promise that never settled.
+- **`Router.match()` / `router.current()` types** include the `'*'` route's name, which an unmatched URL carries at run time, so `route.name === 'notFound'` type-checks.
+
 **Changed: a wizard GOTO with a key starts the URL query fresh** (the Sift console port's fourth pass, N5; maintainer decision). `{ wizard: 'GOTO', step, key, query }` navigates with only the key and `query` in the URL, as a step's own Next and Back do. Before, it kept the current route's other query values, step one's own included, so `/flow?door=x` became `?door=x&r=…&k=2`. A value of the current route that the new flow needs goes in `query`.
 
 ## 7.2.0-preview.4 — dev preview
