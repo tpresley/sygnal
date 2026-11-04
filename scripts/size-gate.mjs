@@ -23,7 +23,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import zlib from 'node:zlib'
 
 // D48; PLAN-4.6 D185 re-enabled it at 42,300 B (D182 had made it informational during the rewrite)
-const BUDGET = 43144  // 7.2: user-approved for the behavior read-time normalizer (core `read` hook: define.ts fromShim, cell.ts calcCell; the wizard spike's Bug B, +67 B with the lockfile's Vite 8.3.4); was 43,080 B, user-approved for the leaving-child watch fix (runtime.ts hold/unhold); was 43,000 B (7.0 PLAN-12 M-10), 42,700 B (PLAN-5 D230)
+const BUDGET = 43256  // 7.2: user-approved for one shape (every function over state takes (subject, …its own arguments, bag): statics bag + shallow props compare + wrapBag, the `.context` bag; +118 B); was 43,144 B, user-approved for the behavior read-time normalizer (core `read` hook: define.ts fromShim, cell.ts calcCell; the wizard spike's Bug B, +67 B with the lockfile's Vite 8.3.4); was 43,080 B, user-approved for the leaving-child watch fix (runtime.ts hold/unhold); was 43,000 B (7.0 PLAN-12 M-10), 42,700 B (PLAN-5 D230)
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const kanban = path.join(repo, 'examples', 'kanban')
