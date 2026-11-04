@@ -13,6 +13,8 @@ A wizard is one flow over several steps: a draft that the steps fill in, Back an
 
 A [Switchable](/guide/switchable/) keeps hidden steps running instead.
 
+The [`filter-wizard` example](https://github.com/tpresley/sygnal/tree/main/examples/filter-wizard) is a whole flow on the router: the step in the URL, a step group, the leave dialog, an outcome step, and its tests.
+
 ## The recipe
 
 ```jsx live title="NewProject.jsx"
@@ -305,7 +307,7 @@ wizard({
   - `step` is the member that applies; its state gives the entry its status.
   - `steps` lists the members.
   - The label is the group's, else the label of the member that applies.
-  - Render the stepper from `stepper`.
+  - Render the stepper from `stepper`. A stepper button names the member, `data-step={e.step}`: `e.name` is the group's name, which is no step.
 - `state.wizard.steps` still has one entry per step.
 
 **An outcome step** is a final screen after the flow, such as "Created": `created: { outcome: true }`.
@@ -364,6 +366,18 @@ NewFilter.uses = {
 - a link to a step the user can't reach yet is replaced (`replace`) with the first incomplete step before it, as GOV.UK and React Hook Form wizards send the user back:
   - when an earlier step isn't valid, that step;
   - when the step itself is skipped by `when`, the last step before it that isn't.
+
+**A flow kept in a parent's state outlives the page.** Leaving the wizard and coming back finds the same flow, on the same step (the outcome step too, once the flow is done). To start a new flow each time the wizard is entered from another page, drop the slice in the root's route reducer:
+
+```js
+App.model = {
+  ROUTE: (state, route) => {
+    if (!inWizard(route)) return { ...state, route }
+    const flow = inWizard(state.route) ? state.flow : {}   // from another page: a new flow
+    return { ...state, route, flow: { ...flow, route } }
+  },
+}
+```
 
 **Where the route comes from:** the behavior reads it from the host's `state.route`. `url.from` names another place, or maps a route of its own onto the step route. For a first step at `/filters/new`: `from: (state) => state.route.name === 'newFilter' ? { ...state.route, name: 'newFilterStep', params: { step: 'define' } } : state.route`. A navigation the user attempts goes through `from` too, with the attempted route as the state's `route`, to tell whether it stays in the flow.
 

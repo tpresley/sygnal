@@ -1,0 +1,18 @@
+body { font: 16px/1.5 system-ui, sans-serif; margin: 0; color: #1d1d1f; }
+.app { max-width: 40rem; margin: 0 auto; padding: 1rem; }
+.top { padding-bottom: 0.5rem; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
+label { display: block; margin: 0.5rem 0; }
+fieldset { border: 1px solid #ccc; border-radius: 6px; }
+fieldset label { display: inline-block; margin-right: 1rem; }
+.stepper { display: flex; gap: 1.5rem; list-style: none; padding: 0; counter-reset: step; }
+.stepper li::before { counter-increment: step; content: counter(step) ". "; color: #777; }
+.stepper [aria-current="step"] { font-weight: 600; }
+.stepper [data-status="done"]::before { content: "✓ "; color: #1a7f37; }
+.stepper button { font: inherit; background: none; border: 0; padding: 0; color: #0b57d0; text-decoration: underline; cursor: pointer; }
+.moves { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+.moves .start-over { margin-left: auto; }
+dt { font-weight: 600; }
+dd { margin: 0 0 0.5rem; }
+.error { color: #b3261e; }
+dialog::backdrop { background: rgb(0 0 0 / 0.3); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
