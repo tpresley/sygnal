@@ -1,18 +1,123 @@
-body { font: 16px/1.5 system-ui, sans-serif; margin: 0; color: #1d1d1f; }
-.app { max-width: 40rem; margin: 0 auto; padding: 1rem; }
-.top { padding-bottom: 0.5rem; border-bottom: 1px solid #ddd; margin-bottom: 1rem; }
-label { display: block; margin: 0.5rem 0; }
-fieldset { border: 1px solid #ccc; border-radius: 6px; }
-fieldset label { display: inline-block; margin-right: 1rem; }
-.stepper { display: flex; gap: 1.5rem; list-style: none; padding: 0; counter-reset: step; }
-.stepper li::before { counter-increment: step; content: counter(step) ". "; color: #777; }
-.stepper [aria-current="step"] { font-weight: 600; }
-.stepper [data-status="done"]::before { content: "✓ "; color: #1a7f37; }
-.stepper button { font: inherit; background: none; border: 0; padding: 0; color: #0b57d0; text-decoration: underline; cursor: pointer; }
-.moves { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
-.moves .start-over { margin-left: auto; }
-dt { font-weight: 600; }
-dd { margin: 0 0 0.5rem; }
-.error { color: #b3261e; }
-dialog::backdrop { background: rgb(0 0 0 / 0.3); }
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --surface: #fff;
+  --text: #1d1f23;
+  --muted: #5b616b;
+  --line: #d5d9e0;
+  --accent: #2456c7;
+  --accent-text: #fff;
+  --accent-soft: #e8eefb;
+  --done: #1a7f37;
+  --danger: #b3261e;
+  --focus: #2456c7;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15171b;
+    --surface: #1f2228;
+    --text: #e8eaee;
+    --muted: #a3a9b4;
+    --line: #3a3f48;
+    --accent: #7ea6ff;
+    --accent-text: #0e1420;
+    --accent-soft: #23304c;
+    --done: #4ac26b;
+    --danger: #ff8a80;
+    --focus: #9dbcff;
+  }
+}
+
+* { box-sizing: border-box; }
+body { font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; color: var(--text); background: var(--bg); }
+a { color: var(--accent); text-underline-offset: 0.15em; }
+h1 { font-size: 1.6rem; line-height: 1.25; margin: 0 0 1.25rem; }
+h2 { font-size: 1.2rem; line-height: 1.3; margin: 0 0 1rem; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* the router moves focus to the step's heading: no ring on a heading that isn't interactive */
+h2[data-router-focus]:focus { outline: none; }
+
+/* layout */
+.app { max-width: 42rem; margin: 0 auto; padding: 0 1rem 3rem; }
+.top { display: flex; align-items: center; padding: 1rem 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+.top .home { font-weight: 700; font-size: 1.1rem; color: var(--text); text-decoration: none; }
+.top .home:hover { color: var(--accent); }
+main section { margin: 0;  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.5rem; }
+
+/* lists and details */
+.filters { list-style: none; padding: 0; margin: 1rem 0 0; border-top: 1px solid var(--line); }
+.filters li { padding: 0.75rem 0; border-bottom: 1px solid var(--line); color: var(--muted); }
+.filters li a { font-weight: 600; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.5rem 1.25rem; margin: 0 0 1.25rem; }
+dt { font-weight: 600; color: var(--muted); }
+dd { margin: 0; }
+.status { color: var(--muted); }
+
+/* the stepper: a numbered circle per step, done steps checked, the current one filled */
+.stepper { display: flex; list-style: none; padding: 0; margin: 0 0 2rem; counter-reset: step; }
+.stepper li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; position: relative; counter-increment: step; color: var(--muted); font-size: 0.9rem; text-align: center; }
+.stepper li::before {
+  content: counter(step); display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--surface); font-weight: 600; position: relative; z-index: 1;
+}
+/* the line to the previous step */
+.stepper li + li::after { content: ""; position: absolute; top: 1rem; right: calc(50% + 1rem); width: calc(100% - 2rem); height: 2px; background: var(--line); }
+.stepper [data-status="done"]::before { content: "✓"; border-color: var(--done); background: var(--done); color: var(--surface); }
+.stepper [data-status="done"] + li::after { background: var(--done); }
+.stepper [aria-current="step"] { color: var(--text); font-weight: 600; }
+.stepper [aria-current="step"]::before { border-color: var(--accent); background: var(--accent); color: var(--accent-text); box-shadow: 0 0 0 4px var(--accent-soft); }
+.stepper button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0.1rem 0.3rem; border-radius: 4px; cursor: pointer; text-decoration: underline; text-underline-offset: 0.2em; }
+.stepper button:hover { background: var(--accent-soft); }
+
+/* fields */
+label { display: block; margin: 0 0 1rem; font-weight: 600; }
+input:not([type="radio"], [type="checkbox"]), select {
+  display: block; width: 100%; max-width: 24rem; margin-top: 0.35rem; padding: 0.55rem 0.7rem;
+  font: inherit; font-weight: 400; color: var(--text); background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius);
+}
+input:hover, select:hover { border-color: var(--muted); }
+input:focus-visible, select:focus-visible { outline: none; border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 35%, transparent); }
+fieldset { border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem 1rem 0.25rem; margin: 0 0 1rem; }
+legend { font-weight: 600; padding: 0 0.35rem; }
+fieldset label { display: inline-flex; align-items: center; gap: 0.4rem; margin-right: 1.5rem; font-weight: 400; }
+input[type="radio"] { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--accent); }
+
+/* buttons: Next / Create / Discard are primary, the rest secondary */
+button { font: inherit; }
+.moves button, .step button, .leave-dialog button {
+  padding: 0.55rem 1.1rem; border-radius: var(--radius); font-weight: 600; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--text);
+}
+.moves button:hover:not(:disabled), .step button:hover:not(:disabled), .leave-dialog button:hover { border-color: var(--muted); }
+.moves .next, .step .create, .step .similar, .leave-dialog .stay { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.moves .next:hover:not(:disabled), .step .create:hover:not(:disabled), .step .similar:hover, .leave-dialog .stay:hover { background: color-mix(in srgb, var(--accent) 85%, var(--text)); border-color: transparent; }
+.leave-dialog .discard { color: var(--danger); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+.step .rename { padding: 0; border: 0; background: none; color: var(--accent); font-weight: 400; text-decoration: underline; text-underline-offset: 0.2em; }
+.moves { display: flex; gap: 0.5rem; margin: 1.5rem 0 0; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.moves .start-over { margin-left: auto; border-color: transparent; background: none; color: var(--muted); }
+
+a.new-filter { display: inline-block; padding: 0.55rem 1.1rem; border-radius: var(--radius); background: var(--accent); color: var(--accent-text); font-weight: 600; text-decoration: none; }
+.error { color: var(--danger); background: color-mix(in srgb, var(--danger) 10%, transparent); border-radius: var(--radius); padding: 0.5rem 0.75rem; }
+
+/* the leave dialog: a modal */
+.leave-dialog { max-width: 26rem; width: calc(100% - 2rem); padding: 1.5rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: 0 20px 50px rgb(0 0 0 / 0.25); }
+.leave-dialog h2 { margin-bottom: 0.5rem; }
+.leave-dialog p { margin: 0 0 1.5rem; color: var(--muted); }
+.leave-dialog .actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+dialog::backdrop { background: rgb(15 18 25 / 0.55); }
+
+/* the outcome step: a confirmation panel */
+.step.outcome { text-align: center; padding: 1rem 0 0.5rem; }
+.step.outcome::before { content: "✓"; display: grid; place-items: center; width: 3rem; height: 3rem; margin: 0 auto 1rem; border-radius: 50%; background: var(--done); color: var(--surface); font-size: 1.5rem; font-weight: 700; }
+.step.outcome .matches { color: var(--muted); }
+.step.outcome .actions { display: flex; justify-content: center; align-items: center; gap: 1.25rem; margin-top: 1.5rem; }
+
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (max-width: 30rem) {
+  .stepper li { font-size: 0.8rem; }
+  .moves { flex-wrap: wrap; }
+}

@@ -7,11 +7,11 @@ function Created({ state }) {
   const { name, created } = state.draft
   const counted = state.matches != null
   return (
-    <div className="step" role="status">
+    <div className="step outcome" role="status">
       <h2 data-router-focus="">Filter created</h2>
       <p>“{name}” is saved. {created && <a className="open" href={href('filter', { id: String(created.id) })}>Open it</a>}</p>
       <p className="matches">{state.error ?? (counted ? `${state.matches} matches in the last hour.` : 'Counting matches in the last hour…')}</p>
-      <p>
+      <p className="actions">
         <button type="button" className="similar">Create a similar filter</button>{' '}
         <a href={href('list')}>All filters</a>
       </p>

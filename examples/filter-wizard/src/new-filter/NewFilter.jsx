@@ -40,8 +40,10 @@ function NewFilter({ state }) {
       <dialog className="leave-dialog" aria-labelledby="leave-title">
         <h2 id="leave-title">{w.dialog?.title}</h2>
         <p>{w.dialog?.body}</p>
-        <button type="button" className="discard">Discard</button>
-        <button type="button" className="stay">Keep editing</button>
+        <div className="actions">
+          <button type="button" className="discard">Discard</button>
+          <button type="button" className="stay">Keep editing</button>
+        </div>
       </dialog>
     </section>
   )
