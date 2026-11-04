@@ -853,14 +853,14 @@ describe('Sift pass 3: N1, N2, N4', () => {
     }),
   }
 
-  it('N1: GOTO with a key and a query: the route keeps its other values, the draft comes from the route entered; N4: no step-one scratch', async () => {
+  it('N1: GOTO with a key and a query: the draft comes from the route entered; N4: no step-one scratch; N5: the query starts fresh', async () => {
     t = renderComponent(App, { dom: 'real', router, url: '/flow/b?k=1&door=agent' })
     await t.ready(); await tick(40)
     await t.navigate('/flow/a?k=1&door=agent'); await tick(40)
     await click('.two'); await tick(60)
     expect(t.location.path).toBe('/flow/b')
-    expect(t.location.query).toEqual({ k: '2', door: 'agent', r: 'R2' })
-    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '2', draft: { r: 'R2', door: 'agent' }, reseed: null })
+    expect(t.location.query).toEqual({ k: '2', r: 'R2' })
+    expect(t.state.flow.wizard).toMatchObject({ step: 'b', key: '2', draft: { r: 'R2', door: null }, reseed: null })
     expect(t.state.flow.wizard.local.a).toBeUndefined()
   })
 

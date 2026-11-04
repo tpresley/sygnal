@@ -2,6 +2,10 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
+## Unreleased
+
+**Changed: a wizard GOTO with a key starts the URL query fresh** (the Sift console port's fourth pass, N5; maintainer decision). `{ wizard: 'GOTO', step, key, query }` navigates with only the key and `query` in the URL, as a step's own Next and Back do. Before, it kept the current route's other query values, step one's own included, so `/flow?door=x` became `?door=x&r=…&k=2`. A value of the current route that the new flow needs goes in `query`.
+
 ## 7.2.0-preview.4 — dev preview
 
 **Added: `makeRouter({ external })`, for routes another app owns** (the Sift console port, behind an nginx strangler). Before, the router took over links, `{ to }` commands and guard redirects to the old app's URLs and showed its own not-found route: Sift's sign-out hung on "Loading session…". `data-router-ignore` only covered single links, and Vike's `navigate` turned off interception entirely.

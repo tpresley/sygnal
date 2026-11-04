@@ -285,11 +285,9 @@ export const wizard = (o: any = {}): any => {
       },
       ...url && {[R]: (w: any, d: any, _n: any, p: any, _o: any, k: string) => {
         const s = was(w, p, k)
-        // (the route's other query values kept unless the message's `query` gives them)
-        if (plainObj(d) && 'key' in d) {
-          const {[url.key]: _k, ...q} = routeOf(bag(p))?.query || {}
-          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...q, ...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
-        }
+        // a fresh query: the message's `query` and the key, as a step's own navigation (N5)
+        if (plainObj(d) && 'key' in d)
+          return {to: url.route, params: {[url.param]: names.includes(d.step) ? d.step : first}, query: {...d.query, ...url.key && d.key != null && {[url.key]: d.key}}, force: true}
         const n = target(s, 'GOTO', d, bag(p))
         return n ? go(s, n) : ABORT
       }},

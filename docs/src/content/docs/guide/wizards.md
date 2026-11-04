@@ -214,7 +214,7 @@ wizard({
 - **No stale render:** until the state belongs to the new key, the outlet renders no step. A step never mounts against the old record's data.
 - **A second record from inside the flow:** a step that creates another record (Back to step one, Continue, a new session) moves there with `{ wizard: 'GOTO', step: 'describe', key: newSession }`.
   - The flow starts over for the new key, straight at that step. In URL mode the wizard navigates there, past the leave guard.
-  - `query` adds values to the route it navigates to: `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. The current route's other query values are kept unless `query` gives them.
+  - The query starts fresh, as on any step's navigation: the route gets the key and `query`, `{ wizard: 'GOTO', step: 'analyze', key: session, query: { report } }`. A value of the current route the new flow needs goes in `query`.
   - `draft` seeds the new flow. Without it, the draft comes from `draft(state)` on the route it lands on.
   - While the flow has no key yet, the key is adopted and the flow kept, as for a key the route names.
 - **Host state only:** `key` reads the host's state, not its context. Keep the route in the host's state (or the root's), as the [router recipe](/guide/router/#reading-the-route) does.
