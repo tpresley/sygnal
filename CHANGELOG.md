@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.5 — dev preview
 
 **Fixed: entering a finished wizard again showed its outcome step** (found while building `examples/filter-wizard`). After Created → All filters → New filter, the wizard showed Created again: an outcome step replaced every route into the steps with its own, a fresh entry from another page included. Now a host that mounts on another route while the flow is on its outcome starts a new flow at step one. A reload on the outcome's route, Back from another page to it, and Back from it into the steps (still refused) are unchanged.
 
