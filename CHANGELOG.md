@@ -2,7 +2,7 @@
 
 All notable changes to Sygnal are listed here. Versions follow [semantic versioning](https://semver.org). Releases before 5.4.0 are described in the [GitHub releases](https://github.com/tpresley/sygnal/releases) and tags.
 
-## Unreleased
+## 7.2.0-preview.6 — dev preview
 
 **Added: `ROUTER.navigation()`**, how the current route was reached: `'load'`, `'push'` (a link or a command), `'replace'` or `'traverse'` (the browser's Back or Forward). The test fake reports it too (`t.navigate`, `t.back`).
 
