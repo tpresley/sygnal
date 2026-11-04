@@ -73,7 +73,9 @@ describe('renderToString with custom elements (W-3, D199)', () => {
       return h('my-x', { tabIndex: 0, readOnly: true, maxLength: 3, minLength: 1, contentEditable: 'true', accessKey: 'k', inputMode: 'numeric', enterKeyHint: 'go', spellCheck: true, ariaLabel: 'L', htmlFor: 'q' })
     }
     Page.initialState = {}
-    expect(renderToString(Page)).toBe('<my-x tabindex="0" readonly maxlength="3" minlength="1" contenteditable="true" accesskey="k" inputmode="numeric" enterkeyhint="go" spellcheck aria-label="L" for="q" data-sygnal-ssr=""></my-x>')
+    // contentEditable / spellCheck are booleanish attributes (React's): written by the pragma as
+    // "true" / "false" in attrs, after the props
+    expect(renderToString(Page)).toBe('<my-x tabindex="0" readonly maxlength="3" minlength="1" accesskey="k" inputmode="numeric" enterkeyhint="go" aria-label="L" for="q" data-sygnal-ssr="" contenteditable="true" spellcheck="true"></my-x>')
   })
 
   it('skips function and object props and writes camelCase props as kebab-case and lowercase attributes', () => {

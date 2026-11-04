@@ -20,6 +20,8 @@ All notable changes to Sygnal are listed here. Versions follow [semantic version
 
 **Size:** the size gate's budget goes from 43,263 B to 43,460 B (user-approved, +197 B), for the portal events (+161 B) and the "true"/"false" attribute fix (+35 B).
 
+**Fixed: `spellcheck="false"` turned spell checking on** (the Sift console port). React DOM's booleanish string attributes, `spellcheck`, `draggable` and `contenteditable` (any case: `spellCheck`, `contentEditable`), are now attributes, as in React: `"false"` and `false` are written as `"false"`, `true` as `"true"`, `null` removes it. As properties, the string `"false"` was `true`, and a lowercase `contenteditable` was ignored. The default mock DOM (`renderComponent` without `dom: 'real'`) now shows them in `t.html()` / `outerHTML`; sygnal/host gets the same attributes, and on sygnal/three and sygnal/canvas elements `draggable="false"` is not a drag source.
+
 **Docs:** `guide/wizards` § Testing: simulate a reload with a JSON copy of the slice (a spread copy keeps the entry marker).
 
 ## 7.2.0-preview.5 — dev preview
